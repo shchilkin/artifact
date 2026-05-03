@@ -257,11 +257,12 @@ input[type='range'] {
 .pixi-container canvas {
   display: block;
   border: 1px solid oklch(30% 0.02 42);
-  max-width: min(100%, 540px);
-  max-height: min(100%, 540px);
-  width: 100%;
-  height: auto;
   aspect-ratio: 1;
+  /* Height-driven: canvas fills available height and stays square */
+  height: 100%;
+  width: auto;
+  max-height: min(100%, 540px);
+  max-width: 100%;
 }
 
 /* ─── BOTTOM BAR — mobile: 2-row grid, desktop: flex row ── */
