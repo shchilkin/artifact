@@ -186,6 +186,25 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
         <Slider label="Misreg Shift" value={cfg.risoShift} min={0}   max={40}  onChange={(v) => set('risoShift', v)} />
         <Slider label="Misreg Angle" value={cfg.risoAngle} min={0}   max={360} onChange={(v) => set('risoAngle', v)} />
       </Section>
+
+      <Section title="LABEL">
+        <div className="slider-row">
+          <div className="slider-label">
+            <span>Parental Advisory</span>
+            <label className="toggle-switch" aria-label="Toggle Parental Advisory badge">
+              <input
+                type="checkbox"
+                checked={cfg.parentalAdvisory}
+                onChange={(e) => set('parentalAdvisory', e.target.checked)}
+              />
+              <span className="toggle-switch__track" />
+            </label>
+          </div>
+        </div>
+        {cfg.parentalAdvisory && (
+          <p className="pa-hint">Drag the badge on the canvas to reposition it.</p>
+        )}
+      </Section>
     </div>
     </aside>
   );

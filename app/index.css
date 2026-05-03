@@ -258,6 +258,18 @@ input[type='range'] {
   width: 100%;
 }
 
+/* Sized to match the canvas exactly — overlay anchors to this */
+.canvas-area {
+  position: relative;
+  aspect-ratio: 1;
+  height: 100%;
+  max-height: min(100%, 540px);
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .pixi-container {
   display: flex;
   align-items: center;
@@ -276,6 +288,70 @@ input[type='range'] {
   width: auto;
   max-height: min(100%, 540px);
   max-width: 100%;
+}
+
+/* PA overlay sits exactly over the canvas area */
+.pa-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pa-overlay .pa-badge {
+  pointer-events: auto;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch__track {
+  display: block;
+  width: 32px;
+  height: 18px;
+  background: oklch(25% 0.01 280);
+  border-radius: 9px;
+  transition: background 0.18s ease;
+}
+
+.toggle-switch input:checked + .toggle-switch__track {
+  background: var(--accent);
+}
+
+.toggle-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+
+.toggle-switch input:checked + .toggle-switch__track::after {
+  transform: translateX(14px);
+}
+
+/* PA hint text */
+.pa-hint {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.5;
 }
 
 /* ─── BOTTOM BAR — mobile: 2-row grid, desktop: flex row ── */

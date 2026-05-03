@@ -40,6 +40,10 @@ export interface GeneratorConfig {
   halftone: number;    // 0–30  dot-screen grid density (0 = off)
   risoShift: number;   // 0–40  misregistration offset (0 = off)
   risoAngle: number;   // 0–360 misregistration direction
+  // Label overlay
+  parentalAdvisory: boolean;  // show PA badge
+  advisoryX: number;          // 0–1 horizontal position (fraction of canvas width)
+  advisoryY: number;          // 0–1 vertical position (fraction of canvas height)
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -81,6 +85,9 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   halftone: 0,
   risoShift: 0,
   risoAngle: 15,
+  parentalAdvisory: false,
+  advisoryX: 0.05,
+  advisoryY: 0.82,
 };
 
 export const ALL_EMOJIS = [

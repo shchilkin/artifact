@@ -117,7 +117,7 @@ export default function Generator() {
       <SiteNav solid />
       <div className="app">
         <main className="main">
-          <CanvasPreview cfg={cfg} seed={seed} />
+          <CanvasPreview cfg={cfg} seed={seed} onCfgChange={setCfg} />
           <BottomBar {...bottomBarProps} />
         </main>
 
