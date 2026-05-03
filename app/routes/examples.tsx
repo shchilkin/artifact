@@ -8,7 +8,7 @@ import { DEFAULT_CONFIG } from '../types/config';
 
 export const meta: MetaFunction = () => [
   { title: 'Examples — Album Cover Generator' },
-  { name: 'description', content: 'Browse generated glitch album covers. Click any to open in the generator.' },
+  { name: 'description', content: 'Browse glitch album covers made with the generator. Tap any to open and remix it.' },
 ];
 
 interface ExampleData {
@@ -76,7 +76,7 @@ export default function Examples() {
       <main className="examples-main">
         <header className="examples-header">
           <h1 className="examples-title">Examples</h1>
-          <p className="examples-subtitle">Click any cover to open it in the generator.</p>
+          <p className="examples-subtitle">Tap any cover to open it in the generator.</p>
         </header>
         {items.length === 0 ? (
           <p className="examples-empty">Nothing here yet.</p>

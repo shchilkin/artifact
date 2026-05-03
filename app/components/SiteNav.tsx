@@ -8,6 +8,9 @@ export function SiteNav() {
         <NavLink to="/examples" className={({ isActive }) => `site-nav__link${isActive ? ' site-nav__link--active' : ''}`}>
           Examples
         </NavLink>
+        <NavLink to="/app" className={({ isActive }) => `site-nav__link${isActive ? ' site-nav__link--active' : ''}`}>
+          Generator
+        </NavLink>
         <a href="https://github.com/shchilkin/album-cover-generator" target="_blank" rel="noopener noreferrer" className="site-nav__link">
           GitHub ↗
         </a>

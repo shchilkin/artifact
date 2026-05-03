@@ -5,7 +5,7 @@ import { SiteNav } from '../components/SiteNav';
 
 export const meta: MetaFunction = () => [
   { title: 'Album Cover Generator' },
-  { name: 'description', content: 'GPU-rendered glitch album covers in your browser. 16 effects, seeded randomness, equirectangular env map export.' },
+  { name: 'description', content: 'Make strange, deliberate glitch covers in your browser. 16 effects, seeded, no account needed.' },
 ];
 
 export default function Home() {
@@ -16,13 +16,13 @@ export default function Home() {
         <section className="landing-hero">
           <div className="landing-text">
             <h1 className="landing-headline">
-              GPU-rendered<br />glitch covers.
+              Make something<br />weird.
             </h1>
             <ul className="landing-features" aria-label="Features">
-              <li>16 GPU effects</li>
-              <li>Seeded randomness</li>
-              <li>Env map export</li>
-              <li>Runs in your browser</li>
+              <li>16 effects, no two covers alike</li>
+              <li>Repeatable by seed</li>
+              <li>Export for 3D scenes</li>
+              <li>No account. No install.</li>
             </ul>
             <Link to="/app" className="btn btn-primary landing-cta">
               Open Generator
