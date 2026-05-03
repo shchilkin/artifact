@@ -996,6 +996,13 @@ input[type='range'] {
   opacity: 1;
 }
 
+.examples-item--revealed,
+.examples-item:hover {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 0px;
+  z-index: 1;
+}
+
 .examples-item__seed {
   font-family: var(--mono);
   font-size: 0.65rem;
