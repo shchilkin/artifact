@@ -110,28 +110,30 @@ export default function Generator() {
   };
 
   return (
-    <div className="app">
-      <SiteNav />
-      <main className="main">
-        <CanvasPreview cfg={cfg} seed={seed} />
-        <BottomBar {...bottomBarProps} />
-      </main>
+    <div className="generator-layout">
+      <SiteNav solid />
+      <div className="app">
+        <main className="main">
+          <CanvasPreview cfg={cfg} seed={seed} />
+          <BottomBar {...bottomBarProps} />
+        </main>
 
-      <Sidebar
-        cfg={cfg}
-        onChange={setCfg}
-        mobileActionBar={<BottomBar {...bottomBarProps} />}
-      />
-
-      {showPresets && (
-        <PresetsPanel
-          presets={presets}
-          onSave={(name) => savePreset(name, seed, cfg)}
-          onLoad={handleLoadPreset}
-          onDelete={deletePreset}
-          onClose={() => setShowPresets(false)}
+        <Sidebar
+          cfg={cfg}
+          onChange={setCfg}
+          mobileActionBar={<BottomBar {...bottomBarProps} />}
         />
-      )}
+
+        {showPresets && (
+          <PresetsPanel
+            presets={presets}
+            onSave={(name) => savePreset(name, seed, cfg)}
+            onLoad={handleLoadPreset}
+            onDelete={deletePreset}
+            onClose={() => setShowPresets(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

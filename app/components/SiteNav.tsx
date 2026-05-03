@@ -1,8 +1,8 @@
 import { Link, NavLink } from 'react-router';
 
-export function SiteNav() {
+export function SiteNav({ solid }: { solid?: boolean }) {
   return (
-    <nav className="site-nav" aria-label="Site navigation">
+    <nav className={`site-nav${solid ? ' site-nav--solid' : ''}`} aria-label="Site navigation">
       <Link to="/" className="site-nav__brand">ACG</Link>
       <div className="site-nav__links">
         <NavLink to="/examples" className={({ isActive }) => `site-nav__link${isActive ? ' site-nav__link--active' : ''}`}>

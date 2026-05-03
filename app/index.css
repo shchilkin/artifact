@@ -33,12 +33,25 @@ html, body {
 
 /* ─── APP SHELL ──────────────────────────────────── */
 
+.generator-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
 .app {
   display: flex;
   flex-direction: column; /* Mobile: canvas top, sidebar bottom */
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+.generator-layout > .app {
+  flex: 1;
+  height: auto;
+  min-height: 0;
 }
 
 @media (min-width: 768px) {
@@ -627,6 +640,14 @@ input[type='range'] {
   pointer-events: none;
 }
 
+.site-nav--solid {
+  position: relative;
+  background: var(--bg);
+  border-bottom: 1px solid oklch(20% 0.01 280);
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
 .site-nav > * { pointer-events: auto; }
 
 .site-nav__brand {
@@ -932,23 +953,22 @@ input[type='range'] {
   padding: 48px 0;
 }
 
-/* Masonry via CSS columns */
+/* Grid layout — items are square so regular grid works; appends stay at bottom */
 .examples-grid {
-  columns: 2;
-  column-gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
 }
 
 @media (min-width: 600px) {
-  .examples-grid { columns: 3; }
+  .examples-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (min-width: 1024px) {
-  .examples-grid { columns: 4; }
+  .examples-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 .examples-item {
-  break-inside: avoid;
-  margin-bottom: 6px;
   position: relative;
   cursor: pointer;
   display: block;
@@ -981,7 +1001,7 @@ input[type='range'] {
 .examples-item__overlay {
   position: absolute;
   inset: 0;
-  background: oklch(5% 0.01 42 / 0.88);
+  background: oklch(5% 0.01 42 / 0.62);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
