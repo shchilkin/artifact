@@ -3,9 +3,19 @@ import { render } from './renderer';
 import { buildFilters } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
 
-const BADGE_ASPECT = 104 / 340;
+/** Badge aspect ratio from public/Parental_Advisory_label.svg: 265 × 166 */
+const BADGE_ASPECT = 166 / 265;
 
-function drawParentalAdvisory(
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function drawParentalAdvisory(
   ctx: CanvasRenderingContext2D,
   canvasSize: number,
   x: number,
@@ -17,40 +27,8 @@ function drawParentalAdvisory(
   const px = canvasSize * x;
   const py = canvasSize * y;
 
-  ctx.save();
-
-  // Outer black border
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(px, py, bw, bh);
-
-  // White inner fill
-  const b = bw * (3 / 340);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(px + b, py + b, bw - b * 2, bh - b * 2);
-
-  // Inner black border stroke
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = bw * (2 / 340);
-  ctx.strokeRect(px + b, py + b, bw - b * 2, bh - b * 2);
-
-  // Divider line
-  const divY = py + bh * (54 / 104);
-  ctx.beginPath();
-  ctx.moveTo(px + b, divY);
-  ctx.lineTo(px + bw - b, divY);
-  ctx.stroke();
-
-  // Text
-  const fontSize = bw * (22 / 340);
-  ctx.fillStyle = '#000000';
-  ctx.font = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.letterSpacing = `${bw * (1 / 340)}px`;
-
-  ctx.fillText('PARENTAL ADVISORY', px + bw / 2, py + bh * (43 / 104));
-  ctx.fillText('EXPLICIT CONTENT', px + bw / 2, py + bh * (88 / 104));
-
-  ctx.restore();
+  const img = await loadImage('/Parental_Advisory_label.svg');
+  ctx.drawImage(img, px, py, bw, bh);
 }
 
 function triggerDownload(dataUrl: string, seed: number, resolution: number) {
@@ -87,7 +65,7 @@ export async function exportCanvas(
 
   if (cfg.parentalAdvisory) {
     const ctx = finalCanvas.getContext('2d')!;
-    drawParentalAdvisory(ctx, W, cfg.advisoryX, cfg.advisoryY, 0.3);
+    await drawParentalAdvisory(ctx, W, cfg.advisoryX, cfg.advisoryY, 0.3);
   }
 
   triggerDownload(finalCanvas.toDataURL('image/png', 1.0), seed, resolution);

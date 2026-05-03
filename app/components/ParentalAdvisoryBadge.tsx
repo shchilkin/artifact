@@ -12,8 +12,8 @@ interface Props {
   inert?: boolean;
 }
 
-/** Canonical badge aspect ratio: 340 × 104 */
-const BADGE_ASPECT = 104 / 340;
+/** Badge aspect ratio from public/Parental_Advisory_label.svg: 265 × 166 */
+const BADGE_ASPECT = 166 / 265;
 
 export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,51 +66,13 @@ export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false 
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <svg
-        viewBox="0 0 340 104"
-        xmlns="http://www.w3.org/2000/svg"
+      <img
+        src="/Parental_Advisory_label.svg"
+        alt="Parental Advisory Explicit Content"
         width="100%"
-        style={{ display: 'block' }}
-        aria-label="Parental Advisory Explicit Content"
-      >
-        {/* Outer black border */}
-        <rect x="0" y="0" width="340" height="104" fill="black" />
-        {/* White inner fill */}
-        <rect x="3" y="3" width="334" height="98" fill="white" />
-        {/* Black inner border */}
-        <rect x="3" y="3" width="334" height="98" fill="none" stroke="black" strokeWidth="2" />
-
-        {/* Divider line */}
-        <line x1="3" y1="54" x2="337" y2="54" stroke="black" strokeWidth="2" />
-
-        {/* Top text: PARENTAL ADVISORY */}
-        <text
-          x="170"
-          y="43"
-          textAnchor="middle"
-          fontFamily="Arial Black, Arial, sans-serif"
-          fontWeight="900"
-          fontSize="22"
-          fill="black"
-          letterSpacing="1"
-        >
-          PARENTAL ADVISORY
-        </text>
-
-        {/* Bottom text: EXPLICIT CONTENT */}
-        <text
-          x="170"
-          y="88"
-          textAnchor="middle"
-          fontFamily="Arial Black, Arial, sans-serif"
-          fontWeight="900"
-          fontSize="22"
-          fill="black"
-          letterSpacing="1"
-        >
-          EXPLICIT CONTENT
-        </text>
-      </svg>
+        style={{ display: 'block', pointerEvents: 'none' }}
+        draggable={false}
+      />
     </div>
   );
 }
