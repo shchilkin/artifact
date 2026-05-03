@@ -308,6 +308,12 @@ input[type='range'] {
    its container. Set container-type on .pa-badge wrapper.
    ========================================================= */
 
+/* White outline variant for visibility on dark backgrounds */
+.pa-badge--bordered {
+  outline: 2cqw solid #ffffff;
+  outline-offset: 1cqw;
+}
+
 /* Wrapper: establishes the container query context.
    Width is set via inline style; height derives from aspect-ratio. */
 .pa-badge {

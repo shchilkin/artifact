@@ -10,12 +10,14 @@ interface Props {
   onMove?: (x: number, y: number) => void;
   /** If true, pointer events are disabled (used during export baking) */
   inert?: boolean;
+  /** White outline for visibility on dark backgrounds */
+  bordered?: boolean;
 }
 
 /** Height / width = 1 / 1.6 */
 const BADGE_ASPECT = 1 / 1.6;
 
-export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false }: Props) {
+export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false, bordered = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const startPointer = useRef({ px: 0, py: 0 });
@@ -50,7 +52,7 @@ export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false 
   return (
     <div
       ref={containerRef}
-      className="pa-badge"
+      className={`pa-badge${bordered ? ' pa-badge--bordered' : ''}`}
       style={{
         position: 'absolute',
         left: `${x * 100}%`,

@@ -20,6 +20,7 @@ export function CanvasPreview({ cfg, seed, onCfgChange }: Props) {
             <ParentalAdvisoryBadge
               x={cfg.advisoryX}
               y={cfg.advisoryY}
+              bordered={cfg.advisoryBorder}
               onMove={onCfgChange
                 ? (nx, ny) => onCfgChange({ ...cfg, advisoryX: nx, advisoryY: ny })
                 : undefined

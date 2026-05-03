@@ -47,6 +47,7 @@ async function drawParentalAdvisory(
   x: number,
   y: number,
   size: number,
+  bordered: boolean,
 ) {
   const bw = canvasSize * size;
   const bh = bw * BADGE_ASPECT;
@@ -56,6 +57,21 @@ async function drawParentalAdvisory(
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PA_SVG);
   const img = await loadImage(url);
   ctx.drawImage(img, px, py, bw, bh);
+
+  if (bordered) {
+    const gap = bw * 0.01;        // 1 % gap between badge and outline
+    const stroke = bw * 0.02;     // 2 % stroke width
+    ctx.save();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = stroke;
+    ctx.strokeRect(
+      px - gap - stroke / 2,
+      py - gap - stroke / 2,
+      bw + gap * 2 + stroke,
+      bh + gap * 2 + stroke,
+    );
+    ctx.restore();
+  }
 }
 
 function triggerDownload(dataUrl: string, seed: number, resolution: number) {
@@ -92,7 +108,7 @@ export async function exportCanvas(
 
   if (cfg.parentalAdvisory) {
     const ctx = finalCanvas.getContext('2d')!;
-    await drawParentalAdvisory(ctx, W, cfg.advisoryX, cfg.advisoryY, 0.3);
+    await drawParentalAdvisory(ctx, W, cfg.advisoryX, cfg.advisoryY, 0.3, cfg.advisoryBorder);
   }
 
   triggerDownload(finalCanvas.toDataURL('image/png', 1.0), seed, resolution);

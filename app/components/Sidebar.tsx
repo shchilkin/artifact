@@ -202,7 +202,22 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           </div>
         </div>
         {cfg.parentalAdvisory && (
-          <p className="pa-hint">Drag the badge on the canvas to reposition it.</p>
+          <>
+            <div className="slider-row">
+              <div className="slider-label">
+                <span>White border</span>
+                <label className="toggle-switch" aria-label="Toggle white border on badge">
+                  <input
+                    type="checkbox"
+                    checked={cfg.advisoryBorder}
+                    onChange={(e) => set('advisoryBorder', e.target.checked)}
+                  />
+                  <span className="toggle-switch__track" />
+                </label>
+              </div>
+            </div>
+            <p className="pa-hint">Drag the badge on the canvas to reposition it.</p>
+          </>
         )}
       </Section>
     </div>

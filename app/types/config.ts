@@ -44,6 +44,7 @@ export interface GeneratorConfig {
   parentalAdvisory: boolean;  // show PA badge
   advisoryX: number;          // 0–1 horizontal position (fraction of canvas width)
   advisoryY: number;          // 0–1 vertical position (fraction of canvas height)
+  advisoryBorder: boolean;    // white outline for visibility on dark backgrounds
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -88,6 +89,7 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   parentalAdvisory: false,
   advisoryX: 0.05,
   advisoryY: 0.82,
+  advisoryBorder: true,
 };
 
 export const ALL_EMOJIS = [
