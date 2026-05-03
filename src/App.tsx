@@ -93,8 +93,10 @@ export default function App() {
     onPrevSeed: handlePrevSeed,
     hasPrevSeed: seedHistory.length > 0,
     onExport: handleExport,
+    onEnvMapExport: handleEnvMapExport,
     onPresetsToggle: () => setShowPresets(!showPresets),
     isExporting,
+    isExportingEnvMap,
   };
 
   return (
@@ -111,8 +113,6 @@ export default function App() {
         cfg={cfg}
         onChange={setCfg}
         mobileActionBar={<BottomBar {...bottomBarProps} />}
-        onEnvMapExport={handleEnvMapExport}
-        isExportingEnvMap={isExportingEnvMap}
       />
 
       {showPresets && (

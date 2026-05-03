@@ -438,6 +438,23 @@ input[type='range'] {
 }
 
 .export-option:hover { background: var(--accent-dim); color: var(--accent); }
+.export-option:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.export-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.export-option--env {
+  gap: 6px;
+}
+
+.export-option-sub {
+  font-size: 9px;
+  opacity: 0.5;
+  margin-left: auto;
+}
 
 /* ─── PRESETS PANEL ──────────────────────────────── */
 

@@ -7,8 +7,10 @@ interface Props {
   onPrevSeed: () => void;
   hasPrevSeed: boolean;
   onExport: (resolution: 1500 | 2000 | 3000) => void;
+  onEnvMapExport: () => void;
   onPresetsToggle: () => void;
   isExporting: boolean;
+  isExportingEnvMap: boolean;
 }
 
 export function BottomBar({
@@ -18,8 +20,10 @@ export function BottomBar({
   onPrevSeed,
   hasPrevSeed,
   onExport,
+  onEnvMapExport,
   onPresetsToggle,
   isExporting,
+  isExportingEnvMap,
 }: Props) {
   const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -35,6 +39,11 @@ export function BottomBar({
   const handleExport = (res: 1500 | 2000 | 3000) => {
     setShowExportMenu(false);
     onExport(res);
+  };
+
+  const handleEnvMapExport = () => {
+    setShowExportMenu(false);
+    onEnvMapExport();
   };
 
   return (
@@ -76,7 +85,7 @@ export function BottomBar({
             disabled={isExporting}
             aria-expanded={showExportMenu}
           >
-            {isExporting ? '...' : 'EXPORT ▾'}
+            {isExporting || isExportingEnvMap ? '...' : 'EXPORT ▾'}
           </button>
           {showExportMenu && (
             <div className="export-menu" role="menu">
@@ -85,6 +94,10 @@ export function BottomBar({
                   {res}×{res}
                 </button>
               ))}
+              <div className="export-menu-divider" />
+              <button className="export-option export-option--env" role="menuitem" onClick={handleEnvMapExport} disabled={isExportingEnvMap}>
+                ENV MAP <span className="export-option-sub">4096×2048</span>
+              </button>
             </div>
           )}
         </div>
