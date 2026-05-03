@@ -301,6 +301,102 @@ input[type='range'] {
   pointer-events: auto;
 }
 
+/* =========================================================
+   Parental Advisory Label — pure HTML/CSS, no images
+   Aspect ratio: 1.6 : 1  (Width : Height)
+   All dimensions in cqw so the badge scales freely with
+   its container. Set container-type on .pa-badge wrapper.
+   ========================================================= */
+
+/* Wrapper: establishes the container query context.
+   Width is set via inline style; height derives from aspect-ratio. */
+.pa-badge {
+  container-type: inline-size;
+  aspect-ratio: 8 / 5;          /* strict 1.6 : 1               */
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Outer thick black frame */
+.pa-label {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: #000000;
+  padding: 3.4cqw;               /* outer black frame             */
+  display: flex;
+  flex-direction: column;
+}
+
+/* White inner area with thin inset black border */
+.pa-inner {
+  flex: 1;
+  box-sizing: border-box;
+  border: 0.8cqw solid #000000;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Row layout ------------------------------------------ */
+.pa-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Row 1 — black bg, 26% of content height */
+.pa-row--top    { flex: 0 0 26%; background: #000000; }
+
+/* Row 2 — white bg, 48% of content height */
+.pa-row--middle { flex: 0 0 48%; background: #ffffff; }
+
+/* Row 3 — black bg, 26% of content height */
+.pa-row--bottom { flex: 0 0 26%; background: #000000; }
+
+/* --- Typography ------------------------------------------ */
+.pa-text {
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* "PARENTAL" — Impact, tracked wide to span the row.
+   text-indent mirrors letter-spacing to re-centre the text,
+   since letter-spacing adds trailing space after the last glyph. */
+.pa-text--parental {
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 5.9cqw;
+  color: #ffffff;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+}
+
+/* "ADVISORY" — Impact at maximum size.
+   29 cqw ≈ 73 % of the badge height = cap-height fills ~80 %
+   of the middle section, almost touching the band edges. */
+.pa-text--advisory {
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 29cqw;
+  color: #000000;
+  letter-spacing: 0.01em;
+  text-indent: 0.01em;
+}
+
+/* "EXPLICIT CONTENT" — Helvetica Neue Black (NOT Impact).
+   Generous tracking to match the visual weight of the outer rows. */
+.pa-text--explicit {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 4.6cqw;
+  color: #ffffff;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+}
+
+
 /* Toggle switch */
 .toggle-switch {
   position: relative;

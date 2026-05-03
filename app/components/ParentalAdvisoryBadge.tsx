@@ -12,8 +12,8 @@ interface Props {
   inert?: boolean;
 }
 
-/** Badge aspect ratio: viewBox 500 × 330 */
-const BADGE_ASPECT = 330 / 500;
+/** Height / width = 1 / 1.6 */
+const BADGE_ASPECT = 1 / 1.6;
 
 export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,69 +57,33 @@ export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false 
         top: `${y * 100}%`,
         width: `${size * 100}%`,
         cursor: inert ? 'default' : 'grab',
-        userSelect: 'none',
-        touchAction: 'none',
         pointerEvents: inert ? 'none' : 'auto',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      aria-label="Parental Advisory Explicit Content"
+      role="img"
     >
-      {/* viewBox 500×330: outer black → white gap → inner border → 3 bands */}
-      <svg
-        viewBox="0 0 500 330"
-        xmlns="http://www.w3.org/2000/svg"
-        width="100%"
-        style={{ display: 'block' }}
-        aria-label="Parental Advisory Explicit Content"
-      >
-        {/* Outer thick black border */}
-        <rect width="500" height="330" fill="black" />
-        {/* White inner fill */}
-        <rect x="9" y="9" width="482" height="312" fill="white" />
-        {/* Inner thin black border */}
-        <rect x="14" y="14" width="472" height="302" fill="none" stroke="black" strokeWidth="3" />
-        {/* Top black band */}
-        <rect x="14" y="14" width="472" height="56" fill="black" />
-        {/* Bottom black band */}
-        <rect x="14" y="260" width="472" height="56" fill="black" />
-
-        {/* PARENTAL – white on black */}
-        <text
-          x="250" y="42"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
-          fontSize="36"
-          fill="white"
-          letterSpacing="8"
-        >PARENTAL</text>
-
-        {/* ADVISORY – giant black on white, stretched to fill width */}
-        <text
-          x="250" y="165"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
-          fontSize="155"
-          fill="black"
-          textLength="458"
-          lengthAdjust="spacingAndGlyphs"
-        >ADVISORY</text>
-
-        {/* EXPLICIT CONTENT – white on black */}
-        <text
-          x="250" y="288"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
-          fontSize="28"
-          fill="white"
-          letterSpacing="5"
-        >EXPLICIT CONTENT</text>
-      </svg>
+      <div className="pa-label">
+        <div className="pa-inner">
+          {/* Row 1: black bg, "PARENTAL" in white */}
+          <div className="pa-row pa-row--top">
+            <span className="pa-text pa-text--parental">PARENTAL</span>
+          </div>
+          {/* Row 2: white bg, "ADVISORY" massive */}
+          <div className="pa-row pa-row--middle">
+            <span className="pa-text pa-text--advisory">ADVISORY</span>
+          </div>
+          {/* Row 3: black bg, "EXPLICIT CONTENT" in white */}
+          <div className="pa-row pa-row--bottom">
+            <span className="pa-text pa-text--explicit">EXPLICIT CONTENT</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
 
