@@ -13,11 +13,34 @@ export function HeroCover() {
   const [fading, setFading] = useState(false);
   const cancelRef = useRef(false);
   const imagesLenRef = useRef(1);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const intervalStartedRef = useRef(false);
 
+  // Keep ref in sync and start the interval once we have 2+ frames
   useEffect(() => {
     imagesLenRef.current = images.length;
+
+    if (images.length >= 2 && !intervalStartedRef.current) {
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!prefersReduced) {
+        intervalStartedRef.current = true;
+        intervalRef.current = setInterval(() => {
+          setFading(true);
+          setTimeout(() => {
+            setActiveIdx(i => (i + 1) % imagesLenRef.current);
+            setFading(false);
+          }, 500);
+        }, 2500);
+      }
+    }
   }, [images.length]);
+
+  // Clear interval only on unmount — never on re-render
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     cancelRef.current = false;
@@ -48,7 +71,7 @@ export function HeroCover() {
         const url = await renderFrame(frame);
         if (!cancelRef.current) {
           setImages(prev => {
-            // Replace the SVG fallback with the first real GPU frame; then append subsequent frames
+            // Replace the SVG fallback with the first real GPU frame; append subsequent frames
             if (prev.length === 1 && prev[0] === FALLBACK_URL) return [url];
             return [...prev, url];
           });
@@ -58,23 +81,6 @@ export function HeroCover() {
 
     return () => { cancelRef.current = true; };
   }, []);
-
-  useEffect(() => {
-    if (images.length < 2 || intervalStartedRef.current) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
-
-    // Start the interval once; read latest frame count via ref to avoid stale closures
-    intervalStartedRef.current = true;
-    const id = setInterval(() => {
-      setFading(true);
-      setTimeout(() => {
-        setActiveIdx(i => (i + 1) % imagesLenRef.current);
-        setFading(false);
-      }, 500);
-    }, 2500);
-    return () => clearInterval(id);
-  }, [images.length]);
 
   return (
     <div className="hero-cover" aria-label="Animated album cover preview">
