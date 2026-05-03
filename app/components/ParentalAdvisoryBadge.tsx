@@ -12,8 +12,8 @@ interface Props {
   inert?: boolean;
 }
 
-/** Badge aspect ratio from public/Parental_Advisory_label.svg: 265 × 166 */
-const BADGE_ASPECT = 166 / 265;
+/** Badge aspect ratio: viewBox 500 × 330 */
+const BADGE_ASPECT = 330 / 500;
 
 export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,13 +66,60 @@ export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false 
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <img
-        src="/Parental_Advisory_label.svg"
-        alt="Parental Advisory Explicit Content"
+      {/* viewBox 500×330: outer black → white gap → inner border → 3 bands */}
+      <svg
+        viewBox="0 0 500 330"
+        xmlns="http://www.w3.org/2000/svg"
         width="100%"
-        style={{ display: 'block', pointerEvents: 'none' }}
-        draggable={false}
-      />
+        style={{ display: 'block' }}
+        aria-label="Parental Advisory Explicit Content"
+      >
+        {/* Outer thick black border */}
+        <rect width="500" height="330" fill="black" />
+        {/* White inner fill */}
+        <rect x="9" y="9" width="482" height="312" fill="white" />
+        {/* Inner thin black border */}
+        <rect x="14" y="14" width="472" height="302" fill="none" stroke="black" strokeWidth="3" />
+        {/* Top black band */}
+        <rect x="14" y="14" width="472" height="56" fill="black" />
+        {/* Bottom black band */}
+        <rect x="14" y="260" width="472" height="56" fill="black" />
+
+        {/* PARENTAL – white on black */}
+        <text
+          x="250" y="42"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
+          fontSize="36"
+          fill="white"
+          letterSpacing="8"
+        >PARENTAL</text>
+
+        {/* ADVISORY – giant black on white, stretched to fill width */}
+        <text
+          x="250" y="165"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
+          fontSize="155"
+          fill="black"
+          textLength="458"
+          lengthAdjust="spacingAndGlyphs"
+        >ADVISORY</text>
+
+        {/* EXPLICIT CONTENT – white on black */}
+        <text
+          x="250" y="288"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="Impact, 'Arial Narrow', Arial, sans-serif"
+          fontSize="28"
+          fill="white"
+          letterSpacing="5"
+        >EXPLICIT CONTENT</text>
+      </svg>
     </div>
   );
 }
+
