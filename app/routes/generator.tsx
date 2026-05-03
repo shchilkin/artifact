@@ -3,6 +3,7 @@ import { Sidebar } from '../components/Sidebar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { PresetsPanel } from '../components/PresetsPanel';
 import { BottomBar } from '../components/BottomBar';
+import { SiteNav } from '../components/SiteNav';
 import { usePresets } from '../hooks/usePresets';
 import { type GeneratorConfig, DEFAULT_CONFIG } from '../types/config';
 import { exportCanvas } from '../utils/exportCanvas';
@@ -110,6 +111,7 @@ export default function Generator() {
 
   return (
     <div className="app">
+      <SiteNav />
       <main className="main">
         <CanvasPreview cfg={cfg} seed={seed} />
         <BottomBar {...bottomBarProps} />

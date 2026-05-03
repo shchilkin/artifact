@@ -826,12 +826,21 @@ input[type='range'] {
 
 /* ─── HERO COVER ─────────────────────────────────── */
 
+.hero-cover-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
 .hero-cover {
   width: min(80vw, 520px);
   aspect-ratio: 1;
   background: oklch(14% 0.01 280);
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+  cursor: pointer;
 }
 
 .hero-cover__img {
@@ -848,6 +857,40 @@ input[type='range'] {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-cover__img { transition: none; }
+}
+
+/* Hero hover overlay */
+.hero-cover__overlay {
+  position: absolute;
+  inset: 0;
+  background: oklch(5% 0.01 42 / 0.82);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.hero-cover__seed {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.hero-cover__cta {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+/* Generate more button */
+.hero-generate-more {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  animation: landing-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ─── EXAMPLES PAGE ──────────────────────────────── */

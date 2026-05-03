@@ -34,11 +34,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <footer className="landing-footer">
-        <a href="https://github.com/shchilkin/album-cover-generator" target="_blank" rel="noopener noreferrer" className="landing-footer__link">
-          View source ↗
-        </a>
-      </footer>
     </div>
   );
 }
