@@ -5,12 +5,19 @@ import { gpuRenderToCanvas } from '../utils/gpuRender';
 import { HERO_FRAMES } from '../utils/heroConfigs';
 
 const SIZE = 480;
+const FALLBACK_URL = '/hero-fallback.svg';
 
 export function HeroCover() {
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([FALLBACK_URL]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [fading, setFading] = useState(false);
   const cancelRef = useRef(false);
+  const imagesLenRef = useRef(1);
+  const intervalStartedRef = useRef(false);
+
+  useEffect(() => {
+    imagesLenRef.current = images.length;
+  }, [images.length]);
 
   useEffect(() => {
     cancelRef.current = false;
@@ -39,7 +46,13 @@ export function HeroCover() {
       for (const frame of framesToRender) {
         if (cancelRef.current) break;
         const url = await renderFrame(frame);
-        if (!cancelRef.current) setImages(prev => [...prev, url]);
+        if (!cancelRef.current) {
+          setImages(prev => {
+            // Replace the SVG fallback with the first real GPU frame; then append subsequent frames
+            if (prev.length === 1 && prev[0] === FALLBACK_URL) return [url];
+            return [...prev, url];
+          });
+        }
       }
     })();
 
@@ -47,14 +60,16 @@ export function HeroCover() {
   }, []);
 
   useEffect(() => {
-    if (images.length < 2) return;
+    if (images.length < 2 || intervalStartedRef.current) return;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) return;
 
+    // Start the interval once; read latest frame count via ref to avoid stale closures
+    intervalStartedRef.current = true;
     const id = setInterval(() => {
       setFading(true);
       setTimeout(() => {
-        setActiveIdx(i => (i + 1) % images.length);
+        setActiveIdx(i => (i + 1) % imagesLenRef.current);
         setFading(false);
       }, 500);
     }, 3500);
@@ -63,17 +78,13 @@ export function HeroCover() {
 
   return (
     <div className="hero-cover" aria-label="Animated album cover preview">
-      {images.length === 0 ? (
-        <div className="hero-cover__placeholder" aria-hidden="true" />
-      ) : (
-        <img
-          src={images[activeIdx]}
-          alt="Generated album cover"
-          className={`hero-cover__img${fading ? ' hero-cover__img--fade' : ''}`}
-          width={SIZE}
-          height={SIZE}
-        />
-      )}
+      <img
+        src={images[activeIdx]}
+        alt="Generated album cover"
+        className={`hero-cover__img${fading ? ' hero-cover__img--fade' : ''}`}
+        width={SIZE}
+        height={SIZE}
+      />
     </div>
   );
 }

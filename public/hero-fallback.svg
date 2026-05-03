@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <defs>
+    <pattern id="sl" width="2" height="4" patternUnits="userSpaceOnUse">
+      <rect width="2" height="1" fill="#9900ff" opacity="0.07"/>
+    </pattern>
+    <radialGradient id="haze1" cx="50%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#4400aa" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#0d0020" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="haze2" cx="28%" cy="72%" r="40%">
+      <stop offset="0%" stop-color="#6600cc" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0d0020" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="haze3" cx="78%" cy="60%" r="35%">
+      <stop offset="0%" stop-color="#2200aa" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#0d0020" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="50%" r="70%">
+      <stop offset="30%" stop-color="#0d0020" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#060010" stop-opacity="0.85"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Base -->
+  <rect width="480" height="480" fill="#0d0020"/>
+
+  <!-- Atmospheric glow blobs -->
+  <rect width="480" height="480" fill="url(#haze1)"/>
+  <rect width="480" height="480" fill="url(#haze2)"/>
+  <rect width="480" height="480" fill="url(#haze3)"/>
+
+  <!-- Scanlines -->
+  <rect width="480" height="480" fill="url(#sl)"/>
+
+  <!-- Glitch horizontal bars -->
+  <rect x="0"   y="148" width="480" height="2" fill="#9900ff" opacity="0.5"/>
+  <rect x="60"  y="150" width="300" height="1" fill="#cc44ff" opacity="0.35"/>
+  <rect x="0"   y="238" width="340" height="2" fill="#7700ee" opacity="0.4"/>
+  <rect x="160" y="240" width="320" height="1" fill="#9900ff" opacity="0.2"/>
+  <rect x="0"   y="312" width="480" height="2" fill="#5500bb" opacity="0.45"/>
+  <rect x="220" y="314" width="260" height="1" fill="#9900ff" opacity="0.25"/>
+
+  <!-- Corrupted data band -->
+  <rect x="0" y="192" width="480" height="48" fill="#1a0035" opacity="0.65"/>
+  <!-- RGB split offset -->
+  <rect x="0" y="192" width="480" height="48" fill="#ff0066" opacity="0.04" transform="translate(-6,0)"/>
+  <rect x="0" y="192" width="480" height="48" fill="#0066ff" opacity="0.04" transform="translate(4,0)"/>
+
+  <!-- Glitch micro-bars inside band -->
+  <rect x="80"  y="204" width="160" height="3" fill="#9900ff" opacity="0.5"/>
+  <rect x="260" y="210" width="120" height="2" fill="#cc00ff" opacity="0.4"/>
+  <rect x="40"  y="218" width="200" height="2" fill="#6600cc" opacity="0.35"/>
+  <rect x="300" y="224" width="140" height="2" fill="#9900ff" opacity="0.3"/>
+
+  <!-- Vignette -->
+  <rect width="480" height="480" fill="url(#vig)"/>
+
+  <!-- Center marker -->
+  <text x="240" y="248" font-family="monospace" font-size="18" fill="#9900ff" text-anchor="middle" opacity="0.55" letter-spacing="8">◈</text>
+</svg>
