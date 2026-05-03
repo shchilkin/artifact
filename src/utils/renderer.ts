@@ -217,15 +217,14 @@ export function render(
   cfg: GeneratorConfig,
   seed: number
 ) {
-  const rng = lcg(seed);
   ctx.clearRect(0, 0, W, H);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
   drawBackground(ctx, W, H, cfg);
-  drawRays(ctx, W, H, cfg, rng);
-  drawGlitch(ctx, W, H, cfg, rng);
-  drawEmojis(ctx, W, H, cfg, rng);
+  drawRays(ctx, W, H, cfg, lcg(seed ^ 0x1a2b3c));
+  drawGlitch(ctx, W, H, cfg, lcg(seed ^ 0x4d5e6f));
+  drawEmojis(ctx, W, H, cfg, lcg(seed ^ 0x7a8b9c));
   applyCA(ctx, W, H, cfg);
   drawScanlines(ctx, W, H, cfg);
   drawGrain(ctx, W, H, cfg, seed);
