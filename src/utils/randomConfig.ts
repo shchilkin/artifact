@@ -71,11 +71,25 @@ export function randomConfig(): GeneratorConfig {
     noiseWarp: spark() ? rand(10, 70) : 0,
     vortex: spark() ? rand(5, 60) : 0,
     barrel: spark() ? rand(5, 70) : 0,
+    mirror: spark() ? rand(1, 3) : 0,
+    dataMosh: spark() ? rand(10, 70) : 0,
+    interlace: spark() ? rand(10, 70) : 0,
 
     // GPU color effects
     pixelate: spark() ? rand(2, 15) : 0,
     hueShift: spark() ? rand(10, 350) : 0,
     rgbSplit: spark() ? rand(3, 25) : 0,
     vignette: rand(0, 80),
+    bloom: spark() ? rand(15, 80) : 0,
+    posterize: spark() ? rand(3, 12) : 0,
+    filmBurn: spark() ? rand(20, 90) : 0,
+
+    // Riso / print — lower activation rate (30%) since they're strong effects
+    duotone: Math.random() < 0.3 ? rand(40, 90) : 0,
+    duoA: randomHsl(baseHue, [30, 60], [3, 12]),
+    duoB: randomHsl(accentHue, [60, 100], [55, 85]),
+    halftone: Math.random() < 0.3 ? rand(5, 20) : 0,
+    risoShift: Math.random() < 0.3 ? rand(5, 30) : 0,
+    risoAngle: rand(0, 360),
   };
 }

@@ -120,11 +120,15 @@ export function Sidebar({ cfg, onChange, mobileActionBar, onEnvMapExport, isExpo
         </div>
         <Slider label="Intensity" value={cfg.rayInt} min={0} max={100} onChange={(v) => set('rayInt', v)} />
         <Slider label="Count" value={cfg.rays} min={4} max={32} onChange={(v) => set('rays', v)} />
+        <Slider label="Bloom" value={cfg.bloom} min={0} max={100} onChange={(v) => set('bloom', v)} />
+        <Slider label="Film Burn" value={cfg.filmBurn} min={0} max={100} onChange={(v) => set('filmBurn', v)} />
       </Section>
 
       <Section title="GLITCH">
         <Slider label="VHS Streaks" value={cfg.glitch} min={0} max={24} onChange={(v) => set('glitch', v)} />
         <Slider label="Chromatic" value={cfg.ca} min={0} max={15} onChange={(v) => set('ca', v)} />
+        <Slider label="Interlace" value={cfg.interlace} min={0} max={100} onChange={(v) => set('interlace', v)} />
+        <Slider label="Data Mosh" value={cfg.dataMosh} min={0} max={100} onChange={(v) => set('dataMosh', v)} />
       </Section>
 
       <Section title="TEXTURE">
@@ -155,6 +159,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar, onEnvMapExport, isExpo
         <Slider label="Barrel"       value={cfg.barrel}    min={0}   max={100} onChange={(v) => set('barrel', v)} />
         <Slider label="Chunk Tear"   value={cfg.tearAmt}   min={0}   max={20}  onChange={(v) => set('tearAmt', v)} />
         <Slider label="Tear Size"    value={cfg.tearSize}  min={1}   max={20}  onChange={(v) => set('tearSize', v)} />
+        <Slider label="Mirror"       value={cfg.mirror}    min={0}   max={3}   onChange={(v) => set('mirror', v)} />
       </Section>
 
       <Section title="COLOR FX">
@@ -162,6 +167,26 @@ export function Sidebar({ cfg, onChange, mobileActionBar, onEnvMapExport, isExpo
         <Slider label="RGB Split"    value={cfg.rgbSplit}  min={0}   max={30}  onChange={(v) => set('rgbSplit', v)} />
         <Slider label="Vignette"     value={cfg.vignette}  min={0}   max={100} onChange={(v) => set('vignette', v)} />
         <Slider label="Pixelate"     value={cfg.pixelate}  min={0}   max={20}  onChange={(v) => set('pixelate', v)} />
+        <Slider label="Posterize"    value={cfg.posterize} min={0}   max={16}  onChange={(v) => set('posterize', v)} />
+      </Section>
+
+      <Section title="RISO">
+        <Slider label="Duotone"      value={cfg.duotone}   min={0}   max={100} onChange={(v) => set('duotone', v)} />
+        <div className="slider-row">
+          <div className="slider-label">
+            <span>Shadow Color</span>
+            <input type="color" value={cfg.duoA} onChange={(e) => set('duoA', e.target.value)} className="color-input" />
+          </div>
+        </div>
+        <div className="slider-row">
+          <div className="slider-label">
+            <span>Light Color</span>
+            <input type="color" value={cfg.duoB} onChange={(e) => set('duoB', e.target.value)} className="color-input" />
+          </div>
+        </div>
+        <Slider label="Halftone"     value={cfg.halftone}  min={0}   max={30}  onChange={(v) => set('halftone', v)} />
+        <Slider label="Misreg Shift" value={cfg.risoShift} min={0}   max={40}  onChange={(v) => set('risoShift', v)} />
+        <Slider label="Misreg Angle" value={cfg.risoAngle} min={0}   max={360} onChange={(v) => set('risoAngle', v)} />
       </Section>
 
       <Section title="EXPORT">

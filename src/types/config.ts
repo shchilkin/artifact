@@ -14,7 +14,7 @@ export interface GeneratorConfig {
   glitch: number;
   tint: string;
   tintOp: number;
-  // GPU effects
+  // GPU warp
   morphAmt: number;    // 0–100 liquid distortion intensity
   morphFreq: number;   // 1–20  wave frequency
   tearAmt: number;     // 0–20  chunk tearing intensity
@@ -22,10 +22,24 @@ export interface GeneratorConfig {
   noiseWarp: number;   // 0–100 hash-based organic warp
   vortex: number;      // 0–100 rotational twist from center
   barrel: number;      // 0–100 barrel lens distortion
+  mirror: number;      // 0–3   0=off 1=fold-x 2=fold-y 3=quad
+  dataMosh: number;    // 0–100 block displacement glitch
+  interlace: number;   // 0–100 alternating scanline shift
+  // GPU color FX
   pixelate: number;    // 0–20  pixelate block size (0 = off)
   hueShift: number;    // 0–360 hue wheel rotation
   rgbSplit: number;    // 0–30  diagonal RGB channel separation
   vignette: number;    // 0–100 edge burn darkening
+  bloom: number;       // 0–100 bright-area glow bleed
+  posterize: number;   // 0–16  color steps (0 = off)
+  filmBurn: number;    // 0–100 hot corner flare
+  // Riso / print
+  duotone: number;     // 0–100 two-colour mapping strength
+  duoA: string;        // shadow / dark ink colour
+  duoB: string;        // highlight / light ink colour
+  halftone: number;    // 0–30  dot-screen grid density (0 = off)
+  risoShift: number;   // 0–40  misregistration offset (0 = off)
+  risoAngle: number;   // 0–360 misregistration direction
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -51,10 +65,22 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   noiseWarp: 0,
   vortex: 0,
   barrel: 0,
+  mirror: 0,
+  dataMosh: 0,
+  interlace: 0,
   pixelate: 0,
   hueShift: 0,
   rgbSplit: 0,
   vignette: 0,
+  bloom: 0,
+  posterize: 0,
+  filmBurn: 0,
+  duotone: 0,
+  duoA: '#0a0020',
+  duoB: '#ff6ec7',
+  halftone: 0,
+  risoShift: 0,
+  risoAngle: 15,
 };
 
 export const ALL_EMOJIS = [
