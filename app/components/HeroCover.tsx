@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { render } from '../utils/renderer';
 import { buildFilters } from '../utils/pixiFilters';
 import { gpuRenderToCanvas } from '../utils/gpuRender';
-import { ALL_HERO_FRAMES, generateRandomHeroFrame, type HeroFrame } from '../utils/heroConfigs';
+import { ALL_HERO_FRAMES, type HeroFrame } from '../utils/heroConfigs';
 
 const SIZE = 480;
 const FALLBACK_URL = '/hero-fallback.svg';
@@ -33,15 +33,12 @@ export function HeroCover() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [fading, setFading] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [allLoaded, setAllLoaded] = useState(false);
   const cancelRef = useRef(false);
   const imagesLenRef = useRef(1);
   const currentIdxRef = useRef(0);
   const allLoadedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const intervalStartedRef = useRef(false);
-  const renderQueue = useRef<HeroFrame[]>([]);
-  const renderingRef = useRef(false);
 
   useEffect(() => {
     imagesLenRef.current = images.length;
@@ -81,35 +78,6 @@ export function HeroCover() {
     };
   }, []);
 
-  const drainQueue = useCallback(async () => {
-    if (renderingRef.current) return;
-    renderingRef.current = true;
-    while (renderQueue.current.length > 0) {
-      if (cancelRef.current) break;
-      const frame = renderQueue.current.shift()!;
-      const url = await renderFrameFn(frame);
-      if (!cancelRef.current) {
-        setImages(prev => [...prev, url]);
-        setFrameData(prev => [...prev, frame]);
-      }
-    }
-    if (!cancelRef.current) {
-      allLoadedRef.current = true;
-      setAllLoaded(true);
-    }
-    renderingRef.current = false;
-  }, []);
-
-  function handleGenerateMore() {
-    const newFrames = Array.from({ length: 10 }, () =>
-      generateRandomHeroFrame(Math.floor(Math.random() * 900000) + 100000)
-    );
-    allLoadedRef.current = false;
-    setAllLoaded(false);
-    renderQueue.current.push(...newFrames);
-    drainQueue();
-  }
-
   useEffect(() => {
     cancelRef.current = false;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -132,7 +100,6 @@ export function HeroCover() {
       }
       if (!cancelRef.current) {
         allLoadedRef.current = true;
-        setAllLoaded(true);
       }
     })();
 
@@ -171,11 +138,6 @@ export function HeroCover() {
           </div>
         )}
       </div>
-      {allLoaded && (
-        <button className="btn btn-primary hero-generate-more" onClick={handleGenerateMore}>
-          Generate more →
-        </button>
-      )}
     </div>
   );
 }

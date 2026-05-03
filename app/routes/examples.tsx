@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { MetaFunction } from 'react-router';
 import { SiteNav } from '../components/SiteNav';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import type { GeneratorConfig } from '../types/config';
 import { DEFAULT_CONFIG } from '../types/config';
+import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
   { title: 'Examples — Album Cover Generator' },
@@ -38,6 +39,10 @@ export default function Examples() {
   );
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [isTouch, setIsTouch] = useState(false);
+  const [allRendered, setAllRendered] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const generatePageRef = useRef(0);
+  const cancelRef = useRef(false);
 
   useEffect(() => {
     setIsTouch(window.matchMedia('(pointer: coarse)').matches);
@@ -45,6 +50,7 @@ export default function Examples() {
 
   useEffect(() => {
     let cancelled = false;
+    cancelRef.current = false;
     async function renderAll() {
       for (const ex of rawExamples) {
         if (cancelled) break;
@@ -58,10 +64,35 @@ export default function Examples() {
           // leave thumbnail null
         }
       }
+      if (!cancelled) setAllRendered(true);
     }
     renderAll();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; cancelRef.current = true; };
   }, []);
+
+  async function handleGenerateMore() {
+    setGenerating(true);
+    const page = generatePageRef.current;
+    generatePageRef.current += 1;
+    const newFrames = Array.from({ length: 8 }, (_, i) =>
+      generateRandomHeroFrame(500000 + page * 100 + i * 7919)
+    );
+    for (const frame of newFrames) {
+      if (cancelRef.current) break;
+      const id = `generated-${frame.seed}`;
+      const cfg = frame.cfg as GeneratorConfig;
+      setItems(prev => [...prev, { id, name: `Variant #${frame.seed}`, seed: frame.seed, cfg, thumbnail: null }]);
+      try {
+        const thumb = await generateThumbnail(cfg, frame.seed);
+        if (!cancelRef.current) {
+          setItems(prev => prev.map(item => item.id === id ? { ...item, thumbnail: thumb } : item));
+        }
+      } catch {
+        // leave null
+      }
+    }
+    setGenerating(false);
+  }
 
   function openInGenerator(ex: ExampleItem) {
     navigate(`/app?seed=${ex.seed}&cfg=${encodeURIComponent(JSON.stringify(ex.cfg))}`);
@@ -117,6 +148,17 @@ export default function Examples() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {allRendered && (
+          <div className="examples-more">
+            <button
+              className="btn btn-primary"
+              onClick={handleGenerateMore}
+              disabled={generating}
+            >
+              {generating ? 'Generating…' : 'Generate more →'}
+            </button>
           </div>
         )}
       </main>
