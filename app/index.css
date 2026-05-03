@@ -361,32 +361,24 @@ input[type='range'] {
   display: block;
   line-height: 1;
   white-space: nowrap;
+  text-transform: uppercase;
 }
 
-/* "PARENTAL" — Impact, tracked wide to span the row.
-   text-indent mirrors letter-spacing to re-centre the text,
-   since letter-spacing adds trailing space after the last glyph. */
+/* "PARENTAL" — Impact, tracked wide to span the row. */
 .pa-text--parental {
   font-family: Impact, 'Arial Narrow', Arial, sans-serif;
-  font-size: 5.9cqw;
+  font-size: 8cqw;
   color: #ffffff;
   letter-spacing: 0.32em;
   text-indent: 0.32em;
 }
 
-/* "ADVISORY" — Impact, sized so the word fills the inner content width.
-   "ADVISORY" (8 glyphs) in Impact ≈ 4.3 × font-size.
-   Inner width = badge_width − 2×(3.4 + 0.8)cqw ≈ 91.6 cqw
-   → font-size ≈ 91.6 / 4.3 ≈ 21 cqw fills width; cap-height (~73 %)
-   lands at ≈ 60 % of the middle section — large without overflowing. */
+/* "ADVISORY" — Impact, sized so the word fills the inner content width. */
 .pa-text--advisory {
   font-family: Impact, 'Arial Narrow', Arial, sans-serif;
   font-size: 21cqw;
   color: #000000;
   letter-spacing: 0;
-  /* No text-indent here: letter-spacing is 0 and justify-content:center
-     handles alignment. An indent would shift the text right and cause
-     the leading glyph to clip asymmetrically. */
 }
 
 /* "EXPLICIT CONTENT" — Helvetica Neue Black (NOT Impact).
@@ -394,7 +386,7 @@ input[type='range'] {
 .pa-text--explicit {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-weight: 900;
-  font-size: 4.6cqw;
+  font-size: 6.5cqw;
   color: #ffffff;
   letter-spacing: 0.22em;
   text-indent: 0.22em;
