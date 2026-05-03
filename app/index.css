@@ -862,6 +862,13 @@ input[type='range'] {
   overflow: hidden;
   position: relative;
   cursor: pointer;
+  outline: 1.5px solid transparent;
+  outline-offset: 0px;
+  transition: outline-color 0.18s ease;
+}
+
+.hero-cover:hover {
+  outline-color: var(--accent);
 }
 
 .hero-cover__img {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { MetaFunction } from 'react-router';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SiteNav } from '../components/SiteNav';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import type { GeneratorConfig } from '../types/config';
@@ -121,57 +122,94 @@ export default function Examples() {
     <div className="examples-page">
       <SiteNav />
       <main className="examples-main">
-        <header className="examples-header">
+        <motion.header
+          className="examples-header"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
           <h1 className="examples-title">Examples</h1>
           <p className="examples-subtitle">Tap any cover to open it in the generator.</p>
-        </header>
+        </motion.header>
         {items.length === 0 ? (
           <p className="examples-empty">Nothing here yet.</p>
         ) : (
-          <div className="examples-grid">
-            {items.map(item => (
-              <div
-                key={item.id}
-                className={`examples-item${revealed.has(item.id) ? ' examples-item--revealed' : ''}`}
-                onClick={() => {
-                  if (isTouch || revealed.has(item.id)) {
-                    openInGenerator(item);
-                  } else {
-                    toggleReveal(item.id);
-                  }
-                }}
-                onMouseEnter={() => { if (!isTouch) setRevealed(prev => new Set(prev).add(item.id)); }}
-                onMouseLeave={() => { if (!isTouch) setRevealed(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }}
-                role="button"
-                tabIndex={0}
-                aria-label={`${item.name} — Open in generator`}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') openInGenerator(item); }}
-              >
-                {item.thumbnail ? (
-                  <img src={item.thumbnail} alt={item.name} className="examples-item__img" />
-                ) : (
-                  <div className="examples-item__loading" aria-hidden="true" />
-                )}
-                <div className="examples-item__overlay">
-                  <span className="examples-item__seed">#{item.seed}</span>
-                  <span className="examples-item__name">{item.name}</span>
-                  <span className="examples-item__cta">Open in generator →</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <motion.div
+            className="examples-grid"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } },
+            }}
+          >
+            <AnimatePresence initial={false}>
+              {items.map((item) => (
+                <motion.div
+                  key={item.id}
+                  variants={{
+                    hidden: { opacity: 0, scale: 0.92, y: 12 },
+                    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, scale: 0.88, transition: { duration: 0.2 } }}
+                  whileHover={{ scale: 1.025, transition: { duration: 0.18 } }}
+                  className={`examples-item${revealed.has(item.id) ? ' examples-item--revealed' : ''}`}
+                  onClick={() => {
+                    if (isTouch || revealed.has(item.id)) {
+                      openInGenerator(item);
+                    } else {
+                      toggleReveal(item.id);
+                    }
+                  }}
+                  onMouseEnter={() => { if (!isTouch) setRevealed(prev => new Set(prev).add(item.id)); }}
+                  onMouseLeave={() => { if (!isTouch) setRevealed(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${item.name} — Open in generator`}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') openInGenerator(item); }}
+                >
+                  {item.thumbnail ? (
+                    <motion.img
+                      src={item.thumbnail}
+                      alt={item.name}
+                      className="examples-item__img"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.35 }}
+                    />
+                  ) : (
+                    <div className="examples-item__loading" aria-hidden="true" />
+                  )}
+                  <div className="examples-item__overlay">
+                    <span className="examples-item__seed">#{item.seed}</span>
+                    <span className="examples-item__name">{item.name}</span>
+                    <span className="examples-item__cta">Open in generator →</span>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
-        {allRendered && (
-          <div className="examples-more">
-            <button
-              className="btn btn-primary"
-              onClick={handleGenerateMore}
-              disabled={generating}
+        <AnimatePresence>
+          {allRendered && (
+            <motion.div
+              className="examples-more"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
-              {generating ? 'Generating…' : 'Generate more →'}
-            </button>
-          </div>
-        )}
+              <button
+                className="btn btn-primary"
+                onClick={handleGenerateMore}
+                disabled={generating}
+              >
+                {generating ? 'Generating…' : 'Generate more →'}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
