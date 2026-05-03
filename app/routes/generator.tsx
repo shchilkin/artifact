@@ -30,7 +30,7 @@ function getInitialState(): { cfg: GeneratorConfig; seed: number } {
   const paramCfg = params.get('cfg');
   if (paramSeed && paramCfg) {
     try {
-      const decoded = JSON.parse(atob(paramCfg));
+      const decoded = JSON.parse(decodeURIComponent(paramCfg));
       return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed: Number(paramSeed) };
     } catch { /* ignore */ }
   }

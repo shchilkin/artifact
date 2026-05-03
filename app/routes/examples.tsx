@@ -59,7 +59,7 @@ export default function Examples() {
   }, []);
 
   function openInGenerator(ex: ExampleItem) {
-    navigate(`/app?seed=${ex.seed}&cfg=${btoa(JSON.stringify(ex.cfg))}`);
+    navigate(`/app?seed=${ex.seed}&cfg=${encodeURIComponent(JSON.stringify(ex.cfg))}`);
   }
 
   function toggleReveal(id: string) {
