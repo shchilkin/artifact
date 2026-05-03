@@ -23,10 +23,24 @@ function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
   }
 }
 
+function getInitialState(): { cfg: GeneratorConfig; seed: number } {
+  // URL params take priority (e.g. opened from examples gallery)
+  const params = new URLSearchParams(window.location.search);
+  const paramSeed = params.get('seed');
+  const paramCfg = params.get('cfg');
+  if (paramSeed && paramCfg) {
+    try {
+      const decoded = JSON.parse(atob(paramCfg));
+      return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed: Number(paramSeed) };
+    } catch { /* ignore */ }
+  }
+  return loadSaved() ?? { cfg: DEFAULT_CONFIG, seed: 4242 };
+}
+
 export default function Generator() {
-  const saved = loadSaved();
-  const [cfg, setCfg] = useState<GeneratorConfig>(saved?.cfg ?? DEFAULT_CONFIG);
-  const [seed, setSeed] = useState(saved?.seed ?? 4242);
+  const initial = getInitialState();
+  const [cfg, setCfg] = useState<GeneratorConfig>(initial.cfg);
+  const [seed, setSeed] = useState(initial.seed);
   const [showPresets, setShowPresets] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);

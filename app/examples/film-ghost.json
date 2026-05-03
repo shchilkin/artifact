@@ -1,0 +1,16 @@
+{
+  "name": "Film Ghost",
+  "seed": 9876,
+  "cfg": {
+    "bg": "#140800", "emojis": ["🎞️", "👻", "🌫️", "✨", "🕯️"],
+    "density": 25, "minSz": 40, "maxSz": 100, "blur": 80, "grain": 45,
+    "scanlines": 20, "rayInt": 40, "rayColor": "#ff6600", "rays": 6,
+    "ca": 2, "tint": "#200a00", "tintOp": 40, "glitch": 5,
+    "morphAmt": 0, "morphFreq": 5, "tearAmt": 0, "tearSize": 3,
+    "noiseWarp": 70, "vortex": 0, "barrel": 25, "mirror": 0,
+    "dataMosh": 0, "interlace": 20, "pixelate": 0, "hueShift": 0,
+    "rgbSplit": 0, "vignette": 75, "bloom": 45, "posterize": 0,
+    "filmBurn": 80, "duotone": 0, "duoA": "#140800", "duoB": "#ffaa44",
+    "halftone": 0, "risoShift": 0, "risoAngle": 0
+  }
+}
