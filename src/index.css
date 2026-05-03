@@ -194,7 +194,8 @@ input[type='range'] {
   flex: 1;
 }
 
-.canvas-wrapper canvas {
+.canvas-wrapper canvas,
+.pixi-container canvas {
   max-width: 540px;
   max-height: 540px;
   width: min(540px, calc(100vh - 160px));

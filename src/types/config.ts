@@ -14,6 +14,8 @@ export interface GeneratorConfig {
   glitch: number;
   tint: string;
   tintOp: number;
+  morphAmt: number;  // 0–100 liquid distortion
+  tearAmt: number;   // 0–20 chunk tearing
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -32,6 +34,8 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   tint: '#350055',
   tintOp: 28,
   glitch: 7,
+  morphAmt: 0,
+  tearAmt: 0,
 };
 
 export const ALL_EMOJIS = [

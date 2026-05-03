@@ -1,73 +1,75 @@
-# React + TypeScript + Vite
+# Emoji Art Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Glitch-aesthetic album cover generator. Emoji on canvas, GPU post-processing, seeded randomness.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 18 + TypeScript + Vite
+- HTML5 Canvas 2D — base rendering pipeline
+- PixiJS 7 (WebGL) — GPU post-processing effects
+- localStorage — preset system
 
-## React Compiler
+## Rendering pipeline
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Each frame runs in two stages:
 
-## Expanding the ESLint configuration
+**Stage 1 — Canvas 2D** (`src/utils/renderer.ts`)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Background + radial vignette
+2. Light rays (`screen` blend)
+3. VHS glitch streaks (`screen` blend)
+4. Emoji layer — sorted by distance, radial zoom blur
+5. Chromatic aberration (pixel-level R/B channel shift)
+6. Scanlines
+7. Film grain (offscreen canvas, `overlay` blend)
+8. Color tint (`multiply` blend)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+All pixel-value parameters (emoji size, CA offset, glitch height, scanline spacing) scale by `W / 540` so exports match the preview exactly.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**Stage 2 — PixiJS WebGL** (`src/utils/pixiFilters.ts`)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Canvas 2D output is blitted to a `RenderTexture` (guaranteed GPU-resident), then two optional GLSL filters run:
+
+- **Liquid Morph** — sine-wave domain warp in normalized UV space
+- **Chunk Tear** — seeded horizontal strip offset (VHS block glitch)
+
+Both filters use `inputClamp` to avoid sampling FBO padding (prevents black edges).
+
+## Seeded randomness
+
+LCG RNG (`src/utils/lcg.ts`). Each layer gets an independent sub-seed via XOR constants so changing any one parameter (e.g. glitch count) doesn't shift emoji positions.
+
+## Features
+
+- Live preview at 540×540, export at 1500 / 2000 / 3000px
+- Export pixel-matches preview (same pipeline, scaled)
+- Preset system: save/load/delete, 120px thumbnails, stored in localStorage (max 20)
+- Collapsible sidebar sections, full dark theme
+
+## Dev
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+  components/
+    Sidebar.tsx        # Layer controls
+    CanvasPreview.tsx  # PixiJS container
+    PresetsPanel.tsx   # Preset save/load UI
+    BottomBar.tsx      # Seed, randomize, export, presets toggle
+  hooks/
+    usePixiRenderer.ts # Canvas 2D → RenderTexture blit → filters → screen
+    usePresets.ts      # localStorage CRUD
+  utils/
+    lcg.ts             # Seeded LCG RNG
+    renderer.ts        # Canvas 2D pipeline
+    pixiFilters.ts     # PixiJS GLSL filters
+    exportCanvas.ts    # Hi-res export
+  types/
+    config.ts          # GeneratorConfig type + defaults
 ```

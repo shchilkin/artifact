@@ -1,6 +1,8 @@
 import type { GeneratorConfig } from '../types/config';
 import { lcg } from './lcg';
 
+const REF = 540;
+
 type RNG = () => number;
 
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig) {
@@ -57,13 +59,13 @@ function drawRays(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Gene
   ctx.restore();
 }
 
-function drawGlitch(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, rng: RNG) {
+function drawGlitch(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, rng: RNG, scale: number) {
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
 
   for (let i = 0; i < cfg.glitch; i++) {
     const y = rng() * H;
-    const h = 1 + rng() * 3;
+    const h = (1 + rng() * 3) * scale;
     const x = rng() * W * 0.3;
     const w = W * (0.3 + rng() * 0.7);
     const opacity = 0.12 + rng() * 0.25;
@@ -79,7 +81,7 @@ function drawGlitch(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Ge
   ctx.restore();
 }
 
-function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, rng: RNG) {
+function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, rng: RNG, scale: number) {
   if (cfg.emojis.length === 0) return;
 
   const cx = W / 2;
@@ -100,7 +102,7 @@ function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Ge
   for (let i = 0; i < cfg.density; i++) {
     const x = rng() * W;
     const y = rng() * H;
-    const size = cfg.minSz + rng() * (cfg.maxSz - cfg.minSz);
+    const size = (cfg.minSz + rng() * (cfg.maxSz - cfg.minSz)) * scale;
     const rotation = (rng() - 0.5) * 1.2;
     const opacity = 0.6 + rng() * 0.4;
     const emoji = cfg.emojis[Math.floor(rng() * cfg.emojis.length)];
@@ -126,11 +128,11 @@ function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Ge
     if (blurFactor > 0.12) {
       const N = Math.max(1, Math.floor(blurFactor * 8));
       for (let s = N; s >= 0; s--) {
-        const scale = 1 + (s / N) * blurFactor * 0.95;
+        const sc = 1 + (s / N) * blurFactor * 0.95;
         const alpha = item.opacity * (1 - s / (N + 1));
         ctx.globalAlpha = alpha;
         ctx.save();
-        ctx.scale(scale, scale);
+        ctx.scale(sc, sc);
         ctx.fillText(item.emoji, 0, 0);
         ctx.restore();
       }
@@ -143,9 +145,9 @@ function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Ge
   }
 }
 
-function applyCA(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig) {
+function applyCA(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, scale: number) {
   if (cfg.ca === 0) return;
-  const ca = Math.round(cfg.ca);
+  const ca = Math.round(cfg.ca * scale);
   const imageData = ctx.getImageData(0, 0, W, H);
   const data = imageData.data;
   const copy = new Uint8ClampedArray(data);
@@ -165,11 +167,13 @@ function applyCA(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Gener
   ctx.putImageData(imageData, 0, 0);
 }
 
-function drawScanlines(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig) {
+function drawScanlines(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, scale: number) {
   if (cfg.scanlines === 0) return;
+  const step = Math.max(2, Math.round(2 * scale));
+  const lineH = Math.max(1, Math.round(scale));
   ctx.fillStyle = `rgba(0,0,0,${cfg.scanlines / 100})`;
-  for (let y = 0; y < H; y += 2) {
-    ctx.fillRect(0, y, W, 1);
+  for (let y = 0; y < H; y += step) {
+    ctx.fillRect(0, y, W, lineH);
   }
 }
 
@@ -217,16 +221,18 @@ export function render(
   cfg: GeneratorConfig,
   seed: number
 ) {
+  const scale = W / REF;
+
   ctx.clearRect(0, 0, W, H);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
   drawBackground(ctx, W, H, cfg);
   drawRays(ctx, W, H, cfg, lcg(seed ^ 0x1a2b3c));
-  drawGlitch(ctx, W, H, cfg, lcg(seed ^ 0x4d5e6f));
-  drawEmojis(ctx, W, H, cfg, lcg(seed ^ 0x7a8b9c));
-  applyCA(ctx, W, H, cfg);
-  drawScanlines(ctx, W, H, cfg);
+  drawGlitch(ctx, W, H, cfg, lcg(seed ^ 0x4d5e6f), scale);
+  drawEmojis(ctx, W, H, cfg, lcg(seed ^ 0x7a8b9c), scale);
+  applyCA(ctx, W, H, cfg, scale);
+  drawScanlines(ctx, W, H, cfg, scale);
   drawGrain(ctx, W, H, cfg, seed);
   drawTint(ctx, W, H, cfg);
 }

@@ -137,6 +137,11 @@ export function Sidebar({ cfg, onChange }: Props) {
         </div>
         <Slider label="Opacity" value={cfg.tintOp} min={0} max={80} onChange={(v) => set('tintOp', v)} />
       </Section>
+
+      <Section title="GPU EFFECTS">
+        <Slider label="Liquid Morph" value={cfg.morphAmt} min={0} max={100} onChange={(v) => set('morphAmt', v)} />
+        <Slider label="Chunk Tear" value={cfg.tearAmt} min={0} max={20} onChange={(v) => set('tearAmt', v)} />
+      </Section>
     </aside>
   );
 }
