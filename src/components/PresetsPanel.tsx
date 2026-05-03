@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { Preset } from '../hooks/usePresets';
 import { MAX_PRESETS } from '../hooks/usePresets';
-import type { GeneratorConfig } from '../types/config';
 
 interface Props {
   presets: Preset[];
@@ -9,8 +8,6 @@ interface Props {
   onLoad: (preset: Preset) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
-  currentCfg: GeneratorConfig;
-  currentSeed: number;
 }
 
 export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Props) {

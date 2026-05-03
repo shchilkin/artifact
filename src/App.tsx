@@ -122,8 +122,6 @@ export default function App() {
           onLoad={handleLoadPreset}
           onDelete={deletePreset}
           onClose={() => setShowPresets(false)}
-          currentCfg={cfg}
-          currentSeed={seed}
         />
       )}
     </div>
