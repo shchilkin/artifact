@@ -11,7 +11,7 @@ export interface Preset {
 }
 
 const STORAGE_KEY = 'emoji-art-presets';
-const MAX_PRESETS = 20;
+export const MAX_PRESETS = 20;
 
 function loadFromStorage(): Preset[] {
   try {

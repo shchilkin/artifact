@@ -28,6 +28,7 @@ export default function App() {
   const [showPresets, setShowPresets] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [seedHistory, setSeedHistory] = useState<number[]>([]);
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
@@ -40,8 +41,16 @@ export default function App() {
   }, [seed]);
 
   const handleRandomize = useCallback(() => {
+    setSeedHistory(h => [...h.slice(-9), seed]);
     setSeed(Math.floor(Math.random() * 999999));
-  }, []);
+  }, [seed]);
+
+  const handlePrevSeed = useCallback(() => {
+    if (seedHistory.length === 0) return;
+    const prev = seedHistory[seedHistory.length - 1];
+    setSeedHistory(h => h.slice(0, -1));
+    setSeed(prev);
+  }, [seedHistory]);
 
   const handleExport = useCallback(
     async (resolution: 1500 | 2000 | 3000) => {
@@ -67,6 +76,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {showSidebar && (
+        <div className="sidebar-backdrop" onClick={() => setShowSidebar(false)} />
+      )}
       <Sidebar cfg={cfg} onChange={setCfg} isOpen={showSidebar} onClose={() => setShowSidebar(false)} />
 
       <main className="main">
@@ -75,6 +87,8 @@ export default function App() {
           seed={seed}
           onSeedChange={setSeed}
           onRandomize={handleRandomize}
+          onPrevSeed={handlePrevSeed}
+          hasPrevSeed={seedHistory.length > 0}
           onExport={handleExport}
           onPresetsToggle={() => setShowPresets(!showPresets)}
           onSidebarToggle={() => setShowSidebar(!showSidebar)}

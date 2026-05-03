@@ -37,10 +37,11 @@ function Slider({ label, value, min, max, onChange }: SliderProps) {
 interface SectionProps {
   title: string;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
-function Section({ title, children }: SectionProps) {
-  const [open, setOpen] = useState(true);
+function Section({ title, children, defaultOpen = false }: SectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="section">
       <button className="section-header" onClick={() => setOpen(!open)}>
@@ -58,6 +59,7 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
   };
 
   const toggleEmoji = (emoji: string) => {
+    if (cfg.emojis.includes(emoji) && cfg.emojis.length === 1) return; // guard: keep at least one
     const next = cfg.emojis.includes(emoji)
       ? cfg.emojis.filter((e) => e !== emoji)
       : [...cfg.emojis, emoji];
@@ -81,7 +83,7 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
         </div>
       </Section>
 
-      <Section title="EMOJIS">
+      <Section title="EMOJIS" defaultOpen>
         <div className="emoji-grid">
           {ALL_EMOJIS.map((emoji) => (
             <button
@@ -118,7 +120,7 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
 
       <Section title="GLITCH">
         <Slider label="VHS Streaks" value={cfg.glitch} min={0} max={24} onChange={(v) => set('glitch', v)} />
-        <Slider label="Chrom. Aber." value={cfg.ca} min={0} max={15} onChange={(v) => set('ca', v)} />
+        <Slider label="Chromatic" value={cfg.ca} min={0} max={15} onChange={(v) => set('ca', v)} />
       </Section>
 
       <Section title="TEXTURE">

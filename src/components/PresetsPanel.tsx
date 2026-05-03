@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Preset } from '../hooks/usePresets';
+import { MAX_PRESETS } from '../hooks/usePresets';
 import type { GeneratorConfig } from '../types/config';
 
 interface Props {
@@ -27,7 +28,12 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
       <div className="presets-panel">
         <div className="presets-header">
           <span className="section-title">PRESETS</span>
-          <button className="btn btn-icon" onClick={onClose} aria-label="Close presets">✕</button>
+          <div className="presets-header-meta">
+            <span className={`presets-count${presets.length >= MAX_PRESETS - 2 ? ' presets-count--warning' : ''}`}>
+              {presets.length} / {MAX_PRESETS}
+            </span>
+            <button className="btn btn-icon" onClick={onClose} aria-label="Close presets">✕</button>
+          </div>
         </div>
 
         <div className="presets-save">

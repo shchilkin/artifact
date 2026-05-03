@@ -4,6 +4,8 @@ interface Props {
   seed: number;
   onSeedChange: (seed: number) => void;
   onRandomize: () => void;
+  onPrevSeed: () => void;
+  hasPrevSeed: boolean;
   onExport: (resolution: 1500 | 2000 | 3000) => void;
   onPresetsToggle: () => void;
   onSidebarToggle: () => void;
@@ -14,6 +16,8 @@ export function BottomBar({
   seed,
   onSeedChange,
   onRandomize,
+  onPrevSeed,
+  hasPrevSeed,
   onExport,
   onPresetsToggle,
   onSidebarToggle,
@@ -22,7 +26,7 @@ export function BottomBar({
   const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // Sync display when seed changes externally (randomize)
+  // Sync display when seed changes externally (randomize / prev)
   useEffect(() => { setSeedInput(String(seed)); }, [seed]);
 
   const handleSeedSet = () => {
@@ -37,35 +41,58 @@ export function BottomBar({
 
   return (
     <div className="bottom-bar">
-      <div className="bottom-left">
-        <button className="btn btn-icon sidebar-toggle" onClick={onSidebarToggle} title="Settings">
-          ⚙
+      {/* Row 1 (mobile): Settings toggle + Prev + Rand */}
+      <button
+        className="btn sidebar-toggle bottom-settings"
+        onClick={onSidebarToggle}
+        aria-label="Open settings"
+      >
+        <span aria-hidden="true">⚙</span>
+        <span className="sidebar-toggle-text">SETTINGS</span>
+      </button>
+
+      <div className="bottom-rand-group">
+        {hasPrevSeed && (
+          <button className="btn" onClick={onPrevSeed} aria-label="Go to previous seed">
+            ← PREV
+          </button>
+        )}
+        <button className="btn btn-primary rand-btn" onClick={onRandomize}>
+          RAND
         </button>
-        <span className="bottom-label">SEED</span>
+      </div>
+
+      {/* Row 2 (mobile): Seed controls + Export/Presets */}
+      <div className="bottom-seed-group">
+        <span className="bottom-label seed-label">SEED</span>
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={seedInput}
           onChange={(e) => setSeedInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSeedSet()}
+          onBlur={handleSeedSet}
           className="seed-input"
+          aria-label="Seed value"
         />
         <button className="btn" onClick={handleSeedSet}>SET</button>
-        <button className="btn btn-primary" onClick={onRandomize}>RAND</button>
       </div>
 
-      <div className="bottom-right">
+      <div className="bottom-right-group">
         <div className="export-wrap">
           <button
             className="btn btn-primary"
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={isExporting}
+            aria-expanded={showExportMenu}
           >
             {isExporting ? '...' : 'EXPORT ▾'}
           </button>
           {showExportMenu && (
-            <div className="export-menu">
+            <div className="export-menu" role="menu">
               {([1500, 2000, 3000] as const).map((res) => (
-                <button key={res} className="export-option" onClick={() => handleExport(res)}>
+                <button key={res} className="export-option" role="menuitem" onClick={() => handleExport(res)}>
                   {res}×{res}
                 </button>
               ))}
