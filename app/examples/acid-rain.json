@@ -1,0 +1,16 @@
+{
+  "name": "Acid Rain",
+  "seed": 55555,
+  "cfg": {
+    "bg": "#0a1000", "emojis": ["☠️", "🧪", "💚", "⚗️", "🌿"],
+    "density": 38, "minSz": 22, "maxSz": 80, "blur": 60, "grain": 28,
+    "scanlines": 18, "rayInt": 52, "rayColor": "#aaff00", "rays": 16,
+    "ca": 6, "tint": "#091200", "tintOp": 30, "glitch": 10,
+    "morphAmt": 20, "morphFreq": 8, "tearAmt": 0, "tearSize": 3,
+    "noiseWarp": 40, "vortex": 0, "barrel": 30, "mirror": 0,
+    "dataMosh": 20, "interlace": 0, "pixelate": 0, "hueShift": 90,
+    "rgbSplit": 10, "vignette": 60, "bloom": 70, "posterize": 0,
+    "filmBurn": 0, "duotone": 0, "duoA": "#051000", "duoB": "#88ff22",
+    "halftone": 0, "risoShift": 0, "risoAngle": 0
+  }
+}

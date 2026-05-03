@@ -1,0 +1,16 @@
+{
+  "name": "Pixel Death",
+  "seed": 66666,
+  "cfg": {
+    "bg": "#200000", "emojis": ["💀", "🔥", "⚡", "🩸", "☠️"],
+    "density": 35, "minSz": 30, "maxSz": 85, "blur": 40, "grain": 40,
+    "scanlines": 30, "rayInt": 70, "rayColor": "#ff2200", "rays": 10,
+    "ca": 8, "tint": "#1a0000", "tintOp": 35, "glitch": 12,
+    "morphAmt": 0, "morphFreq": 5, "tearAmt": 8, "tearSize": 4,
+    "noiseWarp": 0, "vortex": 0, "barrel": 0, "mirror": 3,
+    "dataMosh": 40, "interlace": 60, "pixelate": 8, "hueShift": 0,
+    "rgbSplit": 14, "vignette": 70, "bloom": 30, "posterize": 6,
+    "filmBurn": 0, "duotone": 50, "duoA": "#1a0000", "duoB": "#ff4400",
+    "halftone": 0, "risoShift": 0, "risoAngle": 0
+  }
+}

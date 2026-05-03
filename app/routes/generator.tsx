@@ -3,6 +3,7 @@ import { Sidebar } from '../components/Sidebar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { PresetsPanel } from '../components/PresetsPanel';
 import { BottomBar } from '../components/BottomBar';
+import { SiteNav } from '../components/SiteNav';
 import { usePresets } from '../hooks/usePresets';
 import { type GeneratorConfig, DEFAULT_CONFIG } from '../types/config';
 import { exportCanvas } from '../utils/exportCanvas';
@@ -23,10 +24,27 @@ function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
   }
 }
 
+function getInitialState(): { cfg: GeneratorConfig; seed: number } {
+  // URL params take priority (e.g. opened from examples gallery)
+  const params = new URLSearchParams(window.location.search);
+  const paramSeed = params.get('seed');
+  const paramCfg = params.get('cfg');
+  if (paramSeed && paramCfg) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(paramCfg));
+      const seed = parseInt(paramSeed, 10);
+      if (!isNaN(seed)) {
+        return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed };
+      }
+    } catch { /* ignore */ }
+  }
+  return loadSaved() ?? { cfg: DEFAULT_CONFIG, seed: 4242 };
+}
+
 export default function Generator() {
-  const saved = loadSaved();
-  const [cfg, setCfg] = useState<GeneratorConfig>(saved?.cfg ?? DEFAULT_CONFIG);
-  const [seed, setSeed] = useState(saved?.seed ?? 4242);
+  const initial = getInitialState();
+  const [cfg, setCfg] = useState<GeneratorConfig>(initial.cfg);
+  const [seed, setSeed] = useState(initial.seed);
   const [showPresets, setShowPresets] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
@@ -95,27 +113,30 @@ export default function Generator() {
   };
 
   return (
-    <div className="app">
-      <main className="main">
-        <CanvasPreview cfg={cfg} seed={seed} />
-        <BottomBar {...bottomBarProps} />
-      </main>
+    <div className="generator-layout">
+      <SiteNav solid />
+      <div className="app">
+        <main className="main">
+          <CanvasPreview cfg={cfg} seed={seed} />
+          <BottomBar {...bottomBarProps} />
+        </main>
 
-      <Sidebar
-        cfg={cfg}
-        onChange={setCfg}
-        mobileActionBar={<BottomBar {...bottomBarProps} />}
-      />
-
-      {showPresets && (
-        <PresetsPanel
-          presets={presets}
-          onSave={(name) => savePreset(name, seed, cfg)}
-          onLoad={handleLoadPreset}
-          onDelete={deletePreset}
-          onClose={() => setShowPresets(false)}
+        <Sidebar
+          cfg={cfg}
+          onChange={setCfg}
+          mobileActionBar={<BottomBar {...bottomBarProps} />}
         />
-      )}
+
+        {showPresets && (
+          <PresetsPanel
+            presets={presets}
+            onSave={(name) => savePreset(name, seed, cfg)}
+            onLoad={handleLoadPreset}
+            onDelete={deletePreset}
+            onClose={() => setShowPresets(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

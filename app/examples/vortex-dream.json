@@ -1,0 +1,16 @@
+{
+  "name": "Vortex Dream",
+  "seed": 77777,
+  "cfg": {
+    "bg": "#000820", "emojis": ["🌀", "🫧", "⭕", "💫", "🔵"],
+    "density": 45, "minSz": 15, "maxSz": 65, "blur": 72, "grain": 18,
+    "scanlines": 8, "rayInt": 55, "rayColor": "#0066ff", "rays": 24,
+    "ca": 7, "tint": "#00082a", "tintOp": 35, "glitch": 4,
+    "morphAmt": 30, "morphFreq": 10, "tearAmt": 0, "tearSize": 3,
+    "noiseWarp": 20, "vortex": 80, "barrel": 60, "mirror": 0,
+    "dataMosh": 0, "interlace": 0, "pixelate": 0, "hueShift": 200,
+    "rgbSplit": 8, "vignette": 65, "bloom": 55, "posterize": 0,
+    "filmBurn": 0, "duotone": 0, "duoA": "#000820", "duoB": "#4488ff",
+    "halftone": 0, "risoShift": 0, "risoAngle": 0
+  }
+}
