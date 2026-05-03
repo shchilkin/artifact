@@ -7,6 +7,7 @@ import { usePresets } from './hooks/usePresets';
 import { type GeneratorConfig, DEFAULT_CONFIG } from './types/config';
 import { exportCanvas } from './utils/exportCanvas';
 import { exportEnvMap } from './utils/exportEnvMap';
+import { randomConfig } from './utils/randomConfig';
 
 const CFG_KEY = 'emoji-art-cfg';
 const SEED_KEY = 'emoji-art-seed';
@@ -44,6 +45,7 @@ export default function App() {
   const handleRandomize = useCallback(() => {
     setSeedHistory(h => [...h.slice(-9), seed]);
     setSeed(Math.floor(Math.random() * 999999));
+    setCfg(randomConfig());
   }, [seed]);
 
   const handlePrevSeed = useCallback(() => {
