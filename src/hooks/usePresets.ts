@@ -30,7 +30,14 @@ export function usePresets() {
   const [presets, setPresets] = useState<Preset[]>(loadFromStorage);
 
   const savePreset = useCallback(async (name: string, seed: number, cfg: GeneratorConfig) => {
-    const thumbnail = await generateThumbnail(cfg, seed);
+    let thumbnail: string;
+    try {
+      thumbnail = await generateThumbnail(cfg, seed);
+    } catch (err) {
+      console.error('[presets] thumbnail generation failed, using placeholder', err);
+      // Fall back to a 1×1 transparent PNG so the preset still saves
+      thumbnail = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    }
     const preset: Preset = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
