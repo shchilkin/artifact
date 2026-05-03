@@ -891,7 +891,12 @@ input[type='range'] {
 
 .examples-item__loading {
   background: oklch(14% 0.01 280);
-  animation: hero-pulse 2.5s ease-in-out infinite;
+  animation: item-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes item-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
 }
 
 .examples-item__overlay {
@@ -939,4 +944,11 @@ input[type='range'] {
 @media (prefers-reduced-motion: reduce) {
   .examples-item__loading { animation: none; }
   .examples-item__overlay { transition: none; }
+}
+
+/* On touch devices show the overlay label by default so covers look interactive */
+@media (pointer: coarse) {
+  .examples-item__overlay {
+    opacity: 1;
+  }
 }

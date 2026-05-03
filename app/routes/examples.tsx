@@ -37,6 +37,11 @@ export default function Examples() {
     rawExamples.map(ex => ({ ...ex, thumbnail: null }))
   );
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    setIsTouch(window.matchMedia('(pointer: coarse)').matches);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,14 +92,14 @@ export default function Examples() {
                 key={item.id}
                 className={`examples-item${revealed.has(item.id) ? ' examples-item--revealed' : ''}`}
                 onClick={() => {
-                  if (!revealed.has(item.id)) {
-                    toggleReveal(item.id);
-                  } else {
+                  if (isTouch || revealed.has(item.id)) {
                     openInGenerator(item);
+                  } else {
+                    toggleReveal(item.id);
                   }
                 }}
-                onMouseEnter={() => setRevealed(prev => new Set(prev).add(item.id))}
-                onMouseLeave={() => setRevealed(prev => { const n = new Set(prev); n.delete(item.id); return n; })}
+                onMouseEnter={() => { if (!isTouch) setRevealed(prev => new Set(prev).add(item.id)); }}
+                onMouseLeave={() => { if (!isTouch) setRevealed(prev => { const n = new Set(prev); n.delete(item.id); return n; }); }}
                 role="button"
                 tabIndex={0}
                 aria-label={`${item.name} — Open in generator`}
