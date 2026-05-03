@@ -374,15 +374,19 @@ input[type='range'] {
   text-indent: 0.32em;
 }
 
-/* "ADVISORY" — Impact at maximum size.
-   29 cqw ≈ 73 % of the badge height = cap-height fills ~80 %
-   of the middle section, almost touching the band edges. */
+/* "ADVISORY" — Impact, sized so the word fills the inner content width.
+   "ADVISORY" (8 glyphs) in Impact ≈ 4.3 × font-size.
+   Inner width = badge_width − 2×(3.4 + 0.8)cqw ≈ 91.6 cqw
+   → font-size ≈ 91.6 / 4.3 ≈ 21 cqw fills width; cap-height (~73 %)
+   lands at ≈ 60 % of the middle section — large without overflowing. */
 .pa-text--advisory {
   font-family: Impact, 'Arial Narrow', Arial, sans-serif;
-  font-size: 29cqw;
+  font-size: 21cqw;
   color: #000000;
-  letter-spacing: 0.01em;
-  text-indent: 0.01em;
+  letter-spacing: 0;
+  /* No text-indent here: letter-spacing is 0 and justify-content:center
+     handles alignment. An indent would shift the text right and cause
+     the leading glyph to clip asymmetrically. */
 }
 
 /* "EXPLICIT CONTENT" — Helvetica Neue Black (NOT Impact).

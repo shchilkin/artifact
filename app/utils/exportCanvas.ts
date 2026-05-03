@@ -25,7 +25,7 @@ const PA_SVG = `<svg viewBox="0 0 500 313" xmlns="http://www.w3.org/2000/svg">
         font-size="30" fill="#fff" letter-spacing="9.6">PARENTAL</text>
   <text x="250" y="156" text-anchor="middle" dominant-baseline="central"
         font-family="Impact,'Arial Narrow',Arial,sans-serif"
-        font-size="145" fill="#000"
+        font-size="105" fill="#000"
         textLength="458" lengthAdjust="spacingAndGlyphs">ADVISORY</text>
   <text x="250" y="259" text-anchor="middle" dominant-baseline="middle"
         font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
