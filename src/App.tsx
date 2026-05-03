@@ -26,7 +26,6 @@ export default function App() {
   const [cfg, setCfg] = useState<GeneratorConfig>(saved?.cfg ?? DEFAULT_CONFIG);
   const [seed, setSeed] = useState(saved?.seed ?? 4242);
   const [showPresets, setShowPresets] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [seedHistory, setSeedHistory] = useState<number[]>([]);
 
@@ -74,27 +73,32 @@ export default function App() {
     [loadPreset]
   );
 
+  const bottomBarProps = {
+    seed,
+    onSeedChange: setSeed,
+    onRandomize: handleRandomize,
+    onPrevSeed: handlePrevSeed,
+    hasPrevSeed: seedHistory.length > 0,
+    onExport: handleExport,
+    onPresetsToggle: () => setShowPresets(!showPresets),
+    isExporting,
+  };
+
   return (
     <div className="app">
-      {showSidebar && (
-        <div className="sidebar-backdrop" onClick={() => setShowSidebar(false)} />
-      )}
-      <Sidebar cfg={cfg} onChange={setCfg} isOpen={showSidebar} onClose={() => setShowSidebar(false)} />
-
+      {/* Canvas area: 40% on mobile (order:1), right column on desktop (order:2) */}
       <main className="main">
         <CanvasPreview cfg={cfg} seed={seed} />
-        <BottomBar
-          seed={seed}
-          onSeedChange={setSeed}
-          onRandomize={handleRandomize}
-          onPrevSeed={handlePrevSeed}
-          hasPrevSeed={seedHistory.length > 0}
-          onExport={handleExport}
-          onPresetsToggle={() => setShowPresets(!showPresets)}
-          onSidebarToggle={() => setShowSidebar(!showSidebar)}
-          isExporting={isExporting}
-        />
+        {/* Desktop: action bar below canvas */}
+        <BottomBar {...bottomBarProps} />
       </main>
+
+      {/* Controls: 60% panel on mobile (order:2), left sidebar on desktop (order:1) */}
+      <Sidebar
+        cfg={cfg}
+        onChange={setCfg}
+        mobileActionBar={<BottomBar {...bottomBarProps} />}
+      />
 
       {showPresets && (
         <PresetsPanel

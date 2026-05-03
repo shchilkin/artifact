@@ -4,8 +4,7 @@ import { type GeneratorConfig, ALL_EMOJIS } from '../types/config';
 interface Props {
   cfg: GeneratorConfig;
   onChange: (cfg: GeneratorConfig) => void;
-  isOpen: boolean;
-  onClose: () => void;
+  mobileActionBar?: React.ReactNode;
 }
 
 interface SliderProps {
@@ -53,7 +52,7 @@ function Section({ title, children, defaultOpen = false }: SectionProps) {
   );
 }
 
-export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
+export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
   const set = <K extends keyof GeneratorConfig>(key: K, value: GeneratorConfig[K]) => {
     onChange({ ...cfg, [key]: value });
   };
@@ -67,8 +66,11 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
   };
 
   return (
-    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
-      <button className="sidebar-close" onClick={onClose} aria-label="Close settings">✕</button>
+    <aside className="sidebar">
+      {mobileActionBar && (
+        <div className="sidebar-mobile-bar">{mobileActionBar}</div>
+      )}
+      <div className="sidebar-sections">
       <Section title="BACKGROUND">
         <div className="slider-row">
           <div className="slider-label">
@@ -159,6 +161,7 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
         <Slider label="Vignette"     value={cfg.vignette}  min={0}   max={100} onChange={(v) => set('vignette', v)} />
         <Slider label="Pixelate"     value={cfg.pixelate}  min={0}   max={20}  onChange={(v) => set('pixelate', v)} />
       </Section>
+    </div>
     </aside>
   );
 }

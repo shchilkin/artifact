@@ -8,7 +8,6 @@ interface Props {
   hasPrevSeed: boolean;
   onExport: (resolution: 1500 | 2000 | 3000) => void;
   onPresetsToggle: () => void;
-  onSidebarToggle: () => void;
   isExporting: boolean;
 }
 
@@ -20,7 +19,6 @@ export function BottomBar({
   hasPrevSeed,
   onExport,
   onPresetsToggle,
-  onSidebarToggle,
   isExporting,
 }: Props) {
   const [seedInput, setSeedInput] = useState(String(seed));
@@ -41,16 +39,7 @@ export function BottomBar({
 
   return (
     <div className="bottom-bar">
-      {/* Row 1 (mobile): Settings toggle + Prev + Rand */}
-      <button
-        className="btn sidebar-toggle bottom-settings"
-        onClick={onSidebarToggle}
-        aria-label="Open settings"
-      >
-        <span aria-hidden="true">⚙</span>
-        <span className="sidebar-toggle-text">SETTINGS</span>
-      </button>
-
+      {/* Row 1: Prev + Rand (settings toggle removed — sidebar always visible) */}
       <div className="bottom-rand-group">
         {hasPrevSeed && (
           <button className="btn" onClick={onPrevSeed} aria-label="Go to previous seed">
