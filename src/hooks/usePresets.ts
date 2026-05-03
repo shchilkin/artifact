@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { GeneratorConfig } from '../types/config';
-import { render } from '../utils/renderer';
+import { generateThumbnail } from '../utils/generateThumbnail';
 
 export interface Preset {
   id: string;
@@ -26,20 +26,11 @@ function saveToStorage(presets: Preset[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
 }
 
-function generateThumbnail(cfg: GeneratorConfig, seed: number): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = 120;
-  canvas.height = 120;
-  const ctx = canvas.getContext('2d')!;
-  render(ctx, 120, 120, cfg, seed);
-  return canvas.toDataURL('image/png', 0.8);
-}
-
 export function usePresets() {
   const [presets, setPresets] = useState<Preset[]>(loadFromStorage);
 
-  const savePreset = useCallback((name: string, seed: number, cfg: GeneratorConfig) => {
-    const thumbnail = generateThumbnail(cfg, seed);
+  const savePreset = useCallback(async (name: string, seed: number, cfg: GeneratorConfig) => {
+    const thumbnail = await generateThumbnail(cfg, seed);
     const preset: Preset = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
