@@ -4,6 +4,8 @@ import { type GeneratorConfig, ALL_EMOJIS } from '../types/config';
 interface Props {
   cfg: GeneratorConfig;
   onChange: (cfg: GeneratorConfig) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 interface SliderProps {
@@ -50,7 +52,7 @@ function Section({ title, children }: SectionProps) {
   );
 }
 
-export function Sidebar({ cfg, onChange }: Props) {
+export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
   const set = <K extends keyof GeneratorConfig>(key: K, value: GeneratorConfig[K]) => {
     onChange({ ...cfg, [key]: value });
   };
@@ -63,7 +65,8 @@ export function Sidebar({ cfg, onChange }: Props) {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
+      <button className="sidebar-close" onClick={onClose} aria-label="Close settings">✕</button>
       <Section title="BACKGROUND">
         <div className="slider-row">
           <div className="slider-label">

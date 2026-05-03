@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { CanvasPreview } from './components/CanvasPreview';
 import { PresetsPanel } from './components/PresetsPanel';
@@ -7,13 +7,37 @@ import { usePresets } from './hooks/usePresets';
 import { type GeneratorConfig, DEFAULT_CONFIG } from './types/config';
 import { exportCanvas } from './utils/exportCanvas';
 
+const CFG_KEY = 'emoji-art-cfg';
+const SEED_KEY = 'emoji-art-seed';
+
+function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    const s = localStorage.getItem(SEED_KEY);
+    if (!raw) return null;
+    return { cfg: { ...DEFAULT_CONFIG, ...JSON.parse(raw) }, seed: s ? parseInt(s) : 4242 };
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const [cfg, setCfg] = useState<GeneratorConfig>(DEFAULT_CONFIG);
-  const [seed, setSeed] = useState(4242);
+  const saved = loadSaved();
+  const [cfg, setCfg] = useState<GeneratorConfig>(saved?.cfg ?? DEFAULT_CONFIG);
+  const [seed, setSeed] = useState(saved?.seed ?? 4242);
   const [showPresets, setShowPresets] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
+
+  // Persist cfg + seed
+  useEffect(() => {
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  }, [cfg]);
+  useEffect(() => {
+    localStorage.setItem(SEED_KEY, String(seed));
+  }, [seed]);
 
   const handleRandomize = useCallback(() => {
     setSeed(Math.floor(Math.random() * 999999));
@@ -43,7 +67,12 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar cfg={cfg} onChange={setCfg} />
+      {/* Sidebar overlay backdrop (mobile) */}
+      {showSidebar && (
+        <div className="sidebar-backdrop" onClick={() => setShowSidebar(false)} />
+      )}
+
+      <Sidebar cfg={cfg} onChange={setCfg} isOpen={showSidebar} onClose={() => setShowSidebar(false)} />
 
       <main className="main">
         <CanvasPreview cfg={cfg} seed={seed} />
@@ -53,6 +82,7 @@ export default function App() {
           onRandomize={handleRandomize}
           onExport={handleExport}
           onPresetsToggle={() => setShowPresets(!showPresets)}
+          onSidebarToggle={() => setShowSidebar(!showSidebar)}
           isExporting={isExporting}
         />
       </main>

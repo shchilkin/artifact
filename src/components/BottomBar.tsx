@@ -6,6 +6,7 @@ interface Props {
   onRandomize: () => void;
   onExport: (resolution: 1500 | 2000 | 3000) => void;
   onPresetsToggle: () => void;
+  onSidebarToggle: () => void;
   isExporting: boolean;
 }
 
@@ -15,6 +16,7 @@ export function BottomBar({
   onRandomize,
   onExport,
   onPresetsToggle,
+  onSidebarToggle,
   isExporting,
 }: Props) {
   const [seedInput, setSeedInput] = useState(String(seed));
@@ -22,9 +24,7 @@ export function BottomBar({
 
   const handleSeedSet = () => {
     const parsed = parseInt(seedInput, 10);
-    if (!isNaN(parsed)) {
-      onSeedChange(parsed);
-    }
+    if (!isNaN(parsed)) onSeedChange(parsed);
   };
 
   const handleExport = (res: 1500 | 2000 | 3000) => {
@@ -35,6 +35,9 @@ export function BottomBar({
   return (
     <div className="bottom-bar">
       <div className="bottom-left">
+        <button className="btn btn-icon sidebar-toggle" onClick={onSidebarToggle} title="Settings">
+          ⚙
+        </button>
         <span className="bottom-label">SEED</span>
         <input
           type="number"
@@ -43,12 +46,8 @@ export function BottomBar({
           onKeyDown={(e) => e.key === 'Enter' && handleSeedSet()}
           className="seed-input"
         />
-        <button className="btn" onClick={handleSeedSet}>
-          SET
-        </button>
-        <button className="btn btn-primary" onClick={onRandomize}>
-          RANDOMIZE
-        </button>
+        <button className="btn" onClick={handleSeedSet}>SET</button>
+        <button className="btn btn-primary" onClick={onRandomize}>RAND</button>
       </div>
 
       <div className="bottom-right">
@@ -58,7 +57,7 @@ export function BottomBar({
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={isExporting}
           >
-            {isExporting ? 'EXPORTING...' : 'EXPORT ▾'}
+            {isExporting ? '...' : 'EXPORT ▾'}
           </button>
           {showExportMenu && (
             <div className="export-menu">
@@ -70,9 +69,7 @@ export function BottomBar({
             </div>
           )}
         </div>
-        <button className="btn" onClick={onPresetsToggle}>
-          PRESETS
-        </button>
+        <button className="btn" onClick={onPresetsToggle}>PRESETS</button>
       </div>
     </div>
   );
