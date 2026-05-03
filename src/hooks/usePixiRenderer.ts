@@ -32,7 +32,7 @@ function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
   renderer.render(blitSprite, { renderTexture: gpuTex, clear: true });
 
   // 3. Apply pixi effects on the GPU texture → screen
-  displaySprite.filters = buildFilters(cfg.morphAmt, cfg.tearAmt, seed);
+  displaySprite.filters = buildFilters(cfg, seed);
   renderer.render(stage);
 }
 

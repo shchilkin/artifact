@@ -14,8 +14,18 @@ export interface GeneratorConfig {
   glitch: number;
   tint: string;
   tintOp: number;
-  morphAmt: number;  // 0–100 liquid distortion
-  tearAmt: number;   // 0–20 chunk tearing
+  // GPU effects
+  morphAmt: number;    // 0–100 liquid distortion intensity
+  morphFreq: number;   // 1–20  wave frequency
+  tearAmt: number;     // 0–20  chunk tearing intensity
+  tearSize: number;    // 1–20  strip height (% of image)
+  noiseWarp: number;   // 0–100 hash-based organic warp
+  vortex: number;      // 0–100 rotational twist from center
+  barrel: number;      // 0–100 barrel lens distortion
+  pixelate: number;    // 0–20  pixelate block size (0 = off)
+  hueShift: number;    // 0–360 hue wheel rotation
+  rgbSplit: number;    // 0–30  diagonal RGB channel separation
+  vignette: number;    // 0–100 edge burn darkening
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -35,7 +45,16 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   tintOp: 28,
   glitch: 7,
   morphAmt: 0,
+  morphFreq: 5,
   tearAmt: 0,
+  tearSize: 3,
+  noiseWarp: 0,
+  vortex: 0,
+  barrel: 0,
+  pixelate: 0,
+  hueShift: 0,
+  rgbSplit: 0,
+  vignette: 0,
 };
 
 export const ALL_EMOJIS = [

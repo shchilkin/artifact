@@ -67,11 +67,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Sidebar overlay backdrop (mobile) */}
-      {showSidebar && (
-        <div className="sidebar-backdrop" onClick={() => setShowSidebar(false)} />
-      )}
-
       <Sidebar cfg={cfg} onChange={setCfg} isOpen={showSidebar} onClose={() => setShowSidebar(false)} />
 
       <main className="main">
@@ -93,6 +88,7 @@ export default function App() {
           onSave={(name) => savePreset(name, seed, cfg)}
           onLoad={handleLoadPreset}
           onDelete={deletePreset}
+          onClose={() => setShowPresets(false)}
           currentCfg={cfg}
           currentSeed={seed}
         />

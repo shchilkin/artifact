@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
   seed: number;
@@ -21,6 +21,9 @@ export function BottomBar({
 }: Props) {
   const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Sync display when seed changes externally (randomize)
+  useEffect(() => { setSeedInput(String(seed)); }, [seed]);
 
   const handleSeedSet = () => {
     const parsed = parseInt(seedInput, 10);

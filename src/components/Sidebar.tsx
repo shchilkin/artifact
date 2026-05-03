@@ -141,9 +141,21 @@ export function Sidebar({ cfg, onChange, isOpen, onClose }: Props) {
         <Slider label="Opacity" value={cfg.tintOp} min={0} max={80} onChange={(v) => set('tintOp', v)} />
       </Section>
 
-      <Section title="GPU EFFECTS">
-        <Slider label="Liquid Morph" value={cfg.morphAmt} min={0} max={100} onChange={(v) => set('morphAmt', v)} />
-        <Slider label="Chunk Tear" value={cfg.tearAmt} min={0} max={20} onChange={(v) => set('tearAmt', v)} />
+      <Section title="WARP">
+        <Slider label="Noise Warp"   value={cfg.noiseWarp} min={0}   max={100} onChange={(v) => set('noiseWarp', v)} />
+        <Slider label="Liquid Morph" value={cfg.morphAmt}  min={0}   max={100} onChange={(v) => set('morphAmt', v)} />
+        <Slider label="Morph Freq"   value={cfg.morphFreq} min={1}   max={20}  onChange={(v) => set('morphFreq', v)} />
+        <Slider label="Vortex"       value={cfg.vortex}    min={0}   max={100} onChange={(v) => set('vortex', v)} />
+        <Slider label="Barrel"       value={cfg.barrel}    min={0}   max={100} onChange={(v) => set('barrel', v)} />
+        <Slider label="Chunk Tear"   value={cfg.tearAmt}   min={0}   max={20}  onChange={(v) => set('tearAmt', v)} />
+        <Slider label="Tear Size"    value={cfg.tearSize}  min={1}   max={20}  onChange={(v) => set('tearSize', v)} />
+      </Section>
+
+      <Section title="COLOR FX">
+        <Slider label="Hue Shift"    value={cfg.hueShift}  min={0}   max={360} onChange={(v) => set('hueShift', v)} />
+        <Slider label="RGB Split"    value={cfg.rgbSplit}  min={0}   max={30}  onChange={(v) => set('rgbSplit', v)} />
+        <Slider label="Vignette"     value={cfg.vignette}  min={0}   max={100} onChange={(v) => set('vignette', v)} />
+        <Slider label="Pixelate"     value={cfg.pixelate}  min={0}   max={20}  onChange={(v) => set('pixelate', v)} />
       </Section>
     </aside>
   );

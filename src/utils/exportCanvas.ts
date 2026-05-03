@@ -49,7 +49,7 @@ export async function exportCanvas(
   const displaySprite = new Sprite(gpuTex);
   displaySprite.width = W;
   displaySprite.height = H;
-  displaySprite.filters = buildFilters(cfg.morphAmt, cfg.tearAmt, seed);
+  displaySprite.filters = buildFilters(cfg, seed);
 
   const stage = new Container();
   stage.addChild(displaySprite);
