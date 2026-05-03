@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { CanvasPreview } from './components/CanvasPreview';
-import { PresetsPanel } from './components/PresetsPanel';
-import { BottomBar } from './components/BottomBar';
-import { usePresets } from './hooks/usePresets';
-import { type GeneratorConfig, DEFAULT_CONFIG } from './types/config';
-import { exportCanvas } from './utils/exportCanvas';
-import { exportEnvMap } from './utils/exportEnvMap';
-import { randomConfig } from './utils/randomConfig';
+import { Sidebar } from '../components/Sidebar';
+import { CanvasPreview } from '../components/CanvasPreview';
+import { PresetsPanel } from '../components/PresetsPanel';
+import { BottomBar } from '../components/BottomBar';
+import { usePresets } from '../hooks/usePresets';
+import { type GeneratorConfig, DEFAULT_CONFIG } from '../types/config';
+import { exportCanvas } from '../utils/exportCanvas';
+import { exportEnvMap } from '../utils/exportEnvMap';
+import { randomConfig } from '../utils/randomConfig';
 
 const CFG_KEY = 'emoji-art-cfg';
 const SEED_KEY = 'emoji-art-seed';
@@ -23,7 +23,7 @@ function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
   }
 }
 
-export default function App() {
+export default function Generator() {
   const saved = loadSaved();
   const [cfg, setCfg] = useState<GeneratorConfig>(saved?.cfg ?? DEFAULT_CONFIG);
   const [seed, setSeed] = useState(saved?.seed ?? 4242);
@@ -34,13 +34,8 @@ export default function App() {
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
-  // Persist cfg + seed
-  useEffect(() => {
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-  }, [cfg]);
-  useEffect(() => {
-    localStorage.setItem(SEED_KEY, String(seed));
-  }, [seed]);
+  useEffect(() => { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }, [cfg]);
+  useEffect(() => { localStorage.setItem(SEED_KEY, String(seed)); }, [seed]);
 
   const handleRandomize = useCallback(() => {
     setSeedHistory(h => [...h.slice(-9), seed]);
@@ -101,14 +96,11 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Canvas area: 40% on mobile (order:1), right column on desktop (order:2) */}
       <main className="main">
         <CanvasPreview cfg={cfg} seed={seed} />
-        {/* Desktop: action bar below canvas */}
         <BottomBar {...bottomBarProps} />
       </main>
 
-      {/* Controls: 60% panel on mobile (order:2), left sidebar on desktop (order:1) */}
       <Sidebar
         cfg={cfg}
         onChange={setCfg}

@@ -610,3 +610,45 @@ input[type='range'] {
 }
 
 
+
+/* ─── LANDING PAGE ───────────────────────────────── */
+
+.landing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 2rem;
+}
+
+.landing-content {
+  max-width: 480px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.landing-title {
+  font-family: var(--mono);
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin: 0;
+}
+
+.landing-subtitle {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.landing-cta {
+  font-size: 0.85rem;
+  padding: 0 2rem;
+  text-decoration: none;
+}
