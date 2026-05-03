@@ -192,7 +192,7 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
   return filter;
 }
 
-export function buildFilters(cfg: GeneratorConfig, seed: number): Filter[] | null {
+export function buildFilters(cfg: GeneratorConfig, seed: number, refSize = 540): Filter[] | null {
   const filters: Filter[] = [];
 
   if (cfg.noiseWarp > 0)
@@ -211,7 +211,7 @@ export function buildFilters(cfg: GeneratorConfig, seed: number): Filter[] | nul
     filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
 
   if (cfg.pixelate > 0)
-    filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(540 / cfg.pixelate)) }));
+    filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)) }));
 
   if (cfg.rgbSplit > 0) {
     // 45° diagonal direction in texCoord units

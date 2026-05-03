@@ -5,6 +5,8 @@ interface Props {
   cfg: GeneratorConfig;
   onChange: (cfg: GeneratorConfig) => void;
   mobileActionBar?: React.ReactNode;
+  onEnvMapExport: () => void;
+  isExportingEnvMap: boolean;
 }
 
 interface SliderProps {
@@ -52,7 +54,7 @@ function Section({ title, children, defaultOpen = false }: SectionProps) {
   );
 }
 
-export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
+export function Sidebar({ cfg, onChange, mobileActionBar, onEnvMapExport, isExportingEnvMap }: Props) {
   const set = <K extends keyof GeneratorConfig>(key: K, value: GeneratorConfig[K]) => {
     onChange({ ...cfg, [key]: value });
   };
@@ -160,6 +162,18 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
         <Slider label="RGB Split"    value={cfg.rgbSplit}  min={0}   max={30}  onChange={(v) => set('rgbSplit', v)} />
         <Slider label="Vignette"     value={cfg.vignette}  min={0}   max={100} onChange={(v) => set('vignette', v)} />
         <Slider label="Pixelate"     value={cfg.pixelate}  min={0}   max={20}  onChange={(v) => set('pixelate', v)} />
+      </Section>
+
+      <Section title="EXPORT">
+        <p className="export-section-label">4096 × 2048 · PNG · equirectangular</p>
+        <button
+          className="btn btn-full"
+          onClick={onEnvMapExport}
+          disabled={isExportingEnvMap}
+          aria-busy={isExportingEnvMap}
+        >
+          {isExportingEnvMap ? '…' : 'ENV MAP'}
+        </button>
       </Section>
     </div>
     </aside>

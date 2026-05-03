@@ -6,6 +6,7 @@ import { BottomBar } from './components/BottomBar';
 import { usePresets } from './hooks/usePresets';
 import { type GeneratorConfig, DEFAULT_CONFIG } from './types/config';
 import { exportCanvas } from './utils/exportCanvas';
+import { exportEnvMap } from './utils/exportEnvMap';
 
 const CFG_KEY = 'emoji-art-cfg';
 const SEED_KEY = 'emoji-art-seed';
@@ -27,6 +28,7 @@ export default function App() {
   const [seed, setSeed] = useState(saved?.seed ?? 4242);
   const [showPresets, setShowPresets] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
   const [seedHistory, setSeedHistory] = useState<number[]>([]);
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
@@ -63,6 +65,15 @@ export default function App() {
     [cfg, seed]
   );
 
+  const handleEnvMapExport = useCallback(async () => {
+    setIsExportingEnvMap(true);
+    try {
+      await exportEnvMap(cfg, seed);
+    } finally {
+      setIsExportingEnvMap(false);
+    }
+  }, [cfg, seed]);
+
   const handleLoadPreset = useCallback(
     (preset: Parameters<typeof loadPreset>[0]) => {
       const { seed: s, cfg: c } = loadPreset(preset);
@@ -98,6 +109,8 @@ export default function App() {
         cfg={cfg}
         onChange={setCfg}
         mobileActionBar={<BottomBar {...bottomBarProps} />}
+        onEnvMapExport={handleEnvMapExport}
+        isExportingEnvMap={isExportingEnvMap}
       />
 
       {showPresets && (

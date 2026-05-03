@@ -378,6 +378,15 @@ input[type='range'] {
 
 .btn-primary { border-color: var(--accent); color: var(--accent); }
 .btn-primary:hover { background: var(--accent-dim); }
+.btn-full { width: 100%; justify-content: center; }
+
+.export-section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin: 0;
+}
 
 .btn-icon {
   border-color: transparent;
