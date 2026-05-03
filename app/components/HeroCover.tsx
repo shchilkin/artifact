@@ -13,10 +13,11 @@ export function HeroCover() {
   const [fading, setFading] = useState(false);
   const cancelRef = useRef(false);
   const imagesLenRef = useRef(1);
+  const currentIdxRef = useRef(0);  // mirrors activeIdx, readable in interval closure
+  const allLoadedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const intervalStartedRef = useRef(false);
 
-  // Keep ref in sync and start the interval once we have 2+ frames
   useEffect(() => {
     imagesLenRef.current = images.length;
 
@@ -25,9 +26,25 @@ export function HeroCover() {
       if (!prefersReduced) {
         intervalStartedRef.current = true;
         intervalRef.current = setInterval(() => {
+          const total = imagesLenRef.current;
+          const current = currentIdxRef.current;
+          const next = current + 1;
+
+          // While still loading: only advance if next frame exists (no wrap-around)
+          // Once all loaded: wrap freely
+          let newIdx: number;
+          if (allLoadedRef.current) {
+            newIdx = next % total;
+          } else if (next < total) {
+            newIdx = next;
+          } else {
+            return; // no new frame ready yet — skip this tick
+          }
+
+          currentIdxRef.current = newIdx;
           setFading(true);
           setTimeout(() => {
-            setActiveIdx(i => (i + 1) % imagesLenRef.current);
+            setActiveIdx(newIdx);
             setFading(false);
           }, 500);
         }, 2500);
@@ -35,7 +52,7 @@ export function HeroCover() {
     }
   }, [images.length]);
 
-  // Clear interval only on unmount — never on re-render
+  // Clear interval only on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -77,6 +94,8 @@ export function HeroCover() {
           });
         }
       }
+      // Mark all frames as loaded so the interval can freely loop
+      if (!cancelRef.current) allLoadedRef.current = true;
     })();
 
     return () => { cancelRef.current = true; };
