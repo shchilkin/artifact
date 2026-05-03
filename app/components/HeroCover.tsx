@@ -72,7 +72,7 @@ export function HeroCover() {
         setActiveIdx(i => (i + 1) % imagesLenRef.current);
         setFading(false);
       }, 500);
-    }, 3500);
+    }, 2500);
     return () => clearInterval(id);
   }, [images.length]);
 

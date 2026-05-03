@@ -27,6 +27,32 @@ export const HERO_FRAMES: HeroFrame[] = [
   // 5. Riso Print — duotone + halftone + mirror
   {
     seed: 31415,
-    cfg: { ...DEFAULT_CONFIG, bg: '#1a0010', emojis: ['🌸', '📿', '🌺', '💌', '🎀'], density: 40, minSz: 25, maxSz: 75, blur: 45, grain: 30, scanlines: 10, rayInt: 60, rayColor: '#ff0080', rays: 12, ca: 4, tint: '#150010', tintOp: 20, glitch: 6, mirror: 1, hueShift: 310, rgbSplit: 6, vignette: 35, bloom: 20, posterize: 8, filmBurn: 0, duotone: 70, duoA: '#0a001a', duoB: '#ff44cc', halftone: 15, risoShift: 25, risoAngle: 220 },
+    cfg: { ...DEFAULT_CONFIG, bg: '#1a0010', emojis: ['🌸', '📿', '🌺', '💌', '🎀'], density: 40, minSz: 25, maxSz: 75, blur: 45, grain: 30, scanlines: 10, rayInt: 60, rayColor: '#ff0080', rays: 12, ca: 4, tint: '#150010', tintOp: 20, glitch: 6, mirror: 1, hueShift: 310, rgbSplit: 6, vignette: 35, bloom: 20, posterize: 8, duotone: 70, duoA: '#0a001a', duoB: '#ff44cc', halftone: 15, risoShift: 25, risoAngle: 220 },
+  },
+  // 6. Chrome Static — CRT dead channel, interlace + pixelate + heavy rgb split
+  {
+    seed: 55555,
+    cfg: { ...DEFAULT_CONFIG, bg: '#060606', emojis: ['📺', '⬜', '▪️', '🔲', '◾'], density: 50, minSz: 18, maxSz: 60, blur: 30, grain: 50, scanlines: 40, rayInt: 30, rayColor: '#aaaaaa', rays: 6, ca: 2, tint: '#080808', tintOp: 15, glitch: 20, interlace: 70, pixelate: 3, rgbSplit: 28, dataMosh: 45, vignette: 80, bloom: 10 },
+  },
+  // 7. Acid Trip — chartreuse/lime, heavy hueShift + posterize + barrel distortion
+  {
+    seed: 24680,
+    cfg: { ...DEFAULT_CONFIG, bg: '#030800', emojis: ['🌿', '🍄', '✳️', '💊', '🔆'], density: 38, minSz: 22, maxSz: 82, blur: 55, grain: 40, scanlines: 6, rayInt: 70, rayColor: '#88ff00', rays: 20, ca: 8, tint: '#041200', tintOp: 30, glitch: 10, hueShift: 180, barrel: 65, posterize: 14, noiseWarp: 40, rgbSplit: 12, vignette: 45, bloom: 65 },
+  },
+  // 8. Infrared — thermal camera red-orange, duotone + noiseWarp + bloom
+  {
+    seed: 11223,
+    cfg: { ...DEFAULT_CONFIG, bg: '#1a0500', emojis: ['🌡️', '🔴', '🟠', '♨️', '🔥'], density: 30, minSz: 32, maxSz: 88, blur: 60, grain: 28, scanlines: 14, rayInt: 50, rayColor: '#ff4400', rays: 10, ca: 3, tint: '#220800', tintOp: 45, glitch: 3, noiseWarp: 55, vignette: 60, bloom: 70, duotone: 85, duoA: '#0a0000', duoB: '#ff3300' },
+  },
+  // 9. Dead Pixel — broken screen, glitch + tear + pixelate + datamosh
+  {
+    seed: 66666,
+    cfg: { ...DEFAULT_CONFIG, bg: '#000508', emojis: ['💔', '❌', '🔴', '⬛', '❓'], density: 35, minSz: 20, maxSz: 70, blur: 40, grain: 32, scanlines: 18, rayInt: 25, rayColor: '#ff0022', rays: 4, ca: 6, tint: '#000508', tintOp: 10, glitch: 25, tearAmt: 18, tearSize: 4, dataMosh: 55, interlace: 35, pixelate: 5, rgbSplit: 35, vignette: 70, bloom: 20 },
+  },
+  // 10. Copper Print — warm amber duotone + halftone, unused warm-gold territory
+  {
+    seed: 98765,
+    cfg: { ...DEFAULT_CONFIG, bg: '#0e0800', emojis: ['🌻', '🍂', '⚙️', '🪙', '✦'], density: 36, minSz: 28, maxSz: 80, blur: 52, grain: 35, scanlines: 8, rayInt: 55, rayColor: '#ff8800', rays: 14, ca: 3, tint: '#1a0e00', tintOp: 35, glitch: 4, noiseWarp: 20, vignette: 50, bloom: 30, duotone: 75, duoA: '#0a0400', duoB: '#ff8800', halftone: 30, risoShift: 15, risoAngle: 45 },
   },
 ];
+
