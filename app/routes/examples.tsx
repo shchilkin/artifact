@@ -167,7 +167,16 @@ export default function Examples() {
                   role="button"
                   tabIndex={0}
                   aria-label={`${item.name} — Open in generator`}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') openInGenerator(item); }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (isTouch || revealed.has(item.id)) {
+                        openInGenerator(item);
+                      } else {
+                        toggleReveal(item.id);
+                      }
+                    }
+                  }}
                 >
                   {item.thumbnail ? (
                     <motion.img

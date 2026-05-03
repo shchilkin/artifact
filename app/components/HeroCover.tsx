@@ -43,6 +43,8 @@ export function HeroCover() {
   // Tracks seeds already rendered — prevents strict-mode double-invoke duplicates
   const renderedSeedsRef = useRef<Set<number>>(new Set());
 
+  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     framesLenRef.current = frames.length;
     if (frames.length >= 2 && !intervalStartedRef.current) {
@@ -62,7 +64,7 @@ export function HeroCover() {
           }
           currentIdxRef.current = newIdx;
           setFading(true);
-          setTimeout(() => {
+          fadeTimeoutRef.current = setTimeout(() => {
             setActiveIdx(newIdx);
             setFading(false);
           }, 500);
@@ -71,9 +73,12 @@ export function HeroCover() {
     }
   }, [frames.length]);
 
-  // Clear interval only on real unmount
+  // Clear interval and any pending fade timeout only on real unmount
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {

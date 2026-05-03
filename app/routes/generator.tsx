@@ -32,7 +32,10 @@ function getInitialState(): { cfg: GeneratorConfig; seed: number } {
   if (paramSeed && paramCfg) {
     try {
       const decoded = JSON.parse(decodeURIComponent(paramCfg));
-      return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed: Number(paramSeed) };
+      const seed = parseInt(paramSeed, 10);
+      if (!isNaN(seed)) {
+        return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed };
+      }
     } catch { /* ignore */ }
   }
   return loadSaved() ?? { cfg: DEFAULT_CONFIG, seed: 4242 };
