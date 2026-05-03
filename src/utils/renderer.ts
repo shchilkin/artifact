@@ -219,9 +219,10 @@ export function render(
   W: number,
   H: number,
   cfg: GeneratorConfig,
-  seed: number
+  seed: number,
+  scaleMultiplier = 1
 ) {
-  const scale = W / REF;
+  const scale = (W / REF) * scaleMultiplier;
 
   ctx.clearRect(0, 0, W, H);
   ctx.globalAlpha = 1;

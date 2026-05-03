@@ -6,6 +6,14 @@ import { buildFilters } from './pixiFilters';
 const W = 4096;
 const H = 2048;
 
+/**
+ * Elements that look right on the flat 2D preview appear ~4× larger
+ * when viewed through a typical 3D camera FOV on a sphere. This factor
+ * scales emojis, glitch streaks, scanlines and CA shifts down during
+ * the env map render pass only. Tune here without touching other logic.
+ */
+export const ENV_EXPORT_SCALE_FACTOR = 4;
+
 function triggerBlobDownload(canvas: HTMLCanvasElement, seed: number) {
   canvas.toBlob((blob) => {
     if (!blob) return;
@@ -25,7 +33,7 @@ export async function exportEnvMap(cfg: GeneratorConfig, seed: number): Promise<
   offscreen.height = H;
   await new Promise<void>((r) =>
     setTimeout(() => {
-      render(offscreen.getContext('2d', { willReadFrequently: true })!, W, H, cfg, seed);
+      render(offscreen.getContext('2d', { willReadFrequently: true })!, W, H, cfg, seed, 1 / ENV_EXPORT_SCALE_FACTOR);
       r();
     }, 0)
   );
