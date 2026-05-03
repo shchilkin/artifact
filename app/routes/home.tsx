@@ -12,20 +12,21 @@ export default function Home() {
   return (
     <div className="landing">
       <SiteNav />
+      <div className="landing-grain" aria-hidden="true" />
       <main className="landing-main">
         <section className="landing-hero">
           <div className="landing-text">
             <h1 className="landing-headline">
-              Make something<br />weird.
+              Make something<br />
+              <span className="landing-headline__weird">weird.</span>
             </h1>
+            <div className="landing-rule" aria-hidden="true" />
             <ul className="landing-features" aria-label="Features">
-              <li>16 effects, no two covers alike</li>
-              <li>Repeatable by seed</li>
-              <li>Export for 3D scenes</li>
+              <li>16 effects. No two covers alike.</li>
               <li>No account. No install.</li>
             </ul>
             <Link to="/app" className="btn btn-primary landing-cta">
-              Open Generator
+              Open Generator →
             </Link>
           </div>
           <div className="landing-cover-wrap">
