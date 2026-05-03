@@ -308,10 +308,16 @@ input[type='range'] {
    its container. Set container-type on .pa-badge wrapper.
    ========================================================= */
 
-/* White outline variant for visibility on dark backgrounds */
-.pa-badge--bordered {
-  outline: 2cqw solid #ffffff;
-  outline-offset: 1cqw;
+/* White outline variant for visibility on dark backgrounds.
+   Uses an inset box-shadow on a pseudo-element so it is clipped
+   by the badge boundary and cannot bleed outside the canvas. */
+.pa-badge--bordered::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 2.5cqw #ffffff;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* Wrapper: establishes the container query context.
