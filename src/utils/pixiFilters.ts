@@ -282,7 +282,9 @@ uniform float uSeed;
 
 void main() {
   ${NORM_UV}
-  float ci = mod(floor(uSeed * 0.003), 4.0);
+
+  // Corner cycles every ~250 seeds so different seeds get different corners
+  float ci = mod(floor(uSeed * 0.004 + 0.5), 4.0);
   vec2 corner;
   if      (ci < 0.5) corner = vec2(0.0, 0.0);
   else if (ci < 1.5) corner = vec2(1.0, 0.0);
@@ -291,10 +293,14 @@ void main() {
 
   vec4  col  = ${SAMPLE('norm')};
   float dist = length(norm - corner);
-  float burn = pow(max(0.0, 1.0 - dist * 2.2), 1.8) * uIntensity;
 
-  vec3 fireColor = mix(vec3(1.0, 0.55, 0.05), vec3(1.0, 1.0, 0.75), burn);
-  gl_FragColor   = vec4(min(vec3(1.0), col.rgb + fireColor * burn * 0.9), col.a);
+  // Tight radius (~25% of canvas), steep cubic falloff
+  float burn = pow(max(0.0, 1.0 - dist / 0.28), 3.0) * uIntensity;
+
+  // White-hot at corner (burn=1), orange at rim (burn→0) — correct direction
+  vec3 fireColor = mix(vec3(1.0, 0.4, 0.0), vec3(1.0, 0.95, 0.75), burn);
+
+  gl_FragColor = vec4(min(vec3(1.0), col.rgb + fireColor * burn), col.a);
 }`;
 
 // ─── DUOTONE ───────────────────────────────────────────────────
