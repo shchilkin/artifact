@@ -32,17 +32,25 @@ const rawExamples: Array<ExampleData & { id: string }> = Object.entries(exampleM
   return { ...data, id };
 });
 
+// Pre-generate 24 random examples at module level so seeds are stable across re-renders
+const randomExamples: Array<ExampleData & { id: string }> = Array.from({ length: 24 }, (_, i) => {
+  const seed = 300001 + i * 13337;
+  const frame = generateRandomHeroFrame(seed);
+  return { id: `random-${seed}`, name: `Variant #${seed}`, seed: frame.seed, cfg: frame.cfg };
+});
+
+const allInitialExamples = [...rawExamples, ...randomExamples];
+
 export default function Examples() {
   const navigate = useNavigate();
   const [items, setItems] = useState<ExampleItem[]>(
-    rawExamples.map(ex => ({ ...ex, thumbnail: null }))
+    allInitialExamples.map(ex => ({ ...ex, thumbnail: null }))
   );
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [isTouch, setIsTouch] = useState(false);
   const [allRendered, setAllRendered] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const generatePageRef = useRef(0);
-  const cancelRef = useRef(false);
+  const generateBatchRef = useRef(0);
 
   useEffect(() => {
     setIsTouch(window.matchMedia('(pointer: coarse)').matches);
@@ -50,9 +58,8 @@ export default function Examples() {
 
   useEffect(() => {
     let cancelled = false;
-    cancelRef.current = false;
     async function renderAll() {
-      for (const ex of rawExamples) {
+      for (const ex of allInitialExamples) {
         if (cancelled) break;
         try {
           const cfg = { ...DEFAULT_CONFIG, ...ex.cfg } as GeneratorConfig;
@@ -67,26 +74,30 @@ export default function Examples() {
       if (!cancelled) setAllRendered(true);
     }
     renderAll();
-    return () => { cancelled = true; cancelRef.current = true; };
+    return () => { cancelled = true; };
   }, []);
 
   async function handleGenerateMore() {
     setGenerating(true);
-    const page = generatePageRef.current;
-    generatePageRef.current += 1;
-    const newFrames = Array.from({ length: 8 }, (_, i) =>
-      generateRandomHeroFrame(500000 + page * 100 + i * 7919)
-    );
-    for (const frame of newFrames) {
-      if (cancelRef.current) break;
-      const id = `generated-${frame.seed}`;
-      const cfg = frame.cfg as GeneratorConfig;
-      setItems(prev => [...prev, { id, name: `Variant #${frame.seed}`, seed: frame.seed, cfg, thumbnail: null }]);
+    const batch = generateBatchRef.current;
+    generateBatchRef.current += 1;
+
+    // Build all new items first
+    const newItems: ExampleItem[] = Array.from({ length: 8 }, (_, i) => {
+      const seed = 700001 + batch * 8000 + i * 997;
+      const frame = generateRandomHeroFrame(seed);
+      return { id: `more-${seed}`, name: `Variant #${frame.seed}`, seed: frame.seed, cfg: frame.cfg, thumbnail: null };
+    });
+
+    // Append all at once — no interleaving with thumbnail updates
+    setItems(prev => [...prev, ...newItems]);
+
+    // Render thumbnails one by one, updating in place
+    for (const item of newItems) {
       try {
-        const thumb = await generateThumbnail(cfg, frame.seed);
-        if (!cancelRef.current) {
-          setItems(prev => prev.map(item => item.id === id ? { ...item, thumbnail: thumb } : item));
-        }
+        const cfg = { ...DEFAULT_CONFIG, ...item.cfg } as GeneratorConfig;
+        const thumb = await generateThumbnail(cfg, item.seed);
+        setItems(prev => prev.map(x => x.id === item.id ? { ...x, thumbnail: thumb } : x));
       } catch {
         // leave null
       }
