@@ -52,14 +52,16 @@ export function ParentalAdvisoryBadge({ x, y, size = 0.3, onMove, inert = false,
   return (
     <div
       ref={containerRef}
-      className={`pa-badge${bordered ? ' pa-badge--bordered' : ''}`}
+      className={[
+        'pa-badge',
+        'absolute',
+        inert ? 'cursor-default pointer-events-none' : 'cursor-grab pointer-events-auto',
+        bordered ? 'pa-badge--bordered' : '',
+      ].join(' ')}
       style={{
-        position: 'absolute',
         left: `${x * 100}%`,
         top: `${y * 100}%`,
         width: `${size * 100}%`,
-        cursor: inert ? 'default' : 'grab',
-        pointerEvents: inert ? 'none' : 'auto',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
