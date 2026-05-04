@@ -119,11 +119,11 @@ export default function Examples() {
   }
 
   return (
-    <div className="examples-page">
+    <div className="min-h-dvh bg-bg flex flex-col overflow-y-auto">
       <SiteNav />
-      <main className="examples-main">
+      <main className="flex-1 pt-[88px] pb-12 px-4 max-w-[1400px] w-full mx-auto">
         <motion.header
-          className="examples-header"
+          className="mb-8"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -203,7 +203,7 @@ export default function Examples() {
         <AnimatePresence>
           {allRendered && (
             <motion.div
-              className="examples-more"
+              className="flex justify-center pt-10 pb-6"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}

@@ -113,7 +113,7 @@ export default function Generator() {
   };
 
   return (
-    <div className="generator-layout">
+    <div className="flex flex-col w-full h-full">
       <SiteNav solid />
       <div className="app">
         <main className="main">

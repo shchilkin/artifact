@@ -120,7 +120,7 @@ export function HeroCover() {
   }
 
   return (
-    <div className="hero-cover-wrapper">
+    <div className="flex flex-col items-start gap-4">
       <div
         className={`hero-cover${activeFrame?.frame ? ' cursor-pointer' : ''}`}
         aria-label="Animated album cover preview"
