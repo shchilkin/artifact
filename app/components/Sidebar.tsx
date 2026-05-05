@@ -27,9 +27,9 @@ function Slider(
   const iconRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="slider-row">
-      <div className="slider-label">
-        <span className="slider-label__left">
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex justify-between items-center text-dim text-[10px]">
+        <span className="flex items-center gap-1 min-w-0">
           <span>{label}</span>
           {effectKey && onInfoEnter && (
             <button
@@ -46,7 +46,9 @@ function Slider(
             </button>
           )}
         </span>
-        <span className="slider-value">{value}</span>
+        <span className="text-text text-[10px] min-w-7 text-right">
+          {value}
+        </span>
       </div>
       <input
         type="range"
@@ -68,12 +70,19 @@ interface SectionProps {
 function Section({ title, children, defaultOpen = false }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="section">
-      <button className="section-header" onClick={() => setOpen(!open)}>
+    <div className="border-b border-border">
+      <button
+        className="flex items-center justify-between w-full min-h-11 px-3.5 bg-transparent border-none cursor-pointer text-accent font-mono text-[10px] tracking-[2.5px] uppercase font-semibold hover:bg-accent-dim"
+        onClick={() => setOpen(!open)}
+      >
         <span>{title}</span>
-        <span className="section-toggle">{open ? "▾" : "▸"}</span>
+        <span className="text-dim text-[10px]">{open ? "▾" : "▸"}</span>
       </button>
-      {open && <div className="section-body">{children}</div>}
+      {open && (
+        <div className="px-3.5 pt-2 pb-3.5 flex flex-col gap-2.5">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -124,21 +133,19 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
       )}
       <div className="sidebar-sections">
         <Section title="BACKGROUND">
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Color</span>
-              <input
-                type="color"
-                value={cfg.bg}
-                onChange={(e) => set("bg", e.target.value)}
-                className="color-input"
-              />
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Color</span>
+            <input
+              type="color"
+              value={cfg.bg}
+              onChange={(e) => set("bg", e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
           </div>
         </Section>
 
         <Section title="EMOJIS" defaultOpen>
-          <div className="emoji-grid">
+          <div className="grid grid-cols-5 gap-1.5">
             {ALL_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
@@ -187,16 +194,14 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
         </Section>
 
         <Section title="LIGHT RAYS">
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Ray Color</span>
-              <input
-                type="color"
-                value={cfg.rayColor}
-                onChange={(e) => set("rayColor", e.target.value)}
-                className="color-input"
-              />
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Ray Color</span>
+            <input
+              type="color"
+              value={cfg.rayColor}
+              onChange={(e) => set("rayColor", e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
           </div>
           <Slider
             label="Intensity"
@@ -297,16 +302,14 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
         </Section>
 
         <Section title="COLOR TINT">
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Tint Color</span>
-              <input
-                type="color"
-                value={cfg.tint}
-                onChange={(e) => set("tint", e.target.value)}
-                className="color-input"
-              />
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Tint Color</span>
+            <input
+              type="color"
+              value={cfg.tint}
+              onChange={(e) => set("tint", e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
           </div>
           <Slider
             label="Opacity"
@@ -452,27 +455,23 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
             effectKey="duotone"
             {...ip}
           />
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Shadow Color</span>
-              <input
-                type="color"
-                value={cfg.duoA}
-                onChange={(e) => set("duoA", e.target.value)}
-                className="color-input"
-              />
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Shadow Color</span>
+            <input
+              type="color"
+              value={cfg.duoA}
+              onChange={(e) => set("duoA", e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
           </div>
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Light Color</span>
-              <input
-                type="color"
-                value={cfg.duoB}
-                onChange={(e) => set("duoB", e.target.value)}
-                className="color-input"
-              />
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Light Color</span>
+            <input
+              type="color"
+              value={cfg.duoB}
+              onChange={(e) => set("duoB", e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
           </div>
           <Slider
             label="Halftone"
@@ -504,39 +503,35 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
         </Section>
 
         <Section title="LABEL">
-          <div className="slider-row">
-            <div className="slider-label">
-              <span>Parental Advisory</span>
-              <label
-                className="toggle-switch"
-                aria-label="Toggle Parental Advisory badge"
-              >
-                <input
-                  type="checkbox"
-                  checked={cfg.parentalAdvisory}
-                  onChange={(e) => set("parentalAdvisory", e.target.checked)}
-                />
-                <span className="toggle-switch__track" />
-              </label>
-            </div>
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Parental Advisory</span>
+            <label
+              className="toggle-switch"
+              aria-label="Toggle Parental Advisory badge"
+            >
+              <input
+                type="checkbox"
+                checked={cfg.parentalAdvisory}
+                onChange={(e) => set("parentalAdvisory", e.target.checked)}
+              />
+              <span className="toggle-switch__track" />
+            </label>
           </div>
           {cfg.parentalAdvisory && (
             <>
-              <div className="slider-row">
-                <div className="slider-label">
-                  <span>White border</span>
-                  <label
-                    className="toggle-switch"
-                    aria-label="Toggle white border on badge"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={cfg.advisoryBorder}
-                      onChange={(e) => set("advisoryBorder", e.target.checked)}
-                    />
-                    <span className="toggle-switch__track" />
-                  </label>
-                </div>
+              <div className="flex justify-between items-center text-dim text-[10px]">
+                <span>White border</span>
+                <label
+                  className="toggle-switch"
+                  aria-label="Toggle white border on badge"
+                >
+                  <input
+                    type="checkbox"
+                    checked={cfg.advisoryBorder}
+                    onChange={(e) => set("advisoryBorder", e.target.checked)}
+                  />
+                  <span className="toggle-switch__track" />
+                </label>
               </div>
               <p className="pa-hint">
                 Drag the badge on the canvas to reposition it.
