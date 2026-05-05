@@ -1,24 +1,28 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Sidebar } from '../components/Sidebar';
-import { CanvasPreview } from '../components/CanvasPreview';
-import { PresetsPanel } from '../components/PresetsPanel';
-import { BottomBar } from '../components/BottomBar';
-import { SiteNav } from '../components/SiteNav';
-import { usePresets } from '../hooks/usePresets';
-import { type GeneratorConfig, DEFAULT_CONFIG } from '../types/config';
-import { exportCanvas } from '../utils/exportCanvas';
-import { exportEnvMap } from '../utils/exportEnvMap';
-import { randomConfig } from '../utils/randomConfig';
+import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
+import { Sidebar } from "../components/Sidebar";
+import { CanvasPreview } from "../components/CanvasPreview";
+import { PresetsPanel } from "../components/PresetsPanel";
+import { BottomBar } from "../components/BottomBar";
+import { SiteNav } from "../components/SiteNav";
+import { usePresets } from "../hooks/usePresets";
+import { DEFAULT_CONFIG, type GeneratorConfig } from "../types/config";
+import { exportCanvas } from "../utils/exportCanvas";
+import { exportEnvMap } from "../utils/exportEnvMap";
+import { randomConfig } from "../utils/randomConfig";
 
-const CFG_KEY = 'emoji-art-cfg';
-const SEED_KEY = 'emoji-art-seed';
+const CFG_KEY = "emoji-art-cfg";
+const SEED_KEY = "emoji-art-seed";
 
 function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
   try {
     const raw = localStorage.getItem(CFG_KEY);
     const s = localStorage.getItem(SEED_KEY);
     if (!raw) return null;
-    return { cfg: { ...DEFAULT_CONFIG, ...JSON.parse(raw) }, seed: s ? parseInt(s) : 4242 };
+    return {
+      cfg: { ...DEFAULT_CONFIG, ...JSON.parse(raw) },
+      seed: s ? parseInt(s) : 4242,
+    };
   } catch {
     return null;
   }
@@ -27,8 +31,8 @@ function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
 function getInitialState(): { cfg: GeneratorConfig; seed: number } {
   // URL params take priority (e.g. opened from examples gallery)
   const params = new URLSearchParams(window.location.search);
-  const paramSeed = params.get('seed');
-  const paramCfg = params.get('cfg');
+  const paramSeed = params.get("seed");
+  const paramCfg = params.get("cfg");
   if (paramSeed && paramCfg) {
     try {
       const decoded = JSON.parse(decodeURIComponent(paramCfg));
@@ -52,11 +56,15 @@ export default function Generator() {
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
-  useEffect(() => { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }, [cfg]);
-  useEffect(() => { localStorage.setItem(SEED_KEY, String(seed)); }, [seed]);
+  useEffect(() => {
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  }, [cfg]);
+  useEffect(() => {
+    localStorage.setItem(SEED_KEY, String(seed));
+  }, [seed]);
 
   const handleRandomize = useCallback(() => {
-    setSeedHistory(h => [...h.slice(-9), seed]);
+    setSeedHistory((h) => [...h.slice(-9), seed]);
     setSeed(Math.floor(Math.random() * 999999));
     setCfg(randomConfig());
   }, [seed]);
@@ -64,7 +72,7 @@ export default function Generator() {
   const handlePrevSeed = useCallback(() => {
     if (seedHistory.length === 0) return;
     const prev = seedHistory[seedHistory.length - 1];
-    setSeedHistory(h => h.slice(0, -1));
+    setSeedHistory((h) => h.slice(0, -1));
     setSeed(prev);
   }, [seedHistory]);
 
@@ -77,7 +85,7 @@ export default function Generator() {
         setIsExporting(false);
       }
     },
-    [cfg, seed]
+    [cfg, seed],
   );
 
   const handleEnvMapExport = useCallback(async () => {
@@ -96,8 +104,28 @@ export default function Generator() {
       setCfg(c);
       setShowPresets(false);
     },
-    [loadPreset]
+    [loadPreset],
   );
+
+  // Close presets on Escape
+  useEffect(() => {
+    if (!showPresets) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowPresets(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showPresets]);
+
+  const handleCopyLink = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("seed", String(seed));
+    params.set("cfg", encodeURIComponent(JSON.stringify(cfg)));
+    const url = `${window.location.origin}/app?${params}`;
+    navigator.clipboard.writeText(url).catch(() => {
+      prompt("Copy this link:", url);
+    });
+  }, [seed, cfg]);
 
   const bottomBarProps = {
     seed,
@@ -108,16 +136,17 @@ export default function Generator() {
     onExport: handleExport,
     onEnvMapExport: handleEnvMapExport,
     onPresetsToggle: () => setShowPresets(!showPresets),
+    onCopyLink: handleCopyLink,
     isExporting,
     isExportingEnvMap,
   };
 
   return (
-    <div className="generator-layout">
+    <div className="generator-layout flex flex-col w-full h-full">
       <SiteNav solid />
       <div className="app">
         <main className="main">
-          <CanvasPreview cfg={cfg} seed={seed} />
+          <CanvasPreview cfg={cfg} seed={seed} onCfgChange={setCfg} />
           <BottomBar {...bottomBarProps} />
         </main>
 
@@ -127,15 +156,17 @@ export default function Generator() {
           mobileActionBar={<BottomBar {...bottomBarProps} />}
         />
 
-        {showPresets && (
-          <PresetsPanel
-            presets={presets}
-            onSave={(name) => savePreset(name, seed, cfg)}
-            onLoad={handleLoadPreset}
-            onDelete={deletePreset}
-            onClose={() => setShowPresets(false)}
-          />
-        )}
+        <AnimatePresence>
+          {showPresets && (
+            <PresetsPanel
+              presets={presets}
+              onSave={(name) => savePreset(name, seed, cfg)}
+              onLoad={handleLoadPreset}
+              onDelete={deletePreset}
+              onClose={() => setShowPresets(false)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

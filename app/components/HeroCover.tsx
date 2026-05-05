@@ -120,14 +120,13 @@ export function HeroCover() {
   }
 
   return (
-    <div className="hero-cover-wrapper">
+    <div className="flex flex-col items-start gap-4">
       <div
-        className="hero-cover"
+        className={`hero-cover${activeFrame?.frame ? ' cursor-pointer' : ''}`}
         aria-label="Animated album cover preview"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={handleClick}
-        style={{ cursor: activeFrame?.frame ? 'pointer' : undefined }}
       >
         <img
           src={activeFrame?.url ?? FALLBACK_URL}
