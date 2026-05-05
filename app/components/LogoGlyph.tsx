@@ -1,5 +1,13 @@
 import { useLayoutEffect, useRef } from "react";
-import { Container, Filter, Graphics, Renderer, Text, TextStyle, Ticker } from "pixi.js";
+import {
+    Container,
+    Filter,
+    Graphics,
+    Renderer,
+    Text,
+    TextStyle,
+    Ticker,
+} from "pixi.js";
 import { ALL_EMOJIS } from "../types/config";
 
 // Render at 2× for crispness on retina; CSS display size is DISPLAY px
@@ -188,8 +196,14 @@ function makeBurstScheduler(minGap = 3, maxGap = 8) {
     return {
         tick(dtSec: number): number {
             next -= dtSec;
-            if (next <= 0) { timer = HOLD + DECAY; next = minGap + Math.random() * (maxGap - minGap); }
-            if (timer > 0) { timer -= dtSec; return Math.max(0, timer / (HOLD + DECAY)); }
+            if (next <= 0) {
+                timer = HOLD + DECAY;
+                next = minGap + Math.random() * (maxGap - minGap);
+            }
+            if (timer > 0) {
+                timer -= dtSec;
+                return Math.max(0, timer / (HOLD + DECAY));
+            }
             return 0;
         },
     };
@@ -206,19 +220,24 @@ type VariantRunner = (
 
 // 1. CRT Glitch Burst (original bolder variant)
 const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
-    const text = new Text(emoji, new TextStyle({
-        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: 48,
-    }));
+    const text = new Text(
+        emoji,
+        new TextStyle({
+            fontFamily:
+                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+            fontSize: 48,
+        }),
+    );
     text.anchor.set(0.5);
-    text.x = RENDER / 2; text.y = RENDER / 2;
+    text.x = RENDER / 2;
+    text.y = RENDER / 2;
     stage.addChild(text);
 
     const morphU = { uT: 0, uAmt: 0.008, uFreq: 4.0 };
-    const tearU  = { uIntensity: 0, uSeed: Math.random() * 9999 };
-    const caU    = { uMag: 0.018 };
+    const tearU = { uIntensity: 0, uSeed: Math.random() * 9999 };
+    const caU = { uMag: 0.018 };
     const grainU = { uT: 0, uStrength: 0.38 };
-    const scanU  = { uStrength: 0.28 };
+    const scanU = { uStrength: 0.28 };
     stage.filters = [
         mkFilter(MORPH_FRAG, morphU),
         mkFilter(TEAR_FRAG, tearU),
@@ -232,7 +251,8 @@ const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
     const ticker = new Ticker();
     ticker.add((delta) => {
         const env = burst.tick(delta / 60);
-        morphU.uT += delta * 0.004; grainU.uT += delta * 0.006;
+        morphU.uT += delta * 0.004;
+        grainU.uT += delta * 0.006;
         morphU.uAmt = 0.008 + env * 0.055;
         tearU.uIntensity = env * 0.55;
         caU.uMag = 0.018 + env * 0.072;
@@ -247,15 +267,20 @@ const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
 const variantRiso: VariantRunner = (stage, renderer, emoji) => {
     // Two ink colors: complementary-ish, print-like
     const INK_A: [number, number, number] = [0.05, 0.85, 0.85]; // cyan-ish
-    const INK_B: [number, number, number] = [0.9, 0.1, 0.5];   // magenta-ish
+    const INK_B: [number, number, number] = [0.9, 0.1, 0.5]; // magenta-ish
 
     const makeLayer = (ink: [number, number, number], offsetX: number) => {
-        const t = new Text(emoji, new TextStyle({
-            fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-            fontSize: 48,
-        }));
+        const t = new Text(
+            emoji,
+            new TextStyle({
+                fontFamily:
+                    '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+                fontSize: 48,
+            }),
+        );
         t.anchor.set(0.5);
-        t.x = RENDER / 2 + offsetX; t.y = RENDER / 2;
+        t.x = RENDER / 2 + offsetX;
+        t.y = RENDER / 2;
         const u = { uColor: ink, uAlpha: 0.55 };
         t.filters = [mkFilter(TINT_FRAG, u)];
         return { sprite: t, u };
@@ -286,17 +311,25 @@ const variantRiso: VariantRunner = (stage, renderer, emoji) => {
 
 // 3. Static-to-signal resolver
 const variantStatic: VariantRunner = (stage, renderer, emoji) => {
-    const text = new Text(emoji, new TextStyle({
-        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: 48,
-    }));
+    const text = new Text(
+        emoji,
+        new TextStyle({
+            fontFamily:
+                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+            fontSize: 48,
+        }),
+    );
     text.anchor.set(0.5);
-    text.x = RENDER / 2; text.y = RENDER / 2;
+    text.x = RENDER / 2;
+    text.y = RENDER / 2;
     stage.addChild(text);
 
     const staticU = { uT: 0, uResolve: 0 };
-    const grainU  = { uT: 0, uStrength: 0.15 };
-    stage.filters = [mkFilter(STATIC_FRAG, staticU), mkFilter(GRAIN_FRAG, grainU)];
+    const grainU = { uT: 0, uStrength: 0.15 };
+    stage.filters = [
+        mkFilter(STATIC_FRAG, staticU),
+        mkFilter(GRAIN_FRAG, grainU),
+    ];
     renderer.render(stage);
 
     // State machine: noise → tune-in → hold → dissolve → noise
@@ -308,18 +341,29 @@ const variantStatic: VariantRunner = (stage, renderer, emoji) => {
     ticker.add((delta) => {
         const dt = delta / 60;
         staticU.uT += delta * 0.012;
-        grainU.uT  += delta * 0.008;
+        grainU.uT += delta * 0.008;
         phaseT -= dt;
 
-        if (phase === "noise" && phaseT <= 0) { phase = "tuning"; phaseT = 0.4; }
-        else if (phase === "tuning") {
+        if (phase === "noise" && phaseT <= 0) {
+            phase = "tuning";
+            phaseT = 0.4;
+        } else if (phase === "tuning") {
             staticU.uResolve = Math.min(1, 1 - phaseT / 0.4);
-            if (phaseT <= 0) { phase = "hold"; phaseT = 2.0; staticU.uResolve = 1; }
-        }
-        else if (phase === "hold" && phaseT <= 0) { phase = "dissolving"; phaseT = 0.4; }
-        else if (phase === "dissolving") {
+            if (phaseT <= 0) {
+                phase = "hold";
+                phaseT = 2.0;
+                staticU.uResolve = 1;
+            }
+        } else if (phase === "hold" && phaseT <= 0) {
+            phase = "dissolving";
+            phaseT = 0.4;
+        } else if (phase === "dissolving") {
             staticU.uResolve = Math.max(0, phaseT / 0.4);
-            if (phaseT <= 0) { phase = "noise"; phaseT = 3 + Math.random() * 5; staticU.uResolve = 0; }
+            if (phaseT <= 0) {
+                phase = "noise";
+                phaseT = 3 + Math.random() * 5;
+                staticU.uResolve = 0;
+            }
         }
         renderer.render(stage);
     });
@@ -336,18 +380,23 @@ const variantPhosphor: VariantRunner = (stage, renderer, emoji) => {
     bg.endFill();
     stage.addChild(bg);
 
-    const text = new Text(emoji, new TextStyle({
-        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: 45,
-    }));
+    const text = new Text(
+        emoji,
+        new TextStyle({
+            fontFamily:
+                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+            fontSize: 45,
+        }),
+    );
     text.anchor.set(0.5);
-    text.x = RENDER / 2; text.y = RENDER / 2;
+    text.x = RENDER / 2;
+    text.y = RENDER / 2;
     stage.addChild(text);
 
-    const bloomU  = { uIntensity: 0.7 };
+    const bloomU = { uIntensity: 0.7 };
     const barrelU = { uK: 0.35 };
-    const scanU   = { uStrength: 0.35 };
-    const grainU  = { uT: 0, uStrength: 0.18 };
+    const scanU = { uStrength: 0.35 };
+    const grainU = { uT: 0, uStrength: 0.18 };
     stage.filters = [
         mkFilter(BLOOM_FRAG, bloomU),
         mkFilter(BARREL_FRAG, barrelU),
@@ -369,17 +418,29 @@ const variantPhosphor: VariantRunner = (stage, renderer, emoji) => {
 
 // 5. Pixel disintegration
 const variantScatter: VariantRunner = (stage, renderer, emoji) => {
-    const text = new Text(emoji, new TextStyle({
-        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: 48,
-    }));
+    const text = new Text(
+        emoji,
+        new TextStyle({
+            fontFamily:
+                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+            fontSize: 48,
+        }),
+    );
     text.anchor.set(0.5);
-    text.x = RENDER / 2; text.y = RENDER / 2;
+    text.x = RENDER / 2;
+    text.y = RENDER / 2;
     stage.addChild(text);
 
-    const scatterU = { uIntensity: 0.7, uSeed: Math.random() * 9999, uPhase: 0 };
-    const grainU   = { uT: 0, uStrength: 0.25 };
-    stage.filters = [mkFilter(SCATTER_FRAG, scatterU), mkFilter(GRAIN_FRAG, grainU)];
+    const scatterU = {
+        uIntensity: 0.7,
+        uSeed: Math.random() * 9999,
+        uPhase: 0,
+    };
+    const grainU = { uT: 0, uStrength: 0.25 };
+    stage.filters = [
+        mkFilter(SCATTER_FRAG, scatterU),
+        mkFilter(GRAIN_FRAG, grainU),
+    ];
     renderer.render(stage);
 
     // Oscillate: scatter apart → snap together → hold → repeat
@@ -394,14 +455,22 @@ const variantScatter: VariantRunner = (stage, renderer, emoji) => {
         sTimer -= dt;
 
         if (sPhase === "hold" && sTimer <= 0) {
-            sPhase = "apart"; sTimer = 0.5 + Math.random() * 0.4;
+            sPhase = "apart";
+            sTimer = 0.5 + Math.random() * 0.4;
             scatterU.uSeed = Math.random() * 9999; // new scatter pattern each burst
         } else if (sPhase === "apart") {
             scatterU.uPhase = Math.max(0, 1 - sTimer / 0.5);
-            if (sTimer <= 0) { sPhase = "snapping"; sTimer = 0.18; }
+            if (sTimer <= 0) {
+                sPhase = "snapping";
+                sTimer = 0.18;
+            }
         } else if (sPhase === "snapping") {
             scatterU.uPhase = sTimer / 0.18;
-            if (sTimer <= 0) { sPhase = "hold"; sTimer = 3 + Math.random() * 5; scatterU.uPhase = 1; }
+            if (sTimer <= 0) {
+                sPhase = "hold";
+                sTimer = 3 + Math.random() * 5;
+                scatterU.uPhase = 1;
+            }
         }
         renderer.render(stage);
     });
@@ -411,19 +480,24 @@ const variantScatter: VariantRunner = (stage, renderer, emoji) => {
 
 // 6. Interactive trigger — still until hover/click fires full burst
 const variantInteractive: VariantRunner = (stage, renderer, emoji) => {
-    const text = new Text(emoji, new TextStyle({
-        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: 48,
-    }));
+    const text = new Text(
+        emoji,
+        new TextStyle({
+            fontFamily:
+                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+            fontSize: 48,
+        }),
+    );
     text.anchor.set(0.5);
-    text.x = RENDER / 2; text.y = RENDER / 2;
+    text.x = RENDER / 2;
+    text.y = RENDER / 2;
     stage.addChild(text);
 
     const morphU = { uT: 0, uAmt: 0.003, uFreq: 4.0 };
-    const tearU  = { uIntensity: 0, uSeed: Math.random() * 9999 };
-    const caU    = { uMag: 0.006 };
+    const tearU = { uIntensity: 0, uSeed: Math.random() * 9999 };
+    const caU = { uMag: 0.006 };
     const grainU = { uT: 0, uStrength: 0.18 };
-    const scanU  = { uStrength: 0.22 };
+    const scanU = { uStrength: 0.22 };
     stage.filters = [
         mkFilter(MORPH_FRAG, morphU),
         mkFilter(TEAR_FRAG, tearU),
@@ -438,15 +512,17 @@ const variantInteractive: VariantRunner = (stage, renderer, emoji) => {
     const canvas = renderer.view as HTMLCanvasElement;
     // Walk up to the nav link wrapper so the whole logo area is a trigger
     const triggerEl = canvas.parentElement ?? canvas;
-    const fire = () => { burstEnv = 1; };
+    const fire = () => {
+        burstEnv = 1;
+    };
     triggerEl.addEventListener("pointerenter", fire);
     triggerEl.addEventListener("click", fire);
 
     const ticker = new Ticker();
     ticker.add((delta) => {
         const dt = delta / 60;
-        morphU.uT  += delta * 0.004;
-        grainU.uT  += delta * 0.006;
+        morphU.uT += delta * 0.004;
+        grainU.uT += delta * 0.006;
         // Decay envelope
         burstEnv = Math.max(0, burstEnv - dt / 0.35);
         morphU.uAmt = 0.003 + burstEnv * 0.06;
