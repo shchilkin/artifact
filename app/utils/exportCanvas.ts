@@ -1,7 +1,7 @@
-import type { GeneratorConfig } from '../types/config';
-import { render } from './renderer';
-import { buildFilters } from './pixiFilters';
-import { gpuRenderToCanvas } from './gpuRender';
+import type { GeneratorConfig } from "../types/config";
+import { render } from "./renderer";
+import { buildFilters } from "./pixiFilters";
+import { gpuRenderToCanvas } from "./gpuRender";
 
 /** Badge aspect ratio: 1.6 : 1 (Width : Height) */
 const BADGE_ASPECT = 1 / 1.6;
@@ -54,7 +54,7 @@ async function drawParentalAdvisory(
   const px = canvasSize * x;
   const py = canvasSize * y;
 
-  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PA_SVG);
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(PA_SVG);
   const img = await loadImage(url);
   ctx.drawImage(img, px, py, bw, bh);
 
@@ -63,7 +63,7 @@ async function drawParentalAdvisory(
     // inside the badge boundary, 2.5 % of badge width thick.
     const borderW = bw * 0.025;
     ctx.save();
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = borderW;
     ctx.strokeRect(
       px + borderW / 2,
@@ -76,7 +76,7 @@ async function drawParentalAdvisory(
 }
 
 function triggerDownload(dataUrl: string, seed: number, resolution: number) {
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = dataUrl;
   a.download = `cover-${seed}-${resolution}.png`;
   a.click();
@@ -106,33 +106,53 @@ export async function exportCanvas(
 
   // Render 2D pipeline at preview resolution — keeps visual output identical
   // to the live preview regardless of export resolution.
-  const offscreen = document.createElement('canvas');
+  const offscreen = document.createElement("canvas");
   offscreen.width = PREVIEW_SIZE;
   offscreen.height = PREVIEW_SIZE;
-  await new Promise<void>((r) => setTimeout(() => {
-    render(offscreen.getContext('2d', { willReadFrequently: true })!, PREVIEW_SIZE, PREVIEW_SIZE, cfg, seed);
-    r();
-  }, 0));
+  await new Promise<void>((r) =>
+    setTimeout(() => {
+      render(
+        offscreen.getContext("2d", { willReadFrequently: true })!,
+        PREVIEW_SIZE,
+        PREVIEW_SIZE,
+        cfg,
+        seed,
+      );
+      r();
+    }, 0)
+  );
 
   const filters = buildFilters(cfg, seed);
   let finalCanvas: HTMLCanvasElement;
 
   if (!filters) {
     // No GPU filters: scale up via 2D canvas drawImage.
-    const scaled = document.createElement('canvas');
+    const scaled = document.createElement("canvas");
     scaled.width = W;
     scaled.height = H;
-    scaled.getContext('2d')!.drawImage(offscreen, 0, 0, W, H);
+    scaled.getContext("2d")!.drawImage(offscreen, 0, 0, W, H);
     finalCanvas = scaled;
   } else {
     // GPU blit scales 540 px source → W px texture; filters run at full res.
-    finalCanvas = await gpuRenderToCanvas({ width: W, height: H, source: offscreen, filters });
+    finalCanvas = await gpuRenderToCanvas({
+      width: W,
+      height: H,
+      source: offscreen,
+      filters,
+    });
   }
 
   if (cfg.parentalAdvisory) {
-    const ctx = finalCanvas.getContext('2d')!;
-    await drawParentalAdvisory(ctx, W, cfg.advisoryX, cfg.advisoryY, 0.3, cfg.advisoryBorder);
+    const ctx = finalCanvas.getContext("2d")!;
+    await drawParentalAdvisory(
+      ctx,
+      W,
+      cfg.advisoryX,
+      cfg.advisoryY,
+      0.3,
+      cfg.advisoryBorder,
+    );
   }
 
-  triggerDownload(finalCanvas.toDataURL('image/png', 1.0), seed, resolution);
+  triggerDownload(finalCanvas.toDataURL("image/png", 1.0), seed, resolution);
 }

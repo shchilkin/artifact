@@ -106,6 +106,16 @@ export default function Generator() {
     [loadPreset],
   );
 
+  const handleCopyLink = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("seed", String(seed));
+    params.set("cfg", encodeURIComponent(JSON.stringify(cfg)));
+    const url = `${window.location.origin}/app?${params}`;
+    navigator.clipboard.writeText(url).catch(() => {
+      prompt("Copy this link:", url);
+    });
+  }, [seed, cfg]);
+
   const bottomBarProps = {
     seed,
     onSeedChange: setSeed,
@@ -115,6 +125,7 @@ export default function Generator() {
     onExport: handleExport,
     onEnvMapExport: handleEnvMapExport,
     onPresetsToggle: () => setShowPresets(!showPresets),
+    onCopyLink: handleCopyLink,
     isExporting,
     isExportingEnvMap,
   };
