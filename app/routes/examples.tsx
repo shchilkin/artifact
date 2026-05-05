@@ -37,7 +37,7 @@ const exampleModules = import.meta.glob("../examples/*.json", {
 const rawExamples: Array<ExampleData & { id: string }> = Object.entries(
   exampleModules,
 ).map(([path, mod]) => {
-  const data = (mod as any).default ?? mod;
+  const data = mod.default ?? mod;
   const id = path.replace("../examples/", "").replace(".json", "");
   return { ...data, id };
 });
@@ -64,15 +64,13 @@ export default function Examples() {
     allInitialExamples.map((ex) => ({ ...ex, thumbnail: null })),
   );
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
-  const [isTouch, setIsTouch] = useState(false);
+  const [isTouch] = useState(
+    () => window.matchMedia("(pointer: coarse)").matches,
+  );
   const [generating, setGenerating] = useState(false);
   const generateBatchRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const generatingRef = useRef(false);
-
-  useEffect(() => {
-    setIsTouch(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
