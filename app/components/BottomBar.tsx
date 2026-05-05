@@ -28,18 +28,15 @@ export function BottomBar({
   isExporting,
   isExportingEnvMap,
 }: Props) {
-  const [prevSeedProp, setPrevSeedProp] = useState(seed);
   const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const exportWrapRef = useRef<HTMLDivElement>(null);
-  // Track both the editable string and the last known prop value
 
-  // Sync display when seed changes externally (Replaces the useEffect)
-  if (seed !== prevSeedProp) {
-    setPrevSeedProp(seed);
+  // Sync display when seed changes externally (randomize / prev)
+  useEffect(() => {
     setSeedInput(String(seed));
-  }
+  }, [seed]);
 
   // Close export menu on click outside
   useEffect(() => {

@@ -216,10 +216,11 @@ type VariantRunner = (
     stage: Container,
     renderer: Renderer,
     emoji: string,
+    reducedMotion: boolean,
 ) => () => void;
 
 // 1. CRT Glitch Burst (original bolder variant)
-const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
+const variantGlitch: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     const text = new Text(
         emoji,
         new TextStyle({
@@ -246,6 +247,7 @@ const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
         mkFilter(SCAN_FRAG, scanU),
     ];
     renderer.render(stage);
+    if (reducedMotion) return () => {};
 
     const burst = makeBurstScheduler();
     const ticker = new Ticker();
@@ -264,7 +266,7 @@ const variantGlitch: VariantRunner = (stage, renderer, emoji) => {
 };
 
 // 2. Riso misregistration — two offset emoji layers, two ink colors
-const variantRiso: VariantRunner = (stage, renderer, emoji) => {
+const variantRiso: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     // Two ink colors: complementary-ish, print-like
     const INK_A: [number, number, number] = [0.05, 0.85, 0.85]; // cyan-ish
     const INK_B: [number, number, number] = [0.9, 0.1, 0.5]; // magenta-ish
@@ -293,6 +295,7 @@ const variantRiso: VariantRunner = (stage, renderer, emoji) => {
     const grainU = { uT: 0, uStrength: 0.22 };
     stage.filters = [mkFilter(GRAIN_FRAG, grainU)];
     renderer.render(stage);
+    if (reducedMotion) return () => {};
 
     let t = 0;
     const ticker = new Ticker();
@@ -310,7 +313,7 @@ const variantRiso: VariantRunner = (stage, renderer, emoji) => {
 };
 
 // 3. Static-to-signal resolver
-const variantStatic: VariantRunner = (stage, renderer, emoji) => {
+const variantStatic: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     const text = new Text(
         emoji,
         new TextStyle({
@@ -330,6 +333,8 @@ const variantStatic: VariantRunner = (stage, renderer, emoji) => {
         mkFilter(STATIC_FRAG, staticU),
         mkFilter(GRAIN_FRAG, grainU),
     ];
+    // Reduced motion: show the resolved emoji, no state machine
+    if (reducedMotion) { staticU.uResolve = 1; renderer.render(stage); return () => {}; }
     renderer.render(stage);
 
     // State machine: noise → tune-in → hold → dissolve → noise
@@ -372,7 +377,7 @@ const variantStatic: VariantRunner = (stage, renderer, emoji) => {
 };
 
 // 4. Phosphor bloom / CRT embedded
-const variantPhosphor: VariantRunner = (stage, renderer, emoji) => {
+const variantPhosphor: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     // Dark background square
     const bg = new Graphics();
     bg.beginFill(0x0a0612);
@@ -404,6 +409,7 @@ const variantPhosphor: VariantRunner = (stage, renderer, emoji) => {
         mkFilter(GRAIN_FRAG, grainU),
     ];
     renderer.render(stage);
+    if (reducedMotion) return () => {};
 
     const ticker = new Ticker();
     ticker.add((delta) => {
@@ -417,7 +423,7 @@ const variantPhosphor: VariantRunner = (stage, renderer, emoji) => {
 };
 
 // 5. Pixel disintegration
-const variantScatter: VariantRunner = (stage, renderer, emoji) => {
+const variantScatter: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     const text = new Text(
         emoji,
         new TextStyle({
@@ -434,7 +440,7 @@ const variantScatter: VariantRunner = (stage, renderer, emoji) => {
     const scatterU = {
         uIntensity: 0.7,
         uSeed: Math.random() * 9999,
-        uPhase: 0,
+        uPhase: 1,
     };
     const grainU = { uT: 0, uStrength: 0.25 };
     stage.filters = [
@@ -442,6 +448,7 @@ const variantScatter: VariantRunner = (stage, renderer, emoji) => {
         mkFilter(GRAIN_FRAG, grainU),
     ];
     renderer.render(stage);
+    if (reducedMotion) return () => {};
 
     // Oscillate: scatter apart → snap together → hold → repeat
     type SPhase = "apart" | "snapping" | "hold";
@@ -479,7 +486,7 @@ const variantScatter: VariantRunner = (stage, renderer, emoji) => {
 };
 
 // 6. Interactive trigger — still until hover/click fires full burst
-const variantInteractive: VariantRunner = (stage, renderer, emoji) => {
+const variantInteractive: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
     const text = new Text(
         emoji,
         new TextStyle({
@@ -506,6 +513,7 @@ const variantInteractive: VariantRunner = (stage, renderer, emoji) => {
         mkFilter(SCAN_FRAG, scanU),
     ];
     renderer.render(stage);
+    if (reducedMotion) return () => {};
 
     // Burst envelope driven by pointer events
     let burstEnv = 0;
@@ -581,7 +589,10 @@ export function LogoGlyph() {
         wrap.appendChild(canvas);
 
         const stage = new Container();
-        const cleanupVariant = variant(stage, renderer, emoji);
+        const reducedMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+        ).matches;
+        const cleanupVariant = variant(stage, renderer, emoji, reducedMotion);
 
         return () => {
             cleanupVariant();
