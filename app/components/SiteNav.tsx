@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router";
 import { motion } from "framer-motion";
+import { LogoGlyph } from "./LogoGlyph";
 
 export function SiteNav({ solid }: { solid?: boolean }) {
   return (
@@ -14,9 +15,12 @@ export function SiteNav({ solid }: { solid?: boolean }) {
     >
       <Link
         to="/"
-        className="font-display text-[1.1rem] font-black tracking-[0.06em] text-text uppercase no-underline hover:text-accent transition-colors duration-150"
+        className="flex items-center gap-2 no-underline"
       >
-        ACG
+        <LogoGlyph />
+        <span className="font-display text-[1.1rem] font-black tracking-[0.06em] text-text uppercase hover:text-accent transition-colors duration-150">
+          ACG
+        </span>
       </Link>
       <div className="flex items-center gap-6">
         <NavLink
