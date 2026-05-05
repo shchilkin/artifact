@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface Props {
   seed: number;
@@ -30,11 +31,37 @@ export function BottomBar({
   const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const exportWrapRef = useRef<HTMLDivElement>(null);
 
   // Sync display when seed changes externally (randomize / prev)
   useEffect(() => {
     setSeedInput(String(seed));
   }, [seed]);
+
+  // Close export menu on click outside
+  useEffect(() => {
+    if (!showExportMenu) return;
+    function onClickOutside(e: MouseEvent) {
+      if (
+        exportWrapRef.current &&
+        !exportWrapRef.current.contains(e.target as Node)
+      ) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [showExportMenu]);
+
+  // Close export menu on Escape
+  useEffect(() => {
+    if (!showExportMenu) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowExportMenu(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showExportMenu]);
 
   const handleSeedSet = () => {
     const parsed = parseInt(seedInput, 10);
@@ -82,6 +109,7 @@ export function BottomBar({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          maxLength={7}
           value={seedInput}
           onChange={(e) => setSeedInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSeedSet()}
@@ -95,43 +123,64 @@ export function BottomBar({
           onClick={handleCopyLink}
           aria-label="Copy link to current state"
         >
-          {copied ? "✓" : "LINK"}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={copied ? "check" : "link"}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              style={{ display: "inline-block" }}
+            >
+              {copied ? "✓" : "LINK"}
+            </motion.span>
+          </AnimatePresence>
         </button>
       </div>
 
       <div className="bottom-right-group">
-        <div className="export-wrap">
+        <div className="export-wrap" ref={exportWrapRef}>
           <button
             className="btn btn-primary"
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={isExporting}
             aria-expanded={showExportMenu}
+            aria-haspopup="true"
           >
             {isExporting || isExportingEnvMap ? "..." : "EXPORT ▾"}
           </button>
-          {showExportMenu && (
-            <div className="export-menu" role="menu">
-              {([1500, 2000, 3000] as const).map((res) => (
-                <button
-                  key={res}
-                  className="export-option"
-                  role="menuitem"
-                  onClick={() => handleExport(res)}
-                >
-                  {res}×{res}
-                </button>
-              ))}
-              <div className="export-menu-divider" />
-              <button
-                className="export-option export-option--env"
-                role="menuitem"
-                onClick={handleEnvMapExport}
-                disabled={isExportingEnvMap}
+          <AnimatePresence>
+            {showExportMenu && (
+              <motion.div
+                className="export-menu"
+                role="menu"
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
               >
-                ENV MAP <span className="export-option-sub">4096×2048</span>
-              </button>
-            </div>
-          )}
+                {([1500, 2000, 3000] as const).map((res) => (
+                  <button
+                    key={res}
+                    className="export-option"
+                    role="menuitem"
+                    onClick={() => handleExport(res)}
+                  >
+                    {res}×{res}
+                  </button>
+                ))}
+                <div className="export-menu-divider" />
+                <button
+                  className="export-option export-option--env"
+                  role="menuitem"
+                  onClick={handleEnvMapExport}
+                  disabled={isExportingEnvMap}
+                >
+                  ENV MAP <span className="export-option-sub">4096×2048</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <button className="btn" onClick={onPresetsToggle}>PRESETS</button>
       </div>

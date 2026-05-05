@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import type { Preset } from "../hooks/usePresets";
 import { MAX_PRESETS } from "../hooks/usePresets";
 
@@ -25,8 +26,21 @@ export function PresetsPanel(
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-299" onClick={onClose} />
-      <div className="fixed top-0 right-0 bottom-0 w-[min(320px,100vw)] bg-sidebar border-l border-border flex flex-col z-300 overflow-hidden">
+      <motion.div
+        className="fixed inset-0 bg-black/60 z-299"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="fixed top-0 right-0 bottom-0 w-[min(320px,100vw)] bg-sidebar border-l border-border flex flex-col z-300 overflow-hidden"
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="flex items-center justify-between px-4 min-h-11 border-b border-border shrink-0">
           <span className="text-[10px] tracking-[2.5px] text-accent font-semibold">
             PRESETS
@@ -107,7 +121,7 @@ export function PresetsPanel(
               ))}
             </div>
           )}
-      </div>
+      </motion.div>
     </>
   );
 }

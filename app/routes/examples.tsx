@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { MetaFunction } from "react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { SiteNav } from "../components/SiteNav";
+import { Footer } from "../components/Footer";
 import { generateThumbnail } from "../utils/generateThumbnail";
 import type { GeneratorConfig } from "../types/config";
 import { DEFAULT_CONFIG } from "../types/config";
@@ -64,9 +65,10 @@ export default function Examples() {
   );
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [isTouch, setIsTouch] = useState(false);
-  const [allRendered, setAllRendered] = useState(false);
   const [generating, setGenerating] = useState(false);
   const generateBatchRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const generatingRef = useRef(false);
 
   useEffect(() => {
     setIsTouch(window.matchMedia("(pointer: coarse)").matches);
@@ -91,7 +93,6 @@ export default function Examples() {
           // leave thumbnail null
         }
       }
-      if (!cancelled) setAllRendered(true);
     }
     renderAll();
     return () => {
@@ -99,14 +100,16 @@ export default function Examples() {
     };
   }, []);
 
-  async function handleGenerateMore() {
+  const handleGenerateMore = useCallback(async () => {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     setGenerating(true);
     const batch = generateBatchRef.current;
     generateBatchRef.current += 1;
 
     // Build all new items first
-    const newItems: ExampleItem[] = Array.from({ length: 8 }, (_, i) => {
-      const seed = 700001 + batch * 8000 + i * 997;
+    const newItems: ExampleItem[] = Array.from({ length: 32 }, (_, i) => {
+      const seed = 700001 + batch * 32000 + i * 997;
       const frame = generateRandomHeroFrame(seed);
       return {
         id: `more-${seed}`,
@@ -132,8 +135,25 @@ export default function Examples() {
         // leave null
       }
     }
+    generatingRef.current = false;
     setGenerating(false);
-  }
+  }, []);
+
+  // Auto-load when sentinel scrolls into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !generatingRef.current) {
+          handleGenerateMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleGenerateMore]);
 
   function openInGenerator(ex: ExampleItem) {
     navigate(
@@ -174,31 +194,15 @@ export default function Examples() {
             </p>
           )
           : (
-            <motion.div
-              className="examples-grid"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                visible: {
-                  transition: { staggerChildren: 0.04, delayChildren: 0.1 },
-                },
-              }}
-            >
+            <div className="examples-grid">
               <AnimatePresence initial={false}>
                 {items.map((item) => (
                   <motion.div
                     key={item.id}
-                    variants={{
-                      hidden: { opacity: 0, scale: 0.92, y: 12 },
-                      visible: {
-                        opacity: 1,
-                        scale: 1,
-                        y: 0,
-                        transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
-                      },
-                    }}
-                    initial="hidden"
-                    animate="visible"
+                    initial={{ opacity: 0, scale: 0.92, y: 16 }}
+                    whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-40px" }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     exit={{
                       opacity: 0,
                       scale: 0.88,
@@ -273,28 +277,25 @@ export default function Examples() {
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </motion.div>
+            </div>
           )}
-        <AnimatePresence>
-          {allRendered && (
-            <motion.div
-              className="flex justify-center pt-10 pb-6"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+        <div
+          ref={sentinelRef}
+          className="flex justify-center pt-10 pb-6 min-h-16"
+        >
+          {generating && (
+            <motion.span
+              className="font-mono text-[0.75rem] text-dim"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
-              <button
-                className="btn btn-primary"
-                onClick={handleGenerateMore}
-                disabled={generating}
-              >
-                {generating ? "Generating…" : "Generate more →"}
-              </button>
-            </motion.div>
+              Generating…
+            </motion.span>
           )}
-        </AnimatePresence>
+        </div>
       </main>
+      <Footer />
     </div>
   );
 }

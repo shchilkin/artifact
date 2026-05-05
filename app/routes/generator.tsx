@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Sidebar } from "../components/Sidebar";
 import { CanvasPreview } from "../components/CanvasPreview";
 import { PresetsPanel } from "../components/PresetsPanel";
@@ -106,6 +107,16 @@ export default function Generator() {
     [loadPreset],
   );
 
+  // Close presets on Escape
+  useEffect(() => {
+    if (!showPresets) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowPresets(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showPresets]);
+
   const handleCopyLink = useCallback(() => {
     const params = new URLSearchParams();
     params.set("seed", String(seed));
@@ -145,15 +156,17 @@ export default function Generator() {
           mobileActionBar={<BottomBar {...bottomBarProps} />}
         />
 
-        {showPresets && (
-          <PresetsPanel
-            presets={presets}
-            onSave={(name) => savePreset(name, seed, cfg)}
-            onLoad={handleLoadPreset}
-            onDelete={deletePreset}
-            onClose={() => setShowPresets(false)}
-          />
-        )}
+        <AnimatePresence>
+          {showPresets && (
+            <PresetsPanel
+              presets={presets}
+              onSave={(name) => savePreset(name, seed, cfg)}
+              onLoad={handleLoadPreset}
+              onDelete={deletePreset}
+              onClose={() => setShowPresets(false)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

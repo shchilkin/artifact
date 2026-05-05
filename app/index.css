@@ -502,6 +502,10 @@ input[type="range"] {
   border-color: oklch(66% 0.16 28 / 0.5);
   color: var(--accent);
 }
+.btn:active {
+  transform: scale(0.96);
+  transition-duration: 0.05s;
+}
 .btn:disabled {
   opacity: 0.4;
   cursor: default;
@@ -512,6 +516,9 @@ input[type="range"] {
   color: var(--accent);
 }
 .btn-primary:hover {
+  background: var(--accent-dim);
+}
+.btn-primary:active {
   background: var(--accent-dim);
 }
 .btn-full {
@@ -633,7 +640,7 @@ input[type="range"] {
 .landing-headline {
   font-family: var(--display);
   font-weight: 900;
-  font-size: clamp(4.5rem, 13vw, 10rem);
+  font-size: clamp(3.5rem, 9vw, 10rem);
   line-height: 0.9;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -821,7 +828,7 @@ input[type="range"] {
 }
 
 .hero-cover {
-  width: min(80vw, 520px);
+  width: min(72vw, 480px);
   aspect-ratio: 1;
   background: oklch(14% 0.01 280);
   flex-shrink: 0;
@@ -831,6 +838,12 @@ input[type="range"] {
   outline: 1.5px solid transparent;
   outline-offset: 0px;
   transition: outline-color 0.18s ease;
+}
+
+@media (min-width: 768px) {
+  .hero-cover {
+    width: clamp(280px, 40vw, 520px);
+  }
 }
 
 .hero-cover:hover {
@@ -940,7 +953,13 @@ input[type="range"] {
 .examples-item__overlay {
   position: absolute;
   inset: 0;
-  background: oklch(5% 0.01 42 / 0.62);
+  background: linear-gradient(
+    to top,
+    oklch(4% 0.005 280 / 0.96) 0%,
+    oklch(4% 0.005 280 / 0.7) 30%,
+    oklch(4% 0.005 280 / 0.2) 55%,
+    transparent 72%
+  );
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
