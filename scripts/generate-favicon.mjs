@@ -93,8 +93,10 @@ try {
   console.log(`favicon → public/favicon.png`);
 
 } catch (err) {
-  console.error('\nfavicon generation failed:', err.message);
-  process.exit(1);
+  // In CI environments (e.g. Vercel) Chrome system dependencies may be absent.
+  // The committed public/favicon.png is used as fallback — don't fail the build.
+  console.warn('\nfavicon: skipping generation —', err.message);
+  console.warn('favicon: using committed public/favicon.png as fallback.');
 } finally {
   await browser?.close();
   await server?.close();
