@@ -61,6 +61,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         {/* OG */}
         <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en" />
         <meta property="og:url" content="https://artifact.shchilkin.dev" />
         <meta property="og:title" content="artifact — Create Album Covers" />
         <meta
@@ -73,6 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="artifact — glitch album cover generator" />
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="artifact — Create Album Covers" />
