@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 export function Footer() {
     return (
         <motion.footer
-            className="border-t border-border mt-auto bg-bg px-6 py-[18px] flex items-center justify-between gap-4"
+            className="border-t border-border mt-auto bg-bg px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:py-[18px] sm:gap-4"
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -14,16 +14,16 @@ export function Footer() {
                 href="https://vantaa-underground.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 opacity-80 hover:opacity-100 transition-opacity duration-150"
+                className="shrink-0 opacity-70 hover:opacity-100 transition-opacity duration-150"
                 aria-label="Vantaa Underground"
             >
                 <img
                     src={vuLogo}
                     alt="Vantaa Underground"
-                    className="h-8 w-8 rounded-full"
+                    className="h-7 w-7 rounded-full"
                 />
             </a>
-            <p className="font-mono text-[0.7rem] text-dim leading-snug">
+            <p className="font-mono text-[0.75rem] text-dim leading-snug">
                 Part of the{" "}
                 <a
                     href="https://vantaa-underground.com"
@@ -35,7 +35,7 @@ export function Footer() {
                 </a>{" "}
                 project.
             </p>
-            <p className="font-mono text-[0.7rem] text-dim leading-snug ml-auto shrink-0">
+            <p className="font-mono text-[0.75rem] text-dim leading-snug sm:ml-auto shrink-0">
                 Made by{" "}
                 <a
                     href="https://shchilkin.dev"

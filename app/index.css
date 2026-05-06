@@ -5,7 +5,7 @@
   --color-sidebar: oklch(11% 0.016 42);
   --color-border: oklch(24% 0.018 42);
   --color-text: oklch(80% 0.022 68);
-  --color-dim: oklch(50% 0.018 68);
+  --color-dim: oklch(60% 0.018 68);
   --color-accent: oklch(66% 0.16 28);
   --color-accent-dim: oklch(66% 0.16 28 / 0.15);
   --font-mono: ui-monospace, Consolas, "Courier New", monospace;
@@ -640,27 +640,38 @@ input[type="range"] {
 .landing-headline {
   font-family: var(--display);
   font-weight: 900;
-  font-size: clamp(3.5rem, 9vw, 10rem);
+  font-size: clamp(3.2rem, 10vw, 10rem);
   line-height: 0.9;
   letter-spacing: -0.02em;
   color: var(--text);
   text-transform: uppercase;
+  text-wrap: balance;
   margin: 0;
   animation: landing-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .landing-headline__weird {
-  display: block;
+  display: inline;
   color: var(--accent);
+}
+
+.landing-deck {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+  line-height: 1.55;
+  margin: 0;
 }
 
 /* Accent rule — print registration mark */
 
 .landing-features li {
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: var(--text-dim);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
 }
 
 .landing-features li::before {
@@ -828,7 +839,8 @@ input[type="range"] {
 }
 
 .hero-cover {
-  width: min(72vw, 480px);
+  width: 100%;
+  max-width: 480px;
   aspect-ratio: 1;
   background: oklch(14% 0.01 280);
   flex-shrink: 0;
