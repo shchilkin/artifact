@@ -3,11 +3,11 @@ import { Renderer } from 'pixi.js';
 import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
-const SIZE = 540;
-
 export function useDocumentRenderer(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
+  pw: number,
+  ph: number,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -16,11 +16,15 @@ export function useDocumentRenderer(
   const pendingRef = useRef(false);
   const docRef = useRef(doc);
   const imageCacheRef = useRef(imageCache);
+  const pwRef = useRef(pw);
+  const phRef = useRef(ph);
 
   useEffect(() => {
     docRef.current = doc;
     imageCacheRef.current = imageCache;
-  }, [doc, imageCache]);
+    pwRef.current = pw;
+    phRef.current = ph;
+  }, [doc, imageCache, pw, ph]);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -29,13 +33,13 @@ export function useDocumentRenderer(
     }
 
     renderingRef.current = true;
-    renderDocument(docRef.current, SIZE, SIZE, imageCacheRef.current, rendererRef.current ?? undefined)
+    renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, rendererRef.current ?? undefined)
       .then((result) => {
         renderingRef.current = false;
         const displayCanvas = canvasRef.current;
         if (displayCanvas) {
           const ctx = displayCanvas.getContext('2d')!;
-          ctx.clearRect(0, 0, SIZE, SIZE);
+          ctx.clearRect(0, 0, pwRef.current, phRef.current);
           ctx.drawImage(result, 0, 0);
         }
         if (pendingRef.current) {
@@ -56,9 +60,16 @@ export function useDocumentRenderer(
     const container = containerRef.current;
     if (!container) return;
 
+    // Tear down any existing canvas/renderer before creating new ones
+    rendererRef.current?.destroy(true);
+    rendererRef.current = null;
+    if (canvasRef.current && container.contains(canvasRef.current)) {
+      container.removeChild(canvasRef.current);
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
+    canvas.width = pw;
+    canvas.height = ph;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     container.appendChild(canvas);
@@ -66,8 +77,8 @@ export function useDocumentRenderer(
 
     try {
       rendererRef.current = new Renderer({
-        width: SIZE,
-        height: SIZE,
+        width: pw,
+        height: ph,
         backgroundAlpha: 0,
         antialias: false,
       });
@@ -83,7 +94,8 @@ export function useDocumentRenderer(
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [doRender]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doRender, pw, ph]);
 
   useEffect(() => {
     doRender();

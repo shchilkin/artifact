@@ -233,10 +233,10 @@ export default function Generator() {
     setSelectedLayerId(null);
   }, []);
 
-  const handleExport = useCallback(async (resolution: 1500 | 2000 | 3000, format: 'png' | 'jpeg') => {
+  const handleExport = useCallback(async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
     setIsExporting(true);
     try {
-      await exportCanvas(docRef.current, imageCache, resolution, format);
+      await exportCanvas(docRef.current, imageCache, scale, format);
     } finally {
       setIsExporting(false);
     }
@@ -321,6 +321,7 @@ export default function Generator() {
     onEnvMapExport: handleEnvMapExport,
     onPresetsToggle: () => setShowPresets((prev) => !prev),
     onCopyLink: handleCopyLink,
+    aspect: doc.global.aspect ?? '1:1',
     isExporting,
     isExportingEnvMap,
   };

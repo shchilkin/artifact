@@ -3,39 +3,40 @@ import type { ImageLayer, TextLayer } from '../types/config';
 
 interface Props {
   layer: TextLayer | ImageLayer;
-  canvasSize: number;
+  canvasW: number;
+  canvasH: number;
   imageCache: Map<string, HTMLImageElement>;
   onChange: (updatedLayer: TextLayer | ImageLayer) => void;
 }
 
 type DragMode = 'move' | 'scale-se' | 'scale-nw' | 'scale-ne' | 'scale-sw' | 'rotate';
 
-export function CanvasHandles({ layer, canvasSize, imageCache, onChange }: Props) {
+export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const { hw, hh } = useMemo(() => {
     if (layer.kind === 'image') {
       const img = imageCache.get(layer.src);
       if (img?.naturalWidth) {
-        const baseScale = canvasSize / 540;
+        const baseScale = canvasW / 540;
         return {
           hw: (img.naturalWidth * baseScale * layer.scaleX) / 2,
           hh: (img.naturalHeight * baseScale * layer.scaleY) / 2,
         };
       }
-      return { hw: canvasSize * 0.18, hh: canvasSize * 0.18 };
+      return { hw: canvasW * 0.18, hh: canvasW * 0.18 };
     }
 
-    const fontSize = layer.size * (canvasSize / 540);
+    const fontSize = layer.size * (canvasW / 540);
     const longestLine = Math.max(...layer.content.split('\n').map((line) => line.length), 4);
     return {
-      hw: Math.max(36, Math.min(canvasSize * 0.42, longestLine * fontSize * 0.28 * layer.scaleX)),
+      hw: Math.max(36, Math.min(canvasW * 0.42, longestLine * fontSize * 0.28 * layer.scaleX)),
       hh: Math.max(18, fontSize * 0.7 * Math.max(layer.scaleY, 0.6)),
     };
-  }, [canvasSize, imageCache, layer]);
+  }, [canvasW, imageCache, layer]);
 
-  const cx = layer.x * canvasSize;
-  const cy = layer.y * canvasSize;
+  const cx = layer.x * canvasW;
+  const cy = layer.y * canvasH;
   const rot = (layer.rotation * Math.PI) / 180;
   const cos = Math.cos(rot);
   const sin = Math.sin(rot);
@@ -52,8 +53,8 @@ export function CanvasHandles({ layer, canvasSize, imageCache, onChange }: Props
     const orig = { ...layer };
 
     function onMove(me: PointerEvent) {
-      const dx = (me.clientX - startX) / canvasSize;
-      const dy = (me.clientY - startY) / canvasSize;
+      const dx = (me.clientX - startX) / canvasW;
+      const dy = (me.clientY - startY) / canvasH;
 
       if (mode === 'move') {
         onChange({
@@ -95,14 +96,14 @@ export function CanvasHandles({ layer, canvasSize, imageCache, onChange }: Props
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [canvasSize, cx, cy, layer, onChange]);
+  }, [canvasW, canvasH, cx, cy, layer, onChange]);
 
   return (
     <svg
       ref={svgRef}
       overflow="visible"
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
-      viewBox={`0 0 ${canvasSize} ${canvasSize}`}
+      viewBox={`0 0 ${canvasW} ${canvasH}`}
     >
       <rect
         x={cx - hw}
@@ -153,3 +154,5 @@ export function CanvasHandles({ layer, canvasSize, imageCache, onChange }: Props
     </svg>
   );
 }
+
+

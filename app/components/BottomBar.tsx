@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import type { AspectRatio } from '../types/config';
+import { ASPECT_SIZES } from '../types/config';
 
 interface Props {
   seed: number;
@@ -10,7 +12,8 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   undoCount: number;
-  onExport: (resolution: 1500 | 2000 | 3000, format: 'png' | 'jpeg') => void;
+  aspect: AspectRatio;
+  onExport: (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => void;
   onEnvMapExport: () => void;
   onPresetsToggle: () => void;
   onCopyLink: () => void;
@@ -28,6 +31,7 @@ export function BottomBar({
   canRedo,
   undoCount,
   onCopyLink,
+  aspect,
   onExport,
   onEnvMapExport,
   onPresetsToggle,
@@ -77,9 +81,9 @@ export function BottomBar({
     setTimeout(() => setCopied(false), 1800);
   }, [onCopyLink]);
 
-  const handleExport = (res: 1500 | 2000 | 3000) => {
+  const handleExport = (scale: 1 | 2 | 3) => {
     setShowExportMenu(false);
-    onExport(res, exportFormat);
+    onExport(scale, exportFormat);
   };
 
   const handleEnvMapExport = () => {
@@ -189,16 +193,19 @@ export function BottomBar({
                   ))}
                 </div>
 
-                {([1500, 2000, 3000] as const).map((res) => (
-                  <button
-                    key={res}
-                    className="export-option"
-                    role="menuitem"
-                    onClick={() => handleExport(res)}
-                  >
-                    {res}×{res}
-                  </button>
-                ))}
+                {([1, 2, 3] as const).map((scale) => {
+                  const [bw, bh] = ASPECT_SIZES[aspect];
+                  return (
+                    <button
+                      key={scale}
+                      className="export-option"
+                      role="menuitem"
+                      onClick={() => handleExport(scale)}
+                    >
+                      ×{scale} <span className="export-option-sub">{bw * scale}×{bh * scale}</span>
+                    </button>
+                  );
+                })}
                 <div className="export-menu-divider" />
                 <button
                   className="export-option export-option--env"

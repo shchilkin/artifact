@@ -105,9 +105,25 @@ export interface EffectLayer extends BaseLayer {
 
 export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
 
+export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
+
+export const ASPECT_SIZES: Record<AspectRatio, [number, number]> = {
+  '1:1':  [1000, 1000],
+  '4:5':  [1080, 1350],
+  '9:16': [1080, 1920],
+  '16:9': [1920, 1080],
+};
+
+export function getPreviewDims(aspect: AspectRatio): [number, number] {
+  const [aw, ah] = ASPECT_SIZES[aspect];
+  const scale = 540 / Math.max(aw, ah);
+  return [Math.round(aw * scale), Math.round(ah * scale)];
+}
+
 export interface GlobalConfig {
   bg: string;
   seed: number;
+  aspect: AspectRatio;
 }
 
 export interface CanvasDocument {
@@ -118,6 +134,7 @@ export interface CanvasDocument {
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: '#120020',
   seed: 4242,
+  aspect: '1:1',
 };
 
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
@@ -377,6 +394,7 @@ export function migrateFromV1(seed: number, cfg: Record<string, unknown>): Canva
     global: {
       bg: asString(cfg.bg, DEFAULT_GLOBAL.bg),
       seed,
+      aspect: '1:1',
     },
     layers,
   };

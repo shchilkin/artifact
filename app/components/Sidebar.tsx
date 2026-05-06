@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import {
   ALL_EMOJIS,
   FONT_NAMES,
+  type AspectRatio,
   type CanvasDocument,
   type EffectLayer,
   type EffectPreset,
@@ -238,6 +239,23 @@ export function Sidebar({
   return (
     <aside className="sidebar" ref={sidebarRef}>
       {mobileActionBar && <div className="sidebar-mobile-bar">{mobileActionBar}</div>}
+      {/* Canvas settings strip */}
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
+        <span className="text-dim text-[9px] tracking-widest font-mono mr-1">CANVAS</span>
+        {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((ratio) => (
+          <button
+            key={ratio}
+            className={`text-[9px] font-mono px-1.5 py-0.5 border rounded-sm tracking-wide transition-colors ${
+              (doc.global.aspect ?? '1:1') === ratio
+                ? 'border-accent text-accent bg-accent-dim'
+                : 'border-border text-dim hover:text-text'
+            }`}
+            onClick={() => setGlobal('aspect', ratio)}
+          >
+            {ratio}
+          </button>
+        ))}
+      </div>
       {/* Top pane: layer list fills all available space */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <LayerPanel

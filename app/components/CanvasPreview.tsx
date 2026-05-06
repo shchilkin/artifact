@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
+import { getPreviewDims } from '../types/config';
 import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import { CanvasHandles } from './CanvasHandles';
 
@@ -22,7 +23,8 @@ export function CanvasPreview({
   onLayerUpdate,
   onSelectLayer,
 }: Props) {
-  const containerRef = useDocumentRenderer(doc, imageCache);
+  const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
+  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph);
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
 
@@ -37,7 +39,8 @@ export function CanvasPreview({
   return (
     <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
       <div
-        className="canvas-area relative aspect-square h-full max-h-[min(100%,540px)] max-w-full flex items-center justify-center"
+        className="canvas-area relative h-full max-h-[min(100%,540px)] max-w-full flex items-center justify-center"
+        style={{ aspectRatio: `${pw} / ${ph}` }}
         onWheel={handleWheel}
       >
         <div
@@ -50,7 +53,8 @@ export function CanvasPreview({
         {showHandles && (
           <CanvasHandles
             layer={selectedLayer as TextLayer | ImageLayer}
-            canvasSize={540}
+            canvasW={pw}
+            canvasH={ph}
             imageCache={imageCache}
             onChange={(updated) => onLayerUpdate(updated.id, updated)}
           />
