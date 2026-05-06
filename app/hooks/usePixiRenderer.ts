@@ -20,7 +20,12 @@ interface PixiState {
   canvasTex: Texture;
 }
 
-function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
+function doRender(
+  pixi: PixiState,
+  cfg: GeneratorConfig,
+  seed: number,
+  bgImage: HTMLImageElement | null = null,
+) {
   const {
     renderer,
     stage,
@@ -33,7 +38,7 @@ function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
 
   // 1. Canvas 2D render
   const ctx = offscreen.getContext("2d", { willReadFrequently: true })!;
-  render2D(ctx, SIZE, SIZE, cfg, seed);
+  render2D(ctx, SIZE, SIZE, cfg, seed, 1, bgImage);
 
   // 2. Blit canvas → GPU RenderTexture (no filters on this pass)
   canvasTex.update();
@@ -44,16 +49,22 @@ function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
   renderer.render(stage);
 }
 
-export function usePixiRenderer(cfg: GeneratorConfig, seed: number) {
+export function usePixiRenderer(
+  cfg: GeneratorConfig,
+  seed: number,
+  bgImage: HTMLImageElement | null = null,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pixiRef = useRef<PixiState | null>(null);
   const cfgRef = useRef(cfg);
   const seedRef = useRef(seed);
+  const bgImageRef = useRef(bgImage);
 
   useEffect(() => {
     cfgRef.current = cfg;
     seedRef.current = seed;
-  }, [cfg, seed]);
+    bgImageRef.current = bgImage;
+  }, [cfg, seed, bgImage]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -105,7 +116,7 @@ export function usePixiRenderer(cfg: GeneratorConfig, seed: number) {
     };
     pixiRef.current = state;
 
-    doRender(state, cfgRef.current, seedRef.current);
+    doRender(state, cfgRef.current, seedRef.current, bgImageRef.current);
 
     return () => {
       canvasTex.destroy(true);
@@ -118,8 +129,8 @@ export function usePixiRenderer(cfg: GeneratorConfig, seed: number) {
   useEffect(() => {
     const pixi = pixiRef.current;
     if (!pixi) return;
-    doRender(pixi, cfg, seed);
-  }, [cfg, seed]);
+    doRender(pixi, cfg, seed, bgImage);
+  }, [cfg, seed, bgImage]);
 
   return containerRef;
 }

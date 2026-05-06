@@ -75,10 +75,10 @@ async function drawParentalAdvisory(
   }
 }
 
-function triggerDownload(dataUrl: string, seed: number, resolution: number) {
+function triggerDownload(dataUrl: string, seed: number, resolution: number, format: 'png' | 'jpeg') {
   const a = document.createElement("a");
   a.href = dataUrl;
-  a.download = `cover-${seed}-${resolution}.png`;
+  a.download = `cover-${seed}-${resolution}.${format}`;
   a.click();
 }
 
@@ -100,6 +100,8 @@ export async function exportCanvas(
   cfg: GeneratorConfig,
   seed: number,
   resolution: 1500 | 2000 | 3000,
+  bgImage: HTMLImageElement | null = null,
+  format: 'png' | 'jpeg' = 'png',
 ): Promise<void> {
   const W = resolution;
   const H = resolution;
@@ -117,6 +119,8 @@ export async function exportCanvas(
         PREVIEW_SIZE,
         cfg,
         seed,
+        1,
+        bgImage,
       );
       r();
     }, 0)
@@ -154,5 +158,7 @@ export async function exportCanvas(
     );
   }
 
-  triggerDownload(finalCanvas.toDataURL("image/png", 1.0), seed, resolution);
+  const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const quality = format === 'jpeg' ? 0.92 : 1.0;
+  triggerDownload(finalCanvas.toDataURL(mimeType, quality), seed, resolution, format);
 }

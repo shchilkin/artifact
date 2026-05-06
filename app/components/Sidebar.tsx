@@ -6,6 +6,12 @@ import { EffectInfoPopup } from "./EffectInfoPopup";
 interface Props {
   cfg: GeneratorConfig;
   onChange: (cfg: GeneratorConfig) => void;
+  bgImageUrl: string | null;
+  bgImageError: string | null;
+  onBgImageChange: (url: string | null) => void;
+  onImageFile: (file: File) => void;
+  onSectionRand: (section: string) => void;
+  onSectionReset: (section: string) => void;
   mobileActionBar?: React.ReactNode;
 }
 
@@ -14,6 +20,7 @@ interface SliderProps {
   value: number;
   min: number;
   max: number;
+  step?: number;
   onChange: (v: number) => void;
   effectKey?: string;
   onInfoEnter?: (key: string, rect: DOMRect) => void;
@@ -21,10 +28,11 @@ interface SliderProps {
 }
 
 function Slider(
-  { label, value, min, max, onChange, effectKey, onInfoEnter, onInfoLeave }:
+  { label, value, min, max, step = 1, onChange, effectKey, onInfoEnter, onInfoLeave }:
     SliderProps,
 ) {
   const iconRef = useRef<HTMLButtonElement>(null);
+  const display = step < 1 ? value.toFixed(2) : String(value);
 
   return (
     <div className="group flex flex-col gap-1.5">
@@ -47,16 +55,48 @@ function Slider(
           )}
         </span>
         <span className="text-text text-[10px] min-w-7 text-right">
-          {value}
+          {display}
         </span>
       </div>
       <input
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />
+    </div>
+  );
+}
+
+interface ButtonGroupProps {
+  label: string;
+  options: Array<{ value: string; label: string; style?: React.CSSProperties }>;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+function ButtonGroup({ label, options, value, onChange }: ButtonGroupProps) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-dim text-[10px]">{label}</span>
+      <div className="flex gap-1 flex-wrap">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            className={`px-2 py-1 font-mono text-[10px] border cursor-pointer rounded-none transition-colors ${
+              value === opt.value
+                ? "border-accent text-accent bg-accent-dim"
+                : "border-border text-dim hover:text-text hover:border-text"
+            }`}
+            style={opt.style}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -65,19 +105,43 @@ interface SectionProps {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  onRand?: () => void;
+  onReset?: () => void;
 }
 
-function Section({ title, children, defaultOpen = false }: SectionProps) {
+function Section({ title, children, defaultOpen = false, onRand, onReset }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-border">
-      <button
-        className="flex items-center justify-between w-full min-h-11 px-3.5 bg-transparent border-none cursor-pointer text-accent font-mono text-[10px] tracking-[2.5px] uppercase font-semibold hover:bg-accent-dim"
-        onClick={() => setOpen(!open)}
-      >
-        <span>{title}</span>
-        <span className="text-dim text-[10px]">{open ? "▾" : "▸"}</span>
-      </button>
+      <div className="flex items-stretch w-full">
+        <button
+          className="flex-1 flex items-center justify-between min-h-11 px-3.5 bg-transparent border-none cursor-pointer text-accent font-mono text-[10px] tracking-[2.5px] uppercase font-semibold hover:bg-accent-dim"
+          onClick={() => setOpen(!open)}
+        >
+          <span>{title}</span>
+          <span className="text-dim text-[10px]">{open ? "▾" : "▸"}</span>
+        </button>
+        {onReset && (
+          <button
+            className="px-3 min-h-11 text-dim text-[13px] hover:text-text hover:bg-accent-dim font-mono border-none border-l border-border bg-transparent cursor-pointer leading-none"
+            onClick={onReset}
+            title="Reset section to zero"
+            aria-label={`Reset ${title} to zero`}
+          >
+            ○
+          </button>
+        )}
+        {onRand && (
+          <button
+            className="px-3 min-h-11 text-dim text-[13px] hover:text-accent hover:bg-accent-dim font-mono border-none border-l border-border bg-transparent cursor-pointer leading-none"
+            onClick={onRand}
+            title="Randomize this section"
+            aria-label={`Randomize ${title} section`}
+          >
+            ⟳
+          </button>
+        )}
+      </div>
       {open && (
         <div className="px-3.5 pt-2 pb-3.5 flex flex-col gap-2.5">
           {children}
@@ -87,7 +151,7 @@ function Section({ title, children, defaultOpen = false }: SectionProps) {
   );
 }
 
-export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
+export function Sidebar({ cfg, onChange, bgImageUrl, bgImageError, onBgImageChange, onImageFile, onSectionRand, onSectionReset, mobileActionBar }: Props) {
   const set = <K extends keyof GeneratorConfig>(
     key: K,
     value: GeneratorConfig[K],
@@ -126,13 +190,28 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
   // Spread onto every Slider that has an effectKey
   const ip = { onInfoEnter: handleInfoEnter, onInfoLeave: handleInfoLeave };
 
+  // ─── Image upload ─────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onImageFile(file);
+    e.target.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) onImageFile(file);
+  };
+
   return (
     <aside className="sidebar" ref={sidebarRef}>
       {mobileActionBar && (
         <div className="sidebar-mobile-bar">{mobileActionBar}</div>
       )}
       <div className="sidebar-sections">
-        <Section title="BACKGROUND">
+        <Section title="BACKGROUND" onRand={() => onSectionRand('BG')}>
           <div className="flex justify-between items-center text-dim text-[10px]">
             <span>Color</span>
             <input
@@ -142,9 +221,85 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
               className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
             />
           </div>
+
+          {/* Image upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={handleFileInputChange}
+            aria-label="Upload background image"
+          />
+
+          {bgImageError && (
+            <p className="text-[9px] font-mono text-red-400">{bgImageError}</p>
+          )}
+
+          {bgImageUrl ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <img
+                  src={bgImageUrl}
+                  alt="Background image preview"
+                  className="w-10 h-10 object-cover border border-border flex-shrink-0"
+                />
+                <button
+                  className="btn text-[10px] flex-1"
+                  onClick={() => onBgImageChange(null)}
+                >
+                  ✕ REMOVE
+                </button>
+              </div>
+              <p className="text-[9px] text-dim italic">Not saved to presets or links.</p>
+              <ButtonGroup
+                label="Fit"
+                options={[
+                  { value: 'cover', label: 'COVER' },
+                  { value: 'contain', label: 'CONTAIN' },
+                  { value: 'tile', label: 'TILE' },
+                ]}
+                value={cfg.bgImageFit}
+                onChange={(v) => set('bgImageFit', v)}
+              />
+              <Slider
+                label="Opacity"
+                value={cfg.bgImageOpacity}
+                min={0}
+                max={100}
+                onChange={(v) => set('bgImageOpacity', v)}
+              />
+              <ButtonGroup
+                label="Blend"
+                options={[
+                  { value: 'normal', label: 'NORMAL' },
+                  { value: 'multiply', label: 'MULTIPLY' },
+                  { value: 'screen', label: 'SCREEN' },
+                  { value: 'overlay', label: 'OVERLAY' },
+                  { value: 'luminosity', label: 'LUMA' },
+                ]}
+                value={cfg.bgImageBlend}
+                onChange={(v) => set('bgImageBlend', v)}
+              />
+            </div>
+          ) : (
+            <div
+              className="flex flex-col gap-1.5"
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <button
+                className="btn w-full text-[10px]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                + IMAGE
+              </button>
+              <p className="text-[9px] text-dim text-center">or drop / paste</p>
+            </div>
+          )}
         </Section>
 
-        <Section title="EMOJIS" defaultOpen>
+        <Section title="EMOJIS" defaultOpen onRand={() => onSectionRand('EMOJIS')} onReset={() => onSectionReset('EMOJIS')}>
           <div className="grid grid-cols-5 gap-1.5">
             {ALL_EMOJIS.map((emoji) => (
               <button
@@ -193,7 +348,96 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="LIGHT RAYS">
+        <Section title="TEXT" onRand={() => onSectionRand('TEXT')} onReset={() => onSectionReset('TEXT')}>
+          <textarea
+            className="w-full bg-transparent border border-border text-text font-mono text-[11px] px-2 py-1.5 resize-none focus:outline-none focus:border-accent placeholder:text-dim"
+            rows={2}
+            placeholder="Album title, artist name…"
+            value={cfg.text}
+            onChange={(e) => set('text', e.target.value)}
+            aria-label="Text layer content"
+          />
+
+          <ButtonGroup
+            label="Font"
+            options={[
+              { value: 'MONO', label: 'MONO', style: { fontFamily: '"Courier New", monospace' } },
+              { value: 'DISPLAY', label: 'DISPLAY', style: { fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 900 } },
+              { value: 'VT323', label: 'VT323', style: { fontFamily: '"VT323", monospace' } },
+              { value: 'SPECIAL', label: 'SPECIAL', style: { fontFamily: '"Special Elite", monospace' } },
+            ]}
+            value={cfg.textFont}
+            onChange={(v) => set('textFont', v)}
+          />
+
+          <Slider
+            label="Size"
+            value={cfg.textSize}
+            min={8}
+            max={120}
+            onChange={(v) => set('textSize', v)}
+          />
+          <div className="flex justify-between items-center text-dim text-[10px]">
+            <span>Color</span>
+            <input
+              type="color"
+              value={cfg.textColor}
+              onChange={(e) => set('textColor', e.target.value)}
+              className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer"
+            />
+          </div>
+          <Slider
+            label="Opacity"
+            value={cfg.textOpacity}
+            min={0}
+            max={100}
+            onChange={(v) => set('textOpacity', v)}
+          />
+          <Slider
+            label="Rotation"
+            value={cfg.textRotation}
+            min={-180}
+            max={180}
+            onChange={(v) => set('textRotation', v)}
+          />
+          <Slider
+            label="X Position"
+            value={Math.round(cfg.textX * 100)}
+            min={0}
+            max={100}
+            onChange={(v) => set('textX', v / 100)}
+          />
+          <Slider
+            label="Y Position"
+            value={Math.round(cfg.textY * 100)}
+            min={0}
+            max={100}
+            onChange={(v) => set('textY', v / 100)}
+          />
+          <ButtonGroup
+            label="Align"
+            options={[
+              { value: 'left', label: '⬅ L' },
+              { value: 'center', label: '⬛ C' },
+              { value: 'right', label: 'R ➡' },
+            ]}
+            value={cfg.textAlign}
+            onChange={(v) => set('textAlign', v)}
+          />
+          <ButtonGroup
+            label="Blend"
+            options={[
+              { value: 'normal', label: 'NORMAL' },
+              { value: 'screen', label: 'SCREEN' },
+              { value: 'overlay', label: 'OVERLAY' },
+              { value: 'multiply', label: 'MULTIPLY' },
+            ]}
+            value={cfg.textBlend}
+            onChange={(v) => set('textBlend', v)}
+          />
+        </Section>
+
+        <Section title="LIGHT RAYS" onRand={() => onSectionRand('RAYS')} onReset={() => onSectionReset('RAYS')}>
           <div className="flex justify-between items-center text-dim text-[10px]">
             <span>Ray Color</span>
             <input
@@ -241,7 +485,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="GLITCH">
+        <Section title="GLITCH" onRand={() => onSectionRand('GLITCH')} onReset={() => onSectionReset('GLITCH')}>
           <Slider
             label="VHS Streaks"
             value={cfg.glitch}
@@ -280,7 +524,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="TEXTURE">
+        <Section title="TEXTURE" onRand={() => onSectionRand('TEXTURE')} onReset={() => onSectionReset('TEXTURE')}>
           <Slider
             label="Grain"
             value={cfg.grain}
@@ -301,7 +545,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="COLOR TINT">
+        <Section title="COLOR TINT" onRand={() => onSectionRand('TINT')} onReset={() => onSectionReset('TINT')}>
           <div className="flex justify-between items-center text-dim text-[10px]">
             <span>Tint Color</span>
             <input
@@ -322,7 +566,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="WARP">
+        <Section title="WARP" onRand={() => onSectionRand('WARP')} onReset={() => onSectionReset('WARP')}>
           <Slider
             label="Noise Warp"
             value={cfg.noiseWarp}
@@ -397,7 +641,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="COLOR FX">
+        <Section title="COLOR FX" onRand={() => onSectionRand('COLORFX')} onReset={() => onSectionReset('COLORFX')}>
           <Slider
             label="Hue Shift"
             value={cfg.hueShift}
@@ -445,7 +689,7 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
           />
         </Section>
 
-        <Section title="RISO">
+        <Section title="RISO" onRand={() => onSectionRand('RISO')} onReset={() => onSectionReset('RISO')}>
           <Slider
             label="Duotone"
             value={cfg.duotone}
@@ -533,8 +777,22 @@ export function Sidebar({ cfg, onChange, mobileActionBar }: Props) {
                   <span className="toggle-switch__track" />
                 </label>
               </div>
+              <Slider
+                label="X Position"
+                value={Math.round(cfg.advisoryX * 100)}
+                min={0}
+                max={70}
+                onChange={(v) => set('advisoryX', v / 100)}
+              />
+              <Slider
+                label="Y Position"
+                value={Math.round(cfg.advisoryY * 100)}
+                min={0}
+                max={90}
+                onChange={(v) => set('advisoryY', v / 100)}
+              />
               <p className="pa-hint">
-                Drag the badge on the canvas to reposition it.
+                Or drag the badge on the canvas to reposition it.
               </p>
             </>
           )}

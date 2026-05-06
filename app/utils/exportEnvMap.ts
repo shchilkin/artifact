@@ -26,13 +26,17 @@ function triggerBlobDownload(canvas: HTMLCanvasElement, seed: number) {
   }, 'image/png');
 }
 
-export async function exportEnvMap(cfg: GeneratorConfig, seed: number): Promise<void> {
+export async function exportEnvMap(
+  cfg: GeneratorConfig,
+  seed: number,
+  bgImage: HTMLImageElement | null = null,
+): Promise<void> {
   const offscreen = document.createElement('canvas');
   offscreen.width = W;
   offscreen.height = H;
   await new Promise<void>((r) =>
     setTimeout(() => {
-      render(offscreen.getContext('2d', { willReadFrequently: true })!, W, H, cfg, seed, 1 / ENV_EXPORT_SCALE_FACTOR);
+      render(offscreen.getContext('2d', { willReadFrequently: true })!, W, H, cfg, seed, 1 / ENV_EXPORT_SCALE_FACTOR, bgImage);
       r();
     }, 0)
   );

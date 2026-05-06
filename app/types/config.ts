@@ -45,6 +45,21 @@ export interface GeneratorConfig {
   advisoryX: number;          // 0–1 horizontal position (fraction of canvas width)
   advisoryY: number;          // 0–1 vertical position (fraction of canvas height)
   advisoryBorder: boolean;    // white outline for visibility on dark backgrounds
+  // Text layer
+  text: string;
+  textFont: string;    // 'MONO' | 'DISPLAY' | 'VT323' | 'SPECIAL'
+  textSize: number;    // 8–120 px at 540px canvas
+  textColor: string;
+  textOpacity: number; // 0–100
+  textX: number;       // 0–1 canvas fraction (anchor point)
+  textY: number;       // 0–1 canvas fraction (anchor point)
+  textRotation: number; // -180 to 180 degrees
+  textAlign: string;   // 'left' | 'center' | 'right'
+  textBlend: string;   // canvas globalCompositeOperation
+  // Background image settings (data URL stored separately in component state)
+  bgImageFit: string;    // 'cover' | 'contain' | 'tile'
+  bgImageOpacity: number; // 0–100
+  bgImageBlend: string;   // canvas globalCompositeOperation
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
@@ -90,6 +105,19 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
   advisoryX: 0.05,
   advisoryY: 0.82,
   advisoryBorder: true,
+  text: '',
+  textFont: 'DISPLAY',
+  textSize: 52,
+  textColor: '#ffffff',
+  textOpacity: 100,
+  textX: 0.5,
+  textY: 0.5,
+  textRotation: 0,
+  textAlign: 'center',
+  textBlend: 'normal',
+  bgImageFit: 'cover',
+  bgImageOpacity: 85,
+  bgImageBlend: 'normal',
 };
 
 export const ALL_EMOJIS = [

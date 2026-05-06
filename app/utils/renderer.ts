@@ -5,6 +5,30 @@ const REF = 540;
 
 type RNG = () => number;
 
+const FONT_MAP: Record<string, string> = {
+  MONO:    '"Courier New", monospace',
+  DISPLAY: '"Barlow Condensed", "Arial Black", sans-serif',
+  VT323:   '"VT323", monospace',
+  SPECIAL: '"Special Elite", "Courier New", monospace',
+};
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig) {
   ctx.fillStyle = cfg.bg;
   ctx.fillRect(0, 0, W, H);
@@ -17,6 +41,34 @@ function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, cfg
   grad.addColorStop(1, 'rgba(0,0,0,0.65)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
+}
+
+function drawBgImage(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  cfg: GeneratorConfig,
+  bgImage: HTMLImageElement | null,
+) {
+  if (!bgImage || !bgImage.naturalWidth) return;
+  ctx.save();
+  ctx.globalCompositeOperation = cfg.bgImageBlend as GlobalCompositeOperation;
+  ctx.globalAlpha = cfg.bgImageOpacity / 100;
+  if (cfg.bgImageFit === 'cover') {
+    const s = Math.max(W / bgImage.naturalWidth, H / bgImage.naturalHeight);
+    const sw = bgImage.naturalWidth * s;
+    const sh = bgImage.naturalHeight * s;
+    ctx.drawImage(bgImage, (W - sw) / 2, (H - sh) / 2, sw, sh);
+  } else if (cfg.bgImageFit === 'contain') {
+    const s = Math.min(W / bgImage.naturalWidth, H / bgImage.naturalHeight);
+    const sw = bgImage.naturalWidth * s;
+    const sh = bgImage.naturalHeight * s;
+    ctx.drawImage(bgImage, (W - sw) / 2, (H - sh) / 2, sw, sh);
+  } else {
+    const pat = ctx.createPattern(bgImage, 'repeat');
+    if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H); }
+  }
+  ctx.restore();
 }
 
 function drawRays(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, rng: RNG) {
@@ -145,6 +197,37 @@ function drawEmojis(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: Ge
   }
 }
 
+function drawText(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  cfg: GeneratorConfig,
+  scale: number,
+) {
+  if (!cfg.text || cfg.text.trim() === '') return;
+  const fontSize = cfg.textSize * scale;
+  const fontStack = FONT_MAP[cfg.textFont] ?? FONT_MAP.MONO;
+  ctx.save();
+  ctx.globalCompositeOperation = cfg.textBlend as GlobalCompositeOperation;
+  ctx.globalAlpha = cfg.textOpacity / 100;
+  ctx.fillStyle = cfg.textColor;
+  ctx.font = `${fontSize}px ${fontStack}`;
+  ctx.textAlign = cfg.textAlign as CanvasTextAlign;
+  ctx.textBaseline = 'middle';
+  const px = W * cfg.textX;
+  const py = H * cfg.textY;
+  ctx.translate(px, py);
+  ctx.rotate((cfg.textRotation * Math.PI) / 180);
+  const maxWidth = W * 0.92;
+  const lines = wrapText(ctx, cfg.text.trim(), maxWidth);
+  const lineH = fontSize * 1.25;
+  lines.forEach((line, i) => {
+    const lineY = (i - (lines.length - 1) / 2) * lineH;
+    ctx.fillText(line, 0, lineY, maxWidth);
+  });
+  ctx.restore();
+}
+
 function applyCA(ctx: CanvasRenderingContext2D, W: number, H: number, cfg: GeneratorConfig, scale: number) {
   if (cfg.ca === 0) return;
   const ca = Math.round(cfg.ca * scale);
@@ -220,7 +303,8 @@ export function render(
   H: number,
   cfg: GeneratorConfig,
   seed: number,
-  scaleMultiplier = 1
+  scaleMultiplier = 1,
+  bgImage: HTMLImageElement | null = null,
 ) {
   const scale = (W / REF) * scaleMultiplier;
 
@@ -229,9 +313,11 @@ export function render(
   ctx.globalCompositeOperation = 'source-over';
 
   drawBackground(ctx, W, H, cfg);
+  drawBgImage(ctx, W, H, cfg, bgImage);
   drawRays(ctx, W, H, cfg, lcg(seed ^ 0x1a2b3c));
   drawGlitch(ctx, W, H, cfg, lcg(seed ^ 0x4d5e6f), scale);
   drawEmojis(ctx, W, H, cfg, lcg(seed ^ 0x7a8b9c), scale);
+  drawText(ctx, W, H, cfg, scale);
   applyCA(ctx, W, H, cfg, scale);
   drawScanlines(ctx, W, H, cfg, scale);
   drawGrain(ctx, W, H, cfg, seed);
