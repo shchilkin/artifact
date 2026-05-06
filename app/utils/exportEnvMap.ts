@@ -1,18 +1,8 @@
-import type { GeneratorConfig } from '../types/config';
-import { render } from './renderer';
-import { buildFilters } from './pixiFilters';
-import { gpuRenderToCanvas } from './gpuRender';
+import type { CanvasDocument } from '../types/config';
+import { renderDocument } from './renderer';
 
 const W = 4096;
 const H = 2048;
-
-/**
- * Elements that look right on the flat 2D preview appear ~4× larger
- * when viewed through a typical 3D camera FOV on a sphere. This factor
- * scales emojis, glitch streaks, scanlines and CA shifts down during
- * the env map render pass only. Tune here without touching other logic.
- */
-export const ENV_EXPORT_SCALE_FACTOR = 4;
 
 function triggerBlobDownload(canvas: HTMLCanvasElement, seed: number) {
   canvas.toBlob((blob) => {
@@ -27,28 +17,9 @@ function triggerBlobDownload(canvas: HTMLCanvasElement, seed: number) {
 }
 
 export async function exportEnvMap(
-  cfg: GeneratorConfig,
-  seed: number,
-  bgImage: HTMLImageElement | null = null,
+  doc: CanvasDocument,
+  imageCache: Map<string, HTMLImageElement>,
 ): Promise<void> {
-  const offscreen = document.createElement('canvas');
-  offscreen.width = W;
-  offscreen.height = H;
-  await new Promise<void>((r) =>
-    setTimeout(() => {
-      render(offscreen.getContext('2d', { willReadFrequently: true })!, W, H, cfg, seed, 1 / ENV_EXPORT_SCALE_FACTOR, bgImage);
-      r();
-    }, 0)
-  );
-
-  // Use H as refSize so pixelate block density scales to the 2048 dimension
-  const filters = buildFilters(cfg, seed, H);
-
-  if (!filters) {
-    triggerBlobDownload(offscreen, seed);
-    return;
-  }
-
-  const out = await gpuRenderToCanvas({ width: W, height: H, source: offscreen, filters });
-  triggerBlobDownload(out, seed);
+  const finalCanvas = await renderDocument(doc, W, H, imageCache);
+  triggerBlobDownload(finalCanvas, doc.global.seed);
 }
