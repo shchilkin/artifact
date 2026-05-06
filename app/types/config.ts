@@ -115,7 +115,8 @@ export const ASPECT_SIZES: Record<AspectRatio, [number, number]> = {
 };
 
 export function getPreviewDims(aspect: AspectRatio): [number, number] {
-  const [aw, ah] = ASPECT_SIZES[aspect];
+  const dims = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
+  const [aw, ah] = dims;
   const scale = 540 / Math.max(aw, ah);
   return [Math.round(aw * scale), Math.round(ah * scale)];
 }

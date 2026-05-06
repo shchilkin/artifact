@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, EffectLayer, EffectPreset, Layer, LayerKind } from '../types/config';
 import { EFFECT_PRESETS } from '../types/config';
 
@@ -37,7 +37,20 @@ export function LayerPanel({
 }: Props) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const dragLayerId = useRef<string | null>(null);
+  const addButtonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showAddMenu) return;
+    function handleOutside(e: MouseEvent) {
+      if (addButtonRef.current && !addButtonRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showAddMenu]);
 
   const displayLayers = [...doc.layers].reverse();
 
@@ -68,7 +81,7 @@ export function LayerPanel({
     <div className="flex flex-col min-h-0 h-full">
       <div className="flex items-center justify-between px-3.5 min-h-11 border-b border-border flex-shrink-0">
         <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
-        <div className="relative">
+        <div ref={addButtonRef} className="relative">
           <button
             className="px-2 py-1 font-mono text-[10px] border border-border text-dim hover:text-accent hover:border-accent cursor-pointer bg-transparent"
             onClick={() => setShowAddMenu((prev) => !prev)}
@@ -123,23 +136,46 @@ export function LayerPanel({
             }}
             onDragEnd={() => setDragOverId(null)}
             onClick={() => onSelectLayer(selectedLayerId === layer.id ? null : layer.id)}
-            onDoubleClick={() => {
-              const nextName = window.prompt('Rename layer', layer.name);
-              if (nextName && nextName.trim()) onRenameLayer(layer.id, nextName.trim());
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditingId(layer.id);
             }}
             className={`flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
               selectedLayerId === layer.id ? 'bg-accent-dim' : 'hover:bg-accent-dim/50'
             } ${dragOverId === layer.id ? 'border-t-2 border-t-accent' : ''}`}
           >
             <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
-            <span className={`font-mono text-[11px] font-bold flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}>
+            <span className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`} style={{ fontWeight: 700 }}>
               {layer.kind === 'effect'
                 ? EFFECT_PRESETS[(layer as EffectLayer).preset!]?.icon ?? 'FX'
                 : KIND_ICONS[layer.kind]}
             </span>
-            <span className={`font-mono text-[10px] flex-1 truncate ${selectedLayerId === layer.id ? 'text-text' : 'text-dim'}`}>
-              {layer.name}
-            </span>
+            {editingId === layer.id ? (
+              <input
+                autoFocus
+                defaultValue={layer.name}
+                className="font-mono text-[10px] flex-1 min-w-0 bg-transparent border-none outline-none border-b border-accent text-text"
+                onBlur={(e) => {
+                  const val = e.target.value.trim();
+                  if (val) onRenameLayer(layer.id, val);
+                  setEditingId(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = e.currentTarget.value.trim();
+                    if (val) onRenameLayer(layer.id, val);
+                    setEditingId(null);
+                  } else if (e.key === 'Escape') {
+                    setEditingId(null);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selectedLayerId === layer.id ? 'text-text' : 'text-dim'}`}>
+                {layer.name}
+              </span>
+            )}
             <button
               className="text-[11px] flex-shrink-0 text-dim hover:text-text bg-transparent border-none cursor-pointer p-0.5"
               onClick={(e) => {

@@ -7,6 +7,7 @@ import { BottomBar } from '../components/BottomBar';
 import { SiteNav } from '../components/SiteNav';
 import { usePresets } from '../hooks/usePresets';
 import {
+  ASPECT_SIZES,
   cloneDocument,
   DEFAULT_DOCUMENT,
   makeEffectPresetLayer,
@@ -15,6 +16,7 @@ import {
   makeImageLayer,
   makeTextLayer,
   migrateFromV1,
+  type AspectRatio,
   type CanvasDocument,
   type EffectPreset,
   type ImageLayer,
@@ -26,6 +28,17 @@ import { exportEnvMap } from '../utils/exportEnvMap';
 import { randomDocument } from '../utils/randomConfig';
 
 const DOC_KEY = 'doc-v2';
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function isValidAspect(v: unknown): v is AspectRatio {
+  return typeof v === 'string' && v in ASPECT_SIZES;
+}
+
+function normalizeDocument(raw: unknown): CanvasDocument {
+  const doc = raw as CanvasDocument;
+  const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
+  return { ...doc, global: { ...doc.global, aspect } };
+}
 const LEGACY_CFG_KEY = 'emoji-art-cfg';
 const LEGACY_SEED_KEY = 'emoji-art-seed';
 const HISTORY_MAX = 50;
@@ -47,7 +60,7 @@ function getInitialDocument(): CanvasDocument {
   const docParam = params.get('doc');
   if (docParam) {
     try {
-      return JSON.parse(docParam) as CanvasDocument;
+      return normalizeDocument(JSON.parse(docParam));
     } catch {
       // ignore
     }
@@ -55,7 +68,7 @@ function getInitialDocument(): CanvasDocument {
 
   try {
     const raw = localStorage.getItem(DOC_KEY);
-    if (raw) return JSON.parse(raw) as CanvasDocument;
+    if (raw) return normalizeDocument(JSON.parse(raw));
   } catch {
     // ignore
   }
@@ -83,6 +96,7 @@ export default function Generator() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
   const [canvasDragOver, setCanvasDragOver] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
 
   const safeSelectedLayerId = selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId)
     ? selectedLayerId
@@ -154,7 +168,11 @@ export default function Generator() {
   }, [redo, undo]);
 
   useEffect(() => {
-    localStorage.setItem(DOC_KEY, JSON.stringify(doc));
+    try {
+      localStorage.setItem(DOC_KEY, JSON.stringify(doc));
+    } catch {
+      // quota exceeded or private browsing — gracefully ignore
+    }
   }, [doc]);
 
   useEffect(() => {
@@ -172,6 +190,7 @@ export default function Generator() {
           return next;
         });
       };
+      img.onerror = () => { /* silently skip unloadable images */ };
       img.src = layer.src;
     });
     return () => {
@@ -283,11 +302,22 @@ export default function Generator() {
   }, []);
 
   const handleDroppedFile = useCallback(async (file: File) => {
-    const src = await readImageFile(file);
-    if (!src) return;
-    const layer = makeImageLayer(src);
-    setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
-    setSelectedLayerId(layer.id);
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
+      setTimeout(() => setDropError(null), 4000);
+      return;
+    }
+    try {
+      const src = await readImageFile(file);
+      if (!src) return;
+      const layer = makeImageLayer(src);
+      setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+      setSelectedLayerId(layer.id);
+    } catch {
+      setDropError('Could not read image');
+      setTimeout(() => setDropError(null), 4000);
+    }
   }, [setDoc]);
 
   useEffect(() => {
@@ -354,6 +384,11 @@ export default function Generator() {
             onLayerUpdate={updateLayer}
             onSelectLayer={setSelectedLayerId}
           />
+          {dropError && (
+            <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
+              {dropError}
+            </p>
+          )}
           <BottomBar {...bottomBarProps} />
         </main>
 
