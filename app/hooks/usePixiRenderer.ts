@@ -1,8 +1,8 @@
-import { useRef, useEffect, useLayoutEffect } from 'react';
-import { Renderer, Container, Sprite, Texture, RenderTexture } from 'pixi.js';
-import type { GeneratorConfig } from '../types/config';
-import { render as render2D } from '../utils/renderer';
-import { buildFilters } from '../utils/pixiFilters';
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Container, Renderer, RenderTexture, Sprite, Texture } from "pixi.js";
+import type { GeneratorConfig } from "../types/config";
+import { render as render2D } from "../utils/renderer";
+import { buildFilters } from "../utils/pixiFilters";
 
 const SIZE = 540;
 
@@ -21,10 +21,18 @@ interface PixiState {
 }
 
 function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
-  const { renderer, stage, displaySprite, gpuTex, blitSprite, offscreen, canvasTex } = pixi;
+  const {
+    renderer,
+    stage,
+    displaySprite,
+    gpuTex,
+    blitSprite,
+    offscreen,
+    canvasTex,
+  } = pixi;
 
   // 1. Canvas 2D render
-  const ctx = offscreen.getContext('2d', { willReadFrequently: true })!;
+  const ctx = offscreen.getContext("2d", { willReadFrequently: true })!;
   render2D(ctx, SIZE, SIZE, cfg, seed);
 
   // 2. Blit canvas → GPU RenderTexture (no filters on this pass)
@@ -39,24 +47,31 @@ function doRender(pixi: PixiState, cfg: GeneratorConfig, seed: number) {
 export function usePixiRenderer(cfg: GeneratorConfig, seed: number) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pixiRef = useRef<PixiState | null>(null);
-
   const cfgRef = useRef(cfg);
   const seedRef = useRef(seed);
-  cfgRef.current = cfg;
-  seedRef.current = seed;
+
+  useEffect(() => {
+    cfgRef.current = cfg;
+    seedRef.current = seed;
+  }, [cfg, seed]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const offscreen = document.createElement('canvas');
+    const offscreen = document.createElement("canvas");
     offscreen.width = SIZE;
     offscreen.height = SIZE;
-    offscreen.getContext('2d', { willReadFrequently: true });
+    offscreen.getContext("2d", { willReadFrequently: true });
 
     let renderer: Renderer;
     try {
-      renderer = new Renderer({ width: SIZE, height: SIZE, backgroundAlpha: 0, antialias: false });
+      renderer = new Renderer({
+        width: SIZE,
+        height: SIZE,
+        backgroundAlpha: 0,
+        antialias: false,
+      });
     } catch {
       return;
     }
@@ -79,7 +94,15 @@ export function usePixiRenderer(cfg: GeneratorConfig, seed: number) {
     const stage = new Container();
     stage.addChild(displaySprite);
 
-    const state: PixiState = { renderer, stage, displaySprite, gpuTex, blitSprite, offscreen, canvasTex };
+    const state: PixiState = {
+      renderer,
+      stage,
+      displaySprite,
+      gpuTex,
+      blitSprite,
+      offscreen,
+      canvasTex,
+    };
     pixiRef.current = state;
 
     doRender(state, cfgRef.current, seedRef.current);

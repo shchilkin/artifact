@@ -28,15 +28,10 @@ export function BottomBar({
   isExporting,
   isExportingEnvMap,
 }: Props) {
-  const [seedInput, setSeedInput] = useState(String(seed));
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const exportWrapRef = useRef<HTMLDivElement>(null);
-
-  // Sync display when seed changes externally (randomize / prev)
-  useEffect(() => {
-    setSeedInput(String(seed));
-  }, [seed]);
+  const seedInputRef = useRef<HTMLInputElement>(null);
 
   // Close export menu on click outside
   useEffect(() => {
@@ -64,7 +59,8 @@ export function BottomBar({
   }, [showExportMenu]);
 
   const handleSeedSet = () => {
-    const parsed = parseInt(seedInput, 10);
+    const value = seedInputRef.current?.value ?? String(seed);
+    const parsed = parseInt(value, 10);
     if (!isNaN(parsed)) onSeedChange(parsed);
   };
 
@@ -106,12 +102,13 @@ export function BottomBar({
       <div className="bottom-seed-group">
         <span className="bottom-label seed-label">SEED</span>
         <input
+          key={seed}
+          ref={seedInputRef}
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={7}
-          value={seedInput}
-          onChange={(e) => setSeedInput(e.target.value)}
+          defaultValue={String(seed)}
           onKeyDown={(e) => e.key === "Enter" && handleSeedSet()}
           onBlur={handleSeedSet}
           className="seed-input"
