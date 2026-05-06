@@ -9,12 +9,14 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./index.css";
-import { RENDER, VARIANTS } from "./utils/logoVariants";
 import { ALL_EMOJIS } from "./types/config";
 
 function useFaviconGlyph() {
   useEffect(() => {
-    import("pixi.js").then(({ Renderer, Container }) => {
+    Promise.all([
+      import("pixi.js"),
+      import("./utils/logoVariants"),
+    ]).then(([{ Renderer, Container }, { RENDER, VARIANTS }]) => {
       const emoji = ALL_EMOJIS[Math.floor(Math.random() * ALL_EMOJIS.length)];
       const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
       let renderer: InstanceType<typeof Renderer>;
@@ -126,7 +128,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <main className="p-8 container mx-auto">
       <h1 className="text-2xl font-bold mb-2">{message}</h1>
-      <p className="text-muted">{details}</p>
+      <p className="text-dim">{details}</p>
       {stack && (
         <pre className="mt-4 w-full p-4 overflow-x-auto text-xs bg-black/10 rounded">
           <code>{stack}</code>

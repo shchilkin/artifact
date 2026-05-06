@@ -1,7 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import { Container, Renderer } from "pixi.js";
 import { ALL_EMOJIS } from "../types/config";
-import { RENDER, VARIANTS } from "../utils/logoVariants";
 
 const DISPLAY = 32;
 
@@ -12,35 +10,47 @@ export function LogoGlyph() {
         const wrap = wrapRef.current;
         if (!wrap) return;
 
+        let cancelled = false;
+        let cleanupVariant: (() => void) | undefined;
+        let pixiRenderer: import("pixi.js").Renderer | undefined;
+
         const emoji = ALL_EMOJIS[Math.floor(Math.random() * ALL_EMOJIS.length)];
-        const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        let renderer: Renderer;
-        try {
-            renderer = new Renderer({
-                width: RENDER,
-                height: RENDER,
-                backgroundAlpha: 0,
-                antialias: false,
-            });
-        } catch {
-            return;
-        }
+        Promise.all([
+            import("pixi.js"),
+            import("../utils/logoVariants"),
+        ]).then(([{ Renderer, Container }, { RENDER, VARIANTS }]) => {
+            if (cancelled) return;
 
-        const canvas = renderer.view as HTMLCanvasElement;
-        canvas.style.cssText =
-            `display:block;width:${DISPLAY}px;height:${DISPLAY}px;image-rendering:pixelated;`;
-        wrap.appendChild(canvas);
+            const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
 
-        const stage = new Container();
-        const reducedMotion = window.matchMedia(
-            "(prefers-reduced-motion: reduce)",
-        ).matches;
-        const cleanupVariant = variant(stage, renderer, emoji, reducedMotion);
+            let renderer: import("pixi.js").Renderer;
+            try {
+                renderer = new Renderer({
+                    width: RENDER,
+                    height: RENDER,
+                    backgroundAlpha: 0,
+                    antialias: false,
+                });
+            } catch {
+                return;
+            }
+
+            pixiRenderer = renderer;
+            const canvas = renderer.view as HTMLCanvasElement;
+            canvas.style.cssText =
+                `display:block;width:${DISPLAY}px;height:${DISPLAY}px;image-rendering:pixelated;`;
+            wrap.appendChild(canvas);
+
+            const stage = new Container();
+            cleanupVariant = variant(stage, renderer, emoji, reducedMotion);
+        });
 
         return () => {
-            cleanupVariant();
-            renderer.destroy(true);
+            cancelled = true;
+            cleanupVariant?.();
+            pixiRenderer?.destroy(true);
         };
     }, []);
 

@@ -33,6 +33,8 @@ const CELLS: [string, string][] = [
     ["#111111", "#525252"],
 ];
 
+let fontPromise: Promise<ArrayBuffer | null> | null = null;
+
 async function loadFont(): Promise<ArrayBuffer | null> {
     try {
         // Ask Google Fonts for the Barlow Condensed Black CSS, then extract the woff2 URL.
@@ -70,7 +72,8 @@ function CoverRow({ cells }: { cells: [string, string][] }) {
 }
 
 export default async function handler(): Promise<Response> {
-    const fontData = await loadFont();
+    fontPromise ??= loadFont();
+    const fontData = await fontPromise;
     const fonts = fontData
         ? [
             {
