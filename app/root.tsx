@@ -7,9 +7,20 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import type { MetaFunction } from "react-router";
 import type { Route } from "./+types/root";
 import "./index.css";
 import { ALL_EMOJIS } from "./types/config";
+
+// Default title/description — route-level meta() overrides these via <Meta />
+export const meta: MetaFunction = () => [
+  { title: "artifact — Create Album Covers" },
+  {
+    name: "description",
+    content:
+      "Generate glitchy, GPU-rendered album covers with emoji, effects, and one click.",
+  },
+];
 
 function useFaviconGlyph() {
   useEffect(() => {
@@ -53,12 +64,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="UTF-8" />
         <link rel="icon" type="image/png" sizes="72x72" href="/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        {/* Primary */}
-        <title>artifact — Create Album Covers</title>
-        <meta
-          name="description"
-          content="Generate glitchy, GPU-rendered album covers with emoji, effects, and one click."
-        />
         {/* OG */}
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="en" />
@@ -80,7 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <meta
           property="og:logo"
-          content="https://artifact.shchilkin.dev/favicon.svg"
+          content="https://artifact.shchilkin.dev/favicon.png"
         />
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />

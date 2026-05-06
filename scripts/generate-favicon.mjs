@@ -48,27 +48,30 @@ try {
 
   // Promise that resolves when useFaviconGlyph sets link[rel="icon"].href = data:...
   let resolveFavicon;
+  let rejectTimer;
   const faviconPromise = new Promise((res, rej) => {
-    resolveFavicon = res;
-    setTimeout(() => rej(new Error('useFaviconGlyph did not fire within 30s')), 30_000);
+    rejectTimer = setTimeout(() => rej(new Error('useFaviconGlyph did not fire within 30s')), 30_000);
+    rejectTimer.unref(); // don't block the event loop if everything else finishes
+    resolveFavicon = (url) => { clearTimeout(rejectTimer); res(url); };
   });
 
   // Expose a Node.js function the page can call
   await page.exposeFunction('__faviconReady', (url) => resolveFavicon(url));
 
-  // Intercept the href setter on ALL link elements before the page runs
+  // Intercept the href setter on link[rel="icon"] only, preserving the original getter
   await page.evaluateOnNewDocument(() => {
-    const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'title'); // just for reference
-    const origSet = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href')?.set;
+    const origDescriptor = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href');
+    const origGet = origDescriptor?.get;
+    const origSet = origDescriptor?.set;
     if (!origSet) return;
 
     Object.defineProperty(HTMLLinkElement.prototype, 'href', {
-      get() { return this.getAttribute('href') ?? ''; },
+      get() { return origGet ? origGet.call(this) : (this.getAttribute('href') ?? ''); },
       set(value) {
         origSet.call(this, value);
         if (typeof value === 'string' && value.startsWith('data:') && this.rel === 'icon') {
-          // Use the resolved href (absolute) so we have the full data URL
-          window.__faviconReady?.(this.href || value);
+          const resolved = origGet ? origGet.call(this) : value;
+          window.__faviconReady?.(resolved);
         }
       },
       configurable: true,
