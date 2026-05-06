@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <meta
           property="og:image"
-          content="https://artifact.shchilkin.dev/og.png"
+          content="https://artifact.shchilkin.dev/api/og"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -82,7 +82,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <meta
           name="twitter:image"
-          content="https://artifact.shchilkin.dev/og.png"
+          content="https://artifact.shchilkin.dev/api/og"
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
