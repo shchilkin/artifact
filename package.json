@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "react-router dev",
-    "build": "react-router build",
+    "favicon": "node scripts/generate-favicon.mjs",
+    "dev": "npm run favicon && react-router dev",
+    "build": "npm run favicon && react-router build",
     "lint": "eslint .",
     "preview": "vite preview --outDir build/client",
     "typecheck": "react-router typegen && tsc"
@@ -32,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "puppeteer": "^24.43.0",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",

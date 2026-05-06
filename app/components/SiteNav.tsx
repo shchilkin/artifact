@@ -55,6 +55,7 @@ export function SiteNav({ solid }: { solid?: boolean }) {
 
         {/* Mobile hamburger — 44px touch target */}
         <button
+          type="button"
           className="md:hidden flex flex-col justify-center items-center gap-[5px] w-11 h-11 bg-transparent border-0 cursor-pointer p-0"
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? "Close menu" : "Open menu"}
