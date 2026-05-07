@@ -421,7 +421,7 @@ export async function renderDocument(
       drawFillLayer(ctx, W, H, layer);
     } else if (layer.kind === 'effect') {
       applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
-      const filters = buildFiltersFromEffectLayer(layer, seed);
+      const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
       if (filters?.length) {
         current = await runGpuPass(current, W, H, filters, persistentRenderer);
         ctx = current.getContext('2d', { willReadFrequently: true })!;

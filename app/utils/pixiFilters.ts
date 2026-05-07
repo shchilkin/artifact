@@ -193,6 +193,7 @@ void main() {
 const INTERLACE_FRAG = `${HEADER}
 uniform float uIntensity;
 uniform float uSeed;
+uniform float uResY;
 
 float ilHash(float n) {
   return fract(sin(n * 127.1 + uSeed * 0.007) * 43758.5453);
@@ -200,7 +201,7 @@ float ilHash(float n) {
 
 void main() {
   ${NORM_UV}
-  float row   = floor(norm.y * 600.0);
+  float row   = floor(norm.y * uResY);
   float even  = mod(row, 2.0);
   float shift = (even * 2.0 - 1.0) * uIntensity * ilHash(row);
   vec2 warped = vec2(fract(norm.x + shift), norm.y);
@@ -309,12 +310,12 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
 
 type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>> | GeneratorConfig;
 
-export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540): Filter[] | null {
+export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
   const filters: Filter[] = [];
 
   if (cfg.mirror > 0) filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
   if (cfg.dataMosh > 0) filters.push(f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
-  if (cfg.interlace > 0) filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed }));
+  if (cfg.interlace > 0) filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed, uResY: canvasH }));
   if (cfg.noiseWarp > 0) filters.push(f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
   if (cfg.morphAmt > 0) filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
   if (cfg.vortex > 0) filters.push(f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
