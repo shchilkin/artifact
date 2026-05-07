@@ -36,6 +36,7 @@ import {
   connectedPortIds,
   inferLinearGraph,
   organizeGraph,
+  splitEdgeWithNode,
   toRFEdges,
   updateGraphPositions,
   addGraphEdge,
@@ -45,8 +46,10 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const NODE_W = 160;
+const NODE_H = 194;
 const THUMB_SIZE = 136;
 const NODE_EDITOR_W = 292;
+const EDGE_INTERCEPT_THRESHOLD = 56;
 
 const KIND_COLOR: Record<string, string> = {
   fill:   'oklch(60% 0.07 65)',
@@ -96,10 +99,19 @@ const ADD_ITEMS: Array<{ label: string; symbol: string; group: string; action: A
   { label: 'Merge',   symbol: '⊕', group: 'util',   action: { kind: 'merge' } },
 ];
 
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+function stopNodeEvent(e: React.SyntheticEvent) {
+  e.stopPropagation();
+}
+
+const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
+
 // ─── Context menu state ───────────────────────────────────────────────────────
 
 type ContextMenuState =
-  | { type: 'pane'; x: number; y: number; flowPos: { x: number; y: number }; insertion?: InsertConnectionConfig }
+  | { type: 'pane-add'; x: number; y: number; flowPos: { x: number; y: number } }
+  | { type: 'pane-insert'; x: number; y: number; flowPos: { x: number; y: number }; insertion: InsertConnectionConfig }
   | { type: 'node'; x: number; y: number; nodeId: string; isMerge: boolean; isExport: boolean }
   | null;
 
@@ -386,6 +398,71 @@ function NodeEditorPanel({
   );
 }
 
+// ─── Effect section helpers ───────────────────────────────────────────────────
+
+type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso';
+
+const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
+const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'ca', 'interlace', 'dataMosh'];
+const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines'];
+const TINT_PRESETS: EffectPreset[] = ['tint'];
+const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'warp'];
+const COLOR_PRESETS: EffectPreset[] = ['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize', 'color'];
+const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift', 'riso'];
+
+function initialEffectSection(layer: EffectLayer): EffectSectionId {
+  if (layer.preset && RAYS_PRESETS.includes(layer.preset)) return 'rays';
+  if (layer.preset && GLITCH_PRESETS.includes(layer.preset)) return 'glitch';
+  if (layer.preset && TEXTURE_PRESETS.includes(layer.preset)) return 'texture';
+  if (layer.preset && TINT_PRESETS.includes(layer.preset)) return 'tint';
+  if (layer.preset && WARP_PRESETS.includes(layer.preset)) return 'warp';
+  if (layer.preset && COLOR_PRESETS.includes(layer.preset)) return 'color';
+  if (layer.preset && RISO_PRESETS.includes(layer.preset)) return 'riso';
+  return 'node';
+}
+
+function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): string {
+  const preset = layer.preset;
+  switch (section) {
+    case 'node':
+      return layer.preset ?? 'custom';
+    case 'rays':
+      if (preset === 'bloom') return `${layer.bloom}% bloom`;
+      if (preset === 'filmBurn') return `${layer.filmBurn}% burn`;
+      return `${layer.rays} rays`;
+    case 'glitch':
+      if (preset === 'ca') return `${layer.ca} chroma`;
+      if (preset === 'interlace') return `${layer.interlace}% interlace`;
+      if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
+      return `${layer.glitch} / ${layer.ca}`;
+    case 'texture':
+      if (preset === 'scanlines') return `${layer.scanlines} lines`;
+      return `${layer.grain} grain`;
+    case 'tint':
+      return `${layer.tintOp}%`;
+    case 'warp':
+      if (preset === 'noiseWarp') return `${layer.noiseWarp}%`;
+      if (preset === 'morph') return `${layer.morphAmt}% morph`;
+      if (preset === 'vortex') return `${layer.vortex}% vortex`;
+      if (preset === 'barrel') return `${layer.barrel}% barrel`;
+      if (preset === 'tear') return `${layer.tearAmt} tear`;
+      if (preset === 'mirror') return `${layer.mirror}x mirror`;
+      return `${layer.noiseWarp}%`;
+    case 'color':
+      if (preset === 'rgbSplit') return `${layer.rgbSplit} split`;
+      if (preset === 'vignette') return `${layer.vignette}% vignette`;
+      if (preset === 'pixelate') return `${layer.pixelate}px`;
+      if (preset === 'posterize') return `${layer.posterize} bands`;
+      return `${layer.hueShift}deg`;
+    case 'riso':
+      if (preset === 'halftone') return `${layer.halftone} tone`;
+      if (preset === 'risoShift') return `${layer.risoShift}px`;
+      return `${layer.duotone}%`;
+  }
+}
+
+// ─── Effect inspector ─────────────────────────────────────────────────────────
+
 function EffectInspector({
   layer,
   onChange,
@@ -600,6 +677,66 @@ function EffectInspector({
   );
 }
 
+function ScaleLockRow({
+  scaleX,
+  scaleY,
+  locked,
+  onLockChange,
+  onChange,
+}: {
+  scaleX: number;
+  scaleY: number;
+  locked: boolean;
+  onLockChange: (locked: boolean) => void;
+  onChange: (patch: { scaleX?: number; scaleY?: number }) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {locked ? (
+          <InspectorSlider
+            label="Scale"
+            value={Math.round(scaleX * 100)}
+            min={5}
+            max={500}
+            onChange={(v) => onChange({ scaleX: v / 100, scaleY: v / 100 })}
+          />
+        ) : (
+          <>
+            <InspectorSlider label="Scale X" value={Math.round(scaleX * 100)} min={5} max={500} onChange={(v) => onChange({ scaleX: v / 100 })} />
+            <InspectorSlider label="Scale Y" value={Math.round(scaleY * 100)} min={5} max={500} onChange={(v) => onChange({ scaleY: v / 100 })} />
+          </>
+        )}
+      </div>
+      <button
+        type="button"
+        className="nodrag"
+        onPointerDown={stopNodeEvent}
+        onMouseDown={stopNodeEvent}
+        onClick={(e) => { stopNodeEvent(e); onLockChange(!locked); }}
+        title={locked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+        aria-label={locked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+        style={{
+          flexShrink: 0,
+          marginTop: 18,
+          width: 28,
+          height: 28,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 4,
+          border: `1px solid ${locked ? 'oklch(70% 0.03 298)' : 'oklch(24% 0.014 285)'}`,
+          background: 'oklch(11% 0.01 285)',
+          color: locked ? 'oklch(70% 0.03 298)' : 'oklch(52% 0.014 285)',
+          cursor: 'pointer',
+        }}
+      >
+        {locked ? '⛓' : '⛓‍💥'}
+      </button>
+    </div>
+  );
+}
+
 function LayerInspector({
   layer,
   onChange,
@@ -631,52 +768,13 @@ function LayerInspector({
         <InspectorSlider label="X Position" value={Math.round(layer.x * 100)} min={-200} max={200} onChange={(value) => onChange({ x: value / 100 } as Partial<TextLayer>)} />
         <InspectorSlider label="Y Position" value={Math.round(layer.y * 100)} min={-200} max={200} onChange={(value) => onChange({ y: value / 100 } as Partial<TextLayer>)} />
         <InspectorSlider label="Rotation" value={Math.round(layer.rotation)} min={-180} max={180} onChange={(value) => onChange({ rotation: value } as Partial<TextLayer>)} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {scaleLocked ? (
-              <InspectorSlider
-                label="Scale"
-                value={Math.round(layer.scaleX * 100)}
-                min={5}
-                max={500}
-                onChange={(value) => onChange({ scaleX: value / 100, scaleY: value / 100 } as Partial<TextLayer>)}
-              />
-            ) : (
-              <>
-                <InspectorSlider label="Scale X" value={Math.round(layer.scaleX * 100)} min={5} max={500} onChange={(value) => onChange({ scaleX: value / 100 } as Partial<TextLayer>)} />
-                <InspectorSlider label="Scale Y" value={Math.round(layer.scaleY * 100)} min={5} max={500} onChange={(value) => onChange({ scaleY: value / 100 } as Partial<TextLayer>)} />
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            className="nodrag"
-            onPointerDown={stopNodeEvent}
-            onMouseDown={stopNodeEvent}
-            onClick={(e) => {
-              stopNodeEvent(e);
-              setScaleLocked((value) => !value);
-            }}
-            title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-            aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-            style={{
-              flexShrink: 0,
-              marginTop: 18,
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 4,
-              border: `1px solid ${scaleLocked ? 'oklch(70% 0.03 298)' : 'oklch(24% 0.014 285)'}`,
-              background: 'oklch(11% 0.01 285)',
-              color: scaleLocked ? 'oklch(70% 0.03 298)' : 'oklch(52% 0.014 285)',
-              cursor: 'pointer',
-            }}
-          >
-            {scaleLocked ? '⛓' : '⛓‍💥'}
-          </button>
-        </div>
+        <ScaleLockRow
+          scaleX={layer.scaleX}
+          scaleY={layer.scaleY}
+          locked={scaleLocked}
+          onLockChange={setScaleLocked}
+          onChange={(patch) => onChange(patch as Partial<TextLayer>)}
+        />
         <InspectorSelect label="Align" value={layer.align} options={['left', 'center', 'right']} onChange={(value) => onChange({ align: value as TextLayer['align'] } as Partial<TextLayer>)} />
         <InspectorSlider label="Opacity" value={layer.opacity} min={0} max={100} onChange={(value) => onChange({ opacity: value })} />
         <InspectorSelect label="Blend" value={layer.blendMode} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
@@ -690,52 +788,13 @@ function LayerInspector({
         <InspectorSelect label="Fit" value={layer.fit} options={['cover', 'contain', 'tile', 'free']} onChange={(value) => onChange({ fit: value } as Partial<ImageLayer>)} />
         <InspectorSlider label="X Position" value={Math.round(layer.x * 100)} min={-200} max={200} onChange={(value) => onChange({ x: value / 100 } as Partial<ImageLayer>)} />
         <InspectorSlider label="Y Position" value={Math.round(layer.y * 100)} min={-200} max={200} onChange={(value) => onChange({ y: value / 100 } as Partial<ImageLayer>)} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {scaleLocked ? (
-              <InspectorSlider
-                label="Scale"
-                value={Math.round(layer.scaleX * 100)}
-                min={5}
-                max={500}
-                onChange={(value) => onChange({ scaleX: value / 100, scaleY: value / 100 } as Partial<ImageLayer>)}
-              />
-            ) : (
-              <>
-                <InspectorSlider label="Scale X" value={Math.round(layer.scaleX * 100)} min={5} max={500} onChange={(value) => onChange({ scaleX: value / 100 } as Partial<ImageLayer>)} />
-                <InspectorSlider label="Scale Y" value={Math.round(layer.scaleY * 100)} min={5} max={500} onChange={(value) => onChange({ scaleY: value / 100 } as Partial<ImageLayer>)} />
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            className="nodrag"
-            onPointerDown={stopNodeEvent}
-            onMouseDown={stopNodeEvent}
-            onClick={(e) => {
-              stopNodeEvent(e);
-              setScaleLocked((value) => !value);
-            }}
-            title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-            aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-            style={{
-              flexShrink: 0,
-              marginTop: 18,
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 4,
-              border: `1px solid ${scaleLocked ? 'oklch(70% 0.03 298)' : 'oklch(24% 0.014 285)'}`,
-              background: 'oklch(11% 0.01 285)',
-              color: scaleLocked ? 'oklch(70% 0.03 298)' : 'oklch(52% 0.014 285)',
-              cursor: 'pointer',
-            }}
-          >
-            {scaleLocked ? '⛓' : '⛓‍💥'}
-          </button>
-        </div>
+        <ScaleLockRow
+          scaleX={layer.scaleX}
+          scaleY={layer.scaleY}
+          locked={scaleLocked}
+          onLockChange={setScaleLocked}
+          onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
+        />
         <InspectorSlider label="Rotation" value={Math.round(layer.rotation)} min={-180} max={180} onChange={(value) => onChange({ rotation: value } as Partial<ImageLayer>)} />
         <InspectorSlider label="Opacity" value={layer.opacity} min={0} max={100} onChange={(value) => onChange({ opacity: value })} />
         <InspectorSelect label="Blend" value={layer.blendMode} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
@@ -1094,71 +1153,19 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
-const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
 
-function stopNodeEvent(e: React.SyntheticEvent) {
-  e.stopPropagation();
-}
-
-type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso';
-
-const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
-const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'ca', 'interlace', 'dataMosh'];
-const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines'];
-const TINT_PRESETS: EffectPreset[] = ['tint'];
-const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'warp'];
-const COLOR_PRESETS: EffectPreset[] = ['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize', 'color'];
-const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift', 'riso'];
-
-function initialEffectSection(layer: EffectLayer): EffectSectionId {
-  if (layer.preset && RAYS_PRESETS.includes(layer.preset)) return 'rays';
-  if (layer.preset && GLITCH_PRESETS.includes(layer.preset)) return 'glitch';
-  if (layer.preset && TEXTURE_PRESETS.includes(layer.preset)) return 'texture';
-  if (layer.preset && TINT_PRESETS.includes(layer.preset)) return 'tint';
-  if (layer.preset && WARP_PRESETS.includes(layer.preset)) return 'warp';
-  if (layer.preset && COLOR_PRESETS.includes(layer.preset)) return 'color';
-  if (layer.preset && RISO_PRESETS.includes(layer.preset)) return 'riso';
-  return 'node';
-}
-
-function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): string {
-  const preset = layer.preset;
-  switch (section) {
-    case 'node':
-      return layer.preset ?? 'custom';
-    case 'rays':
-      if (preset === 'bloom') return `${layer.bloom}% bloom`;
-      if (preset === 'filmBurn') return `${layer.filmBurn}% burn`;
-      return `${layer.rays} rays`;
-    case 'glitch':
-      if (preset === 'ca') return `${layer.ca} chroma`;
-      if (preset === 'interlace') return `${layer.interlace}% interlace`;
-      if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
-      return `${layer.glitch} / ${layer.ca}`;
-    case 'texture':
-      if (preset === 'scanlines') return `${layer.scanlines} lines`;
-      return `${layer.grain} grain`;
-    case 'tint':
-      return `${layer.tintOp}%`;
-    case 'warp':
-      if (preset === 'noiseWarp') return `${layer.noiseWarp}%`;
-      if (preset === 'morph') return `${layer.morphAmt}% morph`;
-      if (preset === 'vortex') return `${layer.vortex}% vortex`;
-      if (preset === 'barrel') return `${layer.barrel}% barrel`;
-      if (preset === 'tear') return `${layer.tearAmt} tear`;
-      if (preset === 'mirror') return `${layer.mirror}x mirror`;
-      return `${layer.noiseWarp}%`;
-    case 'color':
-      if (preset === 'rgbSplit') return `${layer.rgbSplit} split`;
-      if (preset === 'vignette') return `${layer.vignette}% vignette`;
-      if (preset === 'pixelate') return `${layer.pixelate}px`;
-      if (preset === 'posterize') return `${layer.posterize} bands`;
-      return `${layer.hueShift}deg`;
-    case 'riso':
-      if (preset === 'halftone') return `${layer.halftone} tone`;
-      if (preset === 'risoShift') return `${layer.risoShift}px`;
-      return `${layer.duotone}%`;
-  }
+function distancePointToSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+  const px = start.x + t * dx;
+  const py = start.y + t * dy;
+  return Math.hypot(point.x - px, point.y - py);
 }
 
 function InspectorLabel({ children }: { children: React.ReactNode }) {
@@ -1541,6 +1548,7 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
         boxShadow: '0 8px 32px oklch(0% 0 0 / 0.6)',
         width: 220, overflow: 'hidden',
       }}
+      onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Search */}
@@ -1591,6 +1599,8 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
             <button
               type="button"
               onClick={() => { onAdd(item.action); onClose(); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '7px 12px',
@@ -1904,6 +1914,8 @@ export function NodeCanvas({
   const [dragNodes, setDragNodes] = useState<RFNode[]>(baseNodes);
   const [dragEdges, setDragEdges] = useState<RFEdge[]>(baseEdges);
   const isDraggingRef = useRef(false);
+  const dragNodesRef = useRef<RFNode[]>(dragNodes);
+  useLayoutEffect(() => { dragNodesRef.current = dragNodes; }, [dragNodes]);
 
   // Whenever the canonical doc-derived nodes change (layer added/removed/renamed,
   // selection changed, etc.) and we are NOT mid-drag, push them into RF state.
@@ -1993,6 +2005,46 @@ export function NodeCanvas({
     onGraphChange(updateGraphPositions(graphRef.current, moved));
   }, [onGraphChange]);
 
+  const getInterceptInputPort = useCallback((nodeId: string): GraphEdge['toPort'] | null => {
+    if (nodeId === EXPORT_NODE_ID) return null;
+    if (graphRef.current.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
+    const layer = doc.layers.find((item) => item.id === nodeId);
+    if (!layer) return null;
+    return layer.kind === 'effect' ? 'in' : 'bg';
+  }, [doc.layers]);
+
+  const findInterceptEdge = useCallback((node: RFNode) => {
+    const nodeLookup = new Map(dragNodesRef.current.map((item) => [item.id, item]));
+    const getCenter = (nodeId: string) => {
+      const rfNode = nodeLookup.get(nodeId);
+      const position = rfNode?.position ?? graphRef.current.positions[nodeId];
+      if (!position) return null;
+      const width = rfNode?.measured?.width ?? NODE_W;
+      const height = rfNode?.measured?.height ?? NODE_H;
+      return {
+        x: position.x + width / 2,
+        y: position.y + height / 2,
+      };
+    };
+
+    const point = {
+      x: node.position.x + (node.measured?.width ?? NODE_W) / 2,
+      y: node.position.y + (node.measured?.height ?? NODE_H) / 2,
+    };
+
+    let best: { edge: GraphEdge; distance: number } | null = null;
+    for (const edge of graphRef.current.edges) {
+      if (edge.fromId === node.id || edge.toId === node.id) continue;
+      const start = getCenter(edge.fromId);
+      const end = getCenter(edge.toId);
+      if (!start || !end) continue;
+      const distance = distancePointToSegment(point, start, end);
+      if (distance > EDGE_INTERCEPT_THRESHOLD) continue;
+      if (!best || distance < best.distance) best = { edge, distance };
+    }
+    return best?.edge ?? null;
+  }, []);
+
   const onNodeDragStart = useCallback(() => {
     isDraggingRef.current = true;
   }, []);
@@ -2000,9 +2052,23 @@ export function NodeCanvas({
   const onNodeDragStop = useCallback(
     (_: unknown, node: RFNode) => {
       isDraggingRef.current = false;
+      const movedGraph = updateGraphPositions(graphRef.current, [{ id: node.id, position: node.position }]);
+      const interceptEdge = findInterceptEdge(node);
+      const inputPort = getInterceptInputPort(node.id);
+
+      if (
+        interceptEdge
+        && inputPort
+        && !wouldCreateCycle(removeGraphEdge(movedGraph, interceptEdge.id), interceptEdge.fromId, node.id)
+        && !wouldCreateCycle(removeGraphEdge(movedGraph, interceptEdge.id), node.id, interceptEdge.toId)
+      ) {
+        onGraphChange(splitEdgeWithNode(movedGraph, interceptEdge.id, node.id, inputPort));
+        return;
+      }
+
       commitNodePositions([node]);
     },
-    [commitNodePositions],
+    [commitNodePositions, findInterceptEdge, getInterceptInputPort, onGraphChange],
   );
 
   const onSelectionDragStop = useCallback((_: React.MouseEvent, nodes: RFNode[]) => {
@@ -2045,7 +2111,7 @@ export function NodeCanvas({
     e.preventDefault();
     const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY })
       ?? { x: 0, y: 0 };
-    setContextMenu({ type: 'pane', x: e.clientX, y: e.clientY, flowPos });
+    setContextMenu({ type: 'pane-add', x: e.clientX, y: e.clientY, flowPos });
   }, [setContextMenu]);
 
   const onNodeContextMenu = useCallback((e: MouseEvent | React.MouseEvent, node: RFNode) => {
@@ -2062,7 +2128,7 @@ export function NodeCanvas({
     const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY })
       ?? { x: 0, y: 0 };
     setContextMenu({
-      type: 'pane',
+      type: 'pane-insert',
       x: e.clientX,
       y: e.clientY,
       flowPos,
@@ -2082,7 +2148,7 @@ export function NodeCanvas({
     const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY })
       ?? { x: 0, y: 0 };
     setContextMenu({
-      type: 'pane',
+      type: 'pane-insert',
       x: pointer.clientX,
       y: pointer.clientY,
       flowPos,
@@ -2093,12 +2159,10 @@ export function NodeCanvas({
   }, []);
 
   const handleAddFromMenu = useCallback((action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
-    onAddLayerAt(action, flowPos, insertion);
+    requestAnimationFrame(() => {
+      onAddLayerAt(action, flowPos, insertion);
+    });
   }, [onAddLayerAt]);
-
-  const handleNodeDelete = useCallback((nodeId: string) => {
-    onDeleteNodes([nodeId]);
-  }, [onDeleteNodes]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -2137,11 +2201,11 @@ export function NodeCanvas({
     const nonRemove = changes.filter((c) => {
       if (c.type !== 'remove') return true;
       const isExport = c.id === EXPORT_NODE_ID;
-      if (!isExport) handleNodeDelete(c.id);
+      if (!isExport) onDeleteNodes([c.id]);
       return false;
     });
     if (nonRemove.length) onNodesChange(nonRemove);
-  }, [onNodesChange, handleNodeDelete]);
+  }, [onNodesChange, onDeleteNodes]);
 
   return (
     <div
@@ -2298,11 +2362,15 @@ export function NodeCanvas({
         <Controls showInteractive={false} />
       </ReactFlow>
 
-      {contextMenu?.type === 'pane' && (
+      {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') && (
         <PaneContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onAdd={(action) => handleAddFromMenu(action, contextMenu.flowPos, contextMenu.insertion)}
+          onAdd={(action) => handleAddFromMenu(
+            action,
+            contextMenu.flowPos,
+            contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
+          )}
           onClose={() => setContextMenu(null)}
           menuRef={contextMenuRef}
         />
@@ -2315,7 +2383,7 @@ export function NodeCanvas({
           isMerge={contextMenu.isMerge}
           isExport={contextMenu.isExport}
           onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
-          onDelete={() => handleNodeDelete(contextMenu.nodeId)}
+          onDelete={() => onDeleteNodes([contextMenu.nodeId])}
           onClose={() => setContextMenu(null)}
           menuRef={contextMenuRef}
         />

@@ -80,6 +80,33 @@ export function removeGraphEdge(graph: CanvasGraph, edgeId: string): CanvasGraph
   return { ...graph, edges: graph.edges.filter((e) => e.id !== edgeId) };
 }
 
+export function splitEdgeWithNode(
+  graph: CanvasGraph,
+  edgeId: string,
+  insertedNodeId: string,
+  insertedInputPort: GraphEdge['toPort'],
+): CanvasGraph {
+  const edge = graph.edges.find((item) => item.id === edgeId);
+  if (!edge) return graph;
+
+  let next = removeGraphEdge(graph, edgeId);
+  next = addGraphEdge(next, {
+    id: `${edgeId}__before`,
+    fromId: edge.fromId,
+    fromPort: edge.fromPort,
+    toId: insertedNodeId,
+    toPort: insertedInputPort,
+  });
+  next = addGraphEdge(next, {
+    id: `${edgeId}__after`,
+    fromId: insertedNodeId,
+    fromPort: 'out',
+    toId: edge.toId,
+    toPort: edge.toPort,
+  });
+  return next;
+}
+
 export function addMergeNode(
   graph: CanvasGraph,
   node: GraphMergeNode,

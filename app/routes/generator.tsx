@@ -35,9 +35,9 @@ import {
   addMergeNode,
   inferLinearGraph,
   nextDropPosition,
-  removeGraphEdge,
   removeLayerFromGraph,
   removeMergeNode,
+  splitEdgeWithNode,
 } from '../utils/nodeGraph';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((m) => ({ default: m.NodeCanvas })));
@@ -124,6 +124,27 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 
 type ViewMode = 'layers' | 'nodes';
 
+function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
+  const btnStyle = (active: boolean, side: 'left' | 'right'): React.CSSProperties => ({
+    padding: '4px 12px',
+    fontFamily: 'var(--mono)',
+    fontSize: 10,
+    letterSpacing: '0.05em',
+    cursor: 'pointer',
+    background: active ? 'var(--border)' : 'transparent',
+    color: active ? 'var(--text)' : 'var(--text-dim)',
+    border: '1px solid var(--border)',
+    borderRight: side === 'left' ? 'none' : undefined,
+    borderRadius: side === 'left' ? '3px 0 0 3px' : '0 3px 3px 0',
+    transition: 'background 120ms ease-out, color 120ms ease-out',
+  });
+  return (
+    <div className="hidden lg:flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
+      <button type="button" onClick={() => onChange('layers')} style={btnStyle(value === 'layers', 'left')}>layers</button>
+      <button type="button" onClick={() => onChange('nodes')} style={btnStyle(value === 'nodes', 'right')}>nodes</button>
+    </div>
+  );
+}
 
 export default function Generator() {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
@@ -362,8 +383,9 @@ export default function Generator() {
       const node = makeGraphMergeNode();
       updateDocument((current) => {
         let graph = addMergeNode(ensureGraph(current), node, position);
-        if (insertion?.replaceEdgeId) graph = removeGraphEdge(graph, insertion.replaceEdgeId);
-        if (insertion?.sourceId) {
+        if (insertion?.replaceEdgeId) {
+          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'a');
+        } else if (insertion?.sourceId) {
           graph = addGraphEdge(graph, {
             id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
             fromId: insertion.sourceId,
@@ -372,7 +394,7 @@ export default function Generator() {
             toPort: 'a',
           });
         }
-        if (insertion?.targetId) {
+        if (!insertion?.replaceEdgeId && insertion?.targetId) {
           graph = addGraphEdge(graph, {
             id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
             fromId: node.id,
@@ -396,8 +418,9 @@ export default function Generator() {
             : makeEmojiLayer();
     updateDocument((current) => {
       let graph = addLayerToGraph(ensureGraph(current), layer.id, position);
-      if (insertion?.replaceEdgeId) graph = removeGraphEdge(graph, insertion.replaceEdgeId);
-      if (insertion?.sourceId) {
+      if (insertion?.replaceEdgeId) {
+        graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, layer.id, action.kind === 'effect' ? 'in' : 'bg');
+      } else if (insertion?.sourceId) {
         graph = addGraphEdge(graph, {
           id: `e-${insertion.sourceId}-${layer.id}-${Date.now()}`,
           fromId: insertion.sourceId,
@@ -406,7 +429,7 @@ export default function Generator() {
           toPort: action.kind === 'effect' ? 'in' : 'bg',
         });
       }
-      if (insertion?.targetId) {
+      if (!insertion?.replaceEdgeId && insertion?.targetId) {
         graph = addGraphEdge(graph, {
           id: `e-${layer.id}-${insertion.targetId}-${Date.now() + 1}`,
           fromId: layer.id,
@@ -585,46 +608,7 @@ export default function Generator() {
             if (file) void handleDroppedFile(file);
           }}
         >
-          {/* View mode toggle — desktop only */}
-          <div className="hidden lg:flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
-            <button
-              type="button"
-              onClick={() => setViewMode('layers')}
-              style={{
-                padding: '4px 12px',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                letterSpacing: '0.05em',
-                cursor: 'pointer',
-                background: viewMode === 'layers' ? 'var(--border)' : 'transparent',
-                color: viewMode === 'layers' ? 'var(--text)' : 'var(--text-dim)',
-                border: '1px solid var(--border)',
-                borderRight: 'none',
-                borderRadius: '3px 0 0 3px',
-                transition: 'background 120ms ease-out, color 120ms ease-out',
-              }}
-            >
-              layers
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('nodes')}
-              style={{
-                padding: '4px 12px',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                letterSpacing: '0.05em',
-                cursor: 'pointer',
-                background: viewMode === 'nodes' ? 'var(--border)' : 'transparent',
-                color: viewMode === 'nodes' ? 'var(--text)' : 'var(--text-dim)',
-                border: '1px solid var(--border)',
-                borderRadius: '0 3px 3px 0',
-                transition: 'background 120ms ease-out, color 120ms ease-out',
-              }}
-            >
-              nodes
-            </button>
-          </div>
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
