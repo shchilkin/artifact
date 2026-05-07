@@ -127,9 +127,31 @@ export interface GlobalConfig {
   aspect: AspectRatio;
 }
 
+export interface GraphEdge {
+  id: string;
+  fromId: string;
+  fromPort: 'out';
+  toId: string;
+  toPort: 'in' | 'bg' | 'a' | 'b';
+}
+
+export interface GraphMergeNode {
+  id: string;
+  name: string;
+  blendMode: string;
+  opacity: number;
+}
+
+export interface CanvasGraph {
+  edges: GraphEdge[];
+  positions: Record<string, { x: number; y: number }>;
+  mergeNodes: GraphMergeNode[];
+}
+
 export interface CanvasDocument {
   global: GlobalConfig;
   layers: Layer[];
+  graph?: CanvasGraph;
 }
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
@@ -300,6 +322,16 @@ export const DEFAULT_DOCUMENT: CanvasDocument = {
 };
 
 
+export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): GraphMergeNode {
+  return {
+    id: `merge-${Date.now()}-${_idCounter++}`,
+    name: 'Merge',
+    blendMode: 'source-over',
+    opacity: 100,
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     global: { ...doc.global },
@@ -307,5 +339,12 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
       ...layer,
       ...(layer.kind === 'emoji' ? { emojis: [...layer.emojis] } : {}),
     })) as Layer[],
+    graph: doc.graph
+      ? {
+          edges: doc.graph.edges.map((e) => ({ ...e })),
+          positions: { ...doc.graph.positions },
+          mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
+        }
+      : undefined,
   };
 }

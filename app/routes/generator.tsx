@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Sidebar } from '../components/Sidebar';
@@ -19,11 +19,14 @@ import {
   makeTextLayer,
   type AspectRatio,
   type CanvasDocument,
+  type CanvasGraph,
   type EffectPreset,
   type ImageLayer,
   type Layer,
   type LayerKind,
 } from '../types/config';
+
+const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((m) => ({ default: m.NodeCanvas })));
 import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import { randomDocument } from '../utils/randomConfig';
@@ -97,6 +100,8 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   );
 }
 
+type ViewMode = 'layers' | 'nodes';
+
 export default function Generator() {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -107,6 +112,7 @@ export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('layers');
 
   const safeSelectedLayerId = selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId)
     ? selectedLayerId
@@ -294,6 +300,10 @@ export default function Generator() {
     }
   }, [imageCache]);
 
+  const handleGraphChange = useCallback((graph: CanvasGraph) => {
+    setDoc({ ...docRef.current, graph });
+  }, [setDoc]);
+
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
   const handleLoadPreset = useCallback((preset: Parameters<typeof loadPreset>[0]) => {
@@ -400,16 +410,73 @@ export default function Generator() {
             if (file) void handleDroppedFile(file);
           }}
         >
-          <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
-            <CanvasPreview
-              doc={doc}
-              imageCache={imageCache}
-              selectedLayerId={safeSelectedLayerId}
-              dragOver={canvasDragOver}
-              onLayerUpdate={updateLayer}
-              onSelectLayer={setSelectedLayerId}
-            />
-          </ErrorBoundary>
+          {/* View mode toggle — desktop only */}
+          <div className="hidden lg:flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('layers')}
+              style={{
+                padding: '4px 12px',
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                letterSpacing: '0.05em',
+                cursor: 'pointer',
+                background: viewMode === 'layers' ? 'var(--border)' : 'transparent',
+                color: viewMode === 'layers' ? 'var(--text)' : 'var(--text-dim)',
+                border: '1px solid var(--border)',
+                borderRight: 'none',
+                borderRadius: '3px 0 0 3px',
+                transition: 'background 120ms ease-out, color 120ms ease-out',
+              }}
+            >
+              layers
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('nodes')}
+              style={{
+                padding: '4px 12px',
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                letterSpacing: '0.05em',
+                cursor: 'pointer',
+                background: viewMode === 'nodes' ? 'var(--border)' : 'transparent',
+                color: viewMode === 'nodes' ? 'var(--text)' : 'var(--text-dim)',
+                border: '1px solid var(--border)',
+                borderRadius: '0 3px 3px 0',
+                transition: 'background 120ms ease-out, color 120ms ease-out',
+              }}
+            >
+              nodes
+            </button>
+          </div>
+
+          {viewMode === 'layers' ? (
+            <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
+              <CanvasPreview
+                doc={doc}
+                imageCache={imageCache}
+                selectedLayerId={safeSelectedLayerId}
+                dragOver={canvasDragOver}
+                onLayerUpdate={updateLayer}
+                onSelectLayer={setSelectedLayerId}
+              />
+            </ErrorBoundary>
+          ) : (
+            <div className="hidden lg:flex flex-1 min-h-0 w-full">
+              <Suspense fallback={<div style={{ flex: 1, background: 'oklch(10% 0.009 285)' }} />}>
+                <NodeCanvas
+                  doc={doc}
+                  imageCache={imageCache}
+                  selectedLayerId={safeSelectedLayerId}
+                  onSelectLayer={setSelectedLayerId}
+                  onGraphChange={handleGraphChange}
+                  onExport={() => void handleExport(1, 'png')}
+                />
+              </Suspense>
+            </div>
+          )}
+
           {(dropError || exportError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
               {dropError ?? exportError}
