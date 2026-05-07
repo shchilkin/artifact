@@ -1,21 +1,22 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import type { GeneratorConfig } from '../types/config';
-import { render } from '../utils/renderer';
+import { migrateFromV1 } from '../types/config';
+import { renderDocument } from '../utils/renderer';
 
 export function useRenderer(cfg: GeneratorConfig, seed: number) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const redraw = useCallback(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    render(ctx, canvas.width, canvas.height, cfg, seed);
+    const doc = migrateFromV1(seed, cfg as unknown as Record<string, unknown>);
+    renderDocument(doc, canvas.width, canvas.height, new Map()).then((result) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(result, 0, 0);
+    });
   }, [cfg, seed]);
 
-  useEffect(() => {
-    redraw();
-  }, [redraw]);
-
-  return { canvasRef, redraw };
+  return { canvasRef };
 }

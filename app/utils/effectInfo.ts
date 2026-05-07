@@ -283,7 +283,7 @@ export async function renderEffectThumb(key: string): Promise<string> {
         }, 0)
     );
 
-    const filters = buildFilters(cfg, BASE_SEED);
+    const filters = buildFilters(cfg, BASE_SEED, THUMB_SIZE, THUMB_SIZE);
     let url: string;
 
     if (!filters) {

@@ -1,11 +1,5 @@
 import { Filter } from 'pixi.js';
-import type { GeneratorConfig } from '../types/config';
-
-// All shaders work in normalized [0..1] UV space via inputClamp:
-//   norm = (vTextureCoord - inputClamp.xy) / (inputClamp.zw - inputClamp.xy)
-// Sampling always clamps to inputClamp to avoid FBO padding artifacts.
-
-// ─── helpers ──────────────────────────────────────────────────
+import type { EffectLayer, GeneratorConfig } from '../types/config';
 
 const NORM_UV = `
   vec2 extent = inputClamp.zw - inputClamp.xy;
@@ -22,8 +16,6 @@ uniform sampler2D uSampler;
 uniform vec4 inputClamp;
 `;
 
-// ─── MORPH ─────────────────────────────────────────────────────
-
 const MORPH_FRAG = `${HEADER}
 uniform float uIntensity;
 uniform float uFreq;
@@ -38,8 +30,6 @@ void main() {
   vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
-
-// ─── TEAR ──────────────────────────────────────────────────────
 
 const TEAR_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -58,8 +48,6 @@ void main() {
   vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
   gl_FragColor     = ${SAMPLE('warped')};
 }`;
-
-// ─── NOISE WARP ────────────────────────────────────────────────
 
 const NOISE_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -87,14 +75,11 @@ void main() {
   vec2 seed2 = vec2(uSeed * 0.001, uSeed * 0.0007);
   float ox = smooth21(norm * 4.0 + seed2)         - 0.5;
   float oy = smooth21(norm * 4.0 + seed2 + 100.0) - 0.5;
-  // Second octave
   ox += (smooth21(norm * 9.0 + seed2 * 2.0) - 0.5) * 0.4;
   oy += (smooth21(norm * 9.0 + seed2 * 2.0 + 50.0) - 0.5) * 0.4;
   vec2 warped = clamp(norm + vec2(ox, oy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
-
-// ─── VORTEX ────────────────────────────────────────────────────
 
 const VORTEX_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -104,13 +89,10 @@ void main() {
   vec2  c    = norm - 0.5;
   float dist = length(c);
   float angle = atan(c.y, c.x);
-  // Twist falls off with distance — strong at center, zero at edge
   angle += uIntensity * max(0.0, 1.0 - dist * 2.2);
   vec2 warped = clamp(0.5 + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
-
-// ─── BARREL ────────────────────────────────────────────────────
 
 const BARREL_FRAG = `${HEADER}
 uniform float uK;
@@ -123,8 +105,6 @@ void main() {
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 
-// ─── PIXELATE ──────────────────────────────────────────────────
-
 const PIXELATE_FRAG = `${HEADER}
 uniform float uBlocks;
 
@@ -135,8 +115,6 @@ void main() {
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 
-// ─── HUE ROTATE ────────────────────────────────────────────────
-
 const HUE_FRAG = `${HEADER}
 uniform float uAngle;
 
@@ -145,7 +123,7 @@ void main() {
   float cosA = cos(uAngle);
   float sinA = sin(uAngle);
   float k    = 1.0 / 3.0;
-  float s    = 0.57735; // 1/sqrt(3)
+  float s    = 0.57735;
   mat3 m = mat3(
     cosA + (1.0-cosA)*k,      (1.0-cosA)*k - sinA*s, (1.0-cosA)*k + sinA*s,
     (1.0-cosA)*k + sinA*s,    cosA + (1.0-cosA)*k,   (1.0-cosA)*k - sinA*s,
@@ -155,21 +133,17 @@ void main() {
   gl_FragColor = col;
 }`;
 
-// ─── RGB SPLIT (diagonal) ──────────────────────────────────────
-
 const RGB_FRAG = `${HEADER}
 uniform vec2 uDir;
 
 void main() {
   vec2 uv  = vTextureCoord;
-  float r  = texture2D(uSampler, clamp(uv + uDir,         inputClamp.xy, inputClamp.zw)).r;
+  float r  = texture2D(uSampler, clamp(uv + uDir, inputClamp.xy, inputClamp.zw)).r;
   float g  = texture2D(uSampler, uv).g;
-  float b  = texture2D(uSampler, clamp(uv - uDir,         inputClamp.xy, inputClamp.zw)).b;
+  float b  = texture2D(uSampler, clamp(uv - uDir, inputClamp.xy, inputClamp.zw)).b;
   float a  = texture2D(uSampler, uv).a;
   gl_FragColor = vec4(r, g, b, a);
 }`;
-
-// ─── VIGNETTE ──────────────────────────────────────────────────
 
 const VIGNETTE_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -184,10 +158,8 @@ void main() {
   gl_FragColor = col;
 }`;
 
-// ─── MIRROR ────────────────────────────────────────────────────
-
 const MIRROR_FRAG = `${HEADER}
-uniform float uMode; // 1=fold-x  2=fold-y  3=both
+uniform float uMode;
 
 void main() {
   ${NORM_UV}
@@ -196,8 +168,6 @@ void main() {
   if (uMode >= 1.5) m.y = 1.0 - abs(m.y * 2.0 - 1.0);
   gl_FragColor = ${SAMPLE('m')};
 }`;
-
-// ─── DATA MOSH ─────────────────────────────────────────────────
 
 const DATAMOSH_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -220,11 +190,10 @@ void main() {
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 
-// ─── INTERLACE ─────────────────────────────────────────────────
-
 const INTERLACE_FRAG = `${HEADER}
 uniform float uIntensity;
 uniform float uSeed;
+uniform float uResY;
 
 float ilHash(float n) {
   return fract(sin(n * 127.1 + uSeed * 0.007) * 43758.5453);
@@ -232,14 +201,12 @@ float ilHash(float n) {
 
 void main() {
   ${NORM_UV}
-  float row   = floor(norm.y * 600.0);
+  float row   = floor(norm.y * uResY);
   float even  = mod(row, 2.0);
   float shift = (even * 2.0 - 1.0) * uIntensity * ilHash(row);
   vec2 warped = vec2(fract(norm.x + shift), norm.y);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
-
-// ─── BLOOM ─────────────────────────────────────────────────────
 
 const BLOOM_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -250,7 +217,6 @@ void main() {
   vec3 glow = vec3(0.0);
   float r   = uIntensity * 0.022;
 
-  // 8-tap radial sample
   for (int i = 0; i < 8; i++) {
     float a   = float(i) * 0.7854;
     vec2  off = vec2(cos(a), sin(a)) * r;
@@ -258,12 +224,10 @@ void main() {
     float bright = max(0.0, dot(s.rgb, vec3(0.299, 0.587, 0.114)) - 0.55);
     glow += s.rgb * bright;
   }
-  glow /= 8.0;
 
+  glow /= 8.0;
   gl_FragColor = vec4(min(vec3(1.0), base.rgb + glow * uIntensity * 0.6), base.a);
 }`;
-
-// ─── POSTERIZE ─────────────────────────────────────────────────
 
 const POSTERIZE_FRAG = `${HEADER}
 uniform float uSteps;
@@ -274,40 +238,28 @@ void main() {
   gl_FragColor = vec4(p, col.a);
 }`;
 
-// ─── FILM BURN ─────────────────────────────────────────────────
-
 const FILMBURN_FRAG = `${HEADER}
 uniform float uIntensity;
 uniform float uSeed;
 
 void main() {
   ${NORM_UV}
-
-  // Corner cycles every ~250 seeds so different seeds get different corners
   float ci = mod(floor(uSeed * 0.004 + 0.5), 4.0);
   vec2 corner;
   if      (ci < 0.5) corner = vec2(0.0, 0.0);
   else if (ci < 1.5) corner = vec2(1.0, 0.0);
   else if (ci < 2.5) corner = vec2(1.0, 1.0);
   else               corner = vec2(0.0, 1.0);
-
   vec4  col  = ${SAMPLE('norm')};
   float dist = length(norm - corner);
-
-  // Tight radius (~25% of canvas), steep cubic falloff
   float burn = pow(max(0.0, 1.0 - dist / 0.28), 3.0) * uIntensity;
-
-  // White-hot at corner (burn=1), orange at rim (burn→0) — correct direction
   vec3 fireColor = mix(vec3(1.0, 0.4, 0.0), vec3(1.0, 0.95, 0.75), burn);
-
   gl_FragColor = vec4(min(vec3(1.0), col.rgb + fireColor * burn), col.a);
 }`;
 
-// ─── DUOTONE ───────────────────────────────────────────────────
-
 const DUOTONE_FRAG = `${HEADER}
-uniform vec3  uColorA;   // shadow colour
-uniform vec3  uColorB;   // highlight colour
+uniform vec3  uColorA;
+uniform vec3  uColorB;
 uniform float uStrength;
 
 void main() {
@@ -316,8 +268,6 @@ void main() {
   vec3  duo  = mix(uColorA, uColorB, luma);
   gl_FragColor = vec4(mix(col.rgb, duo, uStrength), col.a);
 }`;
-
-// ─── HALFTONE ──────────────────────────────────────────────────
 
 const HALFTONE_FRAG = `${HEADER}
 uniform float uGrid;
@@ -330,17 +280,13 @@ void main() {
   vec2 cellCentre= (cell + 0.5) / uGrid;
   vec4 cellCol   = ${SAMPLE('cellCentre')};
   float luma     = dot(cellCol.rgb, vec3(0.299, 0.587, 0.114));
-
   vec2  delta = (norm - cellCentre) * uGrid;
   float dist  = length(delta);
   float radius= sqrt(luma) * 0.72;
   float inDot = step(dist, radius);
-
   vec3 dotted = cellCol.rgb * inDot;
   gl_FragColor = vec4(mix(original.rgb, dotted, uStrength), original.a);
 }`;
-
-// ─── RISO SHIFT ────────────────────────────────────────────────
 
 const RISO_FRAG = `${HEADER}
 uniform float uMag;
@@ -352,12 +298,9 @@ void main() {
   vec4 base    = ${SAMPLE('norm')};
   vec4 shifted = ${SAMPLE('norm + dir')};
   float luma   = dot(shifted.rgb, vec3(0.299, 0.587, 0.114));
-  // Screen-blend the offset layer — simulates second ink pass
   vec3 result  = min(vec3(1.0), base.rgb + shifted.rgb * luma * 0.55);
   gl_FragColor = vec4(result, base.a);
 }`;
-
-// ─── FACTORY ───────────────────────────────────────────────────
 
 function f(frag: string, uniforms: Record<string, unknown>): Filter {
   const filter = new Filter(undefined, frag, uniforms);
@@ -365,44 +308,23 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
   return filter;
 }
 
-export function buildFilters(cfg: GeneratorConfig, seed: number, refSize = 540): Filter[] | null {
+type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>> | GeneratorConfig;
+
+export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
   const filters: Filter[] = [];
 
-  // ── Warp pass (order: mirror → mosh → interlace → organic warps) ──
-  if (cfg.mirror > 0)
-    filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
+  if (cfg.mirror > 0) filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
+  if (cfg.dataMosh > 0) filters.push(f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
+  if (cfg.interlace > 0) filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed, uResY: canvasH }));
+  if (cfg.noiseWarp > 0) filters.push(f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
+  if (cfg.morphAmt > 0) filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
+  if (cfg.vortex > 0) filters.push(f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
+  if (cfg.barrel > 0) filters.push(f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
+  if (cfg.tearAmt > 0) filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
 
-  if (cfg.dataMosh > 0)
-    filters.push(f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
-
-  if (cfg.interlace > 0)
-    filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed }));
-
-  if (cfg.noiseWarp > 0)
-    filters.push(f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
-
-  if (cfg.morphAmt > 0)
-    filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
-
-  if (cfg.vortex > 0)
-    filters.push(f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
-
-  if (cfg.barrel > 0)
-    filters.push(f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
-
-  if (cfg.tearAmt > 0)
-    filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
-
-  // ── Colour / look pass ─────────────────────────────────────────
-  if (cfg.pixelate > 0)
-    filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)) }));
-
-  if (cfg.posterize > 0)
-    filters.push(f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
-
-  if (cfg.hueShift > 0)
-    filters.push(f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
-
+  if (cfg.pixelate > 0) filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)) }));
+  if (cfg.posterize > 0) filters.push(f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
+  if (cfg.hueShift > 0) filters.push(f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
   if (cfg.rgbSplit > 0) {
     const mag = cfg.rgbSplit * 0.0006;
     filters.push(f(RGB_FRAG, { uDir: [mag, mag] }));
@@ -421,24 +343,13 @@ export function buildFilters(cfg: GeneratorConfig, seed: number, refSize = 540):
     }));
   }
 
-  if (cfg.halftone > 0)
-    filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85 }));
-
-  if (cfg.risoShift > 0)
-    filters.push(f(RISO_FRAG, {
-      uMag: cfg.risoShift * 0.0012,
-      uAngle: (cfg.risoAngle * Math.PI) / 180,
-    }));
-
-  // ── Overlay pass (bloom → vignette → film burn) ─────────────────
-  if (cfg.bloom > 0)
-    filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
-
-  if (cfg.vignette > 0)
-    filters.push(f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
-
-  if (cfg.filmBurn > 0)
-    filters.push(f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
+  if (cfg.halftone > 0) filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85 }));
+  if (cfg.risoShift > 0) filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
+  if (cfg.bloom > 0) filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
+  if (cfg.vignette > 0) filters.push(f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
+  if (cfg.filmBurn > 0) filters.push(f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
 
   return filters.length > 0 ? filters : null;
 }
+
+export const buildFiltersFromEffectLayer = buildFilters;

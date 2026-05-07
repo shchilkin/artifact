@@ -1,142 +1,357 @@
-import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { Sidebar } from "../components/Sidebar";
-import { CanvasPreview } from "../components/CanvasPreview";
-import { PresetsPanel } from "../components/PresetsPanel";
-import { BottomBar } from "../components/BottomBar";
-import { SiteNav } from "../components/SiteNav";
-import { usePresets } from "../hooks/usePresets";
-import { DEFAULT_CONFIG, type GeneratorConfig } from "../types/config";
-import { exportCanvas } from "../utils/exportCanvas";
-import { exportEnvMap } from "../utils/exportEnvMap";
-import { randomConfig } from "../utils/randomConfig";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { Sidebar } from '../components/Sidebar';
+import { CanvasPreview } from '../components/CanvasPreview';
+import { PresetsPanel } from '../components/PresetsPanel';
+import { BottomBar } from '../components/BottomBar';
+import { SiteNav } from '../components/SiteNav';
+import { usePresets } from '../hooks/usePresets';
+import {
+  ASPECT_SIZES,
+  cloneDocument,
+  DEFAULT_DOCUMENT,
+  makeEffectPresetLayer,
+  makeEmojiLayer,
+  makeFillLayer,
+  makeImageLayer,
+  makeTextLayer,
+  migrateFromV1,
+  type AspectRatio,
+  type CanvasDocument,
+  type EffectPreset,
+  type ImageLayer,
+  type Layer,
+  type LayerKind,
+} from '../types/config';
+import { exportCanvas } from '../utils/exportCanvas';
+import { exportEnvMap } from '../utils/exportEnvMap';
+import { randomDocument } from '../utils/randomConfig';
 
-const CFG_KEY = "emoji-art-cfg";
-const SEED_KEY = "emoji-art-seed";
+const DOC_KEY = 'doc-v2';
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-function loadSaved(): { cfg: GeneratorConfig; seed: number } | null {
+function isValidAspect(v: unknown): v is AspectRatio {
+  return typeof v === 'string' && v in ASPECT_SIZES;
+}
+
+function normalizeDocument(raw: unknown): CanvasDocument {
+  const doc = raw as CanvasDocument;
+  const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
+  return { ...doc, global: { ...doc.global, aspect } };
+}
+const LEGACY_CFG_KEY = 'emoji-art-cfg';
+const LEGACY_SEED_KEY = 'emoji-art-seed';
+const HISTORY_MAX = 50;
+
+function loadLegacyDocument(): CanvasDocument | null {
   try {
-    const raw = localStorage.getItem(CFG_KEY);
-    const s = localStorage.getItem(SEED_KEY);
+    const raw = localStorage.getItem(LEGACY_CFG_KEY);
+    const rawSeed = localStorage.getItem(LEGACY_SEED_KEY);
     if (!raw) return null;
-    return {
-      cfg: { ...DEFAULT_CONFIG, ...JSON.parse(raw) },
-      seed: s ? parseInt(s) : 4242,
-    };
+    const seed = rawSeed ? parseInt(rawSeed, 10) : 4242;
+    return migrateFromV1(Number.isFinite(seed) ? seed : 4242, JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
-function getInitialState(): { cfg: GeneratorConfig; seed: number } {
-  // URL params take priority (e.g. opened from examples gallery)
+function getInitialDocument(): CanvasDocument {
   const params = new URLSearchParams(window.location.search);
-  const paramSeed = params.get("seed");
-  const paramCfg = params.get("cfg");
-  if (paramSeed && paramCfg) {
+  const docParam = params.get('doc');
+  if (docParam) {
     try {
-      const decoded = JSON.parse(decodeURIComponent(paramCfg));
-      const seed = parseInt(paramSeed, 10);
-      if (!isNaN(seed)) {
-        return { cfg: { ...DEFAULT_CONFIG, ...decoded }, seed };
-      }
-    } catch { /* ignore */ }
+      return normalizeDocument(JSON.parse(docParam));
+    } catch {
+      // ignore
+    }
   }
-  return loadSaved() ?? { cfg: DEFAULT_CONFIG, seed: 4242 };
+
+  try {
+    const raw = localStorage.getItem(DOC_KEY);
+    if (raw) return normalizeDocument(JSON.parse(raw));
+  } catch {
+    // ignore
+  }
+
+  return loadLegacyDocument() ?? cloneDocument(DEFAULT_DOCUMENT);
 }
 
+async function readImageFile(file: File): Promise<string | null> {
+  if (!file.type.startsWith('image/')) return null;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(typeof event.target?.result === 'string' ? event.target.result : null);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+type HistoryEntry = { doc: CanvasDocument };
+
 export default function Generator() {
-  const initial = getInitialState();
-  const [cfg, setCfg] = useState<GeneratorConfig>(initial.cfg);
-  const [seed, setSeed] = useState(initial.seed);
+  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
+  const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
-  const [seedHistory, setSeedHistory] = useState<number[]>([]);
+  const [canvasDragOver, setCanvasDragOver] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
 
-  const { presets, savePreset, deletePreset, loadPreset } = usePresets();
+  const safeSelectedLayerId = selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId)
+    ? selectedLayerId
+    : null;
+
+  const docRef = useRef(doc);
+  const selectedLayerIdRef = useRef(selectedLayerId);
+  useLayoutEffect(() => {
+    docRef.current = doc;
+    selectedLayerIdRef.current = safeSelectedLayerId;
+  }, [doc, safeSelectedLayerId]);
+
+  const [past, setPast] = useState<HistoryEntry[]>([]);
+  const [future, setFuture] = useState<HistoryEntry[]>([]);
+  const histDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const preChangeRef = useRef<HistoryEntry | null>(null);
+
+  const setDoc = useCallback((newDoc: CanvasDocument) => {
+    _setDoc(newDoc);
+    if (!preChangeRef.current) preChangeRef.current = { doc: cloneDocument(docRef.current) };
+    clearTimeout(histDebounceRef.current);
+    histDebounceRef.current = setTimeout(() => {
+      if (preChangeRef.current) {
+        setPast((prev) => [...prev.slice(-(HISTORY_MAX - 1)), preChangeRef.current!]);
+        setFuture([]);
+        preChangeRef.current = null;
+      }
+    }, 400);
+  }, []);
+
+  const setSeed = useCallback((seed: number) => {
+    clearTimeout(histDebounceRef.current);
+    preChangeRef.current = null;
+    setPast((prev) => [...prev.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
+    setFuture([]);
+    _setDoc({ ...docRef.current, global: { ...docRef.current.global, seed } });
+  }, []);
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return;
+    clearTimeout(histDebounceRef.current);
+    preChangeRef.current = null;
+    const prev = past[past.length - 1];
+    setPast((items) => items.slice(0, -1));
+    setFuture((items) => [{ doc: cloneDocument(docRef.current) }, ...items.slice(0, HISTORY_MAX - 1)]);
+    _setDoc(prev.doc);
+  }, [past]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return;
+    clearTimeout(histDebounceRef.current);
+    preChangeRef.current = null;
+    const next = future[0];
+    setFuture((items) => items.slice(1));
+    setPast((items) => [...items.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
+    _setDoc(next.doc);
+  }, [future]);
 
   useEffect(() => {
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-  }, [cfg]);
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z') return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [redo, undo]);
+
   useEffect(() => {
-    localStorage.setItem(SEED_KEY, String(seed));
-  }, [seed]);
+    try {
+      localStorage.setItem(DOC_KEY, JSON.stringify(doc));
+    } catch {
+      // quota exceeded or private browsing — gracefully ignore
+    }
+  }, [doc]);
+
+  useEffect(() => {
+    const imageLayers = doc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image' && Boolean(layer.src));
+    let cancelled = false;
+    imageLayers.forEach((layer) => {
+      if (imageCache.has(layer.src)) return;
+      const img = new Image();
+      img.onload = () => {
+        if (cancelled) return;
+        setImageCache((prev) => {
+          if (prev.has(layer.src)) return prev;
+          const next = new Map(prev);
+          next.set(layer.src, img);
+          return next;
+        });
+      };
+      img.onerror = () => { /* silently skip unloadable images */ };
+      img.src = layer.src;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [doc.layers, imageCache]);
+
+  const addLayer = useCallback((kind: Exclude<LayerKind, 'effect'>) => {
+    const layer = kind === 'text'
+      ? makeTextLayer()
+      : kind === 'image'
+        ? makeImageLayer('')
+        : kind === 'fill'
+          ? makeFillLayer()
+          : makeEmojiLayer();
+    setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+    setSelectedLayerId(layer.id);
+  }, [setDoc]);
+
+  const addEffectPreset = useCallback((preset: EffectPreset) => {
+    const layer = makeEffectPresetLayer(preset);
+    setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+    setSelectedLayerId(layer.id);
+  }, [setDoc]);
+
+  const removeLayer = useCallback((id: string) => {
+    setDoc({ ...docRef.current, layers: docRef.current.layers.filter((layer) => layer.id !== id) });
+    if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
+  }, [setDoc]);
+
+  const updateLayer = useCallback((id: string, patch: Partial<Layer>) => {
+    setDoc({ ...docRef.current, layers: docRef.current.layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer) });
+  }, [setDoc]);
+
+  const reorderLayers = useCallback((layers: Layer[]) => {
+    setDoc({ ...docRef.current, layers });
+  }, [setDoc]);
+
+  const duplicateLayer = useCallback((id: string) => {
+    const layer = docRef.current.layers.find((item) => item.id === id);
+    if (!layer) return;
+    const dup: Layer = layer.kind === 'emoji'
+      ? { ...layer, emojis: [...layer.emojis], id: `layer-${Date.now()}`, name: `${layer.name} copy` }
+      : { ...layer, id: `layer-${Date.now()}`, name: `${layer.name} copy` };
+    const idx = docRef.current.layers.findIndex((item) => item.id === id);
+    const newLayers = [...docRef.current.layers];
+    newLayers.splice(idx + 1, 0, dup);
+    setDoc({ ...docRef.current, layers: newLayers });
+    setSelectedLayerId(dup.id);
+  }, [setDoc]);
 
   const handleRandomize = useCallback(() => {
-    setSeedHistory((h) => [...h.slice(-9), seed]);
-    setSeed(Math.floor(Math.random() * 999999));
-    setCfg(randomConfig());
-  }, [seed]);
+    clearTimeout(histDebounceRef.current);
+    preChangeRef.current = null;
+    setPast((prev) => [...prev.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
+    setFuture([]);
+    const nextDoc = randomDocument();
+    _setDoc(nextDoc);
+    setSelectedLayerId(null);
+  }, []);
 
-  const handlePrevSeed = useCallback(() => {
-    if (seedHistory.length === 0) return;
-    const prev = seedHistory[seedHistory.length - 1];
-    setSeedHistory((h) => h.slice(0, -1));
-    setSeed(prev);
-  }, [seedHistory]);
-
-  const handleExport = useCallback(
-    async (resolution: 1500 | 2000 | 3000) => {
-      setIsExporting(true);
-      try {
-        await exportCanvas(cfg, seed, resolution);
-      } finally {
-        setIsExporting(false);
-      }
-    },
-    [cfg, seed],
-  );
+  const handleExport = useCallback(async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
+    setIsExporting(true);
+    try {
+      await exportCanvas(docRef.current, imageCache, scale, format);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [imageCache]);
 
   const handleEnvMapExport = useCallback(async () => {
     setIsExportingEnvMap(true);
     try {
-      await exportEnvMap(cfg, seed);
+      await exportEnvMap(docRef.current, imageCache);
     } finally {
       setIsExportingEnvMap(false);
     }
-  }, [cfg, seed]);
+  }, [imageCache]);
 
-  const handleLoadPreset = useCallback(
-    (preset: Parameters<typeof loadPreset>[0]) => {
-      const { seed: s, cfg: c } = loadPreset(preset);
-      setSeed(s);
-      setCfg(c);
-      setShowPresets(false);
-    },
-    [loadPreset],
-  );
+  const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
-  // Close presets on Escape
+  const handleLoadPreset = useCallback((preset: Parameters<typeof loadPreset>[0]) => {
+    clearTimeout(histDebounceRef.current);
+    preChangeRef.current = null;
+    setPast((prev) => [...prev.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
+    setFuture([]);
+    const { doc: nextDoc } = loadPreset(preset);
+    _setDoc(nextDoc);
+    setSelectedLayerId(null);
+    setShowPresets(false);
+  }, [loadPreset]);
+
   useEffect(() => {
     if (!showPresets) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setShowPresets(false);
+      if (e.key === 'Escape') setShowPresets(false);
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [showPresets]);
 
   const handleCopyLink = useCallback(() => {
     const params = new URLSearchParams();
-    params.set("seed", String(seed));
-    params.set("cfg", encodeURIComponent(JSON.stringify(cfg)));
-    const url = `${window.location.origin}/app?${params}`;
+    params.set('doc', JSON.stringify(docRef.current));
+    const url = `${window.location.origin}/app?${params.toString()}`;
     navigator.clipboard.writeText(url).catch(() => {
-      prompt("Copy this link:", url);
+      prompt('Copy this link:', url);
     });
-  }, [seed, cfg]);
+  }, []);
+
+  const handleDroppedFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
+      setTimeout(() => setDropError(null), 4000);
+      return;
+    }
+    try {
+      const src = await readImageFile(file);
+      if (!src) return;
+      const layer = makeImageLayer(src);
+      setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+      setSelectedLayerId(layer.id);
+    } catch {
+      setDropError('Could not read image');
+      setTimeout(() => setDropError(null), 4000);
+    }
+  }, [setDoc]);
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (!item.type.startsWith('image/')) continue;
+        const file = item.getAsFile();
+        if (file) {
+          void handleDroppedFile(file);
+          break;
+        }
+      }
+    }
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [handleDroppedFile]);
 
   const bottomBarProps = {
-    seed,
+    seed: doc.global.seed,
     onSeedChange: setSeed,
     onRandomize: handleRandomize,
-    onPrevSeed: handlePrevSeed,
-    hasPrevSeed: seedHistory.length > 0,
+    onUndo: undo,
+    onRedo: redo,
+    canUndo: past.length > 0,
+    canRedo: future.length > 0,
+    undoCount: past.length,
     onExport: handleExport,
     onEnvMapExport: handleEnvMapExport,
-    onPresetsToggle: () => setShowPresets(!showPresets),
+    onPresetsToggle: () => setShowPresets((prev) => !prev),
     onCopyLink: handleCopyLink,
+    aspect: doc.global.aspect ?? '1:1',
     isExporting,
     isExportingEnvMap,
   };
@@ -145,14 +360,48 @@ export default function Generator() {
     <div className="generator-layout flex flex-col w-full h-full">
       <SiteNav solid />
       <div className="app">
-        <main className="main">
-          <CanvasPreview cfg={cfg} seed={seed} onCfgChange={setCfg} />
+        <main
+          className="main"
+          onDragEnter={(e) => {
+            if (Array.from(e.dataTransfer.types).includes('Files')) setCanvasDragOver(true);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setCanvasDragOver(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setCanvasDragOver(false);
+            const file = e.dataTransfer.files[0];
+            if (file) void handleDroppedFile(file);
+          }}
+        >
+          <CanvasPreview
+            doc={doc}
+            imageCache={imageCache}
+            selectedLayerId={safeSelectedLayerId}
+            dragOver={canvasDragOver}
+            onLayerUpdate={updateLayer}
+            onSelectLayer={setSelectedLayerId}
+          />
+          {dropError && (
+            <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
+              {dropError}
+            </p>
+          )}
           <BottomBar {...bottomBarProps} />
         </main>
 
         <Sidebar
-          cfg={cfg}
-          onChange={setCfg}
+          doc={doc}
+          onDocChange={setDoc}
+          selectedLayerId={safeSelectedLayerId}
+          onSelectLayer={setSelectedLayerId}
+          onAddLayer={addLayer}
+          onAddEffectPreset={addEffectPreset}
+          onRemoveLayer={removeLayer}
+          onReorderLayers={reorderLayers}
+          onDuplicateLayer={duplicateLayer}
           mobileActionBar={<BottomBar {...bottomBarProps} />}
         />
 
@@ -160,7 +409,7 @@ export default function Generator() {
           {showPresets && (
             <PresetsPanel
               presets={presets}
-              onSave={(name) => savePreset(name, seed, cfg)}
+              onSave={(name) => savePreset(name, docRef.current, imageCache)}
               onLoad={handleLoadPreset}
               onDelete={deletePreset}
               onClose={() => setShowPresets(false)}

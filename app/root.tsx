@@ -105,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=VT323&family=Special+Elite&display=swap"
           rel="stylesheet"
         />
         <Meta />
