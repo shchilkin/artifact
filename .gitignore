@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 build/
 .react-router
+.claude/worktrees
