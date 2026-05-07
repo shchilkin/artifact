@@ -1,14 +1,18 @@
 import type {
   CanvasDocument,
+  CanvasGraph,
   EffectLayer,
   EmojiLayer,
   FillLayer,
+  GraphMergeNode,
   ImageLayer,
+  Layer,
   TextLayer,
 } from '../types/config';
 import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
+import { EXPORT_NODE_ID } from './nodeGraph';
 import type { Filter, Renderer } from 'pixi.js';
 
 const REF = 540;
@@ -23,6 +27,27 @@ function createCanvas(W: number, H: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
+  return canvas;
+}
+
+function cloneCanvas(source: HTMLCanvasElement, W: number, H: number): HTMLCanvasElement {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(source, 0, 0);
+  return canvas;
+}
+
+function maskCanvasToAlpha(
+  target: HTMLCanvasElement,
+  mask: HTMLCanvasElement,
+  W: number,
+  H: number,
+): HTMLCanvasElement {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(target, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(mask, 0, 0);
   return canvas;
 }
 
@@ -358,11 +383,152 @@ async function runGpuPass(
     const stage = new Container();
     stage.addChild(displaySprite);
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    return persistentRenderer.plugins.extract.canvas(stage) as HTMLCanvasElement;
+    return persistentRenderer.extract.canvas(stage) as HTMLCanvasElement;
   } finally {
     canvasTex.destroy(true);
     gpuTex.destroy(true);
   }
+}
+
+async function applyLayerToCanvas(
+  base: HTMLCanvasElement,
+  layer: Layer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  persistentRenderer: Renderer | undefined,
+): Promise<HTMLCanvasElement> {
+  if (!layer.visible) return base;
+
+  const scale = W / REF;
+  const seed = doc.global.seed;
+  let current = cloneCanvas(base, W, H);
+  const ctx = current.getContext('2d', { willReadFrequently: true })!;
+
+  if (layer.kind === 'emoji') {
+    drawEmojiLayer(ctx, W, H, layer, lcg(seed ^ 0x7a8b9c), scale);
+  } else if (layer.kind === 'text') {
+    drawTextLayer(ctx, W, H, layer, scale);
+  } else if (layer.kind === 'image') {
+    drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
+  } else if (layer.kind === 'fill') {
+    drawFillLayer(ctx, W, H, layer);
+  } else if (layer.kind === 'effect') {
+    const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
+    applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
+    if (filters?.length) {
+      current = await runGpuPass(current, W, H, filters, persistentRenderer);
+    }
+    if (alphaMask) {
+      current = maskCanvasToAlpha(current, alphaMask, W, H);
+    }
+  }
+
+  return current;
+}
+
+function findIncomingSource(
+  graph: CanvasGraph,
+  toId: string,
+  toPort: 'in' | 'bg' | 'a' | 'b',
+): string | null {
+  const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
+  return edge?.fromId ?? null;
+}
+
+function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | undefined {
+  return graph.mergeNodes.find((node) => node.id === nodeId);
+}
+
+function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
+  return doc.layers.find((layer) => layer.id === nodeId);
+}
+
+async function renderGraphNode(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  nodeId: string,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  persistentRenderer: Renderer | undefined,
+  cache: Map<string, Promise<HTMLCanvasElement>>,
+): Promise<HTMLCanvasElement> {
+  const cached = cache.get(nodeId);
+  if (cached) return cached;
+
+  const renderPromise = (async () => {
+    if (nodeId === EXPORT_NODE_ID) {
+      const canvas = createCanvas(W, H);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+      drawBackground(ctx, W, H, doc.global.bg);
+      const sourceId = findIncomingSource(graph, nodeId, 'in');
+      if (sourceId) {
+        const rendered = await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache);
+        ctx.drawImage(rendered, 0, 0);
+      }
+      return canvas;
+    }
+
+    const mergeNode = findMergeNode(graph, nodeId);
+    if (mergeNode) {
+      const baseId = findIncomingSource(graph, nodeId, 'a');
+      const overlayId = findIncomingSource(graph, nodeId, 'b');
+      const canvas = baseId
+        ? cloneCanvas(
+          await renderGraphNode(doc, graph, baseId, W, H, imageCache, persistentRenderer, cache),
+          W,
+          H,
+        )
+        : createCanvas(W, H);
+      if (overlayId) {
+        const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, persistentRenderer, cache);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+        ctx.save();
+        ctx.globalCompositeOperation = toCompositeOperation(mergeNode.blendMode);
+        ctx.globalAlpha = mergeNode.opacity / 100;
+        ctx.drawImage(overlay, 0, 0);
+        ctx.restore();
+      }
+      return canvas;
+    }
+
+    const layer = findLayer(doc, nodeId);
+    if (!layer) return createCanvas(W, H);
+
+    const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
+    const sourceId = findIncomingSource(graph, nodeId, inputPort);
+    const base = sourceId
+      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache)
+      : createCanvas(W, H);
+    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, persistentRenderer);
+  })();
+
+  cache.set(nodeId, renderPromise);
+  return renderPromise;
+}
+
+export async function renderGraphTarget(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  targetNodeId: string,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  persistentRenderer?: Renderer,
+): Promise<HTMLCanvasElement> {
+  return renderGraphNode(
+    doc,
+    graph,
+    targetNodeId,
+    W,
+    H,
+    imageCache,
+    persistentRenderer,
+    new Map<string, Promise<HTMLCanvasElement>>(),
+  );
 }
 
 export async function renderDocument(
@@ -372,32 +538,17 @@ export async function renderDocument(
   imageCache: Map<string, HTMLImageElement>,
   persistentRenderer?: Renderer,
 ): Promise<HTMLCanvasElement> {
-  const scale = W / REF;
-  const seed = doc.global.seed;
-  let current = createCanvas(W, H);
-  let ctx = current.getContext('2d', { willReadFrequently: true })!;
-  drawBackground(ctx, W, H, doc.global.bg);
-
-  for (const layer of doc.layers) {
-    if (!layer.visible) continue;
-    if (layer.kind === 'emoji') {
-      drawEmojiLayer(ctx, W, H, layer, lcg(seed ^ 0x7a8b9c), scale);
-    } else if (layer.kind === 'text') {
-      drawTextLayer(ctx, W, H, layer, scale);
-    } else if (layer.kind === 'image') {
-      drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
-    } else if (layer.kind === 'fill') {
-      drawFillLayer(ctx, W, H, layer);
-    } else if (layer.kind === 'effect') {
-      applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
-      const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
-      if (filters?.length) {
-        current = await runGpuPass(current, W, H, filters, persistentRenderer);
-        ctx = current.getContext('2d', { willReadFrequently: true })!;
-      }
-    }
+  if (doc.graph) {
+    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, persistentRenderer);
   }
 
+  let current = createCanvas(W, H);
+  const ctx = current.getContext('2d', { willReadFrequently: true })!;
+  drawBackground(ctx, W, H, doc.global.bg);
+
+  const layers = doc.layers;
+  for (const layer of layers) {
+    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, persistentRenderer);
+  }
   return current;
 }
-

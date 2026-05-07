@@ -64,11 +64,39 @@ export interface FillLayer extends BaseLayer {
   blendMode: string;
 }
 
-export type EffectPreset = 'rays' | 'glitch' | 'grain' | 'tint' | 'warp' | 'color' | 'riso';
+export type EffectPreset =
+  | 'rays'
+  | 'bloom'
+  | 'filmBurn'
+  | 'glitch'
+  | 'ca'
+  | 'interlace'
+  | 'dataMosh'
+  | 'grain'
+  | 'scanlines'
+  | 'tint'
+  | 'noiseWarp'
+  | 'morph'
+  | 'vortex'
+  | 'barrel'
+  | 'tear'
+  | 'mirror'
+  | 'hueShift'
+  | 'rgbSplit'
+  | 'vignette'
+  | 'pixelate'
+  | 'posterize'
+  | 'duotone'
+  | 'halftone'
+  | 'risoShift'
+  | 'warp'
+  | 'color'
+  | 'riso';
 
 export interface EffectLayer extends BaseLayer {
   kind: 'effect';
   preset?: EffectPreset;  // which preset created this layer (drives panel icon)
+  maskAlpha: boolean;
   grain: number;
   scanlines: number;
   ca: number;
@@ -148,10 +176,17 @@ export interface CanvasGraph {
   mergeNodes: GraphMergeNode[];
 }
 
+export interface ExportConfig {
+  format: 'png' | 'jpeg';
+  scale: 1 | 2 | 3;
+  target: 'cover' | 'envmap';
+}
+
 export interface CanvasDocument {
   global: GlobalConfig;
   layers: Layer[];
   graph?: CanvasGraph;
+  export: ExportConfig;
 }
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
@@ -160,8 +195,15 @@ export const DEFAULT_GLOBAL: GlobalConfig = {
   aspect: '1:1',
 };
 
+export const DEFAULT_EXPORT: ExportConfig = {
+  format: 'png',
+  scale: 1,
+  target: 'cover',
+};
+
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
   kind: 'effect',
+  maskAlpha: false,
   grain: 22,
   scanlines: 12,
   ca: 4,
@@ -289,6 +331,7 @@ export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer
 
 // All-zero base for focused single-effect layers
 const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> = {
+  maskAlpha: false,
   grain: 0, scanlines: 0, ca: 0, glitch: 0,
   tint: '#350055', tintOp: 0,
   rays: 0, rayInt: 0, rayColor: '#bb00ff',
@@ -298,15 +341,45 @@ const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kin
   duotone: 0, duoA: '#0a0020', duoB: '#ff6ec7', halftone: 0, risoShift: 0, risoAngle: 15,
 };
 
-export const EFFECT_PRESETS: Record<EffectPreset, { name: string; icon: string; partial: Partial<EffectLayer> }> = {
-  rays:  { name: 'Rays',    icon: '✶', partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff', bloom: 30 } },
-  glitch:{ name: 'Glitch',  icon: '▒', partial: { ...ZERO_EFFECT, glitch: 14, ca: 6, interlace: 40, dataMosh: 30, rgbSplit: 8 } },
-  grain: { name: 'Grain',   icon: '⣿', partial: { ...ZERO_EFFECT, grain: 45, scanlines: 18, filmBurn: 35 } },
-  tint:  { name: 'Tint',    icon: '◈', partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45, vignette: 40 } },
-  warp:  { name: 'Warp',    icon: '◌', partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
-  color: { name: 'Color',   icon: '◐', partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
-  riso:  { name: 'Riso',    icon: '◎', partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
+export const EFFECT_PRESETS: Record<EffectPreset, { name: string; icon: string; partial: Partial<EffectLayer>; legacy?: boolean }> = {
+  rays:       { name: 'Rays',        icon: '✶', partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' } },
+  bloom:      { name: 'Bloom',       icon: '✹', partial: { ...ZERO_EFFECT, bloom: 30 } },
+  filmBurn:   { name: 'Film Burn',   icon: '☼', partial: { ...ZERO_EFFECT, filmBurn: 35 } },
+  glitch:     { name: 'Glitch',      icon: '▒', partial: { ...ZERO_EFFECT, glitch: 14 } },
+  ca:         { name: 'Chromatic',   icon: '◫', partial: { ...ZERO_EFFECT, ca: 6 } },
+  interlace:  { name: 'Interlace',   icon: '≋', partial: { ...ZERO_EFFECT, interlace: 40 } },
+  dataMosh:   { name: 'Data Mosh',   icon: '▥', partial: { ...ZERO_EFFECT, dataMosh: 30 } },
+  grain:      { name: 'Grain',       icon: '⣿', partial: { ...ZERO_EFFECT, grain: 45 } },
+  scanlines:  { name: 'Scanlines',   icon: '☰', partial: { ...ZERO_EFFECT, scanlines: 18 } },
+  tint:       { name: 'Tint',        icon: '◈', partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
+  noiseWarp:  { name: 'Noise Warp',  icon: '◌', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
+  morph:      { name: 'Morph',       icon: '∿', partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },
+  vortex:     { name: 'Vortex',      icon: '◍', partial: { ...ZERO_EFFECT, vortex: 20 } },
+  barrel:     { name: 'Barrel',      icon: '◔', partial: { ...ZERO_EFFECT, barrel: 25 } },
+  tear:       { name: 'Tear',        icon: '╱', partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 } },
+  mirror:     { name: 'Mirror',      icon: '║', partial: { ...ZERO_EFFECT, mirror: 1 } },
+  hueShift:   { name: 'Hue Shift',   icon: '◐', partial: { ...ZERO_EFFECT, hueShift: 60 } },
+  rgbSplit:   { name: 'RGB Split',   icon: '◭', partial: { ...ZERO_EFFECT, rgbSplit: 8 } },
+  vignette:   { name: 'Vignette',    icon: '◜', partial: { ...ZERO_EFFECT, vignette: 40 } },
+  pixelate:   { name: 'Pixelate',    icon: '▦', partial: { ...ZERO_EFFECT, pixelate: 8 } },
+  posterize:  { name: 'Posterize',   icon: '◨', partial: { ...ZERO_EFFECT, posterize: 6 } },
+  duotone:    { name: 'Duotone',     icon: '◎', partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
+  halftone:   { name: 'Halftone',    icon: '◩', partial: { ...ZERO_EFFECT, halftone: 12 } },
+  risoShift:  { name: 'Misregister', icon: '⟲', partial: { ...ZERO_EFFECT, risoShift: 20, risoAngle: 15 } },
+  warp:       { name: 'Warp FX',     icon: '◌', legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
+  color:      { name: 'Color FX',    icon: '◐', legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
+  riso:       { name: 'Riso FX',     icon: '◎', legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
 };
+
+export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
+  'rays', 'bloom', 'filmBurn',
+  'glitch', 'ca', 'interlace', 'dataMosh',
+  'grain', 'scanlines',
+  'tint',
+  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror',
+  'hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize',
+  'duotone', 'halftone', 'risoShift',
+];
 
 export function makeEffectPresetLayer(preset: EffectPreset): EffectLayer {
   const { name, partial } = EFFECT_PRESETS[preset];
@@ -319,6 +392,7 @@ export const DEFAULT_DOCUMENT: CanvasDocument = {
     makeEmojiLayer({ id: 'default-emoji' }),
     makeEffectLayer({ id: 'default-effect' }),
   ],
+  export: DEFAULT_EXPORT,
 };
 
 
@@ -335,6 +409,7 @@ export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): Graph
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     global: { ...doc.global },
+    export: { ...doc.export },
     layers: doc.layers.map((layer) => ({
       ...layer,
       ...(layer.kind === 'emoji' ? { emojis: [...layer.emojis] } : {}),

@@ -44,7 +44,7 @@ export async function gpuRenderToCanvas({
     // Yield to the event loop so the GPU commands are flushed
     await new Promise<void>((r) => setTimeout(r, 0));
 
-    return renderer.plugins.extract.canvas(stage) as HTMLCanvasElement;
+    return renderer.extract.canvas(stage) as HTMLCanvasElement;
   } finally {
     canvasTex.destroy(true);
     gpuTex.destroy(true);

@@ -109,6 +109,7 @@ describe('cloneDocument', () => {
     const original: CanvasDocument = {
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
+      export: { format: 'png', scale: 1, target: 'cover' },
     };
     const cloned = cloneDocument(original);
     expect(cloned).toEqual(original);
@@ -118,6 +119,7 @@ describe('cloneDocument', () => {
     const original: CanvasDocument = {
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
+      export: { format: 'png', scale: 1, target: 'cover' },
     };
     const cloned = cloneDocument(original);
     expect(cloned).not.toBe(original);
@@ -130,6 +132,7 @@ describe('cloneDocument', () => {
     const original: CanvasDocument = {
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [emojiLayer],
+      export: { format: 'png', scale: 1, target: 'cover' },
     };
     const cloned = cloneDocument(original);
     const clonedEmojiLayer = cloned.layers[0];
@@ -138,5 +141,15 @@ describe('cloneDocument', () => {
     }
     expect(emojiLayer.emojis).toEqual(['😂', '💀']);
   });
-});
 
+  it('deep-clones export settings independently', () => {
+    const original: CanvasDocument = {
+      global: { bg: '#120020', seed: 1, aspect: '1:1' },
+      layers: [makeEffectLayer({ id: 'fx-1' })],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const cloned = cloneDocument(original);
+    cloned.export.scale = 3;
+    expect(original.export.scale).toBe(1);
+  });
+});

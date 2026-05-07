@@ -10,21 +10,35 @@ import { usePresets } from '../hooks/usePresets';
 import {
   ASPECT_SIZES,
   cloneDocument,
+  DEFAULT_EXPORT,
   getPreviewDims,
   DEFAULT_DOCUMENT,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
+  makeGraphMergeNode,
   makeImageLayer,
   makeTextLayer,
   type AspectRatio,
   type CanvasDocument,
   type CanvasGraph,
   type EffectPreset,
+  type GraphMergeNode,
   type ImageLayer,
   type Layer,
   type LayerKind,
 } from '../types/config';
+import type { AddAction, InsertConnectionConfig } from '../components/NodeCanvas';
+import {
+  addGraphEdge,
+  addLayerToGraph,
+  addMergeNode,
+  inferLinearGraph,
+  nextDropPosition,
+  removeGraphEdge,
+  removeLayerFromGraph,
+  removeMergeNode,
+} from '../utils/nodeGraph';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((m) => ({ default: m.NodeCanvas })));
 import { exportCanvas } from '../utils/exportCanvas';
@@ -39,10 +53,18 @@ function isValidAspect(v: unknown): v is AspectRatio {
   return typeof v === 'string' && v in ASPECT_SIZES;
 }
 
+function ensureGraph(doc: CanvasDocument): CanvasGraph {
+  return doc.graph ?? inferLinearGraph(doc.layers);
+}
+
 function normalizeDocument(raw: unknown): CanvasDocument {
   const doc = raw as CanvasDocument;
   const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
-  return { ...doc, global: { ...doc.global, aspect } };
+  const exportConfig = {
+    ...DEFAULT_EXPORT,
+    ...(typeof doc.export === 'object' && doc.export ? doc.export : {}),
+  } as CanvasDocument['export'];
+  return { ...doc, global: { ...doc.global, aspect }, export: exportConfig };
 }
 
 function getInitialDocument(): CanvasDocument {
@@ -102,6 +124,7 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 
 type ViewMode = 'layers' | 'nodes';
 
+
 export default function Generator() {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -144,6 +167,10 @@ export default function Generator() {
       }
     }, 400);
   }, []);
+
+  const updateDocument = useCallback((mutate: (current: CanvasDocument) => CanvasDocument) => {
+    setDoc(mutate(docRef.current));
+  }, [setDoc]);
 
   const setSeed = useCallback((seed: number) => {
     clearTimeout(histDebounceRef.current);
@@ -193,6 +220,15 @@ export default function Generator() {
     }
   }, [doc]);
 
+  // Ensure doc.graph is always initialized when entering nodes mode so
+  // NodeCanvas always has a concrete graph to read from (single source of truth).
+  useEffect(() => {
+    if (viewMode === 'nodes' && !docRef.current.graph) {
+      const current = docRef.current;
+      setDoc({ ...current, graph: inferLinearGraph(current.layers) });
+    }
+  }, [viewMode, setDoc]);
+
   useEffect(() => {
     const imageLayers = doc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image' && Boolean(layer.src));
     let cancelled = false;
@@ -224,41 +260,169 @@ export default function Generator() {
         : kind === 'fill'
           ? makeFillLayer()
           : makeEmojiLayer();
-    setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+    updateDocument((current) => {
+      if (!current.graph) return { ...current, layers: [...current.layers, layer] };
+      return {
+        ...current,
+        layers: [...current.layers, layer],
+        graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
+      };
+    });
     setSelectedLayerId(layer.id);
-  }, [setDoc]);
+  }, [updateDocument]);
 
   const addEffectPreset = useCallback((preset: EffectPreset) => {
     const layer = makeEffectPresetLayer(preset);
-    setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+    updateDocument((current) => {
+      if (!current.graph) return { ...current, layers: [...current.layers, layer] };
+      return {
+        ...current,
+        layers: [...current.layers, layer],
+        graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
+      };
+    });
     setSelectedLayerId(layer.id);
-  }, [setDoc]);
+  }, [updateDocument]);
 
   const removeLayer = useCallback((id: string) => {
-    setDoc({ ...docRef.current, layers: docRef.current.layers.filter((layer) => layer.id !== id) });
+    updateDocument((current) => ({
+      ...current,
+      layers: current.layers.filter((layer) => layer.id !== id),
+      graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
+    }));
     if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
-  }, [setDoc]);
+  }, [updateDocument]);
+
+  const deleteNodeSelection = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    updateDocument((current) => {
+      const nextLayers = current.layers.filter((layer) => !idSet.has(layer.id));
+      let nextGraph = current.graph;
+      if (nextGraph) {
+        for (const mergeNode of nextGraph.mergeNodes) {
+          if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
+        }
+        for (const id of ids) {
+          if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph, id);
+        }
+      }
+      return { ...current, layers: nextLayers, graph: nextGraph };
+    });
+    if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
+  }, [updateDocument]);
 
   const updateLayer = useCallback((id: string, patch: Partial<Layer>) => {
-    setDoc({ ...docRef.current, layers: docRef.current.layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer) });
-  }, [setDoc]);
+    updateDocument((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => layer.id === id ? { ...layer, ...patch } : layer),
+    }));
+  }, [updateDocument]);
+
+  const updateMergeNode = useCallback((id: string, patch: Partial<GraphMergeNode>) => {
+    updateDocument((current) => {
+      if (!current.graph) return current;
+      return {
+        ...current,
+        graph: {
+          ...current.graph,
+          mergeNodes: current.graph.mergeNodes.map((node) => node.id === id ? { ...node, ...patch } : node),
+        },
+      };
+    });
+  }, [updateDocument]);
 
   const reorderLayers = useCallback((layers: Layer[]) => {
-    setDoc({ ...docRef.current, layers });
-  }, [setDoc]);
+    updateDocument((current) => ({ ...current, layers }));
+  }, [updateDocument]);
 
   const duplicateLayer = useCallback((id: string) => {
-    const layer = docRef.current.layers.find((item) => item.id === id);
+    const current = docRef.current;
+    const layer = current.layers.find((item) => item.id === id);
     if (!layer) return;
     const dup: Layer = layer.kind === 'emoji'
       ? { ...layer, emojis: [...layer.emojis], id: `layer-${Date.now()}`, name: `${layer.name} copy` }
       : { ...layer, id: `layer-${Date.now()}`, name: `${layer.name} copy` };
-    const idx = docRef.current.layers.findIndex((item) => item.id === id);
-    const newLayers = [...docRef.current.layers];
-    newLayers.splice(idx + 1, 0, dup);
-    setDoc({ ...docRef.current, layers: newLayers });
+    updateDocument((innerCurrent) => {
+      const idx = innerCurrent.layers.findIndex((item) => item.id === id);
+      const newLayers = [...innerCurrent.layers];
+      newLayers.splice(idx + 1, 0, dup);
+      if (!innerCurrent.graph) return { ...innerCurrent, layers: newLayers };
+      return {
+        ...innerCurrent,
+        layers: newLayers,
+        graph: addLayerToGraph(innerCurrent.graph, dup.id, nextDropPosition(innerCurrent.graph)),
+      };
+    });
     setSelectedLayerId(dup.id);
-  }, [setDoc]);
+  }, [updateDocument]);
+
+  const handleAddLayerAt = useCallback((action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
+    if (action.kind === 'merge') {
+      const node = makeGraphMergeNode();
+      updateDocument((current) => {
+        let graph = addMergeNode(ensureGraph(current), node, position);
+        if (insertion?.replaceEdgeId) graph = removeGraphEdge(graph, insertion.replaceEdgeId);
+        if (insertion?.sourceId) {
+          graph = addGraphEdge(graph, {
+            id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
+            fromId: insertion.sourceId,
+            fromPort: 'out',
+            toId: node.id,
+            toPort: 'a',
+          });
+        }
+        if (insertion?.targetId) {
+          graph = addGraphEdge(graph, {
+            id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
+            fromId: node.id,
+            fromPort: 'out',
+            toId: insertion.targetId,
+            toPort: insertion.targetPort ?? 'in',
+          });
+        }
+        return { ...current, graph };
+      });
+      return;
+    }
+    const layer = action.kind === 'effect'
+      ? makeEffectPresetLayer(action.preset)
+      : action.layerKind === 'text'
+        ? makeTextLayer()
+        : action.layerKind === 'image'
+          ? makeImageLayer('')
+          : action.layerKind === 'fill'
+            ? makeFillLayer()
+            : makeEmojiLayer();
+    updateDocument((current) => {
+      let graph = addLayerToGraph(ensureGraph(current), layer.id, position);
+      if (insertion?.replaceEdgeId) graph = removeGraphEdge(graph, insertion.replaceEdgeId);
+      if (insertion?.sourceId) {
+        graph = addGraphEdge(graph, {
+          id: `e-${insertion.sourceId}-${layer.id}-${Date.now()}`,
+          fromId: insertion.sourceId,
+          fromPort: 'out',
+          toId: layer.id,
+          toPort: action.kind === 'effect' ? 'in' : 'bg',
+        });
+      }
+      if (insertion?.targetId) {
+        graph = addGraphEdge(graph, {
+          id: `e-${layer.id}-${insertion.targetId}-${Date.now() + 1}`,
+          fromId: layer.id,
+          fromPort: 'out',
+          toId: insertion.targetId,
+          toPort: insertion.targetPort ?? 'in',
+        });
+      }
+      return {
+        ...current,
+        layers: [...current.layers, layer],
+        graph,
+      };
+    });
+    setSelectedLayerId(layer.id);
+  }, [updateDocument]);
 
   const handleRandomize = useCallback(() => {
     clearTimeout(histDebounceRef.current);
@@ -300,9 +464,25 @@ export default function Generator() {
     }
   }, [imageCache]);
 
+  const handleNodeExport = useCallback(() => {
+    const exportConfig = docRef.current.export ?? DEFAULT_EXPORT;
+    if (exportConfig.target === 'envmap') {
+      void handleEnvMapExport();
+      return;
+    }
+    void handleExport(exportConfig.scale, exportConfig.format);
+  }, [handleEnvMapExport, handleExport]);
+
   const handleGraphChange = useCallback((graph: CanvasGraph) => {
-    setDoc({ ...docRef.current, graph });
-  }, [setDoc]);
+    updateDocument((current) => ({ ...current, graph }));
+  }, [updateDocument]);
+
+  const handleExportConfigChange = useCallback((patch: Partial<CanvasDocument['export']>) => {
+    updateDocument((current) => ({
+      ...current,
+      export: { ...current.export, ...patch },
+    }));
+  }, [updateDocument]);
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
@@ -312,7 +492,7 @@ export default function Generator() {
     setPast((prev) => [...prev.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
     setFuture([]);
     const { doc: nextDoc } = loadPreset(preset);
-    _setDoc(nextDoc);
+    _setDoc(normalizeDocument(nextDoc));
     setSelectedLayerId(null);
     setShowPresets(false);
   }, [loadPreset]);
@@ -346,13 +526,13 @@ export default function Generator() {
       const src = await readImageFile(file);
       if (!src) return;
       const layer = makeImageLayer(src);
-      setDoc({ ...docRef.current, layers: [...docRef.current.layers, layer] });
+      updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }));
       setSelectedLayerId(layer.id);
     } catch {
       setDropError('Could not read image');
       setTimeout(() => setDropError(null), 4000);
     }
-  }, [setDoc]);
+  }, [updateDocument]);
 
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
@@ -381,13 +561,8 @@ export default function Generator() {
     canUndo: past.length > 0,
     canRedo: future.length > 0,
     undoCount: past.length,
-    onExport: handleExport,
-    onEnvMapExport: handleEnvMapExport,
     onPresetsToggle: () => setShowPresets((prev) => !prev),
     onCopyLink: handleCopyLink,
-    aspect: doc.global.aspect ?? '1:1',
-    isExporting,
-    isExportingEnvMap,
   };
 
   return (
@@ -468,10 +643,17 @@ export default function Generator() {
                 <NodeCanvas
                   doc={doc}
                   imageCache={imageCache}
-                  selectedLayerId={safeSelectedLayerId}
+                  selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
                   onGraphChange={handleGraphChange}
-                  onExport={() => void handleExport(1, 'png')}
+                  onUpdateLayer={updateLayer}
+                  onUpdateMergeNode={updateMergeNode}
+                  onUpdateExportConfig={handleExportConfigChange}
+                  exportBusy={isExporting || isExportingEnvMap}
+                  onExport={handleNodeExport}
+                  onAddLayerAt={handleAddLayerAt}
+                  onDeleteNodes={deleteNodeSelection}
+                  onDuplicateLayer={duplicateLayer}
                 />
               </Suspense>
             </div>
@@ -485,18 +667,20 @@ export default function Generator() {
           <BottomBar {...bottomBarProps} />
         </main>
 
-        <Sidebar
-          doc={doc}
-          onDocChange={setDoc}
-          selectedLayerId={safeSelectedLayerId}
-          onSelectLayer={setSelectedLayerId}
-          onAddLayer={addLayer}
-          onAddEffectPreset={addEffectPreset}
-          onRemoveLayer={removeLayer}
-          onReorderLayers={reorderLayers}
-          onDuplicateLayer={duplicateLayer}
-          mobileActionBar={<BottomBar {...bottomBarProps} />}
-        />
+        {viewMode === 'layers' && (
+          <Sidebar
+            doc={doc}
+            onDocChange={setDoc}
+            selectedLayerId={safeSelectedLayerId}
+            onSelectLayer={setSelectedLayerId}
+            onAddLayer={addLayer}
+            onAddEffectPreset={addEffectPreset}
+            onRemoveLayer={removeLayer}
+            onReorderLayers={reorderLayers}
+            onDuplicateLayer={duplicateLayer}
+            mobileActionBar={<BottomBar {...bottomBarProps} />}
+          />
+        )}
 
         <AnimatePresence>
           {showPresets && (

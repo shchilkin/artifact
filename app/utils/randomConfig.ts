@@ -7,7 +7,7 @@ import type {
   GlobalConfig,
   TextLayer,
 } from '../types/config';
-import { ALL_EMOJIS, makeEffectLayer, makeEffectPresetLayer, makeEmojiLayer } from '../types/config';
+import { ALL_EMOJIS, DEFAULT_EXPORT, EFFECT_PRESET_MENU_ORDER, makeEffectLayer, makeEffectPresetLayer, makeEmojiLayer } from '../types/config';
 
 function rand(min: number, max: number): number {
   return Math.round(min + Math.random() * (max - min));
@@ -95,7 +95,7 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   });
 }
 
-const ALL_PRESETS: EffectPreset[] = ['rays', 'glitch', 'grain', 'tint', 'warp', 'color', 'riso'];
+const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
 const ALL_ASPECTS: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9'];
 
 function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
@@ -107,26 +107,80 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = {
         rays: rand(4, 24), rayInt: rand(20, 90),
         rayColor: randomHsl(ah, [70, 100], [55, 80]),
-        bloom: spark() ? rand(15, 80) : 0,
-        filmBurn: spark() ? rand(20, 90) : 0,
       };
+      break;
+    case 'bloom':
+      overrides = { bloom: rand(15, 80) };
+      break;
+    case 'filmBurn':
+      overrides = { filmBurn: rand(20, 90) };
       break;
     case 'glitch':
-      overrides = {
-        glitch: rand(0, 18), ca: rand(0, 12),
-        interlace: spark() ? rand(10, 70) : 0,
-        dataMosh: spark() ? rand(10, 70) : 0,
-        rgbSplit: spark() ? rand(3, 25) : 0,
-      };
+      overrides = { glitch: rand(0, 18) };
+      break;
+    case 'ca':
+      overrides = { ca: rand(0, 12) };
+      break;
+    case 'interlace':
+      overrides = { interlace: rand(10, 70) };
+      break;
+    case 'dataMosh':
+      overrides = { dataMosh: rand(10, 70) };
       break;
     case 'grain':
-      overrides = { grain: rand(10, 60), scanlines: rand(0, 40), filmBurn: spark() ? rand(20, 90) : 0 };
+      overrides = { grain: rand(10, 60) };
+      break;
+    case 'scanlines':
+      overrides = { scanlines: rand(5, 40) };
       break;
     case 'tint':
+      overrides = { tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) };
+      break;
+    case 'noiseWarp':
+      overrides = { noiseWarp: rand(10, 70) };
+      break;
+    case 'morph':
+      overrides = { morphAmt: rand(10, 80), morphFreq: rand(1, 15) };
+      break;
+    case 'vortex':
+      overrides = { vortex: rand(5, 60) };
+      break;
+    case 'barrel':
+      overrides = { barrel: rand(5, 70) };
+      break;
+    case 'tear':
+      overrides = { tearAmt: rand(1, 15), tearSize: rand(1, 12) };
+      break;
+    case 'mirror':
+      overrides = { mirror: rand(1, 3) };
+      break;
+    case 'hueShift':
+      overrides = { hueShift: rand(10, 350) };
+      break;
+    case 'rgbSplit':
+      overrides = { rgbSplit: rand(3, 25) };
+      break;
+    case 'vignette':
+      overrides = { vignette: rand(0, 80) };
+      break;
+    case 'pixelate':
+      overrides = { pixelate: rand(2, 15) };
+      break;
+    case 'posterize':
+      overrides = { posterize: rand(3, 12) };
+      break;
+    case 'duotone':
       overrides = {
-        tint: randomHsl(rand(0, 359), [40, 80], [10, 28]),
-        tintOp: rand(15, 65), vignette: rand(0, 70),
+        duotone: rand(40, 90),
+        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
+        duoB: randomHsl(ah, [60, 100], [55, 85]),
       };
+      break;
+    case 'halftone':
+      overrides = { halftone: rand(5, 20) };
+      break;
+    case 'risoShift':
+      overrides = { risoShift: rand(5, 30), risoAngle: rand(0, 360) };
       break;
     case 'warp':
       overrides = {
@@ -169,6 +223,7 @@ export function randomDocument(): CanvasDocument {
   return {
     global: { ...randomGlobal(baseHue), aspect },
     layers: [randomEmojiLayer(baseHue), ...effectLayers],
+    export: { ...DEFAULT_EXPORT },
   };
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, EffectLayer, EffectPreset, Layer, LayerKind } from '../types/config';
-import { EFFECT_PRESETS } from '../types/config';
+import { EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER } from '../types/config';
 
 interface Props {
   doc: CanvasDocument;
@@ -102,7 +102,9 @@ export function LayerPanel({
                 </button>
               ))}
               <div className="border-t border-border my-1" />
-              {(Object.entries(EFFECT_PRESETS) as [EffectPreset, typeof EFFECT_PRESETS[EffectPreset]][]).map(([key, preset]) => (
+              {EFFECT_PRESET_MENU_ORDER.map((key) => {
+                const preset = EFFECT_PRESETS[key];
+                return (
                 <button
                   key={key}
                   className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
@@ -111,7 +113,8 @@ export function LayerPanel({
                   <span className="text-accent w-4 text-center">{preset.icon}</span>
                   {preset.name.toUpperCase()}
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
