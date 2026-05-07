@@ -441,7 +441,7 @@ export function render(
   scaleMultiplier = 1,
   bgImage: HTMLImageElement | null = null,
 ) {
-  const doc = migrateFromV1(seed, cfg as unknown as Record<string, unknown>);
+  const doc = migrateFromV1(seed, cfg);
   if (bgImage) {
     doc.layers.unshift({
       id: 'legacy-bg-image',

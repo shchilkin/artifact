@@ -94,7 +94,6 @@ export function useDocumentRenderer(
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doRender, pw, ph]);
 
   useEffect(() => {

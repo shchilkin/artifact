@@ -9,7 +9,7 @@ export function useRenderer(cfg: GeneratorConfig, seed: number) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const doc = migrateFromV1(seed, cfg as unknown as Record<string, unknown>);
+    const doc = migrateFromV1(seed, cfg);
     renderDocument(doc, canvas.width, canvas.height, new Map()).then((result) => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;

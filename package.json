@@ -9,7 +9,8 @@
     "build": "npm run favicon && react-router build",
     "lint": "eslint .",
     "preview": "vite preview --outDir build/client",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "test": "vitest run"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
@@ -38,6 +39,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
-    "vite-plugin-tsconfig-paths": "^1.4.1"
+    "vite-plugin-tsconfig-paths": "^1.4.1",
+    "vitest": "^4.1.5"
   }
 }

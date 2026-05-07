@@ -19,7 +19,7 @@ const V1_HERO_FRAMES: Array<{ seed: number; cfg: GeneratorConfig }> = [
 ];
 
 export const HERO_FRAMES: HeroFrame[] = V1_HERO_FRAMES.map((frame) => ({
-  doc: migrateFromV1(frame.seed, frame.cfg as unknown as Record<string, unknown>),
+  doc: migrateFromV1(frame.seed, frame.cfg),
 }));
 
 function lcg(seed: number) {

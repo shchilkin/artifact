@@ -307,10 +307,6 @@ function asNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
-function asBoolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
 function asEmojiList(value: unknown, fallback: string[]): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : fallback;
 }
@@ -323,7 +319,8 @@ function asFont(value: unknown, fallback: FontName): FontName {
   return FONT_NAMES.includes(value as FontName) ? (value as FontName) : fallback;
 }
 
-export function migrateFromV1(seed: number, cfg: Record<string, unknown>): CanvasDocument {
+/** @deprecated — remove after 2026-08-01 once localStorage migration period has passed */
+export function migrateFromV1(seed: number, cfg: GeneratorConfig | Record<string, unknown>): CanvasDocument {
   const emojiDefaults = makeEmojiLayer();
 
   const emojiLayer = makeEmojiLayer({
