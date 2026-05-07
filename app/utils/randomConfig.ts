@@ -1,11 +1,13 @@
 import type {
+  AspectRatio,
   CanvasDocument,
   EffectLayer,
+  EffectPreset,
   EmojiLayer,
   GlobalConfig,
   TextLayer,
 } from '../types/config';
-import { ALL_EMOJIS, makeEffectLayer, makeEmojiLayer } from '../types/config';
+import { ALL_EMOJIS, makeEffectLayer, makeEffectPresetLayer, makeEmojiLayer } from '../types/config';
 
 function rand(min: number, max: number): number {
   return Math.round(min + Math.random() * (max - min));
@@ -93,11 +95,77 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   });
 }
 
+const ALL_PRESETS: EffectPreset[] = ['rays', 'glitch', 'grain', 'tint', 'warp', 'color', 'riso'];
+const ALL_ASPECTS: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9'];
+
+function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
+  const base = makeEffectPresetLayer(preset);
+  const ah = (baseHue + rand(120, 240)) % 360;
+  let overrides: Partial<EffectLayer> = {};
+  switch (preset) {
+    case 'rays':
+      overrides = {
+        rays: rand(4, 24), rayInt: rand(20, 90),
+        rayColor: randomHsl(ah, [70, 100], [55, 80]),
+        bloom: spark() ? rand(15, 80) : 0,
+        filmBurn: spark() ? rand(20, 90) : 0,
+      };
+      break;
+    case 'glitch':
+      overrides = {
+        glitch: rand(0, 18), ca: rand(0, 12),
+        interlace: spark() ? rand(10, 70) : 0,
+        dataMosh: spark() ? rand(10, 70) : 0,
+        rgbSplit: spark() ? rand(3, 25) : 0,
+      };
+      break;
+    case 'grain':
+      overrides = { grain: rand(10, 60), scanlines: rand(0, 40), filmBurn: spark() ? rand(20, 90) : 0 };
+      break;
+    case 'tint':
+      overrides = {
+        tint: randomHsl(rand(0, 359), [40, 80], [10, 28]),
+        tintOp: rand(15, 65), vignette: rand(0, 70),
+      };
+      break;
+    case 'warp':
+      overrides = {
+        morphAmt: spark() ? rand(10, 80) : 0, morphFreq: rand(1, 15),
+        tearAmt: spark() ? rand(1, 15) : 0, tearSize: rand(1, 12),
+        noiseWarp: spark() ? rand(10, 70) : 0, vortex: spark() ? rand(5, 60) : 0,
+        barrel: spark() ? rand(5, 70) : 0, mirror: spark() ? rand(1, 3) : 0,
+      };
+      break;
+    case 'color':
+      overrides = {
+        hueShift: spark() ? rand(10, 350) : 0, bloom: spark() ? rand(15, 80) : 0,
+        posterize: spark() ? rand(3, 12) : 0,
+        duotone: Math.random() < 0.6 ? rand(40, 90) : 0,
+        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
+        duoB: randomHsl(ah, [60, 100], [55, 85]),
+      };
+      break;
+    case 'riso':
+      overrides = {
+        halftone: Math.random() < 0.5 ? rand(5, 20) : 0,
+        risoShift: Math.random() < 0.5 ? rand(5, 30) : 0, risoAngle: rand(0, 360),
+        duotone: Math.random() < 0.4 ? rand(40, 90) : 0,
+        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
+        duoB: randomHsl(ah, [60, 100], [55, 85]),
+      };
+      break;
+  }
+  return { ...base, ...overrides };
+}
+
 export function randomDocument(): CanvasDocument {
   const baseHue = rand(0, 359);
+  const aspect = ALL_ASPECTS[Math.floor(Math.random() * ALL_ASPECTS.length)];
+  const shuffled = [...ALL_PRESETS].sort(() => Math.random() - 0.5);
+  const effectLayers = shuffled.slice(0, rand(2, 4)).map((p) => randomEffectPresetLayer(p, baseHue));
   return {
-    global: randomGlobal(baseHue),
-    layers: [randomEmojiLayer(baseHue), randomEffectLayer(baseHue)],
+    global: { ...randomGlobal(baseHue), aspect },
+    layers: [randomEmojiLayer(baseHue), ...effectLayers],
   };
 }
 
