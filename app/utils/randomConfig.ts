@@ -162,7 +162,7 @@ export function randomDocument(): CanvasDocument {
   const baseHue = rand(0, 359);
   const aspect = ALL_ASPECTS[Math.floor(Math.random() * ALL_ASPECTS.length)];
   const shuffled = [...ALL_PRESETS].sort(() => Math.random() - 0.5);
-  const n = rand(5, 8);
+  const n = rand(2, 8);
   const effectLayers = Array.from({ length: n }, (_, i) =>
     randomEffectPresetLayer(shuffled[i % shuffled.length], baseHue),
   );
