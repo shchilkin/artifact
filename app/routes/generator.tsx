@@ -123,6 +123,8 @@ export default function Generator() {
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const histDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const preChangeRef = useRef<HistoryEntry | null>(null);
+  const exportErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(exportErrorTimerRef.current), []);
 
   const setDoc = useCallback((newDoc: CanvasDocument) => {
     _setDoc(newDoc);
@@ -270,7 +272,8 @@ export default function Generator() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Export failed';
       setExportError(msg);
-      setTimeout(() => setExportError(null), 5000);
+      clearTimeout(exportErrorTimerRef.current);
+      exportErrorTimerRef.current = setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExporting(false);
     }
@@ -284,7 +287,8 @@ export default function Generator() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Env map export failed';
       setExportError(msg);
-      setTimeout(() => setExportError(null), 5000);
+      clearTimeout(exportErrorTimerRef.current);
+      exportErrorTimerRef.current = setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExportingEnvMap(false);
     }

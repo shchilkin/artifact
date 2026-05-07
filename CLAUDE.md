@@ -52,7 +52,7 @@ interface CanvasDocument {
 
 Two-stage pipeline in `app/utils/renderer.ts`:
 
-1. **Canvas 2D** — `render2DLayerStack` iterates `doc.layers` in order, drawing each layer to a single `<canvas>`. Effect layers run `applyCanvas2DEffects` (rays, glitch, CA, scanlines, grain, tint).
+1. **Canvas 2D** — `renderDocument` iterates `doc.layers` in order, drawing each layer to a single `<canvas>`. Effect layers run `applyCanvas2DEffects` (rays, glitch, CA, scanlines, grain, tint).
 
 2. **PixiJS WebGL** — after each `effect` layer's Canvas 2D pass, `buildFiltersFromEffectLayer` (in `app/utils/pixiFilters.ts`) returns a `Filter[]`. If non-empty, `runGpuPass` blits the current canvas into a Pixi render texture, applies filters, and extracts a new canvas. The pipeline then continues on that output canvas.
 
@@ -62,8 +62,6 @@ renderDocument(doc, W, H, imageCache, persistentRenderer?): Promise<HTMLCanvasEl
 ```
 
 **Scale baseline**: `REF = 540` — all size values are authored at 540px and scaled by `W / REF` at render time.
-
-**Legacy sync renderer**: `render(ctx, W, H, cfg, seed, …)` — wraps `migrateFromV1` + `render2DLayerStack`. Used only by `usePixiRenderer` shim.
 
 ---
 
@@ -97,7 +95,6 @@ All document state lives in `app/routes/generator.tsx`:
 | `app/components/LayerPanel.tsx` | Drag-to-reorder layer list, add/remove/duplicate/rename |
 | `app/components/PresetsPanel.tsx` | Save/load/delete named presets (stored in `localStorage`) |
 | `app/hooks/useDocumentRenderer.ts` | Hook that drives the async render loop for preview |
-| `app/hooks/usePixiRenderer.ts` | Legacy shim — converts `GeneratorConfig` → `CanvasDocument` for old callers |
 | `app/utils/lcg.ts` | Deterministic LCG RNG seeded by `doc.global.seed` |
 
 ---
@@ -117,8 +114,7 @@ npm run lint       # ESLint
 
 - **Layer order is render order.** Index 0 is drawn first (bottom). Never sort or reorder layers outside of an explicit user drag action.
 - **Always `cloneDocument` before mutating.** `CanvasDocument` and its layers are treated as immutable. Pass the clone to `setDoc`; never mutate `doc` in place.
-- **LocalStorage key is `doc-v2`.** The legacy key `emoji-art-cfg` holds V1 flat config; `migrateFromV1` converts it on first load and is the only place that should touch the old key.
-- **`migrateFromV1` must stay backward-compatible.** It is called from `usePixiRenderer` (legacy shim) and from the initial load path.
+- **LocalStorage key is `doc`.** No legacy migration keys exist; any unreadable value is discarded and `DEFAULT_DOCUMENT` is used instead.
 - **Emoji layer `emojis` array must be spread-cloned.** `cloneDocument` handles this; manual clones must do the same (`{ ...layer, emojis: [...layer.emojis] }`).
 - **`renderDocument` is async** because the GPU pass is async. Never `await` it inside a synchronous render loop; use the `useDocumentRenderer` hook for live preview.
 - **`preChangeRef` is the drag baseline.** Set once on the first `setDoc` during a drag; cleared after the debounce fires. Do not reset it mid-drag or history will record intermediate states.
@@ -128,9 +124,9 @@ npm run lint       # ESLint
 
 ## What NOT To Do
 
-- **Don't flatten the layer model** back into a single flat config object. The `GeneratorConfig` type is legacy; all new code uses `CanvasDocument`.
+- **Don't flatten the layer model** back into a single flat config object. All code uses `CanvasDocument`; there is no `GeneratorConfig` type.
 - **Don't skip `cloneDocument`** when writing state. Mutating the live doc causes silent render bugs and breaks undo.
-- **Don't add `as unknown` casts** to escape type errors — fix the types instead. The one existing instance in `renderer.ts` is intentional legacy glue.
+- **Don't add `as unknown` casts** to escape type errors — fix the types instead.
 - **Don't call `_setDoc` directly** outside `generator.tsx`. Always go through the `setDoc` wrapper so history is recorded.
 - **Don't import PixiJS at the module top level** in paths that run server-side. Pixi is browser-only; use dynamic `import('pixi.js')` inside async functions as the existing code does.
-- **Don't add effect parameters to `EffectLayer` without also updating** `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, all relevant `EFFECT_PRESETS` entries, `buildFiltersFromEffectLayer`, `migrateFromV1`, and the `Sidebar` controls.
+- **Don't add effect parameters to `EffectLayer` without also updating** `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, all relevant `EFFECT_PRESETS` entries, `buildFiltersFromEffectLayer`, and the `Sidebar` controls.

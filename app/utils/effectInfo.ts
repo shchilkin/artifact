@@ -56,18 +56,6 @@ const BASE_EFFECT: Partial<EffectLayer> = {
 };
 
 export const EFFECT_META: Record<string, EffectMeta> = {
-    density: {
-        title: "Density",
-        description: "How many emojis are scattered across the canvas.",
-        valueLabel: "45 emojis",
-        cfgOverride: {},
-    },
-    blur: {
-        title: "Depth Blur",
-        description: "Progressive blur, sharpest at center, softest at edges.",
-        valueLabel: "blur 70",
-        cfgOverride: {},
-    },
     rayInt: {
         title: "Ray Intensity",
         description: "Brightness of the radiating light beams from center.",

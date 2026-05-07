@@ -29,6 +29,8 @@ jobs:
 
       - run: npm run typecheck
 
+      - run: npm test
+
       # Skip the favicon script (requires GPU/WebGL via Puppeteer).
       # public/favicon.png is committed and used as the fallback.
       - run: npx react-router build

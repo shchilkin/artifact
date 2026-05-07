@@ -47,6 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           <span>Something went wrong.</span>
           <button
+            type="button"
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
               padding: '0.4rem 1rem',
