@@ -4,8 +4,6 @@ import {
   makeEffectLayer,
   makeEmojiLayer,
   cloneDocument,
-  migrateFromV1,
-  DEFAULT_EFFECT_LAYER_PROPS,
 } from './config';
 import type { CanvasDocument } from './config';
 
@@ -142,54 +140,3 @@ describe('cloneDocument', () => {
   });
 });
 
-describe('migrateFromV1', () => {
-  it('returns a valid CanvasDocument with empty config', () => {
-    const doc = migrateFromV1(12345, {});
-    expect(doc).toHaveProperty('global');
-    expect(doc).toHaveProperty('layers');
-    expect(doc.global.seed).toBe(12345);
-    expect(doc.global.aspect).toBe('1:1');
-    expect(Array.isArray(doc.layers)).toBe(true);
-    expect(doc.layers.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('falls back to defaults for missing fields', () => {
-    const doc = migrateFromV1(999, {});
-    const effectLayer = doc.layers.find((l) => l.kind === 'effect');
-    expect(effectLayer).toBeDefined();
-    if (effectLayer && effectLayer.kind === 'effect') {
-      expect(effectLayer.grain).toBe(DEFAULT_EFFECT_LAYER_PROPS.grain);
-      expect(effectLayer.tintOp).toBe(DEFAULT_EFFECT_LAYER_PROPS.tintOp);
-    }
-  });
-
-  it('uses provided grain and tintOp values in the effect layer', () => {
-    const doc = migrateFromV1(777, { grain: 30, tintOp: 50 });
-    const effectLayer = doc.layers.find((l) => l.kind === 'effect');
-    expect(effectLayer).toBeDefined();
-    if (effectLayer && effectLayer.kind === 'effect') {
-      expect(effectLayer.grain).toBe(30);
-      expect(effectLayer.tintOp).toBe(50);
-    }
-  });
-
-  it('sets seed from the first argument', () => {
-    const doc = migrateFromV1(42, { grain: 10 });
-    expect(doc.global.seed).toBe(42);
-  });
-
-  it('does not add a text layer when cfg.text is empty or missing', () => {
-    const doc = migrateFromV1(1, {});
-    const textLayer = doc.layers.find((l) => l.kind === 'text');
-    expect(textLayer).toBeUndefined();
-  });
-
-  it('adds a text layer when cfg.text is a non-empty string', () => {
-    const doc = migrateFromV1(1, { text: 'ALBUM TITLE' });
-    const textLayer = doc.layers.find((l) => l.kind === 'text');
-    expect(textLayer).toBeDefined();
-    if (textLayer && textLayer.kind === 'text') {
-      expect(textLayer.content).toBe('ALBUM TITLE');
-    }
-  });
-});

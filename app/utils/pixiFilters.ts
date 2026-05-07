@@ -1,5 +1,5 @@
 import { Filter } from 'pixi.js';
-import type { EffectLayer, GeneratorConfig } from '../types/config';
+import type { EffectLayer } from '../types/config';
 
 const NORM_UV = `
   vec2 extent = inputClamp.zw - inputClamp.xy;
@@ -308,7 +308,7 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
   return filter;
 }
 
-type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>> | GeneratorConfig;
+type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>>;
 
 export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
   const filters: Filter[] = [];

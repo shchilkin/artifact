@@ -3,14 +3,12 @@ import type {
   EffectLayer,
   EmojiLayer,
   FillLayer,
-  GeneratorConfig,
   ImageLayer,
   TextLayer,
 } from '../types/config';
 import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
-import { migrateFromV1 } from '../types/config';
 import type { Filter, Renderer } from 'pixi.js';
 
 const REF = 540;
@@ -333,35 +331,6 @@ function applyCanvas2DEffects(
   }
 }
 
-function render2DLayerStack(
-  doc: CanvasDocument,
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  imageCache: Map<string, HTMLImageElement>,
-  scaleMultiplier = 1,
-) {
-  const scale = (W / REF) * scaleMultiplier;
-  const seed = doc.global.seed;
-  ctx.clearRect(0, 0, W, H);
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-  drawBackground(ctx, W, H, doc.global.bg);
-
-  for (const layer of doc.layers) {
-    if (!layer.visible) continue;
-    if (layer.kind === 'emoji') {
-      drawEmojiLayer(ctx, W, H, layer, lcg(seed ^ 0x7a8b9c), scale);
-    } else if (layer.kind === 'text') {
-      drawTextLayer(ctx, W, H, layer, scale);
-    } else if (layer.kind === 'image') {
-      drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
-    } else if (layer.kind === 'effect') {
-      applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
-    }
-  }
-}
-
 async function runGpuPass(
   current: HTMLCanvasElement,
   W: number,
@@ -432,35 +401,3 @@ export async function renderDocument(
   return current;
 }
 
-export function render(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  cfg: GeneratorConfig,
-  seed: number,
-  scaleMultiplier = 1,
-  bgImage: HTMLImageElement | null = null,
-) {
-  const doc = migrateFromV1(seed, cfg);
-  if (bgImage) {
-    doc.layers.unshift({
-      id: 'legacy-bg-image',
-      name: 'Image',
-      visible: true,
-      locked: false,
-      kind: 'image',
-      src: '__legacy_bg__',
-      fit: cfg.bgImageFit ?? 'cover',
-      opacity: cfg.bgImageOpacity ?? 85,
-      blendMode: cfg.bgImageBlend ?? 'normal',
-      x: 0.5,
-      y: 0.5,
-      scaleX: 1,
-      scaleY: 1,
-      rotation: 0,
-    });
-  }
-  const imageCache = new Map<string, HTMLImageElement>();
-  if (bgImage) imageCache.set('__legacy_bg__', bgImage);
-  render2DLayerStack(doc, ctx, W, H, imageCache, scaleMultiplier);
-}

@@ -17,7 +17,6 @@ import {
   makeFillLayer,
   makeImageLayer,
   makeTextLayer,
-  migrateFromV1,
   type AspectRatio,
   type CanvasDocument,
   type EffectPreset,
@@ -29,8 +28,9 @@ import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import { randomDocument } from '../utils/randomConfig';
 
-const DOC_KEY = 'doc-v2';
+const DOC_KEY = 'doc';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const HISTORY_MAX = 50;
 
 function isValidAspect(v: unknown): v is AspectRatio {
   return typeof v === 'string' && v in ASPECT_SIZES;
@@ -40,25 +40,6 @@ function normalizeDocument(raw: unknown): CanvasDocument {
   const doc = raw as CanvasDocument;
   const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
   return { ...doc, global: { ...doc.global, aspect } };
-}
-const LEGACY_CFG_KEY = 'emoji-art-cfg';
-const LEGACY_SEED_KEY = 'emoji-art-seed';
-const HISTORY_MAX = 50;
-
-function loadLegacyDocument(): CanvasDocument | null {
-  try {
-    const raw = localStorage.getItem(LEGACY_CFG_KEY);
-    const rawSeed = localStorage.getItem(LEGACY_SEED_KEY);
-    if (!raw) return null;
-    const seed = rawSeed ? parseInt(rawSeed, 10) : 4242;
-    const doc = migrateFromV1(Number.isFinite(seed) ? seed : 4242, JSON.parse(raw));
-    // Remove legacy keys so migration only runs once
-    localStorage.removeItem(LEGACY_CFG_KEY);
-    localStorage.removeItem(LEGACY_SEED_KEY);
-    return doc;
-  } catch {
-    return null;
-  }
 }
 
 function getInitialDocument(): CanvasDocument {
@@ -79,7 +60,7 @@ function getInitialDocument(): CanvasDocument {
     // ignore
   }
 
-  return loadLegacyDocument() ?? cloneDocument(DEFAULT_DOCUMENT);
+  return cloneDocument(DEFAULT_DOCUMENT);
 }
 
 async function readImageFile(file: File): Promise<string | null> {
