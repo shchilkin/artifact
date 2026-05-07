@@ -9,11 +9,12 @@ import {
   Position,
   useNodesState,
   useEdgesState,
-  addEdge,
   type Node as RFNode,
   type Edge as RFEdge,
   type Connection,
   type NodeProps,
+  type ReactFlowInstance,
+  Controls,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -22,6 +23,8 @@ import { makeGraphMergeNode } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 import {
   EXPORT_NODE_ID,
+  getUpstreamLayers,
+  wouldCreateCycle,
   inferLinearGraph,
   toRFEdges,
   updateGraphPositions,
@@ -314,6 +317,7 @@ function LayerNodeComponent({ data }: NodeProps) {
 
 type MergeNodeData = {
   mergeNode: GraphMergeNode;
+  upstreamLayers: Layer[];
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
   selected: boolean;
@@ -323,7 +327,7 @@ type MergeNodeData = {
 
 function MergeNodeComponent({ data }: NodeProps) {
   const d = data as unknown as MergeNodeData;
-  const { mergeNode, doc, imageCache, selected, onSelect, onDelete } = d;
+  const { mergeNode, upstreamLayers, doc, imageCache, selected, onSelect, onDelete } = d;
 
   return (
     <div onClick={onSelect} style={{ position: 'relative' }}>
@@ -340,7 +344,7 @@ function MergeNodeComponent({ data }: NodeProps) {
         style={{ top: '65%', background: 'oklch(60% 0.09 192)', border: '1px solid oklch(45% 0.02 285)', width: 8, height: 8 }}
       />
       <NodeShell kind="merge" label="merge" name={mergeNode.name} selected={selected} onDelete={onDelete}>
-        <NodeThumbnail doc={doc} layersSlice={doc.layers} imageCache={imageCache} />
+        <NodeThumbnail doc={doc} layersSlice={upstreamLayers} imageCache={imageCache} />
         <PortRow inputs={['a', 'b']} outputs={['out']} />
       </NodeShell>
       <Handle
@@ -447,12 +451,14 @@ function buildRFNodes(
 
   graph.mergeNodes.forEach((mn) => {
     const pos = graph.positions[mn.id] ?? { x: 400, y: 300 };
+    const upstreamLayers = getUpstreamLayers(mn.id, graph, doc.layers);
     nodes.push({
       id: mn.id,
       type: 'mergeNode',
       position: pos,
       data: {
         mergeNode: mn,
+        upstreamLayers: upstreamLayers.length > 0 ? upstreamLayers : doc.layers,
         doc,
         imageCache,
         selected: selectedLayerId === mn.id,
@@ -518,6 +524,9 @@ export function NodeCanvas({
     [onSelectLayer, onExport, onGraphChange],
   );
 
+  const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
+  const fittedRef = useRef(false);
+
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge>([]);
 
@@ -525,7 +534,21 @@ export function NodeCanvas({
   useEffect(() => {
     setRfNodes(buildRFNodes(doc, graph, imageCache, selectedLayerId, callbacks));
     setRfEdges(toRFEdges(graph));
+    // Fit view on first sync only
+    if (!fittedRef.current && rfInstanceRef.current) {
+      fittedRef.current = true;
+      setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.2, duration: 0 }), 0);
+    }
   }, [doc, graph, imageCache, selectedLayerId, callbacks, setRfNodes, setRfEdges]);
+
+  const isValidConnection = useCallback(
+    (connection: Connection) => {
+      if (!connection.source || !connection.target) return false;
+      if (connection.source === connection.target) return false;
+      return !wouldCreateCycle(graphRef.current, connection.source, connection.target);
+    },
+    [],
+  );
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -537,10 +560,10 @@ export function NodeCanvas({
         toId: connection.target,
         toPort: (connection.targetHandle ?? 'in') as GraphEdge['toPort'],
       };
+      // Only update the graph — the sync useEffect will re-derive RF edges
       onGraphChange(addGraphEdge(graphRef.current, edge));
-      setRfEdges((eds) => addEdge(connection, eds));
     },
-    [onGraphChange, setRfEdges],
+    [onGraphChange],
   );
 
   const onEdgesDelete = useCallback(
@@ -619,10 +642,10 @@ export function NodeCanvas({
         onEdgesDelete={onEdgesDelete}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={() => onSelectLayer(null)}
+        isValidConnection={isValidConnection}
+        onInit={(instance) => { rfInstanceRef.current = instance; }}
         nodeTypes={nodeTypes}
         colorMode="dark"
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
         minZoom={0.3}
         maxZoom={2}
         deleteKeyCode="Delete"
@@ -634,6 +657,7 @@ export function NodeCanvas({
           size={1}
           color="oklch(22% 0.012 285)"
         />
+        <Controls showInteractive={false} />
       </ReactFlow>
 
       {/* Toolbar */}

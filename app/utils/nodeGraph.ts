@@ -98,3 +98,46 @@ export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
   };
 }
+
+/** BFS backwards from nodeId, collect all layer IDs that feed into it. */
+export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
+  const layerIds = new Set(layers.map((l) => l.id));
+  const collected = new Set<string>();
+  const visited = new Set<string>();
+  const queue = [nodeId];
+
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    if (layerIds.has(id)) collected.add(id);
+    for (const edge of graph.edges) {
+      if (edge.toId === id && !visited.has(edge.fromId)) {
+        queue.push(edge.fromId);
+      }
+    }
+  }
+
+  return layers.filter((l) => collected.has(l.id));
+}
+
+/** Returns true if adding an edge source→target would create a cycle. */
+export function wouldCreateCycle(
+  graph: CanvasGraph,
+  sourceId: string,
+  targetId: string,
+): boolean {
+  // DFS from targetId following outgoing edges — if we reach sourceId, cycle detected
+  const visited = new Set<string>();
+  const stack = [targetId];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (id === sourceId) return true;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    for (const edge of graph.edges) {
+      if (edge.fromId === id) stack.push(edge.toId);
+    }
+  }
+  return false;
+}
