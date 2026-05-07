@@ -5,8 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { SiteNav } from '../components/SiteNav';
 import { Footer } from '../components/Footer';
 import { generateThumbnail } from '../utils/generateThumbnail';
-import type { CanvasDocument, GeneratorConfig } from '../types/config';
-import { migrateFromV1 } from '../types/config';
+import type { CanvasDocument } from '../types/config';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
@@ -16,8 +15,8 @@ export const meta: MetaFunction = () => [
 
 interface ExampleData {
   name: string;
-  seed: number;
-  cfg: Partial<GeneratorConfig>;
+  global: CanvasDocument['global'];
+  layers: CanvasDocument['layers'];
 }
 
 interface ExampleItem {
@@ -35,7 +34,7 @@ const rawExamples: ExampleItem[] = Object.entries(exampleModules).map(([path, mo
   return {
     id,
     name: data.name,
-    doc: migrateFromV1(data.seed, data.cfg as Record<string, unknown>),
+    doc: { global: data.global, layers: data.layers },
     thumbnail: null,
   };
 });

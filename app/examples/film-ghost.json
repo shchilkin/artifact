@@ -1,16 +1,69 @@
 {
   "name": "Film Ghost",
-  "seed": 9876,
-  "cfg": {
-    "bg": "#140800", "emojis": ["🎞️", "👻", "🌫️", "✨", "🕯️"],
-    "density": 25, "minSz": 40, "maxSz": 100, "blur": 80, "grain": 45,
-    "scanlines": 20, "rayInt": 40, "rayColor": "#ff6600", "rays": 6,
-    "ca": 2, "tint": "#200a00", "tintOp": 40, "glitch": 5,
-    "morphAmt": 0, "morphFreq": 5, "tearAmt": 0, "tearSize": 3,
-    "noiseWarp": 70, "vortex": 0, "barrel": 25, "mirror": 0,
-    "dataMosh": 0, "interlace": 20, "pixelate": 0, "hueShift": 0,
-    "rgbSplit": 0, "vignette": 75, "bloom": 45, "posterize": 0,
-    "filmBurn": 80, "duotone": 0, "duoA": "#140800", "duoB": "#ffaa44",
-    "halftone": 0, "risoShift": 0, "risoAngle": 0
-  }
+  "global": {
+    "bg": "#140800",
+    "seed": 9876,
+    "aspect": "1:1"
+  },
+  "layers": [
+    {
+      "id": "ex-emoji",
+      "name": "Emojis",
+      "visible": true,
+      "locked": false,
+      "kind": "emoji",
+      "emojis": [
+        "🎞️",
+        "👻",
+        "🌫️",
+        "✨",
+        "🕯️"
+      ],
+      "density": 25,
+      "minSz": 40,
+      "maxSz": 100,
+      "blur": 80,
+      "opacity": 100,
+      "blendMode": "source-over"
+    },
+    {
+      "id": "ex-effect",
+      "name": "FX",
+      "visible": true,
+      "locked": false,
+      "kind": "effect",
+      "grain": 45,
+      "scanlines": 20,
+      "ca": 2,
+      "glitch": 5,
+      "tint": "#200a00",
+      "tintOp": 40,
+      "rays": 6,
+      "rayInt": 40,
+      "rayColor": "#ff6600",
+      "morphAmt": 0,
+      "morphFreq": 5,
+      "tearAmt": 0,
+      "tearSize": 3,
+      "noiseWarp": 70,
+      "vortex": 0,
+      "barrel": 25,
+      "mirror": 0,
+      "dataMosh": 0,
+      "interlace": 20,
+      "pixelate": 0,
+      "hueShift": 0,
+      "rgbSplit": 0,
+      "vignette": 75,
+      "bloom": 45,
+      "posterize": 0,
+      "filmBurn": 80,
+      "duotone": 0,
+      "duoA": "#140800",
+      "duoB": "#ffaa44",
+      "halftone": 0,
+      "risoShift": 0,
+      "risoAngle": 0
+    }
+  ]
 }

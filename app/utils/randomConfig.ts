@@ -36,7 +36,7 @@ function spark(): boolean {
 const TEXT_ALIGNS = ['left', 'center', 'right'] as const;
 const TEXT_BLENDS = ['normal', 'screen', 'overlay', 'multiply'] as const;
 
-export function randomGlobal(baseHue?: number): GlobalConfig {
+export function randomGlobal(baseHue?: number): Omit<GlobalConfig, 'aspect'> {
   const h = baseHue ?? rand(0, 359);
   return {
     bg: randomHsl(h, [20, 55], [3, 14]),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Sidebar } from '../components/Sidebar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { PresetsPanel } from '../components/PresetsPanel';
@@ -9,13 +10,13 @@ import { usePresets } from '../hooks/usePresets';
 import {
   ASPECT_SIZES,
   cloneDocument,
+  getPreviewDims,
   DEFAULT_DOCUMENT,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
   makeTextLayer,
-  migrateFromV1,
   type AspectRatio,
   type CanvasDocument,
   type EffectPreset,
@@ -27,8 +28,9 @@ import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import { randomDocument } from '../utils/randomConfig';
 
-const DOC_KEY = 'doc-v2';
+const DOC_KEY = 'doc';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const HISTORY_MAX = 50;
 
 function isValidAspect(v: unknown): v is AspectRatio {
   return typeof v === 'string' && v in ASPECT_SIZES;
@@ -38,21 +40,6 @@ function normalizeDocument(raw: unknown): CanvasDocument {
   const doc = raw as CanvasDocument;
   const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
   return { ...doc, global: { ...doc.global, aspect } };
-}
-const LEGACY_CFG_KEY = 'emoji-art-cfg';
-const LEGACY_SEED_KEY = 'emoji-art-seed';
-const HISTORY_MAX = 50;
-
-function loadLegacyDocument(): CanvasDocument | null {
-  try {
-    const raw = localStorage.getItem(LEGACY_CFG_KEY);
-    const rawSeed = localStorage.getItem(LEGACY_SEED_KEY);
-    if (!raw) return null;
-    const seed = rawSeed ? parseInt(rawSeed, 10) : 4242;
-    return migrateFromV1(Number.isFinite(seed) ? seed : 4242, JSON.parse(raw));
-  } catch {
-    return null;
-  }
 }
 
 function getInitialDocument(): CanvasDocument {
@@ -73,7 +60,7 @@ function getInitialDocument(): CanvasDocument {
     // ignore
   }
 
-  return loadLegacyDocument() ?? cloneDocument(DEFAULT_DOCUMENT);
+  return cloneDocument(DEFAULT_DOCUMENT);
 }
 
 async function readImageFile(file: File): Promise<string | null> {
@@ -88,6 +75,28 @@ async function readImageFile(file: File): Promise<string | null> {
 
 type HistoryEntry = { doc: CanvasDocument };
 
+function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
+  const [pw, ph] = getPreviewDims(aspect);
+  return (
+    <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
+      <div
+        className="canvas-area relative h-full max-h-[min(100%,540px)] max-w-full flex flex-col items-center justify-center gap-2"
+        style={{
+          aspectRatio: `${pw} / ${ph}`,
+          background: 'var(--sidebar-bg)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-dim)',
+          fontFamily: 'var(--mono)',
+          fontSize: '11px',
+        }}
+      >
+        <span>Canvas error — could not render layers.</span>
+        <span style={{ opacity: 0.5 }}>{pw} × {ph}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Generator() {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -97,6 +106,7 @@ export default function Generator() {
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const safeSelectedLayerId = selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId)
     ? selectedLayerId
@@ -113,6 +123,8 @@ export default function Generator() {
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const histDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const preChangeRef = useRef<HistoryEntry | null>(null);
+  const exportErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(exportErrorTimerRef.current), []);
 
   const setDoc = useCallback((newDoc: CanvasDocument) => {
     _setDoc(newDoc);
@@ -254,8 +266,14 @@ export default function Generator() {
 
   const handleExport = useCallback(async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
     setIsExporting(true);
+    setExportError(null);
     try {
       await exportCanvas(docRef.current, imageCache, scale, format);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Export failed';
+      setExportError(msg);
+      clearTimeout(exportErrorTimerRef.current);
+      exportErrorTimerRef.current = setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExporting(false);
     }
@@ -263,8 +281,14 @@ export default function Generator() {
 
   const handleEnvMapExport = useCallback(async () => {
     setIsExportingEnvMap(true);
+    setExportError(null);
     try {
       await exportEnvMap(docRef.current, imageCache);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Env map export failed';
+      setExportError(msg);
+      clearTimeout(exportErrorTimerRef.current);
+      exportErrorTimerRef.current = setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExportingEnvMap(false);
     }
@@ -376,17 +400,19 @@ export default function Generator() {
             if (file) void handleDroppedFile(file);
           }}
         >
-          <CanvasPreview
-            doc={doc}
-            imageCache={imageCache}
-            selectedLayerId={safeSelectedLayerId}
-            dragOver={canvasDragOver}
-            onLayerUpdate={updateLayer}
-            onSelectLayer={setSelectedLayerId}
-          />
-          {dropError && (
+          <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
+            <CanvasPreview
+              doc={doc}
+              imageCache={imageCache}
+              selectedLayerId={safeSelectedLayerId}
+              dragOver={canvasDragOver}
+              onLayerUpdate={updateLayer}
+              onSelectLayer={setSelectedLayerId}
+            />
+          </ErrorBoundary>
+          {(dropError || exportError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
-              {dropError}
+              {dropError ?? exportError}
             </p>
           )}
           <BottomBar {...bottomBarProps} />

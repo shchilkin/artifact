@@ -20,6 +20,13 @@ export async function exportEnvMap(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
 ): Promise<void> {
-  const finalCanvas = await renderDocument(doc, W, H, imageCache);
-  triggerBlobDownload(finalCanvas, doc.global.seed);
+  try {
+    const finalCanvas = await renderDocument(doc, W, H, imageCache);
+    triggerBlobDownload(finalCanvas, doc.global.seed);
+  } catch (err) {
+    throw new Error(
+      `Env map export failed: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
 }
