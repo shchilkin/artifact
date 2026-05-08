@@ -5,6 +5,7 @@ import { useReducedMotion } from "framer-motion";
 import { SiteNav } from "../components/SiteNav";
 import { Footer } from "../components/Footer";
 import { renderDocument } from "../utils/renderer";
+import { HERO_FRAMES } from "../utils/heroConfigs";
 import {
   DEFAULT_EXPORT,
   makeEffectPresetLayer,
@@ -137,6 +138,7 @@ export default function Home() {
   const [step, setStep] = useState(0);
   const [imageReady, setImageReady] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
+  const [mosaicUrls, setMosaicUrls] = useState<string[]>([]);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,6 +158,24 @@ export default function Home() {
       img.onload = finish;
       img.onerror = () => setImageReady(true);
     }
+  }, []);
+
+  // Render mosaic thumbnails from HERO_FRAMES in the background
+  useEffect(() => {
+    const emptyCache = new Map<string, HTMLImageElement>();
+    const THUMB = 200;
+    Promise.all(
+      HERO_FRAMES.map(async ({ doc }) => {
+        try {
+          const out = await renderDocument(doc, THUMB, THUMB, emptyCache);
+          return out.toDataURL("image/jpeg", 0.75);
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      setMosaicUrls(results.filter((u): u is string => u !== null));
+    });
   }, []);
 
   useEffect(() => {
@@ -269,6 +289,19 @@ export default function Home() {
       <main className="home-main">
         <div className="home-stage">
           <aside className="home-stage__canvas" aria-label="Live cover preview">
+            {mosaicUrls.length > 0 && (
+              <div className="home-mosaic" aria-hidden="true">
+                {mosaicUrls.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    className="home-mosaic__thumb"
+                    draggable={false}
+                  />
+                ))}
+              </div>
+            )}
             <div className="home-canvas-frame">
               <span
                 className="home-canvas-mark home-canvas-mark--tl"
