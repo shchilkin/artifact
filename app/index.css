@@ -1113,6 +1113,18 @@ input[type="range"] {
   height: 100%;
 }
 
+/* Option B: full-cover preview overlay, fades out to reveal the build */
+.home-canvas--preview {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-canvas--preview-out {
+  opacity: 0;
+}
+
 /* Print registration / crop marks at canvas corners */
 .home-canvas-mark {
   position: absolute;

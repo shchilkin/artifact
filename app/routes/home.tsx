@@ -139,11 +139,18 @@ export default function Home() {
   const [imageReady, setImageReady] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
   const [mosaicUrls, setMosaicUrls] = useState<string[]>([]);
+  const [previewFading, setPreviewFading] = useState(false);
+  const [previewGone, setPreviewGone] = useState(false);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
+
+  // Option A: while hero is visible, floor the rendered step at 2 so
+  // after the preview fades the canvas shows fill+rays+emoji, not a flat fill.
+  const effectiveStep = heroVisible ? Math.max(step, 2) : step;
 
   useEffect(() => {
     const img = new Image();
@@ -177,6 +184,29 @@ export default function Home() {
       setMosaicUrls(results.filter((u): u is string => u !== null));
     });
   }, []);
+
+  // Option B: render the fully-composed cover to the preview canvas on mount,
+  // then fade it out to reveal the scroll-driven build starting at effectiveStep.
+  useEffect(() => {
+    if (!imageReady) return;
+    const fullDoc = buildDoc(STEPS.length - 1);
+    renderDocument(fullDoc, CANVAS_PX, CANVAS_PX, imageCacheRef.current)
+      .then((out) => {
+        const target = previewCanvasRef.current;
+        if (!target) return;
+        if (target.width !== out.width) target.width = out.width;
+        if (target.height !== out.height) target.height = out.height;
+        const ctx = target.getContext("2d");
+        if (ctx) ctx.drawImage(out, 0, 0);
+        // Start fading after a beat
+        const fadeTimer = setTimeout(() => setPreviewFading(true), 1800);
+        return () => clearTimeout(fadeTimer);
+      })
+      .catch(() => {
+        // silently skip if render fails
+        setPreviewFading(true);
+      });
+  }, [imageReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function update() {
@@ -217,7 +247,7 @@ export default function Home() {
     if (!imageReady) return;
     const token = ++renderTokenRef.current;
     (async () => {
-      const doc = buildDoc(step);
+      const doc = buildDoc(effectiveStep);
       try {
         const out = await renderDocument(
           doc,
@@ -239,7 +269,7 @@ export default function Home() {
         // renderer is silent on missing images; nothing to surface
       }
     })();
-  }, [step, imageReady]);
+  }, [effectiveStep, imageReady]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -326,6 +356,16 @@ export default function Home() {
                 height={CANVAS_PX}
                 aria-label="Album cover preview composing layer by layer"
               />
+              {!previewGone && (
+                <canvas
+                  ref={previewCanvasRef}
+                  className={`home-canvas home-canvas--preview${previewFading ? " home-canvas--preview-out" : ""}`}
+                  width={CANVAS_PX}
+                  height={CANVAS_PX}
+                  aria-hidden="true"
+                  onTransitionEnd={() => setPreviewGone(true)}
+                />
+              )}
             </div>
             <div className="home-canvas-meta">
               <span>SEED #{SEED}</span>
