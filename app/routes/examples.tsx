@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { MetaFunction } from 'react-router';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { SiteNav } from '../components/SiteNav';
 import { Footer } from '../components/Footer';
 import { generateThumbnail } from '../utils/generateThumbnail';
-import type { CanvasDocument } from '../types/config';
+import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
   { title: 'Examples — Album Cover Generator' },
-  { name: 'description', content: 'Browse glitch album covers made with the generator. Tap any to open and remix it.' },
+  {
+    name: 'description',
+    content:
+      'Browse glitch covers in every aspect ratio — square, story, vertical, wide. Tap any to open and remix it.',
+  },
 ];
 
 interface ExampleData {
@@ -22,62 +26,136 @@ interface ExampleData {
 interface ExampleItem {
   id: string;
   name: string;
+  aspect: AspectRatio;
   doc: CanvasDocument;
   thumbnail: string | null;
 }
 
-const exampleModules = import.meta.glob('../examples/*.json', { eager: true }) as Record<string, { default: ExampleData }>;
+const ASPECT_ROTATION: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9', '4:5', '1:1', '16:9', '9:16'];
 
-const rawExamples: ExampleItem[] = Object.entries(exampleModules).map(([path, mod]) => {
+function pickAspect(index: number): AspectRatio {
+  return ASPECT_ROTATION[index % ASPECT_ROTATION.length];
+}
+
+function withAspect(doc: CanvasDocument, aspect: AspectRatio): CanvasDocument {
+  return { ...doc, global: { ...doc.global, aspect } };
+}
+
+const exampleModules = import.meta.glob('../examples/*.json', { eager: true }) as Record<
+  string,
+  { default: ExampleData }
+>;
+
+const presetExamples: ExampleItem[] = Object.entries(exampleModules).map(([path, mod], i) => {
   const data = mod.default ?? mod;
   const id = path.replace('../examples/', '').replace('.json', '');
-  return {
-    id,
-    name: data.name,
-    doc: { global: data.global, layers: data.layers },
-    thumbnail: null,
+  const aspect: AspectRatio = (data.global as { aspect?: AspectRatio }).aspect ?? pickAspect(i);
+  const doc: CanvasDocument = {
+    global: { ...data.global, aspect },
+    layers: data.layers,
+    export: { format: 'png', scale: 1, target: 'cover' },
   };
+  return { id, name: data.name, aspect, doc, thumbnail: null };
 });
 
-const randomExamples: ExampleItem[] = Array.from({ length: 24 }, (_, i) => {
-  const seed = 300001 + i * 13337;
-  const frame = generateRandomHeroFrame(seed);
-  return {
-    id: `random-${seed}`,
-    name: `Variant #${seed}`,
-    doc: frame.doc,
-    thumbnail: null,
-  };
-});
+function buildRandomItems(count: number, baseSeed: number, idPrefix: string): ExampleItem[] {
+  return Array.from({ length: count }, (_, i) => {
+    const seed = baseSeed + i * 13337;
+    const aspect = pickAspect(i + 1);
+    const frame = generateRandomHeroFrame(seed);
+    const doc = withAspect(
+      { ...frame.doc, export: { format: 'png', scale: 1, target: 'cover' } },
+      aspect,
+    );
+    return {
+      id: `${idPrefix}-${seed}`,
+      name: `Variant #${seed}`,
+      aspect,
+      doc,
+      thumbnail: null,
+    };
+  });
+}
 
-const allInitialExamples = [...rawExamples, ...randomExamples];
+const initialRandom = buildRandomItems(28, 300001, 'random');
+const initialItems: ExampleItem[] = [...presetExamples, ...initialRandom];
+
+const ASPECT_LABEL: Record<AspectRatio, string> = {
+  '1:1': 'square',
+  '4:5': 'story',
+  '9:16': 'vertical',
+  '16:9': 'wide',
+};
+
+interface FilterState {
+  aspect: AspectRatio | 'all';
+}
+
+function getColumnCount(width: number): number {
+  if (width >= 1600) return 5;
+  if (width >= 1200) return 4;
+  if (width >= 768) return 3;
+  return 2;
+}
+
+function distributeColumns(items: ExampleItem[], colCount: number): ExampleItem[][] {
+  const cols: ExampleItem[][] = Array.from({ length: colCount }, () => []);
+  const heights = new Array<number>(colCount).fill(0);
+  for (const item of items) {
+    const [aw, ah] = ASPECT_SIZES[item.aspect];
+    const ratio = ah / aw;
+    let shortest = 0;
+    for (let i = 1; i < colCount; i++) {
+      if (heights[i] < heights[shortest]) shortest = i;
+    }
+    cols[shortest].push(item);
+    heights[shortest] += ratio;
+  }
+  return cols;
+}
 
 export default function Examples() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<ExampleItem[]>(allInitialExamples);
+  const [items, setItems] = useState<ExampleItem[]>(initialItems);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
-  const [isTouch] = useState(() => window.matchMedia('(pointer: coarse)').matches);
+  const [filter, setFilter] = useState<FilterState>({ aspect: 'all' });
+  const [isTouch] = useState(() =>
+    typeof window === 'undefined' ? false : window.matchMedia('(pointer: coarse)').matches,
+  );
   const [generating, setGenerating] = useState(false);
+  const [columnCount, setColumnCount] = useState(() =>
+    typeof window === 'undefined' ? 3 : getColumnCount(window.innerWidth),
+  );
   const generateBatchRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const generatingRef = useRef(false);
 
   useEffect(() => {
+    function update() {
+      setColumnCount(getColumnCount(window.innerWidth));
+    }
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
-    async function renderAll() {
-      for (const ex of allInitialExamples) {
+    (async () => {
+      for (const ex of initialItems) {
         if (cancelled) break;
         try {
           const thumb = await generateThumbnail(ex.doc, new Map());
           if (!cancelled) {
-            setItems((prev) => prev.map((item) => item.id === ex.id ? { ...item, thumbnail: thumb } : item));
+            setItems((prev) =>
+              prev.map((item) => (item.id === ex.id ? { ...item, thumbnail: thumb } : item)),
+            );
           }
         } catch {
-          // ignore
+          // ignore single-item failures
         }
       }
-    }
-    renderAll();
+    })();
     return () => {
       cancelled = true;
     };
@@ -87,26 +165,14 @@ export default function Examples() {
     if (generatingRef.current) return;
     generatingRef.current = true;
     setGenerating(true);
-    const batch = generateBatchRef.current;
-    generateBatchRef.current += 1;
-
-    const newItems: ExampleItem[] = Array.from({ length: 32 }, (_, i) => {
-      const seed = 700001 + batch * 32000 + i * 997;
-      const frame = generateRandomHeroFrame(seed);
-      return {
-        id: `more-${seed}`,
-        name: `Variant #${frame.doc.global.seed}`,
-        doc: frame.doc,
-        thumbnail: null,
-      };
-    });
-
+    const batch = generateBatchRef.current++;
+    const newItems = buildRandomItems(32, 700001 + batch * 32000, `more-${batch}`);
     setItems((prev) => [...prev, ...newItems]);
 
     for (const item of newItems) {
       try {
         const thumb = await generateThumbnail(item.doc, new Map());
-        setItems((prev) => prev.map((x) => x.id === item.id ? { ...x, thumbnail: thumb } : x));
+        setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, thumbnail: thumb } : x)));
       } catch {
         // ignore
       }
@@ -118,15 +184,18 @@ export default function Examples() {
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !generatingRef.current) handleGenerateMore();
-    }, { rootMargin: '200px' });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !generatingRef.current) handleGenerateMore();
+      },
+      { rootMargin: '320px' },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [handleGenerateMore]);
 
-  function openInGenerator(ex: ExampleItem) {
-    navigate(`/app?doc=${encodeURIComponent(JSON.stringify(ex.doc))}`);
+  function openInGenerator(item: ExampleItem) {
+    navigate(`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`);
   }
 
   function toggleReveal(id: string) {
@@ -138,80 +207,201 @@ export default function Examples() {
     });
   }
 
+  const filteredItems = useMemo(() => {
+    if (filter.aspect === 'all') return items;
+    return items.filter((item) => item.aspect === filter.aspect);
+  }, [items, filter.aspect]);
+
+  const aspectTotals = useMemo(() => {
+    const totals: Record<AspectRatio, number> = { '1:1': 0, '4:5': 0, '9:16': 0, '16:9': 0 };
+    for (const item of items) totals[item.aspect] += 1;
+    return totals;
+  }, [items]);
+
+  const columns = useMemo(
+    () => distributeColumns(filteredItems, columnCount),
+    [filteredItems, columnCount],
+  );
+
   return (
     <div className="min-h-dvh bg-bg flex flex-col overflow-y-auto">
       <SiteNav />
-      <main className="flex-1 pt-22 pb-12 px-4 max-w-350 w-full mx-auto">
-        <motion.header className="mb-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-          <h1 className="font-display font-black text-[clamp(2rem,6vw,4rem)] leading-none uppercase text-text mb-2">Examples</h1>
-          <p className="font-mono text-[0.75rem] text-dim tracking-[0.03em]">Tap any cover to open it in the generator.</p>
+      <main className="examples-main">
+        <motion.header
+          className="examples-header"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="examples-header__top">
+            <p className="examples-header__eyebrow">Field guide</p>
+            <h1 className="examples-header__title">Examples</h1>
+            <p className="examples-header__deck">
+              Random covers across four aspects. Tap any to open and remix it.
+            </p>
+          </div>
+          <div className="examples-filters" role="tablist" aria-label="Filter by aspect ratio">
+            <FilterButton
+              label="all"
+              count={items.length}
+              active={filter.aspect === 'all'}
+              onClick={() => setFilter({ aspect: 'all' })}
+            />
+            {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((aspect) => (
+              <FilterButton
+                key={aspect}
+                label={`${aspect} ${ASPECT_LABEL[aspect]}`}
+                count={aspectTotals[aspect]}
+                active={filter.aspect === aspect}
+                onClick={() => setFilter({ aspect })}
+              />
+            ))}
+          </div>
         </motion.header>
-        {items.length === 0 ? (
-          <p className="font-mono text-[0.8rem] text-dim py-12">Nothing here yet.</p>
+
+        {filteredItems.length === 0 ? (
+          <p className="examples-empty">No examples in this aspect yet.</p>
         ) : (
-          <div className="examples-grid">
-            <AnimatePresence initial={false}>
-              {items.map((item) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.92, y: 16 }}
-                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  exit={{ opacity: 0, scale: 0.88, transition: { duration: 0.2 } }}
-                  whileHover={{ scale: 1.025, transition: { duration: 0.18 } }}
-                  className={`examples-item${revealed.has(item.id) ? ' examples-item--revealed' : ''}`}
-                  onClick={() => {
-                    if (isTouch || revealed.has(item.id)) openInGenerator(item);
-                    else toggleReveal(item.id);
-                  }}
-                  onMouseEnter={() => {
-                    if (!isTouch) setRevealed((prev) => new Set(prev).add(item.id));
-                  }}
-                  onMouseLeave={() => {
-                    if (!isTouch) {
-                      setRevealed((prev) => {
-                        const next = new Set(prev);
-                        next.delete(item.id);
-                        return next;
-                      });
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`${item.name} — Open in generator`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (isTouch || revealed.has(item.id)) openInGenerator(item);
-                      else toggleReveal(item.id);
-                    }
-                  }}
-                >
-                  {item.thumbnail ? (
-                    <motion.img src={item.thumbnail} alt={item.name} className="examples-item__img" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} />
-                  ) : (
-                    <div className="examples-item__loading" aria-hidden="true" />
-                  )}
-                  <div className="examples-item__overlay">
-                    <span className="examples-item__seed">#{item.doc.global.seed}</span>
-                    <span className="examples-item__name">{item.name}</span>
-                    <span className="examples-item__cta">Open in generator →</span>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+          <div className="examples-mosaic" style={{ '--cols': columnCount } as React.CSSProperties}>
+            {columns.map((col, ci) => (
+              <div key={ci} className="examples-mosaic__col">
+                {col.map((item) => (
+                  <ExampleTile
+                    key={item.id}
+                    item={item}
+                    revealed={revealed.has(item.id)}
+                    isTouch={isTouch}
+                    onOpen={() => openInGenerator(item)}
+                    onReveal={() => toggleReveal(item.id)}
+                    onHoverIn={() => {
+                      if (!isTouch) {
+                        setRevealed((prev) => {
+                          if (prev.has(item.id)) return prev;
+                          const next = new Set(prev);
+                          next.add(item.id);
+                          return next;
+                        });
+                      }
+                    }}
+                    onHoverOut={() => {
+                      if (!isTouch) {
+                        setRevealed((prev) => {
+                          if (!prev.has(item.id)) return prev;
+                          const next = new Set(prev);
+                          next.delete(item.id);
+                          return next;
+                        });
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
         )}
-        <div ref={sentinelRef} className="flex justify-center pt-10 pb-6 min-h-16">
+
+        <div ref={sentinelRef} className="examples-sentinel">
           {generating && (
-            <motion.span className="font-mono text-[0.75rem] text-dim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              Generating…
+            <motion.span
+              className="examples-loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              generating…
             </motion.span>
           )}
         </div>
       </main>
       <Footer />
     </div>
+  );
+}
+
+interface FilterButtonProps {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}
+
+function FilterButton({ label, count, active, onClick }: FilterButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`examples-filter${active ? ' examples-filter--active' : ''}`}
+      onClick={onClick}
+      role="tab"
+      aria-selected={active}
+    >
+      <span>{label}</span>
+      <span className="examples-filter__count">{count}</span>
+    </button>
+  );
+}
+
+interface ExampleTileProps {
+  item: ExampleItem;
+  revealed: boolean;
+  isTouch: boolean;
+  onOpen: () => void;
+  onReveal: () => void;
+  onHoverIn: () => void;
+  onHoverOut: () => void;
+}
+
+function ExampleTile({
+  item,
+  revealed,
+  isTouch,
+  onOpen,
+  onReveal,
+  onHoverIn,
+  onHoverOut,
+}: ExampleTileProps) {
+  const [aw, ah] = ASPECT_SIZES[item.aspect];
+  const aspectStyle = { aspectRatio: `${aw} / ${ah}` };
+
+  function handleClick() {
+    if (isTouch || revealed) onOpen();
+    else onReveal();
+  }
+
+  function handleKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleClick();
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className={`examples-tile examples-tile--${item.aspect.replace(':', 'x')}${revealed ? ' examples-tile--revealed' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${item.name} — Open in generator`}
+      onClick={handleClick}
+      onKeyDown={handleKey}
+      onMouseEnter={onHoverIn}
+      onMouseLeave={onHoverOut}
+      onFocus={onHoverIn}
+      onBlur={onHoverOut}
+    >
+      <div className="examples-tile__frame" style={aspectStyle}>
+        {item.thumbnail ? (
+          <img src={item.thumbnail} alt={item.name} className="examples-tile__img" loading="lazy" />
+        ) : (
+          <div className="examples-tile__loading" aria-hidden="true" />
+        )}
+        <div className="examples-tile__overlay">
+          <span className="examples-tile__seed">SEED #{item.doc.global.seed}</span>
+          <span className="examples-tile__name">{item.name}</span>
+          <span className="examples-tile__cta">Open in generator →</span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
