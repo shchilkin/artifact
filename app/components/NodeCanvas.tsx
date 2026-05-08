@@ -2076,8 +2076,23 @@ export function NodeCanvas({
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        .react-flow__node { padding: 0; border: none; border-radius: 6px; background: transparent; }
-        .react-flow__node.selected { outline: none; }
+        .react-flow__node {
+          padding: 0;
+          border: none;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          outline: none;
+        }
+        .react-flow__node.selected,
+        .react-flow__node:focus,
+        .react-flow__node:focus-visible,
+        .react-flow__node.selectable.selected,
+        .react-flow__node.selectable:focus,
+        .react-flow__node.selectable:focus-visible {
+          outline: none !important;
+          box-shadow: none !important;
+        }
         .react-flow__handle { border-radius: 50%; }
         .react-flow__controls {
           background: oklch(14% 0.01 285);
@@ -2552,7 +2567,7 @@ export function NodeCanvas({
         }
         .node-menu {
           position: fixed;
-          z-index: 1000;
+          z-index: 10000;
           background: oklch(15% 0.012 285);
           border: 1px solid oklch(30% 0.016 285);
           border-radius: 3px;
@@ -2675,7 +2690,7 @@ export function NodeCanvas({
         <Controls showInteractive={false} />
       </ReactFlow>
 
-      {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') && (
+      {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') && typeof document !== 'undefined' && createPortal(
         <PaneContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -2686,10 +2701,11 @@ export function NodeCanvas({
           )}
           onClose={() => setContextMenu(null)}
           menuRef={contextMenuRef}
-        />
+        />,
+        document.body,
       )}
 
-      {contextMenu?.type === 'node' && (
+      {contextMenu?.type === 'node' && typeof document !== 'undefined' && createPortal(
         <NodeContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -2699,7 +2715,8 @@ export function NodeCanvas({
           onDelete={() => onDeleteNodes([contextMenu.nodeId])}
           onClose={() => setContextMenu(null)}
           menuRef={contextMenuRef}
-        />
+        />,
+        document.body,
       )}
     </div>
       </NodeCanvasActionsContext.Provider>
