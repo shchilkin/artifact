@@ -122,81 +122,7 @@ function buildDoc(stepIndex: number): CanvasDocument {
   };
 }
 
-// Horizontal misregistration offsets per strip (px), like a risograph out-of-register
-const STRIP_OFFSETS = [0, -5, 4, -2, 7] as const;
 
-// One doc per anatomy strip — each shows a single layer type in isolation
-const ANATOMY_ITEMS: Array<{ label: string; doc: CanvasDocument }> = [
-  {
-    label: "fill",
-    doc: {
-      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
-      export: DEFAULT_EXPORT,
-      layers: [makeFillLayer({ color: "#1a0a1f", name: "fill" })],
-    },
-  },
-  {
-    label: "rays",
-    doc: {
-      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
-      export: DEFAULT_EXPORT,
-      layers: [
-        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
-        makeEffectPresetLayer("rays"),
-      ],
-    },
-  },
-  {
-    label: "emoji",
-    doc: {
-      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
-      export: DEFAULT_EXPORT,
-      layers: [
-        makeFillLayer({ color: "#0f0518", name: "fill" }),
-        makeEmojiLayer({
-          emojis: ["💀", "⚡", "🥀", "🖤", "✦"],
-          density: 24,
-          minSz: 22,
-          maxSz: 70,
-          blur: 62,
-          opacity: 75,
-          name: "emoji",
-        }),
-      ],
-    },
-  },
-  {
-    label: "grain",
-    doc: {
-      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
-      export: DEFAULT_EXPORT,
-      layers: [
-        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
-        { ...makeEffectPresetLayer("grain"), grain: 100 },
-      ],
-    },
-  },
-  {
-    label: "title",
-    doc: {
-      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
-      export: DEFAULT_EXPORT,
-      layers: [
-        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
-        makeTextLayer({
-          content: "WEIRDER",
-          font: "DISPLAY",
-          size: 140,
-          color: "#fff2dc",
-          x: 0.5,
-          y: 0.82,
-          align: "center",
-          name: "title",
-        }),
-      ],
-    },
-  },
-];
 
 export const meta: MetaFunction = () => [
   { title: "Album Cover Generator — Layer it Up" },
@@ -215,10 +141,10 @@ export default function Home() {
   const [imageReady, setImageReady] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
   const [mosaicUrls, setMosaicUrls] = useState<string[]>([]);
-  const [anatomyUrls, setAnatomyUrls] = useState<(string | null)[]>([]);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const noiseCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
 
@@ -259,21 +185,57 @@ export default function Home() {
     });
   }, []);
 
-  // Option C: render each anatomy strip doc (one layer type each) at full
-  // canvas size; the strips are clipped by CSS to show only their band.
+  // Animated TV-static noise overlay — visible while hero is in view
   useEffect(() => {
-    const emptyCache = new Map<string, HTMLImageElement>();
-    Promise.all(
-      ANATOMY_ITEMS.map(async ({ doc }) => {
-        try {
-          const out = await renderDocument(doc, CANVAS_PX, CANVAS_PX, emptyCache);
-          return out.toDataURL("image/jpeg", 0.85);
-        } catch {
-          return null;
-        }
-      }),
-    ).then(setAnatomyUrls);
-  }, []);
+    const canvas = noiseCanvasRef.current;
+    if (!canvas) return;
+    const W = 96;
+    const H = 96;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Reduced motion: draw one static frame and stop
+    if (prefersReducedMotion) {
+      const img = ctx.createImageData(W, H);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = Math.random() * 200;
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = v;
+        img.data[i + 3] = 28;
+      }
+      ctx.putImageData(img, 0, 0);
+      return;
+    }
+
+    let raf: number;
+    let frame = 0;
+
+    function draw() {
+      const t = frame * 0.018;
+      // Slow sine breathe: alpha oscillates between 22 and 48 (out of 255)
+      const breathe = 0.5 + 0.5 * Math.sin(t);
+      const alpha = Math.floor(22 + 26 * breathe);
+
+      const img = ctx!.createImageData(W, H);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = Math.random() * 220;
+        d[i] = v;
+        d[i + 1] = v;
+        d[i + 2] = v;
+        d[i + 3] = alpha;
+      }
+      ctx!.putImageData(img, 0, 0);
+      frame++;
+      raf = requestAnimationFrame(draw);
+    }
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     function update() {
@@ -423,36 +385,11 @@ export default function Home() {
                 height={CANVAS_PX}
                 aria-label="Album cover preview composing layer by layer"
               />
-              {anatomyUrls.length === ANATOMY_ITEMS.length && (
-                <div
-                  className={`home-canvas-anatomy${!heroVisible ? " home-canvas-anatomy--faded" : ""}`}
-                  aria-hidden="true"
-                >
-                  {ANATOMY_ITEMS.map((item, i) => (
-                    <div
-                      key={item.label}
-                      className="home-canvas-anatomy__strip"
-                      style={{ top: `${i * 20}%` }}
-                    >
-                      {anatomyUrls[i] && (
-                        <img
-                          src={anatomyUrls[i]!}
-                          alt=""
-                          className="home-canvas-anatomy__img"
-                          style={{
-                            transform: `translate(${STRIP_OFFSETS[i]}px, ${-i * 20}%)`,
-                          }}
-                          draggable={false}
-                        />
-                      )}
-                      <span className="home-canvas-anatomy__mark" />
-                      <span className="home-canvas-anatomy__label">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <canvas
+                ref={noiseCanvasRef}
+                className={`home-canvas-noise${!heroVisible ? " home-canvas-noise--faded" : ""}`}
+                aria-hidden="true"
+              />
             </div>
             <div className="home-canvas-meta">
               <span>SEED #{SEED}</span>
