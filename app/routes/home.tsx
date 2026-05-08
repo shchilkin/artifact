@@ -60,7 +60,13 @@ const STEPS: Step[] = [
   {
     title: "Scanlines.",
     body: "CRT bands across the under-layers. Texture of broken signal.",
-    layers: [makeEffectPresetLayer("scanlines")],
+    layers: [
+      {
+        ...makeEffectPresetLayer("scanlines"),
+        name: "scanlines",
+        scanlines: 100,
+      },
+    ],
   },
   {
     title: "Image.",
@@ -122,8 +128,6 @@ function buildDoc(stepIndex: number): CanvasDocument {
   };
 }
 
-
-
 export const meta: MetaFunction = () => [
   { title: "Album Cover Generator — Layer it Up" },
   {
@@ -145,10 +149,13 @@ export default function Home() {
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
   const ctaRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasARef = useRef<HTMLCanvasElement>(null);
+  const canvasBRef = useRef<HTMLCanvasElement>(null);
   const noiseCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
+  // Track which canvas is currently displayed (0 = A, 1 = B)
+  const frontIdxRef = useRef<0 | 1>(0);
 
   const effectiveStep = step;
 
@@ -277,7 +284,9 @@ export default function Home() {
     const el = ctaRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setCtaVisible(true); },
+      ([entry]) => {
+        if (entry.isIntersecting) setCtaVisible(true);
+      },
       { threshold: 0.12 },
     );
     obs.observe(el);
@@ -297,7 +306,12 @@ export default function Home() {
           imageCacheRef.current,
         );
         if (renderTokenRef.current !== token) return;
-        const target = canvasRef.current;
+
+        // Render to the back canvas (not currently displayed)
+        const backIdx: 0 | 1 = frontIdxRef.current === 0 ? 1 : 0;
+        const backRef = backIdx === 0 ? canvasARef : canvasBRef;
+        const frontRef = frontIdxRef.current === 0 ? canvasARef : canvasBRef;
+        const target = backRef.current;
         if (!target) return;
         if (target.width !== out.width) target.width = out.width;
         if (target.height !== out.height) target.height = out.height;
@@ -306,6 +320,13 @@ export default function Home() {
           ctx.clearRect(0, 0, target.width, target.height);
           ctx.drawImage(out, 0, 0);
         }
+
+        // Crossfade: bring back to front, send front to back
+        backRef.current?.classList.remove("home-canvas--back");
+        backRef.current?.classList.add("home-canvas--front");
+        frontRef.current?.classList.remove("home-canvas--front");
+        frontRef.current?.classList.add("home-canvas--back");
+        frontIdxRef.current = backIdx;
       } catch {
         // renderer is silent on missing images; nothing to surface
       }
@@ -391,11 +412,18 @@ export default function Home() {
                 aria-hidden="true"
               />
               <canvas
-                ref={canvasRef}
-                className="home-canvas"
+                ref={canvasARef}
+                className="home-canvas--layer home-canvas--front"
                 width={CANVAS_PX}
                 height={CANVAS_PX}
                 aria-label="Album cover preview composing layer by layer"
+              />
+              <canvas
+                ref={canvasBRef}
+                className="home-canvas--layer home-canvas--back"
+                width={CANVAS_PX}
+                height={CANVAS_PX}
+                aria-hidden="true"
               />
               <canvas
                 ref={noiseCanvasRef}
@@ -403,14 +431,14 @@ export default function Home() {
                 aria-hidden="true"
               />
             </div>
-            <div className="home-canvas-meta">
+            <div className={`home-canvas-meta${heroVisible ? " home-canvas-meta--hidden" : ""}`}>
               <span>SEED #{SEED}</span>
               <span>
                 {String(step + 1).padStart(2, "0")} /{" "}
                 {String(STEPS.length).padStart(2, "0")}
               </span>
             </div>
-            <ol className="home-progress" aria-label="Layer progression">
+            <ol className={`home-progress${heroVisible ? " home-progress--hidden" : ""}`} aria-label="Layer progression">
               {STEPS.map((s, i) => (
                 <li
                   key={s.title}
