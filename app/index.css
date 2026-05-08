@@ -1200,20 +1200,17 @@ input[type="range"] {
   letter-spacing: 0.14em;
   color: var(--text-dim);
   text-transform: uppercase;
-  animation: landing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
   transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .home-canvas-meta--hidden {
-  opacity: 0 !important;
+  opacity: 0;
   pointer-events: none;
-  animation: none !important;
 }
 
 .home-progress--hidden {
-  opacity: 0 !important;
+  opacity: 0;
   pointer-events: none;
-  animation: none !important;
 }
 
 @media (min-width: 1024px) {
@@ -1230,7 +1227,6 @@ input[type="range"] {
   width: min(36vw, 70dvh, 560px);
   flex-direction: row;
   gap: 4px;
-  animation: landing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
   transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
