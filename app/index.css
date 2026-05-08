@@ -930,7 +930,7 @@ input[type="range"] {
   --hero-h: calc(100dvh - 56px);
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: var(--hero-h) auto;
+  grid-template-rows: auto auto; /* content-driven on mobile */
   position: relative;
   overflow: clip;
 }
@@ -938,6 +938,7 @@ input[type="range"] {
 @media (min-width: 1024px) {
   .home-stage {
     grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    grid-template-rows: var(--hero-h) auto;
   }
 }
 
@@ -948,7 +949,7 @@ input[type="range"] {
   align-self: start;
   grid-column: 1;
   grid-row: 1 / -1;
-  height: 46dvh;
+  height: 48dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -957,6 +958,7 @@ input[type="range"] {
   padding: clamp(12px, 3vw, 48px) clamp(12px, 4vw, 64px);
   background: oklch(6% 0.01 42);
   overflow: hidden;
+  border-bottom: 1px solid var(--border);
 }
 
 @media (min-width: 1024px) {
@@ -964,6 +966,7 @@ input[type="range"] {
     height: var(--hero-h);
     gap: clamp(12px, 1.6vw, 24px);
     padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 64px);
+    border-bottom: none;
     border-right: 1px solid var(--border);
   }
 }
@@ -1008,13 +1011,15 @@ input[type="range"] {
   z-index: 2;
   grid-column: 1;
   grid-row: 1;
-  height: var(--hero-h);
+  height: auto;
+  min-height: var(--hero-h);
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: clamp(12px, 1.8vw, 24px);
-  padding: clamp(36px, 7vw, 96px) clamp(20px, 5vw, 56px) clamp(52px, 9vw, 120px);
+  /* push content below the sticky canvas on mobile */
+  padding: 48dvh clamp(20px, 5vw, 56px) clamp(48px, 8dvh, 96px);
   pointer-events: none;
   transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1022,6 +1027,8 @@ input[type="range"] {
 @media (min-width: 1024px) {
   .home-hero-overlay {
     grid-column: 2;
+    height: var(--hero-h);
+    min-height: 0;
     justify-content: center;
     gap: clamp(16px, 2vw, 30px);
     padding: clamp(56px, 8vw, 132px) clamp(48px, 7vw, 120px) clamp(48px, 6vw, 88px);
@@ -1051,7 +1058,7 @@ input[type="range"] {
 .home-hero__headline {
   font-family: var(--display);
   font-weight: 900;
-  font-size: clamp(3rem, 13vw, 12rem);
+  font-size: clamp(2.4rem, 13vw, 12rem);
   line-height: 0.86;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -1118,6 +1125,13 @@ input[type="range"] {
   padding-top: clamp(18px, 3vw, 40px);
   opacity: 0.4;
   animation: home-hint 2.2s ease-in-out 700ms infinite;
+  display: none; /* hidden on mobile — touch users scroll intuitively */
+}
+
+@media (min-width: 1024px) {
+  .home-hero__hint {
+    display: block;
+  }
 }
 
 .home-hero__hint--used {
@@ -1146,7 +1160,7 @@ input[type="range"] {
 
 .home-canvas-frame {
   position: relative;
-  width: min(68vw, 36dvh, 340px);
+  width: min(72vw, 38dvh, 360px);
   aspect-ratio: 1;
   background: oklch(8% 0.012 42);
   border: 1px solid var(--border);
@@ -1230,7 +1244,7 @@ input[type="range"] {
 .home-canvas-meta {
   display: flex;
   justify-content: space-between;
-  width: min(68vw, 36dvh, 340px);
+  width: min(72vw, 38dvh, 360px);
   font-family: var(--mono);
   font-size: 0.65rem;
   letter-spacing: 0.14em;
@@ -1280,12 +1294,16 @@ input[type="range"] {
 }
 
 .home-mobile-dot {
-  width: 5px;
-  height: 5px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: oklch(35% 0.012 42);
   transition: background 250ms cubic-bezier(0.16, 1, 0.3, 1), transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  /* enlarge tap target without visual change */
+  padding: 6px;
+  margin: -6px;
+  box-sizing: content-box;
 }
 
 .home-mobile-dot--reached { background: oklch(55% 0.018 42); }
@@ -1361,12 +1379,12 @@ input[type="range"] {
 }
 
 .home-step {
-  min-height: 60dvh;
+  min-height: 70dvh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  padding: clamp(20px, 5vw, 48px) clamp(24px, 6vw, 36px) clamp(32px, 6vw, 80px);
+  padding: clamp(20px, 5vw, 48px) clamp(24px, 6vw, 36px) clamp(36px, 6vw, 80px);
   border-bottom: 1px dashed oklch(20% 0.018 42);
   opacity: 0.4;
   transition: opacity 380ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1421,7 +1439,7 @@ input[type="range"] {
 .home-step__title {
   font-family: var(--display);
   font-weight: 900;
-  font-size: clamp(2.6rem, 7vw, 5.5rem);
+  font-size: clamp(2.2rem, 7vw, 5.5rem);
   line-height: 0.9;
   letter-spacing: -0.015em;
   color: var(--text);
