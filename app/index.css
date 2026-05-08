@@ -1205,8 +1205,15 @@ input[type="range"] {
 }
 
 .home-canvas-meta--hidden {
-  opacity: 0;
+  opacity: 0 !important;
   pointer-events: none;
+  animation: none !important;
+}
+
+.home-progress--hidden {
+  opacity: 0 !important;
+  pointer-events: none;
+  animation: none !important;
 }
 
 @media (min-width: 1024px) {
@@ -1231,11 +1238,6 @@ input[type="range"] {
   .home-progress {
     display: flex;
   }
-}
-
-.home-progress--hidden {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .home-progress__item {
