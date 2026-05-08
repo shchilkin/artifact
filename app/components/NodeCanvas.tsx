@@ -1862,9 +1862,7 @@ export function NodeCanvas({
   );
 
   const commitNodePositions = useCallback((nodes: RFNode[]) => {
-    const moved = nodes
-      .filter((node) => node.id !== EXPORT_NODE_ID)
-      .map((node) => ({ id: node.id, position: node.position }));
+    const moved = nodes.map((node) => ({ id: node.id, position: node.position }));
     if (moved.length === 0) return;
     onGraphChange(updateGraphPositions(graphRef.current, moved));
   }, [onGraphChange]);
