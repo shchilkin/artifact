@@ -236,6 +236,11 @@ export function Sidebar({
     applySelectedPatch<EmojiLayer>({ emojis });
   };
 
+  const selectedEffectPreset = selectedLayer?.kind === 'effect' ? selectedLayer.preset : undefined;
+  const showAllEffectSections = !selectedEffectPreset;
+  const showEffectGroup = (presets: EffectPreset[]) => showAllEffectSections || (selectedEffectPreset ? presets.includes(selectedEffectPreset) : false);
+  const showEffectControl = (presets: EffectPreset[]) => showAllEffectSections || (selectedEffectPreset ? presets.includes(selectedEffectPreset) : false);
+
   return (
     <aside className="sidebar" ref={sidebarRef}>
       {mobileActionBar && <div className="sidebar-mobile-bar">{mobileActionBar}</div>}
@@ -294,6 +299,19 @@ export function Sidebar({
                   <span className="toggle-switch__track" />
                 </label>
               </div>
+              {selectedLayer.kind === 'effect' && (
+                <div className="flex justify-between items-center text-dim text-[10px]">
+                  <span>Mask To Alpha</span>
+                  <label className="toggle-switch" aria-label="Toggle effect alpha masking">
+                    <input
+                      type="checkbox"
+                      checked={selectedLayer.maskAlpha}
+                      onChange={(e) => applySelectedPatch<EffectLayer>({ maskAlpha: e.target.checked })}
+                    />
+                    <span className="toggle-switch__track" />
+                  </label>
+                </div>
+              )}
             </Section>
 
             {selectedLayer.kind === 'emoji' && (
@@ -421,52 +439,71 @@ export function Sidebar({
 
             {selectedLayer.kind === 'effect' && (
               <>
-                {/* When preset is set, only show that preset's section. No preset = legacy, show all. */}
-                <Section title="LIGHT RAYS" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'rays')} onRand={() => randomizeSelectedSection('RAYS')} onReset={() => resetSelectedSection('RAYS')}>
-                  <div className="flex justify-between items-center text-dim text-[10px]"><span>Ray Color</span><input type="color" value={selectedLayer.rayColor} onChange={(e) => applySelectedPatch<EffectLayer>({ rayColor: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
-                  <Slider label="Intensity" value={selectedLayer.rayInt} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ rayInt: v })} effectKey="rayInt" {...ip} />
-                  <Slider label="Count" value={selectedLayer.rays} min={0} max={32} onChange={(v) => applySelectedPatch<EffectLayer>({ rays: v })} effectKey="rays" {...ip} />
-                  <Slider label="Bloom" value={selectedLayer.bloom} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ bloom: v })} effectKey="bloom" {...ip} />
-                  <Slider label="Film Burn" value={selectedLayer.filmBurn} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ filmBurn: v })} effectKey="filmBurn" {...ip} />
+                <Section title="LIGHT RAYS" hidden={!showEffectGroup(['rays', 'bloom', 'filmBurn'])} onRand={() => randomizeSelectedSection('RAYS')} onReset={() => resetSelectedSection('RAYS')}>
+                  {showEffectControl(['rays']) && (
+                    <>
+                      <div className="flex justify-between items-center text-dim text-[10px]"><span>Ray Color</span><input type="color" value={selectedLayer.rayColor} onChange={(e) => applySelectedPatch<EffectLayer>({ rayColor: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
+                      <Slider label="Intensity" value={selectedLayer.rayInt} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ rayInt: v })} effectKey="rayInt" {...ip} />
+                      <Slider label="Count" value={selectedLayer.rays} min={0} max={32} onChange={(v) => applySelectedPatch<EffectLayer>({ rays: v })} effectKey="rays" {...ip} />
+                    </>
+                  )}
+                  {showEffectControl(['bloom']) && <Slider label="Bloom" value={selectedLayer.bloom} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ bloom: v })} effectKey="bloom" {...ip} />}
+                  {showEffectControl(['filmBurn']) && <Slider label="Film Burn" value={selectedLayer.filmBurn} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ filmBurn: v })} effectKey="filmBurn" {...ip} />}
                 </Section>
-                <Section title="GLITCH" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'glitch')} onRand={() => randomizeSelectedSection('GLITCH')} onReset={() => resetSelectedSection('GLITCH')}>
-                  <Slider label="VHS Streaks" value={selectedLayer.glitch} min={0} max={24} onChange={(v) => applySelectedPatch<EffectLayer>({ glitch: v })} effectKey="glitch" {...ip} />
-                  <Slider label="Chromatic" value={selectedLayer.ca} min={0} max={15} onChange={(v) => applySelectedPatch<EffectLayer>({ ca: v })} effectKey="ca" {...ip} />
-                  <Slider label="Interlace" value={selectedLayer.interlace} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ interlace: v })} effectKey="interlace" {...ip} />
-                  <Slider label="Data Mosh" value={selectedLayer.dataMosh} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ dataMosh: v })} effectKey="dataMosh" {...ip} />
+                <Section title="GLITCH" hidden={!showEffectGroup(['glitch', 'ca', 'interlace', 'dataMosh'])} onRand={() => randomizeSelectedSection('GLITCH')} onReset={() => resetSelectedSection('GLITCH')}>
+                  {showEffectControl(['glitch']) && <Slider label="VHS Streaks" value={selectedLayer.glitch} min={0} max={24} onChange={(v) => applySelectedPatch<EffectLayer>({ glitch: v })} effectKey="glitch" {...ip} />}
+                  {showEffectControl(['ca']) && <Slider label="Chromatic" value={selectedLayer.ca} min={0} max={15} onChange={(v) => applySelectedPatch<EffectLayer>({ ca: v })} effectKey="ca" {...ip} />}
+                  {showEffectControl(['interlace']) && <Slider label="Interlace" value={selectedLayer.interlace} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ interlace: v })} effectKey="interlace" {...ip} />}
+                  {showEffectControl(['dataMosh']) && <Slider label="Data Mosh" value={selectedLayer.dataMosh} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ dataMosh: v })} effectKey="dataMosh" {...ip} />}
                 </Section>
-                <Section title="TEXTURE" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'grain')} onRand={() => randomizeSelectedSection('TEXTURE')} onReset={() => resetSelectedSection('TEXTURE')}>
-                  <Slider label="Grain" value={selectedLayer.grain} min={0} max={70} onChange={(v) => applySelectedPatch<EffectLayer>({ grain: v })} effectKey="grain" {...ip} />
-                  <Slider label="Scanlines" value={selectedLayer.scanlines} min={0} max={50} onChange={(v) => applySelectedPatch<EffectLayer>({ scanlines: v })} effectKey="scanlines" {...ip} />
+                <Section title="TEXTURE" hidden={!showEffectGroup(['grain', 'scanlines'])} onRand={() => randomizeSelectedSection('TEXTURE')} onReset={() => resetSelectedSection('TEXTURE')}>
+                  {showEffectControl(['grain']) && <Slider label="Grain" value={selectedLayer.grain} min={0} max={70} onChange={(v) => applySelectedPatch<EffectLayer>({ grain: v })} effectKey="grain" {...ip} />}
+                  {showEffectControl(['scanlines']) && <Slider label="Scanlines" value={selectedLayer.scanlines} min={0} max={50} onChange={(v) => applySelectedPatch<EffectLayer>({ scanlines: v })} effectKey="scanlines" {...ip} />}
                 </Section>
                 <Section title="COLOR TINT" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'tint')} onRand={() => randomizeSelectedSection('TINT')} onReset={() => resetSelectedSection('TINT')}>
                   <div className="flex justify-between items-center text-dim text-[10px]"><span>Tint Color</span><input type="color" value={selectedLayer.tint} onChange={(e) => applySelectedPatch<EffectLayer>({ tint: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
                   <Slider label="Opacity" value={selectedLayer.tintOp} min={0} max={80} onChange={(v) => applySelectedPatch<EffectLayer>({ tintOp: v })} effectKey="tintOp" {...ip} />
                 </Section>
-                <Section title="WARP" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'warp')} onRand={() => randomizeSelectedSection('WARP')} onReset={() => resetSelectedSection('WARP')}>
-                  <Slider label="Noise Warp" value={selectedLayer.noiseWarp} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ noiseWarp: v })} effectKey="noiseWarp" {...ip} />
-                  <Slider label="Liquid Morph" value={selectedLayer.morphAmt} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ morphAmt: v })} effectKey="morphAmt" {...ip} />
-                  <Slider label="Morph Freq" value={selectedLayer.morphFreq} min={1} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ morphFreq: v })} effectKey="morphFreq" {...ip} />
-                  <Slider label="Vortex" value={selectedLayer.vortex} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ vortex: v })} effectKey="vortex" {...ip} />
-                  <Slider label="Barrel" value={selectedLayer.barrel} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ barrel: v })} effectKey="barrel" {...ip} />
-                  <Slider label="Chunk Tear" value={selectedLayer.tearAmt} min={0} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ tearAmt: v })} effectKey="tearAmt" {...ip} />
-                  <Slider label="Tear Size" value={selectedLayer.tearSize} min={1} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ tearSize: v })} effectKey="tearSize" {...ip} />
-                  <Slider label="Mirror" value={selectedLayer.mirror} min={0} max={3} onChange={(v) => applySelectedPatch<EffectLayer>({ mirror: v })} effectKey="mirror" {...ip} />
+                <Section title="WARP" hidden={!showEffectGroup(['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'warp'])} onRand={() => randomizeSelectedSection('WARP')} onReset={() => resetSelectedSection('WARP')}>
+                  {showEffectControl(['noiseWarp']) && <Slider label="Noise Warp" value={selectedLayer.noiseWarp} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ noiseWarp: v })} effectKey="noiseWarp" {...ip} />}
+                  {showEffectControl(['morph', 'warp']) && (
+                    <>
+                      <Slider label="Liquid Morph" value={selectedLayer.morphAmt} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ morphAmt: v })} effectKey="morphAmt" {...ip} />
+                      <Slider label="Morph Freq" value={selectedLayer.morphFreq} min={1} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ morphFreq: v })} effectKey="morphFreq" {...ip} />
+                    </>
+                  )}
+                  {showEffectControl(['vortex', 'warp']) && <Slider label="Vortex" value={selectedLayer.vortex} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ vortex: v })} effectKey="vortex" {...ip} />}
+                  {showEffectControl(['barrel', 'warp']) && <Slider label="Barrel" value={selectedLayer.barrel} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ barrel: v })} effectKey="barrel" {...ip} />}
+                  {showEffectControl(['tear', 'warp']) && (
+                    <>
+                      <Slider label="Chunk Tear" value={selectedLayer.tearAmt} min={0} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ tearAmt: v })} effectKey="tearAmt" {...ip} />
+                      <Slider label="Tear Size" value={selectedLayer.tearSize} min={1} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ tearSize: v })} effectKey="tearSize" {...ip} />
+                    </>
+                  )}
+                  {showEffectControl(['mirror', 'warp']) && <Slider label="Mirror" value={selectedLayer.mirror} min={0} max={3} onChange={(v) => applySelectedPatch<EffectLayer>({ mirror: v })} effectKey="mirror" {...ip} />}
                 </Section>
-                <Section title="COLOR FX" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'color')} onRand={() => randomizeSelectedSection('COLORFX')} onReset={() => resetSelectedSection('COLORFX')}>
-                  <Slider label="Hue Shift" value={selectedLayer.hueShift} min={0} max={360} onChange={(v) => applySelectedPatch<EffectLayer>({ hueShift: v })} effectKey="hueShift" {...ip} />
-                  <Slider label="RGB Split" value={selectedLayer.rgbSplit} min={0} max={30} onChange={(v) => applySelectedPatch<EffectLayer>({ rgbSplit: v })} effectKey="rgbSplit" {...ip} />
-                  <Slider label="Vignette" value={selectedLayer.vignette} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ vignette: v })} effectKey="vignette" {...ip} />
-                  <Slider label="Pixelate" value={selectedLayer.pixelate} min={0} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ pixelate: v })} effectKey="pixelate" {...ip} />
-                  <Slider label="Posterize" value={selectedLayer.posterize} min={0} max={16} onChange={(v) => applySelectedPatch<EffectLayer>({ posterize: v })} effectKey="posterize" {...ip} />
+                <Section title="COLOR FX" hidden={!showEffectGroup(['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize', 'color'])} onRand={() => randomizeSelectedSection('COLORFX')} onReset={() => resetSelectedSection('COLORFX')}>
+                  {showEffectControl(['hueShift', 'color']) && <Slider label="Hue Shift" value={selectedLayer.hueShift} min={0} max={360} onChange={(v) => applySelectedPatch<EffectLayer>({ hueShift: v })} effectKey="hueShift" {...ip} />}
+                  {showEffectControl(['rgbSplit']) && <Slider label="RGB Split" value={selectedLayer.rgbSplit} min={0} max={30} onChange={(v) => applySelectedPatch<EffectLayer>({ rgbSplit: v })} effectKey="rgbSplit" {...ip} />}
+                  {showEffectControl(['vignette']) && <Slider label="Vignette" value={selectedLayer.vignette} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ vignette: v })} effectKey="vignette" {...ip} />}
+                  {showEffectControl(['pixelate']) && <Slider label="Pixelate" value={selectedLayer.pixelate} min={0} max={20} onChange={(v) => applySelectedPatch<EffectLayer>({ pixelate: v })} effectKey="pixelate" {...ip} />}
+                  {showEffectControl(['posterize', 'color']) && <Slider label="Posterize" value={selectedLayer.posterize} min={0} max={16} onChange={(v) => applySelectedPatch<EffectLayer>({ posterize: v })} effectKey="posterize" {...ip} />}
                 </Section>
-                <Section title="RISO" hidden={!!(selectedLayer.preset && selectedLayer.preset !== 'riso')} onRand={() => randomizeSelectedSection('RISO')} onReset={() => resetSelectedSection('RISO')}>
-                  <Slider label="Duotone" value={selectedLayer.duotone} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ duotone: v })} effectKey="duotone" {...ip} />
-                  <div className="flex justify-between items-center text-dim text-[10px]"><span>Shadow Color</span><input type="color" value={selectedLayer.duoA} onChange={(e) => applySelectedPatch<EffectLayer>({ duoA: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
-                  <div className="flex justify-between items-center text-dim text-[10px]"><span>Light Color</span><input type="color" value={selectedLayer.duoB} onChange={(e) => applySelectedPatch<EffectLayer>({ duoB: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
-                  <Slider label="Halftone" value={selectedLayer.halftone} min={0} max={30} onChange={(v) => applySelectedPatch<EffectLayer>({ halftone: v })} effectKey="halftone" {...ip} />
-                  <Slider label="Misreg Shift" value={selectedLayer.risoShift} min={0} max={40} onChange={(v) => applySelectedPatch<EffectLayer>({ risoShift: v })} effectKey="risoShift" {...ip} />
-                  <Slider label="Misreg Angle" value={selectedLayer.risoAngle} min={0} max={360} onChange={(v) => applySelectedPatch<EffectLayer>({ risoAngle: v })} effectKey="risoAngle" {...ip} />
+                <Section title="RISO" hidden={!showEffectGroup(['duotone', 'halftone', 'risoShift', 'riso'])} onRand={() => randomizeSelectedSection('RISO')} onReset={() => resetSelectedSection('RISO')}>
+                  {showEffectControl(['duotone', 'riso']) && (
+                    <>
+                      <Slider label="Duotone" value={selectedLayer.duotone} min={0} max={100} onChange={(v) => applySelectedPatch<EffectLayer>({ duotone: v })} effectKey="duotone" {...ip} />
+                      <div className="flex justify-between items-center text-dim text-[10px]"><span>Shadow Color</span><input type="color" value={selectedLayer.duoA} onChange={(e) => applySelectedPatch<EffectLayer>({ duoA: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
+                      <div className="flex justify-between items-center text-dim text-[10px]"><span>Light Color</span><input type="color" value={selectedLayer.duoB} onChange={(e) => applySelectedPatch<EffectLayer>({ duoB: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" /></div>
+                    </>
+                  )}
+                  {showEffectControl(['halftone', 'riso']) && <Slider label="Halftone" value={selectedLayer.halftone} min={0} max={30} onChange={(v) => applySelectedPatch<EffectLayer>({ halftone: v })} effectKey="halftone" {...ip} />}
+                  {showEffectControl(['risoShift', 'riso']) && (
+                    <>
+                      <Slider label="Misreg Shift" value={selectedLayer.risoShift} min={0} max={40} onChange={(v) => applySelectedPatch<EffectLayer>({ risoShift: v })} effectKey="risoShift" {...ip} />
+                      <Slider label="Misreg Angle" value={selectedLayer.risoAngle} min={0} max={360} onChange={(v) => applySelectedPatch<EffectLayer>({ risoAngle: v })} effectKey="risoAngle" {...ip} />
+                    </>
+                  )}
                 </Section>
               </>
             )}

@@ -9,4 +9,7 @@ export default defineConfig({
     reactRouter(),
     tsconfigPaths(),
   ],
+  optimizeDeps: {
+    include: ['@xyflow/react'],
+  },
 })

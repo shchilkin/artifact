@@ -1,5 +1,5 @@
 import type { CanvasDocument, EffectLayer } from "../types/config";
-import { makeEmojiLayer, makeEffectLayer } from "../types/config";
+import { DEFAULT_EXPORT, makeEmojiLayer, makeEffectLayer } from "../types/config";
 import { renderDocument } from "./renderer";
 
 export interface EffectMeta {
@@ -241,6 +241,7 @@ export async function renderEffectThumb(key: string): Promise<string> {
             BASE_EMOJI_LAYER,
             makeEffectLayer({ ...BASE_EFFECT, ...meta.cfgOverride }),
         ],
+        export: { ...DEFAULT_EXPORT },
     };
 
     const canvas = await renderDocument(doc, THUMB_SIZE, THUMB_SIZE, new Map());
