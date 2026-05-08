@@ -64,14 +64,15 @@ const THUMB_SIZE = 136;
 const NODE_EDITOR_W = 292;
 const EDGE_INTERCEPT_THRESHOLD = 56;
 
+// Risograph-inspired palette — high chroma, limited swatches, treated as inks.
 const KIND_COLOR: Record<string, string> = {
-  fill:   'oklch(60% 0.07 65)',
-  image:  'oklch(57% 0.06 215)',
-  text:   'oklch(65% 0.05 55)',
-  emoji:  'oklch(64% 0.09 148)',
-  effect: 'oklch(60% 0.13 298)',
-  merge:  'oklch(60% 0.09 192)',
-  export: 'oklch(78% 0.02 285)',
+  fill:   'oklch(72% 0.18 52)',
+  image:  'oklch(72% 0.14 232)',
+  text:   'oklch(86% 0.17 92)',
+  emoji:  'oklch(70% 0.22 5)',
+  effect: 'oklch(64% 0.22 305)',
+  merge:  'oklch(74% 0.17 152)',
+  export: 'oklch(86% 0.05 92)',
 };
 
 const KIND_SYMBOL: Record<string, string> = {
@@ -385,9 +386,9 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
 // ─── Port handle ──────────────────────────────────────────────────────────────
 
 const HANDLE_STYLE = {
-  background: 'oklch(60% 0.09 192)',
-  border: '1px solid oklch(45% 0.02 285)',
-  width: 8, height: 8,
+  background: 'oklch(74% 0.17 152)',
+  border: '1.5px solid oklch(10% 0.008 285)',
+  width: 10, height: 10,
 };
 
 // ─── Node shell ───────────────────────────────────────────────────────────────
@@ -2080,9 +2081,9 @@ export function NodeCanvas({
         .react-flow__handle { border-radius: 50%; }
         .react-flow__controls {
           background: oklch(14% 0.01 285);
-          border: 1px solid oklch(26% 0.015 285);
-          border-radius: 4px;
-          box-shadow: none;
+          border: 1px solid oklch(28% 0.015 285);
+          border-radius: 3px;
+          box-shadow: 2px 2px 0 oklch(7% 0.006 285);
         }
         .react-flow__controls-button {
           background: transparent;
@@ -2103,8 +2104,9 @@ export function NodeCanvas({
         .nodrag { pointer-events: auto; }
         .node-drag-handle:active { cursor: grabbing; }
         .node-thumbnail {
-          background: oklch(8% 0.01 285);
-          border-radius: 3px;
+          background: oklch(7% 0.008 285);
+          border: 1px solid oklch(20% 0.012 285);
+          border-radius: 2px;
           overflow: hidden;
           position: relative;
           flex-shrink: 0;
@@ -2117,11 +2119,14 @@ export function NodeCanvas({
         .node-thumbnail-export {
           height: auto;
           overflow: visible;
+          border: none;
+          background: transparent;
         }
         .node-thumbnail-frame {
           position: relative;
           overflow: hidden;
-          border-radius: 3px;
+          border-radius: 2px;
+          border: 1px solid oklch(20% 0.012 285);
         }
         .node-thumbnail-canvas {
           display: block;
@@ -2138,46 +2143,50 @@ export function NodeCanvas({
         }
         .node-shell {
           background: oklch(14% 0.01 285);
-          border: 1px solid oklch(26% 0.015 285);
-          border-radius: 6px;
+          border: 1px solid oklch(28% 0.014 285);
+          border-radius: 3px;
           overflow: hidden;
-          box-shadow: 0 4px 16px oklch(0% 0 0 / 0.4);
+          box-shadow: 2px 2px 0 oklch(7% 0.006 285);
           cursor: default;
           user-select: none;
+          transition: box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1), border-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
         }
         .node-shell-selected {
           border-color: var(--node-accent);
-          box-shadow: 0 0 0 1px color-mix(in oklab, var(--node-accent) 20%, transparent), 0 4px 16px oklch(0% 0 0 / 0.5);
+          box-shadow: 3px 3px 0 var(--node-accent);
         }
         .node-shell-accent,
         .node-editor-accent {
           background: var(--node-accent);
           flex-shrink: 0;
         }
-        .node-shell-accent { height: 3px; }
-        .node-editor-accent { height: 2px; }
+        .node-shell-accent { height: 4px; }
+        .node-editor-accent { height: 3px; }
         .node-shell-header {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 5px 8px;
-          background: oklch(12% 0.012 285);
+          gap: 7px;
+          padding: 6px 9px;
+          background: oklch(11% 0.012 285);
           border-bottom: 1px solid oklch(22% 0.012 285);
-          min-height: 28px;
+          min-height: 30px;
         }
         .node-shell-drag {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
           flex: 1;
           min-width: 0;
           cursor: grab;
         }
         .node-shell-symbol {
           color: var(--node-accent);
-          font-size: 10px;
+          font-size: 13px;
+          font-weight: 600;
           line-height: 1;
           flex-shrink: 0;
+          width: 13px;
+          text-align: center;
         }
         .node-shell-label,
         .node-shell-name,
@@ -2194,21 +2203,23 @@ export function NodeCanvas({
           font-family: var(--mono);
         }
         .node-shell-label {
-          color: oklch(44% 0.013 285);
+          color: oklch(48% 0.014 285);
           font-size: 9px;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.08em;
           flex-shrink: 0;
         }
         .node-shell-name {
-          color: oklch(70% 0.018 68);
-          font-size: 10px;
+          color: oklch(82% 0.022 68);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.005em;
           flex: 1;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .node-shell-body { padding: 8px 8px 6px; }
+        .node-shell-body { padding: 9px 9px 7px; }
         .node-shell-toggle,
         .node-editor-close {
           width: 22px;
@@ -2248,8 +2259,8 @@ export function NodeCanvas({
           top: -2px;
           background: oklch(13% 0.011 285);
           border: 1px solid var(--node-accent);
-          border-radius: 10px;
-          box-shadow: 0 16px 40px oklch(0% 0 0 / 0.55);
+          border-radius: 4px;
+          box-shadow: 4px 4px 0 oklch(7% 0.006 285);
           overflow: hidden;
           z-index: 30;
         }
@@ -2480,18 +2491,28 @@ export function NodeCanvas({
           align-items: center;
           justify-content: center;
           gap: 8px;
-          min-height: 32px;
-          border-radius: 6px;
-          border: 1px solid oklch(30% 0.018 285);
-          background: oklch(18% 0.014 285);
-          color: oklch(76% 0.02 68);
+          min-height: 34px;
+          border-radius: 3px;
+          border: 1px solid oklch(86% 0.05 92);
+          background: oklch(86% 0.05 92);
+          color: oklch(14% 0.01 285);
           font-family: var(--mono);
           font-size: 11px;
-          letter-spacing: 0.04em;
+          font-weight: 600;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
           cursor: pointer;
+          box-shadow: 2px 2px 0 oklch(7% 0.006 285);
+          transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .node-export-button:disabled { opacity: 0.6; cursor: default; }
+        .node-export-button:hover:not(:disabled) {
+          background: oklch(90% 0.06 92);
+        }
+        .node-export-button:active:not(:disabled) {
+          transform: translate(2px, 2px);
+          box-shadow: 0 0 0 oklch(7% 0.006 285);
+        }
+        .node-export-button:disabled { opacity: 0.55; cursor: default; }
         .node-canvas-toolbar {
           position: absolute;
           top: 12px;
@@ -2507,30 +2528,35 @@ export function NodeCanvas({
           align-items: center;
           gap: 6px;
           height: 28px;
-          padding: 0 10px;
-          border-radius: 6px;
-          border: 1px solid oklch(26% 0.015 285);
+          padding: 0 11px;
+          border-radius: 3px;
+          border: 1px solid oklch(28% 0.015 285);
           background: oklch(14% 0.01 285);
-          color: oklch(74% 0.018 68);
+          color: oklch(78% 0.02 68);
           font-family: var(--mono);
           font-size: 10px;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           cursor: pointer;
-          transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1), background 120ms cubic-bezier(0.25, 1, 0.5, 1), color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+          box-shadow: 2px 2px 0 oklch(7% 0.006 285);
+          transition: border-color 120ms cubic-bezier(0.22, 1, 0.36, 1), background 120ms cubic-bezier(0.22, 1, 0.36, 1), color 120ms cubic-bezier(0.22, 1, 0.36, 1), transform 120ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
         }
         .node-canvas-toolbar button:hover {
-          border-color: oklch(36% 0.024 285);
+          border-color: oklch(64% 0.22 305);
           background: oklch(18% 0.018 285);
-          color: oklch(78% 0.02 68);
+          color: oklch(86% 0.024 68);
+        }
+        .node-canvas-toolbar button:active {
+          transform: translate(2px, 2px);
+          box-shadow: 0 0 0 oklch(7% 0.006 285);
         }
         .node-menu {
           position: fixed;
           z-index: 1000;
-          background: oklch(16% 0.012 285);
-          border: 1px solid oklch(28% 0.016 285);
-          border-radius: 8px;
-          box-shadow: 0 8px 32px oklch(0% 0 0 / 0.6);
+          background: oklch(15% 0.012 285);
+          border: 1px solid oklch(30% 0.016 285);
+          border-radius: 3px;
+          box-shadow: 4px 4px 0 oklch(7% 0.006 285);
           overflow: hidden;
         }
         .node-menu-search {
@@ -2645,7 +2671,7 @@ export function NodeCanvas({
         deleteKeyCode="Delete"
         proOptions={RF_PRO_OPTIONS}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="oklch(22% 0.012 285)" />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="oklch(28% 0.014 285)" />
         <Controls showInteractive={false} />
       </ReactFlow>
 

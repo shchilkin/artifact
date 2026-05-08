@@ -48,14 +48,14 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
     target: e.toId,
     targetHandle: e.toPort,
     type: 'smoothstep',
-    style: { stroke: getEdgeColor(e.fromId, graph), strokeWidth: 1.5, opacity: 0.55 },
+    style: { stroke: getEdgeColor(e.fromId, graph), strokeWidth: 2, opacity: 0.82 },
   }));
 }
 
 function getEdgeColor(fromId: string, graph: CanvasGraph): string {
   const isMerge = graph.mergeNodes.some((n) => n.id === fromId);
-  if (isMerge) return 'oklch(60% 0.09 192)';
-  return 'oklch(60% 0.13 298)';
+  if (isMerge) return 'oklch(74% 0.17 152)';
+  return 'oklch(64% 0.22 305)';
 }
 
 export function updateGraphPositions(
