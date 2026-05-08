@@ -287,7 +287,7 @@ export default function Home() {
                   aria-current={i === step ? 'step' : undefined}
                 >
                   <span className="home-progress__bar" aria-hidden="true" />
-                  <span className="home-progress__label">{s.title.replace('.', '')}</span>
+                  <span className="sr-only">{s.title.replace('.', '')}</span>
                 </li>
               ))}
             </ol>

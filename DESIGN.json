@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-08T00:00:00Z",
+  "title": "Design System: Artifact",
+  "extensions": {
+    "colorMeta": {
+      "ink-bg": {
+        "role": "neutral",
+        "displayName": "Ink BG",
+        "canonical": "oklch(8% 0.012 42)",
+        "tonalRamp": [
+          "oklch(6% 0.010 42)",
+          "oklch(10% 0.012 42)",
+          "oklch(18% 0.014 42)",
+          "oklch(28% 0.016 42)",
+          "oklch(42% 0.018 42)",
+          "oklch(58% 0.018 42)",
+          "oklch(74% 0.014 42)",
+          "oklch(92% 0.010 42)"
+        ]
+      },
+      "ink-sidebar": {
+        "role": "neutral",
+        "displayName": "Ink Sidebar",
+        "canonical": "oklch(11% 0.016 42)",
+        "tonalRamp": [
+          "oklch(8% 0.012 42)",
+          "oklch(11% 0.016 42)",
+          "oklch(20% 0.018 42)",
+          "oklch(32% 0.018 42)",
+          "oklch(46% 0.018 42)",
+          "oklch(62% 0.016 42)",
+          "oklch(78% 0.012 42)",
+          "oklch(94% 0.008 42)"
+        ]
+      },
+      "ink-border": {
+        "role": "neutral",
+        "displayName": "Ink Border",
+        "canonical": "oklch(24% 0.018 42)",
+        "tonalRamp": [
+          "oklch(14% 0.014 42)",
+          "oklch(20% 0.016 42)",
+          "oklch(28% 0.018 42)",
+          "oklch(38% 0.020 42)",
+          "oklch(50% 0.018 42)",
+          "oklch(64% 0.016 42)",
+          "oklch(78% 0.012 42)",
+          "oklch(92% 0.008 42)"
+        ]
+      },
+      "ink-rule": {
+        "role": "neutral",
+        "displayName": "Ink Rule",
+        "canonical": "oklch(20% 0.018 42)",
+        "tonalRamp": [
+          "oklch(12% 0.012 42)",
+          "oklch(18% 0.016 42)",
+          "oklch(26% 0.018 42)",
+          "oklch(36% 0.020 42)",
+          "oklch(48% 0.018 42)",
+          "oklch(62% 0.016 42)",
+          "oklch(76% 0.012 42)",
+          "oklch(90% 0.008 42)"
+        ]
+      },
+      "ash-text": {
+        "role": "neutral",
+        "displayName": "Ash Text",
+        "canonical": "oklch(80% 0.022 68)",
+        "tonalRamp": [
+          "oklch(15% 0.014 68)",
+          "oklch(28% 0.018 68)",
+          "oklch(42% 0.020 68)",
+          "oklch(56% 0.022 68)",
+          "oklch(68% 0.022 68)",
+          "oklch(80% 0.022 68)",
+          "oklch(88% 0.018 68)",
+          "oklch(95% 0.012 68)"
+        ]
+      },
+      "ash-dim": {
+        "role": "neutral",
+        "displayName": "Ash Dim",
+        "canonical": "oklch(50% 0.018 68)",
+        "tonalRamp": [
+          "oklch(15% 0.012 68)",
+          "oklch(26% 0.014 68)",
+          "oklch(38% 0.016 68)",
+          "oklch(50% 0.018 68)",
+          "oklch(62% 0.020 68)",
+          "oklch(74% 0.020 68)",
+          "oklch(85% 0.016 68)",
+          "oklch(94% 0.010 68)"
+        ]
+      },
+      "flare-accent": {
+        "role": "primary",
+        "displayName": "Flare Accent",
+        "canonical": "oklch(66% 0.16 28)",
+        "tonalRamp": [
+          "oklch(20% 0.06 28)",
+          "oklch(32% 0.10 28)",
+          "oklch(44% 0.14 28)",
+          "oklch(56% 0.16 28)",
+          "oklch(66% 0.16 28)",
+          "oklch(76% 0.14 28)",
+          "oklch(86% 0.10 28)",
+          "oklch(94% 0.06 28)"
+        ]
+      },
+      "flare-accent-soft": {
+        "role": "primary",
+        "displayName": "Flare Accent Soft",
+        "canonical": "oklch(66% 0.16 28 / 0.15)",
+        "tonalRamp": [
+          "oklch(66% 0.16 28 / 0.05)",
+          "oklch(66% 0.16 28 / 0.10)",
+          "oklch(66% 0.16 28 / 0.15)",
+          "oklch(66% 0.16 28 / 0.25)",
+          "oklch(66% 0.16 28 / 0.40)",
+          "oklch(66% 0.16 28 / 0.60)",
+          "oklch(66% 0.16 28 / 0.80)",
+          "oklch(66% 0.16 28 / 1.00)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "hero": { "displayName": "Hero", "purpose": "One-per-page landing headline. Display caps, fluid clamp(3rem, 11vw, 11rem)." },
+      "display": { "displayName": "Display", "purpose": "Section and step titles, ALL CAPS." },
+      "body": { "displayName": "Body", "purpose": "Mono body copy, deck text. Max ~38–60ch." },
+      "label": { "displayName": "Label", "purpose": "Mono labels, buttons, chips, eyebrows. Tracking 0.18em." },
+      "meta": { "displayName": "Meta", "purpose": "Mono meta lines: seeds, step counters, timestamps." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for state transitions, scroll-driven reveals, tile lift." },
+      { "name": "ease-out-fast", "value": "ease-out", "purpose": "Short feedback on hover/focus state changes (150–180ms)." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Filter chip color/border state shifts." },
+      { "name": "duration-medium", "value": "220ms", "purpose": "Tile lift, outline color shift." },
+      { "name": "duration-slow", "value": "380ms", "purpose": "Step opacity reveal on scroll." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1024px" },
+      { "name": "wide", "value": "1280px" },
+      { "name": "ultra", "value": "1600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary CTA",
+      "kind": "button",
+      "refersTo": "button-cta",
+      "description": "Square accent button used for primary actions (Open generator, export). Mono label, ALL CAPS, no radius.",
+      "html": "<button class=\"ds-btn-cta\">OPEN GENERATOR <span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-btn-cta { display: inline-flex; align-items: center; gap: 12px; background: oklch(66% 0.16 28); color: oklch(8% 0.012 42); font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.7rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; padding: 16px 28px; border: none; border-radius: 0; cursor: pointer; min-height: 44px; transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-cta:hover { background: oklch(80% 0.022 68); color: oklch(8% 0.012 42); } .ds-btn-cta:focus-visible { outline: 2px solid oklch(66% 0.16 28); outline-offset: 3px; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Square mono chip used for aspect-ratio and category filters. Inverts to active state (Ash Text fill, Ink BG text).",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"false\">1:1 SQUARE <span class=\"ds-chip__count\">8</span></button><button class=\"ds-chip ds-chip--active\" aria-pressed=\"true\">ALL <span class=\"ds-chip__count\">25</span></button>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid oklch(24% 0.018 42); color: oklch(50% 0.018 68); font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 14px; cursor: pointer; min-height: 36px; border-radius: 0; transition: color 150ms ease-out, border-color 150ms ease-out, background 150ms ease-out; } .ds-chip:hover { color: oklch(80% 0.022 68); border-color: oklch(40% 0.02 42); } .ds-chip--active { color: oklch(8% 0.012 42); background: oklch(80% 0.022 68); border-color: oklch(80% 0.022 68); } .ds-chip__count { font-size: 0.65rem; opacity: 0.7; }"
+    },
+    {
+      "name": "Example Tile",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "Square-cornered tile presenting a generated cover. Resting outline keeps it readable on Ink BG; hover lifts 2px and shifts outline to accent.",
+      "html": "<a class=\"ds-tile\" href=\"#\"><div class=\"ds-tile__frame\"><img class=\"ds-tile__img\" src=\"\" alt=\"\" /><div class=\"ds-tile__overlay\"><span class=\"ds-tile__seed\">SEED #31415</span><span class=\"ds-tile__cta\">OPEN ↗</span></div></div></a>",
+      "css": ".ds-tile { display: block; cursor: pointer; outline: none; text-decoration: none; } .ds-tile__frame { position: relative; width: 100%; aspect-ratio: 1; background: oklch(12% 0.01 42); overflow: hidden; outline: 1px solid oklch(18% 0.012 42); outline-offset: 0; border-radius: 0; transition: outline-color 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-tile:hover .ds-tile__frame { outline-color: oklch(66% 0.16 28); transform: translateY(-2px); } .ds-tile__img { display: block; width: 100%; height: 100%; object-fit: cover; } .ds-tile__overlay { position: absolute; inset: 0; background: linear-gradient(to top, oklch(4% 0.005 42 / 0.96) 0%, oklch(4% 0.005 42 / 0.18) 58%, transparent 75%); display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; opacity: 0; transition: opacity 180ms ease-out; pointer-events: none; } .ds-tile:hover .ds-tile__overlay { opacity: 1; } .ds-tile__seed { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.62rem; color: oklch(50% 0.018 68); letter-spacing: 0.1em; } .ds-tile__cta { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.7rem; color: oklch(66% 0.16 28); letter-spacing: 0.06em; }"
+    },
+    {
+      "name": "Slider Track",
+      "kind": "input",
+      "refersTo": "slider-track",
+      "description": "Mixing-desk style range input. Ink Border track, accent fill, square thumb. Used throughout the generator for effect parameters.",
+      "html": "<input class=\"ds-slider\" type=\"range\" min=\"0\" max=\"100\" value=\"34\" />",
+      "css": ".ds-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; background: transparent; outline: none; cursor: pointer; } .ds-slider::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(to right, oklch(66% 0.16 28) 0%, oklch(66% 0.16 28) 34%, oklch(24% 0.018 42) 34%, oklch(24% 0.018 42) 100%); border-radius: 4px; } .ds-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: oklch(80% 0.022 68); border: none; border-radius: 4px; margin-top: -4.5px; cursor: pointer; transition: background 150ms ease-out; } .ds-slider:hover::-webkit-slider-thumb { background: oklch(66% 0.16 28); } .ds-slider:focus-visible::-webkit-slider-thumb { outline: 2px solid oklch(66% 0.16 28); outline-offset: 2px; }"
+    },
+    {
+      "name": "Layer Row",
+      "kind": "custom",
+      "refersTo": "layer-row",
+      "description": "Sortable row in the generator's layer panel. Drag handle, mono label, square edges. Selected state uses a 1px accent hairline on the left edge — never a colored stripe.",
+      "html": "<div class=\"ds-layer\"><span class=\"ds-layer__drag\" aria-hidden=\"true\">⋮⋮</span><span class=\"ds-layer__icon\" aria-hidden=\"true\">▒</span><span class=\"ds-layer__name\">Scanlines</span><span class=\"ds-layer__action\">○</span></div><div class=\"ds-layer ds-layer--selected\"><span class=\"ds-layer__drag\" aria-hidden=\"true\">⋮⋮</span><span class=\"ds-layer__icon\" aria-hidden=\"true\">≋</span><span class=\"ds-layer__name\">Halftone</span><span class=\"ds-layer__action\">●</span></div>",
+      "css": ".ds-layer { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 36px; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.7rem; color: oklch(80% 0.022 68); border-bottom: 1px solid oklch(24% 0.018 42); border-left: 1px solid transparent; cursor: pointer; transition: border-color 150ms ease-out, background 150ms ease-out; } .ds-layer:hover { background: oklch(11% 0.016 42); } .ds-layer--selected { border-left-color: oklch(66% 0.16 28); background: oklch(66% 0.16 28 / 0.05); } .ds-layer__drag { color: oklch(50% 0.018 68); cursor: grab; letter-spacing: -2px; } .ds-layer__icon { color: oklch(66% 0.16 28); width: 14px; text-align: center; } .ds-layer__name { flex: 1; letter-spacing: 0.04em; } .ds-layer__action { color: oklch(50% 0.018 68); width: 14px; text-align: center; }"
+    },
+    {
+      "name": "Print Marks (Frame)",
+      "kind": "custom",
+      "refersTo": "print-marks",
+      "description": "Signature L-shaped registration marks at canvas corners. Carries the 'this is being prepared for print' voice without adding shadow vocabulary.",
+      "html": "<div class=\"ds-frame\"><span class=\"ds-frame__mark ds-frame__mark--tl\" aria-hidden=\"true\"></span><span class=\"ds-frame__mark ds-frame__mark--tr\" aria-hidden=\"true\"></span><span class=\"ds-frame__mark ds-frame__mark--bl\" aria-hidden=\"true\"></span><span class=\"ds-frame__mark ds-frame__mark--br\" aria-hidden=\"true\"></span><div class=\"ds-frame__inner\"></div></div>",
+      "css": ".ds-frame { position: relative; width: 240px; height: 240px; padding: 0; } .ds-frame__inner { width: 100%; height: 100%; background: oklch(12% 0.01 42); box-shadow: 0 0 0 1px oklch(24% 0.018 42); } .ds-frame__mark { position: absolute; width: 14px; height: 14px; pointer-events: none; } .ds-frame__mark::before, .ds-frame__mark::after { content: ''; position: absolute; background: oklch(66% 0.16 28); } .ds-frame__mark::before { width: 14px; height: 1px; } .ds-frame__mark::after { width: 1px; height: 14px; } .ds-frame__mark--tl { top: -22px; left: -22px; } .ds-frame__mark--tl::before { top: 13px; left: 0; } .ds-frame__mark--tl::after  { top: 0; left: 13px; } .ds-frame__mark--tr { top: -22px; right: -22px; } .ds-frame__mark--tr::before { top: 13px; right: 0; } .ds-frame__mark--tr::after  { top: 0; right: 13px; } .ds-frame__mark--bl { bottom: -22px; left: -22px; } .ds-frame__mark--bl::before { bottom: 13px; left: 0; } .ds-frame__mark--bl::after  { bottom: 0; left: 13px; } .ds-frame__mark--br { bottom: -22px; right: -22px; } .ds-frame__mark--br::before { bottom: 13px; right: 0; } .ds-frame__mark--br::after  { bottom: 0; right: 13px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Photocopied Zine",
+    "overview": "The interface looks like the artwork it produces. Crude on purpose. Mono-typed labels, square edges, raw rules. The screen is dark because the user is in a bedroom studio at 1am, laptop open, ambient screen-light only, making something weird on purpose. Restraint here is not minimalism for safety; it is the chassis of a mixing board, where every control earns its place.\n\nThe system rejects three things by name. It rejects the overdesigned dev-tool aesthetic: neon gradients, crypto-bro purple, glowing grids. It rejects generic SaaS neutrality (Canva, Adobe Express): polished, corporate-safe, identity-free. And it rejects any palette someone could guess from the domain alone. The accent color is a warm red-orange, not a tech-blue or a creator-purple, and it is used like a printer's registration mark: rare, deliberate, load-bearing.",
+    "keyCharacteristics": [
+      "Dark, warm-tinted neutrals (chroma 0.012–0.022, hue 42–68); never pure #000 or #fff",
+      "One accent (oklch(66% 0.16 28)), used on ≤10% of any screen",
+      "Square corners by default; small radii (2–9px) reserved for native form affordances (sliders, sortable rows)",
+      "Mono for UI text, condensed display for headlines; no body serif anywhere",
+      "Clamp-based fluid spacing; no spacing scale tokens — rhythm comes from contrast between hair (4px) and bay (clamp 48–112px)",
+      "Mobile is first-class; touch targets at 44px minimum"
+    ],
+    "rules": [
+      { "name": "The Registration-Mark Rule", "body": "The accent is a registration mark, not a brand wash. It appears on ≤10% of any screen — current-step indicator, active chip, primary CTA, layer numerals. If two or more accent uses are within thumb's reach of each other, one is decoration. Remove it.", "section": "colors" },
+      { "name": "The Tinted-Neutral Rule", "body": "Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.", "section": "colors" },
+      { "name": "The Mono-As-UI Rule", "body": "All UI chrome — buttons, labels, eyebrows, meta, filter chips — uses mono. Display is reserved for headlines. Mixing display in chrome makes the UI shout. Mixing mono in headlines makes the work feel like a terminal print, not a record sleeve.", "section": "typography" },
+      { "name": "The Caps-And-Tracking Rule", "body": "Anything in caps under 1rem must carry letter-spacing ≥ 0.12em. Anything in caps over 2rem must carry tracking −0.015em or tighter. Caps without tracking adjustments read as accidental, not intentional.", "section": "typography" },
+      { "name": "The Flat-Tonal Rule", "body": "Surfaces are flat. Depth comes from one-step lightness shifts in the neutrals (8% → 11% → 24%) and from hairline 1px borders. Drop shadows are forbidden for resting elevation.", "section": "elevation" },
+      { "name": "The Print-Mark Rule", "body": "When a surface needs to feel framed, use crop / registration marks at the corners (1px lines, 14–18px arms, accent-colored), not a box-shadow. The work is being prepared for print; the chrome should say so.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the accent on ≤10% of any screen. Treat it like a registration mark: rare and load-bearing.",
+      "Do use mono (ui-monospace) for every UI label, button, eyebrow, and meta line.",
+      "Do use Barlow Condensed 900 for headlines. ALL CAPS, tightened tracking on large sizes (≥2rem → tracking −0.015em).",
+      "Do layer depth through tonal shifts in the warm-tinted darks (8% → 11% → 24%) and hairline 1px borders.",
+      "Do square the corners. Reserve small radii (2–9px) for native form affordances only.",
+      "Do treat the seed number as identity. Display it in mono meta, ALL CAPS, with a # prefix.",
+      "Do ship a 44px minimum touch target on every interactive element."
+    ],
+    "donts": [
+      "Don't use overdesigned dev-tool aesthetics: neon gradients, crypto-bro purple, glowing grid backgrounds, glassmorphism, or stacked decorative effects in the chrome.",
+      "Don't ship anything that reads as generic 'modern' SaaS: Canva-flat, Adobe-Express-friendly, identity-free.",
+      "Don't use a palette someone could guess from the domain alone. The accent is intentionally not crypto-purple, not tech-blue, not creator-purple.",
+      "Don't use side-stripe borders (border-left > 1px as a colored accent). Selected layer rows use a 1px hairline, not a 2–4px stripe.",
+      "Don't use gradient text (background-clip: text over a gradient). Emphasis is by weight, scale, and ALL CAPS — never by gradient.",
+      "Don't put drop shadows on resting surfaces. Use tonal layering and 1px borders.",
+      "Don't mix display into UI chrome (buttons, labels). Display is reserved for headlines.",
+      "Don't use #000 or #fff. Every neutral carries 0.012–0.022 chroma along the warm 42–68 hue band.",
+      "Don't modal a flow that fits inline. A modal is the lazy answer; the generator opens as a route, the examples remix opens by deep-linking the doc into the generator."
+    ]
+  }
+}
