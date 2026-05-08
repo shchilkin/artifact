@@ -109,7 +109,7 @@ const STEPS: Step[] = [
     title: "Vignette.",
     body: "Corners darkened. Eye pulled to the center.",
     layers: [
-      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 68 },
+      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 100 },
     ],
   },
   {
@@ -431,25 +431,55 @@ export default function Home() {
                 aria-hidden="true"
               />
             </div>
-            <div className={`home-canvas-meta${heroVisible ? " home-canvas-meta--hidden" : ""}`}>
+            <div
+              className={`home-canvas-meta${heroVisible ? " home-canvas-meta--hidden" : ""}`}
+            >
               <span>SEED #{SEED}</span>
               <span>
                 {String(step + 1).padStart(2, "0")} /{" "}
                 {String(STEPS.length).padStart(2, "0")}
               </span>
             </div>
-            <ol className={`home-progress${heroVisible ? " home-progress--hidden" : ""}`} aria-label="Layer progression">
+            <ol className="home-progress" aria-label="Layer progression">
               {STEPS.map((s, i) => (
                 <li
                   key={s.title}
                   className={`home-progress__item${i <= step ? " home-progress__item--reached" : ""}${i === step ? " home-progress__item--current" : ""}`}
                   aria-current={i === step ? "step" : undefined}
+                  title={s.title.replace(".", "")}
+                  onClick={() => {
+                    const target = stepRefs.current[i];
+                    if (target)
+                      target.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
+                  }}
                 >
                   <span className="home-progress__bar" aria-hidden="true" />
                   <span className="sr-only">{s.title.replace(".", "")}</span>
                 </li>
               ))}
             </ol>
+            <div
+              className={`home-mobile-dots${heroVisible ? " home-mobile-dots--hidden" : ""}`}
+              aria-hidden="true"
+            >
+              {STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  className={`home-mobile-dot${i <= step ? " home-mobile-dot--reached" : ""}${i === step ? " home-mobile-dot--current" : ""}`}
+                  onClick={() => {
+                    const target = stepRefs.current[i];
+                    if (target)
+                      target.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
+                  }}
+                />
+              ))}
+            </div>
           </aside>
 
           <section
@@ -469,7 +499,19 @@ export default function Home() {
               Scroll to watch one cover compose itself, layer by layer.
               Browser-based, GPU-driven, no account.
             </p>
-            <p className="home-hero__hint" aria-hidden="true">
+            <div className="home-hero__actions">
+              <button
+                type="button"
+                className="home-hero__skip"
+                onClick={handleCTA}
+              >
+                Open generator →
+              </button>
+            </div>
+            <p
+              className={`home-hero__hint${!heroVisible ? " home-hero__hint--used" : ""}`}
+              aria-hidden="true"
+            >
               ↓ scroll
             </p>
           </section>
@@ -517,8 +559,7 @@ export default function Home() {
                 </Link>
               </div>
               <p className="home-cta-fineprint">
-                The generator opens with this exact composition. Re-seed,
-                re-layer, re-export.
+                Everything is editable once inside. Re-seed or swap any layer.
               </p>
             </section>
           </div>
