@@ -122,6 +122,82 @@ function buildDoc(stepIndex: number): CanvasDocument {
   };
 }
 
+// Horizontal misregistration offsets per strip (px), like a risograph out-of-register
+const STRIP_OFFSETS = [0, -5, 4, -2, 7] as const;
+
+// One doc per anatomy strip — each shows a single layer type in isolation
+const ANATOMY_ITEMS: Array<{ label: string; doc: CanvasDocument }> = [
+  {
+    label: "fill",
+    doc: {
+      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [makeFillLayer({ color: "#1a0a1f", name: "fill" })],
+    },
+  },
+  {
+    label: "rays",
+    doc: {
+      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
+        makeEffectPresetLayer("rays"),
+      ],
+    },
+  },
+  {
+    label: "emoji",
+    doc: {
+      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#0f0518", name: "fill" }),
+        makeEmojiLayer({
+          emojis: ["💀", "⚡", "🥀", "🖤", "✦"],
+          density: 24,
+          minSz: 22,
+          maxSz: 70,
+          blur: 62,
+          opacity: 75,
+          name: "emoji",
+        }),
+      ],
+    },
+  },
+  {
+    label: "grain",
+    doc: {
+      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
+        { ...makeEffectPresetLayer("grain"), grain: 100 },
+      ],
+    },
+  },
+  {
+    label: "title",
+    doc: {
+      global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#1a0a1f", name: "fill" }),
+        makeTextLayer({
+          content: "WEIRDER",
+          font: "DISPLAY",
+          size: 140,
+          color: "#fff2dc",
+          x: 0.5,
+          y: 0.82,
+          align: "center",
+          name: "title",
+        }),
+      ],
+    },
+  },
+];
+
 export const meta: MetaFunction = () => [
   { title: "Album Cover Generator — Layer it Up" },
   {
@@ -139,17 +215,15 @@ export default function Home() {
   const [imageReady, setImageReady] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
   const [mosaicUrls, setMosaicUrls] = useState<string[]>([]);
-  const [previewFading, setPreviewFading] = useState(false);
-  const [previewGone, setPreviewGone] = useState(false);
+  const [anatomyUrls, setAnatomyUrls] = useState<(string | null)[]>([]);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
 
-  // Option A: while hero is visible, floor the rendered step at 2 so
-  // after the preview fades the canvas shows fill+rays+emoji, not a flat fill.
+  // Option A: while the hero is still visible, floor the rendered step at 2
+  // so the canvas already shows fill+rays+emoji when anatomy fades away.
   const effectiveStep = heroVisible ? Math.max(step, 2) : step;
 
   useEffect(() => {
@@ -185,28 +259,21 @@ export default function Home() {
     });
   }, []);
 
-  // Option B: render the fully-composed cover to the preview canvas on mount,
-  // then fade it out to reveal the scroll-driven build starting at effectiveStep.
+  // Option C: render each anatomy strip doc (one layer type each) at full
+  // canvas size; the strips are clipped by CSS to show only their band.
   useEffect(() => {
-    if (!imageReady) return;
-    const fullDoc = buildDoc(STEPS.length - 1);
-    renderDocument(fullDoc, CANVAS_PX, CANVAS_PX, imageCacheRef.current)
-      .then((out) => {
-        const target = previewCanvasRef.current;
-        if (!target) return;
-        if (target.width !== out.width) target.width = out.width;
-        if (target.height !== out.height) target.height = out.height;
-        const ctx = target.getContext("2d");
-        if (ctx) ctx.drawImage(out, 0, 0);
-        // Start fading after a beat
-        const fadeTimer = setTimeout(() => setPreviewFading(true), 1800);
-        return () => clearTimeout(fadeTimer);
-      })
-      .catch(() => {
-        // silently skip if render fails
-        setPreviewFading(true);
-      });
-  }, [imageReady]); // eslint-disable-line react-hooks/exhaustive-deps
+    const emptyCache = new Map<string, HTMLImageElement>();
+    Promise.all(
+      ANATOMY_ITEMS.map(async ({ doc }) => {
+        try {
+          const out = await renderDocument(doc, CANVAS_PX, CANVAS_PX, emptyCache);
+          return out.toDataURL("image/jpeg", 0.85);
+        } catch {
+          return null;
+        }
+      }),
+    ).then(setAnatomyUrls);
+  }, []);
 
   useEffect(() => {
     function update() {
@@ -356,15 +423,35 @@ export default function Home() {
                 height={CANVAS_PX}
                 aria-label="Album cover preview composing layer by layer"
               />
-              {!previewGone && (
-                <canvas
-                  ref={previewCanvasRef}
-                  className={`home-canvas home-canvas--preview${previewFading ? " home-canvas--preview-out" : ""}`}
-                  width={CANVAS_PX}
-                  height={CANVAS_PX}
+              {anatomyUrls.length === ANATOMY_ITEMS.length && (
+                <div
+                  className={`home-canvas-anatomy${!heroVisible ? " home-canvas-anatomy--faded" : ""}`}
                   aria-hidden="true"
-                  onTransitionEnd={() => setPreviewGone(true)}
-                />
+                >
+                  {ANATOMY_ITEMS.map((item, i) => (
+                    <div
+                      key={item.label}
+                      className="home-canvas-anatomy__strip"
+                      style={{ top: `${i * 20}%` }}
+                    >
+                      {anatomyUrls[i] && (
+                        <img
+                          src={anatomyUrls[i]!}
+                          alt=""
+                          className="home-canvas-anatomy__img"
+                          style={{
+                            transform: `translate(${STRIP_OFFSETS[i]}px, ${-i * 20}%)`,
+                          }}
+                          draggable={false}
+                        />
+                      )}
+                      <span className="home-canvas-anatomy__mark" />
+                      <span className="home-canvas-anatomy__label">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
             <div className="home-canvas-meta">
