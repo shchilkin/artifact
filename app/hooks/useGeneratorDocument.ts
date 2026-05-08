@@ -142,6 +142,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     _setDoc({ ...docRef.current, global: { ...docRef.current.global, seed } });
   }, [pushHistorySnapshot]);
 
+  const setAspect = useCallback((aspect: AspectRatio) => {
+    updateDocument((current) => ({
+      ...current,
+      global: { ...current.global, aspect },
+    }));
+  }, [updateDocument]);
+
   const undo = useCallback(() => {
     if (past.length === 0) return;
     clearTimeout(histDebounceRef.current);
@@ -417,6 +424,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     loadDocument: replaceDocument,
     setDoc,
     setSeed,
+    setAspect,
     undo,
     redo,
     canUndo: past.length > 0,

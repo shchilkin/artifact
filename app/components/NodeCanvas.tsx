@@ -1,5 +1,18 @@
 import {
-  useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+  createContext,
+  forwardRef,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type ElementType,
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -25,7 +38,7 @@ import '@xyflow/react/dist/style.css';
 import type {
   CanvasDocument, Layer, GraphMergeNode, CanvasGraph, GraphEdge,
   EffectLayer, EmojiLayer, FillLayer, ImageLayer, TextLayer,
-  LayerKind, EffectPreset,
+  LayerKind, EffectPreset, AspectRatio,
 } from '../types/config';
 import { ASPECT_SIZES, EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER } from '../types/config';
 import { renderDocument, renderGraphTarget } from '../utils/renderer';
@@ -105,6 +118,78 @@ function stopNodeEvent(e: React.SyntheticEvent) {
   e.stopPropagation();
 }
 
+function callAll<E extends React.SyntheticEvent>(
+  ...handlers: Array<((event: E) => void) | undefined>
+) {
+  return (event: E) => {
+    handlers.forEach((handler) => handler?.(event));
+  };
+}
+
+type NoPanProps<T extends ElementType = 'div'> = {
+  as?: T;
+} & Omit<ComponentPropsWithoutRef<T>, 'as'>;
+
+const NoPan = forwardRef(function NoPan<T extends ElementType = 'div'>({
+  as,
+  className,
+  onPointerDown,
+  onMouseDown,
+  onClick,
+  onDoubleClick,
+  ...props
+}: NoPanProps<T>, ref: React.ForwardedRef<Element>) {
+  const Component = as ?? 'div';
+  return (
+    <Component
+      ref={ref}
+      className={className ? `nodrag ${className}` : 'nodrag'}
+      onPointerDown={callAll(stopNodeEvent, onPointerDown as ((event: React.SyntheticEvent) => void) | undefined)}
+      onMouseDown={callAll(stopNodeEvent, onMouseDown as ((event: React.SyntheticEvent) => void) | undefined)}
+      onClick={callAll(stopNodeEvent, onClick as ((event: React.SyntheticEvent) => void) | undefined)}
+      onDoubleClick={callAll(stopNodeEvent, onDoubleClick as ((event: React.SyntheticEvent) => void) | undefined)}
+      {...props}
+    />
+  );
+}) as <T extends ElementType = 'div'>(props: NoPanProps<T> & { ref?: React.ForwardedRef<Element> }) => React.ReactElement | null;
+
+interface NodeCanvasPreviewContextValue {
+  doc: CanvasDocument;
+  graph: CanvasGraph;
+  imageCache: Map<string, HTMLImageElement>;
+}
+
+const NodeCanvasPreviewContext = createContext<NodeCanvasPreviewContextValue | null>(null);
+
+interface NodeCanvasActionsContextValue {
+  selectNode: (id: string, event?: React.MouseEvent) => void;
+  toggleNodeEditor: (id: string) => void;
+  updateLayer: (id: string, patch: Partial<Layer>) => void;
+  updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
+  updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
+  updateAspectRatio: (aspect: AspectRatio) => void;
+  exportNode: () => void;
+  deleteNode: (id: string) => void;
+}
+
+const NodeCanvasActionsContext = createContext<NodeCanvasActionsContextValue | null>(null);
+
+function useNodeCanvasPreview() {
+  const value = useContext(NodeCanvasPreviewContext);
+  if (!value) throw new Error('NodeCanvasPreviewContext missing');
+  return value;
+}
+
+function useNodeCanvasActions() {
+  const value = useContext(NodeCanvasActionsContext);
+  if (!value) throw new Error('NodeCanvasActionsContext missing');
+  return value;
+}
+
+function isAdditiveSelectionEvent(event?: React.MouseEvent) {
+  return Boolean(event?.metaKey || event?.ctrlKey || event?.shiftKey);
+}
+
 const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
 
 // ─── Context menu state ───────────────────────────────────────────────────────
@@ -115,20 +200,144 @@ type ContextMenuState =
   | { type: 'node'; x: number; y: number; nodeId: string; isMerge: boolean; isExport: boolean }
   | null;
 
+interface NodeCanvasUiState {
+  selectedNodeIds: string[];
+  selectedEdgeId: string | null;
+  expandedNodeId: string | null;
+}
+
+type NodeCanvasUiAction =
+  | { type: 'PANE_CLICKED' }
+  | { type: 'NODE_SELECTED'; id: string | null; additive: boolean }
+  | { type: 'NODE_EDITOR_TOGGLED'; id: string }
+  | { type: 'EDGE_SELECTED'; id: string }
+  | { type: 'SELECTION_CHANGED'; nodeIds: string[]; edgeIds: string[] }
+  | { type: 'EDGE_IDS_REMOVED'; ids: string[] }
+  | { type: 'NODE_IDS_REMOVED'; ids: string[] }
+  | { type: 'SYNC_EXTERNAL_NODE'; id: string }
+  | { type: 'FILTER_INVALID_REFERENCES'; validNodeIds: string[]; validEdgeIds: string[] };
+
+function sameIds(a: string[], b: string[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function reduceNodeCanvasUi(state: NodeCanvasUiState, action: NodeCanvasUiAction): NodeCanvasUiState {
+  switch (action.type) {
+    case 'PANE_CLICKED':
+      return state.selectedNodeIds.length === 0 && state.selectedEdgeId === null && state.expandedNodeId === null
+        ? state
+        : { selectedNodeIds: [], selectedEdgeId: null, expandedNodeId: null };
+    case 'NODE_SELECTED': {
+      const nextNodeIds = !action.id
+        ? []
+        : action.additive
+          ? (state.selectedNodeIds.includes(action.id)
+            ? state.selectedNodeIds.filter((selectedId) => selectedId !== action.id)
+            : [...state.selectedNodeIds, action.id])
+          : [action.id];
+      const nextState = {
+        selectedNodeIds: nextNodeIds,
+        selectedEdgeId: null,
+        expandedNodeId: action.additive
+          ? (state.expandedNodeId && nextNodeIds.includes(state.expandedNodeId) ? state.expandedNodeId : null)
+          : (state.expandedNodeId === action.id ? state.expandedNodeId : null),
+      };
+      return sameIds(state.selectedNodeIds, nextState.selectedNodeIds)
+        && state.selectedEdgeId === nextState.selectedEdgeId
+        && state.expandedNodeId === nextState.expandedNodeId
+        ? state
+        : nextState;
+    }
+    case 'NODE_EDITOR_TOGGLED': {
+      const nextState = {
+        selectedNodeIds: [action.id],
+        selectedEdgeId: null,
+        expandedNodeId: state.expandedNodeId === action.id ? null : action.id,
+      };
+      return sameIds(state.selectedNodeIds, nextState.selectedNodeIds)
+        && state.selectedEdgeId === nextState.selectedEdgeId
+        && state.expandedNodeId === nextState.expandedNodeId
+        ? state
+        : nextState;
+    }
+    case 'EDGE_SELECTED':
+      return state.selectedNodeIds.length === 0 && state.selectedEdgeId === action.id && state.expandedNodeId === null
+        ? state
+        : { selectedNodeIds: [], selectedEdgeId: action.id, expandedNodeId: null };
+    case 'SELECTION_CHANGED': {
+      const nextState = {
+        selectedNodeIds: action.nodeIds,
+        selectedEdgeId: action.nodeIds.length === 0 && action.edgeIds.length === 1 ? action.edgeIds[0] : null,
+        expandedNodeId: action.nodeIds.length === 1 && action.nodeIds[0] === state.expandedNodeId ? state.expandedNodeId : null,
+      };
+      return sameIds(state.selectedNodeIds, nextState.selectedNodeIds)
+        && state.selectedEdgeId === nextState.selectedEdgeId
+        && state.expandedNodeId === nextState.expandedNodeId
+        ? state
+        : nextState;
+    }
+    case 'EDGE_IDS_REMOVED':
+      return action.ids.includes(state.selectedEdgeId ?? '')
+        ? { ...state, selectedEdgeId: null }
+        : state;
+    case 'NODE_IDS_REMOVED': {
+      const nextNodeIds = state.selectedNodeIds.filter((id) => !action.ids.includes(id));
+      return {
+        selectedNodeIds: nextNodeIds,
+        selectedEdgeId: state.selectedEdgeId,
+        expandedNodeId: state.expandedNodeId && action.ids.includes(state.expandedNodeId) ? null : state.expandedNodeId,
+      };
+    }
+    case 'SYNC_EXTERNAL_NODE':
+      return sameIds(state.selectedNodeIds, [action.id]) && state.selectedEdgeId === null && state.expandedNodeId === (state.expandedNodeId === action.id ? state.expandedNodeId : null)
+        ? state
+        : {
+        selectedNodeIds: [action.id],
+        selectedEdgeId: null,
+        expandedNodeId: state.expandedNodeId === action.id ? state.expandedNodeId : null,
+      };
+    case 'FILTER_INVALID_REFERENCES': {
+      const validNodeIds = new Set(action.validNodeIds);
+      const validEdgeIds = new Set(action.validEdgeIds);
+      const nextNodeIds = state.selectedNodeIds.filter((id) => validNodeIds.has(id));
+      const nextState = {
+        selectedNodeIds: nextNodeIds,
+        selectedEdgeId: state.selectedEdgeId && validEdgeIds.has(state.selectedEdgeId) ? state.selectedEdgeId : null,
+        expandedNodeId: state.expandedNodeId && validNodeIds.has(state.expandedNodeId) ? state.expandedNodeId : null,
+      };
+      return sameIds(state.selectedNodeIds, nextState.selectedNodeIds)
+        && state.selectedEdgeId === nextState.selectedEdgeId
+        && state.expandedNodeId === nextState.expandedNodeId
+        ? state
+        : nextState;
+    }
+  }
+}
+
 // ─── Thumbnail ────────────────────────────────────────────────────────────────
 
 interface ThumbProps {
-  doc: CanvasDocument;
-  graph: CanvasGraph;
   previewTargetId: string;
-  imageCache: Map<string, HTMLImageElement>;
 }
 
-function NodeThumbnail({ doc, graph, previewTargetId, imageCache }: ThumbProps) {
+const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
+  const { doc, graph, imageCache } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isExportPreview = previewTargetId === EXPORT_NODE_ID;
+  const previewSize = useMemo(() => {
+    if (!isExportPreview) {
+      return { width: THUMB_SIZE, height: THUMB_SIZE };
+    }
+    const [aspectWidth, aspectHeight] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
+    const scale = THUMB_SIZE / aspectWidth;
+    return {
+      width: Math.max(1, Math.round(aspectWidth * scale)),
+      height: Math.max(1, Math.round(aspectHeight * scale)),
+    };
+  }, [doc.global.aspect, isExportPreview]);
   const previewKey = useMemo(
-    () => JSON.stringify({ previewTargetId, global: doc.global, layers: doc.layers, graph }),
-    [previewTargetId, doc.global, doc.layers, graph],
+    () => JSON.stringify({ previewTargetId, global: doc.global, layers: doc.layers, graph, previewSize }),
+    [previewTargetId, doc.global, doc.layers, graph, previewSize],
   );
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
@@ -136,49 +345,42 @@ function NodeThumbnail({ doc, graph, previewTargetId, imageCache }: ThumbProps) 
   useEffect(() => {
     let cancelled = false;
     const previewDoc: CanvasDocument = { ...doc, graph };
-    const renderPromise = previewTargetId === EXPORT_NODE_ID
-      ? renderDocument(previewDoc, THUMB_SIZE, THUMB_SIZE, imageCache)
-      : renderGraphTarget(previewDoc, graph, previewTargetId, THUMB_SIZE, THUMB_SIZE, imageCache);
+    const renderPromise = isExportPreview
+      ? renderDocument(previewDoc, previewSize.width, previewSize.height, imageCache)
+      : renderGraphTarget(previewDoc, graph, previewTargetId, previewSize.width, previewSize.height, imageCache);
     renderPromise
       .then((result) => {
         if (cancelled || !canvasRef.current) return;
         const ctx = canvasRef.current.getContext('2d');
         if (!ctx) return;
-        ctx.clearRect(0, 0, THUMB_SIZE, THUMB_SIZE);
-        ctx.drawImage(result, 0, 0, THUMB_SIZE, THUMB_SIZE);
+        ctx.clearRect(0, 0, previewSize.width, previewSize.height);
+        ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
         setRenderedPreviewKey(previewKey);
       })
       .catch(() => { /* silent */ });
     return () => { cancelled = true; };
-  }, [doc, graph, previewKey, previewTargetId, imageCache]);
+  }, [doc, graph, imageCache, isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
 
   return (
-    <div style={{
-      width: THUMB_SIZE, height: THUMB_SIZE,
-      background: 'oklch(8% 0.01 285)',
-      borderRadius: 3, overflow: 'hidden', position: 'relative', flexShrink: 0,
-    }}>
-      <canvas
-        ref={canvasRef}
-        width={THUMB_SIZE}
-        height={THUMB_SIZE}
-        style={{
-          display: 'block', width: '100%', height: '100%',
-          opacity: ready ? 1 : 0,
-          transition: 'opacity 200ms ease-out',
-        }}
-      />
-      {!ready && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(90deg, oklch(14% 0.01 285) 25%, oklch(19% 0.012 285) 50%, oklch(14% 0.01 285) 75%)',
-          backgroundSize: '200% 100%',
-          animation: 'node-shimmer 1.4s ease-in-out infinite',
-        }} />
-      )}
+    <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
+      <div
+        className="node-thumbnail-frame"
+        style={{ width: previewSize.width, height: previewSize.height }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={previewSize.width}
+          height={previewSize.height}
+          className="node-thumbnail-canvas"
+          style={{ opacity: ready ? 1 : 0 }}
+        />
+        {!ready && (
+          <div className="node-thumbnail-skeleton" />
+        )}
+      </div>
     </div>
   );
-}
+});
 
 // ─── Port handle ──────────────────────────────────────────────────────────────
 
@@ -215,82 +417,42 @@ function NodeShell({
 }: NodeShellProps) {
   const accent = KIND_COLOR[kind] ?? 'oklch(55% 0.05 285)';
   return (
-    <div style={{
-      width: NODE_W,
-      background: 'oklch(14% 0.01 285)',
-      border: `1px solid ${selected ? accent : 'oklch(26% 0.015 285)'}`,
-      borderRadius: 6, overflow: 'hidden',
-      boxShadow: selected
-        ? `0 0 0 1px ${accent}30, 0 4px 16px oklch(0% 0 0 / 0.5)`
-        : '0 4px 16px oklch(0% 0 0 / 0.4)',
-      cursor: 'default', userSelect: 'none',
-    }}>
-      <div style={{ height: 3, background: accent, flexShrink: 0 }} />
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '5px 8px',
-        background: 'oklch(12% 0.012 285)',
-        borderBottom: '1px solid oklch(22% 0.012 285)',
-        minHeight: 28,
-      }}>
-        <div className="node-drag-handle" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, cursor: 'grab' }}>
-          <span style={{ color: accent, fontSize: 10, lineHeight: 1, flexShrink: 0 }}>
+    <div
+      className={`node-shell${selected ? ' node-shell-selected' : ''}`}
+      style={{ '--node-accent': accent, width: NODE_W } as CSSProperties}
+    >
+      <div className="node-shell-accent" />
+      <div className="node-shell-header">
+        <div className="node-drag-handle node-shell-drag">
+          <span className="node-shell-symbol">
             {KIND_SYMBOL[kind] ?? '○'}
           </span>
-          <span style={{
-            color: 'oklch(44% 0.013 285)', fontSize: 9,
-            fontFamily: 'var(--mono)', textTransform: 'uppercase',
-            letterSpacing: '0.06em', flexShrink: 0,
-          }}>{label}</span>
-          <span style={{
-            color: 'oklch(70% 0.018 68)', fontSize: 10, fontFamily: 'var(--mono)',
-            flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{name}</span>
+          <span className="node-shell-label">{label}</span>
+          <span className="node-shell-name">{name}</span>
         </div>
         {expandable && onToggleExpanded && (
-          <button
+          <NoPan
+            as="button"
             type="button"
-            className="nodrag node-shell-action"
+            className={`node-shell-action node-shell-toggle${expanded ? ' node-shell-toggle-active' : ''}`}
             aria-label={expanded ? 'Collapse settings' : 'Expand settings'}
             aria-expanded={expanded}
-            onPointerDown={stopNodeEvent}
-            onMouseDown={stopNodeEvent}
-            onClick={(e) => { stopNodeEvent(e); onToggleExpanded(); }}
-            style={{
-              background: expanded ? 'oklch(22% 0.03 285)' : 'transparent',
-              border: '1px solid oklch(24% 0.014 285)',
-              borderRadius: 999,
-              cursor: 'pointer',
-              color: expanded ? accent : 'oklch(52% 0.015 285)',
-              width: 20,
-              height: 20,
-              display: 'grid',
-              placeItems: 'center',
-              padding: 0,
-              fontSize: 10,
-              lineHeight: 1,
-              flexShrink: 0,
-            }}
+            onClick={onToggleExpanded}
           >
             {expanded ? '−' : '+'}
-          </button>
+          </NoPan>
         )}
         {onDelete && (
-          <button
+          <NoPan
+            as="button"
             type="button"
             className="nodrag node-shell-action"
             aria-label="Delete node"
-            onPointerDown={stopNodeEvent}
-            onMouseDown={stopNodeEvent}
-            onClick={(e) => { stopNodeEvent(e); onDelete(); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'oklch(38% 0.01 285)', padding: '0 2px', fontSize: 11, lineHeight: 1, flexShrink: 0,
-            }}
-          >×</button>
+            onClick={onDelete}
+          >×</NoPan>
         )}
       </div>
-      <div style={{ padding: '8px 8px 6px 8px' }}>{children}</div>
+      <div className="node-shell-body">{children}</div>
     </div>
   );
 }
@@ -311,90 +473,36 @@ function NodeEditorPanel({
   const accent = KIND_COLOR[kind] ?? 'oklch(55% 0.05 285)';
 
   return (
-    <div
-      className="nodrag"
-      onPointerDown={stopNodeEvent}
-      onMouseDown={stopNodeEvent}
-      onClick={stopNodeEvent}
-      onDoubleClick={stopNodeEvent}
-      style={{
-        position: 'absolute',
-        right: `calc(100% + 14px)`,
-        top: -2,
-        width: NODE_EDITOR_W,
-        background: 'oklch(13% 0.011 285)',
-        border: `1px solid ${accent}`,
-        borderRadius: 10,
-        boxShadow: '0 16px 40px oklch(0% 0 0 / 0.55)',
-        overflow: 'hidden',
-        zIndex: 30,
-      }}
+    <NoPan
+      className="node-editor-panel"
+      style={{ '--node-accent': accent, width: NODE_EDITOR_W } as CSSProperties}
     >
-      <div style={{ height: 2, background: accent }} />
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        padding: '10px 12px',
-        borderBottom: '1px solid oklch(22% 0.012 285)',
-        background: 'oklch(11.5% 0.012 285)',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-          <span style={{
-            color: 'oklch(74% 0.02 68)',
-            fontSize: 10,
-            fontFamily: 'var(--mono)',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-          >
+      <div className="node-editor-accent" />
+      <div className="node-editor-header">
+        <div className="node-editor-heading">
+          <span className="node-editor-title">
             {title}
           </span>
           {subtitle && (
-            <span style={{
-              color: 'oklch(46% 0.014 285)',
-              fontSize: 9,
-              fontFamily: 'var(--mono)',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-            }}
-            >
+            <span className="node-editor-subtitle">
               {subtitle}
             </span>
           )}
         </div>
-        <button
+        <NoPan
+          as="button"
           type="button"
-          className="nodrag node-shell-action"
+          className="node-shell-action node-editor-close"
           aria-label="Close settings"
-          onPointerDown={stopNodeEvent}
-          onMouseDown={stopNodeEvent}
-          onClick={(e) => { stopNodeEvent(e); onClose(); }}
-          style={{
-            background: 'transparent',
-            border: '1px solid oklch(24% 0.014 285)',
-            borderRadius: 999,
-            color: 'oklch(55% 0.015 285)',
-            width: 22,
-            height: 22,
-            display: 'grid',
-            placeItems: 'center',
-            padding: 0,
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
+          onClick={onClose}
         >
           ×
-        </button>
+        </NoPan>
       </div>
-      <div style={{ padding: '10px 12px 12px' }}>
+      <div className="node-editor-body">
         {children}
       </div>
-    </div>
+    </NoPan>
   );
 }
 
@@ -487,45 +595,13 @@ function EffectInspector({
   const showControl = (presets: readonly EffectPreset[]) => showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
-      ...(detached ? {} : {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTop: '1px solid oklch(22% 0.012 285)',
-      }),
-    }}
-    >
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <span style={{
-          padding: '3px 7px',
-          borderRadius: 999,
-          border: '1px solid oklch(26% 0.015 285)',
-          color: 'oklch(74% 0.02 68)',
-          background: 'oklch(11% 0.01 285)',
-          fontFamily: 'var(--mono)',
-          fontSize: 9,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-        }}
-        >
+    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+      <div className="node-badge-row">
+        <span className="node-badge">
           {layer.preset ? EFFECT_PRESETS[layer.preset]?.name ?? layer.preset : 'custom'}
         </span>
         {showAllSections && (
-          <span style={{
-            padding: '3px 7px',
-            borderRadius: 999,
-            border: '1px solid oklch(22% 0.02 298)',
-            color: 'oklch(66% 0.08 298)',
-            background: 'oklch(14% 0.015 298)',
-            fontFamily: 'var(--mono)',
-            fontSize: 9,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-          >
+          <span className="node-badge node-badge-accent">
             combined FX
           </span>
         )}
@@ -691,8 +767,8 @@ function ScaleLockRow({
   onChange: (patch: { scaleX?: number; scaleY?: number }) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="node-scale-row">
+      <div className="node-scale-controls">
         {locked ? (
           <InspectorSlider
             label="Scale"
@@ -708,31 +784,16 @@ function ScaleLockRow({
           </>
         )}
       </div>
-      <button
+      <NoPan
+        as="button"
         type="button"
-        className="nodrag"
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={(e) => { stopNodeEvent(e); onLockChange(!locked); }}
+        className={`node-scale-lock${locked ? ' node-scale-lock-active' : ''}`}
+        onClick={() => onLockChange(!locked)}
         title={locked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
         aria-label={locked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-        style={{
-          flexShrink: 0,
-          marginTop: 18,
-          width: 28,
-          height: 28,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 4,
-          border: `1px solid ${locked ? 'oklch(70% 0.03 298)' : 'oklch(24% 0.014 285)'}`,
-          background: 'oklch(11% 0.01 285)',
-          color: locked ? 'oklch(70% 0.03 298)' : 'oklch(52% 0.014 285)',
-          cursor: 'pointer',
-        }}
       >
         {locked ? '⛓' : '⛓‍💥'}
-      </button>
+      </NoPan>
     </div>
   );
 }
@@ -747,20 +808,11 @@ function LayerInspector({
   detached?: boolean;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
-  const sectionStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    ...(detached ? {} : {
-      marginTop: 8,
-      paddingTop: 8,
-      borderTop: '1px solid oklch(22% 0.012 285)',
-    }),
-  };
+  const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
 
   if (layer.kind === 'text') {
     return (
-      <div style={sectionStyle}>
+      <div className={sectionClassName}>
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
         <InspectorTextArea value={layer.content} onChange={(value) => onChange({ content: value } as Partial<TextLayer>)} />
         <InspectorSlider label="Size" value={layer.size} min={12} max={160} onChange={(value) => onChange({ size: value } as Partial<TextLayer>)} />
@@ -783,7 +835,7 @@ function LayerInspector({
   }
   if (layer.kind === 'image') {
     return (
-      <div style={sectionStyle}>
+      <div className={sectionClassName}>
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
         <InspectorSelect label="Fit" value={layer.fit} options={['cover', 'contain', 'tile', 'free']} onChange={(value) => onChange({ fit: value } as Partial<ImageLayer>)} />
         <InspectorSlider label="X Position" value={Math.round(layer.x * 100)} min={-200} max={200} onChange={(value) => onChange({ x: value / 100 } as Partial<ImageLayer>)} />
@@ -803,7 +855,7 @@ function LayerInspector({
   }
   if (layer.kind === 'fill') {
     return (
-      <div style={sectionStyle}>
+      <div className={sectionClassName}>
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
         <InspectorColorInput label="Color" value={layer.color} onChange={(value) => onChange({ color: value } as Partial<FillLayer>)} />
         <InspectorSlider label="Opacity" value={layer.opacity} min={0} max={100} onChange={(value) => onChange({ opacity: value })} />
@@ -813,7 +865,7 @@ function LayerInspector({
   }
   if (layer.kind === 'emoji') {
     return (
-      <div style={sectionStyle}>
+      <div className={sectionClassName}>
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
         <InspectorSlider label="Density" value={layer.density} min={1} max={100} onChange={(value) => onChange({ density: value } as Partial<EmojiLayer>)} />
         <InspectorSlider label="Blur" value={layer.blur} min={0} max={100} onChange={(value) => onChange({ blur: value } as Partial<EmojiLayer>)} />
@@ -834,17 +886,7 @@ function MergeInspector({
   detached?: boolean;
 }) {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
-      ...(detached ? {} : {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTop: '1px solid oklch(22% 0.012 285)',
-      }),
-    }}
-    >
+    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
       <InspectorTextInput value={mergeNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect label="Blend" value={mergeNode.blendMode} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
       <InspectorSlider label="Opacity" value={mergeNode.opacity} min={0} max={100} onChange={(value) => onChange({ opacity: value })} />
@@ -853,22 +895,31 @@ function MergeInspector({
 }
 
 function ExportInspector({
-  doc,
+  exportConfig,
+  aspect,
   busy,
   onChange,
+  onAspectChange,
   onExport,
 }: {
-  doc: CanvasDocument;
+  exportConfig: CanvasDocument['export'];
+  aspect: AspectRatio;
   busy: boolean;
   onChange: (patch: Partial<CanvasDocument['export']>) => void;
+  onAspectChange: (aspect: AspectRatio) => void;
   onExport: () => void;
 }) {
-  const exportConfig = doc.export;
-  const [width, height] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
+  const [width, height] = ASPECT_SIZES[aspect ?? '1:1'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="node-inspector-stack">
       <InspectorSelect label="Target" value={exportConfig.target} options={['cover', 'envmap']} onChange={(value) => onChange({ target: value as CanvasDocument['export']['target'] })} />
+      <InspectorSelect
+        label="Aspect"
+        value={aspect}
+        options={['1:1', '4:5', '9:16', '16:9']}
+        onChange={(value) => onAspectChange(value as AspectRatio)}
+      />
       {exportConfig.target === 'cover' && (
         <>
           <InspectorSelect label="Format" value={exportConfig.format} options={['png', 'jpeg']} onChange={(value) => onChange({ format: value as CanvasDocument['export']['format'] })} />
@@ -879,34 +930,15 @@ function ExportInspector({
       {exportConfig.target === 'envmap' && (
         <InspectorLabel>4096 × 2048 png</InspectorLabel>
       )}
-      <button
+      <NoPan
+        as="button"
         type="button"
-        className="nodrag node-shell-action"
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={(e) => { stopNodeEvent(e); onExport(); }}
+        className="node-shell-action node-export-button"
+        onClick={onExport}
         disabled={busy}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          minHeight: 32,
-          borderRadius: 6,
-          border: '1px solid oklch(30% 0.018 285)',
-          background: 'oklch(18% 0.014 285)',
-          color: 'oklch(76% 0.02 68)',
-          fontFamily: 'var(--mono)',
-          fontSize: 11,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-          opacity: busy ? 0.6 : 1,
-        }}
       >
         {busy ? 'exporting…' : '↗ export now'}
-      </button>
+      </NoPan>
     </div>
   );
 }
@@ -966,28 +998,25 @@ function PortRow({ inputs, outputs, connected }: PortRowProps) {
 
 type LayerNodeData = {
   layer: Layer;
-  doc: CanvasDocument;
-  graph: CanvasGraph;
   previewTargetId: string;
-  imageCache: Map<string, HTMLImageElement>;
   selected: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
-  onSelect: (event: React.MouseEvent) => void;
-  onToggleEditor: () => void;
-  onChange: (patch: Partial<Layer>) => void;
 };
 
-function LayerNodeComponent({ data }: NodeProps) {
-  const d = data as unknown as LayerNodeData;
-  const { layer, graph, previewTargetId, doc, imageCache, selected, editing, connected, onSelect, onToggleEditor, onChange } = d;
+const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
+  const { selectNode, toggleNodeEditor, updateLayer } = useNodeCanvasActions();
+  const { layer, previewTargetId, selected, editing, connected } = data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
 
   return (
     <div
-      onClick={onSelect}
-      onDoubleClick={(e) => { stopNodeEvent(e); onToggleEditor(); }}
+      onClick={(event) => selectNode(layer.id, event)}
+      onDoubleClick={(event) => {
+        stopNodeEvent(event);
+        toggleNodeEditor(layer.id);
+      }}
       style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
     >
       <Handle type="target" position={Position.Left} id={inputPort} style={HANDLE_STYLE} />
@@ -998,9 +1027,9 @@ function LayerNodeComponent({ data }: NodeProps) {
         selected={selected}
         expanded={editing}
         expandable
-        onToggleExpanded={onToggleEditor}
+        onToggleExpanded={() => toggleNodeEditor(layer.id)}
       >
-        <NodeThumbnail doc={doc} graph={graph} previewTargetId={previewTargetId} imageCache={imageCache} />
+        <NodeThumbnail previewTargetId={previewTargetId} />
         <PortRow
           inputs={[{ label: isEffect ? 'in' : 'bg?', portId: inputPort, nodeId: layer.id }]}
           outputs={[{ label: 'out', portId: 'out', nodeId: layer.id }]}
@@ -1012,41 +1041,37 @@ function LayerNodeComponent({ data }: NodeProps) {
           kind={layer.kind}
           title={layer.name}
           subtitle={layer.kind === 'effect' ? `effect, ${layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset).toLowerCase() : 'custom'}` : `${layer.kind} settings`}
-          onClose={onToggleEditor}
+          onClose={() => toggleNodeEditor(layer.id)}
         >
-          <LayerInspector layer={layer} onChange={onChange} detached />
+          <LayerInspector layer={layer} onChange={(patch) => updateLayer(layer.id, patch)} detached />
         </NodeEditorPanel>
       )}
       <Handle type="source" position={Position.Right} id="out" style={HANDLE_STYLE} />
     </div>
   );
-}
+});
 
 // ─── Merge node ───────────────────────────────────────────────────────────────
 
 type MergeNodeData = {
   mergeNode: GraphMergeNode;
-  doc: CanvasDocument;
-  graph: CanvasGraph;
   previewTargetId: string;
-  imageCache: Map<string, HTMLImageElement>;
   selected: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
-  onSelect: (event: React.MouseEvent) => void;
-  onDelete: () => void;
-  onToggleEditor: () => void;
-  onChange: (patch: Partial<GraphMergeNode>) => void;
 };
 
-function MergeNodeComponent({ data }: NodeProps) {
-  const d = data as unknown as MergeNodeData;
-  const { mergeNode, graph, previewTargetId, doc, imageCache, selected, editing, connected, onSelect, onDelete, onToggleEditor, onChange } = d;
+const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<MergeNodeData>) {
+  const { selectNode, deleteNode, toggleNodeEditor, updateMergeNode } = useNodeCanvasActions();
+  const { mergeNode, previewTargetId, selected, editing, connected } = data;
 
   return (
     <div
-      onClick={onSelect}
-      onDoubleClick={(e) => { stopNodeEvent(e); onToggleEditor(); }}
+      onClick={(event) => selectNode(mergeNode.id, event)}
+      onDoubleClick={(event) => {
+        stopNodeEvent(event);
+        toggleNodeEditor(mergeNode.id);
+      }}
       style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
     >
       <Handle type="target" id="a" position={Position.Left}
@@ -1060,10 +1085,10 @@ function MergeNodeComponent({ data }: NodeProps) {
         selected={selected}
         expanded={editing}
         expandable
-        onToggleExpanded={onToggleEditor}
-        onDelete={onDelete}
+        onToggleExpanded={() => toggleNodeEditor(mergeNode.id)}
+        onDelete={() => deleteNode(mergeNode.id)}
       >
-        <NodeThumbnail doc={doc} graph={graph} previewTargetId={previewTargetId} imageCache={imageCache} />
+        <NodeThumbnail previewTargetId={previewTargetId} />
         <PortRow
           inputs={[
             { label: 'a', portId: 'a', nodeId: mergeNode.id },
@@ -1078,41 +1103,39 @@ function MergeNodeComponent({ data }: NodeProps) {
           kind="merge"
           title={mergeNode.name}
           subtitle="merge settings"
-          onClose={onToggleEditor}
+          onClose={() => toggleNodeEditor(mergeNode.id)}
         >
-          <MergeInspector mergeNode={mergeNode} onChange={onChange} detached />
+          <MergeInspector mergeNode={mergeNode} onChange={(patch) => updateMergeNode(mergeNode.id, patch)} detached />
         </NodeEditorPanel>
       )}
       <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
     </div>
   );
-}
+});
 
 // ─── Export node ──────────────────────────────────────────────────────────────
 
 type ExportNodeData = {
-  doc: CanvasDocument;
-  graph: CanvasGraph;
+  exportConfig: CanvasDocument['export'];
+  aspect: AspectRatio;
   previewTargetId: string;
-  imageCache: Map<string, HTMLImageElement>;
   selected: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
   busy: boolean;
-  onSelect: (event: React.MouseEvent) => void;
-  onToggleEditor: () => void;
-  onChange: (patch: Partial<CanvasDocument['export']>) => void;
-  onExport: () => void;
 };
 
-function ExportNodeComponent({ data }: NodeProps) {
-  const d = data as unknown as ExportNodeData;
-  const { doc, graph, previewTargetId, imageCache, selected, editing, connected, busy, onSelect, onToggleEditor, onChange, onExport } = d;
+const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProps<ExportNodeData>) {
+  const { selectNode, toggleNodeEditor, updateExportConfig, updateAspectRatio, exportNode } = useNodeCanvasActions();
+  const { exportConfig, aspect, previewTargetId, selected, editing, connected, busy } = data;
 
   return (
     <div
-      onClick={onSelect}
-      onDoubleClick={(e) => { stopNodeEvent(e); onToggleEditor(); }}
+      onClick={(event) => selectNode(EXPORT_NODE_ID, event)}
+      onDoubleClick={(event) => {
+        stopNodeEvent(event);
+        toggleNodeEditor(EXPORT_NODE_ID);
+      }}
       style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
     >
       <Handle type="target" id="in" position={Position.Left} style={HANDLE_STYLE} />
@@ -1123,9 +1146,9 @@ function ExportNodeComponent({ data }: NodeProps) {
         selected={selected}
         expanded={editing}
         expandable
-        onToggleExpanded={onToggleEditor}
+        onToggleExpanded={() => toggleNodeEditor(EXPORT_NODE_ID)}
       >
-        <NodeThumbnail doc={doc} graph={graph} previewTargetId={previewTargetId} imageCache={imageCache} />
+        <NodeThumbnail previewTargetId={previewTargetId} />
         <PortRow
           inputs={[{ label: 'in', portId: 'in', nodeId: EXPORT_NODE_ID }]}
           outputs={[]}
@@ -1137,14 +1160,21 @@ function ExportNodeComponent({ data }: NodeProps) {
           kind="export"
           title="Output"
           subtitle="export settings"
-          onClose={onToggleEditor}
+          onClose={() => toggleNodeEditor(EXPORT_NODE_ID)}
         >
-          <ExportInspector doc={doc} busy={busy} onChange={onChange} onExport={onExport} />
+          <ExportInspector
+            exportConfig={exportConfig}
+            aspect={aspect}
+            busy={busy}
+            onChange={updateExportConfig}
+            onAspectChange={updateAspectRatio}
+            onExport={exportNode}
+          />
         </NodeEditorPanel>
       )}
     </div>
   );
-}
+});
 
 const nodeTypes = {
   layerNode: LayerNodeComponent,
@@ -1170,14 +1200,7 @@ function distancePointToSegment(
 
 function InspectorLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span style={{
-      color: 'oklch(44% 0.013 285)',
-      fontSize: 9,
-      fontFamily: 'var(--mono)',
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase',
-    }}
-    >
+    <span className="node-inspector-label">
       {children}
     </span>
   );
@@ -1193,16 +1216,13 @@ function InspectorColorInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+    <div className="node-inspector-row">
       <InspectorLabel>{label}</InspectorLabel>
       <input
-        className="nodrag node-color-input"
+        className="node-color-input"
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={stopNodeEvent}
       />
     </div>
   );
@@ -1222,64 +1242,30 @@ function InspectorSection({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid oklch(24% 0.014 285)',
-        borderRadius: 6,
-        overflow: 'hidden',
-        background: open ? 'oklch(12.5% 0.012 285)' : 'oklch(11% 0.01 285)',
-      }}
-    >
-      <button
+    <div className={`node-inspector-section${open ? ' node-inspector-section-open' : ''}`}>
+      <NoPan
+        as="button"
         type="button"
-        className="nodrag node-section-button"
+        className="node-section-button node-inspector-section-button"
         aria-expanded={open}
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={(e) => { stopNodeEvent(e); onToggle(); }}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '9px 10px',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
+        onClick={onToggle}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-          <span style={{
-            color: 'oklch(73% 0.02 68)',
-            fontSize: 10,
-            fontFamily: 'var(--mono)',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-          >
+        <div className="node-inspector-section-copy">
+          <span className="node-inspector-section-title">
             {title}
           </span>
           {summary && (
-            <span style={{
-              color: 'oklch(48% 0.014 285)',
-              fontSize: 9,
-              fontFamily: 'var(--mono)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}
-            >
+            <span className="node-inspector-section-summary">
               {summary}
             </span>
           )}
         </div>
-        <span style={{ color: open ? 'oklch(70% 0.03 298)' : 'oklch(45% 0.014 285)', fontSize: 10, flexShrink: 0 }}>
+        <span className="node-inspector-section-toggle">
           {open ? '−' : '+'}
         </span>
-      </button>
+      </NoPan>
       {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 10px 10px' }}>
+        <div className="node-inspector-section-body">
           {children}
         </div>
       )}
@@ -1298,24 +1284,10 @@ function InspectorTextInput({
 }) {
   return (
     <input
-      className="nodrag node-field"
+      className="node-field"
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      onPointerDown={stopNodeEvent}
-      onMouseDown={stopNodeEvent}
-      onClick={stopNodeEvent}
-      style={{
-        width: '100%',
-        background: 'oklch(11% 0.01 285)',
-        border: '1px solid oklch(24% 0.014 285)',
-        borderRadius: 4,
-        color: 'oklch(76% 0.018 68)',
-        fontFamily: 'var(--mono)',
-        fontSize: 11,
-        padding: '7px 8px',
-        outline: 'none',
-      }}
     />
   );
 }
@@ -1329,25 +1301,10 @@ function InspectorTextArea({
 }) {
   return (
     <textarea
-      className="nodrag node-field"
+      className="node-field node-field-textarea"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onPointerDown={stopNodeEvent}
-      onMouseDown={stopNodeEvent}
-      onClick={stopNodeEvent}
       rows={3}
-      style={{
-        width: '100%',
-        resize: 'vertical',
-        background: 'oklch(11% 0.01 285)',
-        border: '1px solid oklch(24% 0.014 285)',
-        borderRadius: 4,
-        color: 'oklch(76% 0.018 68)',
-        fontFamily: 'var(--mono)',
-        fontSize: 11,
-        padding: '7px 8px',
-        outline: 'none',
-      }}
     />
   );
 }
@@ -1375,54 +1332,36 @@ function InspectorSlider({
 }) {
   const infoRef = useRef<HTMLButtonElement>(null);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+    <div className="node-inspector-control">
+      <div className="node-inspector-control-header">
+        <span className="node-inspector-control-label">
           <InspectorLabel>{label}</InspectorLabel>
           {effectKey && onInfoEnter && (
-            <button
+            <NoPan
+              as="button"
               ref={infoRef}
               type="button"
-              className="nodrag node-shell-action"
-              onPointerDown={stopNodeEvent}
-              onMouseDown={stopNodeEvent}
+              className="node-shell-action node-info-button"
               onMouseEnter={() => {
                 if (infoRef.current) onInfoEnter(effectKey, infoRef.current.getBoundingClientRect());
               }}
               onMouseLeave={onInfoLeave}
-              style={{
-                width: 16,
-                height: 16,
-                display: 'grid',
-                placeItems: 'center',
-                padding: 0,
-                borderRadius: 999,
-                border: '1px solid oklch(24% 0.014 285)',
-                background: 'transparent',
-                color: 'oklch(46% 0.014 285)',
-                fontSize: 9,
-                lineHeight: 1,
-                cursor: 'help',
-              }}
               aria-label={`About ${label}`}
             >
               i
-            </button>
+            </NoPan>
           )}
         </span>
-        <span style={{ color: 'oklch(64% 0.015 285)', fontSize: 10, fontFamily: 'var(--mono)' }}>{value}</span>
+        <span className="node-inspector-value">{value}</span>
       </div>
       <input
-        className="nodrag node-slider"
+        className="node-slider"
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={stopNodeEvent}
       />
     </div>
   );
@@ -1440,26 +1379,12 @@ function InspectorSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div className="node-inspector-control">
       <InspectorLabel>{label}</InspectorLabel>
       <select
-        className="nodrag node-field"
+        className="node-field"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
-        onClick={stopNodeEvent}
-        style={{
-          width: '100%',
-          background: 'oklch(11% 0.01 285)',
-          border: '1px solid oklch(24% 0.014 285)',
-          borderRadius: 4,
-          color: 'oklch(76% 0.018 68)',
-          fontFamily: 'var(--mono)',
-          fontSize: 11,
-          padding: '7px 8px',
-          outline: 'none',
-        }}
       >
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
@@ -1479,23 +1404,15 @@ function InspectorToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label
-      className="nodrag"
-      onPointerDown={stopNodeEvent}
-      onMouseDown={stopNodeEvent}
-      onClick={stopNodeEvent}
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-    >
+    <NoPan as="label" className="node-inspector-toggle">
       <InspectorLabel>{label}</InspectorLabel>
       <input
-        className="nodrag node-check"
+        className="node-check"
         type="checkbox"
         checked={checked}
-        onPointerDown={stopNodeEvent}
-        onMouseDown={stopNodeEvent}
         onChange={(e) => onChange(e.target.checked)}
       />
-    </label>
+    </NoPan>
   );
 }
 
@@ -1538,28 +1455,16 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
   }, [filtered]);
 
   return (
-    <div
+    <NoPan
       ref={menuRef}
-      style={{
-        position: 'fixed', left: x, top: y, zIndex: 1000,
-        background: 'oklch(16% 0.012 285)',
-        border: '1px solid oklch(28% 0.016 285)',
-        borderRadius: 8,
-        boxShadow: '0 8px 32px oklch(0% 0 0 / 0.6)',
-        width: 220, overflow: 'hidden',
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      className="node-menu"
+      style={{ left: x, top: y, width: 220 } as CSSProperties}
     >
-      {/* Search */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 12px',
-        borderBottom: '1px solid oklch(24% 0.014 285)',
-      }}>
-        <span style={{ color: 'oklch(44% 0.015 285)', fontSize: 11 }}>⌕</span>
+      <div className="node-menu-search">
+        <span className="node-menu-search-icon">⌕</span>
         <input
           ref={inputRef}
+          className="node-menu-search-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -1570,57 +1475,39 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
             }
           }}
           placeholder="Add node…"
-          style={{
-            background: 'none', border: 'none', outline: 'none',
-            color: 'oklch(75% 0.018 68)', fontFamily: 'var(--mono)', fontSize: 11,
-            width: '100%',
-          }}
         />
       </div>
 
-      {/* Items */}
-      <div style={{ maxHeight: 320, overflowY: 'auto', padding: '4px 0' }}>
+      <div className="node-menu-list">
         {groups.length === 0 && (
-          <div style={{ padding: '8px 12px', color: 'oklch(42% 0.013 285)', fontSize: 10, fontFamily: 'var(--mono)' }}>
+          <div className="node-menu-empty">
             No results
           </div>
         )}
         {groups.map(({ header, item }, i) => (
           <div key={i}>
             {header && !query && (
-              <div style={{
-                padding: '6px 12px 2px',
-                color: 'oklch(38% 0.012 285)', fontSize: 9,
-                fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
-              }}>
+              <div className="node-menu-group">
                 {header}
               </div>
             )}
-            <button
+            <NoPan
+              as="button"
               type="button"
               onClick={() => { onAdd(item.action); onClose(); }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', padding: '7px 12px',
-                background: 'none', border: 'none', cursor: 'pointer',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'oklch(22% 0.014 285)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+              className="node-menu-item"
             >
-              <span style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind === 'effect' ? 'effect' : 'merge'], fontSize: 10, width: 14, textAlign: 'center', flexShrink: 0 }}>
+              <span className="node-menu-item-symbol" style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind === 'effect' ? 'effect' : 'merge'] }}>
                 {item.symbol}
               </span>
-              <span style={{ color: 'oklch(72% 0.016 68)', fontSize: 11, fontFamily: 'var(--mono)' }}>
+              <span className="node-menu-item-label">
                 {item.label}
               </span>
-            </button>
+            </NoPan>
           </div>
         ))}
       </div>
-    </div>
+    </NoPan>
   );
 }
 
@@ -1648,50 +1535,34 @@ function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete, onClo
   if (items.length === 0) return null;
 
   return (
-    <div
+    <NoPan
       ref={menuRef}
-      style={{
-        position: 'fixed', left: x, top: y, zIndex: 1000,
-        background: 'oklch(16% 0.012 285)',
-        border: '1px solid oklch(28% 0.016 285)',
-        borderRadius: 8,
-        boxShadow: '0 8px 32px oklch(0% 0 0 / 0.6)',
-        width: 200, overflow: 'hidden',
-        padding: '4px 0',
-      }}
-      onMouseDown={(e) => e.stopPropagation()}
+      className="node-menu"
+      style={{ left: x, top: y, width: 200, padding: '4px 0' } as CSSProperties}
     >
       {items.map((item, i) => (
         <div key={i}>
           {item.dividerBefore && (
-            <div style={{ height: 1, background: 'oklch(24% 0.014 285)', margin: '4px 0' }} />
+            <div className="node-menu-divider" />
           )}
-          <button
+          <NoPan
+            as="button"
             type="button"
             onClick={() => { item.action(); onClose(); }}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              width: '100%', padding: '8px 14px',
-              background: 'none', border: 'none', cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'oklch(22% 0.014 285)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+            className="node-menu-item node-menu-item-between"
           >
-            <span style={{
-              fontFamily: 'var(--mono)', fontSize: 12,
-              color: item.danger ? 'oklch(62% 0.15 25)' : 'oklch(72% 0.016 68)',
-            }}>
+            <span className={`node-menu-item-label${item.danger ? ' node-menu-item-danger' : ''}`}>
               {item.label}
             </span>
             {item.hint && (
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'oklch(40% 0.012 285)' }}>
+              <span className="node-menu-item-hint">
                 {item.hint}
               </span>
             )}
-          </button>
+          </NoPan>
         </div>
       ))}
-    </div>
+    </NoPan>
   );
 }
 
@@ -1700,18 +1571,10 @@ function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete, onClo
 function buildRFNodes(
   doc: CanvasDocument,
   graph: CanvasGraph,
-  imageCache: Map<string, HTMLImageElement>,
   selectedNodeIds: Set<string>,
   editorNodeId: string | null,
   connected: { sources: Set<string>; targets: Set<string> },
-  onSelectNode: (id: string | null, options?: { additive?: boolean }) => void,
-  onToggleEditor: (id: string) => void,
-  onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void,
   exportBusy: boolean,
-  onExport: () => void,
-  onDeleteMerge: (id: string) => void,
-  onUpdateLayer: (id: string, patch: Partial<Layer>) => void,
-  onUpdateMerge: (id: string, patch: Partial<GraphMergeNode>) => void,
 ): RFNode[] {
   const nodes: RFNode[] = [];
 
@@ -1721,21 +1584,13 @@ function buildRFNodes(
       id: layer.id,
       type: 'layerNode',
       position: pos,
-      selected: selectedNodeIds.has(layer.id),
       data: {
         layer,
-        doc,
-        graph,
         previewTargetId: layer.id,
-        imageCache,
         selected: selectedNodeIds.has(layer.id),
         editing: editorNodeId === layer.id,
         connected,
-        onSelect: (event: React.MouseEvent) => onSelectNode(layer.id, { additive: event.metaKey || event.ctrlKey || event.shiftKey }),
-        onToggleEditor: () => onToggleEditor(layer.id),
-        onChange: (patch: Partial<Layer>) => onUpdateLayer(layer.id, patch),
-      } as unknown as Record<string, unknown>,
-      dragHandle: '.node-drag-handle',
+      } satisfies LayerNodeData,
     });
   });
 
@@ -1745,22 +1600,13 @@ function buildRFNodes(
       id: mn.id,
       type: 'mergeNode',
       position: pos,
-      selected: selectedNodeIds.has(mn.id),
       data: {
         mergeNode: mn,
-        doc,
-        graph,
         previewTargetId: mn.id,
-        imageCache,
         selected: selectedNodeIds.has(mn.id),
         editing: editorNodeId === mn.id,
         connected,
-        onSelect: (event: React.MouseEvent) => onSelectNode(mn.id, { additive: event.metaKey || event.ctrlKey || event.shiftKey }),
-        onDelete: () => onDeleteMerge(mn.id),
-        onToggleEditor: () => onToggleEditor(mn.id),
-        onChange: (patch: Partial<GraphMergeNode>) => onUpdateMerge(mn.id, patch),
-      } as unknown as Record<string, unknown>,
-      dragHandle: '.node-drag-handle',
+      } satisfies MergeNodeData,
     });
   });
 
@@ -1771,23 +1617,16 @@ function buildRFNodes(
     id: EXPORT_NODE_ID,
     type: 'exportNode',
     position: exportPos,
-    selected: selectedNodeIds.has(EXPORT_NODE_ID),
     data: {
-        doc,
-        graph,
-        previewTargetId: EXPORT_NODE_ID,
-        imageCache,
-        selected: selectedNodeIds.has(EXPORT_NODE_ID),
-        editing: editorNodeId === EXPORT_NODE_ID,
-        connected,
-        busy: exportBusy,
-        onSelect: (event: React.MouseEvent) => onSelectNode(EXPORT_NODE_ID, { additive: event.metaKey || event.ctrlKey || event.shiftKey }),
-        onToggleEditor: () => onToggleEditor(EXPORT_NODE_ID),
-        onChange: onUpdateExportConfig,
-        onExport,
-      } as unknown as Record<string, unknown>,
-      dragHandle: '.node-drag-handle',
-    });
+      exportConfig: doc.export,
+      aspect: doc.global.aspect,
+      previewTargetId: EXPORT_NODE_ID,
+      selected: selectedNodeIds.has(EXPORT_NODE_ID),
+      editing: editorNodeId === EXPORT_NODE_ID,
+      connected,
+      busy: exportBusy,
+    } satisfies ExportNodeData,
+  });
 
   return nodes;
 }
@@ -1803,6 +1642,7 @@ export interface NodeCanvasProps {
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
+  onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
   onExport: () => void;
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
@@ -1819,6 +1659,7 @@ export function NodeCanvas({
   onUpdateLayer,
   onUpdateMergeNode,
   onUpdateExportConfig,
+  onUpdateAspectRatio,
   exportBusy,
   onExport,
   onAddLayerAt,
@@ -1839,40 +1680,68 @@ export function NodeCanvas({
   const fittedRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(() => selectedLayerId ? [selectedLayerId] : []);
-  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
-  const handleSelectNode = useCallback((id: string | null, options?: { additive?: boolean }) => {
-    const additive = options?.additive ?? false;
-    const nextNodeIds = !id
-      ? []
-      : additive
-        ? (selectedNodeIds.includes(id) ? selectedNodeIds.filter((selectedId) => selectedId !== id) : [...selectedNodeIds, id])
-        : [id];
-    setSelectedEdgeId(null);
-    setSelectedNodeIds(nextNodeIds);
-    setExpandedNodeId((current) => {
-      if (additive) return current && nextNodeIds.includes(current) ? current : null;
-      return current === id ? current : null;
-    });
-    onSelectLayer(nextNodeIds.length === 1 ? nextNodeIds[0] : null);
-  }, [onSelectLayer, selectedNodeIds]);
+  const [uiState, dispatchUi] = useReducer(reduceNodeCanvasUi, {
+    selectedNodeIds: selectedLayerId ? [selectedLayerId] : [],
+    selectedEdgeId: null,
+    expandedNodeId: null,
+  });
+  const selectedNodeIdSet = useMemo(() => new Set(uiState.selectedNodeIds), [uiState.selectedNodeIds]);
+  const handleSelectNode = useCallback((id: string, event?: React.MouseEvent) => {
+    dispatchUi({ type: 'NODE_SELECTED', id, additive: isAdditiveSelectionEvent(event) });
+  }, []);
   const handleToggleEditor = useCallback((id: string) => {
-    setSelectedEdgeId(null);
-    setSelectedNodeIds([id]);
-    setExpandedNodeId((current) => (current === id ? null : id));
-    onSelectLayer(id);
-  }, [onSelectLayer]);
-  const handleDeleteMerge = useCallback((id: string) => {
-    onDeleteNodes([id]);
-  }, [onDeleteNodes]);
+    dispatchUi({ type: 'NODE_EDITOR_TOGGLED', id });
+  }, []);
   const activeEditorNodeId = useMemo(() => {
-    if (!expandedNodeId) return null;
-    const exists = expandedNodeId === EXPORT_NODE_ID
-      || doc.layers.some((layer) => layer.id === expandedNodeId)
-      || graph.mergeNodes.some((node) => node.id === expandedNodeId);
-    return exists ? expandedNodeId : null;
-  }, [doc.layers, graph.mergeNodes, expandedNodeId]);
+    if (!uiState.expandedNodeId) return null;
+    const exists = uiState.expandedNodeId === EXPORT_NODE_ID
+      || doc.layers.some((layer) => layer.id === uiState.expandedNodeId)
+      || graph.mergeNodes.some((node) => node.id === uiState.expandedNodeId);
+    return exists ? uiState.expandedNodeId : null;
+  }, [doc.layers, graph.mergeNodes, uiState.expandedNodeId]);
+  const selectedNodeId = uiState.selectedNodeIds.length === 1 ? uiState.selectedNodeIds[0] : null;
+
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const selectedEdgeIdRef = useRef(uiState.selectedEdgeId);
+  useLayoutEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+    selectedEdgeIdRef.current = uiState.selectedEdgeId;
+  }, [selectedNodeId, uiState.selectedEdgeId]);
+
+  useEffect(() => {
+    onSelectLayer(selectedNodeId);
+  }, [onSelectLayer, selectedNodeId]);
+
+  // Sync only when parent's selectedLayerId prop actually changes — re-running on
+  // selectedNodeId would race with the onSelectLayer effect above and ping-pong.
+  useEffect(() => {
+    if (!selectedLayerId) return;
+    if (selectedNodeIdRef.current === selectedLayerId && !selectedEdgeIdRef.current) return;
+    dispatchUi({ type: 'SYNC_EXTERNAL_NODE', id: selectedLayerId });
+  }, [selectedLayerId]);
+
+  useEffect(() => {
+    const validNodeIds = [...doc.layers.map((layer) => layer.id), ...graph.mergeNodes.map((node) => node.id), EXPORT_NODE_ID];
+    const validEdgeIds = graph.edges.map((edge) => edge.id);
+    dispatchUi({ type: 'FILTER_INVALID_REFERENCES', validNodeIds, validEdgeIds });
+  }, [doc.layers, graph.edges, graph.mergeNodes]);
+
+  const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(() => ({
+    doc,
+    graph,
+    imageCache,
+  }), [doc, graph, imageCache]);
+
+  const actionsContextValue = useMemo<NodeCanvasActionsContextValue>(() => ({
+    selectNode: handleSelectNode,
+    toggleNodeEditor: handleToggleEditor,
+    updateLayer: onUpdateLayer,
+    updateMergeNode: onUpdateMergeNode,
+    updateExportConfig: onUpdateExportConfig,
+    updateAspectRatio: onUpdateAspectRatio,
+    exportNode: onExport,
+    deleteNode: (id: string) => onDeleteNodes([id]),
+  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode]);
 
   // ── Single source of truth: derive display nodes/edges directly from doc ──
   // No local copy — any change to doc.layers or doc.graph is immediately reflected.
@@ -1880,33 +1749,25 @@ export function NodeCanvas({
     () => buildRFNodes(
         doc,
         graph,
-        imageCache,
-        new Set(selectedNodeIds),
+        selectedNodeIdSet,
         activeEditorNodeId,
         connected,
-        handleSelectNode,
-        handleToggleEditor,
-        onUpdateExportConfig,
         exportBusy,
-        onExport,
-        handleDeleteMerge,
-        onUpdateLayer,
-        onUpdateMergeNode,
       ),
-    [doc, graph, imageCache, selectedNodeIds, activeEditorNodeId, connected, handleSelectNode, handleToggleEditor, onUpdateExportConfig, exportBusy, onExport, handleDeleteMerge, onUpdateLayer, onUpdateMergeNode],
+    [doc, graph, selectedNodeIdSet, activeEditorNodeId, connected, exportBusy],
   );
   const baseEdges = useMemo(
     () => toRFEdges(graph).map((edge) => ({
       ...edge,
-      selected: selectedEdgeId === edge.id,
+      selected: uiState.selectedEdgeId === edge.id,
       style: {
         ...edge.style,
-        stroke: selectedEdgeId === edge.id ? 'oklch(78% 0.02 285)' : edge.style?.stroke,
-        strokeWidth: selectedEdgeId === edge.id ? 2.5 : edge.style?.strokeWidth,
-        opacity: selectedEdgeId === null || selectedEdgeId === edge.id ? 0.75 : 0.45,
+        stroke: uiState.selectedEdgeId === edge.id ? 'oklch(78% 0.02 285)' : edge.style?.stroke,
+        strokeWidth: uiState.selectedEdgeId === edge.id ? 2.5 : edge.style?.strokeWidth,
+        opacity: uiState.selectedEdgeId === null || uiState.selectedEdgeId === edge.id ? 0.75 : 0.45,
       },
     })),
-    [graph, selectedEdgeId],
+    [graph, uiState.selectedEdgeId],
   );
 
   // Local state only for smooth drag position tracking between drag-start and drag-stop.
@@ -1919,7 +1780,10 @@ export function NodeCanvas({
 
   // Whenever the canonical doc-derived nodes change (layer added/removed/renamed,
   // selection changed, etc.) and we are NOT mid-drag, push them into RF state.
-  useLayoutEffect(() => {
+  // useEffect (async) prevents the synchronous setState inside React's layout commit
+  // phase that causes ReactFlow's internal zustand setNodes to cascade into an
+  // infinite update loop when dragging then clicking.
+  useEffect(() => {
     if (!isDraggingRef.current) {
       setDragNodes(baseNodes);
       setDragEdges(baseEdges);
@@ -1929,7 +1793,7 @@ export function NodeCanvas({
   // During drag: apply ReactFlow position/dimension/select changes locally so the
   // node follows the cursor. On drag-stop we commit the final position to doc.graph.
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const relevant = changes.filter((c) => c.type !== 'remove');
+    const relevant = changes.filter((c) => c.type !== 'remove' && c.type !== 'select');
     if (relevant.length) setDragNodes((prev) => applyNodeChanges(relevant, prev));
   }, []);
 
@@ -1991,7 +1855,7 @@ export function NodeCanvas({
     (deleted: RFEdge[]) => {
       let g = graphRef.current;
       for (const e of deleted) g = removeGraphEdge(g, e.id);
-      setSelectedEdgeId((current) => (deleted.some((edge) => edge.id === current) ? null : current));
+      dispatchUi({ type: 'EDGE_IDS_REMOVED', ids: deleted.map((edge) => edge.id) });
       onGraphChange(g);
     },
     [onGraphChange],
@@ -2077,29 +1941,23 @@ export function NodeCanvas({
   }, [commitNodePositions]);
 
   const onPaneClick = useCallback(() => {
-    onSelectLayer(null);
-    setSelectedEdgeId(null);
-    setSelectedNodeIds([]);
-    setExpandedNodeId(null);
+    dispatchUi({ type: 'PANE_CLICKED' });
     setContextMenu(null);
-  }, [onSelectLayer]);
+  }, []);
   const onRFInit = useCallback((instance: ReactFlowInstance) => { rfInstanceRef.current = instance; }, []);
   const onEdgeClick = useCallback((e: React.MouseEvent, edge: RFEdge) => {
     e.preventDefault();
     e.stopPropagation();
-    setSelectedEdgeId(edge.id);
-    onSelectLayer(null);
-    setSelectedNodeIds([]);
-    setExpandedNodeId(null);
+    dispatchUi({ type: 'EDGE_SELECTED', id: edge.id });
     setContextMenu(null);
-  }, [onSelectLayer]);
+  }, []);
   const onSelectionChange = useCallback(({ nodes, edges }: { nodes: RFNode[]; edges: RFEdge[] }) => {
-    const nodeIds = nodes.map((node) => node.id);
-    setSelectedNodeIds(nodeIds);
-    setSelectedEdgeId(nodeIds.length === 0 && edges.length === 1 ? edges[0].id : null);
-    setExpandedNodeId((current) => (nodeIds.length === 1 && nodeIds[0] === current ? current : null));
-    onSelectLayer(nodeIds.length === 1 ? nodeIds[0] : null);
-  }, [onSelectLayer]);
+    dispatchUi({
+      type: 'SELECTION_CHANGED',
+      nodeIds: nodes.map((node) => node.id),
+      edgeIds: edges.map((edge) => edge.id),
+    });
+  }, []);
   const handleOrganizeNodes = useCallback(() => {
     onGraphChange(organizeGraph(graphRef.current, doc.layers));
     requestAnimationFrame(() => {
@@ -2176,24 +2034,22 @@ export function NodeCanvas({
       ) {
         return;
       }
-      if (selectedEdgeId) {
+      if (uiState.selectedEdgeId) {
         e.preventDefault();
-        onGraphChange(removeGraphEdge(graphRef.current, selectedEdgeId));
-        setSelectedEdgeId(null);
+        onGraphChange(removeGraphEdge(graphRef.current, uiState.selectedEdgeId));
+        dispatchUi({ type: 'EDGE_IDS_REMOVED', ids: [uiState.selectedEdgeId] });
         return;
       }
-      const deletableNodeIds = selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID);
+      const deletableNodeIds = uiState.selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID);
       if (deletableNodeIds.length === 0) return;
       e.preventDefault();
       onDeleteNodes(deletableNodeIds);
-      setSelectedNodeIds([]);
-      setExpandedNodeId((current) => (current && deletableNodeIds.includes(current) ? null : current));
-      onSelectLayer(null);
+      dispatchUi({ type: 'NODE_IDS_REMOVED', ids: deletableNodeIds });
     };
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, onGraphChange, onSelectLayer]);
+  }, [uiState.selectedEdgeId, uiState.selectedNodeIds, onDeleteNodes, onGraphChange]);
 
   // Intercept ReactFlow's built-in node removal so Delete key calls the proper
   // doc-layer callbacks instead of only mutating rfNodes state.
@@ -2201,16 +2057,21 @@ export function NodeCanvas({
     const nonRemove = changes.filter((c) => {
       if (c.type !== 'remove') return true;
       const isExport = c.id === EXPORT_NODE_ID;
-      if (!isExport) onDeleteNodes([c.id]);
+      if (!isExport) {
+        onDeleteNodes([c.id]);
+        dispatchUi({ type: 'NODE_IDS_REMOVED', ids: [c.id] });
+      }
       return false;
     });
     if (nonRemove.length) onNodesChange(nonRemove);
   }, [onNodesChange, onDeleteNodes]);
 
   return (
-    <div
-      style={{ width: '100%', height: '100%', background: 'oklch(10% 0.009 285)', position: 'relative' }}
-    >
+    <NodeCanvasPreviewContext.Provider value={previewContextValue}>
+      <NodeCanvasActionsContext.Provider value={actionsContextValue}>
+        <div
+          style={{ width: '100%', height: '100%', background: 'oklch(10% 0.009 285)', position: 'relative' }}
+        >
       <style>{`
         @keyframes node-shimmer {
           0% { background-position: -200% 0; }
@@ -2222,21 +2083,159 @@ export function NodeCanvas({
         .react-flow__controls {
           background: oklch(14% 0.01 285);
           border: 1px solid oklch(26% 0.015 285);
-          border-radius: 4px; box-shadow: none;
+          border-radius: 4px;
+          box-shadow: none;
         }
         .react-flow__controls-button {
           background: transparent;
           border-bottom: 1px solid oklch(22% 0.012 285);
-          color: oklch(55% 0.015 285); fill: oklch(55% 0.015 285);
-          width: 24px; height: 24px; padding: 5px;
+          color: oklch(55% 0.015 285);
+          fill: oklch(55% 0.015 285);
+          width: 24px;
+          height: 24px;
+          padding: 5px;
         }
         .react-flow__controls-button:hover {
           background: oklch(20% 0.012 285);
-          color: oklch(75% 0.02 285); fill: oklch(75% 0.02 285);
+          color: oklch(75% 0.02 285);
+          fill: oklch(75% 0.02 285);
         }
         .react-flow__controls-button:last-child { border-bottom: none; }
         .react-flow__background { background: oklch(10% 0.009 285); }
+        .nodrag { pointer-events: auto; }
         .node-drag-handle:active { cursor: grabbing; }
+        .node-thumbnail {
+          background: oklch(8% 0.01 285);
+          border-radius: 3px;
+          overflow: hidden;
+          position: relative;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 136px;
+          height: 136px;
+        }
+        .node-thumbnail-export {
+          height: auto;
+          overflow: visible;
+        }
+        .node-thumbnail-frame {
+          position: relative;
+          overflow: hidden;
+          border-radius: 3px;
+        }
+        .node-thumbnail-canvas {
+          display: block;
+          width: 100%;
+          height: 100%;
+          transition: opacity 200ms ease-out;
+        }
+        .node-thumbnail-skeleton {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, oklch(14% 0.01 285) 25%, oklch(19% 0.012 285) 50%, oklch(14% 0.01 285) 75%);
+          background-size: 200% 100%;
+          animation: node-shimmer 1.4s ease-in-out infinite;
+        }
+        .node-shell {
+          background: oklch(14% 0.01 285);
+          border: 1px solid oklch(26% 0.015 285);
+          border-radius: 6px;
+          overflow: hidden;
+          box-shadow: 0 4px 16px oklch(0% 0 0 / 0.4);
+          cursor: default;
+          user-select: none;
+        }
+        .node-shell-selected {
+          border-color: var(--node-accent);
+          box-shadow: 0 0 0 1px color-mix(in oklab, var(--node-accent) 20%, transparent), 0 4px 16px oklch(0% 0 0 / 0.5);
+        }
+        .node-shell-accent,
+        .node-editor-accent {
+          background: var(--node-accent);
+          flex-shrink: 0;
+        }
+        .node-shell-accent { height: 3px; }
+        .node-editor-accent { height: 2px; }
+        .node-shell-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 8px;
+          background: oklch(12% 0.012 285);
+          border-bottom: 1px solid oklch(22% 0.012 285);
+          min-height: 28px;
+        }
+        .node-shell-drag {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex: 1;
+          min-width: 0;
+          cursor: grab;
+        }
+        .node-shell-symbol {
+          color: var(--node-accent);
+          font-size: 10px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+        .node-shell-label,
+        .node-shell-name,
+        .node-editor-title,
+        .node-editor-subtitle,
+        .node-inspector-label,
+        .node-inspector-value,
+        .node-badge,
+        .node-menu-item-label,
+        .node-menu-item-hint,
+        .node-menu-group,
+        .node-menu-empty,
+        .node-menu-search-input {
+          font-family: var(--mono);
+        }
+        .node-shell-label {
+          color: oklch(44% 0.013 285);
+          font-size: 9px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          flex-shrink: 0;
+        }
+        .node-shell-name {
+          color: oklch(70% 0.018 68);
+          font-size: 10px;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .node-shell-body { padding: 8px 8px 6px; }
+        .node-shell-toggle,
+        .node-editor-close {
+          width: 22px;
+          height: 22px;
+          display: grid;
+          place-items: center;
+          padding: 0;
+          border: 1px solid oklch(24% 0.014 285);
+          border-radius: 999px;
+          background: transparent;
+          color: oklch(55% 0.015 285);
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .node-shell-toggle {
+          width: 20px;
+          height: 20px;
+          color: oklch(52% 0.015 285);
+          font-size: 10px;
+          line-height: 1;
+        }
+        .node-shell-toggle-active {
+          background: oklch(22% 0.03 285);
+          color: var(--node-accent);
+        }
         .node-shell-action {
           transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1), background 120ms cubic-bezier(0.25, 1, 0.5, 1), color 120ms cubic-bezier(0.25, 1, 0.5, 1);
         }
@@ -2244,6 +2243,152 @@ export function NodeCanvas({
           border-color: oklch(36% 0.024 285);
           background: oklch(18% 0.018 285);
           color: oklch(76% 0.02 285);
+        }
+        .node-editor-panel {
+          position: absolute;
+          right: calc(100% + 14px);
+          top: -2px;
+          background: oklch(13% 0.011 285);
+          border: 1px solid var(--node-accent);
+          border-radius: 10px;
+          box-shadow: 0 16px 40px oklch(0% 0 0 / 0.55);
+          overflow: hidden;
+          z-index: 30;
+        }
+        .node-editor-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 12px;
+          border-bottom: 1px solid oklch(22% 0.012 285);
+          background: oklch(11.5% 0.012 285);
+        }
+        .node-editor-heading,
+        .node-inspector-section-copy,
+        .node-inspector-stack,
+        .node-inspector-control,
+        .node-scale-controls {
+          display: flex;
+          flex-direction: column;
+        }
+        .node-editor-heading,
+        .node-inspector-section-copy {
+          gap: 2px;
+          min-width: 0;
+        }
+        .node-editor-title,
+        .node-inspector-section-title {
+          color: oklch(74% 0.02 68);
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .node-editor-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .node-editor-subtitle,
+        .node-inspector-section-summary {
+          color: oklch(46% 0.014 285);
+          font-size: 9px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .node-editor-body { padding: 10px 12px 12px; }
+        .node-inspector-stack { gap: 8px; }
+        .node-inspector-detached {
+          margin-top: 8px;
+          padding-top: 8px;
+          border-top: 1px solid oklch(22% 0.012 285);
+        }
+        .node-badge-row {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .node-badge {
+          padding: 3px 7px;
+          border-radius: 999px;
+          border: 1px solid oklch(26% 0.015 285);
+          color: oklch(74% 0.02 68);
+          background: oklch(11% 0.01 285);
+          font-size: 9px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .node-badge-accent {
+          border-color: oklch(22% 0.02 298);
+          color: oklch(66% 0.08 298);
+          background: oklch(14% 0.015 298);
+        }
+        .node-inspector-label {
+          color: oklch(44% 0.013 285);
+          font-size: 9px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+        .node-inspector-row,
+        .node-inspector-toggle,
+        .node-scale-row,
+        .node-inspector-control-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .node-inspector-row { gap: 10px; }
+        .node-inspector-toggle { cursor: pointer; }
+        .node-scale-row { align-items: flex-start; }
+        .node-scale-controls { flex: 1; gap: 8px; }
+        .node-inspector-control { gap: 4px; }
+        .node-inspector-control-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 0;
+        }
+        .node-inspector-value {
+          color: oklch(64% 0.015 285);
+          font-size: 10px;
+        }
+        .node-inspector-section {
+          border: 1px solid oklch(24% 0.014 285);
+          border-radius: 6px;
+          overflow: hidden;
+          background: oklch(11% 0.01 285);
+        }
+        .node-inspector-section-open { background: oklch(12.5% 0.012 285); }
+        .node-section-button {
+          transition: background 180ms cubic-bezier(0.25, 1, 0.5, 1), color 180ms cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .node-section-button:hover { background: oklch(15% 0.014 285); }
+        .node-inspector-section-button {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 9px 10px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          text-align: left;
+        }
+        .node-inspector-section-toggle {
+          color: oklch(45% 0.014 285);
+          font-size: 10px;
+          flex-shrink: 0;
+        }
+        .node-inspector-section-open .node-inspector-section-toggle {
+          color: oklch(70% 0.03 298);
+        }
+        .node-inspector-section-body {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          padding: 0 10px 10px;
         }
         .node-shell-action:focus-visible,
         .node-section-button:focus-visible,
@@ -2253,18 +2398,102 @@ export function NodeCanvas({
           outline: 2px solid oklch(72% 0.07 298);
           outline-offset: 2px;
         }
-        .node-section-button {
-          transition: background 180ms cubic-bezier(0.25, 1, 0.5, 1), color 180ms cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        .node-section-button:hover {
-          background: oklch(15% 0.014 285);
-        }
         .node-field,
         .node-slider,
         .node-color-input,
         .node-check {
+          background: oklch(11% 0.01 285);
           transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 120ms cubic-bezier(0.25, 1, 0.5, 1), background 120ms cubic-bezier(0.25, 1, 0.5, 1);
         }
+        .node-field {
+          width: 100%;
+          border: 1px solid oklch(24% 0.014 285);
+          border-radius: 4px;
+          color: oklch(76% 0.018 68);
+          font-family: var(--mono);
+          font-size: 11px;
+          padding: 7px 8px;
+          outline: none;
+        }
+        .node-field-textarea {
+          resize: vertical;
+          min-height: 64px;
+        }
+        .node-field:hover,
+        .node-color-input:hover {
+          border-color: oklch(32% 0.02 285);
+        }
+        .node-slider {
+          accent-color: oklch(68% 0.13 18);
+          width: 100%;
+          border: none;
+          padding: 0;
+          background: transparent;
+        }
+        .node-color-input {
+          width: 30px;
+          height: 22px;
+          border-radius: 4px;
+          border: 1px solid oklch(24% 0.014 285);
+          cursor: pointer;
+          padding: 2px;
+        }
+        .node-check {
+          width: 16px;
+          height: 16px;
+          accent-color: oklch(68% 0.13 18);
+          flex-shrink: 0;
+        }
+        .node-scale-lock {
+          flex-shrink: 0;
+          margin-top: 18px;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          border: 1px solid oklch(24% 0.014 285);
+          background: oklch(11% 0.01 285);
+          color: oklch(52% 0.014 285);
+          cursor: pointer;
+        }
+        .node-scale-lock-active {
+          border-color: oklch(70% 0.03 298);
+          color: oklch(70% 0.03 298);
+        }
+        .node-info-button {
+          width: 16px;
+          height: 16px;
+          display: grid;
+          place-items: center;
+          padding: 0;
+          border-radius: 999px;
+          border: 1px solid oklch(24% 0.014 285);
+          background: transparent;
+          color: oklch(46% 0.014 285);
+          font-size: 9px;
+          line-height: 1;
+          cursor: help;
+        }
+        .node-export-button {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          min-height: 32px;
+          border-radius: 6px;
+          border: 1px solid oklch(30% 0.018 285);
+          background: oklch(18% 0.014 285);
+          color: oklch(76% 0.02 68);
+          font-family: var(--mono);
+          font-size: 11px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+        .node-export-button:disabled { opacity: 0.6; cursor: default; }
         .node-canvas-toolbar {
           position: absolute;
           top: 12px;
@@ -2297,26 +2526,86 @@ export function NodeCanvas({
           background: oklch(18% 0.018 285);
           color: oklch(78% 0.02 68);
         }
-        .node-field:hover,
-        .node-color-input:hover {
-          border-color: oklch(32% 0.02 285);
+        .node-menu {
+          position: fixed;
+          z-index: 1000;
+          background: oklch(16% 0.012 285);
+          border: 1px solid oklch(28% 0.016 285);
+          border-radius: 8px;
+          box-shadow: 0 8px 32px oklch(0% 0 0 / 0.6);
+          overflow: hidden;
         }
-        .node-slider {
-          accent-color: oklch(68% 0.13 18);
+        .node-menu-search {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-bottom: 1px solid oklch(24% 0.014 285);
         }
-        .node-color-input {
-          width: 30px;
-          height: 22px;
-          border-radius: 4px;
-          border: 1px solid oklch(24% 0.014 285);
-          background: oklch(11% 0.01 285);
+        .node-menu-search-icon {
+          color: oklch(44% 0.015 285);
+          font-size: 11px;
+        }
+        .node-menu-search-input {
+          width: 100%;
+          background: none;
+          border: none;
+          outline: none;
+          color: oklch(75% 0.018 68);
+          font-size: 11px;
+        }
+        .node-menu-list {
+          max-height: 320px;
+          overflow-y: auto;
+          padding: 4px 0;
+        }
+        .node-menu-empty {
+          padding: 8px 12px;
+          color: oklch(42% 0.013 285);
+          font-size: 10px;
+        }
+        .node-menu-group {
+          padding: 6px 12px 2px;
+          color: oklch(38% 0.012 285);
+          font-size: 9px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        .node-menu-divider {
+          height: 1px;
+          background: oklch(24% 0.014 285);
+          margin: 4px 0;
+        }
+        .node-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 7px 12px;
+          background: none;
+          border: none;
           cursor: pointer;
-          padding: 2px;
+          text-align: left;
         }
-        .node-check {
-          width: 16px;
-          height: 16px;
-          accent-color: oklch(68% 0.13 18);
+        .node-menu-item-between {
+          justify-content: space-between;
+          padding: 8px 14px;
+        }
+        .node-menu-item:hover { background: oklch(22% 0.014 285); }
+        .node-menu-item-symbol {
+          font-size: 10px;
+          width: 14px;
+          text-align: center;
+          flex-shrink: 0;
+        }
+        .node-menu-item-label {
+          color: oklch(72% 0.016 68);
+          font-size: 11px;
+        }
+        .node-menu-item-danger { color: oklch(62% 0.15 25); }
+        .node-menu-item-hint {
+          font-size: 10px;
+          color: oklch(40% 0.012 285);
         }
       `}</style>
 
@@ -2389,5 +2678,7 @@ export function NodeCanvas({
         />
       )}
     </div>
+      </NodeCanvasActionsContext.Provider>
+    </NodeCanvasPreviewContext.Provider>
   );
 }

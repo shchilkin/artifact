@@ -87,6 +87,7 @@ export default function Generator() {
     loadDocument,
     setDoc,
     setSeed,
+    setAspect,
     undo,
     redo,
     canUndo,
@@ -167,6 +168,7 @@ export default function Generator() {
                   onUpdateLayer={updateLayer}
                   onUpdateMergeNode={updateMergeNode}
                   onUpdateExportConfig={handleExportConfigChange}
+                  onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}
                   onExport={handleNodeExport}
                   onAddLayerAt={handleAddLayerAt}
