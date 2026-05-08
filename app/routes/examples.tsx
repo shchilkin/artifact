@@ -6,6 +6,7 @@ import { SiteNav } from '../components/SiteNav';
 import { Footer } from '../components/Footer';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
+import { CURATED_EXAMPLES } from '../utils/curatedExamples';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
@@ -16,12 +17,6 @@ export const meta: MetaFunction = () => [
       'Browse glitch covers in every aspect ratio — square, story, vertical, wide. Tap any to open and remix it.',
   },
 ];
-
-interface ExampleData {
-  name: string;
-  global: CanvasDocument['global'];
-  layers: CanvasDocument['layers'];
-}
 
 interface ExampleItem {
   id: string;
@@ -41,22 +36,13 @@ function withAspect(doc: CanvasDocument, aspect: AspectRatio): CanvasDocument {
   return { ...doc, global: { ...doc.global, aspect } };
 }
 
-const exampleModules = import.meta.glob('../examples/*.json', { eager: true }) as Record<
-  string,
-  { default: ExampleData }
->;
-
-const presetExamples: ExampleItem[] = Object.entries(exampleModules).map(([path, mod], i) => {
-  const data = mod.default ?? mod;
-  const id = path.replace('../examples/', '').replace('.json', '');
-  const aspect: AspectRatio = (data.global as { aspect?: AspectRatio }).aspect ?? pickAspect(i);
-  const doc: CanvasDocument = {
-    global: { ...data.global, aspect },
-    layers: data.layers,
-    export: { format: 'png', scale: 1, target: 'cover' },
-  };
-  return { id, name: data.name, aspect, doc, thumbnail: null };
-});
+const curatedExamples: ExampleItem[] = CURATED_EXAMPLES.map(({ id, name, doc }) => ({
+  id,
+  name,
+  aspect: doc.global.aspect,
+  doc,
+  thumbnail: null,
+}));
 
 function buildRandomItems(count: number, baseSeed: number, idPrefix: string): ExampleItem[] {
   return Array.from({ length: count }, (_, i) => {
@@ -78,7 +64,7 @@ function buildRandomItems(count: number, baseSeed: number, idPrefix: string): Ex
 }
 
 const initialRandom = buildRandomItems(28, 300001, 'random');
-const initialItems: ExampleItem[] = [...presetExamples, ...initialRandom];
+const initialItems: ExampleItem[] = [...curatedExamples, ...initialRandom];
 
 const ASPECT_LABEL: Record<AspectRatio, string> = {
   '1:1': 'square',

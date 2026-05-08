@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import type { MetaFunction } from 'react-router';
-import { useReducedMotion } from 'framer-motion';
-import { SiteNav } from '../components/SiteNav';
-import { Footer } from '../components/Footer';
-import { renderDocument } from '../utils/renderer';
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import type { MetaFunction } from "react-router";
+import { useReducedMotion } from "framer-motion";
+import { SiteNav } from "../components/SiteNav";
+import { Footer } from "../components/Footer";
+import { renderDocument } from "../utils/renderer";
 import {
   DEFAULT_EXPORT,
   makeEffectPresetLayer,
@@ -14,10 +14,10 @@ import {
   makeTextLayer,
   type CanvasDocument,
   type Layer,
-} from '../types/config';
+} from "../types/config";
 const SEED = 31415;
 const CANVAS_PX = 540;
-const HERO_IMAGE_SRC = '/girl_image_landing.png';
+const HERO_IMAGE_SRC = "/girl_image_landing.png";
 
 interface Step {
   title: string;
@@ -27,98 +27,106 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    title: 'Fill.',
-    body: 'A tinted plane. Every cover starts here, with one decision about color.',
-    layers: [makeFillLayer({ color: '#1a0a1f', name: 'fill' })],
+    title: "Fill.",
+    body: "A tinted plane. Every cover starts here, with one decision about color.",
+    layers: [makeFillLayer({ color: "#1a0a1f", name: "fill" })],
   },
   {
-    title: 'Rays.',
-    body: 'Light shafts, tinted and angled. One GPU pass over the fill.',
-    layers: [makeEffectPresetLayer('rays')],
+    title: "Rays.",
+    body: "Light shafts, tinted and angled. One GPU pass over the fill.",
+    layers: [makeEffectPresetLayer("rays")],
   },
   {
-    title: 'Emoji.',
-    body: 'Glyphs scattered, sized, blurred. Raw material, not punctuation.',
+    title: "Emoji.",
+    body: "Glyphs scattered, sized, blurred. Raw material, not punctuation.",
     layers: [
       makeEmojiLayer({
-        emojis: ['💀', '⚡', '🥀', '🖤', '✦'],
+        emojis: ["💀", "⚡", "🥀", "🖤", "✦"],
         density: 24,
         minSz: 22,
         maxSz: 70,
         blur: 62,
         opacity: 75,
-        name: 'emoji',
+        name: "emoji",
       }),
     ],
   },
   {
-    title: 'Halftone.',
-    body: 'Print dots eat the emoji into a mechanical pattern.',
-    layers: [makeEffectPresetLayer('halftone')],
+    title: "Halftone.",
+    body: "Print dots eat the emoji into a mechanical pattern.",
+    layers: [makeEffectPresetLayer("halftone")],
   },
   {
-    title: 'Scanlines.',
-    body: 'CRT bands across the under-layers. Texture of broken signal.',
-    layers: [makeEffectPresetLayer('scanlines')],
+    title: "Scanlines.",
+    body: "CRT bands across the under-layers. Texture of broken signal.",
+    layers: [makeEffectPresetLayer("scanlines")],
   },
   {
-    title: 'Image.',
-    body: 'A photo on top of the noise. Crop, scale, drop it in.',
-    layers: [makeImageLayer(HERO_IMAGE_SRC, { fit: 'cover', opacity: 100, name: 'image' })],
+    title: "Image.",
+    body: "A photo on top of the noise. Crop, scale, drop it in.",
+    layers: [
+      makeImageLayer(HERO_IMAGE_SRC, {
+        fit: "cover",
+        opacity: 100,
+        name: "image",
+      }),
+    ],
   },
   {
-    title: 'Title.',
-    body: 'Set the name. Display weight, oversized, low in the frame.',
+    title: "Title.",
+    body: "Set the name. Display weight, oversized, low in the frame.",
     layers: [
       makeTextLayer({
-        content: 'WEIRDER',
-        font: 'DISPLAY',
+        content: "WEIRDER",
+        font: "DISPLAY",
         size: 140,
-        color: '#fff2dc',
+        color: "#fff2dc",
         x: 0.5,
         y: 0.82,
-        align: 'center',
-        name: 'title',
+        align: "center",
+        name: "title",
       }),
     ],
   },
   {
-    title: 'Grain.',
-    body: 'Noise across the whole frame. Film texture, not detail.',
-    layers: [makeEffectPresetLayer('grain')],
+    title: "Grain.",
+    body: "Noise across the whole frame. Film texture, not detail.",
+    layers: [{ ...makeEffectPresetLayer("grain"), name: "grain", grain: 100 }],
   },
   {
-    title: 'Misregister.',
-    body: 'Color channels split, shift apart. Off-press print error, on purpose.',
-    layers: [makeEffectPresetLayer('risoShift')],
+    title: "Misregister.",
+    body: "Color channels split, shift apart. Off-press print error, on purpose.",
+    layers: [makeEffectPresetLayer("risoShift")],
   },
   {
-    title: 'Vignette.',
-    body: 'Corners darkened. Eye pulled to the center.',
-    layers: [makeEffectPresetLayer('vignette')],
+    title: "Vignette.",
+    body: "Corners darkened. Eye pulled to the center.",
+    layers: [
+      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 68 },
+    ],
   },
   {
-    title: 'Bloom.',
-    body: 'Highlights leak. Final breath of light. Now export it.',
-    layers: [makeEffectPresetLayer('bloom')],
+    title: "Bloom.",
+    body: "Highlights leak. Final breath of light. Now export it.",
+    layers: [{ ...makeEffectPresetLayer("bloom"), name: "bloom", bloom: 100 }],
   },
 ];
 
 function buildDoc(stepIndex: number): CanvasDocument {
   const layers = STEPS.slice(0, stepIndex + 1).flatMap((step) => step.layers);
   return {
-    global: { bg: '#0a0008', seed: SEED, aspect: '1:1' },
+    global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
     export: DEFAULT_EXPORT,
     layers,
   };
 }
 
 export const meta: MetaFunction = () => [
-  { title: 'Album Cover Generator — Layer it Up' },
+  { title: "Album Cover Generator — Layer it Up" },
   {
-    name: 'description',
+    name: "description",
     content:
-      'Stack layers, run GPU effects, export at 3000×3000. A browser-based glitch cover generator for the deliberately strange.',
+      "Stack layers, run GPU effects, export at 3000×3000. A browser-based glitch cover generator for the deliberately strange.",
   },
 ];
 
@@ -128,7 +136,9 @@ export default function Home() {
 
   const [step, setStep] = useState(0);
   const [imageReady, setImageReady] = useState(false);
+  const [heroVisible, setHeroVisible] = useState(true);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
+  const heroRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
@@ -151,28 +161,35 @@ export default function Home() {
   useEffect(() => {
     function update() {
       const refs = stepRefs.current;
-      if (!refs.length) return;
-      const center = window.innerHeight * 0.5;
-      let bestIdx = 0;
-      let bestDist = Infinity;
-      for (let i = 0; i < refs.length; i++) {
-        const el = refs[i];
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
-        const dist = Math.abs(r.top + r.height * 0.5 - center);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIdx = i;
+      const vh = window.innerHeight;
+      if (refs.length) {
+        const center = vh * 0.5;
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < refs.length; i++) {
+          const el = refs[i];
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const dist = Math.abs(r.top + r.height * 0.5 - center);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
+          }
         }
+        setStep(bestIdx);
       }
-      setStep(bestIdx);
+      const hero = heroRef.current;
+      if (hero) {
+        const r = hero.getBoundingClientRect();
+        setHeroVisible(r.bottom > vh * 0.5);
+      }
     }
     update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
   }, []);
 
@@ -182,13 +199,18 @@ export default function Home() {
     (async () => {
       const doc = buildDoc(step);
       try {
-        const out = await renderDocument(doc, CANVAS_PX, CANVAS_PX, imageCacheRef.current);
+        const out = await renderDocument(
+          doc,
+          CANVAS_PX,
+          CANVAS_PX,
+          imageCacheRef.current,
+        );
         if (renderTokenRef.current !== token) return;
         const target = canvasRef.current;
         if (!target) return;
         if (target.width !== out.width) target.width = out.width;
         if (target.height !== out.height) target.height = out.height;
-        const ctx = target.getContext('2d');
+        const ctx = target.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, target.width, target.height);
           ctx.drawImage(out, 0, 0);
@@ -203,24 +225,35 @@ export default function Home() {
     function onKey(event: KeyboardEvent) {
       if (event.target instanceof HTMLElement) {
         const tag = event.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) return;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          event.target.isContentEditable
+        )
+          return;
       }
-      if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+      if (event.key === "ArrowDown" || event.key === "PageDown") {
         const target = stepRefs.current[Math.min(step + 1, STEPS.length - 1)];
         if (target) {
           event.preventDefault();
-          target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+          target.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+            block: "center",
+          });
         }
-      } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+      } else if (event.key === "ArrowUp" || event.key === "PageUp") {
         const target = stepRefs.current[Math.max(step - 1, 0)];
         if (target) {
           event.preventDefault();
-          target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+          target.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+            block: "center",
+          });
         }
       }
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [step, prefersReducedMotion]);
 
   function handleCTA() {
@@ -234,37 +267,25 @@ export default function Home() {
       <div className="landing-grain" aria-hidden="true" />
 
       <main className="home-main">
-        <section className="home-hero" aria-labelledby="home-hero-title">
-          <span className="home-hero__crop home-hero__crop--tl" aria-hidden="true" />
-          <span className="home-hero__crop home-hero__crop--tr" aria-hidden="true" />
-          <span className="home-hero__crop home-hero__crop--bl" aria-hidden="true" />
-          <span className="home-hero__crop home-hero__crop--br" aria-hidden="true" />
-          <p className="home-hero__eyebrow">Album cover generator</p>
-          <h1 id="home-hero-title" className="home-hero__headline">
-            Stack layers.
-            <br />
-            Make weirder
-            <br />
-            covers.
-          </h1>
-          <p className="home-hero__deck">
-            Scroll to watch one cover compose itself, layer by layer. Browser-based, GPU-driven, no account.
-          </p>
-          <div className="home-hero__meta">
-            <span>SEED #{SEED}</span>
-            <span aria-hidden="true">·</span>
-            <span>1:1 / 4:5 / 9:16 / 16:9</span>
-          </div>
-          <p className="home-hero__hint" aria-hidden="true">↓ scroll</p>
-        </section>
-
         <div className="home-stage">
           <aside className="home-stage__canvas" aria-label="Live cover preview">
             <div className="home-canvas-frame">
-              <span className="home-canvas-mark home-canvas-mark--tl" aria-hidden="true" />
-              <span className="home-canvas-mark home-canvas-mark--tr" aria-hidden="true" />
-              <span className="home-canvas-mark home-canvas-mark--bl" aria-hidden="true" />
-              <span className="home-canvas-mark home-canvas-mark--br" aria-hidden="true" />
+              <span
+                className="home-canvas-mark home-canvas-mark--tl"
+                aria-hidden="true"
+              />
+              <span
+                className="home-canvas-mark home-canvas-mark--tr"
+                aria-hidden="true"
+              />
+              <span
+                className="home-canvas-mark home-canvas-mark--bl"
+                aria-hidden="true"
+              />
+              <span
+                className="home-canvas-mark home-canvas-mark--br"
+                aria-hidden="true"
+              />
               <canvas
                 ref={canvasRef}
                 className="home-canvas"
@@ -276,22 +297,45 @@ export default function Home() {
             <div className="home-canvas-meta">
               <span>SEED #{SEED}</span>
               <span>
-                {String(step + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
+                {String(step + 1).padStart(2, "0")} /{" "}
+                {String(STEPS.length).padStart(2, "0")}
               </span>
             </div>
             <ol className="home-progress" aria-label="Layer progression">
               {STEPS.map((s, i) => (
                 <li
                   key={s.title}
-                  className={`home-progress__item${i <= step ? ' home-progress__item--reached' : ''}${i === step ? ' home-progress__item--current' : ''}`}
-                  aria-current={i === step ? 'step' : undefined}
+                  className={`home-progress__item${i <= step ? " home-progress__item--reached" : ""}${i === step ? " home-progress__item--current" : ""}`}
+                  aria-current={i === step ? "step" : undefined}
                 >
                   <span className="home-progress__bar" aria-hidden="true" />
-                  <span className="sr-only">{s.title.replace('.', '')}</span>
+                  <span className="sr-only">{s.title.replace(".", "")}</span>
                 </li>
               ))}
             </ol>
           </aside>
+
+          <section
+            ref={heroRef}
+            className={`home-hero-overlay${heroVisible ? "" : " home-hero-overlay--faded"}`}
+            aria-labelledby="home-hero-title"
+          >
+            <p className="home-hero__eyebrow">Album cover generator</p>
+            <h1 id="home-hero-title" className="home-hero__headline">
+              Stack layers.
+              <br />
+              Make weirder
+              <br />
+              covers.
+            </h1>
+            <p className="home-hero__deck">
+              Scroll to watch one cover compose itself, layer by layer.
+              Browser-based, GPU-driven, no account.
+            </p>
+            <p className="home-hero__hint" aria-hidden="true">
+              ↓ scroll
+            </p>
+          </section>
 
           <div className="home-stage__copy">
             {STEPS.map((s, i) => (
@@ -300,20 +344,27 @@ export default function Home() {
                 ref={(el) => {
                   stepRefs.current[i] = el;
                 }}
-                className={`home-step${i === step ? ' home-step--active' : ''}`}
-                aria-current={i === step ? 'step' : undefined}
+                className={`home-step${i === step ? " home-step--active" : ""}`}
+                aria-current={i === step ? "step" : undefined}
               >
                 <div className="home-step__index">
-                  <span className="home-step__num">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="home-step__num">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
                   <span className="home-step__rule" aria-hidden="true" />
-                  <span className="home-step__kind">{layerKindLabel(s.layers)}</span>
+                  <span className="home-step__kind">
+                    {layerKindLabel(s.layers)}
+                  </span>
                 </div>
                 <h2 className="home-step__title">{s.title}</h2>
                 <p className="home-step__body">{s.body}</p>
               </section>
             ))}
 
-            <section className="home-cta-section" aria-labelledby="home-cta-title">
+            <section
+              className="home-cta-section"
+              aria-labelledby="home-cta-title"
+            >
               <p className="home-cta-eyebrow">Your turn</p>
               <h2 id="home-cta-title" className="home-cta-title">
                 Open the generator. Make one stranger.
@@ -328,7 +379,8 @@ export default function Home() {
                 </Link>
               </div>
               <p className="home-cta-fineprint">
-                The generator opens with this exact composition. Re-seed, re-layer, re-export.
+                The generator opens with this exact composition. Re-seed,
+                re-layer, re-export.
               </p>
             </section>
           </div>
@@ -342,5 +394,5 @@ export default function Home() {
 
 function layerKindLabel(layers: Layer[]): string {
   const kinds = Array.from(new Set(layers.map((l) => l.kind)));
-  return kinds.join(' + ');
+  return kinds.join(" + ");
 }
