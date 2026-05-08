@@ -141,8 +141,10 @@ export default function Home() {
   const [imageReady, setImageReady] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
   const [mosaicUrls, setMosaicUrls] = useState<string[]>([]);
+  const [ctaVisible, setCtaVisible] = useState(false);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
   const heroRef = useRef<HTMLElement | null>(null);
+  const ctaRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const noiseCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
@@ -268,6 +270,18 @@ export default function Home() {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
+  }, []);
+
+  // Reveal CTA section when it enters the viewport
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setCtaVisible(true); },
+      { threshold: 0.12 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
@@ -457,7 +471,8 @@ export default function Home() {
             ))}
 
             <section
-              className="home-cta-section"
+              ref={ctaRef}
+              className={`home-cta-section${ctaVisible ? " home-cta-section--visible" : ""}`}
               aria-labelledby="home-cta-title"
             >
               <p className="home-cta-eyebrow">Your turn</p>

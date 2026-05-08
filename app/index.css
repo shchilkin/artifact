@@ -708,6 +708,16 @@ input[type="range"] {
   }
 }
 
+@keyframes landing-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes step-content-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-headline {
     animation: none;
@@ -1033,6 +1043,7 @@ input[type="range"] {
   color: var(--text-dim);
   text-transform: uppercase;
   margin: 0;
+  animation: landing-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .home-hero__headline {
@@ -1046,7 +1057,7 @@ input[type="range"] {
   margin: 0;
   max-width: 6.1ch;
   text-wrap: balance;
-  animation: landing-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) 100ms both;
 }
 
 @media (min-width: 1024px) {
@@ -1063,6 +1074,7 @@ input[type="range"] {
   line-height: 1.55;
   max-width: 34ch;
   margin: 0;
+  animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
 }
 
 .home-hero__hint {
@@ -1075,7 +1087,8 @@ input[type="range"] {
   margin: 0;
   margin-top: auto;
   padding-top: clamp(18px, 3vw, 40px);
-  animation: home-hint 2.2s ease-in-out infinite;
+  opacity: 0.4;
+  animation: home-hint 2.2s ease-in-out 700ms infinite;
 }
 
 @keyframes home-hint {
@@ -1084,11 +1097,14 @@ input[type="range"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .home-hero__eyebrow,
+  .home-hero__deck,
   .home-hero__headline,
   .home-hero__hint,
   .home-hero-overlay {
     animation: none;
     transition: none;
+    opacity: 1;
   }
 }
 
@@ -1099,6 +1115,7 @@ input[type="range"] {
   background: oklch(8% 0.012 42);
   border: 1px solid var(--border);
   flex-shrink: 0;
+  animation: landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
 }
 
 @media (min-width: 1024px) {
@@ -1143,6 +1160,7 @@ input[type="range"] {
   width: 14px;
   height: 14px;
   pointer-events: none;
+  animation: landing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .home-canvas-mark::before,
 .home-canvas-mark::after {
@@ -1152,16 +1170,16 @@ input[type="range"] {
 }
 .home-canvas-mark::before { width: 14px; height: 1px; }
 .home-canvas-mark::after  { width: 1px; height: 14px; }
-.home-canvas-mark--tl { top: -22px; left: -22px; }
+.home-canvas-mark--tl { top: -22px; left: -22px; animation-delay: 300ms; }
 .home-canvas-mark--tl::before { top: 13px; left: 0; }
 .home-canvas-mark--tl::after  { top: 0; left: 13px; }
-.home-canvas-mark--tr { top: -22px; right: -22px; }
+.home-canvas-mark--tr { top: -22px; right: -22px; animation-delay: 360ms; }
 .home-canvas-mark--tr::before { top: 13px; right: 0; }
 .home-canvas-mark--tr::after  { top: 0; right: 13px; }
-.home-canvas-mark--bl { bottom: -22px; left: -22px; }
+.home-canvas-mark--bl { bottom: -22px; left: -22px; animation-delay: 420ms; }
 .home-canvas-mark--bl::before { bottom: 13px; left: 0; }
 .home-canvas-mark--bl::after  { bottom: 0; left: 13px; }
-.home-canvas-mark--br { bottom: -22px; right: -22px; }
+.home-canvas-mark--br { bottom: -22px; right: -22px; animation-delay: 480ms; }
 .home-canvas-mark--br::before { bottom: 13px; right: 0; }
 .home-canvas-mark--br::after  { bottom: 0; right: 13px; }
 
@@ -1174,6 +1192,7 @@ input[type="range"] {
   letter-spacing: 0.14em;
   color: var(--text-dim);
   text-transform: uppercase;
+  animation: landing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
 }
 
 @media (min-width: 1024px) {
@@ -1190,6 +1209,7 @@ input[type="range"] {
   width: min(36vw, 70dvh, 560px);
   flex-direction: row;
   gap: 4px;
+  animation: landing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
 }
 
 @media (min-width: 1024px) {
@@ -1272,6 +1292,17 @@ input[type="range"] {
 
 .home-step--active { opacity: 1; }
 
+/* Slide-in content when a step becomes active */
+.home-step--active .home-step__index {
+  animation: step-content-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.home-step--active .home-step__title {
+  animation: step-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 35ms both;
+}
+.home-step--active .home-step__body {
+  animation: step-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 85ms both;
+}
+
 .home-step__index {
   display: flex;
   align-items: center;
@@ -1320,10 +1351,17 @@ input[type="range"] {
 
 @media (prefers-reduced-motion: reduce) {
   .home-step,
+  .home-step--active .home-step__index,
+  .home-step--active .home-step__title,
+  .home-step--active .home-step__body,
   .home-progress__item,
   .home-progress__bar {
     transition: none;
+    animation: none;
   }
+  .home-step--active .home-step__index,
+  .home-step--active .home-step__title,
+  .home-step--active .home-step__body { opacity: 1; transform: none; }
 }
 
 /* CTA — closing block */
@@ -1336,6 +1374,25 @@ input[type="range"] {
   gap: 18px;
   padding: clamp(48px, 8vw, 112px) clamp(24px, 6vw, 88px);
   background: linear-gradient(to bottom, transparent, oklch(11% 0.014 42));
+}
+
+/* Children hidden until section enters viewport */
+.home-cta-section > * {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.home-cta-section--visible > *:nth-child(1) {
+  animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards;
+}
+.home-cta-section--visible > *:nth-child(2) {
+  animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 70ms forwards;
+}
+.home-cta-section--visible > *:nth-child(3) {
+  animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 150ms forwards;
+}
+.home-cta-section--visible > *:nth-child(4) {
+  animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 220ms forwards;
 }
 
 @media (min-width: 1024px) {
@@ -1427,6 +1484,19 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .home-cta {
     transition: none;
+  }
+  .home-canvas-frame,
+  .home-canvas-mark,
+  .home-canvas-meta,
+  .home-progress {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .home-cta-section > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
   }
 }
 
