@@ -148,9 +148,7 @@ export default function Home() {
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const renderTokenRef = useRef(0);
 
-  // Option A: while the hero is still visible, floor the rendered step at 2
-  // so the canvas already shows fill+rays+emoji when anatomy fades away.
-  const effectiveStep = heroVisible ? Math.max(step, 2) : step;
+  const effectiveStep = step;
 
   useEffect(() => {
     const img = new Image();
@@ -204,7 +202,7 @@ export default function Home() {
         img.data[i] = v;
         img.data[i + 1] = v;
         img.data[i + 2] = v;
-        img.data[i + 3] = 28;
+        img.data[i + 3] = 200;
       }
       ctx.putImageData(img, 0, 0);
       return;
@@ -217,7 +215,7 @@ export default function Home() {
       const t = frame * 0.018;
       // Slow sine breathe: alpha oscillates between 22 and 48 (out of 255)
       const breathe = 0.5 + 0.5 * Math.sin(t);
-      const alpha = Math.floor(22 + 26 * breathe);
+      const alpha = Math.floor(180 + 40 * breathe);
 
       const img = ctx!.createImageData(W, H);
       const d = img.data;
