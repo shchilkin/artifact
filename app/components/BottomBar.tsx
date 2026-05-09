@@ -11,6 +11,8 @@ interface Props {
   undoCount: number;
   onPresetsToggle: () => void;
   onCopyLink: () => void;
+  onExport: () => void;
+  exportBusy: boolean;
 }
 
 export function BottomBar({
@@ -24,6 +26,8 @@ export function BottomBar({
   undoCount,
   onCopyLink,
   onPresetsToggle,
+  onExport,
+  exportBusy,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const seedInputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +110,9 @@ export function BottomBar({
 
       <div className="bottom-right-group">
         <button className="btn" onClick={onPresetsToggle}>PRESETS</button>
+        <button className="btn btn-primary" onClick={onExport} disabled={exportBusy}>
+          {exportBusy ? '…' : 'EXPORT'}
+        </button>
       </div>
     </div>
   );

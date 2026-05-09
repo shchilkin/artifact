@@ -121,6 +121,8 @@ export default function Generator() {
     undoCount,
     onPresetsToggle: togglePresets,
     onCopyLink: handleCopyLink,
+    onExport: handleNodeExport,
+    exportBusy,
   };
 
   return (
