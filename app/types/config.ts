@@ -92,6 +92,16 @@ export type EffectPreset =
   | 'threshold'
   | 'edgeDetect'
   | 'gradientOverlay'
+  | 'sepia'
+  | 'neonGlow'
+  | 'zoomBlur'
+  | 'vhsTracking'
+  | 'dither'
+  | 'infrared'
+  | 'ca'
+  | 'wave'
+  | 'matte'
+  | 'overprint'
   | 'warp'
   | 'color'
   | 'riso';
@@ -138,6 +148,19 @@ export interface EffectLayer extends BaseLayer {
   gradA: string;
   gradB: string;
   gradAngle: number;
+  // new effects
+  sepia: number;
+  neonGlow: number;
+  neonColor: string;
+  zoomBlur: number;
+  vhsTracking: number;
+  dither: number;
+  infrared: number;
+  ca: number;
+  waveAmt: number;
+  waveFreq: number;
+  matte: number;
+  overprint: number;
 }
 
 export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
@@ -261,6 +284,18 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   gradA: '#0a0020',
   gradB: '#ff6ec7',
   gradAngle: 0,
+  sepia: 0,
+  neonGlow: 0,
+  neonColor: '#ff00ff',
+  zoomBlur: 0,
+  vhsTracking: 0,
+  dither: 0,
+  infrared: 0,
+  ca: 0,
+  waveAmt: 0,
+  waveFreq: 3,
+  matte: 0,
+  overprint: 0,
 };
 
 let _idCounter = 0;
@@ -367,6 +402,9 @@ const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kin
   blurAmt: 0,
   threshold: 0, edgeDetect: 0,
   gradMix: 0, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0,
+  sepia: 0, neonGlow: 0, neonColor: '#ff00ff',
+  zoomBlur: 0, vhsTracking: 0, dither: 0, infrared: 0,
+  ca: 0, waveAmt: 0, waveFreq: 3, matte: 0, overprint: 0,
 };
 
 export type EffectNumericField = {
@@ -409,19 +447,29 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
   threshold:  { name: 'Threshold',   icon: '◐', primary: 'threshold', partial: { ...ZERO_EFFECT, threshold: 50 } },
   edgeDetect: { name: 'Edge Detect', icon: '◇', primary: 'edgeDetect', partial: { ...ZERO_EFFECT, edgeDetect: 60 } },
   gradientOverlay: { name: 'Gradient', icon: '▤', primary: 'gradMix', partial: { ...ZERO_EFFECT, gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0 } },
+  sepia:       { name: 'Sepia',      icon: '◬', primary: 'sepia',       partial: { ...ZERO_EFFECT, sepia: 65 } },
+  neonGlow:    { name: 'Neon Glow',  icon: '✦', primary: 'neonGlow',    partial: { ...ZERO_EFFECT, neonGlow: 50, neonColor: '#ff00ff' } },
+  zoomBlur:    { name: 'Zoom Blur',  icon: '◉', primary: 'zoomBlur',    partial: { ...ZERO_EFFECT, zoomBlur: 40 } },
+  vhsTracking: { name: 'VHS Track',  icon: '⊟', primary: 'vhsTracking', partial: { ...ZERO_EFFECT, vhsTracking: 30 } },
+  dither:      { name: 'Dither',     icon: '⠦', primary: 'dither',      partial: { ...ZERO_EFFECT, dither: 50 } },
+  infrared:    { name: 'Infrared',   icon: '⊗', primary: 'infrared',    partial: { ...ZERO_EFFECT, infrared: 60 } },
+  ca:          { name: 'Chrom. Ab.', icon: '◫', primary: 'ca',          partial: { ...ZERO_EFFECT, ca: 15 } },
+  wave:        { name: 'Wave',       icon: '〜', primary: 'waveAmt',     partial: { ...ZERO_EFFECT, waveAmt: 20, waveFreq: 3 } },
+  matte:       { name: 'Matte',      icon: '▩', primary: 'matte',       partial: { ...ZERO_EFFECT, matte: 40 } },
+  overprint:   { name: 'Overprint',  icon: '⊕', primary: 'overprint',   partial: { ...ZERO_EFFECT, overprint: 20 } },
   warp:       { name: 'Warp FX',     icon: '◌', primary: null, legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
   color:      { name: 'Color FX',    icon: '◐', primary: null, legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
   riso:       { name: 'Riso FX',     icon: '◎', primary: null, legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
 };
 
 export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
-  'rays', 'bloom', 'filmBurn',
-  'glitch', 'rgbSplit', 'interlace', 'dataMosh',
-  'grain', 'scanlines',
+  'rays', 'bloom', 'filmBurn', 'neonGlow',
+  'glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking',
+  'grain', 'scanlines', 'matte', 'dither',
   'tint',
-  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror',
-  'hueShift', 'vignette', 'pixelate', 'posterize',
-  'duotone', 'halftone', 'risoShift',
+  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'wave', 'zoomBlur',
+  'hueShift', 'vignette', 'pixelate', 'posterize', 'sepia', 'infrared',
+  'duotone', 'halftone', 'risoShift', 'overprint',
   'blur', 'threshold', 'edgeDetect', 'gradientOverlay',
 ];
 

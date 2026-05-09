@@ -168,6 +168,16 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   threshold: "Luminance cutoff to stark black and white.",
   edgeDetect: "Highlight edge transitions with a convolution kernel.",
   gradientOverlay: "Two-color gradient blended over the frame.",
+  sepia: "Warm monochrome tone — classic darkroom look.",
+  neonGlow: "Bright edges bloom with a saturated chromatic halo.",
+  zoomBlur: "Radial motion blur expanding from center.",
+  vhsTracking: "Horizontal band desync — VHS tape dropout artifact.",
+  dither: "Bayer ordered dithering reduces color palette visibly.",
+  infrared: "Channel swap shifts green to red, simulating IR film.",
+  ca: "Radial chromatic aberration — lens fringe at edges.",
+  wave: "Sine-wave horizontal displacement scanned per row.",
+  matte: "Low-scale paper or canvas texture overlay.",
+  overprint: "CMYK plate offset — ink-on-ink misregistration.",
 };
 
 const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
@@ -201,6 +211,16 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   threshold: [{ key: "threshold", range: "0–100" }],
   edgeDetect: [{ key: "edgeDetect", range: "0–100" }],
   gradientOverlay: [{ key: "gradMix", range: "0–100" }, { key: "gradA", range: "hex" }, { key: "gradB", range: "hex" }, { key: "gradAngle", range: "0–360" }],
+  sepia: [{ key: "sepia", range: "0–100" }],
+  neonGlow: [{ key: "neonGlow", range: "0–100" }, { key: "neonColor", range: "hex" }],
+  zoomBlur: [{ key: "zoomBlur", range: "0–100" }],
+  vhsTracking: [{ key: "vhsTracking", range: "0–100" }],
+  dither: [{ key: "dither", range: "0–100" }],
+  infrared: [{ key: "infrared", range: "0–100" }],
+  ca: [{ key: "ca", range: "0–30" }],
+  wave: [{ key: "waveAmt", range: "0–60" }, { key: "waveFreq", range: "1–12" }],
+  matte: [{ key: "matte", range: "0–100" }],
+  overprint: [{ key: "overprint", range: "0–100" }],
 };
 
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
