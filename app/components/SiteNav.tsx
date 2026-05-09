@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogoGlyph } from "./LogoGlyph";
 
 const LINKS = [
+  { to: "/docs/nodes", label: "Docs" },
   { to: "/examples", label: "Examples" },
   { to: "/app", label: "Generator" },
 ] as const;

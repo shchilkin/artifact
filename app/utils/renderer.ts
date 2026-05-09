@@ -4,6 +4,7 @@ import type {
   EffectLayer,
   EmojiLayer,
   FillLayer,
+  GraphColorNode,
   GraphMergeNode,
   ImageLayer,
   Layer,
@@ -13,7 +14,7 @@ import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
 import { EXPORT_NODE_ID } from './nodeGraph';
-import type { Filter, Renderer } from 'pixi.js';
+import type { Filter } from 'pixi.js';
 
 const REF = 540;
 const FONT_MAP: Record<string, string> = {
@@ -56,6 +57,10 @@ function toCompositeOperation(blendMode: string): GlobalCompositeOperation {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, bg: string) {
+  if (bg === "transparent") {
+    ctx.clearRect(0, 0, W, H);
+    return;
+  }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   const cx = W / 2;
@@ -302,18 +307,24 @@ function applyCanvas2DEffects(
     ctx.restore();
   }
 
-  if (layer.ca > 0) {
-    const ca = Math.round(layer.ca * scale);
+  if (layer.rgbSplit > 0) {
+    const rgbSplit = Math.round(layer.rgbSplit * scale);
     const imageData = ctx.getImageData(0, 0, W, H);
     const data = imageData.data;
     const copy = new Uint8ClampedArray(data);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
-        const ri = (y * W + Math.min(W - 1, x + ca)) * 4;
-        const bi = (y * W + Math.max(0, x - ca)) * 4;
-        data[i] = copy[ri];
-        data[i + 2] = copy[bi + 2];
+        const rx = Math.min(W - 1, x + rgbSplit);
+        const ry = Math.min(H - 1, y + rgbSplit);
+        const ri = (ry * W + rx) * 4;
+        
+        const bx = Math.max(0, x - rgbSplit);
+        const by = Math.max(0, y - rgbSplit);
+        const bi = (by * W + bx) * 4;
+        
+        data[i] = copy[ri];           // Red channel shifted down-right
+        data[i + 2] = copy[bi + 2];   // Blue channel shifted up-left
       }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -356,38 +367,13 @@ function applyCanvas2DEffects(
   }
 }
 
-async function runGpuPass(
+function runGpuPass(
   current: HTMLCanvasElement,
   W: number,
   H: number,
   filters: Filter[],
-  persistentRenderer?: Renderer,
 ): Promise<HTMLCanvasElement> {
-  if (!persistentRenderer) {
-    return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
-  }
-
-  const { Container, RenderTexture, Sprite, Texture } = await import('pixi.js');
-  const canvasTex = Texture.from(current);
-  const gpuTex = RenderTexture.create({ width: W, height: H });
-  try {
-    const blitSprite = new Sprite(canvasTex);
-    blitSprite.width = W;
-    blitSprite.height = H;
-    canvasTex.update();
-    persistentRenderer.render(blitSprite, { renderTexture: gpuTex, clear: true });
-    const displaySprite = new Sprite(gpuTex);
-    displaySprite.width = W;
-    displaySprite.height = H;
-    displaySprite.filters = filters;
-    const stage = new Container();
-    stage.addChild(displaySprite);
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    return persistentRenderer.extract.canvas(stage) as HTMLCanvasElement;
-  } finally {
-    canvasTex.destroy(true);
-    gpuTex.destroy(true);
-  }
+  return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
 async function applyLayerToCanvas(
@@ -397,7 +383,7 @@ async function applyLayerToCanvas(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer: Renderer | undefined,
+  options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
   if (!layer.visible) return base;
 
@@ -417,9 +403,11 @@ async function applyLayerToCanvas(
   } else if (layer.kind === 'effect') {
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
-    const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
-    if (filters?.length) {
-      current = await runGpuPass(current, W, H, filters, persistentRenderer);
+    if (!options.skipEffects) {
+      const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
+      if (filters?.length) {
+        current = await runGpuPass(current, W, H, filters);
+      }
     }
     if (alphaMask) {
       current = maskCanvasToAlpha(current, alphaMask, W, H);
@@ -442,8 +430,95 @@ function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | und
   return graph.mergeNodes.find((node) => node.id === nodeId);
 }
 
+function findColorNode(graph: CanvasGraph, nodeId: string): GraphColorNode | undefined {
+  return (graph.colorNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: number, H: number): HTMLCanvasElement {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(source, 0, 0);
+
+  const { contrast, brightness, saturation, hue } = node;
+  if (contrast === 100 && brightness === 100 && saturation === 100 && hue === 0) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const d = imageData.data;
+
+  // Factors matching CSS filter spec
+  const bF = brightness / 100;
+  const cF = contrast / 100;
+  const sF = saturation / 100;
+
+  // Hue rotation matrix from the CSS filter spec (W3C SVG feColorMatrix hueRotate)
+  const hRad = (hue * Math.PI) / 180;
+  const cos = Math.cos(hRad);
+  const sin = Math.sin(hRad);
+  const hr00 = 0.213 + cos * 0.787 - sin * 0.213;
+  const hr01 = 0.715 - cos * 0.715 - sin * 0.715;
+  const hr02 = 0.072 - cos * 0.072 + sin * 0.928;
+  const hr10 = 0.213 - cos * 0.213 + sin * 0.143;
+  const hr11 = 0.715 + cos * 0.285 + sin * 0.140;
+  const hr12 = 0.072 - cos * 0.072 - sin * 0.283;
+  const hr20 = 0.213 - cos * 0.213 - sin * 0.787;
+  const hr21 = 0.715 - cos * 0.715 + sin * 0.715;
+  const hr22 = 0.072 + cos * 0.928 + sin * 0.072;
+
+  // Saturation matrix coefficients from the CSS filter spec
+  const sm00 = 0.213 + 0.787 * sF, sm01 = 0.715 - 0.715 * sF, sm02 = 0.072 - 0.072 * sF;
+  const sm10 = 0.213 - 0.213 * sF, sm11 = 0.715 + 0.285 * sF, sm12 = 0.072 - 0.072 * sF;
+  const sm20 = 0.213 - 0.213 * sF, sm21 = 0.715 - 0.715 * sF, sm22 = 0.072 + 0.928 * sF;
+
+  const applyHue = hue !== 0;
+  const applySat = saturation !== 100;
+
+  for (let i = 0; i < d.length; i += 4) {
+    // Normalise to [0, 1]
+    let r = d[i] / 255;
+    let g = d[i + 1] / 255;
+    let b = d[i + 2] / 255;
+
+    // brightness: scale (CSS spec: linear multiply, clamp)
+    r *= bF; g *= bF; b *= bF;
+
+    // contrast: (v - 0.5) * c + 0.5
+    r = (r - 0.5) * cF + 0.5;
+    g = (g - 0.5) * cF + 0.5;
+    b = (b - 0.5) * cF + 0.5;
+
+    // saturation via color matrix
+    if (applySat) {
+      const nr = sm00 * r + sm01 * g + sm02 * b;
+      const ng = sm10 * r + sm11 * g + sm12 * b;
+      const nb = sm20 * r + sm21 * g + sm22 * b;
+      r = nr; g = ng; b = nb;
+    }
+
+    // hue rotation via color matrix
+    if (applyHue) {
+      const nr = hr00 * r + hr01 * g + hr02 * b;
+      const ng = hr10 * r + hr11 * g + hr12 * b;
+      const nb = hr20 * r + hr21 * g + hr22 * b;
+      r = nr; g = ng; b = nb;
+    }
+
+    d[i]     = Math.min(255, Math.max(0, Math.round(r * 255)));
+    d[i + 1] = Math.min(255, Math.max(0, Math.round(g * 255)));
+    d[i + 2] = Math.min(255, Math.max(0, Math.round(b * 255)));
+    // alpha (i+3) unchanged
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
+}
+
+export interface RenderOptions {
+  /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
+  skipEffects?: boolean;
 }
 
 async function renderGraphNode(
@@ -453,7 +528,7 @@ async function renderGraphNode(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer: Renderer | undefined,
+  options: RenderOptions,
   cache: Map<string, Promise<HTMLCanvasElement>>,
 ): Promise<HTMLCanvasElement> {
   const cached = cache.get(nodeId);
@@ -466,7 +541,7 @@ async function renderGraphNode(
       drawBackground(ctx, W, H, doc.global.bg);
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       if (sourceId) {
-        const rendered = await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache);
+        const rendered = await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache);
         ctx.drawImage(rendered, 0, 0);
       }
       return canvas;
@@ -478,13 +553,13 @@ async function renderGraphNode(
       const overlayId = findIncomingSource(graph, nodeId, 'b');
       const canvas = baseId
         ? cloneCanvas(
-          await renderGraphNode(doc, graph, baseId, W, H, imageCache, persistentRenderer, cache),
+          await renderGraphNode(doc, graph, baseId, W, H, imageCache, options, cache),
           W,
           H,
         )
         : createCanvas(W, H);
       if (overlayId) {
-        const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, persistentRenderer, cache);
+        const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, options, cache);
         const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
         ctx.save();
         ctx.globalCompositeOperation = toCompositeOperation(mergeNode.blendMode);
@@ -495,15 +570,24 @@ async function renderGraphNode(
       return canvas;
     }
 
+    const colorNode = findColorNode(graph, nodeId);
+    if (colorNode) {
+      const sourceId = findIncomingSource(graph, nodeId, 'in');
+      const source = sourceId
+        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
+        : createCanvas(W, H);
+      return applyColorNode(source, colorNode, W, H);
+    }
+
     const layer = findLayer(doc, nodeId);
     if (!layer) return createCanvas(W, H);
 
     const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
     const sourceId = findIncomingSource(graph, nodeId, inputPort);
     const base = sourceId
-      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache)
+      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
       : createCanvas(W, H);
-    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, persistentRenderer);
+    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, options);
   })();
 
   cache.set(nodeId, renderPromise);
@@ -517,7 +601,7 @@ export async function renderGraphTarget(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer?: Renderer,
+  options: RenderOptions = {},
 ): Promise<HTMLCanvasElement> {
   return renderGraphNode(
     doc,
@@ -526,7 +610,7 @@ export async function renderGraphTarget(
     W,
     H,
     imageCache,
-    persistentRenderer,
+    options,
     new Map<string, Promise<HTMLCanvasElement>>(),
   );
 }
@@ -536,10 +620,10 @@ export async function renderDocument(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer?: Renderer,
+  options: RenderOptions = {},
 ): Promise<HTMLCanvasElement> {
   if (doc.graph) {
-    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, persistentRenderer);
+    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options);
   }
 
   let current = createCanvas(W, H);
@@ -548,7 +632,7 @@ export async function renderDocument(
 
   const layers = doc.layers;
   for (const layer of layers) {
-    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, persistentRenderer);
+    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, options);
   }
   return current;
 }

@@ -8,6 +8,7 @@ import {
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
+  makeGraphColorNode,
   makeGraphMergeNode,
   makeImageLayer,
   makeTextLayer,
@@ -15,20 +16,24 @@ import {
   type CanvasDocument,
   type CanvasGraph,
   type EffectPreset,
+  type GraphColorNode,
   type GraphMergeNode,
   type Layer,
   type LayerKind,
 } from '../types/config';
 import { randomDocument } from '../utils/randomConfig';
 import {
+  addColorNode,
   addGraphEdge,
   addLayerToGraph,
   addMergeNode,
   inferLinearGraph,
   nextDropPosition,
+  removeColorNode,
   removeLayerFromGraph,
   removeMergeNode,
   splitEdgeWithNode,
+  updateColorNode as updateColorNodeInGraph,
 } from '../utils/nodeGraph';
 
 const DOC_KEY = 'doc';
@@ -51,7 +56,10 @@ function normalizeDocument(raw: unknown): CanvasDocument {
     ...DEFAULT_EXPORT,
     ...(typeof doc.export === 'object' && doc.export ? doc.export : {}),
   } as CanvasDocument['export'];
-  return { ...doc, global: { ...doc.global, aspect }, export: exportConfig };
+  const graph = doc.graph
+    ? { ...doc.graph, colorNodes: doc.graph.colorNodes ?? [] }
+    : undefined;
+  return { ...doc, global: { ...doc.global, aspect }, export: exportConfig, graph };
 }
 
 function getInitialDocument(): CanvasDocument {
@@ -89,6 +97,9 @@ function cloneLayerForDuplicate(layer: Layer): Layer {
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
+  const [fromDocParam] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc')
+  );
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [past, setPast] = useState<HistoryEntry[]>([]);
   const [future, setFuture] = useState<HistoryEntry[]>([]);
@@ -106,6 +117,16 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     docRef.current = doc;
     selectedLayerIdRef.current = safeSelectedLayerId;
   }, [doc, safeSelectedLayerId]);
+
+  // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
+  useEffect(() => {
+    if (fromDocParam) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('doc');
+      window.history.replaceState(null, '', url.toString());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pushHistorySnapshot = useCallback(() => {
     clearTimeout(histDebounceRef.current);
@@ -253,8 +274,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
         for (const mergeNode of nextGraph.mergeNodes) {
           if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
         }
+        for (const colorNode of (nextGraph?.colorNodes ?? [])) {
+          if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
+        }
         for (const id of ids) {
-          if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph, id);
+          if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
         }
       }
       return { ...current, layers: nextLayers, graph: nextGraph };
@@ -279,6 +303,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           mergeNodes: current.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
         },
       };
+    });
+  }, [updateDocument]);
+
+  const updateColorNode = useCallback((id: string, patch: Partial<GraphColorNode>) => {
+    updateDocument((current) => {
+      if (!current.graph) return current;
+      return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
     });
   }, [updateDocument]);
 
@@ -319,6 +350,35 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
             fromPort: 'out',
             toId: node.id,
             toPort: 'a',
+          });
+        }
+        if (!insertion?.replaceEdgeId && insertion?.targetId) {
+          graph = addGraphEdge(graph, {
+            id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
+            fromId: node.id,
+            fromPort: 'out',
+            toId: insertion.targetId,
+            toPort: insertion.targetPort ?? 'in',
+          });
+        }
+        return { ...current, graph };
+      });
+      return;
+    }
+
+    if (action.kind === 'color') {
+      const node = makeGraphColorNode();
+      updateDocument((current) => {
+        let graph = addColorNode(ensureGraph(current), node, position);
+        if (insertion?.replaceEdgeId) {
+          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'in');
+        } else if (insertion?.sourceId) {
+          graph = addGraphEdge(graph, {
+            id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
+            fromId: insertion.sourceId,
+            fromPort: 'out',
+            toId: node.id,
+            toPort: 'in',
           });
         }
         if (!insertion?.replaceEdgeId && insertion?.targetId) {
@@ -414,6 +474,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     deleteNodeSelection,
     updateLayer,
     updateMergeNode,
+    updateColorNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -430,5 +491,6 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     canUndo: past.length > 0,
     canRedo: future.length > 0,
     undoCount: past.length,
+    fromDocParam,
   };
 }

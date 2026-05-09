@@ -36,7 +36,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import type {
-  CanvasDocument, Layer, GraphMergeNode, CanvasGraph, GraphEdge,
+  CanvasDocument, Layer, GraphColorNode, GraphMergeNode, CanvasGraph, GraphEdge,
   EffectLayer, EmojiLayer, FillLayer, ImageLayer, TextLayer,
   LayerKind, EffectPreset, AspectRatio,
 } from '../types/config';
@@ -45,6 +45,7 @@ import { renderDocument, renderGraphTarget } from '../utils/renderer';
 import { EffectInfoPopup } from './EffectInfoPopup';
 import {
   EXPORT_NODE_ID,
+  collectUpstreamNodeIds,
   wouldCreateCycle,
   connectedPortIds,
   inferLinearGraph,
@@ -72,6 +73,7 @@ const KIND_COLOR: Record<string, string> = {
   emoji:  'oklch(70% 0.22 5)',
   effect: 'oklch(64% 0.22 305)',
   merge:  'oklch(74% 0.17 152)',
+  color:  'oklch(72% 0.18 195)',
   export: 'oklch(86% 0.05 92)',
 };
 
@@ -82,6 +84,7 @@ const KIND_SYMBOL: Record<string, string> = {
   emoji:  '✦',
   effect: '⚡',
   merge:  '⊕',
+  color:  '◐',
   export: '↗',
 };
 
@@ -90,7 +93,8 @@ const KIND_SYMBOL: Record<string, string> = {
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' };
+  | { kind: 'merge' }
+  | { kind: 'color' };
 
 export interface InsertConnectionConfig {
   sourceId: string;
@@ -111,6 +115,7 @@ const ADD_ITEMS: Array<{ label: string; symbol: string; group: string; action: A
     action: { kind: 'effect', preset } as AddAction,
   })),
   { label: 'Merge',   symbol: '⊕', group: 'util',   action: { kind: 'merge' } },
+  { label: 'Color',   symbol: '◐', group: 'util',   action: { kind: 'color' } },
 ];
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -167,6 +172,7 @@ interface NodeCanvasActionsContextValue {
   toggleNodeEditor: (id: string) => void;
   updateLayer: (id: string, patch: Partial<Layer>) => void;
   updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
+  updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
@@ -321,6 +327,10 @@ interface ThumbProps {
   previewTargetId: string;
 }
 
+// Debounce delay (ms) before starting a thumbnail re-render after a state change.
+// Prevents cascading cancellations when sliders are dragged quickly.
+const THUMB_DEBOUNCE_MS = 120;
+
 const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
   const { doc, graph, imageCache } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -336,31 +346,74 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
       height: Math.max(1, Math.round(aspectHeight * scale)),
     };
   }, [doc.global.aspect, isExportPreview]);
-  const previewKey = useMemo(
-    () => JSON.stringify({ previewTargetId, global: doc.global, layers: doc.layers, graph, previewSize }),
-    [previewTargetId, doc.global, doc.layers, graph, previewSize],
-  );
+
+  // Hash only the upstream slice of the graph that feeds this preview target.
+  // Editing an unrelated branch leaves this key untouched, so React's effect
+  // never re-fires and this thumbnail does not re-render.
+  const previewKey = useMemo(() => {
+    const upstream = collectUpstreamNodeIds(previewTargetId, graph);
+    const layers = doc.layers.filter((layer) => upstream.has(layer.id));
+    const mergeNodes = graph.mergeNodes.filter((node) => upstream.has(node.id));
+    const colorNodes = (graph.colorNodes ?? []).filter((node) => upstream.has(node.id));
+    const edges = graph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
+    return JSON.stringify({
+      previewTargetId,
+      previewSize,
+      bg: doc.global.bg,
+      seed: doc.global.seed,
+      aspect: doc.global.aspect,
+      layers,
+      mergeNodes,
+      colorNodes,
+      edges,
+    });
+  }, [doc.global.aspect, doc.global.bg, doc.global.seed, doc.layers, graph, previewSize, previewTargetId]);
+
+  // Always-fresh ref so the debounced render uses the very latest inputs
+  // even if several previewKey changes happened during the debounce window.
+  const latestRef = useRef({ doc, graph, imageCache, previewKey });
+  useLayoutEffect(() => { latestRef.current = { doc, graph, imageCache, previewKey }; });
+
+  // Whether the canvas has ever shown a successful render (used to decide
+  // whether to show stale content vs skeleton while re-rendering).
+  const [hasRendered, setHasRendered] = useState(false);
+
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
 
   useEffect(() => {
     let cancelled = false;
-    const previewDoc: CanvasDocument = { ...doc, graph };
-    const renderPromise = isExportPreview
-      ? renderDocument(previewDoc, previewSize.width, previewSize.height, imageCache)
-      : renderGraphTarget(previewDoc, graph, previewTargetId, previewSize.width, previewSize.height, imageCache);
-    renderPromise
-      .then((result) => {
-        if (cancelled || !canvasRef.current) return;
-        const ctx = canvasRef.current.getContext('2d');
-        if (!ctx) return;
-        ctx.clearRect(0, 0, previewSize.width, previewSize.height);
-        ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
-        setRenderedPreviewKey(previewKey);
-      })
-      .catch(() => { /* silent */ });
-    return () => { cancelled = true; };
-  }, [doc, graph, imageCache, isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+
+    const timerId = setTimeout(() => {
+      // Use the freshest available inputs, not the closure-captured ones.
+      const { doc: d, graph: g, imageCache: ic, previewKey: pk } = latestRef.current;
+      const previewDoc: CanvasDocument = { ...d, graph: g };
+      const renderPromise = isExportPreview
+        ? renderDocument(previewDoc, previewSize.width, previewSize.height, ic)
+        : renderGraphTarget(previewDoc, g, previewTargetId, previewSize.width, previewSize.height, ic);
+      renderPromise
+        .then((result) => {
+          if (cancelled || !canvasRef.current) return;
+          const ctx = canvasRef.current.getContext('2d');
+          if (!ctx) return;
+          ctx.clearRect(0, 0, previewSize.width, previewSize.height);
+          ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
+          setHasRendered(true);
+          setRenderedPreviewKey(pk);
+        })
+        .catch(() => { /* silent */ });
+    }, THUMB_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
+  }, [isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+
+  // Once the canvas has content: show stale render dimmed while re-rendering
+  // instead of hiding it — far less jarring on rapid updates.
+  const canvasOpacity = ready ? 1 : hasRendered ? 0.5 : 0;
+  const showSkeleton = !ready && !hasRendered;
 
   return (
     <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
@@ -373,9 +426,9 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
           width={previewSize.width}
           height={previewSize.height}
           className="node-thumbnail-canvas"
-          style={{ opacity: ready ? 1 : 0 }}
+          style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
-        {!ready && (
+        {showSkeleton && (
           <div className="node-thumbnail-skeleton" />
         )}
       </div>
@@ -512,7 +565,7 @@ function NodeEditorPanel({
 type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso';
 
 const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
-const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'ca', 'interlace', 'dataMosh'];
+const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'interlace', 'dataMosh'];
 const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines'];
 const TINT_PRESETS: EffectPreset[] = ['tint'];
 const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'warp'];
@@ -540,10 +593,10 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'filmBurn') return `${layer.filmBurn}% burn`;
       return `${layer.rays} rays`;
     case 'glitch':
-      if (preset === 'ca') return `${layer.ca} chroma`;
+      if (preset === 'rgbSplit') return `${layer.rgbSplit} chroma`;
       if (preset === 'interlace') return `${layer.interlace}% interlace`;
       if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
-      return `${layer.glitch} / ${layer.ca}`;
+      return `${layer.glitch} / ${layer.rgbSplit}`;
     case 'texture':
       if (preset === 'scanlines') return `${layer.scanlines} lines`;
       return `${layer.grain} grain`;
@@ -646,7 +699,7 @@ function EffectInspector({
           onToggle={() => setOpenSection((current) => current === 'glitch' ? null : 'glitch')}
         >
           {showControl(['glitch']) && <InspectorSlider label="VHS Streaks" value={layer.glitch} min={0} max={24} effectKey="glitch" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ glitch: value })} />}
-          {showControl(['ca']) && <InspectorSlider label="Chromatic" value={layer.ca} min={0} max={15} effectKey="ca" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ ca: value })} />}
+          {showControl(['rgbSplit']) && <InspectorSlider label="Chromatic" value={layer.rgbSplit} min={0} max={15} effectKey="rgbSplit" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rgbSplit: value })} />}
           {showControl(['interlace']) && <InspectorSlider label="Interlace" value={layer.interlace} min={0} max={100} effectKey="interlace" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ interlace: value })} />}
           {showControl(['dataMosh']) && <InspectorSlider label="Data Mosh" value={layer.dataMosh} min={0} max={100} effectKey="dataMosh" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ dataMosh: value })} />}
         </InspectorSection>
@@ -1052,6 +1105,80 @@ const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<
   );
 });
 
+// ─── Color node ───────────────────────────────────────────────────────────────
+
+type ColorNodeData = {
+  colorNode: GraphColorNode;
+  previewTargetId: string;
+  selected: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
+function ColorInspector({
+  colorNode,
+  onChange,
+}: {
+  colorNode: GraphColorNode;
+  onChange: (patch: Partial<GraphColorNode>) => void;
+}) {
+  return (
+    <div className="node-inspector-stack">
+      <InspectorTextInput value={colorNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorSlider label="Contrast" value={colorNode.contrast} min={0} max={200} onChange={(value) => onChange({ contrast: value })} />
+      <InspectorSlider label="Brightness" value={colorNode.brightness} min={0} max={200} onChange={(value) => onChange({ brightness: value })} />
+      <InspectorSlider label="Saturation" value={colorNode.saturation} min={0} max={200} onChange={(value) => onChange({ saturation: value })} />
+      <InspectorSlider label="Hue" value={colorNode.hue} min={-180} max={180} onChange={(value) => onChange({ hue: value })} />
+    </div>
+  );
+}
+
+const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
+  const { selectNode, deleteNode, toggleNodeEditor, updateColorNode } = useNodeCanvasActions();
+  const { colorNode, previewTargetId, selected, editing, connected } = data;
+
+  return (
+    <div
+      onClick={(event) => selectNode(colorNode.id, event)}
+      onDoubleClick={(event) => {
+        stopNodeEvent(event);
+        toggleNodeEditor(colorNode.id);
+      }}
+      style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
+    >
+      <Handle type="target" id="in" position={Position.Left} style={HANDLE_STYLE} />
+      <NodeShell
+        kind="color"
+        label="color"
+        name={colorNode.name}
+        selected={selected}
+        expanded={editing}
+        expandable
+        onToggleExpanded={() => toggleNodeEditor(colorNode.id)}
+        onDelete={() => deleteNode(colorNode.id)}
+      >
+        <NodeThumbnail previewTargetId={previewTargetId} />
+        <PortRow
+          inputs={[{ label: 'in', portId: 'in', nodeId: colorNode.id }]}
+          outputs={[{ label: 'out', portId: 'out', nodeId: colorNode.id }]}
+          connected={connected}
+        />
+      </NodeShell>
+      {editing && (
+        <NodeEditorPanel
+          kind="color"
+          title={colorNode.name}
+          subtitle="color adjustments"
+          onClose={() => toggleNodeEditor(colorNode.id)}
+        >
+          <ColorInspector colorNode={colorNode} onChange={(patch) => updateColorNode(colorNode.id, patch)} />
+        </NodeEditorPanel>
+      )}
+      <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
+    </div>
+  );
+});
+
 // ─── Merge node ───────────────────────────────────────────────────────────────
 
 type MergeNodeData = {
@@ -1179,6 +1306,7 @@ const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProp
 
 const nodeTypes = {
   layerNode: LayerNodeComponent,
+  colorNode: ColorNodeComponent,
   mergeNode: MergeNodeComponent,
   exportNode: ExportNodeComponent,
 };
@@ -1498,7 +1626,7 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
               onClick={() => { onAdd(item.action); onClose(); }}
               className="node-menu-item"
             >
-              <span className="node-menu-item-symbol" style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind === 'effect' ? 'effect' : 'merge'] }}>
+              <span className="node-menu-item-symbol" style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind] }}>
                 {item.symbol}
               </span>
               <span className="node-menu-item-label">
@@ -1611,6 +1739,22 @@ function buildRFNodes(
     });
   });
 
+  (graph.colorNodes ?? []).forEach((cn) => {
+    const pos = graph.positions[cn.id] ?? { x: 400, y: 300 };
+    nodes.push({
+      id: cn.id,
+      type: 'colorNode',
+      position: pos,
+      data: {
+        colorNode: cn,
+        previewTargetId: cn.id,
+        selected: selectedNodeIds.has(cn.id),
+        editing: editorNodeId === cn.id,
+        connected,
+      } satisfies ColorNodeData,
+    });
+  });
+
   const exportPos = graph.positions[EXPORT_NODE_ID] ?? {
     x: doc.layers.length * (NODE_W + 56), y: 80,
   };
@@ -1642,6 +1786,7 @@ export interface NodeCanvasProps {
   onGraphChange: (graph: CanvasGraph) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
+  onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
@@ -1659,6 +1804,7 @@ export function NodeCanvas({
   onGraphChange,
   onUpdateLayer,
   onUpdateMergeNode,
+  onUpdateColorNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -1697,9 +1843,10 @@ export function NodeCanvas({
     if (!uiState.expandedNodeId) return null;
     const exists = uiState.expandedNodeId === EXPORT_NODE_ID
       || doc.layers.some((layer) => layer.id === uiState.expandedNodeId)
-      || graph.mergeNodes.some((node) => node.id === uiState.expandedNodeId);
+      || graph.mergeNodes.some((node) => node.id === uiState.expandedNodeId)
+      || (graph.colorNodes ?? []).some((node) => node.id === uiState.expandedNodeId);
     return exists ? uiState.expandedNodeId : null;
-  }, [doc.layers, graph.mergeNodes, uiState.expandedNodeId]);
+  }, [doc.layers, graph.colorNodes, graph.mergeNodes, uiState.expandedNodeId]);
   const selectedNodeId = uiState.selectedNodeIds.length === 1 ? uiState.selectedNodeIds[0] : null;
 
   const selectedNodeIdRef = useRef(selectedNodeId);
@@ -1722,10 +1869,15 @@ export function NodeCanvas({
   }, [selectedLayerId]);
 
   useEffect(() => {
-    const validNodeIds = [...doc.layers.map((layer) => layer.id), ...graph.mergeNodes.map((node) => node.id), EXPORT_NODE_ID];
+    const validNodeIds = [
+      ...doc.layers.map((layer) => layer.id),
+      ...graph.mergeNodes.map((node) => node.id),
+      ...(graph.colorNodes ?? []).map((node) => node.id),
+      EXPORT_NODE_ID,
+    ];
     const validEdgeIds = graph.edges.map((edge) => edge.id);
     dispatchUi({ type: 'FILTER_INVALID_REFERENCES', validNodeIds, validEdgeIds });
-  }, [doc.layers, graph.edges, graph.mergeNodes]);
+  }, [doc.layers, graph.edges, graph.mergeNodes, graph.colorNodes]);
 
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(() => ({
     doc,
@@ -1738,11 +1890,12 @@ export function NodeCanvas({
     toggleNodeEditor: handleToggleEditor,
     updateLayer: onUpdateLayer,
     updateMergeNode: onUpdateMergeNode,
+    updateColorNode: onUpdateColorNode,
     updateExportConfig: onUpdateExportConfig,
     updateAspectRatio: onUpdateAspectRatio,
     exportNode: onExport,
     deleteNode: (id: string) => onDeleteNodes([id]),
-  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode]);
+  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateColorNode, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode]);
 
   // ── Single source of truth: derive display nodes/edges directly from doc ──
   // No local copy — any change to doc.layers or doc.graph is immediately reflected.
@@ -1871,6 +2024,7 @@ export function NodeCanvas({
   const getInterceptInputPort = useCallback((nodeId: string): GraphEdge['toPort'] | null => {
     if (nodeId === EXPORT_NODE_ID) return null;
     if (graphRef.current.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
+    if ((graphRef.current.colorNodes ?? []).some((colorNode) => colorNode.id === nodeId)) return 'in';
     const layer = doc.layers.find((item) => item.id === nodeId);
     if (!layer) return null;
     return layer.kind === 'effect' ? 'in' : 'bg';
@@ -1974,10 +2128,11 @@ export function NodeCanvas({
   const onNodeContextMenu = useCallback((e: MouseEvent | React.MouseEvent, node: RFNode) => {
     e.preventDefault();
     e.stopPropagation();
-    const isMerge = graph.mergeNodes.some((n) => n.id === node.id);
+    const isMerge = graph.mergeNodes.some((n) => n.id === node.id)
+      || (graph.colorNodes ?? []).some((n) => n.id === node.id);
     const isExport = node.id === EXPORT_NODE_ID;
     setContextMenu({ type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport });
-  }, [graph.mergeNodes, setContextMenu]);
+  }, [graph.colorNodes, graph.mergeNodes, setContextMenu]);
 
   const onEdgeContextMenu = useCallback((e: React.MouseEvent, edge: RFEdge) => {
     e.preventDefault();

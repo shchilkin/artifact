@@ -76,7 +76,7 @@ describe('randomEffectLayer', () => {
   it('returns all numeric fields >= 0', () => {
     const layer = randomEffectLayer();
     const numericFields = [
-      'grain', 'scanlines', 'ca', 'glitch', 'tintOp',
+      'grain', 'scanlines', 'rgbSplit', 'glitch', 'tintOp',
       'rays', 'rayInt', 'morphAmt', 'morphFreq', 'tearAmt', 'tearSize',
       'noiseWarp', 'vortex', 'barrel', 'mirror', 'dataMosh', 'interlace',
       'pixelate', 'hueShift', 'rgbSplit', 'vignette', 'bloom', 'posterize',
@@ -135,9 +135,9 @@ describe('zeroLayerSection', () => {
     expect(result).toMatchObject({ rays: 0, rayInt: 0, bloom: 0, filmBurn: 0 });
   });
 
-  it('GLITCH returns glitch: 0 and ca: 0', () => {
+  it('GLITCH returns glitch: 0 and rgbSplit: 0', () => {
     const result = zeroLayerSection('GLITCH');
-    expect(result).toMatchObject({ glitch: 0, ca: 0 });
+    expect(result).toMatchObject({ glitch: 0, rgbSplit: 0 });
   });
 
   it('WARP returns morph/tear/noise/vortex/barrel/mirror all as 0', () => {
