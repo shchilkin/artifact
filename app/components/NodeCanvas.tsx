@@ -2869,7 +2869,7 @@ export function NodeCanvas({
         multiSelectionKeyCode={['Meta', 'Control']}
         minZoom={0.3}
         maxZoom={2}
-        deleteKeyCode="Delete"
+        deleteKeyCode={null}
         proOptions={RF_PRO_OPTIONS}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="oklch(28% 0.014 285)" />
