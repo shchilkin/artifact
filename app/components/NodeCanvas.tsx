@@ -40,7 +40,7 @@ import type {
   EffectLayer, EmojiLayer, FillLayer, ImageLayer, TextLayer,
   LayerKind, EffectPreset, AspectRatio,
 } from '../types/config';
-import { ASPECT_SIZES, EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER } from '../types/config';
+import { ASPECT_SIZES, EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER, FONT_NAMES } from '../types/config';
 import { renderDocument, renderGraphTarget } from '../utils/renderer';
 import { EffectInfoPopup } from './EffectInfoPopup';
 import {
@@ -867,8 +867,9 @@ function LayerInspector({
   if (layer.kind === 'text') {
     return (
       <div className={sectionClassName}>
-        <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
+        <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} placeholder="Layer name" />
         <InspectorTextArea value={layer.content} onChange={(value) => onChange({ content: value } as Partial<TextLayer>)} />
+        <InspectorSelect label="Font" value={layer.font} options={[...FONT_NAMES]} onChange={(value) => onChange({ font: value as TextLayer['font'] } as Partial<TextLayer>)} />
         <InspectorSlider label="Size" value={layer.size} min={12} max={160} onChange={(value) => onChange({ size: value } as Partial<TextLayer>)} />
         <InspectorColorInput label="Color" value={layer.color} onChange={(value) => onChange({ color: value } as Partial<TextLayer>)} />
         <InspectorSlider label="X Position" value={Math.round(layer.x * 100)} min={-200} max={200} onChange={(value) => onChange({ x: value / 100 } as Partial<TextLayer>)} />
@@ -1411,12 +1412,28 @@ function InspectorTextInput({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const [localValue, setLocalValue] = useState(value);
+  const prevPropRef = useRef(value);
+
+  useLayoutEffect(() => {
+    // Only sync from the prop when it genuinely changed from outside,
+    // not when it bounces back stale through the async dragNodes cycle.
+    if (value !== prevPropRef.current) {
+      prevPropRef.current = value;
+      setLocalValue(value);
+    }
+  }, [value]);
+
   return (
     <input
       className="node-field"
-      value={value}
+      value={localValue}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        prevPropRef.current = value; // freeze current prop so layoutEffect skips the bounce
+        setLocalValue(e.target.value);
+        onChange(e.target.value);
+      }}
     />
   );
 }
@@ -1428,12 +1445,26 @@ function InspectorTextArea({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const [localValue, setLocalValue] = useState(value);
+  const prevPropRef = useRef(value);
+
+  useLayoutEffect(() => {
+    if (value !== prevPropRef.current) {
+      prevPropRef.current = value;
+      setLocalValue(value);
+    }
+  }, [value]);
+
   return (
     <textarea
       className="node-field node-field-textarea"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      rows={3}
+      value={localValue}
+      onChange={(e) => {
+        prevPropRef.current = value;
+        setLocalValue(e.target.value);
+        onChange(e.target.value);
+      }}
+      rows={4}
     />
   );
 }
