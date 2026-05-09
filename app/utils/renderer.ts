@@ -401,12 +401,13 @@ async function applyLayerToCanvas(
   } else if (layer.kind === 'fill') {
     drawFillLayer(ctx, W, H, layer);
   } else if (layer.kind === 'effect') {
-    if (options.skipEffects) return base;
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
-    const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
-    if (filters?.length) {
-      current = await runGpuPass(current, W, H, filters);
+    if (!options.skipEffects) {
+      const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
+      if (filters?.length) {
+        current = await runGpuPass(current, W, H, filters);
+      }
     }
     if (alphaMask) {
       current = maskCanvasToAlpha(current, alphaMask, W, H);
@@ -516,7 +517,7 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
 }
 
 export interface RenderOptions {
-  /** Skip GPU effect passes during e.g. drag interactions for instant feedback. */
+  /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
   skipEffects?: boolean;
 }
 

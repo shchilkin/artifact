@@ -62,7 +62,6 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   return makeEffectLayer({
     grain: rand(0, 60),
     scanlines: rand(0, 40),
-    rgbSplit: rand(0, 12),
     glitch: rand(0, 18),
     tint: randomHsl(rand(0, 359), [40, 80], [10, 28]),
     tintOp: rand(0, 60),

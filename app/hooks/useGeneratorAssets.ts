@@ -40,7 +40,7 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
   const ctx = canvas.getContext('2d');
   if (!ctx) return src;
   ctx.drawImage(img, 0, 0, w, h);
-  const outMime = mimeHint === 'image/png' ? 'image/png' : 'image/jpeg';
+  const outMime = mimeHint === 'image/jpeg' ? 'image/jpeg' : 'image/png';
   return canvas.toDataURL(outMime, 0.9);
 }
 

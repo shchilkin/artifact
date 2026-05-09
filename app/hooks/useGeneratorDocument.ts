@@ -33,6 +33,7 @@ import {
   removeLayerFromGraph,
   removeMergeNode,
   splitEdgeWithNode,
+  updateColorNode as updateColorNodeInGraph,
 } from '../utils/nodeGraph';
 
 const DOC_KEY = 'doc';
@@ -308,13 +309,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const updateColorNode = useCallback((id: string, patch: Partial<GraphColorNode>) => {
     updateDocument((current) => {
       if (!current.graph) return current;
-      return {
-        ...current,
-        graph: {
-          ...current.graph,
-          colorNodes: (current.graph.colorNodes ?? []).map((node) => (node.id === id ? { ...node, ...patch } : node)),
-        },
-      };
+      return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
     });
   }, [updateDocument]);
 

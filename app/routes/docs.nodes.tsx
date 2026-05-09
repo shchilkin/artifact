@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { SiteNav } from "../components/SiteNav";
 import { Footer } from "../components/Footer";
@@ -164,6 +164,10 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   warp: "Combined warp: noise, morph, barrel, vortex.",
   color: "Combined color grading: hue, bloom, posterize, duotone.",
   riso: "Combined risograph: halftone and misregister.",
+  blur: "Gaussian blur across the entire frame.",
+  threshold: "Luminance cutoff to stark black and white.",
+  edgeDetect: "Highlight edge transitions with a convolution kernel.",
+  gradientOverlay: "Two-color gradient blended over the frame.",
 };
 
 const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
@@ -193,6 +197,10 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   warp: [{ key: "noiseWarp / morphAmt / barrel / vortex", range: "0–100" }],
   color: [{ key: "hueShift / bloom / posterize / duotone", range: "0–100" }],
   riso: [{ key: "halftone / risoShift", range: "0–100" }],
+  blur: [{ key: "blurAmt", range: "0–100" }],
+  threshold: [{ key: "threshold", range: "0–100" }],
+  edgeDetect: [{ key: "edgeDetect", range: "0–100" }],
+  gradientOverlay: [{ key: "gradMix", range: "0–100" }, { key: "gradA", range: "hex" }, { key: "gradB", range: "hex" }, { key: "gradAngle", range: "0–360" }],
 };
 
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
@@ -310,66 +318,70 @@ function NodePoster({ node }: { node: NodeDef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, HTMLImageElement>());
   const [doc, setDoc] = useState<CanvasDocument>(node.doc);
+  const docRef = useRef(doc);
+  const revRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
 
-  // Interactive rendering
+  useLayoutEffect(() => { docRef.current = doc; }, [doc]);
+  const enqueueRender = useRef(() => {
+    const rev = ++revRef.current;
+    const currentDoc = docRef.current;
+    const imageSrcs = currentDoc.layers
+      .filter((l): l is ImageLayer => l.kind === "image")
+      .map((l) => l.src)
+      .filter((src) => !imageCacheRef.current.has(src));
+
+    const preloads = imageSrcs.map((src) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => { imageCacheRef.current.set(src, img); resolve(); };
+        img.onerror = () => resolve();
+        img.src = src;
+      }),
+    );
+
+    scheduleRender(async () => {
+      await Promise.all(preloads);
+      if (rev !== revRef.current) return;
+      try {
+        const out = await renderDocument(currentDoc, THUMB, THUMB, imageCacheRef.current);
+        if (!out || rev !== revRef.current || !canvasRef.current) return;
+        const ctx = canvasRef.current.getContext("2d");
+        if (!ctx) return;
+        canvasRef.current.width = THUMB;
+        canvasRef.current.height = THUMB;
+        ctx.drawImage(out, 0, 0);
+      } catch {
+        // silently skip failed renders
+      }
+    });
+  });
+
+  // Create the IntersectionObserver exactly once — no doc dependency.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let cancelled = false;
-
-    // Use IntersectionObserver only for initial render if desired, 
-    // but since we want live interaction, we can just queue the render.
-    // For 30 massive posters, we MUST use IntersectionObserver to only render visible ones.
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0].isIntersecting) return;
-        
-        // When visible, queue a render
-        const imageSrcs = doc.layers
-          .filter((l): l is ImageLayer => l.kind === "image")
-          .map((l) => l.src)
-          .filter((src) => !imageCacheRef.current.has(src));
-
-        const preloads = imageSrcs.map(
-          (src) =>
-            new Promise<void>((resolve) => {
-              const img = new Image();
-              img.onload = () => {
-                imageCacheRef.current.set(src, img);
-                resolve();
-              };
-              img.onerror = () => resolve();
-              img.src = src;
-            }),
-        );
-
-        scheduleRender(async () => {
-          await Promise.all(preloads);
-          if (cancelled) return;
-          try {
-            const out = await renderDocument(doc, THUMB, THUMB, imageCacheRef.current);
-            if (!out || cancelled || !canvasRef.current) return;
-            const ctx = canvasRef.current.getContext("2d");
-            if (!ctx) return;
-            canvasRef.current.width = THUMB;
-            canvasRef.current.height = THUMB;
-            ctx.drawImage(out, 0, 0);
-          } catch {
-            // silently skip failed renders
-          }
-        });
+        if (entries[0].isIntersecting) enqueueRender.current();
       },
-      { rootMargin: "600px" } // Render when close to viewport
+      { rootMargin: "600px" }
     );
 
     observer.observe(canvas);
 
     return () => {
-      cancelled = true;
       observer.disconnect();
     };
+  }, []); // Observer created once — reads latest doc via docRef
+
+  // Re-render when doc changes (debounced to coalesce rapid slider moves).
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => enqueueRender.current(), 80);
+    return () => clearTimeout(debounceRef.current);
   }, [doc]);
 
   return (
