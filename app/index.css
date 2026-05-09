@@ -945,7 +945,7 @@ input[type="range"] {
 .home-stage__canvas {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
   align-self: start;
   grid-column: 1;
   grid-row: 1 / -1;
@@ -1283,7 +1283,7 @@ input[type="range"] {
 /* Mobile dot indicator — always visible, replaces the bar */
 .home-mobile-dots {
   display: flex;
-  gap: 6px;
+  gap: 0;
   align-items: center;
   transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1294,20 +1294,28 @@ input[type="range"] {
 }
 
 .home-mobile-dot {
-  width: 8px;
-  height: 8px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: oklch(35% 0.012 42);
-  transition: background 250ms cubic-bezier(0.16, 1, 0.3, 1), transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  /* enlarge tap target without visual change */
-  padding: 6px;
-  margin: -6px;
-  box-sizing: content-box;
+  flex-shrink: 0;
 }
 
-.home-mobile-dot--reached { background: oklch(55% 0.018 42); }
-.home-mobile-dot--current { background: var(--accent); transform: scale(1.4); }
+.home-mobile-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(35% 0.012 42);
+  transition: background 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              width 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              height 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-mobile-dot--reached::before { background: oklch(55% 0.018 42); }
+.home-mobile-dot--current::before { background: var(--accent); width: 9px; height: 9px; }
 
 @media (min-width: 1024px) {
   .home-mobile-dots { display: none; }
@@ -1379,12 +1387,12 @@ input[type="range"] {
 }
 
 .home-step {
-  min-height: 70dvh;
+  min-height: 60dvh;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 14px;
-  padding: clamp(20px, 5vw, 48px) clamp(24px, 6vw, 36px) clamp(36px, 6vw, 80px);
+  padding: clamp(32px, 5vw, 48px) clamp(24px, 6vw, 36px) clamp(36px, 6vw, 80px);
   border-bottom: 1px dashed oklch(20% 0.018 42);
   opacity: 0.4;
   transition: opacity 380ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1474,7 +1482,7 @@ input[type="range"] {
 
 /* CTA — closing block */
 .home-cta-section {
-  min-height: 70dvh;
+  min-height: 55dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1505,6 +1513,7 @@ input[type="range"] {
 
 @media (min-width: 1024px) {
   .home-cta-section {
+    min-height: 70dvh;
     padding: clamp(64px, 9vw, 144px) clamp(48px, 7vw, 120px);
   }
 }
