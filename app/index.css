@@ -3,6 +3,7 @@
 @theme {
   --color-bg: oklch(8% 0.012 42);
   --color-sidebar: oklch(11% 0.016 42);
+  --color-sidebar-raised: oklch(14% 0.016 42);
   --color-border: oklch(24% 0.018 42);
   --color-text: oklch(80% 0.022 68);
   --color-dim: oklch(60% 0.018 68);
@@ -23,6 +24,7 @@
 :root {
   --bg: oklch(8% 0.012 42);
   --sidebar-bg: oklch(11% 0.016 42);
+  --sidebar-raised: oklch(14% 0.016 42);
   --border: oklch(24% 0.018 42);
   --text: oklch(80% 0.022 68);
   --text-dim: oklch(50% 0.018 68);

@@ -145,6 +145,7 @@ export default function Generator() {
             if (file) void handleDroppedFile(file);
           }}
         >
+          <h1 className="sr-only">Album Cover Generator</h1>
           <ViewModeToggle value={viewMode} onChange={setViewMode} />
 
           {viewMode === 'layers' ? (
