@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
 import { getPreviewDims } from '../types/config';
 import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import { CanvasHandles } from './CanvasHandles';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
+const FAST_PATH_RELEASE_MS = 180;
 
 interface Props {
   doc: CanvasDocument;
@@ -24,17 +25,44 @@ export function CanvasPreview({
   onSelectLayer,
 }: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
-  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph);
+  const [fast, setFast] = useState(false);
+  const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph, { fast });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
+
+  const enterFast = useCallback(() => {
+    if (releaseTimerRef.current) {
+      clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+    setFast(true);
+  }, []);
+
+  // After pointer-up, hold the fast path briefly so the final committed state
+  // renders in skip-effects mode for one frame, then snap to full quality.
+  // Prevents a heavy GPU pass from queueing while the cursor is still settling.
+  const exitFast = useCallback(() => {
+    if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+    releaseTimerRef.current = setTimeout(() => {
+      releaseTimerRef.current = null;
+      setFast(false);
+    }, FAST_PATH_RELEASE_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+  }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!selectedLayer || (selectedLayer.kind !== 'image' && selectedLayer.kind !== 'text')) return;
     e.preventDefault();
     const delta = -e.deltaY * SCROLL_SCALE_SENSITIVITY;
     const newScale = Math.max(0.05, selectedLayer.scaleX + delta);
+    enterFast();
+    exitFast();
     onLayerUpdate(selectedLayer.id, { scaleX: newScale, scaleY: newScale });
-  }, [selectedLayer, onLayerUpdate]);
+  }, [selectedLayer, onLayerUpdate, enterFast, exitFast]);
 
   return (
     <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
@@ -57,6 +85,8 @@ export function CanvasPreview({
             canvasH={ph}
             imageCache={imageCache}
             onChange={(updated) => onLayerUpdate(updated.id, updated)}
+            onDragStart={enterFast}
+            onDragEnd={exitFast}
           />
         )}
         {dragOver && (

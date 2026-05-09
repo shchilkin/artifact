@@ -14,7 +14,7 @@ import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
 import { EXPORT_NODE_ID } from './nodeGraph';
-import type { Filter, Renderer } from 'pixi.js';
+import type { Filter } from 'pixi.js';
 
 const REF = 540;
 const FONT_MAP: Record<string, string> = {
@@ -357,38 +357,13 @@ function applyCanvas2DEffects(
   }
 }
 
-async function runGpuPass(
+function runGpuPass(
   current: HTMLCanvasElement,
   W: number,
   H: number,
   filters: Filter[],
-  persistentRenderer?: Renderer,
 ): Promise<HTMLCanvasElement> {
-  if (!persistentRenderer) {
-    return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
-  }
-
-  const { Container, RenderTexture, Sprite, Texture } = await import('pixi.js');
-  const canvasTex = Texture.from(current);
-  const gpuTex = RenderTexture.create({ width: W, height: H });
-  try {
-    const blitSprite = new Sprite(canvasTex);
-    blitSprite.width = W;
-    blitSprite.height = H;
-    canvasTex.update();
-    persistentRenderer.render(blitSprite, { renderTexture: gpuTex, clear: true });
-    const displaySprite = new Sprite(gpuTex);
-    displaySprite.width = W;
-    displaySprite.height = H;
-    displaySprite.filters = filters;
-    const stage = new Container();
-    stage.addChild(displaySprite);
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    return persistentRenderer.extract.canvas(stage) as HTMLCanvasElement;
-  } finally {
-    canvasTex.destroy(true);
-    gpuTex.destroy(true);
-  }
+  return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
 async function applyLayerToCanvas(
@@ -398,7 +373,7 @@ async function applyLayerToCanvas(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer: Renderer | undefined,
+  options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
   if (!layer.visible) return base;
 
@@ -416,11 +391,12 @@ async function applyLayerToCanvas(
   } else if (layer.kind === 'fill') {
     drawFillLayer(ctx, W, H, layer);
   } else if (layer.kind === 'effect') {
+    if (options.skipEffects) return base;
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
     const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
     if (filters?.length) {
-      current = await runGpuPass(current, W, H, filters, persistentRenderer);
+      current = await runGpuPass(current, W, H, filters);
     }
     if (alphaMask) {
       current = maskCanvasToAlpha(current, alphaMask, W, H);
@@ -529,6 +505,11 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
 }
 
+export interface RenderOptions {
+  /** Skip GPU effect passes during e.g. drag interactions for instant feedback. */
+  skipEffects?: boolean;
+}
+
 async function renderGraphNode(
   doc: CanvasDocument,
   graph: CanvasGraph,
@@ -536,7 +517,7 @@ async function renderGraphNode(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer: Renderer | undefined,
+  options: RenderOptions,
   cache: Map<string, Promise<HTMLCanvasElement>>,
 ): Promise<HTMLCanvasElement> {
   const cached = cache.get(nodeId);
@@ -549,7 +530,7 @@ async function renderGraphNode(
       drawBackground(ctx, W, H, doc.global.bg);
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       if (sourceId) {
-        const rendered = await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache);
+        const rendered = await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache);
         ctx.drawImage(rendered, 0, 0);
       }
       return canvas;
@@ -561,13 +542,13 @@ async function renderGraphNode(
       const overlayId = findIncomingSource(graph, nodeId, 'b');
       const canvas = baseId
         ? cloneCanvas(
-          await renderGraphNode(doc, graph, baseId, W, H, imageCache, persistentRenderer, cache),
+          await renderGraphNode(doc, graph, baseId, W, H, imageCache, options, cache),
           W,
           H,
         )
         : createCanvas(W, H);
       if (overlayId) {
-        const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, persistentRenderer, cache);
+        const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, options, cache);
         const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
         ctx.save();
         ctx.globalCompositeOperation = toCompositeOperation(mergeNode.blendMode);
@@ -582,7 +563,7 @@ async function renderGraphNode(
     if (colorNode) {
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       const source = sourceId
-        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache)
+        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
         : createCanvas(W, H);
       return applyColorNode(source, colorNode, W, H);
     }
@@ -593,9 +574,9 @@ async function renderGraphNode(
     const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
     const sourceId = findIncomingSource(graph, nodeId, inputPort);
     const base = sourceId
-      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache)
+      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
       : createCanvas(W, H);
-    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, persistentRenderer);
+    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, options);
   })();
 
   cache.set(nodeId, renderPromise);
@@ -609,7 +590,7 @@ export async function renderGraphTarget(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer?: Renderer,
+  options: RenderOptions = {},
 ): Promise<HTMLCanvasElement> {
   return renderGraphNode(
     doc,
@@ -618,7 +599,7 @@ export async function renderGraphTarget(
     W,
     H,
     imageCache,
-    persistentRenderer,
+    options,
     new Map<string, Promise<HTMLCanvasElement>>(),
   );
 }
@@ -628,10 +609,10 @@ export async function renderDocument(
   W: number,
   H: number,
   imageCache: Map<string, HTMLImageElement>,
-  persistentRenderer?: Renderer,
+  options: RenderOptions = {},
 ): Promise<HTMLCanvasElement> {
   if (doc.graph) {
-    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, persistentRenderer);
+    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options);
   }
 
   let current = createCanvas(W, H);
@@ -640,7 +621,7 @@ export async function renderDocument(
 
   const layers = doc.layers;
   for (const layer of layers) {
-    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, persistentRenderer);
+    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, options);
   }
   return current;
 }

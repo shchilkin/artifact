@@ -1,30 +1,37 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { Renderer } from 'pixi.js';
 import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
+
+interface Options {
+  /** While true, renderer skips GPU effect passes for fast pointer feedback. */
+  fast?: boolean;
+}
 
 export function useDocumentRenderer(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
   pw: number,
   ph: number,
+  options: Options = {},
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rendererRef = useRef<Renderer | null>(null);
   const renderingRef = useRef(false);
   const pendingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
   const docRef = useRef(doc);
   const imageCacheRef = useRef(imageCache);
   const pwRef = useRef(pw);
   const phRef = useRef(ph);
+  const fastRef = useRef(options.fast ?? false);
 
   useEffect(() => {
     docRef.current = doc;
     imageCacheRef.current = imageCache;
     pwRef.current = pw;
     phRef.current = ph;
-  }, [doc, imageCache, pw, ph]);
+    fastRef.current = options.fast ?? false;
+  }, [doc, imageCache, pw, ph, options.fast]);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -33,7 +40,9 @@ export function useDocumentRenderer(
     }
 
     renderingRef.current = true;
-    renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, rendererRef.current ?? undefined)
+    renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, {
+      skipEffects: fastRef.current,
+    })
       .then((result) => {
         renderingRef.current = false;
         const displayCanvas = canvasRef.current;
@@ -56,13 +65,19 @@ export function useDocumentRenderer(
       });
   }, []);
 
+  // Coalesce multiple state changes within a frame into one render call.
+  const scheduleRender = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      doRender();
+    });
+  }, [doRender]);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Tear down any existing canvas/renderer before creating new ones
-    rendererRef.current?.destroy(true);
-    rendererRef.current = null;
     if (canvasRef.current && container.contains(canvasRef.current)) {
       container.removeChild(canvasRef.current);
     }
@@ -75,30 +90,21 @@ export function useDocumentRenderer(
     container.appendChild(canvas);
     canvasRef.current = canvas;
 
-    try {
-      rendererRef.current = new Renderer({
-        width: pw,
-        height: ph,
-        backgroundAlpha: 0,
-        antialias: false,
-      });
-    } catch {
-      rendererRef.current = null;
-    }
-
-    doRender();
+    scheduleRender();
 
     return () => {
-      rendererRef.current?.destroy(true);
-      rendererRef.current = null;
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [doRender, pw, ph]);
+  }, [pw, ph, scheduleRender]);
 
   useEffect(() => {
-    doRender();
-  }, [doc, imageCache, doRender]);
+    scheduleRender();
+  }, [doc, imageCache, options.fast, scheduleRender]);
+
+  useEffect(() => () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+  }, []);
 
   return containerRef;
 }

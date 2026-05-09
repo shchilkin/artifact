@@ -45,6 +45,7 @@ import { renderDocument, renderGraphTarget } from '../utils/renderer';
 import { EffectInfoPopup } from './EffectInfoPopup';
 import {
   EXPORT_NODE_ID,
+  collectUpstreamNodeIds,
   wouldCreateCycle,
   connectedPortIds,
   inferLinearGraph,
@@ -349,10 +350,27 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
     };
   }, [doc.global.aspect, isExportPreview]);
 
-  const previewKey = useMemo(
-    () => JSON.stringify({ previewTargetId, global: doc.global, layers: doc.layers, graph, previewSize }),
-    [previewTargetId, doc.global, doc.layers, graph, previewSize],
-  );
+  // Hash only the upstream slice of the graph that feeds this preview target.
+  // Editing an unrelated branch leaves this key untouched, so React's effect
+  // never re-fires and this thumbnail does not re-render.
+  const previewKey = useMemo(() => {
+    const upstream = collectUpstreamNodeIds(previewTargetId, graph);
+    const layers = doc.layers.filter((layer) => upstream.has(layer.id));
+    const mergeNodes = graph.mergeNodes.filter((node) => upstream.has(node.id));
+    const colorNodes = (graph.colorNodes ?? []).filter((node) => upstream.has(node.id));
+    const edges = graph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
+    return JSON.stringify({
+      previewTargetId,
+      previewSize,
+      bg: doc.global.bg,
+      seed: doc.global.seed,
+      aspect: doc.global.aspect,
+      layers,
+      mergeNodes,
+      colorNodes,
+      edges,
+    });
+  }, [doc.global.aspect, doc.global.bg, doc.global.seed, doc.layers, graph, previewSize, previewTargetId]);
 
   // Always-fresh ref so the debounced render uses the very latest inputs
   // even if several previewKey changes happened during the debounce window.

@@ -7,11 +7,13 @@ interface Props {
   canvasH: number;
   imageCache: Map<string, HTMLImageElement>;
   onChange: (updatedLayer: TextLayer | ImageLayer) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 type DragMode = 'move' | 'scale-se' | 'scale-nw' | 'scale-ne' | 'scale-sw' | 'rotate';
 
-export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange }: Props) {
+export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, onDragStart, onDragEnd }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const { hw, hh } = useMemo(() => {
@@ -51,6 +53,7 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange }:
     const startX = e.clientX;
     const startY = e.clientY;
     const orig = { ...layer };
+    onDragStart?.();
 
     function onMove(me: PointerEvent) {
       const dx = (me.clientX - startX) / canvasW;
@@ -92,11 +95,12 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange }:
     function onUp() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      onDragEnd?.();
     }
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [canvasW, canvasH, cx, cy, layer, onChange]);
+  }, [canvasW, canvasH, cx, cy, layer, onChange, onDragStart, onDragEnd]);
 
   return (
     <svg
