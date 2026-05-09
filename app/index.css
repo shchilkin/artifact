@@ -983,12 +983,21 @@ input[type="range"] {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* Mobile default: 3×2 — reduces simultaneous filtered paints on low-end phones */
+  grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 3px;
   padding: 0;
+  overflow: hidden;
   opacity: 0;
   animation: home-mosaic-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+}
+
+@media (min-width: 768px) {
+  /* Desktop: full 5×2 grid */
+  .home-mosaic {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 
 @keyframes home-mosaic-in {
