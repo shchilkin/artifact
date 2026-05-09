@@ -178,6 +178,17 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   wave: "Sine-wave horizontal displacement scanned per row.",
   matte: "Low-scale paper or canvas texture overlay.",
   overprint: "CMYK plate offset — ink-on-ink misregistration.",
+  solarize: "Sabattier effect — luminance above threshold inverts to a surreal negative.",
+  bleachBypass: "Desaturated overlay blend — contrast and shadow crush like a skip-bleach process.",
+  cyanotype: "Prussian blue photographic print process — deep blue shadows on ivory paper.",
+  splitTone: "Shadow/highlight color grade — cold shadows, warm highlights (or vice versa).",
+  ripple: "Radial sine displacement from center — concentric wave distortion.",
+  kaleidoscope: "Mirror-fold into radial segments — 3–16 repeating sectors.",
+  squeeze: "Anamorphic X/Y scale — stretch or compress the image along each axis.",
+  emboss: "Diagonal convolution relief — raised surface texture overlay.",
+  linocut: "Bayer-dithered posterization — bold graphic print aesthetic.",
+  fog: "Luminance-weighted haze overlay — soft atmospheric mist.",
+  speedLines: "Seeded radial lines from center — manga motion effect.",
 };
 
 const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
@@ -221,6 +232,17 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   wave: [{ key: "waveAmt", range: "0–60" }, { key: "waveFreq", range: "1–12" }],
   matte: [{ key: "matte", range: "0–100" }],
   overprint: [{ key: "overprint", range: "0–100" }],
+  solarize: [{ key: "solarize", range: "0–100" }],
+  bleachBypass: [{ key: "bleachBypass", range: "0–100" }],
+  cyanotype: [{ key: "cyanotype", range: "0–100" }],
+  splitTone: [{ key: "splitToneAmt", range: "0–100" }, { key: "splitShadow", range: "hex" }, { key: "splitHighlight", range: "hex" }],
+  ripple: [{ key: "rippleAmt", range: "0–100" }, { key: "rippleFreq", range: "1–12" }],
+  kaleidoscope: [{ key: "kaleidoscope", range: "0–100" }],
+  squeeze: [{ key: "squeezeX", range: "-80–80" }, { key: "squeezeY", range: "-80–80" }],
+  emboss: [{ key: "emboss", range: "0–100" }],
+  linocut: [{ key: "linocut", range: "0–100" }],
+  fog: [{ key: "fog", range: "0–100" }, { key: "fogColor", range: "hex" }],
+  speedLines: [{ key: "speedLines", range: "0–100" }],
 };
 
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({

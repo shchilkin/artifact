@@ -102,6 +102,17 @@ export type EffectPreset =
   | 'wave'
   | 'matte'
   | 'overprint'
+  | 'solarize'
+  | 'bleachBypass'
+  | 'cyanotype'
+  | 'splitTone'
+  | 'ripple'
+  | 'kaleidoscope'
+  | 'squeeze'
+  | 'emboss'
+  | 'linocut'
+  | 'fog'
+  | 'speedLines'
   | 'warp'
   | 'color'
   | 'riso';
@@ -148,7 +159,7 @@ export interface EffectLayer extends BaseLayer {
   gradA: string;
   gradB: string;
   gradAngle: number;
-  // new effects
+  // new effects (batch 1)
   sepia: number;
   neonGlow: number;
   neonColor: string;
@@ -161,6 +172,23 @@ export interface EffectLayer extends BaseLayer {
   waveFreq: number;
   matte: number;
   overprint: number;
+  // new effects (batch 2)
+  solarize: number;
+  bleachBypass: number;
+  cyanotype: number;
+  splitToneAmt: number;
+  splitShadow: string;
+  splitHighlight: string;
+  rippleAmt: number;
+  rippleFreq: number;
+  kaleidoscope: number;
+  squeezeX: number;
+  squeezeY: number;
+  emboss: number;
+  linocut: number;
+  fog: number;
+  fogColor: string;
+  speedLines: number;
 }
 
 export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
@@ -296,6 +324,22 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   waveFreq: 3,
   matte: 0,
   overprint: 0,
+  solarize: 0,
+  bleachBypass: 0,
+  cyanotype: 0,
+  splitToneAmt: 0,
+  splitShadow: '#001a4f',
+  splitHighlight: '#ff8040',
+  rippleAmt: 0,
+  rippleFreq: 3,
+  kaleidoscope: 0,
+  squeezeX: 0,
+  squeezeY: 0,
+  emboss: 0,
+  linocut: 0,
+  fog: 0,
+  fogColor: '#c8d8e8',
+  speedLines: 0,
 };
 
 let _idCounter = 0;
@@ -405,6 +449,11 @@ const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kin
   sepia: 0, neonGlow: 0, neonColor: '#ff00ff',
   zoomBlur: 0, vhsTracking: 0, dither: 0, infrared: 0,
   ca: 0, waveAmt: 0, waveFreq: 3, matte: 0, overprint: 0,
+  solarize: 0, bleachBypass: 0, cyanotype: 0,
+  splitToneAmt: 0, splitShadow: '#001a4f', splitHighlight: '#ff8040',
+  rippleAmt: 0, rippleFreq: 3, kaleidoscope: 0,
+  squeezeX: 0, squeezeY: 0, emboss: 0, linocut: 0,
+  fog: 0, fogColor: '#c8d8e8', speedLines: 0,
 };
 
 export type EffectNumericField = {
@@ -457,18 +506,29 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
   wave:        { name: 'Wave',       icon: '〜', primary: 'waveAmt',     partial: { ...ZERO_EFFECT, waveAmt: 20, waveFreq: 3 } },
   matte:       { name: 'Matte',      icon: '▩', primary: 'matte',       partial: { ...ZERO_EFFECT, matte: 40 } },
   overprint:   { name: 'Overprint',  icon: '⊕', primary: 'overprint',   partial: { ...ZERO_EFFECT, overprint: 20 } },
+  solarize:    { name: 'Solarize',      icon: '☯', primary: 'solarize',      partial: { ...ZERO_EFFECT, solarize: 55 } },
+  bleachBypass:{ name: 'Bleach Bypass', icon: '⊙', primary: 'bleachBypass',  partial: { ...ZERO_EFFECT, bleachBypass: 65 } },
+  cyanotype:   { name: 'Cyanotype',     icon: '⊆', primary: 'cyanotype',     partial: { ...ZERO_EFFECT, cyanotype: 75 } },
+  splitTone:   { name: 'Split Tone',    icon: '◑', primary: 'splitToneAmt',  partial: { ...ZERO_EFFECT, splitToneAmt: 50, splitShadow: '#001a4f', splitHighlight: '#ff8040' } },
+  ripple:      { name: 'Ripple',        icon: '≈', primary: 'rippleAmt',     partial: { ...ZERO_EFFECT, rippleAmt: 20, rippleFreq: 3 } },
+  kaleidoscope:{ name: 'Kaleidoscope',  icon: '❋', primary: 'kaleidoscope',  partial: { ...ZERO_EFFECT, kaleidoscope: 40 } },
+  squeeze:     { name: 'Squeeze',       icon: '⊡', primary: null,            partial: { ...ZERO_EFFECT, squeezeX: 30, squeezeY: 0 } },
+  emboss:      { name: 'Emboss',        icon: '▲', primary: 'emboss',        partial: { ...ZERO_EFFECT, emboss: 60 } },
+  linocut:     { name: 'Linocut',       icon: '◰', primary: 'linocut',       partial: { ...ZERO_EFFECT, linocut: 55 } },
+  fog:         { name: 'Fog',           icon: '≀', primary: 'fog',           partial: { ...ZERO_EFFECT, fog: 45, fogColor: '#c8d8e8' } },
+  speedLines:  { name: 'Speed Lines',   icon: '≫', primary: 'speedLines',    partial: { ...ZERO_EFFECT, speedLines: 50 } },
   warp:       { name: 'Warp FX',     icon: '◌', primary: null, legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
   color:      { name: 'Color FX',    icon: '◐', primary: null, legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
   riso:       { name: 'Riso FX',     icon: '◎', primary: null, legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
 };
 
 export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
-  'rays', 'bloom', 'filmBurn', 'neonGlow',
+  'rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines',
   'glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking',
-  'grain', 'scanlines', 'matte', 'dither',
+  'grain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut',
   'tint',
-  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'wave', 'zoomBlur',
-  'hueShift', 'vignette', 'pixelate', 'posterize', 'sepia', 'infrared',
+  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'wave', 'zoomBlur', 'ripple', 'kaleidoscope', 'squeeze',
+  'hueShift', 'vignette', 'pixelate', 'posterize', 'sepia', 'infrared', 'solarize', 'bleachBypass', 'cyanotype', 'splitTone',
   'duotone', 'halftone', 'risoShift', 'overprint',
   'blur', 'threshold', 'edgeDetect', 'gradientOverlay',
 ];

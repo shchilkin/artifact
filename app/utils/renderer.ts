@@ -597,6 +597,222 @@ function applyCanvas2DEffects(
     ctx.drawImage(yellow, 0, 0);
     ctx.restore();
   }
+
+  if (layer.solarize > 0) {
+    const threshold = 255 * (1 - (layer.solarize / 100) * 0.85);
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (lum > threshold) {
+        d[i]     = 255 - d[i];
+        d[i + 1] = 255 - d[i + 1];
+        d[i + 2] = 255 - d[i + 2];
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.bleachBypass > 0) {
+    const t = layer.bleachBypass / 100;
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      const ov = (c: number) =>
+        c < 128 ? (2 * c * lum / 255) : (255 - 2 * (255 - c) * (255 - lum) / 255);
+      d[i]     = Math.min(255, Math.round(r + (ov(r) - r) * t));
+      d[i + 1] = Math.min(255, Math.round(g + (ov(g) - g) * t));
+      d[i + 2] = Math.min(255, Math.round(b + (ov(b) - b) * t));
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.cyanotype > 0) {
+    const t = layer.cyanotype / 100;
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      // Prussian blue [0,49,83] to ivory paper [235,240,230]
+      const cr = Math.round(0   + (235 - 0)   * lum);
+      const cg = Math.round(49  + (240 - 49)  * lum);
+      const cb = Math.round(83  + (230 - 83)  * lum);
+      d[i]     = Math.round(d[i]     + (cr - d[i])     * t);
+      d[i + 1] = Math.round(d[i + 1] + (cg - d[i + 1]) * t);
+      d[i + 2] = Math.round(d[i + 2] + (cb - d[i + 2]) * t);
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.splitToneAmt > 0) {
+    const t = layer.splitToneAmt / 100;
+    const sR = parseInt(layer.splitShadow.slice(1, 3), 16);
+    const sG = parseInt(layer.splitShadow.slice(3, 5), 16);
+    const sB = parseInt(layer.splitShadow.slice(5, 7), 16);
+    const hR = parseInt(layer.splitHighlight.slice(1, 3), 16);
+    const hG = parseInt(layer.splitHighlight.slice(3, 5), 16);
+    const hB = parseInt(layer.splitHighlight.slice(5, 7), 16);
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const sw = Math.max(0, (128 - lum) / 128);
+      const hw = Math.max(0, (lum - 128) / 128);
+      d[i]     = Math.min(255, Math.round(d[i]     + (sR - d[i])     * sw * t + (hR - d[i])     * hw * t));
+      d[i + 1] = Math.min(255, Math.round(d[i + 1] + (sG - d[i + 1]) * sw * t + (hG - d[i + 1]) * hw * t));
+      d[i + 2] = Math.min(255, Math.round(d[i + 2] + (sB - d[i + 2]) * sw * t + (hB - d[i + 2]) * hw * t));
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.rippleAmt > 0) {
+    const cx = W / 2, cy = H / 2;
+    const maxDist = Math.sqrt(cx * cx + cy * cy);
+    const maxShift = layer.rippleAmt * scale * 0.5;
+    const freq = (layer.rippleFreq * Math.PI * 2) / maxDist;
+    const srcData = ctx.getImageData(0, 0, W, H);
+    const out = ctx.createImageData(W, H);
+    const sd = srcData.data, od = out.data;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const dx = x - cx, dy = y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        const shift = Math.sin(dist * freq) * maxShift;
+        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
+        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
+        const oi = (y * W + x) * 4, si = (ny * W + nx) * 4;
+        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+
+  if (layer.kaleidoscope > 0) {
+    const segments = Math.max(3, Math.round(3 + (layer.kaleidoscope / 100) * 13));
+    const sectorAngle = (Math.PI * 2) / segments;
+    const cx = W / 2, cy = H / 2;
+    const srcData = ctx.getImageData(0, 0, W, H);
+    const out = ctx.createImageData(W, H);
+    const sd = srcData.data, od = out.data;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const dx = x - cx, dy = y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let angle = Math.atan2(dy, dx);
+        if (angle < 0) angle += Math.PI * 2;
+        let a = angle % sectorAngle;
+        if (a > sectorAngle / 2) a = sectorAngle - a;
+        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
+        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
+        const oi = (y * W + x) * 4, si = (ny * W + nx) * 4;
+        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+
+  if (layer.squeezeX !== 0 || layer.squeezeY !== 0) {
+    const xFactor = Math.max(0.01, 1 + layer.squeezeX / 100);
+    const yFactor = Math.max(0.01, 1 + layer.squeezeY / 100);
+    const cx = W / 2, cy = H / 2;
+    const srcData = ctx.getImageData(0, 0, W, H);
+    const out = ctx.createImageData(W, H);
+    const sd = srcData.data, od = out.data;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const sx = Math.min(W - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
+        const sy = Math.min(H - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
+        const oi = (y * W + x) * 4, si = (sy * W + sx) * 4;
+        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+
+  if (layer.emboss > 0) {
+    const srcData = ctx.getImageData(0, 0, W, H);
+    const sd = srcData.data;
+    const embossed = ctx.createImageData(W, H);
+    const ed = embossed.data;
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = (y * W + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const tl = sd[((y - 1) * W + (x - 1)) * 4 + c];
+          const br = sd[((y + 1) * W + (x + 1)) * 4 + c];
+          ed[i + c] = Math.min(255, Math.max(0, Math.round(128 + (tl - br))));
+        }
+        ed[i + 3] = 255;
+      }
+    }
+    const embossCanvas = createCanvas(W, H);
+    embossCanvas.getContext('2d')!.putImageData(embossed, 0, 0);
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = layer.emboss / 100;
+    ctx.drawImage(embossCanvas, 0, 0);
+    ctx.restore();
+  }
+
+  if (layer.linocut > 0) {
+    const t = layer.linocut / 100;
+    const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4;
+        const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        const bayer = BAYER[y & 3][x & 3] / 16 * 60;
+        const v = Math.min(255, Math.max(0, Math.round((lum + bayer) / 85) * 85));
+        d[i]     = Math.round(d[i]     + (v - d[i])     * t);
+        d[i + 1] = Math.round(d[i + 1] + (v - d[i + 1]) * t);
+        d[i + 2] = Math.round(d[i + 2] + (v - d[i + 2]) * t);
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.fog > 0) {
+    const fogR = parseInt(layer.fogColor.slice(1, 3), 16);
+    const fogG = parseInt(layer.fogColor.slice(3, 5), 16);
+    const fogB = parseInt(layer.fogColor.slice(5, 7), 16);
+    const t = layer.fog / 100;
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      const w = Math.min(1, t * (0.2 + lum * 0.8));
+      d[i]     = Math.round(d[i]     + (fogR - d[i])     * w);
+      d[i + 1] = Math.round(d[i + 1] + (fogG - d[i + 1]) * w);
+      d[i + 2] = Math.round(d[i + 2] + (fogB - d[i + 2]) * w);
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  if (layer.speedLines > 0) {
+    const cx = W / 2, cy = H / 2;
+    const diagonal = Math.sqrt(W * W + H * H);
+    const count = Math.round(layer.speedLines * 0.8 + 20);
+    const slRng = lcg(seed * 5523);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < count; i++) {
+      const angle = slRng() * Math.PI * 2;
+      const length = diagonal * (0.4 + slRng() * 0.6);
+      const alpha = (layer.speedLines / 100) * (0.05 + slRng() * 0.2);
+      ctx.lineWidth = (0.5 + slRng() * 1.5) * scale;
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
 function runGpuPass(
