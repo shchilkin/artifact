@@ -57,7 +57,7 @@ describe('makeEffectLayer', () => {
   it('returns all required numeric effect fields', () => {
     const layer = makeEffectLayer();
     const numericFields = [
-      'grain', 'scanlines', 'ca', 'glitch', 'tintOp',
+      'grain', 'scanlines', 'glitch', 'tintOp',
       'rays', 'rayInt', 'morphAmt', 'morphFreq', 'tearAmt', 'tearSize',
       'noiseWarp', 'vortex', 'barrel', 'mirror', 'dataMosh', 'interlace',
       'pixelate', 'hueShift', 'rgbSplit', 'vignette', 'bloom', 'posterize',
