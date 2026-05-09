@@ -29,7 +29,7 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
           fontSize: '11px',
         }}
       >
-        <span>Canvas error — could not render layers.</span>
+        <span>Canvas error: could not render layers.</span>
         <span style={{ opacity: 0.5 }}>{previewWidth} × {previewHeight}</span>
       </div>
     </div>
@@ -121,6 +121,8 @@ export default function Generator() {
     undoCount,
     onPresetsToggle: togglePresets,
     onCopyLink: handleCopyLink,
+    onExport: handleNodeExport,
+    exportBusy,
   };
 
   return (
@@ -143,6 +145,7 @@ export default function Generator() {
             if (file) void handleDroppedFile(file);
           }}
         >
+          <h1 className="sr-only">Album Cover Generator</h1>
           <ViewModeToggle value={viewMode} onChange={setViewMode} />
 
           {viewMode === 'layers' ? (

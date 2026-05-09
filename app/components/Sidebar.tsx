@@ -58,8 +58,9 @@ function Slider({ label, value, min, max, step = 1, onChange, effectKey, onInfoE
               className="slider-info-btn"
               onMouseEnter={() => iconRef.current && onInfoEnter(effectKey, iconRef.current.getBoundingClientRect())}
               onMouseLeave={onInfoLeave}
+              onFocus={() => iconRef.current && onInfoEnter(effectKey, iconRef.current.getBoundingClientRect())}
+              onBlur={onInfoLeave}
               aria-label={`About ${label}`}
-              tabIndex={-1}
             >
               ⓘ
             </button>
@@ -67,7 +68,15 @@ function Slider({ label, value, min, max, step = 1, onChange, effectKey, onInfoE
         </span>
         <span className="text-text text-[10px] min-w-7 text-right">{display}</span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input
+        type="range"
+        aria-label={label}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </div>
   );
 }
@@ -423,12 +432,13 @@ export function Sidebar({
                     )}
                   </div>
                   <button
-                    className={`flex-shrink-0 mt-1 w-6 h-6 flex items-center justify-center border text-[11px] bg-transparent cursor-pointer transition-colors ${
+                    className={`flex-shrink-0 w-11 h-11 flex items-center justify-center border text-[11px] bg-transparent cursor-pointer transition-colors ${
                       scaleLocked ? 'border-accent text-accent' : 'border-border text-dim hover:border-accent hover:text-accent'
                     }`}
                     onClick={() => setScaleLocked((v) => !v)}
                     title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
                     aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+                    aria-pressed={scaleLocked}
                   >
                     {scaleLocked ? '⛓' : '⛓‍💥'}
                   </button>

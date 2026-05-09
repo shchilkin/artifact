@@ -14,7 +14,7 @@ import { ALL_EMOJIS } from "./types/config";
 
 // Default title/description — route-level meta() overrides these via <Meta />
 export const meta: MetaFunction = () => [
-  { title: "artifact — Create Album Covers" },
+  { title: "artifact | Create Album Covers" },
   {
     name: "description",
     content:
@@ -68,7 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="en" />
         <meta property="og:url" content="https://artifact.shchilkin.dev" />
-        <meta property="og:title" content="artifact — Create Album Covers" />
+        <meta property="og:title" content="artifact | Create Album Covers" />
         <meta
           property="og:description"
           content="Generate glitchy, GPU-rendered album covers with emoji, effects, and one click."
@@ -81,7 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta property="og:image:height" content="630" />
         <meta
           property="og:image:alt"
-          content="artifact — glitch album cover generator"
+          content="artifact: glitch album cover generator"
         />
         <meta
           property="og:logo"
@@ -89,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="artifact — Create Album Covers" />
+        <meta name="twitter:title" content="artifact | Create Album Covers" />
         <meta
           name="twitter:description"
           content="Generate glitchy, GPU-rendered album covers with emoji, effects, and one click."
