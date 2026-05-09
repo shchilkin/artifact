@@ -203,15 +203,18 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Allocate ImageData once and reuse to avoid per-frame GC pressure
+    const img = ctx.createImageData(W, H);
+    const d = img.data;
+
     // Reduced motion: draw one static frame and stop
     if (prefersReducedMotion) {
-      const img = ctx.createImageData(W, H);
-      for (let i = 0; i < img.data.length; i += 4) {
+      for (let i = 0; i < d.length; i += 4) {
         const v = Math.random() * 200;
-        img.data[i] = v;
-        img.data[i + 1] = v;
-        img.data[i + 2] = v;
-        img.data[i + 3] = 200;
+        d[i] = v;
+        d[i + 1] = v;
+        d[i + 2] = v;
+        d[i + 3] = 200;
       }
       ctx.putImageData(img, 0, 0);
       return;
@@ -222,12 +225,10 @@ export default function Home() {
 
     function draw() {
       const t = frame * 0.018;
-      // Slow sine breathe: alpha oscillates between 22 and 48 (out of 255)
+      // Slow sine breathe: alpha oscillates between 180 and 220 (out of 255)
       const breathe = 0.5 + 0.5 * Math.sin(t);
       const alpha = Math.floor(180 + 40 * breathe);
 
-      const img = ctx!.createImageData(W, H);
-      const d = img.data;
       for (let i = 0; i < d.length; i += 4) {
         const v = Math.random() * 220;
         d[i] = v;
@@ -271,10 +272,20 @@ export default function Home() {
       }
     }
     update();
-    window.addEventListener("scroll", update, { passive: true });
+    // rAF-throttle the scroll handler so layout reads don't pile up
+    let pending = false;
+    function onScroll() {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        update();
+        pending = false;
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", update);
     return () => {
-      window.removeEventListener("scroll", update);
+      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", update);
     };
   }, []);
