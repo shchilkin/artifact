@@ -10,11 +10,11 @@ import { CURATED_EXAMPLES } from '../utils/curatedExamples';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
-  { title: 'Examples — Album Cover Generator' },
+  { title: 'Examples | Album Cover Generator' },
   {
     name: 'description',
     content:
-      'Browse glitch covers in every aspect ratio — square, story, vertical, wide. Tap any to open and remix it.',
+      'Browse glitch covers in every aspect ratio: square, story, vertical, wide. Tap any to open and remix it.',
   },
 ];
 
@@ -368,7 +368,7 @@ function ExampleTile({
       className={`examples-tile examples-tile--${item.aspect.replace(':', 'x')}${revealed ? ' examples-tile--revealed' : ''}`}
       role="button"
       tabIndex={0}
-      aria-label={`${item.name} — Open in generator`}
+      aria-label={`Open ${item.name} in generator`}
       onClick={handleClick}
       onKeyDown={handleKey}
       onMouseEnter={onHoverIn}

@@ -129,7 +129,7 @@ function buildDoc(stepIndex: number): CanvasDocument {
 }
 
 export const meta: MetaFunction = () => [
-  { title: "Album Cover Generator — Layer it Up" },
+  { title: "Album Cover Generator | Layer it Up" },
   {
     name: "description",
     content:

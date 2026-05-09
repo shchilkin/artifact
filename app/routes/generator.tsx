@@ -29,7 +29,7 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
           fontSize: '11px',
         }}
       >
-        <span>Canvas error — could not render layers.</span>
+        <span>Canvas error: could not render layers.</span>
         <span style={{ opacity: 0.5 }}>{previewWidth} × {previewHeight}</span>
       </div>
     </div>
