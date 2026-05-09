@@ -362,7 +362,6 @@ function scheduleThumbnailRender(taskKey: string, task: ThumbnailRenderTask) {
   thumbnailRenderQueue.set(taskKey, task);
   drainThumbnailRenderQueue();
 }
-
 const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
   const { doc, graph, imageCache } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
