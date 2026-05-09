@@ -1183,7 +1183,7 @@ const nodeTypes = {
   exportNode: ExportNodeComponent,
 };
 
-const RF_PRO_OPTIONS = { hideAttribution: true };
+const RF_PRO_OPTIONS = { hideAttribution: false };
 
 function distancePointToSegment(
   point: { x: number; y: number },

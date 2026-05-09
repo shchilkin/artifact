@@ -248,7 +248,7 @@ export default function Examples() {
         {filteredItems.length === 0 ? (
           <p className="examples-empty">No examples in this aspect yet.</p>
         ) : (
-          <div className="examples-mosaic" style={{ '--cols': columnCount } as React.CSSProperties}>
+          <div className="examples-mosaic">
             {columns.map((col, ci) => (
               <div key={ci} className="examples-mosaic__col">
                 {col.map((item) => (

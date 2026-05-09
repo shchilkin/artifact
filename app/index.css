@@ -1111,7 +1111,7 @@ input[type="range"] {
 
 .home-hero__skip {
   background: transparent;
-  border: 1px solid oklch(var(--fg) / 0.2);
+  border: 1px solid var(--border);
   font-family: var(--mono);
   font-size: 0.72rem;
   font-weight: 600;
@@ -1125,7 +1125,7 @@ input[type="range"] {
 }
 
 .home-hero__skip:hover {
-  border-color: oklch(var(--fg) / 0.5);
+  border-color: var(--text-dim);
   color: var(--text);
 }
 
@@ -1321,6 +1321,9 @@ input[type="range"] {
   place-items: center;
   cursor: pointer;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .home-mobile-dot::before {
@@ -1358,10 +1361,25 @@ input[type="range"] {
   color: var(--text-dim);
   text-transform: uppercase;
   transition: color 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
 }
 
-.home-progress__item:hover .home-progress__bar {
+.home-progress__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.home-progress__item:hover .home-progress__bar,
+.home-progress__btn:hover .home-progress__bar {
   opacity: 0.7;
   filter: brightness(1.4);
 }

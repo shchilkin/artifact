@@ -109,7 +109,7 @@ const STEPS: Step[] = [
     title: "Vignette.",
     body: "Corners darkened. Eye pulled to the center.",
     layers: [
-      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 100 },
+      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 50 },
     ],
   },
   {
@@ -457,34 +457,39 @@ export default function Home() {
                   key={s.title}
                   className={`home-progress__item${i <= step ? " home-progress__item--reached" : ""}${i === step ? " home-progress__item--current" : ""}`}
                   aria-current={i === step ? "step" : undefined}
-                  title={s.title.replace(".", "")}
-                  onClick={() => {
-                    const target = stepRefs.current[i];
-                    if (target)
-                      target.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                      });
-                  }}
                 >
-                  <span className="home-progress__bar" aria-hidden="true" />
-                  <span className="sr-only">{s.title.replace(".", "")}</span>
+                  <button
+                    className="home-progress__btn"
+                    onClick={() => {
+                      const target = stepRefs.current[i];
+                      if (target)
+                        target.scrollIntoView({
+                          behavior: prefersReducedMotion ? "auto" : "smooth",
+                          block: "center",
+                        });
+                    }}
+                  >
+                    <span className="home-progress__bar" aria-hidden="true" />
+                    <span className="sr-only">{s.title.replace(".", "")}</span>
+                  </button>
                 </li>
               ))}
             </ol>
             <div
               className={`home-mobile-dots${heroVisible ? " home-mobile-dots--hidden" : ""}`}
-              aria-hidden="true"
+              aria-label="Jump to step"
             >
-              {STEPS.map((_, i) => (
-                <span
+              {STEPS.map((s, i) => (
+                <button
                   key={i}
+                  aria-label={`Step ${i + 1}: ${s.title.replace(".", "")}`}
+                  aria-current={i === step ? "step" : undefined}
                   className={`home-mobile-dot${i <= step ? " home-mobile-dot--reached" : ""}${i === step ? " home-mobile-dot--current" : ""}`}
                   onClick={() => {
                     const target = stepRefs.current[i];
                     if (target)
                       target.scrollIntoView({
-                        behavior: "smooth",
+                        behavior: prefersReducedMotion ? "auto" : "smooth",
                         block: "center",
                       });
                   }}
