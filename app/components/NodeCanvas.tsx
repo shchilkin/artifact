@@ -36,7 +36,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import type {
-  CanvasDocument, Layer, GraphMergeNode, CanvasGraph, GraphEdge,
+  CanvasDocument, Layer, GraphColorNode, GraphMergeNode, CanvasGraph, GraphEdge,
   EffectLayer, EmojiLayer, FillLayer, ImageLayer, TextLayer,
   LayerKind, EffectPreset, AspectRatio,
 } from '../types/config';
@@ -54,6 +54,9 @@ import {
   updateGraphPositions,
   addGraphEdge,
   removeGraphEdge,
+  addColorNode,
+  removeColorNode,
+  updateColorNode,
 } from '../utils/nodeGraph';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,6 +75,7 @@ const KIND_COLOR: Record<string, string> = {
   emoji:  'oklch(70% 0.22 5)',
   effect: 'oklch(64% 0.22 305)',
   merge:  'oklch(74% 0.17 152)',
+  color:  'oklch(72% 0.18 195)',
   export: 'oklch(86% 0.05 92)',
 };
 
@@ -82,6 +86,7 @@ const KIND_SYMBOL: Record<string, string> = {
   emoji:  '✦',
   effect: '⚡',
   merge:  '⊕',
+  color:  '◐',
   export: '↗',
 };
 
@@ -90,7 +95,8 @@ const KIND_SYMBOL: Record<string, string> = {
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' };
+  | { kind: 'merge' }
+  | { kind: 'color' };
 
 export interface InsertConnectionConfig {
   sourceId: string;
@@ -111,6 +117,7 @@ const ADD_ITEMS: Array<{ label: string; symbol: string; group: string; action: A
     action: { kind: 'effect', preset } as AddAction,
   })),
   { label: 'Merge',   symbol: '⊕', group: 'util',   action: { kind: 'merge' } },
+  { label: 'Color',   symbol: '◐', group: 'util',   action: { kind: 'color' } },
 ];
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -167,6 +174,7 @@ interface NodeCanvasActionsContextValue {
   toggleNodeEditor: (id: string) => void;
   updateLayer: (id: string, patch: Partial<Layer>) => void;
   updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
+  updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
@@ -1052,6 +1060,80 @@ const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<
   );
 });
 
+// ─── Color node ───────────────────────────────────────────────────────────────
+
+type ColorNodeData = {
+  colorNode: GraphColorNode;
+  previewTargetId: string;
+  selected: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
+function ColorInspector({
+  colorNode,
+  onChange,
+}: {
+  colorNode: GraphColorNode;
+  onChange: (patch: Partial<GraphColorNode>) => void;
+}) {
+  return (
+    <div className="node-inspector-stack">
+      <InspectorTextInput value={colorNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorSlider label="Contrast" value={colorNode.contrast} min={0} max={200} onChange={(value) => onChange({ contrast: value })} />
+      <InspectorSlider label="Brightness" value={colorNode.brightness} min={0} max={200} onChange={(value) => onChange({ brightness: value })} />
+      <InspectorSlider label="Saturation" value={colorNode.saturation} min={0} max={200} onChange={(value) => onChange({ saturation: value })} />
+      <InspectorSlider label="Hue" value={colorNode.hue} min={-180} max={180} onChange={(value) => onChange({ hue: value })} />
+    </div>
+  );
+}
+
+const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
+  const { selectNode, deleteNode, toggleNodeEditor, updateColorNode } = useNodeCanvasActions();
+  const { colorNode, previewTargetId, selected, editing, connected } = data;
+
+  return (
+    <div
+      onClick={(event) => selectNode(colorNode.id, event)}
+      onDoubleClick={(event) => {
+        stopNodeEvent(event);
+        toggleNodeEditor(colorNode.id);
+      }}
+      style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
+    >
+      <Handle type="target" id="in" position={Position.Left} style={HANDLE_STYLE} />
+      <NodeShell
+        kind="color"
+        label="color"
+        name={colorNode.name}
+        selected={selected}
+        expanded={editing}
+        expandable
+        onToggleExpanded={() => toggleNodeEditor(colorNode.id)}
+        onDelete={() => deleteNode(colorNode.id)}
+      >
+        <NodeThumbnail previewTargetId={previewTargetId} />
+        <PortRow
+          inputs={[{ label: 'in', portId: 'in', nodeId: colorNode.id }]}
+          outputs={[{ label: 'out', portId: 'out', nodeId: colorNode.id }]}
+          connected={connected}
+        />
+      </NodeShell>
+      {editing && (
+        <NodeEditorPanel
+          kind="color"
+          title={colorNode.name}
+          subtitle="color adjustments"
+          onClose={() => toggleNodeEditor(colorNode.id)}
+        >
+          <ColorInspector colorNode={colorNode} onChange={(patch) => updateColorNode(colorNode.id, patch)} />
+        </NodeEditorPanel>
+      )}
+      <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
+    </div>
+  );
+});
+
 // ─── Merge node ───────────────────────────────────────────────────────────────
 
 type MergeNodeData = {
@@ -1179,6 +1261,7 @@ const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProp
 
 const nodeTypes = {
   layerNode: LayerNodeComponent,
+  colorNode: ColorNodeComponent,
   mergeNode: MergeNodeComponent,
   exportNode: ExportNodeComponent,
 };
@@ -1611,6 +1694,22 @@ function buildRFNodes(
     });
   });
 
+  (graph.colorNodes ?? []).forEach((cn) => {
+    const pos = graph.positions[cn.id] ?? { x: 400, y: 300 };
+    nodes.push({
+      id: cn.id,
+      type: 'colorNode',
+      position: pos,
+      data: {
+        colorNode: cn,
+        previewTargetId: cn.id,
+        selected: selectedNodeIds.has(cn.id),
+        editing: editorNodeId === cn.id,
+        connected,
+      } satisfies ColorNodeData,
+    });
+  });
+
   const exportPos = graph.positions[EXPORT_NODE_ID] ?? {
     x: doc.layers.length * (NODE_W + 56), y: 80,
   };
@@ -1642,6 +1741,7 @@ export interface NodeCanvasProps {
   onGraphChange: (graph: CanvasGraph) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
+  onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
@@ -1659,6 +1759,7 @@ export function NodeCanvas({
   onGraphChange,
   onUpdateLayer,
   onUpdateMergeNode,
+  onUpdateColorNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -1697,9 +1798,10 @@ export function NodeCanvas({
     if (!uiState.expandedNodeId) return null;
     const exists = uiState.expandedNodeId === EXPORT_NODE_ID
       || doc.layers.some((layer) => layer.id === uiState.expandedNodeId)
-      || graph.mergeNodes.some((node) => node.id === uiState.expandedNodeId);
+      || graph.mergeNodes.some((node) => node.id === uiState.expandedNodeId)
+      || (graph.colorNodes ?? []).some((node) => node.id === uiState.expandedNodeId);
     return exists ? uiState.expandedNodeId : null;
-  }, [doc.layers, graph.mergeNodes, uiState.expandedNodeId]);
+  }, [doc.layers, graph.colorNodes, graph.mergeNodes, uiState.expandedNodeId]);
   const selectedNodeId = uiState.selectedNodeIds.length === 1 ? uiState.selectedNodeIds[0] : null;
 
   const selectedNodeIdRef = useRef(selectedNodeId);
@@ -1722,10 +1824,15 @@ export function NodeCanvas({
   }, [selectedLayerId]);
 
   useEffect(() => {
-    const validNodeIds = [...doc.layers.map((layer) => layer.id), ...graph.mergeNodes.map((node) => node.id), EXPORT_NODE_ID];
+    const validNodeIds = [
+      ...doc.layers.map((layer) => layer.id),
+      ...graph.mergeNodes.map((node) => node.id),
+      ...(graph.colorNodes ?? []).map((node) => node.id),
+      EXPORT_NODE_ID,
+    ];
     const validEdgeIds = graph.edges.map((edge) => edge.id);
     dispatchUi({ type: 'FILTER_INVALID_REFERENCES', validNodeIds, validEdgeIds });
-  }, [doc.layers, graph.edges, graph.mergeNodes]);
+  }, [doc.layers, graph.edges, graph.mergeNodes, graph.colorNodes]);
 
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(() => ({
     doc,
@@ -1738,11 +1845,12 @@ export function NodeCanvas({
     toggleNodeEditor: handleToggleEditor,
     updateLayer: onUpdateLayer,
     updateMergeNode: onUpdateMergeNode,
+    updateColorNode: onUpdateColorNode,
     updateExportConfig: onUpdateExportConfig,
     updateAspectRatio: onUpdateAspectRatio,
     exportNode: onExport,
     deleteNode: (id: string) => onDeleteNodes([id]),
-  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode]);
+  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateColorNode, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode]);
 
   // ── Single source of truth: derive display nodes/edges directly from doc ──
   // No local copy — any change to doc.layers or doc.graph is immediately reflected.
@@ -1871,6 +1979,7 @@ export function NodeCanvas({
   const getInterceptInputPort = useCallback((nodeId: string): GraphEdge['toPort'] | null => {
     if (nodeId === EXPORT_NODE_ID) return null;
     if (graphRef.current.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
+    if ((graphRef.current.colorNodes ?? []).some((colorNode) => colorNode.id === nodeId)) return 'in';
     const layer = doc.layers.find((item) => item.id === nodeId);
     if (!layer) return null;
     return layer.kind === 'effect' ? 'in' : 'bg';
@@ -1974,10 +2083,11 @@ export function NodeCanvas({
   const onNodeContextMenu = useCallback((e: MouseEvent | React.MouseEvent, node: RFNode) => {
     e.preventDefault();
     e.stopPropagation();
-    const isMerge = graph.mergeNodes.some((n) => n.id === node.id);
+    const isMerge = graph.mergeNodes.some((n) => n.id === node.id)
+      || (graph.colorNodes ?? []).some((n) => n.id === node.id);
     const isExport = node.id === EXPORT_NODE_ID;
     setContextMenu({ type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport });
-  }, [graph.mergeNodes, setContextMenu]);
+  }, [graph.colorNodes, graph.mergeNodes, setContextMenu]);
 
   const onEdgeContextMenu = useCallback((e: React.MouseEvent, edge: RFEdge) => {
     e.preventDefault();

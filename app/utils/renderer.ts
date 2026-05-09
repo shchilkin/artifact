@@ -4,6 +4,7 @@ import type {
   EffectLayer,
   EmojiLayer,
   FillLayer,
+  GraphColorNode,
   GraphMergeNode,
   ImageLayer,
   Layer,
@@ -442,6 +443,23 @@ function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | und
   return graph.mergeNodes.find((node) => node.id === nodeId);
 }
 
+function findColorNode(graph: CanvasGraph, nodeId: string): GraphColorNode | undefined {
+  return (graph.colorNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: number, H: number): HTMLCanvasElement {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const filters: string[] = [];
+  if (node.contrast !== 100) filters.push(`contrast(${node.contrast}%)`);
+  if (node.brightness !== 100) filters.push(`brightness(${node.brightness}%)`);
+  if (node.saturation !== 100) filters.push(`saturate(${node.saturation}%)`);
+  if (node.hue !== 0) filters.push(`hue-rotate(${node.hue}deg)`);
+  if (filters.length > 0) ctx.filter = filters.join(' ');
+  ctx.drawImage(source, 0, 0);
+  return canvas;
+}
+
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
 }
@@ -493,6 +511,15 @@ async function renderGraphNode(
         ctx.restore();
       }
       return canvas;
+    }
+
+    const colorNode = findColorNode(graph, nodeId);
+    if (colorNode) {
+      const sourceId = findIncomingSource(graph, nodeId, 'in');
+      const source = sourceId
+        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, persistentRenderer, cache)
+        : createCanvas(W, H);
+      return applyColorNode(source, colorNode, W, H);
     }
 
     const layer = findLayer(doc, nodeId);

@@ -1,4 +1,4 @@
-import type { CanvasGraph, GraphEdge, Layer, GraphMergeNode } from '../types/config';
+import type { CanvasGraph, GraphEdge, Layer, GraphMergeNode, GraphColorNode } from '../types/config';
 import type { Edge as RFEdge } from '@xyflow/react';
 
 export const EXPORT_NODE_ID = '__export__';
@@ -37,7 +37,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     }
   });
 
-  return { edges, positions, mergeNodes: [] };
+  return { edges, positions, mergeNodes: [], colorNodes: [] };
 }
 
 export function toRFEdges(graph: CanvasGraph): RFEdge[] {
@@ -53,8 +53,8 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
 }
 
 function getEdgeColor(fromId: string, graph: CanvasGraph): string {
-  const isMerge = graph.mergeNodes.some((n) => n.id === fromId);
-  if (isMerge) return 'oklch(74% 0.17 152)';
+  if (graph.mergeNodes.some((n) => n.id === fromId)) return 'oklch(74% 0.17 152)';
+  if ((graph.colorNodes ?? []).some((n) => n.id === fromId)) return 'oklch(72% 0.18 195)';
   return 'oklch(64% 0.22 305)';
 }
 
@@ -125,6 +125,38 @@ export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
     mergeNodes: graph.mergeNodes.filter((n) => n.id !== id),
     edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+  };
+}
+
+export function addColorNode(
+  graph: CanvasGraph,
+  node: GraphColorNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    colorNodes: [...(graph.colorNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...graph,
+    colorNodes: (graph.colorNodes ?? []).filter((n) => n.id !== id),
+    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
+    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+  };
+}
+
+export function updateColorNode(
+  graph: CanvasGraph,
+  id: string,
+  patch: Partial<GraphColorNode>,
+): CanvasGraph {
+  return {
+    ...graph,
+    colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
   };
 }
 
@@ -210,6 +242,7 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[]): CanvasGraph 
   const nodeIds = [
     ...layers.map((layer) => layer.id),
     ...graph.mergeNodes.map((node) => node.id),
+    ...(graph.colorNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
   const outgoing = new Map<string, string[]>();

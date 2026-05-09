@@ -77,6 +77,7 @@ export default function Generator() {
     deleteNodeSelection,
     updateLayer,
     updateMergeNode,
+    updateColorNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -170,6 +171,7 @@ export default function Generator() {
                   onGraphChange={handleGraphChange}
                   onUpdateLayer={updateLayer}
                   onUpdateMergeNode={updateMergeNode}
+                  onUpdateColorNode={updateColorNode}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}

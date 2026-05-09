@@ -170,10 +170,20 @@ export interface GraphMergeNode {
   opacity: number;
 }
 
+export interface GraphColorNode {
+  id: string;
+  name: string;
+  contrast: number;   // CSS %, 0–200 (100 = neutral)
+  brightness: number; // CSS %, 0–200 (100 = neutral)
+  saturation: number; // CSS %, 0–200 (100 = neutral)
+  hue: number;        // degrees, -180 to 180 (0 = neutral)
+}
+
 export interface CanvasGraph {
   edges: GraphEdge[];
   positions: Record<string, { x: number; y: number }>;
   mergeNodes: GraphMergeNode[];
+  colorNodes: GraphColorNode[];
 }
 
 export interface ExportConfig {
@@ -406,6 +416,18 @@ export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): Graph
   };
 }
 
+export function makeGraphColorNode(partial: Partial<GraphColorNode> = {}): GraphColorNode {
+  return {
+    id: `color-${Date.now()}-${_idCounter++}`,
+    name: 'Color',
+    contrast: 100,
+    brightness: 100,
+    saturation: 100,
+    hue: 0,
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     global: { ...doc.global },
@@ -419,6 +441,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           edges: doc.graph.edges.map((e) => ({ ...e })),
           positions: { ...doc.graph.positions },
           mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
+          colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
         }
       : undefined,
   };
