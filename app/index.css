@@ -1912,3 +1912,205 @@ input[type="range"] {
 @media (pointer: coarse) {
   .examples-tile__overlay { opacity: 1; }
 }
+
+/* ─── DOCS PAGE ──────────────────────────────────────── */
+
+.docs-page {
+  /* Drenched bg */
+  background: var(--bg);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs-feed {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(64px, 10vw, 160px) 0;
+  gap: clamp(120px, 20vw, 240px);
+}
+
+.docs-intro {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 6vw, 48px);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.docs-intro__headline {
+  font-family: var(--display);
+  font-size: clamp(3.5rem, 12vw, 9rem);
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.docs-intro__deck {
+  font-family: var(--mono);
+  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 48ch;
+  margin: 0 auto;
+}
+
+/* ── Node Poster (The Feed Item) ── */
+
+.docs-poster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+}
+
+.docs-poster__canvas-wrap {
+  width: 100%;
+  max-width: 800px;
+  padding: 0 clamp(16px, 4vw, 48px);
+  position: relative;
+}
+
+.docs-poster__canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background-color: oklch(8% 0.012 42);
+  background-image: linear-gradient(45deg, oklch(12% 0.012 42) 25%, transparent 25%, transparent 75%, oklch(12% 0.012 42) 75%, oklch(12% 0.012 42)),
+                    linear-gradient(45deg, oklch(12% 0.012 42) 25%, transparent 25%, transparent 75%, oklch(12% 0.012 42) 75%, oklch(12% 0.012 42));
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  /* subtle border */
+  box-shadow: inset 0 0 0 1px oklch(24% 0.018 42);
+  transition: outline 0.2s ease;
+}
+
+.docs-poster__canvas-wrap:focus-within .docs-poster__canvas,
+.docs-poster__canvas-wrap:hover .docs-poster__canvas {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.docs-poster__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.docs-poster__symbol {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.docs-poster__name {
+  font-family: var(--display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--text);
+  letter-spacing: -0.015em;
+  line-height: 1;
+  margin: 0;
+}
+
+.docs-poster__desc {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  max-width: 46ch;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Sandbox UI (Hidden until interaction) ── */
+
+.docs-poster__sandbox {
+  position: absolute;
+  bottom: 0;
+  left: clamp(16px, 4vw, 48px);
+  right: clamp(16px, 4vw, 48px);
+  background: linear-gradient(to top, oklch(8% 0.012 42 / 0.95), oklch(8% 0.012 42 / 0.8) 60%, transparent);
+  padding: 48px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.docs-poster__canvas-wrap:focus-within .docs-poster__sandbox,
+.docs-poster__canvas-wrap:hover .docs-poster__sandbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.docs-poster__controls {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.docs-poster__control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.docs-poster__label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.docs-poster__val {
+  color: var(--accent);
+}
+
+.docs-poster__slider {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 12px;
+  cursor: pointer;
+}
+
+.docs-poster__try {
+  align-self: center;
+  margin-top: 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--text);
+  padding: 12px 24px;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.docs-poster__try:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-poster__sandbox {
+    transition: none;
+  }
+}

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, ImageLayer } from '../types/config';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_EDGE = 2048;
+const RECOMPRESS_BYTES = 1 * 1024 * 1024; // re-encode if >1 MB even when small enough by edge
 
 async function readImageFile(file: File): Promise<string | null> {
   if (!file.type.startsWith('image/')) return null;
@@ -11,6 +13,35 @@ async function readImageFile(file: File): Promise<string | null> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('decode failed'));
+    img.src = src;
+  });
+}
+
+async function downsampleDataUrl(src: string, mimeHint: string): Promise<string> {
+  const img = await loadImage(src);
+  const longest = Math.max(img.naturalWidth, img.naturalHeight);
+  const tooLarge = longest > MAX_EDGE;
+  const tooHeavy = src.length * 0.75 > RECOMPRESS_BYTES; // base64 → bytes approx
+  if (!tooLarge && !tooHeavy) return src;
+
+  const scale = tooLarge ? MAX_EDGE / longest : 1;
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return src;
+  ctx.drawImage(img, 0, 0, w, h);
+  const outMime = mimeHint === 'image/png' ? 'image/png' : 'image/jpeg';
+  return canvas.toDataURL(outMime, 0.9);
 }
 
 export function useGeneratorAssets(
@@ -63,7 +94,8 @@ export function useGeneratorAssets(
     try {
       const src = await readImageFile(file);
       if (!src) return;
-      onImportImage(src);
+      const optimized = await downsampleDataUrl(src, file.type);
+      onImportImage(optimized);
     } catch {
       showDropError('Could not read image');
     }

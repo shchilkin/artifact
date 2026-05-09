@@ -26,7 +26,7 @@ const BASE_EFFECT: Partial<EffectLayer> = {
     rayInt: 50,
     rayColor: "#bb00ff",
     rays: 10,
-    ca: 0,
+    rgbSplit: 0,
     glitch: 0,
     tint: "#350055",
     tintOp: 20,
@@ -86,11 +86,11 @@ export const EFFECT_META: Record<string, EffectMeta> = {
         valueLabel: "14 streaks",
         cfgOverride: { glitch: 14 },
     },
-    ca: {
+    rgbSplit: {
         title: "Chromatic Aberration",
         description: "Red and blue channel shift, like a misaligned camera lens.",
         valueLabel: "shift 10",
-        cfgOverride: { ca: 10 },
+        cfgOverride: { rgbSplit: 10 },
     },
     interlace: {
         title: "Interlace",

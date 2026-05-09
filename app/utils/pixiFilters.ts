@@ -1,4 +1,4 @@
-import { Filter } from 'pixi.js';
+import { Filter, BlurFilter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
 const NORM_UV = `
@@ -288,6 +288,55 @@ void main() {
   gl_FragColor = vec4(mix(original.rgb, dotted, uStrength), original.a);
 }`;
 
+const THRESHOLD_FRAG = `${HEADER}
+uniform float uCut;
+
+void main() {
+  vec4 col = texture2D(uSampler, vTextureCoord);
+  float luma = dot(col.rgb, vec3(0.299, 0.587, 0.114));
+  gl_FragColor = vec4(vec3(step(uCut, luma)), col.a);
+}`;
+
+const EDGE_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform vec2  uPx;
+
+vec3 sEdge(vec2 uv) {
+  return texture2D(uSampler, clamp(uv, inputClamp.xy, inputClamp.zw)).rgb;
+}
+
+void main() {
+  vec2 uv = vTextureCoord;
+  vec3 tl = sEdge(uv + vec2(-uPx.x, -uPx.y));
+  vec3 tm = sEdge(uv + vec2( 0.0,   -uPx.y));
+  vec3 tr = sEdge(uv + vec2( uPx.x, -uPx.y));
+  vec3 ml = sEdge(uv + vec2(-uPx.x,  0.0  ));
+  vec3 mr = sEdge(uv + vec2( uPx.x,  0.0  ));
+  vec3 bl = sEdge(uv + vec2(-uPx.x,  uPx.y));
+  vec3 bm = sEdge(uv + vec2( 0.0,    uPx.y));
+  vec3 br = sEdge(uv + vec2( uPx.x,  uPx.y));
+  vec3 gx = -tl - 2.0*ml - bl + tr + 2.0*mr + br;
+  vec3 gy = -tl - 2.0*tm - tr + bl + 2.0*bm + br;
+  float e = clamp(length(gx + gy) * 0.5, 0.0, 1.0);
+  vec4 base = texture2D(uSampler, uv);
+  gl_FragColor = vec4(mix(base.rgb, vec3(e), uIntensity), base.a);
+}`;
+
+const GRADIENT_FRAG = `${HEADER}
+uniform vec3  uColorA;
+uniform vec3  uColorB;
+uniform float uAngle;
+uniform float uMix;
+
+void main() {
+  ${NORM_UV}
+  vec2 dir = vec2(cos(uAngle), sin(uAngle));
+  float t  = clamp(dot(norm - 0.5, dir) + 0.5, 0.0, 1.0);
+  vec3 grad = mix(uColorA, uColorB, t);
+  vec4 col  = ${SAMPLE('norm')};
+  gl_FragColor = vec4(mix(col.rgb, grad, uMix), col.a);
+}`;
+
 const RISO_FRAG = `${HEADER}
 uniform float uMag;
 uniform float uAngle;
@@ -346,6 +395,31 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
   if (cfg.halftone > 0) filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85 }));
   if (cfg.risoShift > 0) filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
   if (cfg.bloom > 0) filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
+  if (cfg.blurAmt > 0) {
+    const blur = new BlurFilter(cfg.blurAmt * 0.5, 4);
+    blur.padding = Math.ceil(cfg.blurAmt * 0.5) + 4;
+    filters.push(blur);
+  }
+  if (cfg.threshold > 0) filters.push(f(THRESHOLD_FRAG, { uCut: cfg.threshold / 100 }));
+  if (cfg.edgeDetect > 0) {
+    filters.push(f(EDGE_FRAG, {
+      uIntensity: cfg.edgeDetect / 100,
+      uPx: [1 / refSize, 1 / canvasH],
+    }));
+  }
+  if (cfg.gradMix > 0) {
+    const hexToVec3 = (hex: string): [number, number, number] => [
+      parseInt(hex.slice(1, 3), 16) / 255,
+      parseInt(hex.slice(3, 5), 16) / 255,
+      parseInt(hex.slice(5, 7), 16) / 255,
+    ];
+    filters.push(f(GRADIENT_FRAG, {
+      uColorA: hexToVec3(cfg.gradA),
+      uColorB: hexToVec3(cfg.gradB),
+      uAngle: (cfg.gradAngle * Math.PI) / 180,
+      uMix: cfg.gradMix / 100,
+    }));
+  }
   if (cfg.vignette > 0) filters.push(f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
   if (cfg.filmBurn > 0) filters.push(f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
 

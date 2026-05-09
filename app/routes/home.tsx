@@ -61,11 +61,9 @@ const STEPS: Step[] = [
     title: "Scanlines.",
     body: "CRT bands across the under-layers. Texture of broken signal.",
     layers: [
-      {
-        ...makeEffectPresetLayer("scanlines"),
-        name: "scanlines",
+      makeEffectPresetLayer("scanlines", {
         scanlines: 100,
-      },
+      }),
     ],
   },
   {
@@ -98,7 +96,7 @@ const STEPS: Step[] = [
   {
     title: "Grain.",
     body: "Noise across the whole frame. Film texture, not detail.",
-    layers: [{ ...makeEffectPresetLayer("grain"), name: "grain", grain: 100 }],
+    layers: [makeEffectPresetLayer("grain", { value: 100 })],
   },
   {
     title: "Misregister.",
@@ -109,13 +107,13 @@ const STEPS: Step[] = [
     title: "Vignette.",
     body: "Corners darkened. Eye pulled to the center.",
     layers: [
-      { ...makeEffectPresetLayer("vignette"), name: "vignette", vignette: 50 },
+      makeEffectPresetLayer("vignette", { value: 50 }),
     ],
   },
   {
     title: "Bloom.",
     body: "Highlights leak. Final breath of light. Now export it.",
-    layers: [{ ...makeEffectPresetLayer("bloom"), name: "bloom", bloom: 100 }],
+    layers: [makeEffectPresetLayer("bloom", { value: 100 })],
   },
 ];
 

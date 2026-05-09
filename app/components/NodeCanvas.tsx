@@ -568,7 +568,7 @@ function NodeEditorPanel({
 type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso';
 
 const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
-const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'ca', 'interlace', 'dataMosh'];
+const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'interlace', 'dataMosh'];
 const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines'];
 const TINT_PRESETS: EffectPreset[] = ['tint'];
 const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'warp'];
@@ -596,10 +596,10 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'filmBurn') return `${layer.filmBurn}% burn`;
       return `${layer.rays} rays`;
     case 'glitch':
-      if (preset === 'ca') return `${layer.ca} chroma`;
+      if (preset === 'rgbSplit') return `${layer.rgbSplit} chroma`;
       if (preset === 'interlace') return `${layer.interlace}% interlace`;
       if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
-      return `${layer.glitch} / ${layer.ca}`;
+      return `${layer.glitch} / ${layer.rgbSplit}`;
     case 'texture':
       if (preset === 'scanlines') return `${layer.scanlines} lines`;
       return `${layer.grain} grain`;
@@ -702,7 +702,7 @@ function EffectInspector({
           onToggle={() => setOpenSection((current) => current === 'glitch' ? null : 'glitch')}
         >
           {showControl(['glitch']) && <InspectorSlider label="VHS Streaks" value={layer.glitch} min={0} max={24} effectKey="glitch" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ glitch: value })} />}
-          {showControl(['ca']) && <InspectorSlider label="Chromatic" value={layer.ca} min={0} max={15} effectKey="ca" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ ca: value })} />}
+          {showControl(['rgbSplit']) && <InspectorSlider label="Chromatic" value={layer.rgbSplit} min={0} max={15} effectKey="rgbSplit" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rgbSplit: value })} />}
           {showControl(['interlace']) && <InspectorSlider label="Interlace" value={layer.interlace} min={0} max={100} effectKey="interlace" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ interlace: value })} />}
           {showControl(['dataMosh']) && <InspectorSlider label="Data Mosh" value={layer.dataMosh} min={0} max={100} effectKey="dataMosh" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ dataMosh: value })} />}
         </InspectorSection>

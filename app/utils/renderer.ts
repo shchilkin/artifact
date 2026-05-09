@@ -57,6 +57,10 @@ function toCompositeOperation(blendMode: string): GlobalCompositeOperation {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, bg: string) {
+  if (bg === "transparent") {
+    ctx.clearRect(0, 0, W, H);
+    return;
+  }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   const cx = W / 2;
@@ -303,18 +307,24 @@ function applyCanvas2DEffects(
     ctx.restore();
   }
 
-  if (layer.ca > 0) {
-    const ca = Math.round(layer.ca * scale);
+  if (layer.rgbSplit > 0) {
+    const rgbSplit = Math.round(layer.rgbSplit * scale);
     const imageData = ctx.getImageData(0, 0, W, H);
     const data = imageData.data;
     const copy = new Uint8ClampedArray(data);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
-        const ri = (y * W + Math.min(W - 1, x + ca)) * 4;
-        const bi = (y * W + Math.max(0, x - ca)) * 4;
-        data[i] = copy[ri];
-        data[i + 2] = copy[bi + 2];
+        const rx = Math.min(W - 1, x + rgbSplit);
+        const ry = Math.min(H - 1, y + rgbSplit);
+        const ri = (ry * W + rx) * 4;
+        
+        const bx = Math.max(0, x - rgbSplit);
+        const by = Math.max(0, y - rgbSplit);
+        const bi = (by * W + bx) * 4;
+        
+        data[i] = copy[ri];           // Red channel shifted down-right
+        data[i + 2] = copy[bi + 2];   // Blue channel shifted up-left
       }
     }
     ctx.putImageData(imageData, 0, 0);

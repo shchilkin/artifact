@@ -69,7 +69,7 @@ export type EffectPreset =
   | 'bloom'
   | 'filmBurn'
   | 'glitch'
-  | 'ca'
+  | 'rgbSplit'
   | 'interlace'
   | 'dataMosh'
   | 'grain'
@@ -82,13 +82,16 @@ export type EffectPreset =
   | 'tear'
   | 'mirror'
   | 'hueShift'
-  | 'rgbSplit'
   | 'vignette'
   | 'pixelate'
   | 'posterize'
   | 'duotone'
   | 'halftone'
   | 'risoShift'
+  | 'blur'
+  | 'threshold'
+  | 'edgeDetect'
+  | 'gradientOverlay'
   | 'warp'
   | 'color'
   | 'riso';
@@ -99,7 +102,7 @@ export interface EffectLayer extends BaseLayer {
   maskAlpha: boolean;
   grain: number;
   scanlines: number;
-  ca: number;
+  rgbSplit: number;
   glitch: number;
   tint: string;
   tintOp: number;
@@ -118,7 +121,6 @@ export interface EffectLayer extends BaseLayer {
   interlace: number;
   pixelate: number;
   hueShift: number;
-  rgbSplit: number;
   vignette: number;
   bloom: number;
   posterize: number;
@@ -129,6 +131,13 @@ export interface EffectLayer extends BaseLayer {
   halftone: number;
   risoShift: number;
   risoAngle: number;
+  blurAmt: number;
+  threshold: number;
+  edgeDetect: number;
+  gradMix: number;
+  gradA: string;
+  gradB: string;
+  gradAngle: number;
 }
 
 export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
@@ -216,7 +225,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   maskAlpha: false,
   grain: 22,
   scanlines: 12,
-  ca: 4,
+  rgbSplit: 4,
   glitch: 7,
   tint: '#350055',
   tintOp: 28,
@@ -235,7 +244,6 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   interlace: 0,
   pixelate: 0,
   hueShift: 0,
-  rgbSplit: 0,
   vignette: 0,
   bloom: 0,
   posterize: 0,
@@ -246,6 +254,13 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   halftone: 0,
   risoShift: 0,
   risoAngle: 15,
+  blurAmt: 0,
+  threshold: 0,
+  edgeDetect: 0,
+  gradMix: 0,
+  gradA: '#0a0020',
+  gradB: '#ff6ec7',
+  gradAngle: 0,
 };
 
 let _idCounter = 0;
@@ -342,58 +357,86 @@ export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer
 // All-zero base for focused single-effect layers
 const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> = {
   maskAlpha: false,
-  grain: 0, scanlines: 0, ca: 0, glitch: 0,
+  grain: 0, scanlines: 0, rgbSplit: 0, glitch: 0,
   tint: '#350055', tintOp: 0,
   rays: 0, rayInt: 0, rayColor: '#bb00ff',
   morphAmt: 0, morphFreq: 5, tearAmt: 0, tearSize: 3,
   noiseWarp: 0, vortex: 0, barrel: 0, mirror: 0, dataMosh: 0, interlace: 0,
-  pixelate: 0, hueShift: 0, rgbSplit: 0, vignette: 0, bloom: 0, posterize: 0, filmBurn: 0,
+  pixelate: 0, hueShift: 0, vignette: 0, bloom: 0, posterize: 0, filmBurn: 0,
   duotone: 0, duoA: '#0a0020', duoB: '#ff6ec7', halftone: 0, risoShift: 0, risoAngle: 15,
+  blurAmt: 0,
+  threshold: 0, edgeDetect: 0,
+  gradMix: 0, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0,
 };
 
-export const EFFECT_PRESETS: Record<EffectPreset, { name: string; icon: string; partial: Partial<EffectLayer>; legacy?: boolean }> = {
-  rays:       { name: 'Rays',        icon: '✶', partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' } },
-  bloom:      { name: 'Bloom',       icon: '✹', partial: { ...ZERO_EFFECT, bloom: 30 } },
-  filmBurn:   { name: 'Film Burn',   icon: '☼', partial: { ...ZERO_EFFECT, filmBurn: 35 } },
-  glitch:     { name: 'Glitch',      icon: '▒', partial: { ...ZERO_EFFECT, glitch: 14 } },
-  ca:         { name: 'Chromatic',   icon: '◫', partial: { ...ZERO_EFFECT, ca: 6 } },
-  interlace:  { name: 'Interlace',   icon: '≋', partial: { ...ZERO_EFFECT, interlace: 40 } },
-  dataMosh:   { name: 'Data Mosh',   icon: '▥', partial: { ...ZERO_EFFECT, dataMosh: 30 } },
-  grain:      { name: 'Grain',       icon: '⣿', partial: { ...ZERO_EFFECT, grain: 45 } },
-  scanlines:  { name: 'Scanlines',   icon: '☰', partial: { ...ZERO_EFFECT, scanlines: 18 } },
-  tint:       { name: 'Tint',        icon: '◈', partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
-  noiseWarp:  { name: 'Noise Warp',  icon: '◌', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
-  morph:      { name: 'Morph',       icon: '∿', partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },
-  vortex:     { name: 'Vortex',      icon: '◍', partial: { ...ZERO_EFFECT, vortex: 20 } },
-  barrel:     { name: 'Barrel',      icon: '◔', partial: { ...ZERO_EFFECT, barrel: 25 } },
-  tear:       { name: 'Tear',        icon: '╱', partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 } },
-  mirror:     { name: 'Mirror',      icon: '║', partial: { ...ZERO_EFFECT, mirror: 1 } },
-  hueShift:   { name: 'Hue Shift',   icon: '◐', partial: { ...ZERO_EFFECT, hueShift: 60 } },
-  rgbSplit:   { name: 'RGB Split',   icon: '◭', partial: { ...ZERO_EFFECT, rgbSplit: 8 } },
-  vignette:   { name: 'Vignette',    icon: '◜', partial: { ...ZERO_EFFECT, vignette: 40 } },
-  pixelate:   { name: 'Pixelate',    icon: '▦', partial: { ...ZERO_EFFECT, pixelate: 8 } },
-  posterize:  { name: 'Posterize',   icon: '◨', partial: { ...ZERO_EFFECT, posterize: 6 } },
-  duotone:    { name: 'Duotone',     icon: '◎', partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
-  halftone:   { name: 'Halftone',    icon: '◩', partial: { ...ZERO_EFFECT, halftone: 12 } },
-  risoShift:  { name: 'Misregister', icon: '⟲', partial: { ...ZERO_EFFECT, risoShift: 20, risoAngle: 15 } },
-  warp:       { name: 'Warp FX',     icon: '◌', legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
-  color:      { name: 'Color FX',    icon: '◐', legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
-  riso:       { name: 'Riso FX',     icon: '◎', legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
+export type EffectNumericField = {
+  [K in keyof EffectLayer]: EffectLayer[K] extends number ? K : never
+}[keyof EffectLayer];
+
+export interface EffectPresetMeta {
+  name: string;
+  icon: string;
+  partial: Partial<EffectLayer>;
+  primary: EffectNumericField | null;
+  legacy?: boolean;
+}
+
+export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
+  rays:       { name: 'Rays',        icon: '✶', primary: 'rays',      partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' } },
+  bloom:      { name: 'Bloom',       icon: '✹', primary: 'bloom',     partial: { ...ZERO_EFFECT, bloom: 30 } },
+  filmBurn:   { name: 'Film Burn',   icon: '☼', primary: 'filmBurn',  partial: { ...ZERO_EFFECT, filmBurn: 35 } },
+  glitch:     { name: 'Glitch',      icon: '▒', primary: 'glitch',    partial: { ...ZERO_EFFECT, glitch: 14 } },
+  interlace:  { name: 'Interlace',   icon: '≋', primary: 'interlace', partial: { ...ZERO_EFFECT, interlace: 40 } },
+  dataMosh:   { name: 'Data Mosh',   icon: '▥', primary: 'dataMosh',  partial: { ...ZERO_EFFECT, dataMosh: 30 } },
+  grain:      { name: 'Grain',       icon: '⣿', primary: 'grain',     partial: { ...ZERO_EFFECT, grain: 45 } },
+  scanlines:  { name: 'Scanlines',   icon: '☰', primary: 'scanlines', partial: { ...ZERO_EFFECT, scanlines: 18 } },
+  tint:       { name: 'Tint',        icon: '◈', primary: 'tintOp',    partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
+  noiseWarp:  { name: 'Noise Warp',  icon: '◌', primary: 'noiseWarp', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
+  morph:      { name: 'Morph',       icon: '∿', primary: null,        partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },
+  vortex:     { name: 'Vortex',      icon: '◍', primary: 'vortex',    partial: { ...ZERO_EFFECT, vortex: 20 } },
+  barrel:     { name: 'Barrel',      icon: '◔', primary: 'barrel',    partial: { ...ZERO_EFFECT, barrel: 25 } },
+  tear:       { name: 'Tear',        icon: '╱', primary: 'tearAmt',   partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 } },
+  mirror:     { name: 'Mirror',      icon: '║', primary: null,        partial: { ...ZERO_EFFECT, mirror: 1 } },
+  hueShift:   { name: 'Hue Shift',   icon: '◐', primary: 'hueShift',  partial: { ...ZERO_EFFECT, hueShift: 60 } },
+  rgbSplit:   { name: 'RGB Split',   icon: '◭', primary: 'rgbSplit',  partial: { ...ZERO_EFFECT, rgbSplit: 8 } },
+  vignette:   { name: 'Vignette',    icon: '◜', primary: 'vignette',  partial: { ...ZERO_EFFECT, vignette: 40 } },
+  pixelate:   { name: 'Pixelate',    icon: '▦', primary: 'pixelate',  partial: { ...ZERO_EFFECT, pixelate: 8 } },
+  posterize:  { name: 'Posterize',   icon: '◨', primary: 'posterize', partial: { ...ZERO_EFFECT, posterize: 6 } },
+  duotone:    { name: 'Duotone',     icon: '◎', primary: 'duotone',   partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
+  halftone:   { name: 'Halftone',    icon: '◩', primary: 'halftone',  partial: { ...ZERO_EFFECT, halftone: 12 } },
+  risoShift:  { name: 'Misregister', icon: '⟲', primary: 'risoShift', partial: { ...ZERO_EFFECT, risoShift: 20, risoAngle: 15 } },
+  blur:       { name: 'Blur',        icon: '◯', primary: 'blurAmt',   partial: { ...ZERO_EFFECT, blurAmt: 30 } },
+  threshold:  { name: 'Threshold',   icon: '◐', primary: 'threshold', partial: { ...ZERO_EFFECT, threshold: 50 } },
+  edgeDetect: { name: 'Edge Detect', icon: '◇', primary: 'edgeDetect', partial: { ...ZERO_EFFECT, edgeDetect: 60 } },
+  gradientOverlay: { name: 'Gradient', icon: '▤', primary: 'gradMix', partial: { ...ZERO_EFFECT, gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0 } },
+  warp:       { name: 'Warp FX',     icon: '◌', primary: null, legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
+  color:      { name: 'Color FX',    icon: '◐', primary: null, legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
+  riso:       { name: 'Riso FX',     icon: '◎', primary: null, legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
 };
 
 export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'rays', 'bloom', 'filmBurn',
-  'glitch', 'ca', 'interlace', 'dataMosh',
+  'glitch', 'rgbSplit', 'interlace', 'dataMosh',
   'grain', 'scanlines',
   'tint',
   'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror',
-  'hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize',
+  'hueShift', 'vignette', 'pixelate', 'posterize',
   'duotone', 'halftone', 'risoShift',
+  'blur', 'threshold', 'edgeDetect', 'gradientOverlay',
 ];
 
-export function makeEffectPresetLayer(preset: EffectPreset): EffectLayer {
-  const { name, partial } = EFFECT_PRESETS[preset];
-  return { id: genId(), name, visible: true, locked: false, kind: 'effect', preset, ...partial } as EffectLayer;
+export type EffectPresetOverrides =
+  & Partial<Omit<EffectLayer, 'id' | 'kind' | 'preset'>>
+  & { value?: number };
+
+export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPresetOverrides = {}): EffectLayer {
+  const { name, partial, primary } = EFFECT_PRESETS[preset];
+  const { value, ...rest } = overrides;
+  const valuePatch =
+    value !== undefined && primary
+      ? { [primary]: Math.max(0, Math.min(100, value)) }
+      : {};
+  return { id: genId(), name, visible: true, locked: false, ...partial, ...valuePatch, ...rest, kind: 'effect', preset };
 }
 
 export const DEFAULT_DOCUMENT: CanvasDocument = {

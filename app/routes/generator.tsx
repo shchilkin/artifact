@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router';
 import { AnimatePresence } from 'framer-motion';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
@@ -64,6 +65,7 @@ function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode:
 export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
+  const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
 
   const {
     doc,
@@ -94,6 +96,7 @@ export default function Generator() {
     canUndo,
     canRedo,
     undoCount,
+    fromDocParam,
   } = useGeneratorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache);
@@ -129,6 +132,53 @@ export default function Generator() {
   return (
     <div className="generator-layout flex flex-col w-full h-full">
       <SiteNav solid />
+      {fromDocParam && !docsBannerDismissed && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 16px',
+            background: 'var(--sidebar-bg)',
+            borderBottom: '1px solid var(--border)',
+            fontFamily: 'var(--mono)',
+            fontSize: '0.62rem',
+            letterSpacing: '0.04em',
+            color: 'var(--text-dim)',
+            flexShrink: 0,
+            gap: '12px',
+          }}
+          role="status"
+        >
+          <span>
+            Loaded from{' '}
+            <Link
+              to="/docs/nodes"
+              style={{ color: 'var(--accent)', textDecoration: 'none' }}
+            >
+              docs
+            </Link>
+            {' '}— customize or randomize to make it yours.
+          </span>
+          <button
+            type="button"
+            onClick={() => setDocsBannerDismissed(true)}
+            aria-label="Dismiss"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-dim)',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              lineHeight: 1,
+              padding: '4px 6px',
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="app">
         <main
           className="main"

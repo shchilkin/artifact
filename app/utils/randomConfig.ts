@@ -62,7 +62,7 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   return makeEffectLayer({
     grain: rand(0, 60),
     scanlines: rand(0, 40),
-    ca: rand(0, 12),
+    rgbSplit: rand(0, 12),
     glitch: rand(0, 18),
     tint: randomHsl(rand(0, 359), [40, 80], [10, 28]),
     tintOp: rand(0, 60),
@@ -118,8 +118,8 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
     case 'glitch':
       overrides = { glitch: rand(0, 18) };
       break;
-    case 'ca':
-      overrides = { ca: rand(0, 12) };
+    case 'rgbSplit':
+      overrides = { rgbSplit: rand(0, 12) };
       break;
     case 'interlace':
       overrides = { interlace: rand(10, 70) };
@@ -157,9 +157,6 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
     case 'hueShift':
       overrides = { hueShift: rand(10, 350) };
       break;
-    case 'rgbSplit':
-      overrides = { rgbSplit: rand(3, 25) };
-      break;
     case 'vignette':
       overrides = { vignette: rand(0, 80) };
       break;
@@ -181,6 +178,23 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       break;
     case 'risoShift':
       overrides = { risoShift: rand(5, 30), risoAngle: rand(0, 360) };
+      break;
+    case 'blur':
+      overrides = { blurAmt: rand(10, 70) };
+      break;
+    case 'threshold':
+      overrides = { threshold: rand(30, 70) };
+      break;
+    case 'edgeDetect':
+      overrides = { edgeDetect: rand(40, 90) };
+      break;
+    case 'gradientOverlay':
+      overrides = {
+        gradMix: rand(30, 80),
+        gradA: randomHsl(baseHue, [40, 80], [10, 30]),
+        gradB: randomHsl(ah, [60, 100], [55, 85]),
+        gradAngle: rand(0, 360),
+      };
       break;
     case 'warp':
       overrides = {
@@ -257,12 +271,12 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
     case 'GLITCH':
       return {
         glitch: rand(0, 18),
-        ca: rand(0, 12),
+        rgbSplit: rand(0, 12),
         interlace: spark() ? rand(10, 70) : 0,
         dataMosh: spark() ? rand(10, 70) : 0,
       };
     case 'TEXTURE':
-      return { grain: rand(0, 60), scanlines: rand(0, 40) };
+      return { grain: rand(0, 60), scanlines: rand(0, 40), blurAmt: Math.random() < 0.4 ? rand(0, 60) : 0 };
     case 'TINT':
       return { tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(0, 60) };
     case 'WARP':
@@ -283,6 +297,9 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
         vignette: rand(0, 80),
         pixelate: spark() ? rand(2, 15) : 0,
         posterize: spark() ? rand(3, 12) : 0,
+        threshold: Math.random() < 0.2 ? rand(30, 70) : 0,
+        edgeDetect: Math.random() < 0.2 ? rand(30, 80) : 0,
+        gradMix: Math.random() < 0.25 ? rand(30, 70) : 0,
       };
     case 'RISO':
       return {
@@ -315,15 +332,15 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
     case 'RAYS':
       return { rays: 0, rayInt: 0, bloom: 0, filmBurn: 0 };
     case 'GLITCH':
-      return { glitch: 0, ca: 0, interlace: 0, dataMosh: 0 };
+      return { glitch: 0, rgbSplit: 0, interlace: 0, dataMosh: 0 };
     case 'TEXTURE':
-      return { grain: 0, scanlines: 0 };
+      return { grain: 0, scanlines: 0, blurAmt: 0 };
     case 'TINT':
       return { tintOp: 0 };
     case 'WARP':
       return { morphAmt: 0, tearAmt: 0, noiseWarp: 0, vortex: 0, barrel: 0, mirror: 0 };
     case 'COLORFX':
-      return { hueShift: 0, rgbSplit: 0, vignette: 0, pixelate: 0, posterize: 0 };
+      return { hueShift: 0, rgbSplit: 0, vignette: 0, pixelate: 0, posterize: 0, threshold: 0, edgeDetect: 0, gradMix: 0 };
     case 'RISO':
       return { duotone: 0, halftone: 0, risoShift: 0 };
     case 'TEXT':
