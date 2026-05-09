@@ -55,9 +55,6 @@ import {
   updateGraphPositions,
   addGraphEdge,
   removeGraphEdge,
-  addColorNode,
-  removeColorNode,
-  updateColorNode,
 } from '../utils/nodeGraph';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -379,7 +376,7 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
 
   // Whether the canvas has ever shown a successful render (used to decide
   // whether to show stale content vs skeleton while re-rendering).
-  const hasRenderedRef = useRef(false);
+  const [hasRendered, setHasRendered] = useState(false);
 
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
@@ -401,7 +398,7 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
           if (!ctx) return;
           ctx.clearRect(0, 0, previewSize.width, previewSize.height);
           ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
-          hasRenderedRef.current = true;
+          setHasRendered(true);
           setRenderedPreviewKey(pk);
         })
         .catch(() => { /* silent */ });
@@ -415,8 +412,8 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
 
   // Once the canvas has content: show stale render dimmed while re-rendering
   // instead of hiding it — far less jarring on rapid updates.
-  const canvasOpacity = ready ? 1 : hasRenderedRef.current ? 0.5 : 0;
-  const showSkeleton = !ready && !hasRenderedRef.current;
+  const canvasOpacity = ready ? 1 : hasRendered ? 0.5 : 0;
+  const showSkeleton = !ready && !hasRendered;
 
   return (
     <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
