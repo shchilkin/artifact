@@ -55,9 +55,6 @@ import {
   updateGraphPositions,
   addGraphEdge,
   removeGraphEdge,
-  addColorNode,
-  removeColorNode,
-  updateColorNode,
 } from '../utils/nodeGraph';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
