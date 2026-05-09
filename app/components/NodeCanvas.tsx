@@ -1581,7 +1581,7 @@ function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
               onClick={() => { onAdd(item.action); onClose(); }}
               className="node-menu-item"
             >
-              <span className="node-menu-item-symbol" style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind === 'effect' ? 'effect' : 'merge'] }}>
+              <span className="node-menu-item-symbol" style={{ color: KIND_COLOR[item.action.kind === 'layer' ? item.action.layerKind : item.action.kind] }}>
                 {item.symbol}
               </span>
               <span className="node-menu-item-label">
