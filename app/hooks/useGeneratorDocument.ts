@@ -97,8 +97,8 @@ function cloneLayerForDuplicate(layer: Layer): Layer {
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
-  const [fromDocParam] = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc')
+  const fromDocParam = useRef(
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc')
   );
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [past, setPast] = useState<HistoryEntry[]>([]);
@@ -120,7 +120,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
   useEffect(() => {
-    if (fromDocParam) {
+    if (fromDocParam.current) {
       const url = new URL(window.location.href);
       url.searchParams.delete('doc');
       window.history.replaceState(null, '', url.toString());
@@ -491,6 +491,6 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     canUndo: past.length > 0,
     canRedo: future.length > 0,
     undoCount: past.length,
-    fromDocParam,
+    fromDocParam: fromDocParam.current,
   };
 }
