@@ -750,8 +750,13 @@ input[type="range"] {
   opacity: 1;
 }
 
-.slider-info-btn:hover {
+.slider-info-btn:hover,
+.slider-info-btn:focus-visible {
   color: var(--accent);
+}
+
+.group:focus-within .slider-info-btn {
+  opacity: 1;
 }
 
 /* Mobile: hide entirely — no hover on touch */
