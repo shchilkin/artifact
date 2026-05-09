@@ -99,7 +99,6 @@ async function renderWithRenderer(
     gpuTex.destroy(true);
   }
 }
-
 /**
  * Shared GPU render pipeline used by export, env map export, and thumbnail
  * generation. Blits a Canvas 2D source into a PixiJS RenderTexture, applies
