@@ -329,6 +329,10 @@ interface ThumbProps {
   previewTargetId: string;
 }
 
+// Debounce delay (ms) before starting a thumbnail re-render after a state change.
+// Prevents cascading cancellations when sliders are dragged quickly.
+const THUMB_DEBOUNCE_MS = 120;
+
 const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
   const { doc, graph, imageCache } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -344,31 +348,57 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
       height: Math.max(1, Math.round(aspectHeight * scale)),
     };
   }, [doc.global.aspect, isExportPreview]);
+
   const previewKey = useMemo(
     () => JSON.stringify({ previewTargetId, global: doc.global, layers: doc.layers, graph, previewSize }),
     [previewTargetId, doc.global, doc.layers, graph, previewSize],
   );
+
+  // Always-fresh ref so the debounced render uses the very latest inputs
+  // even if several previewKey changes happened during the debounce window.
+  const latestRef = useRef({ doc, graph, imageCache, previewKey });
+  useLayoutEffect(() => { latestRef.current = { doc, graph, imageCache, previewKey }; });
+
+  // Whether the canvas has ever shown a successful render (used to decide
+  // whether to show stale content vs skeleton while re-rendering).
+  const hasRenderedRef = useRef(false);
+
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
 
   useEffect(() => {
     let cancelled = false;
-    const previewDoc: CanvasDocument = { ...doc, graph };
-    const renderPromise = isExportPreview
-      ? renderDocument(previewDoc, previewSize.width, previewSize.height, imageCache)
-      : renderGraphTarget(previewDoc, graph, previewTargetId, previewSize.width, previewSize.height, imageCache);
-    renderPromise
-      .then((result) => {
-        if (cancelled || !canvasRef.current) return;
-        const ctx = canvasRef.current.getContext('2d');
-        if (!ctx) return;
-        ctx.clearRect(0, 0, previewSize.width, previewSize.height);
-        ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
-        setRenderedPreviewKey(previewKey);
-      })
-      .catch(() => { /* silent */ });
-    return () => { cancelled = true; };
-  }, [doc, graph, imageCache, isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+
+    const timerId = setTimeout(() => {
+      // Use the freshest available inputs, not the closure-captured ones.
+      const { doc: d, graph: g, imageCache: ic, previewKey: pk } = latestRef.current;
+      const previewDoc: CanvasDocument = { ...d, graph: g };
+      const renderPromise = isExportPreview
+        ? renderDocument(previewDoc, previewSize.width, previewSize.height, ic)
+        : renderGraphTarget(previewDoc, g, previewTargetId, previewSize.width, previewSize.height, ic);
+      renderPromise
+        .then((result) => {
+          if (cancelled || !canvasRef.current) return;
+          const ctx = canvasRef.current.getContext('2d');
+          if (!ctx) return;
+          ctx.clearRect(0, 0, previewSize.width, previewSize.height);
+          ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
+          hasRenderedRef.current = true;
+          setRenderedPreviewKey(pk);
+        })
+        .catch(() => { /* silent */ });
+    }, THUMB_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
+  }, [isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+
+  // Once the canvas has content: show stale render dimmed while re-rendering
+  // instead of hiding it — far less jarring on rapid updates.
+  const canvasOpacity = ready ? 1 : hasRenderedRef.current ? 0.5 : 0;
+  const showSkeleton = !ready && !hasRenderedRef.current;
 
   return (
     <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
@@ -381,9 +411,9 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
           width={previewSize.width}
           height={previewSize.height}
           className="node-thumbnail-canvas"
-          style={{ opacity: ready ? 1 : 0 }}
+          style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
-        {!ready && (
+        {showSkeleton && (
           <div className="node-thumbnail-skeleton" />
         )}
       </div>
