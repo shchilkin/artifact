@@ -175,6 +175,7 @@ export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<
   return collected;
 }
 
+
 /** BFS backwards from nodeId, collect all layer IDs that feed into it. */
 export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
   const layerIds = new Set(layers.map((l) => l.id));
