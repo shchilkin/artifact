@@ -401,6 +401,7 @@ async function applyLayerToCanvas(
   } else if (layer.kind === 'fill') {
     drawFillLayer(ctx, W, H, layer);
   } else if (layer.kind === 'effect') {
+    if (options.skipEffects) return base;
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
     if (!options.skipEffects) {
