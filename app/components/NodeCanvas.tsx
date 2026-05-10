@@ -429,6 +429,7 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
         const preloads = missingImageSrcs.map((src) => new Promise<void>((resolve) => {
           const image = new Image();
           image.onload = () => {
+            cachedImages.set(src, image);
             effectiveImageCache.set(src, image);
             resolve();
           };
@@ -1310,7 +1311,6 @@ const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProp
           connected={connected}
         />
       </NodeShell>
-      <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
     </div>
   );
 });
@@ -2026,6 +2026,7 @@ export function NodeCanvas({
     (connection: Connection) => {
       if (!connection.source || !connection.target) return false;
       if (connection.source === connection.target) return false;
+      if (connection.source === EXPORT_NODE_ID) return false;
       return !wouldCreateCycle(graphRef.current, connection.source, connection.target);
     },
     [],
