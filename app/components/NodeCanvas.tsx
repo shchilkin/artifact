@@ -22,6 +22,7 @@ import {
   Controls,
   Handle,
   Position,
+  ViewportPortal,
   applyNodeChanges,
   applyEdgeChanges,
   type Node as RFNode,
@@ -331,9 +332,30 @@ interface ThumbProps {
 // Prevents cascading cancellations when sliders are dragged quickly.
 const THUMB_DEBOUNCE_MS = 120;
 
+type ThumbnailRenderTask = () => Promise<void>;
+const thumbnailRenderQueue: ThumbnailRenderTask[] = [];
+let thumbnailRenderActive = false;
+
+function drainThumbnailRenderQueue() {
+  if (thumbnailRenderActive || thumbnailRenderQueue.length === 0) return;
+  thumbnailRenderActive = true;
+  const next = thumbnailRenderQueue.shift()!;
+  next().finally(() => {
+    thumbnailRenderActive = false;
+    drainThumbnailRenderQueue();
+  });
+}
+
+function scheduleThumbnailRender(task: ThumbnailRenderTask) {
+  thumbnailRenderQueue.push(task);
+  drainThumbnailRenderQueue();
+}
+
 const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
   const { doc, graph, imageCache } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const revRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
   const previewSize = useMemo(() => {
     if (!isExportPreview) {
@@ -371,8 +393,10 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
 
   // Always-fresh ref so the debounced render uses the very latest inputs
   // even if several previewKey changes happened during the debounce window.
-  const latestRef = useRef({ doc, graph, imageCache, previewKey });
-  useLayoutEffect(() => { latestRef.current = { doc, graph, imageCache, previewKey }; });
+  const latestRef = useRef({ doc, graph, imageCache, previewKey, previewSize, isExportPreview, previewTargetId });
+  useLayoutEffect(() => {
+    latestRef.current = { doc, graph, imageCache, previewKey, previewSize, isExportPreview, previewTargetId };
+  }, [doc, graph, imageCache, isExportPreview, previewKey, previewSize, previewTargetId]);
 
   // Whether the canvas has ever shown a successful render (used to decide
   // whether to show stale content vs skeleton while re-rendering).
@@ -382,33 +406,63 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
   const ready = renderedPreviewKey === previewKey;
 
   useEffect(() => {
-    let cancelled = false;
+    const rev = ++revRef.current;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      scheduleThumbnailRender(async () => {
+        const {
+          doc: d,
+          graph: g,
+          imageCache: cachedImages,
+          previewKey: pk,
+          previewSize: latestPreviewSize,
+          isExportPreview: latestIsExportPreview,
+          previewTargetId: latestPreviewTargetId,
+        } = latestRef.current;
+        const effectiveImageCache = new Map(cachedImages);
+        const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
+        const missingImageSrcs = d.layers
+          .filter((layer): layer is ImageLayer => layer.kind === 'image' && upstream.has(layer.id))
+          .map((layer) => layer.src)
+          .filter((src) => !effectiveImageCache.has(src));
 
-    const timerId = setTimeout(() => {
-      // Use the freshest available inputs, not the closure-captured ones.
-      const { doc: d, graph: g, imageCache: ic, previewKey: pk } = latestRef.current;
-      const previewDoc: CanvasDocument = { ...d, graph: g };
-      const renderPromise = isExportPreview
-        ? renderDocument(previewDoc, previewSize.width, previewSize.height, ic)
-        : renderGraphTarget(previewDoc, g, previewTargetId, previewSize.width, previewSize.height, ic);
-      renderPromise
-        .then((result) => {
-          if (cancelled || !canvasRef.current) return;
-          const ctx = canvasRef.current.getContext('2d');
-          if (!ctx) return;
-          ctx.clearRect(0, 0, previewSize.width, previewSize.height);
-          ctx.drawImage(result, 0, 0, previewSize.width, previewSize.height);
-          setHasRendered(true);
-          setRenderedPreviewKey(pk);
-        })
-        .catch(() => { /* silent */ });
+        const preloads = missingImageSrcs.map((src) => new Promise<void>((resolve) => {
+          const image = new Image();
+          image.onload = () => {
+            effectiveImageCache.set(src, image);
+            resolve();
+          };
+          image.onerror = () => resolve();
+          image.src = src;
+        }));
+
+        await Promise.all(preloads);
+        if (rev !== revRef.current || !canvasRef.current) return;
+
+        const previewDoc: CanvasDocument = { ...d, graph: g };
+        const result = latestIsExportPreview
+          ? await renderDocument(previewDoc, latestPreviewSize.width, latestPreviewSize.height, effectiveImageCache)
+          : await renderGraphTarget(
+            previewDoc,
+            g,
+            latestPreviewTargetId,
+            latestPreviewSize.width,
+            latestPreviewSize.height,
+            effectiveImageCache,
+          );
+
+        if (rev !== revRef.current || !canvasRef.current) return;
+        const ctx = canvasRef.current.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, latestPreviewSize.width, latestPreviewSize.height);
+        ctx.drawImage(result, 0, 0, latestPreviewSize.width, latestPreviewSize.height);
+        setHasRendered(true);
+        setRenderedPreviewKey(pk);
+      });
     }, THUMB_DEBOUNCE_MS);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timerId);
-    };
-  }, [isExportPreview, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+    return () => clearTimeout(debounceRef.current);
+  }, [imageCache, previewKey]);
 
   // Once the canvas has content: show stale render dimmed while re-rendering
   // instead of hiding it — far less jarring on rapid updates.
@@ -516,12 +570,14 @@ function NodeEditorPanel({
   title,
   subtitle,
   onClose,
+  style,
   children,
 }: {
   kind: string;
   title: string;
   subtitle?: string;
   onClose: () => void;
+  style?: CSSProperties;
   children: React.ReactNode;
 }) {
   const accent = KIND_COLOR[kind] ?? 'oklch(55% 0.05 285)';
@@ -529,7 +585,7 @@ function NodeEditorPanel({
   return (
     <NoPan
       className="node-editor-panel"
-      style={{ '--node-accent': accent, width: NODE_EDITOR_W } as CSSProperties}
+      style={{ '--node-accent': accent, width: NODE_EDITOR_W, ...style } as CSSProperties}
     >
       <div className="node-editor-accent" />
       <div className="node-editor-header">
@@ -1060,7 +1116,7 @@ type LayerNodeData = {
 };
 
 const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
-  const { selectNode, toggleNodeEditor, updateLayer } = useNodeCanvasActions();
+  const { selectNode, toggleNodeEditor } = useNodeCanvasActions();
   const { layer, previewTargetId, selected, editing, connected } = data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
@@ -1091,16 +1147,6 @@ const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<
           connected={connected}
         />
       </NodeShell>
-      {editing && (
-        <NodeEditorPanel
-          kind={layer.kind}
-          title={layer.name}
-          subtitle={layer.kind === 'effect' ? `effect, ${layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset).toLowerCase() : 'custom'}` : `${layer.kind} settings`}
-          onClose={() => toggleNodeEditor(layer.id)}
-        >
-          <LayerInspector layer={layer} onChange={(patch) => updateLayer(layer.id, patch)} detached />
-        </NodeEditorPanel>
-      )}
       <Handle type="source" position={Position.Right} id="out" style={HANDLE_STYLE} />
     </div>
   );
@@ -1135,7 +1181,7 @@ function ColorInspector({
 }
 
 const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
-  const { selectNode, deleteNode, toggleNodeEditor, updateColorNode } = useNodeCanvasActions();
+  const { selectNode, deleteNode, toggleNodeEditor } = useNodeCanvasActions();
   const { colorNode, previewTargetId, selected, editing, connected } = data;
 
   return (
@@ -1165,16 +1211,6 @@ const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<
           connected={connected}
         />
       </NodeShell>
-      {editing && (
-        <NodeEditorPanel
-          kind="color"
-          title={colorNode.name}
-          subtitle="color adjustments"
-          onClose={() => toggleNodeEditor(colorNode.id)}
-        >
-          <ColorInspector colorNode={colorNode} onChange={(patch) => updateColorNode(colorNode.id, patch)} />
-        </NodeEditorPanel>
-      )}
       <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
     </div>
   );
@@ -1191,7 +1227,7 @@ type MergeNodeData = {
 };
 
 const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<MergeNodeData>) {
-  const { selectNode, deleteNode, toggleNodeEditor, updateMergeNode } = useNodeCanvasActions();
+  const { selectNode, deleteNode, toggleNodeEditor } = useNodeCanvasActions();
   const { mergeNode, previewTargetId, selected, editing, connected } = data;
 
   return (
@@ -1227,16 +1263,6 @@ const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<
           connected={connected}
         />
       </NodeShell>
-      {editing && (
-        <NodeEditorPanel
-          kind="merge"
-          title={mergeNode.name}
-          subtitle="merge settings"
-          onClose={() => toggleNodeEditor(mergeNode.id)}
-        >
-          <MergeInspector mergeNode={mergeNode} onChange={(patch) => updateMergeNode(mergeNode.id, patch)} detached />
-        </NodeEditorPanel>
-      )}
       <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
     </div>
   );
@@ -1255,8 +1281,8 @@ type ExportNodeData = {
 };
 
 const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProps<ExportNodeData>) {
-  const { selectNode, toggleNodeEditor, updateExportConfig, updateAspectRatio, exportNode } = useNodeCanvasActions();
-  const { exportConfig, aspect, previewTargetId, selected, editing, connected, busy } = data;
+  const { selectNode, toggleNodeEditor } = useNodeCanvasActions();
+  const { previewTargetId, selected, editing, connected } = data;
 
   return (
     <div
@@ -1284,23 +1310,7 @@ const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProp
           connected={connected}
         />
       </NodeShell>
-      {editing && (
-        <NodeEditorPanel
-          kind="export"
-          title="Output"
-          subtitle="export settings"
-          onClose={() => toggleNodeEditor(EXPORT_NODE_ID)}
-        >
-          <ExportInspector
-            exportConfig={exportConfig}
-            aspect={aspect}
-            busy={busy}
-            onChange={updateExportConfig}
-            onAspectChange={updateAspectRatio}
-            onExport={exportNode}
-          />
-        </NodeEditorPanel>
-      )}
+      <Handle type="source" id="out" position={Position.Right} style={HANDLE_STYLE} />
     </div>
   );
 });
@@ -2251,6 +2261,30 @@ export function NodeCanvas({
     if (nonRemove.length) onNodesChange(nonRemove);
   }, [onNodesChange, onDeleteNodes]);
 
+  const activeEditorAnchor = activeEditorNodeId
+    ? dragNodes.find((node) => node.id === activeEditorNodeId)?.position
+      ?? graph.positions[activeEditorNodeId]
+      ?? null
+    : null;
+  const activeEditorPanelStyle = activeEditorAnchor
+    ? {
+        left: 0,
+        top: 0,
+        right: 'auto',
+        transform: `translate(${activeEditorAnchor.x - NODE_EDITOR_W - 14}px, ${activeEditorAnchor.y - 2}px)`,
+        zIndex: 30,
+      } satisfies CSSProperties
+    : undefined;
+  const activeEditorLayer = activeEditorNodeId
+    ? doc.layers.find((layer) => layer.id === activeEditorNodeId) ?? null
+    : null;
+  const activeEditorMergeNode = activeEditorNodeId && activeEditorNodeId !== EXPORT_NODE_ID
+    ? graph.mergeNodes.find((node) => node.id === activeEditorNodeId) ?? null
+    : null;
+  const activeEditorColorNode = activeEditorNodeId && activeEditorNodeId !== EXPORT_NODE_ID
+    ? (graph.colorNodes ?? []).find((node) => node.id === activeEditorNodeId) ?? null
+    : null;
+
   return (
     <NodeCanvasPreviewContext.Provider value={previewContextValue}>
       <NodeCanvasActionsContext.Provider value={actionsContextValue}>
@@ -2875,6 +2909,78 @@ export function NodeCanvas({
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="oklch(28% 0.014 285)" />
         <Controls showInteractive={false} />
+        {activeEditorNodeId && activeEditorPanelStyle && (
+          <ViewportPortal>
+            {activeEditorLayer && (
+              <NodeEditorPanel
+                key={activeEditorLayer.id}
+                kind={activeEditorLayer.kind}
+                title={activeEditorLayer.name}
+                subtitle={activeEditorLayer.kind === 'effect'
+                  ? `effect, ${activeEditorLayer.preset ? (EFFECT_PRESETS[activeEditorLayer.preset]?.name ?? activeEditorLayer.preset).toLowerCase() : 'custom'}`
+                  : `${activeEditorLayer.kind} settings`}
+                onClose={() => handleToggleEditor(activeEditorLayer.id)}
+                style={activeEditorPanelStyle}
+              >
+                <LayerInspector
+                  layer={activeEditorLayer}
+                  onChange={(patch) => onUpdateLayer(activeEditorLayer.id, patch)}
+                  detached
+                />
+              </NodeEditorPanel>
+            )}
+            {!activeEditorLayer && activeEditorColorNode && (
+              <NodeEditorPanel
+                key={activeEditorColorNode.id}
+                kind="color"
+                title={activeEditorColorNode.name}
+                subtitle="color adjustments"
+                onClose={() => handleToggleEditor(activeEditorColorNode.id)}
+                style={activeEditorPanelStyle}
+              >
+                <ColorInspector
+                  colorNode={activeEditorColorNode}
+                  onChange={(patch) => onUpdateColorNode(activeEditorColorNode.id, patch)}
+                />
+              </NodeEditorPanel>
+            )}
+            {!activeEditorLayer && !activeEditorColorNode && activeEditorMergeNode && (
+              <NodeEditorPanel
+                key={activeEditorMergeNode.id}
+                kind="merge"
+                title={activeEditorMergeNode.name}
+                subtitle="merge settings"
+                onClose={() => handleToggleEditor(activeEditorMergeNode.id)}
+                style={activeEditorPanelStyle}
+              >
+                <MergeInspector
+                  mergeNode={activeEditorMergeNode}
+                  onChange={(patch) => onUpdateMergeNode(activeEditorMergeNode.id, patch)}
+                  detached
+                />
+              </NodeEditorPanel>
+            )}
+            {!activeEditorLayer && !activeEditorColorNode && !activeEditorMergeNode && activeEditorNodeId === EXPORT_NODE_ID && (
+              <NodeEditorPanel
+                key={EXPORT_NODE_ID}
+                kind="export"
+                title="Output"
+                subtitle="export settings"
+                onClose={() => handleToggleEditor(EXPORT_NODE_ID)}
+                style={activeEditorPanelStyle}
+              >
+                <ExportInspector
+                  exportConfig={doc.export}
+                  aspect={doc.global.aspect}
+                  busy={exportBusy}
+                  onChange={onUpdateExportConfig}
+                  onAspectChange={onUpdateAspectRatio}
+                  onExport={onExport}
+                />
+              </NodeEditorPanel>
+            )}
+          </ViewportPortal>
+        )}
       </ReactFlow>
 
       {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') && typeof document !== 'undefined' && createPortal(

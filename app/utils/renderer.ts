@@ -13,7 +13,7 @@ import type {
 import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
 import type { Filter } from 'pixi.js';
 
 const REF = 540;
@@ -967,6 +967,8 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
   skipEffects?: boolean;
+  /** Choose whether to render via saved node graph or plain ordered layer stack. */
+  graphMode?: 'auto' | 'graph' | 'stack';
 }
 
 async function renderGraphNode(
@@ -1070,17 +1072,17 @@ export async function renderDocument(
   imageCache: Map<string, HTMLImageElement>,
   options: RenderOptions = {},
 ): Promise<HTMLCanvasElement> {
-  if (doc.graph) {
+  if (options.graphMode === 'graph' && doc.graph) {
     return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options);
   }
 
-  let current = createCanvas(W, H);
-  const ctx = current.getContext('2d', { willReadFrequently: true })!;
-  drawBackground(ctx, W, H, doc.global.bg);
-
-  const layers = doc.layers;
-  for (const layer of layers) {
-    current = await applyLayerToCanvas(current, layer, doc, W, H, imageCache, options);
+  if (options.graphMode !== 'stack' && doc.graph) {
+    return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options);
   }
-  return current;
+
+  // Stack mode: infer a linear graph from doc.layers and execute it.
+  // This guarantees identical rendering logic between layer and node views,
+  // bypassing any custom edges in doc.graph while preserving correct layer order.
+  const tempGraph = inferLinearGraph(doc.layers);
+  return renderGraphTarget(doc, tempGraph, EXPORT_NODE_ID, W, H, imageCache, options);
 }
