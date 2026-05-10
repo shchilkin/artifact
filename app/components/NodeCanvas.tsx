@@ -333,21 +333,30 @@ interface ThumbProps {
 const THUMB_DEBOUNCE_MS = 120;
 
 type ThumbnailRenderTask = () => Promise<void>;
-const thumbnailRenderQueue: ThumbnailRenderTask[] = [];
+const thumbnailRenderQueue = new Map<string, ThumbnailRenderTask>();
 let thumbnailRenderActive = false;
 
 function drainThumbnailRenderQueue() {
-  if (thumbnailRenderActive || thumbnailRenderQueue.length === 0) return;
+  if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
   thumbnailRenderActive = true;
-  const next = thumbnailRenderQueue.shift()!;
-  next().finally(() => {
+  const nextEntry = thumbnailRenderQueue.entries().next().value as [string, ThumbnailRenderTask] | undefined;
+  if (!nextEntry) {
     thumbnailRenderActive = false;
-    drainThumbnailRenderQueue();
-  });
+    return;
+  }
+  const [taskKey, next] = nextEntry;
+  thumbnailRenderQueue.delete(taskKey);
+  Promise.resolve()
+    .then(next)
+    .catch(() => undefined)
+    .finally(() => {
+      thumbnailRenderActive = false;
+      drainThumbnailRenderQueue();
+    });
 }
 
-function scheduleThumbnailRender(task: ThumbnailRenderTask) {
-  thumbnailRenderQueue.push(task);
+function scheduleThumbnailRender(taskKey: string, task: ThumbnailRenderTask) {
+  thumbnailRenderQueue.set(taskKey, task);
   drainThumbnailRenderQueue();
 }
 
@@ -409,7 +418,7 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
     const rev = ++revRef.current;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      scheduleThumbnailRender(async () => {
+      scheduleThumbnailRender(previewTargetId, async () => {
         const {
           doc: d,
           graph: g,
@@ -463,7 +472,7 @@ const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProp
     }, THUMB_DEBOUNCE_MS);
 
     return () => clearTimeout(debounceRef.current);
-  }, [imageCache, previewKey]);
+  }, [imageCache, previewKey, previewTargetId]);
 
   // Once the canvas has content: show stale render dimmed while re-rendering
   // instead of hiding it — far less jarring on rapid updates.

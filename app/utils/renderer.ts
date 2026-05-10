@@ -366,55 +366,78 @@ function applyCanvas2DEffects(
     ctx.restore();
   }
 
-  if (layer.sepia > 0) {
-    const t = layer.sepia / 100;
+  const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
+  if (needsPixelPass) {
     const imageData = ctx.getImageData(0, 0, W, H);
     const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-      const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-      const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-      d[i]     = Math.round(r + (sr - r) * t);
-      d[i + 1] = Math.round(g + (sg - g) * t);
-      d[i + 2] = Math.round(b + (sb - b) * t);
-    }
-    ctx.putImageData(imageData, 0, 0);
-  }
 
-  if (layer.infrared > 0) {
-    const t = layer.infrared / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      d[i]     = Math.min(255, Math.round(r + g * t * 0.8));
-      d[i + 1] = Math.min(255, Math.round(g * (1 - t * 0.65)));
-      d[i + 2] = Math.min(255, Math.round(b * (1 - t * 0.3) + t * 22));
-    }
-    ctx.putImageData(imageData, 0, 0);
-  }
+    if (layer.sepia > 0 || layer.infrared > 0) {
+      const sepiaT = layer.sepia / 100;
+      const infraredT = layer.infrared / 100;
+      for (let i = 0; i < d.length; i += 4) {
+        let r = d[i];
+        let g = d[i + 1];
+        let b = d[i + 2];
 
-  if (layer.ca > 0) {
-    const amt = Math.round(layer.ca * scale);
-    const cx = W / 2, cy = H / 2;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    const copy = new Uint8ClampedArray(d);
-    const maxDist = Math.sqrt(cx * cx + cy * cy);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        const dx = (x - cx) / maxDist;
-        const dy = (y - cy) / maxDist;
-        const rx = Math.min(W - 1, Math.max(0, Math.round(x + dx * amt)));
-        const ry = Math.min(H - 1, Math.max(0, Math.round(y + dy * amt)));
-        const bx = Math.min(W - 1, Math.max(0, Math.round(x - dx * amt)));
-        const by = Math.min(H - 1, Math.max(0, Math.round(y - dy * amt)));
-        d[i]     = copy[(ry * W + rx) * 4];
-        d[i + 2] = copy[(by * W + bx) * 4 + 2];
+        if (sepiaT > 0) {
+          const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+          const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+          const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+          r = Math.round(r + (sr - r) * sepiaT);
+          g = Math.round(g + (sg - g) * sepiaT);
+          b = Math.round(b + (sb - b) * sepiaT);
+        }
+
+        if (infraredT > 0) {
+          const ir = r;
+          const ig = g;
+          const ib = b;
+          r = Math.min(255, Math.round(ir + ig * infraredT * 0.8));
+          g = Math.min(255, Math.round(ig * (1 - infraredT * 0.65)));
+          b = Math.min(255, Math.round(ib * (1 - infraredT * 0.3) + infraredT * 22));
+        }
+
+        d[i] = r;
+        d[i + 1] = g;
+        d[i + 2] = b;
       }
     }
+
+    if (layer.ca > 0) {
+      const amt = Math.round(layer.ca * scale);
+      const cx = W / 2, cy = H / 2;
+      const copy = new Uint8ClampedArray(d);
+      const maxDist = Math.sqrt(cx * cx + cy * cy);
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const dx = (x - cx) / maxDist;
+          const dy = (y - cy) / maxDist;
+          const rx = Math.min(W - 1, Math.max(0, Math.round(x + dx * amt)));
+          const ry = Math.min(H - 1, Math.max(0, Math.round(y + dy * amt)));
+          const bx = Math.min(W - 1, Math.max(0, Math.round(x - dx * amt)));
+          const by = Math.min(H - 1, Math.max(0, Math.round(y - dy * amt)));
+          d[i] = copy[(ry * W + rx) * 4];
+          d[i + 2] = copy[(by * W + bx) * 4 + 2];
+        }
+      }
+    }
+
+    if (layer.dither > 0) {
+      const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+      const levels = Math.max(2, Math.round(16 - layer.dither * 0.14));
+      const step = 255 / (levels - 1);
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const bayer = BAYER[y & 3][x & 3] / 16;
+          for (let c = 0; c < 3; c++) {
+            d[i + c] = Math.min(255, Math.max(0, Math.round((d[i + c] / step + bayer)) * step));
+          }
+        }
+      }
+    }
+
     ctx.putImageData(imageData, 0, 0);
   }
 
@@ -446,24 +469,6 @@ function applyCanvas2DEffects(
       }
     }
     ctx.putImageData(out, 0, 0);
-  }
-
-  if (layer.dither > 0) {
-    const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
-    const levels = Math.max(2, Math.round(16 - layer.dither * 0.14));
-    const step = 255 / (levels - 1);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        const bayer = BAYER[y & 3][x & 3] / 16;
-        for (let c = 0; c < 3; c++) {
-          d[i + c] = Math.min(255, Math.max(0, Math.round((d[i + c] / step + bayer)) * step));
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
   }
 
   if (layer.matte > 0) {

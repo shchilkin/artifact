@@ -446,19 +446,67 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
     case 'EMOJIS':
       return { density: 0, blur: 0 };
     case 'RAYS':
-      return { rays: 0, rayInt: 0, bloom: 0, filmBurn: 0, neonGlow: 0, fog: 0, speedLines: 0 };
+      return {
+        rays: 0,
+        rayInt: 0,
+        rayColor: '#bb00ff',
+        bloom: 0,
+        filmBurn: 0,
+        neonGlow: 0,
+        neonColor: '#ff00ff',
+        fog: 0,
+        fogColor: '#c8d8e8',
+        speedLines: 0,
+      };
     case 'GLITCH':
       return { glitch: 0, rgbSplit: 0, ca: 0, interlace: 0, dataMosh: 0, vhsTracking: 0 };
     case 'TEXTURE':
       return { grain: 0, scanlines: 0, blurAmt: 0, matte: 0, dither: 0, emboss: 0, linocut: 0 };
     case 'TINT':
-      return { tintOp: 0 };
+      return { tint: '#350055', tintOp: 0 };
     case 'WARP':
-      return { morphAmt: 0, tearAmt: 0, noiseWarp: 0, vortex: 0, barrel: 0, mirror: 0, waveAmt: 0, zoomBlur: 0, rippleAmt: 0, kaleidoscope: 0, squeezeX: 0, squeezeY: 0 };
+      return {
+        morphAmt: 0,
+        morphFreq: 5,
+        tearAmt: 0,
+        tearSize: 3,
+        noiseWarp: 0,
+        vortex: 0,
+        barrel: 0,
+        mirror: 0,
+        waveAmt: 0,
+        waveFreq: 3,
+        zoomBlur: 0,
+        rippleAmt: 0,
+        rippleFreq: 3,
+        kaleidoscope: 0,
+        squeezeX: 0,
+        squeezeY: 0,
+      };
     case 'COLORFX':
-      return { hueShift: 0, rgbSplit: 0, vignette: 0, pixelate: 0, posterize: 0, threshold: 0, edgeDetect: 0, gradMix: 0, sepia: 0, infrared: 0, solarize: 0, bleachBypass: 0, cyanotype: 0, splitToneAmt: 0 };
+      return {
+        hueShift: 0,
+        rgbSplit: 0,
+        vignette: 0,
+        pixelate: 0,
+        posterize: 0,
+        threshold: 0,
+        edgeDetect: 0,
+        gradMix: 0,
+        gradA: '#0a0020',
+        gradB: '#ff6ec7',
+        gradAngle: 0,
+        sepia: 0,
+        infrared: 0,
+        solarize: 0,
+        bleachBypass: 0,
+        cyanotype: 0,
+        splitToneAmt: 0,
+        splitShadow: '#001a4f',
+        splitHighlight: '#ff8040',
+      };
     case 'RISO':
-      return { duotone: 0, halftone: 0, risoShift: 0, overprint: 0 };
+      return { duotone: 0, duoA: '#0a0020', duoB: '#ff6ec7', halftone: 0, risoShift: 0, risoAngle: 15, overprint: 0 };
     case 'TEXT':
       return { content: '', opacity: 100, rotation: 0, x: 0.5, y: 0.5, scaleX: 1, scaleY: 1 };
     default:
