@@ -27,7 +27,7 @@ export function CanvasPreview({
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const [fast, setFast] = useState(false);
   const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph, { fast });
+  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph, { fast, graphMode: 'stack' });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
 

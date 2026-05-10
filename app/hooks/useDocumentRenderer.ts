@@ -5,6 +5,8 @@ import { renderDocument } from '../utils/renderer';
 interface Options {
   /** While true, renderer skips GPU effect passes for fast pointer feedback. */
   fast?: boolean;
+  /** Layer canvas preview should ignore any saved node graph and use layer order. */
+  graphMode?: 'auto' | 'graph' | 'stack';
 }
 
 export function useDocumentRenderer(
@@ -24,6 +26,7 @@ export function useDocumentRenderer(
   const pwRef = useRef(pw);
   const phRef = useRef(ph);
   const fastRef = useRef(options.fast ?? false);
+  const graphModeRef = useRef(options.graphMode ?? 'auto');
 
   useEffect(() => {
     docRef.current = doc;
@@ -31,7 +34,8 @@ export function useDocumentRenderer(
     pwRef.current = pw;
     phRef.current = ph;
     fastRef.current = options.fast ?? false;
-  }, [doc, imageCache, pw, ph, options.fast]);
+    graphModeRef.current = options.graphMode ?? 'auto';
+  }, [doc, imageCache, pw, ph, options.fast, options.graphMode]);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -42,6 +46,7 @@ export function useDocumentRenderer(
     renderingRef.current = true;
     renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, {
       skipEffects: fastRef.current,
+      graphMode: graphModeRef.current,
     })
       .then((result) => {
         renderingRef.current = false;
@@ -100,7 +105,7 @@ export function useDocumentRenderer(
 
   useEffect(() => {
     scheduleRender();
-  }, [doc, imageCache, options.fast, scheduleRender]);
+  }, [doc, imageCache, options.fast, options.graphMode, scheduleRender]);
 
   useEffect(() => () => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);

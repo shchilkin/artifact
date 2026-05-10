@@ -11,7 +11,8 @@ interface GpuRenderOptions {
 /**
  * One renderer per browser tab. Creating a Renderer = creating a WebGL context;
  * browsers cap concurrent contexts (~16) and start dropping the oldest. Sharing
- * one context across thumbnails + preview keeps us well under the cap.
+ * one context across previews and thumbnails avoids exhausting that limit during
+ * interactive edits.
  */
 let sharedRenderer: Renderer | null = null;
 let sharedRendererSize = { w: 0, h: 0 };
@@ -24,7 +25,7 @@ function disposeShared() {
   sharedRendererSize = { w: 0, h: 0 };
 }
 
-export function getSharedRenderer(W: number, H: number): Renderer | null {
+function getSharedRenderer(W: number, H: number): Renderer | null {
   try {
     if (!sharedRenderer) {
       sharedRenderer = new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
@@ -57,13 +58,55 @@ function enqueueRender<T>(fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
+async function renderWithRenderer(
+  renderer: Renderer,
+  W: number,
+  H: number,
+  source: HTMLCanvasElement,
+  filters: Filter[],
+): Promise<HTMLCanvasElement> {
+  const canvasTex = Texture.from(source);
+  const gpuTex = RenderTexture.create({ width: W, height: H });
+  const blitSprite = new Sprite(canvasTex);
+  const displaySprite = new Sprite(gpuTex);
+  const stage = new Container();
+
+  try {
+    blitSprite.width = W;
+    blitSprite.height = H;
+
+    canvasTex.update();
+    renderer.render(blitSprite, { renderTexture: gpuTex, clear: true });
+
+    displaySprite.width = W;
+    displaySprite.height = H;
+    displaySprite.filters = filters;
+    stage.addChild(displaySprite);
+
+    // Yield to the event loop so the GPU commands are flushed
+    await new Promise<void>((r) => setTimeout(r, 0));
+
+    const out = renderer.extract.canvas(stage) as HTMLCanvasElement;
+    // extract.canvas returns the renderer's backing canvas when shared —
+    // copy into a detached canvas so subsequent renders don't overwrite it.
+    const copy = document.createElement('canvas');
+    copy.width = W;
+    copy.height = H;
+    copy.getContext('2d')!.drawImage(out, 0, 0, W, H);
+    return copy;
+  } finally {
+    canvasTex.destroy(true);
+    gpuTex.destroy(true);
+  }
+}
+
 /**
  * Shared GPU render pipeline used by export, env map export, and thumbnail
  * generation. Blits a Canvas 2D source into a PixiJS RenderTexture, applies
  * GLSL filters, and extracts the result as an HTMLCanvasElement.
  *
- * Uses a process-wide shared Renderer when available (falls back to a
- * one-shot Renderer if context creation fails).
+ * Uses a serialized shared Renderer when available, with one-shot fallback if
+ * the shared context is lost or a render poisons it.
  */
 export async function gpuRenderToCanvas({
   width: W,
@@ -73,44 +116,19 @@ export async function gpuRenderToCanvas({
 }: GpuRenderOptions): Promise<HTMLCanvasElement> {
   return enqueueRender(async () => {
     const shared = getSharedRenderer(W, H);
-    const renderer = shared ?? new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
-    const ownsRenderer = renderer !== shared;
-    const canvasTex = Texture.from(source);
-    const gpuTex = RenderTexture.create({ width: W, height: H });
-
-    try {
-      const blitSprite = new Sprite(canvasTex);
-      blitSprite.width = W;
-      blitSprite.height = H;
-
-      canvasTex.update();
-      renderer.render(blitSprite, { renderTexture: gpuTex, clear: true });
-
-      const displaySprite = new Sprite(gpuTex);
-      displaySprite.width = W;
-      displaySprite.height = H;
-      displaySprite.filters = filters;
-
-      const stage = new Container();
-      stage.addChild(displaySprite);
-
-      // Yield to the event loop so the GPU commands are flushed
-      await new Promise<void>((r) => setTimeout(r, 0));
-
-      const out = renderer.extract.canvas(stage) as HTMLCanvasElement;
-      // extract.canvas returns the renderer's backing canvas when shared —
-      // copy into a detached canvas so subsequent renders don't overwrite it.
-      const copy = document.createElement('canvas');
-      copy.width = W;
-      copy.height = H;
-      copy.getContext('2d')!.drawImage(out, 0, 0, W, H);
-      return copy;
-    } finally {
-      canvasTex.destroy(true);
-      gpuTex.destroy(true);
-      if (ownsRenderer) {
-        try { renderer.destroy(true); } catch { /* already gone */ }
+    if (shared) {
+      try {
+        return await renderWithRenderer(shared, W, H, source, filters);
+      } catch {
+        disposeShared();
       }
+    }
+
+    const renderer = new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
+    try {
+      return await renderWithRenderer(renderer, W, H, source, filters);
+    } finally {
+      try { renderer.destroy(true); } catch { /* already gone */ }
     }
   });
 }
