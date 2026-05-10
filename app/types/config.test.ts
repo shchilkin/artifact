@@ -3,6 +3,7 @@ import {
   makeTextLayer,
   makeEffectLayer,
   makeEmojiLayer,
+  makeSourceLayer,
   cloneDocument,
 } from './config';
 import type { CanvasDocument } from './config';
@@ -104,6 +105,22 @@ describe('makeEmojiLayer', () => {
   });
 });
 
+describe('makeSourceLayer', () => {
+  it('returns a layer with the requested procedural kind', () => {
+    const layer = makeSourceLayer();
+    expect(layer.kind).toBe('primitive');
+  });
+
+  it('accepts a source subtype and keeps shared transform fields', () => {
+    const layer = makeSourceLayer('noise', { noiseScale: 48, x: 0.25 });
+    expect(layer.kind).toBe('noise');
+    expect(layer.noiseScale).toBe(48);
+    expect(layer.x).toBe(0.25);
+    expect(layer.scaleX).toBe(1);
+    expect(layer.scaleY).toBe(1);
+  });
+});
+
 describe('cloneDocument', () => {
   it('returns an object deeply equal to the original', () => {
     const original: CanvasDocument = {
@@ -151,5 +168,16 @@ describe('cloneDocument', () => {
     const cloned = cloneDocument(original);
     cloned.export.scale = 3;
     expect(original.export.scale).toBe(1);
+  });
+
+  it('keeps source layer fields when cloning', () => {
+    const original: CanvasDocument = {
+      global: { bg: '#120020', seed: 1, aspect: '1:1' },
+      layers: [makeSourceLayer('array', { id: 'src-1', arrayCount: 9, arrayRows: 3 })],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const cloned = cloneDocument(original);
+    expect(cloned.layers[0]).toEqual(original.layers[0]);
+    expect(cloned.layers[0]).not.toBe(original.layers[0]);
   });
 });

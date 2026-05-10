@@ -12,6 +12,7 @@ import {
   makeTextLayer,
   makeImageLayer,
   makeEffectPresetLayer,
+  makeSourceLayer,
   type CanvasDocument,
   type EffectPreset,
   type ImageLayer,
@@ -137,6 +138,94 @@ const CONTENT_NODES: NodeDef[] = [
   },
 ];
 
+const SOURCE_NODES: NodeDef[] = [
+  {
+    id: "primitive",
+    symbol: "◍",
+    name: "Primitive",
+    desc: "A lightweight faux-3D form, rendered directly into the canvas. Sphere, cube, and cylinder give you a fast sculptural base without leaving the stack.",
+    params: [
+      { key: "primitiveDepth", range: "10–100" },
+      { key: "tiltX", range: "0–90" },
+      { key: "tiltY", range: "0–90" },
+      { key: "color", range: "hex" },
+    ],
+    doc: {
+      global: { bg: "#0d0018", seed: 1, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#12071f" }),
+        makeSourceLayer("primitive", {
+          primitiveShape: "sphere",
+          primitiveDepth: 62,
+          tiltX: 20,
+          tiltY: 30,
+          color: "#ff6a3a",
+          accentColor: "#8762ff",
+        }),
+      ],
+    },
+  },
+  {
+    id: "noise",
+    symbol: "░",
+    name: "Noise",
+    desc: "A procedural texture field with transparent alpha, useful as atmosphere, paper, haze, or dense cellular grain before downstream effects.",
+    params: [
+      { key: "noiseScale", range: "6–96" },
+      { key: "noiseDetail", range: "1–8" },
+      { key: "noiseContrast", range: "0–100" },
+      { key: "color", range: "hex" },
+    ],
+    doc: {
+      global: { bg: "#0d0018", seed: 1, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#11051d" }),
+        makeSourceLayer("noise", {
+          noiseType: "clouds",
+          noiseScale: 30,
+          noiseDetail: 5,
+          noiseContrast: 58,
+          noiseBalance: 42,
+          color: "#ea6c3d",
+          accentColor: "#6b5dff",
+        }),
+      ],
+    },
+  },
+  {
+    id: "array",
+    symbol: "▦",
+    name: "Array",
+    desc: "A motif repeater for lines, grids, and radial bursts. It is the quickest way to build regimented sleeves, tech patterns, and sticker-sheet rhythms.",
+    params: [
+      { key: "arrayCount", range: "2–18" },
+      { key: "arrayRows", range: "1–12" },
+      { key: "arrayGap", range: "12–96" },
+      { key: "arraySize", range: "8–64" },
+    ],
+    doc: {
+      global: { bg: "#0d0018", seed: 1, aspect: "1:1" },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: "#0d0018" }),
+        makeSourceLayer("array", {
+          arrayPattern: "radial",
+          arrayShape: "diamond",
+          arrayCount: 8,
+          arrayRows: 2,
+          arrayRadius: 126,
+          arrayGap: 34,
+          arraySize: 22,
+          color: "#ffd47b",
+          accentColor: "#ff5f8f",
+        }),
+      ],
+    },
+  },
+];
+
 const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   rays: "Light shafts from center, tinted and angled.",
   bloom: "Highlights bleed outward into surrounding pixels.",
@@ -254,7 +343,7 @@ const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
   doc: buildEffectDoc(preset),
 }));
 
-const ALL_NODES = [...CONTENT_NODES, ...EFFECT_NODES];
+const ALL_NODES = [...CONTENT_NODES, ...SOURCE_NODES, ...EFFECT_NODES];
 
 // ─── Humanize camelCase param keys ───────────────────────────────────────────
 
@@ -294,16 +383,16 @@ function parseRange(rangeStr: string) {
 
 type LayerBag = Record<string, unknown>;
 
+function findNodeLayer(doc: CanvasDocument, nodeId: string) {
+  if (nodeId in EFFECT_PRESETS) {
+    return doc.layers.find((l) => l.kind === "effect" && (l as LayerBag).preset === nodeId) ?? doc.layers[doc.layers.length - 1];
+  }
+  return doc.layers.find((l) => l.kind === nodeId) ?? doc.layers[doc.layers.length - 1];
+}
+
 function updateDocParam(doc: CanvasDocument, nodeId: string, paramKey: string, value: unknown): CanvasDocument {
   const newDoc = { ...doc, layers: doc.layers.map((l) => ({ ...l })) };
-
-  let targetLayer = newDoc.layers[newDoc.layers.length - 1];
-
-  if (nodeId in EFFECT_PRESETS) {
-    targetLayer = newDoc.layers.find((l) => l.kind === "effect" && (l as LayerBag).preset === nodeId) || targetLayer;
-  } else {
-    targetLayer = newDoc.layers.find((l) => l.kind === nodeId) || targetLayer;
-  }
+  const targetLayer = findNodeLayer(newDoc, nodeId);
 
   if (targetLayer) {
     const keys = paramKey.split(" / ").map((k) => k.trim());
@@ -318,13 +407,7 @@ function updateDocParam(doc: CanvasDocument, nodeId: string, paramKey: string, v
 }
 
 function getDocParam(doc: CanvasDocument, nodeId: string, paramKey: string): unknown {
-  let targetLayer = doc.layers[doc.layers.length - 1];
-
-  if (nodeId in EFFECT_PRESETS) {
-    targetLayer = doc.layers.find((l) => l.kind === "effect" && (l as LayerBag).preset === nodeId) || targetLayer;
-  } else {
-    targetLayer = doc.layers.find((l) => l.kind === nodeId) || targetLayer;
-  }
+  const targetLayer = findNodeLayer(doc, nodeId);
 
   if (targetLayer) {
     const primaryKey = paramKey.split(" / ")[0].trim();
@@ -517,7 +600,7 @@ export default function DocsNodes() {
             Visual Catalog
           </h1>
           <p className="docs-intro__deck">
-            A stream of inspiration. Scroll to explore every source and effect node. 
+            A stream of inspiration. Scroll to explore every content, source, and effect node.
             Hover or tap any poster to reveal its live controls and tweak the visual in real-time.
           </p>
         </section>

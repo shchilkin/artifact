@@ -11,6 +11,7 @@ import {
   makeGraphColorNode,
   makeGraphMergeNode,
   makeImageLayer,
+  makeSourceLayer,
   makeTextLayer,
   type AspectRatio,
   type CanvasDocument,
@@ -20,6 +21,7 @@ import {
   type GraphMergeNode,
   type Layer,
   type LayerKind,
+  type SourceType,
 } from '../types/config';
 import { randomDocument } from '../utils/randomConfig';
 import {
@@ -56,10 +58,29 @@ function normalizeDocument(raw: unknown): CanvasDocument {
     ...DEFAULT_EXPORT,
     ...(typeof doc.export === 'object' && doc.export ? doc.export : {}),
   } as CanvasDocument['export'];
+  const layers = Array.isArray(doc.layers)
+    ? doc.layers.map((layer) => (
+      layer?.kind === 'source' && typeof (layer as { sourceType?: unknown }).sourceType === 'string'
+        ? { ...layer, kind: (layer as { sourceType: SourceType }).sourceType }
+        : layer
+    )) as Layer[]
+    : [];
   const graph = doc.graph
     ? { ...doc.graph, colorNodes: doc.graph.colorNodes ?? [] }
     : undefined;
-  return { ...doc, global: { ...doc.global, aspect }, export: exportConfig, graph };
+  return { ...doc, global: { ...doc.global, aspect }, layers, export: exportConfig, graph };
+}
+
+function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
+  return kind === 'text'
+    ? makeTextLayer()
+    : kind === 'image'
+      ? makeImageLayer('')
+      : kind === 'fill'
+        ? makeFillLayer()
+        : kind === 'emoji'
+          ? makeEmojiLayer()
+          : makeSourceLayer(kind);
 }
 
 function getInitialDocument(): CanvasDocument {
@@ -218,13 +239,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   }, [nodeModeEnabled, setDoc]);
 
   const addLayer = useCallback((kind: Exclude<LayerKind, 'effect'>) => {
-    const layer = kind === 'text'
-      ? makeTextLayer()
-      : kind === 'image'
-        ? makeImageLayer('')
-        : kind === 'fill'
-          ? makeFillLayer()
-          : makeEmojiLayer();
+    const layer = createLayerOfKind(kind);
     updateDocument((current) => {
       if (!current.graph) return { ...current, layers: [...current.layers, layer] };
       return {
@@ -397,13 +412,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
     const layer = action.kind === 'effect'
       ? makeEffectPresetLayer(action.preset)
-      : action.layerKind === 'text'
-        ? makeTextLayer()
-        : action.layerKind === 'image'
-          ? makeImageLayer('')
-          : action.layerKind === 'fill'
-            ? makeFillLayer()
-            : makeEmojiLayer();
+      : createLayerOfKind(action.layerKind);
 
     updateDocument((current) => {
       let graph = addLayerToGraph(ensureGraph(current), layer.id, position);

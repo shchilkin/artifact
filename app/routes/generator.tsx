@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { AnimatePresence } from 'framer-motion';
 import { BottomBar } from '../components/BottomBar';
@@ -12,6 +12,7 @@ import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
 import { getPreviewDims, type AspectRatio } from '../types/config';
+import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -41,21 +42,23 @@ type ViewMode = 'layers' | 'nodes';
 
 function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
   const buttonStyle = (active: boolean, side: 'left' | 'right'): CSSProperties => ({
-    padding: '4px 12px',
+    minHeight: 'var(--touch)',
+    padding: '0 16px',
     fontFamily: 'var(--mono)',
-    fontSize: 10,
-    letterSpacing: '0.05em',
+    fontSize: 11,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
     cursor: 'pointer',
-    background: active ? 'var(--border)' : 'transparent',
-    color: active ? 'var(--text)' : 'var(--text-dim)',
+    background: active ? 'var(--text)' : 'transparent',
+    color: active ? 'var(--bg)' : 'var(--text-dim)',
     border: '1px solid var(--border)',
     borderRight: side === 'left' ? 'none' : undefined,
-    borderRadius: side === 'left' ? '3px 0 0 3px' : '0 3px 3px 0',
+    borderRadius: 0,
     transition: 'background 120ms ease-out, color 120ms ease-out',
   });
 
   return (
-    <div className="hidden lg:flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
+    <div className="flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
       <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>layers</button>
       <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>nodes</button>
     </div>
@@ -66,6 +69,7 @@ export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
 
   const {
     doc,
@@ -99,7 +103,8 @@ export default function Generator() {
     fromDocParam,
   } = useGeneratorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
-  const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache);
+  const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
+  const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
   const {
     showPresets,
     presets,
@@ -211,11 +216,13 @@ export default function Generator() {
               />
             </ErrorBoundary>
           ) : (
-            <div className="hidden lg:flex flex-1 min-h-0 w-full">
-              <Suspense fallback={<div style={{ flex: 1, background: 'oklch(10% 0.009 285)' }} />}>
+            <div className="flex flex-1 min-h-0 w-full">
+              <Suspense fallback={<div style={{ flex: 1, background: 'var(--bg)' }} />}>
                 <NodeCanvas
                   doc={doc}
                   imageCache={imageCache}
+                  initialPrimitiveViewStates={primitiveViewStates}
+                  onPrimitiveViewStatesChange={setPrimitiveViewStates}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
                   onGraphChange={handleGraphChange}

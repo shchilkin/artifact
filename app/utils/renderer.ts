@@ -10,10 +10,12 @@ import type {
   Layer,
   TextLayer,
 } from '../types/config';
+import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { drawSourceLayer } from './proceduralSource';
 import type { Filter } from 'pixi.js';
 
 const REF = 540;
@@ -853,6 +855,17 @@ async function applyLayerToCanvas(
     drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
   } else if (layer.kind === 'fill') {
     drawFillLayer(ctx, W, H, layer);
+  } else if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
+    await drawSourceLayer(
+      ctx,
+      W,
+      H,
+      layer,
+      seed,
+      scale,
+      options.draft ?? false,
+      layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
+    );
   } else if (layer.kind === 'effect') {
     if (options.skipEffects) return base;
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
@@ -973,8 +986,12 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
   skipEffects?: boolean;
+  /** Use lighter-weight source rendering while interactive controls are moving, then settle back to full quality. */
+  draft?: boolean;
   /** Choose whether to render via saved node graph or plain ordered layer stack. */
   graphMode?: 'auto' | 'graph' | 'stack';
+  /** Optional live primitive viewport overrides so node/output/export renders can match the interactive 3D preview. */
+  primitiveViewStates?: Record<string, PrimitiveViewportState>;
 }
 
 async function renderGraphNode(

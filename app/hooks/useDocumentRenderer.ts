@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
+const DRAFT_SETTLE_MS = 120;
+
 interface Options {
   /** While true, renderer skips GPU effect passes for fast pointer feedback. */
   fast?: boolean;
@@ -27,6 +29,8 @@ export function useDocumentRenderer(
   const phRef = useRef(ph);
   const fastRef = useRef(options.fast ?? false);
   const graphModeRef = useRef(options.graphMode ?? 'auto');
+  const draftUntilRef = useRef(0);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     docRef.current = doc;
@@ -45,7 +49,8 @@ export function useDocumentRenderer(
 
     renderingRef.current = true;
     renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, {
-      skipEffects: fastRef.current,
+      skipEffects: fastRef.current || performance.now() < draftUntilRef.current,
+      draft: performance.now() < draftUntilRef.current,
       graphMode: graphModeRef.current,
     })
       .then((result) => {
@@ -104,11 +109,18 @@ export function useDocumentRenderer(
   }, [pw, ph, scheduleRender]);
 
   useEffect(() => {
+    draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = setTimeout(() => {
+      settleTimerRef.current = null;
+      scheduleRender();
+    }, DRAFT_SETTLE_MS + 16);
     scheduleRender();
   }, [doc, imageCache, options.fast, options.graphMode, scheduleRender]);
 
   useEffect(() => () => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
   }, []);
 
   return containerRef;

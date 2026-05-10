@@ -21,6 +21,9 @@ const KIND_ICONS: Record<LayerKind, string> = {
   emoji: '✦',
   effect: 'FX',
   fill: '■',
+  primitive: '◍',
+  noise: '░',
+  array: '▦',
 };
 
 export function LayerPanel({
@@ -91,7 +94,7 @@ export function LayerPanel({
           </button>
           {showAddMenu && (
             <div className="absolute right-0 top-full mt-1 bg-bg border border-border z-50 min-w-[130px]">
-              {(['text', 'image', 'emoji', 'fill'] as Exclude<LayerKind, 'effect'>[]).map((kind) => (
+              {(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array'] as Exclude<LayerKind, 'effect'>[]).map((kind) => (
                 <button
                   key={kind}
                   className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"

@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { DEFAULT_EXPORT, type CanvasDocument } from '../types/config';
 import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
+import type { RenderOptions } from '../utils/renderer';
 
 export function useGeneratorExport(
   docRef: MutableRefObject<CanvasDocument>,
   imageCache: Map<string, HTMLImageElement>,
+  renderOptions: RenderOptions = {},
 ) {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
@@ -24,13 +26,13 @@ export function useGeneratorExport(
     setIsExporting(true);
     setExportError(null);
     try {
-      await exportCanvas(docRef.current, imageCache, scale, format);
+      await exportCanvas(docRef.current, imageCache, scale, format, renderOptions);
     } catch (error) {
       showExportError(error instanceof Error ? error.message : 'Export failed');
     } finally {
       setIsExporting(false);
     }
-  }, [docRef, imageCache, showExportError]);
+  }, [docRef, imageCache, renderOptions, showExportError]);
 
   const handleEnvMapExport = useCallback(async () => {
     setIsExportingEnvMap(true);

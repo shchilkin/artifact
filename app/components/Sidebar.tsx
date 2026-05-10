@@ -12,6 +12,7 @@ import {
   type ImageLayer,
   type Layer,
   type LayerKind,
+  type SourceLayer,
   type TextLayer,
 } from '../types/config';
 import { randomLayerSection, zeroLayerSection } from '../utils/randomConfig';
@@ -445,6 +446,127 @@ export function Sidebar({
                 </div>
                 <Slider label="Rotation" value={selectedLayer.rotation} min={-180} max={180} onChange={(v) => applySelectedPatch<ImageLayer>({ rotation: v })} />
               </Section>
+            )}
+
+            {(selectedLayer.kind === 'primitive' || selectedLayer.kind === 'noise' || selectedLayer.kind === 'array') && (
+              <>
+                <Section title="SOURCE" defaultOpen>
+                  <div className="flex justify-between items-center text-dim text-[10px]">
+                    <span>Ink</span>
+                    <input type="color" value={selectedLayer.color} onChange={(e) => applySelectedPatch<SourceLayer>({ color: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" />
+                  </div>
+                  <div className="flex justify-between items-center text-dim text-[10px]">
+                    <span>Accent</span>
+                    <input type="color" value={selectedLayer.accentColor} onChange={(e) => applySelectedPatch<SourceLayer>({ accentColor: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" />
+                  </div>
+                  <Slider label="Opacity" value={selectedLayer.opacity} min={0} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ opacity: v })} />
+                  <ButtonGroup label="Blend" options={BLEND_OPTIONS} value={selectedLayer.blendMode} onChange={(v) => applySelectedPatch<SourceLayer>({ blendMode: v })} />
+                </Section>
+
+                <Section title="PLACEMENT" defaultOpen>
+                  <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<SourceLayer>({ x: v / 100 })} />
+                  <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<SourceLayer>({ y: v / 100 })} />
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      {scaleLocked ? (
+                        <Slider
+                          label="Scale"
+                          value={Math.round(selectedLayer.scaleX * 100)}
+                          min={5}
+                          max={500}
+                          onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100, scaleY: v / 100 })}
+                        />
+                      ) : (
+                        <>
+                          <Slider label="Scale X" value={Math.round(selectedLayer.scaleX * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100 })} />
+                          <Slider label="Scale Y" value={Math.round(selectedLayer.scaleY * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleY: v / 100 })} />
+                        </>
+                      )}
+                    </div>
+                    <button
+                      className={`flex-shrink-0 w-11 h-11 flex items-center justify-center border text-[11px] bg-transparent cursor-pointer transition-colors ${
+                        scaleLocked ? 'border-accent text-accent' : 'border-border text-dim hover:border-accent hover:text-accent'
+                      }`}
+                      onClick={() => setScaleLocked((v) => !v)}
+                      title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+                      aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+                      aria-pressed={scaleLocked}
+                    >
+                      {scaleLocked ? '⛓' : '⛓‍💥'}
+                    </button>
+                  </div>
+                  <Slider label="Rotation" value={selectedLayer.rotation} min={-180} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ rotation: v })} />
+                </Section>
+
+                {selectedLayer.kind === 'primitive' && (
+                  <Section title="PRIMITIVE" defaultOpen>
+                    <ButtonGroup
+                      label="Shape"
+                      options={[
+                        { value: 'sphere', label: 'SPHERE' },
+                        { value: 'cube', label: 'CUBE' },
+                        { value: 'cylinder', label: 'CYLINDER' },
+                      ]}
+                      value={selectedLayer.primitiveShape}
+                      onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveShape: v as SourceLayer['primitiveShape'] })}
+                    />
+                    <Slider label="Tilt X" value={selectedLayer.tiltX} min={-90} max={90} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltX: v })} />
+                    <Slider label="Tilt Y" value={selectedLayer.tiltY} min={-90} max={90} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltY: v })} />
+                    <Slider label="Spin" value={selectedLayer.tiltZ} min={-180} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltZ: v })} />
+                    <Slider label="Depth" value={selectedLayer.primitiveDepth} min={10} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveDepth: v })} />
+                  </Section>
+                )}
+
+                {selectedLayer.kind === 'noise' && (
+                  <Section title="NOISE" defaultOpen>
+                    <ButtonGroup
+                      label="Pattern"
+                      options={[
+                        { value: 'value', label: 'VALUE' },
+                        { value: 'clouds', label: 'CLOUDS' },
+                        { value: 'cells', label: 'CELLS' },
+                      ]}
+                      value={selectedLayer.noiseType}
+                      onChange={(v) => applySelectedPatch<SourceLayer>({ noiseType: v as SourceLayer['noiseType'] })}
+                    />
+                    <Slider label="Scale" value={selectedLayer.noiseScale} min={6} max={96} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseScale: v })} />
+                    <Slider label="Detail" value={selectedLayer.noiseDetail} min={1} max={8} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseDetail: v })} />
+                    <Slider label="Contrast" value={selectedLayer.noiseContrast} min={0} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseContrast: v })} />
+                    <Slider label="Balance" value={selectedLayer.noiseBalance} min={0} max={95} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseBalance: v })} />
+                  </Section>
+                )}
+
+                {selectedLayer.kind === 'array' && (
+                  <Section title="ARRAY" defaultOpen>
+                    <ButtonGroup
+                      label="Pattern"
+                      options={[
+                        { value: 'line', label: 'LINE' },
+                        { value: 'grid', label: 'GRID' },
+                        { value: 'radial', label: 'RADIAL' },
+                      ]}
+                      value={selectedLayer.arrayPattern}
+                      onChange={(v) => applySelectedPatch<SourceLayer>({ arrayPattern: v as SourceLayer['arrayPattern'] })}
+                    />
+                    <ButtonGroup
+                      label="Motif"
+                      options={[
+                        { value: 'disc', label: 'DISC' },
+                        { value: 'bar', label: 'BAR' },
+                        { value: 'diamond', label: 'DIAMOND' },
+                      ]}
+                      value={selectedLayer.arrayShape}
+                      onChange={(v) => applySelectedPatch<SourceLayer>({ arrayShape: v as SourceLayer['arrayShape'] })}
+                    />
+                    <Slider label="Count" value={selectedLayer.arrayCount} min={2} max={18} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayCount: v })} />
+                    <Slider label="Rows" value={selectedLayer.arrayRows} min={1} max={12} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRows: v })} />
+                    <Slider label="Gap" value={selectedLayer.arrayGap} min={12} max={96} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayGap: v })} />
+                    <Slider label="Size" value={selectedLayer.arraySize} min={8} max={64} onChange={(v) => applySelectedPatch<SourceLayer>({ arraySize: v })} />
+                    <Slider label="Radius" value={selectedLayer.arrayRadius} min={16} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRadius: v })} />
+                    <Slider label="Jitter" value={selectedLayer.arrayJitter} min={0} max={36} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayJitter: v })} />
+                  </Section>
+                )}
+              </>
             )}
 
             {selectedLayer.kind === 'effect' && (

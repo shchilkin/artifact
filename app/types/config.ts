@@ -7,8 +7,18 @@ export const ALL_EMOJIS = [
 export const FONT_NAMES = ['MONO', 'DISPLAY', 'VT323', 'SPECIAL'] as const;
 export type FontName = typeof FONT_NAMES[number];
 
-export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill'] as const;
+export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
 export type LayerKind = typeof LAYER_KINDS[number];
+export const SOURCE_TYPES = ['primitive', 'noise', 'array'] as const;
+export type SourceType = typeof SOURCE_TYPES[number];
+export const PRIMITIVE_SHAPES = ['sphere', 'cube', 'cylinder'] as const;
+export type PrimitiveShape = typeof PRIMITIVE_SHAPES[number];
+export const NOISE_TYPES = ['value', 'clouds', 'cells'] as const;
+export type NoiseType = typeof NOISE_TYPES[number];
+export const ARRAY_PATTERNS = ['line', 'grid', 'radial'] as const;
+export type ArrayPattern = typeof ARRAY_PATTERNS[number];
+export const ARRAY_SHAPES = ['disc', 'bar', 'diamond'] as const;
+export type ArrayShape = typeof ARRAY_SHAPES[number];
 
 interface BaseLayer {
   id: string;
@@ -63,6 +73,51 @@ export interface FillLayer extends BaseLayer {
   opacity: number;
   blendMode: string;
 }
+
+interface ProceduralLayerBase extends BaseLayer {
+  opacity: number;
+  blendMode: string;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  color: string;
+  accentColor: string;
+  primitiveShape: PrimitiveShape;
+  primitiveShading: 'smooth' | 'flat';
+  tiltX: number;
+  tiltY: number;
+  tiltZ: number;
+  primitiveDepth: number;
+  noiseType: NoiseType;
+  noiseScale: number;
+  noiseDetail: number;
+  noiseContrast: number;
+  noiseBalance: number;
+  arrayPattern: ArrayPattern;
+  arrayShape: ArrayShape;
+  arrayCount: number;
+  arrayRows: number;
+  arrayGap: number;
+  arrayRadius: number;
+  arraySize: number;
+  arrayJitter: number;
+}
+
+export interface PrimitiveLayer extends ProceduralLayerBase {
+  kind: 'primitive';
+}
+
+export interface NoiseLayer extends ProceduralLayerBase {
+  kind: 'noise';
+}
+
+export interface ArrayLayer extends ProceduralLayerBase {
+  kind: 'array';
+}
+
+export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer;
 
 export type EffectPreset =
   | 'rays'
@@ -191,7 +246,7 @@ export interface EffectLayer extends BaseLayer {
   speedLines: number;
 }
 
-export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
+export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer | PrimitiveLayer | NoiseLayer | ArrayLayer;
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
 
@@ -420,6 +475,50 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
     blendMode: 'normal',
     ...partial,
   };
+}
+
+type SourceLayerPartial = Partial<Omit<ProceduralLayerBase, 'kind'>>;
+
+export function makeSourceLayer(
+  sourceType: SourceType = 'primitive',
+  partial: SourceLayerPartial = {},
+): SourceLayer {
+  return {
+    id: genId(),
+    name: sourceType === 'primitive' ? 'Primitive' : sourceType === 'noise' ? 'Noise' : 'Array',
+    visible: true,
+    locked: false,
+    kind: sourceType,
+    opacity: 100,
+    blendMode: 'normal',
+    x: 0.5,
+    y: 0.5,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0,
+    color: '#ff5a36',
+    accentColor: '#9d5cff',
+    primitiveShape: 'sphere',
+    primitiveShading: 'smooth',
+    tiltX: -18,
+    tiltY: 28,
+    tiltZ: 0,
+    primitiveDepth: 48,
+    noiseType: 'clouds',
+    noiseScale: 28,
+    noiseDetail: 4,
+    noiseContrast: 52,
+    noiseBalance: 50,
+    arrayPattern: 'grid',
+    arrayShape: 'disc',
+    arrayCount: 6,
+    arrayRows: 4,
+    arrayGap: 30,
+    arrayRadius: 120,
+    arraySize: 36,
+    arrayJitter: 0,
+    ...partial,
+  } as SourceLayer;
 }
 
 export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer {
