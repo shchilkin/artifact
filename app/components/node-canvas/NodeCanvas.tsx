@@ -29,7 +29,8 @@ import './node-canvas.css';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { defaultMediaViewState, type MediaViewState } from '../NodeGalleryViewState';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
-import { defaultPrimitiveViewportState, type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
+import { defaultPrimitiveViewportState, type PrimitiveRenderMode } from '../PrimitiveViewportState';
+import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
 import type { CanvasDocument, GraphEdge, Layer } from '../../types/config';
 import {
   EXPORT_NODE_ID,
@@ -105,12 +106,18 @@ export function NodeCanvas({
   const galleryModalRef = useRef<HTMLDivElement>(null);
   const galleryCloseButtonRef = useRef<HTMLButtonElement>(null);
   const galleryReturnFocusRef = useRef<HTMLElement | null>(null);
-  const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>(
-    () => initialPrimitiveViewStates ?? {},
-  );
+  const {
+    primitiveViewStates,
+    primitiveViewportLockActive,
+    updatePrimitiveView,
+    setPrimitiveViewportActive,
+  } = usePrimitiveCameraState({
+    initialPrimitiveViewStates,
+    layers: doc.layers,
+    onPrimitiveViewStatesChange,
+  });
   const primitiveRenderModes = useMemo<Record<string, PrimitiveRenderMode>>(() => ({}), []);
   const [mediaViewStates, setMediaViewStates] = useState<Record<string, MediaViewState>>({});
-  const [activePrimitiveViewportId, setActivePrimitiveViewportId] = useState<string | null>(null);
 
   const [machineState, send] = useMachine(nodeCanvasMachine, {
     input: { selectedNodeIds: selectedLayerId ? [selectedLayerId] : [] },
@@ -170,40 +177,6 @@ export function NodeCanvas({
     if (!layer || !isGalleryEligibleLayer(layer)) return;
     send({ type: 'GALLERY_OPENED', nodeId: id });
   }, [doc.layers, send]);
-
-  const updatePrimitiveView = useCallback((id: string, viewState: PrimitiveViewportState) => {
-    setPrimitiveViewStates((current) => {
-      const previous = current[id];
-      if (
-        previous
-        && previous.rotationX === viewState.rotationX
-        && previous.rotationY === viewState.rotationY
-        && previous.zoom === viewState.zoom
-        && previous.panX === viewState.panX
-        && previous.panY === viewState.panY
-        && (previous.locked ?? false) === (viewState.locked ?? false)
-      ) {
-        return current;
-      }
-      return { ...current, [id]: viewState };
-    });
-  }, []);
-
-  const setPrimitiveViewportActive = useCallback((id: string, active: boolean) => {
-    setActivePrimitiveViewportId((current) => {
-      if (active) {
-        return current === id ? current : id;
-      }
-      return current === id ? null : current;
-    });
-  }, []);
-
-  const primitiveViewportLockActive = activePrimitiveViewportId !== null
-    && doc.layers.some((layer) => layer.id === activePrimitiveViewportId && layer.kind === 'primitive');
-
-  useEffect(() => {
-    onPrimitiveViewStatesChange?.(primitiveViewStates);
-  }, [onPrimitiveViewStatesChange, primitiveViewStates]);
 
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(() => ({
     doc,
