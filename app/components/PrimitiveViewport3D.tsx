@@ -59,6 +59,7 @@ export function PrimitiveViewport3D({
 
   // Stable refs so native listeners never close over stale props
   const modeRef = useRef(mode);
+  const interactiveRef = useRef(interactive);
   const onViewStateChangeRef = useRef(onViewStateChange);
   const layerTiltZRef = useRef(layer.tiltZ);
   const lockedRef = useRef(!!viewState.locked);
@@ -104,9 +105,15 @@ export function PrimitiveViewport3D({
 
   useLayoutEffect(() => {
     modeRef.current = mode;
+    interactiveRef.current = interactive;
     onViewStateChangeRef.current = onViewStateChange;
     layerTiltZRef.current = layer.tiltZ;
-  }, [mode, onViewStateChange, layer.tiltZ]);
+    if (!interactive) {
+      isHoveredRef.current = false;
+      dragStateRef.current = null;
+      unlockRFPane();
+    }
+  }, [mode, interactive, onViewStateChange, layer.tiltZ]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -207,6 +214,7 @@ export function PrimitiveViewport3D({
     const commit = () => onViewStateChangeRef.current({ ...viewStateRef.current });
 
     const onPointerDown = (e: PointerEvent) => {
+      if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
@@ -226,6 +234,7 @@ export function PrimitiveViewport3D({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (!interactiveRef.current) return;
       const drag = dragStateRef.current;
       if (!inside(e) && !drag) return;
       if (!drag && lockedRef.current) return;
@@ -251,6 +260,7 @@ export function PrimitiveViewport3D({
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      if (!interactiveRef.current) return;
       const drag = dragStateRef.current;
       if (!inside(e) && !drag) return;
       e.stopPropagation();
@@ -263,6 +273,7 @@ export function PrimitiveViewport3D({
     };
 
     const onWheel = (e: WheelEvent) => {
+      if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
@@ -277,6 +288,7 @@ export function PrimitiveViewport3D({
     };
 
     const onContextMenu = (e: MouseEvent) => {
+      if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e)) return;
       e.stopPropagation();
@@ -285,6 +297,7 @@ export function PrimitiveViewport3D({
     };
 
     const stopIfInside = (e: Event) => {
+      if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
