@@ -37,6 +37,7 @@ interface Props {
   onReorderLayers: (layers: Layer[]) => void;
   onDuplicateLayer: (id: string) => void;
   mobileActionBar?: React.ReactNode;
+  modeSwitcher?: React.ReactNode;
 }
 
 interface SliderProps {
@@ -190,6 +191,7 @@ export function Sidebar({
   onReorderLayers,
   onDuplicateLayer,
   mobileActionBar,
+  modeSwitcher,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
   const [infoState, setInfoState] = useState<{ key: string; rect: DOMRect; sidebarRight: number } | null>(null);
@@ -296,6 +298,7 @@ export function Sidebar({
           onRenameLayer={(id, name) =>
             onDocChange({ ...doc, layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, name } : layer)) })
           }
+          modeSwitcher={modeSwitcher}
         />
       </div>
 
@@ -650,72 +653,74 @@ export function Sidebar({
                 />
               </Section>
 
-              <Section title="PLACEMENT" defaultOpen>
-                <Slider
-                  label="X Position"
-                  value={Math.round(selectedLayer.x * 100)}
-                  min={FIELD_RANGES.x.min}
-                  max={FIELD_RANGES.x.max}
-                  onChange={(v) => applySelectedPatch<SourceLayer>({ x: v / 100 })}
-                />
-                <Slider
-                  label="Y Position"
-                  value={Math.round(selectedLayer.y * 100)}
-                  min={FIELD_RANGES.y.min}
-                  max={FIELD_RANGES.y.max}
-                  onChange={(v) => applySelectedPatch<SourceLayer>({ y: v / 100 })}
-                />
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    {scaleLocked ? (
-                      <Slider
-                        label="Scale"
-                        value={Math.round(selectedLayer.scaleX * 100)}
-                        min={FIELD_RANGES.scaleX.min}
-                        max={FIELD_RANGES.scaleX.max}
-                        onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100, scaleY: v / 100 })}
-                      />
-                    ) : (
-                      <>
+              {selectedLayer.kind !== 'primitive' && (
+                <Section title="PLACEMENT" defaultOpen>
+                  <Slider
+                    label="X Position"
+                    value={Math.round(selectedLayer.x * 100)}
+                    min={FIELD_RANGES.x.min}
+                    max={FIELD_RANGES.x.max}
+                    onChange={(v) => applySelectedPatch<SourceLayer>({ x: v / 100 })}
+                  />
+                  <Slider
+                    label="Y Position"
+                    value={Math.round(selectedLayer.y * 100)}
+                    min={FIELD_RANGES.y.min}
+                    max={FIELD_RANGES.y.max}
+                    onChange={(v) => applySelectedPatch<SourceLayer>({ y: v / 100 })}
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      {scaleLocked ? (
                         <Slider
-                          label="Scale X"
+                          label="Scale"
                           value={Math.round(selectedLayer.scaleX * 100)}
                           min={FIELD_RANGES.scaleX.min}
                           max={FIELD_RANGES.scaleX.max}
-                          onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100 })}
+                          onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100, scaleY: v / 100 })}
                         />
-                        <Slider
-                          label="Scale Y"
-                          value={Math.round(selectedLayer.scaleY * 100)}
-                          min={FIELD_RANGES.scaleY.min}
-                          max={FIELD_RANGES.scaleY.max}
-                          onChange={(v) => applySelectedPatch<SourceLayer>({ scaleY: v / 100 })}
-                        />
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <Slider
+                            label="Scale X"
+                            value={Math.round(selectedLayer.scaleX * 100)}
+                            min={FIELD_RANGES.scaleX.min}
+                            max={FIELD_RANGES.scaleX.max}
+                            onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100 })}
+                          />
+                          <Slider
+                            label="Scale Y"
+                            value={Math.round(selectedLayer.scaleY * 100)}
+                            min={FIELD_RANGES.scaleY.min}
+                            max={FIELD_RANGES.scaleY.max}
+                            onChange={(v) => applySelectedPatch<SourceLayer>({ scaleY: v / 100 })}
+                          />
+                        </>
+                      )}
+                    </div>
+                    <button
+                      className={`flex-shrink-0 w-11 h-11 flex items-center justify-center border text-[11px] bg-transparent cursor-pointer transition-colors ${
+                        scaleLocked
+                          ? 'border-accent text-accent'
+                          : 'border-border text-dim hover:border-accent hover:text-accent'
+                      }`}
+                      onClick={() => setScaleLocked((v) => !v)}
+                      title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+                      aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
+                      aria-pressed={scaleLocked}
+                    >
+                      {scaleLocked ? '⛓' : '⛓‍💥'}
+                    </button>
                   </div>
-                  <button
-                    className={`flex-shrink-0 w-11 h-11 flex items-center justify-center border text-[11px] bg-transparent cursor-pointer transition-colors ${
-                      scaleLocked
-                        ? 'border-accent text-accent'
-                        : 'border-border text-dim hover:border-accent hover:text-accent'
-                    }`}
-                    onClick={() => setScaleLocked((v) => !v)}
-                    title={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-                    aria-label={scaleLocked ? 'Unlock X/Y scale' : 'Lock X/Y scale'}
-                    aria-pressed={scaleLocked}
-                  >
-                    {scaleLocked ? '⛓' : '⛓‍💥'}
-                  </button>
-                </div>
-                <Slider
-                  label="Rotation"
-                  value={selectedLayer.rotation}
-                  min={FIELD_RANGES.rotation.min}
-                  max={FIELD_RANGES.rotation.max}
-                  onChange={(v) => applySelectedPatch<SourceLayer>({ rotation: v })}
-                />
-              </Section>
+                  <Slider
+                    label="Rotation"
+                    value={selectedLayer.rotation}
+                    min={FIELD_RANGES.rotation.min}
+                    max={FIELD_RANGES.rotation.max}
+                    onChange={(v) => applySelectedPatch<SourceLayer>({ rotation: v })}
+                  />
+                </Section>
+              )}
 
               {selectedLayer.kind === 'primitive' && (
                 <Section title="PRIMITIVE" defaultOpen>

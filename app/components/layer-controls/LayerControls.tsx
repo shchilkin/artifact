@@ -295,13 +295,17 @@ export function LayerControls({
   }
 
   if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
+    const hasPlacementSection = layer.kind !== 'primitive';
+
     return (
       <div className={sectionClassName}>
         <InspectorSection
           title="Content"
           summary={sourceSummary(layer)}
           open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
+          onToggle={() =>
+            setOpenSection((s) => (s === 'content' ? (hasPlacementSection ? 'placement' : 'structure') : 'content'))
+          }
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
           <InspectorColorInput
@@ -315,38 +319,40 @@ export function LayerControls({
             onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
           />
         </InspectorSection>
-        <InspectorSection
-          title="Placement"
-          summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-          open={openSection === 'placement'}
-          onToggle={() => setOpenSection((s) => (s === 'placement' ? 'structure' : 'placement'))}
-        >
-          <InspectorSlider
-            label="Horizontal"
-            value={Math.round(layer.x * 100)}
-            {...R.x}
-            onChange={(v) => onChange({ x: v / 100 } as Partial<SourceLayer>)}
-          />
-          <InspectorSlider
-            label="Vertical"
-            value={Math.round(layer.y * 100)}
-            {...R.y}
-            onChange={(v) => onChange({ y: v / 100 } as Partial<SourceLayer>)}
-          />
-          <ScaleLockRow
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
-            locked={scaleLocked}
-            onLockChange={setScaleLocked}
-            onChange={(patch) => onChange(patch as Partial<SourceLayer>)}
-          />
-          <InspectorSlider
-            label="Rotation"
-            value={Math.round(layer.rotation)}
-            {...R.rotation}
-            onChange={(v) => onChange({ rotation: v } as Partial<SourceLayer>)}
-          />
-        </InspectorSection>
+        {hasPlacementSection && (
+          <InspectorSection
+            title="Placement"
+            summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
+            open={openSection === 'placement'}
+            onToggle={() => setOpenSection((s) => (s === 'placement' ? 'structure' : 'placement'))}
+          >
+            <InspectorSlider
+              label="Horizontal"
+              value={Math.round(layer.x * 100)}
+              {...R.x}
+              onChange={(v) => onChange({ x: v / 100 } as Partial<SourceLayer>)}
+            />
+            <InspectorSlider
+              label="Vertical"
+              value={Math.round(layer.y * 100)}
+              {...R.y}
+              onChange={(v) => onChange({ y: v / 100 } as Partial<SourceLayer>)}
+            />
+            <ScaleLockRow
+              scaleX={layer.scaleX}
+              scaleY={layer.scaleY}
+              locked={scaleLocked}
+              onLockChange={setScaleLocked}
+              onChange={(patch) => onChange(patch as Partial<SourceLayer>)}
+            />
+            <InspectorSlider
+              label="Rotation"
+              value={Math.round(layer.rotation)}
+              {...R.rotation}
+              onChange={(v) => onChange({ rotation: v } as Partial<SourceLayer>)}
+            />
+          </InspectorSection>
+        )}
         <InspectorSection
           title={layer.kind === 'primitive' ? 'Structure' : 'Pattern'}
           summary={structureSummary(layer)}

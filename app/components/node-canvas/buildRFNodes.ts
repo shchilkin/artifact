@@ -24,6 +24,7 @@ export function buildRFNodes(
       id: layer.id,
       type: 'layerNode',
       position: pos,
+      selected: selectedNodeIds.has(layer.id),
       data: {
         layer,
         previewTargetId: layer.id,
@@ -42,6 +43,7 @@ export function buildRFNodes(
       id: mn.id,
       type: 'mergeNode',
       position: pos,
+      selected: selectedNodeIds.has(mn.id),
       data: {
         mergeNode: mn,
         previewTargetId: mn.id,
@@ -58,6 +60,7 @@ export function buildRFNodes(
       id: cn.id,
       type: 'colorNode',
       position: pos,
+      selected: selectedNodeIds.has(cn.id),
       data: {
         colorNode: cn,
         previewTargetId: cn.id,
@@ -76,6 +79,7 @@ export function buildRFNodes(
     id: EXPORT_NODE_ID,
     type: 'exportNode',
     position: exportPos,
+    selected: selectedNodeIds.has(EXPORT_NODE_ID),
     data: {
       exportConfig: doc.export,
       aspect: doc.global.aspect,

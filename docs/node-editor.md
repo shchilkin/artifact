@@ -234,6 +234,7 @@ Before merging node editor changes:
 
 - Do not make node-local gestures write to the document every frame.
 - Do not add side-panel camera sliders for primitive orientation.
+- Do not reintroduce primitive placement controls; primitive framing belongs to the node viewport/camera path.
 - Do not let right-click viewport pan also open the node context menu.
 - Do not use scene-level floating controls for node-local state.
 - Do not create new node data that cannot render through `CanvasDocument` and `CanvasGraph`.

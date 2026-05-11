@@ -236,8 +236,50 @@ input[type="range"] {
   z-index: 30;
 }
 
-.floating-view-toggle > div {
-  margin: 0;
+.view-mode-toggle {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.view-mode-toggle-sidebar {
+  align-self: stretch;
+}
+
+.view-mode-toggle-sidebar button {
+  min-width: 76px;
+}
+
+.layer-panel-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: var(--touch);
+  border-bottom: 1px solid var(--border);
+}
+
+.layer-add-button {
+  min-height: var(--touch);
+  padding: 0 14px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition:
+    background 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.layer-add-button:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
 }
 
 /* Desktop bottom bar is inside .main — hidden on mobile */

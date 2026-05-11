@@ -42,7 +42,15 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 
 type ViewMode = 'layers' | 'nodes';
 
-function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
+function ViewModeToggle({
+  value,
+  onChange,
+  variant = 'floating',
+}: {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+  variant?: 'floating' | 'sidebar';
+}) {
   const buttonStyle = (active: boolean, side: 'left' | 'right'): CSSProperties => ({
     minHeight: 'var(--touch)',
     padding: '0 16px',
@@ -60,7 +68,7 @@ function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode:
   });
 
   return (
-    <div className="flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
+    <div className={`view-mode-toggle view-mode-toggle-${variant}`}>
       <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>
         layers
       </button>
@@ -195,9 +203,11 @@ export default function Generator() {
           }}
         >
           <h1 className="sr-only">Album Cover Generator</h1>
-          <div className="floating-view-toggle">
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
-          </div>
+          {viewMode === 'nodes' && (
+            <div className="floating-view-toggle">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          )}
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
@@ -256,6 +266,7 @@ export default function Generator() {
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
+            modeSwitcher={<ViewModeToggle value={viewMode} onChange={setViewMode} variant="sidebar" />}
           />
         )}
 

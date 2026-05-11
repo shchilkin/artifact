@@ -13,6 +13,7 @@ interface Props {
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
+  modeSwitcher?: React.ReactNode;
 }
 
 const KIND_ICONS: Record<LayerKind, string> = {
@@ -37,6 +38,7 @@ export function LayerPanel({
   onToggleVisible,
   onDuplicateLayer,
   onRenameLayer,
+  modeSwitcher,
 }: Props) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -82,14 +84,12 @@ export function LayerPanel({
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      <div className="flex items-center justify-between px-3.5 min-h-11 border-b border-border flex-shrink-0">
-        <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
+      <div className="layer-panel-header">
+        {modeSwitcher ?? (
+          <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
+        )}
         <div ref={addButtonRef} className="relative">
-          <button
-            className="px-2 py-1 font-mono text-[10px] border border-border text-dim hover:text-accent hover:border-accent cursor-pointer bg-transparent"
-            onClick={() => setShowAddMenu((prev) => !prev)}
-            aria-label="Add layer"
-          >
+          <button className="layer-add-button" onClick={() => setShowAddMenu((prev) => !prev)} aria-label="Add layer">
             + ADD
           </button>
           {showAddMenu && (
