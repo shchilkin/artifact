@@ -27,7 +27,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
 
   // Layers with an explicit scale — scroll over the node to adjust it locally.
   // `nowheel` tells React Flow not to zoom the canvas; we handle the event ourselves.
-  const isScalable = layer.kind === 'text' || layer.kind === 'image' || layer.kind === 'primitive';
+  const isScalable = layer.kind === 'text' || layer.kind === 'image';
   const handleLocalScale = useCallback((e: React.WheelEvent) => {
     e.stopPropagation();
     if (!('scaleX' in layer)) return;

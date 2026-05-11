@@ -241,7 +241,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
     return () => clearTimeout(debounceRef.current);
   }, [imageCache, previewKey, previewSize.height, previewSize.width, previewTargetId]);
 
-  const canvasOpacity = ready ? 1 : hasRendered ? 0.5 : 0;
+  const canvasOpacity = ready ? 1 : hasRendered ? 1 : 0;
   const showSkeleton = !ready && !hasRendered;
 
   return (
