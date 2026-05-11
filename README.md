@@ -176,9 +176,13 @@ covers (
 npm install
 npm run dev        # favicon generation + React Router dev server
 npm run build      # favicon generation + production build
+npm run build:ci   # production build without regenerating favicon
+npm run format     # Biome format + import organization
+npm run format:check
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # vitest run (all tests)
+npm run check      # format check + lint + typecheck + tests
 ```
 
 Deploys to Vercel via `react-router build` → `build/client/`.
@@ -192,7 +196,7 @@ Deploys to Vercel via `react-router build` → `build/client/`.
 | [`docs/node-editor.md`](docs/node-editor.md) | Node canvas interaction model and state machine |
 | [`docs/app-structure-guidelines.md`](docs/app-structure-guidelines.md) | Component boundaries, state ownership, and refactor rules |
 | [`docs/testing.md`](docs/testing.md) | Testing strategy: unit, render parity, GPU smoke tests |
-| [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased refactor plan (Phases 1–9) |
+| [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
 
 ## Project structure
 
