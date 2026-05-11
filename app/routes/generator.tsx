@@ -1,18 +1,18 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties } from 'react';
-import { Link } from 'react-router';
 import { AnimatePresence } from 'framer-motion';
+import { type CSSProperties, lazy, Suspense, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { PresetsPanel } from '../components/PresetsPanel';
+import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
 import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
-import { getPreviewDims, type AspectRatio } from '../types/config';
-import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import { type AspectRatio, getPreviewDims } from '../types/config';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -32,7 +32,9 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
         }}
       >
         <span>Canvas error: could not render layers.</span>
-        <span style={{ opacity: 0.5 }}>{previewWidth} × {previewHeight}</span>
+        <span style={{ opacity: 0.5 }}>
+          {previewWidth} × {previewHeight}
+        </span>
       </div>
     </div>
   );
@@ -59,8 +61,12 @@ function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode:
 
   return (
     <div className="flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
-      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>layers</button>
-      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>nodes</button>
+      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>
+        layers
+      </button>
+      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>
+        nodes
+      </button>
     </div>
   );
 }
@@ -105,19 +111,12 @@ export default function Generator() {
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
   const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
-  const {
-    showPresets,
-    presets,
-    togglePresets,
-    closePresets,
-    handleLoadPreset,
-    saveCurrentPreset,
-    deletePreset,
-  } = useGeneratorPresetsController({
-    docRef,
-    imageCache,
-    onLoadDocument: loadDocument,
-  });
+  const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
+    useGeneratorPresetsController({
+      docRef,
+      imageCache,
+      onLoadDocument: loadDocument,
+    });
 
   const bottomBarProps = {
     seed: doc.global.seed,
@@ -157,13 +156,10 @@ export default function Generator() {
         >
           <span>
             Loaded from{' '}
-            <Link
-              to="/docs/nodes"
-              style={{ color: 'var(--accent)', textDecoration: 'none' }}
-            >
+            <Link to="/docs/nodes" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
               docs
-            </Link>
-            {' '}— customize or randomize to make it yours.
+            </Link>{' '}
+            — customize or randomize to make it yours.
           </span>
           <button
             type="button"

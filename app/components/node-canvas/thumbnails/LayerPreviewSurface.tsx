@@ -2,13 +2,16 @@ import { memo, useMemo, useRef, useState } from 'react';
 
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
-import type { LayerNodeData } from '../types';
 import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerTransformDraft';
+import type { LayerNodeData } from '../types';
 import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
 
-type LayerPreviewSurfaceProps = Pick<LayerNodeData, 'layer' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode' | 'selected'> & {
+type LayerPreviewSurfaceProps = Pick<
+  LayerNodeData,
+  'layer' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode' | 'selected'
+> & {
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
 };
@@ -132,9 +135,10 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const { openGallery } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const mediaBgPreviewTargetId = useMemo(
-    () => layer.kind === 'text' || layer.kind === 'image'
-      ? graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null
-      : null,
+    () =>
+      layer.kind === 'text' || layer.kind === 'image'
+        ? (graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null)
+        : null,
     [graph.edges, layer.id, layer.kind],
   );
 

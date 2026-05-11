@@ -4,13 +4,8 @@ import type { ThumbProps } from '../types';
 import { useNodeThumbnailRender } from './useNodeThumbnailRender';
 
 export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
-  const {
-    canvasRef,
-    isExportPreview,
-    previewSize,
-    canvasOpacity,
-    showSkeleton,
-  } = useNodeThumbnailRender(previewTargetId);
+  const { canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton } =
+    useNodeThumbnailRender(previewTargetId);
 
   return (
     <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
@@ -25,9 +20,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
           className="node-thumbnail-canvas"
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
-        {showSkeleton && (
-          <div className="node-thumbnail-skeleton" />
-        )}
+        {showSkeleton && <div className="node-thumbnail-skeleton" />}
       </div>
     </div>
   );

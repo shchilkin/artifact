@@ -20,8 +20,6 @@ export function logThumbnailInvalidation(event: ThumbnailInvalidationEvent): voi
   if (import.meta.env.DEV) {
     const { cause, targetId, itemId, itemKind } = event;
     const tag = itemKind ? `${itemKind}/${itemId}` : itemId;
-    console.debug(
-      `[thumbnail:${cause}] target=${targetId}${tag ? ` item=${tag}` : ''}`,
-    );
+    console.debug(`[thumbnail:${cause}] target=${targetId}${tag ? ` item=${tag}` : ''}`);
   }
 }

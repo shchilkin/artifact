@@ -1,9 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-
-import { EffectInfoPopup } from '../../EffectInfoPopup';
 import type { EffectLayer, EffectPreset } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
+import { EffectInfoPopup } from '../../EffectInfoPopup';
 import {
   BLEND_OPTIONS,
   COLOR_PRESETS,
@@ -95,31 +94,38 @@ export function EffectInspector({
     closeTimerRef.current = setTimeout(() => setInfoState(null), 150);
   }, []);
   const showAllSections = !layer.preset;
-  const showSection = (presets: readonly EffectPreset[]) => showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
-  const showControl = (presets: readonly EffectPreset[]) => showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
+  const showSection = (presets: readonly EffectPreset[]) =>
+    showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
+  const showControl = (presets: readonly EffectPreset[]) =>
+    showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
       <div className="node-badge-row">
         <span className="node-badge">
-          {layer.preset ? EFFECT_PRESETS[layer.preset]?.name ?? layer.preset : 'custom'}
+          {layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset) : 'custom'}
         </span>
-        {showAllSections && (
-          <span className="node-badge node-badge-accent">
-            combined FX
-          </span>
-        )}
+        {showAllSections && <span className="node-badge node-badge-accent">combined FX</span>}
       </div>
 
       <InspectorSection
         title="Node"
         summary={effectSectionSummary(layer, 'node')}
         open={openSection === 'node'}
-        onToggle={() => setOpenSection((current) => current === 'node' ? null : 'node')}
+        onToggle={() => setOpenSection((current) => (current === 'node' ? null : 'node'))}
       >
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
-        <InspectorToggle label="Use source alpha" checked={layer.maskAlpha} onChange={(value) => onChange({ maskAlpha: value })} />
-        <InspectorSelect label="Blend" value={layer.blendMode ?? 'normal'} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
+        <InspectorToggle
+          label="Use source alpha"
+          checked={layer.maskAlpha}
+          onChange={(value) => onChange({ maskAlpha: value })}
+        />
+        <InspectorSelect
+          label="Blend"
+          value={layer.blendMode ?? 'normal'}
+          options={BLEND_OPTIONS}
+          onChange={(value) => onChange({ blendMode: value })}
+        />
       </InspectorSection>
 
       {showSection(RAYS_PRESETS) && (
@@ -127,17 +133,61 @@ export function EffectInspector({
           title="Light Rays"
           summary={effectSectionSummary(layer, 'rays')}
           open={openSection === 'rays'}
-          onToggle={() => setOpenSection((current) => current === 'rays' ? null : 'rays')}
+          onToggle={() => setOpenSection((current) => (current === 'rays' ? null : 'rays'))}
         >
           {showControl(['rays']) && (
             <>
-              <InspectorColorInput label="Ray Color" value={layer.rayColor} onChange={(value) => onChange({ rayColor: value })} />
-              <InspectorSlider label="Intensity" value={layer.rayInt} min={0} max={100} effectKey="rayInt" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rayInt: value })} />
-              <InspectorSlider label="Count" value={layer.rays} min={0} max={32} effectKey="rays" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rays: value })} />
+              <InspectorColorInput
+                label="Ray Color"
+                value={layer.rayColor}
+                onChange={(value) => onChange({ rayColor: value })}
+              />
+              <InspectorSlider
+                label="Intensity"
+                value={layer.rayInt}
+                min={0}
+                max={100}
+                effectKey="rayInt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ rayInt: value })}
+              />
+              <InspectorSlider
+                label="Count"
+                value={layer.rays}
+                min={0}
+                max={32}
+                effectKey="rays"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ rays: value })}
+              />
             </>
           )}
-          {showControl(['bloom']) && <InspectorSlider label="Bloom" value={layer.bloom} min={0} max={100} effectKey="bloom" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ bloom: value })} />}
-          {showControl(['filmBurn']) && <InspectorSlider label="Film Burn" value={layer.filmBurn} min={0} max={100} effectKey="filmBurn" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ filmBurn: value })} />}
+          {showControl(['bloom']) && (
+            <InspectorSlider
+              label="Bloom"
+              value={layer.bloom}
+              min={0}
+              max={100}
+              effectKey="bloom"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ bloom: value })}
+            />
+          )}
+          {showControl(['filmBurn']) && (
+            <InspectorSlider
+              label="Film Burn"
+              value={layer.filmBurn}
+              min={0}
+              max={100}
+              effectKey="filmBurn"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ filmBurn: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -146,12 +196,56 @@ export function EffectInspector({
           title="Glitch"
           summary={effectSectionSummary(layer, 'glitch')}
           open={openSection === 'glitch'}
-          onToggle={() => setOpenSection((current) => current === 'glitch' ? null : 'glitch')}
+          onToggle={() => setOpenSection((current) => (current === 'glitch' ? null : 'glitch'))}
         >
-          {showControl(['glitch']) && <InspectorSlider label="VHS Streaks" value={layer.glitch} min={0} max={24} effectKey="glitch" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ glitch: value })} />}
-          {showControl(['rgbSplit']) && <InspectorSlider label="Chromatic" value={layer.rgbSplit} min={0} max={15} effectKey="rgbSplit" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rgbSplit: value })} />}
-          {showControl(['interlace']) && <InspectorSlider label="Interlace" value={layer.interlace} min={0} max={100} effectKey="interlace" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ interlace: value })} />}
-          {showControl(['dataMosh']) && <InspectorSlider label="Data Mosh" value={layer.dataMosh} min={0} max={100} effectKey="dataMosh" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ dataMosh: value })} />}
+          {showControl(['glitch']) && (
+            <InspectorSlider
+              label="VHS Streaks"
+              value={layer.glitch}
+              min={0}
+              max={24}
+              effectKey="glitch"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ glitch: value })}
+            />
+          )}
+          {showControl(['rgbSplit']) && (
+            <InspectorSlider
+              label="Chromatic"
+              value={layer.rgbSplit}
+              min={0}
+              max={15}
+              effectKey="rgbSplit"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ rgbSplit: value })}
+            />
+          )}
+          {showControl(['interlace']) && (
+            <InspectorSlider
+              label="Interlace"
+              value={layer.interlace}
+              min={0}
+              max={100}
+              effectKey="interlace"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ interlace: value })}
+            />
+          )}
+          {showControl(['dataMosh']) && (
+            <InspectorSlider
+              label="Data Mosh"
+              value={layer.dataMosh}
+              min={0}
+              max={100}
+              effectKey="dataMosh"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ dataMosh: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -160,10 +254,32 @@ export function EffectInspector({
           title="Texture"
           summary={effectSectionSummary(layer, 'texture')}
           open={openSection === 'texture'}
-          onToggle={() => setOpenSection((current) => current === 'texture' ? null : 'texture')}
+          onToggle={() => setOpenSection((current) => (current === 'texture' ? null : 'texture'))}
         >
-          {showControl(['grain']) && <InspectorSlider label="Grain" value={layer.grain} min={0} max={70} effectKey="grain" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ grain: value })} />}
-          {showControl(['scanlines']) && <InspectorSlider label="Scanlines" value={layer.scanlines} min={0} max={50} effectKey="scanlines" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ scanlines: value })} />}
+          {showControl(['grain']) && (
+            <InspectorSlider
+              label="Grain"
+              value={layer.grain}
+              min={0}
+              max={70}
+              effectKey="grain"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ grain: value })}
+            />
+          )}
+          {showControl(['scanlines']) && (
+            <InspectorSlider
+              label="Scanlines"
+              value={layer.scanlines}
+              min={0}
+              max={50}
+              effectKey="scanlines"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ scanlines: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -172,10 +288,19 @@ export function EffectInspector({
           title="Tint"
           summary={effectSectionSummary(layer, 'tint')}
           open={openSection === 'tint'}
-          onToggle={() => setOpenSection((current) => current === 'tint' ? null : 'tint')}
+          onToggle={() => setOpenSection((current) => (current === 'tint' ? null : 'tint'))}
         >
           <InspectorColorInput label="Tint Color" value={layer.tint} onChange={(value) => onChange({ tint: value })} />
-          <InspectorSlider label="Opacity" value={layer.tintOp} min={0} max={80} effectKey="tintOp" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ tintOp: value })} />
+          <InspectorSlider
+            label="Opacity"
+            value={layer.tintOp}
+            min={0}
+            max={80}
+            effectKey="tintOp"
+            onInfoEnter={handleInfoEnter}
+            onInfoLeave={handleInfoLeave}
+            onChange={(value) => onChange({ tintOp: value })}
+          />
         </InspectorSection>
       )}
 
@@ -184,24 +309,104 @@ export function EffectInspector({
           title="Warp"
           summary={effectSectionSummary(layer, 'warp')}
           open={openSection === 'warp'}
-          onToggle={() => setOpenSection((current) => current === 'warp' ? null : 'warp')}
+          onToggle={() => setOpenSection((current) => (current === 'warp' ? null : 'warp'))}
         >
-          {showControl(['noiseWarp', 'warp']) && <InspectorSlider label="Noise Warp" value={layer.noiseWarp} min={0} max={100} effectKey="noiseWarp" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ noiseWarp: value })} />}
+          {showControl(['noiseWarp', 'warp']) && (
+            <InspectorSlider
+              label="Noise Warp"
+              value={layer.noiseWarp}
+              min={0}
+              max={100}
+              effectKey="noiseWarp"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ noiseWarp: value })}
+            />
+          )}
           {showControl(['morph', 'warp']) && (
             <>
-              <InspectorSlider label="Liquid Morph" value={layer.morphAmt} min={0} max={100} effectKey="morphAmt" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ morphAmt: value })} />
-              <InspectorSlider label="Morph Freq" value={layer.morphFreq} min={1} max={20} effectKey="morphFreq" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ morphFreq: value })} />
+              <InspectorSlider
+                label="Liquid Morph"
+                value={layer.morphAmt}
+                min={0}
+                max={100}
+                effectKey="morphAmt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ morphAmt: value })}
+              />
+              <InspectorSlider
+                label="Morph Freq"
+                value={layer.morphFreq}
+                min={1}
+                max={20}
+                effectKey="morphFreq"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ morphFreq: value })}
+              />
             </>
           )}
-          {showControl(['vortex', 'warp']) && <InspectorSlider label="Vortex" value={layer.vortex} min={0} max={100} effectKey="vortex" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ vortex: value })} />}
-          {showControl(['barrel', 'warp']) && <InspectorSlider label="Barrel" value={layer.barrel} min={0} max={100} effectKey="barrel" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ barrel: value })} />}
+          {showControl(['vortex', 'warp']) && (
+            <InspectorSlider
+              label="Vortex"
+              value={layer.vortex}
+              min={0}
+              max={100}
+              effectKey="vortex"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ vortex: value })}
+            />
+          )}
+          {showControl(['barrel', 'warp']) && (
+            <InspectorSlider
+              label="Barrel"
+              value={layer.barrel}
+              min={0}
+              max={100}
+              effectKey="barrel"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ barrel: value })}
+            />
+          )}
           {showControl(['tear', 'warp']) && (
             <>
-              <InspectorSlider label="Chunk Tear" value={layer.tearAmt} min={0} max={20} effectKey="tearAmt" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ tearAmt: value })} />
-              <InspectorSlider label="Tear Size" value={layer.tearSize} min={1} max={20} effectKey="tearSize" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ tearSize: value })} />
+              <InspectorSlider
+                label="Chunk Tear"
+                value={layer.tearAmt}
+                min={0}
+                max={20}
+                effectKey="tearAmt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ tearAmt: value })}
+              />
+              <InspectorSlider
+                label="Tear Size"
+                value={layer.tearSize}
+                min={1}
+                max={20}
+                effectKey="tearSize"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ tearSize: value })}
+              />
             </>
           )}
-          {showControl(['mirror', 'warp']) && <InspectorSlider label="Mirror" value={layer.mirror} min={0} max={3} effectKey="mirror" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ mirror: value })} />}
+          {showControl(['mirror', 'warp']) && (
+            <InspectorSlider
+              label="Mirror"
+              value={layer.mirror}
+              min={0}
+              max={3}
+              effectKey="mirror"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ mirror: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -210,13 +415,68 @@ export function EffectInspector({
           title="Color FX"
           summary={effectSectionSummary(layer, 'color')}
           open={openSection === 'color'}
-          onToggle={() => setOpenSection((current) => current === 'color' ? null : 'color')}
+          onToggle={() => setOpenSection((current) => (current === 'color' ? null : 'color'))}
         >
-          {showControl(['hueShift', 'color']) && <InspectorSlider label="Hue Shift" value={layer.hueShift} min={0} max={360} effectKey="hueShift" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ hueShift: value })} />}
-          {showControl(['rgbSplit']) && <InspectorSlider label="RGB Split" value={layer.rgbSplit} min={0} max={30} effectKey="rgbSplit" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ rgbSplit: value })} />}
-          {showControl(['vignette']) && <InspectorSlider label="Vignette" value={layer.vignette} min={0} max={100} effectKey="vignette" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ vignette: value })} />}
-          {showControl(['pixelate']) && <InspectorSlider label="Pixelate" value={layer.pixelate} min={0} max={20} effectKey="pixelate" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ pixelate: value })} />}
-          {showControl(['posterize', 'color']) && <InspectorSlider label="Posterize" value={layer.posterize} min={0} max={16} effectKey="posterize" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ posterize: value })} />}
+          {showControl(['hueShift', 'color']) && (
+            <InspectorSlider
+              label="Hue Shift"
+              value={layer.hueShift}
+              min={0}
+              max={360}
+              effectKey="hueShift"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ hueShift: value })}
+            />
+          )}
+          {showControl(['rgbSplit']) && (
+            <InspectorSlider
+              label="RGB Split"
+              value={layer.rgbSplit}
+              min={0}
+              max={30}
+              effectKey="rgbSplit"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ rgbSplit: value })}
+            />
+          )}
+          {showControl(['vignette']) && (
+            <InspectorSlider
+              label="Vignette"
+              value={layer.vignette}
+              min={0}
+              max={100}
+              effectKey="vignette"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ vignette: value })}
+            />
+          )}
+          {showControl(['pixelate']) && (
+            <InspectorSlider
+              label="Pixelate"
+              value={layer.pixelate}
+              min={0}
+              max={20}
+              effectKey="pixelate"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ pixelate: value })}
+            />
+          )}
+          {showControl(['posterize', 'color']) && (
+            <InspectorSlider
+              label="Posterize"
+              value={layer.posterize}
+              min={0}
+              max={16}
+              effectKey="posterize"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ posterize: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -225,34 +485,82 @@ export function EffectInspector({
           title="Riso"
           summary={effectSectionSummary(layer, 'riso')}
           open={openSection === 'riso'}
-          onToggle={() => setOpenSection((current) => current === 'riso' ? null : 'riso')}
+          onToggle={() => setOpenSection((current) => (current === 'riso' ? null : 'riso'))}
         >
           {showControl(['duotone', 'riso']) && (
             <>
-              <InspectorSlider label="Duotone" value={layer.duotone} min={0} max={100} effectKey="duotone" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ duotone: value })} />
-              <InspectorColorInput label="Shadow Color" value={layer.duoA} onChange={(value) => onChange({ duoA: value })} />
-              <InspectorColorInput label="Light Color" value={layer.duoB} onChange={(value) => onChange({ duoB: value })} />
+              <InspectorSlider
+                label="Duotone"
+                value={layer.duotone}
+                min={0}
+                max={100}
+                effectKey="duotone"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ duotone: value })}
+              />
+              <InspectorColorInput
+                label="Shadow Color"
+                value={layer.duoA}
+                onChange={(value) => onChange({ duoA: value })}
+              />
+              <InspectorColorInput
+                label="Light Color"
+                value={layer.duoB}
+                onChange={(value) => onChange({ duoB: value })}
+              />
             </>
           )}
-          {showControl(['halftone', 'riso']) && <InspectorSlider label="Halftone" value={layer.halftone} min={0} max={30} effectKey="halftone" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ halftone: value })} />}
+          {showControl(['halftone', 'riso']) && (
+            <InspectorSlider
+              label="Halftone"
+              value={layer.halftone}
+              min={0}
+              max={30}
+              effectKey="halftone"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ halftone: value })}
+            />
+          )}
           {showControl(['risoShift', 'riso']) && (
             <>
-              <InspectorSlider label="Misreg Shift" value={layer.risoShift} min={0} max={40} effectKey="risoShift" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ risoShift: value })} />
-              <InspectorSlider label="Misreg Angle" value={layer.risoAngle} min={0} max={360} effectKey="risoAngle" onInfoEnter={handleInfoEnter} onInfoLeave={handleInfoLeave} onChange={(value) => onChange({ risoAngle: value })} />
+              <InspectorSlider
+                label="Misreg Shift"
+                value={layer.risoShift}
+                min={0}
+                max={40}
+                effectKey="risoShift"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ risoShift: value })}
+              />
+              <InspectorSlider
+                label="Misreg Angle"
+                value={layer.risoAngle}
+                min={0}
+                max={360}
+                effectKey="risoAngle"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ risoAngle: value })}
+              />
             </>
           )}
         </InspectorSection>
       )}
-      {infoState && typeof document !== 'undefined' && createPortal(
-        <EffectInfoPopup
-          effectKey={infoState.key}
-          anchorRect={infoState.rect}
-          sidebarRight={infoState.rect.right}
-          onMouseEnter={() => clearTimeout(closeTimerRef.current)}
-          onMouseLeave={handleInfoLeave}
-        />,
-        document.body,
-      )}
+      {infoState &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <EffectInfoPopup
+            effectKey={infoState.key}
+            anchorRect={infoState.rect}
+            sidebarRight={infoState.rect.right}
+            onMouseEnter={() => clearTimeout(closeTimerRef.current)}
+            onMouseLeave={handleInfoLeave}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

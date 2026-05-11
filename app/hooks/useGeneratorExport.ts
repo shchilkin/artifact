@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { DEFAULT_EXPORT, type CanvasDocument } from '../types/config';
+import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type CanvasDocument, DEFAULT_EXPORT } from '../types/config';
 import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import type { RenderOptions } from '../utils/renderer';
@@ -22,17 +22,20 @@ export function useGeneratorExport(
     exportErrorTimerRef.current = setTimeout(() => setExportError(null), 5000);
   }, []);
 
-  const handleExport = useCallback(async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
-    setIsExporting(true);
-    setExportError(null);
-    try {
-      await exportCanvas(docRef.current, imageCache, scale, format, renderOptions);
-    } catch (error) {
-      showExportError(error instanceof Error ? error.message : 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
-  }, [docRef, imageCache, renderOptions, showExportError]);
+  const handleExport = useCallback(
+    async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
+      setIsExporting(true);
+      setExportError(null);
+      try {
+        await exportCanvas(docRef.current, imageCache, scale, format, renderOptions);
+      } catch (error) {
+        showExportError(error instanceof Error ? error.message : 'Export failed');
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [docRef, imageCache, renderOptions, showExportError],
+  );
 
   const handleEnvMapExport = useCallback(async () => {
     setIsExportingEnvMap(true);

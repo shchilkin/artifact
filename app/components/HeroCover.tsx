@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { renderDocument } from '../utils/renderer';
 import { ALL_HERO_FRAMES, type HeroFrame } from '../utils/heroConfigs';
+import { renderDocument } from '../utils/renderer';
 
 const SIZE = 480;
 const FALLBACK_URL = '/hero-fallback.svg';
@@ -34,7 +34,11 @@ export function HeroCover() {
 
   useEffect(() => {
     framesLenRef.current = frames.length;
-    if (frames.length >= 2 && !intervalStartedRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (
+      frames.length >= 2 &&
+      !intervalStartedRef.current &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       intervalStartedRef.current = true;
       intervalRef.current = setInterval(() => {
         const total = framesLenRef.current;
@@ -54,10 +58,13 @@ export function HeroCover() {
     }
   }, [frames.length]);
 
-  useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +109,13 @@ export function HeroCover() {
         onMouseLeave={() => setHovered(false)}
         onClick={handleClick}
       >
-        <img src={activeFrame?.url ?? FALLBACK_URL} alt="Generated album cover" className={`hero-cover__img${fading ? ' hero-cover__img--fade' : ''}`} width={SIZE} height={SIZE} />
+        <img
+          src={activeFrame?.url ?? FALLBACK_URL}
+          alt="Generated album cover"
+          className={`hero-cover__img${fading ? ' hero-cover__img--fade' : ''}`}
+          width={SIZE}
+          height={SIZE}
+        />
         {hovered && activeFrame?.frame && (
           <div className="hero-cover__overlay">
             <div className="hero-cover__seed">SEED #{activeFrame.frame.doc.global.seed}</div>

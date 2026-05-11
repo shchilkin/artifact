@@ -10,10 +10,9 @@
  * - primitiveRenderer owns the one-shot offscreen renderer.
  */
 import * as THREE from 'three';
-
-import type { PrimitiveLayer } from '../types/config';
 import { NODE_CANVAS_COLORS } from '../components/node-canvas/constants';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import type { PrimitiveLayer } from '../types/config';
 
 // ---------------------------------------------------------------------------
 // Shared constants
@@ -70,9 +69,10 @@ export function createPrimitiveMaterial(
   }
   return new THREE.MeshStandardMaterial({
     color,
-    emissive: renderMode === 'wireframe'
-      ? new THREE.Color(layer.accentColor).multiplyScalar(0.08)
-      : new THREE.Color(NODE_CANVAS_COLORS.sceneShadow),
+    emissive:
+      renderMode === 'wireframe'
+        ? new THREE.Color(layer.accentColor).multiplyScalar(0.08)
+        : new THREE.Color(NODE_CANVAS_COLORS.sceneShadow),
     metalness: 0.18,
     roughness: renderMode === 'wireframe' ? 0.9 : 0.38,
     wireframe: renderMode === 'wireframe',
@@ -134,10 +134,7 @@ export function createPrimitiveCamera(aspect = 1): THREE.PerspectiveCamera {
 }
 
 /** Position a camera according to a PrimitiveViewportState. */
-export function applyViewStateToCamera(
-  camera: THREE.PerspectiveCamera,
-  viewState: PrimitiveViewportState,
-): void {
+export function applyViewStateToCamera(camera: THREE.PerspectiveCamera, viewState: PrimitiveViewportState): void {
   const z = CAMERA_DISTANCE / clamp(viewState.zoom, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
   camera.position.set(viewState.panX, viewState.panY, z);
   camera.lookAt(viewState.panX, viewState.panY, 0);
@@ -151,11 +148,7 @@ export function applyViewStateToCamera(
  * Apply rotation from a PrimitiveViewportState + the layer's durable tiltZ to a mesh.
  * rotationX and rotationY come from the live camera state; tiltZ is the document value.
  */
-export function applyMeshTransform(
-  mesh: THREE.Mesh,
-  viewState: PrimitiveViewportState,
-  tiltZ: number,
-): void {
+export function applyMeshTransform(mesh: THREE.Mesh, viewState: PrimitiveViewportState, tiltZ: number): void {
   mesh.rotation.x = degToRad(viewState.rotationX);
   mesh.rotation.y = degToRad(viewState.rotationY);
   mesh.rotation.z = degToRad(tiltZ);

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CanvasDocument, CanvasGraph, Layer } from '../../../types/config';
+import { defaultMediaViewState, type MediaViewState } from '../../NodeGalleryViewState';
+import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 import { cloneLayerSnapshot, isGalleryEligibleLayer } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
-import type { CanvasDocument, CanvasGraph, Layer } from '../../../types/config';
-import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
-import { defaultMediaViewState, type MediaViewState } from '../../NodeGalleryViewState';
 
 export interface UseNodeGalleryOptions {
   send: (event: NodeCanvasMachineEvent) => void;
@@ -48,11 +48,14 @@ export function useNodeGallery({
 }: UseNodeGalleryOptions): UseNodeGalleryResult {
   const [mediaViewStates, setMediaViewStates] = useState<Record<string, MediaViewState>>({});
 
-  const openGallery = useCallback((id: string) => {
-    const layer = doc.layers.find((item) => item.id === id);
-    if (!layer || !isGalleryEligibleLayer(layer)) return;
-    send({ type: 'GALLERY_OPENED', nodeId: id });
-  }, [doc.layers, send]);
+  const openGallery = useCallback(
+    (id: string) => {
+      const layer = doc.layers.find((item) => item.id === id);
+      if (!layer || !isGalleryEligibleLayer(layer)) return;
+      send({ type: 'GALLERY_OPENED', nodeId: id });
+    },
+    [doc.layers, send],
+  );
 
   const closeGallery = useCallback(() => {
     send({ type: 'GALLERY_CLOSED' });
@@ -65,9 +68,7 @@ export function useNodeGallery({
   // Focus trap and return-focus management for the gallery modal.
   useEffect(() => {
     if (!galleryNodeId) return;
-    galleryReturnFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    galleryReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusFrame = requestAnimationFrame(() => {
       galleryCloseButtonRef.current?.focus();
     });
@@ -80,9 +81,7 @@ export function useNodeGallery({
       const modal = galleryModalRef.current;
       if (!modal) return;
       const focusable = Array.from(
-        modal.querySelectorAll<HTMLElement>(
-          'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])',
-        ),
+        modal.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'),
       ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true');
       if (focusable.length === 0) {
         event.preventDefault();
@@ -108,7 +107,7 @@ export function useNodeGallery({
   }, [galleryNodeId, send, galleryCloseButtonRef, galleryModalRef, galleryReturnFocusRef]);
 
   const galleryDisplayLayer = galleryNodeId
-    ? doc.layers.find((layer) => layer.id === galleryNodeId && isGalleryEligibleLayer(layer)) ?? null
+    ? (doc.layers.find((layer) => layer.id === galleryNodeId && isGalleryEligibleLayer(layer)) ?? null)
     : null;
 
   const galleryDisplayDoc = useMemo(() => {
@@ -116,16 +115,19 @@ export function useNodeGallery({
     return {
       ...doc,
       graph,
-      layers: doc.layers.map((layer) => layer.id === galleryDisplayLayer.id ? cloneLayerSnapshot(galleryDisplayLayer) : layer),
+      layers: doc.layers.map((layer) =>
+        layer.id === galleryDisplayLayer.id ? cloneLayerSnapshot(galleryDisplayLayer) : layer,
+      ),
     } satisfies CanvasDocument;
   }, [doc, galleryDisplayLayer, graph]);
 
-  const galleryPrimitiveViewState = galleryDisplayLayer?.kind === 'primitive'
-    ? primitiveViewStates[galleryDisplayLayer.id] ?? defaultPrimitiveViewportState(galleryDisplayLayer)
-    : null;
+  const galleryPrimitiveViewState =
+    galleryDisplayLayer?.kind === 'primitive'
+      ? (primitiveViewStates[galleryDisplayLayer.id] ?? defaultPrimitiveViewportState(galleryDisplayLayer))
+      : null;
 
   const galleryMediaViewState = galleryDisplayLayer
-    ? mediaViewStates[galleryDisplayLayer.id] ?? defaultMediaViewState()
+    ? (mediaViewStates[galleryDisplayLayer.id] ?? defaultMediaViewState())
     : defaultMediaViewState();
 
   const galleryTitleId = galleryDisplayLayer ? `node-gallery-title-${galleryDisplayLayer.id}` : undefined;

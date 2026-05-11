@@ -1,5 +1,5 @@
-import type { SourceLayer } from '../types/config';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import type { SourceLayer } from '../types/config';
 import { lcg } from './lcg';
 import { renderPrimitiveToCanvas } from './primitiveRenderer';
 
@@ -25,9 +25,13 @@ function degToRad(deg: number) {
 
 function hexToRgb(hex: string): Rgb {
   const normalized = hex.replace('#', '');
-  const value = normalized.length === 3
-    ? normalized.split('').map((char) => `${char}${char}`).join('')
-    : normalized;
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => `${char}${char}`)
+          .join('')
+      : normalized;
   const parsed = Number.parseInt(value, 16);
   if (!Number.isFinite(parsed)) return { r: 255, g: 90, b: 54 };
   return {
@@ -48,7 +52,6 @@ function mixRgb(a: Rgb, b: Rgb, amount: number): Rgb {
 function rgbToStyle(color: Rgb, alpha = 1) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 }
-
 
 function hash2d(x: number, y: number, seed: number) {
   const value = Math.sin(x * 127.1 + y * 311.7 + seed * 0.013) * 43758.5453123;
@@ -116,11 +119,12 @@ function drawNoiseLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
     for (let x = 0; x < textureSize; x += 1) {
       const nx = x / scale;
       const ny = y / scale;
-      const raw = layer.noiseType === 'cells'
-        ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
-        : layer.noiseType === 'value'
-          ? valueNoise(nx, ny, seed)
-          : fbm(nx, ny, seed, octaves);
+      const raw =
+        layer.noiseType === 'cells'
+          ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
+          : layer.noiseType === 'value'
+            ? valueNoise(nx, ny, seed)
+            : fbm(nx, ny, seed, octaves);
       const contrasted = clamp((raw - 0.5) * contrast + 0.5, 0, 1);
       const alpha = clamp((contrasted - balance) / (1 - balance), 0, 1);
       const color = mixRgb(base, accent, clamp(raw * 1.1, 0, 1));
@@ -136,12 +140,7 @@ function drawNoiseLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
   ctx.drawImage(canvas, -SOURCE_SIZE / 2, -SOURCE_SIZE / 2, SOURCE_SIZE, SOURCE_SIZE);
 }
 
-function drawArrayShape(
-  ctx: CanvasRenderingContext2D,
-  shape: SourceLayer['arrayShape'],
-  size: number,
-  angle: number,
-) {
+function drawArrayShape(ctx: CanvasRenderingContext2D, shape: SourceLayer['arrayShape'], size: number, angle: number) {
   ctx.save();
   ctx.rotate(angle);
   ctx.beginPath();
@@ -234,7 +233,9 @@ export async function drawSourceLayer(
 ): Promise<void> {
   ctx.save();
   ctx.globalAlpha = layer.opacity / 100;
-  ctx.globalCompositeOperation = (layer.blendMode === 'normal' ? 'source-over' : layer.blendMode) as GlobalCompositeOperation;
+  ctx.globalCompositeOperation = (
+    layer.blendMode === 'normal' ? 'source-over' : layer.blendMode
+  ) as GlobalCompositeOperation;
   if (layout === 'full-frame') {
     ctx.translate(width / 2, height / 2);
     ctx.scale(scale, scale);

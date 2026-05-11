@@ -11,18 +11,12 @@
  */
 
 import type { CanvasDocument } from '../../types/config';
-import {
-  makeFillLayer,
-  makeTextLayer,
-  makeEmojiLayer,
-} from '../../types/config';
+import { makeEmojiLayer, makeFillLayer, makeTextLayer } from '../../types/config';
 
 /** Solid fill with a fixed background colour. Used to verify baseline coverage. */
 export const fillOnly: CanvasDocument = {
   global: { bg: '#1a1a2e', seed: 1, aspect: '1:1' },
-  layers: [
-    makeFillLayer({ id: 'fill-1', color: '#e94560', opacity: 100, blendMode: 'normal' }),
-  ],
+  layers: [makeFillLayer({ id: 'fill-1', color: '#e94560', opacity: 100, blendMode: 'normal' })],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 

@@ -1,6 +1,6 @@
 import type { CanvasDocument } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
-import { renderDocument, type RenderOptions } from './renderer';
+import { type RenderOptions, renderDocument } from './renderer';
 
 function triggerDownload(dataUrl: string, seed: number, w: number, h: number, format: 'png' | 'jpeg') {
   const a = document.createElement('a');
@@ -26,9 +26,6 @@ export async function exportCanvas(
     const quality = format === 'jpeg' ? 0.92 : 1.0;
     triggerDownload(finalCanvas.toDataURL(mimeType, quality), doc.global.seed, W, H, format);
   } catch (err) {
-    throw new Error(
-      `Canvas export failed: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err },
-    );
+    throw new Error(`Canvas export failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }

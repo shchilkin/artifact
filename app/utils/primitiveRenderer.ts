@@ -1,18 +1,18 @@
 import * as THREE from 'three';
-import type { PrimitiveLayer } from '../types/config';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import type { PrimitiveLayer } from '../types/config';
 import {
-  CAMERA_ZOOM_MIN,
-  CAMERA_ZOOM_MAX,
   addSceneLights,
   addSceneShadow,
+  applyMeshTransform,
   applyViewStateToCamera,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
   createPrimitiveCamera,
   createPrimitiveGeometry,
   createPrimitiveMaterial,
-  disposeMesh,
-  applyMeshTransform,
   degToRad,
+  disposeMesh,
 } from './primitiveScene';
 
 const SOURCE_OVERSCAN = 1.22;
@@ -38,9 +38,7 @@ export async function renderPrimitiveToCanvas(
     panX: 0,
     panY: 0,
   };
-  const renderSize = viewState
-    ? size
-    : Math.max(size, Math.round(size * SOURCE_OVERSCAN));
+  const renderSize = viewState ? size : Math.max(size, Math.round(size * SOURCE_OVERSCAN));
   const renderCanvas = document.createElement('canvas');
   renderCanvas.width = renderSize;
   renderCanvas.height = renderSize;
@@ -88,4 +86,3 @@ export async function renderPrimitiveToCanvas(
 
 // Re-export so callers that used to import degToRad from here continue to work.
 export { degToRad };
-

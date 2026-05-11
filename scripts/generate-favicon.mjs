@@ -7,11 +7,11 @@
  *   - No polling, no timeouts on rendering; we receive the URL event-driven
  */
 
-import puppeteer from 'puppeteer';
-import { createServer } from 'vite';
 import { writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { dirname, resolve } from 'path';
+import puppeteer from 'puppeteer';
 import { fileURLToPath } from 'url';
+import { createServer } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -52,7 +52,10 @@ try {
   const faviconPromise = new Promise((res, rej) => {
     rejectTimer = setTimeout(() => rej(new Error('useFaviconGlyph did not fire within 30s')), 30_000);
     rejectTimer.unref(); // don't block the event loop if everything else finishes
-    resolveFavicon = (url) => { clearTimeout(rejectTimer); res(url); };
+    resolveFavicon = (url) => {
+      clearTimeout(rejectTimer);
+      res(url);
+    };
   });
 
   // Expose a Node.js function the page can call
@@ -66,7 +69,9 @@ try {
     if (!origSet) return;
 
     Object.defineProperty(HTMLLinkElement.prototype, 'href', {
-      get() { return origGet ? origGet.call(this) : (this.getAttribute('href') ?? ''); },
+      get() {
+        return origGet ? origGet.call(this) : (this.getAttribute('href') ?? '');
+      },
       set(value) {
         origSet.call(this, value);
         if (typeof value === 'string' && value.startsWith('data:') && this.rel === 'icon') {
@@ -91,7 +96,6 @@ try {
   const out = resolve(root, 'public/favicon.png');
   writeFileSync(out, buffer);
   console.log(`favicon → public/favicon.png`);
-
 } catch (err) {
   // In CI environments (e.g. Vercel) Chrome system dependencies may be absent.
   // The committed public/favicon.png is used as fallback — don't fail the build.

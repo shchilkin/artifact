@@ -51,7 +51,8 @@
   --touch: 44px;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
@@ -163,7 +164,10 @@ input[type="range"] {
   cursor: pointer;
   opacity: 0.4;
   min-height: var(--touch);
-  transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .emoji-btn.active {
@@ -511,7 +515,10 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
   white-space: nowrap;
 }
 
@@ -726,13 +733,23 @@ input[type="range"] {
 }
 
 @keyframes landing-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes step-content-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -760,7 +777,9 @@ input[type="range"] {
   line-height: 1;
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
 }
 
 .group:hover .slider-info-btn {
@@ -1016,7 +1035,9 @@ input[type="range"] {
 }
 
 @keyframes home-mosaic-in {
-  to { opacity: 1; }
+  to {
+    opacity: 1;
+  }
 }
 
 .home-mosaic__thumb {
@@ -1135,7 +1156,9 @@ input[type="range"] {
   color: var(--text-dim);
   padding: 10px 16px;
   cursor: pointer;
-  transition: border-color 150ms ease-out, color 150ms ease-out;
+  transition:
+    border-color 150ms ease-out,
+    color 150ms ease-out;
   min-height: 44px;
 }
 
@@ -1172,8 +1195,15 @@ input[type="range"] {
 }
 
 @keyframes home-hint {
-  0%, 100% { opacity: 0.4; transform: translateY(0); }
-  50% { opacity: 0.85; transform: translateY(4px); }
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateY(4px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1217,8 +1247,14 @@ input[type="range"] {
   transition: opacity 450ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.home-canvas--front { opacity: 1; z-index: 1; }
-.home-canvas--back  { opacity: 0; z-index: 0; }
+.home-canvas--front {
+  opacity: 1;
+  z-index: 1;
+}
+.home-canvas--back {
+  opacity: 0;
+  z-index: 0;
+}
 
 /* Animated TV-static noise overlay, visible while hero is in view */
 .home-canvas-noise {
@@ -1257,24 +1293,70 @@ input[type="range"] {
 }
 .home-canvas-mark::before,
 .home-canvas-mark::after {
-  content: '';
+  content: "";
   position: absolute;
   background: var(--accent);
 }
-.home-canvas-mark::before { width: 14px; height: 1px; }
-.home-canvas-mark::after  { width: 1px; height: 14px; }
-.home-canvas-mark--tl { top: -22px; left: -22px; animation-delay: 300ms; }
-.home-canvas-mark--tl::before { top: 13px; left: 0; }
-.home-canvas-mark--tl::after  { top: 0; left: 13px; }
-.home-canvas-mark--tr { top: -22px; right: -22px; animation-delay: 360ms; }
-.home-canvas-mark--tr::before { top: 13px; right: 0; }
-.home-canvas-mark--tr::after  { top: 0; right: 13px; }
-.home-canvas-mark--bl { bottom: -22px; left: -22px; animation-delay: 420ms; }
-.home-canvas-mark--bl::before { bottom: 13px; left: 0; }
-.home-canvas-mark--bl::after  { bottom: 0; left: 13px; }
-.home-canvas-mark--br { bottom: -22px; right: -22px; animation-delay: 480ms; }
-.home-canvas-mark--br::before { bottom: 13px; right: 0; }
-.home-canvas-mark--br::after  { bottom: 0; right: 13px; }
+.home-canvas-mark::before {
+  width: 14px;
+  height: 1px;
+}
+.home-canvas-mark::after {
+  width: 1px;
+  height: 14px;
+}
+.home-canvas-mark--tl {
+  top: -22px;
+  left: -22px;
+  animation-delay: 300ms;
+}
+.home-canvas-mark--tl::before {
+  top: 13px;
+  left: 0;
+}
+.home-canvas-mark--tl::after {
+  top: 0;
+  left: 13px;
+}
+.home-canvas-mark--tr {
+  top: -22px;
+  right: -22px;
+  animation-delay: 360ms;
+}
+.home-canvas-mark--tr::before {
+  top: 13px;
+  right: 0;
+}
+.home-canvas-mark--tr::after {
+  top: 0;
+  right: 13px;
+}
+.home-canvas-mark--bl {
+  bottom: -22px;
+  left: -22px;
+  animation-delay: 420ms;
+}
+.home-canvas-mark--bl::before {
+  bottom: 13px;
+  left: 0;
+}
+.home-canvas-mark--bl::after {
+  bottom: 0;
+  left: 13px;
+}
+.home-canvas-mark--br {
+  bottom: -22px;
+  right: -22px;
+  animation-delay: 480ms;
+}
+.home-canvas-mark--br::before {
+  bottom: 13px;
+  right: 0;
+}
+.home-canvas-mark--br::after {
+  bottom: 0;
+  right: 13px;
+}
 
 .home-canvas-meta {
   display: flex;
@@ -1342,21 +1424,30 @@ input[type="range"] {
 }
 
 .home-mobile-dot::before {
-  content: '';
+  content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: oklch(35% 0.012 42);
-  transition: background 250ms cubic-bezier(0.16, 1, 0.3, 1),
-              width 250ms cubic-bezier(0.16, 1, 0.3, 1),
-              height 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    background 250ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 250ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.home-mobile-dot--reached::before { background: oklch(55% 0.018 42); }
-.home-mobile-dot--current::before { background: var(--accent); width: 9px; height: 9px; }
+.home-mobile-dot--reached::before {
+  background: oklch(55% 0.018 42);
+}
+.home-mobile-dot--current::before {
+  background: var(--accent);
+  width: 9px;
+  height: 9px;
+}
 
 @media (min-width: 1024px) {
-  .home-mobile-dots { display: none; }
+  .home-mobile-dots {
+    display: none;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -1406,8 +1497,13 @@ input[type="range"] {
   transition: background 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.home-progress__item--reached .home-progress__bar { background: var(--accent); }
-.home-progress__item--current .home-progress__bar { background: var(--accent); height: 3px; }
+.home-progress__item--reached .home-progress__bar {
+  background: var(--accent);
+}
+.home-progress__item--current .home-progress__bar {
+  background: var(--accent);
+  height: 3px;
+}
 
 .sr-only {
   position: absolute;
@@ -1461,7 +1557,9 @@ input[type="range"] {
   }
 }
 
-.home-step--active { opacity: 1; }
+.home-step--active {
+  opacity: 1;
+}
 
 /* Slide-in content when a step becomes active */
 .home-step--active .home-step__index {
@@ -1485,7 +1583,9 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
-.home-step__num { color: var(--accent); }
+.home-step__num {
+  color: var(--accent);
+}
 
 .home-step__rule {
   flex: 0 1 96px;
@@ -1532,7 +1632,10 @@ input[type="range"] {
   }
   .home-step--active .home-step__index,
   .home-step--active .home-step__title,
-  .home-step--active .home-step__body { opacity: 1; transform: none; }
+  .home-step--active .home-step__body {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* CTA — closing block */
@@ -1619,7 +1722,9 @@ input[type="range"] {
   gap: 12px;
   min-height: var(--touch);
   box-shadow: 4px 4px 0 var(--text);
-  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 120ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .home-cta:hover {
@@ -1642,7 +1747,9 @@ input[type="range"] {
   transition: color 150ms ease-out;
 }
 
-.home-cta-link:hover { color: var(--accent); }
+.home-cta-link:hover {
+  color: var(--accent);
+}
 
 .home-cta-fineprint {
   font-family: var(--mono);
@@ -1749,7 +1856,10 @@ input[type="range"] {
   padding: 8px 14px;
   cursor: pointer;
   min-height: 36px;
-  transition: color 150ms ease-out, border-color 150ms ease-out, background 150ms ease-out;
+  transition:
+    color 150ms ease-out,
+    border-color 150ms ease-out,
+    background 150ms ease-out;
 }
 
 .examples-filter:hover {
@@ -1790,7 +1900,9 @@ input[type="range"] {
 }
 
 @media (min-width: 1024px) {
-  .examples-mosaic { gap: 14px; }
+  .examples-mosaic {
+    gap: 14px;
+  }
 }
 
 .examples-mosaic__col {
@@ -1802,7 +1914,9 @@ input[type="range"] {
 }
 
 @media (min-width: 1024px) {
-  .examples-mosaic__col { gap: 14px; }
+  .examples-mosaic__col {
+    gap: 14px;
+  }
 }
 
 .examples-tile {
@@ -1823,7 +1937,9 @@ input[type="range"] {
   overflow: hidden;
   outline: 1px solid oklch(18% 0.012 42);
   outline-offset: 0;
-  transition: outline-color 180ms ease-out, transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    outline-color 180ms ease-out,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
 
@@ -1852,8 +1968,13 @@ input[type="range"] {
 }
 
 @keyframes examples-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .examples-tile__overlay {
@@ -1920,12 +2041,18 @@ input[type="range"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .examples-tile__loading { animation: none; }
-  .examples-tile__overlay { transition: none; }
+  .examples-tile__loading {
+    animation: none;
+  }
+  .examples-tile__overlay {
+    transition: none;
+  }
 }
 
 @media (pointer: coarse) {
-  .examples-tile__overlay { opacity: 1; }
+  .examples-tile__overlay {
+    opacity: 1;
+  }
 }
 
 /* ─── DOCS PAGE ──────────────────────────────────────── */
@@ -1998,10 +2125,27 @@ input[type="range"] {
   aspect-ratio: 1;
   display: block;
   background-color: oklch(8% 0.012 42);
-  background-image: linear-gradient(45deg, oklch(12% 0.012 42) 25%, transparent 25%, transparent 75%, oklch(12% 0.012 42) 75%, oklch(12% 0.012 42)),
-                    linear-gradient(45deg, oklch(12% 0.012 42) 25%, transparent 25%, transparent 75%, oklch(12% 0.012 42) 75%, oklch(12% 0.012 42));
+  background-image:
+    linear-gradient(
+      45deg,
+      oklch(12% 0.012 42) 25%,
+      transparent 25%,
+      transparent 75%,
+      oklch(12% 0.012 42) 75%,
+      oklch(12% 0.012 42)
+    ),
+    linear-gradient(
+      45deg,
+      oklch(12% 0.012 42) 25%,
+      transparent 25%,
+      transparent 75%,
+      oklch(12% 0.012 42) 75%,
+      oklch(12% 0.012 42)
+    );
   background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
+  background-position:
+    0 0,
+    10px 10px;
   /* subtle border */
   box-shadow: inset 0 0 0 1px oklch(24% 0.018 42);
   transition: outline 0.2s ease;
@@ -2116,7 +2260,9 @@ input[type="range"] {
   background: var(--text);
   padding: 12px 24px;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .docs-poster__try:hover {

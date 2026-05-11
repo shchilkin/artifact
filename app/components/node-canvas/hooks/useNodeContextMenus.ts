@@ -1,12 +1,9 @@
+import type { FinalConnectionState, ReactFlowInstance, Edge as RFEdge, Node as RFNode } from '@xyflow/react';
 import { useCallback, useEffect } from 'react';
-import type { Edge as RFEdge, FinalConnectionState, Node as RFNode, ReactFlowInstance } from '@xyflow/react';
-import {
-  EXPORT_NODE_ID,
-  removeGraphEdge,
-} from '../../../utils/nodeGraph';
+import type { CanvasGraph } from '../../../types/config';
+import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { AddAction, ContextMenuState, InsertConnectionConfig } from '../types';
-import type { CanvasGraph } from '../../../types/config';
 
 export interface UseNodeContextMenusOptions {
   send: (event: NodeCanvasMachineEvent) => void;
@@ -57,7 +54,9 @@ export function useNodeContextMenus({
   useEffect(() => {
     if (!contextMenu) return;
     const dismiss = () => send({ type: 'CONTEXT_MENU_CLOSED' });
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss();
+    };
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target;
       if (target instanceof Node && contextMenuRef.current?.contains(target)) return;
@@ -77,10 +76,10 @@ export function useNodeContextMenus({
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const target = e.target;
       if (
-        target instanceof HTMLInputElement
-        || target instanceof HTMLTextAreaElement
-        || target instanceof HTMLSelectElement
-        || (target instanceof HTMLElement && target.isContentEditable)
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
       ) {
         return;
       }
@@ -118,69 +117,87 @@ export function useNodeContextMenus({
     send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchorX, y: anchorY, flowPos } });
   }, [send, addNodeButtonRef, canvasSurfaceRef, rfInstanceRef]);
 
-  const onPaneContextMenu = useCallback((e: MouseEvent | React.MouseEvent) => {
-    e.preventDefault();
-    const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      ?? { x: 0, y: 0 };
-    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: e.clientX, y: e.clientY, flowPos } });
-  }, [send, rfInstanceRef]);
+  const onPaneContextMenu = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      e.preventDefault();
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY }) ?? { x: 0, y: 0 };
+      send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: e.clientX, y: e.clientY, flowPos } });
+    },
+    [send, rfInstanceRef],
+  );
 
-  const onNodeContextMenu = useCallback((e: MouseEvent | React.MouseEvent, node: RFNode) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const isMerge = graph.mergeNodes.some((n) => n.id === node.id)
-      || (graph.colorNodes ?? []).some((n) => n.id === node.id);
-    const isExport = node.id === EXPORT_NODE_ID;
-    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport } });
-  }, [graph.colorNodes, graph.mergeNodes, send]);
+  const onNodeContextMenu = useCallback(
+    (e: MouseEvent | React.MouseEvent, node: RFNode) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const isMerge =
+        graph.mergeNodes.some((n) => n.id === node.id) || (graph.colorNodes ?? []).some((n) => n.id === node.id);
+      const isExport = node.id === EXPORT_NODE_ID;
+      send({
+        type: 'CONTEXT_MENU_OPENED',
+        menu: { type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport },
+      });
+    },
+    [graph.colorNodes, graph.mergeNodes, send],
+  );
 
-  const onEdgeContextMenu = useCallback((e: React.MouseEvent, edge: RFEdge) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      ?? { x: 0, y: 0 };
-    send({
-      type: 'CONTEXT_MENU_OPENED',
-      menu: {
-        type: 'pane-insert',
-        x: e.clientX,
-        y: e.clientY,
-        flowPos,
-        insertion: {
-          sourceId: edge.source,
-          targetId: edge.target,
-          targetPort: (edge.targetHandle ?? 'in') as import('../../../types/config').GraphEdge['toPort'],
-          replaceEdgeId: edge.id,
+  const onEdgeContextMenu = useCallback(
+    (e: React.MouseEvent, edge: RFEdge) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY }) ?? { x: 0, y: 0 };
+      send({
+        type: 'CONTEXT_MENU_OPENED',
+        menu: {
+          type: 'pane-insert',
+          x: e.clientX,
+          y: e.clientY,
+          flowPos,
+          insertion: {
+            sourceId: edge.source,
+            targetId: edge.target,
+            targetPort: (edge.targetHandle ?? 'in') as import('../../../types/config').GraphEdge['toPort'],
+            replaceEdgeId: edge.id,
+          },
         },
-      },
-    });
-  }, [send, rfInstanceRef]);
+      });
+    },
+    [send, rfInstanceRef],
+  );
 
-  const onConnectEnd = useCallback((event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-    if (!connectionState.fromNode || connectionState.toNode) return;
-    const pointer = 'changedTouches' in event ? event.changedTouches[0] : event;
-    if (!pointer) return;
-    const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY })
-      ?? { x: 0, y: 0 };
-    send({
-      type: 'CONTEXT_MENU_OPENED',
-      menu: {
-        type: 'pane-insert',
-        x: pointer.clientX,
-        y: pointer.clientY,
-        flowPos,
-        insertion: {
-          sourceId: connectionState.fromNode.id,
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      if (!connectionState.fromNode || connectionState.toNode) return;
+      const pointer = 'changedTouches' in event ? event.changedTouches[0] : event;
+      if (!pointer) return;
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY }) ?? {
+        x: 0,
+        y: 0,
+      };
+      send({
+        type: 'CONTEXT_MENU_OPENED',
+        menu: {
+          type: 'pane-insert',
+          x: pointer.clientX,
+          y: pointer.clientY,
+          flowPos,
+          insertion: {
+            sourceId: connectionState.fromNode.id,
+          },
         },
-      },
-    });
-  }, [send, rfInstanceRef]);
+      });
+    },
+    [send, rfInstanceRef],
+  );
 
-  const handleAddFromMenu = useCallback((action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
-    requestAnimationFrame(() => {
-      onAddLayerAt(action, flowPos, insertion);
-    });
-  }, [onAddLayerAt]);
+  const handleAddFromMenu = useCallback(
+    (action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
+      requestAnimationFrame(() => {
+        onAddLayerAt(action, flowPos, insertion);
+      });
+    },
+    [onAddLayerAt],
+  );
 
   return {
     openAddNodeMenu,

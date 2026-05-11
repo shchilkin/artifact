@@ -27,9 +27,7 @@ export function NodeShell({
       <div className="node-shell-accent" aria-hidden="true" />
       <div className="node-shell-header">
         <div className="node-drag-handle node-shell-drag">
-          <span className="node-shell-symbol">
-            {KIND_SYMBOL[kind] ?? '○'}
-          </span>
+          <span className="node-shell-symbol">{KIND_SYMBOL[kind] ?? '○'}</span>
           <span className="node-shell-label">{label}</span>
           <span className="node-shell-name">{name}</span>
         </div>
@@ -40,7 +38,9 @@ export function NodeShell({
             className="nodrag node-shell-action node-shell-delete"
             aria-label="Delete node"
             onClick={onDelete}
-          >×</NoPan>
+          >
+            ×
+          </NoPan>
         )}
       </div>
       <div className="node-shell-body">{children}</div>

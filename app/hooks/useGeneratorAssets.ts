@@ -44,10 +44,7 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
   return canvas.toDataURL(outMime, 0.9);
 }
 
-export function useGeneratorAssets(
-  doc: CanvasDocument,
-  onImportImage: (src: string) => void,
-) {
+export function useGeneratorAssets(doc: CanvasDocument, onImportImage: (src: string) => void) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
   const [dropError, setDropError] = useState<string | null>(null);
   const dropErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -85,21 +82,24 @@ export function useGeneratorAssets(
     };
   }, [doc.layers, imageCache]);
 
-  const handleDroppedFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    if (file.size > MAX_IMAGE_BYTES) {
-      showDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
-      return;
-    }
-    try {
-      const src = await readImageFile(file);
-      if (!src) return;
-      const optimized = await downsampleDataUrl(src, file.type);
-      onImportImage(optimized);
-    } catch {
-      showDropError('Could not read image');
-    }
-  }, [onImportImage, showDropError]);
+  const handleDroppedFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) return;
+      if (file.size > MAX_IMAGE_BYTES) {
+        showDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
+        return;
+      }
+      try {
+        const src = await readImageFile(file);
+        if (!src) return;
+        const optimized = await downsampleDataUrl(src, file.type);
+        onImportImage(optimized);
+      } catch {
+        showDropError('Could not read image');
+      }
+    },
+    [onImportImage, showDropError],
+  );
 
   useEffect(() => {
     function onPaste(event: ClipboardEvent) {

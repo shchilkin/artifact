@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import type { MetaFunction } from 'react-router';
 import { motion } from 'framer-motion';
-import { SiteNav } from '../components/SiteNav';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MetaFunction } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Footer } from '../components/Footer';
-import { generateThumbnail } from '../utils/generateThumbnail';
+import { SiteNav } from '../components/SiteNav';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { CURATED_EXAMPLES } from '../utils/curatedExamples';
+import { generateThumbnail } from '../utils/generateThumbnail';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
 export const meta: MetaFunction = () => [
   { title: 'Examples | Album Cover Generator' },
   {
     name: 'description',
-    content:
-      'Browse glitch covers in every aspect ratio: square, story, vertical, wide. Tap any to open and remix it.',
+    content: 'Browse glitch covers in every aspect ratio: square, story, vertical, wide. Tap any to open and remix it.',
   },
 ];
 
@@ -49,10 +48,7 @@ function buildRandomItems(count: number, baseSeed: number, idPrefix: string): Ex
     const seed = baseSeed + i * 13337;
     const aspect = pickAspect(i + 1);
     const frame = generateRandomHeroFrame(seed);
-    const doc = withAspect(
-      { ...frame.doc, export: { format: 'png', scale: 1, target: 'cover' } },
-      aspect,
-    );
+    const doc = withAspect({ ...frame.doc, export: { format: 'png', scale: 1, target: 'cover' } }, aspect);
     return {
       id: `${idPrefix}-${seed}`,
       name: `Variant #${seed}`,
@@ -133,9 +129,7 @@ export default function Examples() {
         try {
           const thumb = await generateThumbnail(ex.doc, new Map());
           if (!cancelled) {
-            setItems((prev) =>
-              prev.map((item) => (item.id === ex.id ? { ...item, thumbnail: thumb } : item)),
-            );
+            setItems((prev) => prev.map((item) => (item.id === ex.id ? { ...item, thumbnail: thumb } : item)));
           }
         } catch {
           // ignore single-item failures
@@ -204,10 +198,7 @@ export default function Examples() {
     return totals;
   }, [items]);
 
-  const columns = useMemo(
-    () => distributeColumns(filteredItems, columnCount),
-    [filteredItems, columnCount],
-  );
+  const columns = useMemo(() => distributeColumns(filteredItems, columnCount), [filteredItems, columnCount]);
 
   return (
     <div className="min-h-dvh bg-bg flex flex-col overflow-y-auto">
@@ -222,9 +213,7 @@ export default function Examples() {
           <div className="examples-header__top">
             <p className="examples-header__eyebrow">Field guide</p>
             <h1 className="examples-header__title">Examples</h1>
-            <p className="examples-header__deck">
-              Random seeds, four aspects. Tap one to remix.
-            </p>
+            <p className="examples-header__deck">Random seeds, four aspects. Tap one to remix.</p>
           </div>
           <div className="examples-filters" role="tablist" aria-label="Filter by aspect ratio">
             <FilterButton
@@ -336,15 +325,7 @@ interface ExampleTileProps {
   onHoverOut: () => void;
 }
 
-function ExampleTile({
-  item,
-  revealed,
-  isTouch,
-  onOpen,
-  onReveal,
-  onHoverIn,
-  onHoverOut,
-}: ExampleTileProps) {
+function ExampleTile({ item, revealed, isTouch, onOpen, onReveal, onHoverIn, onHoverOut }: ExampleTileProps) {
   const [aw, ah] = ASPECT_SIZES[item.aspect];
   const aspectStyle = { aspectRatio: `${aw} / ${ah}` };
 

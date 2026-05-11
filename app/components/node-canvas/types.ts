@@ -1,5 +1,5 @@
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
 import type { Node as RFNode } from '@xyflow/react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
 
 import type {
   AspectRatio,
@@ -15,10 +15,14 @@ import type {
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
-import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import type { MediaViewState } from '../NodeGalleryViewState';
+import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
-export type GalleryEligibleLayer = PrimitiveLayer | ImageLayer | TextLayer | Extract<Layer, { kind: 'noise' | 'array' }>;
+export type GalleryEligibleLayer =
+  | PrimitiveLayer
+  | ImageLayer
+  | TextLayer
+  | Extract<Layer, { kind: 'noise' | 'array' }>;
 
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }

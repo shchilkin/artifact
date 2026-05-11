@@ -1,12 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 
-export function InspectorTextArea({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
+export function InspectorTextArea({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [localValue, setLocalValue] = useState(value);
   const prevPropRef = useRef(value);
 

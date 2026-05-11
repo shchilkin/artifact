@@ -39,15 +39,15 @@ export function NodePropertiesPanel({
   onExport,
   onClose,
 }: NodePropertiesPanelProps) {
-  const layer = selectedNodeId
-    ? doc.layers.find((l) => l.id === selectedNodeId) ?? null
-    : null;
-  const mergeNode = selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
-    ? graph.mergeNodes.find((n) => n.id === selectedNodeId) ?? null
-    : null;
-  const colorNode = selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
-    ? (graph.colorNodes ?? []).find((n) => n.id === selectedNodeId) ?? null
-    : null;
+  const layer = selectedNodeId ? (doc.layers.find((l) => l.id === selectedNodeId) ?? null) : null;
+  const mergeNode =
+    selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
+      ? (graph.mergeNodes.find((n) => n.id === selectedNodeId) ?? null)
+      : null;
+  const colorNode =
+    selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
+      ? ((graph.colorNodes ?? []).find((n) => n.id === selectedNodeId) ?? null)
+      : null;
   const isExport = selectedNodeId === EXPORT_NODE_ID;
 
   let title = 'Properties';
@@ -55,9 +55,10 @@ export function NodePropertiesPanel({
 
   if (layer) {
     title = layer.name;
-    subtitle = layer.kind === 'effect'
-      ? `effect · ${layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset).toLowerCase() : 'custom'}`
-      : layer.kind;
+    subtitle =
+      layer.kind === 'effect'
+        ? `effect · ${layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset).toLowerCase() : 'custom'}`
+        : layer.kind;
   } else if (colorNode) {
     title = colorNode.name;
     subtitle = 'color';
@@ -70,10 +71,7 @@ export function NodePropertiesPanel({
   }
 
   return (
-    <div
-      className={`node-props-panel${open ? ' node-props-panel-open' : ''}`}
-      aria-hidden={!open}
-    >
+    <div className={`node-props-panel${open ? ' node-props-panel-open' : ''}`} aria-hidden={!open}>
       {open ? (
         <div className="node-props-inner">
           <div className="node-props-header">
@@ -81,12 +79,7 @@ export function NodePropertiesPanel({
               <span className="node-props-title">{title}</span>
               {subtitle && <span className="node-props-subtitle">{subtitle}</span>}
             </div>
-            <button
-              type="button"
-              className="node-props-close"
-              onClick={onClose}
-              aria-label="Close properties"
-            >
+            <button type="button" className="node-props-close" onClick={onClose} aria-label="Close properties">
               ×
             </button>
           </div>

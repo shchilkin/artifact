@@ -1,8 +1,8 @@
 import type { Node as RFNode } from '@xyflow/react';
 
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
-import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { NODE_W } from './constants';
 import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData } from './types';
 
@@ -69,7 +69,8 @@ export function buildRFNodes(
   });
 
   const exportPos = graph.positions[EXPORT_NODE_ID] ?? {
-    x: doc.layers.length * (NODE_W + 56), y: 80,
+    x: doc.layers.length * (NODE_W + 56),
+    y: 80,
   };
   nodes.push({
     id: EXPORT_NODE_ID,

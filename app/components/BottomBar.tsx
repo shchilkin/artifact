@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useRef, useState } from 'react';
+
 interface Props {
   seed: number;
   onSeedChange: (seed: number) => void;
@@ -48,22 +49,10 @@ export function BottomBar({
     <div className="bottom-bar">
       {/* Row 1: Undo / Redo / Rand */}
       <div className="bottom-rand-group">
-        <button
-          className="btn"
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo"
-          title="Undo (Cmd+Z)"
-        >
+        <button className="btn" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)">
           ↩{canUndo && undoCount > 0 ? ` ${undoCount}` : ''}
         </button>
-        <button
-          className="btn"
-          onClick={onRedo}
-          disabled={!canRedo}
-          aria-label="Redo"
-          title="Redo (Cmd+Shift+Z)"
-        >
+        <button className="btn" onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)">
           ↪
         </button>
         <button className="btn btn-primary rand-btn" onClick={onRandomize}>
@@ -82,34 +71,34 @@ export function BottomBar({
           pattern="[0-9]*"
           maxLength={7}
           defaultValue={String(seed)}
-          onKeyDown={(e) => e.key === "Enter" && handleSeedSet()}
+          onKeyDown={(e) => e.key === 'Enter' && handleSeedSet()}
           onBlur={handleSeedSet}
           className="seed-input"
           aria-label="Seed value"
         />
-        <button className="btn" onClick={handleSeedSet}>SET</button>
-        <button
-          className="btn"
-          onClick={handleCopyLink}
-          aria-label="Copy link to current state"
-        >
+        <button className="btn" onClick={handleSeedSet}>
+          SET
+        </button>
+        <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
-              key={copied ? "check" : "link"}
+              key={copied ? 'check' : 'link'}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.15 }}
-              style={{ display: "inline-block" }}
+              style={{ display: 'inline-block' }}
             >
-              {copied ? "✓" : "LINK"}
+              {copied ? '✓' : 'LINK'}
             </motion.span>
           </AnimatePresence>
         </button>
       </div>
 
       <div className="bottom-right-group">
-        <button className="btn" onClick={onPresetsToggle}>PRESETS</button>
+        <button className="btn" onClick={onPresetsToggle}>
+          PRESETS
+        </button>
         <button className="btn btn-primary" onClick={onExport} disabled={exportBusy}>
           {exportBusy ? '…' : 'EXPORT'}
         </button>

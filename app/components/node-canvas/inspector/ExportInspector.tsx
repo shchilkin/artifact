@@ -22,7 +22,12 @@ export function ExportInspector({
 
   return (
     <div className="node-inspector-stack">
-      <InspectorSelect label="Output" value={exportConfig.target} options={['cover', 'envmap']} onChange={(value) => onChange({ target: value as CanvasDocument['export']['target'] })} />
+      <InspectorSelect
+        label="Output"
+        value={exportConfig.target}
+        options={['cover', 'envmap']}
+        onChange={(value) => onChange({ target: value as CanvasDocument['export']['target'] })}
+      />
       <InspectorSelect
         label="Aspect"
         value={aspect}
@@ -31,14 +36,22 @@ export function ExportInspector({
       />
       {exportConfig.target === 'cover' && (
         <>
-          <InspectorSelect label="Format" value={exportConfig.format} options={['png', 'jpeg']} onChange={(value) => onChange({ format: value as CanvasDocument['export']['format'] })} />
-          <InspectorSelect label="Scale" value={String(exportConfig.scale)} options={['1', '2', '3']} onChange={(value) => onChange({ scale: Number(value) as CanvasDocument['export']['scale'] })} />
+          <InspectorSelect
+            label="Format"
+            value={exportConfig.format}
+            options={['png', 'jpeg']}
+            onChange={(value) => onChange({ format: value as CanvasDocument['export']['format'] })}
+          />
+          <InspectorSelect
+            label="Scale"
+            value={String(exportConfig.scale)}
+            options={['1', '2', '3']}
+            onChange={(value) => onChange({ scale: Number(value) as CanvasDocument['export']['scale'] })}
+          />
           <InspectorLabel>{`${width * exportConfig.scale} × ${height * exportConfig.scale}`}</InspectorLabel>
         </>
       )}
-      {exportConfig.target === 'envmap' && (
-        <InspectorLabel>4096 × 2048 png</InspectorLabel>
-      )}
+      {exportConfig.target === 'envmap' && <InspectorLabel>4096 × 2048 png</InspectorLabel>}
       <NoPan
         as="button"
         type="button"

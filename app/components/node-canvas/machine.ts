@@ -33,16 +33,10 @@ export type NodeCanvasMachineEvent =
 // Pure helpers (also exported for tests)
 // ---------------------------------------------------------------------------
 
-export function computeNextNodeIds(
-  current: string[],
-  id: string | null,
-  additive: boolean,
-): string[] {
+export function computeNextNodeIds(current: string[], id: string | null, additive: boolean): string[] {
   if (!id) return [];
   if (!additive) return [id];
-  return current.includes(id)
-    ? current.filter((x) => x !== id)
-    : [...current, id];
+  return current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
 }
 
 // ---------------------------------------------------------------------------
@@ -63,21 +57,15 @@ export const nodeCanvasMachine = setup({
       return computeNextNodeIds(context.selectedNodeIds, event.id, event.additive).length === 0;
     },
     /** SELECTION_CHANGED carries at least one node. */
-    hasNodes: ({ event }) =>
-      event.type === 'SELECTION_CHANGED' && event.nodeIds.length > 0,
+    hasNodes: ({ event }) => event.type === 'SELECTION_CHANGED' && event.nodeIds.length > 0,
     /** SELECTION_CHANGED carries exactly one edge, no nodes. */
     hasEdgeOnly: ({ event }) =>
-      event.type === 'SELECTION_CHANGED' &&
-      event.nodeIds.length === 0 &&
-      event.edgeIds.length === 1,
+      event.type === 'SELECTION_CHANGED' && event.nodeIds.length === 0 && event.edgeIds.length === 1,
     /** NODE_EDITOR_TOGGLED is toggling the currently-open editor off. */
-    isSameEditor: ({ context, event }) =>
-      event.type === 'NODE_EDITOR_TOGGLED' && context.expandedNodeId === event.id,
+    isSameEditor: ({ context, event }) => event.type === 'NODE_EDITOR_TOGGLED' && context.expandedNodeId === event.id,
     /** EDGE_IDS_REMOVED includes the currently-selected edge. */
     selectedEdgeRemoved: ({ context, event }) =>
-      event.type === 'EDGE_IDS_REMOVED' &&
-      context.selectedEdgeId != null &&
-      event.ids.includes(context.selectedEdgeId),
+      event.type === 'EDGE_IDS_REMOVED' && context.selectedEdgeId != null && event.ids.includes(context.selectedEdgeId),
   },
 
   actions: {
@@ -97,9 +85,7 @@ export const nodeCanvasMachine = setup({
         if (event.type !== 'NODE_SELECTED') return context.expandedNodeId;
         if (event.additive) {
           const next = computeNextNodeIds(context.selectedNodeIds, event.id, true);
-          return context.expandedNodeId && next.includes(context.expandedNodeId)
-            ? context.expandedNodeId
-            : null;
+          return context.expandedNodeId && next.includes(context.expandedNodeId) ? context.expandedNodeId : null;
         }
         return context.expandedNodeId === event.id ? context.expandedNodeId : null;
       },
@@ -107,29 +93,23 @@ export const nodeCanvasMachine = setup({
 
     selectEdge: assign({
       selectedNodeIds: [],
-      selectedEdgeId: ({ event }) =>
-        event.type === 'EDGE_SELECTED' ? event.id : null,
+      selectedEdgeId: ({ event }) => (event.type === 'EDGE_SELECTED' ? event.id : null),
       expandedNodeId: null,
     }),
 
     openEditor: assign({
-      selectedNodeIds: ({ event }) =>
-        event.type === 'NODE_EDITOR_TOGGLED' ? [event.id] : [],
+      selectedNodeIds: ({ event }) => (event.type === 'NODE_EDITOR_TOGGLED' ? [event.id] : []),
       selectedEdgeId: null,
-      expandedNodeId: ({ event }) =>
-        event.type === 'NODE_EDITOR_TOGGLED' ? event.id : null,
+      expandedNodeId: ({ event }) => (event.type === 'NODE_EDITOR_TOGGLED' ? event.id : null),
     }),
 
     closeEditor: assign({ expandedNodeId: null }),
 
     applySelectionChanged: assign({
-      selectedNodeIds: ({ event }) =>
-        event.type === 'SELECTION_CHANGED' ? event.nodeIds : [],
+      selectedNodeIds: ({ event }) => (event.type === 'SELECTION_CHANGED' ? event.nodeIds : []),
       selectedEdgeId: ({ event }) => {
         if (event.type !== 'SELECTION_CHANGED') return null;
-        return event.nodeIds.length === 0 && event.edgeIds.length === 1
-          ? event.edgeIds[0]
-          : null;
+        return event.nodeIds.length === 0 && event.edgeIds.length === 1 ? event.edgeIds[0] : null;
       },
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'SELECTION_CHANGED') return null;
@@ -153,15 +133,12 @@ export const nodeCanvasMachine = setup({
       },
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'NODE_IDS_REMOVED') return context.expandedNodeId;
-        return context.expandedNodeId && event.ids.includes(context.expandedNodeId)
-          ? null
-          : context.expandedNodeId;
+        return context.expandedNodeId && event.ids.includes(context.expandedNodeId) ? null : context.expandedNodeId;
       },
     }),
 
     syncExternalNode: assign({
-      selectedNodeIds: ({ event }) =>
-        event.type === 'SYNC_EXTERNAL_NODE' ? [event.id] : [],
+      selectedNodeIds: ({ event }) => (event.type === 'SYNC_EXTERNAL_NODE' ? [event.id] : []),
       selectedEdgeId: null,
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'SYNC_EXTERNAL_NODE') return context.expandedNodeId;
@@ -178,29 +155,23 @@ export const nodeCanvasMachine = setup({
       selectedEdgeId: ({ context, event }) => {
         if (event.type !== 'FILTER_INVALID_REFERENCES') return context.selectedEdgeId;
         const valid = new Set(event.validEdgeIds);
-        return context.selectedEdgeId && valid.has(context.selectedEdgeId)
-          ? context.selectedEdgeId
-          : null;
+        return context.selectedEdgeId && valid.has(context.selectedEdgeId) ? context.selectedEdgeId : null;
       },
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'FILTER_INVALID_REFERENCES') return context.expandedNodeId;
         const valid = new Set(event.validNodeIds);
-        return context.expandedNodeId && valid.has(context.expandedNodeId)
-          ? context.expandedNodeId
-          : null;
+        return context.expandedNodeId && valid.has(context.expandedNodeId) ? context.expandedNodeId : null;
       },
     }),
 
     openContextMenu: assign({
-      contextMenu: ({ event }) =>
-        event.type === 'CONTEXT_MENU_OPENED' ? event.menu : null,
+      contextMenu: ({ event }) => (event.type === 'CONTEXT_MENU_OPENED' ? event.menu : null),
     }),
 
     closeContextMenu: assign({ contextMenu: null }),
 
     openGallery: assign({
-      galleryNodeId: ({ event }) =>
-        event.type === 'GALLERY_OPENED' ? event.nodeId : null,
+      galleryNodeId: ({ event }) => (event.type === 'GALLERY_OPENED' ? event.nodeId : null),
     }),
 
     closeGallery: assign({ galleryNodeId: null }),

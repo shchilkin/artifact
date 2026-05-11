@@ -4,11 +4,13 @@ import type { Layer } from '../../types/config';
 import type { GalleryEligibleLayer } from './types';
 
 export function isGalleryEligibleLayer(layer: Layer): layer is GalleryEligibleLayer {
-  return layer.kind === 'primitive'
-    || layer.kind === 'noise'
-    || layer.kind === 'array'
-    || layer.kind === 'text'
-    || layer.kind === 'image';
+  return (
+    layer.kind === 'primitive' ||
+    layer.kind === 'noise' ||
+    layer.kind === 'array' ||
+    layer.kind === 'text' ||
+    layer.kind === 'image'
+  );
 }
 
 export function cloneLayerSnapshot<T extends Layer>(layer: T): T {
@@ -22,9 +24,7 @@ export function stopNodeEvent(e: SyntheticEvent) {
   e.stopPropagation();
 }
 
-export function callAll<E extends SyntheticEvent>(
-  ...handlers: Array<((event: E) => void) | undefined>
-) {
+export function callAll<E extends SyntheticEvent>(...handlers: Array<((event: E) => void) | undefined>) {
   return (event: E) => {
     handlers.forEach((handler) => handler?.(event));
   };
@@ -48,13 +48,7 @@ export function distancePointToSegment(
   return Math.hypot(point.x - px, point.y - py);
 }
 
-export function clampPopupPosition(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  padding = 8,
-) {
+export function clampPopupPosition(x: number, y: number, width: number, height: number, padding = 8) {
   if (typeof window === 'undefined') {
     return { left: x, top: y };
   }

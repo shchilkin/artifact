@@ -17,9 +17,9 @@
  * canvasPolyfill.ts (included through vitest setupFiles).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { renderDocument } from '../../utils/renderer';
-import { fillOnly, textOverFill, emojiSeeded } from './fixtures';
+import { emojiSeeded, fillOnly, textOverFill } from './fixtures';
 
 // ---------------------------------------------------------------------------
 // Helpers

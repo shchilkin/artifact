@@ -30,18 +30,15 @@ function getTransform(layer: TransformableLayer): Required<LayerTransformPatch> 
 
 function sameTransform(layer: TransformableLayer, patch: LayerTransformPatch) {
   return (
-    (patch.x === undefined || layer.x === patch.x)
-    && (patch.y === undefined || layer.y === patch.y)
-    && (patch.rotation === undefined || layer.rotation === patch.rotation)
-    && (patch.scaleX === undefined || layer.scaleX === patch.scaleX)
-    && (patch.scaleY === undefined || layer.scaleY === patch.scaleY)
+    (patch.x === undefined || layer.x === patch.x) &&
+    (patch.y === undefined || layer.y === patch.y) &&
+    (patch.rotation === undefined || layer.rotation === patch.rotation) &&
+    (patch.scaleX === undefined || layer.scaleX === patch.scaleX) &&
+    (patch.scaleY === undefined || layer.scaleY === patch.scaleY)
   );
 }
 
-export function useLayerTransformDraft(
-  layer: Layer,
-  commitLayer: (id: string, patch: Partial<Layer>) => void,
-) {
+export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, patch: Partial<Layer>) => void) {
   const [draft, setDraft] = useState<LayerTransformPatch | null>(null);
   const draftRef = useRef<LayerTransformPatch | null>(null);
   const layerRef = useRef(layer);
@@ -55,13 +52,16 @@ export function useLayerTransformDraft(
     setDraft(null);
   }, [layer]);
 
-  useEffect(() => () => {
-    clearTimeout(commitTimerRef.current);
-    const currentLayer = layerRef.current;
-    const currentDraft = draftRef.current;
-    if (!currentDraft || !isTransformableLayer(currentLayer) || sameTransform(currentLayer, currentDraft)) return;
-    commitLayer(currentLayer.id, currentDraft);
-  }, [commitLayer]);
+  useEffect(
+    () => () => {
+      clearTimeout(commitTimerRef.current);
+      const currentLayer = layerRef.current;
+      const currentDraft = draftRef.current;
+      if (!currentDraft || !isTransformableLayer(currentLayer) || sameTransform(currentLayer, currentDraft)) return;
+      commitLayer(currentLayer.id, currentDraft);
+    },
+    [commitLayer],
+  );
 
   const commitDraft = useCallback(() => {
     clearTimeout(commitTimerRef.current);
@@ -81,26 +81,32 @@ export function useLayerTransformDraft(
     commitTimerRef.current = setTimeout(commitDraft, WHEEL_COMMIT_DELAY);
   }, [commitDraft]);
 
-  const updateDraft = useCallback((patch: LayerTransformPatch, commit: 'manual' | 'defer' = 'manual') => {
-    const currentLayer = layerRef.current;
-    if (!isTransformableLayer(currentLayer)) return;
-    const next = {
-      ...(draftRef.current ?? getTransform(currentLayer)),
-      ...patch,
-    };
-    draftRef.current = next;
-    setDraft(next);
-    if (commit === 'defer') scheduleCommit();
-  }, [scheduleCommit]);
+  const updateDraft = useCallback(
+    (patch: LayerTransformPatch, commit: 'manual' | 'defer' = 'manual') => {
+      const currentLayer = layerRef.current;
+      if (!isTransformableLayer(currentLayer)) return;
+      const next = {
+        ...(draftRef.current ?? getTransform(currentLayer)),
+        ...patch,
+      };
+      draftRef.current = next;
+      setDraft(next);
+      if (commit === 'defer') scheduleCommit();
+    },
+    [scheduleCommit],
+  );
 
-  const handleWheel = useCallback((event: React.WheelEvent) => {
-    if (!isTransformableLayer(layerRef.current)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const current = draftRef.current ?? getTransform(layerRef.current);
-    const nextScale = clampScale(current.scaleX - event.deltaY * WHEEL_SCALE_STEP);
-    updateDraft({ scaleX: nextScale, scaleY: nextScale }, 'defer');
-  }, [updateDraft]);
+  const handleWheel = useCallback(
+    (event: React.WheelEvent) => {
+      if (!isTransformableLayer(layerRef.current)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const current = draftRef.current ?? getTransform(layerRef.current);
+      const nextScale = clampScale(current.scaleX - event.deltaY * WHEEL_SCALE_STEP);
+      updateDraft({ scaleX: nextScale, scaleY: nextScale }, 'defer');
+    },
+    [updateDraft],
+  );
 
   const effectiveLayer = useMemo<Layer>(() => {
     if (!draft || !isTransformableLayer(layer)) return layer;

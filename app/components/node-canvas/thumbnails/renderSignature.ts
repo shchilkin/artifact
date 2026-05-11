@@ -9,19 +9,29 @@
  * primitiveScene.ts, or primitiveRenderer.ts.
  */
 
-import type {
-  Layer,
-  GraphEdge,
-  GraphMergeNode,
-  GraphColorNode,
-} from '../../../types/config';
+import type { GraphColorNode, GraphEdge, GraphMergeNode, Layer } from '../../../types/config';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
   switch (layer.kind) {
     case 'text': {
       const { visible, content, font, size, color, opacity, blendMode, x, y, rotation, align, scaleX, scaleY } = layer;
-      return JSON.stringify([layer.kind, visible, content, font, size, color, opacity, blendMode, x, y, rotation, align, scaleX, scaleY]);
+      return JSON.stringify([
+        layer.kind,
+        visible,
+        content,
+        font,
+        size,
+        color,
+        opacity,
+        blendMode,
+        x,
+        y,
+        rotation,
+        align,
+        scaleX,
+        scaleY,
+      ]);
     }
     case 'image': {
       const { visible, src, fit, opacity, blendMode, x, y, scaleX, scaleY, rotation } = layer;

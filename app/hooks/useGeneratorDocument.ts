@@ -2,9 +2,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { AddAction, InsertConnectionConfig } from '../components/NodeCanvas';
 import {
   ASPECT_SIZES,
+  type AspectRatio,
+  type CanvasDocument,
+  type CanvasGraph,
   cloneDocument,
   DEFAULT_DOCUMENT,
   DEFAULT_EXPORT,
+  type EffectPreset,
+  type GraphColorNode,
+  type GraphMergeNode,
+  type Layer,
+  type LayerKind,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -13,17 +21,8 @@ import {
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
-  type AspectRatio,
-  type CanvasDocument,
-  type CanvasGraph,
-  type EffectPreset,
-  type GraphColorNode,
-  type GraphMergeNode,
-  type Layer,
-  type LayerKind,
   type SourceType,
 } from '../types/config';
-import { randomDocument } from '../utils/randomConfig';
 import {
   addColorNode,
   addGraphEdge,
@@ -37,6 +36,7 @@ import {
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
 } from '../utils/nodeGraph';
+import { randomDocument } from '../utils/randomConfig';
 
 const DOC_KEY = 'doc';
 const HISTORY_MAX = 50;
@@ -59,15 +59,13 @@ function normalizeDocument(raw: unknown): CanvasDocument {
     ...(typeof doc.export === 'object' && doc.export ? doc.export : {}),
   } as CanvasDocument['export'];
   const layers = Array.isArray(doc.layers)
-    ? doc.layers.map((layer) => (
-      layer?.kind === 'source' && typeof (layer as { sourceType?: unknown }).sourceType === 'string'
-        ? { ...layer, kind: (layer as { sourceType: SourceType }).sourceType }
-        : layer
-    )) as Layer[]
+    ? (doc.layers.map((layer) =>
+        layer?.kind === 'source' && typeof (layer as { sourceType?: unknown }).sourceType === 'string'
+          ? { ...layer, kind: (layer as { sourceType: SourceType }).sourceType }
+          : layer,
+      ) as Layer[])
     : [];
-  const graph = doc.graph
-    ? { ...doc.graph, colorNodes: doc.graph.colorNodes ?? [] }
-    : undefined;
+  const graph = doc.graph ? { ...doc.graph, colorNodes: doc.graph.colorNodes ?? [] } : undefined;
   return { ...doc, global: { ...doc.global, aspect }, layers, export: exportConfig, graph };
 }
 
@@ -119,15 +117,14 @@ function cloneLayerForDuplicate(layer: Layer): Layer {
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [fromDocParam] = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc')
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [past, setPast] = useState<HistoryEntry[]>([]);
   const [future, setFuture] = useState<HistoryEntry[]>([]);
 
-  const safeSelectedLayerId = selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId)
-    ? selectedLayerId
-    : null;
+  const safeSelectedLayerId =
+    selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId) ? selectedLayerId : null;
 
   const docRef = useRef(doc);
   const selectedLayerIdRef = useRef(selectedLayerId);
@@ -146,7 +143,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       url.searchParams.delete('doc');
       window.history.replaceState(null, '', url.toString());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pushHistorySnapshot = useCallback(() => {
@@ -169,27 +166,39 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     }, 400);
   }, []);
 
-  const updateDocument = useCallback((mutate: (current: CanvasDocument) => CanvasDocument) => {
-    setDoc(mutate(docRef.current));
-  }, [setDoc]);
+  const updateDocument = useCallback(
+    (mutate: (current: CanvasDocument) => CanvasDocument) => {
+      setDoc(mutate(docRef.current));
+    },
+    [setDoc],
+  );
 
-  const replaceDocument = useCallback((nextDoc: CanvasDocument) => {
-    pushHistorySnapshot();
-    _setDoc(normalizeDocument(nextDoc));
-    setSelectedLayerId(null);
-  }, [pushHistorySnapshot]);
+  const replaceDocument = useCallback(
+    (nextDoc: CanvasDocument) => {
+      pushHistorySnapshot();
+      _setDoc(normalizeDocument(nextDoc));
+      setSelectedLayerId(null);
+    },
+    [pushHistorySnapshot],
+  );
 
-  const setSeed = useCallback((seed: number) => {
-    pushHistorySnapshot();
-    _setDoc({ ...docRef.current, global: { ...docRef.current.global, seed } });
-  }, [pushHistorySnapshot]);
+  const setSeed = useCallback(
+    (seed: number) => {
+      pushHistorySnapshot();
+      _setDoc({ ...docRef.current, global: { ...docRef.current.global, seed } });
+    },
+    [pushHistorySnapshot],
+  );
 
-  const setAspect = useCallback((aspect: AspectRatio) => {
-    updateDocument((current) => ({
-      ...current,
-      global: { ...current.global, aspect },
-    }));
-  }, [updateDocument]);
+  const setAspect = useCallback(
+    (aspect: AspectRatio) => {
+      updateDocument((current) => ({
+        ...current,
+        global: { ...current.global, aspect },
+      }));
+    },
+    [updateDocument],
+  );
 
   const undo = useCallback(() => {
     if (past.length === 0) return;
@@ -238,212 +247,244 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     }
   }, [nodeModeEnabled, setDoc]);
 
-  const addLayer = useCallback((kind: Exclude<LayerKind, 'effect'>) => {
-    const layer = createLayerOfKind(kind);
-    updateDocument((current) => {
-      if (!current.graph) return { ...current, layers: [...current.layers, layer] };
-      return {
-        ...current,
-        layers: [...current.layers, layer],
-        graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
-      };
-    });
-    setSelectedLayerId(layer.id);
-  }, [updateDocument]);
-
-  const addEffectPreset = useCallback((preset: EffectPreset) => {
-    const layer = makeEffectPresetLayer(preset);
-    updateDocument((current) => {
-      if (!current.graph) return { ...current, layers: [...current.layers, layer] };
-      return {
-        ...current,
-        layers: [...current.layers, layer],
-        graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
-      };
-    });
-    setSelectedLayerId(layer.id);
-  }, [updateDocument]);
-
-  const addImageFromSource = useCallback((src: string) => {
-    const layer = makeImageLayer(src);
-    updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }));
-    setSelectedLayerId(layer.id);
-  }, [updateDocument]);
-
-  const removeLayer = useCallback((id: string) => {
-    updateDocument((current) => ({
-      ...current,
-      layers: current.layers.filter((layer) => layer.id !== id),
-      graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
-    }));
-    if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
-  }, [updateDocument]);
-
-  const deleteNodeSelection = useCallback((ids: string[]) => {
-    if (ids.length === 0) return;
-    const idSet = new Set(ids);
-    updateDocument((current) => {
-      const nextLayers = current.layers.filter((layer) => !idSet.has(layer.id));
-      let nextGraph = current.graph;
-      if (nextGraph) {
-        for (const mergeNode of nextGraph.mergeNodes) {
-          if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
-        }
-        for (const colorNode of (nextGraph?.colorNodes ?? [])) {
-          if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
-        }
-        for (const id of ids) {
-          if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
-        }
-      }
-      return { ...current, layers: nextLayers, graph: nextGraph };
-    });
-    if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
-  }, [updateDocument]);
-
-  const updateLayer = useCallback((id: string, patch: Partial<Layer>) => {
-    updateDocument((current) => ({
-      ...current,
-      layers: current.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
-    }));
-  }, [updateDocument]);
-
-  const updateMergeNode = useCallback((id: string, patch: Partial<GraphMergeNode>) => {
-    updateDocument((current) => {
-      if (!current.graph) return current;
-      return {
-        ...current,
-        graph: {
-          ...current.graph,
-          mergeNodes: current.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
-        },
-      };
-    });
-  }, [updateDocument]);
-
-  const updateColorNode = useCallback((id: string, patch: Partial<GraphColorNode>) => {
-    updateDocument((current) => {
-      if (!current.graph) return current;
-      return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
-    });
-  }, [updateDocument]);
-
-  const reorderLayers = useCallback((layers: Layer[]) => {
-    updateDocument((current) => ({ ...current, layers }));
-  }, [updateDocument]);
-
-  const duplicateLayer = useCallback((id: string) => {
-    const current = docRef.current;
-    const layer = current.layers.find((item) => item.id === id);
-    if (!layer) return;
-    const duplicate = cloneLayerForDuplicate(layer);
-    updateDocument((innerCurrent) => {
-      const index = innerCurrent.layers.findIndex((item) => item.id === id);
-      const nextLayers = [...innerCurrent.layers];
-      nextLayers.splice(index + 1, 0, duplicate);
-      if (!innerCurrent.graph) return { ...innerCurrent, layers: nextLayers };
-      return {
-        ...innerCurrent,
-        layers: nextLayers,
-        graph: addLayerToGraph(innerCurrent.graph, duplicate.id, nextDropPosition(innerCurrent.graph)),
-      };
-    });
-    setSelectedLayerId(duplicate.id);
-  }, [updateDocument]);
-
-  const handleAddLayerAt = useCallback((action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
-    if (action.kind === 'merge') {
-      const node = makeGraphMergeNode();
+  const addLayer = useCallback(
+    (kind: Exclude<LayerKind, 'effect'>) => {
+      const layer = createLayerOfKind(kind);
       updateDocument((current) => {
-        let graph = addMergeNode(ensureGraph(current), node, position);
+        if (!current.graph) return { ...current, layers: [...current.layers, layer] };
+        return {
+          ...current,
+          layers: [...current.layers, layer],
+          graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
+        };
+      });
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const addEffectPreset = useCallback(
+    (preset: EffectPreset) => {
+      const layer = makeEffectPresetLayer(preset);
+      updateDocument((current) => {
+        if (!current.graph) return { ...current, layers: [...current.layers, layer] };
+        return {
+          ...current,
+          layers: [...current.layers, layer],
+          graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
+        };
+      });
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const addImageFromSource = useCallback(
+    (src: string) => {
+      const layer = makeImageLayer(src);
+      updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }));
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const removeLayer = useCallback(
+    (id: string) => {
+      updateDocument((current) => ({
+        ...current,
+        layers: current.layers.filter((layer) => layer.id !== id),
+        graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
+      }));
+      if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
+    },
+    [updateDocument],
+  );
+
+  const deleteNodeSelection = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      updateDocument((current) => {
+        const nextLayers = current.layers.filter((layer) => !idSet.has(layer.id));
+        let nextGraph = current.graph;
+        if (nextGraph) {
+          for (const mergeNode of nextGraph.mergeNodes) {
+            if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
+          }
+          for (const colorNode of nextGraph?.colorNodes ?? []) {
+            if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
+          }
+          for (const id of ids) {
+            if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
+          }
+        }
+        return { ...current, layers: nextLayers, graph: nextGraph };
+      });
+      if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
+    },
+    [updateDocument],
+  );
+
+  const updateLayer = useCallback(
+    (id: string, patch: Partial<Layer>) => {
+      updateDocument((current) => ({
+        ...current,
+        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
+      }));
+    },
+    [updateDocument],
+  );
+
+  const updateMergeNode = useCallback(
+    (id: string, patch: Partial<GraphMergeNode>) => {
+      updateDocument((current) => {
+        if (!current.graph) return current;
+        return {
+          ...current,
+          graph: {
+            ...current.graph,
+            mergeNodes: current.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
+          },
+        };
+      });
+    },
+    [updateDocument],
+  );
+
+  const updateColorNode = useCallback(
+    (id: string, patch: Partial<GraphColorNode>) => {
+      updateDocument((current) => {
+        if (!current.graph) return current;
+        return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
+      });
+    },
+    [updateDocument],
+  );
+
+  const reorderLayers = useCallback(
+    (layers: Layer[]) => {
+      updateDocument((current) => ({ ...current, layers }));
+    },
+    [updateDocument],
+  );
+
+  const duplicateLayer = useCallback(
+    (id: string) => {
+      const current = docRef.current;
+      const layer = current.layers.find((item) => item.id === id);
+      if (!layer) return;
+      const duplicate = cloneLayerForDuplicate(layer);
+      updateDocument((innerCurrent) => {
+        const index = innerCurrent.layers.findIndex((item) => item.id === id);
+        const nextLayers = [...innerCurrent.layers];
+        nextLayers.splice(index + 1, 0, duplicate);
+        if (!innerCurrent.graph) return { ...innerCurrent, layers: nextLayers };
+        return {
+          ...innerCurrent,
+          layers: nextLayers,
+          graph: addLayerToGraph(innerCurrent.graph, duplicate.id, nextDropPosition(innerCurrent.graph)),
+        };
+      });
+      setSelectedLayerId(duplicate.id);
+    },
+    [updateDocument],
+  );
+
+  const handleAddLayerAt = useCallback(
+    (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
+      if (action.kind === 'merge') {
+        const node = makeGraphMergeNode();
+        updateDocument((current) => {
+          let graph = addMergeNode(ensureGraph(current), node, position);
+          if (insertion?.replaceEdgeId) {
+            graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'a');
+          } else if (insertion?.sourceId) {
+            graph = addGraphEdge(graph, {
+              id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
+              fromId: insertion.sourceId,
+              fromPort: 'out',
+              toId: node.id,
+              toPort: 'a',
+            });
+          }
+          if (!insertion?.replaceEdgeId && insertion?.targetId) {
+            graph = addGraphEdge(graph, {
+              id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
+              fromId: node.id,
+              fromPort: 'out',
+              toId: insertion.targetId,
+              toPort: insertion.targetPort ?? 'in',
+            });
+          }
+          return { ...current, graph };
+        });
+        return;
+      }
+
+      if (action.kind === 'color') {
+        const node = makeGraphColorNode();
+        updateDocument((current) => {
+          let graph = addColorNode(ensureGraph(current), node, position);
+          if (insertion?.replaceEdgeId) {
+            graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'in');
+          } else if (insertion?.sourceId) {
+            graph = addGraphEdge(graph, {
+              id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
+              fromId: insertion.sourceId,
+              fromPort: 'out',
+              toId: node.id,
+              toPort: 'in',
+            });
+          }
+          if (!insertion?.replaceEdgeId && insertion?.targetId) {
+            graph = addGraphEdge(graph, {
+              id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
+              fromId: node.id,
+              fromPort: 'out',
+              toId: insertion.targetId,
+              toPort: insertion.targetPort ?? 'in',
+            });
+          }
+          return { ...current, graph };
+        });
+        return;
+      }
+
+      const layer =
+        action.kind === 'effect' ? makeEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+
+      updateDocument((current) => {
+        let graph = addLayerToGraph(ensureGraph(current), layer.id, position);
         if (insertion?.replaceEdgeId) {
-          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'a');
+          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, layer.id, action.kind === 'effect' ? 'in' : 'bg');
         } else if (insertion?.sourceId) {
           graph = addGraphEdge(graph, {
-            id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
+            id: `e-${insertion.sourceId}-${layer.id}-${Date.now()}`,
             fromId: insertion.sourceId,
             fromPort: 'out',
-            toId: node.id,
-            toPort: 'a',
+            toId: layer.id,
+            toPort: action.kind === 'effect' ? 'in' : 'bg',
           });
         }
         if (!insertion?.replaceEdgeId && insertion?.targetId) {
           graph = addGraphEdge(graph, {
-            id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
-            fromId: node.id,
+            id: `e-${layer.id}-${insertion.targetId}-${Date.now() + 1}`,
+            fromId: layer.id,
             fromPort: 'out',
             toId: insertion.targetId,
             toPort: insertion.targetPort ?? 'in',
           });
         }
-        return { ...current, graph };
+        return {
+          ...current,
+          layers: [...current.layers, layer],
+          graph,
+        };
       });
-      return;
-    }
-
-    if (action.kind === 'color') {
-      const node = makeGraphColorNode();
-      updateDocument((current) => {
-        let graph = addColorNode(ensureGraph(current), node, position);
-        if (insertion?.replaceEdgeId) {
-          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'in');
-        } else if (insertion?.sourceId) {
-          graph = addGraphEdge(graph, {
-            id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
-            fromId: insertion.sourceId,
-            fromPort: 'out',
-            toId: node.id,
-            toPort: 'in',
-          });
-        }
-        if (!insertion?.replaceEdgeId && insertion?.targetId) {
-          graph = addGraphEdge(graph, {
-            id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
-            fromId: node.id,
-            fromPort: 'out',
-            toId: insertion.targetId,
-            toPort: insertion.targetPort ?? 'in',
-          });
-        }
-        return { ...current, graph };
-      });
-      return;
-    }
-
-    const layer = action.kind === 'effect'
-      ? makeEffectPresetLayer(action.preset)
-      : createLayerOfKind(action.layerKind);
-
-    updateDocument((current) => {
-      let graph = addLayerToGraph(ensureGraph(current), layer.id, position);
-      if (insertion?.replaceEdgeId) {
-        graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, layer.id, action.kind === 'effect' ? 'in' : 'bg');
-      } else if (insertion?.sourceId) {
-        graph = addGraphEdge(graph, {
-          id: `e-${insertion.sourceId}-${layer.id}-${Date.now()}`,
-          fromId: insertion.sourceId,
-          fromPort: 'out',
-          toId: layer.id,
-          toPort: action.kind === 'effect' ? 'in' : 'bg',
-        });
-      }
-      if (!insertion?.replaceEdgeId && insertion?.targetId) {
-        graph = addGraphEdge(graph, {
-          id: `e-${layer.id}-${insertion.targetId}-${Date.now() + 1}`,
-          fromId: layer.id,
-          fromPort: 'out',
-          toId: insertion.targetId,
-          toPort: insertion.targetPort ?? 'in',
-        });
-      }
-      return {
-        ...current,
-        layers: [...current.layers, layer],
-        graph,
-      };
-    });
-    setSelectedLayerId(layer.id);
-  }, [updateDocument]);
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
 
   const handleRandomize = useCallback(() => {
     pushHistorySnapshot();
@@ -451,16 +492,22 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId(null);
   }, [pushHistorySnapshot]);
 
-  const handleGraphChange = useCallback((graph: CanvasGraph) => {
-    updateDocument((current) => ({ ...current, graph }));
-  }, [updateDocument]);
+  const handleGraphChange = useCallback(
+    (graph: CanvasGraph) => {
+      updateDocument((current) => ({ ...current, graph }));
+    },
+    [updateDocument],
+  );
 
-  const handleExportConfigChange = useCallback((patch: Partial<CanvasDocument['export']>) => {
-    updateDocument((current) => ({
-      ...current,
-      export: { ...current.export, ...patch },
-    }));
-  }, [updateDocument]);
+  const handleExportConfigChange = useCallback(
+    (patch: Partial<CanvasDocument['export']>) => {
+      updateDocument((current) => ({
+        ...current,
+        export: { ...current.export, ...patch },
+      }));
+    },
+    [updateDocument],
+  );
 
   const handleCopyLink = useCallback(() => {
     const params = new URLSearchParams();

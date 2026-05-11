@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { Layer } from '../../../types/config';
-import {
-  defaultPrimitiveViewportState,
-  type PrimitiveViewportState,
-} from '../../PrimitiveViewportState';
+import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 
 export interface UsePrimitiveCameraStateOptions {
   /** Starting camera states, typically lifted from generator.tsx for export parity. */
@@ -52,20 +49,21 @@ export function usePrimitiveCameraState({
     onPrimitiveViewStatesChange?.(primitiveViewStates);
   }, [onPrimitiveViewStatesChange, primitiveViewStates]);
 
-  const primitiveViewportLockActive = activePrimitiveViewportId !== null
-    && layers.some((layer) => layer.id === activePrimitiveViewportId && layer.kind === 'primitive');
+  const primitiveViewportLockActive =
+    activePrimitiveViewportId !== null &&
+    layers.some((layer) => layer.id === activePrimitiveViewportId && layer.kind === 'primitive');
 
   const updatePrimitiveView = useCallback((id: string, viewState: PrimitiveViewportState) => {
     setPrimitiveViewStates((current) => {
       const previous = current[id];
       if (
-        previous
-        && previous.rotationX === viewState.rotationX
-        && previous.rotationY === viewState.rotationY
-        && previous.zoom === viewState.zoom
-        && previous.panX === viewState.panX
-        && previous.panY === viewState.panY
-        && (previous.locked ?? false) === (viewState.locked ?? false)
+        previous &&
+        previous.rotationX === viewState.rotationX &&
+        previous.rotationY === viewState.rotationY &&
+        previous.zoom === viewState.zoom &&
+        previous.panX === viewState.panX &&
+        previous.panY === viewState.panY &&
+        (previous.locked ?? false) === (viewState.locked ?? false)
       ) {
         return current;
       }
@@ -87,24 +85,34 @@ export function usePrimitiveCameraState({
     [primitiveViewStates],
   );
 
-  const setPrimitiveCameraLocked = useCallback((id: string, locked: boolean) => {
-    setPrimitiveViewStates((current) => {
-      const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as Extract<Layer, { kind: 'primitive' }> | undefined;
-      const existing = current[id] ?? (layer ? defaultPrimitiveViewportState(layer) : null);
-      if (!existing) return current;
-      if ((existing.locked ?? false) === locked) return current;
-      return { ...current, [id]: { ...existing, locked } };
-    });
-  }, [layers]);
+  const setPrimitiveCameraLocked = useCallback(
+    (id: string, locked: boolean) => {
+      setPrimitiveViewStates((current) => {
+        const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as
+          | Extract<Layer, { kind: 'primitive' }>
+          | undefined;
+        const existing = current[id] ?? (layer ? defaultPrimitiveViewportState(layer) : null);
+        if (!existing) return current;
+        if ((existing.locked ?? false) === locked) return current;
+        return { ...current, [id]: { ...existing, locked } };
+      });
+    },
+    [layers],
+  );
 
-  const resetPrimitiveCamera = useCallback((id: string) => {
-    const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as Extract<Layer, { kind: 'primitive' }> | undefined;
-    if (!layer) return;
-    setPrimitiveViewStates((current) => {
-      const locked = current[id]?.locked ?? false;
-      return { ...current, [id]: { ...defaultPrimitiveViewportState(layer), locked } };
-    });
-  }, [layers]);
+  const resetPrimitiveCamera = useCallback(
+    (id: string) => {
+      const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as
+        | Extract<Layer, { kind: 'primitive' }>
+        | undefined;
+      if (!layer) return;
+      setPrimitiveViewStates((current) => {
+        const locked = current[id]?.locked ?? false;
+        return { ...current, [id]: { ...defaultPrimitiveViewportState(layer), locked } };
+      });
+    },
+    [layers],
+  );
 
   return {
     primitiveViewStates,

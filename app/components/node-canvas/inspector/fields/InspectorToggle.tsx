@@ -13,12 +13,7 @@ export function InspectorToggle({
   return (
     <NoPan as="label" className="node-inspector-toggle">
       <InspectorLabel>{label}</InspectorLabel>
-      <input
-        className="node-check"
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
+      <input className="node-check" type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
     </NoPan>
   );
 }

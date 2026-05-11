@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
-import { defaultPrimitiveViewportState, type PrimitiveRenderMode, type PrimitiveViewportState } from './PrimitiveViewportState';
 import {
   addSceneLights,
   addSceneShadow,
@@ -13,6 +12,11 @@ import {
   createPrimitiveMaterial,
   disposeMesh,
 } from '../utils/primitiveScene';
+import {
+  defaultPrimitiveViewportState,
+  type PrimitiveRenderMode,
+  type PrimitiveViewportState,
+} from './PrimitiveViewportState';
 
 interface Props {
   layer: PrimitiveLayer;
@@ -66,8 +70,8 @@ export function PrimitiveViewport3D({
   const lockRFPane = () => {
     if (lockedRef.current) return;
     if (!rfPaneRef.current) {
-      rfPaneRef.current = rootRef.current?.closest('.react-flow')
-        ?.querySelector('.react-flow__pane') as HTMLElement ?? null;
+      rfPaneRef.current =
+        (rootRef.current?.closest('.react-flow')?.querySelector('.react-flow__pane') as HTMLElement) ?? null;
     }
     if (rfPaneRef.current) rfPaneRef.current.style.pointerEvents = 'none';
   };
@@ -197,10 +201,8 @@ export function PrimitiveViewport3D({
     if (!root) return;
 
     const inside = (e: Event) => root.contains(e.target as Node);
-    const fromControl = (e: Event) => (
-      e.target instanceof Element
-      && e.target.closest('[data-primitive-camera-control]') !== null
-    );
+    const fromControl = (e: Event) =>
+      e.target instanceof Element && e.target.closest('[data-primitive-camera-control]') !== null;
 
     const commit = () => onViewStateChangeRef.current({ ...viewStateRef.current });
 
@@ -210,9 +212,7 @@ export function PrimitiveViewport3D({
       e.stopPropagation();
       e.stopImmediatePropagation();
       e.preventDefault();
-      const gestureMode = e.button === 1 || e.button === 2 || e.shiftKey
-        ? 'pan'
-        : 'rotate';
+      const gestureMode = e.button === 1 || e.button === 2 || e.shiftKey ? 'pan' : 'rotate';
       dragStateRef.current = {
         pointerId: e.pointerId,
         startX: e.clientX,
@@ -270,7 +270,7 @@ export function PrimitiveViewport3D({
       e.preventDefault();
       const next = {
         ...viewStateRef.current,
-        zoom: clamp(viewStateRef.current.zoom - (e.deltaY * 0.0016), 0.6, 2.6),
+        zoom: clamp(viewStateRef.current.zoom - e.deltaY * 0.0016, 0.6, 2.6),
       };
       applyViewState(next);
       onViewStateChangeRef.current({ ...next });
@@ -306,8 +306,22 @@ export function PrimitiveViewport3D({
     document.addEventListener('dblclick', stopIfInside, cap);
 
     // Hover-lock: disable RF pane pointer-events while hovering so events reach our canvas
-    root.addEventListener('mouseenter', () => { isHoveredRef.current = true; if (!lockedRef.current) lockRFPane(); }, { signal: sig });
-    root.addEventListener('mouseleave', () => { isHoveredRef.current = false; unlockRFPane(); }, { signal: sig });
+    root.addEventListener(
+      'mouseenter',
+      () => {
+        isHoveredRef.current = true;
+        if (!lockedRef.current) lockRFPane();
+      },
+      { signal: sig },
+    );
+    root.addEventListener(
+      'mouseleave',
+      () => {
+        isHoveredRef.current = false;
+        unlockRFPane();
+      },
+      { signal: sig },
+    );
 
     return () => {
       controller.abort();
@@ -322,12 +336,22 @@ export function PrimitiveViewport3D({
   return (
     <div
       ref={rootRef}
-      className={['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel'].filter(Boolean).join(' ')}
+      className={[
+        'node-interactive-viewport',
+        className,
+        locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       tabIndex={interactive ? 0 : -1}
       role={interactive ? 'group' : undefined}
       aria-hidden={interactive ? undefined : true}
       aria-roledescription={interactive ? 'interactive viewport' : undefined}
-      aria-label={interactive ? `${layer.name} 3D preview. Drag rotates, right drag pans, wheel zooms, arrow keys rotate, plus or minus zoom, Home resets.` : undefined}
+      aria-label={
+        interactive
+          ? `${layer.name} 3D preview. Drag rotates, right drag pans, wheel zooms, arrow keys rotate, plus or minus zoom, Home resets.`
+          : undefined
+      }
       onKeyDown={(event) => {
         if (!interactive) return;
         if (locked) return;
@@ -402,8 +426,13 @@ export function PrimitiveViewport3D({
       onMouseLeave={() => {
         if (interactive) onHoverChange?.(false);
       }}
-      style={{ position: 'relative', width: '100%', height: '100%', touchAction: locked || !interactive ? 'auto' : 'none' }}
-      >
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        touchAction: locked || !interactive ? 'auto' : 'none',
+      }}
+    >
       <canvas
         ref={canvasRef}
         className={locked || !interactive ? undefined : 'nodrag nopan nowheel'}

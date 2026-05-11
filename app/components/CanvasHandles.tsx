@@ -43,70 +43,80 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
   const cos = Math.cos(rot);
   const sin = Math.sin(rot);
   const rotHandleOffset = 24;
-  const rotHx = cx + (-hh - rotHandleOffset) * (-sin);
+  const rotHx = cx + (-hh - rotHandleOffset) * -sin;
   const rotHy = cy + (-hh - rotHandleOffset) * cos;
 
-  const startDrag = useCallback((e: React.PointerEvent, mode: DragMode) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const orig = { ...layer };
-    onDragStart?.();
+  const startDrag = useCallback(
+    (e: React.PointerEvent, mode: DragMode) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const orig = { ...layer };
+      onDragStart?.();
 
-    function onMove(me: PointerEvent) {
-      const dx = (me.clientX - startX) / canvasW;
-      const dy = (me.clientY - startY) / canvasH;
+      function onMove(me: PointerEvent) {
+        const dx = (me.clientX - startX) / canvasW;
+        const dy = (me.clientY - startY) / canvasH;
 
-      if (mode === 'move') {
-        onChange({
-          ...orig,
-          x: orig.x + dx,
-          y: orig.y + dy,
-        } as typeof layer);
-        return;
+        if (mode === 'move') {
+          onChange({
+            ...orig,
+            x: orig.x + dx,
+            y: orig.y + dy,
+          } as typeof layer);
+          return;
+        }
+
+        if (mode === 'rotate') {
+          const rect = svgRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const angle = Math.atan2(me.clientY - (rect.top + cy), me.clientX - (rect.left + cx));
+          onChange({ ...orig, rotation: (angle * 180) / Math.PI + 90 } as typeof layer);
+          return;
+        }
+
+        // Scale — linked (proportional) by default; hold Shift for independent X/Y
+        const xSign = mode.includes('e') ? 1 : -1;
+        const ySign = mode.includes('s') ? 1 : -1;
+        if (me.shiftKey) {
+          onChange({
+            ...orig,
+            scaleX: Math.max(0.05, orig.scaleX + dx * 2 * xSign),
+            scaleY: Math.max(0.05, orig.scaleY + dy * 2 * ySign),
+          } as typeof layer);
+        } else {
+          const delta = (dx * xSign + dy * ySign) / Math.SQRT2;
+          const newScale = Math.max(0.05, orig.scaleX + delta * 2);
+          onChange({ ...orig, scaleX: newScale, scaleY: newScale } as typeof layer);
+        }
       }
 
-      if (mode === 'rotate') {
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const angle = Math.atan2(me.clientY - (rect.top + cy), me.clientX - (rect.left + cx));
-        onChange({ ...orig, rotation: (angle * 180) / Math.PI + 90 } as typeof layer);
-        return;
+      function onUp() {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        onDragEnd?.();
       }
 
-      // Scale — linked (proportional) by default; hold Shift for independent X/Y
-      const xSign = mode.includes('e') ? 1 : -1;
-      const ySign = mode.includes('s') ? 1 : -1;
-      if (me.shiftKey) {
-        onChange({
-          ...orig,
-          scaleX: Math.max(0.05, orig.scaleX + dx * 2 * xSign),
-          scaleY: Math.max(0.05, orig.scaleY + dy * 2 * ySign),
-        } as typeof layer);
-      } else {
-        const delta = (dx * xSign + dy * ySign) / Math.SQRT2;
-        const newScale = Math.max(0.05, orig.scaleX + delta * 2);
-        onChange({ ...orig, scaleX: newScale, scaleY: newScale } as typeof layer);
-      }
-    }
-
-    function onUp() {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      onDragEnd?.();
-    }
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, [canvasW, canvasH, cx, cy, layer, onChange, onDragStart, onDragEnd]);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [canvasW, canvasH, cx, cy, layer, onChange, onDragStart, onDragEnd],
+  );
 
   return (
     <svg
       ref={svgRef}
       overflow="visible"
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        overflow: 'visible',
+      }}
       viewBox={`0 0 ${canvasW} ${canvasH}`}
     >
       <rect
@@ -158,5 +168,3 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
     </svg>
   );
 }
-
-

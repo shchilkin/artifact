@@ -1,8 +1,8 @@
 import { THUMB_DEBOUNCE_MS } from '../constants';
 import type { ThumbnailRenderTask } from '../types';
 
-export { THUMB_DEBOUNCE_MS };
 export type { ThumbnailRenderTask };
+export { THUMB_DEBOUNCE_MS };
 
 export const thumbnailRenderQueue = new Map<string, ThumbnailRenderTask>();
 let thumbnailRenderActive = false;

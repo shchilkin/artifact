@@ -25,24 +25,12 @@ export function InspectorSection({
         onClick={onToggle}
       >
         <div className="node-inspector-section-copy">
-          <span className="node-inspector-section-title">
-            {title}
-          </span>
-          {summary && (
-            <span className="node-inspector-section-summary">
-              {summary}
-            </span>
-          )}
+          <span className="node-inspector-section-title">{title}</span>
+          {summary && <span className="node-inspector-section-summary">{summary}</span>}
         </div>
-        <span className="node-inspector-section-toggle">
-          {open ? '−' : '+'}
-        </span>
+        <span className="node-inspector-section-toggle">{open ? '−' : '+'}</span>
       </NoPan>
-      {open && (
-        <div className="node-inspector-section-body">
-          {children}
-        </div>
-      )}
+      {open && <div className="node-inspector-section-body">{children}</div>}
     </div>
   );
 }

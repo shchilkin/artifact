@@ -14,8 +14,19 @@ export function MergeInspector({
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
       <InspectorTextInput value={mergeNode.name} onChange={(value) => onChange({ name: value })} />
-      <InspectorSelect label="Blend" value={mergeNode.blendMode} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
-      <InspectorSlider label="Opacity" value={mergeNode.opacity} min={0} max={100} onChange={(value) => onChange({ opacity: value })} />
+      <InspectorSelect
+        label="Blend"
+        value={mergeNode.blendMode}
+        options={BLEND_OPTIONS}
+        onChange={(value) => onChange({ blendMode: value })}
+      />
+      <InspectorSlider
+        label="Opacity"
+        value={mergeNode.opacity}
+        min={0}
+        max={100}
+        onChange={(value) => onChange({ opacity: value })}
+      />
     </div>
   );
 }

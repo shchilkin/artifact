@@ -2,13 +2,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { CanvasDocument, ImageLayer } from '../../../types/config';
 import { ASPECT_SIZES } from '../../../types/config';
-import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
-import { EXPORT_NODE_ID, collectUpstreamNodeIds } from '../../../utils/nodeGraph';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
-import { useNodeCanvasPreview } from '../context';
+import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
 import { THUMB_SIZE } from '../constants';
-import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
+import { useNodeCanvasPreview } from '../context';
 import { colorNodeRenderSig, edgeRenderSig, layerRenderSig, mergeNodeRenderSig } from './renderSignature';
+import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
@@ -118,7 +118,16 @@ export function useNodeThumbnailRender(previewTargetId: string) {
       colorSignatures,
       edgeSignatures,
     };
-  }, [doc.global.aspect, doc.global.bg, doc.global.seed, doc.layers, graph, previewSize, previewTargetId, primitiveViewStates]);
+  }, [
+    doc.global.aspect,
+    doc.global.bg,
+    doc.global.seed,
+    doc.layers,
+    graph,
+    previewSize,
+    previewTargetId,
+    primitiveViewStates,
+  ]);
   const { previewKey } = signatureData;
 
   useEffect(() => {
@@ -215,16 +224,19 @@ export function useNodeThumbnailRender(previewTargetId: string) {
           .map((layer) => layer.src)
           .filter((src) => !effectiveImageCache.has(src));
 
-        const preloads = missingImageSrcs.map((src) => new Promise<void>((resolve) => {
-          const image = new Image();
-          image.onload = () => {
-            cachedImages.set(src, image);
-            effectiveImageCache.set(src, image);
-            resolve();
-          };
-          image.onerror = () => resolve();
-          image.src = src;
-        }));
+        const preloads = missingImageSrcs.map(
+          (src) =>
+            new Promise<void>((resolve) => {
+              const image = new Image();
+              image.onload = () => {
+                cachedImages.set(src, image);
+                effectiveImageCache.set(src, image);
+                resolve();
+              };
+              image.onerror = () => resolve();
+              image.src = src;
+            }),
+        );
 
         await Promise.all(preloads);
         if (rev !== revRef.current || !canvasRef.current) return;
@@ -235,21 +247,21 @@ export function useNodeThumbnailRender(previewTargetId: string) {
             const previewDoc: CanvasDocument = { ...d, graph: g };
             const result = latestIsExportPreview
               ? await renderDocument(
-                previewDoc,
-                latestPreviewSize.width,
-                latestPreviewSize.height,
-                effectiveImageCache,
-                { primitiveViewStates: latestPrimitiveViewStates },
-              )
+                  previewDoc,
+                  latestPreviewSize.width,
+                  latestPreviewSize.height,
+                  effectiveImageCache,
+                  { primitiveViewStates: latestPrimitiveViewStates },
+                )
               : await renderGraphTarget(
-                previewDoc,
-                g,
-                latestPreviewTargetId,
-                latestPreviewSize.width,
-                latestPreviewSize.height,
-                effectiveImageCache,
-                { primitiveViewStates: latestPrimitiveViewStates },
-              );
+                  previewDoc,
+                  g,
+                  latestPreviewTargetId,
+                  latestPreviewSize.width,
+                  latestPreviewSize.height,
+                  effectiveImageCache,
+                  { primitiveViewStates: latestPrimitiveViewStates },
+                );
             const clone = cloneCanvas(result);
             rememberThumbnail(pk, clone);
             return clone;

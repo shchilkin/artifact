@@ -14,13 +14,11 @@ export function InspectorSelect({
   return (
     <div className="node-inspector-control">
       <InspectorLabel>{label}</InspectorLabel>
-      <select
-        className="node-field"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
+      <select className="node-field" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
+          <option key={option} value={option}>
+            {option}
+          </option>
         ))}
       </select>
     </div>

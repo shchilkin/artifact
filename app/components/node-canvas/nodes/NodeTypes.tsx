@@ -1,12 +1,12 @@
-import { memo } from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { memo } from 'react';
 
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { useNodeCanvasActions } from '../context';
-import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData } from '../types';
 import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
+import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData } from '../types';
 import { NodeFrame } from './NodeFrame';
 import { useLayerTransformDraft } from './useLayerTransformDraft';
 
@@ -125,11 +125,7 @@ export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: N
       onSelect={(event) => selectNode(EXPORT_NODE_ID, event)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} />
-      <PortRow
-        inputs={[{ label: 'final', portId: 'in', nodeId: EXPORT_NODE_ID }]}
-        outputs={[]}
-        connected={connected}
-      />
+      <PortRow inputs={[{ label: 'final', portId: 'in', nodeId: EXPORT_NODE_ID }]} outputs={[]} connected={connected} />
     </NodeFrame>
   );
 });

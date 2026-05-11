@@ -7,7 +7,14 @@ import type {
   GlobalConfig,
   TextLayer,
 } from '../types/config';
-import { ALL_EMOJIS, DEFAULT_EXPORT, EFFECT_PRESET_MENU_ORDER, makeEffectLayer, makeEffectPresetLayer, makeEmojiLayer } from '../types/config';
+import {
+  ALL_EMOJIS,
+  DEFAULT_EXPORT,
+  EFFECT_PRESET_MENU_ORDER,
+  makeEffectLayer,
+  makeEffectPresetLayer,
+  makeEmojiLayer,
+} from '../types/config';
 
 function rand(min: number, max: number): number {
   return Math.round(min + Math.random() * (max - min));
@@ -20,7 +27,9 @@ function hslToHex(h: number, s: number, l: number): string {
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
     const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * c).toString(16).padStart(2, '0');
+    return Math.round(255 * c)
+      .toString(16)
+      .padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
@@ -129,7 +138,8 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
   switch (preset) {
     case 'rays':
       overrides = {
-        rays: rand(4, 24), rayInt: rand(20, 90),
+        rays: rand(4, 24),
+        rayInt: rand(20, 90),
         rayColor: randomHsl(ah, [70, 100], [55, 80]),
       };
       break;
@@ -285,15 +295,20 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       break;
     case 'warp':
       overrides = {
-        morphAmt: spark() ? rand(10, 80) : 0, morphFreq: rand(1, 15),
-        tearAmt: spark() ? rand(1, 15) : 0, tearSize: rand(1, 12),
-        noiseWarp: spark() ? rand(10, 70) : 0, vortex: spark() ? rand(5, 60) : 0,
-        barrel: spark() ? rand(5, 70) : 0, mirror: spark() ? rand(1, 3) : 0,
+        morphAmt: spark() ? rand(10, 80) : 0,
+        morphFreq: rand(1, 15),
+        tearAmt: spark() ? rand(1, 15) : 0,
+        tearSize: rand(1, 12),
+        noiseWarp: spark() ? rand(10, 70) : 0,
+        vortex: spark() ? rand(5, 60) : 0,
+        barrel: spark() ? rand(5, 70) : 0,
+        mirror: spark() ? rand(1, 3) : 0,
       };
       break;
     case 'color':
       overrides = {
-        hueShift: spark() ? rand(10, 350) : 0, bloom: spark() ? rand(15, 80) : 0,
+        hueShift: spark() ? rand(10, 350) : 0,
+        bloom: spark() ? rand(15, 80) : 0,
         posterize: spark() ? rand(3, 12) : 0,
         duotone: Math.random() < 0.6 ? rand(40, 90) : 0,
         duoA: randomHsl(baseHue, [30, 60], [3, 12]),
@@ -303,7 +318,8 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
     case 'riso':
       overrides = {
         halftone: Math.random() < 0.5 ? rand(5, 20) : 0,
-        risoShift: Math.random() < 0.5 ? rand(5, 30) : 0, risoAngle: rand(0, 360),
+        risoShift: Math.random() < 0.5 ? rand(5, 30) : 0,
+        risoAngle: rand(0, 360),
         duotone: Math.random() < 0.4 ? rand(40, 90) : 0,
         duoA: randomHsl(baseHue, [30, 60], [3, 12]),
         duoB: randomHsl(ah, [60, 100], [55, 85]),

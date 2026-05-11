@@ -1,5 +1,5 @@
-import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, WheelEventHandler } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, WheelEventHandler } from 'react';
 
 import { HANDLE_STYLE } from '../constants';
 import { NodeShell } from './NodeShell';
@@ -91,10 +91,7 @@ export function NodeFrame({
   );
 }
 
-function handleNodeKeyDown(
-  event: KeyboardEvent<HTMLDivElement>,
-  onSelect: () => void,
-) {
+function handleNodeKeyDown(event: KeyboardEvent<HTMLDivElement>, onSelect: () => void) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   event.preventDefault();
   onSelect();

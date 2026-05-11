@@ -1,4 +1,11 @@
-import { forwardRef, type ComponentPropsWithoutRef, type ElementType, type ForwardedRef, type ReactElement, type SyntheticEvent } from 'react';
+import {
+  type ComponentPropsWithoutRef,
+  type ElementType,
+  type ForwardedRef,
+  forwardRef,
+  type ReactElement,
+  type SyntheticEvent,
+} from 'react';
 
 import { callAll, stopNodeEvent } from '../helpers';
 
@@ -6,15 +13,10 @@ export type NoPanProps<T extends ElementType = 'div'> = {
   as?: T;
 } & Omit<ComponentPropsWithoutRef<T>, 'as'>;
 
-const NoPanImpl = function NoPan<T extends ElementType = 'div'>({
-  as,
-  className,
-  onPointerDown,
-  onMouseDown,
-  onClick,
-  onDoubleClick,
-  ...props
-}: NoPanProps<T>, ref: ForwardedRef<Element>) {
+const NoPanImpl = function NoPan<T extends ElementType = 'div'>(
+  { as, className, onPointerDown, onMouseDown, onClick, onDoubleClick, ...props }: NoPanProps<T>,
+  ref: ForwardedRef<Element>,
+) {
   const Component = as ?? 'div';
   return (
     <Component
@@ -29,4 +31,6 @@ const NoPanImpl = function NoPan<T extends ElementType = 'div'>({
   );
 };
 
-export const NoPan = forwardRef(NoPanImpl) as <T extends ElementType = 'div'>(props: NoPanProps<T> & { ref?: ForwardedRef<Element> }) => ReactElement | null;
+export const NoPan = forwardRef(NoPanImpl) as <T extends ElementType = 'div'>(
+  props: NoPanProps<T> & { ref?: ForwardedRef<Element> },
+) => ReactElement | null;

@@ -6,14 +6,21 @@ import { NoPan } from '../nodes/NoPan';
 import type { NodeMenuProps } from '../types';
 
 export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete, onClose, menuRef }: NodeMenuProps) {
-  const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> = [];
+  const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> =
+    [];
   const menuWidth = 200;
 
   if (!isMerge && !isExport) {
     items.push({ label: 'Duplicate', hint: '⌘D', action: onDuplicate });
   }
   if (!isExport) {
-    items.push({ label: 'Delete', hint: '⌫', action: onDelete, danger: true, dividerBefore: !isMerge && items.length > 0 });
+    items.push({
+      label: 'Delete',
+      hint: '⌫',
+      action: onDelete,
+      danger: true,
+      dividerBefore: !isMerge && items.length > 0,
+    });
   }
 
   if (items.length === 0) return null;
@@ -29,13 +36,14 @@ export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete
     >
       {items.map((item, i) => (
         <div key={i}>
-          {item.dividerBefore && (
-            <div className="node-menu-divider" />
-          )}
+          {item.dividerBefore && <div className="node-menu-divider" />}
           <NoPan
             as="button"
             type="button"
-            onClick={() => { item.action(); onClose(); }}
+            onClick={() => {
+              item.action();
+              onClose();
+            }}
             className="node-menu-item node-menu-item-between"
           >
             <span
@@ -44,11 +52,7 @@ export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete
             >
               {item.label}
             </span>
-            {item.hint && (
-              <span className="node-menu-item-hint">
-                {item.hint}
-              </span>
-            )}
+            {item.hint && <span className="node-menu-item-hint">{item.hint}</span>}
           </NoPan>
         </div>
       ))}

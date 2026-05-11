@@ -1,4 +1,4 @@
-import { Filter, BlurFilter } from 'pixi.js';
+import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
 const NORM_UV = `
@@ -364,12 +364,15 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
 
   if (cfg.mirror > 0) filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
   if (cfg.dataMosh > 0) filters.push(f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
-  if (cfg.interlace > 0) filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed, uResY: canvasH }));
+  if (cfg.interlace > 0)
+    filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed, uResY: canvasH }));
   if (cfg.noiseWarp > 0) filters.push(f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
-  if (cfg.morphAmt > 0) filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
+  if (cfg.morphAmt > 0)
+    filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
   if (cfg.vortex > 0) filters.push(f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
   if (cfg.barrel > 0) filters.push(f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
-  if (cfg.tearAmt > 0) filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
+  if (cfg.tearAmt > 0)
+    filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
 
   if (cfg.pixelate > 0) filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)) }));
   if (cfg.posterize > 0) filters.push(f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
@@ -385,15 +388,18 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
       parseInt(hex.slice(3, 5), 16) / 255,
       parseInt(hex.slice(5, 7), 16) / 255,
     ];
-    filters.push(f(DUOTONE_FRAG, {
-      uColorA: hexToVec3(cfg.duoA),
-      uColorB: hexToVec3(cfg.duoB),
-      uStrength: cfg.duotone / 100,
-    }));
+    filters.push(
+      f(DUOTONE_FRAG, {
+        uColorA: hexToVec3(cfg.duoA),
+        uColorB: hexToVec3(cfg.duoB),
+        uStrength: cfg.duotone / 100,
+      }),
+    );
   }
 
   if (cfg.halftone > 0) filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85 }));
-  if (cfg.risoShift > 0) filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
+  if (cfg.risoShift > 0)
+    filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
   if (cfg.bloom > 0) filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
   if (cfg.blurAmt > 0) {
     const blur = new BlurFilter(cfg.blurAmt * 0.5, 4);
@@ -402,10 +408,12 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
   }
   if (cfg.threshold > 0) filters.push(f(THRESHOLD_FRAG, { uCut: cfg.threshold / 100 }));
   if (cfg.edgeDetect > 0) {
-    filters.push(f(EDGE_FRAG, {
-      uIntensity: cfg.edgeDetect / 100,
-      uPx: [1 / refSize, 1 / canvasH],
-    }));
+    filters.push(
+      f(EDGE_FRAG, {
+        uIntensity: cfg.edgeDetect / 100,
+        uPx: [1 / refSize, 1 / canvasH],
+      }),
+    );
   }
   if (cfg.gradMix > 0) {
     const hexToVec3 = (hex: string): [number, number, number] => [
@@ -413,12 +421,14 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
       parseInt(hex.slice(3, 5), 16) / 255,
       parseInt(hex.slice(5, 7), 16) / 255,
     ];
-    filters.push(f(GRADIENT_FRAG, {
-      uColorA: hexToVec3(cfg.gradA),
-      uColorB: hexToVec3(cfg.gradB),
-      uAngle: (cfg.gradAngle * Math.PI) / 180,
-      uMix: cfg.gradMix / 100,
-    }));
+    filters.push(
+      f(GRADIENT_FRAG, {
+        uColorA: hexToVec3(cfg.gradA),
+        uColorB: hexToVec3(cfg.gradB),
+        uAngle: (cfg.gradAngle * Math.PI) / 180,
+        uMix: cfg.gradMix / 100,
+      }),
+    );
   }
   if (cfg.vignette > 0) filters.push(f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
   if (cfg.filmBurn > 0) filters.push(f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));

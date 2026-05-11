@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, EffectLayer, EffectPreset, Layer, LayerKind } from '../types/config';
-import { EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER } from '../types/config';
+import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
 
 interface Props {
   doc: CanvasDocument;
@@ -94,11 +94,16 @@ export function LayerPanel({
           </button>
           {showAddMenu && (
             <div className="absolute right-0 top-full mt-1 bg-bg border border-border z-50 min-w-[130px]">
-              {(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array'] as Exclude<LayerKind, 'effect'>[]).map((kind) => (
+              {(
+                ['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array'] as Exclude<LayerKind, 'effect'>[]
+              ).map((kind) => (
                 <button
                   key={kind}
                   className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
-                  onClick={() => { onAddLayer(kind); setShowAddMenu(false); }}
+                  onClick={() => {
+                    onAddLayer(kind);
+                    setShowAddMenu(false);
+                  }}
                 >
                   <span className="text-accent w-4 text-center">{KIND_ICONS[kind]}</span>
                   {kind.toUpperCase()}
@@ -108,14 +113,17 @@ export function LayerPanel({
               {EFFECT_PRESET_MENU_ORDER.map((key) => {
                 const preset = EFFECT_PRESETS[key];
                 return (
-                <button
-                  key={key}
-                  className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
-                  onClick={() => { onAddEffectPreset(key); setShowAddMenu(false); }}
-                >
-                  <span className="text-accent w-4 text-center">{preset.icon}</span>
-                  {preset.name.toUpperCase()}
-                </button>
+                  <button
+                    key={key}
+                    className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
+                    onClick={() => {
+                      onAddEffectPreset(key);
+                      setShowAddMenu(false);
+                    }}
+                  >
+                    <span className="text-accent w-4 text-center">{preset.icon}</span>
+                    {preset.name.toUpperCase()}
+                  </button>
                 );
               })}
             </div>
@@ -151,9 +159,12 @@ export function LayerPanel({
             } ${dragOverId === layer.id ? 'border-t-2 border-t-accent' : ''}`}
           >
             <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
-            <span className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`} style={{ fontWeight: 700 }}>
+            <span
+              className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
+              style={{ fontWeight: 700 }}
+            >
               {layer.kind === 'effect'
-                ? EFFECT_PRESETS[(layer as EffectLayer).preset!]?.icon ?? 'FX'
+                ? (EFFECT_PRESETS[(layer as EffectLayer).preset!]?.icon ?? 'FX')
                 : KIND_ICONS[layer.kind]}
             </span>
             {editingId === layer.id ? (
@@ -178,7 +189,9 @@ export function LayerPanel({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selectedLayerId === layer.id ? 'text-text' : 'text-dim'}`}>
+              <span
+                className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selectedLayerId === layer.id ? 'text-text' : 'text-dim'}`}
+              >
                 {layer.name}
               </span>
             )}

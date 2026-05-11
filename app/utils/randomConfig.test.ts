@@ -1,11 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import {
-  randomGlobal,
-  randomEmojiLayer,
-  randomEffectLayer,
-  randomDocument,
-  zeroLayerSection,
-} from './randomConfig';
+import { describe, expect, it } from 'vitest';
+import { randomDocument, randomEffectLayer, randomEmojiLayer, randomGlobal, zeroLayerSection } from './randomConfig';
 
 describe('randomGlobal', () => {
   it('returns a valid GlobalConfig with hex bg and numeric seed in [0, 999999]', () => {
@@ -76,11 +70,34 @@ describe('randomEffectLayer', () => {
   it('returns all numeric fields >= 0', () => {
     const layer = randomEffectLayer();
     const numericFields = [
-      'grain', 'scanlines', 'rgbSplit', 'glitch', 'tintOp',
-      'rays', 'rayInt', 'morphAmt', 'morphFreq', 'tearAmt', 'tearSize',
-      'noiseWarp', 'vortex', 'barrel', 'mirror', 'dataMosh', 'interlace',
-      'pixelate', 'hueShift', 'rgbSplit', 'vignette', 'bloom', 'posterize',
-      'filmBurn', 'duotone', 'halftone', 'risoShift', 'risoAngle',
+      'grain',
+      'scanlines',
+      'rgbSplit',
+      'glitch',
+      'tintOp',
+      'rays',
+      'rayInt',
+      'morphAmt',
+      'morphFreq',
+      'tearAmt',
+      'tearSize',
+      'noiseWarp',
+      'vortex',
+      'barrel',
+      'mirror',
+      'dataMosh',
+      'interlace',
+      'pixelate',
+      'hueShift',
+      'rgbSplit',
+      'vignette',
+      'bloom',
+      'posterize',
+      'filmBurn',
+      'duotone',
+      'halftone',
+      'risoShift',
+      'risoAngle',
     ] as const;
 
     for (const field of numericFields) {

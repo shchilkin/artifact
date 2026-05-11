@@ -59,9 +59,10 @@ export function NodeGalleryCanvas({
 
     const render = async () => {
       const effectiveImageCache = new Map(imageCache);
-      const result = previewTargetId === EXPORT_NODE_ID
-        ? await renderDocument({ ...doc, graph }, width, height, effectiveImageCache, { graphMode: 'graph' })
-        : await renderGraphTarget({ ...doc, graph }, graph, previewTargetId, width, height, effectiveImageCache);
+      const result =
+        previewTargetId === EXPORT_NODE_ID
+          ? await renderDocument({ ...doc, graph }, width, height, effectiveImageCache, { graphMode: 'graph' })
+          : await renderGraphTarget({ ...doc, graph }, graph, previewTargetId, width, height, effectiveImageCache);
       if (cancelled || !canvasRef.current) return;
       canvasRef.current.width = width;
       canvasRef.current.height = height;
@@ -87,7 +88,7 @@ export function NodeGalleryCanvas({
     event.stopPropagation();
     commitView({
       ...viewStateRef.current,
-      zoom: clamp(viewStateRef.current.zoom + (-event.deltaY * 0.0014), 0.75, 3),
+      zoom: clamp(viewStateRef.current.zoom + -event.deltaY * 0.0014, 0.75, 3),
     });
   };
 
@@ -189,7 +190,9 @@ export function NodeGalleryCanvas({
       <div
         ref={stageRef}
         className="node-gallery-canvas-stage"
-        style={{ transform: `translate(-50%, -50%) translate(${viewState.offsetX}px, ${viewState.offsetY}px) scale(${viewState.zoom})` }}
+        style={{
+          transform: `translate(-50%, -50%) translate(${viewState.offsetX}px, ${viewState.offsetY}px) scale(${viewState.zoom})`,
+        }}
       >
         <canvas ref={canvasRef} className="node-gallery-canvas" />
         {interactiveLayer && onLayerUpdate && canvasSize.width > 0 && canvasSize.height > 0 && (

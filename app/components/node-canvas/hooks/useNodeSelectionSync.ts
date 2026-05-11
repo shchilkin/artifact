@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import type { CanvasDocument, CanvasGraph } from '../../../types/config';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { isAdditiveSelectionEvent } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
-import type { CanvasDocument, CanvasGraph } from '../../../types/config';
 
 export interface UseNodeSelectionSyncOptions {
   send: (event: NodeCanvasMachineEvent) => void;
@@ -81,20 +81,27 @@ export function useNodeSelectionSync({
 
   const activeEditorNodeId = useMemo(() => {
     if (!expandedNodeId) return null;
-    const exists = expandedNodeId === EXPORT_NODE_ID
-      || doc.layers.some((layer) => layer.id === expandedNodeId)
-      || graph.mergeNodes.some((node) => node.id === expandedNodeId)
-      || (graph.colorNodes ?? []).some((node) => node.id === expandedNodeId);
+    const exists =
+      expandedNodeId === EXPORT_NODE_ID ||
+      doc.layers.some((layer) => layer.id === expandedNodeId) ||
+      graph.mergeNodes.some((node) => node.id === expandedNodeId) ||
+      (graph.colorNodes ?? []).some((node) => node.id === expandedNodeId);
     return exists ? expandedNodeId : null;
   }, [doc.layers, graph.colorNodes, graph.mergeNodes, expandedNodeId]);
 
-  const handleSelectNode = useCallback((id: string, event?: React.MouseEvent) => {
-    send({ type: 'NODE_SELECTED', id, additive: isAdditiveSelectionEvent(event) });
-  }, [send]);
+  const handleSelectNode = useCallback(
+    (id: string, event?: React.MouseEvent) => {
+      send({ type: 'NODE_SELECTED', id, additive: isAdditiveSelectionEvent(event) });
+    },
+    [send],
+  );
 
-  const handleToggleEditor = useCallback((id: string) => {
-    send({ type: 'NODE_EDITOR_TOGGLED', id });
-  }, [send]);
+  const handleToggleEditor = useCallback(
+    (id: string) => {
+      send({ type: 'NODE_EDITOR_TOGGLED', id });
+    },
+    [send],
+  );
 
   const handleClosePanel = useCallback(() => {
     send({ type: 'PANE_CLICKED' });

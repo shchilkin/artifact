@@ -1,3 +1,5 @@
+import type { Filter } from 'pixi.js';
+import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import type {
   CanvasDocument,
   CanvasGraph,
@@ -11,13 +13,11 @@ import type {
   TextLayer,
 } from '../types/config';
 import { FONT_STACKS } from '../types/config';
-import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
-import { lcg } from './lcg';
-import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { gpuRenderToCanvas } from './gpuRender';
+import { lcg } from './lcg';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { buildFiltersFromEffectLayer } from './pixiFilters';
 import { drawSourceLayer } from './proceduralSource';
-import type { Filter } from 'pixi.js';
 
 const REF = 540;
 function createCanvas(W: number, H: number): HTMLCanvasElement {
@@ -53,7 +53,7 @@ function toCompositeOperation(blendMode: string): GlobalCompositeOperation {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, W: number, H: number, bg: string) {
-  if (bg === "transparent") {
+  if (bg === 'transparent') {
     ctx.clearRect(0, 0, W, H);
     return;
   }
@@ -86,12 +86,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines.length > 0 ? lines : [''];
 }
 
-function drawFillLayer(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  layer: FillLayer,
-) {
+function drawFillLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: FillLayer) {
   ctx.save();
   ctx.globalAlpha = layer.opacity / 100;
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
@@ -160,22 +155,14 @@ function drawEmojiLayer(
   ctx.restore();
 }
 
-function drawTextLayer(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  layer: TextLayer,
-  scale: number,
-) {
+function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: TextLayer, scale: number) {
   if (!layer.content.trim()) return;
   const fontSize = layer.size * scale;
   const fontStack = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
 
   ctx.save();
-  ctx.font = `${fontSize}px ${fontStack}`;  // must be set before wrapText uses measureText
-  const lines = layer.content
-    .split('\n')
-    .flatMap((part) => wrapText(ctx, part.trim() || ' ', W * 0.92));
+  ctx.font = `${fontSize}px ${fontStack}`; // must be set before wrapText uses measureText
+  const lines = layer.content.split('\n').flatMap((part) => wrapText(ctx, part.trim() || ' ', W * 0.92));
 
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
   ctx.globalAlpha = layer.opacity / 100;
@@ -314,13 +301,13 @@ function applyCanvas2DEffects(
         const rx = Math.min(W - 1, x + rgbSplit);
         const ry = Math.min(H - 1, y + rgbSplit);
         const ri = (ry * W + rx) * 4;
-        
+
         const bx = Math.max(0, x - rgbSplit);
         const by = Math.max(0, y - rgbSplit);
         const bi = (by * W + bx) * 4;
-        
-        data[i] = copy[ri];           // Red channel shifted down-right
-        data[i + 2] = copy[bi + 2];   // Blue channel shifted up-left
+
+        data[i] = copy[ri]; // Red channel shifted down-right
+        data[i + 2] = copy[bi + 2]; // Blue channel shifted up-left
       }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -401,7 +388,8 @@ function applyCanvas2DEffects(
 
     if (layer.ca > 0) {
       const amt = Math.round(layer.ca * scale);
-      const cx = W / 2, cy = H / 2;
+      const cx = W / 2,
+        cy = H / 2;
       const copy = new Uint8ClampedArray(d);
       const maxDist = Math.sqrt(cx * cx + cy * cy);
       for (let y = 0; y < H; y++) {
@@ -420,7 +408,12 @@ function applyCanvas2DEffects(
     }
 
     if (layer.dither > 0) {
-      const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+      const BAYER = [
+        [0, 8, 2, 10],
+        [12, 4, 14, 6],
+        [3, 11, 1, 9],
+        [15, 7, 13, 5],
+      ];
       const levels = Math.max(2, Math.round(16 - layer.dither * 0.14));
       const step = 255 / (levels - 1);
       for (let y = 0; y < H; y++) {
@@ -428,7 +421,7 @@ function applyCanvas2DEffects(
           const i = (y * W + x) * 4;
           const bayer = BAYER[y & 3][x & 3] / 16;
           for (let c = 0; c < 3; c++) {
-            d[i + c] = Math.min(255, Math.max(0, Math.round((d[i + c] / step + bayer)) * step));
+            d[i + c] = Math.min(255, Math.max(0, Math.round(d[i + c] / step + bayer) * step));
           }
         }
       }
@@ -440,7 +433,7 @@ function applyCanvas2DEffects(
   if (layer.vhsTracking > 0) {
     const srcData = ctx.getImageData(0, 0, W, H);
     const bands = Math.max(3, Math.floor(layer.vhsTracking * 0.25 + 3));
-    const maxShift = Math.max(1, Math.floor(layer.vhsTracking * 0.08 * W / 100));
+    const maxShift = Math.max(1, Math.floor((layer.vhsTracking * 0.08 * W) / 100));
     const out = ctx.createImageData(W, H);
     const od = out.data;
     const sd = srcData.data;
@@ -457,7 +450,7 @@ function applyCanvas2DEffects(
           const si = (y * W + sx) * 4;
           const srx = Math.min(W - 1, Math.max(0, x + shiftX + shiftR));
           const sri = (y * W + srx) * 4;
-          od[oi]     = sd[sri];
+          od[oi] = sd[sri];
           od[oi + 1] = sd[si + 1];
           od[oi + 2] = sd[si + 2];
           od[oi + 3] = sd[si + 3];
@@ -502,7 +495,7 @@ function applyCanvas2DEffects(
         const sx = Math.min(W - 1, Math.max(0, x + shift));
         const oi = (y * W + x) * 4;
         const si = (y * W + sx) * 4;
-        od[oi]     = sd[si];
+        od[oi] = sd[si];
         od[oi + 1] = sd[si + 1];
         od[oi + 2] = sd[si + 2];
         od[oi + 3] = sd[si + 3];
@@ -523,7 +516,7 @@ function applyCanvas2DEffects(
       const t = i / (steps - 1);
       const s = 1 + (maxScale - 1) * t;
       ctx.globalAlpha = 1 / steps;
-      ctx.drawImage(snapshot, (1 - s) * W / 2, (1 - s) * H / 2, W * s, H * s);
+      ctx.drawImage(snapshot, ((1 - s) * W) / 2, ((1 - s) * H) / 2, W * s, H * s);
     }
     ctx.restore();
   }
@@ -541,7 +534,7 @@ function applyCanvas2DEffects(
     for (let i = 0; i < sd.length; i += 4) {
       const lum = 0.299 * sd[i] + 0.587 * sd[i + 1] + 0.114 * sd[i + 2];
       const t = Math.max(0, (lum - 120) / 135);
-      bd[i]     = Math.round(r6 * t);
+      bd[i] = Math.round(r6 * t);
       bd[i + 1] = Math.round(g6 * t);
       bd[i + 2] = Math.round(b6 * t);
       bd[i + 3] = Math.round(255 * t);
@@ -576,7 +569,7 @@ function applyCanvas2DEffects(
           const sy = Math.min(H - 1, Math.max(0, y + shiftY));
           const si = (sy * W + sx) * 4;
           const lum = 0.299 * sd[si] + 0.587 * sd[si + 1] + 0.114 * sd[si + 2];
-          pd[oi]     = pr;
+          pd[oi] = pr;
           pd[oi + 1] = pg;
           pd[oi + 2] = pb;
           pd[oi + 3] = Math.round(255 - lum);
@@ -586,9 +579,9 @@ function applyCanvas2DEffects(
       return c;
     }
 
-    const cyan    = makePlate(shift, 0,      0,   255, 255);
-    const magenta = makePlate(-shift, shift, 255,  0,  255);
-    const yellow  = makePlate(0, -shift,    255, 255,   0);
+    const cyan = makePlate(shift, 0, 0, 255, 255);
+    const magenta = makePlate(-shift, shift, 255, 0, 255);
+    const yellow = makePlate(0, -shift, 255, 255, 0);
 
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
@@ -606,7 +599,7 @@ function applyCanvas2DEffects(
     for (let i = 0; i < d.length; i += 4) {
       const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
       if (lum > threshold) {
-        d[i]     = 255 - d[i];
+        d[i] = 255 - d[i];
         d[i + 1] = 255 - d[i + 1];
         d[i + 2] = 255 - d[i + 2];
       }
@@ -619,11 +612,12 @@ function applyCanvas2DEffects(
     const imageData = ctx.getImageData(0, 0, W, H);
     const d = imageData.data;
     for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const r = d[i],
+        g = d[i + 1],
+        b = d[i + 2];
       const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      const ov = (c: number) =>
-        c < 128 ? (2 * c * lum / 255) : (255 - 2 * (255 - c) * (255 - lum) / 255);
-      d[i]     = Math.min(255, Math.round(r + (ov(r) - r) * t));
+      const ov = (c: number) => (c < 128 ? (2 * c * lum) / 255 : 255 - (2 * (255 - c) * (255 - lum)) / 255);
+      d[i] = Math.min(255, Math.round(r + (ov(r) - r) * t));
       d[i + 1] = Math.min(255, Math.round(g + (ov(g) - g) * t));
       d[i + 2] = Math.min(255, Math.round(b + (ov(b) - b) * t));
     }
@@ -637,10 +631,10 @@ function applyCanvas2DEffects(
     for (let i = 0; i < d.length; i += 4) {
       const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
       // Prussian blue [0,49,83] to ivory paper [235,240,230]
-      const cr = Math.round(0   + (235 - 0)   * lum);
-      const cg = Math.round(49  + (240 - 49)  * lum);
-      const cb = Math.round(83  + (230 - 83)  * lum);
-      d[i]     = Math.round(d[i]     + (cr - d[i])     * t);
+      const cr = Math.round(0 + (235 - 0) * lum);
+      const cg = Math.round(49 + (240 - 49) * lum);
+      const cb = Math.round(83 + (230 - 83) * lum);
+      d[i] = Math.round(d[i] + (cr - d[i]) * t);
       d[i + 1] = Math.round(d[i + 1] + (cg - d[i + 1]) * t);
       d[i + 2] = Math.round(d[i + 2] + (cb - d[i + 2]) * t);
     }
@@ -661,7 +655,7 @@ function applyCanvas2DEffects(
       const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
       const sw = Math.max(0, (128 - lum) / 128);
       const hw = Math.max(0, (lum - 128) / 128);
-      d[i]     = Math.min(255, Math.round(d[i]     + (sR - d[i])     * sw * t + (hR - d[i])     * hw * t));
+      d[i] = Math.min(255, Math.round(d[i] + (sR - d[i]) * sw * t + (hR - d[i]) * hw * t));
       d[i + 1] = Math.min(255, Math.round(d[i + 1] + (sG - d[i + 1]) * sw * t + (hG - d[i + 1]) * hw * t));
       d[i + 2] = Math.min(255, Math.round(d[i + 2] + (sB - d[i + 2]) * sw * t + (hB - d[i + 2]) * hw * t));
     }
@@ -669,23 +663,30 @@ function applyCanvas2DEffects(
   }
 
   if (layer.rippleAmt > 0) {
-    const cx = W / 2, cy = H / 2;
+    const cx = W / 2,
+      cy = H / 2;
     const maxDist = Math.sqrt(cx * cx + cy * cy);
     const maxShift = layer.rippleAmt * scale * 0.5;
     const freq = (layer.rippleFreq * Math.PI * 2) / maxDist;
     const srcData = ctx.getImageData(0, 0, W, H);
     const out = ctx.createImageData(W, H);
-    const sd = srcData.data, od = out.data;
+    const sd = srcData.data,
+      od = out.data;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        const dx = x - cx, dy = y - cy;
+        const dx = x - cx,
+          dy = y - cy;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
         const shift = Math.sin(dist * freq) * maxShift;
         const nx = Math.min(W - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
         const ny = Math.min(H - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
-        const oi = (y * W + x) * 4, si = (ny * W + nx) * 4;
-        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+        const oi = (y * W + x) * 4,
+          si = (ny * W + nx) * 4;
+        od[oi] = sd[si];
+        od[oi + 1] = sd[si + 1];
+        od[oi + 2] = sd[si + 2];
+        od[oi + 3] = sd[si + 3];
       }
     }
     ctx.putImageData(out, 0, 0);
@@ -694,13 +695,16 @@ function applyCanvas2DEffects(
   if (layer.kaleidoscope > 0) {
     const segments = Math.max(3, Math.round(3 + (layer.kaleidoscope / 100) * 13));
     const sectorAngle = (Math.PI * 2) / segments;
-    const cx = W / 2, cy = H / 2;
+    const cx = W / 2,
+      cy = H / 2;
     const srcData = ctx.getImageData(0, 0, W, H);
     const out = ctx.createImageData(W, H);
-    const sd = srcData.data, od = out.data;
+    const sd = srcData.data,
+      od = out.data;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        const dx = x - cx, dy = y - cy;
+        const dx = x - cx,
+          dy = y - cy;
         const dist = Math.sqrt(dx * dx + dy * dy);
         let angle = Math.atan2(dy, dx);
         if (angle < 0) angle += Math.PI * 2;
@@ -708,8 +712,12 @@ function applyCanvas2DEffects(
         if (a > sectorAngle / 2) a = sectorAngle - a;
         const nx = Math.min(W - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
         const ny = Math.min(H - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
-        const oi = (y * W + x) * 4, si = (ny * W + nx) * 4;
-        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+        const oi = (y * W + x) * 4,
+          si = (ny * W + nx) * 4;
+        od[oi] = sd[si];
+        od[oi + 1] = sd[si + 1];
+        od[oi + 2] = sd[si + 2];
+        od[oi + 3] = sd[si + 3];
       }
     }
     ctx.putImageData(out, 0, 0);
@@ -718,16 +726,22 @@ function applyCanvas2DEffects(
   if (layer.squeezeX !== 0 || layer.squeezeY !== 0) {
     const xFactor = Math.max(0.01, 1 + layer.squeezeX / 100);
     const yFactor = Math.max(0.01, 1 + layer.squeezeY / 100);
-    const cx = W / 2, cy = H / 2;
+    const cx = W / 2,
+      cy = H / 2;
     const srcData = ctx.getImageData(0, 0, W, H);
     const out = ctx.createImageData(W, H);
-    const sd = srcData.data, od = out.data;
+    const sd = srcData.data,
+      od = out.data;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const sx = Math.min(W - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
         const sy = Math.min(H - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
-        const oi = (y * W + x) * 4, si = (sy * W + sx) * 4;
-        od[oi] = sd[si]; od[oi+1] = sd[si+1]; od[oi+2] = sd[si+2]; od[oi+3] = sd[si+3];
+        const oi = (y * W + x) * 4,
+          si = (sy * W + sx) * 4;
+        od[oi] = sd[si];
+        od[oi + 1] = sd[si + 1];
+        od[oi + 2] = sd[si + 2];
+        od[oi + 3] = sd[si + 3];
       }
     }
     ctx.putImageData(out, 0, 0);
@@ -760,16 +774,21 @@ function applyCanvas2DEffects(
 
   if (layer.linocut > 0) {
     const t = layer.linocut / 100;
-    const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+    const BAYER = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ];
     const imageData = ctx.getImageData(0, 0, W, H);
     const d = imageData.data;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
         const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const bayer = BAYER[y & 3][x & 3] / 16 * 60;
+        const bayer = (BAYER[y & 3][x & 3] / 16) * 60;
         const v = Math.min(255, Math.max(0, Math.round((lum + bayer) / 85) * 85));
-        d[i]     = Math.round(d[i]     + (v - d[i])     * t);
+        d[i] = Math.round(d[i] + (v - d[i]) * t);
         d[i + 1] = Math.round(d[i + 1] + (v - d[i + 1]) * t);
         d[i + 2] = Math.round(d[i + 2] + (v - d[i + 2]) * t);
       }
@@ -787,7 +806,7 @@ function applyCanvas2DEffects(
     for (let i = 0; i < d.length; i += 4) {
       const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
       const w = Math.min(1, t * (0.2 + lum * 0.8));
-      d[i]     = Math.round(d[i]     + (fogR - d[i])     * w);
+      d[i] = Math.round(d[i] + (fogR - d[i]) * w);
       d[i + 1] = Math.round(d[i + 1] + (fogG - d[i + 1]) * w);
       d[i + 2] = Math.round(d[i + 2] + (fogB - d[i + 2]) * w);
     }
@@ -795,7 +814,8 @@ function applyCanvas2DEffects(
   }
 
   if (layer.speedLines > 0) {
-    const cx = W / 2, cy = H / 2;
+    const cx = W / 2,
+      cy = H / 2;
     const diagonal = Math.sqrt(W * W + H * H);
     const count = Math.round(layer.speedLines * 0.8 + 20);
     const slRng = lcg(seed * 5523);
@@ -816,12 +836,7 @@ function applyCanvas2DEffects(
   }
 }
 
-function runGpuPass(
-  current: HTMLCanvasElement,
-  W: number,
-  H: number,
-  filters: Filter[],
-): Promise<HTMLCanvasElement> {
+function runGpuPass(current: HTMLCanvasElement, W: number, H: number, filters: Filter[]): Promise<HTMLCanvasElement> {
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
@@ -879,11 +894,7 @@ async function applyLayerToCanvas(
   return current;
 }
 
-function findIncomingSource(
-  graph: CanvasGraph,
-  toId: string,
-  toPort: 'in' | 'bg' | 'a' | 'b',
-): string | null {
+function findIncomingSource(graph: CanvasGraph, toId: string, toPort: 'in' | 'bg' | 'a' | 'b'): string | null {
   const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
   return edge?.fromId ?? null;
 }
@@ -920,16 +931,22 @@ function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: numb
   const hr01 = 0.715 - cos * 0.715 - sin * 0.715;
   const hr02 = 0.072 - cos * 0.072 + sin * 0.928;
   const hr10 = 0.213 - cos * 0.213 + sin * 0.143;
-  const hr11 = 0.715 + cos * 0.285 + sin * 0.140;
+  const hr11 = 0.715 + cos * 0.285 + sin * 0.14;
   const hr12 = 0.072 - cos * 0.072 - sin * 0.283;
   const hr20 = 0.213 - cos * 0.213 - sin * 0.787;
   const hr21 = 0.715 - cos * 0.715 + sin * 0.715;
   const hr22 = 0.072 + cos * 0.928 + sin * 0.072;
 
   // Saturation matrix coefficients from the CSS filter spec
-  const sm00 = 0.213 + 0.787 * sF, sm01 = 0.715 - 0.715 * sF, sm02 = 0.072 - 0.072 * sF;
-  const sm10 = 0.213 - 0.213 * sF, sm11 = 0.715 + 0.285 * sF, sm12 = 0.072 - 0.072 * sF;
-  const sm20 = 0.213 - 0.213 * sF, sm21 = 0.715 - 0.715 * sF, sm22 = 0.072 + 0.928 * sF;
+  const sm00 = 0.213 + 0.787 * sF,
+    sm01 = 0.715 - 0.715 * sF,
+    sm02 = 0.072 - 0.072 * sF;
+  const sm10 = 0.213 - 0.213 * sF,
+    sm11 = 0.715 + 0.285 * sF,
+    sm12 = 0.072 - 0.072 * sF;
+  const sm20 = 0.213 - 0.213 * sF,
+    sm21 = 0.715 - 0.715 * sF,
+    sm22 = 0.072 + 0.928 * sF;
 
   const applyHue = hue !== 0;
   const applySat = saturation !== 100;
@@ -941,7 +958,9 @@ function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: numb
     let b = d[i + 2] / 255;
 
     // brightness: scale (CSS spec: linear multiply, clamp)
-    r *= bF; g *= bF; b *= bF;
+    r *= bF;
+    g *= bF;
+    b *= bF;
 
     // contrast: (v - 0.5) * c + 0.5
     r = (r - 0.5) * cF + 0.5;
@@ -953,7 +972,9 @@ function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: numb
       const nr = sm00 * r + sm01 * g + sm02 * b;
       const ng = sm10 * r + sm11 * g + sm12 * b;
       const nb = sm20 * r + sm21 * g + sm22 * b;
-      r = nr; g = ng; b = nb;
+      r = nr;
+      g = ng;
+      b = nb;
     }
 
     // hue rotation via color matrix
@@ -961,10 +982,12 @@ function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: numb
       const nr = hr00 * r + hr01 * g + hr02 * b;
       const ng = hr10 * r + hr11 * g + hr12 * b;
       const nb = hr20 * r + hr21 * g + hr22 * b;
-      r = nr; g = ng; b = nb;
+      r = nr;
+      g = ng;
+      b = nb;
     }
 
-    d[i]     = Math.min(255, Math.max(0, Math.round(r * 255)));
+    d[i] = Math.min(255, Math.max(0, Math.round(r * 255)));
     d[i + 1] = Math.min(255, Math.max(0, Math.round(g * 255)));
     d[i + 2] = Math.min(255, Math.max(0, Math.round(b * 255)));
     // alpha (i+3) unchanged
@@ -1022,11 +1045,7 @@ async function renderGraphNode(
       const baseId = findIncomingSource(graph, nodeId, 'a');
       const overlayId = findIncomingSource(graph, nodeId, 'b');
       const canvas = baseId
-        ? cloneCanvas(
-          await renderGraphNode(doc, graph, baseId, W, H, imageCache, options, cache),
-          W,
-          H,
-        )
+        ? cloneCanvas(await renderGraphNode(doc, graph, baseId, W, H, imageCache, options, cache), W, H)
         : createCanvas(W, H);
       if (overlayId) {
         const overlay = await renderGraphNode(doc, graph, overlayId, W, H, imageCache, options, cache);
@@ -1057,9 +1076,10 @@ async function renderGraphNode(
     const base = sourceId
       ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
       : createCanvas(W, H);
-    const layerOptions = (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array')
-      ? { ...options, sourceLayout: 'full-frame' as const }
-      : options;
+    const layerOptions =
+      layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array'
+        ? { ...options, sourceLayout: 'full-frame' as const }
+        : options;
     return applyLayerToCanvas(base, layer, doc, W, H, imageCache, layerOptions);
   })();
 

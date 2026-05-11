@@ -118,10 +118,13 @@ export function useDocumentRenderer(
     scheduleRender();
   }, [doc, imageCache, options.fast, options.graphMode, scheduleRender]);
 
-  useEffect(() => () => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    },
+    [],
+  );
 
   return containerRef;
 }

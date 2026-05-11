@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { PrimitiveLayer } from '../../../types/config';
 import { PrimitiveViewport3D } from '../../PrimitiveViewport3D';
-import { defaultPrimitiveViewportState, type PrimitiveRenderMode, type PrimitiveViewportState } from '../../PrimitiveViewportState';
+import {
+  defaultPrimitiveViewportState,
+  type PrimitiveRenderMode,
+  type PrimitiveViewportState,
+} from '../../PrimitiveViewportState';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { stopNodeEvent } from '../helpers';
 import { EmptyThumbnailFrame } from './LiveMediaOverlay';
@@ -101,7 +105,9 @@ export function PrimitivePreviewSurface({
       />
       <div className="primitive-node-camera-strip" data-primitive-camera-control>
         <span className="primitive-node-camera-hint">
-          {primitiveLocked ? 'camera locked' : `drag rotate · right drag pan · ${Math.round(effectiveViewState.zoom * 100)}%`}
+          {primitiveLocked
+            ? 'camera locked'
+            : `drag rotate · right drag pan · ${Math.round(effectiveViewState.zoom * 100)}%`}
         </span>
         <div className="primitive-node-camera-actions">
           <button
@@ -163,11 +169,7 @@ function PrimitiveViewportFrame({
 }) {
   return (
     <div className="node-primitive-live-frame">
-      {bgPreviewTargetId ? (
-        <NodeThumbnail previewTargetId={bgPreviewTargetId} />
-      ) : (
-        <EmptyThumbnailFrame />
-      )}
+      {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
         <PrimitiveViewport3D
           layer={layer}

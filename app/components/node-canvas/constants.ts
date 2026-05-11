@@ -1,5 +1,5 @@
-import { EFFECT_PRESETS, EFFECT_PRESET_MENU_ORDER } from '../../types/config';
 import type { EffectPreset } from '../../types/config';
+import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import type { AddAction } from './types';
 
 export const NODE_W = 160;
@@ -24,36 +24,104 @@ export const KIND_COLOR: Record<string, string> = {
 };
 
 export const KIND_SYMBOL: Record<string, string> = {
-  fill:   '◼',
-  image:  '◧',
-  text:   'T',
-  emoji:  '✦',
+  fill: '◼',
+  image: '◧',
+  text: 'T',
+  emoji: '✦',
   effect: '⚡',
   primitive: '◍',
   noise: '░',
   array: '▦',
-  merge:  '⊕',
-  color:  '◐',
+  merge: '⊕',
+  color: '◐',
   export: '↗',
 };
 
 export const ADD_GROUPS = [
-  { id: 'content', label: 'Content', hint: 'Visible layers', description: 'Start with layers that render directly on the cover.' },
-  { id: 'source', label: 'Source', hint: 'Generated inputs', description: 'Create procedural sources before you style or combine them.' },
-  { id: 'effect', label: 'Effect', hint: 'Preset treatments', description: 'Drop in focused looks, then tune them in the inspector.' },
-  { id: 'util', label: 'Utility', hint: 'Combine and grade', description: 'Merge branches, shape color, and finish the output flow.' },
+  {
+    id: 'content',
+    label: 'Content',
+    hint: 'Visible layers',
+    description: 'Start with layers that render directly on the cover.',
+  },
+  {
+    id: 'source',
+    label: 'Source',
+    hint: 'Generated inputs',
+    description: 'Create procedural sources before you style or combine them.',
+  },
+  {
+    id: 'effect',
+    label: 'Effect',
+    hint: 'Preset treatments',
+    description: 'Drop in focused looks, then tune them in the inspector.',
+  },
+  {
+    id: 'util',
+    label: 'Utility',
+    hint: 'Combine and grade',
+    description: 'Merge branches, shape color, and finish the output flow.',
+  },
 ] as const;
 
 export type AddGroupId = (typeof ADD_GROUPS)[number]['id'];
 
-export const ADD_ITEMS: Array<{ label: string; description: string; symbol: string; group: AddGroupId; action: AddAction }> = [
-  { label: 'Fill', symbol: '◼', description: 'Lay down a flat color field or wash.', group: 'content', action: { kind: 'layer', layerKind: 'fill' } },
-  { label: 'Image', symbol: '◧', description: 'Place uploaded art, scans, or textures.', group: 'content', action: { kind: 'layer', layerKind: 'image' } },
-  { label: 'Text', symbol: 'T', description: 'Set titles, credits, or typographic shapes.', group: 'content', action: { kind: 'layer', layerKind: 'text' } },
-  { label: 'Emoji', symbol: '✦', description: 'Scatter repeated glyphs into the composition.', group: 'content', action: { kind: 'layer', layerKind: 'emoji' } },
-  { label: 'Primitive', symbol: '◍', description: 'Render a lit 3D form as a source layer.', group: 'source', action: { kind: 'layer', layerKind: 'primitive' } },
-  { label: 'Noise', symbol: '░', description: 'Generate a procedural noise texture.', group: 'source', action: { kind: 'layer', layerKind: 'noise' } },
-  { label: 'Array', symbol: '▦', description: 'Repeat a source into a structured pattern.', group: 'source', action: { kind: 'layer', layerKind: 'array' } },
+export const ADD_ITEMS: Array<{
+  label: string;
+  description: string;
+  symbol: string;
+  group: AddGroupId;
+  action: AddAction;
+}> = [
+  {
+    label: 'Fill',
+    symbol: '◼',
+    description: 'Lay down a flat color field or wash.',
+    group: 'content',
+    action: { kind: 'layer', layerKind: 'fill' },
+  },
+  {
+    label: 'Image',
+    symbol: '◧',
+    description: 'Place uploaded art, scans, or textures.',
+    group: 'content',
+    action: { kind: 'layer', layerKind: 'image' },
+  },
+  {
+    label: 'Text',
+    symbol: 'T',
+    description: 'Set titles, credits, or typographic shapes.',
+    group: 'content',
+    action: { kind: 'layer', layerKind: 'text' },
+  },
+  {
+    label: 'Emoji',
+    symbol: '✦',
+    description: 'Scatter repeated glyphs into the composition.',
+    group: 'content',
+    action: { kind: 'layer', layerKind: 'emoji' },
+  },
+  {
+    label: 'Primitive',
+    symbol: '◍',
+    description: 'Render a lit 3D form as a source layer.',
+    group: 'source',
+    action: { kind: 'layer', layerKind: 'primitive' },
+  },
+  {
+    label: 'Noise',
+    symbol: '░',
+    description: 'Generate a procedural noise texture.',
+    group: 'source',
+    action: { kind: 'layer', layerKind: 'noise' },
+  },
+  {
+    label: 'Array',
+    symbol: '▦',
+    description: 'Repeat a source into a structured pattern.',
+    group: 'source',
+    action: { kind: 'layer', layerKind: 'array' },
+  },
   ...EFFECT_PRESET_MENU_ORDER.map((preset) => ({
     label: EFFECT_PRESETS[preset].name,
     description: 'Apply a focused effect preset, then refine it.',
@@ -61,8 +129,20 @@ export const ADD_ITEMS: Array<{ label: string; description: string; symbol: stri
     group: 'effect' as const,
     action: { kind: 'effect', preset } as AddAction,
   })),
-  { label: 'Merge', symbol: '⊕', description: 'Blend two branches into one result.', group: 'util', action: { kind: 'merge' } },
-  { label: 'Color', symbol: '◐', description: 'Grade hue, contrast, and tonal balance.', group: 'util', action: { kind: 'color' } },
+  {
+    label: 'Merge',
+    symbol: '⊕',
+    description: 'Blend two branches into one result.',
+    group: 'util',
+    action: { kind: 'merge' },
+  },
+  {
+    label: 'Color',
+    symbol: '◐',
+    description: 'Grade hue, contrast, and tonal balance.',
+    group: 'util',
+    action: { kind: 'color' },
+  },
 ];
 
 export const ADD_MENU_BROWSE_MODES = [
@@ -78,16 +158,76 @@ export const ADD_NODE_GROUPS = [
 
 export type AddNodeGroupId = (typeof ADD_NODE_GROUPS)[number]['id'];
 
-export const ADD_NODE_ITEMS: Array<{ label: string; description: string; symbol: string; group: AddNodeGroupId; action: AddAction }> = [
-  { label: 'Fill', symbol: '◼', description: 'Lay down a flat color field or wash.', group: 'layers', action: { kind: 'layer', layerKind: 'fill' } },
-  { label: 'Image', symbol: '◧', description: 'Place uploaded art, scans, or textures.', group: 'layers', action: { kind: 'layer', layerKind: 'image' } },
-  { label: 'Text', symbol: 'T', description: 'Set titles, credits, or typographic shapes.', group: 'layers', action: { kind: 'layer', layerKind: 'text' } },
-  { label: 'Emoji', symbol: '✦', description: 'Scatter repeated glyphs into the composition.', group: 'layers', action: { kind: 'layer', layerKind: 'emoji' } },
-  { label: 'Primitive', symbol: '◍', description: 'Render a lit 3D form as a source layer.', group: 'generators', action: { kind: 'layer', layerKind: 'primitive' } },
-  { label: 'Noise', symbol: '░', description: 'Generate a procedural noise texture.', group: 'generators', action: { kind: 'layer', layerKind: 'noise' } },
-  { label: 'Array', symbol: '▦', description: 'Repeat a source into a structured pattern.', group: 'generators', action: { kind: 'layer', layerKind: 'array' } },
-  { label: 'Merge', symbol: '⊕', description: 'Blend two branches into one result.', group: 'utilities', action: { kind: 'merge' } },
-  { label: 'Color', symbol: '◐', description: 'Grade hue, contrast, and tonal balance.', group: 'utilities', action: { kind: 'color' } },
+export const ADD_NODE_ITEMS: Array<{
+  label: string;
+  description: string;
+  symbol: string;
+  group: AddNodeGroupId;
+  action: AddAction;
+}> = [
+  {
+    label: 'Fill',
+    symbol: '◼',
+    description: 'Lay down a flat color field or wash.',
+    group: 'layers',
+    action: { kind: 'layer', layerKind: 'fill' },
+  },
+  {
+    label: 'Image',
+    symbol: '◧',
+    description: 'Place uploaded art, scans, or textures.',
+    group: 'layers',
+    action: { kind: 'layer', layerKind: 'image' },
+  },
+  {
+    label: 'Text',
+    symbol: 'T',
+    description: 'Set titles, credits, or typographic shapes.',
+    group: 'layers',
+    action: { kind: 'layer', layerKind: 'text' },
+  },
+  {
+    label: 'Emoji',
+    symbol: '✦',
+    description: 'Scatter repeated glyphs into the composition.',
+    group: 'layers',
+    action: { kind: 'layer', layerKind: 'emoji' },
+  },
+  {
+    label: 'Primitive',
+    symbol: '◍',
+    description: 'Render a lit 3D form as a source layer.',
+    group: 'generators',
+    action: { kind: 'layer', layerKind: 'primitive' },
+  },
+  {
+    label: 'Noise',
+    symbol: '░',
+    description: 'Generate a procedural noise texture.',
+    group: 'generators',
+    action: { kind: 'layer', layerKind: 'noise' },
+  },
+  {
+    label: 'Array',
+    symbol: '▦',
+    description: 'Repeat a source into a structured pattern.',
+    group: 'generators',
+    action: { kind: 'layer', layerKind: 'array' },
+  },
+  {
+    label: 'Merge',
+    symbol: '⊕',
+    description: 'Blend two branches into one result.',
+    group: 'utilities',
+    action: { kind: 'merge' },
+  },
+  {
+    label: 'Color',
+    symbol: '◐',
+    description: 'Grade hue, contrast, and tonal balance.',
+    group: 'utilities',
+    action: { kind: 'color' },
+  },
 ];
 
 export const ADD_EFFECT_FAMILIES = [
@@ -117,44 +257,81 @@ export const ADD_EFFECT_FAMILIES = [
     label: 'Warp',
     hint: 'Distort, bend, ripple',
     description: 'Motion, lens warps, and spatial distortion.',
-    presets: ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'wave', 'zoomBlur', 'ripple', 'kaleidoscope', 'squeeze'] as EffectPreset[],
+    presets: [
+      'noiseWarp',
+      'morph',
+      'vortex',
+      'barrel',
+      'tear',
+      'mirror',
+      'wave',
+      'zoomBlur',
+      'ripple',
+      'kaleidoscope',
+      'squeeze',
+    ] as EffectPreset[],
   },
   {
     id: 'tone',
     label: 'Tone',
     hint: 'Tint, grade, shift, bleach',
     description: 'Color grading, film looks, and tonal remapping.',
-    presets: ['tint', 'hueShift', 'vignette', 'pixelate', 'posterize', 'sepia', 'infrared', 'solarize', 'bleachBypass', 'cyanotype', 'splitTone'] as EffectPreset[],
+    presets: [
+      'tint',
+      'hueShift',
+      'vignette',
+      'pixelate',
+      'posterize',
+      'sepia',
+      'infrared',
+      'solarize',
+      'bleachBypass',
+      'cyanotype',
+      'splitTone',
+    ] as EffectPreset[],
   },
   {
     id: 'graphic',
     label: 'Graphic',
     hint: 'Duotone, threshold, edges',
     description: 'Bold graphic reduction and stylized finishing passes.',
-    presets: ['duotone', 'halftone', 'risoShift', 'overprint', 'blur', 'threshold', 'edgeDetect', 'gradientOverlay'] as EffectPreset[],
+    presets: [
+      'duotone',
+      'halftone',
+      'risoShift',
+      'overprint',
+      'blur',
+      'threshold',
+      'edgeDetect',
+      'gradientOverlay',
+    ] as EffectPreset[],
   },
 ] as const;
 
 export type AddEffectFamilyId = (typeof ADD_EFFECT_FAMILIES)[number]['id'];
 
-export const ADD_EFFECT_ITEMS: Array<{ label: string; description: string; symbol: string; family: AddEffectFamilyId; action: AddAction }> =
-  EFFECT_PRESET_MENU_ORDER.map((preset) => {
-    const family =
-      ADD_EFFECT_FAMILIES.find((entry) => entry.presets.includes(preset))
-      ?? ADD_EFFECT_FAMILIES[0];
-    return {
-      label: EFFECT_PRESETS[preset].name,
-      description: family.hint,
-      symbol: EFFECT_PRESETS[preset].icon,
-      family: family.id,
-      action: { kind: 'effect', preset } as AddAction,
-    };
-  });
+export const ADD_EFFECT_ITEMS: Array<{
+  label: string;
+  description: string;
+  symbol: string;
+  family: AddEffectFamilyId;
+  action: AddAction;
+}> = EFFECT_PRESET_MENU_ORDER.map((preset) => {
+  const family = ADD_EFFECT_FAMILIES.find((entry) => entry.presets.includes(preset)) ?? ADD_EFFECT_FAMILIES[0];
+  return {
+    label: EFFECT_PRESETS[preset].name,
+    description: family.hint,
+    symbol: EFFECT_PRESETS[preset].icon,
+    family: family.id,
+    action: { kind: 'effect', preset } as AddAction,
+  };
+});
 
 export const HANDLE_STYLE = {
   background: 'var(--node-handle)',
   border: '1.5px solid var(--bg)',
-  width: 10, height: 10,
+  width: 10,
+  height: 10,
 };
 
 export const NODE_CANVAS_COLORS = {
