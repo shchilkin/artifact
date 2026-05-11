@@ -1,9 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface Props {
-  seed: number;
-  onSeedChange: (seed: number) => void;
   onRandomize: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -17,8 +15,6 @@ interface Props {
 }
 
 export function BottomBar({
-  seed,
-  onSeedChange,
   onRandomize,
   onUndo,
   onRedo,
@@ -31,13 +27,6 @@ export function BottomBar({
   exportBusy,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const seedInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSeedSet = () => {
-    const value = seedInputRef.current?.value ?? String(seed);
-    const parsed = parseInt(value, 10);
-    if (!isNaN(parsed)) onSeedChange(parsed);
-  };
 
   const handleCopyLink = useCallback(() => {
     onCopyLink();
@@ -60,25 +49,7 @@ export function BottomBar({
         </button>
       </div>
 
-      {/* Row 2: Seed controls + Export/Presets */}
-      <div className="bottom-seed-group">
-        <span className="bottom-label seed-label">SEED</span>
-        <input
-          key={seed}
-          ref={seedInputRef}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={7}
-          defaultValue={String(seed)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSeedSet()}
-          onBlur={handleSeedSet}
-          className="seed-input"
-          aria-label="Seed value"
-        />
-        <button className="btn" onClick={handleSeedSet}>
-          SET
-        </button>
+      <div className="bottom-link-group">
         <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span

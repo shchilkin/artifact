@@ -22,8 +22,8 @@ export function NodeShell({
   const showName = name.trim().toLowerCase() !== label.trim().toLowerCase();
   return (
     <div
-      className={`node-shell${selected ? ' node-shell-selected' : ''}`}
-      style={{ '--node-accent': accent, width: `var(--node-width, ${NODE_W}px)` } as CSSProperties}
+      className={`node-shell node-shell-kind-${kind}${selected ? ' node-shell-selected' : ''}`}
+      style={{ '--node-accent': accent, '--node-default-width': `${NODE_W}px` } as CSSProperties}
     >
       <div className="node-shell-accent" aria-hidden="true" />
       <div className="node-shell-header">

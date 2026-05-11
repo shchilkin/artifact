@@ -192,6 +192,8 @@ Guidelines:
 - `draft` may lower quality during active interaction.
 - `graphMode` must be explicit when a surface needs stack behavior.
 - `primitiveViewStates` must be passed to export when primitive camera state is visible in preview.
+- UI render hooks should avoid painting stale async results when a newer
+  document, image-cache, or render-option change is already queued.
 
 ## Preview/export parity checklist
 

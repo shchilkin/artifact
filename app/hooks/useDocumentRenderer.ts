@@ -55,8 +55,9 @@ export function useDocumentRenderer(
     })
       .then((result) => {
         renderingRef.current = false;
+        const hasNewerRenderPending = pendingRef.current;
         const displayCanvas = canvasRef.current;
-        if (displayCanvas) {
+        if (displayCanvas && !hasNewerRenderPending) {
           const ctx = displayCanvas.getContext('2d')!;
           ctx.clearRect(0, 0, pwRef.current, phRef.current);
           ctx.drawImage(result, 0, 0);

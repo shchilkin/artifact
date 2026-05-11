@@ -17,6 +17,7 @@
   --node-focus: var(--accent);
   --node-width: 160px;
   --node-editor-width: 292px;
+  min-width: 0;
 }
 
 .react-flow__node {
@@ -141,6 +142,11 @@
 }
 
 .node-shell {
+  width: clamp(
+    var(--node-min-width, var(--node-default-width)),
+    var(--node-preferred-width, var(--node-default-width)),
+    var(--node-max-width, 280px)
+  );
   background: var(--node-surface);
   border: 1px solid var(--node-border);
   border-radius: 0;
@@ -150,6 +156,26 @@
   transition:
     border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
     background 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.node-shell-kind-image,
+.node-shell-kind-primitive,
+.node-shell-kind-noise,
+.node-shell-kind-array {
+  --node-preferred-width: 220px;
+}
+
+.node-shell-kind-text,
+.node-shell-kind-emoji,
+.node-shell-kind-fill {
+  --node-preferred-width: 190px;
+}
+
+.node-shell-kind-export,
+.node-shell-kind-effect,
+.node-shell-kind-merge,
+.node-shell-kind-color {
+  --node-preferred-width: 180px;
 }
 
 .node-shell-selected {
@@ -174,10 +200,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 8px 7px 10px;
+  padding: 9px 8px 9px 10px;
   background: var(--node-bg);
   border-bottom: 1px solid var(--node-border);
-  min-height: 36px;
+  min-height: var(--touch);
 }
 
 .node-shell-drag {
@@ -1311,29 +1337,31 @@
 }
 
 .node-props-panel {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  bottom: 14px;
-  width: min(320px, calc(100% - 28px));
+  position: relative;
+  width: 0;
+  flex: 0 0 0;
+  min-width: 0;
   overflow: hidden;
   background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   transition:
     opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    flex-basis 180ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 20;
-  border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(24px);
 }
 
 .node-props-panel-open {
+  flex-basis: min(340px, 32vw);
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
 }
 
 .node-props-inner {
@@ -1516,11 +1544,13 @@
   }
 
   .node-props-panel {
+    position: absolute;
     top: auto;
     left: 0;
     right: 0;
     bottom: 0;
     width: 100%;
+    flex: none;
     max-height: min(68vh, 520px);
     transform: translateY(100%);
     border-left: none;
@@ -1529,6 +1559,7 @@
   }
 
   .node-props-panel-open {
+    flex-basis: auto;
     transform: translateY(0);
   }
 

@@ -99,7 +99,6 @@ export default function Generator() {
     handleCopyLink,
     loadDocument,
     setDoc,
-    setSeed,
     setAspect,
     undo,
     redo,
@@ -119,8 +118,6 @@ export default function Generator() {
     });
 
   const bottomBarProps = {
-    seed: doc.global.seed,
-    onSeedChange: setSeed,
     onRandomize: handleRandomize,
     onUndo: undo,
     onRedo: redo,
@@ -134,8 +131,8 @@ export default function Generator() {
   };
 
   return (
-    <div className="generator-layout flex flex-col w-full h-full">
-      <SiteNav solid />
+    <div className={`generator-layout generator-layout-${viewMode} flex flex-col w-full h-full`}>
+      <SiteNav solid compact={viewMode === 'nodes'} />
       {fromDocParam && !docsBannerDismissed && (
         <div
           style={{
@@ -180,9 +177,9 @@ export default function Generator() {
           </button>
         </div>
       )}
-      <div className="app">
+      <div className={`app app-${viewMode}`}>
         <main
-          className="main"
+          className={`main main-${viewMode}`}
           onDragEnter={(event) => {
             if (Array.from(event.dataTransfer.types).includes('Files')) setCanvasDragOver(true);
           }}
@@ -198,7 +195,9 @@ export default function Generator() {
           }}
         >
           <h1 className="sr-only">Album Cover Generator</h1>
-          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          <div className="floating-view-toggle">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </div>
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
@@ -212,7 +211,7 @@ export default function Generator() {
               />
             </ErrorBoundary>
           ) : (
-            <div className="flex flex-1 min-h-0 w-full">
+            <div className="node-mode-stage">
               <Suspense fallback={<div style={{ flex: 1, background: 'var(--bg)' }} />}>
                 <NodeCanvas
                   doc={doc}

@@ -211,7 +211,7 @@ app/
   components/
     SiteNav.tsx             # Top navigation bar (with LogoGlyph lockup)
     LogoGlyph.tsx           # Animated emoji logo (6 GPU variants)
-    BottomBar.tsx           # Seed, randomize, export dropdown, presets toggle
+    BottomBar.tsx           # Randomize, undo/redo, share link, export, presets toggle
     CanvasPreview.tsx       # Preview canvas + scroll-to-scale + CanvasHandles
     CanvasHandles.tsx       # SVG move/scale/rotate handles for selected layer
     LayerPanel.tsx          # Layer list: drag-reorder, visibility, rename, add menu

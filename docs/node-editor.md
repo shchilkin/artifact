@@ -41,6 +41,11 @@ Then it provides:
 - `NodeCanvasPreviewContext`: read-only render inputs for thumbnails/previews
 - `NodeCanvasActionsContext`: actions for selection, updates, deletion, gallery, primitive camera
 
+The generator route treats node mode as a full-canvas workspace: navigation,
+mode switching, graph actions, and export/preset actions float over the canvas.
+Node properties dock in a dedicated right rail on desktop and collapse to a
+bottom drawer on smaller screens.
+
 ## State machine
 
 `nodeCanvasMachine` owns UI state for:
@@ -173,6 +178,8 @@ Rules:
 - Interactive mode is for direct manipulation.
 - Interactive mode must commit back to document/render options.
 - Interactive mode should stay visually close to canonical renderer.
+- Node cards may size by content type; avoid assumptions that every node is the
+  same fixed width.
 
 ## Recommended refactor target
 

@@ -81,6 +81,22 @@ body {
   min-height: 0;
 }
 
+.generator-layout-nodes {
+  position: relative;
+}
+
+.generator-layout-nodes .site-nav-compact {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: auto;
+  width: auto;
+  max-width: calc(100% - 32px);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--sidebar-bg) 92%, transparent);
+}
+
 @media (min-width: 768px) {
   .app {
     flex-direction: row;
@@ -196,9 +212,52 @@ input[type="range"] {
   overflow: hidden;
 }
 
+.main-nodes {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+  background: var(--bg);
+}
+
+.node-mode-stage {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.floating-view-toggle {
+  position: absolute;
+  top: 76px;
+  left: 16px;
+  z-index: 30;
+}
+
+.floating-view-toggle > div {
+  margin: 0;
+}
+
 /* Desktop bottom bar is inside .main — hidden on mobile */
 .main > .bottom-bar {
   display: none;
+}
+
+.main-nodes > .bottom-bar {
+  position: absolute;
+  right: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  width: auto;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--sidebar-bg) 94%, transparent);
+  padding: 8px;
 }
 
 @media (min-width: 768px) {
@@ -210,6 +269,14 @@ input[type="range"] {
   }
   .main > .bottom-bar {
     display: flex;
+  }
+
+  .main-nodes {
+    padding: 0;
+  }
+
+  .main-nodes > .bottom-bar {
+    bottom: 18px;
   }
 }
 
@@ -414,8 +481,8 @@ input[type="range"] {
   gap: 6px;
 }
 
-/* Row 2: seed left, export/presets right */
-.bottom-seed-group {
+/* Row 2: share/link left, export/presets right */
+.bottom-link-group {
   grid-column: 1;
   grid-row: 2;
   display: flex;
@@ -444,7 +511,7 @@ input[type="range"] {
     padding: 0;
   }
 
-  .bottom-seed-group {
+  .bottom-link-group {
     order: 1;
     min-width: auto;
   }
@@ -465,28 +532,6 @@ input[type="range"] {
   letter-spacing: 2px;
   color: var(--text-dim);
   white-space: nowrap;
-}
-
-.seed-input {
-  width: 70px;
-  background: var(--sidebar-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 0 8px;
-  height: var(--touch);
-  border-radius: 3px;
-  outline: none;
-  /* Suppress browser number spinners */
-  -moz-appearance: textfield;
-}
-.seed-input::-webkit-inner-spin-button,
-.seed-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-}
-.seed-input:focus {
-  border-color: var(--accent);
 }
 
 /* RAND grows to fill available row space on mobile */
