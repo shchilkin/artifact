@@ -33,7 +33,7 @@ Keep graph rules, traversal, and validation centered in pure data and helpers:
 - graph helpers live in `app/utils/nodeGraph.ts`
 - key behaviors include edge insertion, upstream traversal, render-order resolution, layout, and cycle prevention
 
-The long-term goal is strict engine/UI separation. Current reality is close but not perfect: `app/utils/nodeGraph.ts` still contains a small React Flow adapter (`toRFEdges`). Do not push more UI concerns into graph helpers; move in the opposite direction when touching this area.
+The long-term goal is strict engine/UI separation. `app/utils/nodeGraph.ts` should stay pure graph logic; React Flow adapters such as edge/node shape mapping belong under `app/components/node-canvas/*`. Do not push UI concerns into graph helpers.
 
 ### 2. State/document sync
 

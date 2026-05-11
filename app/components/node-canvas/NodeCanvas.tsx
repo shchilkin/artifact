@@ -27,11 +27,7 @@ import { useNodeContextMenus } from './hooks/useNodeContextMenus';
 import { useNodeDragState } from './hooks/useNodeDragState';
 import { useNodeGraphEvents } from './hooks/useNodeGraphEvents';
 import type { Layer } from '../../types/config';
-import {
-  connectedPortIds,
-  inferLinearGraph,
-  toRFEdges,
-} from '../../utils/nodeGraph';
+import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { NodeContextMenu } from './menus/NodeContextMenu';
@@ -44,6 +40,7 @@ import {
   MergeNodeComponent,
 } from './nodes/NodeTypes';
 import { nodeCanvasMachine } from './machine';
+import { toRFEdges } from './reactFlowEdges';
 import type { NodeCanvasActionsContextValue, NodeCanvasPreviewContextValue, NodeCanvasProps } from './types';
 
 const nodeTypes = {
