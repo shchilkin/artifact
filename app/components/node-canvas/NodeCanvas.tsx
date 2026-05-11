@@ -1,45 +1,28 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-} from 'react';
 import { useMachine } from '@xstate/react';
+import { Background, BackgroundVariant, Controls, ReactFlow, type ReactFlowInstance } from '@xyflow/react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Background,
-  BackgroundVariant,
-  Controls,
-  ReactFlow,
-  type ReactFlowInstance,
-} from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
+import type { Layer } from '../../types/config';
+import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
-import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
-import { useNodeSelectionSync } from './hooks/useNodeSelectionSync';
-import { useNodeGallery } from './hooks/useNodeGallery';
-import { useNodeContextMenus } from './hooks/useNodeContextMenus';
-import { useNodeDragState } from './hooks/useNodeDragState';
-import { useNodeGraphEvents } from './hooks/useNodeGraphEvents';
-import type { Layer } from '../../types/config';
-import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
+import { useNodeContextMenus } from './hooks/useNodeContextMenus';
+import { useNodeDragState } from './hooks/useNodeDragState';
+import { useNodeGallery } from './hooks/useNodeGallery';
+import { useNodeGraphEvents } from './hooks/useNodeGraphEvents';
+import { useNodeSelectionSync } from './hooks/useNodeSelectionSync';
+import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
+import { nodeCanvasMachine } from './machine';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
+import { ColorNodeComponent, ExportNodeComponent, LayerNodeComponent, MergeNodeComponent } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
-import {
-  ColorNodeComponent,
-  ExportNodeComponent,
-  LayerNodeComponent,
-  MergeNodeComponent,
-} from './nodes/NodeTypes';
-import { nodeCanvasMachine } from './machine';
 import { toRFEdges } from './reactFlowEdges';
 import type { NodeCanvasActionsContextValue, NodeCanvasPreviewContextValue, NodeCanvasProps } from './types';
 
@@ -71,13 +54,12 @@ export function NodeCanvas({
   onDeleteNodes,
   onDuplicateLayer,
 }: NodeCanvasProps) {
-  const graph = useMemo(
-    () => doc.graph ?? inferLinearGraph(doc.layers),
-    [doc.graph, doc.layers],
-  );
+  const graph = useMemo(() => doc.graph ?? inferLinearGraph(doc.layers), [doc.graph, doc.layers]);
 
   const graphRef = useRef(graph);
-  useLayoutEffect(() => { graphRef.current = graph; }, [graph]);
+  useLayoutEffect(() => {
+    graphRef.current = graph;
+  }, [graph]);
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
 
@@ -98,16 +80,12 @@ export function NodeCanvas({
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
 
   // Focused hooks.
-  const {
-    primitiveViewStates,
-    primitiveViewportLockActive,
-    updatePrimitiveView,
-    setPrimitiveViewportActive,
-  } = usePrimitiveCameraState({
-    initialPrimitiveViewStates,
-    layers: doc.layers,
-    onPrimitiveViewStatesChange,
-  });
+  const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
+    usePrimitiveCameraState({
+      initialPrimitiveViewStates,
+      layers: doc.layers,
+      onPrimitiveViewStatesChange,
+    });
 
   const primitiveRenderModes = useMemo<Record<string, PrimitiveRenderMode>>(() => ({}), []);
 
@@ -152,29 +130,40 @@ export function NodeCanvas({
   });
 
   const baseNodes = useMemo(
-    () => buildRFNodes(
+    () =>
+      buildRFNodes(
+        doc,
+        graph,
+        selectedNodeIdSet,
+        activeEditorNodeId,
+        connected,
+        exportBusy,
+        primitiveViewStates,
+        primitiveRenderModes,
+      ),
+    [
       doc,
       graph,
       selectedNodeIdSet,
       activeEditorNodeId,
       connected,
       exportBusy,
-      primitiveViewStates,
       primitiveRenderModes,
-    ),
-    [doc, graph, selectedNodeIdSet, activeEditorNodeId, connected, exportBusy, primitiveRenderModes, primitiveViewStates],
+      primitiveViewStates,
+    ],
   );
   const baseEdges = useMemo(
-    () => toRFEdges(graph).map((edge) => ({
-      ...edge,
-      selected: selectedEdgeId === edge.id,
-      style: {
-        ...edge.style,
-        stroke: selectedEdgeId === edge.id ? 'var(--text)' : edge.style?.stroke,
-        strokeWidth: selectedEdgeId === edge.id ? 2.5 : edge.style?.strokeWidth,
-        opacity: selectedEdgeId === null || selectedEdgeId === edge.id ? 0.75 : 0.45,
-      },
-    })),
+    () =>
+      toRFEdges(graph).map((edge) => ({
+        ...edge,
+        selected: selectedEdgeId === edge.id,
+        style: {
+          ...edge.style,
+          stroke: selectedEdgeId === edge.id ? 'var(--text)' : edge.style?.stroke,
+          strokeWidth: selectedEdgeId === edge.id ? 2.5 : edge.style?.strokeWidth,
+          opacity: selectedEdgeId === null || selectedEdgeId === edge.id ? 0.75 : 0.45,
+        },
+      })),
     [graph, selectedEdgeId],
   );
 
@@ -197,13 +186,7 @@ export function NodeCanvas({
     onDeleteNodes,
   });
 
-  const {
-    isValidConnection,
-    onConnect,
-    onEdgesDelete,
-    onEdgeClick,
-    handleOrganizeNodes,
-  } = useNodeGraphEvents({
+  const { isValidConnection, onConnect, onEdgesDelete, onEdgeClick, handleOrganizeNodes } = useNodeGraphEvents({
     graphRef,
     layers: doc.layers,
     send,
@@ -211,28 +194,22 @@ export function NodeCanvas({
     onGraphChange,
   });
 
-  const {
-    openAddNodeMenu,
-    onPaneContextMenu,
-    onNodeContextMenu,
-    onEdgeContextMenu,
-    onConnectEnd,
-    handleAddFromMenu,
-  } = useNodeContextMenus({
-    send,
-    graph,
-    rfInstanceRef,
-    addNodeButtonRef,
-    canvasSurfaceRef,
-    contextMenuRef,
-    contextMenu,
-    selectedEdgeId,
-    selectedNodeIds,
-    graphRef,
-    onDeleteNodes,
-    onGraphChange,
-    onAddLayerAt,
-  });
+  const { openAddNodeMenu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, onConnectEnd, handleAddFromMenu } =
+    useNodeContextMenus({
+      send,
+      graph,
+      rfInstanceRef,
+      addNodeButtonRef,
+      canvasSurfaceRef,
+      contextMenuRef,
+      contextMenu,
+      selectedEdgeId,
+      selectedNodeIds,
+      graphRef,
+      onDeleteNodes,
+      onGraphChange,
+      onAddLayerAt,
+    });
 
   // Fit view on first render.
   useEffect(() => {
@@ -245,92 +222,106 @@ export function NodeCanvas({
   const onPaneClick = useCallback(() => {
     send({ type: 'PANE_CLICKED' });
   }, [send]);
-  const onRFInit = useCallback((instance: ReactFlowInstance) => { rfInstanceRef.current = instance; }, []);
+  const onRFInit = useCallback((instance: ReactFlowInstance) => {
+    rfInstanceRef.current = instance;
+  }, []);
 
-  const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(() => ({
-    doc,
-    graph,
-    imageCache,
-    primitiveViewStates,
-  }), [doc, graph, imageCache, primitiveViewStates]);
+  const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(
+    () => ({
+      doc,
+      graph,
+      imageCache,
+      primitiveViewStates,
+    }),
+    [doc, graph, imageCache, primitiveViewStates],
+  );
 
-  const actionsContextValue = useMemo<NodeCanvasActionsContextValue>(() => ({
-    selectNode: handleSelectNode,
-    toggleNodeEditor: handleToggleEditor,
-    updateLayer: onUpdateLayer,
-    updateMergeNode: onUpdateMergeNode,
-    updateColorNode: onUpdateColorNode,
-    updateExportConfig: onUpdateExportConfig,
-    updateAspectRatio: onUpdateAspectRatio,
-    exportNode: onExport,
-    deleteNode: (id: string) => onDeleteNodes([id]),
-    openGallery,
-    updatePrimitiveView,
-    setPrimitiveViewportActive,
-  }), [handleSelectNode, handleToggleEditor, onDeleteNodes, onExport, onUpdateAspectRatio, onUpdateColorNode, onUpdateExportConfig, onUpdateLayer, onUpdateMergeNode, openGallery, setPrimitiveViewportActive, updatePrimitiveView]);
+  const actionsContextValue = useMemo<NodeCanvasActionsContextValue>(
+    () => ({
+      selectNode: handleSelectNode,
+      toggleNodeEditor: handleToggleEditor,
+      updateLayer: onUpdateLayer,
+      updateMergeNode: onUpdateMergeNode,
+      updateColorNode: onUpdateColorNode,
+      updateExportConfig: onUpdateExportConfig,
+      updateAspectRatio: onUpdateAspectRatio,
+      exportNode: onExport,
+      deleteNode: (id: string) => onDeleteNodes([id]),
+      openGallery,
+      updatePrimitiveView,
+      setPrimitiveViewportActive,
+    }),
+    [
+      handleSelectNode,
+      handleToggleEditor,
+      onDeleteNodes,
+      onExport,
+      onUpdateAspectRatio,
+      onUpdateColorNode,
+      onUpdateExportConfig,
+      onUpdateLayer,
+      onUpdateMergeNode,
+      openGallery,
+      setPrimitiveViewportActive,
+      updatePrimitiveView,
+    ],
+  );
 
   return (
     <NodeCanvasPreviewContext.Provider value={previewContextValue}>
       <NodeCanvasActionsContext.Provider value={actionsContextValue}>
-        <div
-          className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]"
-        >
+        <div className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]">
           <div ref={canvasSurfaceRef} className="relative min-w-0 flex-1 overflow-hidden">
-          <div className="node-canvas-toolbar">
-            <button
-              ref={addNodeButtonRef}
-              type="button"
-              onClick={openAddNodeMenu}
-              aria-label="Add node"
-            >
-              <span aria-hidden="true">＋</span>
-              Add node
-            </button>
-            <button type="button" onClick={() => handleOrganizeNodes(doc.layers)} aria-label="Auto layout nodes">
-              <span aria-hidden="true">⌘</span>
-              Auto layout
-            </button>
-          </div>
+            <div className="node-canvas-toolbar">
+              <button ref={addNodeButtonRef} type="button" onClick={openAddNodeMenu} aria-label="Add node">
+                <span aria-hidden="true">＋</span>
+                Add node
+              </button>
+              <button type="button" onClick={() => handleOrganizeNodes(doc.layers)} aria-label="Auto layout nodes">
+                <span aria-hidden="true">⌘</span>
+                Auto layout
+              </button>
+            </div>
 
-          <ReactFlow
-            nodes={dragNodes}
-            edges={dragEdges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onConnectEnd={onConnectEnd}
-            onEdgesDelete={onEdgesDelete}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDragStop={onNodeDragStop}
-            onSelectionDragStop={onSelectionDragStop}
-            onSelectionChange={onSelectionChange}
-            onPaneClick={onPaneClick}
-            onPaneContextMenu={onPaneContextMenu}
-            onNodeContextMenu={onNodeContextMenu}
-            onEdgeContextMenu={onEdgeContextMenu}
-            onEdgeClick={onEdgeClick}
-            isValidConnection={isValidConnection}
-            onInit={onRFInit}
-            nodeTypes={nodeTypes}
-            colorMode="dark"
-            elementsSelectable
-            selectionKeyCode="Shift"
-            selectionOnDrag={!primitiveViewportLockActive}
-            selectionMode="partial"
-            multiSelectionKeyCode={['Meta', 'Control']}
-            minZoom={0.3}
-            maxZoom={2}
-            zoomOnScroll={!primitiveViewportLockActive}
-            zoomOnPinch={!primitiveViewportLockActive}
-            zoomOnDoubleClick={!primitiveViewportLockActive}
-            panOnDrag={!primitiveViewportLockActive}
-            deleteKeyCode={null}
-            nodesFocusable={false}
-            proOptions={RF_PRO_OPTIONS}
-          >
-            <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="var(--node-grid)" />
-            <Controls showInteractive={false} />
-          </ReactFlow>
+            <ReactFlow
+              nodes={dragNodes}
+              edges={dragEdges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onConnectEnd={onConnectEnd}
+              onEdgesDelete={onEdgesDelete}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
+              onSelectionDragStop={onSelectionDragStop}
+              onSelectionChange={onSelectionChange}
+              onPaneClick={onPaneClick}
+              onPaneContextMenu={onPaneContextMenu}
+              onNodeContextMenu={onNodeContextMenu}
+              onEdgeContextMenu={onEdgeContextMenu}
+              onEdgeClick={onEdgeClick}
+              isValidConnection={isValidConnection}
+              onInit={onRFInit}
+              nodeTypes={nodeTypes}
+              colorMode="dark"
+              elementsSelectable
+              selectionKeyCode="Shift"
+              selectionOnDrag={!primitiveViewportLockActive}
+              selectionMode="partial"
+              multiSelectionKeyCode={['Meta', 'Control']}
+              minZoom={0.3}
+              maxZoom={2}
+              zoomOnScroll={!primitiveViewportLockActive}
+              zoomOnPinch={!primitiveViewportLockActive}
+              zoomOnDoubleClick={!primitiveViewportLockActive}
+              panOnDrag={!primitiveViewportLockActive}
+              deleteKeyCode={null}
+              nodesFocusable={false}
+              proOptions={RF_PRO_OPTIONS}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--node-grid)" />
+              <Controls showInteractive={false} />
+            </ReactFlow>
           </div>
           <NodePropertiesPanel
             open={selectedNodeId !== null}
@@ -347,100 +338,107 @@ export function NodeCanvas({
             onClose={handleClosePanel}
           />
 
-          {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') && typeof document !== 'undefined' && createPortal(
-            <PaneContextMenu
-              x={contextMenu.x}
-              y={contextMenu.y}
-              mode={contextMenu.type === 'pane-insert' ? 'insert' : 'add'}
-              onAdd={(action) => handleAddFromMenu(
-                action,
-                contextMenu.flowPos,
-                contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
-              )}
-              onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
-              menuRef={contextMenuRef}
-            />,
-            document.body,
-          )}
+          {(contextMenu?.type === 'pane-add' || contextMenu?.type === 'pane-insert') &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <PaneContextMenu
+                x={contextMenu.x}
+                y={contextMenu.y}
+                mode={contextMenu.type === 'pane-insert' ? 'insert' : 'add'}
+                onAdd={(action) =>
+                  handleAddFromMenu(
+                    action,
+                    contextMenu.flowPos,
+                    contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
+                  )
+                }
+                onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+                menuRef={contextMenuRef}
+              />,
+              document.body,
+            )}
 
-          {contextMenu?.type === 'node' && typeof document !== 'undefined' && createPortal(
-            <NodeContextMenu
-              x={contextMenu.x}
-              y={contextMenu.y}
-              isMerge={contextMenu.isMerge}
-              isExport={contextMenu.isExport}
-              onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
-              onDelete={() => onDeleteNodes([contextMenu.nodeId])}
-              onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
-              menuRef={contextMenuRef}
-            />,
-            document.body,
-          )}
-          {galleryDisplayLayer && typeof document !== 'undefined' && createPortal(
-            <div
-              className="node-gallery-backdrop"
-              onClick={closeGallery}
-            >
-              <div
-                className="node-gallery-modal"
-                ref={galleryModalRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={galleryTitleId}
-                aria-describedby={galleryDescriptionId}
-                tabIndex={-1}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="node-gallery-close"
-                  ref={galleryCloseButtonRef}
-                  onClick={closeGallery}
-                  aria-label="Close gallery"
+          {contextMenu?.type === 'node' &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <NodeContextMenu
+                x={contextMenu.x}
+                y={contextMenu.y}
+                isMerge={contextMenu.isMerge}
+                isExport={contextMenu.isExport}
+                onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
+                onDelete={() => onDeleteNodes([contextMenu.nodeId])}
+                onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+                menuRef={contextMenuRef}
+              />,
+              document.body,
+            )}
+          {galleryDisplayLayer &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div className="node-gallery-backdrop" onClick={closeGallery}>
+                <div
+                  className="node-gallery-modal"
+                  ref={galleryModalRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={galleryTitleId}
+                  aria-describedby={galleryDescriptionId}
+                  tabIndex={-1}
+                  onClick={(event) => event.stopPropagation()}
                 >
-                  ×
-                </button>
-                <div className="node-gallery-header">
-                  <div className="node-gallery-heading">
-                    <span id={galleryTitleId} className="node-gallery-title">{galleryDisplayLayer.name}</span>
-                    <span id={galleryDescriptionId} className="node-gallery-subtitle">
-                      {galleryDisplayLayer.kind === 'primitive'
-                        ? 'Interactive primitive viewport'
-                        : `${galleryDisplayLayer.kind} preview`}
-                    </span>
-                    <span className="node-gallery-hint">{galleryHint}</span>
+                  <button
+                    type="button"
+                    className="node-gallery-close"
+                    ref={galleryCloseButtonRef}
+                    onClick={closeGallery}
+                    aria-label="Close gallery"
+                  >
+                    ×
+                  </button>
+                  <div className="node-gallery-header">
+                    <div className="node-gallery-heading">
+                      <span id={galleryTitleId} className="node-gallery-title">
+                        {galleryDisplayLayer.name}
+                      </span>
+                      <span id={galleryDescriptionId} className="node-gallery-subtitle">
+                        {galleryDisplayLayer.kind === 'primitive'
+                          ? 'Interactive primitive viewport'
+                          : `${galleryDisplayLayer.kind} preview`}
+                      </span>
+                      <span className="node-gallery-hint">{galleryHint}</span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="node-gallery-surface">
-                  <div className="node-gallery-viewport">
-                    {galleryDisplayLayer.kind === 'primitive' && galleryPrimitiveViewState ? (
-                      <PrimitiveViewport3D
-                        layer={galleryDisplayLayer}
-                        mode="modal"
-                        renderMode={primitiveRenderModes[galleryDisplayLayer.id] ?? 'shaded'}
-                        viewState={galleryPrimitiveViewState}
-                        onViewStateChange={(next) => updatePrimitiveView(galleryDisplayLayer.id, next)}
-                        className="node-primitive-preview"
-                      />
-                    ) : galleryDisplayDoc ? (
-                      <NodeGalleryCanvas
-                        doc={galleryDisplayDoc}
-                        graph={graph}
-                        imageCache={imageCache}
-                        previewTargetId={galleryDisplayLayer.id}
-                        layer={galleryDisplayLayer}
-                        viewState={galleryMediaViewState}
-                        onViewStateChange={(next) => updateMediaView(galleryDisplayLayer.id, next)}
-                        onLayerUpdate={(patch) => onUpdateLayer(galleryDisplayLayer.id, patch as Partial<Layer>)}
-                      />
-                    ) : null}
+                  <div className="node-gallery-surface">
+                    <div className="node-gallery-viewport">
+                      {galleryDisplayLayer.kind === 'primitive' && galleryPrimitiveViewState ? (
+                        <PrimitiveViewport3D
+                          layer={galleryDisplayLayer}
+                          mode="modal"
+                          renderMode={primitiveRenderModes[galleryDisplayLayer.id] ?? 'shaded'}
+                          viewState={galleryPrimitiveViewState}
+                          onViewStateChange={(next) => updatePrimitiveView(galleryDisplayLayer.id, next)}
+                          className="node-primitive-preview"
+                        />
+                      ) : galleryDisplayDoc ? (
+                        <NodeGalleryCanvas
+                          doc={galleryDisplayDoc}
+                          graph={graph}
+                          imageCache={imageCache}
+                          previewTargetId={galleryDisplayLayer.id}
+                          layer={galleryDisplayLayer}
+                          viewState={galleryMediaViewState}
+                          onViewStateChange={(next) => updateMediaView(galleryDisplayLayer.id, next)}
+                          onLayerUpdate={(patch) => onUpdateLayer(galleryDisplayLayer.id, patch as Partial<Layer>)}
+                        />
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>,
-            document.body,
-          )}
+              </div>,
+              document.body,
+            )}
         </div>
       </NodeCanvasActionsContext.Provider>
     </NodeCanvasPreviewContext.Provider>
