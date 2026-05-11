@@ -56,10 +56,19 @@ export const ADD_ITEMS: Array<{ label: string; symbol: string; group: string; ac
 ];
 
 export const HANDLE_STYLE = {
-  background: 'oklch(74% 0.17 152)',
+  background: 'var(--node-handle)',
   border: '1.5px solid var(--bg)',
   width: 10, height: 10,
 };
+
+export const NODE_CANVAS_COLORS = {
+  backgroundGrid: 'var(--node-grid)',
+  danger: 'var(--node-danger)',
+  backdrop: 'var(--node-backdrop)',
+  sceneAmbient: 0xe8dccb,
+  sceneFill: 0xf2eadf,
+  sceneShadow: 0x080707,
+} as const;
 
 export const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
 

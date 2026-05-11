@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { ADD_ITEMS, KIND_COLOR } from '../constants';
+import { clampPopupPosition } from '../helpers';
 import type { PaneMenuProps } from '../types';
 import { NoPan } from '../nodes/NoPan';
 
 export function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuWidth = 220;
+  const menuHeight = Math.min(368, 64 + groupsHeightEstimate(query));
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -32,17 +35,23 @@ export function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps
     return result;
   }, [filtered]);
 
+  const position = useMemo(
+    () => clampPopupPosition(x, y, menuWidth, menuHeight),
+    [menuHeight, menuWidth, x, y],
+  );
+
   return (
     <NoPan
       ref={menuRef}
       className="node-menu"
-      style={{ left: x, top: y, width: 220 } as CSSProperties}
+      style={{ left: position.left, top: position.top, width: menuWidth } as CSSProperties}
     >
       <div className="node-menu-search">
         <span className="node-menu-search-icon">⌕</span>
         <input
           ref={inputRef}
           className="node-menu-search-input"
+          aria-label="Search node types"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -87,4 +96,8 @@ export function PaneContextMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps
       </div>
     </NoPan>
   );
+}
+
+function groupsHeightEstimate(query: string) {
+  return query ? 260 : 320;
 }

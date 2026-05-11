@@ -100,6 +100,8 @@ export function NodeCanvas({
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const fittedRef = useRef(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const canvasSurfaceRef = useRef<HTMLDivElement>(null);
+  const addNodeButtonRef = useRef<HTMLButtonElement>(null);
   const galleryModalRef = useRef<HTMLDivElement>(null);
   const galleryCloseButtonRef = useRef<HTMLButtonElement>(null);
   const galleryReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -476,6 +478,23 @@ export function NodeCanvas({
       rfInstanceRef.current?.fitView({ padding: 0.2, duration: 220 });
     });
   }, [doc.layers, onGraphChange]);
+  const openAddNodeMenu = useCallback(() => {
+    const buttonRect = addNodeButtonRef.current?.getBoundingClientRect();
+    const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
+    const anchorX = buttonRect?.left ?? surfaceRect?.left ?? 0;
+    const anchorY = (buttonRect?.bottom ?? surfaceRect?.top ?? 0) + 8;
+    const screenPoint = surfaceRect
+      ? {
+          x: surfaceRect.left + surfaceRect.width / 2,
+          y: surfaceRect.top + surfaceRect.height / 2,
+        }
+      : {
+          x: (buttonRect?.left ?? 0) + (buttonRect?.width ?? 0) / 2,
+          y: (buttonRect?.bottom ?? 0) + 16,
+        };
+    const flowPos = rfInstanceRef.current?.screenToFlowPosition(screenPoint) ?? { x: 0, y: 0 };
+    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchorX, y: anchorY, flowPos } });
+  }, [send]);
 
   const onPaneContextMenu = useCallback((e: MouseEvent | React.MouseEvent) => {
     e.preventDefault();
@@ -618,8 +637,17 @@ export function NodeCanvas({
         <div
           className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]"
         >
-          <div className="relative min-w-0 flex-1 overflow-hidden">
+          <div ref={canvasSurfaceRef} className="relative min-w-0 flex-1 overflow-hidden">
           <div className="node-canvas-toolbar">
+            <button
+              ref={addNodeButtonRef}
+              type="button"
+              onClick={openAddNodeMenu}
+              aria-label="Add node"
+            >
+              <span aria-hidden="true">＋</span>
+              Add node
+            </button>
             <button type="button" onClick={handleOrganizeNodes} aria-label="Organize nodes">
               <span aria-hidden="true">⌘</span>
               Organize
@@ -662,7 +690,7 @@ export function NodeCanvas({
             nodesFocusable={false}
             proOptions={RF_PRO_OPTIONS}
           >
-            <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="oklch(20% 0.012 42)" />
+            <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="var(--node-grid)" />
             <Controls showInteractive={false} />
           </ReactFlow>
           </div>

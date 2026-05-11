@@ -1,10 +1,13 @@
 import type { CSSProperties } from 'react';
 
+import { NODE_CANVAS_COLORS } from '../constants';
+import { clampPopupPosition } from '../helpers';
 import { NoPan } from '../nodes/NoPan';
 import type { NodeMenuProps } from '../types';
 
 export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete, onClose, menuRef }: NodeMenuProps) {
   const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> = [];
+  const menuWidth = 200;
 
   if (!isMerge && !isExport) {
     items.push({ label: 'Duplicate', hint: '⌘D', action: onDuplicate });
@@ -15,11 +18,14 @@ export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete
 
   if (items.length === 0) return null;
 
+  const menuHeight = 12 + items.length * 52;
+  const position = clampPopupPosition(x, y, menuWidth, menuHeight);
+
   return (
     <NoPan
       ref={menuRef}
       className="node-menu"
-      style={{ left: x, top: y, width: 200, padding: '4px 0' } as CSSProperties}
+      style={{ left: position.left, top: position.top, width: menuWidth, padding: '4px 0' } as CSSProperties}
     >
       {items.map((item, i) => (
         <div key={i}>
@@ -32,7 +38,10 @@ export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete
             onClick={() => { item.action(); onClose(); }}
             className="node-menu-item node-menu-item-between"
           >
-            <span className={`node-menu-item-label${item.danger ? ' node-menu-item-danger' : ''}`}>
+            <span
+              className={`node-menu-item-label${item.danger ? ' node-menu-item-danger' : ''}`}
+              style={item.danger ? { color: NODE_CANVAS_COLORS.danger } : undefined}
+            >
               {item.label}
             </span>
             {item.hint && (

@@ -4,7 +4,7 @@ import { ASPECT_SIZES } from '../types/config';
 import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 import { renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
-import type { MediaViewState } from './NodeGalleryViewState';
+import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
 
 interface Props {
   doc: CanvasDocument;
@@ -127,12 +127,62 @@ export function NodeGalleryCanvas({
 
   return (
     <div
-      className="node-gallery-canvas-shell"
+      className="node-gallery-canvas-shell node-interactive-viewport"
+      tabIndex={0}
+      role="group"
+      aria-roledescription="interactive viewport"
+      aria-label={`${layer.name} preview. Arrow keys pan, plus or minus zoom, Home resets the view.`}
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onKeyDown={(event) => {
+        const next = { ...viewStateRef.current };
+        const panStep = 28;
+        const zoomStep = 0.14;
+        let changed = false;
+
+        switch (event.key) {
+          case 'ArrowUp':
+            next.offsetY -= panStep;
+            changed = true;
+            break;
+          case 'ArrowDown':
+            next.offsetY += panStep;
+            changed = true;
+            break;
+          case 'ArrowLeft':
+            next.offsetX -= panStep;
+            changed = true;
+            break;
+          case 'ArrowRight':
+            next.offsetX += panStep;
+            changed = true;
+            break;
+          case '+':
+          case '=':
+            next.zoom = clamp(next.zoom + zoomStep, 0.75, 3);
+            changed = true;
+            break;
+          case '-':
+          case '_':
+            next.zoom = clamp(next.zoom - zoomStep, 0.75, 3);
+            changed = true;
+            break;
+          case 'Home':
+            Object.assign(next, defaultMediaViewState());
+            changed = true;
+            break;
+          default:
+            break;
+        }
+
+        if (!changed) return;
+        event.preventDefault();
+        event.stopPropagation();
+        commitView(next);
+      }}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
     >

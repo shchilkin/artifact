@@ -47,3 +47,19 @@ export function distancePointToSegment(
   const py = start.y + t * dy;
   return Math.hypot(point.x - px, point.y - py);
 }
+
+export function clampPopupPosition(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  padding = 8,
+) {
+  if (typeof window === 'undefined') {
+    return { left: x, top: y };
+  }
+  return {
+    left: Math.min(Math.max(padding, x), Math.max(padding, window.innerWidth - width - padding)),
+    top: Math.min(Math.max(padding, y), Math.max(padding, window.innerHeight - height - padding)),
+  };
+}

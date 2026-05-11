@@ -41,6 +41,10 @@
   --node-kind-merge: oklch(68% 0.07 150);
   --node-kind-color: oklch(70% 0.07 200);
   --node-kind-export: oklch(84% 0.03 88);
+  --node-handle: oklch(74% 0.17 152);
+  --node-grid: oklch(20% 0.012 42);
+  --node-danger: oklch(62% 0.15 25);
+  --node-backdrop: color-mix(in oklch, var(--bg) 82%, transparent);
   --mono: ui-monospace, Consolas, "Courier New", monospace;
   --display: "Barlow Condensed", sans-serif;
   --sidebar-w: 260px;

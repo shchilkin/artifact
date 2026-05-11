@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
-import type { PrimitiveRenderMode, PrimitiveViewportState } from './PrimitiveViewportState';
+import { NODE_CANVAS_COLORS } from './node-canvas/constants';
+import { defaultPrimitiveViewportState, type PrimitiveRenderMode, type PrimitiveViewportState } from './PrimitiveViewportState';
 
 interface Props {
   layer: PrimitiveLayer;
@@ -45,7 +46,9 @@ function createMaterial(layer: PrimitiveLayer, renderMode: PrimitiveRenderMode) 
   }
   return new THREE.MeshStandardMaterial({
     color,
-    emissive: renderMode === 'wireframe' ? hexToColor(layer.accentColor).multiplyScalar(0.08) : new THREE.Color(0x000000),
+    emissive: renderMode === 'wireframe'
+      ? hexToColor(layer.accentColor).multiplyScalar(0.08)
+      : new THREE.Color(NODE_CANVAS_COLORS.sceneShadow),
     metalness: 0.18,
     roughness: renderMode === 'wireframe' ? 0.9 : 0.38,
     wireframe: renderMode === 'wireframe',
@@ -70,10 +73,9 @@ export function PrimitiveViewport3D({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const objectGroupRef = useRef<THREE.Group | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
-  const frameRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const viewStateRef = useRef(viewState);
-  const renderModeRef = useRef(renderMode);
+  const renderSceneRef = useRef<(() => void) | null>(null);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -106,13 +108,22 @@ export function PrimitiveViewport3D({
     }
   };
 
+  const applyViewState = useCallback((next: PrimitiveViewportState) => {
+    viewStateRef.current = next;
+    const mesh = meshRef.current;
+    const camera = cameraRef.current;
+    if (!mesh || !camera) return;
+    mesh.rotation.x = degToRad(next.rotationX);
+    mesh.rotation.y = degToRad(next.rotationY);
+    mesh.rotation.z = degToRad(layerTiltZRef.current);
+    camera.position.set(next.panX, next.panY, CAMERA_DISTANCE / clamp(next.zoom, 0.6, 2.6));
+    camera.lookAt(next.panX, next.panY, 0);
+    renderSceneRef.current?.();
+  }, []);
+
   useLayoutEffect(() => {
     viewStateRef.current = viewState;
   }, [viewState]);
-
-  useLayoutEffect(() => {
-    renderModeRef.current = renderMode;
-  }, [renderMode]);
 
   useLayoutEffect(() => {
     modeRef.current = mode;
@@ -143,14 +154,14 @@ export function PrimitiveViewport3D({
     camera.position.set(0, 0, CAMERA_DISTANCE);
     cameraRef.current = camera;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.15);
+    const ambient = new THREE.AmbientLight(NODE_CANVAS_COLORS.sceneAmbient, 1.15);
     scene.add(ambient);
 
     const keyLight = new THREE.DirectionalLight(hexToColor(layer.accentColor), 1.45);
     keyLight.position.set(2.4, 2.8, 3.4);
     scene.add(keyLight);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 0.65);
+    const fill = new THREE.DirectionalLight(NODE_CANVAS_COLORS.sceneFill, 0.65);
     fill.position.set(-2.8, -1.2, 1.5);
     scene.add(fill);
 
@@ -164,18 +175,18 @@ export function PrimitiveViewport3D({
 
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1.35, 48),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 }),
+      new THREE.MeshBasicMaterial({ color: NODE_CANVAS_COLORS.sceneShadow, transparent: true, opacity: 0.18 }),
     );
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0, -1.18, 0);
     shadow.scale.set(1.15, 0.6, 1);
     scene.add(shadow);
 
-    const frame = () => {
+    const renderScene = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
       rendererRef.current.render(sceneRef.current, cameraRef.current);
-      frameRef.current = requestAnimationFrame(frame);
     };
+    renderSceneRef.current = renderScene;
 
     const resize = () => {
       if (!rendererRef.current || !cameraRef.current) return;
@@ -185,17 +196,18 @@ export function PrimitiveViewport3D({
       rendererRef.current.setSize(width, height, false);
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
+      renderScene();
     };
 
     resize();
     resizeObserverRef.current = new ResizeObserver(resize);
     resizeObserverRef.current.observe(root);
-    frame();
+    renderScene();
 
     return () => {
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
+      renderSceneRef.current = null;
       dragStateRef.current = null;
       meshRef.current?.geometry.dispose();
       if (Array.isArray(meshRef.current?.material)) {
@@ -230,19 +242,12 @@ export function PrimitiveViewport3D({
     mesh.rotation.z = degToRad(layer.tiltZ);
     objectGroup.add(mesh);
     meshRef.current = mesh;
+    renderSceneRef.current?.();
   }, [layer, renderMode]);
 
   useEffect(() => {
-    const mesh = meshRef.current;
-    const camera = cameraRef.current;
-    if (!mesh || !camera) return;
-
-    mesh.rotation.x = degToRad(viewState.rotationX);
-    mesh.rotation.y = degToRad(viewState.rotationY);
-    mesh.rotation.z = degToRad(layer.tiltZ);
-    camera.position.set(viewState.panX, viewState.panY, CAMERA_DISTANCE / clamp(viewState.zoom, 0.6, 2.6));
-    camera.lookAt(viewState.panX, viewState.panY, 0);
-  }, [layer.tiltZ, viewState]);
+    applyViewState(viewState);
+  }, [applyViewState, viewState]);
 
   // Document-level capture listeners — fire before ReactFlow, d3-zoom, and all framework listeners.
   // Hover-locking the RF pane is the actual isolation mechanism: while pane has pointer-events:none,
@@ -252,18 +257,6 @@ export function PrimitiveViewport3D({
     if (!root) return;
 
     const inside = (e: Event) => root.contains(e.target as Node);
-
-    const applyState = (next: PrimitiveViewportState) => {
-      viewStateRef.current = next;
-      const mesh = meshRef.current;
-      const camera = cameraRef.current;
-      if (!mesh || !camera) return;
-      mesh.rotation.x = degToRad(next.rotationX);
-      mesh.rotation.y = degToRad(next.rotationY);
-      mesh.rotation.z = degToRad(layerTiltZRef.current);
-      camera.position.set(next.panX, next.panY, CAMERA_DISTANCE / clamp(next.zoom, 0.6, 2.6));
-      camera.lookAt(next.panX, next.panY, 0);
-    };
 
     const commit = () => onViewStateChangeRef.current({ ...viewStateRef.current });
 
@@ -297,14 +290,14 @@ export function PrimitiveViewport3D({
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
       if (drag.mode === 'pan') {
-        applyState({
+        applyViewState({
           ...drag.startView,
           panX: drag.startView.panX - dx * 0.006,
           panY: drag.startView.panY + dy * 0.006,
         });
         return;
       }
-      applyState({
+      applyViewState({
         ...drag.startView,
         rotationX: clamp(drag.startView.rotationX + dy * 0.35, -85, 85),
         rotationY: drag.startView.rotationY + dx * 0.4,
@@ -337,7 +330,7 @@ export function PrimitiveViewport3D({
         ...viewStateRef.current,
         zoom: clamp(viewStateRef.current.zoom + (e.deltaY * 0.0016), 0.6, 2.6),
       };
-      applyState(next);
+      applyViewState(next);
       onViewStateChangeRef.current({ ...next });
     };
 
@@ -378,12 +371,84 @@ export function PrimitiveViewport3D({
       dragStateRef.current = null;
       unlockRFPane();
     };
-  }, []); // stable — all live values accessed via refs
+  }, [applyViewState]); // stable — all live values accessed via refs
 
   return (
     <div
       ref={rootRef}
-      className={[className, 'nodrag', 'nopan', 'nowheel'].filter(Boolean).join(' ')}
+      className={['node-interactive-viewport', className, 'nodrag', 'nopan', 'nowheel'].filter(Boolean).join(' ')}
+      tabIndex={0}
+      role="group"
+      aria-roledescription="interactive viewport"
+      aria-label={`${layer.name} 3D preview. Arrow keys rotate, Shift plus arrow keys pan, plus or minus zoom, Home resets.`}
+      onKeyDown={(event) => {
+        const next = { ...viewStateRef.current };
+        const rotateStep = 8;
+        const panStep = 0.12;
+        const zoomStep = 0.14;
+        let changed = false;
+        let rotated = false;
+
+        switch (event.key) {
+          case 'ArrowUp':
+            if (event.shiftKey) next.panY -= panStep;
+            else {
+              next.rotationX = clamp(next.rotationX - rotateStep, -85, 85);
+              rotated = true;
+            }
+            changed = true;
+            break;
+          case 'ArrowDown':
+            if (event.shiftKey) next.panY += panStep;
+            else {
+              next.rotationX = clamp(next.rotationX + rotateStep, -85, 85);
+              rotated = true;
+            }
+            changed = true;
+            break;
+          case 'ArrowLeft':
+            if (event.shiftKey) next.panX -= panStep;
+            else {
+              next.rotationY -= rotateStep;
+              rotated = true;
+            }
+            changed = true;
+            break;
+          case 'ArrowRight':
+            if (event.shiftKey) next.panX += panStep;
+            else {
+              next.rotationY += rotateStep;
+              rotated = true;
+            }
+            changed = true;
+            break;
+          case '+':
+          case '=':
+            next.zoom = clamp(next.zoom + zoomStep, 0.6, 2.6);
+            changed = true;
+            break;
+          case '-':
+          case '_':
+            next.zoom = clamp(next.zoom - zoomStep, 0.6, 2.6);
+            changed = true;
+            break;
+          case 'Home':
+            Object.assign(next, defaultPrimitiveViewportState(layer));
+            changed = true;
+            rotated = true;
+            break;
+          default:
+            break;
+        }
+
+        if (!changed) return;
+        event.preventDefault();
+        event.stopPropagation();
+        applyKeyboardState(next, applyViewState, onViewStateChangeRef.current);
+        if (rotated) {
+          onRotationCommitRef.current?.(next.rotationX, next.rotationY);
+        }
+      }}
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       style={{ position: 'relative', width: '100%', height: '100%', touchAction: 'none' }}
@@ -391,4 +456,13 @@ export function PrimitiveViewport3D({
       <canvas ref={canvasRef} className="nodrag nopan nowheel" style={{ display: 'block', width: '100%', height: '100%' }} />
     </div>
   );
+}
+
+function applyKeyboardState(
+  next: PrimitiveViewportState,
+  applyState: (next: PrimitiveViewportState) => void,
+  onViewStateChange: (viewState: PrimitiveViewportState) => void,
+) {
+  applyState(next);
+  onViewStateChange({ ...next });
 }
