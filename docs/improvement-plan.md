@@ -51,8 +51,9 @@ lowest useful layer.
   the Node test environment is stable.
 - [x] Add graph render fixtures for merge node, color node, and export-node
   traversal.
-- [ ] Add document-sync tests for graph creation, undo/redo, URL/localStorage
-  normalization, and serialization-safe round trips.
+- [x] Add URL/localStorage document normalization tests.
+- [ ] Add document-sync tests for graph creation, undo/redo, and
+  serialization-safe round trips.
 - [x] Add thumbnail signature tests so render-relevant and UI-only changes are
   distinguished explicitly.
 
@@ -84,8 +85,9 @@ Exit criteria:
 
 Goal: make document updates deliberate and testable.
 
-- [ ] Extract document persistence helpers for initial load, localStorage save,
-  URL import cleanup, and share-link creation.
+- [x] Extract document normalization and initial-load helpers.
+- [ ] Extract remaining document persistence helpers for localStorage save, URL
+  import cleanup, and share-link creation.
 - [ ] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
 - [ ] Keep layer commands and graph commands small enough to test without

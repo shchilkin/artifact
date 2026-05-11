@@ -28,6 +28,8 @@ Durable document state is the creative artifact. It is serialized, persisted, sh
 Current owner:
 
 - `app/hooks/useGeneratorDocument.ts`
+- `app/utils/documentPersistence.ts` for normalization and initial document
+  loading helpers
 
 Includes:
 

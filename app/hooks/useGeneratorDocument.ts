@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { AddAction, InsertConnectionConfig } from '../components/NodeCanvas';
 import {
-  ASPECT_SIZES,
   type AspectRatio,
   type CanvasDocument,
   type CanvasGraph,
   cloneDocument,
-  DEFAULT_DOCUMENT,
-  DEFAULT_EXPORT,
   type EffectPreset,
   type GraphColorNode,
   type GraphMergeNode,
@@ -21,8 +18,8 @@ import {
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
-  type SourceType,
 } from '../types/config';
+import { DOC_KEY, getInitialDocument, normalizeDocument } from '../utils/documentPersistence';
 import {
   addColorNode,
   addGraphEdge,
@@ -38,35 +35,12 @@ import {
 } from '../utils/nodeGraph';
 import { randomDocument } from '../utils/randomConfig';
 
-const DOC_KEY = 'doc';
 const HISTORY_MAX = 50;
 
 type HistoryEntry = { doc: CanvasDocument };
 
-function isValidAspect(value: unknown): value is AspectRatio {
-  return typeof value === 'string' && value in ASPECT_SIZES;
-}
-
 function ensureGraph(doc: CanvasDocument): CanvasGraph {
   return doc.graph ?? inferLinearGraph(doc.layers);
-}
-
-function normalizeDocument(raw: unknown): CanvasDocument {
-  const doc = raw as CanvasDocument;
-  const aspect = isValidAspect(doc.global?.aspect) ? doc.global.aspect : '1:1';
-  const exportConfig = {
-    ...DEFAULT_EXPORT,
-    ...(typeof doc.export === 'object' && doc.export ? doc.export : {}),
-  } as CanvasDocument['export'];
-  const layers = Array.isArray(doc.layers)
-    ? (doc.layers.map((layer) =>
-        layer?.kind === 'source' && typeof (layer as { sourceType?: unknown }).sourceType === 'string'
-          ? { ...layer, kind: (layer as { sourceType: SourceType }).sourceType }
-          : layer,
-      ) as Layer[])
-    : [];
-  const graph = doc.graph ? { ...doc.graph, colorNodes: doc.graph.colorNodes ?? [] } : undefined;
-  return { ...doc, global: { ...doc.global, aspect }, layers, export: exportConfig, graph };
 }
 
 function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
@@ -79,27 +53,6 @@ function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
         : kind === 'emoji'
           ? makeEmojiLayer()
           : makeSourceLayer(kind);
-}
-
-function getInitialDocument(): CanvasDocument {
-  const params = new URLSearchParams(window.location.search);
-  const docParam = params.get('doc');
-  if (docParam) {
-    try {
-      return normalizeDocument(JSON.parse(docParam));
-    } catch {
-      // ignore
-    }
-  }
-
-  try {
-    const raw = localStorage.getItem(DOC_KEY);
-    if (raw) return normalizeDocument(JSON.parse(raw));
-  } catch {
-    // ignore
-  }
-
-  return cloneDocument(DEFAULT_DOCUMENT);
 }
 
 function cloneLayerForDuplicate(layer: Layer): Layer {
