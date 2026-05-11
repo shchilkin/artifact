@@ -859,6 +859,7 @@ async function applyLayerToCanvas(
       scale,
       options.draft ?? false,
       layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
+      options.sourceLayout ?? 'document',
     );
   } else if (layer.kind === 'effect') {
     if (options.skipEffects) return base;
@@ -986,6 +987,8 @@ export interface RenderOptions {
   graphMode?: 'auto' | 'graph' | 'stack';
   /** Optional live primitive viewport overrides so node/output/export renders can match the interactive 3D preview. */
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
+  /** Source nodes render as full-frame generators in graph mode; stack mode keeps authored placement. */
+  sourceLayout?: 'document' | 'full-frame';
 }
 
 async function renderGraphNode(
@@ -1054,7 +1057,10 @@ async function renderGraphNode(
     const base = sourceId
       ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
       : createCanvas(W, H);
-    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, options);
+    const layerOptions = (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array')
+      ? { ...options, sourceLayout: 'full-frame' as const }
+      : options;
+    return applyLayerToCanvas(base, layer, doc, W, H, imageCache, layerOptions);
   })();
 
   cache.set(nodeId, renderPromise);

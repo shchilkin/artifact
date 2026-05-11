@@ -230,13 +230,19 @@ export async function drawSourceLayer(
   scale: number,
   draft: boolean,
   primitiveViewState?: PrimitiveViewportState,
+  layout: 'document' | 'full-frame' = 'document',
 ): Promise<void> {
   ctx.save();
   ctx.globalAlpha = layer.opacity / 100;
   ctx.globalCompositeOperation = (layer.blendMode === 'normal' ? 'source-over' : layer.blendMode) as GlobalCompositeOperation;
-  ctx.translate(width * layer.x, height * layer.y);
-  ctx.rotate(degToRad(layer.rotation));
-  ctx.scale(scale * layer.scaleX, scale * layer.scaleY);
+  if (layout === 'full-frame') {
+    ctx.translate(width / 2, height / 2);
+    ctx.scale(scale, scale);
+  } else {
+    ctx.translate(width * layer.x, height * layer.y);
+    ctx.rotate(degToRad(layer.rotation));
+    ctx.scale(scale * layer.scaleX, scale * layer.scaleY);
+  }
 
   if (layer.kind === 'primitive') {
     const size = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);

@@ -1,7 +1,6 @@
 import { memo, useMemo, useRef, useState } from 'react';
 
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
-import { THUMB_SIZE } from '../constants';
 import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
 import type { LayerNodeData } from '../types';
 import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerTransformDraft';
@@ -23,7 +22,6 @@ function DragTransformOverlay({
   onChange: (patch: LayerTransformPatch) => void;
   onCommit: () => void;
 }) {
-  const THUMB = THUMB_SIZE;
   const dragRef = useRef<{
     startClientX: number;
     startClientY: number;
@@ -72,10 +70,12 @@ function DragTransformOverlay({
     if (!dragRef.current) return;
     const { startClientX, startClientY, startLayerX, startLayerY, startRotation, startAngle, mode } = dragRef.current;
     if (mode === 'translate') {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const frameSize = Math.max(1, Math.min(rect.width, rect.height));
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
-      const newX = startLayerX + (dx / THUMB) * 1.5;
-      const newY = startLayerY + (dy / THUMB) * 1.5;
+      const newX = startLayerX + (dx / frameSize) * 1.5;
+      const newY = startLayerY + (dy / frameSize) * 1.5;
       onChange({ x: newX, y: newY });
     } else {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -157,7 +157,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div style={{ position: 'relative', display: 'inline-block' }}>
+        <div className="node-live-preview-frame">
           {isDraggable && selected ? (
             <>
               {mediaBgPreviewTargetId ? (
