@@ -21,51 +21,78 @@ Fast, no browser required. Run in Node with `@napi-rs/canvas` polyfilling Canvas
 | --- | --- |
 | `app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
 | `app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
-| `app/utils/nodeGraph.test.ts` | `collectUpstreamNodeIds`, graph traversal helpers |
+| `app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
 | `app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
 | `app/components/node-canvas/helpers.test.ts` | Node canvas helper utilities |
+| `app/components/node-canvas/thumbnails/renderSignature.test.ts` | thumbnail invalidation signatures for layers, graph nodes, and edges |
 
-### Render parity tests
+### Render baseline tests
 
-Verify that preview and export render the same pixels for deterministic Canvas 2D cases.
+Verify deterministic renderer behavior for the Canvas 2D paths that are stable
+in the Node test environment.
 
 **Location:** `app/test-fixtures/render/renderParity.test.ts`
 
-**Fixtures covered:**
+**Current fixtures covered:**
 - Fill-only document
 - Text over fill
-- Image free-fit over fill (with placeholder image)
 - Emoji layer with deterministic seed
-- Noise layer
-- Array layer
-- Multiple effect layers (grain, scanlines)
-- Graph fixtures: merge node, color node, export node, primitive smoke test
+- Stack mode compared with an inferred linear graph for a simple document
+- Export-size smoke tests for deterministic stack documents
 
-**How pixel comparison works:**
+**Current assertions include:**
 
-Each fixture renders at a fixed 100×100 resolution. The test:
-1. Renders via `renderDocument` at the preview size
-2. Renders via the export path at double size, then scales down
-3. Compares pixel channels with a tolerance of ±2 (for antialiasing/rounding)
+- requested canvas dimensions are respected
+- fill-only output is fully opaque
+- repeat renders are pixel-identical for deterministic fixtures
+- seeded emoji output changes when the seed changes
+- selected centre pixels remain stable across preview/export sizes
 
-GPU/Three.js cases use smoke tests only (render completes, dimensions match,
-non-empty pixels exist).
+### Graph render tests
+
+Verify graph traversal and graph-only nodes through the canonical renderer.
+
+**Location:** `app/test-fixtures/render/graphRender.test.ts`
+
+**Current fixtures covered:**
+- Export node traversal uses graph topology instead of layer-stack order
+- Merge node composition with opacity
+- Color node adjustment on an upstream branch
+
+**Planned fixtures:**
+- Image free-fit over fill with a test image cache
+- Noise and array source layers
+- Multiple effect layers with GPU effects skipped or mocked
+- Primitive smoke tests where a WebGL-capable test environment is available
+
+GPU/PixiJS and Three.js cases should use smoke tests unless CI provides a
+stable WebGL context.
 
 ### Adding a fixture
 
 ```ts
 // app/test-fixtures/render/renderParity.test.ts
 it('my new fixture', async () => {
-  const doc = makeTestDoc([
-    makeFillLayer({ color: '#ff0000' }),
-    makeTextLayer({ content: 'hi', size: 24 }),
-  ]);
-  await expectRenderParity(doc);
+  const doc = {
+    global: { bg: '#000000', seed: 1, aspect: '1:1' },
+    layers: [
+      makeFillLayer({ color: '#ff0000' }),
+      makeTextLayer({ content: 'hi', size: 24 }),
+    ],
+    export: { format: 'png', scale: 1, target: 'cover' },
+  } satisfies CanvasDocument;
+
+  const canvas = await renderDocument(doc, 100, 100, new Map(), {
+    skipEffects: true,
+    graphMode: 'stack',
+  });
+
+  expect(canvas.width).toBe(100);
 });
 ```
 
-`expectRenderParity` renders at 100×100 and 200×200, scales the larger canvas
-down, and asserts pixel equality within tolerance.
+Prefer small deterministic assertions first. Add tolerant pixel-diff helpers
+only when a fixture needs them.
 
 ---
 
@@ -91,13 +118,16 @@ signal with less maintenance cost than component snapshots.
 ## CI
 
 CI skips `npm run favicon` (requires Puppeteer/WebGL) and calls
-`npx react-router build` directly. `public/favicon.png` is committed as the
-fallback.
+`npm run build:ci`, which runs `react-router build` directly.
+`public/favicon.png` is committed as the fallback.
 
 ```yaml
 # Effective CI sequence
 npm ci
-npx react-router build
+npm run format:check
+npm run lint
+npm run typecheck
+npm run build:ci
 npm test
 ```
 
@@ -107,4 +137,4 @@ npm test
 
 - [`docs/rendering.md`](rendering.md) — full pipeline walkthrough
 - [`docs/state-model.md`](state-model.md) — what state affects render output
-- [`docs/improvement-plan.md`](improvement-plan.md) — Phase 5 (render parity fixtures)
+- [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist
