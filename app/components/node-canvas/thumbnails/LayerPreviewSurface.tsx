@@ -37,7 +37,6 @@ function DragTransformOverlay({
     y: 'y' in layer ? layer.y : 0.5,
   });
   const getRotation = () => ('rotation' in layer ? layer.rotation : 0);
-  const getScale = () => ('scaleX' in layer ? layer.scaleX : 1);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -100,25 +99,16 @@ function DragTransformOverlay({
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const current = getScale();
-    const delta = -e.deltaY * 0.002;
-    const next = Math.max(0.05, Math.min(8, current + delta));
-    onChange({ scaleX: next, scaleY: next } as Partial<Layer>);
-  };
-
   let cursor = 'grab';
   if (dragging) cursor = rotating ? 'alias' : 'grabbing';
 
   return (
     <div
-      className="node-drag-overlay nodrag nopan nowheel"
+      className="node-drag-overlay nodrag nopan"
       style={{ position: 'absolute', inset: 0, zIndex: 2, cursor, touchAction: 'none' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onWheel={handleWheel}
     />
   );
 }
@@ -242,7 +232,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
       >
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <NodeThumbnail previewTargetId={previewTargetId} />
-          {isDraggable && (
+          {isDraggable && selected && (
             <DragTransformOverlay
               layer={layer}
               onChange={(patch) => updateLayer(layer.id, patch)}

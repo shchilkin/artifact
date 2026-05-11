@@ -1,4 +1,4 @@
-import { memo, type KeyboardEvent } from 'react';
+import { memo, useCallback, type KeyboardEvent } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
@@ -20,14 +20,27 @@ function handleNodeKeyDown(
 }
 
 export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
-  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { selectNode, deleteNode, updateLayer } = useNodeCanvasActions();
   const { layer, previewTargetId, selected, editing, connected, primitiveViewState, primitiveRenderMode } = data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
 
+  // Layers with an explicit scale — scroll over the node to adjust it locally.
+  // `nowheel` tells React Flow not to zoom the canvas; we handle the event ourselves.
+  const isScalable = layer.kind === 'text' || layer.kind === 'image' || layer.kind === 'primitive';
+  const handleLocalScale = useCallback((e: React.WheelEvent) => {
+    e.stopPropagation();
+    if (!('scaleX' in layer)) return;
+    const delta = -e.deltaY * 0.002;
+    const next = Math.max(0.05, Math.min(8, (layer.scaleX as number) + delta));
+    updateLayer(layer.id, { scaleX: next, scaleY: next } as Partial<typeof layer>);
+  }, [layer, updateLayer]);
+
   return (
     <div
       style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
+      className={isScalable ? 'nowheel' : undefined}
+      onWheel={isScalable ? handleLocalScale : undefined}
     >
       <Handle type="target" position={Position.Left} id={inputPort} style={HANDLE_STYLE} />
       <div
