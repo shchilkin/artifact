@@ -16,6 +16,108 @@ import {
 } from './primitiveScene';
 
 const SOURCE_OVERSCAN = 1.22;
+const CONTENT_SAMPLE_STEPS = 8;
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.replace('#', '');
+  const value = Number.parseInt(normalized.length === 3 ? normalized.replace(/(.)/g, '$1$1') : normalized, 16);
+  if (!Number.isFinite(value)) return [255, 90, 54];
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+function rgba(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function canvasHasPrimitiveContent(canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+
+  for (let yStep = 0; yStep < CONTENT_SAMPLE_STEPS; yStep += 1) {
+    for (let xStep = 0; xStep < CONTENT_SAMPLE_STEPS; xStep += 1) {
+      const x = Math.min(canvas.width - 1, Math.round((xStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.width - 1)));
+      const y = Math.min(canvas.height - 1, Math.round((yStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.height - 1)));
+      const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+      if (a > 8 && Math.max(r, g, b) > 16) return true;
+    }
+  }
+  return false;
+}
+
+function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const size = canvas.width;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size * 0.34;
+  ctx.clearRect(0, 0, size, size);
+
+  ctx.save();
+  ctx.translate(cx, cy + radius * 0.72);
+  ctx.scale(1.3, 0.26);
+  const shadow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+  shadow.addColorStop(0, 'rgba(0, 0, 0, 0.28)');
+  shadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = shadow;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  if (layer.primitiveShape === 'cube') {
+    const r = radius;
+    const top = [
+      [cx - r * 0.82, cy - r * 0.32],
+      [cx + r * 0.02, cy - r * 0.68],
+      [cx + r * 0.88, cy - r * 0.42],
+      [cx + r * 0.04, cy - r * 0.04],
+    ];
+    const left = [top[0], top[3], [cx + r * 0.04, cy + r * 0.88], [cx - r * 0.76, cy + r * 0.48]];
+    const right = [top[3], top[2], [cx + r * 0.8, cy + r * 0.42], [cx + r * 0.04, cy + r * 0.88]];
+    const drawPoly = (points: number[][], fill: string) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      points.forEach(([x, y], index) => (index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      ctx.closePath();
+      ctx.fill();
+    };
+    drawPoly(top, rgba(layer.accentColor, 0.84));
+    drawPoly(left, rgba(layer.color, 0.78));
+    drawPoly(right, rgba(layer.color, 0.62));
+    return;
+  }
+
+  if (layer.primitiveShape === 'cylinder') {
+    const r = radius;
+    const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+    grad.addColorStop(0, rgba(layer.color, 0.6));
+    grad.addColorStop(0.5, rgba(layer.color, 0.95));
+    grad.addColorStop(1, rgba(layer.accentColor, 0.65));
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - r, cy - r * 0.58, r * 2, r * 1.18);
+    ctx.fillStyle = rgba(layer.accentColor, 0.85);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - r * 0.58, r, r * 0.26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = rgba(layer.color, 0.5);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.6, r, r * 0.26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  const grad = ctx.createRadialGradient(cx - radius * 0.36, cy - radius * 0.42, radius * 0.08, cx, cy, radius);
+  grad.addColorStop(0, rgba(layer.accentColor, 0.95));
+  grad.addColorStop(0.42, rgba(layer.color, 0.86));
+  grad.addColorStop(1, rgba(layer.color, 0.36));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
 
 /**
  * Render a primitive layer to an offscreen HTMLCanvasElement using Three.js WebGL.
@@ -43,43 +145,55 @@ export async function renderPrimitiveToCanvas(
   renderCanvas.width = renderSize;
   renderCanvas.height = renderSize;
 
-  const renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(1);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setSize(renderSize, renderSize, false);
+  let renderer: THREE.WebGLRenderer | null = null;
+  let mesh: THREE.Mesh | null = null;
+  let shadowMesh: THREE.Mesh | null = null;
 
-  const scene = new THREE.Scene();
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setSize(renderSize, renderSize, false);
 
-  const camera = createPrimitiveCamera();
-  applyViewStateToCamera(camera, {
-    ...effectiveViewState,
-    zoom: Math.min(CAMERA_ZOOM_MAX, Math.max(CAMERA_ZOOM_MIN, effectiveViewState.zoom)),
-  });
+    const scene = new THREE.Scene();
 
-  addSceneLights(scene, layer.accentColor);
-  const shadowMesh = addSceneShadow(scene);
+    const camera = createPrimitiveCamera();
+    applyViewStateToCamera(camera, {
+      ...effectiveViewState,
+      zoom: Math.min(CAMERA_ZOOM_MAX, Math.max(CAMERA_ZOOM_MIN, effectiveViewState.zoom)),
+    });
 
-  const geometry = createPrimitiveGeometry(layer);
-  // Export always uses 'shaded' mode — renderMode is a live viewport concept.
-  const material = createPrimitiveMaterial(layer, 'shaded');
-  const mesh = new THREE.Mesh(geometry, material);
-  applyMeshTransform(mesh, effectiveViewState, layer.tiltZ);
-  scene.add(mesh);
+    addSceneLights(scene, layer.accentColor);
+    shadowMesh = addSceneShadow(scene);
 
-  renderer.render(scene, camera);
+    const geometry = createPrimitiveGeometry(layer);
+    // Export always uses 'shaded' mode — renderMode is a live viewport concept.
+    const material = createPrimitiveMaterial(layer, 'shaded');
+    mesh = new THREE.Mesh(geometry, material);
+    applyMeshTransform(mesh, effectiveViewState, layer.tiltZ);
+    scene.add(mesh);
 
-  const outCtx = offscreen.getContext('2d');
-  if (outCtx) {
-    outCtx.clearRect(0, 0, size, size);
-    outCtx.drawImage(renderCanvas, 0, 0, renderSize, renderSize, 0, 0, size, size);
+    renderer.render(scene, camera);
+
+    const outCtx = offscreen.getContext('2d');
+    if (outCtx) {
+      outCtx.clearRect(0, 0, size, size);
+      outCtx.drawImage(renderCanvas, 0, 0, renderSize, renderSize, 0, 0, size, size);
+    }
+  } catch {
+    drawFallbackPrimitive(offscreen, layer);
+  } finally {
+    if (mesh) disposeMesh(mesh);
+    if (shadowMesh) disposeMesh(shadowMesh);
+    if (renderer) {
+      renderer.forceContextLoss();
+      renderer.dispose();
+    }
+    renderCanvas.width = 0;
+    renderCanvas.height = 0;
   }
 
-  disposeMesh(mesh);
-  disposeMesh(shadowMesh);
-  renderer.forceContextLoss();
-  renderer.dispose();
-  renderCanvas.width = 0;
-  renderCanvas.height = 0;
+  if (!canvasHasPrimitiveContent(offscreen)) drawFallbackPrimitive(offscreen, layer);
 
   return offscreen;
 }

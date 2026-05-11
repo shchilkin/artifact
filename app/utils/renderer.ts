@@ -865,6 +865,7 @@ async function applyLayerToCanvas(
   } else if (layer.kind === 'fill') {
     drawFillLayer(ctx, W, H, layer);
   } else if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
+    const sourceLayout = layer.kind === 'primitive' ? 'full-frame' : (options.sourceLayout ?? 'document');
     await drawSourceLayer(
       ctx,
       W,
@@ -874,7 +875,7 @@ async function applyLayerToCanvas(
       scale,
       options.draft ?? false,
       layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
-      options.sourceLayout ?? 'document',
+      sourceLayout,
     );
   } else if (layer.kind === 'effect') {
     if (options.skipEffects) return base;

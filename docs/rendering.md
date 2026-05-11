@@ -76,6 +76,8 @@ Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
 | `array` | Canvas procedural source |
 | `effect` | Canvas effects plus PixiJS GPU filters |
 
+Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
+
 ## Effect rendering
 
 Effect layers are non-destructive passes over everything below them.
