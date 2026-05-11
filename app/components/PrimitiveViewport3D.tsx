@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
-import { NODE_CANVAS_COLORS } from './node-canvas/constants';
 import { defaultPrimitiveViewportState, type PrimitiveRenderMode, type PrimitiveViewportState } from './PrimitiveViewportState';
+import {
+  addSceneLights,
+  addSceneShadow,
+  applyMeshTransform,
+  applyViewStateToCamera,
+  clamp,
+  createPrimitiveCamera,
+  createPrimitiveGeometry,
+  createPrimitiveMaterial,
+  disposeMesh,
+} from '../utils/primitiveScene';
 
 interface Props {
   layer: PrimitiveLayer;
@@ -12,47 +22,6 @@ interface Props {
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onHoverChange?: (hovered: boolean) => void;
   className?: string;
-}
-
-const CAMERA_DISTANCE = 3.2;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function degToRad(value: number) {
-  return (value * Math.PI) / 180;
-}
-
-function hexToColor(hex: string) {
-  return new THREE.Color(hex);
-}
-
-function createGeometry(layer: PrimitiveLayer) {
-  if (layer.primitiveShape === 'cube') {
-    return new THREE.BoxGeometry(1.8, 1.8, 0.65 + layer.primitiveDepth / 80);
-  }
-  if (layer.primitiveShape === 'cylinder') {
-    return new THREE.CylinderGeometry(0.92, 0.92, 1.1 + layer.primitiveDepth / 110, 32);
-  }
-  return new THREE.SphereGeometry(1, 32, 24);
-}
-
-function createMaterial(layer: PrimitiveLayer, renderMode: PrimitiveRenderMode) {
-  const color = hexToColor(layer.color);
-  if (renderMode === 'unlit') {
-    return new THREE.MeshBasicMaterial({ color, wireframe: false });
-  }
-  return new THREE.MeshStandardMaterial({
-    color,
-    emissive: renderMode === 'wireframe'
-      ? hexToColor(layer.accentColor).multiplyScalar(0.08)
-      : new THREE.Color(NODE_CANVAS_COLORS.sceneShadow),
-    metalness: 0.18,
-    roughness: renderMode === 'wireframe' ? 0.9 : 0.38,
-    wireframe: renderMode === 'wireframe',
-    flatShading: layer.primitiveShading === 'flat',
-  });
 }
 
 export function PrimitiveViewport3D({
@@ -112,11 +81,8 @@ export function PrimitiveViewport3D({
     const mesh = meshRef.current;
     const camera = cameraRef.current;
     if (!mesh || !camera) return;
-    mesh.rotation.x = degToRad(next.rotationX);
-    mesh.rotation.y = degToRad(next.rotationY);
-    mesh.rotation.z = degToRad(layerTiltZRef.current);
-    camera.position.set(next.panX, next.panY, CAMERA_DISTANCE / clamp(next.zoom, 0.6, 2.6));
-    camera.lookAt(next.panX, next.panY, 0);
+    applyMeshTransform(mesh, next, layerTiltZRef.current);
+    applyViewStateToCamera(camera, next);
     renderSceneRef.current?.();
   }, []);
 
@@ -154,37 +120,15 @@ export function PrimitiveViewport3D({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-    camera.position.set(0, 0, CAMERA_DISTANCE);
+    const camera = createPrimitiveCamera();
     cameraRef.current = camera;
 
-    const ambient = new THREE.AmbientLight(NODE_CANVAS_COLORS.sceneAmbient, 1.15);
-    scene.add(ambient);
-
-    const keyLight = new THREE.DirectionalLight(hexToColor(layer.accentColor), 1.45);
-    keyLight.position.set(2.4, 2.8, 3.4);
-    scene.add(keyLight);
-
-    const fill = new THREE.DirectionalLight(NODE_CANVAS_COLORS.sceneFill, 0.65);
-    fill.position.set(-2.8, -1.2, 1.5);
-    scene.add(fill);
-
-    const rim = new THREE.PointLight(hexToColor(layer.accentColor), 0.55, 8);
-    rim.position.set(-2.1, 1.6, 2.4);
-    scene.add(rim);
+    addSceneLights(scene, layer.accentColor);
+    addSceneShadow(scene);
 
     const objectGroup = new THREE.Group();
     objectGroupRef.current = objectGroup;
     scene.add(objectGroup);
-
-    const shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.35, 48),
-      new THREE.MeshBasicMaterial({ color: NODE_CANVAS_COLORS.sceneShadow, transparent: true, opacity: 0.18 }),
-    );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.set(0, -1.18, 0);
-    shadow.scale.set(1.15, 0.6, 1);
-    scene.add(shadow);
 
     const renderScene = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
@@ -213,12 +157,7 @@ export function PrimitiveViewport3D({
       resizeObserverRef.current = null;
       renderSceneRef.current = null;
       dragStateRef.current = null;
-      meshRef.current?.geometry.dispose();
-      if (Array.isArray(meshRef.current?.material)) {
-        meshRef.current?.material.forEach((material) => material.dispose());
-      } else {
-        meshRef.current?.material.dispose();
-      }
+      if (meshRef.current) disposeMesh(meshRef.current);
       renderer.dispose();
       rendererRef.current = null;
       sceneRef.current = null;
@@ -226,7 +165,7 @@ export function PrimitiveViewport3D({
       objectGroupRef.current = null;
       meshRef.current = null;
     };
-  }, [layer.accentColor]);
+  }, [layer.accentColor]); // intentional: only rebuild scene when accent color changes, not on every layer field update
 
   useEffect(() => {
     const objectGroup = objectGroupRef.current;
@@ -234,16 +173,11 @@ export function PrimitiveViewport3D({
     const existingMesh = meshRef.current;
     if (existingMesh) {
       objectGroup.remove(existingMesh);
-      existingMesh.geometry.dispose();
-      if (Array.isArray(existingMesh.material)) {
-        existingMesh.material.forEach((material) => material.dispose());
-      } else {
-        existingMesh.material.dispose();
-      }
+      disposeMesh(existingMesh);
     }
 
-    const mesh = new THREE.Mesh(createGeometry(layer), createMaterial(layer, renderMode));
-    mesh.rotation.z = degToRad(layer.tiltZ);
+    const mesh = new THREE.Mesh(createPrimitiveGeometry(layer), createPrimitiveMaterial(layer, renderMode));
+    mesh.rotation.z = 0; // full transform applied via applyMeshTransform in applyViewState
     objectGroup.add(mesh);
     meshRef.current = mesh;
     renderSceneRef.current?.();
