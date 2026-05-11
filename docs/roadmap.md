@@ -7,6 +7,8 @@ Related architecture docs:
 - [`state-model.md`](./state-model.md)
 - [`rendering.md`](./rendering.md)
 - [`node-editor.md`](./node-editor.md)
+- [`testing.md`](./testing.md)
+- [`improvement-plan.md`](./improvement-plan.md)
 
 ## Product summary
 

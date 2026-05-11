@@ -16,7 +16,7 @@ That means:
 
 If a change violates one of these rules, it should be redesigned before implementation.
 
-## Phase 1: Stabilize current interaction behavior
+## ✅ Phase 1: Stabilize current interaction behavior
 
 ### Why
 
@@ -72,7 +72,7 @@ npm test
 npx react-router build
 ```
 
-## Phase 2: Write the state contract
+## ✅ Phase 2: Write the state contract
 
 ### Why
 
@@ -107,7 +107,7 @@ The code currently has several valid states, but the ownership rules are mostly 
 
 Current reference: [`state-model.md`](./state-model.md).
 
-## Phase 3: Extract primitive camera ownership
+## ✅ Phase 3: Extract primitive camera ownership
 
 ### Why
 
@@ -135,7 +135,7 @@ Primitive camera state currently passes through `NodeCanvas`, `PrimitiveViewport
 - Camera lock and reset behavior are named actions.
 - `primitiveViewStates` remains the state passed to export.
 
-## Phase 4: Extract shared primitive scene recipe
+## ✅ Phase 4: Extract shared primitive scene recipe
 
 ### Why
 
@@ -165,7 +165,7 @@ Preview/export parity is fragile while `PrimitiveViewport3D.tsx` and `primitiveR
 
 Current rendering reference: [`rendering.md`](./rendering.md).
 
-## Phase 5: Build render parity fixtures
+## ✅ Phase 5: Build render parity fixtures
 
 ### Why
 
@@ -201,7 +201,7 @@ The product promise is visual. TypeScript and unit tests cannot prove preview eq
 - Primitive camera override has automated coverage.
 - Render tests become part of normal `npm test`.
 
-## Phase 6: Refactor node canvas into focused hooks
+## ✅ Phase 6: Refactor node canvas into focused hooks
 
 ### Why
 
@@ -234,7 +234,7 @@ The product promise is visual. TypeScript and unit tests cannot prove preview eq
 
 Current node editor reference: [`node-editor.md`](./node-editor.md).
 
-## Phase 7: Unify layer controls
+## ✅ Phase 7: Unify layer controls
 
 ### Why
 
@@ -264,7 +264,7 @@ Current node editor reference: [`node-editor.md`](./node-editor.md).
 - Node inspector and sidebar cannot drift on primitive/text/image fields.
 - Camera controls remain node-local, not sidebar sliders.
 
-## Phase 8: Improve thumbnail invalidation
+## ⬜ Phase 8: Improve thumbnail invalidation
 
 ### Why
 
@@ -295,7 +295,7 @@ Current thumbnails use object identity revision maps. This is simple, but too br
 - Committed document changes trigger only affected downstream thumbnails.
 - Debugging a thumbnail rerender is possible from logs.
 
-## Phase 9: Update public docs
+## ⬜ Phase 9: Update public docs
 
 ### Why
 
@@ -320,17 +320,15 @@ The README still describes an older mental model. Documentation should match the
 
 ## Recommended execution order
 
-1. Phase 1: stabilize interactions.
-2. Phase 2: write state contract.
-3. Phase 3: extract primitive camera hook.
-4. Phase 4: share primitive scene recipe.
-5. Phase 5: add render parity fixtures.
-6. Phase 6: split `NodeCanvas.tsx`.
-7. Phase 7: unify controls.
-8. Phase 8: improve thumbnail invalidation.
-9. Phase 9: update public docs.
-
-Do not start Phase 6 before Phases 2 through 4. Splitting files before the state model is clear will move complexity around without reducing it.
+1. ✅ Phase 1: stabilize interactions.
+2. ✅ Phase 2: write state contract.
+3. ✅ Phase 3: extract primitive camera hook.
+4. ✅ Phase 4: share primitive scene recipe.
+5. ✅ Phase 5: add render parity fixtures.
+6. ✅ Phase 6: split `NodeCanvas.tsx`.
+7. ✅ Phase 7: unify controls.
+8. ⬜ Phase 8: improve thumbnail invalidation.
+9. ⬜ Phase 9: update public docs.
 
 ## Risks and mitigations
 

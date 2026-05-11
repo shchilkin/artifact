@@ -1,22 +1,19 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import type { CanvasDocument, ImageLayer } from '../../../types/config';
+import type { ImageLayer } from '../../../types/config';
 import { ASPECT_SIZES } from '../../../types/config';
 import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
 import { EXPORT_NODE_ID, collectUpstreamNodeIds } from '../../../utils/nodeGraph';
+import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { useNodeCanvasPreview } from '../context';
 import { THUMB_SIZE } from '../constants';
 import type { ThumbProps } from '../types';
 import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
+import { layerRenderSig, mergeNodeRenderSig, colorNodeRenderSig, edgeRenderSig } from './renderSignature';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
 const thumbnailInflightCache = new Map<string, Promise<HTMLCanvasElement>>();
-
-type RevisionEntry<T> = {
-  value: T;
-  rev: number;
-};
 
 function cloneCanvas(source: HTMLCanvasElement) {
   const copy = document.createElement('canvas');
@@ -34,32 +31,18 @@ function rememberThumbnail(key: string, canvas: HTMLCanvasElement) {
   if (oldestKey) thumbnailResultCache.delete(oldestKey);
 }
 
-function updateRevisionMap<T extends { id: string }>(
-  previous: Map<string, RevisionEntry<T>>,
-  items: T[],
-) {
-  const next = new Map<string, RevisionEntry<T>>();
-  for (const item of items) {
-    const prior = previous.get(item.id);
-    next.set(
-      item.id,
-      prior?.value === item
-        ? prior
-        : { value: item, rev: (prior?.rev ?? 0) + 1 },
-    );
-  }
-  return next;
-}
-
 export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
   const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const layerRevisionsRef = useRef<Map<string, RevisionEntry<CanvasDocument['layers'][number]>>>(new Map());
-  const mergeRevisionsRef = useRef<Map<string, RevisionEntry<(typeof graph.mergeNodes)[number]>>>(new Map());
-  const colorRevisionsRef = useRef<Map<string, RevisionEntry<NonNullable<typeof graph.colorNodes>[number]>>>(new Map());
-  const edgeRevisionsRef = useRef<Map<string, RevisionEntry<(typeof graph.edges)[number]>>>(new Map());
+
+  // Dev-only: previous render signatures keyed by item id, used for change logging.
+  const prevLayerSigsRef = useRef<Map<string, string>>(new Map());
+  const prevMergeSigsRef = useRef<Map<string, string>>(new Map());
+  const prevColorSigsRef = useRef<Map<string, string>>(new Map());
+  const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
+
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
   const previewSize = useMemo(() => {
     if (!isExportPreview) {
@@ -79,23 +62,57 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
     const mergeNodes = graph.mergeNodes.filter((node) => upstream.has(node.id));
     const colorNodes = (graph.colorNodes ?? []).filter((node) => upstream.has(node.id));
     const edges = graph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
-    layerRevisionsRef.current = updateRevisionMap(layerRevisionsRef.current, doc.layers);
-    mergeRevisionsRef.current = updateRevisionMap(mergeRevisionsRef.current, graph.mergeNodes);
-    colorRevisionsRef.current = updateRevisionMap(colorRevisionsRef.current, graph.colorNodes ?? []);
-    edgeRevisionsRef.current = updateRevisionMap(edgeRevisionsRef.current, graph.edges);
 
-    const layerSignature = layers
-      .map((layer) => `${layer.id}:${layerRevisionsRef.current.get(layer.id)?.rev ?? 0}`)
-      .join(',');
-    const mergeSignature = mergeNodes
-      .map((node) => `${node.id}:${mergeRevisionsRef.current.get(node.id)?.rev ?? 0}`)
-      .join(',');
-    const colorSignature = colorNodes
-      .map((node) => `${node.id}:${colorRevisionsRef.current.get(node.id)?.rev ?? 0}`)
-      .join(',');
-    const edgeSignature = edges
-      .map((edge) => `${edge.id}:${edgeRevisionsRef.current.get(edge.id)?.rev ?? 0}`)
-      .join(',');
+    // Content-based signatures: only render-relevant fields, no object identity.
+    // Renaming a layer or toggling its lock never changes these strings.
+    const layerSignature = layers.map((layer) => {
+      const sig = layerRenderSig(layer);
+      if (import.meta.env.DEV) {
+        const prev = prevLayerSigsRef.current.get(layer.id);
+        if (prev !== undefined && prev !== sig) {
+          logThumbnailInvalidation({ cause: 'layer', targetId: previewTargetId, itemId: layer.id, itemKind: layer.kind });
+        }
+        prevLayerSigsRef.current.set(layer.id, sig);
+      }
+      return `${layer.id}:${sig}`;
+    }).join(',');
+
+    const mergeSignature = mergeNodes.map((node) => {
+      const sig = mergeNodeRenderSig(node);
+      if (import.meta.env.DEV) {
+        const prev = prevMergeSigsRef.current.get(node.id);
+        if (prev !== undefined && prev !== sig) {
+          logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: node.id, itemKind: 'merge' });
+        }
+        prevMergeSigsRef.current.set(node.id, sig);
+      }
+      return `${node.id}:${sig}`;
+    }).join(',');
+
+    const colorSignature = colorNodes.map((node) => {
+      const sig = colorNodeRenderSig(node);
+      if (import.meta.env.DEV) {
+        const prev = prevColorSigsRef.current.get(node.id);
+        if (prev !== undefined && prev !== sig) {
+          logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: node.id, itemKind: 'color' });
+        }
+        prevColorSigsRef.current.set(node.id, sig);
+      }
+      return `${node.id}:${sig}`;
+    }).join(',');
+
+    const edgeSignature = edges.map((edge) => {
+      const sig = edgeRenderSig(edge);
+      if (import.meta.env.DEV) {
+        const prev = prevEdgeSigsRef.current.get(edge.id);
+        if (prev !== undefined && prev !== sig) {
+          logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: edge.id, itemKind: 'edge' });
+        }
+        prevEdgeSigsRef.current.set(edge.id, sig);
+      }
+      return `${edge.id}:${sig}`;
+    }).join(',');
+
     const primitiveViewSignature = layers
       .filter((layer) => layer.kind === 'primitive')
       .map((layer) => {
