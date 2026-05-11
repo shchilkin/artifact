@@ -13,7 +13,6 @@
   --node-focus: var(--accent);
   --node-width: 160px;
   --node-editor-width: 292px;
-  --node-thumb-size: 136px;
 }
 
 .react-flow__node {
@@ -81,7 +80,7 @@
 
 .node-thumbnail {
   background: var(--node-bg);
-  border: 1px solid var(--node-border);
+  border-bottom: 1px solid var(--node-border);
   border-radius: 0;
   overflow: hidden;
   position: relative;
@@ -89,8 +88,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--node-thumb-size);
-  height: var(--node-thumb-size);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
 }
 
 .node-thumbnail-export {
@@ -105,9 +105,10 @@
   position: relative;
   overflow: hidden;
   border-radius: 0;
-  border: 1px solid var(--node-border);
-  width: var(--node-thumb-size);
-  height: var(--node-thumb-size);
+  border-bottom: 1px solid var(--node-border);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
 }
 
 .node-thumbnail-canvas {
@@ -220,7 +221,7 @@
   white-space: nowrap;
 }
 
-.node-shell-body { padding: 9px 9px 7px; }
+.node-shell-body { padding: 0; }
 
 .node-shell-toggle,
 .node-editor-close,
@@ -980,7 +981,7 @@
 
 .node-thumbnail-primitive {
   height: auto;
-  border: none;
+  border-bottom: none;
   background: transparent;
 }
 
@@ -996,9 +997,10 @@
 
 .node-primitive-live-frame {
   position: relative;
-  display: inline-block;
-  width: var(--node-thumb-size);
-  height: var(--node-thumb-size);
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
   overflow: hidden;
 }
 
@@ -1426,7 +1428,6 @@
   .node-canvas-root {
     --node-width: 144px;
     --node-editor-width: min(280px, calc(100vw - 24px));
-    --node-thumb-size: 120px;
   }
 
   .node-props-panel {
@@ -1472,11 +1473,10 @@
   .node-canvas-root {
     --node-width: 132px;
     --node-editor-width: min(260px, calc(100vw - 16px));
-    --node-thumb-size: 108px;
   }
 
   .node-shell-body {
-    padding: 8px 8px 6px;
+    padding: 0;
   }
 
   .nadd-mobile {

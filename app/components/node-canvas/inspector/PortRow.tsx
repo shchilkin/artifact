@@ -17,7 +17,7 @@ export function PortRow({ inputs, outputs, connected }: PortRowProps) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-      paddingTop: 4, minHeight: 20,
+      padding: '4px 9px 7px', minHeight: 20,
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {inputs.map(({ label, portId, nodeId }) => (
