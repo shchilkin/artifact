@@ -190,6 +190,7 @@ Deploys to Vercel via `react-router build` → `build/client/`.
 | [`docs/state-model.md`](docs/state-model.md) | State ownership: what lives where and why |
 | [`docs/rendering.md`](docs/rendering.md) | Rendering pipeline: Canvas 2D + PixiJS + Three.js |
 | [`docs/node-editor.md`](docs/node-editor.md) | Node canvas interaction model and state machine |
+| [`docs/app-structure-guidelines.md`](docs/app-structure-guidelines.md) | Component boundaries, state ownership, and refactor rules |
 | [`docs/testing.md`](docs/testing.md) | Testing strategy: unit, render parity, GPU smoke tests |
 | [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased refactor plan (Phases 1–9) |
 

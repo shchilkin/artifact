@@ -6,7 +6,7 @@ export type LiveMediaLayer = Extract<Layer, { kind: 'text' | 'image' }>;
 export function EmptyThumbnailFrame() {
   return (
     <div className="node-thumbnail node-thumbnail-primitive">
-      <div className="node-thumbnail-frame" style={{ width: THUMB_SIZE, height: THUMB_SIZE }} />
+      <div className="node-thumbnail-frame" />
     </div>
   );
 }

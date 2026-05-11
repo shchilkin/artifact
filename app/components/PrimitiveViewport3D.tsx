@@ -22,6 +22,7 @@ interface Props {
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onHoverChange?: (hovered: boolean) => void;
   className?: string;
+  interactive?: boolean;
 }
 
 export function PrimitiveViewport3D({
@@ -32,6 +33,7 @@ export function PrimitiveViewport3D({
   onViewStateChange,
   onHoverChange,
   className,
+  interactive = true,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -321,11 +323,13 @@ export function PrimitiveViewport3D({
     <div
       ref={rootRef}
       className={['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel'].filter(Boolean).join(' ')}
-      tabIndex={0}
-      role="group"
-      aria-roledescription="interactive viewport"
-      aria-label={`${layer.name} 3D preview. Drag rotates, right drag pans, wheel zooms, arrow keys rotate, plus or minus zoom, Home resets.`}
+      tabIndex={interactive ? 0 : -1}
+      role={interactive ? 'group' : undefined}
+      aria-hidden={interactive ? undefined : true}
+      aria-roledescription={interactive ? 'interactive viewport' : undefined}
+      aria-label={interactive ? `${layer.name} 3D preview. Drag rotates, right drag pans, wheel zooms, arrow keys rotate, plus or minus zoom, Home resets.` : undefined}
       onKeyDown={(event) => {
+        if (!interactive) return;
         if (locked) return;
         const next = { ...viewStateRef.current };
         const rotateStep = 8;
@@ -392,13 +396,17 @@ export function PrimitiveViewport3D({
         applyKeyboardState(next, applyViewState, onViewStateChangeRef.current);
         void rotated;
       }}
-      onMouseEnter={() => onHoverChange?.(true)}
-      onMouseLeave={() => onHoverChange?.(false)}
-      style={{ position: 'relative', width: '100%', height: '100%', touchAction: locked ? 'auto' : 'none' }}
+      onMouseEnter={() => {
+        if (interactive) onHoverChange?.(true);
+      }}
+      onMouseLeave={() => {
+        if (interactive) onHoverChange?.(false);
+      }}
+      style={{ position: 'relative', width: '100%', height: '100%', touchAction: locked || !interactive ? 'auto' : 'none' }}
       >
       <canvas
         ref={canvasRef}
-        className={locked ? undefined : 'nodrag nopan nowheel'}
+        className={locked || !interactive ? undefined : 'nodrag nopan nowheel'}
         style={{ display: 'block', width: '100%', height: '100%' }}
       />
     </div>
