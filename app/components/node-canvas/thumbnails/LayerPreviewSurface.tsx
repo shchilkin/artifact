@@ -7,17 +7,24 @@ import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { THUMB_SIZE } from '../constants';
 import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
 import type { LayerNodeData } from '../types';
+import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerTransformDraft';
+import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
 import { NodeThumbnail } from './NodeThumbnail';
 
-type LayerPreviewSurfaceProps = Pick<LayerNodeData, 'layer' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode' | 'selected'>;
+type LayerPreviewSurfaceProps = Pick<LayerNodeData, 'layer' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode' | 'selected'> & {
+  onTransformDraft?: (patch: LayerTransformPatch) => void;
+  onTransformCommit?: () => void;
+};
 const PRIMITIVE_BOX_RATIO = 360 / 540;
 
 function DragTransformOverlay({
   layer,
   onChange,
+  onCommit,
 }: {
-  layer: Layer;
-  onChange: (patch: Partial<Layer>) => void;
+  layer: TransformableLayer;
+  onChange: (patch: LayerTransformPatch) => void;
+  onCommit: () => void;
 }) {
   const THUMB = THUMB_SIZE;
   const dragRef = useRef<{
@@ -32,15 +39,8 @@ function DragTransformOverlay({
   const [dragging, setDragging] = useState(false);
   const [rotating, setRotating] = useState(false);
 
-  const getXY = () => ({
-    x: 'x' in layer ? layer.x : 0.5,
-    y: 'y' in layer ? layer.y : 0.5,
-  });
-  const getRotation = () => ('rotation' in layer ? layer.rotation : 0);
-
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const { x, y } = getXY();
     if (e.shiftKey) {
       const rect = e.currentTarget.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -49,9 +49,9 @@ function DragTransformOverlay({
       dragRef.current = {
         startClientX: e.clientX,
         startClientY: e.clientY,
-        startLayerX: x,
-        startLayerY: y,
-        startRotation: getRotation(),
+        startLayerX: layer.x,
+        startLayerY: layer.y,
+        startRotation: layer.rotation,
         startAngle: angle,
         mode: 'rotate',
       };
@@ -60,9 +60,9 @@ function DragTransformOverlay({
       dragRef.current = {
         startClientX: e.clientX,
         startClientY: e.clientY,
-        startLayerX: x,
-        startLayerY: y,
-        startRotation: getRotation(),
+        startLayerX: layer.x,
+        startLayerY: layer.y,
+        startRotation: layer.rotation,
         startAngle: 0,
         mode: 'translate',
       };
@@ -79,7 +79,7 @@ function DragTransformOverlay({
       const dy = e.clientY - startClientY;
       const newX = startLayerX + (dx / THUMB) * 1.5;
       const newY = startLayerY + (dy / THUMB) * 1.5;
-      onChange({ x: newX, y: newY } as Partial<Layer>);
+      onChange({ x: newX, y: newY });
     } else {
       const rect = e.currentTarget.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -88,7 +88,7 @@ function DragTransformOverlay({
       let delta = angle - startAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
-      onChange({ rotation: startRotation + delta } as Partial<Layer>);
+      onChange({ rotation: startRotation + delta });
     }
   };
 
@@ -97,6 +97,14 @@ function DragTransformOverlay({
     setDragging(false);
     setRotating(false);
     e.currentTarget.releasePointerCapture(e.pointerId);
+    onCommit();
+  };
+
+  const handlePointerCancel = () => {
+    dragRef.current = null;
+    setDragging(false);
+    setRotating(false);
+    onCommit();
   };
 
   let cursor = 'grab';
@@ -109,6 +117,7 @@ function DragTransformOverlay({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
     />
   );
 }
@@ -119,12 +128,20 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   primitiveViewState,
   primitiveRenderMode,
   selected,
+  onTransformDraft,
+  onTransformCommit,
 }: LayerPreviewSurfaceProps) {
   const { graph } = useNodeCanvasPreview();
   const { openGallery, updatePrimitiveView, updateLayer, setPrimitiveViewportActive } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const primitiveBgPreviewTargetId = useMemo(
     () => layer.kind === 'primitive'
+      ? graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null
+      : null,
+    [graph.edges, layer.id, layer.kind],
+  );
+  const mediaBgPreviewTargetId = useMemo(
+    () => layer.kind === 'text' || layer.kind === 'image'
       ? graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null
       : null,
     [graph.edges, layer.id, layer.kind],
@@ -181,9 +198,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
           {primitiveBgPreviewTargetId ? (
             <NodeThumbnail previewTargetId={primitiveBgPreviewTargetId} />
           ) : (
-            <div className="node-thumbnail node-thumbnail-primitive">
-              <div className="node-thumbnail-frame" style={{ width: THUMB_SIZE, height: THUMB_SIZE }} />
-            </div>
+            <EmptyThumbnailFrame />
           )}
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             <div
@@ -231,11 +246,23 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
         onMouseLeave={() => setHovered(false)}
       >
         <div style={{ position: 'relative', display: 'inline-block' }}>
-          <NodeThumbnail previewTargetId={previewTargetId} />
+          {isDraggable && selected ? (
+            <>
+              {mediaBgPreviewTargetId ? (
+                <NodeThumbnail previewTargetId={mediaBgPreviewTargetId} />
+              ) : (
+                <EmptyThumbnailFrame />
+              )}
+              <LiveMediaOverlay layer={layer} />
+            </>
+          ) : (
+            <NodeThumbnail previewTargetId={previewTargetId} />
+          )}
           {isDraggable && selected && (
             <DragTransformOverlay
               layer={layer}
-              onChange={(patch) => updateLayer(layer.id, patch)}
+              onChange={onTransformDraft ?? (() => undefined)}
+              onCommit={onTransformCommit ?? (() => undefined)}
             />
           )}
         </div>

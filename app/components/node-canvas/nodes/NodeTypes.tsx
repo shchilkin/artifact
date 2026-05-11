@@ -1,4 +1,4 @@
-import { memo, useCallback, type KeyboardEvent } from 'react';
+import { memo, type KeyboardEvent } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
@@ -9,6 +9,7 @@ import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
 import { NodeShell } from './NodeShell';
+import { useLayerTransformDraft } from './useLayerTransformDraft';
 
 function handleNodeKeyDown(
   event: KeyboardEvent<HTMLDivElement>,
@@ -24,23 +25,14 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
   const { layer, previewTargetId, selected, editing, connected, primitiveViewState, primitiveRenderMode } = data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
-
-  // Layers with an explicit scale — scroll over the node to adjust it locally.
-  // `nowheel` tells React Flow not to zoom the canvas; we handle the event ourselves.
-  const isScalable = layer.kind === 'text' || layer.kind === 'image';
-  const handleLocalScale = useCallback((e: React.WheelEvent) => {
-    e.stopPropagation();
-    if (!('scaleX' in layer)) return;
-    const delta = -e.deltaY * 0.002;
-    const next = Math.max(0.05, Math.min(8, (layer.scaleX as number) + delta));
-    updateLayer(layer.id, { scaleX: next, scaleY: next } as Partial<typeof layer>);
-  }, [layer, updateLayer]);
+  const transform = useLayerTransformDraft(layer, updateLayer);
+  const localTransformActive = selected && transform.isTransformable;
 
   return (
     <div
       style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
-      className={isScalable ? 'nowheel' : undefined}
-      onWheel={isScalable ? handleLocalScale : undefined}
+      className={localTransformActive ? 'nowheel' : undefined}
+      onWheelCapture={localTransformActive ? transform.handleWheel : undefined}
     >
       <Handle type="target" position={Position.Left} id={inputPort} style={HANDLE_STYLE} />
       <div
@@ -63,11 +55,13 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
           onDelete={() => deleteNode(layer.id)}
         >
           <LayerPreviewSurface
-            layer={layer}
+            layer={transform.effectiveLayer}
             previewTargetId={previewTargetId}
             primitiveViewState={primitiveViewState}
             primitiveRenderMode={primitiveRenderMode}
             selected={selected}
+            onTransformDraft={transform.updateDraft}
+            onTransformCommit={transform.commitDraft}
           />
           <PortRow
             inputs={[{ label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id }]}

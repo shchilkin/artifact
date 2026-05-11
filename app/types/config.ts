@@ -6,6 +6,12 @@ export const ALL_EMOJIS = [
 
 export const FONT_NAMES = ['MONO', 'DISPLAY', 'VT323', 'SPECIAL'] as const;
 export type FontName = typeof FONT_NAMES[number];
+export const FONT_STACKS: Record<FontName, string> = {
+  MONO: '"Courier New", monospace',
+  DISPLAY: '"Barlow Condensed", "Arial Black", sans-serif',
+  VT323: '"VT323", monospace',
+  SPECIAL: '"Special Elite", "Courier New", monospace',
+};
 
 export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
 export type LayerKind = typeof LAYER_KINDS[number];

@@ -1,5 +1,7 @@
 # Copilot Instructions
 
+> See `/COPILOT.md` for the expanded node-canvas architecture, QA guidance, and development strategy that complements these repo-specific instructions.
+
 ## Commands
 
 ```bash

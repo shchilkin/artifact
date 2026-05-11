@@ -10,6 +10,7 @@ import type {
   Layer,
   TextLayer,
 } from '../types/config';
+import { FONT_STACKS } from '../types/config';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { lcg } from './lcg';
 import { buildFiltersFromEffectLayer } from './pixiFilters';
@@ -19,13 +20,6 @@ import { drawSourceLayer } from './proceduralSource';
 import type { Filter } from 'pixi.js';
 
 const REF = 540;
-const FONT_MAP: Record<string, string> = {
-  MONO: '"Courier New", monospace',
-  DISPLAY: '"Barlow Condensed", "Arial Black", sans-serif',
-  VT323: '"VT323", monospace',
-  SPECIAL: '"Special Elite", "Courier New", monospace',
-};
-
 function createCanvas(W: number, H: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -175,7 +169,7 @@ function drawTextLayer(
 ) {
   if (!layer.content.trim()) return;
   const fontSize = layer.size * scale;
-  const fontStack = FONT_MAP[layer.font] ?? FONT_MAP.MONO;
+  const fontStack = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
 
   ctx.save();
   ctx.font = `${fontSize}px ${fontStack}`;  // must be set before wrapText uses measureText
