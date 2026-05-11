@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { type CanvasDocument, DEFAULT_DOCUMENT, makeFillLayer, makeTextLayer } from '../types/config';
-import { getInitialDocumentFromSources, normalizeDocument } from './documentPersistence';
+import {
+  createDocumentShareUrl,
+  DOC_KEY,
+  getInitialDocumentFromSources,
+  normalizeDocument,
+  removeDocParamFromUrl,
+  saveDocumentToStorage,
+} from './documentPersistence';
 
 function encodeDoc(doc: unknown) {
   return JSON.stringify(doc);
@@ -101,5 +108,53 @@ describe('getInitialDocumentFromSources', () => {
 
     expect(first.layers).toHaveLength(DEFAULT_DOCUMENT.layers.length - 1);
     expect(second.layers).toHaveLength(DEFAULT_DOCUMENT.layers.length);
+  });
+});
+
+describe('document serialization helpers', () => {
+  const doc: CanvasDocument = {
+    global: { bg: '#303030', seed: 30, aspect: '4:5' },
+    layers: [makeTextLayer({ id: 'share-text', content: 'share' })],
+    export: { format: 'png', scale: 3, target: 'cover' },
+  };
+
+  it('saves serialized documents to the configured storage key', () => {
+    const writes = new Map<string, string>();
+
+    const didSave = saveDocumentToStorage(doc, {
+      setItem: (key, value) => writes.set(key, value),
+    });
+
+    expect(didSave).toBe(true);
+    expect(JSON.parse(writes.get(DOC_KEY) ?? '')).toMatchObject({
+      global: { seed: 30 },
+      layers: [{ id: 'share-text' }],
+    });
+  });
+
+  it('reports failed storage writes without throwing', () => {
+    const didSave = saveDocumentToStorage(doc, {
+      setItem: () => {
+        throw new Error('quota exceeded');
+      },
+    });
+
+    expect(didSave).toBe(false);
+  });
+
+  it('creates share URLs that round-trip through the doc query param', () => {
+    const url = createDocumentShareUrl('https://example.test', doc);
+    const parsed = new URL(url);
+    const decoded = normalizeDocument(JSON.parse(parsed.searchParams.get('doc') ?? '{}'));
+
+    expect(parsed.pathname).toBe('/app');
+    expect(decoded.layers[0]?.id).toBe('share-text');
+    expect(decoded.export.scale).toBe(3);
+  });
+
+  it('removes doc query params while preserving unrelated params', () => {
+    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&tab=node#preview');
+
+    expect(url).toBe('https://example.test/app?tab=node#preview');
   });
 });

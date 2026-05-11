@@ -19,7 +19,13 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import { DOC_KEY, getInitialDocument, normalizeDocument } from '../utils/documentPersistence';
+import {
+  createDocumentShareUrl,
+  getInitialDocument,
+  normalizeDocument,
+  removeDocParamFromUrl,
+  saveDocumentToStorage,
+} from '../utils/documentPersistence';
 import {
   addColorNode,
   addGraphEdge,
@@ -92,9 +98,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
   useEffect(() => {
     if (fromDocParam) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('doc');
-      window.history.replaceState(null, '', url.toString());
+      window.history.replaceState(null, '', removeDocParamFromUrl(window.location.href));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -186,11 +190,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   }, [redo, undo]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(DOC_KEY, JSON.stringify(doc));
-    } catch {
-      // quota exceeded or private browsing, ignore
-    }
+    saveDocumentToStorage(doc);
   }, [doc]);
 
   useEffect(() => {
@@ -463,9 +463,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleCopyLink = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set('doc', JSON.stringify(docRef.current));
-    const url = `${window.location.origin}/app?${params.toString()}`;
+    const url = createDocumentShareUrl(window.location.origin, docRef.current);
     navigator.clipboard.writeText(url).catch(() => {
       prompt('Copy this link:', url);
     });

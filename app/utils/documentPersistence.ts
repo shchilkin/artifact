@@ -18,6 +18,11 @@ export interface InitialDocumentSources {
   storageValue?: string | null;
 }
 
+export interface DocumentStorage {
+  getItem?(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -69,6 +74,10 @@ function parseDocumentJson(value: string | null | undefined): CanvasDocument | n
   }
 }
 
+export function serializeDocument(doc: CanvasDocument) {
+  return JSON.stringify(doc);
+}
+
 export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {
   const docParam = new URLSearchParams(search).get('doc');
   return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
@@ -86,4 +95,25 @@ export function getInitialDocument(): CanvasDocument {
     search: typeof window === 'undefined' ? '' : window.location.search,
     storageValue,
   });
+}
+
+export function saveDocumentToStorage(doc: CanvasDocument, storage: DocumentStorage = localStorage) {
+  try {
+    storage.setItem(DOC_KEY, serializeDocument(doc));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function createDocumentShareUrl(origin: string, doc: CanvasDocument, pathname = '/app') {
+  const params = new URLSearchParams();
+  params.set('doc', serializeDocument(doc));
+  return `${origin}${pathname}?${params.toString()}`;
+}
+
+export function removeDocParamFromUrl(href: string) {
+  const url = new URL(href);
+  url.searchParams.delete('doc');
+  return url.toString();
 }

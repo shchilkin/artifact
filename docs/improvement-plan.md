@@ -86,7 +86,7 @@ Exit criteria:
 Goal: make document updates deliberate and testable.
 
 - [x] Extract document normalization and initial-load helpers.
-- [ ] Extract remaining document persistence helpers for localStorage save, URL
+- [x] Extract remaining document persistence helpers for localStorage save, URL
   import cleanup, and share-link creation.
 - [ ] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
