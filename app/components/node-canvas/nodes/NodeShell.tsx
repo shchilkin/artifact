@@ -19,6 +19,7 @@ export function NodeShell({
   void expandable;
   void onToggleExpanded;
   const accent = KIND_COLOR[kind] ?? 'var(--accent)';
+  const showName = name.trim().toLowerCase() !== label.trim().toLowerCase();
   return (
     <div
       className={`node-shell${selected ? ' node-shell-selected' : ''}`}
@@ -29,7 +30,7 @@ export function NodeShell({
         <div className="node-drag-handle node-shell-drag">
           <span className="node-shell-symbol">{KIND_SYMBOL[kind] ?? '○'}</span>
           <span className="node-shell-label">{label}</span>
-          <span className="node-shell-name">{name}</span>
+          {showName && <span className="node-shell-name">{name}</span>}
         </div>
         {onDelete && (
           <NoPan

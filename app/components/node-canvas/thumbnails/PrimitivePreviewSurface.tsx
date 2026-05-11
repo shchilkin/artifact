@@ -103,11 +103,9 @@ export function PrimitivePreviewSurface({
         interactive
         onViewStateChange={(next) => updatePrimitiveView(layer.id, next)}
       />
-      <div className="primitive-node-camera-strip" data-primitive-camera-control>
+      <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
         <span className="primitive-node-camera-hint">
-          {primitiveLocked
-            ? 'camera locked'
-            : `drag rotate · right drag pan · ${Math.round(effectiveViewState.zoom * 100)}%`}
+          {primitiveLocked ? 'camera locked' : `camera ${Math.round(effectiveViewState.zoom * 100)}%`}
         </span>
         <div className="primitive-node-camera-actions">
           <button
