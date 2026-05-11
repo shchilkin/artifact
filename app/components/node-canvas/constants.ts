@@ -37,22 +37,32 @@ export const KIND_SYMBOL: Record<string, string> = {
   export: '↗',
 };
 
-export const ADD_ITEMS: Array<{ label: string; symbol: string; group: string; action: AddAction }> = [
-  { label: 'Fill',    symbol: '◼', group: 'content', action: { kind: 'layer', layerKind: 'fill' } },
-  { label: 'Image',   symbol: '◧', group: 'content', action: { kind: 'layer', layerKind: 'image' } },
-  { label: 'Text',    symbol: 'T', group: 'content', action: { kind: 'layer', layerKind: 'text' } },
-  { label: 'Emoji',   symbol: '✦', group: 'content', action: { kind: 'layer', layerKind: 'emoji' } },
-  { label: 'Primitive', symbol: '◍', group: 'source', action: { kind: 'layer', layerKind: 'primitive' } },
-  { label: 'Noise',     symbol: '░', group: 'source', action: { kind: 'layer', layerKind: 'noise' } },
-  { label: 'Array',     symbol: '▦', group: 'source', action: { kind: 'layer', layerKind: 'array' } },
+export const ADD_GROUPS = [
+  { id: 'content', label: 'Content', hint: 'Visible layers', description: 'Start with layers that render directly on the cover.' },
+  { id: 'source', label: 'Source', hint: 'Generated inputs', description: 'Create procedural sources before you style or combine them.' },
+  { id: 'effect', label: 'Effect', hint: 'Preset treatments', description: 'Drop in focused looks, then tune them in the inspector.' },
+  { id: 'util', label: 'Utility', hint: 'Combine and grade', description: 'Merge branches, shape color, and finish the output flow.' },
+] as const;
+
+export type AddGroupId = (typeof ADD_GROUPS)[number]['id'];
+
+export const ADD_ITEMS: Array<{ label: string; description: string; symbol: string; group: AddGroupId; action: AddAction }> = [
+  { label: 'Fill', symbol: '◼', description: 'Lay down a flat color field or wash.', group: 'content', action: { kind: 'layer', layerKind: 'fill' } },
+  { label: 'Image', symbol: '◧', description: 'Place uploaded art, scans, or textures.', group: 'content', action: { kind: 'layer', layerKind: 'image' } },
+  { label: 'Text', symbol: 'T', description: 'Set titles, credits, or typographic shapes.', group: 'content', action: { kind: 'layer', layerKind: 'text' } },
+  { label: 'Emoji', symbol: '✦', description: 'Scatter repeated glyphs into the composition.', group: 'content', action: { kind: 'layer', layerKind: 'emoji' } },
+  { label: 'Primitive', symbol: '◍', description: 'Render a lit 3D form as a source layer.', group: 'source', action: { kind: 'layer', layerKind: 'primitive' } },
+  { label: 'Noise', symbol: '░', description: 'Generate a procedural noise texture.', group: 'source', action: { kind: 'layer', layerKind: 'noise' } },
+  { label: 'Array', symbol: '▦', description: 'Repeat a source into a structured pattern.', group: 'source', action: { kind: 'layer', layerKind: 'array' } },
   ...EFFECT_PRESET_MENU_ORDER.map((preset) => ({
     label: EFFECT_PRESETS[preset].name,
+    description: 'Apply a focused effect preset, then refine it.',
     symbol: EFFECT_PRESETS[preset].icon,
-    group: 'effect',
+    group: 'effect' as const,
     action: { kind: 'effect', preset } as AddAction,
   })),
-  { label: 'Merge',   symbol: '⊕', group: 'util',   action: { kind: 'merge' } },
-  { label: 'Color',   symbol: '◐', group: 'util',   action: { kind: 'color' } },
+  { label: 'Merge', symbol: '⊕', description: 'Blend two branches into one result.', group: 'util', action: { kind: 'merge' } },
+  { label: 'Color', symbol: '◐', description: 'Grade hue, contrast, and tonal balance.', group: 'util', action: { kind: 'color' } },
 ];
 
 export const HANDLE_STYLE = {

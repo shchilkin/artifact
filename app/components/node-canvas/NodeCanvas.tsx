@@ -622,6 +622,11 @@ export function NodeCanvas({
     : defaultMediaViewState();
   const galleryTitleId = galleryDisplayLayer ? `node-gallery-title-${galleryDisplayLayer.id}` : undefined;
   const galleryDescriptionId = galleryDisplayLayer ? `node-gallery-description-${galleryDisplayLayer.id}` : undefined;
+  const galleryHint = galleryDisplayLayer
+    ? galleryDisplayLayer.kind === 'primitive'
+      ? 'Drag to rotate, Shift-drag to pan, scroll to zoom, Home resets.'
+      : 'Drag to pan, scroll to zoom, Home resets.'
+    : '';
 
   const updateMediaView = useCallback((id: string, next: MediaViewState) => {
     setMediaViewStates((current) => ({ ...current, [id]: next }));
@@ -648,9 +653,9 @@ export function NodeCanvas({
               <span aria-hidden="true">＋</span>
               Add node
             </button>
-            <button type="button" onClick={handleOrganizeNodes} aria-label="Organize nodes">
+            <button type="button" onClick={handleOrganizeNodes} aria-label="Auto layout nodes">
               <span aria-hidden="true">⌘</span>
-              Organize
+              Auto layout
             </button>
           </div>
 
@@ -769,6 +774,7 @@ export function NodeCanvas({
                         ? 'Interactive primitive viewport'
                         : `${galleryDisplayLayer.kind} preview`}
                     </span>
+                    <span className="node-gallery-hint">{galleryHint}</span>
                   </div>
                 </div>
 

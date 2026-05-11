@@ -20,7 +20,7 @@ function handleNodeKeyDown(
 }
 
 export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
-  const { selectNode } = useNodeCanvasActions();
+  const { selectNode, deleteNode } = useNodeCanvasActions();
   const { layer, previewTargetId, selected, editing, connected, primitiveViewState, primitiveRenderMode } = data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
@@ -47,6 +47,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
           selected={selected}
           expanded={editing}
           expandable
+          onDelete={() => deleteNode(layer.id)}
         >
           <LayerPreviewSurface
             layer={layer}
@@ -56,8 +57,8 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
             selected={selected}
           />
           <PortRow
-            inputs={[{ label: isEffect ? 'in' : 'bg?', portId: inputPort, nodeId: layer.id }]}
-            outputs={[{ label: 'out', portId: 'out', nodeId: layer.id }]}
+            inputs={[{ label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id }]}
+            outputs={[{ label: 'result', portId: 'out', nodeId: layer.id }]}
             connected={connected}
           />
         </NodeShell>
@@ -97,8 +98,8 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
         >
           <NodeThumbnail previewTargetId={previewTargetId} />
           <PortRow
-            inputs={[{ label: 'in', portId: 'in', nodeId: colorNode.id }]}
-            outputs={[{ label: 'out', portId: 'out', nodeId: colorNode.id }]}
+            inputs={[{ label: 'source', portId: 'in', nodeId: colorNode.id }]}
+            outputs={[{ label: 'graded', portId: 'out', nodeId: colorNode.id }]}
             connected={connected}
           />
         </NodeShell>
@@ -142,10 +143,10 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
           <NodeThumbnail previewTargetId={previewTargetId} />
           <PortRow
             inputs={[
-              { label: 'a', portId: 'a', nodeId: mergeNode.id },
-              { label: 'b', portId: 'b', nodeId: mergeNode.id },
+              { label: 'base', portId: 'a', nodeId: mergeNode.id },
+              { label: 'top', portId: 'b', nodeId: mergeNode.id },
             ]}
-            outputs={[{ label: 'out', portId: 'out', nodeId: mergeNode.id }]}
+            outputs={[{ label: 'mix', portId: 'out', nodeId: mergeNode.id }]}
             connected={connected}
           />
         </NodeShell>
@@ -184,7 +185,7 @@ export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: N
         >
           <NodeThumbnail previewTargetId={previewTargetId} />
           <PortRow
-            inputs={[{ label: 'in', portId: 'in', nodeId: EXPORT_NODE_ID }]}
+            inputs={[{ label: 'final', portId: 'in', nodeId: EXPORT_NODE_ID }]}
             outputs={[]}
             connected={connected}
           />

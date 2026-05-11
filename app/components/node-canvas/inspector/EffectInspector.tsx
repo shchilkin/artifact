@@ -118,7 +118,7 @@ export function EffectInspector({
         onToggle={() => setOpenSection((current) => current === 'node' ? null : 'node')}
       >
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
-        <InspectorToggle label="Mask To Alpha" checked={layer.maskAlpha} onChange={(value) => onChange({ maskAlpha: value })} />
+        <InspectorToggle label="Use source alpha" checked={layer.maskAlpha} onChange={(value) => onChange({ maskAlpha: value })} />
         <InspectorSelect label="Blend" value={layer.blendMode ?? 'normal'} options={BLEND_OPTIONS} onChange={(value) => onChange({ blendMode: value })} />
       </InspectorSection>
 

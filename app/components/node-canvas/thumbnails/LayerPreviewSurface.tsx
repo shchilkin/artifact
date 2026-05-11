@@ -167,9 +167,9 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               stopNodeEvent(event);
               openGallery(layer.id);
             }}
-            aria-label="Open in gallery"
+            aria-label="Open preview"
           >
-            ↗
+            View
           </button>
         </div>
       );
@@ -223,9 +223,9 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               stopNodeEvent(event);
               openGallery(layer.id);
             }}
-            aria-label="Open in gallery"
+            aria-label="Open preview"
           >
-            ↗
+            View
           </button>
         </div>
       </div>
@@ -256,9 +256,9 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
             stopNodeEvent(event);
             openGallery(layer.id);
           }}
-          aria-label="Open in gallery"
+          aria-label="Open preview"
         >
-          ↗
+          View
         </button>
       </div>
     );

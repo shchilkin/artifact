@@ -93,6 +93,7 @@ export function NodePropertiesPanel({
           <div className="node-props-body">
             {layer && (
               <LayerInspector
+                key={layer.id}
                 layer={layer}
                 onChange={(patch) => onUpdateLayer(layer.id, patch)}
                 detached
@@ -100,12 +101,14 @@ export function NodePropertiesPanel({
             )}
             {!layer && colorNode && (
               <ColorInspector
+                key={colorNode.id}
                 colorNode={colorNode}
                 onChange={(patch) => onUpdateColorNode(colorNode.id, patch)}
               />
             )}
             {!layer && !colorNode && mergeNode && (
               <MergeInspector
+                key={mergeNode.id}
                 mergeNode={mergeNode}
                 onChange={(patch) => onUpdateMergeNode(mergeNode.id, patch)}
                 detached
@@ -113,6 +116,7 @@ export function NodePropertiesPanel({
             )}
             {!layer && !colorNode && !mergeNode && isExport && (
               <ExportInspector
+                key={EXPORT_NODE_ID}
                 exportConfig={doc.export}
                 aspect={doc.global.aspect}
                 busy={exportBusy}

@@ -22,7 +22,7 @@ export function ExportInspector({
 
   return (
     <div className="node-inspector-stack">
-      <InspectorSelect label="Target" value={exportConfig.target} options={['cover', 'envmap']} onChange={(value) => onChange({ target: value as CanvasDocument['export']['target'] })} />
+      <InspectorSelect label="Output" value={exportConfig.target} options={['cover', 'envmap']} onChange={(value) => onChange({ target: value as CanvasDocument['export']['target'] })} />
       <InspectorSelect
         label="Aspect"
         value={aspect}
@@ -46,7 +46,7 @@ export function ExportInspector({
         onClick={onExport}
         disabled={busy}
       >
-        {busy ? 'exporting…' : '↗ export now'}
+        {busy ? 'exporting…' : 'Export image'}
       </NoPan>
     </div>
   );
