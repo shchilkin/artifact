@@ -16,8 +16,15 @@ import {
   type TextLayer,
 } from '../types/config';
 import { randomLayerSection, zeroLayerSection } from '../utils/randomConfig';
+import { BLEND_OPTIONS as BLEND_OPTION_VALUES, FIELD_RANGES } from './layer-controls/fieldDefs';
 import { EffectInfoPopup } from './EffectInfoPopup';
 import { LayerPanel } from './LayerPanel';
+
+// Blend options shaped for ButtonGroup (sidebar keeps 'LUMA' label for brevity).
+const BLEND_OPTIONS = BLEND_OPTION_VALUES.map((value) => ({
+  value,
+  label: value === 'luminosity' ? 'LUMA' : value.toUpperCase(),
+}));
 
 interface Props {
   doc: CanvasDocument;
@@ -169,14 +176,6 @@ function updateLayer<T extends Layer>(doc: CanvasDocument, id: string, patch: Pa
 function updateGlobal(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
   return { ...doc, global: { ...doc.global, ...patch } };
 }
-
-const BLEND_OPTIONS = [
-  { value: 'normal', label: 'NORMAL' },
-  { value: 'multiply', label: 'MULTIPLY' },
-  { value: 'screen', label: 'SCREEN' },
-  { value: 'overlay', label: 'OVERLAY' },
-  { value: 'luminosity', label: 'LUMA' },
-];
 
 export function Sidebar({
   doc,
@@ -338,11 +337,11 @@ export function Sidebar({
                     </button>
                   ))}
                 </div>
-                <Slider label="Density" value={selectedLayer.density} min={0} max={80} onChange={(v) => applySelectedPatch<EmojiLayer>({ density: v })} effectKey="density" {...ip} />
-                <Slider label="Min Size" value={selectedLayer.minSz} min={10} max={60} onChange={(v) => applySelectedPatch<EmojiLayer>({ minSz: Math.min(v, selectedLayer.maxSz) })} />
-                <Slider label="Max Size" value={selectedLayer.maxSz} min={40} max={130} onChange={(v) => applySelectedPatch<EmojiLayer>({ maxSz: Math.max(v, selectedLayer.minSz) })} />
-                <Slider label="Blur" value={selectedLayer.blur} min={0} max={100} onChange={(v) => applySelectedPatch<EmojiLayer>({ blur: v })} effectKey="blur" {...ip} />
-                <Slider label="Opacity" value={selectedLayer.opacity} min={0} max={100} onChange={(v) => applySelectedPatch<EmojiLayer>({ opacity: v })} />
+                <Slider label="Density" value={selectedLayer.density} min={FIELD_RANGES.density.min} max={FIELD_RANGES.density.max} onChange={(v) => applySelectedPatch<EmojiLayer>({ density: v })} effectKey="density" {...ip} />
+                <Slider label="Min Size" value={selectedLayer.minSz} min={FIELD_RANGES.minSz.min} max={FIELD_RANGES.minSz.max} onChange={(v) => applySelectedPatch<EmojiLayer>({ minSz: Math.min(v, selectedLayer.maxSz) })} />
+                <Slider label="Max Size" value={selectedLayer.maxSz} min={FIELD_RANGES.maxSz.min} max={FIELD_RANGES.maxSz.max} onChange={(v) => applySelectedPatch<EmojiLayer>({ maxSz: Math.max(v, selectedLayer.minSz) })} />
+                <Slider label="Blur" value={selectedLayer.blur} min={FIELD_RANGES.blur.min} max={FIELD_RANGES.blur.max} onChange={(v) => applySelectedPatch<EmojiLayer>({ blur: v })} effectKey="blur" {...ip} />
+                <Slider label="Opacity" value={selectedLayer.opacity} min={FIELD_RANGES.opacity.min} max={FIELD_RANGES.opacity.max} onChange={(v) => applySelectedPatch<EmojiLayer>({ opacity: v })} />
                 <ButtonGroup label="Blend" options={BLEND_OPTIONS} value={selectedLayer.blendMode} onChange={(v) => applySelectedPatch<EmojiLayer>({ blendMode: v })} />
               </Section>
             )}
@@ -362,15 +361,15 @@ export function Sidebar({
                   value={selectedLayer.font}
                   onChange={(v) => applySelectedPatch<TextLayer>({ font: v as TextLayer['font'] })}
                 />
-                <Slider label="Size" value={selectedLayer.size} min={8} max={120} onChange={(v) => applySelectedPatch<TextLayer>({ size: v })} />
+                <Slider label="Size" value={selectedLayer.size} min={FIELD_RANGES.size.min} max={FIELD_RANGES.size.max} onChange={(v) => applySelectedPatch<TextLayer>({ size: v })} />
                 <div className="flex justify-between items-center text-dim text-[10px]">
                   <span>Color</span>
                   <input type="color" value={selectedLayer.color} onChange={(e) => applySelectedPatch<TextLayer>({ color: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" />
                 </div>
-                <Slider label="Opacity" value={selectedLayer.opacity} min={0} max={100} onChange={(v) => applySelectedPatch<TextLayer>({ opacity: v })} />
-                <Slider label="Rotation" value={selectedLayer.rotation} min={-180} max={180} onChange={(v) => applySelectedPatch<TextLayer>({ rotation: v })} />
-                <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={0} max={100} onChange={(v) => applySelectedPatch<TextLayer>({ x: v / 100 })} />
-                <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={0} max={100} onChange={(v) => applySelectedPatch<TextLayer>({ y: v / 100 })} />
+                <Slider label="Opacity" value={selectedLayer.opacity} min={FIELD_RANGES.opacity.min} max={FIELD_RANGES.opacity.max} onChange={(v) => applySelectedPatch<TextLayer>({ opacity: v })} />
+                <Slider label="Rotation" value={selectedLayer.rotation} min={FIELD_RANGES.rotation.min} max={FIELD_RANGES.rotation.max} onChange={(v) => applySelectedPatch<TextLayer>({ rotation: v })} />
+                <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={FIELD_RANGES.x.min} max={FIELD_RANGES.x.max} onChange={(v) => applySelectedPatch<TextLayer>({ x: v / 100 })} />
+                <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={FIELD_RANGES.y.min} max={FIELD_RANGES.y.max} onChange={(v) => applySelectedPatch<TextLayer>({ y: v / 100 })} />
                 <ButtonGroup
                   label="Align"
                   options={[{ value: 'left', label: '⬅ L' }, { value: 'center', label: '⬛ C' }, { value: 'right', label: 'R ➡' }]}
@@ -411,24 +410,24 @@ export function Sidebar({
                   value={selectedLayer.fit}
                   onChange={(v) => applySelectedPatch<ImageLayer>({ fit: v as ImageLayer['fit'] })}
                 />
-                <Slider label="Opacity" value={selectedLayer.opacity} min={0} max={100} onChange={(v) => applySelectedPatch<ImageLayer>({ opacity: v })} />
+                <Slider label="Opacity" value={selectedLayer.opacity} min={FIELD_RANGES.opacity.min} max={FIELD_RANGES.opacity.max} onChange={(v) => applySelectedPatch<ImageLayer>({ opacity: v })} />
                 <ButtonGroup label="Blend" options={BLEND_OPTIONS} value={selectedLayer.blendMode} onChange={(v) => applySelectedPatch<ImageLayer>({ blendMode: v })} />
-                <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<ImageLayer>({ x: v / 100 })} />
-                <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<ImageLayer>({ y: v / 100 })} />
+                <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={FIELD_RANGES.x.min} max={FIELD_RANGES.x.max} onChange={(v) => applySelectedPatch<ImageLayer>({ x: v / 100 })} />
+                <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={FIELD_RANGES.y.min} max={FIELD_RANGES.y.max} onChange={(v) => applySelectedPatch<ImageLayer>({ y: v / 100 })} />
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     {scaleLocked ? (
                       <Slider
                         label="Scale"
                         value={Math.round(selectedLayer.scaleX * 100)}
-                        min={5}
-                        max={500}
+                        min={FIELD_RANGES.scaleX.min}
+                        max={FIELD_RANGES.scaleX.max}
                         onChange={(v) => applySelectedPatch<ImageLayer>({ scaleX: v / 100, scaleY: v / 100 })}
                       />
                     ) : (
                       <>
-                        <Slider label="Scale X" value={Math.round(selectedLayer.scaleX * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<ImageLayer>({ scaleX: v / 100 })} />
-                        <Slider label="Scale Y" value={Math.round(selectedLayer.scaleY * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<ImageLayer>({ scaleY: v / 100 })} />
+                        <Slider label="Scale X" value={Math.round(selectedLayer.scaleX * 100)} min={FIELD_RANGES.scaleX.min} max={FIELD_RANGES.scaleX.max} onChange={(v) => applySelectedPatch<ImageLayer>({ scaleX: v / 100 })} />
+                        <Slider label="Scale Y" value={Math.round(selectedLayer.scaleY * 100)} min={FIELD_RANGES.scaleY.min} max={FIELD_RANGES.scaleY.max} onChange={(v) => applySelectedPatch<ImageLayer>({ scaleY: v / 100 })} />
                       </>
                     )}
                   </div>
@@ -444,7 +443,7 @@ export function Sidebar({
                     {scaleLocked ? '⛓' : '⛓‍💥'}
                   </button>
                 </div>
-                <Slider label="Rotation" value={selectedLayer.rotation} min={-180} max={180} onChange={(v) => applySelectedPatch<ImageLayer>({ rotation: v })} />
+                <Slider label="Rotation" value={selectedLayer.rotation} min={FIELD_RANGES.rotation.min} max={FIELD_RANGES.rotation.max} onChange={(v) => applySelectedPatch<ImageLayer>({ rotation: v })} />
               </Section>
             )}
 
@@ -459,27 +458,27 @@ export function Sidebar({
                     <span>Accent</span>
                     <input type="color" value={selectedLayer.accentColor} onChange={(e) => applySelectedPatch<SourceLayer>({ accentColor: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" />
                   </div>
-                  <Slider label="Opacity" value={selectedLayer.opacity} min={0} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ opacity: v })} />
+                  <Slider label="Opacity" value={selectedLayer.opacity} min={FIELD_RANGES.opacity.min} max={FIELD_RANGES.opacity.max} onChange={(v) => applySelectedPatch<SourceLayer>({ opacity: v })} />
                   <ButtonGroup label="Blend" options={BLEND_OPTIONS} value={selectedLayer.blendMode} onChange={(v) => applySelectedPatch<SourceLayer>({ blendMode: v })} />
                 </Section>
 
                 <Section title="PLACEMENT" defaultOpen>
-                  <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<SourceLayer>({ x: v / 100 })} />
-                  <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={-50} max={150} onChange={(v) => applySelectedPatch<SourceLayer>({ y: v / 100 })} />
+                  <Slider label="X Position" value={Math.round(selectedLayer.x * 100)} min={FIELD_RANGES.x.min} max={FIELD_RANGES.x.max} onChange={(v) => applySelectedPatch<SourceLayer>({ x: v / 100 })} />
+                  <Slider label="Y Position" value={Math.round(selectedLayer.y * 100)} min={FIELD_RANGES.y.min} max={FIELD_RANGES.y.max} onChange={(v) => applySelectedPatch<SourceLayer>({ y: v / 100 })} />
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       {scaleLocked ? (
                         <Slider
                           label="Scale"
                           value={Math.round(selectedLayer.scaleX * 100)}
-                          min={5}
-                          max={500}
+                          min={FIELD_RANGES.scaleX.min}
+                          max={FIELD_RANGES.scaleX.max}
                           onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100, scaleY: v / 100 })}
                         />
                       ) : (
                         <>
-                          <Slider label="Scale X" value={Math.round(selectedLayer.scaleX * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100 })} />
-                          <Slider label="Scale Y" value={Math.round(selectedLayer.scaleY * 100)} min={5} max={500} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleY: v / 100 })} />
+                          <Slider label="Scale X" value={Math.round(selectedLayer.scaleX * 100)} min={FIELD_RANGES.scaleX.min} max={FIELD_RANGES.scaleX.max} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleX: v / 100 })} />
+                          <Slider label="Scale Y" value={Math.round(selectedLayer.scaleY * 100)} min={FIELD_RANGES.scaleY.min} max={FIELD_RANGES.scaleY.max} onChange={(v) => applySelectedPatch<SourceLayer>({ scaleY: v / 100 })} />
                         </>
                       )}
                     </div>
@@ -495,7 +494,7 @@ export function Sidebar({
                       {scaleLocked ? '⛓' : '⛓‍💥'}
                     </button>
                   </div>
-                  <Slider label="Rotation" value={selectedLayer.rotation} min={-180} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ rotation: v })} />
+                  <Slider label="Rotation" value={selectedLayer.rotation} min={FIELD_RANGES.rotation.min} max={FIELD_RANGES.rotation.max} onChange={(v) => applySelectedPatch<SourceLayer>({ rotation: v })} />
                 </Section>
 
                 {selectedLayer.kind === 'primitive' && (
@@ -513,8 +512,8 @@ export function Sidebar({
                     <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-dim">
                       Camera angle lives in the 3D preview. Drag rotates, wheel zooms.
                     </p>
-                    <Slider label="Spin" value={selectedLayer.tiltZ} min={-180} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltZ: v })} />
-                    <Slider label="Depth" value={selectedLayer.primitiveDepth} min={10} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveDepth: v })} />
+                    <Slider label="Spin" value={selectedLayer.tiltZ} min={FIELD_RANGES.tiltZ.min} max={FIELD_RANGES.tiltZ.max} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltZ: v })} />
+                    <Slider label="Depth" value={selectedLayer.primitiveDepth} min={FIELD_RANGES.primitiveDepth.min} max={FIELD_RANGES.primitiveDepth.max} onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveDepth: v })} />
                   </Section>
                 )}
 
@@ -530,10 +529,10 @@ export function Sidebar({
                       value={selectedLayer.noiseType}
                       onChange={(v) => applySelectedPatch<SourceLayer>({ noiseType: v as SourceLayer['noiseType'] })}
                     />
-                    <Slider label="Scale" value={selectedLayer.noiseScale} min={6} max={96} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseScale: v })} />
-                    <Slider label="Detail" value={selectedLayer.noiseDetail} min={1} max={8} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseDetail: v })} />
-                    <Slider label="Contrast" value={selectedLayer.noiseContrast} min={0} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseContrast: v })} />
-                    <Slider label="Balance" value={selectedLayer.noiseBalance} min={0} max={95} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseBalance: v })} />
+                    <Slider label="Scale" value={selectedLayer.noiseScale} min={FIELD_RANGES.noiseScale.min} max={FIELD_RANGES.noiseScale.max} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseScale: v })} />
+                    <Slider label="Detail" value={selectedLayer.noiseDetail} min={FIELD_RANGES.noiseDetail.min} max={FIELD_RANGES.noiseDetail.max} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseDetail: v })} />
+                    <Slider label="Contrast" value={selectedLayer.noiseContrast} min={FIELD_RANGES.noiseContrast.min} max={FIELD_RANGES.noiseContrast.max} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseContrast: v })} />
+                    <Slider label="Balance" value={selectedLayer.noiseBalance} min={FIELD_RANGES.noiseBalance.min} max={FIELD_RANGES.noiseBalance.max} onChange={(v) => applySelectedPatch<SourceLayer>({ noiseBalance: v })} />
                   </Section>
                 )}
 
@@ -559,12 +558,12 @@ export function Sidebar({
                       value={selectedLayer.arrayShape}
                       onChange={(v) => applySelectedPatch<SourceLayer>({ arrayShape: v as SourceLayer['arrayShape'] })}
                     />
-                    <Slider label="Count" value={selectedLayer.arrayCount} min={2} max={18} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayCount: v })} />
-                    <Slider label="Rows" value={selectedLayer.arrayRows} min={1} max={12} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRows: v })} />
-                    <Slider label="Gap" value={selectedLayer.arrayGap} min={12} max={96} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayGap: v })} />
-                    <Slider label="Size" value={selectedLayer.arraySize} min={8} max={64} onChange={(v) => applySelectedPatch<SourceLayer>({ arraySize: v })} />
-                    <Slider label="Radius" value={selectedLayer.arrayRadius} min={16} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRadius: v })} />
-                    <Slider label="Jitter" value={selectedLayer.arrayJitter} min={0} max={36} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayJitter: v })} />
+                    <Slider label="Count" value={selectedLayer.arrayCount} min={FIELD_RANGES.arrayCount.min} max={FIELD_RANGES.arrayCount.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayCount: v })} />
+                    <Slider label="Rows" value={selectedLayer.arrayRows} min={FIELD_RANGES.arrayRows.min} max={FIELD_RANGES.arrayRows.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRows: v })} />
+                    <Slider label="Gap" value={selectedLayer.arrayGap} min={FIELD_RANGES.arrayGap.min} max={FIELD_RANGES.arrayGap.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayGap: v })} />
+                    <Slider label="Size" value={selectedLayer.arraySize} min={FIELD_RANGES.arraySize.min} max={FIELD_RANGES.arraySize.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arraySize: v })} />
+                    <Slider label="Radius" value={selectedLayer.arrayRadius} min={FIELD_RANGES.arrayRadius.min} max={FIELD_RANGES.arrayRadius.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayRadius: v })} />
+                    <Slider label="Jitter" value={selectedLayer.arrayJitter} min={FIELD_RANGES.arrayJitter.min} max={FIELD_RANGES.arrayJitter.max} onChange={(v) => applySelectedPatch<SourceLayer>({ arrayJitter: v })} />
                   </Section>
                 )}
               </>
@@ -710,7 +709,7 @@ export function Sidebar({
                   <span>Color</span>
                   <input type="color" value={(selectedLayer as FillLayer).color} onChange={(e) => applySelectedPatch<FillLayer>({ color: e.target.value })} className="w-9 h-7 border border-border rounded-sm p-0.5 bg-transparent cursor-pointer" />
                 </div>
-                <Slider label="Opacity" value={(selectedLayer as FillLayer).opacity} min={0} max={100} onChange={(v) => applySelectedPatch<FillLayer>({ opacity: v })} />
+                <Slider label="Opacity" value={(selectedLayer as FillLayer).opacity} min={FIELD_RANGES.opacity.min} max={FIELD_RANGES.opacity.max} onChange={(v) => applySelectedPatch<FillLayer>({ opacity: v })} />
                 <ButtonGroup label="Blend" options={BLEND_OPTIONS} value={(selectedLayer as FillLayer).blendMode} onChange={(v) => applySelectedPatch<FillLayer>({ blendMode: v })} />
               </Section>
             )}

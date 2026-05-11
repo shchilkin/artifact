@@ -166,7 +166,8 @@ export const NODE_CANVAS_COLORS = {
   sceneShadow: 0x080707,
 } as const;
 
-export const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
+// Re-exported from canonical source — do not redefine here.
+export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
 
 export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
 export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'interlace', 'dataMosh'];
