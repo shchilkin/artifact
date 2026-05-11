@@ -2,6 +2,18 @@
 
 This repo is a browser-only React Router app with a hybrid layer-stack and node-canvas editor. Use these instructions when making changes, and see `AGENTS.md` for the fuller QA and architecture playbook.
 
+## Read architecture docs first
+
+Before changing state ownership, rendering, node editor behavior, thumbnails, preview/export parity, or 3D primitive controls, read:
+
+- `docs/state-model.md`
+- `docs/rendering.md`
+- `docs/node-editor.md`
+- `docs/improvement-plan.md`
+- `docs/roadmap.md`
+
+Prefer these docs over older inline summaries when they disagree. Update the relevant doc in the same change when architecture or interaction rules change.
+
 ## Core rules
 
 - `CanvasDocument` in `app/types/config.ts` is the canonical source of truth.
@@ -60,6 +72,8 @@ When adding or changing graph behavior, check whether you also need to update:
 5. node UI and properties panels in `app/components/node-canvas/*`
 6. docs in `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `app/routes/docs.nodes.tsx`
 7. tests
+
+For state, rendering, or node-editor changes, also update the matching file in `docs/`.
 
 ## Existing commands
 

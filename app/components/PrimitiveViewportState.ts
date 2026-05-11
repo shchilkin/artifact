@@ -8,6 +8,7 @@ export interface PrimitiveViewportState {
   zoom: number;
   panX: number;
   panY: number;
+  locked?: boolean;
 }
 
 export function defaultPrimitiveViewportState(layer: PrimitiveLayer): PrimitiveViewportState {
@@ -17,5 +18,6 @@ export function defaultPrimitiveViewportState(layer: PrimitiveLayer): PrimitiveV
     zoom: 1,
     panX: 0,
     panY: 0,
+    locked: false,
   };
 }

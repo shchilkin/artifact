@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## Read this first
+
+Before changing state ownership, rendering, node editor behavior, thumbnails, preview/export parity, or 3D primitive controls, read the current architecture docs:
+
+- `docs/state-model.md` — state ownership, persistence, undo, export impact, and thumbnail invalidation rules.
+- `docs/rendering.md` — canonical render entry points, graph vs stack mode, primitive rendering, thumbnails, and parity checklist.
+- `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu rules, and QA checklist.
+- `docs/improvement-plan.md` — ordered implementation phases with exit criteria and validation.
+- `docs/roadmap.md` — codebase overview, current strengths/risks, and improvement roadmap.
+
+These docs are the source of truth for future architecture work. If this file conflicts with them, follow the docs and update this file.
+
 ## Project scope
 
 Artifact is a browser-only album-cover generator with a hybrid editing model:
@@ -154,6 +166,8 @@ Make that scope explicit in code and tests.
 
 If you add a node, layer kind, graph rule, or editing flow, update the human guidance too:
 
+- `docs/state-model.md`, `docs/rendering.md`, or `docs/node-editor.md` when architecture or interaction rules change
+- `docs/improvement-plan.md` / `docs/roadmap.md` when priorities or sequencing change
 - `COPILOT.md`
 - `.github/copilot-instructions.md`
 - `CLAUDE.md`

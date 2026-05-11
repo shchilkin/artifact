@@ -2,6 +2,18 @@
 
 > See `/COPILOT.md` for the expanded node-canvas architecture, QA guidance, and development strategy that complements these repo-specific instructions.
 
+## Read architecture docs first
+
+Before changing state ownership, rendering, node editor behavior, thumbnails, preview/export parity, or 3D primitive controls, read:
+
+- `docs/state-model.md`
+- `docs/rendering.md`
+- `docs/node-editor.md`
+- `docs/improvement-plan.md`
+- `docs/roadmap.md`
+
+Update the relevant doc when architecture or interaction rules change.
+
 ## Commands
 
 ```bash

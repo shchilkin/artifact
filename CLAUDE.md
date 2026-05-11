@@ -4,6 +4,18 @@
 
 Browser-based album cover generator: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
 
+## Required docs before architecture work
+
+Read these docs before changing state ownership, rendering, node editor behavior, thumbnails, preview/export parity, or 3D primitive controls:
+
+- `docs/state-model.md` — source-of-truth rules for document, graph, UI, gesture draft, primitive camera, undo, and thumbnail invalidation state.
+- `docs/rendering.md` — render entry points, stack vs graph mode, primitive rendering, thumbnails, render options, and preview/export parity rules.
+- `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu edge cases, and QA checklist.
+- `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
+- `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+
+Use these docs as the source of truth over older summaries in this file if they disagree.
+
 ---
 
 ## Tech Stack
@@ -26,6 +38,8 @@ Browser-based album cover generator: users compose layered artwork with emojis, 
 interface CanvasDocument {
   global: GlobalConfig;   // { bg, seed, aspect }
   layers: Layer[];        // ordered bottom-to-top
+  graph?: CanvasGraph;    // optional node graph composition
+  export?: ExportConfig;  // export preferences
 }
 ```
 

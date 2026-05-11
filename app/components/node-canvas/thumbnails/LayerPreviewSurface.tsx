@@ -2,7 +2,6 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PrimitiveViewport3D } from '../../PrimitiveViewport3D';
 import { defaultPrimitiveViewportState } from '../../PrimitiveViewportState';
-import type { Layer } from '../../../types/config';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { THUMB_SIZE } from '../constants';
 import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
@@ -15,7 +14,6 @@ type LayerPreviewSurfaceProps = Pick<LayerNodeData, 'layer' | 'previewTargetId' 
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
 };
-const PRIMITIVE_BOX_RATIO = 360 / 540;
 
 function DragTransformOverlay({
   layer,
@@ -132,7 +130,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   onTransformCommit,
 }: LayerPreviewSurfaceProps) {
   const { graph } = useNodeCanvasPreview();
-  const { openGallery, updatePrimitiveView, updateLayer, setPrimitiveViewportActive } = useNodeCanvasActions();
+  const { openGallery, updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const primitiveBgPreviewTargetId = useMemo(
     () => layer.kind === 'primitive'
@@ -156,8 +154,17 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   if (layer.kind === 'primitive') {
     const effectiveViewState = primitiveViewState ?? defaultPrimitiveViewportState(layer);
     const effectiveRenderMode = primitiveRenderMode ?? 'shaded';
-    const primitiveFrameScaleX = layer.scaleX * PRIMITIVE_BOX_RATIO;
-    const primitiveFrameScaleY = layer.scaleY * PRIMITIVE_BOX_RATIO;
+    const primitiveLocked = !!effectiveViewState.locked;
+    const setPrimitiveLocked = (locked: boolean) => {
+      updatePrimitiveView(layer.id, { ...effectiveViewState, locked });
+      if (selected) setPrimitiveViewportActive(layer.id, !locked);
+    };
+    const resetPrimitiveCamera = () => {
+      updatePrimitiveView(layer.id, {
+        ...defaultPrimitiveViewportState(layer),
+        locked: primitiveLocked,
+      });
+    };
 
     if (!selected) {
       return (
@@ -184,17 +191,17 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
 
     return (
       <div
-        className="node-preview-surface nodrag nopan"
+        className={`node-preview-surface primitive-preview-surface${primitiveLocked ? ' primitive-preview-surface-locked' : ' nodrag nopan'}`}
         onMouseEnter={() => {
           setHovered(true);
-          if (selected) setPrimitiveViewportActive(layer.id, true);
+          if (selected && !primitiveLocked) setPrimitiveViewportActive(layer.id, true);
         }}
         onMouseLeave={() => {
           setHovered(false);
           if (selected) setPrimitiveViewportActive(layer.id, false);
         }}
       >
-        <div style={{ position: 'relative', display: 'inline-block' }}>
+        <div className="node-primitive-live-frame">
           {primitiveBgPreviewTargetId ? (
             <NodeThumbnail previewTargetId={primitiveBgPreviewTargetId} />
           ) : (
@@ -205,7 +212,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               style={{
                 position: 'absolute',
                 inset: 0,
-                transform: `translate(${(layer.x - 0.5) * 100}%, ${(layer.y - 0.5) * 100}%) rotate(${layer.rotation}deg) scale(${primitiveFrameScaleX}, ${primitiveFrameScaleY})`,
+                transform: `translate(${(layer.x - 0.5) * 100}%, ${(layer.y - 0.5) * 100}%) rotate(${layer.rotation}deg) scale(${layer.scaleX}, ${layer.scaleY})`,
                 transformOrigin: 'center center',
                 pointerEvents: 'auto',
               }}
@@ -216,22 +223,53 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
                 renderMode={effectiveRenderMode}
                 viewState={effectiveViewState}
                 onViewStateChange={(next) => updatePrimitiveView(layer.id, next)}
-                onRotationCommit={(rotX, rotY) => updateLayer(layer.id, { tiltX: rotX, tiltY: rotY } as Partial<Layer>)}
                 className="node-primitive-preview node-primitive-preview-transparent"
               />
             </div>
           </div>
-          <button
-            type="button"
-            className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
-            onClick={(event) => {
-              stopNodeEvent(event);
-              openGallery(layer.id);
-            }}
-            aria-label="Open preview"
-          >
-            View
-          </button>
+        </div>
+        <div className="primitive-node-camera-strip" data-primitive-camera-control>
+          <span className="primitive-node-camera-hint">
+            {primitiveLocked ? 'camera locked' : `drag rotate · right drag pan · ${Math.round(effectiveViewState.zoom * 100)}%`}
+          </span>
+          <div className="primitive-node-camera-actions">
+            <button
+              type="button"
+              className={`nodrag nopan nowheel primitive-camera-button${primitiveLocked ? ' primitive-camera-button-active' : ''}`}
+              aria-label={primitiveLocked ? 'Unlock camera' : 'Lock camera'}
+              aria-pressed={primitiveLocked}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setPrimitiveLocked(!primitiveLocked);
+              }}
+            >
+              {primitiveLocked ? 'LOCK' : 'FREE'}
+            </button>
+            <button
+              type="button"
+              className="nodrag nopan nowheel primitive-camera-button"
+              aria-label="Open preview"
+              onClick={(event) => {
+                stopNodeEvent(event);
+                openGallery(layer.id);
+              }}
+            >
+              VIEW
+            </button>
+            <button
+              type="button"
+              className="nodrag nopan nowheel primitive-camera-button"
+              aria-label="Reset camera"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                resetPrimitiveCamera();
+              }}
+            >
+              RESET
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -10,7 +10,6 @@ interface Props {
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
-  onRotationCommit?: (rotationX: number, rotationY: number) => void;
   onHoverChange?: (hovered: boolean) => void;
   className?: string;
 }
@@ -62,7 +61,6 @@ export function PrimitiveViewport3D({
   renderMode,
   viewState,
   onViewStateChange,
-  onRotationCommit,
   onHoverChange,
   className,
 }: Props) {
@@ -87,14 +85,15 @@ export function PrimitiveViewport3D({
   // Stable refs so native listeners never close over stale props
   const modeRef = useRef(mode);
   const onViewStateChangeRef = useRef(onViewStateChange);
-  const onRotationCommitRef = useRef(onRotationCommit);
   const layerTiltZRef = useRef(layer.tiltZ);
+  const lockedRef = useRef(!!viewState.locked);
 
   // Hover lock: disable .react-flow__pane pointer-events while hovering so wheel events reach our canvas
   const rfPaneRef = useRef<HTMLElement | null>(null);
   const isHoveredRef = useRef(false);
 
   const lockRFPane = () => {
+    if (lockedRef.current) return;
     if (!rfPaneRef.current) {
       rfPaneRef.current = rootRef.current?.closest('.react-flow')
         ?.querySelector('.react-flow__pane') as HTMLElement ?? null;
@@ -123,14 +122,19 @@ export function PrimitiveViewport3D({
 
   useLayoutEffect(() => {
     viewStateRef.current = viewState;
+    lockedRef.current = !!viewState.locked;
+    if (viewState.locked) {
+      unlockRFPane();
+    } else if (isHoveredRef.current) {
+      lockRFPane();
+    }
   }, [viewState]);
 
   useLayoutEffect(() => {
     modeRef.current = mode;
     onViewStateChangeRef.current = onViewStateChange;
-    onRotationCommitRef.current = onRotationCommit;
     layerTiltZRef.current = layer.tiltZ;
-  }, [mode, onViewStateChange, onRotationCommit, layer.tiltZ]);
+  }, [mode, onViewStateChange, layer.tiltZ]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -257,15 +261,20 @@ export function PrimitiveViewport3D({
     if (!root) return;
 
     const inside = (e: Event) => root.contains(e.target as Node);
+    const fromControl = (e: Event) => (
+      e.target instanceof Element
+      && e.target.closest('[data-primitive-camera-control]') !== null
+    );
 
     const commit = () => onViewStateChangeRef.current({ ...viewStateRef.current });
 
     const onPointerDown = (e: PointerEvent) => {
       if (!inside(e)) return;
+      if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
       e.stopImmediatePropagation();
       e.preventDefault();
-      const gestureMode = modeRef.current === 'modal' && (e.button === 1 || e.button === 2 || e.shiftKey)
+      const gestureMode = e.button === 1 || e.button === 2 || e.shiftKey
         ? 'pan'
         : 'rotate';
       dragStateRef.current = {
@@ -283,6 +292,7 @@ export function PrimitiveViewport3D({
     const onPointerMove = (e: PointerEvent) => {
       const drag = dragStateRef.current;
       if (!inside(e) && !drag) return;
+      if (!drag && lockedRef.current) return;
       e.stopPropagation();
       e.stopImmediatePropagation();
       if (!drag || drag.pointerId !== e.pointerId) return;
@@ -314,21 +324,17 @@ export function PrimitiveViewport3D({
       // Only release the pane if the cursor is no longer hovering
       if (!isHoveredRef.current) unlockRFPane();
       commit();
-      if (drag.mode === 'rotate') {
-        onRotationCommitRef.current?.(viewStateRef.current.rotationX, viewStateRef.current.rotationY);
-      }
     };
 
     const onWheel = (e: WheelEvent) => {
       if (!inside(e)) return;
+      if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
       e.stopImmediatePropagation();
       e.preventDefault();
-      if (modeRef.current === 'node' && e.ctrlKey) return;
-      // scroll up (deltaY < 0) → zoom out; scroll down (deltaY > 0) → zoom in
       const next = {
         ...viewStateRef.current,
-        zoom: clamp(viewStateRef.current.zoom + (e.deltaY * 0.0016), 0.6, 2.6),
+        zoom: clamp(viewStateRef.current.zoom - (e.deltaY * 0.0016), 0.6, 2.6),
       };
       applyViewState(next);
       onViewStateChangeRef.current({ ...next });
@@ -336,13 +342,15 @@ export function PrimitiveViewport3D({
 
     const onContextMenu = (e: MouseEvent) => {
       if (!inside(e)) return;
+      if (fromControl(e)) return;
       e.stopPropagation();
       e.stopImmediatePropagation();
-      if (modeRef.current === 'modal') e.preventDefault();
+      e.preventDefault();
     };
 
     const stopIfInside = (e: Event) => {
       if (!inside(e)) return;
+      if (fromControl(e) || lockedRef.current) return;
       e.stopPropagation();
       e.stopImmediatePropagation();
     };
@@ -362,7 +370,7 @@ export function PrimitiveViewport3D({
     document.addEventListener('dblclick', stopIfInside, cap);
 
     // Hover-lock: disable RF pane pointer-events while hovering so events reach our canvas
-    root.addEventListener('mouseenter', () => { isHoveredRef.current = true; lockRFPane(); }, { signal: sig });
+    root.addEventListener('mouseenter', () => { isHoveredRef.current = true; if (!lockedRef.current) lockRFPane(); }, { signal: sig });
     root.addEventListener('mouseleave', () => { isHoveredRef.current = false; unlockRFPane(); }, { signal: sig });
 
     return () => {
@@ -371,17 +379,20 @@ export function PrimitiveViewport3D({
       dragStateRef.current = null;
       unlockRFPane();
     };
-  }, [applyViewState]); // stable — all live values accessed via refs
+  }, [applyViewState]); // stable, all live values accessed via refs
+
+  const locked = !!viewState.locked;
 
   return (
     <div
       ref={rootRef}
-      className={['node-interactive-viewport', className, 'nodrag', 'nopan', 'nowheel'].filter(Boolean).join(' ')}
+      className={['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel'].filter(Boolean).join(' ')}
       tabIndex={0}
       role="group"
       aria-roledescription="interactive viewport"
-      aria-label={`${layer.name} 3D preview. Arrow keys rotate, Shift plus arrow keys pan, plus or minus zoom, Home resets.`}
+      aria-label={`${layer.name} 3D preview. Drag rotates, right drag pans, wheel zooms, arrow keys rotate, plus or minus zoom, Home resets.`}
       onKeyDown={(event) => {
+        if (locked) return;
         const next = { ...viewStateRef.current };
         const rotateStep = 8;
         const panStep = 0.12;
@@ -433,7 +444,7 @@ export function PrimitiveViewport3D({
             changed = true;
             break;
           case 'Home':
-            Object.assign(next, defaultPrimitiveViewportState(layer));
+            Object.assign(next, defaultPrimitiveViewportState(layer), { locked: next.locked });
             changed = true;
             rotated = true;
             break;
@@ -445,15 +456,17 @@ export function PrimitiveViewport3D({
         event.preventDefault();
         event.stopPropagation();
         applyKeyboardState(next, applyViewState, onViewStateChangeRef.current);
-        if (rotated) {
-          onRotationCommitRef.current?.(next.rotationX, next.rotationY);
-        }
+        void rotated;
       }}
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
-      style={{ position: 'relative', width: '100%', height: '100%', touchAction: 'none' }}
-    >
-      <canvas ref={canvasRef} className="nodrag nopan nowheel" style={{ display: 'block', width: '100%', height: '100%' }} />
+      style={{ position: 'relative', width: '100%', height: '100%', touchAction: locked ? 'auto' : 'none' }}
+      >
+      <canvas
+        ref={canvasRef}
+        className={locked ? undefined : 'nodrag nopan nowheel'}
+        style={{ display: 'block', width: '100%', height: '100%' }}
+      />
     </div>
   );
 }

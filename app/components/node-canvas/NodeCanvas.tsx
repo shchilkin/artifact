@@ -181,6 +181,7 @@ export function NodeCanvas({
         && previous.zoom === viewState.zoom
         && previous.panX === viewState.panX
         && previous.panY === viewState.panY
+        && (previous.locked ?? false) === (viewState.locked ?? false)
       ) {
         return current;
       }
@@ -624,7 +625,7 @@ export function NodeCanvas({
   const galleryDescriptionId = galleryDisplayLayer ? `node-gallery-description-${galleryDisplayLayer.id}` : undefined;
   const galleryHint = galleryDisplayLayer
     ? galleryDisplayLayer.kind === 'primitive'
-      ? 'Drag to rotate, Shift-drag to pan, scroll to zoom, Home resets.'
+      ? 'Drag rotates, wheel or trackpad zooms, lock freezes camera. Export uses this camera.'
       : 'Drag to pan, scroll to zoom, Home resets.'
     : '';
 

@@ -5,7 +5,7 @@ import { renderPrimitiveToCanvas } from './primitiveRenderer';
 
 type Rgb = { r: number; g: number; b: number };
 
-const SOURCE_SIZE = 360;
+const SOURCE_SIZE = 540;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));

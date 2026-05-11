@@ -510,8 +510,9 @@ export function Sidebar({
                       value={selectedLayer.primitiveShape}
                       onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveShape: v as SourceLayer['primitiveShape'] })}
                     />
-                    <Slider label="Tilt X" value={selectedLayer.tiltX} min={-90} max={90} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltX: v })} />
-                    <Slider label="Tilt Y" value={selectedLayer.tiltY} min={-90} max={90} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltY: v })} />
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-dim">
+                      Camera angle lives in the 3D preview. Drag rotates, wheel zooms.
+                    </p>
                     <Slider label="Spin" value={selectedLayer.tiltZ} min={-180} max={180} onChange={(v) => applySelectedPatch<SourceLayer>({ tiltZ: v })} />
                     <Slider label="Depth" value={selectedLayer.primitiveDepth} min={10} max={100} onChange={(v) => applySelectedPatch<SourceLayer>({ primitiveDepth: v })} />
                   </Section>

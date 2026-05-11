@@ -212,8 +212,9 @@ export function LayerInspector({
                 options={['sphere', 'cube', 'cylinder']}
                 onChange={(value) => onChange({ primitiveShape: value as SourceLayer['primitiveShape'] } as Partial<SourceLayer>)}
               />
-              <InspectorSlider label="Tilt X" value={Math.round(layer.tiltX)} min={-90} max={90} onChange={(value) => onChange({ tiltX: value } as Partial<SourceLayer>)} />
-              <InspectorSlider label="Tilt Y" value={Math.round(layer.tiltY)} min={-90} max={90} onChange={(value) => onChange({ tiltY: value } as Partial<SourceLayer>)} />
+              <p className="node-inspector-note">
+                Camera angle is controlled in the preview: drag rotates, wheel zooms.
+              </p>
               <InspectorSlider label="Spin" value={Math.round(layer.tiltZ)} min={-180} max={180} onChange={(value) => onChange({ tiltZ: value } as Partial<SourceLayer>)} />
               <InspectorSlider label="Depth" value={Math.round(layer.primitiveDepth)} min={10} max={100} onChange={(value) => onChange({ primitiveDepth: value } as Partial<SourceLayer>)} />
               <InspectorSelect

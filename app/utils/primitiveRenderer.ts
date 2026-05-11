@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import { NODE_CANVAS_COLORS } from '../components/node-canvas/constants';
 
 const CAMERA_DISTANCE = 3.2;
 const SOURCE_OVERSCAN = 1.22;
@@ -62,13 +63,13 @@ export async function renderPrimitiveToCanvas(
 
   const accentColor = new THREE.Color(layer.accentColor);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+  scene.add(new THREE.AmbientLight(NODE_CANVAS_COLORS.sceneAmbient, 1.15));
 
   const keyLight = new THREE.DirectionalLight(accentColor, 1.45);
   keyLight.position.set(2.4, 2.8, 3.4);
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.65);
+  const fillLight = new THREE.DirectionalLight(NODE_CANVAS_COLORS.sceneFill, 0.65);
   fillLight.position.set(-2.8, -1.2, 1.5);
   scene.add(fillLight);
 
@@ -77,7 +78,7 @@ export async function renderPrimitiveToCanvas(
   scene.add(rimLight);
 
   const shadowGeom = new THREE.CircleGeometry(1.35, 48);
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 });
+  const shadowMat = new THREE.MeshBasicMaterial({ color: NODE_CANVAS_COLORS.sceneShadow, transparent: true, opacity: 0.18 });
   const shadowMesh = new THREE.Mesh(shadowGeom, shadowMat);
   shadowMesh.rotation.x = -Math.PI / 2;
   shadowMesh.position.set(0, -1.18, 0);
@@ -87,7 +88,7 @@ export async function renderPrimitiveToCanvas(
   const geometry = makeGeometry(layer);
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(layer.color),
-    emissive: new THREE.Color(0x000000),
+    emissive: new THREE.Color(NODE_CANVAS_COLORS.sceneShadow),
     metalness: 0.18,
     roughness: 0.38,
     flatShading: layer.primitiveShading === 'flat',
