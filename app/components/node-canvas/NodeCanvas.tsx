@@ -718,6 +718,7 @@ export function NodeCanvas({
             <PaneContextMenu
               x={contextMenu.x}
               y={contextMenu.y}
+              mode={contextMenu.type === 'pane-insert' ? 'insert' : 'add'}
               onAdd={(action) => handleAddFromMenu(
                 action,
                 contextMenu.flowPos,

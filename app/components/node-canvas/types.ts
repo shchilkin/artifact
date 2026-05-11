@@ -163,6 +163,7 @@ export type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 
 export interface PaneMenuProps {
   x: number;
   y: number;
+  mode: 'add' | 'insert';
   onAdd: (action: AddAction) => void;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
