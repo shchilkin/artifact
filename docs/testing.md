@@ -4,6 +4,8 @@
 
 ```bash
 npm test                               # all tests (vitest run)
+npm run test:browser                   # Playwright browser smoke/regression tests
+npm run test:browser:install           # install Chromium for Playwright
 npx vitest run app/types/config.test.ts  # single file
 ```
 
@@ -70,6 +72,22 @@ Verify graph traversal and graph-only nodes through the canonical renderer.
 GPU/PixiJS and Three.js cases should use smoke tests unless CI provides a
 stable WebGL context.
 
+### Browser tests
+
+Use Playwright for behavior that Node/Vitest cannot honestly exercise.
+
+**Location:** `tests/browser/`
+
+**Current coverage:**
+
+- Layer canvas still renders after switching from layers → nodes → layers.
+- Primitive nodes expose interactive camera controls in a real browser.
+- Default document export triggers a browser download.
+
+These tests are intentionally few and high-signal. They protect WebGL, browser
+input events, and preview/export integration without turning the suite into a
+large brittle E2E project.
+
 ### Adding a fixture
 
 ```ts
@@ -102,9 +120,9 @@ only when a fixture needs them.
 
 | Concern | Reason | Manual approach |
 | --- | --- | --- |
-| PixiJS GPU shaders | WebGL is unavailable in Node | Smoke test: render completes + non-empty pixels |
-| Three.js 3D rendering | Same | Smoke test: render completes + dimensions |
-| Interaction gestures | Requires browser + input events | Manual pass per Phase 1 checklist |
+| Detailed PixiJS shader visual output | Needs stable GPU visual snapshots | Browser smoke test + manual visual pass |
+| Detailed Three.js primitive visual output | Needs stable GPU visual snapshots | Browser smoke test + manual visual pass |
+| Complex drag/connect gestures | Browser event timing can be brittle | Add targeted Playwright regressions for known bugs |
 | Preset thumbnails in the UI | Visual | Load presets page and eyeball |
 
 ---
@@ -119,10 +137,9 @@ signal with less maintenance cost than component snapshots.
 
 ## CI
 
-CI skips `npm run favicon` (requires Puppeteer/WebGL) and calls
-`npm run build:ci`, which runs `react-router build` directly.
-`public/favicon.png` is ignored as a generated local file until a deliberate
-static favicon replacement is committed.
+CI can keep browser tests as an optional job if Chromium/WebGL is available.
+Keep the default fast quality gate on Vitest/typecheck/build; run
+`npm run test:browser` in environments that have installed Playwright Chromium.
 
 ```yaml
 # Effective CI sequence
@@ -132,6 +149,7 @@ npm run lint
 npm run typecheck
 npm run build:ci
 npm test
+npm run test:browser # optional browser/WebGL job
 ```
 
 ---

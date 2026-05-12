@@ -185,6 +185,8 @@ npm run format:check
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # vitest run (all tests)
+npm run test:browser:install # install Playwright Chromium once
+npm run test:browser # focused browser/WebGL smoke tests
 npm run check      # format check + lint + typecheck + tests
 ```
 

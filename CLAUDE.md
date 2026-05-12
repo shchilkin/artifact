@@ -125,6 +125,8 @@ npm run build      # production build
 npm run favicon    # optional local bitmap favicon generation
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
+npm test           # Vitest unit/integration tests
+npm run test:browser # focused Playwright browser/WebGL smoke tests
 ```
 
 ---

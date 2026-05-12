@@ -45,6 +45,8 @@ Prefer `Vitest` and the lowest layer that proves the behavior.
 - `app/utils/nodeGraph.ts`
 - `app/components/node-canvas/machine.ts`
 - `app/components/node-canvas/helpers.ts`
+- `tests/browser/*` for browser-only regressions such as WebGL, export downloads,
+  and tab-switch rendering bugs
 
 Examples of high-value coverage:
 
@@ -85,6 +87,7 @@ npm run favicon
 npm run typecheck
 npm run lint
 npm run test
+npm run test:browser
 npm run build
 ```
 

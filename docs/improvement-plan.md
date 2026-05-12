@@ -7,6 +7,7 @@ phase should leave the repo in a better state even if later phases change.
 ## Current baseline
 
 - `npm run check` passes.
+- `npm run test:browser` is available for focused browser/WebGL smoke coverage.
 - `npm run build` passes with a committed static SVG favicon and a Vite
   chunk-size warning.
 - The node canvas already has focused hooks for selection, context menus,
@@ -29,7 +30,7 @@ the detailed source of truth.
 - [x] Add tests proving continuous gestures create one undo snapshot at the
   history helper layer.
 - [x] Extract layer/document commands into pure helpers with focused tests.
-- [ ] Replace remaining classic sidebar control duplication with shared
+- [x] Replace remaining classic sidebar control duplication with shared
   layer-control metadata.
 
 ### Rendering and parity
@@ -40,8 +41,10 @@ the detailed source of truth.
   export traversal.
 - [ ] Add render fixtures for primitive camera overrides once the Node test
   environment can cover that path reliably.
+- [x] Add browser smoke coverage for primitive camera controls and export.
 - [ ] Keep export, preview, thumbnails, gallery, and presets on the same public
   renderer entry points.
+- [x] Add focused browser smoke coverage before broader visual snapshots.
 - [ ] Define a GPU/WebGL tolerance strategy before adding visual snapshots.
 
 ### Node editor and UX hardening
@@ -111,12 +114,15 @@ lowest useful layer.
   serialization-safe round trips.
 - [x] Add thumbnail signature tests so render-relevant and UI-only changes are
   distinguished explicitly.
+- [x] Add focused Playwright browser smoke tests for layer/node tab switching,
+  primitive camera controls, and browser export.
 
 Exit criteria:
 
 - `docs/testing.md` describes current coverage and planned coverage separately.
 - Every new graph rule has a pure-helper test before UI wiring.
 - Render parity tests cover at least one stack path and one graph path.
+- Browser-only regressions have a small Playwright safety net.
 
 ## Phase 2: Pure Boundaries
 
@@ -171,8 +177,8 @@ Goal: split renderer internals without creating a second render truth.
 - [x] Move canvas helpers into `app/utils/render/canvas.ts`.
 - [x] Move graph traversal rendering into `app/utils/render/graph.ts`.
 - [x] Move layer renderers into `app/utils/render/layers/*`.
-- [ ] Keep `primitiveScene.ts` as the shared Three.js scene recipe.
-- [ ] Add or update render parity tests with every moved renderer slice.
+- [x] Keep `primitiveScene.ts` as the shared Three.js scene recipe.
+- [x] Add or update render parity tests with every moved renderer slice.
 
 Exit criteria:
 
@@ -192,7 +198,7 @@ Goal: prevent classic layer controls and node inspector controls from drifting.
   placement exclusions.
 - [x] Replace duplicated classic sidebar controls with shared control metadata
   and sidebar-specific framing.
-- [ ] Keep primitive camera controls node-local; durable primitive parameters
+- [x] Keep primitive camera controls node-local; durable primitive parameters
   stay in inspector/sidebar controls.
 
 Exit criteria:
@@ -208,7 +214,7 @@ Goal: keep the app responsive and make validation boring.
 - [x] Investigate Vite chunk warnings for renderer, NodeCanvas, Pixi, and Three.
 - [x] Build no longer depends on favicon generation; the generator remains
   available as an explicit manual script.
-- [ ] Keep thumbnail rendering queued and signature-based.
+- [x] Keep thumbnail rendering queued and signature-based.
 - [ ] Add dev logging for thumbnail invalidation reasons only where it helps
   diagnose real performance issues.
 

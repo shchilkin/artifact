@@ -5,6 +5,9 @@ import tsconfigPaths from 'vite-plugin-tsconfig-paths';
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   build: {
     // App chunks are kept below the default warning threshold. Three.js is
     // isolated as a vendor chunk and sits just over 500 kB minified.
@@ -44,6 +47,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['@xyflow/react'],
+    include: ['@xyflow/react', '@xstate/react'],
   },
 });

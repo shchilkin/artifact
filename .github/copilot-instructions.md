@@ -23,6 +23,7 @@ npm run favicon    # optional local bitmap favicon generation
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # vitest run (all tests)
+npm run test:browser # focused Playwright browser/WebGL smoke tests
 npx vitest run app/types/config.test.ts   # run a single test file
 ```
 
@@ -56,6 +57,9 @@ combined effects into focused preset layers.
 
 `app/utils/renderer.ts` is the public facade. Renderer implementation internals
 live under `app/utils/render/`.
+
+Use Playwright browser tests only for browser-only behavior: WebGL primitive
+controls, export downloads, tab switching, and input-event regressions.
 
 `renderDocument(doc, W, H, imageCache)` is **async** and returns a `Promise<HTMLCanvasElement>`:
 

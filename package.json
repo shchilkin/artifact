@@ -15,7 +15,10 @@
     "prepare": "husky",
     "preview": "vite preview --outDir build/client",
     "typecheck": "react-router typegen && tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
+    "test:browser:install": "playwright install chromium"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
@@ -35,6 +38,7 @@
     "@biomejs/biome": "^2.4.15",
     "@eslint/js": "^10.0.1",
     "@napi-rs/canvas": "^1.0.0",
+    "@playwright/test": "^1.60.0",
     "@react-router/dev": "^7.14.2",
     "@react-router/serve": "^7.14.2",
     "@tailwindcss/vite": "^4.2.4",

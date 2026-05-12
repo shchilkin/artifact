@@ -109,12 +109,16 @@ Target state transitions that cross file boundaries:
 
 When a change affects both graph state and visible preview behavior, test the state boundary first and the rendered result second.
 
-### 3. E2E tests: only if a browser suite is introduced
+### 3. Browser tests: Playwright smoke coverage
 
-This repo currently uses `Vitest`; no Playwright or Cypress suite is configured. Do not add a browser framework unless the task calls for it.
+This repo uses focused Playwright tests under `tests/browser/` for behavior that
+Node/Vitest cannot prove. Keep this suite small and regression-driven.
 
-If E2E coverage is added later, focus on:
+Focus on:
 
+- layer/node tab switching and nonblank preview regressions
+- primitive WebGL camera controls
+- export/download smoke coverage
 - connecting ports by drag interaction
 - pan/zoom and selection behavior on the node canvas
 - inserting merge/color nodes into existing edges
