@@ -27,6 +27,7 @@ the detailed source of truth.
 - [ ] Add document-sync tests for undo/redo, graph creation, document import,
   and serialization-safe round trips.
 - [ ] Add tests proving continuous gestures create one undo snapshot.
+- [x] Extract layer/document commands into pure helpers with focused tests.
 - [ ] Replace remaining classic sidebar control duplication with shared
   layer-control metadata.
 
@@ -141,7 +142,9 @@ Goal: make document updates deliberate and testable.
   document replacement path.
 - [x] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
-- [ ] Keep layer commands and graph commands small enough to test without
+- [ ] Keep remaining graph commands small enough to test without rendering
+  React.
+- [x] Keep layer commands small enough to test without
   rendering React.
 - [ ] Add tests proving continuous gestures create one undo snapshot.
 - [ ] Add tests proving graph edits survive undo/redo.

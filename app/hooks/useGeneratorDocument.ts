@@ -9,15 +9,28 @@ import {
   type GraphMergeNode,
   type Layer,
   type LayerKind,
-  makeEffectPresetLayer,
-  makeEmojiLayer,
-  makeFillLayer,
   makeGraphColorNode,
   makeGraphMergeNode,
-  makeImageLayer,
-  makeSourceLayer,
-  makeTextLayer,
 } from '../types/config';
+import {
+  addLayerToDocument,
+  bootstrapDocumentGraph,
+  createEffectPresetLayer,
+  createImageLayerFromSource,
+  createLayerOfKind,
+  deleteNodesFromDocument,
+  duplicateLayerInDocument,
+  ensureDocumentGraph,
+  removeLayerFromDocument,
+  reorderDocumentLayers,
+  setDocumentAspect,
+  setDocumentGraph,
+  setDocumentSeed,
+  updateColorNodeInDocument,
+  updateDocumentExportConfig,
+  updateLayerInDocument,
+  updateMergeNodeInDocument,
+} from '../utils/documentCommands';
 import {
   createPendingHistoryEntry,
   type DocumentUpdateMode,
@@ -34,48 +47,8 @@ import {
   removeDocParamFromUrl,
   saveDocumentToStorage,
 } from '../utils/documentPersistence';
-import {
-  addColorNode,
-  addGraphEdge,
-  addLayerToGraph,
-  addMergeNode,
-  inferLinearGraph,
-  nextDropPosition,
-  removeColorNode,
-  removeLayerFromGraph,
-  removeMergeNode,
-  splitEdgeWithNode,
-  updateColorNode as updateColorNodeInGraph,
-} from '../utils/nodeGraph';
+import { addColorNode, addGraphEdge, addLayerToGraph, addMergeNode, splitEdgeWithNode } from '../utils/nodeGraph';
 import { randomDocument } from '../utils/randomConfig';
-
-function ensureGraph(doc: CanvasDocument): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
-}
-
-function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
-  return kind === 'text'
-    ? makeTextLayer()
-    : kind === 'image'
-      ? makeImageLayer('')
-      : kind === 'fill'
-        ? makeFillLayer()
-        : kind === 'emoji'
-          ? makeEmojiLayer()
-          : makeSourceLayer(kind);
-}
-
-function cloneLayerForDuplicate(layer: Layer): Layer {
-  if (layer.kind === 'emoji') {
-    return {
-      ...layer,
-      emojis: [...layer.emojis],
-      id: `layer-${Date.now()}`,
-      name: `${layer.name} copy`,
-    };
-  }
-  return { ...layer, id: `layer-${Date.now()}`, name: `${layer.name} copy` };
-}
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
@@ -166,20 +139,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const setSeed = useCallback(
     (seed: number) => {
-      commitDocument({ ...docRef.current, global: { ...docRef.current.global, seed } }, 'snapshot');
+      commitDocument(setDocumentSeed(docRef.current, seed), 'snapshot');
     },
     [commitDocument],
   );
 
   const setAspect = useCallback(
     (aspect: AspectRatio) => {
-      updateDocument(
-        (current) => ({
-          ...current,
-          global: { ...current.global, aspect },
-        }),
-        'debounce',
-      );
+      updateDocument((current) => setDocumentAspect(current, aspect), 'debounce');
     },
     [updateDocument],
   );
@@ -220,22 +187,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   useEffect(() => {
     if (nodeModeEnabled && !docRef.current.graph) {
-      const current = docRef.current;
-      commitDocument({ ...current, graph: inferLinearGraph(current.layers) }, 'silent');
+      commitDocument(bootstrapDocumentGraph(docRef.current), 'silent');
     }
   }, [commitDocument, nodeModeEnabled]);
 
   const addLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
       const layer = createLayerOfKind(kind);
-      updateDocument((current) => {
-        if (!current.graph) return { ...current, layers: [...current.layers, layer] };
-        return {
-          ...current,
-          layers: [...current.layers, layer],
-          graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
-        };
-      }, 'snapshot');
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -243,15 +202,8 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const addEffectPreset = useCallback(
     (preset: EffectPreset) => {
-      const layer = makeEffectPresetLayer(preset);
-      updateDocument((current) => {
-        if (!current.graph) return { ...current, layers: [...current.layers, layer] };
-        return {
-          ...current,
-          layers: [...current.layers, layer],
-          graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
-        };
-      }, 'snapshot');
+      const layer = createEffectPresetLayer(preset);
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -259,8 +211,8 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const addImageFromSource = useCallback(
     (src: string) => {
-      const layer = makeImageLayer(src);
-      updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }), 'snapshot');
+      const layer = createImageLayerFromSource(src);
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -268,14 +220,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const removeLayer = useCallback(
     (id: string) => {
-      updateDocument(
-        (current) => ({
-          ...current,
-          layers: current.layers.filter((layer) => layer.id !== id),
-          graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
-        }),
-        'snapshot',
-      );
+      updateDocument((current) => removeLayerFromDocument(current, id), 'snapshot');
       if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
     },
     [updateDocument],
@@ -285,22 +230,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     (ids: string[]) => {
       if (ids.length === 0) return;
       const idSet = new Set(ids);
-      updateDocument((current) => {
-        const nextLayers = current.layers.filter((layer) => !idSet.has(layer.id));
-        let nextGraph = current.graph;
-        if (nextGraph) {
-          for (const mergeNode of nextGraph.mergeNodes) {
-            if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
-          }
-          for (const colorNode of nextGraph?.colorNodes ?? []) {
-            if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
-          }
-          for (const id of ids) {
-            if (current.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
-          }
-        }
-        return { ...current, layers: nextLayers, graph: nextGraph };
-      }, 'snapshot');
+      updateDocument((current) => deleteNodesFromDocument(current, ids), 'snapshot');
       if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
     },
     [updateDocument],
@@ -308,70 +238,40 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const updateLayer = useCallback(
     (id: string, patch: Partial<Layer>) => {
-      updateDocument(
-        (current) => ({
-          ...current,
-          layers: current.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
-        }),
-        'debounce',
-      );
+      updateDocument((current) => updateLayerInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateMergeNode = useCallback(
     (id: string, patch: Partial<GraphMergeNode>) => {
-      updateDocument((current) => {
-        if (!current.graph) return current;
-        return {
-          ...current,
-          graph: {
-            ...current.graph,
-            mergeNodes: current.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
-          },
-        };
-      }, 'debounce');
+      updateDocument((current) => updateMergeNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateColorNode = useCallback(
     (id: string, patch: Partial<GraphColorNode>) => {
-      updateDocument((current) => {
-        if (!current.graph) return current;
-        return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
-      }, 'debounce');
+      updateDocument((current) => updateColorNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const reorderLayers = useCallback(
     (layers: Layer[]) => {
-      updateDocument((current) => ({ ...current, layers }), 'snapshot');
+      updateDocument((current) => reorderDocumentLayers(current, layers), 'snapshot');
     },
     [updateDocument],
   );
 
   const duplicateLayer = useCallback(
     (id: string) => {
-      const current = docRef.current;
-      const layer = current.layers.find((item) => item.id === id);
-      if (!layer) return;
-      const duplicate = cloneLayerForDuplicate(layer);
-      updateDocument((innerCurrent) => {
-        const index = innerCurrent.layers.findIndex((item) => item.id === id);
-        const nextLayers = [...innerCurrent.layers];
-        nextLayers.splice(index + 1, 0, duplicate);
-        if (!innerCurrent.graph) return { ...innerCurrent, layers: nextLayers };
-        return {
-          ...innerCurrent,
-          layers: nextLayers,
-          graph: addLayerToGraph(innerCurrent.graph, duplicate.id, nextDropPosition(innerCurrent.graph)),
-        };
-      }, 'snapshot');
-      setSelectedLayerId(duplicate.id);
+      const result = duplicateLayerInDocument(docRef.current, id);
+      if (!result.layer) return;
+      commitDocument(result.doc, 'snapshot');
+      setSelectedLayerId(result.layer.id);
     },
-    [updateDocument],
+    [commitDocument],
   );
 
   const handleAddLayerAt = useCallback(
@@ -379,7 +279,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       if (action.kind === 'merge') {
         const node = makeGraphMergeNode();
         updateDocument((current) => {
-          let graph = addMergeNode(ensureGraph(current), node, position);
+          let graph = addMergeNode(ensureDocumentGraph(current), node, position);
           if (insertion?.replaceEdgeId) {
             graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'a');
           } else if (insertion?.sourceId) {
@@ -408,7 +308,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       if (action.kind === 'color') {
         const node = makeGraphColorNode();
         updateDocument((current) => {
-          let graph = addColorNode(ensureGraph(current), node, position);
+          let graph = addColorNode(ensureDocumentGraph(current), node, position);
           if (insertion?.replaceEdgeId) {
             graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'in');
           } else if (insertion?.sourceId) {
@@ -435,10 +335,10 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       }
 
       const layer =
-        action.kind === 'effect' ? makeEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+        action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
 
       updateDocument((current) => {
-        let graph = addLayerToGraph(ensureGraph(current), layer.id, position);
+        let graph = addLayerToGraph(ensureDocumentGraph(current), layer.id, position);
         if (insertion?.replaceEdgeId) {
           graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, layer.id, action.kind === 'effect' ? 'in' : 'bg');
         } else if (insertion?.sourceId) {
@@ -477,20 +377,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const handleGraphChange = useCallback(
     (graph: CanvasGraph) => {
-      updateDocument((current) => ({ ...current, graph }), 'debounce');
+      updateDocument((current) => setDocumentGraph(current, graph), 'debounce');
     },
     [updateDocument],
   );
 
   const handleExportConfigChange = useCallback(
     (patch: Partial<CanvasDocument['export']>) => {
-      updateDocument(
-        (current) => ({
-          ...current,
-          export: { ...current.export, ...patch },
-        }),
-        'debounce',
-      );
+      updateDocument((current) => updateDocumentExportConfig(current, patch), 'debounce');
     },
     [updateDocument],
   );
