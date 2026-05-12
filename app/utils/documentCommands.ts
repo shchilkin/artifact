@@ -4,25 +4,52 @@ import {
   type CanvasGraph,
   type EffectPreset,
   type GraphColorNode,
+  type GraphEdge,
   type GraphMergeNode,
   type Layer,
   type LayerKind,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
+  makeGraphColorNode,
+  makeGraphMergeNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 import {
+  addColorNode,
+  addGraphEdge,
   addLayerToGraph,
+  addMergeNode,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeLayerFromGraph,
   removeMergeNode,
+  splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
 } from './nodeGraph';
+
+export type DocumentAddAction =
+  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'effect'; preset: EffectPreset }
+  | { kind: 'merge' }
+  | { kind: 'color' };
+
+export interface DocumentInsertConnectionConfig {
+  sourceId: string;
+  targetId?: string;
+  targetPort?: GraphEdge['toPort'];
+  replaceEdgeId?: string;
+}
+
+export interface AddNodeAtDocumentResult {
+  doc: CanvasDocument;
+  selectedLayerId: string | null;
+}
+
+type CreateGraphEdgeId = (fromId: string, toId: string, index: number) => string;
 
 export function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
   return doc.graph ?? inferLinearGraph(doc.layers);
@@ -58,6 +85,95 @@ export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDoc
     ...doc,
     layers: [...doc.layers, layer],
     graph: addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)),
+  };
+}
+
+function defaultCreateGraphEdgeId(fromId: string, toId: string, index: number): string {
+  return `e-${fromId}-${toId}-${Date.now() + index}`;
+}
+
+function connectInsertedNode(
+  graph: CanvasGraph,
+  insertedNodeId: string,
+  insertedInputPort: GraphEdge['toPort'],
+  insertion?: DocumentInsertConnectionConfig,
+  createEdgeId: CreateGraphEdgeId = defaultCreateGraphEdgeId,
+): CanvasGraph {
+  if (insertion?.replaceEdgeId) {
+    return splitEdgeWithNode(graph, insertion.replaceEdgeId, insertedNodeId, insertedInputPort);
+  }
+
+  let next = graph;
+  if (insertion?.sourceId) {
+    next = addGraphEdge(next, {
+      id: createEdgeId(insertion.sourceId, insertedNodeId, 0),
+      fromId: insertion.sourceId,
+      fromPort: 'out',
+      toId: insertedNodeId,
+      toPort: insertedInputPort,
+    });
+  }
+
+  if (insertion?.targetId) {
+    next = addGraphEdge(next, {
+      id: createEdgeId(insertedNodeId, insertion.targetId, 1),
+      fromId: insertedNodeId,
+      fromPort: 'out',
+      toId: insertion.targetId,
+      toPort: insertion.targetPort ?? 'in',
+    });
+  }
+
+  return next;
+}
+
+export function addNodeAtDocument(
+  doc: CanvasDocument,
+  action: DocumentAddAction,
+  position: { x: number; y: number },
+  insertion?: DocumentInsertConnectionConfig,
+  createEdgeId?: CreateGraphEdgeId,
+): AddNodeAtDocumentResult {
+  if (action.kind === 'merge') {
+    const node = makeGraphMergeNode();
+    const graph = connectInsertedNode(
+      addMergeNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'a',
+      insertion,
+      createEdgeId,
+    );
+    return { doc: { ...doc, graph }, selectedLayerId: null };
+  }
+
+  if (action.kind === 'color') {
+    const node = makeGraphColorNode();
+    const graph = connectInsertedNode(
+      addColorNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+    return { doc: { ...doc, graph }, selectedLayerId: null };
+  }
+
+  const layer = action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+  const graph = connectInsertedNode(
+    addLayerToGraph(ensureDocumentGraph(doc), layer.id, position),
+    layer.id,
+    action.kind === 'effect' ? 'in' : 'bg',
+    insertion,
+    createEdgeId,
+  );
+
+  return {
+    doc: {
+      ...doc,
+      layers: [...doc.layers, layer],
+      graph,
+    },
+    selectedLayerId: layer.id,
   };
 }
 

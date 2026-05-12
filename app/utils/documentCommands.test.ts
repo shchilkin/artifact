@@ -10,6 +10,7 @@ import {
 } from '../types/config';
 import {
   addLayerToDocument,
+  addNodeAtDocument,
   bootstrapDocumentGraph,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
@@ -75,6 +76,143 @@ describe('documentCommands', () => {
     expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'text-b']);
     expect(next.graph?.positions).toHaveProperty('text-b');
     expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
+  });
+
+  it('inserts a merge node with source and target edges', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'merge' },
+      { x: 320, y: 180 },
+      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const mergeNode = result.doc.graph?.mergeNodes.find((node) => node.id !== 'merge-a');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(mergeNode).toBeDefined();
+    expect(result.doc.graph?.positions[mergeNode!.id]).toEqual({ x: 320, y: 180 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${mergeNode!.id}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: mergeNode!.id,
+      toPort: 'a',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-1-${mergeNode!.id}-${EXPORT_NODE_ID}`,
+      fromId: mergeNode!.id,
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+    expect(doc.graph?.mergeNodes).toHaveLength(1);
+  });
+
+  it('inserts a color node with source and target edges', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'color' },
+      { x: 360, y: 220 },
+      { sourceId: 'fill-a', targetId: 'text-a', targetPort: 'bg' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const colorNode = result.doc.graph?.colorNodes.find((node) => node.id !== 'color-a');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(colorNode).toBeDefined();
+    expect(result.doc.graph?.positions[colorNode!.id]).toEqual({ x: 360, y: 220 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${colorNode!.id}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: colorNode!.id,
+      toPort: 'in',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-1-${colorNode!.id}-text-a`,
+      fromId: colorNode!.id,
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
+    });
+  });
+
+  it('inserts layer and effect nodes with the correct input ports', () => {
+    const doc = makeDoc(makeGraph());
+    const layerResult = addNodeAtDocument(
+      doc,
+      { kind: 'layer', layerKind: 'fill' },
+      { x: 400, y: 260 },
+      { sourceId: 'fill-a' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const layerId = layerResult.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(layerResult.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'fill' });
+    expect(layerResult.doc.graph?.positions[layerId!]).toEqual({ x: 400, y: 260 });
+    expect(layerResult.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${layerId}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: layerId,
+      toPort: 'bg',
+    });
+
+    const effectResult = addNodeAtDocument(
+      doc,
+      { kind: 'effect', preset: 'grain' },
+      { x: 440, y: 300 },
+      { sourceId: 'fill-a' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const effectId = effectResult.selectedLayerId;
+
+    expect(effectId).toBeTruthy();
+    expect(effectResult.doc.layers.at(-1)).toMatchObject({ id: effectId, kind: 'effect', preset: 'grain' });
+    expect(effectResult.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${effectId}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: effectId,
+      toPort: 'in',
+    });
+  });
+
+  it('splits replaceEdgeId insertions without adding a separate target edge', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'color' },
+      { x: 500, y: 340 },
+      {
+        sourceId: 'fill-a',
+        targetId: EXPORT_NODE_ID,
+        replaceEdgeId: 'e-fill-text',
+      },
+    );
+    const colorNode = result.doc.graph?.colorNodes.find((node) => node.id !== 'color-a');
+
+    expect(result.doc.graph?.edges.some((edge) => edge.id === 'e-fill-text')).toBe(false);
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: 'e-fill-text__before',
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: colorNode!.id,
+      toPort: 'in',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: 'e-fill-text__after',
+      fromId: colorNode!.id,
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
+    });
+    expect(result.doc.graph?.edges.some((edge) => edge.fromId === colorNode!.id && edge.toId === EXPORT_NODE_ID)).toBe(
+      false,
+    );
   });
 
   it('removes a layer and graph references to it', () => {

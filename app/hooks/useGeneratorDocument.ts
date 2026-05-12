@@ -9,18 +9,16 @@ import {
   type GraphMergeNode,
   type Layer,
   type LayerKind,
-  makeGraphColorNode,
-  makeGraphMergeNode,
 } from '../types/config';
 import {
   addLayerToDocument,
+  addNodeAtDocument,
   bootstrapDocumentGraph,
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
-  ensureDocumentGraph,
   removeLayerFromDocument,
   reorderDocumentLayers,
   setDocumentAspect,
@@ -47,7 +45,6 @@ import {
   removeDocParamFromUrl,
   saveDocumentToStorage,
 } from '../utils/documentPersistence';
-import { addColorNode, addGraphEdge, addLayerToGraph, addMergeNode, splitEdgeWithNode } from '../utils/nodeGraph';
 import { randomDocument } from '../utils/randomConfig';
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
@@ -276,96 +273,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const handleAddLayerAt = useCallback(
     (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
-      if (action.kind === 'merge') {
-        const node = makeGraphMergeNode();
-        updateDocument((current) => {
-          let graph = addMergeNode(ensureDocumentGraph(current), node, position);
-          if (insertion?.replaceEdgeId) {
-            graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'a');
-          } else if (insertion?.sourceId) {
-            graph = addGraphEdge(graph, {
-              id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
-              fromId: insertion.sourceId,
-              fromPort: 'out',
-              toId: node.id,
-              toPort: 'a',
-            });
-          }
-          if (!insertion?.replaceEdgeId && insertion?.targetId) {
-            graph = addGraphEdge(graph, {
-              id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
-              fromId: node.id,
-              fromPort: 'out',
-              toId: insertion.targetId,
-              toPort: insertion.targetPort ?? 'in',
-            });
-          }
-          return { ...current, graph };
-        }, 'snapshot');
-        return;
-      }
-
-      if (action.kind === 'color') {
-        const node = makeGraphColorNode();
-        updateDocument((current) => {
-          let graph = addColorNode(ensureDocumentGraph(current), node, position);
-          if (insertion?.replaceEdgeId) {
-            graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, node.id, 'in');
-          } else if (insertion?.sourceId) {
-            graph = addGraphEdge(graph, {
-              id: `e-${insertion.sourceId}-${node.id}-${Date.now()}`,
-              fromId: insertion.sourceId,
-              fromPort: 'out',
-              toId: node.id,
-              toPort: 'in',
-            });
-          }
-          if (!insertion?.replaceEdgeId && insertion?.targetId) {
-            graph = addGraphEdge(graph, {
-              id: `e-${node.id}-${insertion.targetId}-${Date.now() + 1}`,
-              fromId: node.id,
-              fromPort: 'out',
-              toId: insertion.targetId,
-              toPort: insertion.targetPort ?? 'in',
-            });
-          }
-          return { ...current, graph };
-        }, 'snapshot');
-        return;
-      }
-
-      const layer =
-        action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
-
+      let selectedLayerId: string | null = null;
       updateDocument((current) => {
-        let graph = addLayerToGraph(ensureDocumentGraph(current), layer.id, position);
-        if (insertion?.replaceEdgeId) {
-          graph = splitEdgeWithNode(graph, insertion.replaceEdgeId, layer.id, action.kind === 'effect' ? 'in' : 'bg');
-        } else if (insertion?.sourceId) {
-          graph = addGraphEdge(graph, {
-            id: `e-${insertion.sourceId}-${layer.id}-${Date.now()}`,
-            fromId: insertion.sourceId,
-            fromPort: 'out',
-            toId: layer.id,
-            toPort: action.kind === 'effect' ? 'in' : 'bg',
-          });
-        }
-        if (!insertion?.replaceEdgeId && insertion?.targetId) {
-          graph = addGraphEdge(graph, {
-            id: `e-${layer.id}-${insertion.targetId}-${Date.now() + 1}`,
-            fromId: layer.id,
-            fromPort: 'out',
-            toId: insertion.targetId,
-            toPort: insertion.targetPort ?? 'in',
-          });
-        }
-        return {
-          ...current,
-          layers: [...current.layers, layer],
-          graph,
-        };
+        const result = addNodeAtDocument(current, action, position, insertion);
+        selectedLayerId = result.selectedLayerId;
+        return result.doc;
       }, 'snapshot');
-      setSelectedLayerId(layer.id);
+      if (selectedLayerId) setSelectedLayerId(selectedLayerId);
     },
     [updateDocument],
   );
