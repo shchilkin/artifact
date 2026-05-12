@@ -3,15 +3,18 @@
  *
  * Rules:
  * - No randomized fields — all seeds, positions, colors, and sizes are fixed.
- * - No image layers — image data URLs are not portable in test snapshots.
- * - No primitive/noise/array source layers — WebGL is not available in the
- *   Node.js test environment. Smoke-test those separately.
+ * - Image fixtures use a generated in-memory canvas cache, not external files.
+ * - Procedural source fixtures stay on deterministic Canvas 2D paths.
+ * - Primitive source fixtures use draft fallback in tests because WebGL is not
+ *   available in the Node.js test environment.
  * - No effect layers — GPU pass is skipped in parity tests; effect fixtures
  *   live in a separate smoke-test file.
  */
 
 import type { CanvasDocument } from '../../types/config';
-import { makeEmojiLayer, makeFillLayer, makeTextLayer } from '../../types/config';
+import { makeEmojiLayer, makeFillLayer, makeImageLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
+
+export const TEST_IMAGE_SRC = 'test-cache://free-fit-source';
 
 /** Solid fill with a fixed background colour. Used to verify baseline coverage. */
 export const fillOnly: CanvasDocument = {
@@ -65,3 +68,84 @@ export const emojiSeeded: CanvasDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+
+/** Free-fit image with transparent background — exercises image transform sizing. */
+export const imageFreeFit: CanvasDocument = {
+  global: { bg: 'transparent', seed: 7, aspect: '1:1' },
+  layers: [
+    makeImageLayer(TEST_IMAGE_SRC, {
+      id: 'image-free-fit-1',
+      fit: 'free',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    }),
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+
+/** Procedural noise over transparency — stable Canvas 2D source path. */
+export const proceduralNoise: CanvasDocument = {
+  global: { bg: 'transparent', seed: 11, aspect: '1:1' },
+  layers: [
+    makeSourceLayer('noise', {
+      id: 'noise-source-1',
+      color: '#112244',
+      accentColor: '#f2d16b',
+      noiseType: 'value',
+      noiseScale: 32,
+      noiseDetail: 3,
+      noiseContrast: 58,
+      noiseBalance: 38,
+      opacity: 100,
+      blendMode: 'normal',
+    }),
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+
+/** Procedural array over transparency — deterministic geometry source path. */
+export const proceduralArray: CanvasDocument = {
+  global: { bg: 'transparent', seed: 13, aspect: '1:1' },
+  layers: [
+    makeSourceLayer('array', {
+      id: 'array-source-1',
+      color: '#23b5d3',
+      accentColor: '#f72585',
+      arrayPattern: 'grid',
+      arrayShape: 'diamond',
+      arrayCount: 5,
+      arrayRows: 4,
+      arrayGap: 72,
+      arraySize: 24,
+      arrayJitter: 0,
+      opacity: 100,
+      blendMode: 'normal',
+    }),
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+
+export function createTestImageCache(): Map<string, HTMLImageElement> {
+  const image = document.createElement('canvas');
+  image.width = 80;
+  image.height = 40;
+
+  const ctx = image.getContext('2d');
+  if (!ctx) throw new Error('getContext returned null');
+  ctx.fillStyle = '#24c8ff';
+  ctx.fillRect(0, 0, image.width, image.height);
+  ctx.fillStyle = '#f72585';
+  ctx.fillRect(0, 0, 20, image.height);
+
+  Object.defineProperties(image, {
+    naturalWidth: { value: image.width },
+    naturalHeight: { value: image.height },
+  });
+
+  return new Map([[TEST_IMAGE_SRC, image as unknown as HTMLImageElement]]);
+}

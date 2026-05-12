@@ -20,7 +20,15 @@
 import { describe, expect, it } from 'vitest';
 import { type CanvasDocument, makeEffectPresetLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
-import { emojiSeeded, fillOnly, textOverFill } from './fixtures';
+import {
+  createTestImageCache,
+  emojiSeeded,
+  fillOnly,
+  imageFreeFit,
+  proceduralArray,
+  proceduralNoise,
+  textOverFill,
+} from './fixtures';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,6 +80,15 @@ function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number
     width: Math.max(0, maxX - minX + 1),
     height: Math.max(0, maxY - minY + 1),
   };
+}
+
+function visiblePixelCount(canvas: HTMLCanvasElement): number {
+  const pixels = allPixels(canvas);
+  let count = 0;
+  for (let i = 3; i < pixels.length; i += 4) {
+    if ((pixels[i] ?? 0) > 8) count += 1;
+  }
+  return count;
 }
 
 /**
@@ -223,6 +240,52 @@ describe('renderDocument — preview/export size parity', () => {
       graphMode: 'auto',
     });
     expect(pixelsEqual(allPixels(stack), allPixels(auto))).toBe(true);
+  });
+
+  it('image free-fit sources scale proportionally at export sizes', async () => {
+    const preview = await renderDocument(imageFreeFit, 540, 540, createTestImageCache(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const exported = await renderDocument(imageFreeFit, 1080, 1080, createTestImageCache(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    const previewBounds = alphaBounds(preview);
+    const exportedBounds = alphaBounds(exported);
+
+    expect(previewBounds).toEqual({ width: 80, height: 40 });
+    expect(exportedBounds).toEqual({ width: 160, height: 80 });
+    expect(samplePixel(preview, 270, 270)).toEqual([36, 200, 255, 255]);
+    expect(samplePixel(exported, 540, 540)).toEqual([36, 200, 255, 255]);
+  });
+
+  it('procedural noise is deterministic and fills the same relative frame', async () => {
+    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const previewA = await renderDocument(proceduralNoise, 108, 108, new Map(), opts);
+    const previewB = await renderDocument(proceduralNoise, 108, 108, new Map(), opts);
+    const exported = await renderDocument(proceduralNoise, 216, 216, new Map(), opts);
+
+    expect(pixelsEqual(allPixels(previewA), allPixels(previewB))).toBe(true);
+    expect(visiblePixelCount(previewA)).toBeGreaterThan(108 * 108 * 0.3);
+    expect(alphaBounds(exported).width).toBeCloseTo(alphaBounds(previewA).width * 2, 0);
+    expect(alphaBounds(exported).height).toBeCloseTo(alphaBounds(previewA).height * 2, 0);
+  });
+
+  it('procedural arrays are deterministic and scale proportionally at export sizes', async () => {
+    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const previewA = await renderDocument(proceduralArray, 540, 540, new Map(), opts);
+    const previewB = await renderDocument(proceduralArray, 540, 540, new Map(), opts);
+    const exported = await renderDocument(proceduralArray, 1080, 1080, new Map(), opts);
+
+    const previewBounds = alphaBounds(previewA);
+    const exportedBounds = alphaBounds(exported);
+
+    expect(pixelsEqual(allPixels(previewA), allPixels(previewB))).toBe(true);
+    expect(visiblePixelCount(previewA)).toBeGreaterThan(1000);
+    expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
+    expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
   });
 
   it('primitive full-frame sources scale proportionally at export sizes', async () => {

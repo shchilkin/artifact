@@ -16,6 +16,20 @@ function centerPixel(canvas: HTMLCanvasElement) {
   return samplePixel(canvas, Math.floor(canvas.width / 2), Math.floor(canvas.height / 2));
 }
 
+function allPixels(canvas: HTMLCanvasElement): Uint8ClampedArray {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('getContext returned null');
+  return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+}
+
+function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 function graphDocument(graph: CanvasGraph): CanvasDocument {
   return {
     global: { bg: '#000000', seed: 1, aspect: '1:1' },
@@ -55,6 +69,29 @@ describe('renderDocument graph mode', () => {
     expect(stackB).toBeGreaterThan(240);
     expect(stackR).toBeLessThan(10);
     expect(stackG).toBeLessThan(10);
+  });
+
+  it('matches renderGraphTarget for the export node on a deterministic graph', async () => {
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-red-merge', fromId: 'red-fill', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
+        { id: 'e-blue-merge', fromId: 'blue-fill', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
+        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 }],
+      colorNodes: [],
+    };
+    const doc = graphDocument(graph);
+    const options = { skipEffects: true as const };
+
+    const documentCanvas = await renderDocument(doc, 40, 40, new Map(), {
+      ...options,
+      graphMode: 'graph',
+    });
+    const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), options);
+
+    expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
   });
 });
 

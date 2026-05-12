@@ -38,6 +38,8 @@ in the Node test environment.
 - Fill-only document
 - Text over fill
 - Emoji layer with deterministic seed
+- Image free-fit with an in-memory test image cache
+- Noise and array procedural source layers
 - Stack mode compared with an inferred linear graph for a simple document
 - Export-size smoke tests for deterministic stack documents
 
@@ -57,12 +59,11 @@ Verify graph traversal and graph-only nodes through the canonical renderer.
 
 **Current fixtures covered:**
 - Export node traversal uses graph topology instead of layer-stack order
+- `renderDocument` graph mode matches `renderGraphTarget` for an export node
 - Merge node composition with opacity
 - Color node adjustment on an upstream branch
 
 **Planned fixtures:**
-- Image free-fit over fill with a test image cache
-- Noise and array source layers
 - Multiple effect layers with GPU effects skipped or mocked
 - Primitive smoke tests where a WebGL-capable test environment is available
 
