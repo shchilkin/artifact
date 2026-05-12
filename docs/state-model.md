@@ -30,6 +30,8 @@ Current owner:
 - `app/hooks/useGeneratorDocument.ts`
 - `app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
+- `app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
+  import/export mechanics
 
 Includes:
 
@@ -42,6 +44,7 @@ Rules:
 
 - Use layer factory functions when creating layers.
 - Update documents immutably.
+- Import external document JSON through normalization before committing it.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

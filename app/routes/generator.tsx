@@ -8,6 +8,7 @@ import { PresetsPanel } from '../components/PresetsPanel';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
+import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
 import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
 import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
@@ -118,6 +119,8 @@ export default function Generator() {
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
   const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
+  const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
+    useDocumentFileTransfer(docRef, loadDocument);
   const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
     useGeneratorPresetsController({
       docRef,
@@ -134,6 +137,8 @@ export default function Generator() {
     undoCount,
     onPresetsToggle: togglePresets,
     onCopyLink: handleCopyLink,
+    onOpenDocument: handleOpenDocumentPicker,
+    onSaveDocument: handleSaveDocument,
     onExport: handleNodeExport,
     exportBusy,
   };
@@ -141,6 +146,17 @@ export default function Generator() {
   return (
     <div className={`generator-layout generator-layout-${viewMode} flex flex-col w-full h-full`}>
       <SiteNav solid compact={viewMode === 'nodes'} />
+      <input
+        ref={fileInputRef}
+        className="sr-only"
+        type="file"
+        accept=".artifact.json,application/json"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          void handleOpenDocument(file);
+          event.currentTarget.value = '';
+        }}
+      />
       {fromDocParam && !docsBannerDismissed && (
         <div
           style={{
@@ -199,7 +215,10 @@ export default function Generator() {
             event.preventDefault();
             setCanvasDragOver(false);
             const file = event.dataTransfer.files[0];
-            if (file) void handleDroppedFile(file);
+            if (file) {
+              if (isArtifactDocumentFile(file)) void handleOpenDocument(file);
+              else void handleDroppedFile(file);
+            }
           }}
         >
           <h1 className="sr-only">Album Cover Generator</h1>
@@ -246,9 +265,9 @@ export default function Generator() {
             </div>
           )}
 
-          {(dropError || exportError) && (
+          {(dropError || exportError || documentFileError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
-              {dropError ?? exportError}
+              {dropError ?? exportError ?? documentFileError}
             </p>
           )}
           <BottomBar {...bottomBarProps} />

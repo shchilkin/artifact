@@ -160,6 +160,7 @@ covers (
   are stacked independently, each with its own controls
 - Aspect ratio: 1:1 / 4:5 / 9:16 / 16:9 selector
 - Export at ×1 / ×2 / ×3 as JPEG or PNG
+- Save/open full editable documents as `.artifact.json`
 - **Environment map export** — 4096×2048 equirectangular PNG (Blender-ready)
 - Preset system: save/load/delete, GPU-accurate thumbnails, localStorage (max 20)
 - 8 built-in curated presets (acid-rain, film-ghost, glitch-tape,

@@ -14,6 +14,8 @@ import {
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export const DOC_KEY = 'doc';
+export const ARTIFACT_FILE_EXTENSION = '.artifact.json';
+export const ARTIFACT_FILE_MIME = 'application/json';
 
 export interface InitialDocumentSources {
   search?: string;
@@ -85,6 +87,20 @@ function parseDocumentJson(value: string | null | undefined): CanvasDocument | n
 
 export function serializeDocument(doc: CanvasDocument) {
   return JSON.stringify(doc);
+}
+
+export function serializeArtifactDocument(doc: CanvasDocument) {
+  return `${JSON.stringify(doc, null, 2)}\n`;
+}
+
+export function parseArtifactDocument(value: string | null | undefined): CanvasDocument | null {
+  return parseDocumentJson(value);
+}
+
+export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
+  const seed = Number.isFinite(doc.global.seed) ? doc.global.seed : 'untitled';
+  const stamp = date.toISOString().slice(0, 10);
+  return `artifact-${seed}-${stamp}${ARTIFACT_FILE_EXTENSION}`;
 }
 
 export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {

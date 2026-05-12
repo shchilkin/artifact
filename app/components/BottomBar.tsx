@@ -10,6 +10,8 @@ interface Props {
   undoCount: number;
   onPresetsToggle: () => void;
   onCopyLink: () => void;
+  onOpenDocument: () => void;
+  onSaveDocument: () => void;
   onExport: () => void;
   exportBusy: boolean;
 }
@@ -22,6 +24,8 @@ export function BottomBar({
   canRedo,
   undoCount,
   onCopyLink,
+  onOpenDocument,
+  onSaveDocument,
   onPresetsToggle,
   onExport,
   exportBusy,
@@ -50,6 +54,12 @@ export function BottomBar({
       </div>
 
       <div className="bottom-link-group">
+        <button className="btn" onClick={onOpenDocument} aria-label="Open document file" title="Open .artifact.json">
+          OPEN
+        </button>
+        <button className="btn" onClick={onSaveDocument} aria-label="Save document file" title="Save .artifact.json">
+          SAVE
+        </button>
         <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span

@@ -88,6 +88,8 @@ Goal: make document updates deliberate and testable.
 - [x] Extract document normalization and initial-load helpers.
 - [x] Extract remaining document persistence helpers for localStorage save, URL
   import cleanup, and share-link creation.
+- [x] Add `.artifact.json` document import/export through the same normalized
+  document replacement path.
 - [ ] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
 - [ ] Keep layer commands and graph commands small enough to test without

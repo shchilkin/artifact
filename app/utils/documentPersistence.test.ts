@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { type CanvasDocument, DEFAULT_DOCUMENT, makeFillLayer, makeTextLayer } from '../types/config';
 import {
+  ARTIFACT_FILE_EXTENSION,
+  createArtifactFileName,
   createDocumentShareUrl,
   DOC_KEY,
   getInitialDocumentFromSources,
   normalizeDocument,
+  parseArtifactDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  serializeArtifactDocument,
 } from './documentPersistence';
 
 function encodeDoc(doc: unknown) {
@@ -204,5 +208,29 @@ describe('document serialization helpers', () => {
     const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&tab=node#preview');
 
     expect(url).toBe('https://example.test/app?tab=node#preview');
+  });
+
+  it('serializes artifact files as readable JSON that imports through normalization', () => {
+    const serialized = serializeArtifactDocument({
+      ...doc,
+      global: { ...doc.global, aspect: '4:5' },
+      graph: { edges: [], positions: {}, mergeNodes: [] } as CanvasDocument['graph'],
+    });
+    const parsed = parseArtifactDocument(serialized);
+
+    expect(serialized).toContain('\n  "global":');
+    expect(serialized.endsWith('\n')).toBe(true);
+    expect(parsed?.layers[0]?.id).toBe('share-text');
+    expect(parsed?.graph?.colorNodes).toEqual([]);
+  });
+
+  it('rejects invalid artifact document JSON without throwing', () => {
+    expect(parseArtifactDocument('{bad-json')).toBeNull();
+  });
+
+  it('creates deterministic artifact filenames from seed and date', () => {
+    const filename = createArtifactFileName(doc, new Date('2026-05-12T10:20:30.000Z'));
+
+    expect(filename).toBe(`artifact-30-2026-05-12${ARTIFACT_FILE_EXTENSION}`);
   });
 });
