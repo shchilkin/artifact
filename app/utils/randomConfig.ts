@@ -7,7 +7,14 @@ import type {
   GlobalConfig,
   TextLayer,
 } from '../types/config';
-import { ALL_EMOJIS, DEFAULT_EXPORT, EFFECT_PRESET_MENU_ORDER, makeEffectLayer, makeEffectPresetLayer, makeEmojiLayer } from '../types/config';
+import {
+  ALL_EMOJIS,
+  DEFAULT_EXPORT,
+  DOCUMENT_SCHEMA_VERSION,
+  EFFECT_PRESET_MENU_ORDER,
+  makeEffectPresetLayer,
+  makeEmojiLayer,
+} from '../types/config';
 
 function rand(min: number, max: number): number {
   return Math.round(min + Math.random() * (max - min));
@@ -20,7 +27,9 @@ function hslToHex(h: number, s: number, l: number): string {
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
     const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * c).toString(16).padStart(2, '0');
+    return Math.round(255 * c)
+      .toString(16)
+      .padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
@@ -57,66 +66,9 @@ export function randomEmojiLayer(): EmojiLayer {
 }
 
 export function randomEffectLayer(baseHue?: number): EffectLayer {
-  const h = baseHue ?? rand(0, 359);
-  const ah = (h + rand(120, 240)) % 360;
-  return makeEffectLayer({
-    grain: rand(0, 60),
-    scanlines: rand(0, 40),
-    glitch: rand(0, 18),
-    tint: randomHsl(rand(0, 359), [40, 80], [10, 28]),
-    tintOp: rand(0, 60),
-    rays: rand(4, 24),
-    rayInt: rand(20, 90),
-    rayColor: randomHsl(ah, [70, 100], [55, 80]),
-    morphAmt: spark() ? rand(10, 80) : 0,
-    morphFreq: rand(1, 15),
-    tearAmt: spark() ? rand(1, 15) : 0,
-    tearSize: rand(1, 12),
-    noiseWarp: spark() ? rand(10, 70) : 0,
-    vortex: spark() ? rand(5, 60) : 0,
-    barrel: spark() ? rand(5, 70) : 0,
-    mirror: spark() ? rand(1, 3) : 0,
-    dataMosh: spark() ? rand(10, 70) : 0,
-    interlace: spark() ? rand(10, 70) : 0,
-    pixelate: spark() ? rand(2, 15) : 0,
-    hueShift: spark() ? rand(10, 350) : 0,
-    rgbSplit: spark() ? rand(3, 25) : 0,
-    vignette: rand(0, 80),
-    bloom: spark() ? rand(15, 80) : 0,
-    posterize: spark() ? rand(3, 12) : 0,
-    filmBurn: spark() ? rand(20, 90) : 0,
-    duotone: Math.random() < 0.3 ? rand(40, 90) : 0,
-    duoA: randomHsl(h, [30, 60], [3, 12]),
-    duoB: randomHsl(ah, [60, 100], [55, 85]),
-    halftone: Math.random() < 0.3 ? rand(5, 20) : 0,
-    risoShift: Math.random() < 0.3 ? rand(5, 30) : 0,
-    risoAngle: rand(0, 360),
-    sepia: Math.random() < 0.15 ? rand(20, 80) : 0,
-    neonGlow: Math.random() < 0.2 ? rand(20, 70) : 0,
-    neonColor: randomHsl(ah, [80, 100], [50, 80]),
-    zoomBlur: Math.random() < 0.15 ? rand(10, 60) : 0,
-    vhsTracking: spark() ? rand(10, 60) : 0,
-    dither: Math.random() < 0.15 ? rand(20, 80) : 0,
-    infrared: Math.random() < 0.1 ? rand(30, 80) : 0,
-    ca: spark() ? rand(3, 20) : 0,
-    waveAmt: Math.random() < 0.2 ? rand(5, 40) : 0,
-    waveFreq: rand(1, 8),
-    matte: Math.random() < 0.25 ? rand(10, 60) : 0,
-    overprint: Math.random() < 0.15 ? rand(10, 60) : 0,
-    solarize: Math.random() < 0.1 ? rand(30, 80) : 0,
-    bleachBypass: Math.random() < 0.1 ? rand(20, 70) : 0,
-    cyanotype: Math.random() < 0.1 ? rand(20, 80) : 0,
-    splitToneAmt: Math.random() < 0.15 ? rand(20, 70) : 0,
-    rippleAmt: Math.random() < 0.15 ? rand(10, 60) : 0,
-    rippleFreq: rand(1, 8),
-    kaleidoscope: Math.random() < 0.1 ? rand(20, 80) : 0,
-    squeezeX: spark() ? rand(-60, 60) : 0,
-    squeezeY: spark() ? rand(-60, 60) : 0,
-    emboss: Math.random() < 0.15 ? rand(20, 80) : 0,
-    linocut: Math.random() < 0.15 ? rand(20, 80) : 0,
-    fog: Math.random() < 0.15 ? rand(20, 70) : 0,
-    speedLines: Math.random() < 0.1 ? rand(10, 80) : 0,
-  });
+  const baseHueValue = baseHue ?? rand(0, 359);
+  const preset = ALL_PRESETS[Math.floor(Math.random() * ALL_PRESETS.length)];
+  return randomEffectPresetLayer(preset, baseHueValue);
 }
 
 const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
@@ -129,7 +81,8 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
   switch (preset) {
     case 'rays':
       overrides = {
-        rays: rand(4, 24), rayInt: rand(20, 90),
+        rays: rand(4, 24),
+        rayInt: rand(20, 90),
         rayColor: randomHsl(ah, [70, 100], [55, 80]),
       };
       break;
@@ -283,32 +236,6 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
     case 'speedLines':
       overrides = { speedLines: rand(10, 80) };
       break;
-    case 'warp':
-      overrides = {
-        morphAmt: spark() ? rand(10, 80) : 0, morphFreq: rand(1, 15),
-        tearAmt: spark() ? rand(1, 15) : 0, tearSize: rand(1, 12),
-        noiseWarp: spark() ? rand(10, 70) : 0, vortex: spark() ? rand(5, 60) : 0,
-        barrel: spark() ? rand(5, 70) : 0, mirror: spark() ? rand(1, 3) : 0,
-      };
-      break;
-    case 'color':
-      overrides = {
-        hueShift: spark() ? rand(10, 350) : 0, bloom: spark() ? rand(15, 80) : 0,
-        posterize: spark() ? rand(3, 12) : 0,
-        duotone: Math.random() < 0.6 ? rand(40, 90) : 0,
-        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
-        duoB: randomHsl(ah, [60, 100], [55, 85]),
-      };
-      break;
-    case 'riso':
-      overrides = {
-        halftone: Math.random() < 0.5 ? rand(5, 20) : 0,
-        risoShift: Math.random() < 0.5 ? rand(5, 30) : 0, risoAngle: rand(0, 360),
-        duotone: Math.random() < 0.4 ? rand(40, 90) : 0,
-        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
-        duoB: randomHsl(ah, [60, 100], [55, 85]),
-      };
-      break;
   }
   return { ...base, ...overrides };
 }
@@ -322,6 +249,7 @@ export function randomDocument(): CanvasDocument {
     randomEffectPresetLayer(shuffled[i % shuffled.length], baseHue),
   );
   return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...randomGlobal(baseHue), aspect },
     layers: [randomEmojiLayer(baseHue), ...effectLayers],
     export: { ...DEFAULT_EXPORT },

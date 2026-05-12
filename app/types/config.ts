@@ -1,14 +1,47 @@
 export const ALL_EMOJIS = [
-  '😂', '😭', '😢', '😞', '😤', '😮', '😩', '😑',
-  '💔', '👽', '💀', '✦', '🤡', '🖤', '💜', '🔥',
-  '⚡', '🌑', '🥀', '😈',
+  '😂',
+  '😭',
+  '😢',
+  '😞',
+  '😤',
+  '😮',
+  '😩',
+  '😑',
+  '💔',
+  '👽',
+  '💀',
+  '✦',
+  '🤡',
+  '🖤',
+  '💜',
+  '🔥',
+  '⚡',
+  '🌑',
+  '🥀',
+  '😈',
 ];
 
 export const FONT_NAMES = ['MONO', 'DISPLAY', 'VT323', 'SPECIAL'] as const;
-export type FontName = typeof FONT_NAMES[number];
+export type FontName = (typeof FONT_NAMES)[number];
+export const FONT_STACKS: Record<FontName, string> = {
+  MONO: '"Courier New", monospace',
+  DISPLAY: '"Barlow Condensed", "Arial Black", sans-serif',
+  VT323: '"VT323", monospace',
+  SPECIAL: '"Special Elite", "Courier New", monospace',
+};
 
-export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill'] as const;
-export type LayerKind = typeof LAYER_KINDS[number];
+export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
+export type LayerKind = (typeof LAYER_KINDS)[number];
+export const SOURCE_TYPES = ['primitive', 'noise', 'array'] as const;
+export type SourceType = (typeof SOURCE_TYPES)[number];
+export const PRIMITIVE_SHAPES = ['sphere', 'cube', 'cylinder'] as const;
+export type PrimitiveShape = (typeof PRIMITIVE_SHAPES)[number];
+export const NOISE_TYPES = ['value', 'clouds', 'cells'] as const;
+export type NoiseType = (typeof NOISE_TYPES)[number];
+export const ARRAY_PATTERNS = ['line', 'grid', 'radial'] as const;
+export type ArrayPattern = (typeof ARRAY_PATTERNS)[number];
+export const ARRAY_SHAPES = ['disc', 'bar', 'diamond'] as const;
+export type ArrayShape = (typeof ARRAY_SHAPES)[number];
 
 interface BaseLayer {
   id: string;
@@ -64,6 +97,51 @@ export interface FillLayer extends BaseLayer {
   blendMode: string;
 }
 
+interface ProceduralLayerBase extends BaseLayer {
+  opacity: number;
+  blendMode: string;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  color: string;
+  accentColor: string;
+  primitiveShape: PrimitiveShape;
+  primitiveShading: 'smooth' | 'flat';
+  tiltX: number;
+  tiltY: number;
+  tiltZ: number;
+  primitiveDepth: number;
+  noiseType: NoiseType;
+  noiseScale: number;
+  noiseDetail: number;
+  noiseContrast: number;
+  noiseBalance: number;
+  arrayPattern: ArrayPattern;
+  arrayShape: ArrayShape;
+  arrayCount: number;
+  arrayRows: number;
+  arrayGap: number;
+  arrayRadius: number;
+  arraySize: number;
+  arrayJitter: number;
+}
+
+export interface PrimitiveLayer extends ProceduralLayerBase {
+  kind: 'primitive';
+}
+
+export interface NoiseLayer extends ProceduralLayerBase {
+  kind: 'noise';
+}
+
+export interface ArrayLayer extends ProceduralLayerBase {
+  kind: 'array';
+}
+
+export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer;
+
 export type EffectPreset =
   | 'rays'
   | 'bloom'
@@ -112,14 +190,11 @@ export type EffectPreset =
   | 'emboss'
   | 'linocut'
   | 'fog'
-  | 'speedLines'
-  | 'warp'
-  | 'color'
-  | 'riso';
+  | 'speedLines';
 
 export interface EffectLayer extends BaseLayer {
   kind: 'effect';
-  preset?: EffectPreset;  // which preset created this layer (drives panel icon)
+  preset?: EffectPreset; // which preset created this layer (drives panel icon)
   maskAlpha: boolean;
   grain: number;
   scanlines: number;
@@ -191,13 +266,21 @@ export interface EffectLayer extends BaseLayer {
   speedLines: number;
 }
 
-export type Layer = TextLayer | ImageLayer | EmojiLayer | EffectLayer | FillLayer;
+export type Layer =
+  | TextLayer
+  | ImageLayer
+  | EmojiLayer
+  | EffectLayer
+  | FillLayer
+  | PrimitiveLayer
+  | NoiseLayer
+  | ArrayLayer;
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
 
 export const ASPECT_SIZES: Record<AspectRatio, [number, number]> = {
-  '1:1':  [1000, 1000],
-  '4:5':  [1080, 1350],
+  '1:1': [1000, 1000],
+  '4:5': [1080, 1350],
   '9:16': [1080, 1920],
   '16:9': [1920, 1080],
 };
@@ -233,10 +316,10 @@ export interface GraphMergeNode {
 export interface GraphColorNode {
   id: string;
   name: string;
-  contrast: number;   // CSS %, 0–200 (100 = neutral)
+  contrast: number; // CSS %, 0–200 (100 = neutral)
   brightness: number; // CSS %, 0–200 (100 = neutral)
   saturation: number; // CSS %, 0–200 (100 = neutral)
-  hue: number;        // degrees, -180 to 180 (0 = neutral)
+  hue: number; // degrees, -180 to 180 (0 = neutral)
 }
 
 export interface CanvasGraph {
@@ -253,11 +336,14 @@ export interface ExportConfig {
 }
 
 export interface CanvasDocument {
+  schemaVersion?: number;
   global: GlobalConfig;
   layers: Layer[];
   graph?: CanvasGraph;
   export: ExportConfig;
 }
+
+export const DOCUMENT_SCHEMA_VERSION = 1;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: '#120020',
@@ -274,14 +360,14 @@ export const DEFAULT_EXPORT: ExportConfig = {
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
   kind: 'effect',
   maskAlpha: false,
-  grain: 22,
-  scanlines: 12,
-  rgbSplit: 4,
-  glitch: 7,
+  grain: 0,
+  scanlines: 0,
+  rgbSplit: 0,
+  glitch: 0,
   tint: '#350055',
-  tintOp: 28,
-  rays: 14,
-  rayInt: 62,
+  tintOp: 0,
+  rays: 0,
+  rayInt: 0,
   rayColor: '#bb00ff',
   morphAmt: 0,
   morphFreq: 5,
@@ -422,10 +508,51 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
   };
 }
 
+type SourceLayerPartial = Partial<Omit<ProceduralLayerBase, 'kind'>>;
+
+export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: SourceLayerPartial = {}): SourceLayer {
+  return {
+    id: genId(),
+    name: sourceType === 'primitive' ? 'Primitive' : sourceType === 'noise' ? 'Noise' : 'Array',
+    visible: true,
+    locked: false,
+    kind: sourceType,
+    opacity: 100,
+    blendMode: 'normal',
+    x: 0.5,
+    y: 0.5,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0,
+    color: '#ff5a36',
+    accentColor: '#9d5cff',
+    primitiveShape: 'sphere',
+    primitiveShading: 'smooth',
+    tiltX: -18,
+    tiltY: 28,
+    tiltZ: 0,
+    primitiveDepth: 48,
+    noiseType: 'clouds',
+    noiseScale: 28,
+    noiseDetail: 4,
+    noiseContrast: 52,
+    noiseBalance: 50,
+    arrayPattern: 'grid',
+    arrayShape: 'disc',
+    arrayCount: 6,
+    arrayRows: 4,
+    arrayGap: 30,
+    arrayRadius: 120,
+    arraySize: 36,
+    arrayJitter: 0,
+    ...partial,
+  } as SourceLayer;
+}
+
 export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer {
   return {
     id: genId(),
-    name: 'FX',
+    name: 'Effect',
     visible: true,
     locked: false,
     ...DEFAULT_EFFECT_LAYER_PROPS,
@@ -436,28 +563,76 @@ export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer
 // All-zero base for focused single-effect layers
 const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> = {
   maskAlpha: false,
-  grain: 0, scanlines: 0, rgbSplit: 0, glitch: 0,
-  tint: '#350055', tintOp: 0,
-  rays: 0, rayInt: 0, rayColor: '#bb00ff',
-  morphAmt: 0, morphFreq: 5, tearAmt: 0, tearSize: 3,
-  noiseWarp: 0, vortex: 0, barrel: 0, mirror: 0, dataMosh: 0, interlace: 0,
-  pixelate: 0, hueShift: 0, vignette: 0, bloom: 0, posterize: 0, filmBurn: 0,
-  duotone: 0, duoA: '#0a0020', duoB: '#ff6ec7', halftone: 0, risoShift: 0, risoAngle: 15,
+  grain: 0,
+  scanlines: 0,
+  rgbSplit: 0,
+  glitch: 0,
+  tint: '#350055',
+  tintOp: 0,
+  rays: 0,
+  rayInt: 0,
+  rayColor: '#bb00ff',
+  morphAmt: 0,
+  morphFreq: 5,
+  tearAmt: 0,
+  tearSize: 3,
+  noiseWarp: 0,
+  vortex: 0,
+  barrel: 0,
+  mirror: 0,
+  dataMosh: 0,
+  interlace: 0,
+  pixelate: 0,
+  hueShift: 0,
+  vignette: 0,
+  bloom: 0,
+  posterize: 0,
+  filmBurn: 0,
+  duotone: 0,
+  duoA: '#0a0020',
+  duoB: '#ff6ec7',
+  halftone: 0,
+  risoShift: 0,
+  risoAngle: 15,
   blurAmt: 0,
-  threshold: 0, edgeDetect: 0,
-  gradMix: 0, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0,
-  sepia: 0, neonGlow: 0, neonColor: '#ff00ff',
-  zoomBlur: 0, vhsTracking: 0, dither: 0, infrared: 0,
-  ca: 0, waveAmt: 0, waveFreq: 3, matte: 0, overprint: 0,
-  solarize: 0, bleachBypass: 0, cyanotype: 0,
-  splitToneAmt: 0, splitShadow: '#001a4f', splitHighlight: '#ff8040',
-  rippleAmt: 0, rippleFreq: 3, kaleidoscope: 0,
-  squeezeX: 0, squeezeY: 0, emboss: 0, linocut: 0,
-  fog: 0, fogColor: '#c8d8e8', speedLines: 0,
+  threshold: 0,
+  edgeDetect: 0,
+  gradMix: 0,
+  gradA: '#0a0020',
+  gradB: '#ff6ec7',
+  gradAngle: 0,
+  sepia: 0,
+  neonGlow: 0,
+  neonColor: '#ff00ff',
+  zoomBlur: 0,
+  vhsTracking: 0,
+  dither: 0,
+  infrared: 0,
+  ca: 0,
+  waveAmt: 0,
+  waveFreq: 3,
+  matte: 0,
+  overprint: 0,
+  solarize: 0,
+  bleachBypass: 0,
+  cyanotype: 0,
+  splitToneAmt: 0,
+  splitShadow: '#001a4f',
+  splitHighlight: '#ff8040',
+  rippleAmt: 0,
+  rippleFreq: 3,
+  kaleidoscope: 0,
+  squeezeX: 0,
+  squeezeY: 0,
+  emboss: 0,
+  linocut: 0,
+  fog: 0,
+  fogColor: '#c8d8e8',
+  speedLines: 0,
 };
 
 export type EffectNumericField = {
-  [K in keyof EffectLayer]: EffectLayer[K] extends number ? K : never
+  [K in keyof EffectLayer]: EffectLayer[K] extends number ? K : never;
 }[keyof EffectLayer];
 
 export interface EffectPresetMeta {
@@ -465,97 +640,187 @@ export interface EffectPresetMeta {
   icon: string;
   partial: Partial<EffectLayer>;
   primary: EffectNumericField | null;
-  legacy?: boolean;
 }
 
 export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
-  rays:       { name: 'Rays',        icon: '✶', primary: 'rays',      partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' } },
-  bloom:      { name: 'Bloom',       icon: '✹', primary: 'bloom',     partial: { ...ZERO_EFFECT, bloom: 30 } },
-  filmBurn:   { name: 'Film Burn',   icon: '☼', primary: 'filmBurn',  partial: { ...ZERO_EFFECT, filmBurn: 35 } },
-  glitch:     { name: 'Glitch',      icon: '▒', primary: 'glitch',    partial: { ...ZERO_EFFECT, glitch: 14 } },
-  interlace:  { name: 'Interlace',   icon: '≋', primary: 'interlace', partial: { ...ZERO_EFFECT, interlace: 40 } },
-  dataMosh:   { name: 'Data Mosh',   icon: '▥', primary: 'dataMosh',  partial: { ...ZERO_EFFECT, dataMosh: 30 } },
-  grain:      { name: 'Grain',       icon: '⣿', primary: 'grain',     partial: { ...ZERO_EFFECT, grain: 45 } },
-  scanlines:  { name: 'Scanlines',   icon: '☰', primary: 'scanlines', partial: { ...ZERO_EFFECT, scanlines: 18 } },
-  tint:       { name: 'Tint',        icon: '◈', primary: 'tintOp',    partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
-  noiseWarp:  { name: 'Noise Warp',  icon: '◌', primary: 'noiseWarp', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
-  morph:      { name: 'Morph',       icon: '∿', primary: null,        partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },
-  vortex:     { name: 'Vortex',      icon: '◍', primary: 'vortex',    partial: { ...ZERO_EFFECT, vortex: 20 } },
-  barrel:     { name: 'Barrel',      icon: '◔', primary: 'barrel',    partial: { ...ZERO_EFFECT, barrel: 25 } },
-  tear:       { name: 'Tear',        icon: '╱', primary: 'tearAmt',   partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 } },
-  mirror:     { name: 'Mirror',      icon: '║', primary: null,        partial: { ...ZERO_EFFECT, mirror: 1 } },
-  hueShift:   { name: 'Hue Shift',   icon: '◐', primary: 'hueShift',  partial: { ...ZERO_EFFECT, hueShift: 60 } },
-  rgbSplit:   { name: 'RGB Split',   icon: '◭', primary: 'rgbSplit',  partial: { ...ZERO_EFFECT, rgbSplit: 8 } },
-  vignette:   { name: 'Vignette',    icon: '◜', primary: 'vignette',  partial: { ...ZERO_EFFECT, vignette: 40 } },
-  pixelate:   { name: 'Pixelate',    icon: '▦', primary: 'pixelate',  partial: { ...ZERO_EFFECT, pixelate: 8 } },
-  posterize:  { name: 'Posterize',   icon: '◨', primary: 'posterize', partial: { ...ZERO_EFFECT, posterize: 6 } },
-  duotone:    { name: 'Duotone',     icon: '◎', primary: 'duotone',   partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
-  halftone:   { name: 'Halftone',    icon: '◩', primary: 'halftone',  partial: { ...ZERO_EFFECT, halftone: 12 } },
-  risoShift:  { name: 'Misregister', icon: '⟲', primary: 'risoShift', partial: { ...ZERO_EFFECT, risoShift: 20, risoAngle: 15 } },
-  blur:       { name: 'Blur',        icon: '◯', primary: 'blurAmt',   partial: { ...ZERO_EFFECT, blurAmt: 30 } },
-  threshold:  { name: 'Threshold',   icon: '◐', primary: 'threshold', partial: { ...ZERO_EFFECT, threshold: 50 } },
+  rays: {
+    name: 'Rays',
+    icon: '✶',
+    primary: 'rays',
+    partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' },
+  },
+  bloom: { name: 'Bloom', icon: '✹', primary: 'bloom', partial: { ...ZERO_EFFECT, bloom: 30 } },
+  filmBurn: { name: 'Film Burn', icon: '☼', primary: 'filmBurn', partial: { ...ZERO_EFFECT, filmBurn: 35 } },
+  glitch: { name: 'Glitch', icon: '▒', primary: 'glitch', partial: { ...ZERO_EFFECT, glitch: 14 } },
+  interlace: { name: 'Interlace', icon: '≋', primary: 'interlace', partial: { ...ZERO_EFFECT, interlace: 40 } },
+  dataMosh: { name: 'Data Mosh', icon: '▥', primary: 'dataMosh', partial: { ...ZERO_EFFECT, dataMosh: 30 } },
+  grain: { name: 'Grain', icon: '⣿', primary: 'grain', partial: { ...ZERO_EFFECT, grain: 45 } },
+  scanlines: { name: 'Scanlines', icon: '☰', primary: 'scanlines', partial: { ...ZERO_EFFECT, scanlines: 18 } },
+  tint: { name: 'Tint', icon: '◈', primary: 'tintOp', partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
+  noiseWarp: { name: 'Noise Warp', icon: '◌', primary: 'noiseWarp', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
+  morph: { name: 'Morph', icon: '∿', primary: null, partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },
+  vortex: { name: 'Vortex', icon: '◍', primary: 'vortex', partial: { ...ZERO_EFFECT, vortex: 20 } },
+  barrel: { name: 'Barrel', icon: '◔', primary: 'barrel', partial: { ...ZERO_EFFECT, barrel: 25 } },
+  tear: { name: 'Tear', icon: '╱', primary: 'tearAmt', partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 } },
+  mirror: { name: 'Mirror', icon: '║', primary: null, partial: { ...ZERO_EFFECT, mirror: 1 } },
+  hueShift: { name: 'Hue Shift', icon: '◐', primary: 'hueShift', partial: { ...ZERO_EFFECT, hueShift: 60 } },
+  rgbSplit: { name: 'RGB Split', icon: '◭', primary: 'rgbSplit', partial: { ...ZERO_EFFECT, rgbSplit: 8 } },
+  vignette: { name: 'Vignette', icon: '◜', primary: 'vignette', partial: { ...ZERO_EFFECT, vignette: 40 } },
+  pixelate: { name: 'Pixelate', icon: '▦', primary: 'pixelate', partial: { ...ZERO_EFFECT, pixelate: 8 } },
+  posterize: { name: 'Posterize', icon: '◨', primary: 'posterize', partial: { ...ZERO_EFFECT, posterize: 6 } },
+  duotone: {
+    name: 'Duotone',
+    icon: '◎',
+    primary: 'duotone',
+    partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' },
+  },
+  halftone: { name: 'Halftone', icon: '◩', primary: 'halftone', partial: { ...ZERO_EFFECT, halftone: 12 } },
+  risoShift: {
+    name: 'Misregister',
+    icon: '⟲',
+    primary: 'risoShift',
+    partial: { ...ZERO_EFFECT, risoShift: 20, risoAngle: 15 },
+  },
+  blur: { name: 'Blur', icon: '◯', primary: 'blurAmt', partial: { ...ZERO_EFFECT, blurAmt: 30 } },
+  threshold: { name: 'Threshold', icon: '◐', primary: 'threshold', partial: { ...ZERO_EFFECT, threshold: 50 } },
   edgeDetect: { name: 'Edge Detect', icon: '◇', primary: 'edgeDetect', partial: { ...ZERO_EFFECT, edgeDetect: 60 } },
-  gradientOverlay: { name: 'Gradient', icon: '▤', primary: 'gradMix', partial: { ...ZERO_EFFECT, gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0 } },
-  sepia:       { name: 'Sepia',      icon: '◬', primary: 'sepia',       partial: { ...ZERO_EFFECT, sepia: 65 } },
-  neonGlow:    { name: 'Neon Glow',  icon: '✦', primary: 'neonGlow',    partial: { ...ZERO_EFFECT, neonGlow: 50, neonColor: '#ff00ff' } },
-  zoomBlur:    { name: 'Zoom Blur',  icon: '◉', primary: 'zoomBlur',    partial: { ...ZERO_EFFECT, zoomBlur: 40 } },
-  vhsTracking: { name: 'VHS Track',  icon: '⊟', primary: 'vhsTracking', partial: { ...ZERO_EFFECT, vhsTracking: 30 } },
-  dither:      { name: 'Dither',     icon: '⠦', primary: 'dither',      partial: { ...ZERO_EFFECT, dither: 50 } },
-  infrared:    { name: 'Infrared',   icon: '⊗', primary: 'infrared',    partial: { ...ZERO_EFFECT, infrared: 60 } },
-  ca:          { name: 'Chrom. Ab.', icon: '◫', primary: 'ca',          partial: { ...ZERO_EFFECT, ca: 15 } },
-  wave:        { name: 'Wave',       icon: '〜', primary: 'waveAmt',     partial: { ...ZERO_EFFECT, waveAmt: 20, waveFreq: 3 } },
-  matte:       { name: 'Matte',      icon: '▩', primary: 'matte',       partial: { ...ZERO_EFFECT, matte: 40 } },
-  overprint:   { name: 'Overprint',  icon: '⊕', primary: 'overprint',   partial: { ...ZERO_EFFECT, overprint: 20 } },
-  solarize:    { name: 'Solarize',      icon: '☯', primary: 'solarize',      partial: { ...ZERO_EFFECT, solarize: 55 } },
-  bleachBypass:{ name: 'Bleach Bypass', icon: '⊙', primary: 'bleachBypass',  partial: { ...ZERO_EFFECT, bleachBypass: 65 } },
-  cyanotype:   { name: 'Cyanotype',     icon: '⊆', primary: 'cyanotype',     partial: { ...ZERO_EFFECT, cyanotype: 75 } },
-  splitTone:   { name: 'Split Tone',    icon: '◑', primary: 'splitToneAmt',  partial: { ...ZERO_EFFECT, splitToneAmt: 50, splitShadow: '#001a4f', splitHighlight: '#ff8040' } },
-  ripple:      { name: 'Ripple',        icon: '≈', primary: 'rippleAmt',     partial: { ...ZERO_EFFECT, rippleAmt: 20, rippleFreq: 3 } },
-  kaleidoscope:{ name: 'Kaleidoscope',  icon: '❋', primary: 'kaleidoscope',  partial: { ...ZERO_EFFECT, kaleidoscope: 40 } },
-  squeeze:     { name: 'Squeeze',       icon: '⊡', primary: null,            partial: { ...ZERO_EFFECT, squeezeX: 30, squeezeY: 0 } },
-  emboss:      { name: 'Emboss',        icon: '▲', primary: 'emboss',        partial: { ...ZERO_EFFECT, emboss: 60 } },
-  linocut:     { name: 'Linocut',       icon: '◰', primary: 'linocut',       partial: { ...ZERO_EFFECT, linocut: 55 } },
-  fog:         { name: 'Fog',           icon: '≀', primary: 'fog',           partial: { ...ZERO_EFFECT, fog: 45, fogColor: '#c8d8e8' } },
-  speedLines:  { name: 'Speed Lines',   icon: '≫', primary: 'speedLines',    partial: { ...ZERO_EFFECT, speedLines: 50 } },
-  warp:       { name: 'Warp FX',     icon: '◌', primary: null, legacy: true, partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 } },
-  color:      { name: 'Color FX',    icon: '◐', primary: null, legacy: true, partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' } },
-  riso:       { name: 'Riso FX',     icon: '◎', primary: null, legacy: true, partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 } },
+  gradientOverlay: {
+    name: 'Gradient',
+    icon: '▤',
+    primary: 'gradMix',
+    partial: { ...ZERO_EFFECT, gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7', gradAngle: 0 },
+  },
+  sepia: { name: 'Sepia', icon: '◬', primary: 'sepia', partial: { ...ZERO_EFFECT, sepia: 65 } },
+  neonGlow: {
+    name: 'Neon Glow',
+    icon: '✦',
+    primary: 'neonGlow',
+    partial: { ...ZERO_EFFECT, neonGlow: 50, neonColor: '#ff00ff' },
+  },
+  zoomBlur: { name: 'Zoom Blur', icon: '◉', primary: 'zoomBlur', partial: { ...ZERO_EFFECT, zoomBlur: 40 } },
+  vhsTracking: { name: 'VHS Track', icon: '⊟', primary: 'vhsTracking', partial: { ...ZERO_EFFECT, vhsTracking: 30 } },
+  dither: { name: 'Dither', icon: '⠦', primary: 'dither', partial: { ...ZERO_EFFECT, dither: 50 } },
+  infrared: { name: 'Infrared', icon: '⊗', primary: 'infrared', partial: { ...ZERO_EFFECT, infrared: 60 } },
+  ca: { name: 'Chrom. Ab.', icon: '◫', primary: 'ca', partial: { ...ZERO_EFFECT, ca: 15 } },
+  wave: { name: 'Wave', icon: '〜', primary: 'waveAmt', partial: { ...ZERO_EFFECT, waveAmt: 20, waveFreq: 3 } },
+  matte: { name: 'Matte', icon: '▩', primary: 'matte', partial: { ...ZERO_EFFECT, matte: 40 } },
+  overprint: { name: 'Overprint', icon: '⊕', primary: 'overprint', partial: { ...ZERO_EFFECT, overprint: 20 } },
+  solarize: { name: 'Solarize', icon: '☯', primary: 'solarize', partial: { ...ZERO_EFFECT, solarize: 55 } },
+  bleachBypass: {
+    name: 'Bleach Bypass',
+    icon: '⊙',
+    primary: 'bleachBypass',
+    partial: { ...ZERO_EFFECT, bleachBypass: 65 },
+  },
+  cyanotype: { name: 'Cyanotype', icon: '⊆', primary: 'cyanotype', partial: { ...ZERO_EFFECT, cyanotype: 75 } },
+  splitTone: {
+    name: 'Split Tone',
+    icon: '◑',
+    primary: 'splitToneAmt',
+    partial: { ...ZERO_EFFECT, splitToneAmt: 50, splitShadow: '#001a4f', splitHighlight: '#ff8040' },
+  },
+  ripple: {
+    name: 'Ripple',
+    icon: '≈',
+    primary: 'rippleAmt',
+    partial: { ...ZERO_EFFECT, rippleAmt: 20, rippleFreq: 3 },
+  },
+  kaleidoscope: {
+    name: 'Kaleidoscope',
+    icon: '❋',
+    primary: 'kaleidoscope',
+    partial: { ...ZERO_EFFECT, kaleidoscope: 40 },
+  },
+  squeeze: { name: 'Squeeze', icon: '⊡', primary: null, partial: { ...ZERO_EFFECT, squeezeX: 30, squeezeY: 0 } },
+  emboss: { name: 'Emboss', icon: '▲', primary: 'emboss', partial: { ...ZERO_EFFECT, emboss: 60 } },
+  linocut: { name: 'Linocut', icon: '◰', primary: 'linocut', partial: { ...ZERO_EFFECT, linocut: 55 } },
+  fog: { name: 'Fog', icon: '≀', primary: 'fog', partial: { ...ZERO_EFFECT, fog: 45, fogColor: '#c8d8e8' } },
+  speedLines: { name: 'Speed Lines', icon: '≫', primary: 'speedLines', partial: { ...ZERO_EFFECT, speedLines: 50 } },
 };
 
 export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
-  'rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines',
-  'glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking',
-  'grain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut',
+  'rays',
+  'bloom',
+  'filmBurn',
+  'neonGlow',
+  'fog',
+  'speedLines',
+  'glitch',
+  'rgbSplit',
+  'ca',
+  'interlace',
+  'dataMosh',
+  'vhsTracking',
+  'grain',
+  'scanlines',
+  'matte',
+  'dither',
+  'emboss',
+  'linocut',
   'tint',
-  'noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror', 'wave', 'zoomBlur', 'ripple', 'kaleidoscope', 'squeeze',
-  'hueShift', 'vignette', 'pixelate', 'posterize', 'sepia', 'infrared', 'solarize', 'bleachBypass', 'cyanotype', 'splitTone',
-  'duotone', 'halftone', 'risoShift', 'overprint',
-  'blur', 'threshold', 'edgeDetect', 'gradientOverlay',
+  'noiseWarp',
+  'morph',
+  'vortex',
+  'barrel',
+  'tear',
+  'mirror',
+  'wave',
+  'zoomBlur',
+  'ripple',
+  'kaleidoscope',
+  'squeeze',
+  'hueShift',
+  'vignette',
+  'pixelate',
+  'posterize',
+  'sepia',
+  'infrared',
+  'solarize',
+  'bleachBypass',
+  'cyanotype',
+  'splitTone',
+  'duotone',
+  'halftone',
+  'risoShift',
+  'overprint',
+  'blur',
+  'threshold',
+  'edgeDetect',
+  'gradientOverlay',
 ];
 
-export type EffectPresetOverrides =
-  & Partial<Omit<EffectLayer, 'id' | 'kind' | 'preset'>>
-  & { value?: number };
+export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'kind' | 'preset'>> & { value?: number };
 
 export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPresetOverrides = {}): EffectLayer {
   const { name, partial, primary } = EFFECT_PRESETS[preset];
   const { value, ...rest } = overrides;
-  const valuePatch =
-    value !== undefined && primary
-      ? { [primary]: Math.max(0, Math.min(100, value)) }
-      : {};
-  return { id: genId(), name, visible: true, locked: false, ...partial, ...valuePatch, ...rest, kind: 'effect', preset };
+  const valuePatch = value !== undefined && primary ? { [primary]: Math.max(0, Math.min(100, value)) } : {};
+  return {
+    id: genId(),
+    name,
+    visible: true,
+    locked: false,
+    ...partial,
+    ...valuePatch,
+    ...rest,
+    kind: 'effect',
+    preset,
+  };
 }
 
 export const DEFAULT_DOCUMENT: CanvasDocument = {
+  schemaVersion: DOCUMENT_SCHEMA_VERSION,
   global: DEFAULT_GLOBAL,
   layers: [
     makeEmojiLayer({ id: 'default-emoji' }),
-    makeEffectLayer({ id: 'default-effect' }),
+    makeEffectPresetLayer('rays', { id: 'default-rays', rays: 14, rayInt: 62, rayColor: '#bb00ff' }),
+    makeEffectPresetLayer('tint', { id: 'default-tint', tint: '#350055', tintOp: 28 }),
+    makeEffectPresetLayer('grain', { id: 'default-grain', grain: 22 }),
+    makeEffectPresetLayer('scanlines', { id: 'default-scanlines', scanlines: 12 }),
+    makeEffectPresetLayer('rgbSplit', { id: 'default-rgb-split', rgbSplit: 4 }),
   ],
   export: DEFAULT_EXPORT,
 };
-
 
 export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): GraphMergeNode {
   return {
@@ -581,6 +846,7 @@ export function makeGraphColorNode(partial: Partial<GraphColorNode> = {}): Graph
 
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
+    schemaVersion: doc.schemaVersion,
     global: { ...doc.global },
     export: { ...doc.export },
     layers: doc.layers.map((layer) => ({

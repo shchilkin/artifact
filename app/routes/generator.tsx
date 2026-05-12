@@ -1,17 +1,19 @@
-import { lazy, Suspense, useState, type CSSProperties } from 'react';
-import { Link } from 'react-router';
 import { AnimatePresence } from 'framer-motion';
+import { type CSSProperties, lazy, Suspense, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { PresetsPanel } from '../components/PresetsPanel';
+import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
+import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
 import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
 import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
-import { getPreviewDims, type AspectRatio } from '../types/config';
+import { type AspectRatio, getPreviewDims } from '../types/config';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -31,7 +33,9 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
         }}
       >
         <span>Canvas error: could not render layers.</span>
-        <span style={{ opacity: 0.5 }}>{previewWidth} × {previewHeight}</span>
+        <span style={{ opacity: 0.5 }}>
+          {previewWidth} × {previewHeight}
+        </span>
       </div>
     </div>
   );
@@ -39,25 +43,39 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 
 type ViewMode = 'layers' | 'nodes';
 
-function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
+function ViewModeToggle({
+  value,
+  onChange,
+  variant = 'floating',
+}: {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+  variant?: 'floating' | 'sidebar';
+}) {
   const buttonStyle = (active: boolean, side: 'left' | 'right'): CSSProperties => ({
-    padding: '4px 12px',
+    minHeight: 'var(--touch)',
+    padding: '0 16px',
     fontFamily: 'var(--mono)',
-    fontSize: 10,
-    letterSpacing: '0.05em',
+    fontSize: 11,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
     cursor: 'pointer',
-    background: active ? 'var(--border)' : 'transparent',
-    color: active ? 'var(--text)' : 'var(--text-dim)',
+    background: active ? 'var(--text)' : 'transparent',
+    color: active ? 'var(--bg)' : 'var(--text-dim)',
     border: '1px solid var(--border)',
     borderRight: side === 'left' ? 'none' : undefined,
-    borderRadius: side === 'left' ? '3px 0 0 3px' : '0 3px 3px 0',
+    borderRadius: 0,
     transition: 'background 120ms ease-out, color 120ms ease-out',
   });
 
   return (
-    <div className="hidden lg:flex items-center gap-0 flex-shrink-0 self-start m-3 mb-0">
-      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>layers</button>
-      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>nodes</button>
+    <div className={`view-mode-toggle view-mode-toggle-${variant}`}>
+      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>
+        layers
+      </button>
+      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>
+        nodes
+      </button>
     </div>
   );
 }
@@ -66,6 +84,7 @@ export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
 
   const {
     doc,
@@ -89,7 +108,6 @@ export default function Generator() {
     handleCopyLink,
     loadDocument,
     setDoc,
-    setSeed,
     setAspect,
     undo,
     redo,
@@ -99,24 +117,18 @@ export default function Generator() {
     fromDocParam,
   } = useGeneratorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
-  const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache);
-  const {
-    showPresets,
-    presets,
-    togglePresets,
-    closePresets,
-    handleLoadPreset,
-    saveCurrentPreset,
-    deletePreset,
-  } = useGeneratorPresetsController({
-    docRef,
-    imageCache,
-    onLoadDocument: loadDocument,
-  });
+  const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
+  const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
+  const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
+    useDocumentFileTransfer(docRef, loadDocument);
+  const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
+    useGeneratorPresetsController({
+      docRef,
+      imageCache,
+      onLoadDocument: loadDocument,
+    });
 
   const bottomBarProps = {
-    seed: doc.global.seed,
-    onSeedChange: setSeed,
     onRandomize: handleRandomize,
     onUndo: undo,
     onRedo: redo,
@@ -125,13 +137,26 @@ export default function Generator() {
     undoCount,
     onPresetsToggle: togglePresets,
     onCopyLink: handleCopyLink,
+    onOpenDocument: handleOpenDocumentPicker,
+    onSaveDocument: handleSaveDocument,
     onExport: handleNodeExport,
     exportBusy,
   };
 
   return (
-    <div className="generator-layout flex flex-col w-full h-full">
-      <SiteNav solid />
+    <div className={`generator-layout generator-layout-${viewMode} flex flex-col w-full h-full`}>
+      <SiteNav solid compact={viewMode === 'nodes'} />
+      <input
+        ref={fileInputRef}
+        className="sr-only"
+        type="file"
+        accept=".artifact.json,application/json"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          void handleOpenDocument(file);
+          event.currentTarget.value = '';
+        }}
+      />
       {fromDocParam && !docsBannerDismissed && (
         <div
           style={{
@@ -152,13 +177,10 @@ export default function Generator() {
         >
           <span>
             Loaded from{' '}
-            <Link
-              to="/docs/nodes"
-              style={{ color: 'var(--accent)', textDecoration: 'none' }}
-            >
+            <Link to="/docs/nodes" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
               docs
-            </Link>
-            {' '}— customize or randomize to make it yours.
+            </Link>{' '}
+            — customize or randomize to make it yours.
           </span>
           <button
             type="button"
@@ -179,9 +201,9 @@ export default function Generator() {
           </button>
         </div>
       )}
-      <div className="app">
+      <div className={`app app-${viewMode}`}>
         <main
-          className="main"
+          className={`main main-${viewMode}`}
           onDragEnter={(event) => {
             if (Array.from(event.dataTransfer.types).includes('Files')) setCanvasDragOver(true);
           }}
@@ -193,11 +215,18 @@ export default function Generator() {
             event.preventDefault();
             setCanvasDragOver(false);
             const file = event.dataTransfer.files[0];
-            if (file) void handleDroppedFile(file);
+            if (file) {
+              if (isArtifactDocumentFile(file)) void handleOpenDocument(file);
+              else void handleDroppedFile(file);
+            }
           }}
         >
           <h1 className="sr-only">Album Cover Generator</h1>
-          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          {viewMode === 'nodes' && (
+            <div className="floating-view-toggle">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          )}
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
@@ -211,11 +240,13 @@ export default function Generator() {
               />
             </ErrorBoundary>
           ) : (
-            <div className="hidden lg:flex flex-1 min-h-0 w-full">
-              <Suspense fallback={<div style={{ flex: 1, background: 'oklch(10% 0.009 285)' }} />}>
+            <div className="node-mode-stage">
+              <Suspense fallback={<div style={{ flex: 1, background: 'var(--bg)' }} />}>
                 <NodeCanvas
                   doc={doc}
                   imageCache={imageCache}
+                  initialPrimitiveViewStates={primitiveViewStates}
+                  onPrimitiveViewStatesChange={setPrimitiveViewStates}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
                   onGraphChange={handleGraphChange}
@@ -234,9 +265,9 @@ export default function Generator() {
             </div>
           )}
 
-          {(dropError || exportError) && (
+          {(dropError || exportError || documentFileError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
-              {dropError ?? exportError}
+              {dropError ?? exportError ?? documentFileError}
             </p>
           )}
           <BottomBar {...bottomBarProps} />
@@ -254,6 +285,7 @@ export default function Generator() {
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
+            modeSwitcher={<ViewModeToggle value={viewMode} onChange={setViewMode} variant="sidebar" />}
           />
         )}
 

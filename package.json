@@ -1,30 +1,44 @@
 {
   "name": "album-cover-utils",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0-beta.1",
   "type": "module",
   "scripts": {
     "favicon": "node scripts/generate-favicon.mjs",
-    "dev": "npm run favicon && react-router dev",
-    "build": "npm run favicon && react-router build",
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "build:ci": "react-router build",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "format": "biome check --write .",
+    "format:check": "biome check .",
     "lint": "eslint .",
+    "prepare": "husky",
     "preview": "vite preview --outDir build/client",
     "typecheck": "react-router typegen && tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
+    "test:browser:install": "playwright install chromium"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
     "@vercel/og": "^0.11.1",
+    "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.10.2",
     "framer-motion": "^12.38.0",
     "isbot": "^5",
     "pixi.js": "^7.4.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router": "^7.14.2"
+    "react-router": "^7.14.2",
+    "three": "^0.184.0",
+    "xstate": "^5.31.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@eslint/js": "^10.0.1",
+    "@napi-rs/canvas": "^1.0.0",
+    "@playwright/test": "^1.60.0",
     "@react-router/dev": "^7.14.2",
     "@react-router/serve": "^7.14.2",
     "@tailwindcss/vite": "^4.2.4",
@@ -35,6 +49,8 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
     "puppeteer": "^24.43.0",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
@@ -42,5 +58,13 @@
     "vite": "^8.0.10",
     "vite-plugin-tsconfig-paths": "^1.4.1",
     "vitest": "^4.1.5"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css}": [
+      "biome check --write"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ]
   }
 }

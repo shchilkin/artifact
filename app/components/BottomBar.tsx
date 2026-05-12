@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useState } from 'react';
+
 interface Props {
-  seed: number;
-  onSeedChange: (seed: number) => void;
   onRandomize: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -11,13 +10,13 @@ interface Props {
   undoCount: number;
   onPresetsToggle: () => void;
   onCopyLink: () => void;
+  onOpenDocument: () => void;
+  onSaveDocument: () => void;
   onExport: () => void;
   exportBusy: boolean;
 }
 
 export function BottomBar({
-  seed,
-  onSeedChange,
   onRandomize,
   onUndo,
   onRedo,
@@ -25,18 +24,13 @@ export function BottomBar({
   canRedo,
   undoCount,
   onCopyLink,
+  onOpenDocument,
+  onSaveDocument,
   onPresetsToggle,
   onExport,
   exportBusy,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const seedInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSeedSet = () => {
-    const value = seedInputRef.current?.value ?? String(seed);
-    const parsed = parseInt(value, 10);
-    if (!isNaN(parsed)) onSeedChange(parsed);
-  };
 
   const handleCopyLink = useCallback(() => {
     onCopyLink();
@@ -48,22 +42,10 @@ export function BottomBar({
     <div className="bottom-bar">
       {/* Row 1: Undo / Redo / Rand */}
       <div className="bottom-rand-group">
-        <button
-          className="btn"
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo"
-          title="Undo (Cmd+Z)"
-        >
+        <button className="btn" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)">
           ↩{canUndo && undoCount > 0 ? ` ${undoCount}` : ''}
         </button>
-        <button
-          className="btn"
-          onClick={onRedo}
-          disabled={!canRedo}
-          aria-label="Redo"
-          title="Redo (Cmd+Shift+Z)"
-        >
+        <button className="btn" onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)">
           ↪
         </button>
         <button className="btn btn-primary rand-btn" onClick={onRandomize}>
@@ -71,45 +53,33 @@ export function BottomBar({
         </button>
       </div>
 
-      {/* Row 2: Seed controls + Export/Presets */}
-      <div className="bottom-seed-group">
-        <span className="bottom-label seed-label">SEED</span>
-        <input
-          key={seed}
-          ref={seedInputRef}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={7}
-          defaultValue={String(seed)}
-          onKeyDown={(e) => e.key === "Enter" && handleSeedSet()}
-          onBlur={handleSeedSet}
-          className="seed-input"
-          aria-label="Seed value"
-        />
-        <button className="btn" onClick={handleSeedSet}>SET</button>
-        <button
-          className="btn"
-          onClick={handleCopyLink}
-          aria-label="Copy link to current state"
-        >
+      <div className="bottom-link-group">
+        <button className="btn" onClick={onOpenDocument} aria-label="Open document file" title="Open .artifact.json">
+          OPEN
+        </button>
+        <button className="btn" onClick={onSaveDocument} aria-label="Save document file" title="Save .artifact.json">
+          SAVE
+        </button>
+        <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
-              key={copied ? "check" : "link"}
+              key={copied ? 'check' : 'link'}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.15 }}
-              style={{ display: "inline-block" }}
+              style={{ display: 'inline-block' }}
             >
-              {copied ? "✓" : "LINK"}
+              {copied ? '✓' : 'LINK'}
             </motion.span>
           </AnimatePresence>
         </button>
       </div>
 
       <div className="bottom-right-group">
-        <button className="btn" onClick={onPresetsToggle}>PRESETS</button>
+        <button className="btn" onClick={onPresetsToggle}>
+          PRESETS
+        </button>
         <button className="btn btn-primary" onClick={onExport} disabled={exportBusy}>
           {exportBusy ? '…' : 'EXPORT'}
         </button>

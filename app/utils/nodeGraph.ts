@@ -1,5 +1,4 @@
-import type { CanvasGraph, GraphEdge, Layer, GraphMergeNode, GraphColorNode } from '../types/config';
-import type { Edge as RFEdge } from '@xyflow/react';
+import type { CanvasGraph, GraphColorNode, GraphEdge, GraphMergeNode, Layer } from '../types/config';
 
 export const EXPORT_NODE_ID = '__export__';
 const NODE_W = 160;
@@ -40,24 +39,6 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
   return { edges, positions, mergeNodes: [], colorNodes: [] };
 }
 
-export function toRFEdges(graph: CanvasGraph): RFEdge[] {
-  return graph.edges.map((e) => ({
-    id: e.id,
-    source: e.fromId,
-    sourceHandle: e.fromPort,
-    target: e.toId,
-    targetHandle: e.toPort,
-    type: 'smoothstep',
-    style: { stroke: getEdgeColor(e.fromId, graph), strokeWidth: 2, opacity: 0.82 },
-  }));
-}
-
-function getEdgeColor(fromId: string, graph: CanvasGraph): string {
-  if (graph.mergeNodes.some((n) => n.id === fromId)) return 'oklch(74% 0.17 152)';
-  if ((graph.colorNodes ?? []).some((n) => n.id === fromId)) return 'oklch(72% 0.18 195)';
-  return 'oklch(64% 0.22 305)';
-}
-
 export function updateGraphPositions(
   graph: CanvasGraph,
   moved: { id: string; position: { x: number; y: number } }[],
@@ -70,9 +51,7 @@ export function updateGraphPositions(
 }
 
 export function addGraphEdge(graph: CanvasGraph, edge: GraphEdge): CanvasGraph {
-  const filtered = graph.edges.filter(
-    (e) => !(e.toId === edge.toId && e.toPort === edge.toPort),
-  );
+  const filtered = graph.edges.filter((e) => !(e.toId === edge.toId && e.toPort === edge.toPort));
   return { ...graph, edges: [...filtered, edge] };
 }
 
@@ -149,11 +128,7 @@ export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
   };
 }
 
-export function updateColorNode(
-  graph: CanvasGraph,
-  id: string,
-  patch: Partial<GraphColorNode>,
-): CanvasGraph {
+export function updateColorNode(graph: CanvasGraph, id: string, patch: Partial<GraphColorNode>): CanvasGraph {
   return {
     ...graph,
     colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
@@ -174,9 +149,6 @@ export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<
   }
   return collected;
 }
-
-
-
 /** BFS backwards from nodeId, collect all layer IDs that feed into it. */
 export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
   const layerIds = new Set(layers.map((l) => l.id));
@@ -200,11 +172,7 @@ export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: La
 }
 
 /** Resolve only the layers that feed into nodeId, in graph render order. */
-export function resolveUpstreamRenderLayers(
-  nodeId: string,
-  graph: CanvasGraph,
-  layers: Layer[],
-): Layer[] {
+export function resolveUpstreamRenderLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
   const layerById = new Map(layers.map((layer) => [layer.id, layer]));
   const visited = new Set<string>();
   const result: Layer[] = [];
@@ -224,11 +192,7 @@ export function resolveUpstreamRenderLayers(
 }
 
 /** Add a new layer's position to the graph without connecting edges. */
-export function addLayerToGraph(
-  graph: CanvasGraph,
-  layerId: string,
-  position: { x: number; y: number },
-): CanvasGraph {
+export function addLayerToGraph(graph: CanvasGraph, layerId: string, position: { x: number; y: number }): CanvasGraph {
   return {
     ...graph,
     positions: { ...graph.positions, [layerId]: position },
@@ -240,9 +204,7 @@ export function removeLayerFromGraph(graph: CanvasGraph, layerId: string): Canva
   return {
     ...graph,
     edges: graph.edges.filter((e) => e.fromId !== layerId && e.toId !== layerId),
-    positions: Object.fromEntries(
-      Object.entries(graph.positions).filter(([k]) => k !== layerId),
-    ),
+    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== layerId)),
   };
 }
 
@@ -288,9 +250,7 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[]): CanvasGraph 
     return (order.get(a) ?? 0) - (order.get(b) ?? 0);
   };
 
-  const queue = nodeIds
-    .filter((id) => (indegree.get(id) ?? 0) === 0)
-    .sort(compareNodeIds);
+  const queue = nodeIds.filter((id) => (indegree.get(id) ?? 0) === 0).sort(compareNodeIds);
   const depth = new Map<string, number>(nodeIds.map((id) => [id, 0]));
   let processed = 0;
 
@@ -381,11 +341,7 @@ export function resolveRenderOrder(graph: CanvasGraph, layers: Layer[]): Layer[]
 }
 
 /** Returns true if adding an edge source→target would create a cycle. */
-export function wouldCreateCycle(
-  graph: CanvasGraph,
-  sourceId: string,
-  targetId: string,
-): boolean {
+export function wouldCreateCycle(graph: CanvasGraph, sourceId: string, targetId: string): boolean {
   // DFS from targetId following outgoing edges — if we reach sourceId, cycle detected
   const visited = new Set<string>();
   const stack = [targetId];

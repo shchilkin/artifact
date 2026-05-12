@@ -1,24 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import type { MetaFunction } from "react-router";
-import { useReducedMotion } from "framer-motion";
-import { SiteNav } from "../components/SiteNav";
-import { Footer } from "../components/Footer";
-import { renderDocument } from "../utils/renderer";
-import { HERO_FRAMES } from "../utils/heroConfigs";
+import { useReducedMotion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import type { MetaFunction } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { Footer } from '../components/Footer';
+import { SiteNav } from '../components/SiteNav';
 import {
+  type CanvasDocument,
   DEFAULT_EXPORT,
+  type Layer,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
   makeTextLayer,
-  type CanvasDocument,
-  type Layer,
-} from "../types/config";
+} from '../types/config';
+import { HERO_FRAMES } from '../utils/heroConfigs';
+import { renderDocument } from '../utils/renderer';
+
 const SEED = 31415;
 const CANVAS_PX = 540;
-const HERO_IMAGE_SRC = "/girl_image_landing.png";
+const HERO_IMAGE_SRC = '/girl_image_landing.png';
 
 interface Step {
   title: string;
@@ -28,110 +29,108 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    title: "Fill.",
-    body: "A tinted plane. Every cover starts here, with one decision about color.",
-    layers: [makeFillLayer({ color: "#1a0a1f", name: "fill" })],
+    title: 'Fill.',
+    body: 'A tinted plane. Every cover starts here, with one decision about color.',
+    layers: [makeFillLayer({ color: '#1a0a1f', name: 'fill' })],
   },
   {
-    title: "Rays.",
-    body: "Light shafts, tinted and angled. One GPU pass over the fill.",
-    layers: [makeEffectPresetLayer("rays")],
+    title: 'Rays.',
+    body: 'Light shafts, tinted and angled. One GPU pass over the fill.',
+    layers: [makeEffectPresetLayer('rays')],
   },
   {
-    title: "Emoji.",
-    body: "Glyphs scattered, sized, blurred. Raw material, not punctuation.",
+    title: 'Emoji.',
+    body: 'Glyphs scattered, sized, blurred. Raw material, not punctuation.',
     layers: [
       makeEmojiLayer({
-        emojis: ["💀", "⚡", "🥀", "🖤", "✦"],
+        emojis: ['💀', '⚡', '🥀', '🖤', '✦'],
         density: 24,
         minSz: 22,
         maxSz: 70,
         blur: 62,
         opacity: 75,
-        name: "emoji",
+        name: 'emoji',
       }),
     ],
   },
   {
-    title: "Halftone.",
-    body: "Print dots eat the emoji into a mechanical pattern.",
-    layers: [makeEffectPresetLayer("halftone")],
+    title: 'Halftone.',
+    body: 'Print dots eat the emoji into a mechanical pattern.',
+    layers: [makeEffectPresetLayer('halftone')],
   },
   {
-    title: "Scanlines.",
-    body: "CRT bands across the under-layers. Texture of broken signal.",
+    title: 'Scanlines.',
+    body: 'CRT bands across the under-layers. Texture of broken signal.',
     layers: [
-      makeEffectPresetLayer("scanlines", {
+      makeEffectPresetLayer('scanlines', {
         scanlines: 100,
       }),
     ],
   },
   {
-    title: "Image.",
-    body: "A photo on top of the noise. Crop, scale, drop it in.",
+    title: 'Image.',
+    body: 'A photo on top of the noise. Crop, scale, drop it in.',
     layers: [
       makeImageLayer(HERO_IMAGE_SRC, {
-        fit: "cover",
+        fit: 'cover',
         opacity: 100,
-        name: "image",
+        name: 'image',
       }),
     ],
   },
   {
-    title: "Title.",
-    body: "Set the name. Display weight, oversized, low in the frame.",
+    title: 'Title.',
+    body: 'Set the name. Display weight, oversized, low in the frame.',
     layers: [
       makeTextLayer({
-        content: "WEIRDER",
-        font: "DISPLAY",
+        content: 'WEIRDER',
+        font: 'DISPLAY',
         size: 140,
-        color: "#fff2dc",
+        color: '#fff2dc',
         x: 0.5,
         y: 0.82,
-        align: "center",
-        name: "title",
+        align: 'center',
+        name: 'title',
       }),
     ],
   },
   {
-    title: "Grain.",
-    body: "Noise across the whole frame. Film texture, not detail.",
-    layers: [makeEffectPresetLayer("grain", { value: 100 })],
+    title: 'Grain.',
+    body: 'Noise across the whole frame. Film texture, not detail.',
+    layers: [makeEffectPresetLayer('grain', { value: 100 })],
   },
   {
-    title: "Misregister.",
-    body: "Color channels split, shift apart. Off-press print error, on purpose.",
-    layers: [makeEffectPresetLayer("risoShift")],
+    title: 'Misregister.',
+    body: 'Color channels split, shift apart. Off-press print error, on purpose.',
+    layers: [makeEffectPresetLayer('risoShift')],
   },
   {
-    title: "Vignette.",
-    body: "Corners darkened. Eye pulled to the center.",
-    layers: [
-      makeEffectPresetLayer("vignette", { value: 50 }),
-    ],
+    title: 'Vignette.',
+    body: 'Corners darkened. Eye pulled to the center.',
+    layers: [makeEffectPresetLayer('vignette', { value: 50 })],
   },
   {
-    title: "Bloom.",
-    body: "Highlights leak. Final breath of light. Now export it.",
-    layers: [makeEffectPresetLayer("bloom", { value: 100 })],
+    title: 'Bloom.',
+    body: 'Highlights leak. Final breath of light. Now export it.',
+    layers: [makeEffectPresetLayer('bloom', { value: 100 })],
   },
 ];
 
 function buildDoc(stepIndex: number): CanvasDocument {
   const layers = STEPS.slice(0, stepIndex + 1).flatMap((step) => step.layers);
   return {
-    global: { bg: "#0a0008", seed: SEED, aspect: "1:1" },
+    global: { bg: '#0a0008', seed: SEED, aspect: '1:1' },
     export: DEFAULT_EXPORT,
     layers,
   };
 }
 
 export const meta: MetaFunction = () => [
-  { title: "Album Cover Generator | Layer it Up" },
+  { title: 'Album Cover Generator | Layer it Up' },
   {
-    name: "description",
+    name: 'description',
     content:
-      "Stack layers, run GPU effects, export at 3000×3000. A browser-based glitch cover generator for the deliberately strange.",
+      'Stack layers, run GPU effects, export at 3000×3000. A browser-based glitch cover generator for the deliberately strange.',
   },
 ];
 
@@ -180,7 +179,7 @@ export default function Home() {
       HERO_FRAMES.map(async ({ doc }) => {
         try {
           const out = await renderDocument(doc, THUMB, THUMB, emptyCache);
-          return out.toDataURL("image/jpeg", 0.75);
+          return out.toDataURL('image/jpeg', 0.75);
         } catch {
           return null;
         }
@@ -198,7 +197,7 @@ export default function Home() {
     const H = 96;
     canvas.width = W;
     canvas.height = H;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     // Allocate ImageData once and reuse to avoid per-frame GC pressure
@@ -280,11 +279,11 @@ export default function Home() {
         pending = false;
       });
     }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', update);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", update);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', update);
     };
   }, []);
 
@@ -308,12 +307,7 @@ export default function Home() {
     (async () => {
       const doc = buildDoc(effectiveStep);
       try {
-        const out = await renderDocument(
-          doc,
-          CANVAS_PX,
-          CANVAS_PX,
-          imageCacheRef.current,
-        );
+        const out = await renderDocument(doc, CANVAS_PX, CANVAS_PX, imageCacheRef.current);
         if (renderTokenRef.current !== token) return;
 
         // Render to the back canvas (not currently displayed)
@@ -324,17 +318,17 @@ export default function Home() {
         if (!target) return;
         if (target.width !== out.width) target.width = out.width;
         if (target.height !== out.height) target.height = out.height;
-        const ctx = target.getContext("2d");
+        const ctx = target.getContext('2d');
         if (ctx) {
           ctx.clearRect(0, 0, target.width, target.height);
           ctx.drawImage(out, 0, 0);
         }
 
         // Crossfade: bring back to front, send front to back
-        backRef.current?.classList.remove("home-canvas--back");
-        backRef.current?.classList.add("home-canvas--front");
-        frontRef.current?.classList.remove("home-canvas--front");
-        frontRef.current?.classList.add("home-canvas--back");
+        backRef.current?.classList.remove('home-canvas--back');
+        backRef.current?.classList.add('home-canvas--front');
+        frontRef.current?.classList.remove('home-canvas--front');
+        frontRef.current?.classList.add('home-canvas--back');
         frontIdxRef.current = backIdx;
       } catch {
         // renderer is silent on missing images; nothing to surface
@@ -346,35 +340,30 @@ export default function Home() {
     function onKey(event: KeyboardEvent) {
       if (event.target instanceof HTMLElement) {
         const tag = event.target.tagName;
-        if (
-          tag === "INPUT" ||
-          tag === "TEXTAREA" ||
-          event.target.isContentEditable
-        )
-          return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) return;
       }
-      if (event.key === "ArrowDown" || event.key === "PageDown") {
+      if (event.key === 'ArrowDown' || event.key === 'PageDown') {
         const target = stepRefs.current[Math.min(step + 1, STEPS.length - 1)];
         if (target) {
           event.preventDefault();
           target.scrollIntoView({
-            behavior: prefersReducedMotion ? "auto" : "smooth",
-            block: "center",
+            behavior: prefersReducedMotion ? 'auto' : 'smooth',
+            block: 'center',
           });
         }
-      } else if (event.key === "ArrowUp" || event.key === "PageUp") {
+      } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
         const target = stepRefs.current[Math.max(step - 1, 0)];
         if (target) {
           event.preventDefault();
           target.scrollIntoView({
-            behavior: prefersReducedMotion ? "auto" : "smooth",
-            block: "center",
+            behavior: prefersReducedMotion ? 'auto' : 'smooth',
+            block: 'center',
           });
         }
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [step, prefersReducedMotion]);
 
   function handleCTA() {
@@ -393,33 +382,15 @@ export default function Home() {
             {mosaicUrls.length > 0 && (
               <div className="home-mosaic" aria-hidden="true">
                 {mosaicUrls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt=""
-                    className="home-mosaic__thumb"
-                    draggable={false}
-                  />
+                  <img key={i} src={url} alt="" className="home-mosaic__thumb" draggable={false} />
                 ))}
               </div>
             )}
             <div className="home-canvas-frame">
-              <span
-                className="home-canvas-mark home-canvas-mark--tl"
-                aria-hidden="true"
-              />
-              <span
-                className="home-canvas-mark home-canvas-mark--tr"
-                aria-hidden="true"
-              />
-              <span
-                className="home-canvas-mark home-canvas-mark--bl"
-                aria-hidden="true"
-              />
-              <span
-                className="home-canvas-mark home-canvas-mark--br"
-                aria-hidden="true"
-              />
+              <span className="home-canvas-mark home-canvas-mark--tl" aria-hidden="true" />
+              <span className="home-canvas-mark home-canvas-mark--tr" aria-hidden="true" />
+              <span className="home-canvas-mark home-canvas-mark--bl" aria-hidden="true" />
+              <span className="home-canvas-mark home-canvas-mark--br" aria-hidden="true" />
               <canvas
                 ref={canvasARef}
                 className="home-canvas--layer home-canvas--front"
@@ -436,25 +407,22 @@ export default function Home() {
               />
               <canvas
                 ref={noiseCanvasRef}
-                className={`home-canvas-noise${!heroVisible ? " home-canvas-noise--faded" : ""}`}
+                className={`home-canvas-noise${!heroVisible ? ' home-canvas-noise--faded' : ''}`}
                 aria-hidden="true"
               />
             </div>
-            <div
-              className={`home-canvas-meta${heroVisible ? " home-canvas-meta--hidden" : ""}`}
-            >
+            <div className={`home-canvas-meta${heroVisible ? ' home-canvas-meta--hidden' : ''}`}>
               <span>SEED #{SEED}</span>
               <span>
-                {String(step + 1).padStart(2, "0")} /{" "}
-                {String(STEPS.length).padStart(2, "0")}
+                {String(step + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
               </span>
             </div>
             <ol className="home-progress" aria-label="Layer progression">
               {STEPS.map((s, i) => (
                 <li
                   key={s.title}
-                  className={`home-progress__item${i <= step ? " home-progress__item--reached" : ""}${i === step ? " home-progress__item--current" : ""}`}
-                  aria-current={i === step ? "step" : undefined}
+                  className={`home-progress__item${i <= step ? ' home-progress__item--reached' : ''}${i === step ? ' home-progress__item--current' : ''}`}
+                  aria-current={i === step ? 'step' : undefined}
                 >
                   <button
                     className="home-progress__btn"
@@ -462,33 +430,33 @@ export default function Home() {
                       const target = stepRefs.current[i];
                       if (target)
                         target.scrollIntoView({
-                          behavior: prefersReducedMotion ? "auto" : "smooth",
-                          block: "center",
+                          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                          block: 'center',
                         });
                     }}
                   >
                     <span className="home-progress__bar" aria-hidden="true" />
-                    <span className="sr-only">{s.title.replace(".", "")}</span>
+                    <span className="sr-only">{s.title.replace('.', '')}</span>
                   </button>
                 </li>
               ))}
             </ol>
             <div
-              className={`home-mobile-dots${heroVisible ? " home-mobile-dots--hidden" : ""}`}
+              className={`home-mobile-dots${heroVisible ? ' home-mobile-dots--hidden' : ''}`}
               aria-label="Jump to step"
             >
               {STEPS.map((s, i) => (
                 <button
                   key={i}
-                  aria-label={`Step ${i + 1}: ${s.title.replace(".", "")}`}
-                  aria-current={i === step ? "step" : undefined}
-                  className={`home-mobile-dot${i <= step ? " home-mobile-dot--reached" : ""}${i === step ? " home-mobile-dot--current" : ""}`}
+                  aria-label={`Step ${i + 1}: ${s.title.replace('.', '')}`}
+                  aria-current={i === step ? 'step' : undefined}
+                  className={`home-mobile-dot${i <= step ? ' home-mobile-dot--reached' : ''}${i === step ? ' home-mobile-dot--current' : ''}`}
                   onClick={() => {
                     const target = stepRefs.current[i];
                     if (target)
                       target.scrollIntoView({
-                        behavior: prefersReducedMotion ? "auto" : "smooth",
-                        block: "center",
+                        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                        block: 'center',
                       });
                   }}
                 />
@@ -498,7 +466,7 @@ export default function Home() {
 
           <section
             ref={heroRef}
-            className={`home-hero-overlay${heroVisible ? "" : " home-hero-overlay--faded"}`}
+            className={`home-hero-overlay${heroVisible ? '' : ' home-hero-overlay--faded'}`}
             aria-labelledby="home-hero-title"
           >
             <p className="home-hero__eyebrow">Album cover generator</p>
@@ -510,22 +478,14 @@ export default function Home() {
               covers.
             </h1>
             <p className="home-hero__deck">
-              Scroll to watch one cover compose itself, layer by layer.
-              Browser-based, GPU-driven, no account.
+              Scroll to watch one cover compose itself, layer by layer. Browser-based, GPU-driven, no account.
             </p>
             <div className="home-hero__actions">
-              <button
-                type="button"
-                className="home-hero__skip"
-                onClick={handleCTA}
-              >
+              <button type="button" className="home-hero__skip" onClick={handleCTA}>
                 Open generator →
               </button>
             </div>
-            <p
-              className={`home-hero__hint${!heroVisible ? " home-hero__hint--used" : ""}`}
-              aria-hidden="true"
-            >
+            <p className={`home-hero__hint${!heroVisible ? ' home-hero__hint--used' : ''}`} aria-hidden="true">
               ↓ scroll
             </p>
           </section>
@@ -537,17 +497,13 @@ export default function Home() {
                 ref={(el) => {
                   stepRefs.current[i] = el;
                 }}
-                className={`home-step${i === step ? " home-step--active" : ""}`}
-                aria-current={i === step ? "step" : undefined}
+                className={`home-step${i === step ? ' home-step--active' : ''}`}
+                aria-current={i === step ? 'step' : undefined}
               >
                 <div className="home-step__index">
-                  <span className="home-step__num">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
+                  <span className="home-step__num">{String(i + 1).padStart(2, '0')}</span>
                   <span className="home-step__rule" aria-hidden="true" />
-                  <span className="home-step__kind">
-                    {layerKindLabel(s.layers)}
-                  </span>
+                  <span className="home-step__kind">{layerKindLabel(s.layers)}</span>
                 </div>
                 <h2 className="home-step__title">{s.title}</h2>
                 <p className="home-step__body">{s.body}</p>
@@ -556,7 +512,7 @@ export default function Home() {
 
             <section
               ref={ctaRef}
-              className={`home-cta-section${ctaVisible ? " home-cta-section--visible" : ""}`}
+              className={`home-cta-section${ctaVisible ? ' home-cta-section--visible' : ''}`}
               aria-labelledby="home-cta-title"
             >
               <p className="home-cta-eyebrow">Your turn</p>
@@ -572,9 +528,7 @@ export default function Home() {
                   or browse examples ↗
                 </Link>
               </div>
-              <p className="home-cta-fineprint">
-                Everything is editable once inside. Re-seed or swap any layer.
-              </p>
+              <p className="home-cta-fineprint">Everything is editable once inside. Re-seed or swap any layer.</p>
             </section>
           </div>
         </div>
@@ -587,5 +541,5 @@ export default function Home() {
 
 function layerKindLabel(layers: Layer[]): string {
   const kinds = Array.from(new Set(layers.map((l) => l.kind)));
-  return kinds.join(" + ");
+  return kinds.join(' + ');
 }

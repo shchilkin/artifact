@@ -1,11 +1,11 @@
 import {
-  DEFAULT_EXPORT,
-  makeEffectPresetLayer,
-  makeEmojiLayer,
   type AspectRatio,
   type CanvasDocument,
+  DEFAULT_EXPORT,
   type EffectLayer,
   type EffectPreset,
+  makeEffectPresetLayer,
+  makeEmojiLayer,
 } from '../types/config';
 
 export interface CuratedExample {
@@ -18,12 +18,7 @@ function fx(preset: EffectPreset, name: string, partial: Partial<EffectLayer> = 
   return { ...makeEffectPresetLayer(preset), name, ...partial };
 }
 
-function mkDoc(
-  seed: number,
-  bg: string,
-  aspect: AspectRatio,
-  layers: CanvasDocument['layers'],
-): CanvasDocument {
+function mkDoc(seed: number, bg: string, aspect: AspectRatio, layers: CanvasDocument['layers']): CanvasDocument {
   return {
     global: { bg, seed, aspect },
     export: { ...DEFAULT_EXPORT },

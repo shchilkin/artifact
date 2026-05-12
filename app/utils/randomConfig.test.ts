@@ -1,11 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import {
-  randomGlobal,
-  randomEmojiLayer,
-  randomEffectLayer,
-  randomDocument,
-  zeroLayerSection,
-} from './randomConfig';
+import { describe, expect, it } from 'vitest';
+import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS } from '../types/config';
+import { randomDocument, randomEffectLayer, randomEmojiLayer, randomGlobal, zeroLayerSection } from './randomConfig';
 
 describe('randomGlobal', () => {
   it('returns a valid GlobalConfig with hex bg and numeric seed in [0, 999999]', () => {
@@ -76,11 +71,34 @@ describe('randomEffectLayer', () => {
   it('returns all numeric fields >= 0', () => {
     const layer = randomEffectLayer();
     const numericFields = [
-      'grain', 'scanlines', 'rgbSplit', 'glitch', 'tintOp',
-      'rays', 'rayInt', 'morphAmt', 'morphFreq', 'tearAmt', 'tearSize',
-      'noiseWarp', 'vortex', 'barrel', 'mirror', 'dataMosh', 'interlace',
-      'pixelate', 'hueShift', 'rgbSplit', 'vignette', 'bloom', 'posterize',
-      'filmBurn', 'duotone', 'halftone', 'risoShift', 'risoAngle',
+      'grain',
+      'scanlines',
+      'rgbSplit',
+      'glitch',
+      'tintOp',
+      'rays',
+      'rayInt',
+      'morphAmt',
+      'morphFreq',
+      'tearAmt',
+      'tearSize',
+      'noiseWarp',
+      'vortex',
+      'barrel',
+      'mirror',
+      'dataMosh',
+      'interlace',
+      'pixelate',
+      'hueShift',
+      'rgbSplit',
+      'vignette',
+      'bloom',
+      'posterize',
+      'filmBurn',
+      'duotone',
+      'halftone',
+      'risoShift',
+      'risoAngle',
     ] as const;
 
     for (const field of numericFields) {
@@ -101,11 +119,21 @@ describe('randomEffectLayer', () => {
     const layer = randomEffectLayer(90);
     expect(layer.kind).toBe('effect');
   });
+
+  it('returns one focused preset instead of a combined FX layer', () => {
+    const layer = randomEffectLayer();
+    expect(layer.preset).toBeDefined();
+    expect(layer.preset && layer.preset in EFFECT_PRESETS).toBe(true);
+    expect(layer.preset).not.toBe('warp');
+    expect(layer.preset).not.toBe('color');
+    expect(layer.preset).not.toBe('riso');
+  });
 });
 
 describe('randomDocument', () => {
   it('returns a CanvasDocument with global and layers', () => {
     const doc = randomDocument();
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(doc).toHaveProperty('global');
     expect(doc).toHaveProperty('layers');
   });
@@ -126,6 +154,15 @@ describe('randomDocument', () => {
   it('first layer is an emoji layer', () => {
     const doc = randomDocument();
     expect(doc.layers[0].kind).toBe('emoji');
+  });
+
+  it('generates only focused effect preset layers after the emoji layer', () => {
+    const doc = randomDocument();
+    const effectLayers = doc.layers.slice(1);
+
+    expect(
+      effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS),
+    ).toBe(true);
   });
 });
 

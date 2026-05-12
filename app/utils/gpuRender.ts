@@ -1,5 +1,5 @@
-import { Renderer, Container, Sprite, Texture, RenderTexture } from 'pixi.js';
 import type { Filter } from 'pixi.js';
+import { Container, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 
 interface GpuRenderOptions {
   width: number;
@@ -19,7 +19,11 @@ let sharedRendererSize = { w: 0, h: 0 };
 
 function disposeShared() {
   if (sharedRenderer) {
-    try { sharedRenderer.destroy(true); } catch { /* already gone */ }
+    try {
+      sharedRenderer.destroy(true);
+    } catch {
+      /* already gone */
+    }
   }
   sharedRenderer = null;
   sharedRendererSize = { w: 0, h: 0 };
@@ -53,7 +57,10 @@ function getSharedRenderer(W: number, H: number): Renderer | null {
 let renderQueue: Promise<unknown> = Promise.resolve();
 
 function enqueueRender<T>(fn: () => Promise<T>): Promise<T> {
-  const next = renderQueue.then(() => fn(), () => fn());
+  const next = renderQueue.then(
+    () => fn(),
+    () => fn(),
+  );
   renderQueue = next.catch(() => undefined);
   return next;
 }
@@ -99,7 +106,6 @@ async function renderWithRenderer(
     gpuTex.destroy(true);
   }
 }
-
 /**
  * Shared GPU render pipeline used by export, env map export, and thumbnail
  * generation. Blits a Canvas 2D source into a PixiJS RenderTexture, applies
@@ -128,7 +134,11 @@ export async function gpuRenderToCanvas({
     try {
       return await renderWithRenderer(renderer, W, H, source, filters);
     } finally {
-      try { renderer.destroy(true); } catch { /* already gone */ }
+      try {
+        renderer.destroy(true);
+      } catch {
+        /* already gone */
+      }
     }
   });
 }

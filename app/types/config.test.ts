@@ -1,11 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { CanvasDocument } from './config';
 import {
-  makeTextLayer,
+  cloneDocument,
+  DEFAULT_DOCUMENT,
+  DOCUMENT_SCHEMA_VERSION,
+  EFFECT_PRESETS,
   makeEffectLayer,
   makeEmojiLayer,
-  cloneDocument,
+  makeSourceLayer,
+  makeTextLayer,
 } from './config';
-import type { CanvasDocument } from './config';
 
 describe('makeTextLayer', () => {
   it('returns a layer with kind: text', () => {
@@ -57,11 +61,33 @@ describe('makeEffectLayer', () => {
   it('returns all required numeric effect fields', () => {
     const layer = makeEffectLayer();
     const numericFields = [
-      'grain', 'scanlines', 'glitch', 'tintOp',
-      'rays', 'rayInt', 'morphAmt', 'morphFreq', 'tearAmt', 'tearSize',
-      'noiseWarp', 'vortex', 'barrel', 'mirror', 'dataMosh', 'interlace',
-      'pixelate', 'hueShift', 'rgbSplit', 'vignette', 'bloom', 'posterize',
-      'filmBurn', 'duotone', 'halftone', 'risoShift', 'risoAngle',
+      'grain',
+      'scanlines',
+      'glitch',
+      'tintOp',
+      'rays',
+      'rayInt',
+      'morphAmt',
+      'morphFreq',
+      'tearAmt',
+      'tearSize',
+      'noiseWarp',
+      'vortex',
+      'barrel',
+      'mirror',
+      'dataMosh',
+      'interlace',
+      'pixelate',
+      'hueShift',
+      'rgbSplit',
+      'vignette',
+      'bloom',
+      'posterize',
+      'filmBurn',
+      'duotone',
+      'halftone',
+      'risoShift',
+      'risoAngle',
     ] as const;
 
     for (const field of numericFields) {
@@ -73,6 +99,36 @@ describe('makeEffectLayer', () => {
     const layer = makeEffectLayer({ grain: 99 });
     expect(layer.grain).toBe(99);
     expect(layer.kind).toBe('effect');
+  });
+
+  it('defaults to an inert custom effect instead of the old combined FX stack', () => {
+    const layer = makeEffectLayer();
+    expect(layer.name).toBe('Effect');
+    expect(layer.grain).toBe(0);
+    expect(layer.scanlines).toBe(0);
+    expect(layer.rgbSplit).toBe(0);
+    expect(layer.rays).toBe(0);
+    expect(layer.tintOp).toBe(0);
+  });
+});
+
+describe('effect presets', () => {
+  it('versions the default document schema', () => {
+    expect(DEFAULT_DOCUMENT.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+  });
+
+  it('does not expose legacy combined presets', () => {
+    expect(EFFECT_PRESETS).not.toHaveProperty('warp');
+    expect(EFFECT_PRESETS).not.toHaveProperty('color');
+    expect(EFFECT_PRESETS).not.toHaveProperty('riso');
+  });
+
+  it('uses focused effect layers in the default document', () => {
+    const effectPresets = DEFAULT_DOCUMENT.layers
+      .filter((layer) => layer.kind === 'effect')
+      .map((layer) => (layer.kind === 'effect' ? layer.preset : undefined));
+
+    expect(effectPresets).toEqual(['rays', 'tint', 'grain', 'scanlines', 'rgbSplit']);
   });
 });
 
@@ -104,9 +160,26 @@ describe('makeEmojiLayer', () => {
   });
 });
 
+describe('makeSourceLayer', () => {
+  it('returns a layer with the requested procedural kind', () => {
+    const layer = makeSourceLayer();
+    expect(layer.kind).toBe('primitive');
+  });
+
+  it('accepts a source subtype and keeps shared transform fields', () => {
+    const layer = makeSourceLayer('noise', { noiseScale: 48, x: 0.25 });
+    expect(layer.kind).toBe('noise');
+    expect(layer.noiseScale).toBe(48);
+    expect(layer.x).toBe(0.25);
+    expect(layer.scaleX).toBe(1);
+    expect(layer.scaleY).toBe(1);
+  });
+});
+
 describe('cloneDocument', () => {
   it('returns an object deeply equal to the original', () => {
     const original: CanvasDocument = {
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
       export: { format: 'png', scale: 1, target: 'cover' },
@@ -117,6 +190,7 @@ describe('cloneDocument', () => {
 
   it('does not return the same reference as the original', () => {
     const original: CanvasDocument = {
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
       export: { format: 'png', scale: 1, target: 'cover' },
@@ -151,5 +225,16 @@ describe('cloneDocument', () => {
     const cloned = cloneDocument(original);
     cloned.export.scale = 3;
     expect(original.export.scale).toBe(1);
+  });
+
+  it('keeps source layer fields when cloning', () => {
+    const original: CanvasDocument = {
+      global: { bg: '#120020', seed: 1, aspect: '1:1' },
+      layers: [makeSourceLayer('array', { id: 'src-1', arrayCount: 9, arrayRows: 3 })],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const cloned = cloneDocument(original);
+    expect(cloned.layers[0]).toEqual(original.layers[0]);
+    expect(cloned.layers[0]).not.toBe(original.layers[0]);
   });
 });

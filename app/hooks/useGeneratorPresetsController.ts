@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type MutableRefObject } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
-import { usePresets, type Preset } from './usePresets';
+import { type Preset, usePresets } from './usePresets';
 
 interface UseGeneratorPresetsControllerOptions {
   docRef: MutableRefObject<CanvasDocument>;
@@ -16,11 +16,14 @@ export function useGeneratorPresetsController({
   const [showPresets, setShowPresets] = useState(false);
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
 
-  const handleLoadPreset = useCallback((preset: Preset) => {
-    const { doc } = loadPreset(preset);
-    onLoadDocument(doc);
-    setShowPresets(false);
-  }, [loadPreset, onLoadDocument]);
+  const handleLoadPreset = useCallback(
+    (preset: Preset) => {
+      const { doc } = loadPreset(preset);
+      onLoadDocument(doc);
+      setShowPresets(false);
+    },
+    [loadPreset, onLoadDocument],
+  );
 
   useEffect(() => {
     if (!showPresets) return;

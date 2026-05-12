@@ -28,33 +28,33 @@ function saveToStorage(presets: Preset[]) {
 export function usePresets() {
   const [presets, setPresets] = useState<Preset[]>(loadFromStorage);
 
-  const savePreset = useCallback(async (
-    name: string,
-    doc: CanvasDocument,
-    imageCache: Map<string, HTMLImageElement>,
-  ) => {
-    let thumbnail: string;
-    try {
-      thumbnail = await generateThumbnail(doc, imageCache);
-    } catch (err) {
-      console.error('[presets] thumbnail generation failed, using placeholder', err);
-      thumbnail = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    }
+  const savePreset = useCallback(
+    async (name: string, doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) => {
+      let thumbnail: string;
+      try {
+        thumbnail = await generateThumbnail(doc, imageCache);
+      } catch (err) {
+        console.error('[presets] thumbnail generation failed, using placeholder', err);
+        thumbnail =
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      }
 
-    const preset: Preset = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name,
-      doc,
-      thumbnail,
-    };
+      const preset: Preset = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name,
+        doc,
+        thumbnail,
+      };
 
-    setPresets((prev) => {
-      let next = [...prev, preset];
-      if (next.length > MAX_PRESETS) next = next.slice(next.length - MAX_PRESETS);
-      saveToStorage(next);
-      return next;
-    });
-  }, []);
+      setPresets((prev) => {
+        let next = [...prev, preset];
+        if (next.length > MAX_PRESETS) next = next.slice(next.length - MAX_PRESETS);
+        saveToStorage(next);
+        return next;
+      });
+    },
+    [],
+  );
 
   const deletePreset = useCallback((id: string) => {
     setPresets((prev) => {

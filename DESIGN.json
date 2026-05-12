@@ -126,7 +126,10 @@
       }
     },
     "typographyMeta": {
-      "hero": { "displayName": "Hero", "purpose": "One-per-page landing headline. Display caps, fluid clamp(3rem, 11vw, 11rem)." },
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "One-per-page landing headline. Display caps, fluid clamp(3rem, 11vw, 11rem)."
+      },
       "display": { "displayName": "Display", "purpose": "Section and step titles, ALL CAPS." },
       "body": { "displayName": "Body", "purpose": "Mono body copy, deck text. Max ~38–60ch." },
       "label": { "displayName": "Label", "purpose": "Mono labels, buttons, chips, eyebrows. Tracking 0.18em." },
@@ -134,8 +137,16 @@
     },
     "shadows": [],
     "motion": [
-      { "name": "ease-out-quart", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for state transitions, scroll-driven reveals, tile lift." },
-      { "name": "ease-out-fast", "value": "ease-out", "purpose": "Short feedback on hover/focus state changes (150–180ms)." },
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for state transitions, scroll-driven reveals, tile lift."
+      },
+      {
+        "name": "ease-out-fast",
+        "value": "ease-out",
+        "purpose": "Short feedback on hover/focus state changes (150–180ms)."
+      },
       { "name": "duration-fast", "value": "150ms", "purpose": "Filter chip color/border state shifts." },
       { "name": "duration-medium", "value": "220ms", "purpose": "Tile lift, outline color shift." },
       { "name": "duration-slow", "value": "380ms", "purpose": "Step opacity reveal on scroll." }
@@ -209,12 +220,36 @@
       "Mobile is first-class; touch targets at 44px minimum"
     ],
     "rules": [
-      { "name": "The Registration-Mark Rule", "body": "The accent is a registration mark, not a brand wash. It appears on ≤10% of any screen — current-step indicator, active chip, primary CTA, layer numerals. If two or more accent uses are within thumb's reach of each other, one is decoration. Remove it.", "section": "colors" },
-      { "name": "The Tinted-Neutral Rule", "body": "Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.", "section": "colors" },
-      { "name": "The Mono-As-UI Rule", "body": "All UI chrome — buttons, labels, eyebrows, meta, filter chips — uses mono. Display is reserved for headlines. Mixing display in chrome makes the UI shout. Mixing mono in headlines makes the work feel like a terminal print, not a record sleeve.", "section": "typography" },
-      { "name": "The Caps-And-Tracking Rule", "body": "Anything in caps under 1rem must carry letter-spacing ≥ 0.12em. Anything in caps over 2rem must carry tracking −0.015em or tighter. Caps without tracking adjustments read as accidental, not intentional.", "section": "typography" },
-      { "name": "The Flat-Tonal Rule", "body": "Surfaces are flat. Depth comes from one-step lightness shifts in the neutrals (8% → 11% → 24%) and from hairline 1px borders. Drop shadows are forbidden for resting elevation.", "section": "elevation" },
-      { "name": "The Print-Mark Rule", "body": "When a surface needs to feel framed, use crop / registration marks at the corners (1px lines, 14–18px arms, accent-colored), not a box-shadow. The work is being prepared for print; the chrome should say so.", "section": "elevation" }
+      {
+        "name": "The Registration-Mark Rule",
+        "body": "The accent is a registration mark, not a brand wash. It appears on ≤10% of any screen — current-step indicator, active chip, primary CTA, layer numerals. If two or more accent uses are within thumb's reach of each other, one is decoration. Remove it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted-Neutral Rule",
+        "body": "Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono-As-UI Rule",
+        "body": "All UI chrome — buttons, labels, eyebrows, meta, filter chips — uses mono. Display is reserved for headlines. Mixing display in chrome makes the UI shout. Mixing mono in headlines makes the work feel like a terminal print, not a record sleeve.",
+        "section": "typography"
+      },
+      {
+        "name": "The Caps-And-Tracking Rule",
+        "body": "Anything in caps under 1rem must carry letter-spacing ≥ 0.12em. Anything in caps over 2rem must carry tracking −0.015em or tighter. Caps without tracking adjustments read as accidental, not intentional.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Tonal Rule",
+        "body": "Surfaces are flat. Depth comes from one-step lightness shifts in the neutrals (8% → 11% → 24%) and from hairline 1px borders. Drop shadows are forbidden for resting elevation.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Print-Mark Rule",
+        "body": "When a surface needs to feel framed, use crop / registration marks at the corners (1px lines, 14–18px arms, accent-colored), not a box-shadow. The work is being prepared for print; the chrome should say so.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do keep the accent on ≤10% of any screen. Treat it like a registration mark: rare and load-bearing.",

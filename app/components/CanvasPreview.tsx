@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
 import { getPreviewDims } from '../types/config';
-import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import { CanvasHandles } from './CanvasHandles';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
@@ -16,18 +16,15 @@ interface Props {
   onSelectLayer: (id: string | null) => void;
 }
 
-export function CanvasPreview({
-  doc,
-  imageCache,
-  selectedLayerId,
-  dragOver,
-  onLayerUpdate,
-  onSelectLayer,
-}: Props) {
+export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLayerUpdate, onSelectLayer }: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const [fast, setFast] = useState(false);
   const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph, { fast, graphMode: 'stack' });
+  const { containerRef } = useDocumentRenderer(doc, imageCache, pw, ph, {
+    fast,
+    graphMode: 'stack',
+    cacheKey: 'layer-preview',
+  });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
 
@@ -50,19 +47,25 @@ export function CanvasPreview({
     }, FAST_PATH_RELEASE_MS);
   }, []);
 
-  useEffect(() => () => {
-    if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+    },
+    [],
+  );
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!selectedLayer || (selectedLayer.kind !== 'image' && selectedLayer.kind !== 'text')) return;
-    e.preventDefault();
-    const delta = -e.deltaY * SCROLL_SCALE_SENSITIVITY;
-    const newScale = Math.max(0.05, selectedLayer.scaleX + delta);
-    enterFast();
-    exitFast();
-    onLayerUpdate(selectedLayer.id, { scaleX: newScale, scaleY: newScale });
-  }, [selectedLayer, onLayerUpdate, enterFast, exitFast]);
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!selectedLayer || (selectedLayer.kind !== 'image' && selectedLayer.kind !== 'text')) return;
+      e.preventDefault();
+      const delta = -e.deltaY * SCROLL_SCALE_SENSITIVITY;
+      const newScale = Math.max(0.05, selectedLayer.scaleX + delta);
+      enterFast();
+      exitFast();
+      onLayerUpdate(selectedLayer.id, { scaleX: newScale, scaleY: newScale });
+    },
+    [selectedLayer, onLayerUpdate, enterFast, exitFast],
+  );
 
   return (
     <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">

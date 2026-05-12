@@ -4,6 +4,19 @@
 
 Browser-based album cover generator: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
 
+## Required docs before architecture work
+
+Read these docs before changing state ownership, rendering, node editor behavior, thumbnails, preview/export parity, or 3D primitive controls:
+
+- `docs/state-model.md` — source-of-truth rules for document, graph, UI, gesture draft, primitive camera, undo, and thumbnail invalidation state.
+- `docs/rendering.md` — render entry points, stack vs graph mode, primitive rendering, thumbnails, render options, and preview/export parity rules.
+- `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu edge cases, and QA checklist.
+- `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
+- `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+- `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
+
+Use these docs as the source of truth over older summaries in this file if they disagree.
+
 ---
 
 ## Tech Stack
@@ -24,8 +37,11 @@ Browser-based album cover generator: users compose layered artwork with emojis, 
 
 ```ts
 interface CanvasDocument {
+  schemaVersion?: number;
   global: GlobalConfig;   // { bg, seed, aspect }
   layers: Layer[];        // ordered bottom-to-top
+  graph?: CanvasGraph;    // optional node graph composition
+  export?: ExportConfig;  // export preferences
 }
 ```
 
@@ -42,7 +58,7 @@ interface CanvasDocument {
 **Factory functions** (always use these to create layers):
 `makeTextLayer`, `makeImageLayer`, `makeEmojiLayer`, `makeFillLayer`, `makeEffectLayer`, `makeEffectPresetLayer`
 
-**Effect presets** (`EffectPreset`): `rays | bloom | filmBurn | glitch | rgbSplit | interlace | dataMosh | grain | scanlines | tint | noiseWarp | morph | vortex | barrel | tear | mirror | hueShift | vignette | pixelate | posterize | duotone | halftone | risoShift | blur | threshold | edgeDetect | gradientOverlay` plus legacy `warp | color | riso` — defined in `EFFECT_PRESETS`, each is a focused zero-based `EffectLayer` partial.
+**Effect presets** (`EffectPreset`): focused zero-based presets defined in `EFFECT_PRESETS`. Legacy combined `warp`, `color`, and `riso` presets are no longer part of the model; stored combined effect layers are split into focused preset layers during document normalization.
 
 **Aspect ratios** (`AspectRatio`): `1:1 | 4:5 | 9:16 | 16:9` → pixel sizes in `ASPECT_SIZES`.
 
@@ -50,7 +66,9 @@ interface CanvasDocument {
 
 ## Architecture: Rendering Pipeline
 
-Two-stage pipeline in `app/utils/renderer.ts`:
+`app/utils/renderer.ts` is the public facade for `renderDocument` and
+`renderGraphTarget`; implementation internals live under `app/utils/render/`.
+The current two-stage pipeline is:
 
 1. **Canvas 2D** — `renderDocument` iterates `doc.layers` in order, drawing each layer to a single `<canvas>`. Effect layers run `applyCanvas2DEffects` (rays, glitch, CA, scanlines, grain, tint).
 
@@ -58,7 +76,7 @@ Two-stage pipeline in `app/utils/renderer.ts`:
 
 **Entry point for export/preview:**
 ```ts
-renderDocument(doc, W, H, imageCache, persistentRenderer?): Promise<HTMLCanvasElement>
+renderDocument(doc, W, H, imageCache, options?): Promise<HTMLCanvasElement>
 ```
 
 **Scale baseline**: `REF = 540` — all size values are authored at 540px and scaled by `W / REF` at render time.
@@ -67,11 +85,11 @@ renderDocument(doc, W, H, imageCache, persistentRenderer?): Promise<HTMLCanvasEl
 
 ## Architecture: State Management
 
-All document state lives in `app/routes/generator.tsx`:
+Document state is owned by `app/hooks/useGeneratorDocument.ts` and orchestrated
+by `app/routes/generator.tsx`:
 
-- `doc` / `_setDoc` — never call `_setDoc` directly from outside; always go through `setDoc` (the wrapped version).
-- `setDoc` debounces history writes (400 ms). For drag operations the pre-drag baseline is captured in `preChangeRef` on the first `setDoc` call; subsequent calls within the debounce window don't push extra history entries.
-- `setSeed` and `handleRandomize` flush debounce and push history synchronously before mutating.
+- Document changes go through explicit update modes: `snapshot`, `debounce`, or `silent`.
+- Continuous gestures should create one undo entry through the debounced history path.
 - Undo/redo: `past[]` / `future[]` of `{ doc: CanvasDocument }`, max 50 entries.
 - `imageCache: Map<string, HTMLImageElement>` — keyed by `layer.src` (data URL). Populated asynchronously; image layers silently skip rendering if the image isn't loaded yet.
 - `docRef` / `selectedLayerIdRef` — `useLayoutEffect`-synced refs used inside callbacks to avoid stale closures.
@@ -83,7 +101,8 @@ All document state lives in `app/routes/generator.tsx`:
 | File | Purpose |
 |------|---------|
 | `app/types/config.ts` | All types, factory functions, `cloneDocument`, `migrateFromV1`, `EFFECT_PRESETS` |
-| `app/utils/renderer.ts` | `renderDocument` (async, GPU), `render` (sync, legacy), layer draw functions |
+| `app/utils/renderer.ts` | Public render facade: `renderDocument`, `renderGraphTarget` |
+| `app/utils/render/layers/index.ts` | Layer/effect render passes while smaller per-kind modules are extracted |
 | `app/utils/pixiFilters.ts` | `buildFiltersFromEffectLayer` — maps `EffectLayer` fields to Pixi `Filter[]` |
 | `app/utils/gpuRender.ts` | One-shot Pixi renderer for export (no persistent `Renderer`) |
 | `app/utils/randomConfig.ts` | `randomDocument`, `randomEffectLayer`, `randomLayerSection`, `zeroLayerSection` |
@@ -102,10 +121,13 @@ All document state lives in `app/routes/generator.tsx`:
 ## Dev Commands
 
 ```bash
-npm run dev        # favicon generation + React Router dev server
-npm run build      # favicon generation + production build
+npm run dev        # React Router dev server
+npm run build      # production build
+npm run favicon    # optional local bitmap favicon generation
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
+npm test           # Vitest unit/integration tests
+npm run test:browser # focused Playwright browser/WebGL smoke tests
 ```
 
 ---

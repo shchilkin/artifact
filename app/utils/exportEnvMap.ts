@@ -16,17 +16,11 @@ function triggerBlobDownload(canvas: HTMLCanvasElement, seed: number) {
   }, 'image/png');
 }
 
-export async function exportEnvMap(
-  doc: CanvasDocument,
-  imageCache: Map<string, HTMLImageElement>,
-): Promise<void> {
+export async function exportEnvMap(doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>): Promise<void> {
   try {
     const finalCanvas = await renderDocument(doc, W, H, imageCache);
     triggerBlobDownload(finalCanvas, doc.global.seed);
   } catch (err) {
-    throw new Error(
-      `Env map export failed: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err },
-    );
+    throw new Error(`Env map export failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
