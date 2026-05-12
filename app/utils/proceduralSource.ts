@@ -246,9 +246,10 @@ export async function drawSourceLayer(
   }
 
   if (layer.kind === 'primitive') {
-    const size = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);
-    const threeCanvas = await renderPrimitiveToCanvas(layer, size, primitiveViewState, { forceFallback: draft });
-    ctx.drawImage(threeCanvas, -size / 2, -size / 2, size, size);
+    const drawSize = SOURCE_SIZE;
+    const renderSize = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);
+    const threeCanvas = await renderPrimitiveToCanvas(layer, renderSize, primitiveViewState, { forceFallback: draft });
+    ctx.drawImage(threeCanvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
   } else if (layer.kind === 'noise') {
     drawNoiseLayer(ctx, layer, seed, draft);
   } else {

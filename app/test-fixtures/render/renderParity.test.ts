@@ -18,6 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { type CanvasDocument, makeSourceLayer } from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
 import { emojiSeeded, fillOnly, textOverFill } from './fixtures';
 
@@ -47,6 +48,30 @@ function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number } {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('getContext returned null');
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const alpha = pixels[(y * canvas.width + x) * 4 + 3] ?? 0;
+      if (alpha <= 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return {
+    width: Math.max(0, maxX - minX + 1),
+    height: Math.max(0, maxY - minY + 1),
+  };
 }
 
 /**
@@ -198,6 +223,38 @@ describe('renderDocument — preview/export size parity', () => {
       graphMode: 'auto',
     });
     expect(pixelsEqual(allPixels(stack), allPixels(auto))).toBe(true);
+  });
+
+  it('primitive full-frame sources scale proportionally at export sizes', async () => {
+    const primitiveDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('primitive', {
+          color: '#ff5a36',
+          accentColor: '#ffb199',
+          opacity: 100,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const preview = await renderDocument(primitiveDoc, 540, 540, new Map(), {
+      draft: true,
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const exported = await renderDocument(primitiveDoc, 1080, 1080, new Map(), {
+      draft: true,
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const previewBounds = alphaBounds(preview);
+    const exportedBounds = alphaBounds(exported);
+
+    expect(exportedBounds.width).toBeGreaterThan(0);
+    expect(exportedBounds.height).toBeGreaterThan(0);
+    expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
+    expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
   });
 });
 
