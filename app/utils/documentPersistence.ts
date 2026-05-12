@@ -7,6 +7,7 @@ import {
   DEFAULT_DOCUMENT,
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
+  DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
   type Layer,
   type SourceType,
@@ -69,6 +70,7 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
 
   return {
     ...(doc as Partial<CanvasDocument>),
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...DEFAULT_GLOBAL, ...global, aspect },
     layers,
     export: { ...DEFAULT_EXPORT, ...exportConfig } as CanvasDocument['export'],

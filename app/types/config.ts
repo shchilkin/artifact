@@ -336,11 +336,14 @@ export interface ExportConfig {
 }
 
 export interface CanvasDocument {
+  schemaVersion?: number;
   global: GlobalConfig;
   layers: Layer[];
   graph?: CanvasGraph;
   export: ExportConfig;
 }
+
+export const DOCUMENT_SCHEMA_VERSION = 1;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: '#120020',
@@ -806,6 +809,7 @@ export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPre
 }
 
 export const DEFAULT_DOCUMENT: CanvasDocument = {
+  schemaVersion: DOCUMENT_SCHEMA_VERSION,
   global: DEFAULT_GLOBAL,
   layers: [
     makeEmojiLayer({ id: 'default-emoji' }),
@@ -842,6 +846,7 @@ export function makeGraphColorNode(partial: Partial<GraphColorNode> = {}): Graph
 
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
+    schemaVersion: doc.schemaVersion,
     global: { ...doc.global },
     export: { ...doc.export },
     layers: doc.layers.map((layer) => ({

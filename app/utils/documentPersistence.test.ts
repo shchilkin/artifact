@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { type CanvasDocument, DEFAULT_DOCUMENT, makeFillLayer, makeTextLayer } from '../types/config';
+import {
+  type CanvasDocument,
+  DEFAULT_DOCUMENT,
+  DOCUMENT_SCHEMA_VERSION,
+  makeFillLayer,
+  makeTextLayer,
+} from '../types/config';
 import {
   ARTIFACT_FILE_EXTENSION,
   createArtifactFileName,
@@ -11,6 +17,7 @@ import {
   removeDocParamFromUrl,
   saveDocumentToStorage,
   serializeArtifactDocument,
+  serializeDocument,
 } from './documentPersistence';
 
 function encodeDoc(doc: unknown) {
@@ -21,9 +28,21 @@ describe('normalizeDocument', () => {
   it('fills missing global and export defaults', () => {
     const doc = normalizeDocument({ layers: [] });
 
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(doc.global).toEqual(DEFAULT_DOCUMENT.global);
     expect(doc.export).toEqual(DEFAULT_DOCUMENT.export);
     expect(doc.layers).toEqual([]);
+  });
+
+  it('migrates older unversioned documents to the current schema version', () => {
+    const doc = normalizeDocument({
+      global: { bg: '#202020', seed: 5, aspect: '4:5' },
+      layers: [makeFillLayer({ id: 'legacy-fill' })],
+      export: { format: 'jpeg', scale: 2, target: 'cover' },
+    });
+
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+    expect(doc.layers[0]?.id).toBe('legacy-fill');
   });
 
   it('falls back to the default aspect when stored aspect is invalid', () => {
@@ -200,6 +219,7 @@ describe('document serialization helpers', () => {
     const decoded = normalizeDocument(JSON.parse(parsed.searchParams.get('doc') ?? '{}'));
 
     expect(parsed.pathname).toBe('/app');
+    expect(decoded.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(decoded.layers[0]?.id).toBe('share-text');
     expect(decoded.export.scale).toBe(3);
   });
@@ -222,6 +242,26 @@ describe('document serialization helpers', () => {
     expect(serialized.endsWith('\n')).toBe(true);
     expect(parsed?.layers[0]?.id).toBe('share-text');
     expect(parsed?.graph?.colorNodes).toEqual([]);
+  });
+
+  it('round-trips graph documents through storage-safe JSON without losing graph fields', () => {
+    const graphDoc: CanvasDocument = {
+      ...doc,
+      graph: {
+        edges: [{ id: 'e-text-export', fromId: 'share-text', fromPort: 'out', toId: '__export__', toPort: 'in' }],
+        positions: { 'share-text': { x: 0, y: 80 }, __export__: { x: 216, y: 80 } },
+        mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }],
+        colorNodes: [{ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }],
+      },
+    };
+
+    const parsed = normalizeDocument(JSON.parse(serializeDocument(graphDoc)));
+
+    expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+    expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
+    expect(parsed.graph?.mergeNodes).toEqual(graphDoc.graph?.mergeNodes);
+    expect(parsed.graph?.colorNodes).toEqual(graphDoc.graph?.colorNodes);
+    expect(parsed.graph?.positions.__export__).toEqual({ x: 216, y: 80 });
   });
 
   it('rejects invalid artifact document JSON without throwing', () => {

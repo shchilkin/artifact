@@ -3,6 +3,7 @@ import type { CanvasDocument } from './config';
 import {
   cloneDocument,
   DEFAULT_DOCUMENT,
+  DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESETS,
   makeEffectLayer,
   makeEmojiLayer,
@@ -112,6 +113,10 @@ describe('makeEffectLayer', () => {
 });
 
 describe('effect presets', () => {
+  it('versions the default document schema', () => {
+    expect(DEFAULT_DOCUMENT.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+  });
+
   it('does not expose legacy combined presets', () => {
     expect(EFFECT_PRESETS).not.toHaveProperty('warp');
     expect(EFFECT_PRESETS).not.toHaveProperty('color');
@@ -174,6 +179,7 @@ describe('makeSourceLayer', () => {
 describe('cloneDocument', () => {
   it('returns an object deeply equal to the original', () => {
     const original: CanvasDocument = {
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
       export: { format: 'png', scale: 1, target: 'cover' },
@@ -184,6 +190,7 @@ describe('cloneDocument', () => {
 
   it('does not return the same reference as the original', () => {
     const original: CanvasDocument = {
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
       global: { bg: '#120020', seed: 42, aspect: '1:1' },
       layers: [makeEmojiLayer({ id: 'test-emoji' })],
       export: { format: 'png', scale: 1, target: 'cover' },

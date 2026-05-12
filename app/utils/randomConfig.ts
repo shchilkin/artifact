@@ -10,6 +10,7 @@ import type {
 import {
   ALL_EMOJIS,
   DEFAULT_EXPORT,
+  DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESET_MENU_ORDER,
   makeEffectPresetLayer,
   makeEmojiLayer,
@@ -248,6 +249,7 @@ export function randomDocument(): CanvasDocument {
     randomEffectPresetLayer(shuffled[i % shuffled.length], baseHue),
   );
   return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...randomGlobal(baseHue), aspect },
     layers: [randomEmojiLayer(baseHue), ...effectLayers],
     export: { ...DEFAULT_EXPORT },

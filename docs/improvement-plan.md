@@ -35,15 +35,17 @@ the detailed source of truth.
 
 - [ ] Split `app/utils/renderer.ts` behind the existing `renderDocument` and
   `renderGraphTarget` facades.
-- [ ] Add render fixtures for image free-fit, procedural source layers, primitive
-  camera overrides, and graph export traversal.
+- [x] Add render fixtures for image free-fit, procedural source layers, and graph
+  export traversal.
+- [ ] Add render fixtures for primitive camera overrides once the Node test
+  environment can cover that path reliably.
 - [ ] Keep export, preview, thumbnails, gallery, and presets on the same public
   renderer entry points.
 - [ ] Define a GPU/WebGL tolerance strategy before adding visual snapshots.
 
 ### Node editor and UX hardening
 
-- [ ] Keep graph node creation model-first, then document sync, then UI.
+- [x] Keep graph node creation model-first, then document sync, then UI.
 - [ ] Add targeted tests around React Flow edge mapping if visual mapping logic
   changes.
 - [ ] Preserve node-local primitive camera controls and prevent graph zoom/pan
@@ -58,14 +60,14 @@ the detailed source of truth.
   before production release.
 - [ ] Keep `README.md`, `AGENTS.md`, `COPILOT.md`, `CLAUDE.md`, and
   `.github/copilot-instructions.md` aligned when architecture docs move.
-- [ ] Add versioned document schema/migration tests before changing persisted
+- [x] Add versioned document schema/migration tests before changing persisted
   document shape again.
 - [ ] Decide whether large image assets stay as document data URLs, move to
   IndexedDB, or remain out of scope until backend persistence exists.
 
-Recommended next commit: extract history/update modes and add the first
-document-sync tests. That is the best foundation for the remaining renderer and
-node-editor work.
+Recommended next commit: add pure document-session tests for undo/redo,
+debounced commits, and import/graph persistence. That is the best foundation
+before any React hook test environment is introduced.
 
 ## Phase 0: Agent Orientation
 
@@ -98,7 +100,7 @@ lowest useful layer.
 - [x] Add graph helper tests for `addGraphEdge`, `removeGraphEdge`,
   `add/removeMergeNode`, `add/removeColorNode`, `wouldCreateCycle`, and
   `organizeGraph`.
-- [ ] Add render fixtures for image free-fit and procedural source layers where
+- [x] Add render fixtures for image free-fit and procedural source layers where
   the Node test environment is stable.
 - [x] Add graph render fixtures for merge node, color node, and export-node
   traversal.
@@ -143,7 +145,7 @@ Goal: make document updates deliberate and testable.
   document replacement path.
 - [x] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
-- [ ] Keep remaining graph commands small enough to test without rendering
+- [x] Keep remaining graph commands small enough to test without rendering
   React.
 - [x] Keep layer commands small enough to test without
   rendering React.

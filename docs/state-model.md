@@ -36,6 +36,7 @@ Current owner:
 
 Includes:
 
+- `schemaVersion`
 - `global` settings: background, seed, aspect
 - `layers`
 - `graph`
@@ -46,6 +47,7 @@ Rules:
 - Use layer factory functions when creating layers.
 - Update documents immutably.
 - Import external document JSON through normalization before committing it.
+- Normalize unversioned documents to the current `DOCUMENT_SCHEMA_VERSION`.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

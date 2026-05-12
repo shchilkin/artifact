@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EFFECT_PRESETS } from '../types/config';
+import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS } from '../types/config';
 import { randomDocument, randomEffectLayer, randomEmojiLayer, randomGlobal, zeroLayerSection } from './randomConfig';
 
 describe('randomGlobal', () => {
@@ -133,6 +133,7 @@ describe('randomEffectLayer', () => {
 describe('randomDocument', () => {
   it('returns a CanvasDocument with global and layers', () => {
     const doc = randomDocument();
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(doc).toHaveProperty('global');
     expect(doc).toHaveProperty('layers');
   });
