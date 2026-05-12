@@ -134,6 +134,231 @@ body {
   border-radius: 2px;
 }
 
+.sidebar-sections {
+  --node-bg: var(--bg);
+  --node-surface: var(--sidebar-bg);
+  --node-border: var(--border);
+  --node-text: var(--text);
+  --node-text-dim: var(--text-dim);
+  --node-focus: var(--accent);
+}
+
+.node-inspector-section-copy,
+.node-inspector-stack,
+.node-inspector-control {
+  display: flex;
+  flex-direction: column;
+}
+
+.node-inspector-section-copy {
+  gap: 2px;
+  min-width: 0;
+}
+
+.node-inspector-stack {
+  gap: 8px;
+}
+
+.node-inspector-detached {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--node-border);
+}
+
+.node-badge-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.node-badge {
+  padding: 3px 7px;
+  border-radius: 0;
+  border: 1px solid var(--node-border);
+  color: var(--node-text);
+  background: var(--node-bg);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.node-inspector-section-title {
+  color: var(--node-text);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.node-inspector-section-summary,
+.node-inspector-label {
+  color: var(--node-text-dim);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.node-inspector-row,
+.node-inspector-toggle,
+.node-inspector-control-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--touch);
+}
+
+.node-inspector-row {
+  gap: 10px;
+}
+
+.node-inspector-toggle {
+  cursor: pointer;
+}
+
+.node-inspector-control {
+  gap: 4px;
+}
+
+.node-inspector-control-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.node-inspector-value {
+  color: var(--node-text);
+  font-size: 10px;
+}
+
+.node-inspector-note {
+  margin: 0;
+  padding: 8px 0 2px;
+  color: var(--node-text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.45;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.node-inspector-section {
+  border: 1px solid var(--node-border);
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--node-bg);
+}
+
+.node-inspector-section-open {
+  background: var(--node-surface);
+}
+
+.node-section-button {
+  transition:
+    background 180ms cubic-bezier(0.25, 1, 0.5, 1),
+    color 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.node-section-button:hover {
+  background: var(--node-surface);
+}
+
+.node-inspector-section-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--touch);
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.node-inspector-section-toggle {
+  color: var(--node-text-dim);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.node-inspector-section-open .node-inspector-section-toggle {
+  color: var(--accent);
+}
+
+.node-inspector-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.node-section-button:focus-visible,
+.node-field:focus-visible,
+.node-color-input:focus-visible,
+.node-check:focus-visible {
+  outline: 2px solid var(--node-focus);
+  outline-offset: 2px;
+}
+
+.node-field,
+.node-slider,
+.node-color-input,
+.node-check {
+  background: var(--node-bg);
+  transition:
+    border-color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    background 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.node-field {
+  width: 100%;
+  min-height: var(--touch);
+  border: 1px solid var(--node-border);
+  border-radius: 0;
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.node-field-textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.node-field:hover,
+.node-color-input:hover {
+  border-color: var(--node-text);
+}
+
+.node-slider {
+  accent-color: var(--accent);
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.node-color-input {
+  width: var(--touch);
+  height: var(--touch);
+  border-radius: 0;
+  border: 1px solid var(--node-border);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.node-check {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
 @media (min-width: 768px) {
   .sidebar {
     order: 1;

@@ -26,6 +26,7 @@ import {
   InspectorTextInput,
   ScaleLockRow,
 } from '../node-canvas/inspector/fields';
+import { layerHasPlacementControls } from './controlModel';
 import {
   ARRAY_PATTERN_OPTIONS,
   ARRAY_SHAPE_OPTIONS,
@@ -295,7 +296,7 @@ export function LayerControls({
   }
 
   if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
-    const hasPlacementSection = layer.kind !== 'primitive';
+    const hasPlacementSection = layerHasPlacementControls(layer);
 
     return (
       <div className={sectionClassName}>
