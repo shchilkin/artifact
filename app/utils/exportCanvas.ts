@@ -20,7 +20,10 @@ export async function exportCanvas(
     const [bw, bh] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
     const W = bw * scale;
     const H = bh * scale;
-    const finalCanvas = await renderDocument(doc, W, H, imageCache, options);
+    const finalCanvas = await renderDocument(doc, W, H, imageCache, {
+      ...options,
+      effectResolution: { width: bw, height: bh },
+    });
 
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? 0.92 : 1.0;

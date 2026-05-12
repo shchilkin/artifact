@@ -187,6 +187,7 @@ interface RenderOptions {
   draft?: boolean;
   graphMode?: 'auto' | 'graph' | 'stack';
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
+  effectResolution?: { width: number; height: number };
 }
 ```
 
@@ -196,6 +197,9 @@ Guidelines:
 - `draft` may lower quality during active interaction.
 - `graphMode` must be explicit when a surface needs stack behavior.
 - `primitiveViewStates` must be passed to export when primitive camera state is visible in preview.
+- `effectResolution` is used by export so scale 2/3 increases file
+  resolution without changing procedural effect density from the base cover
+  size.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
 

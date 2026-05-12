@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { type CanvasDocument, makeSourceLayer } from '../../types/config';
+import { type CanvasDocument, makeEffectLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
 import { emojiSeeded, fillOnly, textOverFill } from './fixtures';
 
@@ -255,6 +255,44 @@ describe('renderDocument — preview/export size parity', () => {
     expect(exportedBounds.height).toBeGreaterThan(0);
     expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
     expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
+  });
+
+  it('effect resolution locking preserves scale-one scanline texture in larger exports', async () => {
+    const effectDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [
+        makeFillLayer({
+          color: '#ff5a36',
+          opacity: 100,
+        }),
+        makeEffectLayer({
+          grain: 0,
+          glitch: 0,
+          rgbSplit: 0,
+          tintOp: 0,
+          rays: 0,
+          rayInt: 0,
+          scanlines: 80,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const base = await renderDocument(effectDoc, 100, 100, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const scaled = await renderDocument(effectDoc, 200, 200, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+      effectResolution: { width: 100, height: 100 },
+    });
+
+    for (let y = 0; y < 100; y += 5) {
+      for (let x = 0; x < 100; x += 5) {
+        expect(samplePixel(scaled, x * 2, y * 2)).toEqual(samplePixel(base, x, y));
+      }
+    }
   });
 });
 

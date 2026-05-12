@@ -879,6 +879,25 @@ async function applyLayerToCanvas(
     );
   } else if (layer.kind === 'effect') {
     if (options.skipEffects) return base;
+    const effectResolution = options.effectResolution;
+    if (effectResolution) {
+      const effectW = Math.min(W, Math.max(1, Math.round(effectResolution.width)));
+      const effectH = Math.min(H, Math.max(1, Math.round(effectResolution.height)));
+      if (effectW !== W || effectH !== H) {
+        const effectBase = createCanvas(effectW, effectH);
+        const effectCtx = effectBase.getContext('2d', { willReadFrequently: true })!;
+        effectCtx.drawImage(base, 0, 0, effectW, effectH);
+        const renderedEffect = await applyLayerToCanvas(effectBase, layer, doc, effectW, effectH, imageCache, {
+          ...options,
+          effectResolution: undefined,
+        });
+        const scaled = createCanvas(W, H);
+        const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;
+        scaledCtx.imageSmoothingEnabled = false;
+        scaledCtx.drawImage(renderedEffect, 0, 0, W, H);
+        return scaled;
+      }
+    }
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
     if (!options.skipEffects) {
@@ -1013,6 +1032,8 @@ export interface RenderOptions {
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   /** Source nodes render as full-frame generators in graph mode; stack mode keeps authored placement. */
   sourceLayout?: 'document' | 'full-frame';
+  /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
+  effectResolution?: { width: number; height: number };
 }
 
 async function renderGraphNode(
