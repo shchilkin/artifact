@@ -53,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <meta charSet="UTF-8" />
-        <link rel="icon" type="image/png" sizes="72x72" href="/favicon.png" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         {/* OG */}
         <meta property="og:type" content="website" />
@@ -68,7 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="artifact: glitch album cover generator" />
-        <meta property="og:logo" content="https://artifact.shchilkin.dev/favicon.png" />
+        <meta property="og:logo" content="https://artifact.shchilkin.dev/favicon.svg" />
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="artifact | Create Album Covers" />

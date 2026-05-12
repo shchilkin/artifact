@@ -200,6 +200,20 @@ Should not invalidate:
 - local gesture draft before commit
 - inspector open/closed state
 
+## Image persistence decision
+
+Artifact remains a browser-only editor for now. Imported images stay as document
+data URLs so `.artifact.json` files, share URLs, localStorage, preview, export,
+and graph rendering all have one serializable source of truth.
+
+Tradeoff:
+
+- This keeps import/export simple and offline-safe.
+- Very large images can make documents heavy.
+- IndexedDB or backend blob storage should be introduced only when there is a
+  dedicated persistence layer and migration plan; decoded `HTMLImageElement`
+  caches must still stay outside `CanvasDocument`.
+
 ## Do not do this
 
 - Do not call document update APIs on every pointer move if a local draft can represent the interaction.

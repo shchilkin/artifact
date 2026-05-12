@@ -51,7 +51,8 @@ The UI should read and manipulate state, not define graph semantics:
 
 - `app/components/node-canvas/*` renders and edits nodes
 - `app/components/node-canvas/machine.ts` owns canvas selection/overlay state via XState
-- `app/utils/renderer.ts` turns document state into pixels
+- `app/utils/renderer.ts` is the public rendering facade; internals live under
+  `app/utils/render/`
 
 Important current behavior:
 

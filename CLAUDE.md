@@ -36,6 +36,7 @@ Use these docs as the source of truth over older summaries in this file if they 
 
 ```ts
 interface CanvasDocument {
+  schemaVersion?: number;
   global: GlobalConfig;   // { bg, seed, aspect }
   layers: Layer[];        // ordered bottom-to-top
   graph?: CanvasGraph;    // optional node graph composition
@@ -64,7 +65,9 @@ interface CanvasDocument {
 
 ## Architecture: Rendering Pipeline
 
-Two-stage pipeline in `app/utils/renderer.ts`:
+`app/utils/renderer.ts` is the public facade for `renderDocument` and
+`renderGraphTarget`; implementation internals live under `app/utils/render/`.
+The current two-stage pipeline is:
 
 1. **Canvas 2D** — `renderDocument` iterates `doc.layers` in order, drawing each layer to a single `<canvas>`. Effect layers run `applyCanvas2DEffects` (rays, glitch, CA, scanlines, grain, tint).
 
@@ -72,7 +75,7 @@ Two-stage pipeline in `app/utils/renderer.ts`:
 
 **Entry point for export/preview:**
 ```ts
-renderDocument(doc, W, H, imageCache, persistentRenderer?): Promise<HTMLCanvasElement>
+renderDocument(doc, W, H, imageCache, options?): Promise<HTMLCanvasElement>
 ```
 
 **Scale baseline**: `REF = 540` — all size values are authored at 540px and scaled by `W / REF` at render time.
@@ -81,11 +84,11 @@ renderDocument(doc, W, H, imageCache, persistentRenderer?): Promise<HTMLCanvasEl
 
 ## Architecture: State Management
 
-All document state lives in `app/routes/generator.tsx`:
+Document state is owned by `app/hooks/useGeneratorDocument.ts` and orchestrated
+by `app/routes/generator.tsx`:
 
-- `doc` / `_setDoc` — never call `_setDoc` directly from outside; always go through `setDoc` (the wrapped version).
-- `setDoc` debounces history writes (400 ms). For drag operations the pre-drag baseline is captured in `preChangeRef` on the first `setDoc` call; subsequent calls within the debounce window don't push extra history entries.
-- `setSeed` and `handleRandomize` flush debounce and push history synchronously before mutating.
+- Document changes go through explicit update modes: `snapshot`, `debounce`, or `silent`.
+- Continuous gestures should create one undo entry through the debounced history path.
 - Undo/redo: `past[]` / `future[]` of `{ doc: CanvasDocument }`, max 50 entries.
 - `imageCache: Map<string, HTMLImageElement>` — keyed by `layer.src` (data URL). Populated asynchronously; image layers silently skip rendering if the image isn't loaded yet.
 - `docRef` / `selectedLayerIdRef` — `useLayoutEffect`-synced refs used inside callbacks to avoid stale closures.
@@ -97,7 +100,8 @@ All document state lives in `app/routes/generator.tsx`:
 | File | Purpose |
 |------|---------|
 | `app/types/config.ts` | All types, factory functions, `cloneDocument`, `migrateFromV1`, `EFFECT_PRESETS` |
-| `app/utils/renderer.ts` | `renderDocument` (async, GPU), `render` (sync, legacy), layer draw functions |
+| `app/utils/renderer.ts` | Public render facade: `renderDocument`, `renderGraphTarget` |
+| `app/utils/render/layers/index.ts` | Layer/effect render passes while smaller per-kind modules are extracted |
 | `app/utils/pixiFilters.ts` | `buildFiltersFromEffectLayer` — maps `EffectLayer` fields to Pixi `Filter[]` |
 | `app/utils/gpuRender.ts` | One-shot Pixi renderer for export (no persistent `Renderer`) |
 | `app/utils/randomConfig.ts` | `randomDocument`, `randomEffectLayer`, `randomLayerSection`, `zeroLayerSection` |
@@ -116,8 +120,9 @@ All document state lives in `app/routes/generator.tsx`:
 ## Dev Commands
 
 ```bash
-npm run dev        # favicon generation + React Router dev server
-npm run build      # favicon generation + production build
+npm run dev        # React Router dev server
+npm run build      # production build
+npm run favicon    # optional local bitmap favicon generation
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 ```

@@ -57,7 +57,9 @@ and overlay (none / contextMenu / gallery).
 
 ## Rendering pipeline
 
-`renderDocument(doc, W, H, imageCache)` in `app/utils/renderer.ts`:
+`renderDocument(doc, W, H, imageCache)` is exported from
+`app/utils/renderer.ts`. That file is the public facade; implementation details
+live under `app/utils/render/`.
 
 1. Draw background colour
 2. For each visible layer in order:
@@ -174,9 +176,10 @@ covers (
 
 ```bash
 npm install
-npm run dev        # favicon generation + React Router dev server
-npm run build      # favicon generation + production build
-npm run build:ci   # production build without regenerating favicon
+npm run dev        # React Router dev server
+npm run build      # production build
+npm run build:ci   # CI alias for production build
+npm run favicon    # optional local bitmap favicon generation
 npm run format     # Biome format + import organization
 npm run format:check
 npm run typecheck  # react-router typegen + tsc
@@ -187,8 +190,8 @@ npm run check      # format check + lint + typecheck + tests
 
 Deploys to Vercel via `react-router build` → `build/client/`.
 
-`public/favicon.png` is currently generated locally and ignored. It should be
-replaced with a deliberate committed favicon asset before a production release.
+`public/favicon.svg` is the committed production favicon. `public/favicon.png`
+is an optional generated local bitmap and remains ignored.
 
 ## Architecture docs
 

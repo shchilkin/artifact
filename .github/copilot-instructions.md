@@ -17,15 +17,16 @@ Update the relevant doc when architecture or interaction rules change.
 ## Commands
 
 ```bash
-npm run dev        # favicon generation + React Router dev server
-npm run build      # favicon generation + production build
+npm run dev        # React Router dev server
+npm run build      # production build
+npm run favicon    # optional local bitmap favicon generation
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # vitest run (all tests)
 npx vitest run app/types/config.test.ts   # run a single test file
 ```
 
-> CI skips `npm run favicon` (requires Puppeteer/WebGL) and calls `npx react-router build` directly. `public/favicon.png` is committed as the fallback.
+> Build no longer depends on `npm run favicon` (requires Puppeteer/WebGL). The committed fallback is `public/favicon.svg`; `public/favicon.png` is optional local generated output.
 
 ## Architecture
 
@@ -52,6 +53,9 @@ presets are not part of the current model; document normalization splits stored
 combined effects into focused preset layers.
 
 ### Two-stage rendering pipeline (`app/utils/renderer.ts`)
+
+`app/utils/renderer.ts` is the public facade. Renderer implementation internals
+live under `app/utils/render/`.
 
 `renderDocument(doc, W, H, imageCache)` is **async** and returns a `Promise<HTMLCanvasElement>`:
 

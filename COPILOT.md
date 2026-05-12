@@ -21,6 +21,8 @@ Prefer these docs over older inline summaries when they disagree. Update the rel
 - Graph logic belongs in `app/utils/nodeGraph.ts`.
 - Node canvas UI belongs in `app/components/node-canvas/*`.
 - Document/history/persistence logic belongs in `app/hooks/useGeneratorDocument.ts`.
+- Public rendering imports belong at `app/utils/renderer.ts`; implementation
+  internals live under `app/utils/render/`.
 - The main cover preview intentionally renders with `graphMode: 'stack'`.
 - Graph-target previews intentionally render through graph traversal.
 
@@ -79,6 +81,7 @@ For state, rendering, or node-editor changes, also update the matching file in `
 
 ```bash
 npm run dev
+npm run favicon
 npm run typecheck
 npm run lint
 npm run test
