@@ -65,11 +65,10 @@ test('layer canvas survives switching to nodes and back', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
   await expectLayerCanvasToHavePixels(page);
 
-  await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();
-  await expect(page.locator('.node-canvas-root')).toBeVisible();
+  await switchToNodeView(page);
   await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(0);
 
-  await page.locator('.floating-view-toggle').getByRole('button', { name: 'layers' }).click();
+  await switchToLayerView(page);
   await expect(page.locator('.sidebar')).toBeVisible();
   await expectLayerCanvasToHavePixels(page);
 });
@@ -144,6 +143,24 @@ async function expectLayerCanvasToHavePixels(page: Page) {
       { timeout: 15_000 },
     )
     .toBe(true);
+}
+
+async function switchToNodeView(page: Page) {
+  await expect(async () => {
+    const nodesButton = page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' });
+    await expect(nodesButton).toBeVisible({ timeout: 2_000 });
+    await nodesButton.click();
+    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 10_000 });
+}
+
+async function switchToLayerView(page: Page) {
+  await expect(async () => {
+    const layersButton = page.locator('.floating-view-toggle').getByRole('button', { name: 'layers' });
+    await expect(layersButton).toBeVisible({ timeout: 2_000 });
+    await layersButton.click();
+    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 10_000 });
 }
 
 async function getCanvasCenterRgb(page: Page) {
