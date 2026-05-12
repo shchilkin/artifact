@@ -98,9 +98,10 @@ try {
   console.log(`favicon → public/favicon.png`);
 } catch (err) {
   // In CI environments (e.g. Vercel) Chrome system dependencies may be absent.
-  // The committed public/favicon.png is used as fallback — don't fail the build.
+  // Favicon generation is optional in restricted environments. A deliberate
+  // static favicon replacement should be committed before production release.
   console.warn('\nfavicon: skipping generation —', err.message);
-  console.warn('favicon: using committed public/favicon.png as fallback.');
+  console.warn('favicon: leaving any existing local public/favicon.png untouched.');
 } finally {
   await browser?.close();
   await server?.close();

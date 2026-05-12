@@ -53,8 +53,9 @@ the detailed source of truth.
 
 ### Production readiness
 
-- [ ] Resolve or intentionally ignore `public/favicon.png` local noise before
-  pushing a release branch.
+- [x] Ignore generated `public/favicon.png` local noise.
+- [ ] Replace the generated favicon with a deliberate committed static asset
+  before production release.
 - [ ] Keep `README.md`, `AGENTS.md`, `COPILOT.md`, `CLAUDE.md`, and
   `.github/copilot-instructions.md` aligned when architecture docs move.
 - [ ] Add versioned document schema/migration tests before changing persisted

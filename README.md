@@ -187,6 +187,9 @@ npm run check      # format check + lint + typecheck + tests
 
 Deploys to Vercel via `react-router build` → `build/client/`.
 
+`public/favicon.png` is currently generated locally and ignored. It should be
+replaced with a deliberate committed favicon asset before a production release.
+
 ## Architecture docs
 
 | Document | Purpose |

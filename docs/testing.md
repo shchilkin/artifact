@@ -120,7 +120,8 @@ signal with less maintenance cost than component snapshots.
 
 CI skips `npm run favicon` (requires Puppeteer/WebGL) and calls
 `npm run build:ci`, which runs `react-router build` directly.
-`public/favicon.png` is committed as the fallback.
+`public/favicon.png` is ignored as a generated local file until a deliberate
+static favicon replacement is committed.
 
 ```yaml
 # Effective CI sequence
