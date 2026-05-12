@@ -137,9 +137,13 @@ signal with less maintenance cost than component snapshots.
 
 ## CI
 
-CI can keep browser tests as an optional job if Chromium/WebGL is available.
-Keep the default fast quality gate on Vitest/typecheck/build; run
-`npm run test:browser` in environments that have installed Playwright Chromium.
+CI has two jobs:
+
+- Fast quality/build: format check, lint, typecheck, unit/render tests, and production build.
+- Browser smoke: installs Playwright Chromium and runs `npm run test:browser`.
+
+If a deployment environment cannot provide Chromium/WebGL, explicitly waive the
+browser job in release notes instead of silently removing coverage.
 
 ```yaml
 # Effective CI sequence
@@ -149,7 +153,7 @@ npm run lint
 npm run typecheck
 npm run build:ci
 npm test
-npm run test:browser # optional browser/WebGL job
+npm run test:browser
 ```
 
 ---

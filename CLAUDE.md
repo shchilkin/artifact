@@ -13,6 +13,7 @@ Read these docs before changing state ownership, rendering, node editor behavior
 - `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu edge cases, and QA checklist.
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+- `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
 
 Use these docs as the source of truth over older summaries in this file if they disagree.
 

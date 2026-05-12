@@ -18,6 +18,33 @@ const lightDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const layeredFillDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'bottom-fill',
+      name: 'Bottom fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2255cc',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'top-fill',
+      name: 'Top fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#dd3322',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 
 test.beforeEach(async ({ page }) => {
   const issues: string[] = [];
@@ -45,6 +72,16 @@ test('layer canvas survives switching to nodes and back', async ({ page }) => {
   await page.locator('.floating-view-toggle').getByRole('button', { name: 'layers' }).click();
   await expect(page.locator('.sidebar')).toBeVisible();
   await expectLayerCanvasToHavePixels(page);
+});
+
+test('layer visibility updates the rendered canvas', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 221, g: 51, b: 34 });
+
+  await page.locator('.sidebar').getByRole('button', { name: 'Hide layer' }).first().click();
+
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
 
 test('primitive node exposes interactive camera controls', async ({ page }) => {
@@ -107,4 +144,21 @@ async function expectLayerCanvasToHavePixels(page: Page) {
       { timeout: 15_000 },
     )
     .toBe(true);
+}
+
+async function getCanvasCenterRgb(page: Page) {
+  const canvas = page.locator('.pixi-container canvas').first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  return canvas.evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx || canvas.width <= 0 || canvas.height <= 0) return { r: 0, g: 0, b: 0 };
+    const [r = 0, g = 0, b = 0] = ctx.getImageData(
+      Math.floor(canvas.width / 2),
+      Math.floor(canvas.height / 2),
+      1,
+      1,
+    ).data;
+    return { r, g, b };
+  });
 }

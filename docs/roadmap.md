@@ -10,12 +10,63 @@ Related architecture docs:
 - [`app-structure-guidelines.md`](./app-structure-guidelines.md)
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
+- [`production-readiness.md`](./production-readiness.md)
 
 ## Product summary
 
 Artifact is a browser-based glitch album cover generator for indie musicians and designers who want direct aesthetic control. The product is intentionally raw: warm dark UI, mono labels, square edges, seeded randomness, layer composition, node editing, and export-ready artwork.
 
 The core promise is simple: a user should be able to build a cover from layers and nodes, preview it accurately, then export the same image at production resolution.
+
+## Feature Intake From Sticky Notes
+
+The sticky-note backlog is useful, but it should not all enter the current
+release. Treat it as product discovery and split it by implementation surface.
+
+### Editor Features
+
+These can mostly stay browser-only and fit the current architecture:
+
+- Layer folders/groups for organizing dense stacks.
+- Low-resolution / pixelate whole-image node.
+- More procedural texture nodes with presets.
+- More primitive shapes, SVG-like primitives, and 3D sketch primitives.
+- More focused effect nodes and shader-style effects.
+- Font import and improved font browsing.
+- Better text workflow, including typography presets and multi-font work.
+- Better drag/repositioning UX for canvas content.
+- Dark/light theme mode.
+- Improved empty-canvas onboarding.
+- Voice/music visualizer node using browser audio input or uploaded audio.
+- Physics/animation-style effects where the final export remains deterministic.
+- Improved localization/i18n structure.
+
+### Content And Learning
+
+These make the product easier to understand and market:
+
+- Better user-facing node/effect documentation.
+- Example projects and tutorial presets.
+- Project/case-study pages for the Artifact portfolio.
+- Showcase pages explaining how covers were made.
+
+### Platform / Full-Stack Candidates
+
+These likely need a VPS/backend, database, object storage, auth, or billing:
+
+- Accounts.
+- Server-side project saving.
+- Server-backed share links.
+- Preset database and community preset browsing.
+- User galleries or portfolio pages.
+- Subscription/paywall experiments.
+- AI image generation node or workflow.
+- Server-side asset storage for large uploads.
+- Team/project collaboration.
+
+Near-term rule: ship a reliable local editor first. Full-stack work becomes
+much cheaper after the document schema, asset strategy, and export behavior are
+stable.
 
 ## Current architecture
 

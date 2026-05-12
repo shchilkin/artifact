@@ -11,6 +11,7 @@ Before changing state ownership, rendering, node editor behavior, thumbnails, pr
 - `docs/node-editor.md`
 - `docs/improvement-plan.md`
 - `docs/roadmap.md`
+- `docs/production-readiness.md`
 
 Update the relevant doc when architecture or interaction rules change.
 

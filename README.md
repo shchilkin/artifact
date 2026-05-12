@@ -205,6 +205,7 @@ is an optional generated local bitmap and remains ignored.
 | [`docs/app-structure-guidelines.md`](docs/app-structure-guidelines.md) | Component boundaries, state ownership, and refactor rules |
 | [`docs/testing.md`](docs/testing.md) | Testing strategy: unit, render parity, GPU smoke tests |
 | [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
+| [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
 
 ## Project structure
 

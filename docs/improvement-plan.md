@@ -10,6 +10,7 @@ phase should leave the repo in a better state even if later phases change.
 - `npm run test:browser` is available for focused browser/WebGL smoke coverage.
 - `npm run build` passes with a committed static SVG favicon and a Vite
   chunk-size warning.
+- CI has separate fast quality/build and browser smoke jobs.
 - The node canvas already has focused hooks for selection, context menus,
   graph events, dragging, gallery state, and primitive camera state.
 - Primitive live/offscreen rendering already shares `app/utils/primitiveScene.ts`.
@@ -59,6 +60,9 @@ the detailed source of truth.
 
 ### Production readiness
 
+- [x] Add CI gates for format/lint/typecheck/unit tests, build, and browser
+  smoke tests.
+- [x] Add a production readiness checklist for manual release QA.
 - [x] Ignore generated `public/favicon.png` local noise.
 - [x] Replace the generated favicon with a deliberate committed static asset
   before production release.
@@ -224,6 +228,24 @@ Exit criteria:
 - [x] Large chunks are either split intentionally or documented as acceptable.
 - Thumbnail invalidation can be explained from signatures, not guessed from
   object identity.
+
+## Phase 7: Public Beta Hardening
+
+Goal: make the current browser editor safe to ship before platform features.
+
+- [x] Split CI into a fast quality/build job and a browser smoke job.
+- [x] Upload Playwright artifacts on browser test failure.
+- [x] Add a release checklist in `docs/production-readiness.md`.
+- [x] Add a browser regression proving layer visibility changes rendered pixels.
+- [ ] Complete the manual QA checklist before public beta.
+- [ ] Test Safari and Firefox manually before public announcement.
+- [ ] Write release notes that call out accepted GPU/WebGL and localStorage risks.
+
+Exit criteria:
+
+- Every release candidate has a green CI run.
+- Browser smoke tests pass in CI or are explicitly waived with a reason.
+- Manual QA has been run against the deployed build, not only local dev.
 
 ## Working Rule
 
