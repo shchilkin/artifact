@@ -18,6 +18,10 @@ import {
 const SOURCE_OVERSCAN = 1.22;
 const CONTENT_SAMPLE_STEPS = 8;
 
+interface PrimitiveRenderOptions {
+  forceFallback?: boolean;
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const normalized = hex.replace('#', '');
   const value = Number.parseInt(normalized.length === 3 ? normalized.replace(/(.)/g, '$1$1') : normalized, 16);
@@ -34,11 +38,16 @@ function canvasHasPrimitiveContent(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return false;
 
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   for (let yStep = 0; yStep < CONTENT_SAMPLE_STEPS; yStep += 1) {
     for (let xStep = 0; xStep < CONTENT_SAMPLE_STEPS; xStep += 1) {
       const x = Math.min(canvas.width - 1, Math.round((xStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.width - 1)));
       const y = Math.min(canvas.height - 1, Math.round((yStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.height - 1)));
-      const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+      const index = (y * canvas.width + x) * 4;
+      const r = pixels[index] ?? 0;
+      const g = pixels[index + 1] ?? 0;
+      const b = pixels[index + 2] ?? 0;
+      const a = pixels[index + 3] ?? 0;
       if (a > 8 && Math.max(r, g, b) > 16) return true;
     }
   }
@@ -128,10 +137,15 @@ export async function renderPrimitiveToCanvas(
   layer: PrimitiveLayer,
   size: number,
   viewState?: PrimitiveViewportState,
+  options: PrimitiveRenderOptions = {},
 ): Promise<HTMLCanvasElement> {
   const offscreen = document.createElement('canvas');
   offscreen.width = size;
   offscreen.height = size;
+  if (options.forceFallback) {
+    drawFallbackPrimitive(offscreen, layer);
+    return offscreen;
+  }
 
   const effectiveViewState: PrimitiveViewportState = viewState ?? {
     rotationX: layer.tiltX,

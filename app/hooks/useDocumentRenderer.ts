@@ -40,11 +40,16 @@ export function isLikelyBlankRender(canvas: HTMLCanvasElement, doc: CanvasDocume
   let luminanceTotal = 0;
   let samples = 0;
 
+  const pixels = ctx.getImageData(0, 0, width, height).data;
   for (let yStep = 0; yStep < BLANK_SAMPLE_STEPS; yStep += 1) {
     for (let xStep = 0; xStep < BLANK_SAMPLE_STEPS; xStep += 1) {
       const x = Math.min(width - 1, Math.round((xStep / (BLANK_SAMPLE_STEPS - 1)) * (width - 1)));
       const y = Math.min(height - 1, Math.round((yStep / (BLANK_SAMPLE_STEPS - 1)) * (height - 1)));
-      const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+      const index = (y * width + x) * 4;
+      const r = pixels[index] ?? 0;
+      const g = pixels[index + 1] ?? 0;
+      const b = pixels[index + 2] ?? 0;
+      const a = pixels[index + 3] ?? 0;
       minChannel = Math.min(minChannel, r, g, b);
       maxChannel = Math.max(maxChannel, r, g, b);
       alphaTotal += a;

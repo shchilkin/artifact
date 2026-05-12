@@ -20,4 +20,17 @@ describe('renderPrimitiveToCanvas', () => {
     expect(canvas.height).toBe(64);
     expect(hasVisiblePixels(canvas)).toBe(true);
   });
+
+  it('can bypass WebGL for draft preview fallback rendering', async () => {
+    const canvas = await renderPrimitiveToCanvas(
+      makeSourceLayer('primitive', { primitiveShape: 'cube' }),
+      64,
+      undefined,
+      {
+        forceFallback: true,
+      },
+    );
+
+    expect(hasVisiblePixels(canvas)).toBe(true);
+  });
 });

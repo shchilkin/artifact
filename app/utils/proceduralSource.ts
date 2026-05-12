@@ -247,7 +247,7 @@ export async function drawSourceLayer(
 
   if (layer.kind === 'primitive') {
     const size = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);
-    const threeCanvas = await renderPrimitiveToCanvas(layer, size, primitiveViewState);
+    const threeCanvas = await renderPrimitiveToCanvas(layer, size, primitiveViewState, { forceFallback: draft });
     ctx.drawImage(threeCanvas, -size / 2, -size / 2, size, size);
   } else if (layer.kind === 'noise') {
     drawNoiseLayer(ctx, layer, seed, draft);
