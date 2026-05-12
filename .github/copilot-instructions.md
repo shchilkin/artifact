@@ -47,6 +47,10 @@ Layer kinds: `text | image | emoji | fill | effect` (plus procedural: `primitive
 Always create layers with factory functions — never construct them manually:
 `makeTextLayer`, `makeImageLayer`, `makeEmojiLayer`, `makeFillLayer`, `makeEffectLayer`, `makeEffectPresetLayer`, `makeSourceLayer`
 
+Use `makeEffectPresetLayer` for new effect layers. Legacy combined effect
+presets are not part of the current model; document normalization splits stored
+combined effects into focused preset layers.
+
 ### Two-stage rendering pipeline (`app/utils/renderer.ts`)
 
 `renderDocument(doc, W, H, imageCache)` is **async** and returns a `Promise<HTMLCanvasElement>`:

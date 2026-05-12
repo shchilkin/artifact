@@ -48,6 +48,54 @@ describe('normalizeDocument', () => {
     expect(doc.layers[0]).toMatchObject({ id: 'legacy-source', kind: 'noise' });
   });
 
+  it('splits legacy combined effect presets into focused effect layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'legacy-warp',
+          name: 'Warp FX',
+          kind: 'effect',
+          preset: 'warp',
+          visible: true,
+          locked: false,
+          noiseWarp: 40,
+          morphAmt: 30,
+          morphFreq: 7,
+        },
+      ],
+    });
+
+    expect(doc.layers).toHaveLength(2);
+    expect(doc.layers).toMatchObject([
+      { id: 'legacy-warp-morph-0', kind: 'effect', preset: 'morph', morphAmt: 30, morphFreq: 7 },
+      { id: 'legacy-warp-noiseWarp-1', kind: 'effect', preset: 'noiseWarp', noiseWarp: 40 },
+    ]);
+  });
+
+  it('splits custom multi-effect layers into focused effect layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'custom-fx',
+          name: 'FX',
+          kind: 'effect',
+          visible: true,
+          locked: false,
+          grain: 25,
+          scanlines: 12,
+          tint: '#120020',
+          tintOp: 40,
+        },
+      ],
+    });
+
+    expect(doc.layers.map((layer) => (layer.kind === 'effect' ? layer.preset : layer.kind))).toEqual([
+      'scanlines',
+      'grain',
+      'tint',
+    ]);
+  });
+
   it('adds an empty colorNodes array to older graph documents', () => {
     const doc = normalizeDocument({
       layers: [],

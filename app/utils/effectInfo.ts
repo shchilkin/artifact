@@ -1,5 +1,6 @@
 import type { CanvasDocument, EffectLayer } from '../types/config';
-import { DEFAULT_EXPORT, makeEffectLayer, makeEmojiLayer } from '../types/config';
+import { DEFAULT_EXPORT, makeEmojiLayer } from '../types/config';
+import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 import { renderDocument } from './renderer';
 
 export interface EffectMeta {
@@ -237,7 +238,7 @@ export async function renderEffectThumb(key: string): Promise<string> {
 
   const doc: CanvasDocument = {
     global: { bg: '#120020', seed: BASE_SEED, aspect: '1:1' },
-    layers: [BASE_EMOJI_LAYER, makeEffectLayer({ ...BASE_EFFECT, ...meta.cfgOverride })],
+    layers: [BASE_EMOJI_LAYER, ...splitEffectPatchIntoPresetLayers({ ...BASE_EFFECT, ...meta.cfgOverride })],
     export: { ...DEFAULT_EXPORT },
   };
 

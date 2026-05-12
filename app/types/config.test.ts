@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasDocument } from './config';
-import { cloneDocument, makeEffectLayer, makeEmojiLayer, makeSourceLayer, makeTextLayer } from './config';
+import {
+  cloneDocument,
+  DEFAULT_DOCUMENT,
+  EFFECT_PRESETS,
+  makeEffectLayer,
+  makeEmojiLayer,
+  makeSourceLayer,
+  makeTextLayer,
+} from './config';
 
 describe('makeTextLayer', () => {
   it('returns a layer with kind: text', () => {
@@ -90,6 +98,32 @@ describe('makeEffectLayer', () => {
     const layer = makeEffectLayer({ grain: 99 });
     expect(layer.grain).toBe(99);
     expect(layer.kind).toBe('effect');
+  });
+
+  it('defaults to an inert custom effect instead of the old combined FX stack', () => {
+    const layer = makeEffectLayer();
+    expect(layer.name).toBe('Effect');
+    expect(layer.grain).toBe(0);
+    expect(layer.scanlines).toBe(0);
+    expect(layer.rgbSplit).toBe(0);
+    expect(layer.rays).toBe(0);
+    expect(layer.tintOp).toBe(0);
+  });
+});
+
+describe('effect presets', () => {
+  it('does not expose legacy combined presets', () => {
+    expect(EFFECT_PRESETS).not.toHaveProperty('warp');
+    expect(EFFECT_PRESETS).not.toHaveProperty('color');
+    expect(EFFECT_PRESETS).not.toHaveProperty('riso');
+  });
+
+  it('uses focused effect layers in the default document', () => {
+    const effectPresets = DEFAULT_DOCUMENT.layers
+      .filter((layer) => layer.kind === 'effect')
+      .map((layer) => (layer.kind === 'effect' ? layer.preset : undefined));
+
+    expect(effectPresets).toEqual(['rays', 'tint', 'grain', 'scanlines', 'rgbSplit']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { makeEffectLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../../types/config';
+import { makeEffectPresetLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../../types/config';
 import { colorNodeRenderSig, edgeRenderSig, layerRenderSig, mergeNodeRenderSig } from './renderSignature';
 
 describe('layerRenderSig', () => {
@@ -36,7 +36,7 @@ describe('layerRenderSig', () => {
   });
 
   it('ignores editor-only metadata for effect layers', () => {
-    const base = makeEffectLayer({
+    const base = makeEffectPresetLayer('grain', {
       id: 'effect-1',
       name: 'Effect',
       locked: false,

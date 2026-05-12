@@ -20,7 +20,7 @@ const KIND_ICONS: Record<LayerKind, string> = {
   text: 'T',
   image: '◻',
   emoji: '✦',
-  effect: 'FX',
+  effect: '⚡',
   fill: '■',
   primitive: '◍',
   noise: '░',
@@ -164,7 +164,7 @@ export function LayerPanel({
               style={{ fontWeight: 700 }}
             >
               {layer.kind === 'effect'
-                ? (EFFECT_PRESETS[(layer as EffectLayer).preset!]?.icon ?? 'FX')
+                ? (EFFECT_PRESETS[(layer as EffectLayer).preset!]?.icon ?? '⚡')
                 : KIND_ICONS[layer.kind]}
             </span>
             {editingId === layer.id ? (

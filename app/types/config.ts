@@ -190,10 +190,7 @@ export type EffectPreset =
   | 'emboss'
   | 'linocut'
   | 'fog'
-  | 'speedLines'
-  | 'warp'
-  | 'color'
-  | 'riso';
+  | 'speedLines';
 
 export interface EffectLayer extends BaseLayer {
   kind: 'effect';
@@ -360,14 +357,14 @@ export const DEFAULT_EXPORT: ExportConfig = {
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
   kind: 'effect',
   maskAlpha: false,
-  grain: 22,
-  scanlines: 12,
-  rgbSplit: 4,
-  glitch: 7,
+  grain: 0,
+  scanlines: 0,
+  rgbSplit: 0,
+  glitch: 0,
   tint: '#350055',
-  tintOp: 28,
-  rays: 14,
-  rayInt: 62,
+  tintOp: 0,
+  rays: 0,
+  rayInt: 0,
   rayColor: '#bb00ff',
   morphAmt: 0,
   morphFreq: 5,
@@ -552,7 +549,7 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
 export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer {
   return {
     id: genId(),
-    name: 'FX',
+    name: 'Effect',
     visible: true,
     locked: false,
     ...DEFAULT_EFFECT_LAYER_PROPS,
@@ -640,7 +637,6 @@ export interface EffectPresetMeta {
   icon: string;
   partial: Partial<EffectLayer>;
   primary: EffectNumericField | null;
-  legacy?: boolean;
 }
 
 export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
@@ -737,27 +733,6 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
   linocut: { name: 'Linocut', icon: '◰', primary: 'linocut', partial: { ...ZERO_EFFECT, linocut: 55 } },
   fog: { name: 'Fog', icon: '≀', primary: 'fog', partial: { ...ZERO_EFFECT, fog: 45, fogColor: '#c8d8e8' } },
   speedLines: { name: 'Speed Lines', icon: '≫', primary: 'speedLines', partial: { ...ZERO_EFFECT, speedLines: 50 } },
-  warp: {
-    name: 'Warp FX',
-    icon: '◌',
-    primary: null,
-    legacy: true,
-    partial: { ...ZERO_EFFECT, noiseWarp: 40, morphAmt: 30, morphFreq: 5, barrel: 25, vortex: 20 },
-  },
-  color: {
-    name: 'Color FX',
-    icon: '◐',
-    primary: null,
-    legacy: true,
-    partial: { ...ZERO_EFFECT, hueShift: 60, bloom: 40, posterize: 6, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' },
-  },
-  riso: {
-    name: 'Riso FX',
-    icon: '◎',
-    primary: null,
-    legacy: true,
-    partial: { ...ZERO_EFFECT, halftone: 12, risoShift: 20, risoAngle: 15 },
-  },
 };
 
 export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
@@ -811,7 +786,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'gradientOverlay',
 ];
 
-export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'id' | 'kind' | 'preset'>> & { value?: number };
+export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'kind' | 'preset'>> & { value?: number };
 
 export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPresetOverrides = {}): EffectLayer {
   const { name, partial, primary } = EFFECT_PRESETS[preset];
@@ -832,7 +807,14 @@ export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPre
 
 export const DEFAULT_DOCUMENT: CanvasDocument = {
   global: DEFAULT_GLOBAL,
-  layers: [makeEmojiLayer({ id: 'default-emoji' }), makeEffectLayer({ id: 'default-effect' })],
+  layers: [
+    makeEmojiLayer({ id: 'default-emoji' }),
+    makeEffectPresetLayer('rays', { id: 'default-rays', rays: 14, rayInt: 62, rayColor: '#bb00ff' }),
+    makeEffectPresetLayer('tint', { id: 'default-tint', tint: '#350055', tintOp: 28 }),
+    makeEffectPresetLayer('grain', { id: 'default-grain', grain: 22 }),
+    makeEffectPresetLayer('scanlines', { id: 'default-scanlines', scanlines: 12 }),
+    makeEffectPresetLayer('rgbSplit', { id: 'default-rgb-split', rgbSplit: 4 }),
+  ],
   export: DEFAULT_EXPORT,
 };
 

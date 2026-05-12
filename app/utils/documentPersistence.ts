@@ -7,9 +7,11 @@ import {
   DEFAULT_DOCUMENT,
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
+  type EffectLayer,
   type Layer,
   type SourceType,
 } from '../types/config';
+import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export const DOC_KEY = 'doc';
 
@@ -47,13 +49,20 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
   const exportConfig = isRecord(doc.export) ? doc.export : {};
   const aspect = isValidAspect(global.aspect) ? global.aspect : DEFAULT_GLOBAL.aspect;
   const layers = Array.isArray(doc.layers)
-    ? (doc.layers
-        .filter(isRecord)
-        .map((layer) =>
+    ? (doc.layers.filter(isRecord).flatMap((layer) => {
+        const normalizedLayer =
           layer.kind === 'source' && typeof layer.sourceType === 'string'
             ? { ...layer, kind: layer.sourceType as SourceType }
-            : layer,
-        ) as Layer[])
+            : layer;
+
+        if (normalizedLayer.kind === 'effect' && shouldSplitEffectLayer(normalizedLayer as Partial<EffectLayer>)) {
+          return splitEffectPatchIntoPresetLayers(normalizedLayer as Partial<EffectLayer>, {
+            idPrefix: String(normalizedLayer.id ?? 'effect'),
+          });
+        }
+
+        return [normalizedLayer as Layer];
+      }) as Layer[])
     : [];
 
   return {

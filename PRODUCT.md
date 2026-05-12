@@ -10,7 +10,7 @@ Indie musicians and designers at their intersection — people who make their ow
 
 ## Product Purpose
 
-A glitch-aesthetic album cover generator. Input a seed and a configuration; get a 1:1 image suitable for streaming upload. The pipeline runs emoji-on-canvas with GPU post-processing (warp, tear, color FX). Export at up to 3000×3000. The tool is for people who want their art to look handmade and strange, not clean and scalable.
+A glitch-aesthetic album cover generator. Input a seed and a configuration; get a 1:1 image suitable for streaming upload. The pipeline runs emoji-on-canvas with stacked focused GPU post-processing effects: light, signal damage, warp, tone, and print treatments. Export at up to 3000×3000. The tool is for people who want their art to look handmade and strange, not clean and scalable.
 
 ## Brand Personality
 

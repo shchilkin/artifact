@@ -107,8 +107,7 @@ multiplies the base dimensions.
 LCG RNG (`app/utils/lcg.ts`). Each layer gets an independent sub-seed via XOR
 constants. The RAND button (`randomDocument`) generates a full document: random
 aspect ratio, a seeded emoji layer, and 2–8 randomized preset-based effect
-layers drawn from 7 preset types (rays, glitch, grain, tint, warp, color, riso)
-— all color-keyed to a shared base hue.
+layers drawn from focused effect presets, all color-keyed to a shared base hue.
 
 ## Image persistence
 
@@ -157,8 +156,8 @@ covers (
 - 3D primitives: sphere, cube, cylinder — drag to rotate, wheel to zoom, camera lock
 - Free-fit images: move outside canvas, uniform scale via trackpad/scroll,
   independent X/Y scale sliders
-- Effect presets: Rays, Bloom, Glitch, Grain, Tint, Warp, Color, Riso — stacked
-  independently, each with full effect controls
+- Focused effect presets: light, signal, texture, warp, tone, and print effects
+  are stacked independently, each with its own controls
 - Aspect ratio: 1:1 / 4:5 / 9:16 / 16:9 selector
 - Export at ×1 / ×2 / ×3 as JPEG or PNG
 - **Environment map export** — 4096×2048 equirectangular PNG (Blender-ready)

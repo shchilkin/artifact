@@ -56,7 +56,7 @@ interface CanvasDocument {
 **Factory functions** (always use these to create layers):
 `makeTextLayer`, `makeImageLayer`, `makeEmojiLayer`, `makeFillLayer`, `makeEffectLayer`, `makeEffectPresetLayer`
 
-**Effect presets** (`EffectPreset`): `rays | bloom | filmBurn | glitch | rgbSplit | interlace | dataMosh | grain | scanlines | tint | noiseWarp | morph | vortex | barrel | tear | mirror | hueShift | vignette | pixelate | posterize | duotone | halftone | risoShift | blur | threshold | edgeDetect | gradientOverlay` plus legacy `warp | color | riso` — defined in `EFFECT_PRESETS`, each is a focused zero-based `EffectLayer` partial.
+**Effect presets** (`EffectPreset`): focused zero-based presets defined in `EFFECT_PRESETS`. Legacy combined `warp`, `color`, and `riso` presets are no longer part of the model; stored combined effect layers are split into focused preset layers during document normalization.
 
 **Aspect ratios** (`AspectRatio`): `1:1 | 4:5 | 9:16 | 16:9` → pixel sizes in `ASPECT_SIZES`.
 

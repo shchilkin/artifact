@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { type CanvasDocument, makeEffectLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
+import { type CanvasDocument, makeEffectPresetLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
 import { emojiSeeded, fillOnly, textOverFill } from './fixtures';
 
@@ -265,15 +265,7 @@ describe('renderDocument — preview/export size parity', () => {
           color: '#ff5a36',
           opacity: 100,
         }),
-        makeEffectLayer({
-          grain: 0,
-          glitch: 0,
-          rgbSplit: 0,
-          tintOp: 0,
-          rays: 0,
-          rayInt: 0,
-          scanlines: 80,
-        }),
+        makeEffectPresetLayer('scanlines', { scanlines: 80 }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
     };

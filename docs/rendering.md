@@ -83,6 +83,9 @@ When `draft` rendering is requested, primitive layers may use a Canvas 2D fallba
 ## Effect rendering
 
 Effect layers are non-destructive passes over everything below them.
+New documents should use focused one-effect preset layers. Legacy combined
+effect layers are migrated into separate focused layers during document
+normalization.
 
 Pipeline:
 

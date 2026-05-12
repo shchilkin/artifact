@@ -105,7 +105,6 @@ export function EffectInspector({
         <span className="node-badge">
           {layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset) : 'custom'}
         </span>
-        {showAllSections && <span className="node-badge node-badge-accent">combined FX</span>}
       </div>
 
       <InspectorSection
@@ -311,7 +310,7 @@ export function EffectInspector({
           open={openSection === 'warp'}
           onToggle={() => setOpenSection((current) => (current === 'warp' ? null : 'warp'))}
         >
-          {showControl(['noiseWarp', 'warp']) && (
+          {showControl(['noiseWarp']) && (
             <InspectorSlider
               label="Noise Warp"
               value={layer.noiseWarp}
@@ -323,7 +322,7 @@ export function EffectInspector({
               onChange={(value) => onChange({ noiseWarp: value })}
             />
           )}
-          {showControl(['morph', 'warp']) && (
+          {showControl(['morph']) && (
             <>
               <InspectorSlider
                 label="Liquid Morph"
@@ -347,7 +346,7 @@ export function EffectInspector({
               />
             </>
           )}
-          {showControl(['vortex', 'warp']) && (
+          {showControl(['vortex']) && (
             <InspectorSlider
               label="Vortex"
               value={layer.vortex}
@@ -359,7 +358,7 @@ export function EffectInspector({
               onChange={(value) => onChange({ vortex: value })}
             />
           )}
-          {showControl(['barrel', 'warp']) && (
+          {showControl(['barrel']) && (
             <InspectorSlider
               label="Barrel"
               value={layer.barrel}
@@ -371,7 +370,7 @@ export function EffectInspector({
               onChange={(value) => onChange({ barrel: value })}
             />
           )}
-          {showControl(['tear', 'warp']) && (
+          {showControl(['tear']) && (
             <>
               <InspectorSlider
                 label="Chunk Tear"
@@ -395,7 +394,7 @@ export function EffectInspector({
               />
             </>
           )}
-          {showControl(['mirror', 'warp']) && (
+          {showControl(['mirror']) && (
             <InspectorSlider
               label="Mirror"
               value={layer.mirror}
@@ -412,12 +411,12 @@ export function EffectInspector({
 
       {showSection(COLOR_PRESETS) && (
         <InspectorSection
-          title="Color FX"
+          title="Color"
           summary={effectSectionSummary(layer, 'color')}
           open={openSection === 'color'}
           onToggle={() => setOpenSection((current) => (current === 'color' ? null : 'color'))}
         >
-          {showControl(['hueShift', 'color']) && (
+          {showControl(['hueShift']) && (
             <InspectorSlider
               label="Hue Shift"
               value={layer.hueShift}
@@ -465,7 +464,7 @@ export function EffectInspector({
               onChange={(value) => onChange({ pixelate: value })}
             />
           )}
-          {showControl(['posterize', 'color']) && (
+          {showControl(['posterize']) && (
             <InspectorSlider
               label="Posterize"
               value={layer.posterize}
@@ -487,7 +486,7 @@ export function EffectInspector({
           open={openSection === 'riso'}
           onToggle={() => setOpenSection((current) => (current === 'riso' ? null : 'riso'))}
         >
-          {showControl(['duotone', 'riso']) && (
+          {showControl(['duotone']) && (
             <>
               <InspectorSlider
                 label="Duotone"
@@ -511,7 +510,7 @@ export function EffectInspector({
               />
             </>
           )}
-          {showControl(['halftone', 'riso']) && (
+          {showControl(['halftone']) && (
             <InspectorSlider
               label="Halftone"
               value={layer.halftone}
@@ -523,7 +522,7 @@ export function EffectInspector({
               onChange={(value) => onChange({ halftone: value })}
             />
           )}
-          {showControl(['risoShift', 'riso']) && (
+          {showControl(['risoShift']) && (
             <>
               <InspectorSlider
                 label="Misreg Shift"

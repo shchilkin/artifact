@@ -85,7 +85,12 @@ const CONTENT_NODES: NodeDef[] = [
     doc: {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
-      layers: [makeImageLayer('/girl_image_landing.png', { fit: 'cover', opacity: 80 })],
+      layers: [
+        makeImageLayer('/girl_image_landing.png', {
+          fit: 'cover',
+          opacity: 80,
+        }),
+      ],
     },
   },
   {
@@ -130,7 +135,13 @@ const CONTENT_NODES: NodeDef[] = [
       export: DEFAULT_EXPORT,
       layers: [
         makeFillLayer({ color: '#0d0018' }),
-        makeEmojiLayer({ density: 30, minSz: 24, maxSz: 80, blur: 0, opacity: 100 }),
+        makeEmojiLayer({
+          density: 30,
+          minSz: 24,
+          maxSz: 80,
+          blur: 0,
+          opacity: 100,
+        }),
       ],
     },
   },
@@ -248,9 +259,6 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   duotone: 'Map luminance to two chosen colors.',
   halftone: 'Simulate print dots at configurable frequency.',
   risoShift: 'Color channels shifted as if mis-fed through a press.',
-  warp: 'Combined warp: noise, morph, barrel, vortex.',
-  color: 'Combined color grading: hue, bloom, posterize, duotone.',
-  riso: 'Combined risograph: halftone and misregister.',
   blur: 'Gaussian blur across the entire frame.',
   threshold: 'Luminance cutoff to stark black and white.',
   edgeDetect: 'Highlight edge transitions with a convolution kernel.',
@@ -322,9 +330,6 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
     { key: 'risoShift', range: '0–100' },
     { key: 'risoAngle', range: '0–360' },
   ],
-  warp: [{ key: 'noiseWarp / morphAmt / barrel / vortex', range: '0–100' }],
-  color: [{ key: 'hueShift / bloom / posterize / duotone', range: '0–100' }],
-  riso: [{ key: 'halftone / risoShift', range: '0–100' }],
   blur: [{ key: 'blurAmt', range: '0–100' }],
   threshold: [{ key: 'threshold', range: '0–100' }],
   edgeDetect: [{ key: 'edgeDetect', range: '0–100' }],
@@ -597,7 +602,11 @@ function NodePoster({ node }: { node: NodeDef }) {
                         type="color"
                         value={val}
                         onChange={(e) => setDoc(updateDocParam(doc, node.id, p.key, e.target.value))}
-                        style={{ height: '24px', width: '100%', cursor: 'pointer' }}
+                        style={{
+                          height: '24px',
+                          width: '100%',
+                          cursor: 'pointer',
+                        }}
                       />
                     )}
                   </label>

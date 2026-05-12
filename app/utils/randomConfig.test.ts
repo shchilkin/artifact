@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EFFECT_PRESETS } from '../types/config';
 import { randomDocument, randomEffectLayer, randomEmojiLayer, randomGlobal, zeroLayerSection } from './randomConfig';
 
 describe('randomGlobal', () => {
@@ -118,6 +119,15 @@ describe('randomEffectLayer', () => {
     const layer = randomEffectLayer(90);
     expect(layer.kind).toBe('effect');
   });
+
+  it('returns one focused preset instead of a combined FX layer', () => {
+    const layer = randomEffectLayer();
+    expect(layer.preset).toBeDefined();
+    expect(layer.preset && layer.preset in EFFECT_PRESETS).toBe(true);
+    expect(layer.preset).not.toBe('warp');
+    expect(layer.preset).not.toBe('color');
+    expect(layer.preset).not.toBe('riso');
+  });
 });
 
 describe('randomDocument', () => {
@@ -143,6 +153,15 @@ describe('randomDocument', () => {
   it('first layer is an emoji layer', () => {
     const doc = randomDocument();
     expect(doc.layers[0].kind).toBe('emoji');
+  });
+
+  it('generates only focused effect preset layers after the emoji layer', () => {
+    const doc = randomDocument();
+    const effectLayers = doc.layers.slice(1);
+
+    expect(
+      effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS),
+    ).toBe(true);
   });
 });
 

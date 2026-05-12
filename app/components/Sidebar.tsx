@@ -1181,7 +1181,6 @@ export function Sidebar({
                     'mirror',
                     'wave',
                     'zoomBlur',
-                    'warp',
                     'ripple',
                     'kaleidoscope',
                     'squeeze',
@@ -1201,7 +1200,7 @@ export function Sidebar({
                     {...ip}
                   />
                 )}
-                {showEffectControl(['morph', 'warp']) && (
+                {showEffectControl(['morph']) && (
                   <>
                     <Slider
                       label="Liquid Morph"
@@ -1223,7 +1222,7 @@ export function Sidebar({
                     />
                   </>
                 )}
-                {showEffectControl(['vortex', 'warp']) && (
+                {showEffectControl(['vortex']) && (
                   <Slider
                     label="Vortex"
                     value={selectedLayer.vortex}
@@ -1234,7 +1233,7 @@ export function Sidebar({
                     {...ip}
                   />
                 )}
-                {showEffectControl(['barrel', 'warp']) && (
+                {showEffectControl(['barrel']) && (
                   <Slider
                     label="Barrel"
                     value={selectedLayer.barrel}
@@ -1245,7 +1244,7 @@ export function Sidebar({
                     {...ip}
                   />
                 )}
-                {showEffectControl(['tear', 'warp']) && (
+                {showEffectControl(['tear']) && (
                   <>
                     <Slider
                       label="Chunk Tear"
@@ -1267,7 +1266,7 @@ export function Sidebar({
                     />
                   </>
                 )}
-                {showEffectControl(['mirror', 'warp']) && (
+                {showEffectControl(['mirror']) && (
                   <Slider
                     label="Mirror"
                     value={selectedLayer.mirror}
@@ -1368,7 +1367,7 @@ export function Sidebar({
                 )}
               </Section>
               <Section
-                title="COLOR FX"
+                title="COLOR"
                 hidden={
                   !showEffectGroup([
                     'hueShift',
@@ -1381,7 +1380,6 @@ export function Sidebar({
                     'gradientOverlay',
                     'sepia',
                     'infrared',
-                    'color',
                     'solarize',
                     'bleachBypass',
                     'cyanotype',
@@ -1391,7 +1389,7 @@ export function Sidebar({
                 onRand={() => randomizeSelectedSection('COLORFX')}
                 onReset={() => resetSelectedSection('COLORFX')}
               >
-                {showEffectControl(['hueShift', 'color']) && (
+                {showEffectControl(['hueShift']) && (
                   <Slider
                     label="Hue Shift"
                     value={selectedLayer.hueShift}
@@ -1435,7 +1433,7 @@ export function Sidebar({
                     {...ip}
                   />
                 )}
-                {showEffectControl(['posterize', 'color']) && (
+                {showEffectControl(['posterize']) && (
                   <Slider
                     label="Posterize"
                     value={selectedLayer.posterize}
@@ -1597,11 +1595,11 @@ export function Sidebar({
               </Section>
               <Section
                 title="RISO"
-                hidden={!showEffectGroup(['duotone', 'halftone', 'risoShift', 'overprint', 'riso'])}
+                hidden={!showEffectGroup(['duotone', 'halftone', 'risoShift', 'overprint'])}
                 onRand={() => randomizeSelectedSection('RISO')}
                 onReset={() => resetSelectedSection('RISO')}
               >
-                {showEffectControl(['duotone', 'riso']) && (
+                {showEffectControl(['duotone']) && (
                   <>
                     <Slider
                       label="Duotone"
@@ -1632,7 +1630,7 @@ export function Sidebar({
                     </div>
                   </>
                 )}
-                {showEffectControl(['halftone', 'riso']) && (
+                {showEffectControl(['halftone']) && (
                   <Slider
                     label="Halftone"
                     value={selectedLayer.halftone}
@@ -1643,7 +1641,7 @@ export function Sidebar({
                     {...ip}
                   />
                 )}
-                {showEffectControl(['risoShift', 'riso']) && (
+                {showEffectControl(['risoShift']) && (
                   <>
                     <Slider
                       label="Misreg Shift"

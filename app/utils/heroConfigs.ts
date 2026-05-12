@@ -1,5 +1,6 @@
 import type { CanvasDocument, EffectLayer } from '../types/config';
-import { ALL_EMOJIS, makeEffectLayer, makeEmojiLayer } from '../types/config';
+import { ALL_EMOJIS, makeEmojiLayer } from '../types/config';
+import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export interface HeroFrame {
   doc: CanvasDocument;
@@ -14,7 +15,7 @@ function mkDoc(
 ): CanvasDocument {
   return {
     global: { bg, seed, aspect: '1:1' },
-    layers: [makeEmojiLayer({ emojis, ...emojiOpts }), makeEffectLayer(fx)],
+    layers: [makeEmojiLayer({ emojis, ...emojiOpts }), ...splitEffectPatchIntoPresetLayers(fx)],
   };
 }
 
@@ -367,7 +368,7 @@ export function generateRandomHeroFrame(seed: number): HeroFrame {
           density: lerp(20, 50, rand()),
           blur: lerp(40, 80, rand()),
         }),
-        makeEffectLayer({
+        ...splitEffectPatchIntoPresetLayers({
           grain: lerp(20, 45, rand()),
           vignette: lerp(30, 70, rand()),
           rays: lerp(6, 24, rand()),
