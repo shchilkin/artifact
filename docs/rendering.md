@@ -27,6 +27,10 @@ Rule:
 
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
 
+`app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
+live under `app/utils/render/`; app code should keep importing the public entry
+points from the facade unless it is working inside the renderer itself.
+
 ## Document render flow
 
 High-level flow:
@@ -272,3 +276,13 @@ app/utils/render/
 ```
 
 The split should reduce file size and improve testability without changing the public entry points.
+
+Current implementation status:
+
+- `app/utils/renderer.ts` re-exports the public facade.
+- `app/utils/render/canvas.ts` owns shared Canvas 2D helpers.
+- `app/utils/render/graph.ts` owns graph traversal rendering.
+- `app/utils/render/layers/index.ts` owns layer/effect passes while the
+  remaining per-kind files are extracted.
+- Per-kind layer/effect files should be introduced incrementally only when they
+  reduce complexity, guarded by render parity fixtures.
