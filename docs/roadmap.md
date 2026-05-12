@@ -333,7 +333,7 @@ Goal: make documents portable and safe for real use.
 
 - [ ] Move large image blobs out of `CanvasDocument` data URLs where possible.
 - [ ] Add IndexedDB asset storage for local projects.
-- [ ] Add document import/export as a `.artifact.json` file.
+- [x] Add document import/export as a `.artifact.json` file.
 - [ ] Add share links that separate document JSON from binary assets.
 - [ ] Define a versioned document schema and migration tests.
 - [ ] Decide whether cloud persistence belongs in this product or stays out of scope.
@@ -352,11 +352,11 @@ Goal: keep the tool usable across devices and input methods.
 
 Goal: align public docs with the current product.
 
-- [ ] Update `README.md` to include procedural layers, node graph mode, primitive camera state, and graph export.
-- [ ] Add `docs/state-model.md`.
-- [ ] Add `docs/rendering.md`.
-- [ ] Add `docs/node-editor.md`.
-- [ ] Add `docs/testing.md`.
+- [x] Update `README.md` to include procedural layers, node graph mode, primitive camera state, and graph export.
+- [x] Add `docs/state-model.md`.
+- [x] Add `docs/rendering.md`.
+- [x] Add `docs/node-editor.md`.
+- [x] Add `docs/testing.md`.
 - [ ] Keep `PRODUCT.md` and `DESIGN.md` as product/design source of truth, not implementation docs.
 
 ## Recommended near-term focus
@@ -365,12 +365,12 @@ The next engineering pass should focus on state boundaries and render parity bef
 
 Recommended order:
 
-1. Stabilize current 3D/text/image interactions.
-2. Document the state model.
-3. Extract primitive scene creation.
-4. Add render parity fixtures.
-5. Split `NodeCanvas.tsx` into hooks.
-6. Update README and architecture docs.
+1. Extract document history/update modes.
+2. Add document-sync tests for undo/redo, import, and graph persistence.
+3. Add render parity fixtures.
+4. Split renderer internals behind the existing public entry points.
+5. Finish shared sidebar/inspector controls.
+6. Add a versioned document schema before the next persisted-shape change.
 
 ## Non-goals for now
 

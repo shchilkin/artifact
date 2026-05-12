@@ -6,15 +6,64 @@ phase should leave the repo in a better state even if later phases change.
 
 ## Current baseline
 
-- `npm test` passes.
-- `npm run lint` passes.
-- `npm run typecheck` passes.
+- `npm run check` passes.
 - `npm run build` passes, with expected favicon fallback noise in restricted
   environments and a Vite chunk-size warning.
 - The node canvas already has focused hooks for selection, context menus,
   graph events, dragging, gallery state, and primitive camera state.
 - Primitive live/offscreen rendering already shares `app/utils/primitiveScene.ts`.
 - Node thumbnails already use render signatures and a render queue.
+- Editable document import/export is available through `.artifact.json`.
+
+## Remaining Work Snapshot
+
+This section is the short operational checklist. The phase sections below remain
+the detailed source of truth.
+
+### Highest leverage next
+
+- [ ] Extract history/update behavior from `useGeneratorDocument.ts` into named
+  update modes: `snapshot`, `debounce`, and `silent`.
+- [ ] Add document-sync tests for undo/redo, graph creation, document import,
+  and serialization-safe round trips.
+- [ ] Add tests proving continuous gestures create one undo snapshot.
+- [ ] Replace remaining classic sidebar control duplication with shared
+  layer-control metadata.
+
+### Rendering and parity
+
+- [ ] Split `app/utils/renderer.ts` behind the existing `renderDocument` and
+  `renderGraphTarget` facades.
+- [ ] Add render fixtures for image free-fit, procedural source layers, primitive
+  camera overrides, and graph export traversal.
+- [ ] Keep export, preview, thumbnails, gallery, and presets on the same public
+  renderer entry points.
+- [ ] Define a GPU/WebGL tolerance strategy before adding visual snapshots.
+
+### Node editor and UX hardening
+
+- [ ] Keep graph node creation model-first, then document sync, then UI.
+- [ ] Add targeted tests around React Flow edge mapping if visual mapping logic
+  changes.
+- [ ] Preserve node-local primitive camera controls and prevent graph zoom/pan
+  from receiving node-control gestures.
+- [ ] Keep the node settings row and floating controls aligned with the current
+  node-canvas direction.
+
+### Production readiness
+
+- [ ] Resolve or intentionally ignore `public/favicon.png` local noise before
+  pushing a release branch.
+- [ ] Keep `README.md`, `AGENTS.md`, `COPILOT.md`, `CLAUDE.md`, and
+  `.github/copilot-instructions.md` aligned when architecture docs move.
+- [ ] Add versioned document schema/migration tests before changing persisted
+  document shape again.
+- [ ] Decide whether large image assets stay as document data URLs, move to
+  IndexedDB, or remain out of scope until backend persistence exists.
+
+Recommended next commit: extract history/update modes and add the first
+document-sync tests. That is the best foundation for the remaining renderer and
+node-editor work.
 
 ## Phase 0: Agent Orientation
 
