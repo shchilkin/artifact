@@ -161,6 +161,14 @@ Rules:
 
 Undo should represent creative decisions, not implementation details.
 
+Document commits use explicit update modes:
+
+| Mode | Use |
+| --- | --- |
+| `snapshot` | Discrete creative actions such as add, delete, duplicate, randomize, or document import |
+| `debounce` | Continuous edits such as sliders, graph node movement, and inspector field drags |
+| `silent` | Internal normalization/bootstrap work that should persist but should not create undo history |
+
 Expected behavior:
 
 - A slider drag creates one undo entry.

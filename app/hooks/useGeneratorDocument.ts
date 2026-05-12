@@ -4,7 +4,6 @@ import {
   type AspectRatio,
   type CanvasDocument,
   type CanvasGraph,
-  cloneDocument,
   type EffectPreset,
   type GraphColorNode,
   type GraphMergeNode,
@@ -19,6 +18,15 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import {
+  createPendingHistoryEntry,
+  type DocumentUpdateMode,
+  flushPendingHistory,
+  type HistoryEntry,
+  pushSnapshotHistory,
+  redoHistory,
+  undoHistory,
+} from '../utils/documentHistory';
 import {
   createDocumentShareUrl,
   getInitialDocument,
@@ -40,10 +48,6 @@ import {
   updateColorNode as updateColorNodeInGraph,
 } from '../utils/nodeGraph';
 import { randomDocument } from '../utils/randomConfig';
-
-const HISTORY_MAX = 50;
-
-type HistoryEntry = { doc: CanvasDocument };
 
 function ensureGraph(doc: CanvasDocument): CanvasGraph {
   return doc.graph ?? inferLinearGraph(doc.layers);
@@ -103,79 +107,100 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pushHistorySnapshot = useCallback(() => {
+  const clearPendingHistory = useCallback(() => {
     clearTimeout(histDebounceRef.current);
     preChangeRef.current = null;
-    setPast((items) => [...items.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
-    setFuture([]);
   }, []);
 
-  const setDoc = useCallback((newDoc: CanvasDocument) => {
-    _setDoc(newDoc);
-    if (!preChangeRef.current) preChangeRef.current = { doc: cloneDocument(docRef.current) };
-    clearTimeout(histDebounceRef.current);
-    histDebounceRef.current = setTimeout(() => {
-      if (preChangeRef.current) {
-        setPast((items) => [...items.slice(-(HISTORY_MAX - 1)), preChangeRef.current!]);
+  useEffect(() => () => clearTimeout(histDebounceRef.current), []);
+
+  const commitDocument = useCallback(
+    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => {
+      if (mode === 'snapshot') {
+        clearPendingHistory();
+        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, docRef.current).past);
         setFuture([]);
-        preChangeRef.current = null;
+        _setDoc(newDoc);
+        return;
       }
-    }, 400);
-  }, []);
+
+      if (mode === 'debounce') {
+        _setDoc(newDoc);
+        preChangeRef.current = createPendingHistoryEntry(docRef.current, preChangeRef.current);
+        clearTimeout(histDebounceRef.current);
+        histDebounceRef.current = setTimeout(() => {
+          if (!preChangeRef.current) return;
+          setPast((items) => flushPendingHistory({ past: items, future: [] }, preChangeRef.current).past);
+          setFuture([]);
+          preChangeRef.current = null;
+        }, 400);
+        return;
+      }
+
+      _setDoc(newDoc);
+    },
+    [clearPendingHistory],
+  );
+
+  const setDoc = useCallback(
+    (newDoc: CanvasDocument) => {
+      commitDocument(newDoc, 'debounce');
+    },
+    [commitDocument],
+  );
 
   const updateDocument = useCallback(
-    (mutate: (current: CanvasDocument) => CanvasDocument) => {
-      setDoc(mutate(docRef.current));
+    (mutate: (current: CanvasDocument) => CanvasDocument, mode: DocumentUpdateMode) => {
+      commitDocument(mutate(docRef.current), mode);
     },
-    [setDoc],
+    [commitDocument],
   );
 
   const replaceDocument = useCallback(
     (nextDoc: CanvasDocument) => {
-      pushHistorySnapshot();
-      _setDoc(normalizeDocument(nextDoc));
+      commitDocument(normalizeDocument(nextDoc), 'snapshot');
       setSelectedLayerId(null);
     },
-    [pushHistorySnapshot],
+    [commitDocument],
   );
 
   const setSeed = useCallback(
     (seed: number) => {
-      pushHistorySnapshot();
-      _setDoc({ ...docRef.current, global: { ...docRef.current.global, seed } });
+      commitDocument({ ...docRef.current, global: { ...docRef.current.global, seed } }, 'snapshot');
     },
-    [pushHistorySnapshot],
+    [commitDocument],
   );
 
   const setAspect = useCallback(
     (aspect: AspectRatio) => {
-      updateDocument((current) => ({
-        ...current,
-        global: { ...current.global, aspect },
-      }));
+      updateDocument(
+        (current) => ({
+          ...current,
+          global: { ...current.global, aspect },
+        }),
+        'debounce',
+      );
     },
     [updateDocument],
   );
 
   const undo = useCallback(() => {
-    if (past.length === 0) return;
-    clearTimeout(histDebounceRef.current);
-    preChangeRef.current = null;
-    const previous = past[past.length - 1];
-    setPast((items) => items.slice(0, -1));
-    setFuture((items) => [{ doc: cloneDocument(docRef.current) }, ...items.slice(0, HISTORY_MAX - 1)]);
-    _setDoc(previous.doc);
-  }, [past]);
+    clearPendingHistory();
+    const result = undoHistory({ past, future }, docRef.current);
+    if (!result) return;
+    setPast(result.past);
+    setFuture(result.future);
+    _setDoc(result.doc);
+  }, [clearPendingHistory, future, past]);
 
   const redo = useCallback(() => {
-    if (future.length === 0) return;
-    clearTimeout(histDebounceRef.current);
-    preChangeRef.current = null;
-    const next = future[0];
-    setFuture((items) => items.slice(1));
-    setPast((items) => [...items.slice(-(HISTORY_MAX - 1)), { doc: cloneDocument(docRef.current) }]);
-    _setDoc(next.doc);
-  }, [future]);
+    clearPendingHistory();
+    const result = redoHistory({ past, future }, docRef.current);
+    if (!result) return;
+    setPast(result.past);
+    setFuture(result.future);
+    _setDoc(result.doc);
+  }, [clearPendingHistory, future, past]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -196,9 +221,9 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   useEffect(() => {
     if (nodeModeEnabled && !docRef.current.graph) {
       const current = docRef.current;
-      setDoc({ ...current, graph: inferLinearGraph(current.layers) });
+      commitDocument({ ...current, graph: inferLinearGraph(current.layers) }, 'silent');
     }
-  }, [nodeModeEnabled, setDoc]);
+  }, [commitDocument, nodeModeEnabled]);
 
   const addLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
@@ -210,7 +235,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           layers: [...current.layers, layer],
           graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
         };
-      });
+      }, 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -226,7 +251,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           layers: [...current.layers, layer],
           graph: addLayerToGraph(current.graph, layer.id, nextDropPosition(current.graph)),
         };
-      });
+      }, 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -235,7 +260,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const addImageFromSource = useCallback(
     (src: string) => {
       const layer = makeImageLayer(src);
-      updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }));
+      updateDocument((current) => ({ ...current, layers: [...current.layers, layer] }), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -243,11 +268,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const removeLayer = useCallback(
     (id: string) => {
-      updateDocument((current) => ({
-        ...current,
-        layers: current.layers.filter((layer) => layer.id !== id),
-        graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
-      }));
+      updateDocument(
+        (current) => ({
+          ...current,
+          layers: current.layers.filter((layer) => layer.id !== id),
+          graph: current.graph ? removeLayerFromGraph(current.graph, id) : undefined,
+        }),
+        'snapshot',
+      );
       if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
     },
     [updateDocument],
@@ -272,7 +300,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           }
         }
         return { ...current, layers: nextLayers, graph: nextGraph };
-      });
+      }, 'snapshot');
       if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
     },
     [updateDocument],
@@ -280,10 +308,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const updateLayer = useCallback(
     (id: string, patch: Partial<Layer>) => {
-      updateDocument((current) => ({
-        ...current,
-        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
-      }));
+      updateDocument(
+        (current) => ({
+          ...current,
+          layers: current.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
+        }),
+        'debounce',
+      );
     },
     [updateDocument],
   );
@@ -299,7 +330,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
             mergeNodes: current.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
           },
         };
-      });
+      }, 'debounce');
     },
     [updateDocument],
   );
@@ -309,14 +340,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       updateDocument((current) => {
         if (!current.graph) return current;
         return { ...current, graph: updateColorNodeInGraph(current.graph, id, patch) };
-      });
+      }, 'debounce');
     },
     [updateDocument],
   );
 
   const reorderLayers = useCallback(
     (layers: Layer[]) => {
-      updateDocument((current) => ({ ...current, layers }));
+      updateDocument((current) => ({ ...current, layers }), 'snapshot');
     },
     [updateDocument],
   );
@@ -337,7 +368,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           layers: nextLayers,
           graph: addLayerToGraph(innerCurrent.graph, duplicate.id, nextDropPosition(innerCurrent.graph)),
         };
-      });
+      }, 'snapshot');
       setSelectedLayerId(duplicate.id);
     },
     [updateDocument],
@@ -370,7 +401,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
             });
           }
           return { ...current, graph };
-        });
+        }, 'snapshot');
         return;
       }
 
@@ -399,7 +430,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
             });
           }
           return { ...current, graph };
-        });
+        }, 'snapshot');
         return;
       }
 
@@ -433,31 +464,33 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           layers: [...current.layers, layer],
           graph,
         };
-      });
+      }, 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const handleRandomize = useCallback(() => {
-    pushHistorySnapshot();
-    _setDoc(randomDocument());
+    commitDocument(randomDocument(), 'snapshot');
     setSelectedLayerId(null);
-  }, [pushHistorySnapshot]);
+  }, [commitDocument]);
 
   const handleGraphChange = useCallback(
     (graph: CanvasGraph) => {
-      updateDocument((current) => ({ ...current, graph }));
+      updateDocument((current) => ({ ...current, graph }), 'debounce');
     },
     [updateDocument],
   );
 
   const handleExportConfigChange = useCallback(
     (patch: Partial<CanvasDocument['export']>) => {
-      updateDocument((current) => ({
-        ...current,
-        export: { ...current.export, ...patch },
-      }));
+      updateDocument(
+        (current) => ({
+          ...current,
+          export: { ...current.export, ...patch },
+        }),
+        'debounce',
+      );
     },
     [updateDocument],
   );

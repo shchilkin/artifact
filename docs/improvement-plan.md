@@ -22,7 +22,7 @@ the detailed source of truth.
 
 ### Highest leverage next
 
-- [ ] Extract history/update behavior from `useGeneratorDocument.ts` into named
+- [x] Extract history/update behavior from `useGeneratorDocument.ts` into named
   update modes: `snapshot`, `debounce`, and `silent`.
 - [ ] Add document-sync tests for undo/redo, graph creation, document import,
   and serialization-safe round trips.
@@ -139,7 +139,7 @@ Goal: make document updates deliberate and testable.
   import cleanup, and share-link creation.
 - [x] Add `.artifact.json` document import/export through the same normalized
   document replacement path.
-- [ ] Extract history behavior behind explicit update modes such as snapshot,
+- [x] Extract history behavior behind explicit update modes such as snapshot,
   merge/debounce, and silent.
 - [ ] Keep layer commands and graph commands small enough to test without
   rendering React.
