@@ -1,6 +1,23 @@
 import { expect, type Page, test } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
+const lightDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'fill-browser-smoke',
+      name: 'Browser smoke fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#4466aa',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 
 test.beforeEach(async ({ page }) => {
   const issues: string[] = [];
@@ -18,7 +35,7 @@ test.afterEach(async ({ page }) => {
 });
 
 test('layer canvas survives switching to nodes and back', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
   await expectLayerCanvasToHavePixels(page);
 
   await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();

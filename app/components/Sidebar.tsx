@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   ALL_EMOJIS,
   type AspectRatio,
@@ -76,7 +76,12 @@ export function Sidebar({
   modeSwitcher,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const docRef = useRef(doc);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
 
   const setGlobal = <K extends keyof CanvasDocument['global']>(key: K, value: CanvasDocument['global'][K]) => {
     onDocChange(updateGlobal(doc, { [key]: value }));
@@ -86,6 +91,28 @@ export function Sidebar({
     if (!selectedLayer) return;
     onDocChange(updateLayer(doc, selectedLayer.id, patch));
   };
+
+  const handleToggleVisible = useCallback(
+    (id: string) => {
+      const current = docRef.current;
+      onDocChange({
+        ...current,
+        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, visible: !layer.visible } : layer)),
+      });
+    },
+    [onDocChange],
+  );
+
+  const handleRenameLayer = useCallback(
+    (id: string, name: string) => {
+      const current = docRef.current;
+      onDocChange({
+        ...current,
+        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, name } : layer)),
+      });
+    },
+    [onDocChange],
+  );
 
   const handleImageFile = (file: File) => {
     if (!selectedLayer || selectedLayer.kind !== 'image') return;
@@ -134,16 +161,9 @@ export function Sidebar({
           onAddEffectPreset={onAddEffectPreset}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={onReorderLayers}
-          onToggleVisible={(id) =>
-            onDocChange({
-              ...doc,
-              layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, visible: !layer.visible } : layer)),
-            })
-          }
+          onToggleVisible={handleToggleVisible}
           onDuplicateLayer={onDuplicateLayer}
-          onRenameLayer={(id, name) =>
-            onDocChange({ ...doc, layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, name } : layer)) })
-          }
+          onRenameLayer={handleRenameLayer}
           modeSwitcher={modeSwitcher}
         />
       </div>
