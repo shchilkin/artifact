@@ -120,10 +120,11 @@ export function useDocumentRenderer(
       return;
     }
 
+    const now = performance.now();
+    const inDraftWindow = now < draftUntilRef.current || now < gpuFallbackUntilRef.current;
     const renderOptions = {
-      skipEffects:
-        fastRef.current || performance.now() < draftUntilRef.current || performance.now() < gpuFallbackUntilRef.current,
-      draft: performance.now() < draftUntilRef.current,
+      skipEffects: fastRef.current || inDraftWindow,
+      draft: inDraftWindow,
       graphMode: graphModeRef.current,
     };
     const drawResult = (result: HTMLCanvasElement) => {
@@ -179,6 +180,7 @@ export function useDocumentRenderer(
       .catch((error) => {
         const hasNewerRenderPending = pendingRef.current;
         if (hasNewerRenderPending) {
+          if (!renderOptions.skipEffects) gpuFallbackUntilRef.current = performance.now() + 5000;
           finishRender();
           return;
         }
@@ -235,10 +237,15 @@ export function useDocumentRenderer(
     container.appendChild(canvas);
     canvasRef.current = canvas;
     lastGoodCanvasRef.current = null;
+    draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
 
     scheduleRender();
 
     return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
