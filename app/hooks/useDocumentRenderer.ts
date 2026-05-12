@@ -324,7 +324,7 @@ export function useDocumentRenderer(
         error: null,
       });
     }
-    draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    draftUntilRef.current = cachedFrame ? 0 : performance.now() + DRAFT_SETTLE_MS;
 
     scheduleRender();
 
@@ -339,7 +339,9 @@ export function useDocumentRenderer(
   }, [pw, ph, options.cacheKey, scheduleRender]);
 
   useEffect(() => {
-    draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    if (!lastGoodCanvasRef.current || (options.fast ?? false)) {
+      draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    }
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
     settleTimerRef.current = setTimeout(() => {
       settleTimerRef.current = null;
