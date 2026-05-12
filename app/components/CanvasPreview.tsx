@@ -6,6 +6,7 @@ import { CanvasHandles } from './CanvasHandles';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
 const FAST_PATH_RELEASE_MS = 180;
+const PREPARING_LABEL_DELAY_MS = 140;
 
 interface Props {
   doc: CanvasDocument;
@@ -19,10 +20,16 @@ interface Props {
 export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLayerUpdate, onSelectLayer }: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const [fast, setFast] = useState(false);
+  const [showPreparing, setShowPreparing] = useState(false);
   const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useDocumentRenderer(doc, imageCache, pw, ph, { fast, graphMode: 'stack' });
+  const { containerRef, renderState } = useDocumentRenderer(doc, imageCache, pw, ph, {
+    fast,
+    graphMode: 'stack',
+    cacheKey: 'layer-preview',
+  });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
+  const preparing = renderState.isRendering || renderState.showingStaleFrame;
 
   const enterFast = useCallback(() => {
     if (releaseTimerRef.current) {
@@ -50,6 +57,11 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
     [],
   );
 
+  useEffect(() => {
+    const timer = setTimeout(() => setShowPreparing(preparing), preparing ? PREPARING_LABEL_DELAY_MS : 0);
+    return () => clearTimeout(timer);
+  }, [preparing]);
+
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       if (!selectedLayer || (selectedLayer.kind !== 'image' && selectedLayer.kind !== 'text')) return;
@@ -72,11 +84,19 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
       >
         <div
           ref={containerRef}
-          className="pixi-container flex items-center justify-center w-full h-full"
+          className={`pixi-container flex items-center justify-center w-full h-full ${
+            showPreparing ? 'pixi-container--preparing' : ''
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget || e.target instanceof HTMLCanvasElement) onSelectLayer(null);
           }}
         />
+        {showPreparing && (
+          <div className="canvas-preparing-overlay pointer-events-none" role="status" aria-live="polite">
+            <span className="canvas-preparing-label">Preparing preview</span>
+            <span className="canvas-preparing-line" aria-hidden="true" />
+          </div>
+        )}
         {showHandles && (
           <CanvasHandles
             layer={selectedLayer as TextLayer | ImageLayer}

@@ -1,16 +1,50 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
+const RENDER_CACHE_LIMIT = 6;
 
 interface Options {
   /** While true, renderer skips GPU effect passes for fast pointer feedback. */
   fast?: boolean;
   /** Layer canvas preview should ignore any saved node graph and use layer order. */
   graphMode?: 'auto' | 'graph' | 'stack';
+  /** Keeps the last good preview visible across component remounts. */
+  cacheKey?: string;
+}
+
+export interface DocumentRenderState {
+  isRendering: boolean;
+  hasFrame: boolean;
+  showingStaleFrame: boolean;
+  error: Error | null;
+}
+
+const lastGoodRenderCache = new Map<string, HTMLCanvasElement>();
+
+function makeRenderCacheKey(cacheKey: string | undefined, pw: number, ph: number): string | null {
+  return cacheKey ? `${cacheKey}:${pw}x${ph}` : null;
+}
+
+function rememberRenderFrame(cacheKey: string | null, canvas: HTMLCanvasElement): void {
+  if (!cacheKey) return;
+
+  const clone = document.createElement('canvas');
+  clone.width = canvas.width;
+  clone.height = canvas.height;
+  clone.getContext('2d')?.drawImage(canvas, 0, 0);
+
+  lastGoodRenderCache.delete(cacheKey);
+  lastGoodRenderCache.set(cacheKey, clone);
+
+  while (lastGoodRenderCache.size > RENDER_CACHE_LIMIT) {
+    const oldestKey = lastGoodRenderCache.keys().next().value;
+    if (!oldestKey) break;
+    lastGoodRenderCache.delete(oldestKey);
+  }
 }
 
 function hasVisibleContentLayer(doc: CanvasDocument): boolean {
@@ -101,9 +135,16 @@ export function useDocumentRenderer(
   const phRef = useRef(ph);
   const fastRef = useRef(options.fast ?? false);
   const graphModeRef = useRef(options.graphMode ?? 'auto');
+  const cacheKeyRef = useRef(makeRenderCacheKey(options.cacheKey, pw, ph));
   const draftUntilRef = useRef(0);
   const gpuFallbackUntilRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [renderState, setRenderState] = useState<DocumentRenderState>({
+    isRendering: false,
+    hasFrame: false,
+    showingStaleFrame: false,
+    error: null,
+  });
 
   useEffect(() => {
     docRef.current = doc;
@@ -112,7 +153,8 @@ export function useDocumentRenderer(
     phRef.current = ph;
     fastRef.current = options.fast ?? false;
     graphModeRef.current = options.graphMode ?? 'auto';
-  }, [doc, imageCache, pw, ph, options.fast, options.graphMode]);
+    cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, pw, ph);
+  }, [doc, imageCache, pw, ph, options.fast, options.graphMode, options.cacheKey]);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -134,6 +176,13 @@ export function useDocumentRenderer(
       ctx.clearRect(0, 0, pwRef.current, phRef.current);
       ctx.drawImage(result, 0, 0);
       lastGoodCanvasRef.current = result;
+      rememberRenderFrame(cacheKeyRef.current, result);
+      setRenderState({
+        isRendering: false,
+        hasFrame: true,
+        showingStaleFrame: false,
+        error: null,
+      });
     };
     const finishRender = () => {
       renderingRef.current = false;
@@ -144,6 +193,12 @@ export function useDocumentRenderer(
     };
 
     renderingRef.current = true;
+    setRenderState((state) => ({
+      isRendering: true,
+      hasFrame: state.hasFrame,
+      showingStaleFrame: state.hasFrame,
+      error: null,
+    }));
     const primaryRender = renderDocument(
       docRef.current,
       pwRef.current,
@@ -188,6 +243,12 @@ export function useDocumentRenderer(
         if (renderOptions.skipEffects) {
           if (lastGoodCanvasRef.current) drawResult(lastGoodCanvasRef.current);
           if (import.meta.env.DEV) console.warn('Canvas render failed.', error);
+          setRenderState((state) => ({
+            isRendering: false,
+            hasFrame: state.hasFrame,
+            showingStaleFrame: state.hasFrame,
+            error: error instanceof Error ? error : new Error('Canvas render failed.'),
+          }));
           finishRender();
           return;
         }
@@ -207,6 +268,12 @@ export function useDocumentRenderer(
           .catch((fallbackError) => {
             if (!pendingRef.current && lastGoodCanvasRef.current) drawResult(lastGoodCanvasRef.current);
             if (import.meta.env.DEV) console.warn('Canvas render failed.', fallbackError);
+            setRenderState((state) => ({
+              isRendering: false,
+              hasFrame: state.hasFrame,
+              showingStaleFrame: state.hasFrame,
+              error: fallbackError instanceof Error ? fallbackError : new Error('Canvas render failed.'),
+            }));
           })
           .finally(finishRender);
       });
@@ -236,7 +303,27 @@ export function useDocumentRenderer(
     canvas.style.height = '100%';
     container.appendChild(canvas);
     canvasRef.current = canvas;
-    lastGoodCanvasRef.current = null;
+    const currentCacheKey = makeRenderCacheKey(options.cacheKey, pw, ph);
+    cacheKeyRef.current = currentCacheKey;
+    const cachedFrame = currentCacheKey ? lastGoodRenderCache.get(currentCacheKey) : undefined;
+    if (cachedFrame) {
+      canvas.getContext('2d')?.drawImage(cachedFrame, 0, 0);
+      lastGoodCanvasRef.current = cachedFrame;
+      setRenderState({
+        isRendering: true,
+        hasFrame: true,
+        showingStaleFrame: true,
+        error: null,
+      });
+    } else {
+      lastGoodCanvasRef.current = null;
+      setRenderState({
+        isRendering: true,
+        hasFrame: false,
+        showingStaleFrame: false,
+        error: null,
+      });
+    }
     draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
 
     scheduleRender();
@@ -249,7 +336,7 @@ export function useDocumentRenderer(
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [pw, ph, scheduleRender]);
+  }, [pw, ph, options.cacheKey, scheduleRender]);
 
   useEffect(() => {
     draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
@@ -259,7 +346,7 @@ export function useDocumentRenderer(
       scheduleRender();
     }, DRAFT_SETTLE_MS + 16);
     scheduleRender();
-  }, [doc, imageCache, options.fast, options.graphMode, scheduleRender]);
+  }, [doc, imageCache, options.fast, options.graphMode, options.cacheKey, scheduleRender]);
 
   useEffect(
     () => () => {
@@ -269,5 +356,5 @@ export function useDocumentRenderer(
     [],
   );
 
-  return containerRef;
+  return { containerRef, renderState };
 }
