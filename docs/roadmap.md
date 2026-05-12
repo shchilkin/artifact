@@ -255,6 +255,36 @@ localStorage works for a creative toy, but it is fragile for large data URLs, pr
 
 ## Roadmap
 
+### v0.2: Make Strong Covers Easier
+
+Goal: move from "the beta works" to "the editor helps users reach strong,
+controlled covers faster."
+
+Priorities:
+
+- Add curated example documents that demonstrate real workflows rather than
+  only random generation.
+- Improve typography and effect defaults so distorted text stays intentionally
+  readable instead of accidentally crushed.
+- Add a low-resolution / pixelate whole-image node for deliberate cover-wide
+  texture.
+- Add more focused procedural texture and effect nodes, keeping the old
+  combined FX path out of new examples.
+- Improve text workflow with better font browsing, imported fonts, and
+  typography presets.
+- Improve empty-canvas onboarding so a new user can choose between randomizing,
+  loading an example, importing an image, or starting from text.
+- Keep preview/export parity as a release gate for every rendering-facing
+  improvement.
+
+Exit criteria:
+
+- A new user can open the app and create a credible cover from an example or
+  guided starting point in minutes.
+- Text-heavy covers have a clear path to controlled distortion.
+- New examples use separated effect nodes and remain editable in the node graph.
+- Browser smoke and manual QA still pass before the next beta tag.
+
 ### Phase 0: Stabilize the current branch
 
 Goal: finish the current node interaction work without adding more behavior.
