@@ -14,9 +14,27 @@ Related architecture docs:
 
 ## Product summary
 
-Artifact is a browser-based glitch album cover generator for indie musicians and designers who want direct aesthetic control. The product is intentionally raw: warm dark UI, mono labels, square edges, seeded randomness, layer composition, node editing, and export-ready artwork.
+Artifact is a browser-based creative image/poster generator for indie musicians
+and designers who want direct aesthetic control. It starts with album covers,
+but the broader direction includes posters, music visuals, and eventually
+portfolio or case-study pages for music/design projects. The product is
+intentionally raw: warm dark UI, mono labels, square edges, seeded randomness,
+layer composition, node editing, and export-ready artwork.
 
-The core promise is simple: a user should be able to build a cover from layers and nodes, preview it accurately, then export the same image at production resolution.
+The core promise is simple: a user should be able to build a visual from layers
+and nodes, preview it accurately, then export the same image at production
+resolution and the selected aspect ratio.
+
+Layers and nodes have different jobs:
+
+- **Layers** are for fast work: quick stacking, reordering, visibility, simple
+  edits, and rapid composition.
+- **Nodes** are for advanced work: branching, merges, source/effect chains,
+  reusable procedural structure, and explicit output control.
+
+Both views must stay truthful. If nodes define a meaningful structure, the layer
+view should respect that structure through folders, areas, or graph-derived
+grouping instead of becoming a misleading flat stack.
 
 ## Feature Intake From Sticky Notes
 
@@ -27,13 +45,19 @@ release. Treat it as product discovery and split it by implementation surface.
 
 These can mostly stay browser-only and fit the current architecture:
 
-- Layer folders/groups for organizing dense stacks.
-- Low-resolution / pixelate whole-image node.
-- More procedural texture nodes with presets.
+- Layer folders/groups and graph areas for organizing dense stacks and advanced
+  node graphs.
+- Layer view that can respect node graph structure instead of only showing a
+  flat stack.
+- Low-resolution / pixelate whole-image node that respects the current aspect
+  ratio and export scale.
+- More procedural texture/noise nodes with presets.
 - More primitive shapes, SVG-like primitives, and 3D sketch primitives.
-- More focused effect nodes and shader-style effects.
-- Font import and improved font browsing.
-- Better text workflow, including typography presets and multi-font work.
+- More focused effect nodes and shader-style effects with stronger controls.
+- Font import, improved font browsing, and possible external font catalog
+  support.
+- Better text workflow, including typography presets, multi-font work, and text
+  effect chains.
 - Better drag/repositioning UX for canvas content.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
@@ -47,6 +71,8 @@ These make the product easier to understand and market:
 
 - Better user-facing node/effect documentation.
 - Example projects and tutorial presets.
+- Mood/style preset folders.
+- Procedural texture preset folders.
 - Project/case-study pages for the Artifact portfolio.
 - Showcase pages explaining how covers were made.
 
@@ -63,6 +89,7 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - AI image generation node or workflow.
 - Server-side asset storage for large uploads.
 - Team/project collaboration.
+- Portfolio/case-study publishing.
 
 Near-term rule: ship a reliable local editor first. Full-stack work becomes
 much cheaper after the document schema, asset strategy, and export behavior are
@@ -260,6 +287,15 @@ localStorage works for a creative toy, but it is fragile for large data URLs, pr
 Goal: move from "the beta works" to "the editor helps users reach strong,
 controlled covers faster."
 
+Product direction:
+
+- Effects become more controllable and better documented.
+- New effects should be focused, composable nodes rather than old combined FX.
+- Export becomes predictable: aspect ratio and output scale are honored by layer
+  preview, node thumbnails, graph output, examples, and final export.
+- Layers remain the fast workflow, nodes become the advanced workflow, and both
+  views stay synchronized.
+
 Priorities:
 
 - Add curated example documents that demonstrate real workflows rather than
@@ -268,12 +304,17 @@ Priorities:
   readable instead of accidentally crushed.
 - Add a low-resolution / pixelate whole-image node for deliberate cover-wide
   texture.
-- Add more focused procedural texture and effect nodes, keeping the old
-  combined FX path out of new examples.
+- Add dedicated noise/procedural texture nodes with preset folders.
+- Add more focused procedural texture and effect nodes, keeping the old combined
+  FX path out of new examples.
 - Improve text workflow with better font browsing, imported fonts, and
   typography presets.
+- Add folders or areas so dense layer stacks and node graphs can be organized.
+- Make the layer list respect graph structure where node workflows define the
+  composition.
 - Improve empty-canvas onboarding so a new user can choose between randomizing,
   loading an example, importing an image, or starting from text.
+- Improve docs for nodes, effects, exports, examples, and common workflows.
 - Keep preview/export parity as a release gate for every rendering-facing
   improvement.
 
@@ -283,7 +324,37 @@ Exit criteria:
   guided starting point in minutes.
 - Text-heavy covers have a clear path to controlled distortion.
 - New examples use separated effect nodes and remain editable in the node graph.
+- Aspect ratio is respected by every node preview and output surface.
+- Layer organization does not contradict node organization.
 - Browser smoke and manual QA still pass before the next beta tag.
+
+### v0.3: Project Memory And Sharing
+
+Goal: make Artifact feel less like a local toy and more like a real creative
+workspace.
+
+Likely VPS/full-stack scope:
+
+- Accounts and login.
+- Server-side project saving.
+- Server-backed share links.
+- Preset database and community preset browsing.
+- Project pages, portfolio pages, and case-study pages.
+- Server-side asset storage for large uploads.
+
+Do this after the document schema, asset strategy, and export behavior are
+stable enough to migrate safely.
+
+### Experimental Track
+
+These ideas are promising but should not block editor reliability:
+
+- Voice/music visualizer nodes using uploaded audio or microphone input.
+- Animated noise/effects and possibly video export.
+- SVG + 3D hybrid primitives.
+- AI image/card generation nodes.
+- 3D layer visualization.
+- Subscription/paywall experiments.
 
 ### Phase 0: Stabilize the current branch
 
