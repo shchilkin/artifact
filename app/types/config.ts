@@ -201,6 +201,7 @@ export interface EffectLayer extends BaseLayer {
   maskAlpha: boolean;
   grain: number;
   scanlines: number;
+  scanlineWidth: number;
   rgbSplit: number;
   glitch: number;
   tint: string;
@@ -365,6 +366,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   maskAlpha: false,
   grain: 0,
   scanlines: 0,
+  scanlineWidth: 1,
   rgbSplit: 0,
   glitch: 0,
   tint: '#350055',
@@ -568,6 +570,7 @@ const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kin
   maskAlpha: false,
   grain: 0,
   scanlines: 0,
+  scanlineWidth: 1,
   rgbSplit: 0,
   glitch: 0,
   tint: '#350055',
@@ -658,7 +661,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
   interlace: { name: 'Interlace', icon: '≋', primary: 'interlace', partial: { ...ZERO_EFFECT, interlace: 40 } },
   dataMosh: { name: 'Data Mosh', icon: '▥', primary: 'dataMosh', partial: { ...ZERO_EFFECT, dataMosh: 30 } },
   grain: { name: 'Grain', icon: '⣿', primary: 'grain', partial: { ...ZERO_EFFECT, grain: 45 } },
-  scanlines: { name: 'Scanlines', icon: '☰', primary: 'scanlines', partial: { ...ZERO_EFFECT, scanlines: 18 } },
+  scanlines: {
+    name: 'Scanlines',
+    icon: '☰',
+    primary: 'scanlines',
+    partial: { ...ZERO_EFFECT, scanlines: 18, scanlineWidth: 1 },
+  },
   tint: { name: 'Tint', icon: '◈', primary: 'tintOp', partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 } },
   noiseWarp: { name: 'Noise Warp', icon: '◌', primary: 'noiseWarp', partial: { ...ZERO_EFFECT, noiseWarp: 40 } },
   morph: { name: 'Morph', icon: '∿', primary: null, partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 } },

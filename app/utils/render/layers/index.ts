@@ -276,8 +276,9 @@ function applyCanvas2DEffects(
   }
 
   if (layer.scanlines > 0) {
-    const step = Math.max(2, Math.round(2 * scale));
-    const lineH = Math.max(1, Math.round(scale));
+    const lineH = Math.max(1, Math.round((layer.scanlineWidth ?? 1) * scale));
+    const gap = Math.max(1, Math.round(scale));
+    const step = lineH + gap;
     ctx.fillStyle = `rgba(0,0,0,${layer.scanlines / 100})`;
     for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
   }

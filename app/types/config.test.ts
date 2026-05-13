@@ -63,6 +63,7 @@ describe('makeEffectLayer', () => {
     const numericFields = [
       'grain',
       'scanlines',
+      'scanlineWidth',
       'glitch',
       'tintOp',
       'rays',
@@ -106,6 +107,7 @@ describe('makeEffectLayer', () => {
     expect(layer.name).toBe('Effect');
     expect(layer.grain).toBe(0);
     expect(layer.scanlines).toBe(0);
+    expect(layer.scanlineWidth).toBe(1);
     expect(layer.rgbSplit).toBe(0);
     expect(layer.rays).toBe(0);
     expect(layer.tintOp).toBe(0);

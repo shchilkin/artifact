@@ -243,7 +243,7 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   interlace: 'Alternating rows offset — CRT field artifact.',
   dataMosh: 'Block compression artifacts, repeated frame error.',
   grain: 'Photographic film noise across the full frame.',
-  scanlines: 'CRT phosphor bands at adjustable density.',
+  scanlines: 'CRT phosphor bands with adjustable opacity and thickness.',
   tint: 'Flat color overlay at variable opacity.',
   noiseWarp: 'Displacement mapped by layered Perlin noise.',
   morph: 'Sine-wave surface distortion.',
@@ -321,7 +321,10 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   interlace: [{ key: 'interlace', range: '0–100' }],
   dataMosh: [{ key: 'dataMosh', range: '0–100' }],
   grain: [{ key: 'grain', range: '0–100' }],
-  scanlines: [{ key: 'scanlines', range: '0–100' }],
+  scanlines: [
+    { key: 'scanlines', range: '0–100' },
+    { key: 'scanlineWidth', range: '1–12px' },
+  ],
   tint: [
     { key: 'tint', range: 'hex' },
     { key: 'tintOp', range: '0–100' },

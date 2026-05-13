@@ -51,7 +51,7 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
       return `${layer.glitch} / ${layer.rgbSplit}`;
     case 'texture':
-      if (preset === 'scanlines') return `${layer.scanlines} lines`;
+      if (preset === 'scanlines') return `${layer.scanlines}% / ${layer.scanlineWidth ?? 1}px`;
       return `${layer.grain} grain`;
     case 'tint':
       return `${layer.tintOp}%`;
@@ -181,7 +181,7 @@ export function EffectInspector({
                 label="Count"
                 value={layer.rays}
                 min={0}
-                max={32}
+                max={96}
                 effectKey="rays"
                 onInfoEnter={handleInfoEnter}
                 onInfoLeave={handleInfoLeave}
@@ -294,16 +294,28 @@ export function EffectInspector({
             />
           )}
           {showControl(['scanlines']) && (
-            <InspectorSlider
-              label="Scanlines"
-              value={layer.scanlines}
-              min={0}
-              max={50}
-              effectKey="scanlines"
-              onInfoEnter={handleInfoEnter}
-              onInfoLeave={handleInfoLeave}
-              onChange={(value) => onChange({ scanlines: value })}
-            />
+            <>
+              <InspectorSlider
+                label="Scanlines"
+                value={layer.scanlines}
+                min={0}
+                max={100}
+                effectKey="scanlines"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ scanlines: value })}
+              />
+              <InspectorSlider
+                label="Line Width"
+                value={layer.scanlineWidth ?? 1}
+                min={1}
+                max={12}
+                effectKey="scanlineWidth"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ scanlineWidth: value })}
+              />
+            </>
           )}
         </InspectorSection>
       )}

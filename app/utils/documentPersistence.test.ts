@@ -119,6 +119,30 @@ describe('normalizeDocument', () => {
     ]);
   });
 
+  it('fills newer effect defaults when loading older effect layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'legacy-scanlines',
+          name: 'Scanlines',
+          kind: 'effect',
+          preset: 'scanlines',
+          visible: true,
+          locked: false,
+          scanlines: 24,
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({
+      id: 'legacy-scanlines',
+      kind: 'effect',
+      preset: 'scanlines',
+      scanlines: 24,
+      scanlineWidth: 1,
+    });
+  });
+
   it('adds an empty colorNodes array to older graph documents', () => {
     const doc = normalizeDocument({
       layers: [],

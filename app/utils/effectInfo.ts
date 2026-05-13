@@ -26,6 +26,7 @@ const BASE_EMOJI_LAYER = makeEmojiLayer({
 const BASE_EFFECT: Partial<EffectLayer> = {
   grain: 0,
   scanlines: 0,
+  scanlineWidth: 1,
   rayInt: 50,
   rayColor: '#bb00ff',
   rays: 10,
@@ -71,7 +72,7 @@ export const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor
 const EFFECT_CONTROL_FAMILIES: Record<EffectFamilyId, string[]> = {
   light: ['rayInt', 'rays', 'bloom', 'filmBurn'],
   signal: ['glitch', 'rgbSplit', 'interlace', 'dataMosh'],
-  texture: ['grain', 'scanlines'],
+  texture: ['grain', 'scanlines', 'scanlineWidth'],
   warp: ['noiseWarp', 'morphAmt', 'morphFreq', 'vortex', 'barrel', 'tearAmt', 'tearSize', 'mirror'],
   tone: ['tintOp', 'hueShift', 'vignette', 'pixelate', 'posterize'],
   print: ['duotone', 'halftone', 'risoShift', 'risoAngle', 'blur', 'threshold', 'edgeDetect', 'gradientOverlay'],
@@ -143,9 +144,15 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   scanlines: {
     title: 'Scanlines',
-    description: 'Horizontal dark lines across the image, like a CRT monitor.',
-    valueLabel: '30 lines',
-    cfgOverride: { scanlines: 30 },
+    description: 'Opacity of horizontal dark bands across the image, like a CRT monitor.',
+    valueLabel: 'opacity 30',
+    cfgOverride: { scanlines: 30, scanlineWidth: 1 },
+  },
+  scanlineWidth: {
+    title: 'Scanline Width',
+    description: 'Thickness of each horizontal scanline in base cover pixels.',
+    valueLabel: 'width 3px',
+    cfgOverride: { scanlines: 55, scanlineWidth: 3 },
   },
   tintOp: {
     title: 'Tint Opacity',

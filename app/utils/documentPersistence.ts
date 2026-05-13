@@ -5,6 +5,7 @@ import {
   type CanvasGraph,
   cloneDocument,
   DEFAULT_DOCUMENT,
+  DEFAULT_EFFECT_LAYER_PROPS,
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
@@ -57,14 +58,18 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
           layer.kind === 'source' && typeof layer.sourceType === 'string'
             ? { ...layer, kind: layer.sourceType as SourceType }
             : layer;
+        const layerWithDefaults =
+          normalizedLayer.kind === 'effect'
+            ? ({ ...DEFAULT_EFFECT_LAYER_PROPS, ...normalizedLayer } as Partial<EffectLayer>)
+            : normalizedLayer;
 
-        if (normalizedLayer.kind === 'effect' && shouldSplitEffectLayer(normalizedLayer as Partial<EffectLayer>)) {
-          return splitEffectPatchIntoPresetLayers(normalizedLayer as Partial<EffectLayer>, {
-            idPrefix: String(normalizedLayer.id ?? 'effect'),
+        if (layerWithDefaults.kind === 'effect' && shouldSplitEffectLayer(layerWithDefaults as Partial<EffectLayer>)) {
+          return splitEffectPatchIntoPresetLayers(layerWithDefaults as Partial<EffectLayer>, {
+            idPrefix: String(layerWithDefaults.id ?? 'effect'),
           });
         }
 
-        return [normalizedLayer as Layer];
+        return [layerWithDefaults as Layer];
       }) as Layer[])
     : [];
 

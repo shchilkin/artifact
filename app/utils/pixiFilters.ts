@@ -272,15 +272,19 @@ void main() {
 const HALFTONE_FRAG = `${HEADER}
 uniform float uGrid;
 uniform float uStrength;
+uniform vec2  uResolution;
 
 void main() {
   ${NORM_UV}
   vec4 original  = ${SAMPLE('norm')};
-  vec2 cell      = floor(norm * uGrid);
-  vec2 cellCentre= (cell + 0.5) / uGrid;
+  float cellSize = max(uResolution.x, uResolution.y) / uGrid;
+  vec2 pixel     = norm * uResolution;
+  vec2 cell      = floor(pixel / cellSize);
+  vec2 cellCentrePx = (cell + 0.5) * cellSize;
+  vec2 cellCentre= clamp(cellCentrePx / uResolution, 0.0, 1.0);
   vec4 cellCol   = ${SAMPLE('cellCentre')};
   float luma     = dot(cellCol.rgb, vec3(0.299, 0.587, 0.114));
-  vec2  delta = (norm - cellCentre) * uGrid;
+  vec2  delta = (pixel - cellCentrePx) / cellSize;
   float dist  = length(delta);
   float radius= sqrt(luma) * 0.72;
   float inDot = step(dist, radius);
@@ -397,7 +401,8 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
     );
   }
 
-  if (cfg.halftone > 0) filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85 }));
+  if (cfg.halftone > 0)
+    filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85, uResolution: [refSize, canvasH] }));
   if (cfg.risoShift > 0)
     filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
   if (cfg.bloom > 0) filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
