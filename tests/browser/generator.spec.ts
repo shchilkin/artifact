@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
 const lightDocument = {
@@ -44,6 +44,39 @@ const layeredFillDocument = {
     },
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
+};
+const wideFillLayer = {
+  id: 'wide-fill',
+  name: 'Wide fill',
+  visible: true,
+  locked: false,
+  kind: 'fill',
+  color: '#aa5533',
+  opacity: 100,
+  blendMode: 'normal',
+};
+const wideNodeDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 2, aspect: '16:9' },
+  layers: [wideFillLayer],
+  graph: {
+    edges: [{ id: 'e-wide-fill-export', fromId: 'wide-fill', fromPort: 'out', toId: '__export__', toPort: 'in' }],
+    positions: { 'wide-fill': { x: 0, y: 80 }, __export__: { x: 420, y: 80 } },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const tallNodeDocument = {
+  ...wideNodeDocument,
+  global: { bg: '#101018', seed: 3, aspect: '9:16' },
+  layers: [{ ...wideFillLayer, id: 'tall-fill', name: 'Tall fill' }],
+  graph: {
+    edges: [{ id: 'e-tall-fill-export', fromId: 'tall-fill', fromPort: 'out', toId: '__export__', toPort: 'in' }],
+    positions: { 'tall-fill': { x: 0, y: 80 }, __export__: { x: 420, y: 80 } },
+    mergeNodes: [],
+    colorNodes: [],
+  },
 };
 
 test.beforeEach(async ({ page }) => {
@@ -116,6 +149,22 @@ test('default document can export from the browser', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
 });
 
+test('node previews respect document aspect ratio', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const wideFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
+  await expect(wideFrame).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => frameRatio(wideFrame), { timeout: 15_000 }).toBeGreaterThan(1.5);
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(tallNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const tallFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
+  await expect(tallFrame).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
+});
+
 async function expectLayerCanvasToHavePixels(page: Page) {
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
@@ -177,5 +226,12 @@ async function getCanvasCenterRgb(page: Page) {
       1,
     ).data;
     return { r, g, b };
+  });
+}
+
+async function frameRatio(locator: Locator) {
+  return locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.width / Math.max(1, rect.height);
   });
 }

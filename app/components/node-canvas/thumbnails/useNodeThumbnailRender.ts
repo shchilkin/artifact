@@ -1,12 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { CanvasDocument, ImageLayer } from '../../../types/config';
-import { ASPECT_SIZES } from '../../../types/config';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
-import { THUMB_SIZE } from '../constants';
 import { useNodeCanvasPreview } from '../context';
+import { getNodePreviewSize } from './previewSizing';
 import { colorNodeRenderSig, edgeRenderSig, layerRenderSig, mergeNodeRenderSig } from './renderSignature';
 import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
 
@@ -51,17 +50,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
-  const previewSize = useMemo(() => {
-    if (!isExportPreview) {
-      return { width: THUMB_SIZE, height: THUMB_SIZE };
-    }
-    const [aspectWidth, aspectHeight] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
-    const scale = THUMB_SIZE / aspectWidth;
-    return {
-      width: Math.max(1, Math.round(aspectWidth * scale)),
-      height: Math.max(1, Math.round(aspectHeight * scale)),
-    };
-  }, [doc.global.aspect, isExportPreview]);
+  const previewSize = useMemo(() => getNodePreviewSize(doc.global.aspect ?? '1:1'), [doc.global.aspect]);
 
   const signatureData = useMemo(() => {
     const upstream = collectUpstreamNodeIds(previewTargetId, graph);
@@ -100,7 +89,8 @@ export function useNodeThumbnailRender(previewTargetId: string) {
 
     const previewKey = [
       previewTargetId,
-      `${previewSize.width}x${previewSize.height}`,
+      `${previewSize.render.width}x${previewSize.render.height}`,
+      `display:${previewSize.display.width}x${previewSize.display.height}`,
       doc.global.bg,
       doc.global.seed,
       doc.global.aspect,
@@ -198,7 +188,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     clearTimeout(debounceRef.current);
     const cached = thumbnailResultCache.get(previewKey);
     if (cached && canvasRef.current) {
-      if (drawCanvas(canvasRef.current, cached, previewSize.width, previewSize.height)) {
+      if (drawCanvas(canvasRef.current, cached, previewSize.render.width, previewSize.render.height)) {
         setHasRendered(true);
         setRenderedPreviewKey(previewKey);
       }
@@ -248,19 +238,25 @@ export function useNodeThumbnailRender(previewTargetId: string) {
             const result = latestIsExportPreview
               ? await renderDocument(
                   previewDoc,
-                  latestPreviewSize.width,
-                  latestPreviewSize.height,
+                  latestPreviewSize.render.width,
+                  latestPreviewSize.render.height,
                   effectiveImageCache,
-                  { primitiveViewStates: latestPrimitiveViewStates },
+                  {
+                    primitiveViewStates: latestPrimitiveViewStates,
+                    effectResolution: latestPreviewSize.aspect,
+                  },
                 )
               : await renderGraphTarget(
                   previewDoc,
                   g,
                   latestPreviewTargetId,
-                  latestPreviewSize.width,
-                  latestPreviewSize.height,
+                  latestPreviewSize.render.width,
+                  latestPreviewSize.render.height,
                   effectiveImageCache,
-                  { primitiveViewStates: latestPrimitiveViewStates },
+                  {
+                    primitiveViewStates: latestPrimitiveViewStates,
+                    effectResolution: latestPreviewSize.aspect,
+                  },
                 );
             const clone = cloneCanvas(result);
             rememberThumbnail(pk, clone);
@@ -276,14 +272,15 @@ export function useNodeThumbnailRender(previewTargetId: string) {
 
         const result = await renderPromise;
         if (rev !== revRef.current || !canvasRef.current) return;
-        if (!drawCanvas(canvasRef.current, result, latestPreviewSize.width, latestPreviewSize.height)) return;
+        if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
+          return;
         setHasRendered(true);
         setRenderedPreviewKey(pk);
       });
     }, THUMB_DEBOUNCE_MS);
 
     return () => clearTimeout(debounceRef.current);
-  }, [imageCache, previewKey, previewSize.height, previewSize.width, previewTargetId]);
+  }, [imageCache, previewKey, previewSize.render.height, previewSize.render.width, previewTargetId]);
 
   return {
     canvasRef,

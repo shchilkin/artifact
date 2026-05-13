@@ -2,9 +2,9 @@ import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import type { AddAction } from './types';
 
-export const NODE_W = 190;
-export const NODE_H = 194;
-export const THUMB_SIZE = 136;
+export const NODE_W = 320;
+export const NODE_H = 360;
+export const THUMB_SIZE = 280;
 export const NODE_EDITOR_W = 292;
 export const EDGE_INTERCEPT_THRESHOLD = 56;
 export const THUMB_DEBOUNCE_MS = 120;

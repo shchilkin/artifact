@@ -104,8 +104,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: 1 / 1;
   height: auto;
+  padding: 10px;
 }
 
 .node-thumbnail-export {
@@ -120,10 +120,9 @@
   position: relative;
   overflow: hidden;
   border-radius: 0;
-  border-bottom: 1px solid var(--node-border);
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  border: 1px solid var(--node-border);
   height: auto;
+  background: var(--node-bg);
 }
 
 .node-thumbnail-canvas {
@@ -145,7 +144,7 @@
   width: clamp(
     var(--node-min-width, var(--node-default-width)),
     var(--node-preferred-width, var(--node-default-width)),
-    var(--node-max-width, 280px)
+    var(--node-max-width, 380px)
   );
   background: var(--node-surface);
   border: 1px solid var(--node-border);
@@ -162,20 +161,20 @@
 .node-shell-kind-primitive,
 .node-shell-kind-noise,
 .node-shell-kind-array {
-  --node-preferred-width: 220px;
+  --node-preferred-width: 340px;
 }
 
 .node-shell-kind-text,
 .node-shell-kind-emoji,
 .node-shell-kind-fill {
-  --node-preferred-width: 190px;
+  --node-preferred-width: 320px;
 }
 
 .node-shell-kind-export,
 .node-shell-kind-effect,
 .node-shell-kind-merge,
 .node-shell-kind-color {
-  --node-preferred-width: 180px;
+  --node-preferred-width: 320px;
 }
 
 .node-shell-selected {
@@ -1071,7 +1070,7 @@
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: auto;
   overflow: hidden;
 }
 
@@ -1095,7 +1094,6 @@
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
   height: auto;
   overflow: hidden;
 }

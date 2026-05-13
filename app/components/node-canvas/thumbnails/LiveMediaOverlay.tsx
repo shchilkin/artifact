@@ -1,20 +1,29 @@
 import { FONT_STACKS, type Layer } from '../../../types/config';
-import { THUMB_SIZE } from '../constants';
+import { useNodeCanvasPreview } from '../context';
+import { getNodePreviewSize } from './previewSizing';
 
 export type LiveMediaLayer = Extract<Layer, { kind: 'text' | 'image' }>;
 
 export function EmptyThumbnailFrame() {
+  const { doc } = useNodeCanvasPreview();
+  const previewSize = getNodePreviewSize(doc.global.aspect);
   return (
-    <div className="node-thumbnail node-thumbnail-primitive">
-      <div className="node-thumbnail-frame" />
+    <div className="node-thumbnail node-thumbnail-primitive" style={{ minHeight: previewSize.display.height }}>
+      <div
+        className="node-thumbnail-frame"
+        style={{ width: previewSize.display.width, height: previewSize.display.height }}
+      />
     </div>
   );
 }
 
 export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
+  const { doc } = useNodeCanvasPreview();
+  const previewSize = getNodePreviewSize(doc.global.aspect);
+  const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
   if (layer.kind === 'text') {
     const fontFamily = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
-    const fontSize = Math.max(6, layer.size * (THUMB_SIZE / 540));
+    const fontSize = Math.max(6, layer.size * (maxDisplayDimension / 540));
     return (
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <div
@@ -54,7 +63,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             backgroundImage: `url(${layer.src})`,
             backgroundRepeat: 'repeat',
             backgroundPosition: 'center',
-            backgroundSize: `${Math.max(6, THUMB_SIZE * 0.35 * layer.scaleX)}px ${Math.max(6, THUMB_SIZE * 0.35 * layer.scaleY)}px`,
+            backgroundSize: `${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleX)}px ${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleY)}px`,
             transform: `rotate(${layer.rotation}deg) translate(${(layer.x - 0.5) * 100}%, ${(layer.y - 0.5) * 100}%)`,
             transformOrigin: 'center center',
           }}
@@ -75,7 +84,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             left: `${layer.x * 100}%`,
             top: `${layer.y * 100}%`,
             opacity: layer.opacity / 100,
-            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${(THUMB_SIZE / 540) * layer.scaleX}, ${(THUMB_SIZE / 540) * layer.scaleY})`,
+            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${(maxDisplayDimension / 540) * layer.scaleX}, ${(maxDisplayDimension / 540) * layer.scaleY})`,
             transformOrigin: 'center center',
             userSelect: 'none',
             pointerEvents: 'none',
