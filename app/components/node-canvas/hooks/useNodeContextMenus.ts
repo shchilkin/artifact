@@ -167,11 +167,11 @@ export function useNodeContextMenus({
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      if (!connectionState.fromNode || connectionState.toNode) return;
+      if (!connectionState.fromNode || !connectionState.fromHandle) return;
+      if (connectionState.toHandle) return;
       const pointer = 'changedTouches' in event ? event.changedTouches[0] : event;
       if (!pointer) return;
       const fromHandle = connectionState.fromHandle;
-      if (!fromHandle) return;
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY }) ?? {
         x: 0,
         y: 0,

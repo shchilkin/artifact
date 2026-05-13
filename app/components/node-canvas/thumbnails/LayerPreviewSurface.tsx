@@ -14,6 +14,7 @@ type LayerPreviewSurfaceProps = Pick<
 > & {
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
+  onTransformWheel?: (event: React.WheelEvent) => void;
 };
 
 function DragTransformOverlay({
@@ -39,9 +40,13 @@ function DragTransformOverlay({
 
   const clampPosition = (value: number) => Math.max(-0.5, Math.min(1.5, value));
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const stopLocalGesture = (e: React.SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    stopLocalGesture(e);
     if (e.shiftKey) {
       const rect = e.currentTarget.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -73,8 +78,7 @@ function DragTransformOverlay({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopLocalGesture(e);
     if (!dragRef.current) return;
     const { startClientX, startClientY, startLayerX, startLayerY, startRotation, startAngle, mode } = dragRef.current;
     if (mode === 'translate') {
@@ -99,8 +103,7 @@ function DragTransformOverlay({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopLocalGesture(e);
     dragRef.current = null;
     setDragging(false);
     setRotating(false);
@@ -109,8 +112,7 @@ function DragTransformOverlay({
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopLocalGesture(e);
     dragRef.current = null;
     setDragging(false);
     setRotating(false);
@@ -123,12 +125,15 @@ function DragTransformOverlay({
 
   return (
     <div
-      className="node-drag-overlay nodrag nopan"
-      style={{ position: 'absolute', inset: 0, zIndex: 2, cursor, touchAction: 'none' }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
+      className="node-drag-overlay nodrag nopan nowheel"
+      style={{ cursor }}
+      onClickCapture={stopLocalGesture}
+      onDoubleClickCapture={stopLocalGesture}
+      onPointerDownCapture={handlePointerDown}
+      onPointerMoveCapture={handlePointerMove}
+      onPointerUpCapture={handlePointerUp}
+      onPointerCancelCapture={handlePointerCancel}
+      onWheelCapture={stopLocalGesture}
     />
   );
 }
@@ -141,10 +146,19 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   selected,
   onTransformDraft,
   onTransformCommit,
+  onTransformWheel,
 }: LayerPreviewSurfaceProps) {
   const { graph } = useNodeCanvasPreview();
   const { openGallery } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
+  const stopLocalWheel = (event: React.WheelEvent) => {
+    if (onTransformWheel) {
+      onTransformWheel(event);
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  };
   const mediaBgPreviewTargetId = useMemo(
     () =>
       layer.kind === 'text' || layer.kind === 'image'
@@ -168,9 +182,10 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
     const isDraggable = layer.kind === 'text' || layer.kind === 'image';
     return (
       <div
-        className="node-preview-surface nodrag nopan"
+        className={`node-preview-surface nodrag nopan${isDraggable && selected ? ' nowheel' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onWheelCapture={isDraggable && selected ? stopLocalWheel : undefined}
       >
         <div className="node-live-preview-frame">
           {isDraggable && selected ? (

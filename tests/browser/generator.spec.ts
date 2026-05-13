@@ -213,6 +213,54 @@ const textDragDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const testImageSrc =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
+const imageDragDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 8, aspect: '16:9' },
+  layers: [
+    {
+      id: 'image-drag-fill',
+      name: 'Backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#08060c',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'image-drag-image',
+      name: 'Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: testImageSrc,
+      fit: 'free',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-fill-image', fromId: 'image-drag-fill', fromPort: 'out', toId: 'image-drag-image', toPort: 'bg' },
+      { id: 'e-image-export', fromId: 'image-drag-image', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {
+      'image-drag-fill': { x: 0, y: 80 },
+      'image-drag-image': { x: 500, y: 80 },
+      __export__: { x: 1000, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const emptyTransparentDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 5, aspect: '1:1' },
@@ -431,6 +479,38 @@ test('text node can be dragged repeatedly without crashing', async ({ page }) =>
 
   await expect(page.getByText('Oops!')).toHaveCount(0);
   await expect(page.locator('.node-canvas-root')).toBeVisible();
+});
+
+test('image transform gestures stay local to the selected node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await switchToNodeView(page);
+
+  const imageNode = page.locator('.node-shell-kind-image').first();
+  await expect(imageNode).toBeVisible({ timeout: 15_000 });
+  await imageNode.click();
+
+  const overlay = imageNode.locator('.node-drag-overlay');
+  await expect(overlay).toBeVisible({ timeout: 15_000 });
+  const box = await overlay.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  const viewport = page.locator('.react-flow__viewport').first();
+  const beforeWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -240);
+  const afterWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
+
+  expect(afterWheelTransform).toBe(beforeWheelTransform);
+
+  await page.mouse.down();
+  for (let i = 0; i < 10; i += 1) {
+    await page.mouse.move(box.x + box.width / 2 + i * 22, box.y + box.height / 2 + (i % 2 === 0 ? 48 : -48));
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await expect(imageNode.locator('.node-live-preview-frame')).toHaveCSS('overflow', 'hidden');
 });
 
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {

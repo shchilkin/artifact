@@ -1181,6 +1181,8 @@
 
 .node-preview-surface {
   position: relative;
+  overflow: hidden;
+  contain: paint;
 }
 
 .node-live-preview-frame {
@@ -1189,6 +1191,16 @@
   width: 100%;
   height: auto;
   overflow: hidden;
+  contain: layout paint;
+  isolation: isolate;
+}
+
+.node-drag-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .node-thumbnail-primitive {

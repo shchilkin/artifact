@@ -40,6 +40,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
         selected={selected}
         onTransformDraft={transform.updateDraft}
         onTransformCommit={transform.commitDraft}
+        onTransformWheel={transform.handleWheel}
       />
       <PortRow
         inputs={[{ label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id }]}
