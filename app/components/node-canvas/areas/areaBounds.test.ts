@@ -42,4 +42,22 @@ describe('getGraphAreaBounds', () => {
 
     expect(result).toHaveLength(0);
   });
+
+  it('uses first area membership when legacy data contains overlapping nodes', () => {
+    const result = getGraphAreaBounds(
+      {
+        ...graph,
+        areas: [
+          { id: 'area-1', name: 'Main branch', color: '#ff705f', nodeIds: ['a'] },
+          { id: 'area-2', name: 'Other branch', color: '#8d5cff', nodeIds: ['a', 'b'] },
+        ],
+      },
+      [],
+    );
+
+    expect(result.map((bounds) => [bounds.area.id, bounds.nodeCount])).toEqual([
+      ['area-1', 1],
+      ['area-2', 1],
+    ]);
+  });
 });

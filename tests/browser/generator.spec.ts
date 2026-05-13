@@ -91,6 +91,68 @@ const areaMergeDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const areaExtendDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 7, aspect: '16:9' },
+  layers: [
+    {
+      id: 'area-fill',
+      name: 'Area fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#7842d9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'area-noise',
+      name: 'Area noise',
+      visible: true,
+      locked: false,
+      kind: 'noise',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      color: '#ff5a36',
+      accentColor: '#9d5cff',
+      primitiveShape: 'sphere',
+      primitiveShading: 'smooth',
+      tiltX: -18,
+      tiltY: 28,
+      tiltZ: 0,
+      primitiveDepth: 48,
+      noiseType: 'clouds',
+      noiseScale: 28,
+      noiseDetail: 4,
+      noiseContrast: 52,
+      noiseBalance: 50,
+      arrayPattern: 'grid',
+      arrayShape: 'disc',
+      arrayCount: 6,
+      arrayRows: 4,
+      arrayGap: 30,
+      arrayRadius: 120,
+      arraySize: 36,
+      arrayJitter: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-fill-noise', fromId: 'area-fill', fromPort: 'out', toId: 'area-noise', toPort: 'bg' },
+      { id: 'e-noise-export', fromId: 'area-noise', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: { 'area-fill': { x: 0, y: 80 }, 'area-noise': { x: 520, y: 80 }, __export__: { x: 980, y: 80 } },
+    mergeNodes: [],
+    colorNodes: [],
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill'] }],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const tallNodeDocument = {
   ...wideNodeDocument,
   global: { bg: '#101018', seed: 3, aspect: '9:16' },
@@ -268,6 +330,24 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
 
   await switchToLayerView(page);
   await expect(page.locator('.layer-area-chip')).toContainText('Area 1');
+});
+
+test('selected area can be extended without stacking memberships', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await switchToNodeView(page);
+
+  await page.getByRole('button', { name: 'Select Area 1' }).click();
+  const noiseNode = page.locator('.node-shell-kind-noise').first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  await noiseNode.click();
+  await page.getByRole('button', { name: 'Add selected nodes to area' }).click();
+
+  await expect(page.locator('.node-area')).toHaveCount(1);
+  await expect(page.locator('.node-area-label')).toContainText('2');
+
+  await switchToLayerView(page);
+  await expect(page.locator('.layer-area-chip')).toHaveCount(2);
+  await expect(page.locator('.layer-area-more')).toHaveCount(0);
 });
 
 test('dropping a connection on empty canvas can add and connect a node', async ({ page }) => {

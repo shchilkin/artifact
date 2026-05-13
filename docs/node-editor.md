@@ -86,6 +86,12 @@ nodes. Creating an area from selected nodes stores only node ids, name, color,
 and collapsed metadata. Areas do not own React Flow nodes, do not make node
 positions relative, and do not affect render order.
 
+Area membership is exclusive. A node belongs to at most one area in the current
+editor model; adding a node to another area removes it from the previous one.
+Selecting an existing area and nodes extends that area instead of creating a
+stacked area over the same nodes. Nested areas/folders are a future design slice,
+not current behavior.
+
 ## Interaction grammar
 
 ### Global graph gestures

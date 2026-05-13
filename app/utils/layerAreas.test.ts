@@ -14,10 +14,10 @@ describe('getLayerAreaMap', () => {
     { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['text-1', 'image-1'] },
   ];
 
-  it('maps only layer-backed nodes to their graph areas', () => {
+  it('maps only layer-backed nodes to their first graph area', () => {
     const map = getLayerAreaMap(layers, areas);
 
-    expect(map.get('image-1')?.map((area) => area.name)).toEqual(['Source', 'Type']);
+    expect(map.get('image-1')?.map((area) => area.name)).toEqual(['Source']);
     expect(map.get('text-1')?.map((area) => area.name)).toEqual(['Type']);
     expect(map.has('merge-1')).toBe(false);
   });

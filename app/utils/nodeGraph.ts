@@ -178,28 +178,50 @@ function removeNodeFromGraphAreas(areas: GraphArea[] | undefined, nodeId: string
   }));
 }
 
+function removeNodesFromOtherGraphAreas(
+  areas: GraphArea[] | undefined,
+  nodeIds: string[],
+  targetAreaId: string,
+): GraphArea[] {
+  const moving = new Set(nodeIds);
+  return (areas ?? [])
+    .map((area) =>
+      area.id === targetAreaId
+        ? area
+        : {
+            ...area,
+            nodeIds: area.nodeIds.filter((id) => !moving.has(id)),
+          },
+    )
+    .filter((area) => area.id === targetAreaId || area.nodeIds.length > 0);
+}
+
 export function addGraphArea(graph: CanvasGraph, area: GraphArea): CanvasGraph {
+  const nodeIds = uniqueNodeIds(area.nodeIds);
+  const areas = removeNodesFromOtherGraphAreas(graph.areas, nodeIds, area.id);
   return {
     ...graph,
     areas: [
-      ...(graph.areas ?? []),
+      ...areas,
       {
         ...area,
-        nodeIds: uniqueNodeIds(area.nodeIds),
+        nodeIds,
       },
     ],
   };
 }
 
 export function updateGraphArea(graph: CanvasGraph, id: string, patch: Partial<Omit<GraphArea, 'id'>>): CanvasGraph {
+  const nextNodeIds = patch.nodeIds ? uniqueNodeIds(patch.nodeIds) : undefined;
+  const areas = nextNodeIds ? removeNodesFromOtherGraphAreas(graph.areas, nextNodeIds, id) : (graph.areas ?? []);
   return {
     ...graph,
-    areas: (graph.areas ?? []).map((area) =>
+    areas: areas.map((area) =>
       area.id === id
         ? {
             ...area,
             ...patch,
-            nodeIds: patch.nodeIds ? uniqueNodeIds(patch.nodeIds) : area.nodeIds,
+            nodeIds: nextNodeIds ?? area.nodeIds,
           }
         : area,
     ),
@@ -215,10 +237,17 @@ export function removeGraphArea(graph: CanvasGraph, id: string): CanvasGraph {
 
 export function assignNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
   const ids = uniqueNodeIds(nodeIds);
+  const areas = removeNodesFromOtherGraphAreas(graph.areas, ids, areaId);
   return {
     ...graph,
-    areas: (graph.areas ?? []).map((area) => (area.id === areaId ? { ...area, nodeIds: ids } : area)),
+    areas: areas.map((area) => (area.id === areaId ? { ...area, nodeIds: ids } : area)),
   };
+}
+
+export function addNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const area = (graph.areas ?? []).find((item) => item.id === areaId);
+  if (!area) return graph;
+  return assignNodesToGraphArea(graph, areaId, [...area.nodeIds, ...nodeIds]);
 }
 
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */

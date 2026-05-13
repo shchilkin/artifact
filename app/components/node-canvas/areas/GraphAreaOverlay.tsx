@@ -7,10 +7,12 @@ import { getGraphAreaBounds } from './areaBounds';
 interface GraphAreaOverlayProps {
   graph: CanvasGraph;
   nodes: RFNode[];
+  selectedAreaId?: string | null;
+  onSelectArea: (id: string) => void;
   onRemoveArea: (id: string) => void;
 }
 
-export function GraphAreaOverlay({ graph, nodes, onRemoveArea }: GraphAreaOverlayProps) {
+export function GraphAreaOverlay({ graph, nodes, selectedAreaId, onSelectArea, onRemoveArea }: GraphAreaOverlayProps) {
   const bounds = useMemo(() => getGraphAreaBounds(graph, nodes), [graph, nodes]);
 
   if (bounds.length === 0) return null;
@@ -20,7 +22,9 @@ export function GraphAreaOverlay({ graph, nodes, onRemoveArea }: GraphAreaOverla
       {bounds.map(({ area, x, y, width, height, nodeCount }) => (
         <div
           key={area.id}
-          className={`node-area${area.collapsed ? ' node-area-collapsed' : ''}`}
+          className={`node-area${area.collapsed ? ' node-area-collapsed' : ''}${
+            selectedAreaId === area.id ? ' node-area-selected' : ''
+          }`}
           style={{
             left: x,
             top: y,
@@ -30,12 +34,25 @@ export function GraphAreaOverlay({ graph, nodes, onRemoveArea }: GraphAreaOverla
           }}
         >
           <div className="node-area-label">
-            <span className="node-area-name">{area.name}</span>
-            <span className="node-area-count">{nodeCount}</span>
+            <button
+              type="button"
+              className="node-area-select"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectArea(area.id);
+              }}
+              aria-label={`Select ${area.name}`}
+            >
+              <span className="node-area-name">{area.name}</span>
+              <span className="node-area-count">{nodeCount}</span>
+            </button>
             <button
               type="button"
               className="node-area-remove"
-              onClick={() => onRemoveArea(area.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemoveArea(area.id);
+              }}
               aria-label={`Remove ${area.name}`}
               title="Remove area"
             >

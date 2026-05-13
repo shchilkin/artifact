@@ -7,6 +7,7 @@ export function getLayerAreaMap(layers: Layer[], areas: GraphArea[] | undefined)
   for (const area of areas ?? []) {
     for (const nodeId of area.nodeIds) {
       if (!layerIds.has(nodeId)) continue;
+      if (map.has(nodeId)) continue;
       const existing = map.get(nodeId) ?? [];
       existing.push(area);
       map.set(nodeId, existing);

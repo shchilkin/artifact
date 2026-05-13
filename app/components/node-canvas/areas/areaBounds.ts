@@ -27,10 +27,16 @@ function nodeSize(node: RFNode): { width: number; height: number } {
 
 export function getGraphAreaBounds(graph: CanvasGraph, nodes: RFNode[]): GraphAreaBounds[] {
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const assignedNodeIds = new Set<string>();
 
   return (graph.areas ?? [])
     .map((area) => {
-      const rects = area.nodeIds
+      const exclusiveNodeIds = area.nodeIds.filter((nodeId) => {
+        if (assignedNodeIds.has(nodeId)) return false;
+        assignedNodeIds.add(nodeId);
+        return true;
+      });
+      const rects = exclusiveNodeIds
         .map((nodeId) => {
           const node = nodesById.get(nodeId);
           const position = node?.position ?? graph.positions[nodeId];

@@ -6,6 +6,7 @@ import {
   addGraphArea,
   addGraphEdge,
   addMergeNode,
+  addNodesToGraphArea,
   assignNodesToGraphArea,
   collectUpstreamNodeIds,
   connectedPortIds,
@@ -162,6 +163,34 @@ describe('graph mutations', () => {
     expect(assigned.edges).toEqual(graph.edges);
     expect(removed.areas).toEqual([]);
     expect(graph.areas).toBeUndefined();
+  });
+
+  it('keeps graph area membership exclusive when creating or extending areas', () => {
+    const graph = emptyGraph({
+      areas: [
+        { id: 'area-1', name: 'Source', color: '#ff6b5a', nodeIds: ['a', 'b'] },
+        { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c'] },
+      ],
+    });
+
+    const withNewArea = addGraphArea(graph, {
+      id: 'area-3',
+      name: 'Combined',
+      color: '#79e3c5',
+      nodeIds: ['b', 'd'],
+    });
+    const extended = addNodesToGraphArea(withNewArea, 'area-2', ['a', 'e']);
+
+    expect(withNewArea.areas).toEqual([
+      { id: 'area-1', name: 'Source', color: '#ff6b5a', nodeIds: ['a'] },
+      { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c'] },
+      { id: 'area-3', name: 'Combined', color: '#79e3c5', nodeIds: ['b', 'd'] },
+    ]);
+    expect(extended.areas).toEqual([
+      { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c', 'a', 'e'] },
+      { id: 'area-3', name: 'Combined', color: '#79e3c5', nodeIds: ['b', 'd'] },
+    ]);
+    expect(graph.areas?.[0]?.nodeIds).toEqual(['a', 'b']);
   });
 
   it('removes deleted layer and graph-only node ids from areas', () => {
