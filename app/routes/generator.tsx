@@ -1,11 +1,12 @@
 import { AnimatePresence } from 'framer-motion';
-import { type CSSProperties, lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { PresetsPanel } from '../components/PresetsPanel';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
@@ -13,6 +14,7 @@ import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
 import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
+import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
 import { type AspectRatio, getPreviewDims } from '../types/config';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
@@ -166,6 +168,30 @@ export default function Generator() {
       imageCache,
       onLoadDocument: loadDocument,
     });
+  const {
+    showProjects,
+    projects,
+    maxProjects,
+    toggleProjects,
+    closeProjects,
+    handleLoadProject,
+    saveCurrentProject,
+    deleteProject,
+  } = useGeneratorProjectsController({
+    docRef,
+    imageCache,
+    onLoadDocument: loadDocument,
+  });
+
+  const handleTogglePresets = useCallback(() => {
+    closeProjects();
+    togglePresets();
+  }, [closeProjects, togglePresets]);
+
+  const handleToggleProjects = useCallback(() => {
+    closePresets();
+    toggleProjects();
+  }, [closePresets, toggleProjects]);
 
   const bottomBarProps = {
     onRandomize: handleRandomize,
@@ -174,7 +200,8 @@ export default function Generator() {
     canUndo,
     canRedo,
     undoCount,
-    onPresetsToggle: togglePresets,
+    onPresetsToggle: handleTogglePresets,
+    onProjectsToggle: handleToggleProjects,
     onCopyLink: handleCopyLink,
     onOpenDocument: handleOpenDocumentPicker,
     onSaveDocument: handleSaveDocument,
@@ -356,6 +383,16 @@ export default function Generator() {
               onLoad={handleLoadPreset}
               onDelete={deletePreset}
               onClose={closePresets}
+            />
+          )}
+          {showProjects && (
+            <ProjectsPanel
+              projects={projects}
+              maxProjects={maxProjects}
+              onSave={saveCurrentProject}
+              onLoad={handleLoadProject}
+              onDelete={deleteProject}
+              onClose={closeProjects}
             />
           )}
         </AnimatePresence>

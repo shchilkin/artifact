@@ -356,6 +356,13 @@ Known follow-up:
 Goal: make Artifact feel less like a local toy and more like a real creative
 workspace.
 
+Current browser-only scope:
+
+- [x] Local project library for named document snapshots.
+- [x] Project thumbnails, local open, and local delete controls.
+- [x] Existing `.artifact.json` file save/open and `?doc=` share links remain
+  the portable interchange path.
+
 Likely VPS/full-stack scope:
 
 - Accounts and login.

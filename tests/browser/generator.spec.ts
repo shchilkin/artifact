@@ -204,6 +204,16 @@ test('default document can export from the browser', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
 });
 
+test('current document can be saved into local projects', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByLabel('Project name').fill('Browser Project');
+  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
+
+  await expect(page.getByText('Browser Project')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
+});
+
 test('node previews respect document aspect ratio', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);
