@@ -147,5 +147,13 @@ function AddRow({
 }
 
 function itemColor(action: AddAction) {
-  return KIND_COLOR[action.kind === 'layer' ? action.layerKind : action.kind === 'effect' ? 'effect' : action.kind];
+  return KIND_COLOR[
+    action.kind === 'layer'
+      ? action.layerKind
+      : action.kind === 'effect'
+        ? 'effect'
+        : action.kind === 'noisePreset'
+          ? 'noise'
+          : action.kind
+  ];
 }

@@ -73,6 +73,7 @@ describe('randomEffectLayer', () => {
     const numericFields = [
       'grain',
       'scanlines',
+      'scanlineWidth',
       'rgbSplit',
       'glitch',
       'tintOp',

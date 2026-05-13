@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+
+import { THUMB_SIZE } from '../constants';
+import { getNodePreviewSize, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
+
+describe('getNodePreviewSize', () => {
+  it.each([
+    ['1:1', THUMB_SIZE, THUMB_SIZE],
+    ['4:5', Math.round(THUMB_SIZE * 0.8), THUMB_SIZE],
+    ['9:16', Math.round(THUMB_SIZE * (9 / 16)), THUMB_SIZE],
+    ['16:9', THUMB_SIZE, Math.round(THUMB_SIZE * (9 / 16))],
+  ] as const)('fits %s into the display frame', (aspect, width, height) => {
+    expect(getNodePreviewSize(aspect).display).toEqual({ width, height });
+  });
+
+  it('renders above display resolution for WYSIWYG previews', () => {
+    const size = getNodePreviewSize('1:1');
+
+    expect(size.render.width).toBeGreaterThan(size.display.width);
+    expect(size.render.height).toBeGreaterThan(size.display.height);
+    expect(size.renderScale).toBe(NODE_PREVIEW_RENDER_SCALE);
+  });
+
+  it('preserves aspect ratio for high-DPI render dimensions', () => {
+    const wide = getNodePreviewSize('16:9');
+    const tall = getNodePreviewSize('9:16');
+
+    expect(wide.render.width).toBeGreaterThan(wide.render.height);
+    expect(tall.render.height).toBeGreaterThan(tall.render.width);
+    expect(wide.aspect).toEqual({ width: 1920, height: 1080 });
+    expect(tall.aspect).toEqual({ width: 1080, height: 1920 });
+  });
+});

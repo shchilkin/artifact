@@ -97,7 +97,7 @@ const CONTENT_NODES: NodeDef[] = [
     id: 'text',
     symbol: 'T',
     name: 'Text',
-    desc: 'Type set directly on the canvas. Four fonts, normalized XY position, free rotation.',
+    desc: 'Type set directly on the canvas. Curated display fonts, normalized XY position, free rotation.',
     params: [
       { key: 'size', range: '8–400' },
       { key: 'x', range: '0–1' },
@@ -179,7 +179,7 @@ const SOURCE_NODES: NodeDef[] = [
     id: 'noise',
     symbol: '░',
     name: 'Noise',
-    desc: 'A procedural texture field with transparent alpha, useful as atmosphere, paper, haze, or dense cellular grain before downstream effects.',
+    desc: 'A procedural texture source. Start from concrete, film grain, static, cells, clouds, paper, or CRT dirt presets, then tune the same noise fields.',
     params: [
       { key: 'noiseScale', range: '6–96' },
       { key: 'noiseDetail', range: '1–8' },
@@ -243,7 +243,7 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   interlace: 'Alternating rows offset — CRT field artifact.',
   dataMosh: 'Block compression artifacts, repeated frame error.',
   grain: 'Photographic film noise across the full frame.',
-  scanlines: 'CRT phosphor bands at adjustable density.',
+  scanlines: 'CRT phosphor bands with adjustable opacity and thickness.',
   tint: 'Flat color overlay at variable opacity.',
   noiseWarp: 'Displacement mapped by layered Perlin noise.',
   morph: 'Sine-wave surface distortion.',
@@ -286,6 +286,29 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   speedLines: 'Seeded radial lines from center — manga motion effect.',
 };
 
+const EFFECT_FAMILY_GUIDE = [
+  {
+    name: 'Texture',
+    desc: 'Grain, scanlines, matte, dither, emboss, and linocut add physical surface before or after image sources.',
+  },
+  {
+    name: 'Distortion',
+    desc: 'Noise warp, morph, wave, ripple, barrel, vortex, squeeze, and kaleidoscope bend composition geometry.',
+  },
+  {
+    name: 'Color',
+    desc: 'Tint, hue shift, duotone, infrared, sepia, cyanotype, split tone, and gradient overlay reshape palette.',
+  },
+  {
+    name: 'Print',
+    desc: 'Halftone, riso shift, overprint, posterize, threshold, and linocut push artwork toward poster production.',
+  },
+  {
+    name: 'Signal Damage',
+    desc: 'Glitch, interlace, data mosh, RGB split, chromatic aberration, VHS tracking, and pixelate create media failure.',
+  },
+] as const;
+
 const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
   rays: [
     { key: 'rays', range: '0–100' },
@@ -298,7 +321,10 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   interlace: [{ key: 'interlace', range: '0–100' }],
   dataMosh: [{ key: 'dataMosh', range: '0–100' }],
   grain: [{ key: 'grain', range: '0–100' }],
-  scanlines: [{ key: 'scanlines', range: '0–100' }],
+  scanlines: [
+    { key: 'scanlines', range: '0–100' },
+    { key: 'scanlineWidth', range: '1–12px' },
+  ],
   tint: [
     { key: 'tint', range: 'hex' },
     { key: 'tintOp', range: '0–100' },
@@ -656,6 +682,15 @@ export default function DocsNodes() {
             A stream of inspiration. Scroll to explore every content, source, and effect node. Hover or tap any poster
             to reveal its live controls and tweak the visual in real-time.
           </p>
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Effect families">
+          {EFFECT_FAMILY_GUIDE.map((family) => (
+            <div key={family.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{family.name}</span>
+              <p className="docs-effect-guide__desc">{family.desc}</p>
+            </div>
+          ))}
         </section>
 
         {/* ── Vertical Feed ── */}

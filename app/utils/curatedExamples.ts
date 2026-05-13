@@ -1,11 +1,15 @@
 import {
   type AspectRatio,
   type CanvasDocument,
+  type CanvasGraph,
   DEFAULT_EXPORT,
   type EffectLayer,
   type EffectPreset,
   makeEffectPresetLayer,
   makeEmojiLayer,
+  makeFillLayer,
+  makeSourceLayer,
+  makeTextLayer,
 } from '../types/config';
 
 export interface CuratedExample {
@@ -18,15 +22,104 @@ function fx(preset: EffectPreset, name: string, partial: Partial<EffectLayer> = 
   return { ...makeEffectPresetLayer(preset), name, ...partial };
 }
 
-function mkDoc(seed: number, bg: string, aspect: AspectRatio, layers: CanvasDocument['layers']): CanvasDocument {
+function mkDoc(
+  seed: number,
+  bg: string,
+  aspect: AspectRatio,
+  layers: CanvasDocument['layers'],
+  graph?: CanvasGraph,
+): CanvasDocument {
   return {
     global: { bg, seed, aspect },
     export: { ...DEFAULT_EXPORT },
     layers,
+    ...(graph ? { graph } : {}),
   };
 }
 
 export const CURATED_EXAMPLES: CuratedExample[] = [
+  {
+    id: 'tower-type',
+    name: 'Tower Type',
+    doc: mkDoc(
+      16300,
+      '#050101',
+      '1:1',
+      [
+        makeFillLayer({ id: 'tower-bg', name: 'black plate', color: '#050101' }),
+        makeSourceLayer('noise', {
+          id: 'tower-texture',
+          name: 'concrete texture',
+          color: '#250504',
+          accentColor: '#9c1510',
+          noiseType: 'cells',
+          noiseScale: 46,
+          noiseDetail: 5,
+          noiseContrast: 70,
+          noiseBalance: 42,
+          opacity: 90,
+          blendMode: 'screen',
+        }),
+        fx('duotone', 'red concrete', { id: 'tower-duotone', duotone: 82, duoA: '#050101', duoB: '#b32018' }),
+        fx('vignette', 'stairwell falloff', { id: 'tower-vignette', vignette: 64 }),
+        makeTextLayer({
+          id: 'tower-title',
+          name: 'title block',
+          content: 'OG Buga\nFEARMUACH\n163ONMYCOCK\nHa Koprax',
+          font: 'DISPLAY',
+          size: 64,
+          color: '#ffffff',
+          x: 0.5,
+          y: 0.47,
+          rotation: -6,
+          scaleX: 1.15,
+          scaleY: 1.05,
+        }),
+        fx('wave', 'controlled warp', { id: 'tower-wave', waveAmt: 13, waveFreq: 2.2 }),
+        fx('ca', 'white edge', { id: 'tower-ca', ca: 2 }),
+        fx('scanlines', 'print lines', { id: 'tower-scan', scanlines: 8 }),
+      ],
+      {
+        edges: [
+          { id: 'e-tower-bg-texture', fromId: 'tower-bg', fromPort: 'out', toId: 'tower-texture', toPort: 'bg' },
+          {
+            id: 'e-tower-texture-duotone',
+            fromId: 'tower-texture',
+            fromPort: 'out',
+            toId: 'tower-duotone',
+            toPort: 'in',
+          },
+          {
+            id: 'e-tower-duotone-vignette',
+            fromId: 'tower-duotone',
+            fromPort: 'out',
+            toId: 'tower-vignette',
+            toPort: 'in',
+          },
+          { id: 'e-tower-title-wave', fromId: 'tower-title', fromPort: 'out', toId: 'tower-wave', toPort: 'in' },
+          { id: 'e-tower-wave-ca', fromId: 'tower-wave', fromPort: 'out', toId: 'tower-ca', toPort: 'in' },
+          { id: 'e-tower-ca-scan', fromId: 'tower-ca', fromPort: 'out', toId: 'tower-scan', toPort: 'in' },
+          { id: 'e-tower-bg-merge', fromId: 'tower-vignette', fromPort: 'out', toId: 'merge-tower-cover', toPort: 'a' },
+          { id: 'e-tower-type-merge', fromId: 'tower-scan', fromPort: 'out', toId: 'merge-tower-cover', toPort: 'b' },
+          { id: 'e-tower-export', fromId: 'merge-tower-cover', fromPort: 'out', toId: '__export__', toPort: 'in' },
+        ],
+        positions: {
+          'tower-bg': { x: 0, y: 260 },
+          'tower-texture': { x: 240, y: 260 },
+          'tower-duotone': { x: 480, y: 260 },
+          'tower-vignette': { x: 720, y: 260 },
+          'tower-title': { x: 0, y: 0 },
+          'tower-wave': { x: 240, y: 0 },
+          'tower-ca': { x: 480, y: 0 },
+          'tower-scan': { x: 720, y: 0 },
+          'merge-tower-cover': { x: 980, y: 120 },
+          __export__: { x: 1220, y: 120 },
+        },
+        mergeNodes: [{ id: 'merge-tower-cover', name: 'type over concrete', blendMode: 'normal', opacity: 100 }],
+        colorNodes: [],
+      },
+    ),
+  },
   {
     id: 'phantom-violet',
     name: 'Phantom Violet',

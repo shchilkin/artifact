@@ -328,7 +328,7 @@ describe('renderDocument — preview/export size parity', () => {
           color: '#ff5a36',
           opacity: 100,
         }),
-        makeEffectPresetLayer('scanlines', { scanlines: 80 }),
+        makeEffectPresetLayer('scanlines', { scanlines: 80, scanlineWidth: 1 }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
     };
@@ -348,6 +348,37 @@ describe('renderDocument — preview/export size parity', () => {
         expect(samplePixel(scaled, x * 2, y * 2)).toEqual(samplePixel(base, x, y));
       }
     }
+  });
+
+  it('scanline width increases line thickness while preserving export scale lock', async () => {
+    const effectDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [
+        makeFillLayer({
+          color: '#ff5a36',
+          opacity: 100,
+        }),
+        makeEffectPresetLayer('scanlines', { scanlines: 100, scanlineWidth: 3 }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const base = await renderDocument(effectDoc, 540, 540, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const scaled = await renderDocument(effectDoc, 1080, 1080, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+      effectResolution: { width: 540, height: 540 },
+    });
+
+    expect(samplePixel(base, 10, 0)).toEqual([0, 0, 0, 255]);
+    expect(samplePixel(base, 10, 1)).toEqual([0, 0, 0, 255]);
+    expect(samplePixel(base, 10, 2)).toEqual([0, 0, 0, 255]);
+    expect(samplePixel(base, 10, 3)).toEqual([255, 90, 54, 255]);
+    expect(samplePixel(scaled, 20, 0)).toEqual(samplePixel(base, 10, 0));
+    expect(samplePixel(scaled, 20, 6)).toEqual(samplePixel(base, 10, 3));
   });
 });
 

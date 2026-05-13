@@ -14,7 +14,7 @@ const SPLIT_RULES: SplitRule[] = [
   { preset: 'rays', active: ['rays', 'rayInt'], copy: ['rays', 'rayInt', 'rayColor'] },
   { preset: 'glitch', active: ['glitch'], copy: ['glitch'] },
   { preset: 'rgbSplit', active: ['rgbSplit'], copy: ['rgbSplit'] },
-  { preset: 'scanlines', active: ['scanlines'], copy: ['scanlines'] },
+  { preset: 'scanlines', active: ['scanlines'], copy: ['scanlines', 'scanlineWidth'] },
   { preset: 'grain', active: ['grain'], copy: ['grain'] },
   { preset: 'tint', active: ['tintOp'], copy: ['tint', 'tintOp'] },
   { preset: 'sepia', active: ['sepia'], copy: ['sepia'] },

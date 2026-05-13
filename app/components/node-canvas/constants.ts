@@ -1,10 +1,11 @@
 import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
 import type { AddAction } from './types';
 
-export const NODE_W = 190;
-export const NODE_H = 194;
-export const THUMB_SIZE = 136;
+export const NODE_W = 320;
+export const NODE_H = 360;
+export const THUMB_SIZE = 280;
 export const NODE_EDITOR_W = 292;
 export const EDGE_INTERCEPT_THRESHOLD = 56;
 export const THUMB_DEBOUNCE_MS = 120;
@@ -111,10 +112,17 @@ export const ADD_ITEMS: Array<{
   {
     label: 'Noise',
     symbol: '░',
-    description: 'Generate a procedural noise texture.',
+    description: 'Generate a procedural noise texture from scratch.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'noise' },
   },
+  ...NOISE_PRESET_IDS.map((preset) => ({
+    label: NOISE_PRESETS[preset].name,
+    symbol: '░',
+    description: NOISE_PRESETS[preset].description,
+    group: 'source' as const,
+    action: { kind: 'noisePreset', preset } as AddAction,
+  })),
   {
     label: 'Array',
     symbol: '▦',
@@ -203,10 +211,17 @@ export const ADD_NODE_ITEMS: Array<{
   {
     label: 'Noise',
     symbol: '░',
-    description: 'Generate a procedural noise texture.',
+    description: 'Generate a procedural noise texture from scratch.',
     group: 'generators',
     action: { kind: 'layer', layerKind: 'noise' },
   },
+  ...NOISE_PRESET_IDS.map((preset) => ({
+    label: NOISE_PRESETS[preset].name,
+    symbol: '░',
+    description: NOISE_PRESETS[preset].description,
+    group: 'generators' as const,
+    action: { kind: 'noisePreset', preset } as AddAction,
+  })),
   {
     label: 'Array',
     symbol: '▦',
@@ -353,3 +368,4 @@ export const TINT_PRESETS: EffectPreset[] = ['tint'];
 export const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror'];
 export const COLOR_PRESETS: EffectPreset[] = ['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize'];
 export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift'];
+export const GRAPHIC_PRESETS: EffectPreset[] = ['blur', 'threshold', 'edgeDetect', 'gradientOverlay'];

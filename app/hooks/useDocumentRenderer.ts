@@ -14,6 +14,10 @@ interface Options {
   graphMode?: 'auto' | 'graph' | 'stack';
   /** Keeps the last good preview visible across component remounts. */
   cacheKey?: string;
+  /** Render above CSS display resolution, then downsample in the browser. */
+  renderScale?: number;
+  /** Upper bound for the largest internal render dimension. */
+  maxRenderDimension?: number;
 }
 
 export interface DocumentRenderState {
@@ -27,6 +31,18 @@ const lastGoodRenderCache = new Map<string, HTMLCanvasElement>();
 
 function makeRenderCacheKey(cacheKey: string | undefined, pw: number, ph: number): string | null {
   return cacheKey ? `${cacheKey}:${pw}x${ph}` : null;
+}
+
+function getRenderDimensions(
+  pw: number,
+  ph: number,
+  renderScale = 1,
+  maxRenderDimension = Number.POSITIVE_INFINITY,
+): [number, number] {
+  const safeScale = Number.isFinite(renderScale) ? Math.max(1, renderScale) : 1;
+  const largest = Math.max(pw, ph, 1);
+  const boundedScale = Math.min(safeScale, maxRenderDimension / largest);
+  return [Math.max(1, Math.round(pw * boundedScale)), Math.max(1, Math.round(ph * boundedScale))];
 }
 
 function rememberRenderFrame(cacheKey: string | null, canvas: HTMLCanvasElement): void {
@@ -133,6 +149,14 @@ export function useDocumentRenderer(
   const imageCacheRef = useRef(imageCache);
   const pwRef = useRef(pw);
   const phRef = useRef(ph);
+  const [initialRenderWidth, initialRenderHeight] = getRenderDimensions(
+    pw,
+    ph,
+    options.renderScale,
+    options.maxRenderDimension,
+  );
+  const renderWidthRef = useRef(initialRenderWidth);
+  const renderHeightRef = useRef(initialRenderHeight);
   const fastRef = useRef(options.fast ?? false);
   const graphModeRef = useRef(options.graphMode ?? 'auto');
   const cacheKeyRef = useRef(makeRenderCacheKey(options.cacheKey, pw, ph));
@@ -151,10 +175,26 @@ export function useDocumentRenderer(
     imageCacheRef.current = imageCache;
     pwRef.current = pw;
     phRef.current = ph;
+    [renderWidthRef.current, renderHeightRef.current] = getRenderDimensions(
+      pw,
+      ph,
+      options.renderScale,
+      options.maxRenderDimension,
+    );
     fastRef.current = options.fast ?? false;
     graphModeRef.current = options.graphMode ?? 'auto';
-    cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, pw, ph);
-  }, [doc, imageCache, pw, ph, options.fast, options.graphMode, options.cacheKey]);
+    cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, renderWidthRef.current, renderHeightRef.current);
+  }, [
+    doc,
+    imageCache,
+    pw,
+    ph,
+    options.fast,
+    options.graphMode,
+    options.cacheKey,
+    options.renderScale,
+    options.maxRenderDimension,
+  ]);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -173,7 +213,7 @@ export function useDocumentRenderer(
       const displayCanvas = canvasRef.current;
       if (!displayCanvas) return;
       const ctx = displayCanvas.getContext('2d')!;
-      ctx.clearRect(0, 0, pwRef.current, phRef.current);
+      ctx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
       ctx.drawImage(result, 0, 0);
       lastGoodCanvasRef.current = result;
       rememberRenderFrame(cacheKeyRef.current, result);
@@ -201,8 +241,8 @@ export function useDocumentRenderer(
     }));
     const primaryRender = renderDocument(
       docRef.current,
-      pwRef.current,
-      phRef.current,
+      renderWidthRef.current,
+      renderHeightRef.current,
       imageCacheRef.current,
       renderOptions,
     );
@@ -214,7 +254,7 @@ export function useDocumentRenderer(
         if (!hasNewerRenderPending && !renderOptions.skipEffects && isLikelyBlankRender(result, docRef.current)) {
           gpuFallbackUntilRef.current = performance.now() + 5000;
           withRenderTimeout(
-            renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, {
+            renderDocument(docRef.current, renderWidthRef.current, renderHeightRef.current, imageCacheRef.current, {
               ...renderOptions,
               skipEffects: true,
               draft: true,
@@ -255,7 +295,7 @@ export function useDocumentRenderer(
 
         gpuFallbackUntilRef.current = performance.now() + 5000;
         withRenderTimeout(
-          renderDocument(docRef.current, pwRef.current, phRef.current, imageCacheRef.current, {
+          renderDocument(docRef.current, renderWidthRef.current, renderHeightRef.current, imageCacheRef.current, {
             ...renderOptions,
             skipEffects: true,
             draft: true,
@@ -296,14 +336,17 @@ export function useDocumentRenderer(
       container.removeChild(canvasRef.current);
     }
 
+    const [renderWidth, renderHeight] = getRenderDimensions(pw, ph, options.renderScale, options.maxRenderDimension);
+    renderWidthRef.current = renderWidth;
+    renderHeightRef.current = renderHeight;
     const canvas = document.createElement('canvas');
-    canvas.width = pw;
-    canvas.height = ph;
+    canvas.width = renderWidth;
+    canvas.height = renderHeight;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     container.appendChild(canvas);
     canvasRef.current = canvas;
-    const currentCacheKey = makeRenderCacheKey(options.cacheKey, pw, ph);
+    const currentCacheKey = makeRenderCacheKey(options.cacheKey, renderWidth, renderHeight);
     cacheKeyRef.current = currentCacheKey;
     const cachedFrame = currentCacheKey ? lastGoodRenderCache.get(currentCacheKey) : undefined;
     if (cachedFrame) {
@@ -336,7 +379,7 @@ export function useDocumentRenderer(
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [pw, ph, options.cacheKey, scheduleRender]);
+  }, [pw, ph, options.cacheKey, options.renderScale, options.maxRenderDimension, scheduleRender]);
 
   useEffect(() => {
     if (!lastGoodCanvasRef.current || (options.fast ?? false)) {
