@@ -15,6 +15,7 @@ import type {
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
+import type { NoisePresetId } from '../../utils/noisePresets';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
@@ -26,6 +27,7 @@ export type GalleryEligibleLayer =
 
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
   | { kind: 'color' };

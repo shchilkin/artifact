@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EFFECT_META, renderEffectThumb } from '../utils/effectInfo';
+import { EFFECT_META, getEffectFamilyMeta, renderEffectThumb } from '../utils/effectInfo';
 
 const POPUP_WIDTH = 220;
 const POPUP_GAP = 12;
@@ -36,6 +36,7 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
 
   const meta = EFFECT_META[effectKey];
   if (!meta) return null;
+  const familyMeta = getEffectFamilyMeta(effectKey);
 
   // Position to the right of the sidebar, into the canvas area
   const left = sidebarRight + POPUP_GAP;
@@ -66,6 +67,11 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
       <div className="effect-popup__body">
         <span className="effect-popup__title">{meta.title}</span>
         <p className="effect-popup__desc">{meta.description}</p>
+        {familyMeta && (
+          <span className="effect-popup__family">
+            {familyMeta.label} · good for {meta.goodFor ?? familyMeta.goodFor}
+          </span>
+        )}
         <span className="effect-popup__value">{meta.valueLabel}</span>
       </div>
     </div>

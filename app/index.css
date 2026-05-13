@@ -1192,6 +1192,13 @@ input[type="range"] {
   margin: 0;
 }
 
+.effect-popup__family {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--accent-2);
+  line-height: 1.45;
+}
+
 .effect-popup__value {
   font-family: var(--mono);
   font-size: 9px;
@@ -2425,6 +2432,38 @@ input[type="range"] {
   color: var(--text-dim);
   max-width: 48ch;
   margin: 0 auto;
+}
+
+.docs-effect-guide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  width: min(960px, calc(100% - 32px));
+  margin: calc(clamp(120px, 20vw, 240px) * -0.55) auto 0;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.docs-effect-guide__item {
+  background: var(--bg);
+  padding: 16px;
+}
+
+.docs-effect-guide__name {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.docs-effect-guide__desc {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text-dim);
 }
 
 /* ── Node Poster (The Feed Item) ── */

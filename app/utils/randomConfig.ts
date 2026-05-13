@@ -356,7 +356,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
       };
     case 'TEXT':
       return {
-        font: ['MONO', 'DISPLAY', 'VT323', 'SPECIAL'][rand(0, 3)] as TextLayer['font'],
+        font: ['MONO', 'DISPLAY', 'ANTON', 'BEBAS', 'RUBIK_MONO', 'VT323', 'SPECIAL'][rand(0, 6)] as TextLayer['font'],
         size: rand(28, 96),
         color: randomHsl(ah, [0, 100], [50, 100]),
         opacity: rand(70, 100),

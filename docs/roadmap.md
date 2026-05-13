@@ -318,6 +318,17 @@ Priorities:
 - Keep preview/export parity as a release gate for every rendering-facing
   improvement.
 
+Implemented first slice:
+
+- Node cards now use larger, aspect-aware, high-DPI preview surfaces so regular
+  nodes and export nodes share the same preview sizing rules.
+- Noise creation includes concrete, film grain, static, cells, clouds, paper,
+  and CRT dirt presets without changing the saved document schema.
+- Effect help now exposes family intent and "good for" guidance in docs and
+  inspector popovers.
+- Text has a larger curated display-font set while arbitrary external font
+  import remains deferred until persistence and security rules are designed.
+
 Exit criteria:
 
 - A new user can open the app and create a credible cover from an example or

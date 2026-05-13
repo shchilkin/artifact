@@ -8,6 +8,8 @@ export interface EffectMeta {
   description: string;
   valueLabel: string;
   cfgOverride: Partial<EffectLayer>;
+  family?: EffectFamilyId;
+  goodFor?: string;
 }
 
 const BASE_SEED = 12345;
@@ -43,7 +45,6 @@ const BASE_EFFECT: Partial<EffectLayer> = {
   interlace: 0,
   pixelate: 0,
   hueShift: 0,
-  rgbSplit: 0,
   vignette: 0,
   bloom: 0,
   posterize: 0,
@@ -56,11 +57,39 @@ const BASE_EFFECT: Partial<EffectLayer> = {
   risoAngle: 15,
 };
 
+export type EffectFamilyId = 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print';
+
+export const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: string }> = {
+  light: { label: 'Light', goodFor: 'glow, atmosphere, stage energy' },
+  signal: { label: 'Signal', goodFor: 'glitch, analog video, damaged media' },
+  texture: { label: 'Texture', goodFor: 'grain, paper, tactile surface' },
+  warp: { label: 'Warp', goodFor: 'motion, lenses, liquid distortion' },
+  tone: { label: 'Tone', goodFor: 'color grading and palette shifts' },
+  print: { label: 'Print', goodFor: 'poster, riso, screen-print finishes' },
+};
+
+const EFFECT_CONTROL_FAMILIES: Record<EffectFamilyId, string[]> = {
+  light: ['rayInt', 'rays', 'bloom', 'filmBurn'],
+  signal: ['glitch', 'rgbSplit', 'interlace', 'dataMosh'],
+  texture: ['grain', 'scanlines'],
+  warp: ['noiseWarp', 'morphAmt', 'morphFreq', 'vortex', 'barrel', 'tearAmt', 'tearSize', 'mirror'],
+  tone: ['tintOp', 'hueShift', 'vignette', 'pixelate', 'posterize'],
+  print: ['duotone', 'halftone', 'risoShift', 'risoAngle'],
+};
+
+export function getEffectFamilyMeta(key: string) {
+  const family =
+    Object.entries(EFFECT_CONTROL_FAMILIES).find(([, keys]) => keys.includes(key))?.[0] ?? EFFECT_META[key]?.family;
+  if (!family) return null;
+  return EFFECT_FAMILY_META[family as EffectFamilyId];
+}
+
 export const EFFECT_META: Record<string, EffectMeta> = {
   rayInt: {
     title: 'Ray Intensity',
     description: 'Brightness of the radiating light beams from center.',
     valueLabel: 'intensity 80',
+    family: 'light',
     cfgOverride: { rayInt: 80, rays: 12 },
   },
   rays: {
@@ -103,6 +132,7 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     title: 'Data Mosh',
     description: 'Block displacement glitch, like a corrupted video frame.',
     valueLabel: 'intensity 70',
+    goodFor: 'broken video, brutal posters, compressed screenshots',
     cfgOverride: { dataMosh: 70 },
   },
   grain: {
@@ -193,6 +223,7 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     title: 'Pixelate',
     description: 'Mosaic pixelation. Larger values produce bigger blocks.',
     valueLabel: 'block 8',
+    goodFor: 'lo-fi exports, pixel art, intentional low-resolution moods',
     cfgOverride: { pixelate: 8 },
   },
   posterize: {

@@ -24,21 +24,19 @@ the detailed source of truth.
 
 ### v0.2 Product Focus
 
-- [ ] Improve effect control surfaces: clearer ranges, better labels, safer
-  defaults, and documentation for what each effect is good for.
+- [x] Improve first-pass effect control surfaces with family metadata, clearer
+  purpose copy, and documentation for what each effect family is good for.
 - [ ] Add new focused effects without reintroducing legacy combined FX.
-- [ ] Add or improve dedicated noise/procedural texture nodes with preset
-  folders.
-- [ ] Make preview/export aspect ratio behavior predictable across layer
-  preview, node thumbnails, graph output, examples, and final export.
+- [x] Add first-class noise/procedural texture creation presets over the
+  existing serializable noise layer schema.
+- [x] Make node preview aspect ratio behavior predictable across regular node
+  thumbnails, graph output previews, and export nodes.
 - [ ] Add folders/areas so layers and node graphs can be organized without
   losing the relationship between the two views.
 - [ ] Define how the layer list respects node graph structure for advanced node
   workflows.
-- [ ] Improve text/font workflow: more bundled fonts, imported fonts, typography
-  presets, and a decision on external font catalog support.
-- [ ] Improve node/effect/export documentation and add workflow-oriented
-  examples.
+- [x] Improve text/font workflow with a curated bundled display-font expansion.
+- [x] Improve node/effect/export documentation with effect-family guidance.
 - [ ] Improve empty-canvas onboarding around examples, presets, image import,
   text-first starts, and random seeds.
 

@@ -1,5 +1,6 @@
 import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
 import type { AddAction } from './types';
 
 export const NODE_W = 320;
@@ -111,10 +112,17 @@ export const ADD_ITEMS: Array<{
   {
     label: 'Noise',
     symbol: '░',
-    description: 'Generate a procedural noise texture.',
+    description: 'Generate a procedural noise texture from scratch.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'noise' },
   },
+  ...NOISE_PRESET_IDS.map((preset) => ({
+    label: NOISE_PRESETS[preset].name,
+    symbol: '░',
+    description: NOISE_PRESETS[preset].description,
+    group: 'source' as const,
+    action: { kind: 'noisePreset', preset } as AddAction,
+  })),
   {
     label: 'Array',
     symbol: '▦',
@@ -203,10 +211,17 @@ export const ADD_NODE_ITEMS: Array<{
   {
     label: 'Noise',
     symbol: '░',
-    description: 'Generate a procedural noise texture.',
+    description: 'Generate a procedural noise texture from scratch.',
     group: 'generators',
     action: { kind: 'layer', layerKind: 'noise' },
   },
+  ...NOISE_PRESET_IDS.map((preset) => ({
+    label: NOISE_PRESETS[preset].name,
+    symbol: '░',
+    description: NOISE_PRESETS[preset].description,
+    group: 'generators' as const,
+    action: { kind: 'noisePreset', preset } as AddAction,
+  })),
   {
     label: 'Array',
     symbol: '▦',

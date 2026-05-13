@@ -14,6 +14,11 @@ The same document, graph, image cache, and primitive camera state should produce
 
 Size and antialiasing can differ, especially with WebGL, but the render path and source state should not.
 
+Node previews use `app/components/node-canvas/thumbnails/previewSizing.ts` to
+derive both CSS display size and internal render size from `doc.global.aspect`.
+Use that helper for new thumbnail-like surfaces so `16:9`, `9:16`, `4:5`, and
+`1:1` documents keep the same composition shape across nodes and export.
+
 ## Public entry points
 
 | Function | File | Use |

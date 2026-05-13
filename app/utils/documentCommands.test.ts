@@ -181,6 +181,16 @@ describe('documentCommands', () => {
     });
   });
 
+  it('inserts noise presets as normal noise source layers', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(doc, { kind: 'noisePreset', preset: 'crtDirt' }, { x: 480, y: 320 });
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'noise', name: 'CRT Dirt' });
+    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 480, y: 320 });
+  });
+
   it('splits replaceEdgeId insertions without adding a separate target edge', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(
