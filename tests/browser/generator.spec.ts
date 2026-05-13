@@ -220,6 +220,22 @@ test('node previews respect document aspect ratio', async ({ page }) => {
   await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
 });
 
+test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.node-shell-kind-fill').first();
+  await expect(fillNode).toBeVisible({ timeout: 15_000 });
+  await fillNode.click();
+
+  await page.getByRole('button', { name: 'Create area from selected nodes' }).click();
+  await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-area-label')).toContainText('Area 1');
+
+  await switchToLayerView(page);
+  await expect(page.locator('.layer-area-chip')).toContainText('Area 1');
+});
+
 test('text node can be dragged repeatedly without crashing', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(textDragDocument))}`);
   await switchToNodeView(page);

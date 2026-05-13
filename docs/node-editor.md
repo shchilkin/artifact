@@ -80,6 +80,12 @@ organization metadata for dense workflows; they should help the layer list and
 node canvas explain structure, but they must not change rendering or traversal
 until a dedicated render rule is designed and tested.
 
+The first area UI is intentionally passive: the node canvas draws area overlays
+around assigned nodes, and the layer panel shows area chips beside layer-backed
+nodes. Creating an area from selected nodes stores only node ids, name, color,
+and collapsed metadata. Areas do not own React Flow nodes, do not make node
+positions relative, and do not affect render order.
+
 ## Interaction grammar
 
 ### Global graph gestures

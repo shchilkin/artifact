@@ -346,9 +346,10 @@ Exit criteria:
 Known follow-up:
 
 - Layer rendering now follows graph branch structure for graph-backed
-  documents, but the layer list is still visually flat. Folder/area UI should
-  make nested branches visible in the layer panel without making folders affect
-  render order.
+  documents. The first organization UI shows passive graph-area overlays on the
+  node canvas and area chips in the flat layer list. Later work can add richer
+  folder rows/collapse controls, but folders must stay organizational unless a
+  render-order rule is explicitly designed and tested.
 
 ### v0.3: Project Memory And Sharing
 

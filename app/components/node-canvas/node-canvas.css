@@ -26,6 +26,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  z-index: 2;
 }
 
 .react-flow__node.selected,
@@ -769,6 +770,91 @@
 .node-canvas-toolbar button:hover {
   border-color: var(--accent);
   background: var(--node-surface-raised);
+  color: var(--node-text);
+}
+
+.node-canvas-toolbar button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.node-canvas-toolbar button:disabled:hover {
+  border-color: var(--node-border);
+  background: var(--node-surface);
+  color: var(--node-text);
+}
+
+.node-area-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.node-area {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--node-area-color) 58%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--node-area-color) 7%, transparent), transparent),
+    color-mix(in srgb, var(--node-area-color) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.node-area-collapsed {
+  opacity: 0.72;
+}
+
+.node-area-label {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--node-area-color) 45%, var(--node-border));
+  background: color-mix(in srgb, var(--node-surface) 86%, transparent);
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: auto;
+}
+
+.node-area-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--node-area-color);
+}
+
+.node-area-name {
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-area-count {
+  color: var(--node-text-dim);
+}
+
+.node-area-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--node-text-dim);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.node-area-remove:hover {
   color: var(--node-text);
 }
 

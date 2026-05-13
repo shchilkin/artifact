@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectLayer, EffectPreset, Layer, LayerKind } from '../types/config';
+import type { CanvasDocument, EffectLayer, EffectPreset, GraphArea, Layer, LayerKind } from '../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
+import { getLayerAreaMap } from '../utils/layerAreas';
 
 interface Props {
   doc: CanvasDocument;
@@ -29,6 +30,7 @@ const KIND_ICONS: Record<LayerKind, string> = {
 
 interface LayerRowProps {
   layer: Layer;
+  areas: GraphArea[];
   selected: boolean;
   dragOver: boolean;
   editing: boolean;
@@ -46,6 +48,7 @@ interface LayerRowProps {
 
 const LayerRow = memo(function LayerRow({
   layer,
+  areas,
   selected,
   dragOver,
   editing,
@@ -113,6 +116,17 @@ const LayerRow = memo(function LayerRow({
       ) : (
         <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
           {layer.name}
+        </span>
+      )}
+      {areas.length > 0 && (
+        <span
+          className="layer-area-chip"
+          title={areas.map((area) => area.name).join(', ')}
+          aria-label={`Graph area: ${areas.map((area) => area.name).join(', ')}`}
+        >
+          <span className="layer-area-dot" style={{ background: areas[0].color }} aria-hidden="true" />
+          <span className="layer-area-name">{areas[0].name}</span>
+          {areas.length > 1 && <span className="layer-area-more">+{areas.length - 1}</span>}
         </span>
       )}
       <button
@@ -183,6 +197,7 @@ export function LayerPanel({
   }, [showAddMenu]);
 
   const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
+  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
@@ -307,6 +322,7 @@ export function LayerPanel({
           <LayerRow
             key={layer.id}
             layer={layer}
+            areas={areasByLayerId.get(layer.id) ?? []}
             selected={selectedLayerId === layer.id}
             dragOver={dragOverId === layer.id}
             editing={editingId === layer.id}

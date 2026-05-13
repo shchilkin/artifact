@@ -522,6 +522,41 @@ input[type="range"] {
   color: var(--accent);
 }
 
+.layer-area-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  max-width: 92px;
+  min-height: 18px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--sidebar-bg) 82%, transparent);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.layer-area-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.layer-area-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-area-more {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
 /* Desktop bottom bar is inside .main — hidden on mobile */
 .main > .bottom-bar {
   display: none;

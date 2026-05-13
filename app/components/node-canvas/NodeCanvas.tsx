@@ -1,15 +1,29 @@
 import { useMachine } from '@xstate/react';
-import { Background, BackgroundVariant, Controls, ReactFlow, type ReactFlowInstance } from '@xyflow/react';
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  ReactFlow,
+  type ReactFlowInstance,
+  ViewportPortal,
+} from '@xyflow/react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
 import type { Layer } from '../../types/config';
-import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
+import {
+  addGraphArea,
+  connectedPortIds,
+  EXPORT_NODE_ID,
+  inferLinearGraph,
+  removeGraphArea,
+} from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
+import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
@@ -34,6 +48,7 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
+const AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
 
 export function NodeCanvas({
   doc,
@@ -227,6 +242,29 @@ export function NodeCanvas({
     rfInstanceRef.current = instance;
   }, []);
 
+  const areaCandidateNodeIds = useMemo(() => selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID), [selectedNodeIds]);
+
+  const handleCreateAreaFromSelection = useCallback(() => {
+    if (areaCandidateNodeIds.length === 0) return;
+    const areaNumber = (graphRef.current.areas?.length ?? 0) + 1;
+    const color = AREA_COLORS[(areaNumber - 1) % AREA_COLORS.length];
+    onGraphChange(
+      addGraphArea(graphRef.current, {
+        id: `area-${Date.now().toString(36)}`,
+        name: `Area ${areaNumber}`,
+        color,
+        nodeIds: areaCandidateNodeIds,
+      }),
+    );
+  }, [areaCandidateNodeIds, onGraphChange]);
+
+  const handleRemoveArea = useCallback(
+    (id: string) => {
+      onGraphChange(removeGraphArea(graphRef.current, id));
+    },
+    [onGraphChange],
+  );
+
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(
     () => ({
       doc,
@@ -278,6 +316,16 @@ export function NodeCanvas({
                 <span aria-hidden="true">＋</span>
                 Add node
               </button>
+              <button
+                type="button"
+                onClick={handleCreateAreaFromSelection}
+                disabled={areaCandidateNodeIds.length === 0}
+                aria-label="Create area from selected nodes"
+                title={areaCandidateNodeIds.length === 0 ? 'Select one or more nodes first' : 'Create area'}
+              >
+                <span aria-hidden="true">▣</span>
+                Area
+              </button>
               <button type="button" onClick={() => handleOrganizeNodes(doc.layers)} aria-label="Auto layout nodes">
                 <span aria-hidden="true">⌘</span>
                 Auto layout
@@ -321,6 +369,9 @@ export function NodeCanvas({
               proOptions={RF_PRO_OPTIONS}
             >
               <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--node-grid)" />
+              <ViewportPortal>
+                <GraphAreaOverlay graph={graph} nodes={dragNodes} onRemoveArea={handleRemoveArea} />
+              </ViewportPortal>
               <Controls showInteractive={false} />
             </ReactFlow>
           </div>
