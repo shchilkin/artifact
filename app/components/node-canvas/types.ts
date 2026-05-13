@@ -164,7 +164,7 @@ export interface PortRowProps {
   connected: { sources: Set<string>; targets: Set<string> };
 }
 
-export type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso';
+export type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso' | 'graphic';
 
 export interface PaneMenuProps {
   x: number;

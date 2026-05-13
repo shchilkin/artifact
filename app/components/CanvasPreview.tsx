@@ -6,6 +6,8 @@ import { CanvasHandles } from './CanvasHandles';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
 const FAST_PATH_RELEASE_MS = 180;
+const PREVIEW_RENDER_SCALE = 2;
+const PREVIEW_MAX_RENDER_DIMENSION = 1080;
 
 interface Props {
   doc: CanvasDocument;
@@ -24,6 +26,8 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
     fast,
     graphMode: 'stack',
     cacheKey: 'layer-preview',
+    renderScale: PREVIEW_RENDER_SCALE,
+    maxRenderDimension: PREVIEW_MAX_RENDER_DIMENSION,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');

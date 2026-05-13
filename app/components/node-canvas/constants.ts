@@ -368,3 +368,4 @@ export const TINT_PRESETS: EffectPreset[] = ['tint'];
 export const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror'];
 export const COLOR_PRESETS: EffectPreset[] = ['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize'];
 export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift'];
+export const GRAPHIC_PRESETS: EffectPreset[] = ['blur', 'threshold', 'edgeDetect', 'gradientOverlay'];

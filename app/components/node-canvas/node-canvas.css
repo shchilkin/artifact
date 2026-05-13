@@ -421,6 +421,15 @@
   background: var(--accent-dim);
 }
 
+.node-inspector-note {
+  padding: 10px 12px;
+  border: 1px solid var(--node-border);
+  color: var(--node-text-dim);
+  background: color-mix(in oklab, var(--node-bg) 80%, var(--node-surface));
+  font-size: 10px;
+  line-height: 1.55;
+}
+
 .node-inspector-label {
   color: var(--node-text-dim);
   font-size: 9px;

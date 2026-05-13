@@ -37,6 +37,8 @@ function DragTransformOverlay({
   const [dragging, setDragging] = useState(false);
   const [rotating, setRotating] = useState(false);
 
+  const clampPosition = (value: number) => Math.max(-0.5, Math.min(1.5, value));
+
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
     if (e.shiftKey) {
@@ -74,11 +76,12 @@ function DragTransformOverlay({
     const { startClientX, startClientY, startLayerX, startLayerY, startRotation, startAngle, mode } = dragRef.current;
     if (mode === 'translate') {
       const rect = e.currentTarget.getBoundingClientRect();
-      const frameSize = Math.max(1, Math.min(rect.width, rect.height));
+      const frameWidth = Math.max(1, rect.width);
+      const frameHeight = Math.max(1, rect.height);
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
-      const newX = startLayerX + (dx / frameSize) * 1.5;
-      const newY = startLayerY + (dy / frameSize) * 1.5;
+      const newX = clampPosition(startLayerX + dx / frameWidth);
+      const newY = clampPosition(startLayerY + dy / frameHeight);
       onChange({ x: newX, y: newY });
     } else {
       const rect = e.currentTarget.getBoundingClientRect();

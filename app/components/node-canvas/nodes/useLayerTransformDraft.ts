@@ -38,23 +38,43 @@ function sameTransform(layer: TransformableLayer, patch: LayerTransformPatch) {
   );
 }
 
+function samePatch(a: LayerTransformPatch | null, b: LayerTransformPatch | null) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.x === b.x && a.y === b.y && a.rotation === b.rotation && a.scaleX === b.scaleX && a.scaleY === b.scaleY;
+}
+
 export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, patch: Partial<Layer>) => void) {
   const [draft, setDraft] = useState<LayerTransformPatch | null>(null);
   const draftRef = useRef<LayerTransformPatch | null>(null);
+  const pendingDraftRef = useRef<LayerTransformPatch | null>(null);
+  const draftFrameRef = useRef<number | null>(null);
   const layerRef = useRef(layer);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const flushPendingDraft = useCallback(() => {
+    if (draftFrameRef.current !== null) {
+      cancelAnimationFrame(draftFrameRef.current);
+      draftFrameRef.current = null;
+    }
+    const pending = pendingDraftRef.current;
+    pendingDraftRef.current = null;
+    if (pending) setDraft((current) => (samePatch(current, pending) ? current : pending));
+  }, []);
 
   useEffect(() => {
     layerRef.current = layer;
     if (!isTransformableLayer(layer) || !draftRef.current) return;
     if (!sameTransform(layer, draftRef.current)) return;
     draftRef.current = null;
+    pendingDraftRef.current = null;
     setDraft(null);
   }, [layer]);
 
   useEffect(
     () => () => {
       clearTimeout(commitTimerRef.current);
+      if (draftFrameRef.current !== null) cancelAnimationFrame(draftFrameRef.current);
       const currentLayer = layerRef.current;
       const currentDraft = draftRef.current;
       if (!currentDraft || !isTransformableLayer(currentLayer) || sameTransform(currentLayer, currentDraft)) return;
@@ -65,16 +85,18 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
 
   const commitDraft = useCallback(() => {
     clearTimeout(commitTimerRef.current);
+    flushPendingDraft();
     const currentLayer = layerRef.current;
     const currentDraft = draftRef.current;
     if (!currentDraft || !isTransformableLayer(currentLayer)) return;
     if (sameTransform(currentLayer, currentDraft)) {
       draftRef.current = null;
+      pendingDraftRef.current = null;
       setDraft(null);
       return;
     }
     commitLayer(currentLayer.id, currentDraft);
-  }, [commitLayer]);
+  }, [commitLayer, flushPendingDraft]);
 
   const scheduleCommit = useCallback(() => {
     clearTimeout(commitTimerRef.current);
@@ -89,8 +111,17 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
         ...(draftRef.current ?? getTransform(currentLayer)),
         ...patch,
       };
+      if (samePatch(draftRef.current, next)) return;
       draftRef.current = next;
-      setDraft(next);
+      pendingDraftRef.current = next;
+      if (draftFrameRef.current === null) {
+        draftFrameRef.current = requestAnimationFrame(() => {
+          draftFrameRef.current = null;
+          const pending = pendingDraftRef.current;
+          pendingDraftRef.current = null;
+          if (pending) setDraft((current) => (samePatch(current, pending) ? current : pending));
+        });
+      }
       if (commit === 'defer') scheduleCommit();
     },
     [scheduleCommit],

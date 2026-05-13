@@ -74,7 +74,7 @@ const EFFECT_CONTROL_FAMILIES: Record<EffectFamilyId, string[]> = {
   texture: ['grain', 'scanlines'],
   warp: ['noiseWarp', 'morphAmt', 'morphFreq', 'vortex', 'barrel', 'tearAmt', 'tearSize', 'mirror'],
   tone: ['tintOp', 'hueShift', 'vignette', 'pixelate', 'posterize'],
-  print: ['duotone', 'halftone', 'risoShift', 'risoAngle'],
+  print: ['duotone', 'halftone', 'risoShift', 'risoAngle', 'blur', 'threshold', 'edgeDetect', 'gradientOverlay'],
 };
 
 export function getEffectFamilyMeta(key: string) {
@@ -255,6 +255,31 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     description: 'Direction of the misregistration shift in degrees.',
     valueLabel: 'angle 45°',
     cfgOverride: { risoShift: 18, risoAngle: 45 },
+  },
+  blur: {
+    title: 'Blur',
+    description: 'Softens the full frame before downstream effects.',
+    valueLabel: 'blur 30',
+    cfgOverride: { blurAmt: 30 },
+  },
+  threshold: {
+    title: 'Threshold',
+    description: 'Cuts luminance into stark black and white shapes.',
+    valueLabel: 'cutoff 50',
+    goodFor: 'xerox looks, harsh logos, high-contrast typography',
+    cfgOverride: { threshold: 50 },
+  },
+  edgeDetect: {
+    title: 'Edge Detect',
+    description: 'Finds hard contours and turns image detail into linework.',
+    valueLabel: 'edge 60',
+    cfgOverride: { edgeDetect: 60 },
+  },
+  gradientOverlay: {
+    title: 'Gradient Overlay',
+    description: 'Blends a two-color ramp over the source.',
+    valueLabel: 'mix 50',
+    cfgOverride: { gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7' },
   },
 };
 

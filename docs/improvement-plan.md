@@ -35,6 +35,8 @@ the detailed source of truth.
   losing the relationship between the two views.
 - [ ] Define how the layer list respects node graph structure for advanced node
   workflows.
+  Current note: graph-backed layer preview follows nested branches, but the
+  layer panel still presents a flat list until folder/area UI lands.
 - [x] Improve text/font workflow with a curated bundled display-font expansion.
 - [x] Improve node/effect/export documentation with effect-family guidance.
 - [ ] Improve empty-canvas onboarding around examples, presets, image import,

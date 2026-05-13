@@ -19,6 +19,12 @@ derive both CSS display size and internal render size from `doc.global.aspect`.
 Use that helper for new thumbnail-like surfaces so `16:9`, `9:16`, `4:5`, and
 `1:1` documents keep the same composition shape across nodes and export.
 
+The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
+`useDocumentRenderer` can render above that display size through
+`renderScale` / `maxRenderDimension` and downsample into the same visible
+canvas. Use that path when improving layer-preview/export parity without
+changing pointer math or handle coordinates.
+
 ## Public entry points
 
 | Function | File | Use |

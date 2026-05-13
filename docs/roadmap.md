@@ -339,6 +339,13 @@ Exit criteria:
 - Layer organization does not contradict node organization.
 - Browser smoke and manual QA still pass before the next beta tag.
 
+Known follow-up:
+
+- Layer rendering now follows graph branch structure for graph-backed
+  documents, but the layer list is still visually flat. Folder/area UI should
+  make nested branches visible in the layer panel without making folders affect
+  render order.
+
 ### v0.3: Project Memory And Sharing
 
 Goal: make Artifact feel less like a local toy and more like a real creative
