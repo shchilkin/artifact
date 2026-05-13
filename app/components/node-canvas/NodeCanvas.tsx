@@ -187,6 +187,7 @@ export function NodeCanvas({
   const {
     dragNodes,
     dragEdges,
+    isDragging,
     onEdgesChange,
     onNodeDragStart,
     onNodeDragStop,
@@ -413,7 +414,7 @@ export function NodeCanvas({
               <ViewportPortal>
                 <GraphAreaOverlay
                   graph={graph}
-                  nodes={dragNodes}
+                  nodes={isDragging ? baseNodes : dragNodes}
                   selectedAreaId={selectedAreaId}
                   onSelectArea={handleSelectArea}
                   onRemoveArea={handleRemoveArea}

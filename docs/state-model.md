@@ -64,8 +64,9 @@ Owner:
 Rules:
 
 - Graph positions, edges, merge nodes, and color nodes are durable.
-- Graph areas/groups are durable organization metadata, but they do not affect
-  render order until an explicit rendering rule is added.
+- Graph areas/groups are durable organization metadata. They are displayed as
+  folders in the layer panel, but they still do not affect graph traversal or
+  render order.
 - Graph edits should be undoable.
 - Graph traversal for preview/export must go through `renderGraphTarget`.
 - Graph edits should not be hidden in UI-only state.

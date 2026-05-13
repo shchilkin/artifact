@@ -45,6 +45,51 @@ const layeredFillDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const graphPreviewDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 9, aspect: '1:1' },
+  layers: [
+    {
+      id: 'graph-connected-fill',
+      name: 'Connected fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2e6bd9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'graph-unconnected-fill',
+      name: 'Unconnected top fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#250033',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-connected-export',
+        fromId: 'graph-connected-fill',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'graph-connected-fill': { x: 0, y: 80 },
+      'graph-unconnected-fill': { x: 0, y: 420 },
+      __export__: { x: 520, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const wideFillLayer = {
   id: 'wide-fill',
   name: 'Wide fill',
@@ -305,6 +350,16 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
 
+test('layer preview follows graph output when unconnected layers exist', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  await switchToLayerView(page);
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
+});
+
 test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.goto('/app');
   await page.getByRole('button', { name: 'Add layer' }).click();
@@ -377,7 +432,7 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
   await expect(page.locator('.node-area-label')).toContainText('Area 1');
 
   await switchToLayerView(page);
-  await expect(page.locator('.layer-area-chip')).toContainText('Area 1');
+  await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
 });
 
 test('selected area can be extended without stacking memberships', async ({ page }) => {
@@ -394,7 +449,8 @@ test('selected area can be extended without stacking memberships', async ({ page
   await expect(page.locator('.node-area-label')).toContainText('2');
 
   await switchToLayerView(page);
-  await expect(page.locator('.layer-area-chip')).toHaveCount(2);
+  await expect(page.locator('.layer-area-folder')).toHaveCount(1);
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expect(page.locator('.layer-area-more')).toHaveCount(0);
 });
 

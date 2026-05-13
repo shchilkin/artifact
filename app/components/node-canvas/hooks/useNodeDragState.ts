@@ -34,6 +34,7 @@ export interface UseNodeDragStateResult {
   dragEdges: RFEdge[];
   /** True while a node drag gesture is in progress. */
   isDraggingRef: React.MutableRefObject<boolean>;
+  isDragging: boolean;
   /** Stable ref for latest dragNodes — safe to read inside callbacks. */
   dragNodesRef: React.MutableRefObject<RFNode[]>;
   onNodesChange: (changes: NodeChange[]) => void;
@@ -62,6 +63,7 @@ export function useNodeDragState({
 }: UseNodeDragStateOptions): UseNodeDragStateResult {
   const [dragNodes, setDragNodes] = useState<RFNode[]>(baseNodes);
   const [dragEdges, setDragEdges] = useState<RFEdge[]>(baseEdges);
+  const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const dragNodesRef = useRef<RFNode[]>(dragNodes);
   useLayoutEffect(() => {
@@ -141,11 +143,13 @@ export function useNodeDragState({
 
   const onNodeDragStart = useCallback(() => {
     isDraggingRef.current = true;
+    setIsDragging(true);
   }, []);
 
   const onNodeDragStop = useCallback(
     (_: unknown, node: RFNode) => {
       isDraggingRef.current = false;
+      setIsDragging(false);
       const movedGraph = updateGraphPositions(graphRef.current, [{ id: node.id, position: node.position }]);
       const interceptEdge = findInterceptEdge(node);
       const inputPort = getInterceptInputPort(node.id);
@@ -166,6 +170,7 @@ export function useNodeDragState({
   const onSelectionDragStop = useCallback(
     (_: React.MouseEvent, nodes: RFNode[]) => {
       isDraggingRef.current = false;
+      setIsDragging(false);
       commitNodePositions(nodes);
     },
     [commitNodePositions],
@@ -202,6 +207,7 @@ export function useNodeDragState({
     dragNodes,
     dragEdges,
     isDraggingRef,
+    isDragging,
     dragNodesRef,
     onNodesChange,
     onEdgesChange,

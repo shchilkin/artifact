@@ -539,6 +539,35 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.layer-area-folder {
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--sidebar-bg) 88%, transparent);
+}
+
+.layer-area-folder-header {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.layer-area-folder .layer-row-nested {
+  padding-left: 22px;
+  border-bottom-color: color-mix(in srgb, var(--border) 58%, transparent);
+  background: color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+.layer-area-folder .layer-row-nested:last-child {
+  border-bottom: 0;
+}
+
 .layer-area-dot {
   width: 6px;
   height: 6px;
@@ -554,6 +583,11 @@ input[type="range"] {
 
 .layer-area-more {
   flex-shrink: 0;
+  color: var(--accent);
+}
+
+.layer-area-count {
+  margin-left: auto;
   color: var(--accent);
 }
 

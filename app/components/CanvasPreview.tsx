@@ -24,7 +24,7 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
   const releaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { containerRef } = useDocumentRenderer(doc, imageCache, pw, ph, {
     fast,
-    graphMode: 'stack',
+    graphMode: doc.graph ? 'graph' : 'stack',
     cacheKey: 'layer-preview',
     renderScale: PREVIEW_RENDER_SCALE,
     maxRenderDimension: PREVIEW_MAX_RENDER_DIMENSION,

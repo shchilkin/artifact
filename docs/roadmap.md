@@ -347,8 +347,8 @@ Known follow-up:
 
 - Layer rendering now follows graph branch structure for graph-backed
   documents. The first organization UI shows passive graph-area overlays on the
-  node canvas and area chips in the flat layer list. Later work can add richer
-  folder rows/collapse controls, but folders must stay organizational unless a
+  node canvas and area folder rows in the layer list. Later work can add
+  collapse/rename controls, but folders must stay organizational unless a
   render-order rule is explicitly designed and tested.
 
 ### v0.3: Project Memory And Sharing
