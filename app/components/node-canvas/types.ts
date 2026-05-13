@@ -33,7 +33,7 @@ export type AddAction =
   | { kind: 'color' };
 
 export interface InsertConnectionConfig {
-  sourceId: string;
+  sourceId?: string;
   targetId?: string;
   targetPort?: GraphEdge['toPort'];
   replaceEdgeId?: string;

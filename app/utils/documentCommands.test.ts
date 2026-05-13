@@ -181,6 +181,28 @@ describe('documentCommands', () => {
     });
   });
 
+  it('connects a dropped source node into the dragged target port', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'layer', layerKind: 'noise' },
+      { x: -360, y: 240 },
+      { targetId: 'text-a', targetPort: 'bg' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'noise' });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-${layerId}-text-a`,
+      fromId: layerId,
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
+    });
+  });
+
   it('inserts noise presets as normal noise source layers', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(doc, { kind: 'noisePreset', preset: 'crtDirt' }, { x: 480, y: 320 });

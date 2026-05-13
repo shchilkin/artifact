@@ -96,6 +96,7 @@ positions relative, and do not affect render order.
 | Wheel empty canvas | Zoom graph |
 | Drag node header/body outside local controls | Move node |
 | Connect handles | Create graph edge |
+| Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
 

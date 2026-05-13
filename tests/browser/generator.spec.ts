@@ -246,6 +246,33 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
   await expect(page.locator('.layer-area-chip')).toContainText('Area 1');
 });
 
+test('dropping a connection on empty canvas can add and connect a node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-fill') });
+  await expect(fillNode).toHaveCount(1);
+  const sourceHandle = fillNode.locator('.react-flow__handle-right');
+  await expect(sourceHandle).toHaveCount(1);
+  const box = await sourceHandle.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 280, startY - 120, { steps: 8 });
+  await page.mouse.up();
+
+  const menu = page.locator('.nadd-surface');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  await menu.getByRole('button', { name: /Fill/i }).click();
+
+  await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(2);
+  await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
+});
+
 test('text node can be dragged repeatedly without crashing', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(textDragDocument))}`);
   await switchToNodeView(page);

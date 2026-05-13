@@ -41,7 +41,7 @@ export type DocumentAddAction =
   | { kind: 'color' };
 
 export interface DocumentInsertConnectionConfig {
-  sourceId: string;
+  sourceId?: string;
   targetId?: string;
   targetPort?: GraphEdge['toPort'];
   replaceEdgeId?: string;
@@ -119,7 +119,7 @@ function connectInsertedNode(
 
   if (insertion?.targetId) {
     next = addGraphEdge(next, {
-      id: createEdgeId(insertedNodeId, insertion.targetId, 1),
+      id: createEdgeId(insertedNodeId, insertion.targetId, insertion.sourceId ? 1 : 0),
       fromId: insertedNodeId,
       fromPort: 'out',
       toId: insertion.targetId,
