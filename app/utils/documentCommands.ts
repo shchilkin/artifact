@@ -30,9 +30,12 @@ import {
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
 } from './nodeGraph';
+import type { NoisePresetId } from './noisePresets';
+import { makeNoisePresetLayer } from './noisePresets';
 
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
   | { kind: 'color' };
@@ -158,7 +161,12 @@ export function addNodeAtDocument(
     return { doc: { ...doc, graph }, selectedLayerId: null };
   }
 
-  const layer = action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+  const layer =
+    action.kind === 'effect'
+      ? createEffectPresetLayer(action.preset)
+      : action.kind === 'noisePreset'
+        ? makeNoisePresetLayer(action.preset)
+        : createLayerOfKind(action.layerKind);
   const graph = connectInsertedNode(
     addLayerToGraph(ensureDocumentGraph(doc), layer.id, position),
     layer.id,

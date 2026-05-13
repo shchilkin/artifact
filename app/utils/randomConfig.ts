@@ -81,7 +81,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
   switch (preset) {
     case 'rays':
       overrides = {
-        rays: rand(4, 24),
+        rays: rand(4, 48),
         rayInt: rand(20, 90),
         rayColor: randomHsl(ah, [70, 100], [55, 80]),
       };
@@ -108,7 +108,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = { grain: rand(10, 60) };
       break;
     case 'scanlines':
-      overrides = { scanlines: rand(5, 40) };
+      overrides = { scanlines: rand(5, 80), scanlineWidth: rand(1, 4) };
       break;
     case 'tint':
       overrides = { tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) };
@@ -277,7 +277,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
     }
     case 'RAYS':
       return {
-        rays: rand(4, 24),
+        rays: rand(4, 48),
         rayInt: rand(20, 90),
         rayColor: randomHsl(ah, [70, 100], [55, 80]),
         bloom: spark() ? rand(15, 80) : 0,
@@ -299,7 +299,8 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
     case 'TEXTURE':
       return {
         grain: rand(0, 60),
-        scanlines: rand(0, 40),
+        scanlines: rand(0, 80),
+        scanlineWidth: rand(1, 4),
         blurAmt: Math.random() < 0.4 ? rand(0, 60) : 0,
         matte: Math.random() < 0.35 ? rand(10, 60) : 0,
         dither: Math.random() < 0.25 ? rand(20, 75) : 0,
@@ -356,7 +357,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
       };
     case 'TEXT':
       return {
-        font: ['MONO', 'DISPLAY', 'VT323', 'SPECIAL'][rand(0, 3)] as TextLayer['font'],
+        font: ['MONO', 'DISPLAY', 'ANTON', 'BEBAS', 'RUBIK_MONO', 'VT323', 'SPECIAL'][rand(0, 6)] as TextLayer['font'],
         size: rand(28, 96),
         color: randomHsl(ah, [0, 100], [50, 100]),
         opacity: rand(70, 100),
@@ -389,7 +390,7 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
     case 'GLITCH':
       return { glitch: 0, rgbSplit: 0, ca: 0, interlace: 0, dataMosh: 0, vhsTracking: 0 };
     case 'TEXTURE':
-      return { grain: 0, scanlines: 0, blurAmt: 0, matte: 0, dither: 0, emboss: 0, linocut: 0 };
+      return { grain: 0, scanlines: 0, scanlineWidth: 1, blurAmt: 0, matte: 0, dither: 0, emboss: 0, linocut: 0 };
     case 'TINT':
       return { tint: '#350055', tintOp: 0 };
     case 'WARP':

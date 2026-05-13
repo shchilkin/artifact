@@ -7,6 +7,7 @@ import {
   BLEND_OPTIONS,
   COLOR_PRESETS,
   GLITCH_PRESETS,
+  GRAPHIC_PRESETS,
   RAYS_PRESETS,
   RISO_PRESETS,
   TEXTURE_PRESETS,
@@ -31,6 +32,7 @@ function initialEffectSection(layer: EffectLayer): EffectSectionId {
   if (layer.preset && WARP_PRESETS.includes(layer.preset)) return 'warp';
   if (layer.preset && COLOR_PRESETS.includes(layer.preset)) return 'color';
   if (layer.preset && RISO_PRESETS.includes(layer.preset)) return 'riso';
+  if (layer.preset && GRAPHIC_PRESETS.includes(layer.preset)) return 'graphic';
   return 'node';
 }
 
@@ -49,7 +51,7 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
       return `${layer.glitch} / ${layer.rgbSplit}`;
     case 'texture':
-      if (preset === 'scanlines') return `${layer.scanlines} lines`;
+      if (preset === 'scanlines') return `${layer.scanlines}% / ${layer.scanlineWidth ?? 1}px`;
       return `${layer.grain} grain`;
     case 'tint':
       return `${layer.tintOp}%`;
@@ -71,6 +73,11 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'halftone') return `${layer.halftone} tone`;
       if (preset === 'risoShift') return `${layer.risoShift}px`;
       return `${layer.duotone}%`;
+    case 'graphic':
+      if (preset === 'blur') return `${layer.blurAmt}px blur`;
+      if (preset === 'threshold') return `${layer.threshold}% threshold`;
+      if (preset === 'edgeDetect') return `${layer.edgeDetect}% edge`;
+      return `${layer.gradMix}% mix`;
   }
 }
 
@@ -98,6 +105,18 @@ export function EffectInspector({
     showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
   const showControl = (presets: readonly EffectPreset[]) =>
     showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
+  const hasPresetControls =
+    !layer.preset ||
+    [
+      ...RAYS_PRESETS,
+      ...GLITCH_PRESETS,
+      ...TEXTURE_PRESETS,
+      ...TINT_PRESETS,
+      ...WARP_PRESETS,
+      ...COLOR_PRESETS,
+      ...RISO_PRESETS,
+      ...GRAPHIC_PRESETS,
+    ].includes(layer.preset);
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
@@ -127,6 +146,13 @@ export function EffectInspector({
         />
       </InspectorSection>
 
+      {!hasPresetControls && (
+        <div className="node-inspector-note">
+          This effect uses fixed defaults in the node inspector for now. You can still rename it, change blend/mask
+          behavior, or add another focused effect node after it.
+        </div>
+      )}
+
       {showSection(RAYS_PRESETS) && (
         <InspectorSection
           title="Light Rays"
@@ -155,7 +181,7 @@ export function EffectInspector({
                 label="Count"
                 value={layer.rays}
                 min={0}
-                max={32}
+                max={96}
                 effectKey="rays"
                 onInfoEnter={handleInfoEnter}
                 onInfoLeave={handleInfoLeave}
@@ -268,16 +294,28 @@ export function EffectInspector({
             />
           )}
           {showControl(['scanlines']) && (
-            <InspectorSlider
-              label="Scanlines"
-              value={layer.scanlines}
-              min={0}
-              max={50}
-              effectKey="scanlines"
-              onInfoEnter={handleInfoEnter}
-              onInfoLeave={handleInfoLeave}
-              onChange={(value) => onChange({ scanlines: value })}
-            />
+            <>
+              <InspectorSlider
+                label="Scanlines"
+                value={layer.scanlines}
+                min={0}
+                max={100}
+                effectKey="scanlines"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ scanlines: value })}
+              />
+              <InspectorSlider
+                label="Line Width"
+                value={layer.scanlineWidth ?? 1}
+                min={1}
+                max={12}
+                effectKey="scanlineWidth"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ scanlineWidth: value })}
+              />
+            </>
           )}
         </InspectorSection>
       )}
@@ -543,6 +581,82 @@ export function EffectInspector({
                 onInfoEnter={handleInfoEnter}
                 onInfoLeave={handleInfoLeave}
                 onChange={(value) => onChange({ risoAngle: value })}
+              />
+            </>
+          )}
+        </InspectorSection>
+      )}
+      {showSection(GRAPHIC_PRESETS) && (
+        <InspectorSection
+          title="Graphic"
+          summary={effectSectionSummary(layer, 'graphic')}
+          open={openSection === 'graphic'}
+          onToggle={() => setOpenSection((current) => (current === 'graphic' ? null : 'graphic'))}
+        >
+          {showControl(['blur']) && (
+            <InspectorSlider
+              label="Blur"
+              value={layer.blurAmt}
+              min={0}
+              max={100}
+              effectKey="blur"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ blurAmt: value })}
+            />
+          )}
+          {showControl(['threshold']) && (
+            <InspectorSlider
+              label="Threshold"
+              value={layer.threshold}
+              min={0}
+              max={100}
+              effectKey="threshold"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ threshold: value })}
+            />
+          )}
+          {showControl(['edgeDetect']) && (
+            <InspectorSlider
+              label="Edge"
+              value={layer.edgeDetect}
+              min={0}
+              max={100}
+              effectKey="edgeDetect"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ edgeDetect: value })}
+            />
+          )}
+          {showControl(['gradientOverlay']) && (
+            <>
+              <InspectorSlider
+                label="Mix"
+                value={layer.gradMix}
+                min={0}
+                max={100}
+                effectKey="gradientOverlay"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ gradMix: value })}
+              />
+              <InspectorColorInput
+                label="Shadow"
+                value={layer.gradA}
+                onChange={(value) => onChange({ gradA: value })}
+              />
+              <InspectorColorInput
+                label="Highlight"
+                value={layer.gradB}
+                onChange={(value) => onChange({ gradB: value })}
+              />
+              <InspectorSlider
+                label="Angle"
+                value={layer.gradAngle}
+                min={0}
+                max={360}
+                onChange={(value) => onChange({ gradAngle: value })}
               />
             </>
           )}

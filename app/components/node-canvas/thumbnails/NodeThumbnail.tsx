@@ -8,15 +8,18 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
     useNodeThumbnailRender(previewTargetId);
 
   return (
-    <div className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}>
+    <div
+      className={`node-thumbnail${isExportPreview ? ' node-thumbnail-export' : ''}`}
+      style={{ minHeight: previewSize.display.height }}
+    >
       <div
-        className="node-thumbnail-frame"
-        style={isExportPreview ? { width: previewSize.width, height: previewSize.height } : undefined}
+        className="node-thumbnail-frame checkerboard-surface"
+        style={{ width: previewSize.display.width, height: previewSize.display.height }}
       >
         <canvas
           ref={canvasRef}
-          width={previewSize.width}
-          height={previewSize.height}
+          width={previewSize.render.width}
+          height={previewSize.render.height}
           className="node-thumbnail-canvas"
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />

@@ -10,7 +10,37 @@ Indie musicians and designers at their intersection — people who make their ow
 
 ## Product Purpose
 
-A glitch-aesthetic album cover generator. Input a seed and a configuration; get a 1:1 image suitable for streaming upload. The pipeline runs emoji-on-canvas with stacked focused GPU post-processing effects: light, signal damage, warp, tone, and print treatments. Export at up to 3000×3000. The tool is for people who want their art to look handmade and strange, not clean and scalable.
+A creative image/poster generator for covers, posters, music visuals, and
+eventually project/case-study presentation pages. Artifact starts as a
+browser-first editor: choose a seed, layer or node workflow, presets, effects,
+typography, procedural textures, primitives, and export-ready aspect ratios.
+
+The tool is for people who want their art to look handmade and strange, not
+clean and scalable. The long-term product should feel less like a one-shot
+randomizer and more like a compact creative studio: fast enough for sketches,
+controllable enough for finished work.
+
+## Product Direction
+
+Artifact has two editing modes with different jobs:
+
+- **Layers** are for speed: quick stacking, fast toggles, rough ordering, and
+  direct edits.
+- **Nodes** are for advanced work: branching, merging, effect chains, reusable
+  procedural sources, and precise output structure.
+
+Both modes must operate on one document. If a user organizes a composition in
+nodes, the layer view should not become misleading; grouping, folders, or graph
+areas should help the layer view respect the node structure instead of showing a
+flat list that tells a different story.
+
+The next product arc is control:
+
+- more predictable effect controls
+- more focused effects and procedural sources
+- typography and font workflows that make strong type covers easy
+- examples, presets, and docs that make the empty canvas less intimidating
+- predictable export where aspect ratio is respected by every render surface
 
 ## Brand Personality
 

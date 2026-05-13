@@ -22,6 +22,26 @@ phase should leave the repo in a better state even if later phases change.
 This section is the short operational checklist. The phase sections below remain
 the detailed source of truth.
 
+### v0.2 Product Focus
+
+- [x] Improve first-pass effect control surfaces with family metadata, clearer
+  purpose copy, and documentation for what each effect family is good for.
+- [ ] Add new focused effects without reintroducing legacy combined FX.
+- [x] Add first-class noise/procedural texture creation presets over the
+  existing serializable noise layer schema.
+- [x] Make node preview aspect ratio behavior predictable across regular node
+  thumbnails, graph output previews, and export nodes.
+- [ ] Add folders/areas so layers and node graphs can be organized without
+  losing the relationship between the two views.
+- [ ] Define how the layer list respects node graph structure for advanced node
+  workflows.
+  Current note: graph-backed layer preview follows nested branches, but the
+  layer panel still presents a flat list until folder/area UI lands.
+- [x] Improve text/font workflow with a curated bundled display-font expansion.
+- [x] Improve node/effect/export documentation with effect-family guidance.
+- [ ] Improve empty-canvas onboarding around examples, presets, image import,
+  text-first starts, and random seeds.
+
 ### Highest leverage next
 
 - [x] Extract history/update behavior from `useGeneratorDocument.ts` into named

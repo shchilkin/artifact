@@ -22,6 +22,14 @@ CI should run:
 
 ## Manual QA
 
+### v0.1.0-beta.1 Deployed Smoke
+
+- Deployed beta was tested with a real cover workflow that used image, text,
+  effect, merge, and output nodes.
+- The workflow produced a usable album-cover result end to end.
+- This validates the current beta as a working local editor, while leaving
+  Safari, Firefox, and broader visual-regression coverage as follow-up work.
+
 ### Core Editor
 
 - Open `/app` with an empty/localStorage document.

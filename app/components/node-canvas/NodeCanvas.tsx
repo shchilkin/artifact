@@ -188,6 +188,7 @@ export function NodeCanvas({
 
   const { isValidConnection, onConnect, onEdgesDelete, onEdgeClick, handleOrganizeNodes } = useNodeGraphEvents({
     graphRef,
+    aspect: doc.global.aspect,
     layers: doc.layers,
     send,
     rfInstanceRef,

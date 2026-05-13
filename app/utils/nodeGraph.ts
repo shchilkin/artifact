@@ -1,19 +1,48 @@
-import type { CanvasGraph, GraphColorNode, GraphEdge, GraphMergeNode, Layer } from '../types/config';
+import {
+  ASPECT_SIZES,
+  type AspectRatio,
+  type CanvasGraph,
+  type GraphColorNode,
+  type GraphEdge,
+  type GraphMergeNode,
+  type Layer,
+} from '../types/config';
 
 export const EXPORT_NODE_ID = '__export__';
-const NODE_W = 160;
-const COL_GAP = 56;
-const ROW_GAP = 220;
+const BASE_NODE_W = 320;
+const ARTWORK_NODE_W = 340;
+const COL_GAP = 168;
+const ROW_GAP = 72;
 const TOP_PAD = 80;
+const NODE_CHROME_H = 118;
+const NODE_PREVIEW_MAX = 280;
+
+function estimateNodeWidth(id: string, layers: Layer[]): number {
+  const layer = layers.find((item) => item.id === id);
+  if (!layer) return BASE_NODE_W;
+  return ['image', 'primitive', 'noise', 'array'].includes(layer.kind) ? ARTWORK_NODE_W : BASE_NODE_W;
+}
+
+function estimatePreviewHeight(aspect: AspectRatio): number {
+  const [aspectWidth, aspectHeight] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
+  return Math.round((aspectHeight / Math.max(aspectWidth, aspectHeight)) * NODE_PREVIEW_MAX);
+}
+
+function estimateNodeHeight(aspect: AspectRatio): number {
+  const previewHeight = estimatePreviewHeight(aspect);
+  return previewHeight + NODE_CHROME_H;
+}
 
 export function inferLinearGraph(layers: Layer[]): CanvasGraph {
   const positions: Record<string, { x: number; y: number }> = {};
   const edges: GraphEdge[] = [];
+  let x = 0;
 
-  layers.forEach((layer, i) => {
-    positions[layer.id] = { x: i * (NODE_W + COL_GAP), y: 80 };
+  layers.forEach((layer) => {
+    positions[layer.id] = { x, y: 80 };
+    x += estimateNodeWidth(layer.id, layers) + COL_GAP;
   });
-  positions[EXPORT_NODE_ID] = { x: layers.length * (NODE_W + COL_GAP), y: 80 };
+  positions[EXPORT_NODE_ID] = { x, y: 80 };
 
   layers.forEach((layer, i) => {
     const next = layers[i + 1];
@@ -214,10 +243,10 @@ export function nextDropPosition(graph: CanvasGraph): { x: number; y: number } {
   const maxX = xs.length > 0 ? Math.max(...xs) : 0;
   const ys = Object.values(graph.positions).map((p) => p.y);
   const avgY = ys.length > 0 ? ys.reduce((a, b) => a + b, 0) / ys.length : 80;
-  return { x: maxX + NODE_W + COL_GAP, y: avgY };
+  return { x: maxX + BASE_NODE_W + COL_GAP, y: avgY };
 }
 
-export function organizeGraph(graph: CanvasGraph, layers: Layer[]): CanvasGraph {
+export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: AspectRatio = '1:1'): CanvasGraph {
   const nodeIds = [
     ...layers.map((layer) => layer.id),
     ...graph.mergeNodes.map((node) => node.id),
@@ -282,13 +311,24 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[]): CanvasGraph 
   }
 
   const positions = { ...graph.positions };
-  for (const [column, ids] of [...columns.entries()].sort(([a], [b]) => a - b)) {
+  const orderedColumns = [...columns.entries()].sort(([a], [b]) => a - b);
+  const columnX = new Map<number, number>();
+  let nextX = 0;
+  for (const [column, ids] of orderedColumns) {
+    columnX.set(column, nextX);
+    const widest = Math.max(...ids.map((id) => estimateNodeWidth(id, layers)), BASE_NODE_W);
+    nextX += widest + COL_GAP;
+  }
+
+  for (const [column, ids] of orderedColumns) {
     ids.sort(compareNodeIds);
-    ids.forEach((id, index) => {
+    let y = TOP_PAD;
+    ids.forEach((id) => {
       positions[id] = {
-        x: column * (NODE_W + COL_GAP),
-        y: TOP_PAD + index * ROW_GAP,
+        x: columnX.get(column) ?? 0,
+        y,
       };
+      y += estimateNodeHeight(aspect) + ROW_GAP;
     });
   }
 
