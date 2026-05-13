@@ -36,6 +36,10 @@ Both views must stay truthful. If nodes define a meaningful structure, the layer
 view should respect that structure through folders, areas, or graph-derived
 grouping instead of becoming a misleading flat stack.
 
+v0.3 starts this organization track with serializable graph area metadata in
+`CanvasGraph.areas`. Areas are organizational only for now; they do not change
+render order or traversal until a dedicated render behavior is designed.
+
 ## Feature Intake From Sticky Notes
 
 The sticky-note backlog is useful, but it should not all enter the current

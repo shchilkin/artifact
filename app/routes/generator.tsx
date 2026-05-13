@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { type CSSProperties, lazy, Suspense, useMemo, useState } from 'react';
+import { type CSSProperties, lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
@@ -43,6 +43,44 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 
 type ViewMode = 'layers' | 'nodes';
 
+function EmptyCanvasStart({
+  onImportImage,
+  onAddText,
+  onAddNoise,
+  onRandomize,
+  onOpenNodes,
+}: {
+  onImportImage: () => void;
+  onAddText: () => void;
+  onAddNoise: () => void;
+  onRandomize: () => void;
+  onOpenNodes: () => void;
+}) {
+  return (
+    <div className="empty-canvas-start" aria-label="Start a new artifact">
+      <div className="empty-canvas-start-kicker">new artifact</div>
+      <div className="empty-canvas-start-actions">
+        <button type="button" onClick={onImportImage}>
+          Image
+        </button>
+        <button type="button" onClick={onAddText}>
+          Text
+        </button>
+        <button type="button" onClick={onAddNoise}>
+          Noise
+        </button>
+        <button type="button" onClick={onRandomize}>
+          Random
+        </button>
+        <Link to="/examples">Examples</Link>
+        <button type="button" onClick={onOpenNodes}>
+          Nodes
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ViewModeToggle({
   value,
   onChange,
@@ -85,6 +123,7 @@ export default function Generator() {
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     doc,
@@ -154,6 +193,17 @@ export default function Generator() {
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           void handleOpenDocument(file);
+          event.currentTarget.value = '';
+        }}
+      />
+      <input
+        ref={imageFileInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) void handleDroppedFile(file);
           event.currentTarget.value = '';
         }}
       />
@@ -238,6 +288,15 @@ export default function Generator() {
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
               />
+              {doc.layers.length === 0 && (
+                <EmptyCanvasStart
+                  onImportImage={() => imageFileInputRef.current?.click()}
+                  onAddText={() => addLayer('text')}
+                  onAddNoise={() => addLayer('noise')}
+                  onRandomize={handleRandomize}
+                  onOpenNodes={() => setViewMode('nodes')}
+                />
+              )}
             </ErrorBoundary>
           ) : (
             <div className="node-mode-stage">

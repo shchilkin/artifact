@@ -31,7 +31,9 @@ the detailed source of truth.
   existing serializable noise layer schema.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
-- [ ] Add folders/areas so layers and node graphs can be organized without
+- [x] Add serializable folder/area metadata so layers and node graphs can be
+  organized without losing the relationship between the two views.
+- [ ] Add folder/area UI so layers and node graphs can be organized without
   losing the relationship between the two views.
 - [ ] Define how the layer list respects node graph structure for advanced node
   workflows.

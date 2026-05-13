@@ -2,6 +2,7 @@ import {
   ASPECT_SIZES,
   type AspectRatio,
   type CanvasGraph,
+  type GraphArea,
   type GraphColorNode,
   type GraphEdge,
   type GraphMergeNode,
@@ -65,7 +66,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     }
   });
 
-  return { edges, positions, mergeNodes: [], colorNodes: [] };
+  return { edges, positions, mergeNodes: [], colorNodes: [], areas: [] };
 }
 
 export function updateGraphPositions(
@@ -133,6 +134,7 @@ export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
     mergeNodes: graph.mergeNodes.filter((n) => n.id !== id),
     edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -154,6 +156,7 @@ export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
     colorNodes: (graph.colorNodes ?? []).filter((n) => n.id !== id),
     edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -161,6 +164,60 @@ export function updateColorNode(graph: CanvasGraph, id: string, patch: Partial<G
   return {
     ...graph,
     colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+function uniqueNodeIds(ids: string[]): string[] {
+  return [...new Set(ids.filter((id) => id.trim().length > 0))];
+}
+
+function removeNodeFromGraphAreas(areas: GraphArea[] | undefined, nodeId: string): GraphArea[] {
+  return (areas ?? []).map((area) => ({
+    ...area,
+    nodeIds: area.nodeIds.filter((id) => id !== nodeId),
+  }));
+}
+
+export function addGraphArea(graph: CanvasGraph, area: GraphArea): CanvasGraph {
+  return {
+    ...graph,
+    areas: [
+      ...(graph.areas ?? []),
+      {
+        ...area,
+        nodeIds: uniqueNodeIds(area.nodeIds),
+      },
+    ],
+  };
+}
+
+export function updateGraphArea(graph: CanvasGraph, id: string, patch: Partial<Omit<GraphArea, 'id'>>): CanvasGraph {
+  return {
+    ...graph,
+    areas: (graph.areas ?? []).map((area) =>
+      area.id === id
+        ? {
+            ...area,
+            ...patch,
+            nodeIds: patch.nodeIds ? uniqueNodeIds(patch.nodeIds) : area.nodeIds,
+          }
+        : area,
+    ),
+  };
+}
+
+export function removeGraphArea(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...graph,
+    areas: (graph.areas ?? []).filter((area) => area.id !== id),
+  };
+}
+
+export function assignNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const ids = uniqueNodeIds(nodeIds);
+  return {
+    ...graph,
+    areas: (graph.areas ?? []).map((area) => (area.id === areaId ? { ...area, nodeIds: ids } : area)),
   };
 }
 
@@ -234,6 +291,7 @@ export function removeLayerFromGraph(graph: CanvasGraph, layerId: string): Canva
     ...graph,
     edges: graph.edges.filter((e) => e.fromId !== layerId && e.toId !== layerId),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== layerId)),
+    areas: removeNodeFromGraphAreas(graph.areas, layerId),
   };
 }
 

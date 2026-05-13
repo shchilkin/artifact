@@ -75,6 +75,11 @@ Current React Flow node types:
 
 Layer nodes map to `CanvasDocument.layers`. Merge and color nodes live in `CanvasGraph`.
 
+Graph areas/groups live in `CanvasGraph.areas`. They are serializable
+organization metadata for dense workflows; they should help the layer list and
+node canvas explain structure, but they must not change rendering or traversal
+until a dedicated render rule is designed and tested.
+
 ## Interaction grammar
 
 ### Global graph gestures
