@@ -80,7 +80,7 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
       >
         <div
           ref={containerRef}
-          className="pixi-container flex items-center justify-center w-full h-full"
+          className="pixi-container checkerboard-surface flex items-center justify-center w-full h-full"
           onClick={(e) => {
             if (e.target === e.currentTarget || e.target instanceof HTMLCanvasElement) onSelectLayer(null);
           }}

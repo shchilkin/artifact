@@ -10,7 +10,7 @@ export function EmptyThumbnailFrame() {
   return (
     <div className="node-thumbnail node-thumbnail-primitive" style={{ minHeight: previewSize.display.height }}>
       <div
-        className="node-thumbnail-frame"
+        className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
       />
     </div>

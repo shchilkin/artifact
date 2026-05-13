@@ -78,6 +78,61 @@ const tallNodeDocument = {
     colorNodes: [],
   },
 };
+const textDragDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 4, aspect: '16:9' },
+  layers: [
+    {
+      id: 'text-drag-fill',
+      name: 'Backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#120020',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'text-drag-title',
+      name: 'Title',
+      visible: true,
+      locked: false,
+      kind: 'text',
+      content: 'DRAG ME',
+      font: 'DISPLAY',
+      size: 120,
+      color: '#ffffff',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      rotation: 0,
+      align: 'center',
+      scaleX: 1,
+      scaleY: 1,
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-fill-text', fromId: 'text-drag-fill', fromPort: 'out', toId: 'text-drag-title', toPort: 'bg' },
+      { id: 'e-text-export', fromId: 'text-drag-title', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {
+      'text-drag-fill': { x: 0, y: 80 },
+      'text-drag-title': { x: 500, y: 80 },
+      __export__: { x: 1000, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const emptyTransparentDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 5, aspect: '1:1' },
+  layers: [],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 
 test.beforeEach(async ({ page }) => {
   const issues: string[] = [];
@@ -163,6 +218,56 @@ test('node previews respect document aspect ratio', async ({ page }) => {
   const tallFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
   await expect(tallFrame).toBeVisible({ timeout: 15_000 });
   await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
+});
+
+test('text node can be dragged repeatedly without crashing', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(textDragDocument))}`);
+  await switchToNodeView(page);
+
+  const textNode = page.locator('.node-shell-kind-text').first();
+  await expect(textNode).toBeVisible({ timeout: 15_000 });
+  await textNode.click();
+
+  const overlay = textNode.locator('.node-drag-overlay');
+  await expect(overlay).toBeVisible({ timeout: 15_000 });
+  const box = await overlay.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  for (let i = 0; i < 12; i += 1) {
+    await page.mouse.move(startX + 18 * i, startY + (i % 2 === 0 ? 64 : -64));
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await expect(page.locator('.node-canvas-root')).toBeVisible();
+});
+
+test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(emptyTransparentDocument))}`);
+
+  const canvas = page.locator('.pixi-container canvas').first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        canvas.evaluate((element) => {
+          const canvas = element as HTMLCanvasElement;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx || canvas.width <= 0 || canvas.height <= 0) return 255;
+          return ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3] ?? 255;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(0);
+
+  await expect
+    .poll(async () => page.locator('.pixi-container').evaluate((element) => getComputedStyle(element).backgroundImage))
+    .toContain('linear-gradient');
 });
 
 async function expectLayerCanvasToHavePixels(page: Page) {

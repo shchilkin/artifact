@@ -350,7 +350,7 @@ export interface CanvasDocument {
 export const DOCUMENT_SCHEMA_VERSION = 1;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
-  bg: '#120020',
+  bg: 'transparent',
   seed: 4242,
   aspect: '1:1',
 };

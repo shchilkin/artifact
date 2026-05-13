@@ -1,6 +1,6 @@
 import type { Connection, ReactFlowInstance, Edge as RFEdge } from '@xyflow/react';
 import { useCallback } from 'react';
-import type { CanvasGraph, GraphEdge, Layer } from '../../../types/config';
+import type { AspectRatio, CanvasGraph, GraphEdge, Layer } from '../../../types/config';
 import {
   addGraphEdge,
   EXPORT_NODE_ID,
@@ -12,6 +12,7 @@ import type { NodeCanvasMachineEvent } from '../machine';
 
 export interface UseNodeGraphEventsOptions {
   graphRef: React.RefObject<CanvasGraph>;
+  aspect: AspectRatio;
   layers: Layer[];
   send: (event: NodeCanvasMachineEvent) => void;
   rfInstanceRef: React.RefObject<ReactFlowInstance | null>;
@@ -32,6 +33,7 @@ export interface UseNodeGraphEventsResult {
  */
 export function useNodeGraphEvents({
   graphRef,
+  aspect,
   send,
   rfInstanceRef,
   onGraphChange,
@@ -82,12 +84,12 @@ export function useNodeGraphEvents({
 
   const handleOrganizeNodes = useCallback(
     (layers: Layer[]) => {
-      onGraphChange(organizeGraph(graphRef.current, layers));
+      onGraphChange(organizeGraph(graphRef.current, layers, aspect));
       requestAnimationFrame(() => {
         rfInstanceRef.current?.fitView({ padding: 0.2, duration: 220 });
       });
     },
-    [onGraphChange, rfInstanceRef, graphRef],
+    [aspect, onGraphChange, rfInstanceRef, graphRef],
   );
 
   return {

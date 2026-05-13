@@ -25,6 +25,11 @@ The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
 canvas. Use that path when improving layer-preview/export parity without
 changing pointer math or handle coordinates.
 
+Transparent document backgrounds must stay transparent in renderer output and
+exports. UI preview surfaces may show a checkerboard behind the canvas to make
+alpha visible, but the checkerboard is interface chrome and must not be drawn
+into document pixels.
+
 ## Public entry points
 
 | Function | File | Use |

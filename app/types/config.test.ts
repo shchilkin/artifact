@@ -119,6 +119,10 @@ describe('effect presets', () => {
     expect(DEFAULT_DOCUMENT.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
   });
 
+  it('starts new documents on a transparent canvas', () => {
+    expect(DEFAULT_DOCUMENT.global.bg).toBe('transparent');
+  });
+
   it('does not expose legacy combined presets', () => {
     expect(EFFECT_PRESETS).not.toHaveProperty('warp');
     expect(EFFECT_PRESETS).not.toHaveProperty('color');

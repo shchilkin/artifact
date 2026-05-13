@@ -264,6 +264,22 @@ describe('organizeGraph', () => {
     expect(next.positions[orphan.id]).toBeDefined();
     expect(graph.positions[fill.id]).toEqual({ x: 500, y: 500 });
   });
+
+  it('leaves generous horizontal room for larger node cards', () => {
+    const fill = makeFillLayer({ id: 'fill-1' });
+    const text = makeTextLayer({ id: 'text-1' });
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-fill-text', fromId: fill.id, fromPort: 'out', toId: text.id, toPort: 'bg' },
+        { id: 'e-text-export', fromId: text.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+    });
+
+    const next = organizeGraph(graph, [fill, text], '16:9');
+
+    expect(next.positions[text.id].x - next.positions[fill.id].x).toBeGreaterThanOrEqual(480);
+    expect(next.positions[EXPORT_NODE_ID].x - next.positions[text.id].x).toBeGreaterThanOrEqual(480);
+  });
 });
 
 describe('connectedPortIds', () => {

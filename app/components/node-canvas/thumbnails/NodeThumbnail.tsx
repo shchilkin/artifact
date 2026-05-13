@@ -13,7 +13,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
       style={{ minHeight: previewSize.display.height }}
     >
       <div
-        className="node-thumbnail-frame"
+        className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
       >
         <canvas

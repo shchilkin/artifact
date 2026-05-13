@@ -40,6 +40,7 @@ function DragTransformOverlay({
   const clampPosition = (value: number) => Math.max(-0.5, Math.min(1.5, value));
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
     e.stopPropagation();
     if (e.shiftKey) {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -72,6 +73,8 @@ function DragTransformOverlay({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!dragRef.current) return;
     const { startClientX, startClientY, startLayerX, startLayerY, startRotation, startAngle, mode } = dragRef.current;
     if (mode === 'translate') {
@@ -96,17 +99,22 @@ function DragTransformOverlay({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     dragRef.current = null;
     setDragging(false);
     setRotating(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     onCommit();
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     dragRef.current = null;
     setDragging(false);
     setRotating(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     onCommit();
   };
 
