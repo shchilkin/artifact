@@ -77,7 +77,10 @@ export function useNodeDragState({
   }, [baseNodes, baseEdges]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const relevant = changes.filter((c) => c.type !== 'remove' && c.type !== 'select');
+    // Keep React Flow's measured dimensions internal. Feeding dimensions back
+    // into the controlled nodes prop can re-trigger measurement indefinitely
+    // when overlays or connection menus change the viewport tree.
+    const relevant = changes.filter((c) => c.type === 'position');
     if (relevant.length) setDragNodes((prev) => applyNodeChanges(relevant, prev));
   }, []);
 

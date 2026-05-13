@@ -67,6 +67,30 @@ const wideNodeDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const areaMergeDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 6, aspect: '1:1' },
+  layers: [
+    {
+      id: 'area-fill',
+      name: 'Area fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#7842d9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [{ id: 'e-merge-export', fromId: 'merge-area', fromPort: 'out', toId: '__export__', toPort: 'in' }],
+    positions: { 'area-fill': { x: 0, y: 80 }, 'merge-area': { x: 460, y: 80 }, __export__: { x: 900, y: 80 } },
+    mergeNodes: [{ id: 'merge-area', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
+    colorNodes: [],
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill', 'merge-area'] }],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const tallNodeDocument = {
   ...wideNodeDocument,
   global: { bg: '#101018', seed: 3, aspect: '9:16' },
@@ -270,6 +294,35 @@ test('dropping a connection on empty canvas can add and connect a node', async (
   await menu.getByRole('button', { name: /Fill/i }).click();
 
   await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(2);
+  await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
+});
+
+test('connecting to a merge node inside an area does not recurse node updates', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await switchToNodeView(page);
+
+  await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
+  const fillNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-fill') });
+  const mergeNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-merge') });
+  await expect(fillNode).toHaveCount(1);
+  await expect(mergeNode).toHaveCount(1);
+
+  const sourceHandle = fillNode.locator('.react-flow__handle-right[data-handleid="out"]');
+  const targetHandle = mergeNode.locator('.react-flow__handle-left[data-handleid="b"]');
+  await expect(sourceHandle).toHaveCount(1);
+  await expect(targetHandle).toHaveCount(1);
+  const sourceBox = await sourceHandle.boundingBox();
+  const targetBox = await targetHandle.boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  if (!sourceBox || !targetBox) return;
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(page.getByText('Oops!')).toHaveCount(0);
   await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
 });
 
