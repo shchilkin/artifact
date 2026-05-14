@@ -203,6 +203,7 @@ export function EffectInspector({
                 value={layer.rays}
                 min={0}
                 max={96}
+                overrideMax={240}
                 effectKey="rays"
                 onInfoEnter={handleInfoEnter}
                 onInfoLeave={handleInfoLeave}
@@ -278,6 +279,7 @@ export function EffectInspector({
               value={layer.speedLines}
               min={0}
               max={140}
+              overrideMax={300}
               effectKey="speedLines"
               onInfoEnter={handleInfoEnter}
               onInfoLeave={handleInfoLeave}

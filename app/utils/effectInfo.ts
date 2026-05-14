@@ -162,14 +162,15 @@ export function getEffectFamilyMeta(key: string) {
 export const EFFECT_META: Record<string, EffectMeta> = {
   rayInt: {
     title: 'Ray Intensity',
-    description: 'Brightness of the radiating light beams from center.',
+    description: 'Brightness of the thick colored poster-burst beams from center.',
     valueLabel: 'intensity 80',
     family: 'light',
     cfgOverride: { rayInt: 80, rays: 12 },
   },
   rays: {
     title: 'Ray Count',
-    description: 'Number of light rays emanating from the center point.',
+    description:
+      'Number of thick colored light beams in the poster burst. Use the manual field to push beyond the slider.',
     valueLabel: '20 rays',
     cfgOverride: { rays: 20, rayInt: 70 },
   },
@@ -200,8 +201,9 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   speedLines: {
     title: 'Speed Lines',
-    description: 'Seeded radial strokes from center for motion and pressure.',
-    valueLabel: 'speed 90',
+    description:
+      'Thin white manga motion streaks from center. Use the manual field for denser bursts than the slider range.',
+    valueLabel: 'density 90',
     cfgOverride: { speedLines: 90 },
   },
   glitch: {

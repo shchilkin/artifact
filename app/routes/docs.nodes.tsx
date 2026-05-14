@@ -236,7 +236,7 @@ const SOURCE_NODES: NodeDef[] = [
 ];
 
 const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
-  rays: 'Light shafts from center, tinted and angled.',
+  rays: 'Thick colored poster-burst beams from center.',
   bloom: 'Highlights bleed outward into surrounding pixels.',
   filmBurn: 'Overexposed edges and chemical flare.',
   glitch: 'Horizontal slice tears at random scan intervals.',
@@ -283,7 +283,7 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   emboss: 'Diagonal convolution relief — raised surface texture overlay.',
   linocut: 'Bayer-dithered posterization — bold graphic print aesthetic.',
   fog: 'Luminance-weighted haze overlay — soft atmospheric mist.',
-  speedLines: 'Seeded radial lines from center — manga motion effect.',
+  speedLines: 'Thin white radial streaks from center — manga motion effect.',
 };
 
 const EFFECT_FAMILY_GUIDE = [
@@ -311,7 +311,7 @@ const EFFECT_FAMILY_GUIDE = [
 
 const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
   rays: [
-    { key: 'rays', range: '0–100' },
+    { key: 'rays', range: '0–240 manual' },
     { key: 'rayInt', range: '0–100' },
     { key: 'rayColor', range: 'hex' },
   ],
@@ -404,7 +404,7 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
     { key: 'fog', range: '0–100' },
     { key: 'fogColor', range: 'hex' },
   ],
-  speedLines: [{ key: 'speedLines', range: '0–100' }],
+  speedLines: [{ key: 'speedLines', range: '0–300 manual' }],
 };
 
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
