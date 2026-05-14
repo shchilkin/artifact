@@ -44,14 +44,23 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
     case 'rays':
       if (preset === 'bloom') return `${layer.bloom}% bloom`;
       if (preset === 'filmBurn') return `${layer.filmBurn}% burn`;
+      if (preset === 'neonGlow') return `${layer.neonGlow}% neon`;
+      if (preset === 'fog') return `${layer.fog}% fog`;
+      if (preset === 'speedLines') return `${layer.speedLines}% speed`;
       return `${layer.rays} rays`;
     case 'glitch':
       if (preset === 'rgbSplit') return `${layer.rgbSplit} chroma`;
+      if (preset === 'ca') return `${layer.ca} ca`;
       if (preset === 'interlace') return `${layer.interlace}% interlace`;
       if (preset === 'dataMosh') return `${layer.dataMosh}% mosh`;
+      if (preset === 'vhsTracking') return `${layer.vhsTracking}% track`;
       return `${layer.glitch} / ${layer.rgbSplit}`;
     case 'texture':
       if (preset === 'scanlines') return `${layer.scanlines}% / ${layer.scanlineWidth ?? 1}px`;
+      if (preset === 'matte') return `${layer.matte}% matte`;
+      if (preset === 'dither') return `${layer.dither}% dither`;
+      if (preset === 'emboss') return `${layer.emboss}% emboss`;
+      if (preset === 'linocut') return `${layer.linocut}% lino`;
       return `${layer.grain} grain`;
     case 'tint':
       return `${layer.tintOp}%`;
@@ -62,16 +71,28 @@ function effectSectionSummary(layer: EffectLayer, section: EffectSectionId): str
       if (preset === 'barrel') return `${layer.barrel}% barrel`;
       if (preset === 'tear') return `${layer.tearAmt} tear`;
       if (preset === 'mirror') return `${layer.mirror}x mirror`;
+      if (preset === 'wave') return `${layer.waveAmt}% wave`;
+      if (preset === 'zoomBlur') return `${layer.zoomBlur}% zoom`;
+      if (preset === 'ripple') return `${layer.rippleAmt}% ripple`;
+      if (preset === 'kaleidoscope') return `${layer.kaleidoscope}% kaleido`;
+      if (preset === 'squeeze') return `${layer.squeezeX}/${layer.squeezeY}`;
       return `${layer.noiseWarp}%`;
     case 'color':
       if (preset === 'rgbSplit') return `${layer.rgbSplit} split`;
       if (preset === 'vignette') return `${layer.vignette}% vignette`;
       if (preset === 'pixelate') return `${layer.pixelate}px`;
       if (preset === 'posterize') return `${layer.posterize} bands`;
+      if (preset === 'sepia') return `${layer.sepia}% sepia`;
+      if (preset === 'infrared') return `${layer.infrared}% infrared`;
+      if (preset === 'solarize') return `${layer.solarize}% solarize`;
+      if (preset === 'bleachBypass') return `${layer.bleachBypass}% bleach`;
+      if (preset === 'cyanotype') return `${layer.cyanotype}% cyan`;
+      if (preset === 'splitTone') return `${layer.splitToneAmt}% split`;
       return `${layer.hueShift}deg`;
     case 'riso':
       if (preset === 'halftone') return `${layer.halftone} tone`;
       if (preset === 'risoShift') return `${layer.risoShift}px`;
+      if (preset === 'overprint') return `${layer.overprint}% overprint`;
       return `${layer.duotone}%`;
     case 'graphic':
       if (preset === 'blur') return `${layer.blurAmt}px blur`;
@@ -213,6 +234,56 @@ export function EffectInspector({
               onChange={(value) => onChange({ filmBurn: value })}
             />
           )}
+          {showControl(['neonGlow']) && (
+            <>
+              <InspectorSlider
+                label="Neon Glow"
+                value={layer.neonGlow}
+                min={0}
+                max={100}
+                effectKey="neonGlow"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ neonGlow: value })}
+              />
+              <InspectorColorInput
+                label="Glow Color"
+                value={layer.neonColor}
+                onChange={(value) => onChange({ neonColor: value })}
+              />
+            </>
+          )}
+          {showControl(['fog']) && (
+            <>
+              <InspectorSlider
+                label="Fog"
+                value={layer.fog}
+                min={0}
+                max={100}
+                effectKey="fog"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ fog: value })}
+              />
+              <InspectorColorInput
+                label="Fog Color"
+                value={layer.fogColor}
+                onChange={(value) => onChange({ fogColor: value })}
+              />
+            </>
+          )}
+          {showControl(['speedLines']) && (
+            <InspectorSlider
+              label="Speed Lines"
+              value={layer.speedLines}
+              min={0}
+              max={140}
+              effectKey="speedLines"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ speedLines: value })}
+            />
+          )}
         </InspectorSection>
       )}
 
@@ -247,6 +318,18 @@ export function EffectInspector({
               onChange={(value) => onChange({ rgbSplit: value })}
             />
           )}
+          {showControl(['ca']) && (
+            <InspectorSlider
+              label="Radial CA"
+              value={layer.ca}
+              min={0}
+              max={40}
+              effectKey="ca"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ ca: value })}
+            />
+          )}
           {showControl(['interlace']) && (
             <InspectorSlider
               label="Interlace"
@@ -269,6 +352,18 @@ export function EffectInspector({
               onInfoEnter={handleInfoEnter}
               onInfoLeave={handleInfoLeave}
               onChange={(value) => onChange({ dataMosh: value })}
+            />
+          )}
+          {showControl(['vhsTracking']) && (
+            <InspectorSlider
+              label="VHS Tracking"
+              value={layer.vhsTracking}
+              min={0}
+              max={100}
+              effectKey="vhsTracking"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ vhsTracking: value })}
             />
           )}
         </InspectorSection>
@@ -316,6 +411,54 @@ export function EffectInspector({
                 onChange={(value) => onChange({ scanlineWidth: value })}
               />
             </>
+          )}
+          {showControl(['matte']) && (
+            <InspectorSlider
+              label="Matte"
+              value={layer.matte}
+              min={0}
+              max={100}
+              effectKey="matte"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ matte: value })}
+            />
+          )}
+          {showControl(['dither']) && (
+            <InspectorSlider
+              label="Dither"
+              value={layer.dither}
+              min={0}
+              max={100}
+              effectKey="dither"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ dither: value })}
+            />
+          )}
+          {showControl(['emboss']) && (
+            <InspectorSlider
+              label="Emboss"
+              value={layer.emboss}
+              min={0}
+              max={100}
+              effectKey="emboss"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ emboss: value })}
+            />
+          )}
+          {showControl(['linocut']) && (
+            <InspectorSlider
+              label="Linocut"
+              value={layer.linocut}
+              min={0}
+              max={100}
+              effectKey="linocut"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ linocut: value })}
+            />
           )}
         </InspectorSection>
       )}
@@ -444,6 +587,102 @@ export function EffectInspector({
               onChange={(value) => onChange({ mirror: value })}
             />
           )}
+          {showControl(['wave']) && (
+            <>
+              <InspectorSlider
+                label="Wave"
+                value={layer.waveAmt}
+                min={0}
+                max={80}
+                effectKey="waveAmt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ waveAmt: value })}
+              />
+              <InspectorSlider
+                label="Wave Freq"
+                value={layer.waveFreq}
+                min={1}
+                max={24}
+                effectKey="waveFreq"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ waveFreq: value })}
+              />
+            </>
+          )}
+          {showControl(['zoomBlur']) && (
+            <InspectorSlider
+              label="Zoom Blur"
+              value={layer.zoomBlur}
+              min={0}
+              max={100}
+              effectKey="zoomBlur"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ zoomBlur: value })}
+            />
+          )}
+          {showControl(['ripple']) && (
+            <>
+              <InspectorSlider
+                label="Ripple"
+                value={layer.rippleAmt}
+                min={0}
+                max={100}
+                effectKey="rippleAmt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ rippleAmt: value })}
+              />
+              <InspectorSlider
+                label="Ripple Freq"
+                value={layer.rippleFreq}
+                min={1}
+                max={24}
+                effectKey="rippleFreq"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ rippleFreq: value })}
+              />
+            </>
+          )}
+          {showControl(['kaleidoscope']) && (
+            <InspectorSlider
+              label="Kaleidoscope"
+              value={layer.kaleidoscope}
+              min={0}
+              max={100}
+              effectKey="kaleidoscope"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ kaleidoscope: value })}
+            />
+          )}
+          {showControl(['squeeze']) && (
+            <>
+              <InspectorSlider
+                label="Squeeze X"
+                value={layer.squeezeX}
+                min={-80}
+                max={80}
+                effectKey="squeezeX"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ squeezeX: value })}
+              />
+              <InspectorSlider
+                label="Squeeze Y"
+                value={layer.squeezeY}
+                min={-80}
+                max={80}
+                effectKey="squeezeY"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ squeezeY: value })}
+              />
+            </>
+          )}
         </InspectorSection>
       )}
 
@@ -514,6 +753,90 @@ export function EffectInspector({
               onChange={(value) => onChange({ posterize: value })}
             />
           )}
+          {showControl(['sepia']) && (
+            <InspectorSlider
+              label="Sepia"
+              value={layer.sepia}
+              min={0}
+              max={100}
+              effectKey="sepia"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ sepia: value })}
+            />
+          )}
+          {showControl(['infrared']) && (
+            <InspectorSlider
+              label="Infrared"
+              value={layer.infrared}
+              min={0}
+              max={100}
+              effectKey="infrared"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ infrared: value })}
+            />
+          )}
+          {showControl(['solarize']) && (
+            <InspectorSlider
+              label="Solarize"
+              value={layer.solarize}
+              min={0}
+              max={100}
+              effectKey="solarize"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ solarize: value })}
+            />
+          )}
+          {showControl(['bleachBypass']) && (
+            <InspectorSlider
+              label="Bleach"
+              value={layer.bleachBypass}
+              min={0}
+              max={100}
+              effectKey="bleachBypass"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ bleachBypass: value })}
+            />
+          )}
+          {showControl(['cyanotype']) && (
+            <InspectorSlider
+              label="Cyanotype"
+              value={layer.cyanotype}
+              min={0}
+              max={100}
+              effectKey="cyanotype"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ cyanotype: value })}
+            />
+          )}
+          {showControl(['splitTone']) && (
+            <>
+              <InspectorSlider
+                label="Split Tone"
+                value={layer.splitToneAmt}
+                min={0}
+                max={100}
+                effectKey="splitToneAmt"
+                onInfoEnter={handleInfoEnter}
+                onInfoLeave={handleInfoLeave}
+                onChange={(value) => onChange({ splitToneAmt: value })}
+              />
+              <InspectorColorInput
+                label="Shadow"
+                value={layer.splitShadow}
+                onChange={(value) => onChange({ splitShadow: value })}
+              />
+              <InspectorColorInput
+                label="Highlight"
+                value={layer.splitHighlight}
+                onChange={(value) => onChange({ splitHighlight: value })}
+              />
+            </>
+          )}
         </InspectorSection>
       )}
 
@@ -583,6 +906,18 @@ export function EffectInspector({
                 onChange={(value) => onChange({ risoAngle: value })}
               />
             </>
+          )}
+          {showControl(['overprint']) && (
+            <InspectorSlider
+              label="Overprint"
+              value={layer.overprint}
+              min={0}
+              max={100}
+              effectKey="overprint"
+              onInfoEnter={handleInfoEnter}
+              onInfoLeave={handleInfoLeave}
+              onChange={(value) => onChange({ overprint: value })}
+            />
           )}
         </InspectorSection>
       )}

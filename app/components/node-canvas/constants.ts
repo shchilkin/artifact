@@ -361,11 +361,35 @@ export const NODE_CANVAS_COLORS = {
 // Re-exported from canonical source — do not redefine here.
 export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
 
-export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn'];
-export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'interlace', 'dataMosh'];
-export const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines'];
+export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'];
+export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking'];
+export const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'];
 export const TINT_PRESETS: EffectPreset[] = ['tint'];
-export const WARP_PRESETS: EffectPreset[] = ['noiseWarp', 'morph', 'vortex', 'barrel', 'tear', 'mirror'];
-export const COLOR_PRESETS: EffectPreset[] = ['hueShift', 'rgbSplit', 'vignette', 'pixelate', 'posterize'];
-export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift'];
+export const WARP_PRESETS: EffectPreset[] = [
+  'noiseWarp',
+  'morph',
+  'vortex',
+  'barrel',
+  'tear',
+  'mirror',
+  'wave',
+  'zoomBlur',
+  'ripple',
+  'kaleidoscope',
+  'squeeze',
+];
+export const COLOR_PRESETS: EffectPreset[] = [
+  'hueShift',
+  'rgbSplit',
+  'vignette',
+  'pixelate',
+  'posterize',
+  'sepia',
+  'infrared',
+  'solarize',
+  'bleachBypass',
+  'cyanotype',
+  'splitTone',
+];
+export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift', 'overprint'];
 export const GRAPHIC_PRESETS: EffectPreset[] = ['blur', 'threshold', 'edgeDetect', 'gradientOverlay'];
