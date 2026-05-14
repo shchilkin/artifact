@@ -811,6 +811,18 @@
     0 0 0 1px color-mix(in srgb, var(--node-area-color) 22%, transparent);
 }
 
+.react-flow:has(.react-flow__node.dragging) .node-area {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.58;
+}
+
+.react-flow:has(.react-flow__node.dragging) .node-area-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .node-area-label {
   position: absolute;
   top: 10px;

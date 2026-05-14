@@ -454,6 +454,37 @@ test('selected area can be extended without stacking memberships', async ({ page
   await expect(page.locator('.layer-area-more')).toHaveCount(0);
 });
 
+test('nodes stay visible while dragging inside an area', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await switchToNodeView(page);
+
+  const noiseNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('.node-shell-kind-noise') })
+    .first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  const nodeBox = await noiseNode.boundingBox();
+  expect(nodeBox).not.toBeNull();
+  if (!nodeBox) return;
+
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + 180, nodeBox.y + 70, { steps: 8 });
+
+  await expect(noiseNode).toBeVisible();
+  await expect
+    .poll(async () =>
+      noiseNode.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 40 && rect.height > 40 && getComputedStyle(element).visibility === 'visible';
+      }),
+    )
+    .toBe(true);
+  await expect(page.locator('.node-area-label')).toHaveCSS('opacity', '0');
+
+  await page.mouse.up();
+});
+
 test('dropping a connection on empty canvas can add and connect a node', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);
