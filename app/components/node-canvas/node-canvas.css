@@ -26,6 +26,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  z-index: 2;
 }
 
 .react-flow__node.selected,
@@ -772,6 +773,126 @@
   color: var(--node-text);
 }
 
+.node-canvas-toolbar button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.node-canvas-toolbar button:disabled:hover {
+  border-color: var(--node-border);
+  background: var(--node-surface);
+  color: var(--node-text);
+}
+
+.node-area-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.node-area {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--node-area-color) 58%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--node-area-color) 7%, transparent), transparent),
+    color-mix(in srgb, var(--node-area-color) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.node-area-collapsed {
+  opacity: 0.72;
+}
+
+.node-area-selected {
+  border-color: color-mix(in srgb, var(--node-area-color) 88%, var(--node-text));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--node-area-color) 35%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--node-area-color) 22%, transparent);
+}
+
+.react-flow:has(.react-flow__node.dragging) .node-area {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.58;
+}
+
+.react-flow:has(.react-flow__node.dragging) .node-area-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.node-area-label {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--node-area-color) 45%, var(--node-border));
+  background: color-mix(in srgb, var(--node-surface) 86%, transparent);
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: auto;
+}
+
+.node-area-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.node-area-select::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  background: var(--node-area-color);
+}
+
+.node-area-name {
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-area-count {
+  color: var(--node-text-dim);
+}
+
+.node-area-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--node-text-dim);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.node-area-remove:hover {
+  color: var(--node-text);
+}
+
 .node-menu {
   position: fixed;
   z-index: 10000;
@@ -1072,6 +1193,8 @@
 
 .node-preview-surface {
   position: relative;
+  overflow: hidden;
+  contain: paint;
 }
 
 .node-live-preview-frame {
@@ -1080,6 +1203,16 @@
   width: 100%;
   height: auto;
   overflow: hidden;
+  contain: layout paint;
+  isolation: isolate;
+}
+
+.node-drag-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .node-thumbnail-primitive {

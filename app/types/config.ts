@@ -326,11 +326,20 @@ export interface GraphColorNode {
   hue: number; // degrees, -180 to 180 (0 = neutral)
 }
 
+export interface GraphArea {
+  id: string;
+  name: string;
+  nodeIds: string[];
+  color: string;
+  collapsed?: boolean;
+}
+
 export interface CanvasGraph {
   edges: GraphEdge[];
   positions: Record<string, { x: number; y: number }>;
   mergeNodes: GraphMergeNode[];
   colorNodes: GraphColorNode[];
+  areas?: GraphArea[];
 }
 
 export interface ExportConfig {
@@ -870,6 +879,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           positions: { ...doc.graph.positions },
           mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
           colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
+          areas: (doc.graph.areas ?? []).map((area) => ({ ...area, nodeIds: [...area.nodeIds] })),
         }
       : undefined,
   };

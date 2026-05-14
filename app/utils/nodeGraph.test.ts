@@ -3,19 +3,25 @@ import type { CanvasGraph } from '../types/config';
 import { makeEmojiLayer, makeFillLayer, makeTextLayer } from '../types/config';
 import {
   addColorNode,
+  addGraphArea,
   addGraphEdge,
   addMergeNode,
+  addNodesToGraphArea,
+  assignNodesToGraphArea,
   collectUpstreamNodeIds,
   connectedPortIds,
   EXPORT_NODE_ID,
   organizeGraph,
   removeColorNode,
+  removeGraphArea,
   removeGraphEdge,
+  removeLayerFromGraph,
   removeMergeNode,
   resolveRenderOrder,
   resolveUpstreamRenderLayers,
   splitEdgeWithNode,
   updateColorNode,
+  updateGraphArea,
   updateGraphPositions,
   wouldCreateCycle,
 } from './nodeGraph';
@@ -134,6 +140,78 @@ describe('graph mutations', () => {
       b: { x: 70, y: 90 },
     });
     expect(graph.positions.b).toEqual({ x: 50, y: 60 });
+  });
+
+  it('adds, updates, assigns, and removes graph areas without affecting render edges', () => {
+    const graph = emptyGraph({
+      edges: [{ id: 'e-a-b', fromId: 'a', fromPort: 'out', toId: 'b', toPort: 'bg' }],
+    });
+
+    const withArea = addGraphArea(graph, {
+      id: 'area-main',
+      name: 'Main branch',
+      color: '#ff6b5a',
+      nodeIds: ['a', 'b', 'a', ''],
+    });
+    const renamed = updateGraphArea(withArea, 'area-main', { name: 'Hero branch', collapsed: true });
+    const assigned = assignNodesToGraphArea(renamed, 'area-main', ['b', 'c', 'b']);
+    const removed = removeGraphArea(assigned, 'area-main');
+
+    expect(withArea.areas).toEqual([{ id: 'area-main', name: 'Main branch', color: '#ff6b5a', nodeIds: ['a', 'b'] }]);
+    expect(renamed.areas?.[0]).toMatchObject({ name: 'Hero branch', collapsed: true, nodeIds: ['a', 'b'] });
+    expect(assigned.areas?.[0]?.nodeIds).toEqual(['b', 'c']);
+    expect(assigned.edges).toEqual(graph.edges);
+    expect(removed.areas).toEqual([]);
+    expect(graph.areas).toBeUndefined();
+  });
+
+  it('keeps graph area membership exclusive when creating or extending areas', () => {
+    const graph = emptyGraph({
+      areas: [
+        { id: 'area-1', name: 'Source', color: '#ff6b5a', nodeIds: ['a', 'b'] },
+        { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c'] },
+      ],
+    });
+
+    const withNewArea = addGraphArea(graph, {
+      id: 'area-3',
+      name: 'Combined',
+      color: '#79e3c5',
+      nodeIds: ['b', 'd'],
+    });
+    const extended = addNodesToGraphArea(withNewArea, 'area-2', ['a', 'e']);
+
+    expect(withNewArea.areas).toEqual([
+      { id: 'area-1', name: 'Source', color: '#ff6b5a', nodeIds: ['a'] },
+      { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c'] },
+      { id: 'area-3', name: 'Combined', color: '#79e3c5', nodeIds: ['b', 'd'] },
+    ]);
+    expect(extended.areas).toEqual([
+      { id: 'area-2', name: 'Type', color: '#8d5cff', nodeIds: ['c', 'a', 'e'] },
+      { id: 'area-3', name: 'Combined', color: '#79e3c5', nodeIds: ['b', 'd'] },
+    ]);
+    expect(graph.areas?.[0]?.nodeIds).toEqual(['a', 'b']);
+  });
+
+  it('removes deleted layer and graph-only node ids from areas', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-layer-merge', fromId: 'layer-a', fromPort: 'out', toId: 'merge-a', toPort: 'a' },
+        { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: { 'layer-a': { x: 0, y: 0 }, 'merge-a': { x: 200, y: 0 }, 'color-a': { x: 400, y: 0 } },
+      mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
+      colorNodes: [{ id: 'color-a', name: 'Color', contrast: 100, brightness: 100, saturation: 100, hue: 0 }],
+      areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['layer-a', 'merge-a', 'color-a'] }],
+    });
+
+    const withoutLayer = removeLayerFromGraph(graph, 'layer-a');
+    const withoutMerge = removeMergeNode(graph, 'merge-a');
+    const withoutColor = removeColorNode(graph, 'color-a');
+
+    expect(withoutLayer.areas?.[0]?.nodeIds).toEqual(['merge-a', 'color-a']);
+    expect(withoutMerge.areas?.[0]?.nodeIds).toEqual(['layer-a', 'color-a']);
+    expect(withoutColor.areas?.[0]?.nodeIds).toEqual(['layer-a', 'merge-a']);
   });
 });
 

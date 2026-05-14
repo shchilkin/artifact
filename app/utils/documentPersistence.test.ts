@@ -143,7 +143,7 @@ describe('normalizeDocument', () => {
     });
   });
 
-  it('adds an empty colorNodes array to older graph documents', () => {
+  it('adds empty optional graph arrays to older graph documents', () => {
     const doc = normalizeDocument({
       layers: [],
       graph: {
@@ -158,6 +158,7 @@ describe('normalizeDocument', () => {
       positions: {},
       mergeNodes: [],
       colorNodes: [],
+      areas: [],
     });
   });
 });
@@ -266,6 +267,7 @@ describe('document serialization helpers', () => {
     expect(serialized.endsWith('\n')).toBe(true);
     expect(parsed?.layers[0]?.id).toBe('share-text');
     expect(parsed?.graph?.colorNodes).toEqual([]);
+    expect(parsed?.graph?.areas).toEqual([]);
   });
 
   it('round-trips graph documents through storage-safe JSON without losing graph fields', () => {
@@ -276,6 +278,14 @@ describe('document serialization helpers', () => {
         positions: { 'share-text': { x: 0, y: 80 }, __export__: { x: 216, y: 80 } },
         mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }],
         colorNodes: [{ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }],
+        areas: [
+          {
+            id: 'area-main',
+            name: 'Main branch',
+            color: '#ff6b5a',
+            nodeIds: ['share-text', 'color-a', '__export__'],
+          },
+        ],
       },
     };
 
@@ -285,6 +295,7 @@ describe('document serialization helpers', () => {
     expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
     expect(parsed.graph?.mergeNodes).toEqual(graphDoc.graph?.mergeNodes);
     expect(parsed.graph?.colorNodes).toEqual(graphDoc.graph?.colorNodes);
+    expect(parsed.graph?.areas).toEqual(graphDoc.graph?.areas);
     expect(parsed.graph?.positions.__export__).toEqual({ x: 216, y: 80 });
   });
 

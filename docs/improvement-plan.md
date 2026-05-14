@@ -31,15 +31,18 @@ the detailed source of truth.
   existing serializable noise layer schema.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
-- [ ] Add folders/areas so layers and node graphs can be organized without
+- [x] Add serializable folder/area metadata so layers and node graphs can be
+  organized without losing the relationship between the two views.
+- [x] Add folder/area UI so layers and node graphs can be organized without
   losing the relationship between the two views.
-- [ ] Define how the layer list respects node graph structure for advanced node
+- [x] Define how the layer list respects node graph structure for advanced node
   workflows.
-  Current note: graph-backed layer preview follows nested branches, but the
-  layer panel still presents a flat list until folder/area UI lands.
+  Current note: graph-backed layer preview follows nested branches; graph areas
+  now appear as non-rendering node-canvas overlays and as layer-row chips. The
+  layer panel intentionally stays flat for fast stack editing.
 - [x] Improve text/font workflow with a curated bundled display-font expansion.
 - [x] Improve node/effect/export documentation with effect-family guidance.
-- [ ] Improve empty-canvas onboarding around examples, presets, image import,
+- [x] Improve empty-canvas onboarding around examples, presets, image import,
   text-first starts, and random seeds.
 
 ### Highest leverage next

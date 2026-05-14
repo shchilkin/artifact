@@ -81,6 +81,10 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 
 If `doc.graph` exists and `graphMode` is not forced to `stack`, graph mode is used. Preview and export call sites must be explicit about which mode they need.
 
+The main layer preview renders graph documents in graph mode so layer view and
+the export node agree about the visible artwork. Documents without a graph still
+render in classic stack mode.
+
 ## Layer rendering
 
 Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.

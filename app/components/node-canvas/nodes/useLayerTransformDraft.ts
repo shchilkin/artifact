@@ -130,7 +130,6 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
   const handleWheel = useCallback(
     (event: React.WheelEvent) => {
       if (!isTransformableLayer(layerRef.current)) return;
-      event.preventDefault();
       event.stopPropagation();
       const current = draftRef.current ?? getTransform(layerRef.current);
       const nextScale = clampScale(current.scaleX - event.deltaY * WHEEL_SCALE_STEP);

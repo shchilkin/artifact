@@ -38,7 +38,7 @@ function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width:
 }
 
 export function useNodeThumbnailRender(previewTargetId: string) {
-  const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
+  const { doc, graph, imageCache, primitiveViewStates, isGraphDraggingRef } = useNodeCanvasPreview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -165,6 +165,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     isExportPreview,
     previewTargetId,
     primitiveViewStates,
+    isGraphDraggingRef,
   });
   useLayoutEffect(() => {
     latestRef.current = {
@@ -176,8 +177,19 @@ export function useNodeThumbnailRender(previewTargetId: string) {
       isExportPreview,
       previewTargetId,
       primitiveViewStates,
+      isGraphDraggingRef,
     };
-  }, [doc, graph, imageCache, isExportPreview, previewKey, previewSize, previewTargetId, primitiveViewStates]);
+  }, [
+    doc,
+    graph,
+    imageCache,
+    isExportPreview,
+    isGraphDraggingRef,
+    previewKey,
+    previewSize,
+    previewTargetId,
+    primitiveViewStates,
+  ]);
 
   const [hasRendered, setHasRendered] = useState(false);
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
@@ -186,6 +198,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
   useEffect(() => {
     const rev = ++revRef.current;
     clearTimeout(debounceRef.current);
+    if (isGraphDraggingRef.current) return () => undefined;
     const cached = thumbnailResultCache.get(previewKey);
     if (cached && canvasRef.current) {
       if (drawCanvas(canvasRef.current, cached, previewSize.render.width, previewSize.render.height)) {
@@ -206,7 +219,9 @@ export function useNodeThumbnailRender(previewTargetId: string) {
           isExportPreview: latestIsExportPreview,
           previewTargetId: latestPreviewTargetId,
           primitiveViewStates: latestPrimitiveViewStates,
+          isGraphDraggingRef: latestIsGraphDraggingRef,
         } = latestRef.current;
+        if (latestIsGraphDraggingRef.current) return;
         const effectiveImageCache = new Map(cachedImages);
         const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
         const missingImageSrcs = d.layers
@@ -229,7 +244,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
         );
 
         await Promise.all(preloads);
-        if (rev !== revRef.current || !canvasRef.current) return;
+        if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
 
         let renderPromise = thumbnailInflightCache.get(pk);
         if (!renderPromise) {
@@ -271,7 +286,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
         }
 
         const result = await renderPromise;
-        if (rev !== revRef.current || !canvasRef.current) return;
+        if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
         if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
           return;
         setHasRendered(true);
@@ -280,7 +295,14 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     }, THUMB_DEBOUNCE_MS);
 
     return () => clearTimeout(debounceRef.current);
-  }, [imageCache, previewKey, previewSize.render.height, previewSize.render.width, previewTargetId]);
+  }, [
+    imageCache,
+    isGraphDraggingRef,
+    previewKey,
+    previewSize.render.height,
+    previewSize.render.width,
+    previewTargetId,
+  ]);
 
   return {
     canvasRef,

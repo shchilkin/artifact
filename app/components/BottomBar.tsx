@@ -9,6 +9,7 @@ interface Props {
   canRedo: boolean;
   undoCount: number;
   onPresetsToggle: () => void;
+  onProjectsToggle: () => void;
   onCopyLink: () => void;
   onOpenDocument: () => void;
   onSaveDocument: () => void;
@@ -27,6 +28,7 @@ export function BottomBar({
   onOpenDocument,
   onSaveDocument,
   onPresetsToggle,
+  onProjectsToggle,
   onExport,
   exportBusy,
 }: Props) {
@@ -77,6 +79,9 @@ export function BottomBar({
       </div>
 
       <div className="bottom-right-group">
+        <button className="btn" onClick={onProjectsToggle}>
+          PROJECTS
+        </button>
         <button className="btn" onClick={onPresetsToggle}>
           PRESETS
         </button>

@@ -1,11 +1,12 @@
 import { AnimatePresence } from 'framer-motion';
-import { type CSSProperties, lazy, Suspense, useMemo, useState } from 'react';
+import { type CSSProperties, lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { PresetsPanel } from '../components/PresetsPanel';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
+import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
@@ -13,6 +14,7 @@ import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
 import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
+import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
 import { type AspectRatio, getPreviewDims } from '../types/config';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
@@ -42,6 +44,44 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 }
 
 type ViewMode = 'layers' | 'nodes';
+
+function EmptyCanvasStart({
+  onImportImage,
+  onAddText,
+  onAddNoise,
+  onRandomize,
+  onOpenNodes,
+}: {
+  onImportImage: () => void;
+  onAddText: () => void;
+  onAddNoise: () => void;
+  onRandomize: () => void;
+  onOpenNodes: () => void;
+}) {
+  return (
+    <div className="empty-canvas-start" aria-label="Start a new artifact">
+      <div className="empty-canvas-start-kicker">new artifact</div>
+      <div className="empty-canvas-start-actions">
+        <button type="button" onClick={onImportImage}>
+          Image
+        </button>
+        <button type="button" onClick={onAddText}>
+          Text
+        </button>
+        <button type="button" onClick={onAddNoise}>
+          Noise
+        </button>
+        <button type="button" onClick={onRandomize}>
+          Random
+        </button>
+        <Link to="/examples">Examples</Link>
+        <button type="button" onClick={onOpenNodes}>
+          Nodes
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ViewModeToggle({
   value,
@@ -85,6 +125,7 @@ export default function Generator() {
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     doc,
@@ -127,6 +168,30 @@ export default function Generator() {
       imageCache,
       onLoadDocument: loadDocument,
     });
+  const {
+    showProjects,
+    projects,
+    maxProjects,
+    toggleProjects,
+    closeProjects,
+    handleLoadProject,
+    saveCurrentProject,
+    deleteProject,
+  } = useGeneratorProjectsController({
+    docRef,
+    imageCache,
+    onLoadDocument: loadDocument,
+  });
+
+  const handleTogglePresets = useCallback(() => {
+    closeProjects();
+    togglePresets();
+  }, [closeProjects, togglePresets]);
+
+  const handleToggleProjects = useCallback(() => {
+    closePresets();
+    toggleProjects();
+  }, [closePresets, toggleProjects]);
 
   const bottomBarProps = {
     onRandomize: handleRandomize,
@@ -135,7 +200,8 @@ export default function Generator() {
     canUndo,
     canRedo,
     undoCount,
-    onPresetsToggle: togglePresets,
+    onPresetsToggle: handleTogglePresets,
+    onProjectsToggle: handleToggleProjects,
     onCopyLink: handleCopyLink,
     onOpenDocument: handleOpenDocumentPicker,
     onSaveDocument: handleSaveDocument,
@@ -154,6 +220,17 @@ export default function Generator() {
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           void handleOpenDocument(file);
+          event.currentTarget.value = '';
+        }}
+      />
+      <input
+        ref={imageFileInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) void handleDroppedFile(file);
           event.currentTarget.value = '';
         }}
       />
@@ -238,6 +315,15 @@ export default function Generator() {
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
               />
+              {doc.layers.length === 0 && (
+                <EmptyCanvasStart
+                  onImportImage={() => imageFileInputRef.current?.click()}
+                  onAddText={() => addLayer('text')}
+                  onAddNoise={() => addLayer('noise')}
+                  onRandomize={handleRandomize}
+                  onOpenNodes={() => setViewMode('nodes')}
+                />
+              )}
             </ErrorBoundary>
           ) : (
             <div className="node-mode-stage">
@@ -297,6 +383,16 @@ export default function Generator() {
               onLoad={handleLoadPreset}
               onDelete={deletePreset}
               onClose={closePresets}
+            />
+          )}
+          {showProjects && (
+            <ProjectsPanel
+              projects={projects}
+              maxProjects={maxProjects}
+              onSave={saveCurrentProject}
+              onLoad={handleLoadProject}
+              onDelete={deleteProject}
+              onClose={closeProjects}
             />
           )}
         </AnimatePresence>

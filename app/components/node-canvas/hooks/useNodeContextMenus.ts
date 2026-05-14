@@ -1,6 +1,6 @@
 import type { FinalConnectionState, ReactFlowInstance, Edge as RFEdge, Node as RFNode } from '@xyflow/react';
 import { useCallback, useEffect } from 'react';
-import type { CanvasGraph } from '../../../types/config';
+import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { AddAction, ContextMenuState, InsertConnectionConfig } from '../types';
@@ -167,13 +167,24 @@ export function useNodeContextMenus({
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      if (!connectionState.fromNode || connectionState.toNode) return;
+      if (!connectionState.fromNode || !connectionState.fromHandle) return;
+      if (connectionState.toHandle) return;
       const pointer = 'changedTouches' in event ? event.changedTouches[0] : event;
       if (!pointer) return;
+      const fromHandle = connectionState.fromHandle;
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY }) ?? {
         x: 0,
         y: 0,
       };
+      const insertion =
+        fromHandle.type === 'target'
+          ? {
+              targetId: connectionState.fromNode.id,
+              targetPort: (fromHandle.id ?? 'in') as GraphEdge['toPort'],
+            }
+          : {
+              sourceId: connectionState.fromNode.id,
+            };
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: {
@@ -181,9 +192,7 @@ export function useNodeContextMenus({
           x: pointer.clientX,
           y: pointer.clientY,
           flowPos,
-          insertion: {
-            sourceId: connectionState.fromNode.id,
-          },
+          insertion,
         },
       });
     },

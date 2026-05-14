@@ -2,6 +2,7 @@ import {
   ASPECT_SIZES,
   type AspectRatio,
   type CanvasGraph,
+  type GraphArea,
   type GraphColorNode,
   type GraphEdge,
   type GraphMergeNode,
@@ -65,7 +66,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     }
   });
 
-  return { edges, positions, mergeNodes: [], colorNodes: [] };
+  return { edges, positions, mergeNodes: [], colorNodes: [], areas: [] };
 }
 
 export function updateGraphPositions(
@@ -133,6 +134,7 @@ export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
     mergeNodes: graph.mergeNodes.filter((n) => n.id !== id),
     edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -154,6 +156,7 @@ export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
     colorNodes: (graph.colorNodes ?? []).filter((n) => n.id !== id),
     edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -162,6 +165,89 @@ export function updateColorNode(graph: CanvasGraph, id: string, patch: Partial<G
     ...graph,
     colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
   };
+}
+
+function uniqueNodeIds(ids: string[]): string[] {
+  return [...new Set(ids.filter((id) => id.trim().length > 0))];
+}
+
+function removeNodeFromGraphAreas(areas: GraphArea[] | undefined, nodeId: string): GraphArea[] {
+  return (areas ?? []).map((area) => ({
+    ...area,
+    nodeIds: area.nodeIds.filter((id) => id !== nodeId),
+  }));
+}
+
+function removeNodesFromOtherGraphAreas(
+  areas: GraphArea[] | undefined,
+  nodeIds: string[],
+  targetAreaId: string,
+): GraphArea[] {
+  const moving = new Set(nodeIds);
+  return (areas ?? [])
+    .map((area) =>
+      area.id === targetAreaId
+        ? area
+        : {
+            ...area,
+            nodeIds: area.nodeIds.filter((id) => !moving.has(id)),
+          },
+    )
+    .filter((area) => area.id === targetAreaId || area.nodeIds.length > 0);
+}
+
+export function addGraphArea(graph: CanvasGraph, area: GraphArea): CanvasGraph {
+  const nodeIds = uniqueNodeIds(area.nodeIds);
+  const areas = removeNodesFromOtherGraphAreas(graph.areas, nodeIds, area.id);
+  return {
+    ...graph,
+    areas: [
+      ...areas,
+      {
+        ...area,
+        nodeIds,
+      },
+    ],
+  };
+}
+
+export function updateGraphArea(graph: CanvasGraph, id: string, patch: Partial<Omit<GraphArea, 'id'>>): CanvasGraph {
+  const nextNodeIds = patch.nodeIds ? uniqueNodeIds(patch.nodeIds) : undefined;
+  const areas = nextNodeIds ? removeNodesFromOtherGraphAreas(graph.areas, nextNodeIds, id) : (graph.areas ?? []);
+  return {
+    ...graph,
+    areas: areas.map((area) =>
+      area.id === id
+        ? {
+            ...area,
+            ...patch,
+            nodeIds: nextNodeIds ?? area.nodeIds,
+          }
+        : area,
+    ),
+  };
+}
+
+export function removeGraphArea(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...graph,
+    areas: (graph.areas ?? []).filter((area) => area.id !== id),
+  };
+}
+
+export function assignNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const ids = uniqueNodeIds(nodeIds);
+  const areas = removeNodesFromOtherGraphAreas(graph.areas, ids, areaId);
+  return {
+    ...graph,
+    areas: areas.map((area) => (area.id === areaId ? { ...area, nodeIds: ids } : area)),
+  };
+}
+
+export function addNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const area = (graph.areas ?? []).find((item) => item.id === areaId);
+  if (!area) return graph;
+  return assignNodesToGraphArea(graph, areaId, [...area.nodeIds, ...nodeIds]);
 }
 
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
@@ -234,6 +320,7 @@ export function removeLayerFromGraph(graph: CanvasGraph, layerId: string): Canva
     ...graph,
     edges: graph.edges.filter((e) => e.fromId !== layerId && e.toId !== layerId),
     positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== layerId)),
+    areas: removeNodeFromGraphAreas(graph.areas, layerId),
   };
 }
 

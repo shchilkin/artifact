@@ -151,7 +151,8 @@ describe('documentCommands', () => {
     const layerId = layerResult.selectedLayerId;
 
     expect(layerId).toBeTruthy();
-    expect(layerResult.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'fill' });
+    expect(layerResult.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
+    expect(layerResult.doc.layers[1]).toMatchObject({ id: layerId, kind: 'fill' });
     expect(layerResult.doc.graph?.positions[layerId!]).toEqual({ x: 400, y: 260 });
     expect(layerResult.doc.graph?.edges).toContainEqual({
       id: `edge-0-fill-a-${layerId}`,
@@ -171,13 +172,37 @@ describe('documentCommands', () => {
     const effectId = effectResult.selectedLayerId;
 
     expect(effectId).toBeTruthy();
-    expect(effectResult.doc.layers.at(-1)).toMatchObject({ id: effectId, kind: 'effect', preset: 'grain' });
+    expect(effectResult.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', effectId, 'text-a']);
+    expect(effectResult.doc.layers[1]).toMatchObject({ id: effectId, kind: 'effect', preset: 'grain' });
     expect(effectResult.doc.graph?.edges).toContainEqual({
       id: `edge-0-fill-a-${effectId}`,
       fromId: 'fill-a',
       fromPort: 'out',
       toId: effectId,
       toPort: 'in',
+    });
+  });
+
+  it('connects a dropped source node into the dragged target port', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'layer', layerKind: 'noise' },
+      { x: -360, y: 240 },
+      { targetId: 'text-a', targetPort: 'bg' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
+    expect(result.doc.layers[1]).toMatchObject({ id: layerId, kind: 'noise' });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-${layerId}-text-a`,
+      fromId: layerId,
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
     });
   });
 
@@ -220,9 +245,43 @@ describe('documentCommands', () => {
       toId: 'text-a',
       toPort: 'bg',
     });
+    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', 'text-a']);
     expect(result.doc.graph?.edges.some((edge) => edge.fromId === colorNode!.id && edge.toId === EXPORT_NODE_ID)).toBe(
       false,
     );
+  });
+
+  it('inserts layer-backed split nodes between the replaced edge layers', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'effect', preset: 'scanlines' },
+      { x: 500, y: 340 },
+      {
+        sourceId: 'fill-a',
+        targetId: 'text-a',
+        targetPort: 'bg',
+        replaceEdgeId: 'e-fill-text',
+      },
+    );
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: 'e-fill-text__before',
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: layerId,
+      toPort: 'in',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: 'e-fill-text__after',
+      fromId: layerId,
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
+    });
   });
 
   it('removes a layer and graph references to it', () => {

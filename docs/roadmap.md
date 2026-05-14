@@ -36,6 +36,10 @@ Both views must stay truthful. If nodes define a meaningful structure, the layer
 view should respect that structure through folders, areas, or graph-derived
 grouping instead of becoming a misleading flat stack.
 
+v0.3 starts this organization track with serializable graph area metadata in
+`CanvasGraph.areas`. Areas are organizational only for now; they do not change
+render order or traversal until a dedicated render behavior is designed.
+
 ## Feature Intake From Sticky Notes
 
 The sticky-note backlog is useful, but it should not all enter the current
@@ -342,14 +346,22 @@ Exit criteria:
 Known follow-up:
 
 - Layer rendering now follows graph branch structure for graph-backed
-  documents, but the layer list is still visually flat. Folder/area UI should
-  make nested branches visible in the layer panel without making folders affect
-  render order.
+  documents. The first organization UI shows passive graph-area overlays on the
+  node canvas and area folder rows in the layer list. Later work can add
+  collapse/rename controls, but folders must stay organizational unless a
+  render-order rule is explicitly designed and tested.
 
 ### v0.3: Project Memory And Sharing
 
 Goal: make Artifact feel less like a local toy and more like a real creative
 workspace.
+
+Current browser-only scope:
+
+- [x] Local project library for named document snapshots.
+- [x] Project thumbnails, local open, and local delete controls.
+- [x] Existing `.artifact.json` file save/open and `?doc=` share links remain
+  the portable interchange path.
 
 Likely VPS/full-stack scope:
 

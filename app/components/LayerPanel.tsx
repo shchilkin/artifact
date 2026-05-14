@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectLayer, EffectPreset, Layer, LayerKind } from '../types/config';
+import type { CanvasDocument, EffectLayer, EffectPreset, GraphArea, Layer, LayerKind } from '../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
+import { getLayerAreaMap } from '../utils/layerAreas';
 
 interface Props {
   doc: CanvasDocument;
@@ -29,9 +30,11 @@ const KIND_ICONS: Record<LayerKind, string> = {
 
 interface LayerRowProps {
   layer: Layer;
+  areas: GraphArea[];
   selected: boolean;
   dragOver: boolean;
   editing: boolean;
+  nested?: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
@@ -46,9 +49,11 @@ interface LayerRowProps {
 
 const LayerRow = memo(function LayerRow({
   layer,
+  areas,
   selected,
   dragOver,
   editing,
+  nested = false,
   onSelect,
   onStartEditing,
   onFinishRename,
@@ -80,7 +85,7 @@ const LayerRow = memo(function LayerRow({
       }}
       className={`flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim' : 'hover:bg-accent-dim/50'
-      } ${dragOver ? 'border-t-2 border-t-accent' : ''}`}
+      } ${dragOver ? 'border-t-2 border-t-accent' : ''} ${nested ? 'layer-row-nested' : ''}`}
     >
       <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
       <span
@@ -113,6 +118,17 @@ const LayerRow = memo(function LayerRow({
       ) : (
         <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
           {layer.name}
+        </span>
+      )}
+      {areas.length > 0 && !nested && (
+        <span
+          className="layer-area-chip"
+          title={areas.map((area) => area.name).join(', ')}
+          aria-label={`Graph area: ${areas.map((area) => area.name).join(', ')}`}
+        >
+          <span className="layer-area-dot" style={{ background: areas[0].color }} aria-hidden="true" />
+          <span className="layer-area-name">{areas[0].name}</span>
+          {areas.length > 1 && <span className="layer-area-more">+{areas.length - 1}</span>}
         </span>
       )}
       <button
@@ -152,6 +168,35 @@ const LayerRow = memo(function LayerRow({
   );
 });
 
+type LayerDisplayItem =
+  | { type: 'layer'; layer: Layer; areas: GraphArea[]; nested?: false }
+  | { type: 'area'; area: GraphArea; layers: Layer[] };
+
+function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<string, GraphArea[]>): LayerDisplayItem[] {
+  const items: LayerDisplayItem[] = [];
+  const renderedAreaIds = new Set<string>();
+  const renderedLayerIds = new Set<string>();
+
+  for (const layer of displayLayers) {
+    if (renderedLayerIds.has(layer.id)) continue;
+    const area = areasByLayerId.get(layer.id)?.[0];
+    if (!area) {
+      items.push({ type: 'layer', layer, areas: [] });
+      renderedLayerIds.add(layer.id);
+      continue;
+    }
+
+    if (renderedAreaIds.has(area.id)) continue;
+    const areaLayerIds = new Set(area.nodeIds);
+    const areaLayers = displayLayers.filter((item) => areaLayerIds.has(item.id));
+    for (const item of areaLayers) renderedLayerIds.add(item.id);
+    renderedAreaIds.add(area.id);
+    items.push({ type: 'area', area, layers: areaLayers });
+  }
+
+  return items;
+}
+
 export function LayerPanel({
   doc,
   selectedLayerId,
@@ -183,6 +228,11 @@ export function LayerPanel({
   }, [showAddMenu]);
 
   const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
+  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
+  const displayItems = useMemo(
+    () => buildLayerDisplayItems(displayLayers, areasByLayerId),
+    [areasByLayerId, displayLayers],
+  );
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
@@ -303,25 +353,57 @@ export function LayerPanel({
         {displayLayers.length === 0 && (
           <div className="px-3.5 py-4 text-[10px] text-dim text-center font-mono">No layers. Add one above.</div>
         )}
-        {displayLayers.map((layer) => (
-          <LayerRow
-            key={layer.id}
-            layer={layer}
-            selected={selectedLayerId === layer.id}
-            dragOver={dragOverId === layer.id}
-            editing={editingId === layer.id}
-            onSelect={handleSelectLayer}
-            onStartEditing={handleStartEditing}
-            onFinishRename={handleFinishRename}
-            onDragStart={handleDragStart}
-            onDragOverLayer={handleDragOverLayer}
-            onDropLayer={handleDrop}
-            onDragEnd={handleCancelDrag}
-            onToggleVisible={onToggleVisible}
-            onDuplicateLayer={onDuplicateLayer}
-            onRemoveLayer={onRemoveLayer}
-          />
-        ))}
+        {displayItems.map((item) =>
+          item.type === 'area' ? (
+            <div key={item.area.id} className="layer-area-folder">
+              <div className="layer-area-folder-header">
+                <span className="layer-area-dot" style={{ background: item.area.color }} aria-hidden="true" />
+                <span className="layer-area-name">{item.area.name}</span>
+                <span className="layer-area-count">{item.layers.length}</span>
+              </div>
+              {item.layers.map((layer) => (
+                <LayerRow
+                  key={layer.id}
+                  layer={layer}
+                  areas={[]}
+                  nested
+                  selected={selectedLayerId === layer.id}
+                  dragOver={dragOverId === layer.id}
+                  editing={editingId === layer.id}
+                  onSelect={handleSelectLayer}
+                  onStartEditing={handleStartEditing}
+                  onFinishRename={handleFinishRename}
+                  onDragStart={handleDragStart}
+                  onDragOverLayer={handleDragOverLayer}
+                  onDropLayer={handleDrop}
+                  onDragEnd={handleCancelDrag}
+                  onToggleVisible={onToggleVisible}
+                  onDuplicateLayer={onDuplicateLayer}
+                  onRemoveLayer={onRemoveLayer}
+                />
+              ))}
+            </div>
+          ) : (
+            <LayerRow
+              key={item.layer.id}
+              layer={item.layer}
+              areas={item.areas}
+              selected={selectedLayerId === item.layer.id}
+              dragOver={dragOverId === item.layer.id}
+              editing={editingId === item.layer.id}
+              onSelect={handleSelectLayer}
+              onStartEditing={handleStartEditing}
+              onFinishRename={handleFinishRename}
+              onDragStart={handleDragStart}
+              onDragOverLayer={handleDragOverLayer}
+              onDropLayer={handleDrop}
+              onDragEnd={handleCancelDrag}
+              onToggleVisible={onToggleVisible}
+              onDuplicateLayer={onDuplicateLayer}
+              onRemoveLayer={onRemoveLayer}
+            />
+          ),
+        )}
       </div>
     </div>
   );

@@ -45,6 +45,51 @@ const layeredFillDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const graphPreviewDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 9, aspect: '1:1' },
+  layers: [
+    {
+      id: 'graph-connected-fill',
+      name: 'Connected fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2e6bd9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'graph-unconnected-fill',
+      name: 'Unconnected top fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#250033',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-connected-export',
+        fromId: 'graph-connected-fill',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'graph-connected-fill': { x: 0, y: 80 },
+      'graph-unconnected-fill': { x: 0, y: 420 },
+      __export__: { x: 520, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const wideFillLayer = {
   id: 'wide-fill',
   name: 'Wide fill',
@@ -64,6 +109,92 @@ const wideNodeDocument = {
     positions: { 'wide-fill': { x: 0, y: 80 }, __export__: { x: 420, y: 80 } },
     mergeNodes: [],
     colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const areaMergeDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 6, aspect: '1:1' },
+  layers: [
+    {
+      id: 'area-fill',
+      name: 'Area fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#7842d9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [{ id: 'e-merge-export', fromId: 'merge-area', fromPort: 'out', toId: '__export__', toPort: 'in' }],
+    positions: { 'area-fill': { x: 0, y: 80 }, 'merge-area': { x: 460, y: 80 }, __export__: { x: 900, y: 80 } },
+    mergeNodes: [{ id: 'merge-area', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
+    colorNodes: [],
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill', 'merge-area'] }],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const areaExtendDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 7, aspect: '16:9' },
+  layers: [
+    {
+      id: 'area-fill',
+      name: 'Area fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#7842d9',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'area-noise',
+      name: 'Area noise',
+      visible: true,
+      locked: false,
+      kind: 'noise',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      color: '#ff5a36',
+      accentColor: '#9d5cff',
+      primitiveShape: 'sphere',
+      primitiveShading: 'smooth',
+      tiltX: -18,
+      tiltY: 28,
+      tiltZ: 0,
+      primitiveDepth: 48,
+      noiseType: 'clouds',
+      noiseScale: 28,
+      noiseDetail: 4,
+      noiseContrast: 52,
+      noiseBalance: 50,
+      arrayPattern: 'grid',
+      arrayShape: 'disc',
+      arrayCount: 6,
+      arrayRows: 4,
+      arrayGap: 30,
+      arrayRadius: 120,
+      arraySize: 36,
+      arrayJitter: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-fill-noise', fromId: 'area-fill', fromPort: 'out', toId: 'area-noise', toPort: 'bg' },
+      { id: 'e-noise-export', fromId: 'area-noise', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: { 'area-fill': { x: 0, y: 80 }, 'area-noise': { x: 520, y: 80 }, __export__: { x: 980, y: 80 } },
+    mergeNodes: [],
+    colorNodes: [],
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill'] }],
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
@@ -127,6 +258,54 @@ const textDragDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const testImageSrc =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
+const imageDragDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 8, aspect: '16:9' },
+  layers: [
+    {
+      id: 'image-drag-fill',
+      name: 'Backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#08060c',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'image-drag-image',
+      name: 'Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: testImageSrc,
+      fit: 'free',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-fill-image', fromId: 'image-drag-fill', fromPort: 'out', toId: 'image-drag-image', toPort: 'bg' },
+      { id: 'e-image-export', fromId: 'image-drag-image', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {
+      'image-drag-fill': { x: 0, y: 80 },
+      'image-drag-image': { x: 500, y: 80 },
+      __export__: { x: 1000, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const emptyTransparentDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 5, aspect: '1:1' },
@@ -171,6 +350,16 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
 
+test('layer preview follows graph output when unconnected layers exist', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  await switchToLayerView(page);
+  await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
+});
+
 test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.goto('/app');
   await page.getByRole('button', { name: 'Add layer' }).click();
@@ -204,6 +393,16 @@ test('default document can export from the browser', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
 });
 
+test('current document can be saved into local projects', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByLabel('Project name').fill('Browser Project');
+  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
+
+  await expect(page.getByText('Browser Project')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
+});
+
 test('node previews respect document aspect ratio', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);
@@ -218,6 +417,128 @@ test('node previews respect document aspect ratio', async ({ page }) => {
   const tallFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
   await expect(tallFrame).toBeVisible({ timeout: 15_000 });
   await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
+});
+
+test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.node-shell-kind-fill').first();
+  await expect(fillNode).toBeVisible({ timeout: 15_000 });
+  await fillNode.click();
+
+  await page.getByRole('button', { name: 'Create area from selected nodes' }).click();
+  await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-area-label')).toContainText('Area 1');
+
+  await switchToLayerView(page);
+  await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
+});
+
+test('selected area can be extended without stacking memberships', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await switchToNodeView(page);
+
+  await page.getByRole('button', { name: 'Select Area 1' }).click();
+  const noiseNode = page.locator('.node-shell-kind-noise').first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  await noiseNode.click();
+  await page.getByRole('button', { name: 'Add selected nodes to area' }).click();
+
+  await expect(page.locator('.node-area')).toHaveCount(1);
+  await expect(page.locator('.node-area-label')).toContainText('2');
+
+  await switchToLayerView(page);
+  await expect(page.locator('.layer-area-folder')).toHaveCount(1);
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
+  await expect(page.locator('.layer-area-more')).toHaveCount(0);
+});
+
+test('nodes stay visible while dragging inside an area', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await switchToNodeView(page);
+
+  const noiseNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('.node-shell-kind-noise') })
+    .first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  const nodeBox = await noiseNode.boundingBox();
+  expect(nodeBox).not.toBeNull();
+  if (!nodeBox) return;
+
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + 180, nodeBox.y + 70, { steps: 8 });
+
+  await expect(noiseNode).toBeVisible();
+  await expect
+    .poll(async () =>
+      noiseNode.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 40 && rect.height > 40 && getComputedStyle(element).visibility === 'visible';
+      }),
+    )
+    .toBe(true);
+  await expect(page.locator('.node-area-label')).toHaveCSS('opacity', '0');
+
+  await page.mouse.up();
+});
+
+test('dropping a connection on empty canvas can add and connect a node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-fill') });
+  await expect(fillNode).toHaveCount(1);
+  const sourceHandle = fillNode.locator('.react-flow__handle-right');
+  await expect(sourceHandle).toHaveCount(1);
+  const box = await sourceHandle.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 280, startY - 120, { steps: 8 });
+  await page.mouse.up();
+
+  const menu = page.locator('.nadd-surface');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  await menu.getByRole('button', { name: /Fill/i }).click();
+
+  await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(2);
+  await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
+});
+
+test('connecting to a merge node inside an area does not recurse node updates', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await switchToNodeView(page);
+
+  await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
+  const fillNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-fill') });
+  const mergeNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-merge') });
+  await expect(fillNode).toHaveCount(1);
+  await expect(mergeNode).toHaveCount(1);
+
+  const sourceHandle = fillNode.locator('.react-flow__handle-right[data-handleid="out"]');
+  const targetHandle = mergeNode.locator('.react-flow__handle-left[data-handleid="b"]');
+  await expect(sourceHandle).toHaveCount(1);
+  await expect(targetHandle).toHaveCount(1);
+  const sourceBox = await sourceHandle.boundingBox();
+  const targetBox = await targetHandle.boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  if (!sourceBox || !targetBox) return;
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
 });
 
 test('text node can be dragged repeatedly without crashing', async ({ page }) => {
@@ -245,6 +566,38 @@ test('text node can be dragged repeatedly without crashing', async ({ page }) =>
 
   await expect(page.getByText('Oops!')).toHaveCount(0);
   await expect(page.locator('.node-canvas-root')).toBeVisible();
+});
+
+test('image transform gestures stay local to the selected node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await switchToNodeView(page);
+
+  const imageNode = page.locator('.node-shell-kind-image').first();
+  await expect(imageNode).toBeVisible({ timeout: 15_000 });
+  await imageNode.click();
+
+  const overlay = imageNode.locator('.node-drag-overlay');
+  await expect(overlay).toBeVisible({ timeout: 15_000 });
+  const box = await overlay.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  const viewport = page.locator('.react-flow__viewport').first();
+  const beforeWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -240);
+  const afterWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
+
+  expect(afterWheelTransform).toBe(beforeWheelTransform);
+
+  await page.mouse.down();
+  for (let i = 0; i < 10; i += 1) {
+    await page.mouse.move(box.x + box.width / 2 + i * 22, box.y + box.height / 2 + (i % 2 === 0 ? 48 : -48));
+  }
+  await page.mouse.up();
+
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await expect(imageNode.locator('.node-live-preview-frame')).toHaveCSS('overflow', 'hidden');
 });
 
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {

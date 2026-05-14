@@ -243,4 +243,22 @@ describe('cloneDocument', () => {
     expect(cloned.layers[0]).toEqual(original.layers[0]);
     expect(cloned.layers[0]).not.toBe(original.layers[0]);
   });
+
+  it('deep-clones graph areas independently', () => {
+    const original: CanvasDocument = {
+      global: { bg: '#120020', seed: 1, aspect: '1:1' },
+      layers: [makeTextLayer({ id: 'text-1' })],
+      export: { format: 'png', scale: 1, target: 'cover' },
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['text-1'] }],
+      },
+    };
+    const cloned = cloneDocument(original);
+    cloned.graph?.areas?.[0]?.nodeIds.push('other');
+    expect(original.graph?.areas?.[0]?.nodeIds).toEqual(['text-1']);
+  });
 });

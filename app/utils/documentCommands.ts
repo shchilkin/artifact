@@ -41,7 +41,7 @@ export type DocumentAddAction =
   | { kind: 'color' };
 
 export interface DocumentInsertConnectionConfig {
-  sourceId: string;
+  sourceId?: string;
   targetId?: string;
   targetPort?: GraphEdge['toPort'];
   replaceEdgeId?: string;
@@ -119,7 +119,7 @@ function connectInsertedNode(
 
   if (insertion?.targetId) {
     next = addGraphEdge(next, {
-      id: createEdgeId(insertedNodeId, insertion.targetId, 1),
+      id: createEdgeId(insertedNodeId, insertion.targetId, insertion.sourceId ? 1 : 0),
       fromId: insertedNodeId,
       fromPort: 'out',
       toId: insertion.targetId,
@@ -127,6 +127,31 @@ function connectInsertedNode(
     });
   }
 
+  return next;
+}
+
+function insertionLayerIndex(layers: Layer[], graph: CanvasGraph, insertion?: DocumentInsertConnectionConfig): number {
+  const layerIndex = new Map(layers.map((layer, index) => [layer.id, index]));
+  const edge = insertion?.replaceEdgeId ? graph.edges.find((item) => item.id === insertion.replaceEdgeId) : undefined;
+  const sourceIndex = layerIndex.get(insertion?.sourceId ?? edge?.fromId ?? '');
+  const targetIndex = layerIndex.get(insertion?.targetId ?? edge?.toId ?? '');
+
+  if (sourceIndex !== undefined && targetIndex !== undefined) {
+    return sourceIndex < targetIndex ? Math.min(sourceIndex + 1, targetIndex) : sourceIndex + 1;
+  }
+  if (sourceIndex !== undefined) return sourceIndex + 1;
+  if (targetIndex !== undefined) return targetIndex;
+  return layers.length;
+}
+
+function insertLayerForGraphConnection(
+  layers: Layer[],
+  layer: Layer,
+  graph: CanvasGraph,
+  insertion?: DocumentInsertConnectionConfig,
+): Layer[] {
+  const next = [...layers];
+  next.splice(insertionLayerIndex(layers, graph, insertion), 0, layer);
   return next;
 }
 
@@ -167,8 +192,9 @@ export function addNodeAtDocument(
       : action.kind === 'noisePreset'
         ? makeNoisePresetLayer(action.preset)
         : createLayerOfKind(action.layerKind);
+  const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
-    addLayerToGraph(ensureDocumentGraph(doc), layer.id, position),
+    addLayerToGraph(baseGraph, layer.id, position),
     layer.id,
     action.kind === 'effect' ? 'in' : 'bg',
     insertion,
@@ -178,7 +204,7 @@ export function addNodeAtDocument(
   return {
     doc: {
       ...doc,
-      layers: [...doc.layers, layer],
+      layers: insertLayerForGraphConnection(doc.layers, layer, baseGraph, insertion),
       graph,
     },
     selectedLayerId: layer.id,

@@ -61,6 +61,10 @@ Rules:
 - Selection and overlays are editor state, not document state.
 - The machine should not own render data.
 - Document mutations should happen through `useGeneratorDocument` callbacks.
+- High-frequency drag state stays in React Flow shadow nodes until drag stop.
+  React Flow measurement changes are accepted when they are real, duplicate
+  dimension changes are ignored, and identical selection events are skipped to
+  avoid document-independent render loops while dragging.
 
 ## Node types
 
@@ -75,6 +79,23 @@ Current React Flow node types:
 
 Layer nodes map to `CanvasDocument.layers`. Merge and color nodes live in `CanvasGraph`.
 
+Graph areas/groups live in `CanvasGraph.areas`. They are serializable
+organization metadata for dense workflows; they should help the layer list and
+node canvas explain structure, but they must not change rendering or traversal
+until a dedicated render rule is designed and tested.
+
+The first area UI is intentionally passive: the node canvas draws area overlays
+around assigned nodes, and the layer panel groups layer-backed members under
+area folder rows. Creating an area from selected nodes stores only node ids,
+name, color, and collapsed metadata. Areas do not own React Flow nodes, do not
+make node positions relative, and do not affect render order.
+
+Area membership is exclusive. A node belongs to at most one area in the current
+editor model; adding a node to another area removes it from the previous one.
+Selecting an existing area and nodes extends that area instead of creating a
+stacked area over the same nodes. Nested areas/folders are a future design slice,
+not current behavior.
+
 ## Interaction grammar
 
 ### Global graph gestures
@@ -85,6 +106,7 @@ Layer nodes map to `CanvasDocument.layers`. Merge and color nodes live in `Canva
 | Wheel empty canvas | Zoom graph |
 | Drag node header/body outside local controls | Move node |
 | Connect handles | Create graph edge |
+| Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
 
@@ -180,6 +202,9 @@ Rules:
 - Interactive mode should stay visually close to canonical renderer.
 - Node cards may size by content type; avoid assumptions that every node is the
   same fixed width.
+- Thumbnail rendering should keep the last good frame during graph drag
+  gestures. Dragging a node should move the node shell, not restart expensive
+  render work inside every preview.
 
 ## Recommended refactor target
 
