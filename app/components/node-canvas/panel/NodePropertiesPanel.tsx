@@ -4,11 +4,12 @@ import type {
   CanvasGraph,
   GraphColorNode,
   GraphMergeNode,
+  GraphRepeatNode,
   Layer,
 } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
-import { ColorInspector, ExportInspector, LayerInspector, MergeInspector } from '../inspector';
+import { ColorInspector, ExportInspector, LayerInspector, MergeInspector, RepeatInspector } from '../inspector';
 
 interface NodePropertiesPanelProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface NodePropertiesPanelProps {
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
+  onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   onExport: () => void;
@@ -34,6 +36,7 @@ export function NodePropertiesPanel({
   onUpdateLayer,
   onUpdateMergeNode,
   onUpdateColorNode,
+  onUpdateRepeatNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -47,6 +50,10 @@ export function NodePropertiesPanel({
   const colorNode =
     selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
       ? ((graph.colorNodes ?? []).find((n) => n.id === selectedNodeId) ?? null)
+      : null;
+  const repeatNode =
+    selectedNodeId && selectedNodeId !== EXPORT_NODE_ID
+      ? ((graph.repeatNodes ?? []).find((n) => n.id === selectedNodeId) ?? null)
       : null;
   const isExport = selectedNodeId === EXPORT_NODE_ID;
 
@@ -65,6 +72,9 @@ export function NodePropertiesPanel({
   } else if (mergeNode) {
     title = mergeNode.name;
     subtitle = 'merge';
+  } else if (repeatNode) {
+    title = repeatNode.name;
+    subtitle = 'repeat';
   } else if (isExport) {
     title = 'Output';
     subtitle = 'export';
@@ -107,7 +117,15 @@ export function NodePropertiesPanel({
                 detached
               />
             )}
-            {!layer && !colorNode && !mergeNode && isExport && (
+            {!layer && !colorNode && !mergeNode && repeatNode && (
+              <RepeatInspector
+                key={repeatNode.id}
+                repeatNode={repeatNode}
+                onChange={(patch) => onUpdateRepeatNode(repeatNode.id, patch)}
+                detached
+              />
+            )}
+            {!layer && !colorNode && !mergeNode && !repeatNode && isExport && (
               <ExportInspector
                 key={EXPORT_NODE_ID}
                 exportConfig={doc.export}

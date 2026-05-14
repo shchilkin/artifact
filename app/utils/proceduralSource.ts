@@ -98,7 +98,14 @@ function worleyNoise(x: number, y: number, seed: number) {
   return clamp(nearest / 1.25, 0, 1);
 }
 
-function drawNoiseLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed: number, draft: boolean) {
+function drawNoiseLayer(
+  ctx: CanvasRenderingContext2D,
+  layer: SourceLayer,
+  seed: number,
+  draft: boolean,
+  drawWidth = SOURCE_SIZE,
+  drawHeight = SOURCE_SIZE,
+) {
   const textureSize = (draft ? 112 : 192) + layer.noiseDetail * (draft ? 10 : 16);
   const canvas = document.createElement('canvas');
   canvas.width = textureSize;
@@ -137,15 +144,23 @@ function drawNoiseLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
   }
 
   noiseCtx.putImageData(image, 0, 0);
-  ctx.drawImage(canvas, -SOURCE_SIZE / 2, -SOURCE_SIZE / 2, SOURCE_SIZE, SOURCE_SIZE);
+  ctx.drawImage(canvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 }
 
-function drawArrayShape(ctx: CanvasRenderingContext2D, shape: SourceLayer['arrayShape'], size: number, angle: number) {
+function drawArrayShape(
+  ctx: CanvasRenderingContext2D,
+  shape: SourceLayer['arrayShape'],
+  size: number,
+  angle: number,
+  dimensions?: { width: number; height: number },
+) {
   ctx.save();
   ctx.rotate(angle);
   ctx.beginPath();
   if (shape === 'bar') {
-    ctx.roundRect(-size * 0.9, -size * 0.22, size * 1.8, size * 0.44, size * 0.18);
+    const barWidth = dimensions?.width ?? size * 1.8;
+    const barHeight = dimensions?.height ?? size * 0.44;
+    ctx.roundRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight, Math.min(barWidth, barHeight) * 0.22);
   } else if (shape === 'diamond') {
     ctx.moveTo(0, -size);
     ctx.lineTo(size * 0.88, 0);
@@ -165,7 +180,13 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
   const rng = lcg(seed ^ 0x58f173);
   const size = Math.max(6, layer.arraySize);
 
-  const drawItem = (x: number, y: number, angle: number, index: number) => {
+  const drawItem = (
+    x: number,
+    y: number,
+    angle: number,
+    index: number,
+    dimensions?: { width: number; height: number },
+  ) => {
     const jitter = layer.arrayJitter;
     const offsetX = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
     const offsetY = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
@@ -175,7 +196,7 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
     ctx.fillStyle = rgbToStyle(color, 0.92);
     ctx.strokeStyle = rgbToStyle(mixRgb(color, accent, 0.35), 0.45);
     ctx.lineWidth = 1;
-    drawArrayShape(ctx, layer.arrayShape, size, angle);
+    drawArrayShape(ctx, layer.arrayShape, size, angle, dimensions);
     ctx.stroke();
     ctx.restore();
   };
@@ -183,9 +204,21 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
   if (layer.arrayPattern === 'line') {
     const count = Math.max(2, Math.round(layer.arrayCount));
     const gap = Math.max(12, layer.arrayGap);
+    const rows = Math.max(1, Math.round(layer.arrayRows));
+    const rowGap =
+      layer.arrayShape === 'bar' ? Math.max(size * 1.18, layer.arrayGap, 8) : Math.max(size * 0.75, layer.arrayGap, 8);
+    const barDimensions =
+      layer.arrayShape === 'bar'
+        ? { width: Math.max(2, layer.arrayRadius), height: Math.max(6, layer.arraySize) }
+        : undefined;
     const width = (count - 1) * gap;
-    for (let i = 0; i < count; i += 1) {
-      drawItem(-width / 2 + i * gap, 0, 0, i);
+    const height = (rows - 1) * rowGap;
+    let index = 0;
+    for (let row = 0; row < rows; row += 1) {
+      for (let i = 0; i < count; i += 1) {
+        drawItem(-width / 2 + i * gap, -height / 2 + row * rowGap, 0, index, barDimensions);
+        index += 1;
+      }
     }
     return;
   }
@@ -194,9 +227,10 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
     const count = Math.max(3, Math.round(layer.arrayCount));
     const rings = Math.max(1, Math.round(layer.arrayRows));
     const baseRadius = Math.max(16, layer.arrayRadius);
+    const gap = Math.max(0, layer.arrayGap);
     let index = 0;
     for (let ring = 0; ring < rings; ring += 1) {
-      const radius = rings === 1 ? baseRadius : baseRadius * ((ring + 1) / rings);
+      const radius = baseRadius + ring * gap;
       for (let i = 0; i < count; i += 1) {
         const angle = (i / count) * Math.PI * 2;
         drawItem(Math.cos(angle) * radius, Math.sin(angle) * radius, angle, index);
@@ -251,7 +285,9 @@ export async function drawSourceLayer(
     const threeCanvas = await renderPrimitiveToCanvas(layer, renderSize, primitiveViewState, { forceFallback: draft });
     ctx.drawImage(threeCanvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
   } else if (layer.kind === 'noise') {
-    drawNoiseLayer(ctx, layer, seed, draft);
+    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
+    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
+    drawNoiseLayer(ctx, layer, seed, draft, drawWidth, drawHeight);
   } else {
     drawArrayLayer(ctx, layer, seed);
   }

@@ -328,6 +328,9 @@ Implemented first slice:
   nodes and export nodes share the same preview sizing rules.
 - Noise creation includes concrete, film grain, static, cells, clouds, paper,
   and CRT dirt presets without changing the saved document schema.
+- The node graph now includes a graph-only repeater utility that can stamp any
+  upstream source branch into line, grid, or radial patterns over an optional
+  backdrop.
 - Effect help now exposes family intent and "good for" guidance in docs and
   inspector popovers.
 - Text has a larger curated display-font set while arbitrary external font

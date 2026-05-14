@@ -63,7 +63,10 @@ Owner:
 
 Rules:
 
-- Graph positions, edges, merge nodes, and color nodes are durable.
+- Graph positions, edges, merge nodes, color nodes, and repeat nodes are durable.
+- Repeat nodes are graph-only utility nodes. They store serializable pattern,
+  count, spacing, transform, opacity, and blend settings; they do not own DOM
+  or renderer objects.
 - Graph areas/groups are durable organization metadata. They are displayed as
   folders in the layer panel, but they still do not affect graph traversal or
   render order.

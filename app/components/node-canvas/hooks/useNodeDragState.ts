@@ -103,6 +103,7 @@ export function useNodeDragState({
       if (nodeId === EXPORT_NODE_ID) return null;
       if (graphRef.current.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a' as const;
       if ((graphRef.current.colorNodes ?? []).some((colorNode) => colorNode.id === nodeId)) return 'in' as const;
+      if ((graphRef.current.repeatNodes ?? []).some((repeatNode) => repeatNode.id === nodeId)) return 'in' as const;
       const layer = layers.find((item) => item.id === nodeId);
       if (!layer) return null;
       return layer.kind === 'effect' ? ('in' as const) : ('bg' as const);

@@ -288,6 +288,71 @@ describe('renderDocument — preview/export size parity', () => {
     expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
   });
 
+  it('radial array gap expands rings instead of only changing inspector state', async () => {
+    const makeRadialDoc = (gap: number): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 13, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('array', {
+          arrayPattern: 'radial',
+          arrayShape: 'disc',
+          arrayCount: 10,
+          arrayRows: 4,
+          arrayRadius: 24,
+          arrayGap: gap,
+          arraySize: 8,
+          arrayJitter: 0,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const tight = await renderDocument(makeRadialDoc(12), 320, 320, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const wide = await renderDocument(makeRadialDoc(52), 320, 320, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(alphaBounds(wide).width).toBeGreaterThan(alphaBounds(tight).width + 80);
+    expect(alphaBounds(wide).height).toBeGreaterThan(alphaBounds(tight).height + 80);
+  });
+
+  it('barcode line rows and width controls affect rendered geometry', async () => {
+    const makeBarcodeDoc = (rows: number, barWidth: number): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 21, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('array', {
+          arrayPattern: 'line',
+          arrayShape: 'bar',
+          arrayCount: 6,
+          arrayRows: rows,
+          arrayGap: 48,
+          arrayRadius: barWidth,
+          arraySize: 54,
+          arrayJitter: 0,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const singleRow = await renderDocument(makeBarcodeDoc(1, 8), 320, 320, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const threeRows = await renderDocument(makeBarcodeDoc(3, 8), 320, 320, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const wideBars = await renderDocument(makeBarcodeDoc(1, 32), 320, 320, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(alphaBounds(threeRows).height).toBeGreaterThan(alphaBounds(singleRow).height + 60);
+    expect(visiblePixelCount(wideBars)).toBeGreaterThan(visiblePixelCount(singleRow) * 2.5);
+  });
+
   it('primitive full-frame sources scale proportionally at export sizes', async () => {
     const primitiveDoc: CanvasDocument = {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },

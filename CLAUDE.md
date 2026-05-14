@@ -79,6 +79,10 @@ The current two-stage pipeline is:
 renderDocument(doc, W, H, imageCache, options?): Promise<HTMLCanvasElement>
 ```
 
+Graph-only utility nodes such as merge, color, and repeat live in
+`CanvasGraph`, not in `layers`. Keep them serializable and render them through
+`renderGraphTarget`.
+
 **Scale baseline**: `REF = 540` — all size values are authored at 540px and scaled by `W / REF` at render time.
 
 ---

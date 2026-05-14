@@ -11,6 +11,8 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
+import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
 
 export interface CuratedExample {
   id: string;
@@ -20,6 +22,24 @@ export interface CuratedExample {
 
 function fx(preset: EffectPreset, name: string, partial: Partial<EffectLayer> = {}): EffectLayer {
   return { ...makeEffectPresetLayer(preset), name, ...partial };
+}
+
+function noise(
+  preset: NoisePresetId,
+  id: string,
+  name: string,
+  partial: Partial<ReturnType<typeof makeNoisePresetLayer>> = {},
+) {
+  return { ...makeNoisePresetLayer(preset), id, name, ...partial };
+}
+
+function array(
+  preset: ArrayPresetId,
+  id: string,
+  name: string,
+  partial: Partial<ReturnType<typeof makeArrayPresetLayer>> = {},
+) {
+  return { ...makeArrayPresetLayer(preset), id, name, ...partial };
 }
 
 function mkDoc(
@@ -38,6 +58,139 @@ function mkDoc(
 }
 
 export const CURATED_EXAMPLES: CuratedExample[] = [
+  {
+    id: 'static-orbit',
+    name: 'Static Orbit',
+    doc: mkDoc(
+      24001,
+      '#030307',
+      '16:9',
+      [
+        makeFillLayer({ id: 'static-bg', name: 'void plate', color: '#030307' }),
+        noise('static', 'static-snow', 'signal snow', { opacity: 85 }),
+        fx('scanlines', 'crt rhythm', { id: 'static-scan', scanlines: 24, scanlineWidth: 2 }),
+        array('orbitRings', 'static-orbits', 'orbit rings', { opacity: 78 }),
+        fx('neonGlow', 'cyan halo', { id: 'static-neon', neonGlow: 42, neonColor: '#67ffd8' }),
+        fx('vignette', 'edge pressure', { id: 'static-vignette', vignette: 58 }),
+        fx('grain', 'final grit', { id: 'static-grain', grain: 24 }),
+      ],
+      {
+        edges: [
+          { id: 'e-static-bg-snow', fromId: 'static-bg', fromPort: 'out', toId: 'static-snow', toPort: 'bg' },
+          { id: 'e-static-snow-scan', fromId: 'static-snow', fromPort: 'out', toId: 'static-scan', toPort: 'in' },
+          { id: 'e-static-orbits-neon', fromId: 'static-orbits', fromPort: 'out', toId: 'static-neon', toPort: 'in' },
+          {
+            id: 'e-static-scan-merge',
+            fromId: 'static-scan',
+            fromPort: 'out',
+            toId: 'merge-static-orbit',
+            toPort: 'a',
+          },
+          {
+            id: 'e-static-neon-merge',
+            fromId: 'static-neon',
+            fromPort: 'out',
+            toId: 'merge-static-orbit',
+            toPort: 'b',
+          },
+          {
+            id: 'e-static-merge-vignette',
+            fromId: 'merge-static-orbit',
+            fromPort: 'out',
+            toId: 'static-vignette',
+            toPort: 'in',
+          },
+          {
+            id: 'e-static-vignette-grain',
+            fromId: 'static-vignette',
+            fromPort: 'out',
+            toId: 'static-grain',
+            toPort: 'in',
+          },
+          { id: 'e-static-export', fromId: 'static-grain', fromPort: 'out', toId: '__export__', toPort: 'in' },
+        ],
+        positions: {
+          'static-bg': { x: 0, y: 120 },
+          'static-snow': { x: 360, y: 120 },
+          'static-scan': { x: 720, y: 120 },
+          'static-orbits': { x: 360, y: -260 },
+          'static-neon': { x: 720, y: -260 },
+          'merge-static-orbit': { x: 1080, y: -60 },
+          'static-vignette': { x: 1440, y: -60 },
+          'static-grain': { x: 1800, y: -60 },
+          __export__: { x: 2160, y: -60 },
+        },
+        mergeNodes: [{ id: 'merge-static-orbit', name: 'orbit over signal', blendMode: 'screen', opacity: 88 }],
+        colorNodes: [],
+      },
+    ),
+  },
+  {
+    id: 'paper-shards',
+    name: 'Paper Shards',
+    doc: mkDoc(
+      24002,
+      '#110704',
+      '4:5',
+      [
+        makeFillLayer({ id: 'paper-bg', name: 'warm plate', color: '#110704' }),
+        noise('paper', 'paper-fiber', 'paper fiber', { opacity: 76 }),
+        fx('cyanotype', 'blue print wash', { id: 'paper-cyan', cyanotype: 62 }),
+        array('shardField', 'paper-shards', 'shard field', { color: '#fff4d6', accentColor: '#ff5a36', opacity: 86 }),
+        fx('risoShift', 'loose registration', { id: 'paper-riso', risoShift: 16, risoAngle: 18 }),
+        makeTextLayer({
+          id: 'paper-title',
+          name: 'caption',
+          content: 'SOURCE\nFIRST',
+          font: 'BEBAS',
+          size: 78,
+          color: '#fff7e8',
+          x: 0.5,
+          y: 0.58,
+          scaleX: 1,
+          scaleY: 1,
+        }),
+        fx('overprint', 'ink pressure', { id: 'paper-overprint', overprint: 28 }),
+      ],
+      {
+        edges: [
+          { id: 'e-paper-bg-fiber', fromId: 'paper-bg', fromPort: 'out', toId: 'paper-fiber', toPort: 'bg' },
+          { id: 'e-paper-fiber-cyan', fromId: 'paper-fiber', fromPort: 'out', toId: 'paper-cyan', toPort: 'in' },
+          { id: 'e-paper-shards-riso', fromId: 'paper-shards', fromPort: 'out', toId: 'paper-riso', toPort: 'in' },
+          { id: 'e-paper-cyan-merge', fromId: 'paper-cyan', fromPort: 'out', toId: 'merge-paper-shards', toPort: 'a' },
+          { id: 'e-paper-riso-merge', fromId: 'paper-riso', fromPort: 'out', toId: 'merge-paper-shards', toPort: 'b' },
+          {
+            id: 'e-paper-merge-title',
+            fromId: 'merge-paper-shards',
+            fromPort: 'out',
+            toId: 'paper-title',
+            toPort: 'bg',
+          },
+          {
+            id: 'e-paper-title-overprint',
+            fromId: 'paper-title',
+            fromPort: 'out',
+            toId: 'paper-overprint',
+            toPort: 'in',
+          },
+          { id: 'e-paper-export', fromId: 'paper-overprint', fromPort: 'out', toId: '__export__', toPort: 'in' },
+        ],
+        positions: {
+          'paper-bg': { x: -360, y: 120 },
+          'paper-fiber': { x: 0, y: 120 },
+          'paper-cyan': { x: 360, y: 120 },
+          'paper-shards': { x: 0, y: -260 },
+          'paper-riso': { x: 360, y: -260 },
+          'merge-paper-shards': { x: 720, y: -80 },
+          'paper-title': { x: 1080, y: -80 },
+          'paper-overprint': { x: 1440, y: -80 },
+          __export__: { x: 1800, y: -80 },
+        },
+        mergeNodes: [{ id: 'merge-paper-shards', name: 'paper plus shards', blendMode: 'screen', opacity: 72 }],
+        colorNodes: [],
+      },
+    ),
+  },
   {
     id: 'tower-type',
     name: 'Tower Type',

@@ -207,7 +207,7 @@ const SOURCE_NODES: NodeDef[] = [
     id: 'array',
     symbol: '▦',
     name: 'Array',
-    desc: 'A motif repeater for lines, grids, and radial bursts. It is the quickest way to build regimented sleeves, tech patterns, and sticker-sheet rhythms.',
+    desc: 'A motif repeater for lines, grids, and radial bursts. Start from sticker grid, radial burst, barcode line, orbit rings, or shard field presets, then tune the same array fields.',
     params: [
       { key: 'arrayCount', range: '2–18' },
       { key: 'arrayRows', range: '1–12' },
@@ -417,6 +417,21 @@ const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
 }));
 
 const ALL_NODES = [...CONTENT_NODES, ...SOURCE_NODES, ...EFFECT_NODES];
+
+const GRAPH_UTILITY_GUIDE = [
+  {
+    name: 'Merge',
+    desc: 'Combines two upstream branches with blend and opacity controls.',
+  },
+  {
+    name: 'Color',
+    desc: 'Applies brightness, contrast, saturation, and hue after a branch has rendered.',
+  },
+  {
+    name: 'Repeater',
+    desc: 'Repeats any source branch into line, grid, or radial patterns over an optional backdrop.',
+  },
+];
 
 // ─── Humanize camelCase param keys ───────────────────────────────────────────
 
@@ -689,6 +704,15 @@ export default function DocsNodes() {
             <div key={family.name} className="docs-effect-guide__item">
               <span className="docs-effect-guide__name">{family.name}</span>
               <p className="docs-effect-guide__desc">{family.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Graph utilities">
+          {GRAPH_UTILITY_GUIDE.map((utility) => (
+            <div key={utility.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{utility.name}</span>
+              <p className="docs-effect-guide__desc">{utility.desc}</p>
             </div>
           ))}
         </section>

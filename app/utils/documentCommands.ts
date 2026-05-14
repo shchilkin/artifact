@@ -6,6 +6,7 @@ import {
   type GraphColorNode,
   type GraphEdge,
   type GraphMergeNode,
+  type GraphRepeatNode,
   type Layer,
   type LayerKind,
   makeEffectPresetLayer,
@@ -13,22 +14,28 @@ import {
   makeFillLayer,
   makeGraphColorNode,
   makeGraphMergeNode,
+  makeGraphRepeatNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import type { ArrayPresetId } from './arrayPresets';
+import { makeArrayPresetLayer } from './arrayPresets';
 import {
   addColorNode,
   addGraphEdge,
   addLayerToGraph,
   addMergeNode,
+  addRepeatNode,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeLayerFromGraph,
   removeMergeNode,
+  removeRepeatNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
+  updateRepeatNode as updateRepeatNodeInGraph,
 } from './nodeGraph';
 import type { NoisePresetId } from './noisePresets';
 import { makeNoisePresetLayer } from './noisePresets';
@@ -36,9 +43,11 @@ import { makeNoisePresetLayer } from './noisePresets';
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'noisePreset'; preset: NoisePresetId }
+  | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
-  | { kind: 'color' };
+  | { kind: 'color' }
+  | { kind: 'repeat' };
 
 export interface DocumentInsertConnectionConfig {
   sourceId?: string;
@@ -186,12 +195,26 @@ export function addNodeAtDocument(
     return { doc: { ...doc, graph }, selectedLayerId: null };
   }
 
+  if (action.kind === 'repeat') {
+    const node = makeGraphRepeatNode();
+    const graph = connectInsertedNode(
+      addRepeatNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+    return { doc: { ...doc, graph }, selectedLayerId: null };
+  }
+
   const layer =
     action.kind === 'effect'
       ? createEffectPresetLayer(action.preset)
       : action.kind === 'noisePreset'
         ? makeNoisePresetLayer(action.preset)
-        : createLayerOfKind(action.layerKind);
+        : action.kind === 'arrayPreset'
+          ? makeArrayPresetLayer(action.preset)
+          : createLayerOfKind(action.layerKind);
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),
@@ -231,6 +254,9 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
     for (const colorNode of nextGraph?.colorNodes ?? []) {
       if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
     }
+    for (const repeatNode of nextGraph?.repeatNodes ?? []) {
+      if (idSet.has(repeatNode.id)) nextGraph = removeRepeatNode(nextGraph!, repeatNode.id);
+    }
     for (const id of ids) {
       if (doc.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
     }
@@ -268,6 +294,15 @@ export function updateColorNodeInDocument(
 ): CanvasDocument {
   if (!doc.graph) return doc;
   return { ...doc, graph: updateColorNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateRepeatNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphRepeatNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateRepeatNodeInGraph(doc.graph, id, patch) };
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {

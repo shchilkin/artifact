@@ -326,6 +326,21 @@ export interface GraphColorNode {
   hue: number; // degrees, -180 to 180 (0 = neutral)
 }
 
+export interface GraphRepeatNode {
+  id: string;
+  name: string;
+  pattern: ArrayPattern;
+  count: number;
+  rows: number;
+  gap: number;
+  radius: number;
+  scale: number;
+  jitter: number;
+  rotation: number;
+  opacity: number;
+  blendMode: string;
+}
+
 export interface GraphArea {
   id: string;
   name: string;
@@ -339,6 +354,7 @@ export interface CanvasGraph {
   positions: Record<string, { x: number; y: number }>;
   mergeNodes: GraphMergeNode[];
   colorNodes: GraphColorNode[];
+  repeatNodes?: GraphRepeatNode[];
   areas?: GraphArea[];
 }
 
@@ -864,6 +880,24 @@ export function makeGraphColorNode(partial: Partial<GraphColorNode> = {}): Graph
   };
 }
 
+export function makeGraphRepeatNode(partial: Partial<GraphRepeatNode> = {}): GraphRepeatNode {
+  return {
+    id: `repeat-${Date.now()}-${_idCounter++}`,
+    name: 'Repeater',
+    pattern: 'grid',
+    count: 4,
+    rows: 3,
+    gap: 120,
+    radius: 90,
+    scale: 28,
+    jitter: 0,
+    rotation: 0,
+    opacity: 100,
+    blendMode: 'source-over',
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     schemaVersion: doc.schemaVersion,
@@ -879,6 +913,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           positions: { ...doc.graph.positions },
           mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
           colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
+          repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
           areas: (doc.graph.areas ?? []).map((area) => ({ ...area, nodeIds: [...area.nodeIds] })),
         }
       : undefined,

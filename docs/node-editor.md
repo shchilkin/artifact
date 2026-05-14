@@ -75,9 +75,11 @@ Current React Flow node types:
 | `layerNode` | Wraps any document layer. |
 | `mergeNode` | Combines two upstream inputs. |
 | `colorNode` | Applies non-layer color adjustment. |
+| `repeatNode` | Repeats any upstream source branch over an optional backdrop. |
 | `exportNode` | Terminal output target. |
 
-Layer nodes map to `CanvasDocument.layers`. Merge and color nodes live in `CanvasGraph`.
+Layer nodes map to `CanvasDocument.layers`. Merge, color, and repeat nodes live
+in `CanvasGraph`.
 
 Graph areas/groups live in `CanvasGraph.areas`. They are serializable
 organization metadata for dense workflows; they should help the layer list and

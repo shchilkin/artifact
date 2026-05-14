@@ -4,7 +4,7 @@ import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { NODE_W } from './constants';
-import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData } from './types';
+import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData, RepeatNodeData } from './types';
 
 export function buildRFNodes(
   doc: CanvasDocument,
@@ -68,6 +68,23 @@ export function buildRFNodes(
         editing: editorNodeId === cn.id,
         connected,
       } satisfies ColorNodeData,
+    });
+  });
+
+  (graph.repeatNodes ?? []).forEach((rn) => {
+    const pos = graph.positions[rn.id] ?? { x: 400, y: 300 };
+    nodes.push({
+      id: rn.id,
+      type: 'repeatNode',
+      position: pos,
+      selected: selectedNodeIds.has(rn.id),
+      data: {
+        repeatNode: rn,
+        previewTargetId: rn.id,
+        selected: selectedNodeIds.has(rn.id),
+        editing: editorNodeId === rn.id,
+        connected,
+      } satisfies RepeatNodeData,
     });
   });
 

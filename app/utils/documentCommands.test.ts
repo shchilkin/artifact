@@ -6,6 +6,7 @@ import {
   makeFillLayer,
   makeGraphColorNode,
   makeGraphMergeNode,
+  makeGraphRepeatNode,
   makeTextLayer,
 } from '../types/config';
 import {
@@ -22,6 +23,7 @@ import {
   updateDocumentExportConfig,
   updateLayerInDocument,
   updateMergeNodeInDocument,
+  updateRepeatNodeInDocument,
 } from './documentCommands';
 import { EXPORT_NODE_ID } from './nodeGraph';
 
@@ -44,16 +46,19 @@ function makeGraph(): CanvasGraph {
       { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       { id: 'e-merge-text', fromId: 'merge-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
       { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      { id: 'e-repeat-export', fromId: 'repeat-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ],
     positions: {
       'fill-a': { x: 0, y: 80 },
       'text-a': { x: 216, y: 80 },
       'merge-a': { x: 432, y: 80 },
       'color-a': { x: 648, y: 80 },
+      'repeat-a': { x: 756, y: 80 },
       [EXPORT_NODE_ID]: { x: 864, y: 80 },
     },
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a', opacity: 80 })],
     colorNodes: [makeGraphColorNode({ id: 'color-a', brightness: 90 })],
+    repeatNodes: [makeGraphRepeatNode({ id: 'repeat-a', count: 3 })],
   };
 }
 
@@ -139,6 +144,36 @@ describe('documentCommands', () => {
     });
   });
 
+  it('inserts a repeat node with source and target edges', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'repeat' },
+      { x: 380, y: 240 },
+      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(repeatNode).toBeDefined();
+    expect(result.doc.graph?.positions[repeatNode!.id]).toEqual({ x: 380, y: 240 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${repeatNode!.id}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: repeatNode!.id,
+      toPort: 'in',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-1-${repeatNode!.id}-${EXPORT_NODE_ID}`,
+      fromId: repeatNode!.id,
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+  });
+
   it('inserts layer and effect nodes with the correct input ports', () => {
     const doc = makeDoc(makeGraph());
     const layerResult = addNodeAtDocument(
@@ -214,6 +249,16 @@ describe('documentCommands', () => {
     expect(layerId).toBeTruthy();
     expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'noise', name: 'CRT Dirt' });
     expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 480, y: 320 });
+  });
+
+  it('inserts array presets as normal array source layers', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(doc, { kind: 'arrayPreset', preset: 'radialBurst' }, { x: 520, y: 360 });
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'array', name: 'Radial Burst' });
+    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 520, y: 360 });
   });
 
   it('splits replaceEdgeId insertions without adding a separate target edge', () => {
@@ -293,24 +338,28 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => edge.fromId === 'text-a' || edge.toId === 'text-a')).toBe(false);
   });
 
-  it('deletes selected layer, merge, and color nodes from one document operation', () => {
+  it('deletes selected layer, merge, color, and repeat nodes from one document operation', () => {
     const doc = makeDoc(makeGraph());
-    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a']);
+    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a', 'repeat-a']);
 
     expect(next.layers.map((layer) => layer.id)).toEqual(['text-a']);
     expect(next.graph?.mergeNodes).toEqual([]);
     expect(next.graph?.colorNodes).toEqual([]);
+    expect(next.graph?.repeatNodes).toEqual([]);
     expect(Object.keys(next.graph?.positions ?? {})).not.toContain('fill-a');
-    expect(next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a'].includes(edge.fromId))).toBe(false);
+    expect(next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a'].includes(edge.fromId))).toBe(
+      false,
+    );
   });
 
-  it('updates layer, merge node, color node, global, export, and graph immutably', () => {
+  it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {
     const doc = makeDoc(makeGraph());
     const graph: CanvasGraph = { edges: [], positions: {}, mergeNodes: [], colorNodes: [] };
 
     expect(updateLayerInDocument(doc, 'text-a', { content: 'B' }).layers[1]).toMatchObject({ content: 'B' });
     expect(updateMergeNodeInDocument(doc, 'merge-a', { opacity: 25 }).graph?.mergeNodes[0]?.opacity).toBe(25);
     expect(updateColorNodeInDocument(doc, 'color-a', { saturation: 140 }).graph?.colorNodes[0]?.saturation).toBe(140);
+    expect(updateRepeatNodeInDocument(doc, 'repeat-a', { count: 8 }).graph?.repeatNodes?.[0]?.count).toBe(8);
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');
     expect(updateDocumentExportConfig(doc, { scale: 3 }).export.scale).toBe(3);

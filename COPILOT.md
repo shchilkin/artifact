@@ -75,8 +75,9 @@ When adding or changing graph behavior, check whether you also need to update:
 3. document sync in `app/hooks/useGeneratorDocument.ts`
 4. node creation/rendering in `app/components/node-canvas/buildRFNodes.ts`
 5. node UI and properties panels in `app/components/node-canvas/*`
-6. docs in `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `app/routes/docs.nodes.tsx`
-7. tests
+6. graph-aware rendering in `app/utils/render/graph.ts` when the node affects pixels
+7. docs in `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `app/routes/docs.nodes.tsx`
+8. tests
 
 For state, rendering, or node-editor changes, also update the matching file in `docs/`.
 

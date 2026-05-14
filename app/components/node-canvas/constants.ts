@@ -1,5 +1,6 @@
 import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
 import type { AddAction } from './types';
 
@@ -21,6 +22,7 @@ export const KIND_COLOR: Record<string, string> = {
   array: 'var(--node-kind-array)',
   merge: 'var(--node-kind-merge)',
   color: 'var(--node-kind-color)',
+  repeat: 'var(--node-kind-array)',
   export: 'var(--node-kind-export)',
 };
 
@@ -35,6 +37,7 @@ export const KIND_SYMBOL: Record<string, string> = {
   array: '▦',
   merge: '⊕',
   color: '◐',
+  repeat: '⧉',
   export: '↗',
 };
 
@@ -130,6 +133,13 @@ export const ADD_ITEMS: Array<{
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
   },
+  ...ARRAY_PRESET_IDS.map((preset) => ({
+    label: ARRAY_PRESETS[preset].name,
+    symbol: '▦',
+    description: ARRAY_PRESETS[preset].description,
+    group: 'source' as const,
+    action: { kind: 'arrayPreset', preset } as AddAction,
+  })),
   ...EFFECT_PRESET_MENU_ORDER.map((preset) => ({
     label: EFFECT_PRESETS[preset].name,
     description: 'Apply a focused effect preset, then refine it.',
@@ -150,6 +160,13 @@ export const ADD_ITEMS: Array<{
     description: 'Grade hue, contrast, and tonal balance.',
     group: 'util',
     action: { kind: 'color' },
+  },
+  {
+    label: 'Repeater',
+    symbol: '⧉',
+    description: 'Repeat any source branch into line, grid, or radial patterns.',
+    group: 'util',
+    action: { kind: 'repeat' },
   },
 ];
 
@@ -229,6 +246,13 @@ export const ADD_NODE_ITEMS: Array<{
     group: 'generators',
     action: { kind: 'layer', layerKind: 'array' },
   },
+  ...ARRAY_PRESET_IDS.map((preset) => ({
+    label: ARRAY_PRESETS[preset].name,
+    symbol: '▦',
+    description: ARRAY_PRESETS[preset].description,
+    group: 'generators' as const,
+    action: { kind: 'arrayPreset', preset } as AddAction,
+  })),
   {
     label: 'Merge',
     symbol: '⊕',
@@ -242,6 +266,13 @@ export const ADD_NODE_ITEMS: Array<{
     description: 'Grade hue, contrast, and tonal balance.',
     group: 'utilities',
     action: { kind: 'color' },
+  },
+  {
+    label: 'Repeater',
+    symbol: '⧉',
+    description: 'Repeat any source branch into line, grid, or radial patterns.',
+    group: 'utilities',
+    action: { kind: 'repeat' },
   },
 ];
 

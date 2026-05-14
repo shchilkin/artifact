@@ -9,12 +9,14 @@ import type {
   GraphColorNode,
   GraphEdge,
   GraphMergeNode,
+  GraphRepeatNode,
   ImageLayer,
   Layer,
   LayerKind,
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
+import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
@@ -28,9 +30,11 @@ export type GalleryEligibleLayer =
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'noisePreset'; preset: NoisePresetId }
+  | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
-  | { kind: 'color' };
+  | { kind: 'color' }
+  | { kind: 'repeat' };
 
 export interface InsertConnectionConfig {
   sourceId?: string;
@@ -50,6 +54,7 @@ export interface NodeCanvasProps {
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
+  onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
@@ -97,6 +102,14 @@ export type ColorNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type RepeatNodeData = {
+  repeatNode: GraphRepeatNode;
+  previewTargetId: string;
+  selected: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
 export type ExportNodeData = {
   exportConfig: CanvasDocument['export'];
   aspect: AspectRatio;
@@ -121,6 +134,7 @@ export interface NodeCanvasActionsContextValue {
   updateLayer: (id: string, patch: Partial<Layer>) => void;
   updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
+  updateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
@@ -196,7 +210,7 @@ export interface NodeEditorPanelProps {
   children: ReactNode;
 }
 
-export type NodeCanvasRFNode = RFNode<LayerNodeData | MergeNodeData | ColorNodeData | ExportNodeData>;
+export type NodeCanvasRFNode = RFNode<LayerNodeData | MergeNodeData | ColorNodeData | RepeatNodeData | ExportNodeData>;
 
 export interface GalleryState {
   primitiveViewStates: Record<string, PrimitiveViewportState>;

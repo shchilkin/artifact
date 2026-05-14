@@ -1,4 +1,12 @@
-import type { CanvasDocument, CanvasGraph, GraphColorNode, GraphMergeNode, Layer } from '../../types/config';
+import type {
+  CanvasDocument,
+  CanvasGraph,
+  GraphColorNode,
+  GraphMergeNode,
+  GraphRepeatNode,
+  Layer,
+} from '../../types/config';
+import { lcg } from '../lcg';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
 import { applyLayerToCanvas, type RenderOptions } from './layers';
@@ -16,8 +24,53 @@ function findColorNode(graph: CanvasGraph, nodeId: string): GraphColorNode | und
   return (graph.colorNodes ?? []).find((node) => node.id === nodeId);
 }
 
+function findRepeatNode(graph: CanvasGraph, nodeId: string): GraphRepeatNode | undefined {
+  return (graph.repeatNodes ?? []).find((node) => node.id === nodeId);
+}
+
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function cropAlphaBounds(source: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = source.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return source;
+  const pixels = ctx.getImageData(0, 0, source.width, source.height).data;
+  let minX = source.width;
+  let minY = source.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < source.height; y += 1) {
+    for (let x = 0; x < source.width; x += 1) {
+      const alpha = pixels[(y * source.width + x) * 4 + 3] ?? 0;
+      if (alpha <= 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return source;
+
+  const padding = 4;
+  const sx = Math.max(0, minX - padding);
+  const sy = Math.max(0, minY - padding);
+  const sw = Math.min(source.width - sx, maxX - minX + 1 + padding * 2);
+  const sh = Math.min(source.height - sy, maxY - minY + 1 + padding * 2);
+  const crop = createCanvas(sw, sh);
+  crop.getContext('2d')?.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+  return crop;
 }
 
 function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: number, H: number): HTMLCanvasElement {
@@ -101,6 +154,72 @@ function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: numb
   return canvas;
 }
 
+function applyRepeatNode(
+  source: HTMLCanvasElement,
+  backdrop: HTMLCanvasElement | null,
+  node: GraphRepeatNode,
+  seed: number,
+  W: number,
+  H: number,
+): HTMLCanvasElement {
+  const canvas = backdrop ? cloneCanvas(backdrop, W, H) : createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return canvas;
+
+  const item = cropAlphaBounds(source);
+  const itemScale = Math.max(0.01, node.scale / 100);
+  const drawW = Math.max(1, item.width * itemScale);
+  const drawH = Math.max(1, item.height * itemScale);
+  const unit = W / 540;
+  const gap = Math.max(1, node.gap * unit);
+  const radius = Math.max(0, node.radius * unit);
+  const jitter = Math.max(0, node.jitter * unit);
+  const rotation = (node.rotation * Math.PI) / 180;
+  const rng = lcg(seed ^ hashString(node.id));
+
+  const drawItem = (x: number, y: number, angle = rotation) => {
+    const offsetX = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
+    const offsetY = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
+    ctx.save();
+    ctx.translate(x + offsetX, y + offsetY);
+    ctx.rotate(angle);
+    ctx.globalAlpha = node.opacity / 100;
+    ctx.globalCompositeOperation = toCompositeOperation(node.blendMode);
+    ctx.drawImage(item, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  };
+
+  if (node.pattern === 'radial') {
+    const count = Math.max(1, Math.round(node.count));
+    const rings = Math.max(1, Math.round(node.rows));
+    for (let ring = 0; ring < rings; ring += 1) {
+      const r = radius + ring * gap;
+      for (let i = 0; i < count; i += 1) {
+        const angle = rotation + (i / count) * Math.PI * 2;
+        drawItem(W / 2 + Math.cos(angle) * r, H / 2 + Math.sin(angle) * r, angle);
+      }
+    }
+    return canvas;
+  }
+
+  const columns = Math.max(1, Math.round(node.count));
+  const rows = Math.max(1, Math.round(node.rows));
+  const stepX = Math.max(gap, drawW * 0.25);
+  const stepY = Math.max(gap, drawH * 0.25);
+  const totalW = (columns - 1) * stepX;
+  const totalH = (rows - 1) * stepY;
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < columns; col += 1) {
+      const x = W / 2 - totalW / 2 + col * stepX;
+      const y = H / 2 - totalH / 2 + row * stepY;
+      drawItem(x, y);
+    }
+  }
+
+  return canvas;
+}
+
 async function renderGraphNode(
   doc: CanvasDocument,
   graph: CanvasGraph,
@@ -153,6 +272,19 @@ async function renderGraphNode(
         ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
         : createCanvas(W, H);
       return applyColorNode(source, colorNode, W, H);
+    }
+
+    const repeatNode = findRepeatNode(graph, nodeId);
+    if (repeatNode) {
+      const sourceId = findIncomingSource(graph, nodeId, 'in');
+      const backdropId = findIncomingSource(graph, nodeId, 'bg');
+      const source = sourceId
+        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache)
+        : createCanvas(W, H);
+      const backdrop = backdropId
+        ? await renderGraphNode(doc, graph, backdropId, W, H, imageCache, options, cache)
+        : null;
+      return applyRepeatNode(source, backdrop, repeatNode, doc.global.seed, W, H);
     }
 
     const layer = findLayer(doc, nodeId);

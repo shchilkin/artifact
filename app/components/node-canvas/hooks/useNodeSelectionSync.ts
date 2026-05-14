@@ -73,11 +73,12 @@ export function useNodeSelectionSync({
       ...doc.layers.map((layer) => layer.id),
       ...graph.mergeNodes.map((node) => node.id),
       ...(graph.colorNodes ?? []).map((node) => node.id),
+      ...(graph.repeatNodes ?? []).map((node) => node.id),
       EXPORT_NODE_ID,
     ];
     const validEdgeIds = graph.edges.map((edge) => edge.id);
     send({ type: 'FILTER_INVALID_REFERENCES', validNodeIds, validEdgeIds });
-  }, [doc.layers, graph.edges, graph.mergeNodes, graph.colorNodes, send]);
+  }, [doc.layers, graph.edges, graph.mergeNodes, graph.colorNodes, graph.repeatNodes, send]);
 
   const activeEditorNodeId = useMemo(() => {
     if (!expandedNodeId) return null;
@@ -85,9 +86,10 @@ export function useNodeSelectionSync({
       expandedNodeId === EXPORT_NODE_ID ||
       doc.layers.some((layer) => layer.id === expandedNodeId) ||
       graph.mergeNodes.some((node) => node.id === expandedNodeId) ||
-      (graph.colorNodes ?? []).some((node) => node.id === expandedNodeId);
+      (graph.colorNodes ?? []).some((node) => node.id === expandedNodeId) ||
+      (graph.repeatNodes ?? []).some((node) => node.id === expandedNodeId);
     return exists ? expandedNodeId : null;
-  }, [doc.layers, graph.colorNodes, graph.mergeNodes, expandedNodeId]);
+  }, [doc.layers, graph.colorNodes, graph.mergeNodes, graph.repeatNodes, expandedNodeId]);
 
   const handleSelectNode = useCallback(
     (id: string, event?: React.MouseEvent) => {

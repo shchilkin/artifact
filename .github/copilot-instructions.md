@@ -42,10 +42,15 @@ The canonical document type is `CanvasDocument`:
 interface CanvasDocument {
   global: GlobalConfig;   // bg, seed, aspect
   layers: Layer[];        // render order: index 0 = bottom
+  graph?: CanvasGraph;    // optional graph composition with merge/color/repeat utilities
 }
 ```
 
 Layer kinds: `text | image | emoji | fill | effect` (plus procedural: `primitive | noise | array`).
+
+Graph-only utility nodes such as merge, color, and repeat live in
+`CanvasGraph`; keep them JSON-serializable and render them through
+`renderGraphTarget`.
 
 Always create layers with factory functions — never construct them manually:
 `makeTextLayer`, `makeImageLayer`, `makeEmojiLayer`, `makeFillLayer`, `makeEffectLayer`, `makeEffectPresetLayer`, `makeSourceLayer`
