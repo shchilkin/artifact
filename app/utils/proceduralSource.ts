@@ -185,7 +185,7 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
     const gap = Math.max(12, layer.arrayGap);
     const width = (count - 1) * gap;
     for (let i = 0; i < count; i += 1) {
-      drawItem(-width / 2 + i * gap, 0, 0, i);
+      drawItem(-width / 2 + i * gap, 0, layer.arrayShape === 'bar' ? Math.PI / 2 : 0, i);
     }
     return;
   }
@@ -194,9 +194,10 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
     const count = Math.max(3, Math.round(layer.arrayCount));
     const rings = Math.max(1, Math.round(layer.arrayRows));
     const baseRadius = Math.max(16, layer.arrayRadius);
+    const gap = Math.max(0, layer.arrayGap);
     let index = 0;
     for (let ring = 0; ring < rings; ring += 1) {
-      const radius = rings === 1 ? baseRadius : baseRadius * ((ring + 1) / rings);
+      const radius = baseRadius + ring * gap;
       for (let i = 0; i < count; i += 1) {
         const angle = (i / count) * Math.PI * 2;
         drawItem(Math.cos(angle) * radius, Math.sin(angle) * radius, angle, index);

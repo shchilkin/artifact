@@ -445,18 +445,21 @@ export function LayerControls({
                 label="Count"
                 value={Math.round(layer.arrayCount)}
                 {...R.arrayCount}
+                overrideMax={64}
                 onChange={(v) => onChange({ arrayCount: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
                 label="Rows"
                 value={Math.round(layer.arrayRows)}
                 {...R.arrayRows}
+                overrideMax={48}
                 onChange={(v) => onChange({ arrayRows: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
                 label="Gap"
                 value={Math.round(layer.arrayGap)}
                 {...R.arrayGap}
+                overrideMax={240}
                 onChange={(v) => onChange({ arrayGap: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
@@ -469,12 +472,14 @@ export function LayerControls({
                 label="Radius"
                 value={Math.round(layer.arrayRadius)}
                 {...R.arrayRadius}
+                overrideMax={420}
                 onChange={(v) => onChange({ arrayRadius: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
                 label="Jitter"
                 value={Math.round(layer.arrayJitter)}
                 {...R.arrayJitter}
+                overrideMax={180}
                 onChange={(v) => onChange({ arrayJitter: v } as Partial<SourceLayer>)}
               />
             </>
