@@ -68,7 +68,21 @@ describe('normalizeDocument', () => {
       ],
     });
 
-    expect(doc.layers[0]).toMatchObject({ id: 'legacy-source', kind: 'noise' });
+    expect(doc.layers[0]).toMatchObject({ id: 'legacy-source', kind: 'noise', seedOffset: 0 });
+  });
+
+  it('adds seed defaults to older repeat nodes', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        repeatNodes: [{ id: 'repeat-a', name: 'Repeater' }],
+      },
+    });
+
+    expect(doc.graph?.repeatNodes?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
   });
 
   it('splits legacy combined effect presets into focused effect layers', () => {
@@ -292,6 +306,7 @@ describe('document serialization helpers', () => {
             scale: 28,
             jitter: 0,
             rotation: 0,
+            seedOffset: 0,
             opacity: 100,
             blendMode: 'source-over',
           },

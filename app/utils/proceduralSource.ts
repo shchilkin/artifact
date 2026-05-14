@@ -177,7 +177,8 @@ function drawArrayShape(
 function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed: number) {
   const base = hexToRgb(layer.color);
   const accent = hexToRgb(layer.accentColor);
-  const rng = lcg(seed ^ 0x58f173);
+  const sourceSeed = seed + (layer.seedOffset ?? 0);
+  const rng = lcg(sourceSeed ^ 0x58f173);
   const size = Math.max(6, layer.arraySize);
 
   const drawItem = (
@@ -287,7 +288,7 @@ export async function drawSourceLayer(
   } else if (layer.kind === 'noise') {
     const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
     const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
-    drawNoiseLayer(ctx, layer, seed, draft, drawWidth, drawHeight);
+    drawNoiseLayer(ctx, layer, seed + (layer.seedOffset ?? 0), draft, drawWidth, drawHeight);
   } else {
     drawArrayLayer(ctx, layer, seed);
   }

@@ -31,6 +31,8 @@ the detailed source of truth.
   existing serializable noise layer schema.
 - [x] Add a graph-only repeater utility node so any rendered source branch can
   be repeated into line, grid, or radial patterns over an optional backdrop.
+- [x] Add per-node seed offsets for procedural sources and repeaters so
+  variation can be controlled without changing the document seed.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
 - [x] Add serializable folder/area metadata so layers and node graphs can be

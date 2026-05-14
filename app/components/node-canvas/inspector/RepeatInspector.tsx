@@ -81,6 +81,14 @@ export function RepeatInspector({
         max={180}
         onChange={(value) => onChange({ rotation: value })}
       />
+      <InspectorSlider
+        label="Seed Offset"
+        value={Math.round(repeatNode.seedOffset ?? 0)}
+        min={-999}
+        max={999}
+        overrideMax={9999}
+        onChange={(value) => onChange({ seedOffset: value })}
+      />
       <InspectorSelect
         label="Blend"
         value={repeatNode.blendMode}

@@ -83,6 +83,7 @@ export function repeatNodeRenderSig(node: GraphRepeatNode): string {
     node.scale,
     node.jitter,
     node.rotation,
+    node.seedOffset,
     node.opacity,
     node.blendMode,
   ]);

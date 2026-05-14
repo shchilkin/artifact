@@ -7,6 +7,7 @@ import {
   EFFECT_PRESETS,
   makeEffectLayer,
   makeEmojiLayer,
+  makeGraphRepeatNode,
   makeSourceLayer,
   makeTextLayer,
 } from './config';
@@ -206,8 +207,16 @@ describe('makeSourceLayer', () => {
     expect(layer.kind).toBe('noise');
     expect(layer.noiseScale).toBe(48);
     expect(layer.x).toBe(0.25);
+    expect(layer.seedOffset).toBe(0);
     expect(layer.scaleX).toBe(1);
     expect(layer.scaleY).toBe(1);
+  });
+});
+
+describe('makeGraphRepeatNode', () => {
+  it('defaults to the document seed without an offset', () => {
+    const node = makeGraphRepeatNode();
+    expect(node.seedOffset).toBe(0);
   });
 });
 

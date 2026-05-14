@@ -175,7 +175,7 @@ function applyRepeatNode(
   const radius = Math.max(0, node.radius * unit);
   const jitter = Math.max(0, node.jitter * unit);
   const rotation = (node.rotation * Math.PI) / 180;
-  const rng = lcg(seed ^ hashString(node.id));
+  const rng = lcg((seed + (node.seedOffset ?? 0)) ^ hashString(node.id));
 
   const drawItem = (x: number, y: number, angle = rotation) => {
     const offsetX = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;

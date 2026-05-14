@@ -184,6 +184,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'noiseScale', range: '6–96' },
       { key: 'noiseDetail', range: '1–8' },
       { key: 'noiseContrast', range: '0–100' },
+      { key: 'seedOffset', range: '0–999' },
       { key: 'color', range: 'hex' },
     ],
     doc: {
@@ -213,6 +214,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'arrayRows', range: '1–12' },
       { key: 'arrayGap', range: '12–96' },
       { key: 'arraySize', range: '8–64' },
+      { key: 'seedOffset', range: '0–999' },
     ],
     doc: {
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },

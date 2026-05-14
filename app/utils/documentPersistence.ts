@@ -11,6 +11,7 @@ import {
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
   type Layer,
+  SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
@@ -44,7 +45,9 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
     mergeNodes: Array.isArray(value.mergeNodes) ? (value.mergeNodes as CanvasGraph['mergeNodes']) : [],
     colorNodes: Array.isArray(value.colorNodes) ? (value.colorNodes as CanvasGraph['colorNodes']) : [],
-    repeatNodes: Array.isArray(value.repeatNodes) ? (value.repeatNodes as CanvasGraph['repeatNodes']) : [],
+    repeatNodes: Array.isArray(value.repeatNodes)
+      ? (value.repeatNodes as CanvasGraph['repeatNodes']).map((node) => ({ seedOffset: 0, ...node }))
+      : [],
     areas: Array.isArray(value.areas) ? (value.areas as CanvasGraph['areas']) : [],
   };
 }
@@ -63,7 +66,9 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
         const layerWithDefaults =
           normalizedLayer.kind === 'effect'
             ? ({ ...DEFAULT_EFFECT_LAYER_PROPS, ...normalizedLayer } as Partial<EffectLayer>)
-            : normalizedLayer;
+            : SOURCE_TYPES.includes(normalizedLayer.kind as SourceType)
+              ? { seedOffset: 0, ...normalizedLayer }
+              : normalizedLayer;
 
         if (layerWithDefaults.kind === 'effect' && shouldSplitEffectLayer(layerWithDefaults as Partial<EffectLayer>)) {
           return splitEffectPatchIntoPresetLayers(layerWithDefaults as Partial<EffectLayer>, {

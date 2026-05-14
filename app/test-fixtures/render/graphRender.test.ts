@@ -243,6 +243,7 @@ describe('renderGraphTarget', () => {
           scale: 16,
           jitter: 0,
           rotation: 0,
+          seedOffset: 0,
           opacity: 100,
           blendMode: 'source-over',
         },
@@ -265,5 +266,59 @@ describe('renderGraphTarget', () => {
     expect(itemB).toBeLessThan(30);
     expect(cornerB).toBeGreaterThan(200);
     expect(cornerR).toBeLessThan(30);
+  });
+
+  it('repeat node seed offset varies jitter without changing the document seed', async () => {
+    const source = makeFillLayer({ id: 'source-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' });
+    const makeGraph = (seedOffset: number): CanvasGraph => ({
+      edges: [
+        { id: 'e-source-repeat', fromId: 'source-fill', fromPort: 'out', toId: 'repeat-1', toPort: 'in' },
+        { id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      repeatNodes: [
+        {
+          id: 'repeat-1',
+          name: 'Repeater',
+          pattern: 'grid',
+          count: 3,
+          rows: 3,
+          gap: 180,
+          radius: 80,
+          scale: 12,
+          jitter: 45,
+          rotation: 0,
+          seedOffset,
+          opacity: 100,
+          blendMode: 'source-over',
+        },
+      ],
+    });
+    const render = (seedOffset: number) => {
+      const graph = makeGraph(seedOffset);
+      return renderGraphTarget(
+        {
+          global: { bg: 'transparent', seed: 5, aspect: '1:1' },
+          layers: [source],
+          graph,
+          export: { format: 'png', scale: 1, target: 'cover' },
+        },
+        graph,
+        EXPORT_NODE_ID,
+        180,
+        180,
+        new Map(),
+        { skipEffects: true },
+      );
+    };
+
+    const base = await render(0);
+    const baseAgain = await render(0);
+    const varied = await render(23);
+
+    expect(pixelsEqual(allPixels(base), allPixels(baseAgain))).toBe(true);
+    expect(pixelsEqual(allPixels(base), allPixels(varied))).toBe(false);
   });
 });

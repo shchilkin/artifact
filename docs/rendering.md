@@ -59,6 +59,8 @@ High-level flow:
 6. Return a canvas.
 
 The renderer uses a `REF = 540` scale baseline. Authored pixel-like values are interpreted at 540px and scaled by `W / 540`.
+Procedural sources and repeat nodes use `doc.global.seed + seedOffset`, so one
+node can be varied without changing the whole document.
 
 ## Stack mode vs graph mode
 

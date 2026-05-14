@@ -320,6 +320,15 @@ export function LayerControls({
             value={layer.accentColor}
             onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
           />
+          {layer.kind !== 'primitive' && (
+            <InspectorSlider
+              label="Seed Offset"
+              value={Math.round(layer.seedOffset ?? 0)}
+              {...R.seedOffset}
+              overrideMax={9999}
+              onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
+            />
+          )}
         </InspectorSection>
         {hasPlacementSection && (
           <InspectorSection

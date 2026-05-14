@@ -48,6 +48,7 @@ export const FIELD_RANGES = {
   maxSz: { min: 40, max: 130, step: 1 },
 
   // Primitive
+  seedOffset: { min: -999, max: 999, step: 1 },
   tiltZ: { min: -180, max: 180, step: 1 },
   primitiveDepth: { min: 10, max: 100, step: 1 },
 

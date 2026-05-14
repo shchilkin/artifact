@@ -353,6 +353,41 @@ describe('renderDocument — preview/export size parity', () => {
     expect(visiblePixelCount(wideBars)).toBeGreaterThan(visiblePixelCount(singleRow) * 2.5);
   });
 
+  it('procedural source seed offsets vary one node without changing the document seed', async () => {
+    const makeNoiseDoc = (seedOffset: number): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 42, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('noise', {
+          noiseType: 'value',
+          noiseScale: 12,
+          noiseDetail: 3,
+          noiseContrast: 78,
+          noiseBalance: 36,
+          seedOffset,
+          color: '#050505',
+          accentColor: '#f8f8f0',
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const first = await renderDocument(makeNoiseDoc(0), 160, 160, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const firstAgain = await renderDocument(makeNoiseDoc(0), 160, 160, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const varied = await renderDocument(makeNoiseDoc(17), 160, 160, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(pixelsEqual(allPixels(first), allPixels(firstAgain))).toBe(true);
+    expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
+  });
+
   it('primitive full-frame sources scale proportionally at export sizes', async () => {
     const primitiveDoc: CanvasDocument = {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
