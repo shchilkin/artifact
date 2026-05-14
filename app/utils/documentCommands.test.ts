@@ -216,6 +216,16 @@ describe('documentCommands', () => {
     expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 480, y: 320 });
   });
 
+  it('inserts array presets as normal array source layers', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(doc, { kind: 'arrayPreset', preset: 'radialBurst' }, { x: 520, y: 360 });
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'array', name: 'Radial Burst' });
+    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 520, y: 360 });
+  });
+
   it('splits replaceEdgeId insertions without adding a separate target edge', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(

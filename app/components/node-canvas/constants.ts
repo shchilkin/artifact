@@ -1,5 +1,6 @@
 import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
 import type { AddAction } from './types';
 
@@ -130,6 +131,13 @@ export const ADD_ITEMS: Array<{
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
   },
+  ...ARRAY_PRESET_IDS.map((preset) => ({
+    label: ARRAY_PRESETS[preset].name,
+    symbol: '▦',
+    description: ARRAY_PRESETS[preset].description,
+    group: 'source' as const,
+    action: { kind: 'arrayPreset', preset } as AddAction,
+  })),
   ...EFFECT_PRESET_MENU_ORDER.map((preset) => ({
     label: EFFECT_PRESETS[preset].name,
     description: 'Apply a focused effect preset, then refine it.',
@@ -229,6 +237,13 @@ export const ADD_NODE_ITEMS: Array<{
     group: 'generators',
     action: { kind: 'layer', layerKind: 'array' },
   },
+  ...ARRAY_PRESET_IDS.map((preset) => ({
+    label: ARRAY_PRESETS[preset].name,
+    symbol: '▦',
+    description: ARRAY_PRESETS[preset].description,
+    group: 'generators' as const,
+    action: { kind: 'arrayPreset', preset } as AddAction,
+  })),
   {
     label: 'Merge',
     symbol: '⊕',

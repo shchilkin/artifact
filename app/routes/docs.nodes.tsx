@@ -207,7 +207,7 @@ const SOURCE_NODES: NodeDef[] = [
     id: 'array',
     symbol: '▦',
     name: 'Array',
-    desc: 'A motif repeater for lines, grids, and radial bursts. It is the quickest way to build regimented sleeves, tech patterns, and sticker-sheet rhythms.',
+    desc: 'A motif repeater for lines, grids, and radial bursts. Start from sticker grid, radial burst, barcode line, orbit rings, or shard field presets, then tune the same array fields.',
     params: [
       { key: 'arrayCount', range: '2–18' },
       { key: 'arrayRows', range: '1–12' },

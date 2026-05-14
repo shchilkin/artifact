@@ -17,6 +17,8 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import type { ArrayPresetId } from './arrayPresets';
+import { makeArrayPresetLayer } from './arrayPresets';
 import {
   addColorNode,
   addGraphEdge,
@@ -36,6 +38,7 @@ import { makeNoisePresetLayer } from './noisePresets';
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'noisePreset'; preset: NoisePresetId }
+  | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
   | { kind: 'color' };
@@ -191,7 +194,9 @@ export function addNodeAtDocument(
       ? createEffectPresetLayer(action.preset)
       : action.kind === 'noisePreset'
         ? makeNoisePresetLayer(action.preset)
-        : createLayerOfKind(action.layerKind);
+        : action.kind === 'arrayPreset'
+          ? makeArrayPresetLayer(action.preset)
+          : createLayerOfKind(action.layerKind);
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),
