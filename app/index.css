@@ -354,6 +354,30 @@ body {
   background: transparent;
 }
 
+.node-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-slider-number {
+  width: 62px;
+  min-height: 28px;
+  border: 1px solid var(--node-border);
+  border-radius: 0;
+  background: var(--node-bg);
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 8px;
+  outline: none;
+}
+
+.node-slider-number:hover,
+.node-slider-number:focus {
+  border-color: var(--node-text);
+}
+
 .node-color-input {
   width: var(--touch);
   height: var(--touch);
