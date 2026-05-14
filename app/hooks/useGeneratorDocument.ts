@@ -7,6 +7,7 @@ import {
   type EffectPreset,
   type GraphColorNode,
   type GraphMergeNode,
+  type GraphRepeatNode,
   type Layer,
   type LayerKind,
 } from '../types/config';
@@ -28,6 +29,7 @@ import {
   updateDocumentExportConfig,
   updateLayerInDocument,
   updateMergeNodeInDocument,
+  updateRepeatNodeInDocument,
 } from '../utils/documentCommands';
 import {
   createPendingHistoryEntry,
@@ -254,6 +256,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const updateRepeatNode = useCallback(
+    (id: string, patch: Partial<GraphRepeatNode>) => {
+      updateDocument((current) => updateRepeatNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
   const reorderLayers = useCallback(
     (layers: Layer[]) => {
       updateDocument((current) => reorderDocumentLayers(current, layers), 'snapshot');
@@ -323,6 +332,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     updateLayer,
     updateMergeNode,
     updateColorNode,
+    updateRepeatNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,

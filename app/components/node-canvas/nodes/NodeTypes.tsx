@@ -6,7 +6,7 @@ import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
-import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData } from '../types';
+import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData, RepeatNodeData } from '../types';
 import { NodeFrame } from './NodeFrame';
 import { useLayerTransformDraft } from './useLayerTransformDraft';
 
@@ -103,6 +103,38 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
           { label: 'top', portId: 'b', nodeId: mergeNode.id },
         ]}
         outputs={[{ label: 'mix', portId: 'out', nodeId: mergeNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: NodeProps<RepeatNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { repeatNode, previewTargetId, selected, editing, connected } = data;
+
+  return (
+    <NodeFrame
+      id={repeatNode.id}
+      kind="repeat"
+      label="repeat"
+      name={repeatNode.name}
+      selected={selected}
+      editing={editing}
+      targetHandles={[
+        { id: 'in', top: '36%' },
+        { id: 'bg', top: '64%' },
+      ]}
+      onSelect={(event) => selectNode(repeatNode.id, event)}
+      onDelete={() => deleteNode(repeatNode.id)}
+    >
+      <NodeThumbnail previewTargetId={previewTargetId} />
+      <PortRow
+        inputs={[
+          { label: 'source', portId: 'in', nodeId: repeatNode.id },
+          { label: 'backdrop', portId: 'bg', nodeId: repeatNode.id },
+        ]}
+        outputs={[{ label: 'result', portId: 'out', nodeId: repeatNode.id }]}
         connected={connected}
       />
     </NodeFrame>

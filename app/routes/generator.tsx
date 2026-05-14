@@ -140,6 +140,7 @@ export default function Generator() {
     updateLayer,
     updateMergeNode,
     updateColorNode,
+    updateRepeatNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -339,6 +340,7 @@ export default function Generator() {
                   onUpdateLayer={updateLayer}
                   onUpdateMergeNode={updateMergeNode}
                   onUpdateColorNode={updateColorNode}
+                  onUpdateRepeatNode={updateRepeatNode}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}

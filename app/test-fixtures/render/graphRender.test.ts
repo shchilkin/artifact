@@ -218,4 +218,52 @@ describe('renderGraphTarget', () => {
     expect(bounds.width).toBeGreaterThan(300);
     expect(bounds.height).toBeGreaterThan(160);
   });
+
+  it('repeats an upstream source branch over an optional backdrop', async () => {
+    const source = makeFillLayer({ id: 'source-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' });
+    const backdrop = makeFillLayer({ id: 'backdrop-fill', color: '#0000ff', opacity: 100, blendMode: 'normal' });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-source-repeat', fromId: 'source-fill', fromPort: 'out', toId: 'repeat-1', toPort: 'in' },
+        { id: 'e-backdrop-repeat', fromId: 'backdrop-fill', fromPort: 'out', toId: 'repeat-1', toPort: 'bg' },
+        { id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      repeatNodes: [
+        {
+          id: 'repeat-1',
+          name: 'Repeater',
+          pattern: 'grid',
+          count: 2,
+          rows: 2,
+          gap: 260,
+          radius: 80,
+          scale: 16,
+          jitter: 0,
+          rotation: 0,
+          opacity: 100,
+          blendMode: 'source-over',
+        },
+      ],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 3, aspect: '1:1' },
+      layers: [source, backdrop],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 200, 200, new Map(), {
+      skipEffects: true,
+    });
+    const [itemR, , itemB] = samplePixel(canvas, 52, 52);
+    const [cornerR, , cornerB] = samplePixel(canvas, 4, 4);
+
+    expect(itemR).toBeGreaterThan(200);
+    expect(itemB).toBeLessThan(30);
+    expect(cornerB).toBeGreaterThan(200);
+    expect(cornerR).toBeLessThan(30);
+  });
 });

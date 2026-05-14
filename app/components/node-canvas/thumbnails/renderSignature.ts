@@ -9,7 +9,7 @@
  * primitiveScene.ts, or primitiveRenderer.ts.
  */
 
-import type { GraphColorNode, GraphEdge, GraphMergeNode, Layer } from '../../../types/config';
+import type { GraphColorNode, GraphEdge, GraphMergeNode, GraphRepeatNode, Layer } from '../../../types/config';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
@@ -70,6 +70,22 @@ export function mergeNodeRenderSig(node: GraphMergeNode): string {
 /** Render-relevant fields for a color node. */
 export function colorNodeRenderSig(node: GraphColorNode): string {
   return JSON.stringify([node.contrast, node.brightness, node.saturation, node.hue]);
+}
+
+/** Render-relevant fields for a repeat node. */
+export function repeatNodeRenderSig(node: GraphRepeatNode): string {
+  return JSON.stringify([
+    node.pattern,
+    node.count,
+    node.rows,
+    node.gap,
+    node.radius,
+    node.scale,
+    node.jitter,
+    node.rotation,
+    node.opacity,
+    node.blendMode,
+  ]);
 }
 
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */

@@ -73,9 +73,15 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - layer nodes
 - merge nodes
 - color nodes
+- repeat nodes
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
+Repeat nodes render their `source` input once, crop it to its visible alpha
+bounds, and stamp it into a line, grid, or radial pattern over an optional
+`backdrop` input. This keeps the node source-agnostic: text, images,
+procedural sources, and future asset nodes can all repeat through the same
+render path once they produce canvas pixels.
 
 ### Rule
 

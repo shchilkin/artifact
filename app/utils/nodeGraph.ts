@@ -6,6 +6,7 @@ import {
   type GraphColorNode,
   type GraphEdge,
   type GraphMergeNode,
+  type GraphRepeatNode,
   type Layer,
 } from '../types/config';
 
@@ -66,7 +67,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     }
   });
 
-  return { edges, positions, mergeNodes: [], colorNodes: [], areas: [] };
+  return { edges, positions, mergeNodes: [], colorNodes: [], repeatNodes: [], areas: [] };
 }
 
 export function updateGraphPositions(
@@ -164,6 +165,35 @@ export function updateColorNode(graph: CanvasGraph, id: string, patch: Partial<G
   return {
     ...graph,
     colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addRepeatNode(
+  graph: CanvasGraph,
+  node: GraphRepeatNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    repeatNodes: [...(graph.repeatNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeRepeatNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...graph,
+    repeatNodes: (graph.repeatNodes ?? []).filter((n) => n.id !== id),
+    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
+    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
+  };
+}
+
+export function updateRepeatNode(graph: CanvasGraph, id: string, patch: Partial<GraphRepeatNode>): CanvasGraph {
+  return {
+    ...graph,
+    repeatNodes: (graph.repeatNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
   };
 }
 
@@ -338,6 +368,7 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: Aspec
     ...layers.map((layer) => layer.id),
     ...graph.mergeNodes.map((node) => node.id),
     ...(graph.colorNodes ?? []).map((node) => node.id),
+    ...(graph.repeatNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
   const outgoing = new Map<string, string[]>();

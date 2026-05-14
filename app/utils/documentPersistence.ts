@@ -44,6 +44,7 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
     mergeNodes: Array.isArray(value.mergeNodes) ? (value.mergeNodes as CanvasGraph['mergeNodes']) : [],
     colorNodes: Array.isArray(value.colorNodes) ? (value.colorNodes as CanvasGraph['colorNodes']) : [],
+    repeatNodes: Array.isArray(value.repeatNodes) ? (value.repeatNodes as CanvasGraph['repeatNodes']) : [],
     areas: Array.isArray(value.areas) ? (value.areas as CanvasGraph['areas']) : [],
   };
 }

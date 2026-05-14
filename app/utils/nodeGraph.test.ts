@@ -7,6 +7,7 @@ import {
   addGraphEdge,
   addMergeNode,
   addNodesToGraphArea,
+  addRepeatNode,
   assignNodesToGraphArea,
   collectUpstreamNodeIds,
   connectedPortIds,
@@ -17,12 +18,14 @@ import {
   removeGraphEdge,
   removeLayerFromGraph,
   removeMergeNode,
+  removeRepeatNode,
   resolveRenderOrder,
   resolveUpstreamRenderLayers,
   splitEdgeWithNode,
   updateColorNode,
   updateGraphArea,
   updateGraphPositions,
+  updateRepeatNode,
   wouldCreateCycle,
 } from './nodeGraph';
 
@@ -123,6 +126,39 @@ describe('graph mutations', () => {
     expect(removed.colorNodes).toEqual([]);
     expect(removed.positions['color-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
+  });
+
+  it('adds, updates, and removes repeat nodes with positions and connected edges', () => {
+    const graph = emptyGraph({
+      edges: [{ id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['repeat-1'] }],
+    });
+    const repeatNode = {
+      id: 'repeat-1',
+      name: 'Repeater',
+      pattern: 'grid' as const,
+      count: 4,
+      rows: 3,
+      gap: 120,
+      radius: 90,
+      scale: 28,
+      jitter: 0,
+      rotation: 0,
+      opacity: 100,
+      blendMode: 'source-over',
+    };
+
+    const withNode = addRepeatNode(graph, repeatNode, { x: 160, y: 90 });
+    const updated = updateRepeatNode(withNode, 'repeat-1', { count: 8 });
+    const removed = removeRepeatNode(updated, 'repeat-1');
+
+    expect(withNode.repeatNodes).toEqual([repeatNode]);
+    expect(withNode.positions['repeat-1']).toEqual({ x: 160, y: 90 });
+    expect(updated.repeatNodes?.[0]).toEqual({ ...repeatNode, count: 8 });
+    expect(removed.repeatNodes).toEqual([]);
+    expect(removed.positions['repeat-1']).toBeUndefined();
+    expect(removed.edges).toEqual([]);
+    expect(removed.areas?.[0]?.nodeIds).toEqual([]);
   });
 
   it('updates positions without replacing untouched positions', () => {

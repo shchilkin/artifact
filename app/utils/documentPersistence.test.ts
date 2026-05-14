@@ -158,6 +158,7 @@ describe('normalizeDocument', () => {
       positions: {},
       mergeNodes: [],
       colorNodes: [],
+      repeatNodes: [],
       areas: [],
     });
   });
@@ -267,6 +268,7 @@ describe('document serialization helpers', () => {
     expect(serialized.endsWith('\n')).toBe(true);
     expect(parsed?.layers[0]?.id).toBe('share-text');
     expect(parsed?.graph?.colorNodes).toEqual([]);
+    expect(parsed?.graph?.repeatNodes).toEqual([]);
     expect(parsed?.graph?.areas).toEqual([]);
   });
 
@@ -278,6 +280,22 @@ describe('document serialization helpers', () => {
         positions: { 'share-text': { x: 0, y: 80 }, __export__: { x: 216, y: 80 } },
         mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }],
         colorNodes: [{ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }],
+        repeatNodes: [
+          {
+            id: 'repeat-a',
+            name: 'Repeater',
+            pattern: 'grid',
+            count: 4,
+            rows: 3,
+            gap: 120,
+            radius: 90,
+            scale: 28,
+            jitter: 0,
+            rotation: 0,
+            opacity: 100,
+            blendMode: 'source-over',
+          },
+        ],
         areas: [
           {
             id: 'area-main',
@@ -295,6 +313,7 @@ describe('document serialization helpers', () => {
     expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
     expect(parsed.graph?.mergeNodes).toEqual(graphDoc.graph?.mergeNodes);
     expect(parsed.graph?.colorNodes).toEqual(graphDoc.graph?.colorNodes);
+    expect(parsed.graph?.repeatNodes).toEqual(graphDoc.graph?.repeatNodes);
     expect(parsed.graph?.areas).toEqual(graphDoc.graph?.areas);
     expect(parsed.graph?.positions.__export__).toEqual({ x: 216, y: 80 });
   });

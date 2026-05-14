@@ -42,4 +42,8 @@ describe('node source preset menu', () => {
       expect(presetActions).toContainEqual({ kind: 'arrayPreset', preset });
     }
   });
+
+  it('exposes the graph repeater utility node', () => {
+    expect(ADD_NODE_ITEMS.map((item) => item.action)).toContainEqual({ kind: 'repeat' });
+  });
 });

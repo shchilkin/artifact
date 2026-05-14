@@ -21,5 +21,6 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
 function getEdgeColor(fromId: string, graph: CanvasGraph): string {
   if (graph.mergeNodes.some((node) => node.id === fromId)) return 'oklch(74% 0.17 152)';
   if ((graph.colorNodes ?? []).some((node) => node.id === fromId)) return 'oklch(72% 0.18 195)';
+  if ((graph.repeatNodes ?? []).some((node) => node.id === fromId)) return 'oklch(76% 0.14 95)';
   return 'oklch(64% 0.22 305)';
 }

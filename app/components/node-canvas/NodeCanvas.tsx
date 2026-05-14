@@ -36,7 +36,13 @@ import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
 import { nodeCanvasMachine } from './machine';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
-import { ColorNodeComponent, ExportNodeComponent, LayerNodeComponent, MergeNodeComponent } from './nodes/NodeTypes';
+import {
+  ColorNodeComponent,
+  ExportNodeComponent,
+  LayerNodeComponent,
+  MergeNodeComponent,
+  RepeatNodeComponent,
+} from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
 import { toRFEdges } from './reactFlowEdges';
 import type { NodeCanvasActionsContextValue, NodeCanvasPreviewContextValue, NodeCanvasProps } from './types';
@@ -45,6 +51,7 @@ const nodeTypes = {
   layerNode: LayerNodeComponent,
   colorNode: ColorNodeComponent,
   mergeNode: MergeNodeComponent,
+  repeatNode: RepeatNodeComponent,
   exportNode: ExportNodeComponent,
 };
 
@@ -62,6 +69,7 @@ export function NodeCanvas({
   onUpdateLayer,
   onUpdateMergeNode,
   onUpdateColorNode,
+  onUpdateRepeatNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -319,6 +327,7 @@ export function NodeCanvas({
       updateLayer: onUpdateLayer,
       updateMergeNode: onUpdateMergeNode,
       updateColorNode: onUpdateColorNode,
+      updateRepeatNode: onUpdateRepeatNode,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
@@ -337,6 +346,7 @@ export function NodeCanvas({
       onUpdateExportConfig,
       onUpdateLayer,
       onUpdateMergeNode,
+      onUpdateRepeatNode,
       openGallery,
       setPrimitiveViewportActive,
       updatePrimitiveView,
@@ -433,6 +443,7 @@ export function NodeCanvas({
             onUpdateLayer={onUpdateLayer}
             onUpdateMergeNode={onUpdateMergeNode}
             onUpdateColorNode={onUpdateColorNode}
+            onUpdateRepeatNode={onUpdateRepeatNode}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
             onExport={onExport}

@@ -6,7 +6,13 @@ import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph
 import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize } from './previewSizing';
-import { colorNodeRenderSig, edgeRenderSig, layerRenderSig, mergeNodeRenderSig } from './renderSignature';
+import {
+  colorNodeRenderSig,
+  edgeRenderSig,
+  layerRenderSig,
+  mergeNodeRenderSig,
+  repeatNodeRenderSig,
+} from './renderSignature';
 import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
@@ -47,6 +53,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
   const prevLayerSigsRef = useRef<Map<string, string>>(new Map());
   const prevMergeSigsRef = useRef<Map<string, string>>(new Map());
   const prevColorSigsRef = useRef<Map<string, string>>(new Map());
+  const prevRepeatSigsRef = useRef<Map<string, string>>(new Map());
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
@@ -57,6 +64,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     const layers = doc.layers.filter((layer) => upstream.has(layer.id));
     const mergeNodes = graph.mergeNodes.filter((node) => upstream.has(node.id));
     const colorNodes = (graph.colorNodes ?? []).filter((node) => upstream.has(node.id));
+    const repeatNodes = (graph.repeatNodes ?? []).filter((node) => upstream.has(node.id));
     const edges = graph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
 
     const layerSignatures = layers.map((layer) => ({
@@ -71,6 +79,10 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     const colorSignatures = colorNodes.map((node) => ({
       id: node.id,
       sig: colorNodeRenderSig(node),
+    }));
+    const repeatSignatures = repeatNodes.map((node) => ({
+      id: node.id,
+      sig: repeatNodeRenderSig(node),
     }));
     const edgeSignatures = edges.map((edge) => ({
       id: edge.id,
@@ -97,6 +109,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
       layerSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       mergeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       colorSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      repeatSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       edgeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       primitiveViewSignature,
     ].join('::');
@@ -106,6 +119,7 @@ export function useNodeThumbnailRender(previewTargetId: string) {
       layerSignatures,
       mergeSignatures,
       colorSignatures,
+      repeatSignatures,
       edgeSignatures,
     };
   }, [
@@ -145,6 +159,14 @@ export function useNodeThumbnailRender(previewTargetId: string) {
         logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'color' });
       }
       prevColorSigsRef.current.set(id, sig);
+    });
+
+    signatureData.repeatSignatures.forEach(({ id, sig }) => {
+      const prev = prevRepeatSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'repeat' });
+      }
+      prevRepeatSigsRef.current.set(id, sig);
     });
 
     signatureData.edgeSignatures.forEach(({ id, sig }) => {

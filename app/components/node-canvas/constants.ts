@@ -22,6 +22,7 @@ export const KIND_COLOR: Record<string, string> = {
   array: 'var(--node-kind-array)',
   merge: 'var(--node-kind-merge)',
   color: 'var(--node-kind-color)',
+  repeat: 'var(--node-kind-array)',
   export: 'var(--node-kind-export)',
 };
 
@@ -36,6 +37,7 @@ export const KIND_SYMBOL: Record<string, string> = {
   array: '▦',
   merge: '⊕',
   color: '◐',
+  repeat: '⧉',
   export: '↗',
 };
 
@@ -159,6 +161,13 @@ export const ADD_ITEMS: Array<{
     group: 'util',
     action: { kind: 'color' },
   },
+  {
+    label: 'Repeater',
+    symbol: '⧉',
+    description: 'Repeat any source branch into line, grid, or radial patterns.',
+    group: 'util',
+    action: { kind: 'repeat' },
+  },
 ];
 
 export const ADD_MENU_BROWSE_MODES = [
@@ -257,6 +266,13 @@ export const ADD_NODE_ITEMS: Array<{
     description: 'Grade hue, contrast, and tonal balance.',
     group: 'utilities',
     action: { kind: 'color' },
+  },
+  {
+    label: 'Repeater',
+    symbol: '⧉',
+    description: 'Repeat any source branch into line, grid, or radial patterns.',
+    group: 'utilities',
+    action: { kind: 'repeat' },
   },
 ];
 

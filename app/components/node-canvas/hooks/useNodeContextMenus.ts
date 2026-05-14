@@ -131,14 +131,16 @@ export function useNodeContextMenus({
       e.preventDefault();
       e.stopPropagation();
       const isMerge =
-        graph.mergeNodes.some((n) => n.id === node.id) || (graph.colorNodes ?? []).some((n) => n.id === node.id);
+        graph.mergeNodes.some((n) => n.id === node.id) ||
+        (graph.colorNodes ?? []).some((n) => n.id === node.id) ||
+        (graph.repeatNodes ?? []).some((n) => n.id === node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: { type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport },
       });
     },
-    [graph.colorNodes, graph.mergeNodes, send],
+    [graph.colorNodes, graph.mergeNodes, graph.repeatNodes, send],
   );
 
   const onEdgeContextMenu = useCallback(

@@ -29,6 +29,8 @@ the detailed source of truth.
 - [ ] Add new focused effects without reintroducing legacy combined FX.
 - [x] Add first-class noise/procedural texture creation presets over the
   existing serializable noise layer schema.
+- [x] Add a graph-only repeater utility node so any rendered source branch can
+  be repeated into line, grid, or radial patterns over an optional backdrop.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
 - [x] Add serializable folder/area metadata so layers and node graphs can be
