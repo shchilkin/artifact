@@ -61,6 +61,10 @@ Rules:
 - Selection and overlays are editor state, not document state.
 - The machine should not own render data.
 - Document mutations should happen through `useGeneratorDocument` callbacks.
+- High-frequency drag state stays in React Flow shadow nodes until drag stop.
+  React Flow measurement changes are accepted when they are real, duplicate
+  dimension changes are ignored, and identical selection events are skipped to
+  avoid document-independent render loops while dragging.
 
 ## Node types
 
@@ -198,6 +202,9 @@ Rules:
 - Interactive mode should stay visually close to canonical renderer.
 - Node cards may size by content type; avoid assumptions that every node is the
   same fixed width.
+- Thumbnail rendering should keep the last good frame during graph drag
+  gestures. Dragging a node should move the node shell, not restart expensive
+  render work inside every preview.
 
 ## Recommended refactor target
 

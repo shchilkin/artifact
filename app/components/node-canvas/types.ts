@@ -1,5 +1,5 @@
 import type { Node as RFNode } from '@xyflow/react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
+import type { CSSProperties, MutableRefObject, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
 
 import type {
   AspectRatio,
@@ -112,6 +112,7 @@ export interface NodeCanvasPreviewContextValue {
   graph: CanvasGraph;
   imageCache: Map<string, HTMLImageElement>;
   primitiveViewStates: Record<string, PrimitiveViewportState>;
+  isGraphDraggingRef: MutableRefObject<boolean>;
 }
 
 export interface NodeCanvasActionsContextValue {

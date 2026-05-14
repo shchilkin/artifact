@@ -187,6 +187,7 @@ export function NodeCanvas({
   const {
     dragNodes,
     dragEdges,
+    isDraggingRef,
     onEdgesChange,
     onNodeDragStart,
     onNodeDragStop,
@@ -306,8 +307,9 @@ export function NodeCanvas({
       graph,
       imageCache,
       primitiveViewStates,
+      isGraphDraggingRef: isDraggingRef,
     }),
-    [doc, graph, imageCache, primitiveViewStates],
+    [doc, graph, imageCache, primitiveViewStates, isDraggingRef],
   );
 
   const actionsContextValue = useMemo<NodeCanvasActionsContextValue>(

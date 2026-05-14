@@ -18,6 +18,7 @@ import {
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
+import { stableNodeChanges } from '../nodeChanges';
 
 export interface UseNodeDragStateOptions {
   baseNodes: RFNode[];
@@ -64,6 +65,7 @@ export function useNodeDragState({
   const [dragEdges, setDragEdges] = useState<RFEdge[]>(baseEdges);
   const isDraggingRef = useRef(false);
   const dragNodesRef = useRef<RFNode[]>(dragNodes);
+  const selectionSigRef = useRef('');
   useLayoutEffect(() => {
     dragNodesRef.current = dragNodes;
   }, [dragNodes]);
@@ -77,11 +79,10 @@ export function useNodeDragState({
   }, [baseNodes, baseEdges]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // Keep React Flow's measured dimensions internal. Feeding dimensions back
-    // into the controlled nodes prop can re-trigger measurement indefinitely
-    // when overlays or connection menus change the viewport tree.
-    const relevant = changes.filter((c) => c.type === 'position');
-    if (relevant.length) setDragNodes((prev) => applyNodeChanges(relevant, prev));
+    setDragNodes((prev) => {
+      const relevant = stableNodeChanges(changes, prev);
+      return relevant.length ? applyNodeChanges(relevant, prev) : prev;
+    });
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
@@ -173,10 +174,15 @@ export function useNodeDragState({
 
   const onSelectionChange = useCallback(
     ({ nodes, edges }: { nodes: RFNode[]; edges: RFEdge[] }) => {
+      const nodeIds = nodes.map((node) => node.id);
+      const edgeIds = edges.map((edge) => edge.id);
+      const selectionSig = `${nodeIds.join(',')}::${edgeIds.join(',')}`;
+      if (selectionSig === selectionSigRef.current) return;
+      selectionSigRef.current = selectionSig;
       send({
         type: 'SELECTION_CHANGED',
-        nodeIds: nodes.map((node) => node.id),
-        edgeIds: edges.map((edge) => edge.id),
+        nodeIds,
+        edgeIds,
       });
     },
     [send],
