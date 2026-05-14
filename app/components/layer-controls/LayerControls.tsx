@@ -297,6 +297,7 @@ export function LayerControls({
 
   if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
     const hasPlacementSection = layerHasPlacementControls(layer);
+    const arrayLabels = layer.kind === 'array' ? getArrayControlLabels(layer) : undefined;
 
     return (
       <div className={sectionClassName}>
@@ -442,46 +443,49 @@ export function LayerControls({
                 onChange={(v) => onChange({ arrayShape: v as SourceLayer['arrayShape'] } as Partial<SourceLayer>)}
               />
               <InspectorSlider
-                label="Count"
+                label={arrayLabels?.count ?? 'Count'}
                 value={Math.round(layer.arrayCount)}
                 {...R.arrayCount}
                 overrideMax={64}
                 onChange={(v) => onChange({ arrayCount: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
-                label="Rows"
+                label={arrayLabels?.rows ?? 'Rows'}
                 value={Math.round(layer.arrayRows)}
                 {...R.arrayRows}
                 overrideMax={48}
                 onChange={(v) => onChange({ arrayRows: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
-                label="Gap"
+                label={arrayLabels?.gap ?? 'Gap'}
                 value={Math.round(layer.arrayGap)}
                 {...R.arrayGap}
                 overrideMax={240}
                 onChange={(v) => onChange({ arrayGap: v } as Partial<SourceLayer>)}
               />
               <InspectorSlider
-                label="Size"
+                label={arrayLabels?.size ?? 'Size'}
                 value={Math.round(layer.arraySize)}
                 {...R.arraySize}
                 onChange={(v) => onChange({ arraySize: v } as Partial<SourceLayer>)}
               />
+              {arrayLabels?.radius && (
+                <InspectorSlider
+                  label={arrayLabels.radius}
+                  value={Math.round(layer.arrayRadius)}
+                  {...R.arrayRadius}
+                  overrideMax={420}
+                  onChange={(v) => onChange({ arrayRadius: v } as Partial<SourceLayer>)}
+                />
+              )}
               <InspectorSlider
-                label="Radius"
-                value={Math.round(layer.arrayRadius)}
-                {...R.arrayRadius}
-                overrideMax={420}
-                onChange={(v) => onChange({ arrayRadius: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Jitter"
+                label={arrayLabels?.jitter ?? 'Jitter'}
                 value={Math.round(layer.arrayJitter)}
                 {...R.arrayJitter}
                 overrideMax={180}
                 onChange={(v) => onChange({ arrayJitter: v } as Partial<SourceLayer>)}
               />
+              {arrayLabels?.note && <p className="node-inspector-note">{arrayLabels.note}</p>}
             </>
           )}
         </InspectorSection>
@@ -521,4 +525,55 @@ function structureSummary(layer: SourceLayer) {
   if (layer.kind === 'primitive') return `${layer.primitiveShading ?? 'smooth'} shading`;
   if (layer.kind === 'noise') return `${Math.round(layer.noiseScale)} scale`;
   return `${Math.round(layer.arrayCount)} items`;
+}
+
+function getArrayControlLabels(layer: SourceLayer): {
+  count: string;
+  rows: string;
+  gap: string;
+  size: string;
+  radius?: string;
+  jitter: string;
+  note?: string;
+} {
+  if (layer.arrayPattern === 'line' && layer.arrayShape === 'bar') {
+    return {
+      count: 'Bars',
+      rows: 'Rows',
+      gap: 'Spacing',
+      size: 'Height',
+      radius: 'Width',
+      jitter: 'Unevenness',
+      note: 'Width and height control each bar; rows adds stacked barcode bands.',
+    };
+  }
+
+  if (layer.arrayPattern === 'radial') {
+    return {
+      count: 'Per Ring',
+      rows: 'Rings',
+      gap: 'Ring Gap',
+      size: 'Size',
+      radius: 'Start Radius',
+      jitter: 'Scatter',
+    };
+  }
+
+  if (layer.arrayPattern === 'line') {
+    return {
+      count: 'Items',
+      rows: 'Rows',
+      gap: 'Spacing',
+      size: 'Size',
+      jitter: 'Jitter',
+    };
+  }
+
+  return {
+    count: 'Columns',
+    rows: 'Rows',
+    gap: 'Cell Gap',
+    size: 'Size',
+    jitter: 'Jitter',
+  };
 }

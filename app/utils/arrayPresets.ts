@@ -63,6 +63,7 @@ export const ARRAY_PRESETS: Record<ArrayPresetId, ArrayPreset> = {
       arrayCount: 28,
       arrayRows: 1,
       arrayGap: 11,
+      arrayRadius: 8,
       arraySize: 86,
       arrayJitter: 8,
       color: '#f4f0e8',

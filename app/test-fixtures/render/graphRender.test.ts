@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
-import { makeFillLayer } from '../../types/config';
+import { makeFillLayer, makeSourceLayer } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { renderDocument, renderGraphTarget } from '../../utils/renderer';
 
@@ -28,6 +28,28 @@ function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number } {
+  const pixels = allPixels(canvas);
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const alpha = pixels[(y * canvas.width + x) * 4 + 3] ?? 0;
+      if (alpha <= 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return {
+    width: Math.max(0, maxX - minX + 1),
+    height: Math.max(0, maxY - minY + 1),
+  };
 }
 
 function graphDocument(graph: CanvasGraph): CanvasDocument {
@@ -161,5 +183,39 @@ describe('renderGraphTarget', () => {
     expect(darkenedG).toBe(0);
     expect(darkenedB).toBe(0);
     expect(darkenedA).toBe(255);
+  });
+
+  it('draws procedural noise as a full-frame source for non-square graph targets', async () => {
+    const noise = makeSourceLayer('noise', {
+      id: 'noise-wide',
+      name: 'Wide Noise',
+      noiseType: 'value',
+      noiseScale: 12,
+      noiseDetail: 4,
+      noiseContrast: 100,
+      noiseBalance: 5,
+      color: '#ffffff',
+      accentColor: '#ffffff',
+    });
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-noise-export', fromId: 'noise-wide', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 7, aspect: '16:9' },
+      layers: [noise],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 320, 180, new Map(), {
+      skipEffects: true,
+    });
+
+    const bounds = alphaBounds(canvas);
+    expect(bounds.width).toBeGreaterThan(300);
+    expect(bounds.height).toBeGreaterThan(160);
   });
 });
