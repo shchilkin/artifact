@@ -68,7 +68,14 @@ describe('normalizeDocument', () => {
       ],
     });
 
-    expect(doc.layers[0]).toMatchObject({ id: 'legacy-source', kind: 'noise', seedOffset: 0 });
+    expect(doc.layers[0]).toMatchObject({
+      id: 'legacy-source',
+      kind: 'noise',
+      seedOffset: 0,
+      noiseWarp: 0,
+      noiseTurbulence: 0,
+      noiseThreshold: 0,
+    });
   });
 
   it('adds seed defaults to older repeat nodes', () => {

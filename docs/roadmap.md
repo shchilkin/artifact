@@ -386,7 +386,7 @@ controllable instead of just random.
 First slice:
 
 - [x] Add per-node seed offsets for noise, array, and repeater output.
-- [ ] Add richer noise controls such as domain warp, turbulence, and threshold
+- [x] Add richer noise controls such as domain warp, turbulence, and threshold
   shaping.
 - [ ] Add repeater presets for common motif workflows.
 - [ ] Add source/motif docs with practical recipes.

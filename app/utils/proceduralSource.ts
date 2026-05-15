@@ -121,19 +121,32 @@ function drawNoiseLayer(
   const octaves = Math.max(1, Math.round(layer.noiseDetail));
   const contrast = 0.6 + layer.noiseContrast / 45;
   const balance = clamp(layer.noiseBalance / 100, 0.05, 0.95);
+  const warpAmount = clamp((layer.noiseWarp ?? 0) / 100, 0, 1) * 3.2;
+  const turbulence = clamp((layer.noiseTurbulence ?? 0) / 100, 0, 1);
+  const threshold = clamp((layer.noiseThreshold ?? 0) / 100, 0, 1);
 
   for (let y = 0; y < textureSize; y += 1) {
     for (let x = 0; x < textureSize; x += 1) {
-      const nx = x / scale;
-      const ny = y / scale;
-      const raw =
+      let nx = x / scale;
+      let ny = y / scale;
+      if (warpAmount > 0) {
+        const warpX = fbm(nx * 0.42 + 17.3, ny * 0.42 - 4.1, seed + 101, Math.max(2, octaves));
+        const warpY = fbm(nx * 0.42 - 8.7, ny * 0.42 + 21.6, seed + 211, Math.max(2, octaves));
+        nx += (warpX - 0.5) * warpAmount;
+        ny += (warpY - 0.5) * warpAmount;
+      }
+      let raw =
         layer.noiseType === 'cells'
           ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
           : layer.noiseType === 'value'
             ? valueNoise(nx, ny, seed)
             : fbm(nx, ny, seed, octaves);
+      if (turbulence > 0) {
+        raw = lerp(raw, Math.abs(raw - 0.5) * 2, turbulence);
+      }
       const contrasted = clamp((raw - 0.5) * contrast + 0.5, 0, 1);
-      const alpha = clamp((contrasted - balance) / (1 - balance), 0, 1);
+      const shaped = threshold === 0 ? contrasted : lerp(contrasted, contrasted >= balance ? 1 : 0, threshold);
+      const alpha = clamp((shaped - balance) / (1 - balance), 0, 1);
       const color = mixRgb(base, accent, clamp(raw * 1.1, 0, 1));
       const index = (y * textureSize + x) * 4;
       data[index] = color.r;

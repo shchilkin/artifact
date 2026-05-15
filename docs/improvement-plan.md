@@ -33,6 +33,8 @@ the detailed source of truth.
   be repeated into line, grid, or radial patterns over an optional backdrop.
 - [x] Add per-node seed offsets for procedural sources and repeaters so
   variation can be controlled without changing the document seed.
+- [x] Add source-noise shaping controls for domain warp, turbulence, and
+  threshold hardness.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
 - [x] Add serializable folder/area metadata so layers and node graphs can be

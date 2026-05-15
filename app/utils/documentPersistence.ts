@@ -11,6 +11,7 @@ import {
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
   type Layer,
+  makeSourceLayer,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
@@ -67,7 +68,7 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
           normalizedLayer.kind === 'effect'
             ? ({ ...DEFAULT_EFFECT_LAYER_PROPS, ...normalizedLayer } as Partial<EffectLayer>)
             : SOURCE_TYPES.includes(normalizedLayer.kind as SourceType)
-              ? { seedOffset: 0, ...normalizedLayer }
+              ? { ...makeSourceLayer(normalizedLayer.kind as SourceType), ...normalizedLayer }
               : normalizedLayer;
 
         if (layerWithDefaults.kind === 'effect' && shouldSplitEffectLayer(layerWithDefaults as Partial<EffectLayer>)) {

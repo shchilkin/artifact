@@ -57,6 +57,9 @@ export const FIELD_RANGES = {
   noiseDetail: { min: 1, max: 8, step: 1 },
   noiseContrast: { min: 0, max: 100, step: 1 },
   noiseBalance: { min: 0, max: 95, step: 1 },
+  noiseWarp: { min: 0, max: 100, step: 1 },
+  noiseTurbulence: { min: 0, max: 100, step: 1 },
+  noiseThreshold: { min: 0, max: 100, step: 1 },
 
   // Array
   arrayCount: { min: 2, max: 18, step: 1 },

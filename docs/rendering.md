@@ -61,6 +61,9 @@ High-level flow:
 The renderer uses a `REF = 540` scale baseline. Authored pixel-like values are interpreted at 540px and scaled by `W / 540`.
 Procedural sources and repeat nodes use `doc.global.seed + seedOffset`, so one
 node can be varied without changing the whole document.
+Noise sources can additionally warp their sampling domain, fold values through
+turbulence, and harden their alpha through threshold shaping. These controls
+are source-layer state and therefore must match between node preview and export.
 
 ## Stack mode vs graph mode
 

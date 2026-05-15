@@ -388,6 +388,45 @@ describe('renderDocument — preview/export size parity', () => {
     expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
   });
 
+  it('noise shaping controls alter procedural texture pixels deterministically', async () => {
+    const makeNoiseDoc = (patch: Partial<ReturnType<typeof makeSourceLayer>> = {}): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 77, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('noise', {
+          noiseType: 'clouds',
+          noiseScale: 18,
+          noiseDetail: 5,
+          noiseContrast: 52,
+          noiseBalance: 45,
+          color: '#040405',
+          accentColor: '#e9e2d4',
+          ...patch,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const options = { skipEffects: true, graphMode: 'stack' as const };
+
+    const base = await renderDocument(makeNoiseDoc(), 180, 180, new Map(), options);
+    const shaped = await renderDocument(
+      makeNoiseDoc({ noiseWarp: 70, noiseTurbulence: 62, noiseThreshold: 48 }),
+      180,
+      180,
+      new Map(),
+      options,
+    );
+    const shapedAgain = await renderDocument(
+      makeNoiseDoc({ noiseWarp: 70, noiseTurbulence: 62, noiseThreshold: 48 }),
+      180,
+      180,
+      new Map(),
+      options,
+    );
+
+    expect(pixelsEqual(allPixels(shaped), allPixels(shapedAgain))).toBe(true);
+    expect(pixelsEqual(allPixels(base), allPixels(shaped))).toBe(false);
+  });
+
   it('primitive full-frame sources scale proportionally at export sizes', async () => {
     const primitiveDoc: CanvasDocument = {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },

@@ -122,6 +122,9 @@ interface ProceduralLayerBase extends BaseLayer {
   noiseDetail: number;
   noiseContrast: number;
   noiseBalance: number;
+  noiseWarp: number;
+  noiseTurbulence: number;
+  noiseThreshold: number;
   arrayPattern: ArrayPattern;
   arrayShape: ArrayShape;
   arrayCount: number;
@@ -570,6 +573,9 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     noiseDetail: 4,
     noiseContrast: 52,
     noiseBalance: 50,
+    noiseWarp: 0,
+    noiseTurbulence: 0,
+    noiseThreshold: 0,
     arrayPattern: 'grid',
     arrayShape: 'disc',
     arrayCount: 6,

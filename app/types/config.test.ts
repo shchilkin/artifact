@@ -208,6 +208,9 @@ describe('makeSourceLayer', () => {
     expect(layer.noiseScale).toBe(48);
     expect(layer.x).toBe(0.25);
     expect(layer.seedOffset).toBe(0);
+    expect(layer.noiseWarp).toBe(0);
+    expect(layer.noiseTurbulence).toBe(0);
+    expect(layer.noiseThreshold).toBe(0);
     expect(layer.scaleX).toBe(1);
     expect(layer.scaleY).toBe(1);
   });
