@@ -18,6 +18,7 @@ import type {
 } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
+import type { RepeatPresetId } from '../../utils/repeatPresets';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
@@ -34,7 +35,8 @@ export type AddAction =
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
   | { kind: 'color' }
-  | { kind: 'repeat' };
+  | { kind: 'repeat' }
+  | { kind: 'repeatPreset'; preset: RepeatPresetId };
 
 export interface InsertConnectionConfig {
   sourceId?: string;

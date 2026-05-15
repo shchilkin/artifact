@@ -438,6 +438,36 @@ const GRAPH_UTILITY_GUIDE = [
   },
 ];
 
+const SOURCE_RECIPE_GUIDE = [
+  {
+    name: 'Analog Texture Bed',
+    desc: 'Start with Film Grain or Paper noise, then add Scanlines, Dither, or Matte before merging under artwork.',
+  },
+  {
+    name: 'Signal Damage Source',
+    desc: 'Use Static or CRT Dirt noise as a branch, harden it with Threshold, then blend it through Merge for broken-video grit.',
+  },
+  {
+    name: 'Procedural Shape Field',
+    desc: 'Use Array presets such as Sticker Grid, Orbit Rings, or Shard Field when the texture should be visible graphic content.',
+  },
+];
+
+const MOTIF_RECIPE_GUIDE = [
+  {
+    name: 'Sticker Wall',
+    desc: 'Feed a logo, emoji, image cutout, or text node into the Sticker Grid repeater to build a tiled poster surface.',
+  },
+  {
+    name: 'Echo Type',
+    desc: 'Connect a text node into Echo Trail or Type Cascade, then use Color or Merge to turn the repeats into motion or shadow.',
+  },
+  {
+    name: 'Center Burst',
+    desc: 'Feed a small source into Orbit Rings or Burst Field for halos, confetti clusters, constellation marks, and radial energy.',
+  },
+];
+
 // ─── Humanize camelCase param keys ───────────────────────────────────────────
 
 function humanizeParam(key: string): string {
@@ -718,6 +748,24 @@ export default function DocsNodes() {
             <div key={utility.name} className="docs-effect-guide__item">
               <span className="docs-effect-guide__name">{utility.name}</span>
               <p className="docs-effect-guide__desc">{utility.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Source recipes">
+          {SOURCE_RECIPE_GUIDE.map((recipe) => (
+            <div key={recipe.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{recipe.name}</span>
+              <p className="docs-effect-guide__desc">{recipe.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Motif recipes">
+          {MOTIF_RECIPE_GUIDE.map((recipe) => (
+            <div key={recipe.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{recipe.name}</span>
+              <p className="docs-effect-guide__desc">{recipe.desc}</p>
             </div>
           ))}
         </section>

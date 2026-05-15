@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EFFECT_PRESET_MENU_ORDER } from '../../types/config';
 import { ARRAY_PRESET_IDS } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS } from '../../utils/noisePresets';
+import { REPEAT_PRESET_IDS } from '../../utils/repeatPresets';
 import {
   ADD_NODE_ITEMS,
   COLOR_PRESETS,
@@ -32,7 +33,7 @@ describe('node effect preset groups', () => {
 });
 
 describe('node source preset menu', () => {
-  it('exposes procedural noise and array presets in the add menu', () => {
+  it('exposes procedural source and repeater presets in the add menu', () => {
     const presetActions = ADD_NODE_ITEMS.map((item) => item.action);
 
     for (const preset of NOISE_PRESET_IDS) {
@@ -40,6 +41,9 @@ describe('node source preset menu', () => {
     }
     for (const preset of ARRAY_PRESET_IDS) {
       expect(presetActions).toContainEqual({ kind: 'arrayPreset', preset });
+    }
+    for (const preset of REPEAT_PRESET_IDS) {
+      expect(presetActions).toContainEqual({ kind: 'repeatPreset', preset });
     }
   });
 

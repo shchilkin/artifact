@@ -26,6 +26,7 @@ import {
   updateRepeatNodeInDocument,
 } from './documentCommands';
 import { EXPORT_NODE_ID } from './nodeGraph';
+import { REPEAT_PRESETS } from './repeatPresets';
 
 function makeDoc(graph?: CanvasGraph): CanvasDocument {
   return {
@@ -172,6 +173,17 @@ describe('documentCommands', () => {
       toId: EXPORT_NODE_ID,
       toPort: 'in',
     });
+  });
+
+  it('inserts repeater presets as configured graph utility nodes', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(doc, { kind: 'repeatPreset', preset: 'orbitRings' }, { x: 420, y: 280 });
+    const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(repeatNode).toBeDefined();
+    expect(repeatNode).toMatchObject(REPEAT_PRESETS.orbitRings.patch);
+    expect(result.doc.graph?.positions[repeatNode!.id]).toEqual({ x: 420, y: 280 });
   });
 
   it('inserts layer and effect nodes with the correct input ports', () => {

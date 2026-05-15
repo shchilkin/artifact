@@ -388,8 +388,8 @@ First slice:
 - [x] Add per-node seed offsets for noise, array, and repeater output.
 - [x] Add richer noise controls such as domain warp, turbulence, and threshold
   shaping.
-- [ ] Add repeater presets for common motif workflows.
-- [ ] Add source/motif docs with practical recipes.
+- [x] Add repeater presets for common motif workflows.
+- [x] Add source/motif docs with practical recipes.
 
 ### Experimental Track
 
