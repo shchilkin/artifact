@@ -360,6 +360,52 @@ test('layer preview follows graph output when unconnected layers exist', async (
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
 });
 
+test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await switchToLayerView(page);
+
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await page.getByRole('button', { name: /fill/i }).click();
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.length ?? 0;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(2);
+
+  const graphState = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    const newLayer = doc.layers?.find((layer: { id: string }) => layer.id !== 'wide-fill');
+    return {
+      newLayerId: newLayer?.id,
+      edges: doc.graph?.edges ?? [],
+    };
+  });
+
+  expect(graphState.newLayerId).toBeTruthy();
+  expect(graphState.edges).toContainEqual(
+    expect.objectContaining({
+      fromId: 'wide-fill',
+      toId: graphState.newLayerId,
+      toPort: 'bg',
+    }),
+  );
+  expect(graphState.edges).toContainEqual(
+    expect.objectContaining({
+      fromId: graphState.newLayerId,
+      toId: '__export__',
+      toPort: 'in',
+    }),
+  );
+  expect(graphState.edges).not.toContainEqual(expect.objectContaining({ fromId: 'wide-fill', toId: '__export__' }));
+});
+
 test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.goto('/app');
   await page.getByRole('button', { name: 'Add layer' }).click();
