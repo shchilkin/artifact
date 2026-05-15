@@ -156,6 +156,8 @@ function itemColor(action: AddAction) {
           ? 'noise'
           : action.kind === 'arrayPreset'
             ? 'array'
-            : action.kind
+            : action.kind === 'repeatPreset'
+              ? 'repeat'
+              : action.kind
   ];
 }

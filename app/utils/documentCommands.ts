@@ -39,6 +39,8 @@ import {
 } from './nodeGraph';
 import type { NoisePresetId } from './noisePresets';
 import { makeNoisePresetLayer } from './noisePresets';
+import type { RepeatPresetId } from './repeatPresets';
+import { makeRepeatPresetNode } from './repeatPresets';
 
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
@@ -47,7 +49,8 @@ export type DocumentAddAction =
   | { kind: 'effect'; preset: EffectPreset }
   | { kind: 'merge' }
   | { kind: 'color' }
-  | { kind: 'repeat' };
+  | { kind: 'repeat' }
+  | { kind: 'repeatPreset'; preset: RepeatPresetId };
 
 export interface DocumentInsertConnectionConfig {
   sourceId?: string;
@@ -195,8 +198,8 @@ export function addNodeAtDocument(
     return { doc: { ...doc, graph }, selectedLayerId: null };
   }
 
-  if (action.kind === 'repeat') {
-    const node = makeGraphRepeatNode();
+  if (action.kind === 'repeat' || action.kind === 'repeatPreset') {
+    const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
     const graph = connectInsertedNode(
       addRepeatNode(ensureDocumentGraph(doc), node, position),
       node.id,

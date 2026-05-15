@@ -320,6 +320,15 @@ export function LayerControls({
             value={layer.accentColor}
             onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
           />
+          {layer.kind !== 'primitive' && (
+            <InspectorSlider
+              label="Seed Offset"
+              value={Math.round(layer.seedOffset ?? 0)}
+              {...R.seedOffset}
+              overrideMax={9999}
+              onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
+            />
+          )}
         </InspectorSection>
         {hasPlacementSection && (
           <InspectorSection
@@ -425,6 +434,24 @@ export function LayerControls({
                 value={Math.round(layer.noiseBalance)}
                 {...R.noiseBalance}
                 onChange={(v) => onChange({ noiseBalance: v } as Partial<SourceLayer>)}
+              />
+              <InspectorSlider
+                label="Domain Warp"
+                value={Math.round(layer.noiseWarp ?? 0)}
+                {...R.noiseWarp}
+                onChange={(v) => onChange({ noiseWarp: v } as Partial<SourceLayer>)}
+              />
+              <InspectorSlider
+                label="Turbulence"
+                value={Math.round(layer.noiseTurbulence ?? 0)}
+                {...R.noiseTurbulence}
+                onChange={(v) => onChange({ noiseTurbulence: v } as Partial<SourceLayer>)}
+              />
+              <InspectorSlider
+                label="Threshold"
+                value={Math.round(layer.noiseThreshold ?? 0)}
+                {...R.noiseThreshold}
+                onChange={(v) => onChange({ noiseThreshold: v } as Partial<SourceLayer>)}
               />
             </>
           )}

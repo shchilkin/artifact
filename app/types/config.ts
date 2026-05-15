@@ -103,6 +103,7 @@ export interface FillLayer extends BaseLayer {
 interface ProceduralLayerBase extends BaseLayer {
   opacity: number;
   blendMode: string;
+  seedOffset: number;
   x: number;
   y: number;
   scaleX: number;
@@ -121,6 +122,9 @@ interface ProceduralLayerBase extends BaseLayer {
   noiseDetail: number;
   noiseContrast: number;
   noiseBalance: number;
+  noiseWarp: number;
+  noiseTurbulence: number;
+  noiseThreshold: number;
   arrayPattern: ArrayPattern;
   arrayShape: ArrayShape;
   arrayCount: number;
@@ -337,6 +341,7 @@ export interface GraphRepeatNode {
   scale: number;
   jitter: number;
   rotation: number;
+  seedOffset: number;
   opacity: number;
   blendMode: string;
 }
@@ -549,6 +554,7 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     kind: sourceType,
     opacity: 100,
     blendMode: 'normal',
+    seedOffset: 0,
     x: 0.5,
     y: 0.5,
     scaleX: 1,
@@ -567,6 +573,9 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     noiseDetail: 4,
     noiseContrast: 52,
     noiseBalance: 50,
+    noiseWarp: 0,
+    noiseTurbulence: 0,
+    noiseThreshold: 0,
     arrayPattern: 'grid',
     arrayShape: 'disc',
     arrayCount: 6,
@@ -892,6 +901,7 @@ export function makeGraphRepeatNode(partial: Partial<GraphRepeatNode> = {}): Gra
     scale: 28,
     jitter: 0,
     rotation: 0,
+    seedOffset: 0,
     opacity: 100,
     blendMode: 'source-over',
     ...partial,

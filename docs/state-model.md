@@ -51,6 +51,8 @@ Rules:
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
+- Procedural per-node variation belongs in source/repeat node `seedOffset`
+  fields. The document seed remains the global scene seed.
 
 ## Graph state
 

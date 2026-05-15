@@ -2,6 +2,7 @@ import type { EffectPreset } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
+import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
 import type { AddAction } from './types';
 
 export const NODE_W = 320;
@@ -168,6 +169,13 @@ export const ADD_ITEMS: Array<{
     group: 'util',
     action: { kind: 'repeat' },
   },
+  ...REPEAT_PRESET_IDS.map((preset) => ({
+    label: REPEAT_PRESETS[preset].name,
+    symbol: '⧉',
+    description: REPEAT_PRESETS[preset].description,
+    group: 'util' as const,
+    action: { kind: 'repeatPreset', preset } as AddAction,
+  })),
 ];
 
 export const ADD_MENU_BROWSE_MODES = [
@@ -274,6 +282,13 @@ export const ADD_NODE_ITEMS: Array<{
     group: 'utilities',
     action: { kind: 'repeat' },
   },
+  ...REPEAT_PRESET_IDS.map((preset) => ({
+    label: REPEAT_PRESETS[preset].name,
+    symbol: '⧉',
+    description: REPEAT_PRESETS[preset].description,
+    group: 'utilities' as const,
+    action: { kind: 'repeatPreset', preset } as AddAction,
+  })),
 ];
 
 export const ADD_EFFECT_FAMILIES = [

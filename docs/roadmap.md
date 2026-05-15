@@ -378,6 +378,19 @@ Likely VPS/full-stack scope:
 Do this after the document schema, asset strategy, and export behavior are
 stable enough to migrate safely.
 
+### v0.5: Procedural Generation Depth
+
+Goal: make procedural sources and graph utilities feel intentionally
+controllable instead of just random.
+
+First slice:
+
+- [x] Add per-node seed offsets for noise, array, and repeater output.
+- [x] Add richer noise controls such as domain warp, turbulence, and threshold
+  shaping.
+- [x] Add repeater presets for common motif workflows.
+- [x] Add source/motif docs with practical recipes.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:
