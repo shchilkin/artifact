@@ -403,6 +403,31 @@ test('current document can be saved into local projects', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
 });
 
+test('new blank canvas ignores stored work and shows the empty start panel', async ({ page }) => {
+  await page.goto('/app');
+  await page.evaluate((storedDoc) => localStorage.setItem('doc', JSON.stringify(storedDoc)), lightDocument);
+
+  await page.goto('/app?new=blank');
+
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
+  await expectCanvasCenterAlpha(page, 0);
+});
+
+test('new blank canvas action confirms before replacing current work', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('Start a blank canvas?');
+    await dialog.accept();
+  });
+  await page.getByRole('button', { name: 'New blank canvas' }).click();
+
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expectCanvasCenterAlpha(page, 0);
+});
+
 test('node previews respect document aspect ratio', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);
@@ -605,6 +630,16 @@ test('empty transparent documents render transparent pixels over checkerboard ch
 
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
+  await expectCanvasCenterAlpha(page, 0);
+
+  await expect
+    .poll(async () => page.locator('.pixi-container').evaluate((element) => getComputedStyle(element).backgroundImage))
+    .toContain('linear-gradient');
+});
+
+async function expectCanvasCenterAlpha(page: Page, alpha: number) {
+  const canvas = page.locator('.pixi-container canvas').first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect
     .poll(
       async () =>
@@ -616,12 +651,8 @@ test('empty transparent documents render transparent pixels over checkerboard ch
         }),
       { timeout: 15_000 },
     )
-    .toBe(0);
-
-  await expect
-    .poll(async () => page.locator('.pixi-container').evaluate((element) => getComputedStyle(element).backgroundImage))
-    .toContain('linear-gradient');
-});
+    .toBe(alpha);
+}
 
 async function expectLayerCanvasToHavePixels(page: Page) {
   const canvas = page.locator('.pixi-container canvas').first();

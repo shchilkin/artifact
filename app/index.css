@@ -1647,6 +1647,7 @@ input[type="range"] {
 
 .home-hero__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   animation: landing-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 340ms both;
@@ -2341,6 +2342,29 @@ input[type="range"] {
   line-height: 1.55;
   margin: 0;
   max-width: 60ch;
+}
+
+.examples-blank-link {
+  width: fit-content;
+  min-height: 36px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  transition:
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.examples-blank-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .examples-filters {

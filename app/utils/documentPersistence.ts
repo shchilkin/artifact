@@ -108,6 +108,32 @@ export function serializeArtifactDocument(doc: CanvasDocument) {
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
 
+export function createBlankDocument({
+  aspect = DEFAULT_GLOBAL.aspect,
+  seed = DEFAULT_GLOBAL.seed,
+}: Partial<Pick<CanvasDocument['global'], 'aspect' | 'seed'>> = {}): CanvasDocument {
+  return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    global: { ...DEFAULT_GLOBAL, bg: 'transparent', aspect, seed },
+    layers: [],
+    export: { ...DEFAULT_EXPORT },
+  };
+}
+
+export function isBlankDocument(doc: CanvasDocument) {
+  const graph = doc.graph;
+  const graphIsEmpty =
+    !graph ||
+    (graph.edges.length === 0 &&
+      graph.mergeNodes.length === 0 &&
+      (graph.colorNodes ?? []).length === 0 &&
+      (graph.repeatNodes ?? []).length === 0 &&
+      (graph.areas ?? []).length === 0 &&
+      Object.keys(graph.positions).every((id) => id === '__export__'));
+
+  return doc.layers.length === 0 && doc.global.bg === 'transparent' && graphIsEmpty;
+}
+
 export function parseArtifactDocument(value: string | null | undefined): CanvasDocument | null {
   return parseDocumentJson(value);
 }
@@ -119,7 +145,10 @@ export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
 }
 
 export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {
-  const docParam = new URLSearchParams(search).get('doc');
+  const params = new URLSearchParams(search);
+  if (params.get('new') === 'blank' || params.get('blank') === '1') return createBlankDocument();
+
+  const docParam = params.get('doc');
   return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
 }
 
@@ -155,5 +184,7 @@ export function createDocumentShareUrl(origin: string, doc: CanvasDocument, path
 export function removeDocParamFromUrl(href: string) {
   const url = new URL(href);
   url.searchParams.delete('doc');
+  url.searchParams.delete('new');
+  url.searchParams.delete('blank');
   return url.toString();
 }

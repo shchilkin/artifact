@@ -484,6 +484,9 @@ export default function Home() {
               <button type="button" className="home-hero__skip" onClick={handleCTA}>
                 Open generator →
               </button>
+              <Link to="/app?new=blank" className="home-cta-link">
+                New blank canvas
+              </Link>
             </div>
             <p className={`home-hero__hint${!heroVisible ? ' home-hero__hint--used' : ''}`} aria-hidden="true">
               ↓ scroll
@@ -526,6 +529,9 @@ export default function Home() {
                 </button>
                 <Link to="/examples" className="home-cta-link">
                   or browse examples ↗
+                </Link>
+                <Link to="/app?new=blank" className="home-cta-link">
+                  start blank
                 </Link>
               </div>
               <p className="home-cta-fineprint">Everything is editable once inside. Re-seed or swap any layer.</p>

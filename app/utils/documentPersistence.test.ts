@@ -9,9 +9,11 @@ import {
 import {
   ARTIFACT_FILE_EXTENSION,
   createArtifactFileName,
+  createBlankDocument,
   createDocumentShareUrl,
   DOC_KEY,
   getInitialDocumentFromSources,
+  isBlankDocument,
   normalizeDocument,
   parseArtifactDocument,
   removeDocParamFromUrl,
@@ -208,6 +210,17 @@ describe('getInitialDocumentFromSources', () => {
     expect(doc.global.seed).toBe(20);
   });
 
+  it('prefers an explicit blank start over stored local state', () => {
+    const doc = getInitialDocumentFromSources({
+      search: '?new=blank',
+      storageValue: encodeDoc(storedDoc),
+    });
+
+    expect(doc.layers).toEqual([]);
+    expect(doc.global.bg).toBe('transparent');
+    expect(isBlankDocument(doc)).toBe(true);
+  });
+
   it('falls back to stored local state when the URL document is invalid', () => {
     const doc = getInitialDocumentFromSources({
       search: '?doc=%7Bbad-json',
@@ -272,9 +285,23 @@ describe('document serialization helpers', () => {
   });
 
   it('removes doc query params while preserving unrelated params', () => {
-    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&tab=node#preview');
+    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&new=blank&tab=node#preview');
 
     expect(url).toBe('https://example.test/app?tab=node#preview');
+  });
+
+  it('creates transparent blank documents without hidden layers', () => {
+    const blank = createBlankDocument({ aspect: '16:9', seed: 818 });
+
+    expect(blank).toMatchObject({
+      global: { bg: 'transparent', aspect: '16:9', seed: 818 },
+      layers: [],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    expect(isBlankDocument(blank)).toBe(true);
+    expect(
+      isBlankDocument({ ...blank, graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [] } }),
+    ).toBe(true);
   });
 
   it('serializes artifact files as readable JSON that imports through normalization', () => {

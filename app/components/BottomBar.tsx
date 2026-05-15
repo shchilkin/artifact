@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 
 interface Props {
+  onNewBlank: () => void;
   onRandomize: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function BottomBar({
+  onNewBlank,
   onRandomize,
   onUndo,
   onRedo,
@@ -44,6 +46,9 @@ export function BottomBar({
     <div className="bottom-bar">
       {/* Row 1: Undo / Redo / Rand */}
       <div className="bottom-rand-group">
+        <button className="btn" onClick={onNewBlank} aria-label="New blank canvas" title="New blank canvas">
+          NEW
+        </button>
         <button className="btn" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)">
           ↩{canUndo && undoCount > 0 ? ` ${undoCount}` : ''}
         </button>

@@ -391,6 +391,27 @@ First slice:
 - [x] Add repeater presets for common motif workflows.
 - [x] Add source/motif docs with practical recipes.
 
+### v0.6: Better Starts And Example Workflows
+
+Goal: make Artifact easier to enter, easier to learn, and faster to start real
+work without reducing the advanced node workflow.
+
+First slice:
+
+- [x] Add an explicit New Blank Canvas action that is reachable from the
+  generator, examples, home, and local projects surfaces.
+- [x] Make `?new=blank` force a transparent, layer-free document instead of
+  restoring localStorage.
+- [x] Ask for confirmation before replacing current work with a blank canvas.
+- [x] Keep the blank document transparent so checkerboard chrome reveals alpha
+  without entering export pixels.
+- [ ] Add recipe starter documents that create useful first graphs.
+- [ ] Improve examples with categories, used-node summaries, and clearer
+  "start from this" language.
+- [ ] Improve add-node search and grouping for recipes and starter workflows.
+- [ ] Add task-oriented docs for blank starts, recipes, layer-vs-node work, and
+  export.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:

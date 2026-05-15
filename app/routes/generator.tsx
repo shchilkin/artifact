@@ -145,6 +145,7 @@ export default function Generator() {
     duplicateLayer,
     handleAddLayerAt,
     handleRandomize,
+    handleNewBlank,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,
@@ -157,6 +158,7 @@ export default function Generator() {
     canRedo,
     undoCount,
     fromDocParam,
+    isBlank,
   } = useGeneratorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
   const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
@@ -194,7 +196,17 @@ export default function Generator() {
     toggleProjects();
   }, [closePresets, toggleProjects]);
 
+  const handleNewBlankRequest = useCallback(() => {
+    if (!isBlank && !window.confirm('Start a blank canvas? Current work will be replaced.')) return;
+    closePresets();
+    closeProjects();
+    handleNewBlank();
+    setPrimitiveViewStates({});
+    setViewMode('layers');
+  }, [closePresets, closeProjects, handleNewBlank, isBlank]);
+
   const bottomBarProps = {
+    onNewBlank: handleNewBlankRequest,
     onRandomize: handleRandomize,
     onUndo: undo,
     onRedo: redo,
@@ -394,6 +406,7 @@ export default function Generator() {
               onSave={saveCurrentProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
+              onNewBlank={handleNewBlankRequest}
               onClose={closeProjects}
             />
           )}

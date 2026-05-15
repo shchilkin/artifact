@@ -214,6 +214,9 @@ export default function Examples() {
             <p className="examples-header__eyebrow">Field guide</p>
             <h1 className="examples-header__title">Examples</h1>
             <p className="examples-header__deck">Curated workflows and random seeds. Tap one to remix.</p>
+            <button type="button" className="examples-blank-link" onClick={() => navigate('/app?new=blank')}>
+              New blank canvas
+            </button>
           </div>
           <div className="examples-filters" role="tablist" aria-label="Filter by aspect ratio">
             <FilterButton

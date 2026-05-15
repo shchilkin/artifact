@@ -41,8 +41,10 @@ import {
   undoHistory,
 } from '../utils/documentHistory';
 import {
+  createBlankDocument,
   createDocumentShareUrl,
   getInitialDocument,
+  isBlankDocument,
   normalizeDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
@@ -54,6 +56,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
+  const [fromBlankParam] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return ['blank', '1'].includes(params.get('new') ?? '') || params.get('blank') === '1';
+  });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [past, setPast] = useState<HistoryEntry[]>([]);
   const [future, setFuture] = useState<HistoryEntry[]>([]);
@@ -73,7 +80,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
   useEffect(() => {
-    if (fromDocParam) {
+    if (fromDocParam || fromBlankParam) {
       window.history.replaceState(null, '', removeDocParamFromUrl(window.location.href));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,6 +305,12 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId(null);
   }, [commitDocument]);
 
+  const handleNewBlank = useCallback(() => {
+    const current = docRef.current;
+    commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
+    setSelectedLayerId(null);
+  }, [commitDocument]);
+
   const handleGraphChange = useCallback(
     (graph: CanvasGraph) => {
       updateDocument((current) => setDocumentGraph(current, graph), 'debounce');
@@ -337,6 +350,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     duplicateLayer,
     handleAddLayerAt,
     handleRandomize,
+    handleNewBlank,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,
@@ -350,5 +364,6 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     canRedo: future.length > 0,
     undoCount: past.length,
     fromDocParam,
+    isBlank: isBlankDocument(doc),
   };
 }

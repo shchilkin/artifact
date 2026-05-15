@@ -9,6 +9,7 @@ interface Props {
   onSave: (name: string) => void;
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
+  onNewBlank: () => void;
   onClose: () => void;
 }
 
@@ -18,7 +19,7 @@ function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete, onClose }: Props) {
+export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete, onNewBlank, onClose }: Props) {
   const [name, setName] = useState('');
   const nearLimit = projects.length >= maxProjects - 2;
 
@@ -71,6 +72,11 @@ export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete,
           />
           <button className="btn btn-primary" onClick={handleSave}>
             SAVE
+          </button>
+        </div>
+        <div className="px-4 py-2.5 border-b border-border shrink-0">
+          <button className="btn w-full" onClick={onNewBlank} aria-label="New blank canvas from projects">
+            NEW BLANK CANVAS
           </button>
         </div>
         {projects.length === 0 ? (
