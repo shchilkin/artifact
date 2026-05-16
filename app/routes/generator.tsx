@@ -174,12 +174,15 @@ export default function Generator() {
   const {
     showProjects,
     projects,
+    recoveryDraft,
+    storageError,
     maxProjects,
     toggleProjects,
     closeProjects,
     handleLoadProject,
     saveCurrentProject,
     deleteProject,
+    deleteRecoveryDraft,
   } = useGeneratorProjectsController({
     docRef,
     imageCache,
@@ -197,7 +200,12 @@ export default function Generator() {
   }, [closePresets, toggleProjects]);
 
   const handleNewBlankRequest = useCallback(() => {
-    if (!isBlank && !window.confirm('Start a blank canvas? Current work will be replaced.')) return;
+    if (
+      !isBlank &&
+      !window.confirm('Start a blank canvas? Current work will be saved as a recoverable draft before replacing it.')
+    ) {
+      return;
+    }
     closePresets();
     closeProjects();
     handleNewBlank();
@@ -402,10 +410,13 @@ export default function Generator() {
           {showProjects && (
             <ProjectsPanel
               projects={projects}
+              recoveryDraft={recoveryDraft}
+              storageError={storageError}
               maxProjects={maxProjects}
               onSave={saveCurrentProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
+              onDeleteRecoveryDraft={deleteRecoveryDraft}
               onNewBlank={handleNewBlankRequest}
               onClose={closeProjects}
             />

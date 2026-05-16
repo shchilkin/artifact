@@ -5,10 +5,13 @@ import type { SavedProject } from '../utils/projectLibrary';
 
 interface Props {
   projects: SavedProject[];
+  recoveryDraft: SavedProject | null;
+  storageError: string | null;
   maxProjects: number;
   onSave: (name: string) => void;
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
+  onDeleteRecoveryDraft: () => void;
   onNewBlank: () => void;
   onClose: () => void;
 }
@@ -19,9 +22,21 @@ function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete, onNewBlank, onClose }: Props) {
+export function ProjectsPanel({
+  projects,
+  recoveryDraft,
+  storageError,
+  maxProjects,
+  onSave,
+  onLoad,
+  onDelete,
+  onDeleteRecoveryDraft,
+  onNewBlank,
+  onClose,
+}: Props) {
   const [name, setName] = useState('');
   const nearLimit = projects.length >= maxProjects - 2;
+  const hasSavedItems = projects.length > 0 || Boolean(recoveryDraft);
 
   const handleSave = () => {
     const trimmed = name.trim() || `Project ${projects.length + 1}`;
@@ -79,7 +94,12 @@ export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete,
             NEW BLANK CANVAS
           </button>
         </div>
-        {projects.length === 0 ? (
+        {storageError && (
+          <div className="mx-4 mt-3 border border-accent/60 bg-accent/10 p-2.5 text-[10px] leading-relaxed text-accent">
+            {storageError}
+          </div>
+        )}
+        {!hasSavedItems ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
             <div className="text-[32px] text-accent opacity-30 mb-2">▣</div>
             <p>No projects saved yet.</p>
@@ -87,6 +107,41 @@ export function ProjectsPanel({ projects, maxProjects, onSave, onLoad, onDelete,
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+            {recoveryDraft && (
+              <div className="flex gap-2.5 p-2.5 border border-accent/50 rounded bg-accent/10 transition-colors hover:border-accent">
+                <img
+                  src={recoveryDraft.thumbnail}
+                  alt={recoveryDraft.name}
+                  className="w-20 h-20 rounded object-cover shrink-0"
+                />
+                <div className="flex-1 flex flex-col justify-between min-w-0">
+                  <div>
+                    <div className="text-[10px] text-accent tracking-[2px]">RECOVERABLE DRAFT</div>
+                    <div className="text-[12px] text-text truncate">{recoveryDraft.name}</div>
+                    <div className="text-[10px] text-dim tracking-[0.5px]">
+                      {formatUpdatedAt(recoveryDraft.updatedAt)}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-dim tracking-[0.5px]">seed: {recoveryDraft.doc.global.seed}</div>
+                  <div className="flex gap-1.5">
+                    <button
+                      className="btn btn-small"
+                      aria-label={`Load ${recoveryDraft.name}`}
+                      onClick={() => onLoad(recoveryDraft)}
+                    >
+                      LOAD
+                    </button>
+                    <button
+                      className="btn btn-small btn-danger"
+                      aria-label={`Delete ${recoveryDraft.name}`}
+                      onClick={onDeleteRecoveryDraft}
+                    >
+                      DEL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {projects.map((project) => (
               <div
                 key={project.id}

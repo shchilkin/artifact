@@ -48,6 +48,7 @@ import {
   normalizeDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  savePreBlankDraft,
 } from '../utils/documentPersistence';
 import { randomDocument } from '../utils/randomConfig';
 
@@ -307,6 +308,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const handleNewBlank = useCallback(() => {
     const current = docRef.current;
+    if (!isBlankDocument(current) && !savePreBlankDraft(current)) {
+      try {
+        savePreBlankDraft(current, sessionStorage);
+      } catch {
+        // ignore inaccessible session storage
+      }
+    }
     commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
     setSelectedLayerId(null);
   }, [commitDocument]);

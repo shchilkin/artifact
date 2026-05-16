@@ -18,6 +18,7 @@ import {
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export const DOC_KEY = 'doc';
+export const PRE_BLANK_DRAFT_KEY = 'artifact-pre-blank-draft-v1';
 export const ARTIFACT_FILE_EXTENSION = '.artifact.json';
 export const ARTIFACT_FILE_MIME = 'application/json';
 
@@ -29,6 +30,13 @@ export interface InitialDocumentSources {
 export interface DocumentStorage {
   getItem?(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
+}
+
+export interface PreBlankDraft {
+  doc: CanvasDocument;
+  savedAt: string;
+  reason: 'before-blank';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -138,6 +146,48 @@ export function parseArtifactDocument(value: string | null | undefined): CanvasD
   return parseDocumentJson(value);
 }
 
+function parsePreBlankDraft(value: string | null | undefined): PreBlankDraft | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<PreBlankDraft>;
+    if (parsed.reason !== 'before-blank' || typeof parsed.savedAt !== 'string') return null;
+    return { reason: 'before-blank', savedAt: parsed.savedAt, doc: normalizeDocument(parsed.doc) };
+  } catch {
+    return null;
+  }
+}
+
+export function loadPreBlankDraft(storage: Pick<DocumentStorage, 'getItem'>): PreBlankDraft | null {
+  try {
+    return parsePreBlankDraft(storage.getItem?.(PRE_BLANK_DRAFT_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function savePreBlankDraft(
+  doc: CanvasDocument,
+  storage: Pick<DocumentStorage, 'setItem'> = localStorage,
+  date = new Date(),
+) {
+  if (isBlankDocument(doc)) return true;
+  try {
+    storage.setItem(PRE_BLANK_DRAFT_KEY, JSON.stringify({ reason: 'before-blank', savedAt: date.toISOString(), doc }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deletePreBlankDraft(storage: Pick<DocumentStorage, 'removeItem'> = localStorage) {
+  try {
+    storage.removeItem?.(PRE_BLANK_DRAFT_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
   const seed = Number.isFinite(doc.global.seed) ? doc.global.seed : 'untitled';
   const stamp = date.toISOString().slice(0, 10);
@@ -160,8 +210,22 @@ export function getInitialDocument(): CanvasDocument {
     // ignore inaccessible storage
   }
 
+  const search = typeof window === 'undefined' ? '' : window.location.search;
+  const params = new URLSearchParams(search);
+  const startsBlank = params.get('new') === 'blank' || params.get('blank') === '1';
+  if (startsBlank) {
+    const storedDoc = parseArtifactDocument(storageValue);
+    if (storedDoc && !savePreBlankDraft(storedDoc)) {
+      try {
+        savePreBlankDraft(storedDoc, sessionStorage);
+      } catch {
+        // ignore inaccessible session storage
+      }
+    }
+  }
+
   return getInitialDocumentFromSources({
-    search: typeof window === 'undefined' ? '' : window.location.search,
+    search,
     storageValue,
   });
 }

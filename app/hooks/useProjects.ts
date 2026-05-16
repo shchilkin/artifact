@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
+import { deletePreBlankDraft, loadPreBlankDraft } from '../utils/documentPersistence';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import {
   deleteProjectSnapshot,
@@ -8,6 +9,7 @@ import {
   normalizeSavedProjects,
   PROJECT_THUMBNAIL_FALLBACK,
   PROJECTS_STORAGE_KEY,
+  persistSavedProjects,
   type SavedProject,
   saveProjectSnapshot,
 } from '../utils/projectLibrary';
@@ -22,11 +24,26 @@ function loadFromStorage(): SavedProject[] {
 }
 
 function saveToStorage(projects: SavedProject[]) {
-  localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+  return persistSavedProjects(localStorage, projects);
+}
+
+function loadDraftFromStorage(): SavedProject | null {
+  const draft = loadPreBlankDraft(localStorage) ?? loadPreBlankDraft(sessionStorage);
+  if (!draft) return null;
+  return {
+    id: 'pre-blank-draft',
+    name: 'Previous draft',
+    doc: draft.doc,
+    thumbnail: PROJECT_THUMBNAIL_FALLBACK,
+    createdAt: draft.savedAt,
+    updatedAt: draft.savedAt,
+  };
 }
 
 export function useProjects() {
   const [projects, setProjects] = useState<SavedProject[]>(loadFromStorage);
+  const [recoveryDraft, setRecoveryDraft] = useState<SavedProject | null>(loadDraftFromStorage);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   const saveProject = useCallback(
     async (name: string, doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) => {
@@ -47,24 +64,45 @@ export function useProjects() {
         updatedAt: now,
       };
 
-      setProjects((prev) => {
-        const next = saveProjectSnapshot(prev, project);
-        saveToStorage(next);
-        return next;
-      });
+      const next = saveProjectSnapshot(projects, project);
+      const result = saveToStorage(next);
+      setStorageError(result.error);
+      if (result.ok) setProjects(result.projects);
     },
-    [],
+    [projects],
   );
 
-  const deleteProject = useCallback((id: string) => {
-    setProjects((prev) => {
-      const next = deleteProjectSnapshot(prev, id);
-      saveToStorage(next);
-      return next;
-    });
-  }, []);
+  const deleteProject = useCallback(
+    (id: string) => {
+      const next = deleteProjectSnapshot(projects, id);
+      const result = saveToStorage(next);
+      setStorageError(result.error);
+      if (result.ok) setProjects(result.projects);
+    },
+    [projects],
+  );
 
   const loadProject = useCallback((project: SavedProject) => ({ doc: project.doc }), []);
 
-  return { projects, saveProject, deleteProject, loadProject, maxProjects: MAX_PROJECTS };
+  const deleteRecoveryDraft = useCallback(() => {
+    deletePreBlankDraft(localStorage);
+    deletePreBlankDraft(sessionStorage);
+    setRecoveryDraft(null);
+  }, []);
+
+  const refreshRecoveryDraft = useCallback(() => {
+    setRecoveryDraft(loadDraftFromStorage());
+  }, []);
+
+  return {
+    projects,
+    recoveryDraft,
+    storageError,
+    saveProject,
+    deleteProject,
+    loadProject,
+    deleteRecoveryDraft,
+    refreshRecoveryDraft,
+    maxProjects: MAX_PROJECTS,
+  };
 }

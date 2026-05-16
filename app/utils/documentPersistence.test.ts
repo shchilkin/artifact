@@ -12,12 +12,16 @@ import {
   createBlankDocument,
   createDocumentShareUrl,
   DOC_KEY,
+  deletePreBlankDraft,
   getInitialDocumentFromSources,
   isBlankDocument,
+  loadPreBlankDraft,
   normalizeDocument,
+  PRE_BLANK_DRAFT_KEY,
   parseArtifactDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  savePreBlankDraft,
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
@@ -271,6 +275,25 @@ describe('document serialization helpers', () => {
     });
 
     expect(didSave).toBe(false);
+  });
+
+  it('saves and deletes a recoverable pre-blank draft', () => {
+    const writes = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => writes.get(key) ?? null,
+      setItem: (key: string, value: string) => writes.set(key, value),
+      removeItem: (key: string) => writes.delete(key),
+    };
+
+    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'))).toBe(true);
+    expect(writes.has(PRE_BLANK_DRAFT_KEY)).toBe(true);
+
+    const draft = loadPreBlankDraft(storage);
+    expect(draft?.savedAt).toBe('2026-05-15T12:00:00.000Z');
+    expect(draft?.doc.layers[0]?.id).toBe('share-text');
+
+    expect(deletePreBlankDraft(storage)).toBe(true);
+    expect(loadPreBlankDraft(storage)).toBeNull();
   });
 
   it('creates share URLs that round-trip through the doc query param', () => {

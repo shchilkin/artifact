@@ -11,8 +11,14 @@ export interface SavedProject {
 
 export const PROJECTS_STORAGE_KEY = 'artifact-projects-v1';
 export const MAX_PROJECTS = 30;
+export const PROJECT_STORAGE_FULL_MESSAGE =
+  'Project storage is full. Kept the app running and compacted saved thumbnails where possible.';
 export const PROJECT_THUMBNAIL_FALLBACK =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+export interface ProjectStorage {
+  setItem(key: string, value: string): void;
+}
 
 function isSavedProject(value: unknown): value is SavedProject {
   if (!value || typeof value !== 'object') return false;
@@ -44,4 +50,60 @@ export function saveProjectSnapshot(projects: SavedProject[], project: SavedProj
 
 export function deleteProjectSnapshot(projects: SavedProject[], id: string): SavedProject[] {
   return projects.filter((project) => project.id !== id);
+}
+
+function withCompactThumbnails(projects: SavedProject[]): SavedProject[] {
+  return projects.map((project) => ({ ...project, thumbnail: PROJECT_THUMBNAIL_FALLBACK }));
+}
+
+function uniqueStorageAttempts(projects: SavedProject[]): SavedProject[][] {
+  const compacted = withCompactThumbnails(projects);
+  const attempts = [projects, compacted, compacted.slice(0, 12), compacted.slice(0, 6), compacted.slice(0, 1)];
+  const seen = new Set<string>();
+  return attempts.filter((attempt) => {
+    const key = `${attempt.length}:${attempt.every((project) => project.thumbnail === PROJECT_THUMBNAIL_FALLBACK)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isQuotaLikeError(error: unknown) {
+  if (!(error instanceof Error || (typeof DOMException !== 'undefined' && error instanceof DOMException))) return false;
+  return error.name === 'QuotaExceededError' || /quota/i.test(error.message);
+}
+
+export interface PersistSavedProjectsResult {
+  ok: boolean;
+  projects: SavedProject[];
+  compacted: boolean;
+  error: string | null;
+}
+
+export function persistSavedProjects(storage: ProjectStorage, projects: SavedProject[]): PersistSavedProjectsResult {
+  let lastError: unknown = null;
+  for (const attempt of uniqueStorageAttempts(projects)) {
+    try {
+      storage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(attempt));
+      const compacted =
+        attempt.length !== projects.length ||
+        attempt.some((project, index) => project.thumbnail !== projects[index]?.thumbnail);
+      return {
+        ok: true,
+        projects: attempt,
+        compacted,
+        error: compacted ? PROJECT_STORAGE_FULL_MESSAGE : null,
+      };
+    } catch (error) {
+      lastError = error;
+      if (!isQuotaLikeError(error)) break;
+    }
+  }
+
+  return {
+    ok: false,
+    projects,
+    compacted: false,
+    error: lastError instanceof Error ? lastError.message : PROJECT_STORAGE_FULL_MESSAGE,
+  };
 }

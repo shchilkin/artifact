@@ -458,6 +458,11 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
   await expectCanvasCenterAlpha(page, 0);
+
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await expect(page.getByText('RECOVERABLE DRAFT')).toBeVisible();
+  await page.getByRole('button', { name: 'Load Previous draft' }).click();
+  await expectLayerCanvasToHavePixels(page);
 });
 
 test('new blank canvas action confirms before replacing current work', async ({ page }) => {
@@ -465,7 +470,7 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await expectLayerCanvasToHavePixels(page);
 
   page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain('Start a blank canvas?');
+    expect(dialog.message()).toContain('recoverable draft');
     await dialog.accept();
   });
   await page.getByRole('button', { name: 'New blank canvas' }).click();

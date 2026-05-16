@@ -1,7 +1,8 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
 import { renderDocument } from './renderer';
 
-const THUMB_LONG_EDGE = 280;
+const THUMB_LONG_EDGE = 180;
+const THUMB_QUALITY = 0.62;
 
 export async function generateThumbnail(
   doc: CanvasDocument,
@@ -14,5 +15,5 @@ export async function generateThumbnail(
   const W = Math.max(1, Math.round(aw * scale));
   const H = Math.max(1, Math.round(ah * scale));
   const out = await renderDocument(doc, W, H, imageCache);
-  return out.toDataURL('image/jpeg', 0.8);
+  return out.toDataURL('image/jpeg', THUMB_QUALITY);
 }
