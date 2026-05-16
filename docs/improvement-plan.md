@@ -16,6 +16,12 @@ phase should leave the repo in a better state even if later phases change.
 - Primitive live/offscreen rendering already shares `app/utils/primitiveScene.ts`.
 - Node thumbnails already use render signatures and a render queue.
 - Editable document import/export is available through `.artifact.json`.
+- Effect docs metadata has a dedicated `app/utils/effectDocs.ts` module and
+  `docs/effect-development.md` describes the effect-change checklist.
+- Texture-style effect renderers are split into
+  `app/utils/render/layers/textureEffects.ts`.
+- `EffectInspector.tsx` is now orchestration over data-driven effect section
+  definitions instead of one large repeated control surface.
 
 ## Remaining Work Snapshot
 
@@ -113,10 +119,10 @@ the detailed source of truth.
 - [x] Move imported image payloads out of active document localStorage and into
   IndexedDB asset records while keeping `.artifact.json` export portable.
 
-Recommended next commit: continue renderer internals by splitting
-`app/utils/render/layers/index.ts` into focused per-kind modules only where that
-reduces real complexity. The public renderer facade is now stable, so remaining
-work can be sliced without touching callers.
+Recommended next commit: continue renderer internals by splitting another
+focused effect family only where that reduces real complexity. The public
+renderer facade is stable, so remaining work can be sliced without touching
+callers.
 
 ## Phase 0: Agent Orientation
 

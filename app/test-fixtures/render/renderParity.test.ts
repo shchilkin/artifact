@@ -273,6 +273,36 @@ describe('renderDocument — preview/export size parity', () => {
     expect(alphaBounds(exported).height).toBeCloseTo(alphaBounds(previewA).height * 2, 0);
   });
 
+  it('procedural noise scale supports fine grain below the old coarse minimum', async () => {
+    const makeNoiseDoc = (noiseScale: number): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 7, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('noise', {
+          noiseType: 'value',
+          noiseScale,
+          noiseDetail: 2,
+          noiseContrast: 60,
+          noiseBalance: 50,
+          color: '#000000',
+          accentColor: '#ffffff',
+          opacity: 100,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const fine = await renderDocument(makeNoiseDoc(2), 128, 128, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const coarse = await renderDocument(makeNoiseDoc(6), 128, 128, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(pixelsEqual(allPixels(fine), allPixels(coarse))).toBe(false);
+    expect(visiblePixelCount(fine)).toBeGreaterThan(128 * 128 * 0.25);
+  });
+
   it('procedural arrays are deterministic and scale proportionally at export sizes', async () => {
     const opts = { skipEffects: true as const, graphMode: 'stack' as const };
     const previewA = await renderDocument(proceduralArray, 540, 540, new Map(), opts);

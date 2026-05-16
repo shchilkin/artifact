@@ -1,0 +1,135 @@
+import type { EffectLayer } from '../../../types/config';
+import { lcg } from '../../lcg';
+import { createCanvas } from '../canvas';
+
+export function applyScanlines(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
+  if (layer.scanlines <= 0) return;
+
+  const lineH = Math.max(1, Math.round((layer.scanlineWidth ?? 1) * scale));
+  const gap = Math.max(1, Math.round(scale));
+  const step = lineH + gap;
+  ctx.fillStyle = `rgba(0,0,0,${layer.scanlines / 100})`;
+  for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
+}
+
+export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
+  if (layer.grain <= 0) return;
+
+  const grainRng = lcg(seed * 3331);
+  const offscreen = createCanvas(W, H);
+  const octx = offscreen.getContext('2d')!;
+  const imageData = octx.createImageData(W, H);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (grainRng() - 0.5) * layer.grain * 3;
+    const v = 128 + noise;
+    data[i] = data[i + 1] = data[i + 2] = v;
+    data[i + 3] = Math.min(255, Math.abs(noise) * 2);
+  }
+  octx.putImageData(imageData, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(offscreen, 0, 0);
+  ctx.restore();
+}
+
+export function applyDitherToImageData(imageData: ImageData, W: number, H: number, layer: EffectLayer) {
+  if (layer.dither <= 0) return;
+
+  const BAYER = [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ];
+  const d = imageData.data;
+  const levels = Math.max(2, Math.round(16 - layer.dither * 0.14));
+  const step = 255 / (levels - 1);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const bayer = BAYER[y & 3][x & 3] / 16;
+      for (let c = 0; c < 3; c++) {
+        d[i + c] = Math.min(255, Math.max(0, Math.round(d[i + c] / step + bayer) * step));
+      }
+    }
+  }
+}
+
+export function applyMatte(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
+  if (layer.matte <= 0) return;
+
+  const matteRng = lcg(seed * 7177);
+  const res = 48;
+  const offscreen = createCanvas(res, res);
+  const octx = offscreen.getContext('2d')!;
+  const id = octx.createImageData(res, res);
+  const md = id.data;
+  for (let i = 0; i < md.length; i += 4) {
+    const v = Math.floor(matteRng() * 255);
+    md[i] = md[i + 1] = md[i + 2] = v;
+    md[i + 3] = Math.floor(matteRng() * 180 + 40);
+  }
+  octx.putImageData(id, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = (layer.matte / 100) * 0.35;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'low';
+  ctx.drawImage(offscreen, 0, 0, W, H);
+  ctx.restore();
+}
+
+export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
+  if (layer.emboss <= 0) return;
+
+  const srcData = ctx.getImageData(0, 0, W, H);
+  const sd = srcData.data;
+  const embossed = ctx.createImageData(W, H);
+  const ed = embossed.data;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = (y * W + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const tl = sd[((y - 1) * W + (x - 1)) * 4 + c];
+        const br = sd[((y + 1) * W + (x + 1)) * 4 + c];
+        ed[i + c] = Math.min(255, Math.max(0, Math.round(128 + (tl - br))));
+      }
+      ed[i + 3] = 255;
+    }
+  }
+  const embossCanvas = createCanvas(W, H);
+  embossCanvas.getContext('2d')!.putImageData(embossed, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = layer.emboss / 100;
+  ctx.drawImage(embossCanvas, 0, 0);
+  ctx.restore();
+}
+
+export function applyLinocut(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
+  if (layer.linocut <= 0) return;
+
+  const t = layer.linocut / 100;
+  const BAYER = [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ];
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const d = imageData.data;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const bayer = (BAYER[y & 3][x & 3] / 16) * 60;
+      const v = Math.min(255, Math.max(0, Math.round((lum + bayer) / 85) * 85));
+      d[i] = Math.round(d[i] + (v - d[i]) * t);
+      d[i + 1] = Math.round(d[i + 1] + (v - d[i + 1]) * t);
+      d[i + 2] = Math.round(d[i + 2] + (v - d[i + 2]) * t);
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}

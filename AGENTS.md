@@ -7,6 +7,7 @@ Before changing state ownership, rendering, node editor behavior, thumbnails, pr
 - `docs/state-model.md` — state ownership, persistence, undo, export impact, and thumbnail invalidation rules.
 - `docs/rendering.md` — canonical render entry points, graph vs stack mode, primitive rendering, thumbnails, and parity checklist.
 - `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu rules, and QA checklist.
+- `docs/effect-development.md` — effect-control surfaces, metadata, renderer, docs, and validation checklist.
 - `docs/improvement-plan.md` — ordered implementation phases with exit criteria and validation.
 - `docs/roadmap.md` — codebase overview, current strengths/risks, and improvement roadmap.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.

@@ -14,4 +14,12 @@ describe('noisePresets', () => {
       expect(() => JSON.stringify(layer)).not.toThrow();
     }
   });
+
+  it('starts film grain with a fine scale that can be made subtler than older chunky presets', () => {
+    const layer = makeNoisePresetLayer('filmGrain');
+
+    expect(layer.noiseScale).toBeLessThanOrEqual(3);
+    expect(layer.blendMode).toBe('overlay');
+    expect(layer.opacity).toBeLessThan(60);
+  });
 });

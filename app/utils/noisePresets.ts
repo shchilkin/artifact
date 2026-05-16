@@ -40,7 +40,7 @@ export const NOISE_PRESETS: Record<NoisePresetId, NoisePreset> = {
     patch: {
       name: 'Film Grain',
       noiseType: 'value',
-      noiseScale: 6,
+      noiseScale: 3,
       noiseDetail: 2,
       noiseContrast: 58,
       noiseBalance: 50,

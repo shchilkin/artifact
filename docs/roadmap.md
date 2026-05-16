@@ -8,6 +8,7 @@ Related architecture docs:
 - [`rendering.md`](./rendering.md)
 - [`node-editor.md`](./node-editor.md)
 - [`app-structure-guidelines.md`](./app-structure-guidelines.md)
+- [`effect-development.md`](./effect-development.md)
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`production-readiness.md`](./production-readiness.md)
@@ -93,7 +94,8 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - Preset database and community preset browsing.
 - User galleries or portfolio pages.
 - Subscription/paywall experiments.
-- AI image generation node or workflow.
+- AI image generation node or workflow, including prompt presets, variants,
+  generated asset storage, quota/cost tracking, and generation history.
 - Image background removal service if browser-side quality, bundle size, or
   performance tradeoffs are not acceptable.
 - Server-side asset storage for large uploads.
@@ -419,6 +421,56 @@ First slice:
 - [ ] Revisit effect-node controls after real project testing. Start with film
   grain scale/size so it can be tuned much smaller and more subtly.
 
+### v0.7: Effect Control Polish And Useful Docs
+
+Goal: make the most-used effects and procedural sources easier to tune from
+subtle to destructive, and make docs teach practical cover-building workflows.
+
+First slice:
+
+- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
+  and threshold for range problems found in real projects.
+- [x] Let Film Grain noise reach finer texture sizes instead of stopping at a
+  visibly chunky minimum.
+- [x] Add docs that explain when to use Layers vs Nodes, when to use effect
+  Grain vs source Film Grain, and how to build common texture/text/photo covers.
+- [ ] Keep docs examples aligned with separated focused effect nodes.
+- [ ] Add render or browser coverage for every effect/source control whose range
+  changes.
+
+### v0.8: AI Generation Research And Architecture
+
+Goal: make AI-generated imagery a creativity multiplier without weakening the
+editor's local-first reliability or leaking provider secrets into the browser.
+
+Product direction:
+
+- Image Generation node: prompt/settings in, generated image asset out, then
+  normal Artifact effects/merge/export downstream.
+- Variation workflow: generate alternatives from an existing image or rendered
+  branch so users can rapidly explore cover directions.
+- Background/texture generator: create grunge, photo, abstract, scanned-paper,
+  poster-background, and mood-board source assets.
+- Prompt preset packs for music/design aesthetics such as VHS, brutalist,
+  shoegaze, dark ambient, cyber zine, club poster, and scanned print.
+- Generation history with reusable outputs, seed/settings metadata where the
+  provider supports it, and side-by-side comparison.
+
+Research and architecture tasks:
+
+- [ ] Compare generation providers and models for quality, latency, cost,
+  licensing, safety constraints, and API ergonomics.
+- [ ] Design a backend endpoint that keeps API keys server-side and can support
+  cancellation, retry, progress, and error states.
+- [ ] Decide where generated images live: browser IndexedDB only, VPS/object
+  storage, or hybrid local-first storage with optional cloud sync.
+- [ ] Define quota/cost accounting before broad usage. Even a beta needs a
+  clear limit so generation does not become a surprise bill.
+- [ ] Define how generated assets serialize in `.artifact.json` and shared
+  projects.
+- [ ] Prototype a minimal Image Generation node only after the storage and
+  generation-job model are clear.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:
@@ -429,7 +481,7 @@ These ideas are promising but should not block editor reliability:
   local/browser execution, VPS-hosted open models, and commercial APIs, then pick
   based on quality, latency, privacy, file-size, and cost.
 - SVG + 3D hybrid primitives.
-- AI image/card generation nodes.
+- AI image/card generation nodes and variant workflows.
 - 3D layer visualization.
 - Subscription/paywall experiments.
 
