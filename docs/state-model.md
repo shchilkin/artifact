@@ -19,7 +19,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Text/image transform draft | `useLayerTransformDraft` | No, until commit | Commit only | After commit | After commit |
 | Primitive camera state | `primitiveViewStates` passed to render options | Session state today | No, unless later promoted | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
-| Image cache | `useGeneratorAssets` | Source is in document, decoded cache is not | No | Yes, as render input | Yes when image loads |
+| Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 
 ## Durable document state
@@ -211,20 +211,25 @@ Should not invalidate:
 
 ## Image persistence decision
 
-Artifact remains a browser-only editor for now. Imported images stay as document
-data URLs so `.artifact.json` files, share URLs, IndexedDB project snapshots, preview, export,
-and graph rendering all have one serializable source of truth.
+Artifact remains a browser-only editor for now. Imported image payloads are
+stored in IndexedDB through `app/utils/assetStore.ts`. Image layers keep a
+serializable `src` string, but local imports are migrated from `data:image/...`
+payloads to lightweight `artifact-asset://...` references.
 
 Tradeoff:
 
-- This keeps import/export simple and offline-safe.
-- Very large images can make documents heavy.
+- This keeps active localStorage documents small enough for real imported
+  images.
+- `.artifact.json` export and copy-link creation hydrate local asset references
+  back to data URLs when possible so documents remain portable.
+- Very large images can still make exported `.artifact.json` files or share URLs
+  heavy after hydration.
 - Local project snapshots and the pre-blank recovery draft are stored in
   IndexedDB via `app/utils/projectStore.ts` so large document snapshots do not
   exhaust the small localStorage quota.
 - Active quick-reload document state still uses localStorage through
-  `documentPersistence`; keep it compact and treat IndexedDB/backend storage as
-  the durable large-snapshot path.
+  `documentPersistence`; it should contain asset references, not imported image
+  payloads.
 - Backend blob storage should be introduced only when there is a dedicated
   persistence layer and migration plan; decoded `HTMLImageElement` caches must
   still stay outside `CanvasDocument`.

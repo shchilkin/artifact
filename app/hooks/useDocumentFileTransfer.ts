@@ -1,5 +1,6 @@
 import { type MutableRefObject, useCallback, useRef, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
+import { hydrateDocumentImageAssets } from '../utils/assetStore';
 import {
   ARTIFACT_FILE_EXTENSION,
   ARTIFACT_FILE_MIME,
@@ -26,18 +27,24 @@ export function useDocumentFileTransfer(
   }, []);
 
   const handleSaveDocument = useCallback(() => {
-    const blob = new Blob([serializeArtifactDocument(docRef.current)], { type: ARTIFACT_FILE_MIME });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = createArtifactFileName(docRef.current);
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    setDocumentFileError(null);
-  }, [docRef]);
+    hydrateDocumentImageAssets(docRef.current)
+      .then((portableDoc) => {
+        const blob = new Blob([serializeArtifactDocument(portableDoc)], { type: ARTIFACT_FILE_MIME });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = createArtifactFileName(docRef.current);
+        anchor.rel = 'noopener';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setDocumentFileError(null);
+      })
+      .catch(() => {
+        showDocumentFileError('Could not prepare document assets.');
+      });
+  }, [docRef, showDocumentFileError]);
 
   const handleOpenDocumentPicker = useCallback(() => {
     fileInputRef.current?.click();

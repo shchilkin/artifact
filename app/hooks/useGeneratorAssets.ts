@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, ImageLayer } from '../types/config';
+import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_EDGE = 2048;
 const RECOMPRESS_BYTES = 1 * 1024 * 1024; // re-encode if >1 MB even when small enough by edge
 
@@ -44,12 +45,24 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
   return canvas.toDataURL(outMime, 0.9);
 }
 
-export function useGeneratorAssets(doc: CanvasDocument, onImportImage: (src: string) => void) {
+export function useGeneratorAssets(
+  doc: CanvasDocument,
+  onImportImage: (src: string) => void,
+  onStoreImageAsset?: (layerId: string, src: string) => void,
+) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
   const [dropError, setDropError] = useState<string | null>(null);
   const dropErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingAssetStoresRef = useRef(new Set<string>());
+  const mountedRef = useRef(true);
 
-  useEffect(() => () => clearTimeout(dropErrorTimerRef.current), []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(dropErrorTimerRef.current);
+    };
+  }, []);
 
   const showDropError = useCallback((message: string) => {
     setDropError(message);
@@ -61,6 +74,17 @@ export function useGeneratorAssets(doc: CanvasDocument, onImportImage: (src: str
     const imageLayers = doc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image' && Boolean(layer.src));
     let cancelled = false;
     imageLayers.forEach((layer) => {
+      if (isImageDataUrl(layer.src) && onStoreImageAsset && !pendingAssetStoresRef.current.has(layer.src)) {
+        pendingAssetStoresRef.current.add(layer.src);
+        saveImageAsset(layer.src)
+          .then((assetSrc) => {
+            pendingAssetStoresRef.current.delete(layer.src);
+            if (mountedRef.current && assetSrc !== layer.src) onStoreImageAsset(layer.id, assetSrc);
+          })
+          .catch(() => {
+            pendingAssetStoresRef.current.delete(layer.src);
+          });
+      }
       if (imageCache.has(layer.src)) return;
       const image = new Image();
       image.onload = () => {
@@ -75,12 +99,22 @@ export function useGeneratorAssets(doc: CanvasDocument, onImportImage: (src: str
       image.onerror = () => {
         // silently skip unloadable images
       };
-      image.src = layer.src;
+      if (isAssetUri(layer.src)) {
+        resolveImageSource(layer.src)
+          .then((resolvedSrc) => {
+            if (!cancelled && resolvedSrc) image.src = resolvedSrc;
+          })
+          .catch(() => {
+            // silently skip unloadable assets
+          });
+      } else {
+        image.src = layer.src;
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [doc.layers, imageCache]);
+  }, [doc.layers, imageCache, onStoreImageAsset]);
 
   const handleDroppedFile = useCallback(
     async (file: File) => {
@@ -93,7 +127,7 @@ export function useGeneratorAssets(doc: CanvasDocument, onImportImage: (src: str
         const src = await readImageFile(file);
         if (!src) return;
         const optimized = await downsampleDataUrl(src, file.type);
-        onImportImage(optimized);
+        onImportImage(await saveImageAsset(optimized));
       } catch {
         showDropError('Could not read image');
       }

@@ -138,6 +138,7 @@ export default function Generator() {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
+    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
@@ -160,7 +161,11 @@ export default function Generator() {
     fromDocParam,
     isBlank,
   } = useGeneratorDocument(viewMode === 'nodes');
-  const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
+  const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(
+    doc,
+    addImageFromSource,
+    storeImageAssetSource,
+  );
   const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
   const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =

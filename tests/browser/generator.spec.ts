@@ -676,6 +676,28 @@ test('image transform gestures stay local to the selected node', async ({ page }
   await expect(imageNode.locator('.node-live-preview-frame')).toHaveCSS('overflow', 'hidden');
 });
 
+test('inline image payloads migrate to browser asset storage', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatch(/^artifact-asset:\/\//);
+
+  const storedDoc = await page.evaluate(() => localStorage.getItem('doc') ?? '');
+  expect(storedDoc).not.toContain('data:image/');
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+});
+
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(emptyTransparentDocument))}`);
 

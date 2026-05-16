@@ -11,6 +11,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import { hydrateDocumentImageAssets } from '../utils/assetStore';
 import {
   addLayerToDocument,
   addNodeAtDocument,
@@ -260,6 +261,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const storeImageAssetSource = useCallback(
+    (id: string, src: string) => {
+      updateDocument((current) => updateLayerInDocument(current, id, { src } as Partial<Layer>), 'silent');
+    },
+    [updateDocument],
+  );
+
   const updateMergeNode = useCallback(
     (id: string, patch: Partial<GraphMergeNode>) => {
       updateDocument((current) => updateMergeNodeInDocument(current, id, patch), 'debounce');
@@ -342,10 +350,17 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleCopyLink = useCallback(() => {
-    const url = createDocumentShareUrl(window.location.origin, docRef.current);
-    navigator.clipboard.writeText(url).catch(() => {
-      prompt('Copy this link:', url);
-    });
+    void hydrateDocumentImageAssets(docRef.current)
+      .then((portableDoc) => createDocumentShareUrl(window.location.origin, portableDoc))
+      .then((url) => {
+        navigator.clipboard.writeText(url).catch(() => {
+          prompt('Copy this link:', url);
+        });
+      })
+      .catch(() => {
+        const url = createDocumentShareUrl(window.location.origin, docRef.current);
+        prompt('Copy this link:', url);
+      });
   }, []);
 
   return {
@@ -359,6 +374,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
+    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,

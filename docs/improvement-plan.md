@@ -107,6 +107,8 @@ the detailed source of truth.
   IndexedDB, or remain out of scope until backend persistence exists.
 - [x] Move local project snapshots and the pre-blank recovery draft out of
   localStorage and into IndexedDB.
+- [x] Move imported image payloads out of active document localStorage and into
+  IndexedDB asset records while keeping `.artifact.json` export portable.
 
 Recommended next commit: continue renderer internals by splitting
 `app/utils/render/layers/index.ts` into focused per-kind modules only where that

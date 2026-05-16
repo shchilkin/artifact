@@ -1,4 +1,5 @@
 import { FONT_STACKS, type Layer } from '../../../types/config';
+import { isAssetUri } from '../../../utils/assetStore';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize } from './previewSizing';
 
@@ -18,7 +19,7 @@ export function EmptyThumbnailFrame() {
 }
 
 export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
-  const { doc } = useNodeCanvasPreview();
+  const { doc, imageCache } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
   const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
   if (layer.kind === 'text') {
@@ -51,6 +52,8 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
   }
 
   if (!layer.src) return null;
+  const imageSrc = imageCache.get(layer.src)?.src ?? layer.src;
+  if (isAssetUri(imageSrc)) return null;
 
   if (layer.fit === 'tile') {
     return (
@@ -60,7 +63,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             position: 'absolute',
             inset: 0,
             opacity: layer.opacity / 100,
-            backgroundImage: `url(${layer.src})`,
+            backgroundImage: `url(${imageSrc})`,
             backgroundRepeat: 'repeat',
             backgroundPosition: 'center',
             backgroundSize: `${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleX)}px ${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleY)}px`,
@@ -76,7 +79,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
     return (
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <img
-          src={layer.src}
+          src={imageSrc}
           alt=""
           draggable={false}
           style={{
@@ -98,7 +101,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
       <img
-        src={layer.src}
+        src={imageSrc}
         alt=""
         draggable={false}
         style={{
