@@ -48,8 +48,9 @@ import {
   normalizeDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
-  savePreBlankDraft,
+  takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
@@ -86,6 +87,15 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!fromBlankParam) return;
+    const draft = takePendingPreBlankDraft();
+    if (!draft) return;
+    void saveStoredPreBlankDraft(draft.doc, new Date(draft.savedAt)).catch(() => {
+      // Recovery drafts are best-effort. The active blank document must still open.
+    });
+  }, [fromBlankParam]);
 
   const clearPendingHistory = useCallback(() => {
     clearTimeout(histDebounceRef.current);
@@ -308,12 +318,10 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const handleNewBlank = useCallback(() => {
     const current = docRef.current;
-    if (!isBlankDocument(current) && !savePreBlankDraft(current)) {
-      try {
-        savePreBlankDraft(current, sessionStorage);
-      } catch {
-        // ignore inaccessible session storage
-      }
+    if (!isBlankDocument(current)) {
+      void saveStoredPreBlankDraft(current).catch(() => {
+        // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
+      });
     }
     commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
     setSelectedLayerId(null);

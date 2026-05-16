@@ -39,6 +39,8 @@ export interface PreBlankDraft {
   reason: 'before-blank';
 }
 
+let pendingPreBlankDraft: PreBlankDraft | null = null;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -146,6 +148,12 @@ export function parseArtifactDocument(value: string | null | undefined): CanvasD
   return parseDocumentJson(value);
 }
 
+export function takePendingPreBlankDraft(): PreBlankDraft | null {
+  const draft = pendingPreBlankDraft;
+  pendingPreBlankDraft = null;
+  return draft;
+}
+
 function parsePreBlankDraft(value: string | null | undefined): PreBlankDraft | null {
   if (!value) return null;
   try {
@@ -215,12 +223,8 @@ export function getInitialDocument(): CanvasDocument {
   const startsBlank = params.get('new') === 'blank' || params.get('blank') === '1';
   if (startsBlank) {
     const storedDoc = parseArtifactDocument(storageValue);
-    if (storedDoc && !savePreBlankDraft(storedDoc)) {
-      try {
-        savePreBlankDraft(storedDoc, sessionStorage);
-      } catch {
-        // ignore inaccessible session storage
-      }
+    if (storedDoc && !isBlankDocument(storedDoc)) {
+      pendingPreBlankDraft = { reason: 'before-blank', savedAt: new Date().toISOString(), doc: storedDoc };
     }
   }
 

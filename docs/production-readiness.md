@@ -72,8 +72,8 @@ CI should run:
 - Large imported images are stored as data URLs inside browser documents.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
 - Presets are localStorage-backed only.
-- Projects are localStorage-backed only; treat them as convenience snapshots
-  until account-backed persistence lands.
+- Projects and the pre-blank recovery draft are IndexedDB-backed convenience
+  snapshots until account-backed persistence lands.
 
 ## Sticky-Note Feature Intake
 

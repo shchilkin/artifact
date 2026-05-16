@@ -105,6 +105,8 @@ the detailed source of truth.
   document shape again.
 - [x] Decide whether large image assets stay as document data URLs, move to
   IndexedDB, or remain out of scope until backend persistence exists.
+- [x] Move local project snapshots and the pre-blank recovery draft out of
+  localStorage and into IndexedDB.
 
 Recommended next commit: continue renderer internals by splitting
 `app/utils/render/layers/index.ts` into focused per-kind modules only where that

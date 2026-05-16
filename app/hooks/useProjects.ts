@@ -1,18 +1,21 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
-import { deletePreBlankDraft, loadPreBlankDraft } from '../utils/documentPersistence';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import {
-  deleteProjectSnapshot,
   MAX_PROJECTS,
   normalizeSavedProjects,
   PROJECT_THUMBNAIL_FALLBACK,
   PROJECTS_STORAGE_KEY,
-  persistSavedProjects,
   type SavedProject,
-  saveProjectSnapshot,
 } from '../utils/projectLibrary';
+import {
+  deleteStoredPreBlankDraft,
+  deleteStoredProject,
+  listStoredProjects,
+  loadStoredPreBlankDraft,
+  saveStoredProject,
+} from '../utils/projectStore';
 
 function loadFromStorage(): SavedProject[] {
   try {
@@ -23,12 +26,7 @@ function loadFromStorage(): SavedProject[] {
   }
 }
 
-function saveToStorage(projects: SavedProject[]) {
-  return persistSavedProjects(localStorage, projects);
-}
-
-function loadDraftFromStorage(): SavedProject | null {
-  const draft = loadPreBlankDraft(localStorage) ?? loadPreBlankDraft(sessionStorage);
+function draftToProject(draft: Awaited<ReturnType<typeof loadStoredPreBlankDraft>>): SavedProject | null {
   if (!draft) return null;
   return {
     id: 'pre-blank-draft',
@@ -42,8 +40,40 @@ function loadDraftFromStorage(): SavedProject | null {
 
 export function useProjects() {
   const [projects, setProjects] = useState<SavedProject[]>(loadFromStorage);
-  const [recoveryDraft, setRecoveryDraft] = useState<SavedProject | null>(loadDraftFromStorage);
+  const [recoveryDraft, setRecoveryDraft] = useState<SavedProject | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  const refreshRecoveryDraft = useCallback(async () => {
+    try {
+      const draft = await loadStoredPreBlankDraft();
+      if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
+    } catch (error) {
+      if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to load recovery draft');
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    listStoredProjects()
+      .then((items) => {
+        if (mountedRef.current) setProjects(items);
+      })
+      .catch((error) => {
+        if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to load projects');
+      });
+    loadStoredPreBlankDraft()
+      .then((draft) => {
+        if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
+      })
+      .catch((error) => {
+        if (mountedRef.current)
+          setStorageError(error instanceof Error ? error.message : 'Unable to load recovery draft');
+      });
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const saveProject = useCallback(
     async (name: string, doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) => {
@@ -64,34 +94,38 @@ export function useProjects() {
         updatedAt: now,
       };
 
-      const next = saveProjectSnapshot(projects, project);
-      const result = saveToStorage(next);
-      setStorageError(result.error);
-      if (result.ok) setProjects(result.projects);
+      try {
+        const next = await saveStoredProject(project);
+        setStorageError(null);
+        if (mountedRef.current) setProjects(next);
+      } catch (error) {
+        if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to save project');
+      }
     },
-    [projects],
+    [],
   );
 
-  const deleteProject = useCallback(
-    (id: string) => {
-      const next = deleteProjectSnapshot(projects, id);
-      const result = saveToStorage(next);
-      setStorageError(result.error);
-      if (result.ok) setProjects(result.projects);
-    },
-    [projects],
-  );
+  const deleteProject = useCallback(async (id: string) => {
+    try {
+      const next = await deleteStoredProject(id);
+      setStorageError(null);
+      if (mountedRef.current) setProjects(next);
+    } catch (error) {
+      if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to delete project');
+    }
+  }, []);
 
   const loadProject = useCallback((project: SavedProject) => ({ doc: project.doc }), []);
 
   const deleteRecoveryDraft = useCallback(() => {
-    deletePreBlankDraft(localStorage);
-    deletePreBlankDraft(sessionStorage);
-    setRecoveryDraft(null);
-  }, []);
-
-  const refreshRecoveryDraft = useCallback(() => {
-    setRecoveryDraft(loadDraftFromStorage());
+    deleteStoredPreBlankDraft()
+      .then(() => {
+        if (mountedRef.current) setRecoveryDraft(null);
+      })
+      .catch((error) => {
+        if (mountedRef.current)
+          setStorageError(error instanceof Error ? error.message : 'Unable to delete recovery draft');
+      });
   }, []);
 
   return {

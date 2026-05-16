@@ -551,7 +551,9 @@ Useful target behavior:
 Goal: make documents portable and safe for real use.
 
 - [ ] Move large image blobs out of `CanvasDocument` data URLs where possible.
-- [ ] Add IndexedDB asset storage for local projects.
+- [x] Add IndexedDB storage for local project snapshots and blank-canvas
+  recovery drafts.
+- [ ] Add IndexedDB asset storage for decoded/original large binary assets.
 - [x] Add document import/export as a `.artifact.json` file.
 - [ ] Add share links that separate document JSON from binary assets.
 - [ ] Define a versioned document schema and migration tests.
