@@ -63,6 +63,9 @@ These can mostly stay browser-only and fit the current architecture:
 - Better text workflow, including typography presets, multi-font work, and text
   effect chains.
 - Better drag/repositioning UX for canvas content.
+- Image background removal workflow for uploaded images, with a future research
+  pass comparing browser-side models, server-side/VPS processing, external APIs,
+  and hybrid approaches.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
 - Voice/music visualizer node using browser audio input or uploaded audio.
@@ -91,6 +94,8 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - User galleries or portfolio pages.
 - Subscription/paywall experiments.
 - AI image generation node or workflow.
+- Image background removal service if browser-side quality, bundle size, or
+  performance tradeoffs are not acceptable.
 - Server-side asset storage for large uploads.
 - Team/project collaboration.
 - Portfolio/case-study publishing.
@@ -420,6 +425,9 @@ These ideas are promising but should not block editor reliability:
 
 - Voice/music visualizer nodes using uploaded audio or microphone input.
 - Animated noise/effects and possibly video export.
+- Background removal for imported images. Research candidates first, including
+  local/browser execution, VPS-hosted open models, and commercial APIs, then pick
+  based on quality, latency, privacy, file-size, and cost.
 - SVG + 3D hybrid primitives.
 - AI image/card generation nodes.
 - 3D layer visualization.
