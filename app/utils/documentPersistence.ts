@@ -18,6 +18,7 @@ import {
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export const DOC_KEY = 'doc';
+export const PRE_BLANK_DRAFT_KEY = 'artifact-pre-blank-draft-v1';
 export const ARTIFACT_FILE_EXTENSION = '.artifact.json';
 export const ARTIFACT_FILE_MIME = 'application/json';
 
@@ -29,7 +30,16 @@ export interface InitialDocumentSources {
 export interface DocumentStorage {
   getItem?(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
 }
+
+export interface PreBlankDraft {
+  doc: CanvasDocument;
+  savedAt: string;
+  reason: 'before-blank';
+}
+
+let pendingPreBlankDraft: PreBlankDraft | null = null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -108,8 +118,82 @@ export function serializeArtifactDocument(doc: CanvasDocument) {
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
 
+export function createBlankDocument({
+  aspect = DEFAULT_GLOBAL.aspect,
+  seed = DEFAULT_GLOBAL.seed,
+}: Partial<Pick<CanvasDocument['global'], 'aspect' | 'seed'>> = {}): CanvasDocument {
+  return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    global: { ...DEFAULT_GLOBAL, bg: 'transparent', aspect, seed },
+    layers: [],
+    export: { ...DEFAULT_EXPORT },
+  };
+}
+
+export function isBlankDocument(doc: CanvasDocument) {
+  const graph = doc.graph;
+  const graphIsEmpty =
+    !graph ||
+    (graph.edges.length === 0 &&
+      graph.mergeNodes.length === 0 &&
+      (graph.colorNodes ?? []).length === 0 &&
+      (graph.repeatNodes ?? []).length === 0 &&
+      (graph.areas ?? []).length === 0 &&
+      Object.keys(graph.positions).every((id) => id === '__export__'));
+
+  return doc.layers.length === 0 && doc.global.bg === 'transparent' && graphIsEmpty;
+}
+
 export function parseArtifactDocument(value: string | null | undefined): CanvasDocument | null {
   return parseDocumentJson(value);
+}
+
+export function takePendingPreBlankDraft(): PreBlankDraft | null {
+  const draft = pendingPreBlankDraft;
+  pendingPreBlankDraft = null;
+  return draft;
+}
+
+function parsePreBlankDraft(value: string | null | undefined): PreBlankDraft | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<PreBlankDraft>;
+    if (parsed.reason !== 'before-blank' || typeof parsed.savedAt !== 'string') return null;
+    return { reason: 'before-blank', savedAt: parsed.savedAt, doc: normalizeDocument(parsed.doc) };
+  } catch {
+    return null;
+  }
+}
+
+export function loadPreBlankDraft(storage: Pick<DocumentStorage, 'getItem'>): PreBlankDraft | null {
+  try {
+    return parsePreBlankDraft(storage.getItem?.(PRE_BLANK_DRAFT_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function savePreBlankDraft(
+  doc: CanvasDocument,
+  storage: Pick<DocumentStorage, 'setItem'> = localStorage,
+  date = new Date(),
+) {
+  if (isBlankDocument(doc)) return true;
+  try {
+    storage.setItem(PRE_BLANK_DRAFT_KEY, JSON.stringify({ reason: 'before-blank', savedAt: date.toISOString(), doc }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deletePreBlankDraft(storage: Pick<DocumentStorage, 'removeItem'> = localStorage) {
+  try {
+    storage.removeItem?.(PRE_BLANK_DRAFT_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
@@ -119,7 +203,10 @@ export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
 }
 
 export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {
-  const docParam = new URLSearchParams(search).get('doc');
+  const params = new URLSearchParams(search);
+  if (params.get('new') === 'blank' || params.get('blank') === '1') return createBlankDocument();
+
+  const docParam = params.get('doc');
   return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
 }
 
@@ -131,8 +218,18 @@ export function getInitialDocument(): CanvasDocument {
     // ignore inaccessible storage
   }
 
+  const search = typeof window === 'undefined' ? '' : window.location.search;
+  const params = new URLSearchParams(search);
+  const startsBlank = params.get('new') === 'blank' || params.get('blank') === '1';
+  if (startsBlank) {
+    const storedDoc = parseArtifactDocument(storageValue);
+    if (storedDoc && !isBlankDocument(storedDoc)) {
+      pendingPreBlankDraft = { reason: 'before-blank', savedAt: new Date().toISOString(), doc: storedDoc };
+    }
+  }
+
   return getInitialDocumentFromSources({
-    search: typeof window === 'undefined' ? '' : window.location.search,
+    search,
     storageValue,
   });
 }
@@ -155,5 +252,7 @@ export function createDocumentShareUrl(origin: string, doc: CanvasDocument, path
 export function removeDocParamFromUrl(href: string) {
   const url = new URL(href);
   url.searchParams.delete('doc');
+  url.searchParams.delete('new');
+  url.searchParams.delete('blank');
   return url.toString();
 }

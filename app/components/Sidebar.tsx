@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ALL_EMOJIS,
   type AspectRatio,
@@ -10,6 +10,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -60,6 +61,29 @@ function updateLayer<T extends Layer>(doc: CanvasDocument, id: string, patch: Pa
 
 function updateGlobal(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
   return { ...doc, global: { ...doc.global, ...patch } };
+}
+
+function AssetImagePreview({ src }: { src: string }) {
+  const [resolvedAsset, setResolvedAsset] = useState({ src: '', value: '' });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isAssetUri(src)) return;
+    resolveImageSource(src)
+      .then((value) => {
+        if (!cancelled) setResolvedAsset({ src, value: value ?? '' });
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedAsset({ src, value: '' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  const resolvedSrc = isAssetUri(src) ? (resolvedAsset.src === src ? resolvedAsset.value : '') : src;
+  if (!resolvedSrc) return <div className="w-full aspect-square border border-border checkerboard-surface" />;
+  return <img src={resolvedSrc} alt="" className="w-full aspect-square object-cover border border-border" />;
 }
 
 export function Sidebar({
@@ -119,7 +143,11 @@ export function Sidebar({
     const reader = new FileReader();
     reader.onload = (event) => {
       const src = event.target?.result;
-      if (typeof src === 'string') applySelectedPatch<ImageLayer>({ src });
+      if (typeof src === 'string') {
+        void saveImageAsset(src)
+          .then((assetSrc) => applySelectedPatch<ImageLayer>({ src: assetSrc }))
+          .catch(() => applySelectedPatch<ImageLayer>({ src }));
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -200,11 +228,7 @@ export function Sidebar({
           {selectedLayer.kind === 'image' && (
             <Section title="Image Source" defaultOpen hidden={selectedLayer.kind !== 'image'}>
               {selectedLayer.src ? (
-                <img
-                  src={selectedLayer.src}
-                  alt=""
-                  className="w-full aspect-square object-cover border border-border"
-                />
+                <AssetImagePreview src={selectedLayer.src} />
               ) : (
                 <button
                   className="border border-border text-dim h-24 text-[11px] font-mono hover:text-text"

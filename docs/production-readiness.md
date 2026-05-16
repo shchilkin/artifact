@@ -69,11 +69,13 @@ CI should run:
 
 - GPU/PixiJS shader output does not yet have visual snapshot tolerance.
 - Three.js primitive visual parity is covered by browser smoke tests, not deterministic pixel tests.
-- Large imported images are stored as data URLs inside browser documents.
+- Imported image payloads are stored in IndexedDB for local editing, but
+  `.artifact.json` export/share hydration can still create large portable
+  payloads.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
 - Presets are localStorage-backed only.
-- Projects are localStorage-backed only; treat them as convenience snapshots
-  until account-backed persistence lands.
+- Projects and the pre-blank recovery draft are IndexedDB-backed convenience
+  snapshots until account-backed persistence lands.
 
 ## Sticky-Note Feature Intake
 

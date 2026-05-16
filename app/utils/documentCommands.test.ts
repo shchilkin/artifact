@@ -81,7 +81,26 @@ describe('documentCommands', () => {
 
     expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'text-b']);
     expect(next.graph?.positions).toHaveProperty('text-b');
+    expect(next.graph?.edges).toContainEqual({
+      id: `e-text-b-${EXPORT_NODE_ID}-1`,
+      fromId: 'text-b',
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+    expect(next.graph?.edges.some((edge) => edge.toId === EXPORT_NODE_ID && edge.fromId !== 'text-b')).toBe(false);
     expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
+  });
+
+  it('connects the first layer created from layers view directly to export', () => {
+    const doc = makeDoc({ edges: [], positions: { [EXPORT_NODE_ID]: { x: 0, y: 80 } }, mergeNodes: [] });
+    const layer = makeFillLayer({ id: 'fill-b' });
+    const next = addLayerToDocument({ ...doc, layers: [] }, layer);
+
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-b']);
+    expect(next.graph?.edges).toEqual([
+      { id: `e-fill-b-${EXPORT_NODE_ID}-0`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
   });
 
   it('inserts a merge node with source and target edges', () => {

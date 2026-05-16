@@ -37,6 +37,8 @@ the detailed source of truth.
   threshold hardness.
 - [x] Add repeater presets for common motif workflows.
 - [x] Add source/motif docs with practical recipes.
+- [x] Add explicit blank-canvas entry points and protect current work before
+  replacing it.
 - [x] Make node preview aspect ratio behavior predictable across regular node
   thumbnails, graph output previews, and export nodes.
 - [x] Add serializable folder/area metadata so layers and node graphs can be
@@ -84,6 +86,9 @@ the detailed source of truth.
 - [x] Keep graph node creation model-first, then document sync, then UI.
 - [x] Add targeted tests around React Flow edge mapping if visual mapping logic
   changes.
+- [ ] Revisit node/effect parameter ranges after hands-on use. Film grain in
+  particular needs finer scale/size control so it can be made subtler than the
+  current minimum-feeling result.
 - [ ] Preserve node-local primitive camera controls and prevent graph zoom/pan
   from receiving node-control gestures.
 - [ ] Keep the node settings row and floating controls aligned with the current
@@ -103,6 +108,10 @@ the detailed source of truth.
   document shape again.
 - [x] Decide whether large image assets stay as document data URLs, move to
   IndexedDB, or remain out of scope until backend persistence exists.
+- [x] Move local project snapshots and the pre-blank recovery draft out of
+  localStorage and into IndexedDB.
+- [x] Move imported image payloads out of active document localStorage and into
+  IndexedDB asset records while keeping `.artifact.json` export portable.
 
 Recommended next commit: continue renderer internals by splitting
 `app/utils/render/layers/index.ts` into focused per-kind modules only where that

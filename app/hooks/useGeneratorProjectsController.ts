@@ -16,7 +16,17 @@ export function useGeneratorProjectsController({
   onLoadDocument,
 }: UseGeneratorProjectsControllerOptions) {
   const [showProjects, setShowProjects] = useState(false);
-  const { projects, maxProjects, saveProject, deleteProject, loadProject } = useProjects();
+  const {
+    projects,
+    recoveryDraft,
+    storageError,
+    maxProjects,
+    saveProject,
+    deleteProject,
+    loadProject,
+    deleteRecoveryDraft,
+    refreshRecoveryDraft,
+  } = useProjects();
 
   const handleLoadProject = useCallback(
     (project: SavedProject) => {
@@ -39,11 +49,17 @@ export function useGeneratorProjectsController({
   return {
     showProjects,
     projects,
+    recoveryDraft,
+    storageError,
     maxProjects,
-    toggleProjects: () => setShowProjects((current) => !current),
+    toggleProjects: () => {
+      refreshRecoveryDraft();
+      setShowProjects((current) => !current);
+    },
     closeProjects: () => setShowProjects(false),
     handleLoadProject,
     saveCurrentProject: (name: string) => saveProject(name, docRef.current, imageCache),
     deleteProject,
+    deleteRecoveryDraft,
   };
 }

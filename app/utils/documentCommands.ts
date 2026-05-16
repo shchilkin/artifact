@@ -27,6 +27,7 @@ import {
   addLayerToGraph,
   addMergeNode,
   addRepeatNode,
+  appendNodeToExportPath,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
@@ -96,10 +97,12 @@ export function createImageLayerFromSource(src: string): Layer {
 
 export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDocument {
   if (!doc.graph) return { ...doc, layers: [...doc.layers, layer] };
+  const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
+  const graphWithLayer = addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph));
   return {
     ...doc,
     layers: [...doc.layers, layer],
-    graph: addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)),
+    graph: appendNodeToExportPath(graphWithLayer, layer.id, inputPort),
   };
 }
 

@@ -63,6 +63,9 @@ These can mostly stay browser-only and fit the current architecture:
 - Better text workflow, including typography presets, multi-font work, and text
   effect chains.
 - Better drag/repositioning UX for canvas content.
+- Image background removal workflow for uploaded images, with a future research
+  pass comparing browser-side models, server-side/VPS processing, external APIs,
+  and hybrid approaches.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
 - Voice/music visualizer node using browser audio input or uploaded audio.
@@ -91,6 +94,8 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - User galleries or portfolio pages.
 - Subscription/paywall experiments.
 - AI image generation node or workflow.
+- Image background removal service if browser-side quality, bundle size, or
+  performance tradeoffs are not acceptable.
 - Server-side asset storage for large uploads.
 - Team/project collaboration.
 - Portfolio/case-study publishing.
@@ -391,12 +396,38 @@ First slice:
 - [x] Add repeater presets for common motif workflows.
 - [x] Add source/motif docs with practical recipes.
 
+### v0.6: Better Starts And Example Workflows
+
+Goal: make Artifact easier to enter, easier to learn, and faster to start real
+work without reducing the advanced node workflow.
+
+First slice:
+
+- [x] Add an explicit New Blank Canvas action that is reachable from the
+  generator, examples, home, and local projects surfaces.
+- [x] Make `?new=blank` force a transparent, layer-free document instead of
+  restoring localStorage.
+- [x] Ask for confirmation before replacing current work with a blank canvas.
+- [x] Keep the blank document transparent so checkerboard chrome reveals alpha
+  without entering export pixels.
+- [ ] Add recipe starter documents that create useful first graphs.
+- [ ] Improve examples with categories, used-node summaries, and clearer
+  "start from this" language.
+- [ ] Improve add-node search and grouping for recipes and starter workflows.
+- [ ] Add task-oriented docs for blank starts, recipes, layer-vs-node work, and
+  export.
+- [ ] Revisit effect-node controls after real project testing. Start with film
+  grain scale/size so it can be tuned much smaller and more subtly.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:
 
 - Voice/music visualizer nodes using uploaded audio or microphone input.
 - Animated noise/effects and possibly video export.
+- Background removal for imported images. Research candidates first, including
+  local/browser execution, VPS-hosted open models, and commercial APIs, then pick
+  based on quality, latency, privacy, file-size, and cost.
 - SVG + 3D hybrid primitives.
 - AI image/card generation nodes.
 - 3D layer visualization.
@@ -529,8 +560,13 @@ Useful target behavior:
 
 Goal: make documents portable and safe for real use.
 
-- [ ] Move large image blobs out of `CanvasDocument` data URLs where possible.
-- [ ] Add IndexedDB asset storage for local projects.
+- [x] Move local imported image payloads out of active `CanvasDocument` data URLs
+  where possible.
+- [x] Add IndexedDB storage for local project snapshots and blank-canvas
+  recovery drafts.
+- [x] Add IndexedDB asset storage for imported image payloads used by local
+  documents.
+- [ ] Add backend or share-package storage for portable binary assets.
 - [x] Add document import/export as a `.artifact.json` file.
 - [ ] Add share links that separate document JSON from binary assets.
 - [ ] Define a versioned document schema and migration tests.

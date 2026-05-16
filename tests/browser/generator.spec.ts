@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
@@ -260,6 +261,7 @@ const textDragDocument = {
 };
 const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
+const uploadImagePngBase64 = readFileSync('public/og.png').toString('base64');
 const imageDragDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 8, aspect: '16:9' },
@@ -360,6 +362,52 @@ test('layer preview follows graph output when unconnected layers exist', async (
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
 });
 
+test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await switchToLayerView(page);
+
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  await page.getByRole('button', { name: /fill/i }).click();
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.length ?? 0;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(2);
+
+  const graphState = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    const newLayer = doc.layers?.find((layer: { id: string }) => layer.id !== 'wide-fill');
+    return {
+      newLayerId: newLayer?.id,
+      edges: doc.graph?.edges ?? [],
+    };
+  });
+
+  expect(graphState.newLayerId).toBeTruthy();
+  expect(graphState.edges).toContainEqual(
+    expect.objectContaining({
+      fromId: 'wide-fill',
+      toId: graphState.newLayerId,
+      toPort: 'bg',
+    }),
+  );
+  expect(graphState.edges).toContainEqual(
+    expect.objectContaining({
+      fromId: graphState.newLayerId,
+      toId: '__export__',
+      toPort: 'in',
+    }),
+  );
+  expect(graphState.edges).not.toContainEqual(expect.objectContaining({ fromId: 'wide-fill', toId: '__export__' }));
+});
+
 test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.goto('/app');
   await page.getByRole('button', { name: 'Add layer' }).click();
@@ -401,6 +449,66 @@ test('current document can be saved into local projects', async ({ page }) => {
 
   await expect(page.getByText('Browser Project')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
+});
+
+test('uploaded images are stored as asset references and survive reload', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate((base64) => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    const file = new File([bytes], 'upload-smoke.png', { type: 'image/png' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    const target = document.querySelector('main');
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, uploadImagePngBase64);
+
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatch(/^artifact-asset:\/\//);
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('new blank canvas ignores stored work and shows the empty start panel', async ({ page }) => {
+  await page.goto('/app');
+  await page.evaluate((storedDoc) => localStorage.setItem('doc', JSON.stringify(storedDoc)), lightDocument);
+
+  await page.goto('/app?new=blank');
+
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(0);
+  await expectCanvasCenterAlpha(page, 0);
+
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await expect(page.getByText('RECOVERABLE DRAFT')).toBeVisible();
+  await page.getByRole('button', { name: 'Load Previous draft' }).click();
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('new blank canvas action confirms before replacing current work', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('recoverable draft');
+    await dialog.accept();
+  });
+  await page.getByRole('button', { name: 'New blank canvas' }).click();
+
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expectCanvasCenterAlpha(page, 0);
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {
@@ -600,9 +708,41 @@ test('image transform gestures stay local to the selected node', async ({ page }
   await expect(imageNode.locator('.node-live-preview-frame')).toHaveCSS('overflow', 'hidden');
 });
 
+test('inline image payloads migrate to browser asset storage', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatch(/^artifact-asset:\/\//);
+
+  const storedDoc = await page.evaluate(() => localStorage.getItem('doc') ?? '');
+  expect(storedDoc).not.toContain('data:image/');
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+});
+
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(emptyTransparentDocument))}`);
 
+  const canvas = page.locator('.pixi-container canvas').first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  await expectCanvasCenterAlpha(page, 0);
+
+  await expect
+    .poll(async () => page.locator('.pixi-container').evaluate((element) => getComputedStyle(element).backgroundImage))
+    .toContain('linear-gradient');
+});
+
+async function expectCanvasCenterAlpha(page: Page, alpha: number) {
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect
@@ -616,12 +756,8 @@ test('empty transparent documents render transparent pixels over checkerboard ch
         }),
       { timeout: 15_000 },
     )
-    .toBe(0);
-
-  await expect
-    .poll(async () => page.locator('.pixi-container').evaluate((element) => getComputedStyle(element).backgroundImage))
-    .toContain('linear-gradient');
-});
+    .toBe(alpha);
+}
 
 async function expectLayerCanvasToHavePixels(page: Page) {
   const canvas = page.locator('.pixi-container canvas').first();

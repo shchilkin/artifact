@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument } from '../types/config';
-import { MAX_PROJECTS, normalizeSavedProjects, saveProjectSnapshot } from './projectLibrary';
+import {
+  MAX_PROJECTS,
+  normalizeSavedProjects,
+  PROJECT_THUMBNAIL_FALLBACK,
+  PROJECTS_STORAGE_KEY,
+  persistSavedProjects,
+  saveProjectSnapshot,
+} from './projectLibrary';
 
 const doc = {
   global: { bg: '#000000', seed: 1, aspect: '1:1' },
@@ -40,5 +47,43 @@ describe('projectLibrary', () => {
     expect(next).toHaveLength(MAX_PROJECTS);
     expect(next[0]?.id).toBe('latest');
     expect(next.some((item) => item.id === 'p-0')).toBe(false);
+  });
+
+  it('compacts thumbnails when project storage quota is exceeded', () => {
+    const writes: string[] = [];
+    const storage = {
+      setItem: (key: string, value: string) => {
+        expect(key).toBe(PROJECTS_STORAGE_KEY);
+        writes.push(value);
+        if (writes.length === 1) {
+          const error = Object.assign(new Error('quota exceeded'), { name: 'QuotaExceededError' });
+          throw error;
+        }
+      },
+    };
+
+    const result = persistSavedProjects(storage, [
+      { ...project('large-a', '2026-01-01T00:00:00.000Z'), thumbnail: `data:image/jpeg;base64,${'x'.repeat(100)}` },
+      { ...project('large-b', '2026-01-02T00:00:00.000Z'), thumbnail: `data:image/jpeg;base64,${'y'.repeat(100)}` },
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(result.compacted).toBe(true);
+    expect(result.projects.every((item) => item.thumbnail === PROJECT_THUMBNAIL_FALLBACK)).toBe(true);
+    expect(writes).toHaveLength(2);
+  });
+
+  it('reports project storage failures without throwing', () => {
+    const result = persistSavedProjects(
+      {
+        setItem: () => {
+          throw Object.assign(new Error('quota exceeded'), { name: 'QuotaExceededError' });
+        },
+      },
+      [project('too-large', '2026-01-01T00:00:00.000Z')],
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('quota');
   });
 });

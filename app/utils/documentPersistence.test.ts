@@ -9,13 +9,19 @@ import {
 import {
   ARTIFACT_FILE_EXTENSION,
   createArtifactFileName,
+  createBlankDocument,
   createDocumentShareUrl,
   DOC_KEY,
+  deletePreBlankDraft,
   getInitialDocumentFromSources,
+  isBlankDocument,
+  loadPreBlankDraft,
   normalizeDocument,
+  PRE_BLANK_DRAFT_KEY,
   parseArtifactDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  savePreBlankDraft,
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
@@ -208,6 +214,17 @@ describe('getInitialDocumentFromSources', () => {
     expect(doc.global.seed).toBe(20);
   });
 
+  it('prefers an explicit blank start over stored local state', () => {
+    const doc = getInitialDocumentFromSources({
+      search: '?new=blank',
+      storageValue: encodeDoc(storedDoc),
+    });
+
+    expect(doc.layers).toEqual([]);
+    expect(doc.global.bg).toBe('transparent');
+    expect(isBlankDocument(doc)).toBe(true);
+  });
+
   it('falls back to stored local state when the URL document is invalid', () => {
     const doc = getInitialDocumentFromSources({
       search: '?doc=%7Bbad-json',
@@ -260,6 +277,25 @@ describe('document serialization helpers', () => {
     expect(didSave).toBe(false);
   });
 
+  it('saves and deletes a recoverable pre-blank draft', () => {
+    const writes = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => writes.get(key) ?? null,
+      setItem: (key: string, value: string) => writes.set(key, value),
+      removeItem: (key: string) => writes.delete(key),
+    };
+
+    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'))).toBe(true);
+    expect(writes.has(PRE_BLANK_DRAFT_KEY)).toBe(true);
+
+    const draft = loadPreBlankDraft(storage);
+    expect(draft?.savedAt).toBe('2026-05-15T12:00:00.000Z');
+    expect(draft?.doc.layers[0]?.id).toBe('share-text');
+
+    expect(deletePreBlankDraft(storage)).toBe(true);
+    expect(loadPreBlankDraft(storage)).toBeNull();
+  });
+
   it('creates share URLs that round-trip through the doc query param', () => {
     const url = createDocumentShareUrl('https://example.test', doc);
     const parsed = new URL(url);
@@ -272,9 +308,23 @@ describe('document serialization helpers', () => {
   });
 
   it('removes doc query params while preserving unrelated params', () => {
-    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&tab=node#preview');
+    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&new=blank&tab=node#preview');
 
     expect(url).toBe('https://example.test/app?tab=node#preview');
+  });
+
+  it('creates transparent blank documents without hidden layers', () => {
+    const blank = createBlankDocument({ aspect: '16:9', seed: 818 });
+
+    expect(blank).toMatchObject({
+      global: { bg: 'transparent', aspect: '16:9', seed: 818 },
+      layers: [],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    expect(isBlankDocument(blank)).toBe(true);
+    expect(
+      isBlankDocument({ ...blank, graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [] } }),
+    ).toBe(true);
   });
 
   it('serializes artifact files as readable JSON that imports through normalization', () => {

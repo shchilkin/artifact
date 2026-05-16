@@ -11,6 +11,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import { hydrateDocumentImageAssets } from '../utils/assetStore';
 import {
   addLayerToDocument,
   addNodeAtDocument,
@@ -41,12 +42,16 @@ import {
   undoHistory,
 } from '../utils/documentHistory';
 import {
+  createBlankDocument,
   createDocumentShareUrl,
   getInitialDocument,
+  isBlankDocument,
   normalizeDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
@@ -54,6 +59,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
+  const [fromBlankParam] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return ['blank', '1'].includes(params.get('new') ?? '') || params.get('blank') === '1';
+  });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [past, setPast] = useState<HistoryEntry[]>([]);
   const [future, setFuture] = useState<HistoryEntry[]>([]);
@@ -73,11 +83,20 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
   useEffect(() => {
-    if (fromDocParam) {
+    if (fromDocParam || fromBlankParam) {
       window.history.replaceState(null, '', removeDocParamFromUrl(window.location.href));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!fromBlankParam) return;
+    const draft = takePendingPreBlankDraft();
+    if (!draft) return;
+    void saveStoredPreBlankDraft(draft.doc, new Date(draft.savedAt)).catch(() => {
+      // Recovery drafts are best-effort. The active blank document must still open.
+    });
+  }, [fromBlankParam]);
 
   const clearPendingHistory = useCallback(() => {
     clearTimeout(histDebounceRef.current);
@@ -242,6 +261,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const storeImageAssetSource = useCallback(
+    (id: string, src: string) => {
+      updateDocument((current) => updateLayerInDocument(current, id, { src } as Partial<Layer>), 'silent');
+    },
+    [updateDocument],
+  );
+
   const updateMergeNode = useCallback(
     (id: string, patch: Partial<GraphMergeNode>) => {
       updateDocument((current) => updateMergeNodeInDocument(current, id, patch), 'debounce');
@@ -298,6 +324,17 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId(null);
   }, [commitDocument]);
 
+  const handleNewBlank = useCallback(() => {
+    const current = docRef.current;
+    if (!isBlankDocument(current)) {
+      void saveStoredPreBlankDraft(current).catch(() => {
+        // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
+      });
+    }
+    commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
+    setSelectedLayerId(null);
+  }, [commitDocument]);
+
   const handleGraphChange = useCallback(
     (graph: CanvasGraph) => {
       updateDocument((current) => setDocumentGraph(current, graph), 'debounce');
@@ -313,10 +350,17 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleCopyLink = useCallback(() => {
-    const url = createDocumentShareUrl(window.location.origin, docRef.current);
-    navigator.clipboard.writeText(url).catch(() => {
-      prompt('Copy this link:', url);
-    });
+    void hydrateDocumentImageAssets(docRef.current)
+      .then((portableDoc) => createDocumentShareUrl(window.location.origin, portableDoc))
+      .then((url) => {
+        navigator.clipboard.writeText(url).catch(() => {
+          prompt('Copy this link:', url);
+        });
+      })
+      .catch(() => {
+        const url = createDocumentShareUrl(window.location.origin, docRef.current);
+        prompt('Copy this link:', url);
+      });
   }, []);
 
   return {
@@ -330,6 +374,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
+    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
@@ -337,6 +382,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     duplicateLayer,
     handleAddLayerAt,
     handleRandomize,
+    handleNewBlank,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,
@@ -350,5 +396,6 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     canRedo: future.length > 0,
     undoCount: past.length,
     fromDocParam,
+    isBlank: isBlankDocument(doc),
   };
 }

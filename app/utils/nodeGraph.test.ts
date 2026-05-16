@@ -8,6 +8,7 @@ import {
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
+  appendNodeToExportPath,
   assignNodesToGraphArea,
   collectUpstreamNodeIds,
   connectedPortIds,
@@ -76,6 +77,34 @@ describe('graph mutations', () => {
 
     expect(next.edges).toEqual([{ id: 'keep-me', fromId: 'b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }]);
     expect(graph.edges).toHaveLength(2);
+  });
+
+  it('appends a new node into the export path', () => {
+    const graph = emptyGraph({
+      edges: [{ id: 'old-export', fromId: 'text-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+    });
+
+    const next = appendNodeToExportPath(graph, 'effect-1', 'in', (fromId, toId, index) => {
+      return `edge-${index}-${fromId}-${toId}`;
+    });
+
+    expect(next.edges).toEqual([
+      { id: 'edge-0-text-1-effect-1', fromId: 'text-1', fromPort: 'out', toId: 'effect-1', toPort: 'in' },
+      { id: 'edge-1-effect-1-__export__', fromId: 'effect-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(graph.edges).toEqual([
+      { id: 'old-export', fromId: 'text-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+  });
+
+  it('connects the first appended node directly to export', () => {
+    const next = appendNodeToExportPath(emptyGraph(), 'fill-1', 'bg', (fromId, toId, index) => {
+      return `edge-${index}-${fromId}-${toId}`;
+    });
+
+    expect(next.edges).toEqual([
+      { id: 'edge-0-fill-1-__export__', fromId: 'fill-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
   });
 
   it('adds and removes merge nodes with positions and connected edges', () => {

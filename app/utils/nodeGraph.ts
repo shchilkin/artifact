@@ -90,6 +90,46 @@ export function removeGraphEdge(graph: CanvasGraph, edgeId: string): CanvasGraph
   return { ...graph, edges: graph.edges.filter((e) => e.id !== edgeId) };
 }
 
+function defaultAppendEdgeId(fromId: string, toId: string, index: number): string {
+  return `e-${fromId}-${toId}-${index}`;
+}
+
+export function appendNodeToExportPath(
+  graph: CanvasGraph,
+  nodeId: string,
+  nodeInputPort: GraphEdge['toPort'],
+  createEdgeId: (fromId: string, toId: string, index: number) => string = defaultAppendEdgeId,
+): CanvasGraph {
+  const previousExportEdge = graph.edges.findLast((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in');
+
+  if (!previousExportEdge) {
+    return addGraphEdge(graph, {
+      id: createEdgeId(nodeId, EXPORT_NODE_ID, 0),
+      fromId: nodeId,
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+  }
+
+  let next = removeGraphEdge(graph, previousExportEdge.id);
+  next = addGraphEdge(next, {
+    id: createEdgeId(previousExportEdge.fromId, nodeId, 0),
+    fromId: previousExportEdge.fromId,
+    fromPort: previousExportEdge.fromPort,
+    toId: nodeId,
+    toPort: nodeInputPort,
+  });
+  next = addGraphEdge(next, {
+    id: createEdgeId(nodeId, EXPORT_NODE_ID, 1),
+    fromId: nodeId,
+    fromPort: 'out',
+    toId: EXPORT_NODE_ID,
+    toPort: 'in',
+  });
+  return next;
+}
+
 export function splitEdgeWithNode(
   graph: CanvasGraph,
   edgeId: string,

@@ -138,6 +138,7 @@ export default function Generator() {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
+    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
@@ -145,6 +146,7 @@ export default function Generator() {
     duplicateLayer,
     handleAddLayerAt,
     handleRandomize,
+    handleNewBlank,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,
@@ -157,8 +159,13 @@ export default function Generator() {
     canRedo,
     undoCount,
     fromDocParam,
+    isBlank,
   } = useGeneratorDocument(viewMode === 'nodes');
-  const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(doc, addImageFromSource);
+  const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(
+    doc,
+    addImageFromSource,
+    storeImageAssetSource,
+  );
   const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
   const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
@@ -172,12 +179,15 @@ export default function Generator() {
   const {
     showProjects,
     projects,
+    recoveryDraft,
+    storageError,
     maxProjects,
     toggleProjects,
     closeProjects,
     handleLoadProject,
     saveCurrentProject,
     deleteProject,
+    deleteRecoveryDraft,
   } = useGeneratorProjectsController({
     docRef,
     imageCache,
@@ -194,7 +204,22 @@ export default function Generator() {
     toggleProjects();
   }, [closePresets, toggleProjects]);
 
+  const handleNewBlankRequest = useCallback(() => {
+    if (
+      !isBlank &&
+      !window.confirm('Start a blank canvas? Current work will be saved as a recoverable draft before replacing it.')
+    ) {
+      return;
+    }
+    closePresets();
+    closeProjects();
+    handleNewBlank();
+    setPrimitiveViewStates({});
+    setViewMode('layers');
+  }, [closePresets, closeProjects, handleNewBlank, isBlank]);
+
   const bottomBarProps = {
+    onNewBlank: handleNewBlankRequest,
     onRandomize: handleRandomize,
     onUndo: undo,
     onRedo: redo,
@@ -390,10 +415,14 @@ export default function Generator() {
           {showProjects && (
             <ProjectsPanel
               projects={projects}
+              recoveryDraft={recoveryDraft}
+              storageError={storageError}
               maxProjects={maxProjects}
               onSave={saveCurrentProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
+              onDeleteRecoveryDraft={deleteRecoveryDraft}
+              onNewBlank={handleNewBlankRequest}
               onClose={closeProjects}
             />
           )}
