@@ -5,9 +5,14 @@ import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_EDGE = 2048;
 const RECOMPRESS_BYTES = 1 * 1024 * 1024; // re-encode if >1 MB even when small enough by edge
+const IMAGE_FILE_RE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
+
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || IMAGE_FILE_RE.test(file.name);
+}
 
 async function readImageFile(file: File): Promise<string | null> {
-  if (!file.type.startsWith('image/')) return null;
+  if (!isImageFile(file)) return null;
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => resolve(typeof event.target?.result === 'string' ? event.target.result : null);
@@ -118,7 +123,7 @@ export function useGeneratorAssets(
 
   const handleDroppedFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/')) return;
+      if (!isImageFile(file)) return;
       if (file.size > MAX_IMAGE_BYTES) {
         showDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
         return;
@@ -127,7 +132,13 @@ export function useGeneratorAssets(
         const src = await readImageFile(file);
         if (!src) return;
         const optimized = await downsampleDataUrl(src, file.type);
-        onImportImage(await saveImageAsset(optimized));
+        let importedSrc = optimized;
+        try {
+          importedSrc = await saveImageAsset(optimized);
+        } catch {
+          // Keep the upload usable even if IndexedDB is blocked or temporarily unavailable.
+        }
+        onImportImage(importedSrc);
       } catch {
         showDropError('Could not read image');
       }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
@@ -260,6 +261,7 @@ const textDragDocument = {
 };
 const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
+const uploadImagePngBase64 = readFileSync('public/og.png').toString('base64');
 const imageDragDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 8, aspect: '16:9' },
@@ -449,6 +451,36 @@ test('current document can be saved into local projects', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
 });
 
+test('uploaded images are stored as asset references and survive reload', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate((base64) => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    const file = new File([bytes], 'upload-smoke.png', { type: 'image/png' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    const target = document.querySelector('main');
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, uploadImagePngBase64);
+
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatch(/^artifact-asset:\/\//);
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+});
+
 test('new blank canvas ignores stored work and shows the empty start panel', async ({ page }) => {
   await page.goto('/app');
   await page.evaluate((storedDoc) => localStorage.setItem('doc', JSON.stringify(storedDoc)), lightDocument);
@@ -456,7 +488,7 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await page.goto('/app?new=blank');
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(0);
   await expectCanvasCenterAlpha(page, 0);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();

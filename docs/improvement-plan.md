@@ -86,6 +86,9 @@ the detailed source of truth.
 - [x] Keep graph node creation model-first, then document sync, then UI.
 - [x] Add targeted tests around React Flow edge mapping if visual mapping logic
   changes.
+- [ ] Revisit node/effect parameter ranges after hands-on use. Film grain in
+  particular needs finer scale/size control so it can be made subtler than the
+  current minimum-feeling result.
 - [ ] Preserve node-local primitive camera controls and prevent graph zoom/pan
   from receiving node-control gestures.
 - [ ] Keep the node settings row and floating controls aligned with the current

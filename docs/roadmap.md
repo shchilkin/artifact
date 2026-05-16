@@ -411,6 +411,8 @@ First slice:
 - [ ] Improve add-node search and grouping for recipes and starter workflows.
 - [ ] Add task-oriented docs for blank starts, recipes, layer-vs-node work, and
   export.
+- [ ] Revisit effect-node controls after real project testing. Start with film
+  grain scale/size so it can be tuned much smaller and more subtly.
 
 ### Experimental Track
 
