@@ -11,6 +11,7 @@ Read these docs before changing state ownership, rendering, node editor behavior
 - `docs/state-model.md` — source-of-truth rules for document, graph, UI, gesture draft, primitive camera, undo, and thumbnail invalidation state.
 - `docs/rendering.md` — render entry points, stack vs graph mode, primitive rendering, thumbnails, render options, and preview/export parity rules.
 - `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu edge cases, and QA checklist.
+- `docs/effect-development.md` — effect-control surfaces, renderer/docs metadata, and validation checklist.
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.

@@ -8,6 +8,7 @@ Related architecture docs:
 - [`rendering.md`](./rendering.md)
 - [`node-editor.md`](./node-editor.md)
 - [`app-structure-guidelines.md`](./app-structure-guidelines.md)
+- [`effect-development.md`](./effect-development.md)
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`production-readiness.md`](./production-readiness.md)

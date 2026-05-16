@@ -9,6 +9,7 @@ Before changing state ownership, rendering, node editor behavior, thumbnails, pr
 - `docs/state-model.md`
 - `docs/rendering.md`
 - `docs/node-editor.md`
+- `docs/effect-development.md`
 - `docs/improvement-plan.md`
 - `docs/roadmap.md`
 - `docs/production-readiness.md`

@@ -16,6 +16,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import { EFFECT_DOCS, EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
 import { renderDocument } from '../utils/renderer';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -240,185 +241,12 @@ const SOURCE_NODES: NodeDef[] = [
   },
 ];
 
-const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
-  rays: 'Thick colored poster-burst beams from center.',
-  bloom: 'Highlights bleed outward into surrounding pixels.',
-  filmBurn: 'Overexposed edges and chemical flare.',
-  glitch: 'Horizontal slice tears at random scan intervals.',
-  interlace: 'Alternating rows offset — CRT field artifact.',
-  dataMosh: 'Block compression artifacts, repeated frame error.',
-  grain:
-    'Photographic overlay grain across the full frame. For editable texture branches, use a Noise source set to Film Grain.',
-  scanlines: 'CRT phosphor bands with adjustable opacity and thickness.',
-  tint: 'Flat color overlay at variable opacity.',
-  noiseWarp: 'Displacement mapped by layered Perlin noise.',
-  morph: 'Sine-wave surface distortion.',
-  vortex: 'Rotational warp strongest at center.',
-  barrel: 'Radial lens distortion, concave or convex.',
-  tear: 'Horizontal row shift at random positions.',
-  mirror: 'Fold the frame: horizontal, vertical, or both.',
-  hueShift: 'Rotate all hue values by a fixed degree.',
-  rgbSplit: 'RGB channels split diagonally.',
-  vignette: 'Corner darkening — eye pulled to center.',
-  pixelate: 'Downscale then upscale: pixel block texture.',
-  posterize: 'Quantize color values to a fixed step count.',
-  duotone: 'Map luminance to two chosen colors.',
-  halftone: 'Simulate print dots at configurable frequency.',
-  risoShift: 'Color channels shifted as if mis-fed through a press.',
-  blur: 'Gaussian blur across the entire frame.',
-  threshold: 'Luminance cutoff to stark black and white.',
-  edgeDetect: 'Highlight edge transitions with a convolution kernel.',
-  gradientOverlay: 'Two-color gradient blended over the frame.',
-  sepia: 'Warm monochrome tone — classic darkroom look.',
-  neonGlow: 'Bright edges bloom with a saturated chromatic halo.',
-  zoomBlur: 'Radial motion blur expanding from center.',
-  vhsTracking: 'Horizontal band desync — VHS tape dropout artifact.',
-  dither: 'Bayer ordered dithering reduces color palette visibly.',
-  infrared: 'Channel swap shifts green to red, simulating IR film.',
-  ca: 'Radial chromatic aberration — lens fringe at edges.',
-  wave: 'Sine-wave horizontal displacement scanned per row.',
-  matte: 'Low-scale paper or canvas texture overlay.',
-  overprint: 'CMYK plate offset — ink-on-ink misregistration.',
-  solarize: 'Sabattier effect — luminance above threshold inverts to a surreal negative.',
-  bleachBypass: 'Desaturated overlay blend — contrast and shadow crush like a skip-bleach process.',
-  cyanotype: 'Prussian blue photographic print process — deep blue shadows on ivory paper.',
-  splitTone: 'Shadow/highlight color grade — cold shadows, warm highlights (or vice versa).',
-  ripple: 'Radial sine displacement from center — concentric wave distortion.',
-  kaleidoscope: 'Mirror-fold into radial segments — 3–16 repeating sectors.',
-  squeeze: 'Anamorphic X/Y scale — stretch or compress the image along each axis.',
-  emboss: 'Diagonal convolution relief — raised surface texture overlay.',
-  linocut: 'Bayer-dithered posterization — bold graphic print aesthetic.',
-  fog: 'Luminance-weighted haze overlay — soft atmospheric mist.',
-  speedLines: 'Thin white radial streaks from center — manga motion effect.',
-};
-
-const EFFECT_FAMILY_GUIDE = [
-  {
-    name: 'Texture',
-    desc: 'Grain, scanlines, matte, dither, emboss, and linocut add physical surface before or after image sources.',
-  },
-  {
-    name: 'Distortion',
-    desc: 'Noise warp, morph, wave, ripple, barrel, vortex, squeeze, and kaleidoscope bend composition geometry.',
-  },
-  {
-    name: 'Color',
-    desc: 'Tint, hue shift, duotone, infrared, sepia, cyanotype, split tone, and gradient overlay reshape palette.',
-  },
-  {
-    name: 'Print',
-    desc: 'Halftone, riso shift, overprint, posterize, threshold, and linocut push artwork toward poster production.',
-  },
-  {
-    name: 'Signal Damage',
-    desc: 'Glitch, interlace, data mosh, RGB split, chromatic aberration, VHS tracking, and pixelate create media failure.',
-  },
-] as const;
-
-const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string }>> = {
-  rays: [
-    { key: 'rays', range: '0–240 manual' },
-    { key: 'rayInt', range: '0–100' },
-    { key: 'rayColor', range: 'hex' },
-  ],
-  bloom: [{ key: 'bloom', range: '0–100' }],
-  filmBurn: [{ key: 'filmBurn', range: '0–100' }],
-  glitch: [{ key: 'glitch', range: '0–100' }],
-  interlace: [{ key: 'interlace', range: '0–100' }],
-  dataMosh: [{ key: 'dataMosh', range: '0–100' }],
-  grain: [{ key: 'grain', range: '0–100 amount' }],
-  scanlines: [
-    { key: 'scanlines', range: '0–100' },
-    { key: 'scanlineWidth', range: '1–12px' },
-  ],
-  tint: [
-    { key: 'tint', range: 'hex' },
-    { key: 'tintOp', range: '0–100' },
-  ],
-  noiseWarp: [{ key: 'noiseWarp', range: '0–100' }],
-  morph: [
-    { key: 'morphAmt', range: '0–100' },
-    { key: 'morphFreq', range: '1–20' },
-  ],
-  vortex: [{ key: 'vortex', range: '0–100' }],
-  barrel: [{ key: 'barrel', range: '0–100' }],
-  tear: [
-    { key: 'tearAmt', range: '0–100' },
-    { key: 'tearSize', range: '1–20' },
-  ],
-  mirror: [{ key: 'mirror', range: '0–3' }],
-  hueShift: [{ key: 'hueShift', range: '0–360' }],
-  rgbSplit: [{ key: 'rgbSplit', range: '0–100' }],
-  vignette: [{ key: 'vignette', range: '0–100' }],
-  pixelate: [{ key: 'pixelate', range: '0–100' }],
-  posterize: [{ key: 'posterize', range: '0–20' }],
-  duotone: [
-    { key: 'duotone', range: '0–100' },
-    { key: 'duoA', range: 'hex' },
-    { key: 'duoB', range: 'hex' },
-  ],
-  halftone: [{ key: 'halftone', range: '0–100' }],
-  risoShift: [
-    { key: 'risoShift', range: '0–100' },
-    { key: 'risoAngle', range: '0–360' },
-  ],
-  blur: [{ key: 'blurAmt', range: '0–100' }],
-  threshold: [{ key: 'threshold', range: '0–100' }],
-  edgeDetect: [{ key: 'edgeDetect', range: '0–100' }],
-  gradientOverlay: [
-    { key: 'gradMix', range: '0–100' },
-    { key: 'gradA', range: 'hex' },
-    { key: 'gradB', range: 'hex' },
-    { key: 'gradAngle', range: '0–360' },
-  ],
-  sepia: [{ key: 'sepia', range: '0–100' }],
-  neonGlow: [
-    { key: 'neonGlow', range: '0–100' },
-    { key: 'neonColor', range: 'hex' },
-  ],
-  zoomBlur: [{ key: 'zoomBlur', range: '0–100' }],
-  vhsTracking: [{ key: 'vhsTracking', range: '0–100' }],
-  dither: [{ key: 'dither', range: '0–100' }],
-  infrared: [{ key: 'infrared', range: '0–100' }],
-  ca: [{ key: 'ca', range: '0–30' }],
-  wave: [
-    { key: 'waveAmt', range: '0–60' },
-    { key: 'waveFreq', range: '1–12' },
-  ],
-  matte: [{ key: 'matte', range: '0–100' }],
-  overprint: [{ key: 'overprint', range: '0–100' }],
-  solarize: [{ key: 'solarize', range: '0–100' }],
-  bleachBypass: [{ key: 'bleachBypass', range: '0–100' }],
-  cyanotype: [{ key: 'cyanotype', range: '0–100' }],
-  splitTone: [
-    { key: 'splitToneAmt', range: '0–100' },
-    { key: 'splitShadow', range: 'hex' },
-    { key: 'splitHighlight', range: 'hex' },
-  ],
-  ripple: [
-    { key: 'rippleAmt', range: '0–100' },
-    { key: 'rippleFreq', range: '1–12' },
-  ],
-  kaleidoscope: [{ key: 'kaleidoscope', range: '0–100' }],
-  squeeze: [
-    { key: 'squeezeX', range: '-80–80' },
-    { key: 'squeezeY', range: '-80–80' },
-  ],
-  emboss: [{ key: 'emboss', range: '0–100' }],
-  linocut: [{ key: 'linocut', range: '0–100' }],
-  fog: [
-    { key: 'fog', range: '0–100' },
-    { key: 'fogColor', range: 'hex' },
-  ],
-  speedLines: [{ key: 'speedLines', range: '0–300 manual' }],
-};
-
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
   id: preset,
   symbol: EFFECT_PRESETS[preset].icon,
   name: EFFECT_PRESETS[preset].name,
-  desc: EFFECT_DESCRIPTIONS[preset],
-  params: EFFECT_KEY_PARAMS[preset],
+  desc: EFFECT_DOCS[preset].description,
+  params: EFFECT_DOCS[preset].params,
   doc: buildEffectDoc(preset),
 }));
 

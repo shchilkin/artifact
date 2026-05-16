@@ -16,6 +16,8 @@ phase should leave the repo in a better state even if later phases change.
 - Primitive live/offscreen rendering already shares `app/utils/primitiveScene.ts`.
 - Node thumbnails already use render signatures and a render queue.
 - Editable document import/export is available through `.artifact.json`.
+- Effect docs metadata has a dedicated `app/utils/effectDocs.ts` module and
+  `docs/effect-development.md` describes the effect-change checklist.
 
 ## Remaining Work Snapshot
 
