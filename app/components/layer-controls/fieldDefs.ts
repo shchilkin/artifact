@@ -53,7 +53,7 @@ export const FIELD_RANGES = {
   primitiveDepth: { min: 10, max: 100, step: 1 },
 
   // Noise
-  noiseScale: { min: 6, max: 96, step: 1 },
+  noiseScale: { min: 1, max: 128, step: 1 },
   noiseDetail: { min: 1, max: 8, step: 1 },
   noiseContrast: { min: 0, max: 100, step: 1 },
   noiseBalance: { min: 0, max: 95, step: 1 },

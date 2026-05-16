@@ -419,6 +419,23 @@ First slice:
 - [ ] Revisit effect-node controls after real project testing. Start with film
   grain scale/size so it can be tuned much smaller and more subtly.
 
+### v0.7: Effect Control Polish And Useful Docs
+
+Goal: make the most-used effects and procedural sources easier to tune from
+subtle to destructive, and make docs teach practical cover-building workflows.
+
+First slice:
+
+- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
+  and threshold for range problems found in real projects.
+- [ ] Let Film Grain noise reach finer texture sizes instead of stopping at a
+  visibly chunky minimum.
+- [ ] Add docs that explain when to use Layers vs Nodes, when to use effect
+  Grain vs source Film Grain, and how to build common texture/text/photo covers.
+- [ ] Keep docs examples aligned with separated focused effect nodes.
+- [ ] Add render or browser coverage for every effect/source control whose range
+  changes.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:

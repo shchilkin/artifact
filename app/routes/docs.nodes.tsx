@@ -181,7 +181,7 @@ const SOURCE_NODES: NodeDef[] = [
     name: 'Noise',
     desc: 'A procedural texture source. Start from concrete, film grain, static, cells, clouds, paper, or CRT dirt presets, then tune the same noise fields.',
     params: [
-      { key: 'noiseScale', range: '6–96' },
+      { key: 'noiseScale', range: '1–128' },
       { key: 'noiseDetail', range: '1–8' },
       { key: 'noiseContrast', range: '0–100' },
       { key: 'noiseWarp', range: '0–100' },
@@ -247,7 +247,8 @@ const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   glitch: 'Horizontal slice tears at random scan intervals.',
   interlace: 'Alternating rows offset — CRT field artifact.',
   dataMosh: 'Block compression artifacts, repeated frame error.',
-  grain: 'Photographic film noise across the full frame.',
+  grain:
+    'Photographic overlay grain across the full frame. For editable texture branches, use a Noise source set to Film Grain.',
   scanlines: 'CRT phosphor bands with adjustable opacity and thickness.',
   tint: 'Flat color overlay at variable opacity.',
   noiseWarp: 'Displacement mapped by layered Perlin noise.',
@@ -325,7 +326,7 @@ const EFFECT_KEY_PARAMS: Record<EffectPreset, Array<{ key: string; range: string
   glitch: [{ key: 'glitch', range: '0–100' }],
   interlace: [{ key: 'interlace', range: '0–100' }],
   dataMosh: [{ key: 'dataMosh', range: '0–100' }],
-  grain: [{ key: 'grain', range: '0–100' }],
+  grain: [{ key: 'grain', range: '0–100 amount' }],
   scanlines: [
     { key: 'scanlines', range: '0–100' },
     { key: 'scanlineWidth', range: '1–12px' },
@@ -441,7 +442,7 @@ const GRAPH_UTILITY_GUIDE = [
 const SOURCE_RECIPE_GUIDE = [
   {
     name: 'Analog Texture Bed',
-    desc: 'Start with Film Grain or Paper noise, then add Scanlines, Dither, or Matte before merging under artwork.',
+    desc: 'Start with Film Grain or Paper noise. For finer speckles, lower Noise Scale toward 1–3, then merge under artwork with overlay or screen.',
   },
   {
     name: 'Signal Damage Source',
@@ -450,6 +451,25 @@ const SOURCE_RECIPE_GUIDE = [
   {
     name: 'Procedural Shape Field',
     desc: 'Use Array presets such as Sticker Grid, Orbit Rings, or Shard Field when the texture should be visible graphic content.',
+  },
+];
+
+const PRACTICAL_START_GUIDE = [
+  {
+    name: 'Blank cover',
+    desc: 'Start blank, add one Image or Fill layer, then add Text. Use Layers for quick stack work; switch to Nodes when the branch structure matters.',
+  },
+  {
+    name: 'Photo poster',
+    desc: 'Import an image, set fit or free placement, add title text, then finish with one focused effect such as Grain, Scanlines, Tint, or Bloom.',
+  },
+  {
+    name: 'Texture-first cover',
+    desc: 'Create a Noise source first, choose Film Grain, Paper, Static, or CRT Dirt, then merge text or image branches over it.',
+  },
+  {
+    name: 'Node workflow',
+    desc: 'Build source branches left to right, use Merge to combine them, group related nodes into areas, and keep Export as the final readable target.',
   },
 ];
 
@@ -732,6 +752,15 @@ export default function DocsNodes() {
             A stream of inspiration. Scroll to explore every content, source, and effect node. Hover or tap any poster
             to reveal its live controls and tweak the visual in real-time.
           </p>
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Practical starting points">
+          {PRACTICAL_START_GUIDE.map((item) => (
+            <div key={item.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{item.name}</span>
+              <p className="docs-effect-guide__desc">{item.desc}</p>
+            </div>
+          ))}
         </section>
 
         <section className="docs-effect-guide" aria-label="Effect families">

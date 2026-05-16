@@ -117,7 +117,7 @@ function drawNoiseLayer(
   const data = image.data;
   const base = hexToRgb(layer.color);
   const accent = hexToRgb(layer.accentColor);
-  const scale = Math.max(6, layer.noiseScale);
+  const scale = Math.max(1, layer.noiseScale);
   const octaves = Math.max(1, Math.round(layer.noiseDetail));
   const contrast = 0.6 + layer.noiseContrast / 45;
   const balance = clamp(layer.noiseBalance / 100, 0.05, 0.95);
