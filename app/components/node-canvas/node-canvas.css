@@ -890,6 +890,71 @@
   color: var(--node-text);
 }
 
+.node-canvas-toolbar button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--node-surface-raised);
+  color: var(--accent);
+}
+
+.node-perf-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(320px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.node-perf-status,
+.node-perf-grid {
+  border: 1px solid var(--node-border);
+  background: color-mix(in oklch, var(--node-surface) 88%, transparent);
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.node-perf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.node-perf-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 20%, transparent);
+}
+
+.node-perf-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 12px;
+  padding: 10px;
+  min-width: 230px;
+}
+
+.node-perf-grid dt {
+  color: var(--node-text-dim);
+}
+
+.node-perf-grid dd {
+  margin: 0;
+  color: var(--node-text);
+  text-align: right;
+}
+
 .node-area-overlay {
   position: absolute;
   inset: 0;

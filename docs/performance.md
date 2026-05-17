@@ -73,6 +73,16 @@ The thumbnail queue records browser `performance.measure()` entries named
 `artifact:thumbnail-render`. Keep these marks lightweight and generic; they are
 for local profiling and benchmark output, not user-facing telemetry.
 
+The node editor also has a local debug overlay:
+
+- Click `Perf` in the node-canvas toolbar.
+- Or open the generator with `?debug=perf` / `?perf=1`.
+
+The overlay shows FPS, p95/max frame time, long-task count, node count, browser
+heap when available, and thumbnail queue timing. When previews are still being
+processed, the editor shows a lightweight `Preparing previews` status even when
+the full debug overlay is disabled.
+
 Future measurements can add named marks around:
 
 - graph traversal
@@ -81,3 +91,23 @@ Future measurements can add named marks around:
 - project persistence
 - image decode and asset lookup
 
+## Worker Direction
+
+Do not use a Service Worker for render performance. Service Workers are useful
+for request caching and offline behavior, but they are not the right execution
+model for hot image/effect work.
+
+If measurements show main-thread render work is still the bottleneck, prefer a
+dedicated Web Worker. Good candidates are pure CPU tasks with serializable
+inputs and outputs:
+
+- procedural noise/array generation
+- CPU-only Canvas 2D effect kernels
+- graph render planning and invalidation signatures
+- image-data transforms that can use `OffscreenCanvas`
+
+Keep React Flow state, DOM event handling, PixiJS filters, and live Three.js
+primitive viewports on the main thread until a dedicated worker boundary is
+designed and tested. Any worker boundary must keep `CanvasDocument` JSON-only
+and avoid storing canvases, bitmaps, WebGL objects, or DOM references in
+document state.

@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { scheduleThumbnailRender, thumbnailRenderQueue } from './thumbnailQueue';
+import {
+  getThumbnailQueueSnapshot,
+  resetThumbnailQueueDiagnostics,
+  scheduleThumbnailRender,
+  subscribeThumbnailQueue,
+} from './thumbnailQueue';
 
 describe('thumbnail render queue', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    thumbnailRenderQueue.clear();
+    resetThumbnailQueueDiagnostics();
   });
 
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
-    thumbnailRenderQueue.clear();
+    resetThumbnailQueueDiagnostics();
   });
 
   it('defers passive thumbnail work so editing can stay responsive', async () => {
@@ -47,5 +52,45 @@ describe('thumbnail render queue', () => {
 
     await vi.advanceTimersByTimeAsync(48);
     expect(calls).toEqual(['active', 'passive']);
+  });
+
+  it('publishes queue diagnostics for loading and debug overlays', async () => {
+    const changes: number[] = [];
+    const unsubscribe = subscribeThumbnailQueue(() => changes.push(getThumbnailQueueSnapshot().queued));
+    let finishTask!: () => void;
+
+    scheduleThumbnailRender(
+      'slow',
+      () =>
+        new Promise<void>((resolve) => {
+          finishTask = resolve;
+        }),
+    );
+
+    expect(getThumbnailQueueSnapshot()).toMatchObject({
+      queued: 1,
+      active: false,
+      totalScheduled: 1,
+      completed: 0,
+    });
+
+    await vi.advanceTimersByTimeAsync(48);
+    expect(getThumbnailQueueSnapshot()).toMatchObject({
+      queued: 0,
+      active: true,
+      activeTaskKey: 'slow',
+    });
+
+    finishTask();
+    await vi.runAllTimersAsync();
+    expect(getThumbnailQueueSnapshot()).toMatchObject({
+      queued: 0,
+      active: false,
+      activeTaskKey: null,
+      completed: 1,
+    });
+    expect(changes.length).toBeGreaterThan(0);
+
+    unsubscribe();
   });
 });

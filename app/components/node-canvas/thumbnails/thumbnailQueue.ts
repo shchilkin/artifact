@@ -6,6 +6,16 @@ export const THUMBNAIL_RENDER_MEASURE = 'artifact:thumbnail-render';
 export type { ThumbnailRenderTask };
 export { THUMB_DEBOUNCE_MS };
 
+export interface ThumbnailQueueSnapshot {
+  queued: number;
+  active: boolean;
+  activeTaskKey: string | null;
+  totalScheduled: number;
+  completed: number;
+  lastDurationMs: number;
+  averageDurationMs: number;
+}
+
 interface QueuedThumbnailRender {
   task: ThumbnailRenderTask;
   priority: boolean;
@@ -16,6 +26,52 @@ export const thumbnailRenderQueue = new Map<string, QueuedThumbnailRender>();
 let thumbnailRenderActive = false;
 let thumbnailDrainScheduled = false;
 let thumbnailRenderOrder = 0;
+let thumbnailActiveTaskKey: string | null = null;
+let thumbnailTotalScheduled = 0;
+let thumbnailCompleted = 0;
+let thumbnailLastDurationMs = 0;
+let thumbnailTotalDurationMs = 0;
+const thumbnailQueueListeners = new Set<() => void>();
+let thumbnailQueueSnapshot = createThumbnailQueueSnapshot();
+
+export function getThumbnailQueueSnapshot(): ThumbnailQueueSnapshot {
+  return thumbnailQueueSnapshot;
+}
+
+function createThumbnailQueueSnapshot(): ThumbnailQueueSnapshot {
+  return {
+    queued: thumbnailRenderQueue.size,
+    active: thumbnailRenderActive,
+    activeTaskKey: thumbnailActiveTaskKey,
+    totalScheduled: thumbnailTotalScheduled,
+    completed: thumbnailCompleted,
+    lastDurationMs: thumbnailLastDurationMs,
+    averageDurationMs: thumbnailCompleted > 0 ? thumbnailTotalDurationMs / thumbnailCompleted : 0,
+  };
+}
+
+export function subscribeThumbnailQueue(listener: () => void) {
+  thumbnailQueueListeners.add(listener);
+  return () => thumbnailQueueListeners.delete(listener);
+}
+
+export function resetThumbnailQueueDiagnostics() {
+  thumbnailRenderQueue.clear();
+  thumbnailRenderActive = false;
+  thumbnailDrainScheduled = false;
+  thumbnailRenderOrder = 0;
+  thumbnailActiveTaskKey = null;
+  thumbnailTotalScheduled = 0;
+  thumbnailCompleted = 0;
+  thumbnailLastDurationMs = 0;
+  thumbnailTotalDurationMs = 0;
+  emitThumbnailQueueChange();
+}
+
+function emitThumbnailQueueChange() {
+  thumbnailQueueSnapshot = createThumbnailQueueSnapshot();
+  thumbnailQueueListeners.forEach((listener) => listener());
+}
 
 function queueHasPriorityWork() {
   for (const queued of thumbnailRenderQueue.values()) {
@@ -69,11 +125,15 @@ export function drainThumbnailRenderQueue() {
   }
   const [taskKey, next] = nextEntry;
   thumbnailRenderQueue.delete(taskKey);
+  thumbnailActiveTaskKey = taskKey;
+  emitThumbnailQueueChange();
   Promise.resolve()
     .then(() => measureThumbnailTask(taskKey, next.task))
     .catch(() => undefined)
     .finally(() => {
       thumbnailRenderActive = false;
+      thumbnailActiveTaskKey = null;
+      emitThumbnailQueueChange();
       scheduleThumbnailQueueDrain(queueHasPriorityWork());
     });
 }
@@ -84,17 +144,24 @@ export function scheduleThumbnailRender(
   options: { priority?: boolean } = {},
 ) {
   const existing = thumbnailRenderQueue.get(taskKey);
+  if (!existing) thumbnailTotalScheduled += 1;
   thumbnailRenderQueue.set(taskKey, {
     task,
     priority: Boolean(options.priority) || Boolean(existing?.priority),
     order: existing?.order ?? thumbnailRenderOrder++,
   });
+  emitThumbnailQueueChange();
   scheduleThumbnailQueueDrain(Boolean(options.priority));
 }
 
 async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) {
   if (typeof performance === 'undefined') {
+    const startedAt = Date.now();
     await task();
+    thumbnailLastDurationMs = Date.now() - startedAt;
+    thumbnailTotalDurationMs += thumbnailLastDurationMs;
+    thumbnailCompleted += 1;
+    emitThumbnailQueueChange();
     return;
   }
 
@@ -105,9 +172,13 @@ async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) 
     performance.mark(startMark);
     await task();
     performance.mark(endMark);
-    performance.measure(THUMBNAIL_RENDER_MEASURE, startMark, endMark);
+    const measure = performance.measure(THUMBNAIL_RENDER_MEASURE, startMark, endMark);
+    thumbnailLastDurationMs = measure.duration;
+    thumbnailTotalDurationMs += measure.duration;
+    thumbnailCompleted += 1;
   } finally {
     performance.clearMarks(startMark);
     performance.clearMarks(endMark);
+    emitThumbnailQueueChange();
   }
 }
