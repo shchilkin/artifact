@@ -215,6 +215,10 @@ Rules:
 - Thumbnail rendering should keep the last good frame during graph drag
   gestures. Dragging a node should move the node shell, not restart expensive
   render work inside every preview.
+- Only selected node previews should be urgent during edits. Output/export
+  thumbnails can render at higher quality when selected, but otherwise they
+  should stay passive so a control change does not redraw the whole graph on the
+  critical interaction path.
 
 ## Recommended refactor target
 

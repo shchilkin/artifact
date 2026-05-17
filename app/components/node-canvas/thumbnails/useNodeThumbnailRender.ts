@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { CanvasDocument, ImageLayer } from '../../../types/config';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
@@ -58,19 +58,26 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
-  const renderScale = priority || isExportPreview ? NODE_PREVIEW_RENDER_SCALE : NODE_PREVIEW_PASSIVE_RENDER_SCALE;
+  const immediatePreview = priority;
+  const deferredDoc = useDeferredValue(doc);
+  const deferredGraph = useDeferredValue(graph);
+  const deferredPrimitiveViewStates = useDeferredValue(primitiveViewStates);
+  const renderDoc = immediatePreview ? doc : deferredDoc;
+  const renderGraph = immediatePreview ? graph : deferredGraph;
+  const renderPrimitiveViewStates = immediatePreview ? primitiveViewStates : deferredPrimitiveViewStates;
+  const renderScale = priority ? NODE_PREVIEW_RENDER_SCALE : NODE_PREVIEW_PASSIVE_RENDER_SCALE;
   const previewSize = useMemo(
-    () => getNodePreviewSize(doc.global.aspect ?? '1:1', undefined, renderScale),
-    [doc.global.aspect, renderScale],
+    () => getNodePreviewSize(renderDoc.global.aspect ?? '1:1', undefined, renderScale),
+    [renderDoc.global.aspect, renderScale],
   );
 
   const signatureData = useMemo(() => {
-    const upstream = collectUpstreamNodeIds(previewTargetId, graph);
-    const layers = doc.layers.filter((layer) => upstream.has(layer.id));
-    const mergeNodes = graph.mergeNodes.filter((node) => upstream.has(node.id));
-    const colorNodes = (graph.colorNodes ?? []).filter((node) => upstream.has(node.id));
-    const repeatNodes = (graph.repeatNodes ?? []).filter((node) => upstream.has(node.id));
-    const edges = graph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
+    const upstream = collectUpstreamNodeIds(previewTargetId, renderGraph);
+    const layers = renderDoc.layers.filter((layer) => upstream.has(layer.id));
+    const mergeNodes = renderGraph.mergeNodes.filter((node) => upstream.has(node.id));
+    const colorNodes = (renderGraph.colorNodes ?? []).filter((node) => upstream.has(node.id));
+    const repeatNodes = (renderGraph.repeatNodes ?? []).filter((node) => upstream.has(node.id));
+    const edges = renderGraph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
 
     const layerSignatures = layers.map((layer) => ({
       id: layer.id,
@@ -97,7 +104,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     const primitiveViewSignature = layers
       .filter((layer) => layer.kind === 'primitive')
       .map((layer) => {
-        const view = primitiveViewStates[layer.id];
+        const view = renderPrimitiveViewStates[layer.id];
         return view
           ? `${layer.id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
           : `${layer.id}:default`;
@@ -108,9 +115,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       previewTargetId,
       `${previewSize.render.width}x${previewSize.render.height}`,
       `display:${previewSize.display.width}x${previewSize.display.height}`,
-      doc.global.bg,
-      doc.global.seed,
-      doc.global.aspect,
+      renderDoc.global.bg,
+      renderDoc.global.seed,
+      renderDoc.global.aspect,
       layerSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       mergeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       colorSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
@@ -128,14 +135,14 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       edgeSignatures,
     };
   }, [
-    doc.global.aspect,
-    doc.global.bg,
-    doc.global.seed,
-    doc.layers,
-    graph,
+    renderDoc.global.aspect,
+    renderDoc.global.bg,
+    renderDoc.global.seed,
+    renderDoc.layers,
+    renderGraph,
     previewSize,
     previewTargetId,
-    primitiveViewStates,
+    renderPrimitiveViewStates,
   ]);
   const { previewKey } = signatureData;
 
@@ -184,38 +191,38 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   }, [previewTargetId, signatureData]);
 
   const latestRef = useRef({
-    doc,
-    graph,
+    doc: renderDoc,
+    graph: renderGraph,
     imageCache,
     previewKey,
     previewSize,
     isExportPreview,
     previewTargetId,
-    primitiveViewStates,
+    primitiveViewStates: renderPrimitiveViewStates,
     isGraphDraggingRef,
   });
   useLayoutEffect(() => {
     latestRef.current = {
-      doc,
-      graph,
+      doc: renderDoc,
+      graph: renderGraph,
       imageCache,
       previewKey,
       previewSize,
       isExportPreview,
       previewTargetId,
-      primitiveViewStates,
+      primitiveViewStates: renderPrimitiveViewStates,
       isGraphDraggingRef,
     };
   }, [
-    doc,
-    graph,
     imageCache,
     isExportPreview,
     isGraphDraggingRef,
     previewKey,
     previewSize,
     previewTargetId,
-    primitiveViewStates,
+    renderDoc,
+    renderGraph,
+    renderPrimitiveViewStates,
   ]);
 
   const [hasRendered, setHasRendered] = useState(false);
@@ -322,7 +329,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
             setHasRendered(true);
             setRenderedPreviewKey(pk);
           },
-          { priority: priority || isExportPreview },
+          { priority },
         );
       },
       priority ? 20 : THUMB_DEBOUNCE_MS,
