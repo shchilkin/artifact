@@ -111,3 +111,23 @@ primitive viewports on the main thread until a dedicated worker boundary is
 designed and tested. Any worker boundary must keep `CanvasDocument` JSON-only
 and avoid storing canvases, bitmaps, WebGL objects, or DOM references in
 document state.
+
+### Current Worker Boundary
+
+The first implemented worker boundary is procedural noise texture generation:
+
+- `app/utils/render/workers/noiseTexture.ts` owns pure deterministic pixel
+  generation.
+- `app/utils/render/workers/noiseTexture.worker.ts` runs that pixel generation
+  in a dedicated Web Worker when the browser supports it.
+- `app/utils/render/workers/noiseTextureClient.ts` falls back to the same pure
+  generator on the main thread for tests, SSR-like environments, old browsers,
+  worker failures, or worker timeouts.
+
+Only serializable config and transferable pixel buffers cross this boundary.
+Canvas creation, compositing, PixiJS effects, Three.js primitive rendering, and
+React Flow state remain on the main thread. This is intentionally narrow: it
+proves the worker infrastructure without changing document semantics or the
+renderer API. The next worker candidates are CPU-only image-data effect kernels
+such as solarize, bleach bypass, ripple, kaleidoscope, and threshold-like
+transforms.
