@@ -5,7 +5,7 @@ import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
 import { useNodeCanvasPreview } from '../context';
-import { getNodePreviewSize } from './previewSizing';
+import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
   colorNodeRenderSig,
   edgeRenderSig,
@@ -58,7 +58,11 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
-  const previewSize = useMemo(() => getNodePreviewSize(doc.global.aspect ?? '1:1'), [doc.global.aspect]);
+  const renderScale = priority || isExportPreview ? NODE_PREVIEW_RENDER_SCALE : NODE_PREVIEW_PASSIVE_RENDER_SCALE;
+  const previewSize = useMemo(
+    () => getNodePreviewSize(doc.global.aspect ?? '1:1', undefined, renderScale),
+    [doc.global.aspect, renderScale],
+  );
 
   const signatureData = useMemo(() => {
     const upstream = collectUpstreamNodeIds(previewTargetId, graph);
@@ -233,89 +237,93 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
     debounceRef.current = setTimeout(
       () => {
-        scheduleThumbnailRender(previewTargetId, async () => {
-          const {
-            doc: d,
-            graph: g,
-            imageCache: cachedImages,
-            previewKey: pk,
-            previewSize: latestPreviewSize,
-            isExportPreview: latestIsExportPreview,
-            previewTargetId: latestPreviewTargetId,
-            primitiveViewStates: latestPrimitiveViewStates,
-            isGraphDraggingRef: latestIsGraphDraggingRef,
-          } = latestRef.current;
-          if (latestIsGraphDraggingRef.current) return;
-          const effectiveImageCache = new Map(cachedImages);
-          const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
-          const missingImageSrcs = d.layers
-            .filter((layer): layer is ImageLayer => layer.kind === 'image' && upstream.has(layer.id))
-            .map((layer) => layer.src)
-            .filter((src) => !effectiveImageCache.has(src));
+        scheduleThumbnailRender(
+          previewTargetId,
+          async () => {
+            const {
+              doc: d,
+              graph: g,
+              imageCache: cachedImages,
+              previewKey: pk,
+              previewSize: latestPreviewSize,
+              isExportPreview: latestIsExportPreview,
+              previewTargetId: latestPreviewTargetId,
+              primitiveViewStates: latestPrimitiveViewStates,
+              isGraphDraggingRef: latestIsGraphDraggingRef,
+            } = latestRef.current;
+            if (latestIsGraphDraggingRef.current) return;
+            const effectiveImageCache = new Map(cachedImages);
+            const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
+            const missingImageSrcs = d.layers
+              .filter((layer): layer is ImageLayer => layer.kind === 'image' && upstream.has(layer.id))
+              .map((layer) => layer.src)
+              .filter((src) => !effectiveImageCache.has(src));
 
-          const preloads = missingImageSrcs.map(
-            (src) =>
-              new Promise<void>((resolve) => {
-                const image = new Image();
-                image.onload = () => {
-                  cachedImages.set(src, image);
-                  effectiveImageCache.set(src, image);
-                  resolve();
-                };
-                image.onerror = () => resolve();
-                image.src = src;
-              }),
-          );
+            const preloads = missingImageSrcs.map(
+              (src) =>
+                new Promise<void>((resolve) => {
+                  const image = new Image();
+                  image.onload = () => {
+                    cachedImages.set(src, image);
+                    effectiveImageCache.set(src, image);
+                    resolve();
+                  };
+                  image.onerror = () => resolve();
+                  image.src = src;
+                }),
+            );
 
-          await Promise.all(preloads);
-          if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
+            await Promise.all(preloads);
+            if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
 
-          let renderPromise = thumbnailInflightCache.get(pk);
-          if (!renderPromise) {
-            renderPromise = (async () => {
-              const previewDoc: CanvasDocument = { ...d, graph: g };
-              const result = latestIsExportPreview
-                ? await renderDocument(
-                    previewDoc,
-                    latestPreviewSize.render.width,
-                    latestPreviewSize.render.height,
-                    effectiveImageCache,
-                    {
-                      primitiveViewStates: latestPrimitiveViewStates,
-                      effectResolution: latestPreviewSize.aspect,
-                    },
-                  )
-                : await renderGraphTarget(
-                    previewDoc,
-                    g,
-                    latestPreviewTargetId,
-                    latestPreviewSize.render.width,
-                    latestPreviewSize.render.height,
-                    effectiveImageCache,
-                    {
-                      primitiveViewStates: latestPrimitiveViewStates,
-                      effectResolution: latestPreviewSize.aspect,
-                    },
-                  );
-              const clone = cloneCanvas(result);
-              rememberThumbnail(pk, clone);
-              return clone;
-            })();
-            thumbnailInflightCache.set(pk, renderPromise);
-            renderPromise.finally(() => {
-              if (thumbnailInflightCache.get(pk) === renderPromise) {
-                thumbnailInflightCache.delete(pk);
-              }
-            });
-          }
+            let renderPromise = thumbnailInflightCache.get(pk);
+            if (!renderPromise) {
+              renderPromise = (async () => {
+                const previewDoc: CanvasDocument = { ...d, graph: g };
+                const result = latestIsExportPreview
+                  ? await renderDocument(
+                      previewDoc,
+                      latestPreviewSize.render.width,
+                      latestPreviewSize.render.height,
+                      effectiveImageCache,
+                      {
+                        primitiveViewStates: latestPrimitiveViewStates,
+                        effectResolution: latestPreviewSize.aspect,
+                      },
+                    )
+                  : await renderGraphTarget(
+                      previewDoc,
+                      g,
+                      latestPreviewTargetId,
+                      latestPreviewSize.render.width,
+                      latestPreviewSize.render.height,
+                      effectiveImageCache,
+                      {
+                        primitiveViewStates: latestPrimitiveViewStates,
+                        effectResolution: latestPreviewSize.aspect,
+                      },
+                    );
+                const clone = cloneCanvas(result);
+                rememberThumbnail(pk, clone);
+                return clone;
+              })();
+              thumbnailInflightCache.set(pk, renderPromise);
+              renderPromise.finally(() => {
+                if (thumbnailInflightCache.get(pk) === renderPromise) {
+                  thumbnailInflightCache.delete(pk);
+                }
+              });
+            }
 
-          const result = await renderPromise;
-          if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
-          if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
-            return;
-          setHasRendered(true);
-          setRenderedPreviewKey(pk);
-        });
+            const result = await renderPromise;
+            if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
+            if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
+              return;
+            setHasRendered(true);
+            setRenderedPreviewKey(pk);
+          },
+          { priority: priority || isExportPreview },
+        );
       },
       priority ? 20 : THUMB_DEBOUNCE_MS,
     );
@@ -323,6 +331,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     return () => clearTimeout(debounceRef.current);
   }, [
     imageCache,
+    isExportPreview,
     isGraphDraggingRef,
     priority,
     previewKey,
