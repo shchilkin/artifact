@@ -3,9 +3,9 @@ import { memo } from 'react';
 import type { ThumbProps } from '../types';
 import { useNodeThumbnailRender } from './useNodeThumbnailRender';
 
-export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
-  const { canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton } =
-    useNodeThumbnailRender(previewTargetId);
+export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, priority = false }: ThumbProps) {
+  const { canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton, showPreparing } =
+    useNodeThumbnailRender(previewTargetId, { priority });
 
   return (
     <div
@@ -24,6 +24,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
         {showSkeleton && <div className="node-thumbnail-skeleton" />}
+        {showPreparing && <div className="node-thumbnail-preparing">Preparing</div>}
       </div>
     </div>
   );

@@ -166,6 +166,10 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
         : null,
     [graph.edges, layer.id, layer.kind],
   );
+  const effectHasSource = useMemo(
+    () => layer.kind !== 'effect' || graph.edges.some((edge) => edge.toId === layer.id && edge.toPort === 'in'),
+    [graph.edges, layer.id, layer.kind],
+  );
 
   if (layer.kind === 'primitive') {
     return (
@@ -198,7 +202,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               <LiveMediaOverlay layer={layer} />
             </>
           ) : (
-            <NodeThumbnail previewTargetId={previewTargetId} />
+            <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
           )}
           {isDraggable && selected && (
             <DragTransformOverlay
@@ -223,5 +227,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
     );
   }
 
-  return <NodeThumbnail previewTargetId={previewTargetId} />;
+  if (!effectHasSource) return <EmptyThumbnailFrame label="Connect source" />;
+
+  return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
 });

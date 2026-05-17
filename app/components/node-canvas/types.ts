@@ -71,10 +71,12 @@ export interface NodeShellProps {
   label: string;
   name: string;
   selected?: boolean;
+  muted?: boolean;
   expanded?: boolean;
   expandable?: boolean;
   onToggleExpanded?: () => void;
   children: ReactNode;
+  onToggleMuted?: () => void;
   onDelete?: () => void;
 }
 
@@ -171,6 +173,7 @@ export type NodeCanvasUiAction =
 
 export interface ThumbProps {
   previewTargetId: string;
+  priority?: boolean;
 }
 
 export type ThumbnailRenderTask = () => Promise<void>;

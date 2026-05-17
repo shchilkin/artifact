@@ -112,6 +112,7 @@ not current behavior.
 | Toolbar Add Node | Open add menu; created node appears at the menu/button anchor in graph space |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
+| `M` with layer nodes selected | Mute/unmute selected layer nodes by toggling visibility |
 
 ### Text and image nodes
 

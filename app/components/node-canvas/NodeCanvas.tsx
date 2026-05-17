@@ -309,6 +309,27 @@ export function NodeCanvas({
     setSelectedAreaId(id);
   }, []);
 
+  const handleToggleSelectedLayerVisibility = useCallback(() => {
+    const selectedLayers = selectedNodeIds
+      .map((id) => doc.layers.find((layer) => layer.id === id))
+      .filter((layer): layer is Layer => Boolean(layer));
+    if (selectedLayers.length === 0) return false;
+    const nextVisible = !selectedLayers.some((layer) => layer.visible);
+    selectedLayers.forEach((layer) => onUpdateLayer(layer.id, { visible: nextVisible }));
+    return true;
+  }, [doc.layers, onUpdateLayer, selectedNodeIds]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'm' || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableKeyTarget(event.target)) return;
+      if (!handleToggleSelectedLayerVisibility()) return;
+      event.preventDefault();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleToggleSelectedLayerVisibility]);
+
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(
     () => ({
       doc,
@@ -555,4 +576,10 @@ export function NodeCanvas({
       </NodeCanvasActionsContext.Provider>
     </NodeCanvasPreviewContext.Provider>
   );
+}
+
+function isEditableKeyTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable;
 }

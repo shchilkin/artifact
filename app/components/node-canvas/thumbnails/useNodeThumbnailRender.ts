@@ -43,8 +43,9 @@ function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width:
   return true;
 }
 
-export function useNodeThumbnailRender(previewTargetId: string) {
+export function useNodeThumbnailRender(previewTargetId: string, options: { priority?: boolean } = {}) {
   const { doc, graph, imageCache, primitiveViewStates, isGraphDraggingRef } = useNodeCanvasPreview();
+  const { priority = false } = options;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -230,96 +231,100 @@ export function useNodeThumbnailRender(previewTargetId: string) {
       return () => undefined;
     }
 
-    debounceRef.current = setTimeout(() => {
-      scheduleThumbnailRender(previewTargetId, async () => {
-        const {
-          doc: d,
-          graph: g,
-          imageCache: cachedImages,
-          previewKey: pk,
-          previewSize: latestPreviewSize,
-          isExportPreview: latestIsExportPreview,
-          previewTargetId: latestPreviewTargetId,
-          primitiveViewStates: latestPrimitiveViewStates,
-          isGraphDraggingRef: latestIsGraphDraggingRef,
-        } = latestRef.current;
-        if (latestIsGraphDraggingRef.current) return;
-        const effectiveImageCache = new Map(cachedImages);
-        const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
-        const missingImageSrcs = d.layers
-          .filter((layer): layer is ImageLayer => layer.kind === 'image' && upstream.has(layer.id))
-          .map((layer) => layer.src)
-          .filter((src) => !effectiveImageCache.has(src));
+    debounceRef.current = setTimeout(
+      () => {
+        scheduleThumbnailRender(previewTargetId, async () => {
+          const {
+            doc: d,
+            graph: g,
+            imageCache: cachedImages,
+            previewKey: pk,
+            previewSize: latestPreviewSize,
+            isExportPreview: latestIsExportPreview,
+            previewTargetId: latestPreviewTargetId,
+            primitiveViewStates: latestPrimitiveViewStates,
+            isGraphDraggingRef: latestIsGraphDraggingRef,
+          } = latestRef.current;
+          if (latestIsGraphDraggingRef.current) return;
+          const effectiveImageCache = new Map(cachedImages);
+          const upstream = collectUpstreamNodeIds(latestPreviewTargetId, g);
+          const missingImageSrcs = d.layers
+            .filter((layer): layer is ImageLayer => layer.kind === 'image' && upstream.has(layer.id))
+            .map((layer) => layer.src)
+            .filter((src) => !effectiveImageCache.has(src));
 
-        const preloads = missingImageSrcs.map(
-          (src) =>
-            new Promise<void>((resolve) => {
-              const image = new Image();
-              image.onload = () => {
-                cachedImages.set(src, image);
-                effectiveImageCache.set(src, image);
-                resolve();
-              };
-              image.onerror = () => resolve();
-              image.src = src;
-            }),
-        );
+          const preloads = missingImageSrcs.map(
+            (src) =>
+              new Promise<void>((resolve) => {
+                const image = new Image();
+                image.onload = () => {
+                  cachedImages.set(src, image);
+                  effectiveImageCache.set(src, image);
+                  resolve();
+                };
+                image.onerror = () => resolve();
+                image.src = src;
+              }),
+          );
 
-        await Promise.all(preloads);
-        if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
+          await Promise.all(preloads);
+          if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
 
-        let renderPromise = thumbnailInflightCache.get(pk);
-        if (!renderPromise) {
-          renderPromise = (async () => {
-            const previewDoc: CanvasDocument = { ...d, graph: g };
-            const result = latestIsExportPreview
-              ? await renderDocument(
-                  previewDoc,
-                  latestPreviewSize.render.width,
-                  latestPreviewSize.render.height,
-                  effectiveImageCache,
-                  {
-                    primitiveViewStates: latestPrimitiveViewStates,
-                    effectResolution: latestPreviewSize.aspect,
-                  },
-                )
-              : await renderGraphTarget(
-                  previewDoc,
-                  g,
-                  latestPreviewTargetId,
-                  latestPreviewSize.render.width,
-                  latestPreviewSize.render.height,
-                  effectiveImageCache,
-                  {
-                    primitiveViewStates: latestPrimitiveViewStates,
-                    effectResolution: latestPreviewSize.aspect,
-                  },
-                );
-            const clone = cloneCanvas(result);
-            rememberThumbnail(pk, clone);
-            return clone;
-          })();
-          thumbnailInflightCache.set(pk, renderPromise);
-          renderPromise.finally(() => {
-            if (thumbnailInflightCache.get(pk) === renderPromise) {
-              thumbnailInflightCache.delete(pk);
-            }
-          });
-        }
+          let renderPromise = thumbnailInflightCache.get(pk);
+          if (!renderPromise) {
+            renderPromise = (async () => {
+              const previewDoc: CanvasDocument = { ...d, graph: g };
+              const result = latestIsExportPreview
+                ? await renderDocument(
+                    previewDoc,
+                    latestPreviewSize.render.width,
+                    latestPreviewSize.render.height,
+                    effectiveImageCache,
+                    {
+                      primitiveViewStates: latestPrimitiveViewStates,
+                      effectResolution: latestPreviewSize.aspect,
+                    },
+                  )
+                : await renderGraphTarget(
+                    previewDoc,
+                    g,
+                    latestPreviewTargetId,
+                    latestPreviewSize.render.width,
+                    latestPreviewSize.render.height,
+                    effectiveImageCache,
+                    {
+                      primitiveViewStates: latestPrimitiveViewStates,
+                      effectResolution: latestPreviewSize.aspect,
+                    },
+                  );
+              const clone = cloneCanvas(result);
+              rememberThumbnail(pk, clone);
+              return clone;
+            })();
+            thumbnailInflightCache.set(pk, renderPromise);
+            renderPromise.finally(() => {
+              if (thumbnailInflightCache.get(pk) === renderPromise) {
+                thumbnailInflightCache.delete(pk);
+              }
+            });
+          }
 
-        const result = await renderPromise;
-        if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
-        if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
-          return;
-        setHasRendered(true);
-        setRenderedPreviewKey(pk);
-      });
-    }, THUMB_DEBOUNCE_MS);
+          const result = await renderPromise;
+          if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
+          if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
+            return;
+          setHasRendered(true);
+          setRenderedPreviewKey(pk);
+        });
+      },
+      priority ? 20 : THUMB_DEBOUNCE_MS,
+    );
 
     return () => clearTimeout(debounceRef.current);
   }, [
     imageCache,
     isGraphDraggingRef,
+    priority,
     previewKey,
     previewSize.render.height,
     previewSize.render.width,
@@ -332,5 +337,6 @@ export function useNodeThumbnailRender(previewTargetId: string) {
     previewSize,
     canvasOpacity: ready ? 1 : hasRendered ? 1 : 0,
     showSkeleton: !ready && !hasRendered,
+    showPreparing: !ready && hasRendered,
   };
 }

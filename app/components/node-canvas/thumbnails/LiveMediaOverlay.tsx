@@ -5,7 +5,7 @@ import { getNodePreviewSize } from './previewSizing';
 
 export type LiveMediaLayer = Extract<Layer, { kind: 'text' | 'image' }>;
 
-export function EmptyThumbnailFrame() {
+export function EmptyThumbnailFrame({ label }: { label?: string }) {
   const { doc } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
   return (
@@ -13,7 +13,9 @@ export function EmptyThumbnailFrame() {
       <div
         className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
-      />
+      >
+        {label && <div className="node-thumbnail-empty-label">{label}</div>}
+      </div>
     </div>
   );
 }

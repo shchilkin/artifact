@@ -540,6 +540,31 @@ test('node previews respect document aspect ratio', async ({ page }) => {
   await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
 });
 
+test('selected layer nodes can be muted with keyboard shortcut', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.node-shell-kind-fill').first();
+  await expect(fillNode).toBeVisible({ timeout: 15_000 });
+  await fillNode.click();
+  await page.keyboard.press('m');
+
+  await expect(fillNode).toHaveClass(/node-shell-muted/);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { id: string }) => layer.id === 'wide-fill')?.visible;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(false);
+
+  await page.keyboard.press('m');
+  await expect(fillNode).not.toHaveClass(/node-shell-muted/);
+});
+
 test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);

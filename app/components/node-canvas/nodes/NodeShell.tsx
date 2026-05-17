@@ -9,10 +9,12 @@ export function NodeShell({
   label,
   name,
   selected,
+  muted,
   expanded,
   expandable,
   onToggleExpanded,
   children,
+  onToggleMuted,
   onDelete,
 }: NodeShellProps) {
   void expanded;
@@ -22,7 +24,7 @@ export function NodeShell({
   const showName = name.trim().toLowerCase() !== label.trim().toLowerCase();
   return (
     <div
-      className={`node-shell node-shell-kind-${kind}${selected ? ' node-shell-selected' : ''}`}
+      className={`node-shell node-shell-kind-${kind}${selected ? ' node-shell-selected' : ''}${muted ? ' node-shell-muted' : ''}`}
       style={{ '--node-accent': accent, '--node-default-width': `${NODE_W}px` } as CSSProperties}
     >
       <div className="node-shell-accent" aria-hidden="true" />
@@ -32,6 +34,19 @@ export function NodeShell({
           <span className="node-shell-label">{label}</span>
           {showName && <span className="node-shell-name">{name}</span>}
         </div>
+        {onToggleMuted && (
+          <NoPan
+            as="button"
+            type="button"
+            className="nodrag node-shell-action node-shell-mute"
+            aria-label={muted ? 'Unmute node' : 'Mute node'}
+            title={muted ? 'Unmute (M)' : 'Mute (M)'}
+            aria-pressed={muted}
+            onClick={onToggleMuted}
+          >
+            {muted ? '○' : '●'}
+          </NoPan>
+        )}
         {onDelete && (
           <NoPan
             as="button"

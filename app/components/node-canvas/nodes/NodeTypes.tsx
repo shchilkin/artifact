@@ -26,10 +26,12 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       name={layer.name}
       selected={selected}
       editing={editing}
+      muted={!layer.visible}
       targetHandles={[{ id: inputPort }]}
       className={localTransformActive ? 'nowheel' : undefined}
       onWheelCapture={localTransformActive ? transform.handleWheel : undefined}
       onSelect={(event) => selectNode(layer.id, event)}
+      onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
     >
       <LayerPreviewSurface
