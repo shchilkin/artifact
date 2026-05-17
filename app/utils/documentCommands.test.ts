@@ -263,6 +263,7 @@ describe('documentCommands', () => {
     expect(layerId).toBeTruthy();
     expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
     expect(result.doc.layers[1]).toMatchObject({ id: layerId, kind: 'noise' });
+    expect(result.doc.layers[1]?.kind === 'noise' ? result.doc.layers[1].seedOffset : 0).toBeGreaterThan(0);
     expect(result.doc.graph?.edges).toContainEqual({
       id: `edge-0-${layerId}-text-a`,
       fromId: layerId,
@@ -279,6 +280,7 @@ describe('documentCommands', () => {
 
     expect(layerId).toBeTruthy();
     expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'noise', name: 'CRT Dirt' });
+    expect(result.doc.layers.at(-1)?.kind === 'noise' ? result.doc.layers.at(-1)?.seedOffset : 0).toBeGreaterThan(0);
     expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 480, y: 320 });
   });
 

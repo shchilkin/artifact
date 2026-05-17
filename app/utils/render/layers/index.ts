@@ -76,7 +76,6 @@ function drawEmojiLayer(
   if (!layer.emojis.length || layer.density <= 0) return;
   const cx = W / 2;
   const cy = H / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
 
   const items = Array.from({ length: layer.density }, () => {
     const x = rng() * W;
@@ -94,7 +93,7 @@ function drawEmojiLayer(
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
 
   for (const item of items) {
-    const blurFactor = Math.max(0, 1 - item.dist / maxDist) * (layer.blur / 100);
+    const blurFactor = 0;
     ctx.save();
     ctx.translate(item.x, item.y);
     ctx.rotate(item.rotation);

@@ -125,10 +125,11 @@ const CONTENT_NODES: NodeDef[] = [
     id: 'emoji',
     symbol: '✦',
     name: 'Emoji',
-    desc: 'Glyphs scattered by seed — density, size range, blur, and blend all adjustable.',
+    desc: 'Glyphs scattered by seed. Use density, emoji set, and min/max size for the scatter; add dedicated effect nodes for blur, trails, or distortion.',
     params: [
       { key: 'density', range: '1–80' },
-      { key: 'blur', range: '0–100' },
+      { key: 'minSz/maxSz', range: '10–130' },
+      { key: 'emojis', range: 'list' },
       { key: 'opacity', range: '0–100' },
     ],
     doc: {
@@ -153,12 +154,12 @@ const SOURCE_NODES: NodeDef[] = [
     id: 'primitive',
     symbol: '◍',
     name: 'Primitive',
-    desc: 'A lightweight faux-3D form, rendered directly into the canvas. Sphere, cube, and cylinder give you a fast sculptural base without leaving the stack.',
+    desc: 'A lightweight faux-3D form, rendered directly into the canvas. Material color and light color are durable; camera rotate/pan/zoom is controlled inside the node preview.',
     params: [
       { key: 'primitiveDepth', range: '10–100' },
       { key: 'tiltX', range: '0–90' },
       { key: 'tiltY', range: '0–90' },
-      { key: 'color', range: 'hex' },
+      { key: 'material/light', range: 'hex' },
     ],
     doc: {
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
@@ -180,7 +181,7 @@ const SOURCE_NODES: NodeDef[] = [
     id: 'noise',
     symbol: '░',
     name: 'Noise',
-    desc: 'A procedural texture source. Start from concrete, film grain, static, cells, clouds, paper, or CRT dirt presets, then tune the same noise fields.',
+    desc: 'A full-frame procedural texture source. Start from concrete, film grain, static, cells, clouds, paper, or CRT dirt presets, then tune pattern scale/detail/color and node seed.',
     params: [
       { key: 'noiseScale', range: '1–128' },
       { key: 'noiseDetail', range: '1–8' },
@@ -188,8 +189,8 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'noiseWarp', range: '0–100' },
       { key: 'noiseTurbulence', range: '0–100' },
       { key: 'noiseThreshold', range: '0–100' },
-      { key: 'seedOffset', range: '0–999' },
-      { key: 'color', range: 'hex' },
+      { key: 'nodeSeed', range: '0–9999' },
+      { key: 'shadow/main color', range: 'hex' },
     ],
     doc: {
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },

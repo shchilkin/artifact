@@ -76,15 +76,17 @@ export function bootstrapDocumentGraph(doc: CanvasDocument): CanvasDocument {
 }
 
 export function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
-  return kind === 'text'
-    ? makeTextLayer()
-    : kind === 'image'
-      ? makeImageLayer('')
-      : kind === 'fill'
-        ? makeFillLayer()
-        : kind === 'emoji'
-          ? makeEmojiLayer()
-          : makeSourceLayer(kind);
+  const layer =
+    kind === 'text'
+      ? makeTextLayer()
+      : kind === 'image'
+        ? makeImageLayer('')
+        : kind === 'fill'
+          ? makeFillLayer()
+          : kind === 'emoji'
+            ? makeEmojiLayer()
+            : makeSourceLayer(kind);
+  return withGeneratedNodeSeed(layer);
 }
 
 export function createEffectPresetLayer(preset: EffectPreset): Layer {
@@ -93,6 +95,21 @@ export function createEffectPresetLayer(preset: EffectPreset): Layer {
 
 export function createImageLayerFromSource(src: string): Layer {
   return makeImageLayer(src);
+}
+
+function nodeSeedOffsetFromId(id: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash % 9999) + 1;
+}
+
+function withGeneratedNodeSeed(layer: Layer): Layer {
+  if (layer.kind !== 'noise') return layer;
+  if (layer.seedOffset !== 0) return layer;
+  return { ...layer, seedOffset: nodeSeedOffsetFromId(layer.id) };
 }
 
 export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDocument {
@@ -217,10 +234,10 @@ export function addNodeAtDocument(
     action.kind === 'effect'
       ? createEffectPresetLayer(action.preset)
       : action.kind === 'noisePreset'
-        ? makeNoisePresetLayer(action.preset)
+        ? withGeneratedNodeSeed(makeNoisePresetLayer(action.preset))
         : action.kind === 'arrayPreset'
           ? makeArrayPresetLayer(action.preset)
-          : createLayerOfKind(action.layerKind);
+          : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),

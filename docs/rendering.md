@@ -150,7 +150,6 @@ Both must share the same scene recipe:
 - geometry
 - material
 - lights
-- shadow
 - camera position
 - mesh rotation
 - color handling

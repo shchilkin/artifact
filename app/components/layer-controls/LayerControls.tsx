@@ -19,6 +19,7 @@ import {
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   InspectorColorInput,
+  InspectorLabel,
   InspectorSection,
   InspectorSelect,
   InspectorSlider,
@@ -40,6 +41,37 @@ import {
 } from './fieldDefs';
 
 const R = FIELD_RANGES;
+const DEFAULT_PLACEMENT = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0 };
+
+function PlacementResetButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="node-inspector-action nodrag nopan nowheel" type="button" onClick={onClick}>
+      Reset placement
+    </button>
+  );
+}
+
+function BlendModeNote() {
+  return (
+    <p className="node-inspector-note">
+      Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
+    </p>
+  );
+}
+
+function parseEmojiInput(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  const separated = trimmed.split(/[\s,]+/u).filter(Boolean);
+  if (separated.length > 1) return separated;
+  return Array.from(trimmed);
+}
+
+function sourceColorLabels(layer: SourceLayer): { primary: string; secondary: string } {
+  if (layer.kind === 'primitive') return { primary: 'Material', secondary: 'Light' };
+  if (layer.kind === 'noise') return { primary: 'Shadow', secondary: 'Main' };
+  return { primary: 'Base', secondary: 'Accent' };
+}
 
 export function LayerControls({
   layer,
@@ -90,6 +122,7 @@ export function LayerControls({
           open={openSection === 'placement'}
           onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
         >
+          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<TextLayer>)} />
           <InspectorSlider
             label="Horizontal"
             value={Math.round(layer.x * 100)}
@@ -139,6 +172,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
+          <BlendModeNote />
         </InspectorSection>
       </div>
     );
@@ -167,6 +201,7 @@ export function LayerControls({
           open={openSection === 'placement'}
           onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
         >
+          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<ImageLayer>)} />
           <InspectorSlider
             label="Horizontal"
             value={Math.round(layer.x * 100)}
@@ -211,6 +246,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
+          <BlendModeNote />
         </InspectorSection>
       </div>
     );
@@ -250,6 +286,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
+          <BlendModeNote />
         </InspectorSection>
       </div>
     );
@@ -265,11 +302,32 @@ export function LayerControls({
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'style' : 'content'))}
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+          <div className="node-inspector-control">
+            <InspectorLabel>Emojis</InspectorLabel>
+            <InspectorTextInput
+              value={layer.emojis.join(' ')}
+              onChange={(v) => onChange({ emojis: parseEmojiInput(v) } as Partial<EmojiLayer>)}
+              placeholder="😂 😭 💔"
+            />
+            <p className="node-inspector-note">Separate emojis with spaces or commas.</p>
+          </div>
           <InspectorSlider
             label="Density"
             value={layer.density}
             {...R.density}
             onChange={(v) => onChange({ density: v } as Partial<EmojiLayer>)}
+          />
+          <InspectorSlider
+            label="Smallest"
+            value={layer.minSz}
+            {...R.minSz}
+            onChange={(v) => onChange({ minSz: v, maxSz: Math.max(layer.maxSz, v) } as Partial<EmojiLayer>)}
+          />
+          <InspectorSlider
+            label="Biggest"
+            value={layer.maxSz}
+            {...R.maxSz}
+            onChange={(v) => onChange({ maxSz: v, minSz: Math.min(layer.minSz, v) } as Partial<EmojiLayer>)}
           />
         </InspectorSection>
         <InspectorSection
@@ -278,12 +336,6 @@ export function LayerControls({
           open={openSection === 'style'}
           onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
         >
-          <InspectorSlider
-            label="Blur"
-            value={layer.blur}
-            {...R.blur}
-            onChange={(v) => onChange({ blur: v } as Partial<EmojiLayer>)}
-          />
           <InspectorSlider
             label="Opacity"
             value={layer.opacity}
@@ -298,6 +350,7 @@ export function LayerControls({
   if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
     const hasPlacementSection = layerHasPlacementControls(layer);
     const arrayLabels = layer.kind === 'array' ? getArrayControlLabels(layer) : undefined;
+    const colorLabels = sourceColorLabels(layer);
 
     return (
       <div className={sectionClassName}>
@@ -311,23 +364,28 @@ export function LayerControls({
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
           <InspectorColorInput
-            label="Ink"
+            label={colorLabels.primary}
             value={layer.color}
             onChange={(v) => onChange({ color: v } as Partial<SourceLayer>)}
           />
           <InspectorColorInput
-            label="Accent"
+            label={colorLabels.secondary}
             value={layer.accentColor}
             onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
           />
           {layer.kind !== 'primitive' && (
-            <InspectorSlider
-              label="Seed Offset"
-              value={Math.round(layer.seedOffset ?? 0)}
-              {...R.seedOffset}
-              overrideMax={9999}
-              onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
-            />
+            <>
+              <InspectorSlider
+                label="Node Seed"
+                value={Math.round(layer.seedOffset ?? 0)}
+                {...R.seedOffset}
+                overrideMax={9999}
+                onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
+              />
+              <p className="node-inspector-note">
+                Changes this node's generated pattern without changing the document seed.
+              </p>
+            </>
           )}
         </InspectorSection>
         {hasPlacementSection && (
@@ -337,6 +395,7 @@ export function LayerControls({
             open={openSection === 'placement'}
             onToggle={() => setOpenSection((s) => (s === 'placement' ? 'structure' : 'placement'))}
           >
+            <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<SourceLayer>)} />
             <InspectorSlider
               label="Horizontal"
               value={Math.round(layer.x * 100)}
@@ -534,6 +593,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v } as Partial<SourceLayer>)}
           />
+          <BlendModeNote />
         </InspectorSection>
       </div>
     );

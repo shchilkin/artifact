@@ -3,7 +3,6 @@ import type { PrimitiveViewportState } from '../components/PrimitiveViewportStat
 import type { PrimitiveLayer } from '../types/config';
 import {
   addSceneLights,
-  addSceneShadow,
   applyMeshTransform,
   applyViewStateToCamera,
   CAMERA_ZOOM_MAX,
@@ -16,7 +15,6 @@ import {
 } from './primitiveScene';
 
 const SOURCE_OVERSCAN = 1.22;
-const CONTENT_SAMPLE_STEPS = 8;
 
 interface PrimitiveRenderOptions {
   forceFallback?: boolean;
@@ -39,20 +37,19 @@ function canvasHasPrimitiveContent(canvas: HTMLCanvasElement): boolean {
   if (!ctx) return false;
 
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  for (let yStep = 0; yStep < CONTENT_SAMPLE_STEPS; yStep += 1) {
-    for (let xStep = 0; xStep < CONTENT_SAMPLE_STEPS; xStep += 1) {
-      const x = Math.min(canvas.width - 1, Math.round((xStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.width - 1)));
-      const y = Math.min(canvas.height - 1, Math.round((yStep / (CONTENT_SAMPLE_STEPS - 1)) * (canvas.height - 1)));
-      const index = (y * canvas.width + x) * 4;
-      const r = pixels[index] ?? 0;
-      const g = pixels[index + 1] ?? 0;
-      const b = pixels[index + 2] ?? 0;
-      const a = pixels[index + 3] ?? 0;
-      if (a > 8 && Math.max(r, g, b) > 16) return true;
-    }
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index] ?? 0;
+    const g = pixels[index + 1] ?? 0;
+    const b = pixels[index + 2] ?? 0;
+    const a = pixels[index + 3] ?? 0;
+    if (a > 8 && Math.max(r, g, b) > 16) return true;
   }
   return false;
 }
+
+export const primitiveRendererTestInternals = {
+  canvasHasPrimitiveContent,
+};
 
 function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer): void {
   const ctx = canvas.getContext('2d');
@@ -63,18 +60,6 @@ function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer)
   const cy = size / 2;
   const radius = size * 0.34;
   ctx.clearRect(0, 0, size, size);
-
-  ctx.save();
-  ctx.translate(cx, cy + radius * 0.72);
-  ctx.scale(1.3, 0.26);
-  const shadow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-  shadow.addColorStop(0, 'rgba(0, 0, 0, 0.28)');
-  shadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = shadow;
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 
   if (layer.primitiveShape === 'cube') {
     const r = radius;
@@ -161,7 +146,6 @@ export async function renderPrimitiveToCanvas(
 
   let renderer: THREE.WebGLRenderer | null = null;
   let mesh: THREE.Mesh | null = null;
-  let shadowMesh: THREE.Mesh | null = null;
 
   try {
     renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, antialias: true, alpha: true });
@@ -178,7 +162,6 @@ export async function renderPrimitiveToCanvas(
     });
 
     addSceneLights(scene, layer.accentColor);
-    shadowMesh = addSceneShadow(scene);
 
     const geometry = createPrimitiveGeometry(layer);
     // Export always uses 'shaded' mode — renderMode is a live viewport concept.
@@ -198,7 +181,6 @@ export async function renderPrimitiveToCanvas(
     drawFallbackPrimitive(offscreen, layer);
   } finally {
     if (mesh) disposeMesh(mesh);
-    if (shadowMesh) disposeMesh(shadowMesh);
     if (renderer) {
       renderer.forceContextLoss();
       renderer.dispose();

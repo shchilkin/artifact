@@ -63,6 +63,9 @@ export function EffectInspector({
           options={BLEND_OPTIONS}
           onChange={(value) => onChange({ blendMode: value })}
         />
+        <p className="node-inspector-note">
+          Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
+        </p>
       </InspectorSection>
 
       {!hasPresetControls && (

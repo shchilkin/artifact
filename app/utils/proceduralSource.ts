@@ -106,7 +106,7 @@ function drawNoiseLayer(
   drawWidth = SOURCE_SIZE,
   drawHeight = SOURCE_SIZE,
 ) {
-  const textureSize = (draft ? 112 : 192) + layer.noiseDetail * (draft ? 10 : 16);
+  const textureSize = draft ? 192 : 384;
   const canvas = document.createElement('canvas');
   canvas.width = textureSize;
   canvas.height = textureSize;
@@ -139,7 +139,9 @@ function drawNoiseLayer(
         layer.noiseType === 'cells'
           ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
           : layer.noiseType === 'value'
-            ? valueNoise(nx, ny, seed)
+            ? octaves > 1
+              ? fbm(nx, ny, seed, octaves)
+              : valueNoise(nx, ny, seed)
             : fbm(nx, ny, seed, octaves);
       if (turbulence > 0) {
         raw = lerp(raw, Math.abs(raw - 0.5) * 2, turbulence);

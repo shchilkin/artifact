@@ -19,8 +19,13 @@ describe('layer control model', () => {
     expect(layerHasPlacementControls(primitive)).toBe(false);
   });
 
-  it('keeps procedural source placement separate from primitive camera controls', () => {
-    expect(layerHasPlacementControls(makeSourceLayer('noise'))).toBe(true);
+  it('keeps only transformable procedural sources in placement controls', () => {
+    expect(getLayerControlSections(makeSourceLayer('noise')).map((section) => section.id)).toEqual([
+      'content',
+      'structure',
+      'style',
+    ]);
+    expect(layerHasPlacementControls(makeSourceLayer('noise'))).toBe(false);
     expect(layerHasPlacementControls(makeSourceLayer('array'))).toBe(true);
   });
 

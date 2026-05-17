@@ -306,6 +306,7 @@ body {
 }
 
 .node-section-button:focus-visible,
+.node-inspector-action:focus-visible,
 .node-field:focus-visible,
 .node-color-input:focus-visible,
 .node-check:focus-visible {
@@ -344,6 +345,24 @@ body {
 .node-field:hover,
 .node-color-input:hover {
   border-color: var(--node-text);
+}
+
+.node-inspector-action {
+  min-height: var(--touch);
+  border: 1px solid var(--node-border);
+  border-radius: 0;
+  color: var(--node-text);
+  background: var(--node-bg);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.node-inspector-action:hover {
+  border-color: var(--node-text);
+  background: var(--node-surface);
 }
 
 .node-slider {

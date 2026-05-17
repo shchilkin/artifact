@@ -428,6 +428,19 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Reset camera' }).click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 100%');
+
+  const flowViewport = page.locator('.react-flow__viewport').first();
+  const beforeWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  const viewportBox = await viewport.boundingBox();
+  expect(viewportBox).not.toBeNull();
+  if (!viewportBox) return;
+
+  await page.mouse.move(viewportBox.x + viewportBox.width / 2, viewportBox.y + viewportBox.height / 2);
+  await viewport.dispatchEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true });
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
+  const afterWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await expect(page.getByText('Oops!')).toHaveCount(0);
 });
 
 test('default document can export from the browser', async ({ page }) => {

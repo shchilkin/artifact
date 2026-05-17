@@ -469,7 +469,7 @@ export function makeImageLayer(src: string, partial: Partial<ImageLayer> = {}): 
     kind: 'image',
     src,
     fit: 'cover',
-    opacity: 85,
+    opacity: 100,
     blendMode: 'normal',
     x: 0.5,
     y: 0.5,
@@ -491,9 +491,9 @@ export function makeEmojiLayer(partial: Partial<EmojiLayer> = {}): EmojiLayer {
     density: 40,
     minSz: 24,
     maxSz: 72,
-    blur: 58,
+    blur: 0,
     opacity: 100,
-    blendMode: 'source-over',
+    blendMode: 'normal',
     ...partial,
   };
 }

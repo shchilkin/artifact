@@ -3,9 +3,12 @@ import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
 import {
   addSceneLights,
-  addSceneShadow,
   applyMeshTransform,
   applyViewStateToCamera,
+  CAMERA_DISTANCE,
+  CAMERA_FOV,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
   clamp,
   createPrimitiveCamera,
   createPrimitiveGeometry,
@@ -24,6 +27,7 @@ interface Props {
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
+  onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
   onHoverChange?: (hovered: boolean) => void;
   className?: string;
   interactive?: boolean;
@@ -35,6 +39,7 @@ export function PrimitiveViewport3D({
   renderMode,
   viewState,
   onViewStateChange,
+  onViewStateDraft,
   onHoverChange,
   className,
   interactive = true,
@@ -49,6 +54,7 @@ export function PrimitiveViewport3D({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const viewStateRef = useRef(viewState);
   const renderSceneRef = useRef<(() => void) | null>(null);
+  const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -61,6 +67,7 @@ export function PrimitiveViewport3D({
   const modeRef = useRef(mode);
   const interactiveRef = useRef(interactive);
   const onViewStateChangeRef = useRef(onViewStateChange);
+  const onViewStateDraftRef = useRef(onViewStateDraft);
   const layerTiltZRef = useRef(layer.tiltZ);
   const lockedRef = useRef(!!viewState.locked);
 
@@ -87,10 +94,26 @@ export function PrimitiveViewport3D({
     viewStateRef.current = next;
     const mesh = meshRef.current;
     const camera = cameraRef.current;
-    if (!mesh || !camera) return;
-    applyMeshTransform(mesh, next, layerTiltZRef.current);
-    applyViewStateToCamera(camera, next);
+    if (!mesh && !camera) return;
+    if (mesh) applyMeshTransform(mesh, next, layerTiltZRef.current);
+    if (camera) applyViewStateToCamera(camera, next);
     renderSceneRef.current?.();
+  }, []);
+
+  const applyDraftViewState = useCallback(
+    (next: PrimitiveViewportState) => {
+      applyViewState(next);
+      onViewStateDraftRef.current?.({ ...next });
+    },
+    [applyViewState],
+  );
+
+  const scheduleWheelCommit = useCallback(() => {
+    if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
+    wheelCommitTimerRef.current = setTimeout(() => {
+      wheelCommitTimerRef.current = null;
+      onViewStateChangeRef.current({ ...viewStateRef.current });
+    }, 90);
   }, []);
 
   useLayoutEffect(() => {
@@ -107,13 +130,14 @@ export function PrimitiveViewport3D({
     modeRef.current = mode;
     interactiveRef.current = interactive;
     onViewStateChangeRef.current = onViewStateChange;
+    onViewStateDraftRef.current = onViewStateDraft;
     layerTiltZRef.current = layer.tiltZ;
     if (!interactive) {
       isHoveredRef.current = false;
       dragStateRef.current = null;
       unlockRFPane();
     }
-  }, [mode, interactive, onViewStateChange, layer.tiltZ]);
+  }, [mode, interactive, onViewStateChange, onViewStateDraft, layer.tiltZ]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -137,7 +161,6 @@ export function PrimitiveViewport3D({
     cameraRef.current = camera;
 
     addSceneLights(scene, layer.accentColor);
-    addSceneShadow(scene);
 
     const objectGroup = new THREE.Group();
     objectGroupRef.current = objectGroup;
@@ -163,11 +186,15 @@ export function PrimitiveViewport3D({
     resize();
     resizeObserverRef.current = new ResizeObserver(resize);
     resizeObserverRef.current.observe(root);
-    renderScene();
+    applyViewState(viewStateRef.current);
 
     return () => {
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
+      if (wheelCommitTimerRef.current) {
+        clearTimeout(wheelCommitTimerRef.current);
+        wheelCommitTimerRef.current = null;
+      }
       renderSceneRef.current = null;
       dragStateRef.current = null;
       if (meshRef.current) disposeMesh(meshRef.current);
@@ -178,7 +205,7 @@ export function PrimitiveViewport3D({
       objectGroupRef.current = null;
       meshRef.current = null;
     };
-  }, [layer.accentColor]); // intentional: only rebuild scene when accent color changes, not on every layer field update
+  }, [applyViewState, layer.accentColor]); // intentional: only rebuild scene when accent color changes, not on every layer field update
 
   useEffect(() => {
     const objectGroup = objectGroupRef.current;
@@ -193,8 +220,8 @@ export function PrimitiveViewport3D({
     mesh.rotation.z = 0; // full transform applied via applyMeshTransform in applyViewState
     objectGroup.add(mesh);
     meshRef.current = mesh;
-    renderSceneRef.current?.();
-  }, [layer, renderMode]);
+    applyViewState(viewStateRef.current);
+  }, [applyViewState, layer, renderMode]);
 
   useEffect(() => {
     applyViewState(viewState);
@@ -205,13 +232,17 @@ export function PrimitiveViewport3D({
   // wheel events target our canvas instead of the pane.
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root || !interactive) return;
 
     const inside = (e: Event) => root.contains(e.target as Node);
     const fromControl = (e: Event) =>
       e.target instanceof Element && e.target.closest('[data-primitive-camera-control]') !== null;
 
-    const commit = () => onViewStateChangeRef.current({ ...viewStateRef.current });
+    const commit = () => {
+      const next = { ...viewStateRef.current };
+      onViewStateDraftRef.current?.(next);
+      onViewStateChangeRef.current(next);
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       if (!interactiveRef.current) return;
@@ -245,14 +276,15 @@ export function PrimitiveViewport3D({
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
       if (drag.mode === 'pan') {
-        applyViewState({
+        const panDelta = getViewportPanDelta(root, drag.startView, dx, dy);
+        applyDraftViewState({
           ...drag.startView,
-          panX: drag.startView.panX - dx * 0.006,
-          panY: drag.startView.panY + dy * 0.006,
+          panX: drag.startView.panX - panDelta.x,
+          panY: drag.startView.panY + panDelta.y,
         });
         return;
       }
-      applyViewState({
+      applyDraftViewState({
         ...drag.startView,
         rotationX: clamp(drag.startView.rotationX + dy * 0.35, -85, 85),
         rotationY: drag.startView.rotationY + dx * 0.4,
@@ -281,10 +313,10 @@ export function PrimitiveViewport3D({
       e.preventDefault();
       const next = {
         ...viewStateRef.current,
-        zoom: clamp(viewStateRef.current.zoom - e.deltaY * 0.0016, 0.6, 2.6),
+        zoom: clamp(viewStateRef.current.zoom - e.deltaY * 0.0016, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX),
       };
-      applyViewState(next);
-      onViewStateChangeRef.current({ ...next });
+      applyDraftViewState(next);
+      scheduleWheelCommit();
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -313,6 +345,7 @@ export function PrimitiveViewport3D({
     document.addEventListener('pointermove', onPointerMove, cap);
     document.addEventListener('pointerup', onPointerUp, cap);
     document.addEventListener('pointercancel', onPointerUp, cap);
+    window.addEventListener('wheel', onWheel, capPassive);
     document.addEventListener('wheel', onWheel, capPassive);
     document.addEventListener('contextmenu', onContextMenu, cap);
     document.addEventListener('click', stopIfInside, cap);
@@ -338,11 +371,15 @@ export function PrimitiveViewport3D({
 
     return () => {
       controller.abort();
+      if (wheelCommitTimerRef.current) {
+        clearTimeout(wheelCommitTimerRef.current);
+        wheelCommitTimerRef.current = null;
+      }
       isHoveredRef.current = false;
       dragStateRef.current = null;
       unlockRFPane();
     };
-  }, [applyViewState]); // stable, all live values accessed via refs
+  }, [applyDraftViewState, interactive, scheduleWheelCommit]); // stable, all live values accessed via refs
 
   const locked = !!viewState.locked;
 
@@ -410,12 +447,12 @@ export function PrimitiveViewport3D({
             break;
           case '+':
           case '=':
-            next.zoom = clamp(next.zoom + zoomStep, 0.6, 2.6);
+            next.zoom = clamp(next.zoom + zoomStep, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
             changed = true;
             break;
           case '-':
           case '_':
-            next.zoom = clamp(next.zoom - zoomStep, 0.6, 2.6);
+            next.zoom = clamp(next.zoom - zoomStep, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
             changed = true;
             break;
           case 'Home':
@@ -453,6 +490,25 @@ export function PrimitiveViewport3D({
       />
     </div>
   );
+}
+
+function getViewportPanDelta(
+  root: HTMLElement,
+  viewState: PrimitiveViewportState,
+  dx: number,
+  dy: number,
+): { x: number; y: number } {
+  const rect = root.getBoundingClientRect();
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const zoom = clamp(viewState.zoom, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
+  const cameraZ = CAMERA_DISTANCE / zoom;
+  const visibleHeight = 2 * Math.tan((CAMERA_FOV * Math.PI) / 360) * cameraZ;
+  const visibleWidth = visibleHeight * (width / height);
+  return {
+    x: (dx / width) * visibleWidth,
+    y: (dy / height) * visibleHeight,
+  };
 }
 
 function applyKeyboardState(
