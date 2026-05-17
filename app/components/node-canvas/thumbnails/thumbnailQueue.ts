@@ -1,6 +1,8 @@
 import { THUMB_DEBOUNCE_MS } from '../constants';
 import type { ThumbnailRenderTask } from '../types';
 
+export const THUMBNAIL_RENDER_MEASURE = 'artifact:thumbnail-render';
+
 export type { ThumbnailRenderTask };
 export { THUMB_DEBOUNCE_MS };
 
@@ -68,7 +70,7 @@ export function drainThumbnailRenderQueue() {
   const [taskKey, next] = nextEntry;
   thumbnailRenderQueue.delete(taskKey);
   Promise.resolve()
-    .then(next.task)
+    .then(() => measureThumbnailTask(taskKey, next.task))
     .catch(() => undefined)
     .finally(() => {
       thumbnailRenderActive = false;
@@ -88,4 +90,24 @@ export function scheduleThumbnailRender(
     order: existing?.order ?? thumbnailRenderOrder++,
   });
   scheduleThumbnailQueueDrain(Boolean(options.priority));
+}
+
+async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) {
+  if (typeof performance === 'undefined') {
+    await task();
+    return;
+  }
+
+  const markId = `${THUMBNAIL_RENDER_MEASURE}:${taskKey}:${Math.random().toString(36).slice(2)}`;
+  const startMark = `${markId}:start`;
+  const endMark = `${markId}:end`;
+  try {
+    performance.mark(startMark);
+    await task();
+    performance.mark(endMark);
+    performance.measure(THUMBNAIL_RENDER_MEASURE, startMark, endMark);
+  } finally {
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+  }
 }
