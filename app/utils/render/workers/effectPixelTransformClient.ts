@@ -1,10 +1,14 @@
 import { beginRenderWorkerJob, recordRenderWorkerFailure, recordRenderWorkerFallback } from './diagnostics';
-import { generateNoiseTextureData, type NoiseTextureRequest, type NoiseTextureResult } from './noiseTexture';
+import {
+  type EffectPixelTransformRequest,
+  type EffectPixelTransformResult,
+  transformEffectPixels,
+} from './effectPixelTransform';
 
-type NoiseTextureWorkerResponse =
+type EffectPixelWorkerResponse =
   | {
       id: number;
-      result: NoiseTextureResult;
+      result: EffectPixelTransformResult;
     }
   | {
       id: number;
@@ -12,7 +16,7 @@ type NoiseTextureWorkerResponse =
     };
 
 type PendingRequest = {
-  resolve: (result: NoiseTextureResult) => void;
+  resolve: (result: EffectPixelTransformResult) => void;
   reject: () => void;
 };
 
@@ -30,9 +34,9 @@ function supportsWorker() {
   return typeof Worker !== 'undefined' && typeof window !== 'undefined';
 }
 
-function runFallback(request: NoiseTextureRequest) {
+function runFallback(request: EffectPixelTransformRequest) {
   const startedAt = now();
-  const result = generateNoiseTextureData(request);
+  const result = transformEffectPixels(request);
   recordRenderWorkerFallback(now() - startedAt);
   return result;
 }
@@ -44,12 +48,12 @@ function clearPendingWithFallback() {
   pending.clear();
 }
 
-function getNoiseTextureWorker() {
+function getEffectPixelWorker() {
   if (!supportsWorker()) return null;
   if (worker) return worker;
 
-  worker = new Worker(new URL('./noiseTexture.worker.ts', import.meta.url), { type: 'module' });
-  worker.addEventListener('message', (event: MessageEvent<NoiseTextureWorkerResponse>) => {
+  worker = new Worker(new URL('./effectPixelTransform.worker.ts', import.meta.url), { type: 'module' });
+  worker.addEventListener('message', (event: MessageEvent<EffectPixelWorkerResponse>) => {
     const response = event.data;
     const request = pending.get(response.id);
     if (!request) return;
@@ -70,25 +74,30 @@ function getNoiseTextureWorker() {
   return worker;
 }
 
-export async function renderNoiseTexture(request: NoiseTextureRequest): Promise<NoiseTextureResult> {
-  const currentWorker = getNoiseTextureWorker();
+export async function renderEffectPixelTransforms(
+  request: EffectPixelTransformRequest,
+): Promise<EffectPixelTransformResult> {
+  if (request.operations.length === 0) return { width: request.width, height: request.height, data: request.data };
+
+  const currentWorker = getEffectPixelWorker();
   if (!currentWorker) return runFallback(request);
 
   const id = nextRequestId;
   nextRequestId += 1;
 
-  return new Promise<NoiseTextureResult>((resolve) => {
+  return new Promise<EffectPixelTransformResult>((resolve) => {
     let settled = false;
     const finish = beginRenderWorkerJob();
-    const rejectWithFallback = () => {
+    const fallbackData = new Uint8ClampedArray(request.data);
+    const resolveFallback = () => {
       if (settled) return;
       settled = true;
       pending.delete(id);
       finish();
-      resolve(runFallback(request));
+      resolve(runFallback({ ...request, data: fallbackData }));
     };
 
-    const timeout = window.setTimeout(rejectWithFallback, WORKER_TIMEOUT_MS);
+    const timeout = window.setTimeout(resolveFallback, WORKER_TIMEOUT_MS);
     pending.set(id, {
       resolve: (result) => {
         if (settled) return;
@@ -99,10 +108,10 @@ export async function renderNoiseTexture(request: NoiseTextureRequest): Promise<
       },
       reject: () => {
         window.clearTimeout(timeout);
-        rejectWithFallback();
+        resolveFallback();
       },
     });
 
-    currentWorker.postMessage({ id, request });
+    currentWorker.postMessage({ id, request }, [request.data.buffer]);
   });
 }

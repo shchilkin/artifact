@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-
+import {
+  getRenderWorkerDiagnosticsSnapshot,
+  type RenderWorkerDiagnosticsSnapshot,
+  subscribeRenderWorkerDiagnostics,
+} from '../../../utils/render/workers/diagnostics';
 import {
   getThumbnailQueueSnapshot,
   subscribeThumbnailQueue,
@@ -12,6 +16,16 @@ const EMPTY_QUEUE_SNAPSHOT: ThumbnailQueueSnapshot = {
   activeTaskKey: null,
   totalScheduled: 0,
   completed: 0,
+  lastDurationMs: 0,
+  averageDurationMs: 0,
+};
+
+const EMPTY_WORKER_SNAPSHOT: RenderWorkerDiagnosticsSnapshot = {
+  active: 0,
+  totalScheduled: 0,
+  completed: 0,
+  fallbacks: 0,
+  failures: 0,
   lastDurationMs: 0,
   averageDurationMs: 0,
 };
@@ -32,6 +46,11 @@ interface NodePerformanceOverlayProps {
 
 export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerformanceOverlayProps) {
   const queue = useSyncExternalStore(subscribeThumbnailQueue, getThumbnailQueueSnapshot, () => EMPTY_QUEUE_SNAPSHOT);
+  const worker = useSyncExternalStore(
+    subscribeRenderWorkerDiagnostics,
+    getRenderWorkerDiagnosticsSnapshot,
+    () => EMPTY_WORKER_SNAPSHOT,
+  );
   const pending = queue.queued + (queue.active ? 1 : 0);
   const metrics = useFrameMetrics(debugEnabled);
   const status = useMemo(() => {
@@ -58,6 +77,10 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
           <PerfMetric label="queue" value={`${queue.queued}${queue.active ? ' + active' : ''}`} />
           <PerfMetric label="thumb avg" value={`${queue.averageDurationMs.toFixed(1)}ms`} />
           <PerfMetric label="thumb last" value={`${queue.lastDurationMs.toFixed(1)}ms`} />
+          <PerfMetric label="worker active" value={String(worker.active)} />
+          <PerfMetric label="worker avg" value={`${worker.averageDurationMs.toFixed(1)}ms`} />
+          <PerfMetric label="worker last" value={`${worker.lastDurationMs.toFixed(1)}ms`} />
+          <PerfMetric label="worker fallback" value={`${worker.fallbacks} / ${worker.failures}`} />
           <PerfMetric label="long tasks" value={`${metrics.longTaskCount} / ${metrics.longTaskTotalMs.toFixed(0)}ms`} />
           {metrics.heapMb !== null && <PerfMetric label="heap" value={`${metrics.heapMb.toFixed(0)}mb`} />}
         </dl>

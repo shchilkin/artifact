@@ -15,14 +15,9 @@ import { lcg } from '../../lcg';
 import { buildFiltersFromEffectLayer } from '../../pixiFilters';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
-import {
-  applyDitherToImageData,
-  applyEmboss,
-  applyGrain,
-  applyLinocut,
-  applyMatte,
-  applyScanlines,
-} from './textureEffects';
+import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
+import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
+import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
@@ -202,7 +197,26 @@ function drawImageLayer(
   ctx.restore();
 }
 
-function applyCanvas2DEffects(
+async function applyImageDataTransforms(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  operations: EffectPixelTransformOp[],
+) {
+  if (operations.length === 0) return;
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const result = await renderEffectPixelTransforms({
+    width: W,
+    height: H,
+    data: imageData.data,
+    operations,
+  });
+  const output = ctx.createImageData(result.width, result.height);
+  output.data.set(result.data);
+  ctx.putImageData(output, 0, 0);
+}
+
+async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
@@ -260,26 +274,7 @@ function applyCanvas2DEffects(
   }
 
   if (layer.rgbSplit > 0) {
-    const rgbSplit = Math.round(layer.rgbSplit * scale);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const data = imageData.data;
-    const copy = new Uint8ClampedArray(data);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        const rx = Math.min(W - 1, x + rgbSplit);
-        const ry = Math.min(H - 1, y + rgbSplit);
-        const ri = (ry * W + rx) * 4;
-
-        const bx = Math.max(0, x - rgbSplit);
-        const by = Math.max(0, y - rgbSplit);
-        const bi = (by * W + bx) * 4;
-
-        data[i] = copy[ri]; // Red channel shifted down-right
-        data[i + 2] = copy[bi + 2]; // Blue channel shifted up-left
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'rgbSplit', amount: Math.round(layer.rgbSplit * scale) }]);
   }
 
   applyScanlines(ctx, W, H, layer, scale);
@@ -296,119 +291,29 @@ function applyCanvas2DEffects(
 
   const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
   if (needsPixelPass) {
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-
-    if (layer.sepia > 0 || layer.infrared > 0) {
-      const sepiaT = layer.sepia / 100;
-      const infraredT = layer.infrared / 100;
-      for (let i = 0; i < d.length; i += 4) {
-        let r = d[i];
-        let g = d[i + 1];
-        let b = d[i + 2];
-
-        if (sepiaT > 0) {
-          const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-          const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-          const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-          r = Math.round(r + (sr - r) * sepiaT);
-          g = Math.round(g + (sg - g) * sepiaT);
-          b = Math.round(b + (sb - b) * sepiaT);
-        }
-
-        if (infraredT > 0) {
-          const ir = r;
-          const ig = g;
-          const ib = b;
-          r = Math.min(255, Math.round(ir + ig * infraredT * 0.8));
-          g = Math.min(255, Math.round(ig * (1 - infraredT * 0.65)));
-          b = Math.min(255, Math.round(ib * (1 - infraredT * 0.3) + infraredT * 22));
-        }
-
-        d[i] = r;
-        d[i + 1] = g;
-        d[i + 2] = b;
-      }
-    }
-
-    if (layer.ca > 0) {
-      const amt = Math.round(layer.ca * scale);
-      const cx = W / 2,
-        cy = H / 2;
-      const copy = new Uint8ClampedArray(d);
-      const maxDist = Math.sqrt(cx * cx + cy * cy);
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const dx = (x - cx) / maxDist;
-          const dy = (y - cy) / maxDist;
-          const rx = Math.min(W - 1, Math.max(0, Math.round(x + dx * amt)));
-          const ry = Math.min(H - 1, Math.max(0, Math.round(y + dy * amt)));
-          const bx = Math.min(W - 1, Math.max(0, Math.round(x - dx * amt)));
-          const by = Math.min(H - 1, Math.max(0, Math.round(y - dy * amt)));
-          d[i] = copy[(ry * W + rx) * 4];
-          d[i + 2] = copy[(by * W + bx) * 4 + 2];
-        }
-      }
-    }
-
-    applyDitherToImageData(imageData, W, H, layer);
-
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      {
+        type: 'colorPass',
+        sepia: layer.sepia,
+        infrared: layer.infrared,
+        ca: Math.round(layer.ca * scale),
+        dither: layer.dither,
+      },
+    ]);
   }
 
   if (layer.vhsTracking > 0) {
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const bands = Math.max(3, Math.floor(layer.vhsTracking * 0.25 + 3));
-    const maxShift = Math.max(1, Math.floor((layer.vhsTracking * 0.08 * W) / 100));
-    const out = ctx.createImageData(W, H);
-    const od = out.data;
-    const sd = srcData.data;
-    const bandH = Math.ceil(H / bands);
-    for (let band = 0; band < bands; band++) {
-      const shiftX = Math.floor((rng() - 0.5) * 2 * maxShift);
-      const shiftR = Math.floor((rng() - 0.5) * maxShift * 0.5);
-      const y0 = band * bandH;
-      const y1 = Math.min(H, y0 + bandH);
-      for (let y = y0; y < y1; y++) {
-        for (let x = 0; x < W; x++) {
-          const oi = (y * W + x) * 4;
-          const sx = Math.min(W - 1, Math.max(0, x + shiftX));
-          const si = (y * W + sx) * 4;
-          const srx = Math.min(W - 1, Math.max(0, x + shiftX + shiftR));
-          const sri = (y * W + srx) * 4;
-          od[oi] = sd[sri];
-          od[oi + 1] = sd[si + 1];
-          od[oi + 2] = sd[si + 2];
-          od[oi + 3] = sd[si + 3];
-        }
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'vhsTracking', amount: layer.vhsTracking, seed: seed ^ 0x1a2b3c },
+    ]);
   }
 
   applyMatte(ctx, W, H, layer, seed);
 
   if (layer.waveAmt > 0) {
-    const maxShift = Math.round(layer.waveAmt * scale * 0.5);
-    const freq = (layer.waveFreq * Math.PI * 2) / H;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data;
-    const od = out.data;
-    for (let y = 0; y < H; y++) {
-      const shift = Math.round(Math.sin(y * freq) * maxShift);
-      for (let x = 0; x < W; x++) {
-        const sx = Math.min(W - 1, Math.max(0, x + shift));
-        const oi = (y * W + x) * 4;
-        const si = (y * W + sx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'wave', amount: layer.waveAmt, frequency: layer.waveFreq, scale },
+    ]);
   }
 
   if (layer.zoomBlur > 0) {
@@ -500,178 +405,47 @@ function applyCanvas2DEffects(
   }
 
   if (layer.solarize > 0) {
-    const threshold = 255 * (1 - (layer.solarize / 100) * 0.85);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      if (lum > threshold) {
-        d[i] = 255 - d[i];
-        d[i + 1] = 255 - d[i + 1];
-        d[i + 2] = 255 - d[i + 2];
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'solarize', amount: layer.solarize }]);
   }
 
   if (layer.bleachBypass > 0) {
-    const t = layer.bleachBypass / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i],
-        g = d[i + 1],
-        b = d[i + 2];
-      const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      const ov = (c: number) => (c < 128 ? (2 * c * lum) / 255 : 255 - (2 * (255 - c) * (255 - lum)) / 255);
-      d[i] = Math.min(255, Math.round(r + (ov(r) - r) * t));
-      d[i + 1] = Math.min(255, Math.round(g + (ov(g) - g) * t));
-      d[i + 2] = Math.min(255, Math.round(b + (ov(b) - b) * t));
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'bleachBypass', amount: layer.bleachBypass }]);
   }
 
   if (layer.cyanotype > 0) {
-    const t = layer.cyanotype / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-      // Prussian blue [0,49,83] to ivory paper [235,240,230]
-      const cr = Math.round(0 + (235 - 0) * lum);
-      const cg = Math.round(49 + (240 - 49) * lum);
-      const cb = Math.round(83 + (230 - 83) * lum);
-      d[i] = Math.round(d[i] + (cr - d[i]) * t);
-      d[i + 1] = Math.round(d[i + 1] + (cg - d[i + 1]) * t);
-      d[i + 2] = Math.round(d[i + 2] + (cb - d[i + 2]) * t);
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'cyanotype', amount: layer.cyanotype }]);
   }
 
   if (layer.splitToneAmt > 0) {
-    const t = layer.splitToneAmt / 100;
-    const sR = parseInt(layer.splitShadow.slice(1, 3), 16);
-    const sG = parseInt(layer.splitShadow.slice(3, 5), 16);
-    const sB = parseInt(layer.splitShadow.slice(5, 7), 16);
-    const hR = parseInt(layer.splitHighlight.slice(1, 3), 16);
-    const hG = parseInt(layer.splitHighlight.slice(3, 5), 16);
-    const hB = parseInt(layer.splitHighlight.slice(5, 7), 16);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      const sw = Math.max(0, (128 - lum) / 128);
-      const hw = Math.max(0, (lum - 128) / 128);
-      d[i] = Math.min(255, Math.round(d[i] + (sR - d[i]) * sw * t + (hR - d[i]) * hw * t));
-      d[i + 1] = Math.min(255, Math.round(d[i + 1] + (sG - d[i + 1]) * sw * t + (hG - d[i + 1]) * hw * t));
-      d[i + 2] = Math.min(255, Math.round(d[i + 2] + (sB - d[i + 2]) * sw * t + (hB - d[i + 2]) * hw * t));
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      {
+        type: 'splitTone',
+        amount: layer.splitToneAmt,
+        shadow: layer.splitShadow,
+        highlight: layer.splitHighlight,
+      },
+    ]);
   }
 
   if (layer.rippleAmt > 0) {
-    const cx = W / 2,
-      cy = H / 2;
-    const maxDist = Math.sqrt(cx * cx + cy * cy);
-    const maxShift = layer.rippleAmt * scale * 0.5;
-    const freq = (layer.rippleFreq * Math.PI * 2) / maxDist;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const dx = x - cx,
-          dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        const shift = Math.sin(dist * freq) * maxShift;
-        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
-        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
-        const oi = (y * W + x) * 4,
-          si = (ny * W + nx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'ripple', amount: layer.rippleAmt, frequency: layer.rippleFreq, scale },
+    ]);
   }
 
   if (layer.kaleidoscope > 0) {
-    const segments = Math.max(3, Math.round(3 + (layer.kaleidoscope / 100) * 13));
-    const sectorAngle = (Math.PI * 2) / segments;
-    const cx = W / 2,
-      cy = H / 2;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const dx = x - cx,
-          dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        let angle = Math.atan2(dy, dx);
-        if (angle < 0) angle += Math.PI * 2;
-        let a = angle % sectorAngle;
-        if (a > sectorAngle / 2) a = sectorAngle - a;
-        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
-        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
-        const oi = (y * W + x) * 4,
-          si = (ny * W + nx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'kaleidoscope', amount: layer.kaleidoscope }]);
   }
 
   if (layer.squeezeX !== 0 || layer.squeezeY !== 0) {
-    const xFactor = Math.max(0.01, 1 + layer.squeezeX / 100);
-    const yFactor = Math.max(0.01, 1 + layer.squeezeY / 100);
-    const cx = W / 2,
-      cy = H / 2;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const sx = Math.min(W - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
-        const sy = Math.min(H - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
-        const oi = (y * W + x) * 4,
-          si = (sy * W + sx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'squeeze', x: layer.squeezeX, y: layer.squeezeY }]);
   }
 
   applyEmboss(ctx, W, H, layer);
   applyLinocut(ctx, W, H, layer);
 
   if (layer.fog > 0) {
-    const fogR = parseInt(layer.fogColor.slice(1, 3), 16);
-    const fogG = parseInt(layer.fogColor.slice(3, 5), 16);
-    const fogB = parseInt(layer.fogColor.slice(5, 7), 16);
-    const t = layer.fog / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-      const w = Math.min(1, t * (0.2 + lum * 0.8));
-      d[i] = Math.round(d[i] + (fogR - d[i]) * w);
-      d[i + 1] = Math.round(d[i + 1] + (fogG - d[i + 1]) * w);
-      d[i + 2] = Math.round(d[i + 2] + (fogB - d[i + 2]) * w);
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'fog', amount: layer.fog, color: layer.fogColor }]);
   }
 
   if (layer.speedLines > 0) {
@@ -760,7 +534,7 @@ export async function applyLayerToCanvas(
       }
     }
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-    applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    await applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
     if (!options.skipEffects) {
       const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
       if (filters?.length) {

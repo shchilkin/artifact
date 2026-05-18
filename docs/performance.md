@@ -79,9 +79,20 @@ The node editor also has a local debug overlay:
 - Or open the generator with `?debug=perf` / `?perf=1`.
 
 The overlay shows FPS, p95/max frame time, long-task count, node count, browser
-heap when available, and thumbnail queue timing. When previews are still being
-processed, the editor shows a lightweight `Preparing previews` status even when
-the full debug overlay is disabled.
+heap when available, thumbnail queue timing, and render-worker timing. When
+previews are still being processed, the editor shows a lightweight
+`Preparing previews` status even when the full debug overlay is disabled.
+
+Recent manual profiling notes:
+
+- Before the worker slice, heavy node graphs could drop to roughly `8-12 FPS`
+  while changing nodes.
+- After moving procedural noise texture generation into a dedicated Web Worker,
+  the same kind of interaction stayed at roughly `57 FPS` or higher in manual
+  testing.
+- The synthetic benchmark still showed initial-load long tasks, so the next
+  bottleneck is likely CPU-heavy effect kernels and first-load thumbnail work,
+  not React Flow dragging itself.
 
 Future measurements can add named marks around:
 
@@ -124,10 +135,22 @@ The first implemented worker boundary is procedural noise texture generation:
   generator on the main thread for tests, SSR-like environments, old browsers,
   worker failures, or worker timeouts.
 
-Only serializable config and transferable pixel buffers cross this boundary.
+The second worker boundary is CPU-only image-data effect transforms:
+
+- `app/utils/render/workers/effectPixelTransform.ts` owns pure pixel kernels.
+- `app/utils/render/workers/effectPixelTransform.worker.ts` runs those kernels
+  off the main thread.
+- `app/utils/render/workers/effectPixelTransformClient.ts` preserves a fallback
+  path and tracks worker diagnostics.
+
+Workerized effects currently include RGB split, sepia/infrared/chromatic
+aberration/dither, VHS tracking, wave, solarize, bleach bypass, cyanotype, split
+tone, ripple, kaleidoscope, squeeze, and fog. These are called at the same
+points in the renderer as the old synchronous loops, so effect stacking order is
+preserved.
+
+Only serializable config and transferable pixel buffers cross these boundaries.
 Canvas creation, compositing, PixiJS effects, Three.js primitive rendering, and
-React Flow state remain on the main thread. This is intentionally narrow: it
-proves the worker infrastructure without changing document semantics or the
-renderer API. The next worker candidates are CPU-only image-data effect kernels
-such as solarize, bleach bypass, ripple, kaleidoscope, and threshold-like
-transforms.
+React Flow state remain on the main thread. The current worker model is
+intentionally incremental: move pure pixel math first, keep document semantics
+and renderer APIs stable, then measure before moving more work.
