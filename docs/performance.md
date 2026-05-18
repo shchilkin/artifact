@@ -137,6 +137,10 @@ Recent manual profiling notes:
   last good frame instead of entering the queue. The graph helper layer also has
   an explicit downstream traversal helper for validating future centralized
   thumbnail scheduling.
+- Passive visible node thumbnails render at a lighter internal scale than
+  selected/output thumbnails. Composition, aspect, graph traversal, and effect
+  density remain the same; high-DPI rendering is reserved for the active node
+  or explicit output preview so cold node-editor entry does less pixel work.
 
 Future measurements can add named marks around:
 
