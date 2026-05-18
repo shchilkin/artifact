@@ -1,6 +1,7 @@
 import type {
   CanvasDocument,
   CanvasGraph,
+  EffectLayer,
   GraphColorNode,
   GraphMergeNode,
   GraphRepeatNode,
@@ -9,7 +10,7 @@ import type {
 import { lcg } from '../lcg';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
-import { applyLayerToCanvas, type RenderOptions } from './layers';
+import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
 
@@ -38,6 +39,35 @@ function findRepeatNode(graph: CanvasGraph, nodeId: string): GraphRepeatNode | u
 
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
+}
+
+interface GpuEffectChain {
+  baseSourceId: string | null;
+  layers: EffectLayer[];
+}
+
+function collectGpuOnlyEffectChain(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GpuEffectChain | null {
+  const layers: EffectLayer[] = [];
+  let currentId: string | null = nodeId;
+  let baseSourceId: string | null = null;
+
+  while (currentId) {
+    const layer = findLayer(doc, currentId);
+    if (!layer || layer.kind !== 'effect' || !isGpuOnlyEffectLayer(layer)) {
+      baseSourceId = currentId;
+      break;
+    }
+
+    layers.unshift(layer);
+    const sourceId = findIncomingSource(graph, currentId, 'in');
+    if (!sourceId) {
+      baseSourceId = null;
+      break;
+    }
+    currentId = sourceId;
+  }
+
+  return layers.length > 1 ? { baseSourceId, layers } : null;
 }
 
 function throwIfRenderAborted(options: RenderOptions): void {
@@ -339,6 +369,28 @@ async function renderGraphNode(
 
     const layer = findLayer(doc, nodeId);
     if (!layer) return createCanvas(W, H);
+
+    if (layer.kind === 'effect' && !options.skipEffects) {
+      const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId);
+      if (gpuEffectChain) {
+        const base = gpuEffectChain.baseSourceId
+          ? await renderGraphNode(
+              doc,
+              graph,
+              gpuEffectChain.baseSourceId,
+              W,
+              H,
+              imageCache,
+              options,
+              cache,
+              cacheNamespace,
+              cacheLimit,
+            )
+          : createCanvas(W, H);
+        throwIfRenderAborted(options);
+        return applyGpuOnlyEffectLayerChain(base, gpuEffectChain.layers, doc, W, H, options);
+      }
+    }
 
     const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
     const sourceId = findIncomingSource(graph, nodeId, inputPort);

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
-import { makeFillLayer, makeSourceLayer } from '../../types/config';
+import { makeEffectLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
 
 function samplePixel(canvas: HTMLCanvasElement, x: number, y: number): [number, number, number, number] {
@@ -118,6 +119,14 @@ describe('renderDocument graph mode', () => {
 });
 
 describe('renderGraphTarget', () => {
+  it('classifies only readback-safe GPU effects as batchable', () => {
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40 }))).toBe(true);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40, maskAlpha: true }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40, grain: 20 }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ rgbSplit: 20 }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ solarize: 70 }))).toBe(false);
+  });
+
   it('can reuse an external render cache across sibling graph targets', async () => {
     const graph: CanvasGraph = {
       edges: [

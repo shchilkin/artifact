@@ -516,6 +516,88 @@ function runGpuPass(current: HTMLCanvasElement, W: number, H: number, filters: F
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
+function hasCanvas2DEffect(layer: EffectLayer): boolean {
+  return (
+    (layer.rayInt > 0 && layer.rays > 0) ||
+    layer.glitch > 0 ||
+    layer.rgbSplit > 0 ||
+    layer.scanlines > 0 ||
+    layer.grain > 0 ||
+    layer.tintOp > 0 ||
+    layer.sepia > 0 ||
+    layer.infrared > 0 ||
+    layer.ca > 0 ||
+    layer.dither > 0 ||
+    layer.vhsTracking > 0 ||
+    layer.matte > 0 ||
+    layer.waveAmt > 0 ||
+    layer.zoomBlur > 0 ||
+    layer.neonGlow > 0 ||
+    layer.overprint > 0 ||
+    layer.solarize > 0 ||
+    layer.bleachBypass > 0 ||
+    layer.cyanotype > 0 ||
+    layer.splitToneAmt > 0 ||
+    layer.rippleAmt > 0 ||
+    layer.kaleidoscope > 0 ||
+    layer.squeezeX !== 0 ||
+    layer.squeezeY !== 0 ||
+    layer.emboss > 0 ||
+    layer.linocut > 0 ||
+    layer.fog > 0 ||
+    layer.speedLines > 0
+  );
+}
+
+function hasGpuEffect(layer: EffectLayer): boolean {
+  return (
+    layer.mirror > 0 ||
+    layer.dataMosh > 0 ||
+    layer.interlace > 0 ||
+    layer.noiseWarp > 0 ||
+    layer.morphAmt > 0 ||
+    layer.vortex > 0 ||
+    layer.barrel > 0 ||
+    layer.tearAmt > 0 ||
+    layer.pixelate > 0 ||
+    layer.posterize > 0 ||
+    layer.hueShift > 0 ||
+    layer.duotone > 0 ||
+    layer.halftone > 0 ||
+    layer.risoShift > 0 ||
+    layer.bloom > 0 ||
+    layer.blurAmt > 0 ||
+    layer.threshold > 0 ||
+    layer.edgeDetect > 0 ||
+    layer.gradMix > 0 ||
+    layer.vignette > 0 ||
+    layer.filmBurn > 0
+  );
+}
+
+export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
+  return layer.visible && !layer.maskAlpha && hasGpuEffect(layer) && !hasCanvas2DEffect(layer);
+}
+
+export async function applyGpuOnlyEffectLayerChain(
+  base: HTMLCanvasElement,
+  layers: EffectLayer[],
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  options: RenderOptions,
+): Promise<HTMLCanvasElement> {
+  if (options.skipEffects || layers.length === 0) return base;
+  const filters: Filter[] = [];
+  for (const layer of layers) {
+    throwIfRenderAborted(options);
+    const nextFilters = buildFiltersFromEffectLayer(layer, doc.global.seed, W, H);
+    if (nextFilters?.length) filters.push(...nextFilters);
+  }
+  if (filters.length === 0) return base;
+  return runGpuPass(cloneCanvas(base, W, H), W, H, filters);
+}
+
 export async function applyLayerToCanvas(
   base: HTMLCanvasElement,
   layer: Layer,
