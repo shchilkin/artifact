@@ -323,6 +323,15 @@ export interface GraphArea {
   collapsed?: boolean;
 }
 
+export interface PrimitiveViewportStateConfig {
+  rotationX: number;
+  rotationY: number;
+  zoom: number;
+  panX: number;
+  panY: number;
+  locked?: boolean;
+}
+
 export interface CanvasGraph {
   edges: GraphEdge[];
   positions: Record<string, { x: number; y: number }>;
@@ -330,6 +339,7 @@ export interface CanvasGraph {
   colorNodes: GraphColorNode[];
   repeatNodes?: GraphRepeatNode[];
   areas?: GraphArea[];
+  primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
 
 export interface ExportConfig {
@@ -894,6 +904,9 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
           repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
           areas: (doc.graph.areas ?? []).map((area) => ({ ...area, nodeIds: [...area.nodeIds] })),
+          primitiveViewStates: doc.graph.primitiveViewStates
+            ? Object.fromEntries(Object.entries(doc.graph.primitiveViewStates).map(([id, state]) => [id, { ...state }]))
+            : undefined,
         }
       : undefined,
   };

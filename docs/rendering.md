@@ -184,6 +184,8 @@ The thumbnail system:
 - caches recent canvases
 - preloads missing images
 - calls `renderGraphTarget` or `renderDocument`
+- delays passive offscreen thumbnail work until the thumbnail frame is visible
+  or near the viewport
 
 Risks:
 

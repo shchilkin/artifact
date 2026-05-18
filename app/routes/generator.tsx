@@ -16,6 +16,7 @@ import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
 import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
 import { type AspectRatio, getPreviewDims } from '../types/config';
+import { inferLinearGraph } from '../utils/nodeGraph';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -166,7 +167,11 @@ export default function Generator() {
     addImageFromSource,
     storeImageAssetSource,
   );
-  const exportRenderOptions = useMemo(() => ({ primitiveViewStates }), [primitiveViewStates]);
+  const effectivePrimitiveViewStates = doc.graph?.primitiveViewStates ?? primitiveViewStates;
+  const exportRenderOptions = useMemo(
+    () => ({ primitiveViewStates: effectivePrimitiveViewStates }),
+    [effectivePrimitiveViewStates],
+  );
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
   const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
     useDocumentFileTransfer(docRef, loadDocument);
@@ -193,6 +198,18 @@ export default function Generator() {
     imageCache,
     onLoadDocument: loadDocument,
   });
+
+  const handlePrimitiveViewStatesChange = useCallback(
+    (next: Record<string, PrimitiveViewportState>) => {
+      setPrimitiveViewStates((current) => (primitiveViewStateMapsEqual(current, next) ? current : next));
+      const currentDoc = docRef.current;
+      const graph = currentDoc.graph ?? inferLinearGraph(currentDoc.layers);
+      const currentPersisted = graph.primitiveViewStates ?? {};
+      if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
+      handleGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers) });
+    },
+    [docRef, handleGraphChange],
+  );
 
   const handleTogglePresets = useCallback(() => {
     closeProjects();
@@ -357,8 +374,8 @@ export default function Generator() {
                 <NodeCanvas
                   doc={doc}
                   imageCache={imageCache}
-                  initialPrimitiveViewStates={primitiveViewStates}
-                  onPrimitiveViewStatesChange={setPrimitiveViewStates}
+                  initialPrimitiveViewStates={effectivePrimitiveViewStates}
+                  onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
                   onGraphChange={handleGraphChange}
@@ -430,4 +447,35 @@ export default function Generator() {
       </div>
     </div>
   );
+}
+
+function primitiveViewStateMapsEqual(
+  a: Record<string, PrimitiveViewportState>,
+  b: Record<string, PrimitiveViewportState>,
+) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => {
+    const left = a[key];
+    const right = b[key];
+    return (
+      right !== undefined &&
+      left.rotationX === right.rotationX &&
+      left.rotationY === right.rotationY &&
+      left.zoom === right.zoom &&
+      left.panX === right.panX &&
+      left.panY === right.panY &&
+      (left.locked ?? false) === (right.locked ?? false)
+    );
+  });
+}
+
+function prunePrimitiveViewStates(
+  viewStates: Record<string, PrimitiveViewportState>,
+  layers: Array<{ id: string; kind: string }>,
+) {
+  const primitiveIds = new Set(layers.filter((layer) => layer.kind === 'primitive').map((layer) => layer.id));
+  const entries = Object.entries(viewStates).filter(([id]) => primitiveIds.has(id));
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

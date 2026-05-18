@@ -440,6 +440,22 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   const afterWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
   expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('doc');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const firstState = Object.values(parsed.graph?.primitiveViewStates ?? {})[0] as { zoom?: number } | undefined;
+        return firstState?.zoom ?? null;
+      }),
+    )
+    .toBeGreaterThan(1);
+
+  await page.reload();
+  await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();
+  await page.locator('.node-shell-kind-primitive').first().click();
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect(page.getByText('Oops!')).toHaveCount(0);
 });
 

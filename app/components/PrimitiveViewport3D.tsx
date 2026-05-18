@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
 import {
@@ -55,6 +55,8 @@ export function PrimitiveViewport3D({
   const viewStateRef = useRef(viewState);
   const renderSceneRef = useRef<(() => void) | null>(null);
   const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRenderedFrameRef = useRef(false);
+  const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -151,8 +153,12 @@ export function PrimitiveViewport3D({
       preserveDrawingBuffer: true,
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.setClearAlpha(0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     rendererRef.current = renderer;
+    hasRenderedFrameRef.current = false;
+    setHasRenderedFrame(false);
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
@@ -169,6 +175,10 @@ export function PrimitiveViewport3D({
     const renderScene = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
       rendererRef.current.render(sceneRef.current, cameraRef.current);
+      if (meshRef.current && !hasRenderedFrameRef.current) {
+        hasRenderedFrameRef.current = true;
+        setHasRenderedFrame(true);
+      }
     };
     renderSceneRef.current = renderScene;
 
@@ -486,7 +496,13 @@ export function PrimitiveViewport3D({
       <canvas
         ref={canvasRef}
         className={locked || !interactive ? undefined : 'nodrag nopan nowheel'}
-        style={{ display: 'block', width: '100%', height: '100%' }}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          opacity: hasRenderedFrame ? 1 : 0,
+          transition: 'opacity 80ms ease-out',
+        }}
       />
     </div>
   );

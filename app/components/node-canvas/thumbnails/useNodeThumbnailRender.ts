@@ -46,9 +46,11 @@ function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width:
 export function useNodeThumbnailRender(previewTargetId: string, options: { priority?: boolean } = {}) {
   const { doc, graph, imageCache, primitiveViewStates, isGraphDraggingRef } = useNodeCanvasPreview();
   const { priority = false } = options;
+  const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const [isFrameVisible, setIsFrameVisible] = useState(() => priority || typeof IntersectionObserver === 'undefined');
 
   // Dev-only: previous render signatures keyed by item id, used for change logging.
   const prevLayerSigsRef = useRef<Map<string, string>>(new Map());
@@ -230,8 +232,23 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const ready = renderedPreviewKey === previewKey;
 
   useEffect(() => {
+    if (priority) return undefined;
+    const node = frameRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsFrameVisible(entry.isIntersecting || entry.intersectionRatio > 0);
+      },
+      { root: null, rootMargin: '360px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [priority]);
+
+  useEffect(() => {
     const rev = ++revRef.current;
     clearTimeout(debounceRef.current);
+    if (!isFrameVisible && !priority) return () => undefined;
     if (isGraphDraggingRef.current) return () => undefined;
     const cached = thumbnailResultCache.get(previewKey);
     if (cached && canvasRef.current) {
@@ -338,6 +355,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     return () => clearTimeout(debounceRef.current);
   }, [
     imageCache,
+    isFrameVisible,
     isExportPreview,
     isGraphDraggingRef,
     priority,
@@ -348,6 +366,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   ]);
 
   return {
+    frameRef,
     canvasRef,
     isExportPreview,
     previewSize,

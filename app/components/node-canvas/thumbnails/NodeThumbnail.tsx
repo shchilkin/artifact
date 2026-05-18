@@ -4,7 +4,7 @@ import type { ThumbProps } from '../types';
 import { useNodeThumbnailRender } from './useNodeThumbnailRender';
 
 export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, priority = false }: ThumbProps) {
-  const { canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton, showPreparing } =
+  const { frameRef, canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton, showPreparing } =
     useNodeThumbnailRender(previewTargetId, { priority });
 
   return (
@@ -13,6 +13,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, prio
       style={{ minHeight: previewSize.display.height }}
     >
       <div
+        ref={frameRef}
         className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
       >

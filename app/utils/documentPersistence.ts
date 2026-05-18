@@ -49,6 +49,33 @@ function isValidAspect(value: unknown): value is AspectRatio {
   return typeof value === 'string' && value in ASPECT_SIZES;
 }
 
+function normalizePrimitiveViewStates(value: unknown): CanvasGraph['primitiveViewStates'] {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).flatMap(([id, state]) => {
+    if (!isRecord(state)) return [];
+    const rotationX = Number(state.rotationX);
+    const rotationY = Number(state.rotationY);
+    const zoom = Number(state.zoom);
+    const panX = Number(state.panX);
+    const panY = Number(state.panY);
+    if (![rotationX, rotationY, zoom, panX, panY].every(Number.isFinite)) return [];
+    return [
+      [
+        id,
+        {
+          rotationX,
+          rotationY,
+          zoom,
+          panX,
+          panY,
+          locked: state.locked === true,
+        },
+      ],
+    ] as const;
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 function normalizeGraph(value: unknown): CanvasGraph | undefined {
   if (!isRecord(value)) return undefined;
   return {
@@ -60,6 +87,7 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
       ? (value.repeatNodes as CanvasGraph['repeatNodes']).map((node) => ({ seedOffset: 0, ...node }))
       : [],
     areas: Array.isArray(value.areas) ? (value.areas as CanvasGraph['areas']) : [],
+    primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
   };
 }
 

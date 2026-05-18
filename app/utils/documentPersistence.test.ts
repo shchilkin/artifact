@@ -376,6 +376,9 @@ describe('document serialization helpers', () => {
             nodeIds: ['share-text', 'color-a', '__export__'],
           },
         ],
+        primitiveViewStates: {
+          'primitive-a': { rotationX: 12, rotationY: -18, zoom: 0.22, panX: 0.4, panY: -0.2, locked: true },
+        },
       },
     };
 
@@ -387,6 +390,7 @@ describe('document serialization helpers', () => {
     expect(parsed.graph?.colorNodes).toEqual(graphDoc.graph?.colorNodes);
     expect(parsed.graph?.repeatNodes).toEqual(graphDoc.graph?.repeatNodes);
     expect(parsed.graph?.areas).toEqual(graphDoc.graph?.areas);
+    expect(parsed.graph?.primitiveViewStates).toEqual(graphDoc.graph?.primitiveViewStates);
     expect(parsed.graph?.positions.__export__).toEqual({ x: 216, y: 80 });
   });
 

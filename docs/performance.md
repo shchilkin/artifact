@@ -93,6 +93,14 @@ Recent manual profiling notes:
 - The synthetic benchmark still showed initial-load long tasks, so the next
   bottleneck is likely CPU-heavy effect kernels and first-load thumbnail work,
   not React Flow dragging itself.
+- Passive node thumbnails are now visibility-gated: offscreen node cards do not
+  enter the thumbnail render queue until they are visible or near the viewport.
+  In the current synthetic benchmark this reduced initial thumbnail renders
+  from `21` to `8`, while leaving interaction scenarios at roughly one frame per
+  `16-18ms`.
+- Initial-load long tasks can still come from the main canvas render path before
+  the node editor is fully interactive. Treat that as a separate bottleneck from
+  thumbnail scheduling.
 
 Future measurements can add named marks around:
 
