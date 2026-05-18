@@ -40,6 +40,13 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
 }
 
+function throwIfRenderAborted(options: RenderOptions): void {
+  if (!options.signal?.aborted) return;
+  const error = new Error('Render aborted');
+  error.name = 'AbortError';
+  throw error;
+}
+
 function hashString(value: string): number {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {
@@ -240,11 +247,13 @@ async function renderGraphNode(
   cacheNamespace: string | null,
   cacheLimit: number,
 ): Promise<HTMLCanvasElement> {
+  throwIfRenderAborted(options);
   const cacheKey = cacheNamespace ? `${cacheNamespace}:${nodeId}` : nodeId;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const renderPromise = (async () => {
+    throwIfRenderAborted(options);
     if (nodeId === EXPORT_NODE_ID) {
       const canvas = createCanvas(W, H);
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -263,6 +272,7 @@ async function renderGraphNode(
           cacheNamespace,
           cacheLimit,
         );
+        throwIfRenderAborted(options);
         ctx.drawImage(rendered, 0, 0);
       }
       return canvas;
@@ -292,6 +302,7 @@ async function renderGraphNode(
           cacheNamespace,
           cacheLimit,
         );
+        throwIfRenderAborted(options);
         const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
         ctx.save();
         ctx.globalCompositeOperation = toCompositeOperation(mergeNode.blendMode);
@@ -308,6 +319,7 @@ async function renderGraphNode(
       const source = sourceId
         ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
         : createCanvas(W, H);
+      throwIfRenderAborted(options);
       return applyColorNode(source, colorNode, W, H);
     }
 
@@ -321,6 +333,7 @@ async function renderGraphNode(
       const backdrop = backdropId
         ? await renderGraphNode(doc, graph, backdropId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
         : null;
+      throwIfRenderAborted(options);
       return applyRepeatNode(source, backdrop, repeatNode, doc.global.seed, W, H);
     }
 
@@ -332,6 +345,7 @@ async function renderGraphNode(
     const base = sourceId
       ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
       : createCanvas(W, H);
+    throwIfRenderAborted(options);
     const layerOptions =
       layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array'
         ? { ...options, sourceLayout: 'full-frame' as const }

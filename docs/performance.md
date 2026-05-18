@@ -38,6 +38,8 @@ Each scenario reports:
   Task API.
 - `thumbnails`: thumbnail render count and duration from
   `artifact:thumbnail-render` performance measures.
+- `documentRenders`: document-render count and duration from
+  `artifact:document-render` performance measures.
 
 The benchmark also records console errors and basic graph size metadata.
 
@@ -72,6 +74,9 @@ Useful warning signs:
 The thumbnail queue records browser `performance.measure()` entries named
 `artifact:thumbnail-render`. Keep these marks lightweight and generic; they are
 for local profiling and benchmark output, not user-facing telemetry.
+The renderer facade also records `artifact:document-render` entries around
+`renderDocument` calls so benchmarks can distinguish thumbnail scheduling cost
+from full document render cost.
 
 The node editor also has a local debug overlay:
 
@@ -101,21 +106,36 @@ Recent manual profiling notes:
 - The main layer preview now renders progressively: it paints a draft frame
   first, then waits for a short idle window before starting the full-quality
   pass. This prevents the layer preview from competing with node-editor mount
-  work when the user switches into nodes immediately after page load.
+  work when the user switches into nodes immediately after page load. The
+  full-quality pass is intentionally delayed longer than a normal tab switch so
+  the pending work can be cancelled before expensive rendering starts.
+- Main preview renders are abortable between graph/layer steps. If the preview
+  unmounts or a newer render supersedes the current one, the old render receives
+  a transient `AbortSignal` and stops before continuing through stale expensive
+  effects. This keeps cancellation outside `CanvasDocument` while preventing
+  old full-quality work from blocking the node workspace.
 - Node thumbnails now share a render-session cache for graph branches. When
   several visible thumbnails depend on the same upstream source/effect chain,
   the renderer can reuse in-flight or completed upstream canvases instead of
   recomputing the same branch for every thumbnail.
   In one local benchmark run, initial thumbnail render time dropped from roughly
   `1360ms` total to roughly `107ms` total after this cache boundary.
+- Gallery previews and generated preset/example thumbnails can now pass the
+  same external graph render cache through `renderDocument`, so the cache
+  boundary is not limited to node cards. Generated thumbnail data URLs are also
+  cached with a small LRU/in-flight cache to avoid rerendering identical example
+  or preset thumbnails during browsing.
 - Initial-load long tasks can still come from the main canvas full-quality pass,
   image decode, or GPU effects after the idle delay. Treat those as separate
   bottlenecks from thumbnail scheduling.
+- After adding preview cancellation, one local benchmark run reduced initial
+  node-load document render work from `3` renders / roughly `3239ms` to `1`
+  draft render / roughly `26ms`; initial load duration dropped from roughly
+  `8.8s` to `3.9s` in that run.
 
 Future measurements can add named marks around:
 
 - graph traversal
-- `renderDocument`
 - `renderGraphTarget`
 - project persistence
 - image decode and asset lookup

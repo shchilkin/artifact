@@ -32,6 +32,15 @@ export interface RenderOptions {
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
   effectResolution?: { width: number; height: number };
+  /** Transient render cancellation signal. Never store this in document state. */
+  signal?: AbortSignal;
+}
+
+function throwIfRenderAborted(options: RenderOptions): void {
+  if (!options.signal?.aborted) return;
+  const error = new Error('Render aborted');
+  error.name = 'AbortError';
+  throw error;
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -484,6 +493,7 @@ export async function applyLayerToCanvas(
   imageCache: Map<string, HTMLImageElement>,
   options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
+  throwIfRenderAborted(options);
   if (!layer.visible) return base;
 
   const scale = W / REF;
@@ -513,6 +523,7 @@ export async function applyLayerToCanvas(
       sourceLayout,
     );
   } else if (layer.kind === 'effect') {
+    throwIfRenderAborted(options);
     if (options.skipEffects) return base;
     const effectResolution = options.effectResolution;
     if (effectResolution) {
@@ -526,6 +537,7 @@ export async function applyLayerToCanvas(
           ...options,
           effectResolution: undefined,
         });
+        throwIfRenderAborted(options);
         const scaled = createCanvas(W, H);
         const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;
         scaledCtx.imageSmoothingEnabled = false;
@@ -535,10 +547,12 @@ export async function applyLayerToCanvas(
     }
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
     await applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    throwIfRenderAborted(options);
     if (!options.skipEffects) {
       const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
       if (filters?.length) {
         current = await runGpuPass(current, W, H, filters);
+        throwIfRenderAborted(options);
       }
     }
     if (alphaMask) {
@@ -546,5 +560,6 @@ export async function applyLayerToCanvas(
     }
   }
 
+  throwIfRenderAborted(options);
   return current;
 }

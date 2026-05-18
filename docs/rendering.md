@@ -52,6 +52,11 @@ Rule:
 `app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
 live under `app/utils/render/`; app code should keep importing the public entry
 points from the facade unless it is working inside the renderer itself.
+`renderDocument` and `renderGraphTarget` both support an optional external
+`GraphRenderCache` for UI preview sessions. Use it only for transient render
+reuse across sibling previews or repeated gallery/preset thumbnail work; export
+paths should render directly unless a cache namespace is proven to include every
+pixel-affecting input.
 
 ## Document render flow
 
@@ -93,6 +98,9 @@ rendering can also pass an external render-session cache so sibling thumbnails
 reuse shared upstream branch results. That cache stores canvases/promises
 outside `CanvasDocument` and is invalidated by a render-session key derived from
 document, graph, render size, image availability, and primitive camera state.
+Gallery previews and generated preset/example thumbnails use the same optional
+cache boundary so repeated graph branches are not recomputed while browsing or
+opening a high-resolution preview.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,

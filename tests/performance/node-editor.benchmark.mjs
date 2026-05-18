@@ -11,6 +11,7 @@ const OUTPUT_PATH =
   join(dirname(fileURLToPath(import.meta.url)), '../../test-results/performance/node-editor.json');
 const VIEWPORT = { width: 1440, height: 960 };
 const THUMBNAIL_MEASURE = 'artifact:thumbnail-render';
+const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 
 const EFFECTS = [
   ['bench-bloom', 'Bloom', 'bloom', { bloom: 38 }],
@@ -169,13 +170,17 @@ async function measureScenario(page, name, action) {
 
 async function readScenarioMetrics(page, name, durationOverride) {
   return page.evaluate(
-    ({ scenarioName, durationMs, thumbnailMeasure }) => {
+    ({ scenarioName, durationMs, thumbnailMeasure, documentRenderMeasure }) => {
       const perf = window.__artifactPerf;
       perf?.stopFrames();
       const frameDeltas = perf?.frameDeltas ?? [];
       const longTasks = perf?.longTasks ?? [];
       const thumbnailDurations = performance
         .getEntriesByName(thumbnailMeasure)
+        .map((entry) => entry.duration)
+        .filter((duration) => duration > 0);
+      const documentRenderDurations = performance
+        .getEntriesByName(documentRenderMeasure)
         .map((entry) => entry.duration)
         .filter((duration) => duration > 0);
 
@@ -189,6 +194,7 @@ async function readScenarioMetrics(page, name, durationOverride) {
           maxMs: round(Math.max(0, ...longTasks.map((task) => task.duration))),
         },
         thumbnails: summarize(thumbnailDurations),
+        documentRenders: summarize(documentRenderDurations),
       };
 
       function summarize(values) {
@@ -212,7 +218,12 @@ async function readScenarioMetrics(page, name, durationOverride) {
         return Math.round(value * 10) / 10;
       }
     },
-    { scenarioName: name, durationMs: durationOverride, thumbnailMeasure: THUMBNAIL_MEASURE },
+    {
+      scenarioName: name,
+      durationMs: durationOverride,
+      thumbnailMeasure: THUMBNAIL_MEASURE,
+      documentRenderMeasure: DOCUMENT_RENDER_MEASURE,
+    },
   );
 }
 
@@ -336,6 +347,7 @@ function performanceInitScript() {
       this.frameDeltas = [];
       this.startedAt = performance.now();
       performance.clearMeasures('artifact:thumbnail-render');
+      performance.clearMeasures('artifact:document-render');
     },
     startFrames() {
       this.stopFrames();

@@ -3,8 +3,8 @@ import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
-const DEFERRED_FULL_RENDER_MS = 900;
-const DEFERRED_FULL_RENDER_TIMEOUT_MS = 1600;
+const DEFERRED_FULL_RENDER_MS = 1800;
+const DEFERRED_FULL_RENDER_TIMEOUT_MS = 3200;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
 const RENDER_CACHE_LIMIT = 6;
@@ -136,6 +136,10 @@ function withRenderTimeout(
   });
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 export function useDocumentRenderer(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
@@ -147,6 +151,7 @@ export function useDocumentRenderer(
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderingRef = useRef(false);
   const pendingRef = useRef(false);
+  const activeAbortRef = useRef<AbortController | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastGoodCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef(doc);
@@ -214,17 +219,23 @@ export function useDocumentRenderer(
   }, []);
 
   const doRender = useCallback(function renderNow() {
+    if (!canvasRef.current) return;
     if (renderingRef.current) {
       pendingRef.current = true;
+      activeAbortRef.current?.abort();
       return;
     }
 
+    activeAbortRef.current?.abort();
+    const abortController = new AbortController();
+    activeAbortRef.current = abortController;
     const now = performance.now();
     const inDraftWindow = now < draftUntilRef.current || now < gpuFallbackUntilRef.current;
     const renderOptions = {
       skipEffects: fastRef.current || inDraftWindow,
       draft: inDraftWindow,
       graphMode: graphModeRef.current,
+      signal: abortController.signal,
     };
     const drawResult = (result: HTMLCanvasElement) => {
       const displayCanvas = canvasRef.current;
@@ -243,9 +254,12 @@ export function useDocumentRenderer(
     };
     const finishRender = () => {
       renderingRef.current = false;
-      if (pendingRef.current) {
+      if (activeAbortRef.current === abortController) activeAbortRef.current = null;
+      if (pendingRef.current && canvasRef.current) {
         pendingRef.current = false;
         renderNow();
+      } else {
+        pendingRef.current = false;
       }
     };
 
@@ -281,7 +295,10 @@ export function useDocumentRenderer(
               drawResult(isLikelyBlankRender(fallback, docRef.current) ? result : fallback);
               if (import.meta.env.DEV) console.warn('Canvas render produced a blank frame; used draft fallback.');
             })
-            .catch(() => drawResult(result))
+            .catch((fallbackError) => {
+              if (isAbortError(fallbackError) || abortController.signal.aborted) return;
+              drawResult(result);
+            })
             .finally(finishRender);
           return;
         }
@@ -290,6 +307,10 @@ export function useDocumentRenderer(
         finishRender();
       })
       .catch((error) => {
+        if (isAbortError(error) || abortController.signal.aborted) {
+          finishRender();
+          return;
+        }
         const hasNewerRenderPending = pendingRef.current;
         if (hasNewerRenderPending) {
           if (!renderOptions.skipEffects) gpuFallbackUntilRef.current = performance.now() + 5000;
@@ -323,6 +344,10 @@ export function useDocumentRenderer(
             if (import.meta.env.DEV) console.warn('Canvas render fell back to draft mode.', error);
           })
           .catch((fallbackError) => {
+            if (isAbortError(fallbackError) || abortController.signal.aborted) {
+              finishRender();
+              return;
+            }
             if (!pendingRef.current && lastGoodCanvasRef.current) drawResult(lastGoodCanvasRef.current);
             if (import.meta.env.DEV) console.warn('Canvas render failed.', fallbackError);
             setRenderState((state) => ({
@@ -418,6 +443,8 @@ export function useDocumentRenderer(
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      activeAbortRef.current?.abort();
+      activeAbortRef.current = null;
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
@@ -465,6 +492,8 @@ export function useDocumentRenderer(
     () => () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      activeAbortRef.current?.abort();
+      activeAbortRef.current = null;
       cancelDeferredFullRender();
     },
     [cancelDeferredFullRender],
