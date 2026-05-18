@@ -47,6 +47,9 @@ Each scenario reports:
   `artifact:layer-render:*` performance measures. These are grouped by layer
   kind or effect preset so slow graph-render phases can be traced to concrete
   node types.
+- `gpuRenders` and `gpuPhases`: Pixi/GPU render timing from
+  `artifact:gpu-render`, split into queue wait, texture upload, source blit,
+  and filter/extract phases.
 
 The benchmark also records console errors and basic graph size metadata.
 
@@ -92,6 +95,11 @@ Individual layer/effect renders also emit `artifact:layer-render:*` entries in
 the active render path. These are intended for benchmark aggregation and local
 profiling; use them to decide which effect kernel should be workerized or cached
 next.
+The Pixi bridge records `artifact:gpu-render`, `artifact:gpu-queue-wait`,
+`artifact:gpu-upload`, `artifact:gpu-blit`, and `artifact:gpu-filter-extract`.
+These marks exist to answer whether GPU-backed effect time is coming from
+renderer serialization, canvas-to-texture upload, the WebGL pass, or readback
+into a Canvas 2D surface.
 
 The node editor also has a local debug overlay:
 

@@ -16,6 +16,11 @@ const THUMBNAIL_GRAPH_RENDER_MEASURE = 'artifact:thumbnail-graph-render';
 const THUMBNAIL_DRAW_MEASURE = 'artifact:thumbnail-draw';
 const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
+const GPU_RENDER_MEASURE = 'artifact:gpu-render';
+const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
+const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
+const GPU_BLIT_MEASURE = 'artifact:gpu-blit';
+const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
 
 const EFFECTS = [
   ['bench-bloom', 'Bloom', 'bloom', { bloom: 38 }],
@@ -183,6 +188,11 @@ async function readScenarioMetrics(page, name, durationOverride) {
       thumbnailDrawMeasure,
       documentRenderMeasure,
       layerRenderMeasurePrefix,
+      gpuRenderMeasure,
+      gpuQueueWaitMeasure,
+      gpuUploadMeasure,
+      gpuBlitMeasure,
+      gpuFilterExtractMeasure,
     }) => {
       const perf = window.__artifactPerf;
       perf?.stopFrames();
@@ -211,6 +221,11 @@ async function readScenarioMetrics(page, name, durationOverride) {
       const layerRenderEntries = performance
         .getEntriesByType('measure')
         .filter((entry) => entry.name.startsWith(`${layerRenderMeasurePrefix}:`));
+      const gpuRenderDurations = measureDurations(gpuRenderMeasure);
+      const gpuQueueWaitDurations = measureDurations(gpuQueueWaitMeasure);
+      const gpuUploadDurations = measureDurations(gpuUploadMeasure);
+      const gpuBlitDurations = measureDurations(gpuBlitMeasure);
+      const gpuFilterExtractDurations = measureDurations(gpuFilterExtractMeasure);
 
       return {
         name: scenarioName,
@@ -229,7 +244,21 @@ async function readScenarioMetrics(page, name, durationOverride) {
         },
         documentRenders: summarize(documentRenderDurations),
         layerRenders: summarizeLayerMeasures(layerRenderEntries),
+        gpuRenders: summarize(gpuRenderDurations),
+        gpuPhases: {
+          queueWait: summarize(gpuQueueWaitDurations),
+          upload: summarize(gpuUploadDurations),
+          blit: summarize(gpuBlitDurations),
+          filterExtract: summarize(gpuFilterExtractDurations),
+        },
       };
+
+      function measureDurations(measureName) {
+        return performance
+          .getEntriesByName(measureName)
+          .map((entry) => entry.duration)
+          .filter((duration) => duration > 0);
+      }
 
       function summarize(values) {
         const sorted = [...values].sort((a, b) => a - b);
@@ -279,6 +308,11 @@ async function readScenarioMetrics(page, name, durationOverride) {
       thumbnailDrawMeasure: THUMBNAIL_DRAW_MEASURE,
       documentRenderMeasure: DOCUMENT_RENDER_MEASURE,
       layerRenderMeasurePrefix: LAYER_RENDER_MEASURE_PREFIX,
+      gpuRenderMeasure: GPU_RENDER_MEASURE,
+      gpuQueueWaitMeasure: GPU_QUEUE_WAIT_MEASURE,
+      gpuUploadMeasure: GPU_UPLOAD_MEASURE,
+      gpuBlitMeasure: GPU_BLIT_MEASURE,
+      gpuFilterExtractMeasure: GPU_FILTER_EXTRACT_MEASURE,
     },
   );
 }
@@ -407,6 +441,11 @@ function performanceInitScript() {
       performance.clearMeasures('artifact:thumbnail-graph-render');
       performance.clearMeasures('artifact:thumbnail-draw');
       performance.clearMeasures('artifact:document-render');
+      performance.clearMeasures('artifact:gpu-render');
+      performance.clearMeasures('artifact:gpu-queue-wait');
+      performance.clearMeasures('artifact:gpu-upload');
+      performance.clearMeasures('artifact:gpu-blit');
+      performance.clearMeasures('artifact:gpu-filter-extract');
       for (const entry of performance.getEntriesByType('measure')) {
         if (entry.name.startsWith('artifact:layer-render:')) performance.clearMeasures(entry.name);
       }
