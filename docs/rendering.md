@@ -198,26 +198,27 @@ Node thumbnails are rendered by `NodeThumbnail`.
 The thumbnail system:
 
 - collects upstream node ids
-- tracks revisions
+- tracks content signatures for upstream render inputs
 - debounces rendering
 - caches recent canvases
 - preloads missing images
 - calls `renderGraphTarget` or `renderDocument`
 - delays passive offscreen thumbnail work until the thumbnail frame is visible
   or near the viewport
+- keeps image-readiness invalidation scoped to images that are upstream of the
+  thumbnail target
 
 Risks:
 
-- Current invalidation is based on object identity revisions.
 - High-frequency document writes can trigger thumbnail rerenders.
 - Local gesture drafts must not touch document state until commit.
 
 Future target:
 
-- content-based signatures
 - invalidation reason logging
 - one render after gesture commit
-- downstream-only invalidation
+- explicit downstream invalidation scheduling for future centralized thumbnail
+  workers
 
 ## Live selected-node overlays
 

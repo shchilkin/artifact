@@ -132,6 +132,11 @@ Recent manual profiling notes:
   node-load document render work from `3` renders / roughly `3239ms` to `1`
   draft render / roughly `26ms`; initial load duration dropped from roughly
   `8.8s` to `3.9s` in that run.
+- Node thumbnail invalidation now keeps image readiness target-local. If an
+  image used only by branch A finishes decoding, branch B thumbnails keep their
+  last good frame instead of entering the queue. The graph helper layer also has
+  an explicit downstream traversal helper for validating future centralized
+  thumbnail scheduling.
 
 Future measurements can add named marks around:
 

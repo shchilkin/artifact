@@ -91,6 +91,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     const colorNodes = (renderGraph.colorNodes ?? []).filter((node) => upstream.has(node.id));
     const repeatNodes = (renderGraph.repeatNodes ?? []).filter((node) => upstream.has(node.id));
     const edges = renderGraph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
+    const upstreamImageLayers = layers.filter((layer): layer is ImageLayer => layer.kind === 'image');
     const allImageLayers = renderDoc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image');
 
     const layerSignatures = layers.map((layer) => ({
@@ -153,7 +154,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
           : `${layer.id}:default`;
       })
       .join('|');
-    const imageSignature = imageCacheSignature(allImageLayers, imageCache);
+    const imageSignature = imageCacheSignature(upstreamImageLayers, imageCache);
+    const graphRenderImageSignature = imageCacheSignature(allImageLayers, imageCache);
 
     const previewKey = [
       previewTargetId,
@@ -183,7 +185,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       allRepeatSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       allEdgeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       allPrimitiveViewSignature,
-      imageSignature,
+      graphRenderImageSignature,
     ].join('::');
 
     return {
@@ -412,7 +414,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
     return () => clearTimeout(debounceRef.current);
   }, [
-    imageCache,
     isFrameVisible,
     isExportPreview,
     isGraphDraggingRef,
