@@ -19,6 +19,8 @@ import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
 import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
+export const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
+
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
   skipEffects?: boolean;
@@ -41,6 +43,36 @@ function throwIfRenderAborted(options: RenderOptions): void {
   const error = new Error('Render aborted');
   error.name = 'AbortError';
   throw error;
+}
+
+function getLayerMeasureName(layer: Layer) {
+  const label = layer.kind === 'effect' ? `effect:${layer.preset}` : layer.kind;
+  return `${LAYER_RENDER_MEASURE_PREFIX}:${label}`;
+}
+
+async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
+  if (
+    typeof performance === 'undefined' ||
+    typeof performance.mark !== 'function' ||
+    typeof performance.measure !== 'function'
+  )
+    return task();
+
+  const measureName = getLayerMeasureName(layer);
+  const markId = `${measureName}:${layer.id}:${Math.random().toString(36).slice(2)}`;
+  const startMark = `${markId}:start`;
+  const endMark = `${markId}:end`;
+
+  try {
+    performance.mark(startMark);
+    const result = await task();
+    performance.mark(endMark);
+    performance.measure(measureName, startMark, endMark);
+    return result;
+  } finally {
+    performance.clearMarks?.(startMark);
+    performance.clearMarks?.(endMark);
+  }
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -493,8 +525,26 @@ export async function applyLayerToCanvas(
   imageCache: Map<string, HTMLImageElement>,
   options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
+  return applyLayerToCanvasProfiled(base, layer, doc, W, H, imageCache, options, true);
+}
+
+async function applyLayerToCanvasProfiled(
+  base: HTMLCanvasElement,
+  layer: Layer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  options: RenderOptions,
+  shouldMeasure: boolean,
+): Promise<HTMLCanvasElement> {
   throwIfRenderAborted(options);
   if (!layer.visible) return base;
+  if (shouldMeasure) {
+    return measureLayerRender(layer, () =>
+      applyLayerToCanvasProfiled(base, layer, doc, W, H, imageCache, options, false),
+    );
+  }
 
   const scale = W / REF;
   const seed = doc.global.seed;
@@ -533,10 +583,19 @@ export async function applyLayerToCanvas(
         const effectBase = createCanvas(effectW, effectH);
         const effectCtx = effectBase.getContext('2d', { willReadFrequently: true })!;
         effectCtx.drawImage(base, 0, 0, effectW, effectH);
-        const renderedEffect = await applyLayerToCanvas(effectBase, layer, doc, effectW, effectH, imageCache, {
-          ...options,
-          effectResolution: undefined,
-        });
+        const renderedEffect = await applyLayerToCanvasProfiled(
+          effectBase,
+          layer,
+          doc,
+          effectW,
+          effectH,
+          imageCache,
+          {
+            ...options,
+            effectResolution: undefined,
+          },
+          false,
+        );
         throwIfRenderAborted(options);
         const scaled = createCanvas(W, H);
         const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;

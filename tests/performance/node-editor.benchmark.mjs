@@ -15,6 +15,7 @@ const THUMBNAIL_PRELOAD_MEASURE = 'artifact:thumbnail-preload';
 const THUMBNAIL_GRAPH_RENDER_MEASURE = 'artifact:thumbnail-graph-render';
 const THUMBNAIL_DRAW_MEASURE = 'artifact:thumbnail-draw';
 const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
+const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
 const EFFECTS = [
   ['bench-bloom', 'Bloom', 'bloom', { bloom: 38 }],
@@ -181,6 +182,7 @@ async function readScenarioMetrics(page, name, durationOverride) {
       thumbnailGraphRenderMeasure,
       thumbnailDrawMeasure,
       documentRenderMeasure,
+      layerRenderMeasurePrefix,
     }) => {
       const perf = window.__artifactPerf;
       perf?.stopFrames();
@@ -206,6 +208,9 @@ async function readScenarioMetrics(page, name, durationOverride) {
         .getEntriesByName(documentRenderMeasure)
         .map((entry) => entry.duration)
         .filter((duration) => duration > 0);
+      const layerRenderEntries = performance
+        .getEntriesByType('measure')
+        .filter((entry) => entry.name.startsWith(`${layerRenderMeasurePrefix}:`));
 
       return {
         name: scenarioName,
@@ -223,6 +228,7 @@ async function readScenarioMetrics(page, name, durationOverride) {
           draw: summarize(thumbnailDrawDurations),
         },
         documentRenders: summarize(documentRenderDurations),
+        layerRenders: summarizeLayerMeasures(layerRenderEntries),
       };
 
       function summarize(values) {
@@ -242,6 +248,24 @@ async function readScenarioMetrics(page, name, durationOverride) {
         return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)];
       }
 
+      function summarizeLayerMeasures(entries) {
+        const byName = new Map();
+        for (const entry of entries) {
+          const label = entry.name.slice(`${layerRenderMeasurePrefix}:`.length);
+          const bucket = byName.get(label) ?? [];
+          bucket.push(entry.duration);
+          byName.set(label, bucket);
+        }
+
+        return [...byName.entries()]
+          .map(([label, values]) => ({
+            label,
+            ...summarize(values),
+          }))
+          .sort((a, b) => b.totalMs - a.totalMs)
+          .slice(0, 8);
+      }
+
       function round(value) {
         return Math.round(value * 10) / 10;
       }
@@ -254,6 +278,7 @@ async function readScenarioMetrics(page, name, durationOverride) {
       thumbnailGraphRenderMeasure: THUMBNAIL_GRAPH_RENDER_MEASURE,
       thumbnailDrawMeasure: THUMBNAIL_DRAW_MEASURE,
       documentRenderMeasure: DOCUMENT_RENDER_MEASURE,
+      layerRenderMeasurePrefix: LAYER_RENDER_MEASURE_PREFIX,
     },
   );
 }
@@ -382,6 +407,9 @@ function performanceInitScript() {
       performance.clearMeasures('artifact:thumbnail-graph-render');
       performance.clearMeasures('artifact:thumbnail-draw');
       performance.clearMeasures('artifact:document-render');
+      for (const entry of performance.getEntriesByType('measure')) {
+        if (entry.name.startsWith('artifact:layer-render:')) performance.clearMeasures(entry.name);
+      }
     },
     startFrames() {
       this.stopFrames();

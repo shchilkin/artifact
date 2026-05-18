@@ -43,6 +43,10 @@ Each scenario reports:
   and `artifact:thumbnail-draw`.
 - `documentRenders`: document-render count and duration from
   `artifact:document-render` performance measures.
+- `layerRenders`: the slowest layer/effect render buckets from
+  `artifact:layer-render:*` performance measures. These are grouped by layer
+  kind or effect preset so slow graph-render phases can be traced to concrete
+  node types.
 
 The benchmark also records console errors and basic graph size metadata.
 
@@ -84,6 +88,10 @@ cost.
 The renderer facade also records `artifact:document-render` entries around
 `renderDocument` calls so benchmarks can distinguish thumbnail scheduling cost
 from full document render cost.
+Individual layer/effect renders also emit `artifact:layer-render:*` entries in
+the active render path. These are intended for benchmark aggregation and local
+profiling; use them to decide which effect kernel should be workerized or cached
+next.
 
 The node editor also has a local debug overlay:
 
