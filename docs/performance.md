@@ -38,6 +38,9 @@ Each scenario reports:
   Task API.
 - `thumbnails`: thumbnail render count and duration from
   `artifact:thumbnail-render` performance measures.
+- `thumbnailPhases`: thumbnail preload, graph render, and final canvas draw
+  timing from `artifact:thumbnail-preload`, `artifact:thumbnail-graph-render`,
+  and `artifact:thumbnail-draw`.
 - `documentRenders`: document-render count and duration from
   `artifact:document-render` performance measures.
 
@@ -74,6 +77,10 @@ Useful warning signs:
 The thumbnail queue records browser `performance.measure()` entries named
 `artifact:thumbnail-render`. Keep these marks lightweight and generic; they are
 for local profiling and benchmark output, not user-facing telemetry.
+Thumbnail tasks also record phase-level measures for `artifact:thumbnail-preload`,
+`artifact:thumbnail-graph-render`, and `artifact:thumbnail-draw` so initial-load
+work can be separated into image readiness, renderer cost, and paint-to-card
+cost.
 The renderer facade also records `artifact:document-render` entries around
 `renderDocument` calls so benchmarks can distinguish thumbnail scheduling cost
 from full document render cost.
@@ -145,7 +152,6 @@ Recent manual profiling notes:
 Future measurements can add named marks around:
 
 - graph traversal
-- `renderGraphTarget`
 - project persistence
 - image decode and asset lookup
 

@@ -11,6 +11,9 @@ const OUTPUT_PATH =
   join(dirname(fileURLToPath(import.meta.url)), '../../test-results/performance/node-editor.json');
 const VIEWPORT = { width: 1440, height: 960 };
 const THUMBNAIL_MEASURE = 'artifact:thumbnail-render';
+const THUMBNAIL_PRELOAD_MEASURE = 'artifact:thumbnail-preload';
+const THUMBNAIL_GRAPH_RENDER_MEASURE = 'artifact:thumbnail-graph-render';
+const THUMBNAIL_DRAW_MEASURE = 'artifact:thumbnail-draw';
 const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 
 const EFFECTS = [
@@ -170,13 +173,33 @@ async function measureScenario(page, name, action) {
 
 async function readScenarioMetrics(page, name, durationOverride) {
   return page.evaluate(
-    ({ scenarioName, durationMs, thumbnailMeasure, documentRenderMeasure }) => {
+    ({
+      scenarioName,
+      durationMs,
+      thumbnailMeasure,
+      thumbnailPreloadMeasure,
+      thumbnailGraphRenderMeasure,
+      thumbnailDrawMeasure,
+      documentRenderMeasure,
+    }) => {
       const perf = window.__artifactPerf;
       perf?.stopFrames();
       const frameDeltas = perf?.frameDeltas ?? [];
       const longTasks = perf?.longTasks ?? [];
       const thumbnailDurations = performance
         .getEntriesByName(thumbnailMeasure)
+        .map((entry) => entry.duration)
+        .filter((duration) => duration > 0);
+      const thumbnailPreloadDurations = performance
+        .getEntriesByName(thumbnailPreloadMeasure)
+        .map((entry) => entry.duration)
+        .filter((duration) => duration > 0);
+      const thumbnailGraphRenderDurations = performance
+        .getEntriesByName(thumbnailGraphRenderMeasure)
+        .map((entry) => entry.duration)
+        .filter((duration) => duration > 0);
+      const thumbnailDrawDurations = performance
+        .getEntriesByName(thumbnailDrawMeasure)
         .map((entry) => entry.duration)
         .filter((duration) => duration > 0);
       const documentRenderDurations = performance
@@ -194,6 +217,11 @@ async function readScenarioMetrics(page, name, durationOverride) {
           maxMs: round(Math.max(0, ...longTasks.map((task) => task.duration))),
         },
         thumbnails: summarize(thumbnailDurations),
+        thumbnailPhases: {
+          preload: summarize(thumbnailPreloadDurations),
+          graphRender: summarize(thumbnailGraphRenderDurations),
+          draw: summarize(thumbnailDrawDurations),
+        },
         documentRenders: summarize(documentRenderDurations),
       };
 
@@ -222,6 +250,9 @@ async function readScenarioMetrics(page, name, durationOverride) {
       scenarioName: name,
       durationMs: durationOverride,
       thumbnailMeasure: THUMBNAIL_MEASURE,
+      thumbnailPreloadMeasure: THUMBNAIL_PRELOAD_MEASURE,
+      thumbnailGraphRenderMeasure: THUMBNAIL_GRAPH_RENDER_MEASURE,
+      thumbnailDrawMeasure: THUMBNAIL_DRAW_MEASURE,
       documentRenderMeasure: DOCUMENT_RENDER_MEASURE,
     },
   );
@@ -347,6 +378,9 @@ function performanceInitScript() {
       this.frameDeltas = [];
       this.startedAt = performance.now();
       performance.clearMeasures('artifact:thumbnail-render');
+      performance.clearMeasures('artifact:thumbnail-preload');
+      performance.clearMeasures('artifact:thumbnail-graph-render');
+      performance.clearMeasures('artifact:thumbnail-draw');
       performance.clearMeasures('artifact:document-render');
     },
     startFrames() {

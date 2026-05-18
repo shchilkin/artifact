@@ -13,7 +13,13 @@ import {
   mergeNodeRenderSig,
   repeatNodeRenderSig,
 } from './renderSignature';
-import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
+import {
+  scheduleThumbnailRender,
+  THUMB_DEBOUNCE_MS,
+  THUMBNAIL_DRAW_MEASURE,
+  THUMBNAIL_GRAPH_RENDER_MEASURE,
+  THUMBNAIL_PRELOAD_MEASURE,
+} from './thumbnailQueue';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
 const GRAPH_RENDER_CHAIN_CACHE_LIMIT = 192;
@@ -52,6 +58,42 @@ function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width:
   ctx.clearRect(0, 0, width, height);
   ctx.drawImage(source, 0, 0, width, height);
   return true;
+}
+
+async function measureThumbnailPhase<T>(measureName: string, task: () => Promise<T>) {
+  if (typeof performance === 'undefined') return task();
+
+  const markId = `${measureName}:${Math.random().toString(36).slice(2)}`;
+  const startMark = `${markId}:start`;
+  const endMark = `${markId}:end`;
+  try {
+    performance.mark(startMark);
+    const result = await task();
+    performance.mark(endMark);
+    performance.measure(measureName, startMark, endMark);
+    return result;
+  } finally {
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+  }
+}
+
+function measureThumbnailPhaseSync<T>(measureName: string, task: () => T) {
+  if (typeof performance === 'undefined') return task();
+
+  const markId = `${measureName}:${Math.random().toString(36).slice(2)}`;
+  const startMark = `${markId}:start`;
+  const endMark = `${markId}:end`;
+  try {
+    performance.mark(startMark);
+    const result = task();
+    performance.mark(endMark);
+    performance.measure(measureName, startMark, endMark);
+    return result;
+  } finally {
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+  }
 }
 
 export function useNodeThumbnailRender(previewTargetId: string, options: { priority?: boolean } = {}) {
@@ -362,7 +404,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
                 }),
             );
 
-            await Promise.all(preloads);
+            await measureThumbnailPhase(THUMBNAIL_PRELOAD_MEASURE, async () => {
+              await Promise.all(preloads);
+            });
             if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
 
             let renderPromise = thumbnailInflightCache.get(pk);
@@ -374,18 +418,20 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
                   entries: thumbnailGraphRenderChainCache,
                   limit: GRAPH_RENDER_CHAIN_CACHE_LIMIT,
                 };
-                const result = await renderGraphTarget(
-                  previewDoc,
-                  g,
-                  latestPreviewTargetId,
-                  latestPreviewSize.render.width,
-                  latestPreviewSize.render.height,
-                  effectiveImageCache,
-                  {
-                    primitiveViewStates: latestPrimitiveViewStates,
-                    effectResolution: latestPreviewSize.aspect,
-                  },
-                  graphRenderCache,
+                const result = await measureThumbnailPhase(THUMBNAIL_GRAPH_RENDER_MEASURE, () =>
+                  renderGraphTarget(
+                    previewDoc,
+                    g,
+                    latestPreviewTargetId,
+                    latestPreviewSize.render.width,
+                    latestPreviewSize.render.height,
+                    effectiveImageCache,
+                    {
+                      primitiveViewStates: latestPrimitiveViewStates,
+                      effectResolution: latestPreviewSize.aspect,
+                    },
+                    graphRenderCache,
+                  ),
                 );
                 const clone = cloneCanvas(result);
                 rememberThumbnail(pk, clone);
@@ -401,8 +447,10 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
             const result = await renderPromise;
             if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
-            if (!drawCanvas(canvasRef.current, result, latestPreviewSize.render.width, latestPreviewSize.render.height))
-              return;
+            const didDraw = measureThumbnailPhaseSync(THUMBNAIL_DRAW_MEASURE, () =>
+              drawCanvas(canvasRef.current!, result, latestPreviewSize.render.width, latestPreviewSize.render.height),
+            );
+            if (!didDraw) return;
             setHasRendered(true);
             setRenderedPreviewKey(pk);
           },
