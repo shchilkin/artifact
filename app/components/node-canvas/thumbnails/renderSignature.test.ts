@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { makeEffectPresetLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../../types/config';
-import { colorNodeRenderSig, edgeRenderSig, layerRenderSig, mergeNodeRenderSig } from './renderSignature';
+import {
+  colorNodeRenderSig,
+  edgeRenderSig,
+  layerRenderSig,
+  mergeNodeRenderSig,
+  repeatNodeRenderSig,
+} from './renderSignature';
 
 describe('layerRenderSig', () => {
   it('ignores layer identity and editor-only metadata', () => {
@@ -101,6 +107,29 @@ describe('graph node render signatures', () => {
     const edited = { ...base, hue: 45 };
 
     expect(colorNodeRenderSig(edited)).not.toBe(colorNodeRenderSig(base));
+  });
+
+  it('ignores repeat node identity and changes for repeat fields', () => {
+    const base = {
+      id: 'repeat-1',
+      name: 'Repeater',
+      pattern: 'grid' as const,
+      count: 4,
+      rows: 3,
+      gap: 24,
+      radius: 80,
+      scale: 50,
+      jitter: 0,
+      rotation: 0,
+      seedOffset: 0,
+      opacity: 100,
+      blendMode: 'source-over',
+    };
+    const renamed = { ...base, id: 'repeat-2', name: 'Renamed repeat' };
+    const edited = { ...base, seedOffset: 12 };
+
+    expect(repeatNodeRenderSig(renamed)).toBe(repeatNodeRenderSig(base));
+    expect(repeatNodeRenderSig(edited)).not.toBe(repeatNodeRenderSig(base));
   });
 });
 

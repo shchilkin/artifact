@@ -102,6 +102,12 @@ Recent manual profiling notes:
   first, then waits for a short idle window before starting the full-quality
   pass. This prevents the layer preview from competing with node-editor mount
   work when the user switches into nodes immediately after page load.
+- Node thumbnails now share a render-session cache for graph branches. When
+  several visible thumbnails depend on the same upstream source/effect chain,
+  the renderer can reuse in-flight or completed upstream canvases instead of
+  recomputing the same branch for every thumbnail.
+  In one local benchmark run, initial thumbnail render time dropped from roughly
+  `1360ms` total to roughly `107ms` total after this cache boundary.
 - Initial-load long tasks can still come from the main canvas full-quality pass,
   image decode, or GPU effects after the idle delay. Treat those as separate
   bottlenecks from thumbnail scheduling.

@@ -88,6 +88,11 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
+Within one graph render call it caches node results by node id. Thumbnail
+rendering can also pass an external render-session cache so sibling thumbnails
+reuse shared upstream branch results. That cache stores canvases/promises
+outside `CanvasDocument` and is invalidated by a render-session key derived from
+document, graph, render size, image availability, and primitive camera state.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,

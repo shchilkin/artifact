@@ -1,3 +1,4 @@
+export type { GraphRenderCache } from './render/graph';
 export type { RenderOptions } from './render/layers';
 
 import type { CanvasDocument } from '../types/config';

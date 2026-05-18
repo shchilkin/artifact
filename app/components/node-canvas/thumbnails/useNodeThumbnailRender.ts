@@ -3,7 +3,7 @@ import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState
 import type { CanvasDocument, ImageLayer } from '../../../types/config';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
-import { renderDocument, renderGraphTarget } from '../../../utils/renderer';
+import { type GraphRenderCache, renderGraphTarget } from '../../../utils/renderer';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
@@ -16,8 +16,10 @@ import {
 import { scheduleThumbnailRender, THUMB_DEBOUNCE_MS } from './thumbnailQueue';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
+const GRAPH_RENDER_CHAIN_CACHE_LIMIT = 192;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
 const thumbnailInflightCache = new Map<string, Promise<HTMLCanvasElement>>();
+const thumbnailGraphRenderChainCache = new Map<string, Promise<HTMLCanvasElement>>();
 
 function cloneCanvas(source: HTMLCanvasElement) {
   const copy = document.createElement('canvas');
@@ -33,6 +35,15 @@ function rememberThumbnail(key: string, canvas: HTMLCanvasElement) {
   if (thumbnailResultCache.size <= THUMBNAIL_CACHE_LIMIT) return;
   const oldestKey = thumbnailResultCache.keys().next().value;
   if (oldestKey) thumbnailResultCache.delete(oldestKey);
+}
+
+function imageCacheSignature(layers: ImageLayer[], imageCache: Map<string, HTMLImageElement>) {
+  return layers
+    .map((layer) => {
+      const image = imageCache.get(layer.src);
+      return `${layer.id}:${layer.src}:${image ? `${image.naturalWidth}x${image.naturalHeight}` : 'missing'}`;
+    })
+    .join(',');
 }
 
 function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width: number, height: number) {
@@ -80,6 +91,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     const colorNodes = (renderGraph.colorNodes ?? []).filter((node) => upstream.has(node.id));
     const repeatNodes = (renderGraph.repeatNodes ?? []).filter((node) => upstream.has(node.id));
     const edges = renderGraph.edges.filter((edge) => upstream.has(edge.toId) && upstream.has(edge.fromId));
+    const allImageLayers = renderDoc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image');
 
     const layerSignatures = layers.map((layer) => ({
       id: layer.id,
@@ -102,6 +114,26 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       id: edge.id,
       sig: edgeRenderSig(edge),
     }));
+    const allLayerSignatures = renderDoc.layers.map((layer) => ({
+      id: layer.id,
+      sig: layerRenderSig(layer),
+    }));
+    const allMergeSignatures = renderGraph.mergeNodes.map((node) => ({
+      id: node.id,
+      sig: mergeNodeRenderSig(node),
+    }));
+    const allColorSignatures = (renderGraph.colorNodes ?? []).map((node) => ({
+      id: node.id,
+      sig: colorNodeRenderSig(node),
+    }));
+    const allRepeatSignatures = (renderGraph.repeatNodes ?? []).map((node) => ({
+      id: node.id,
+      sig: repeatNodeRenderSig(node),
+    }));
+    const allEdgeSignatures = renderGraph.edges.map((edge) => ({
+      id: edge.id,
+      sig: edgeRenderSig(edge),
+    }));
 
     const primitiveViewSignature = layers
       .filter((layer) => layer.kind === 'primitive')
@@ -112,6 +144,16 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
           : `${layer.id}:default`;
       })
       .join('|');
+    const allPrimitiveViewSignature = renderDoc.layers
+      .filter((layer) => layer.kind === 'primitive')
+      .map((layer) => {
+        const view = renderPrimitiveViewStates[layer.id];
+        return view
+          ? `${layer.id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
+          : `${layer.id}:default`;
+      })
+      .join('|');
+    const imageSignature = imageCacheSignature(allImageLayers, imageCache);
 
     const previewKey = [
       previewTargetId,
@@ -126,10 +168,27 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       repeatSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       edgeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
       primitiveViewSignature,
+      imageSignature,
+    ].join('::');
+
+    const graphRenderSessionKey = [
+      `${previewSize.render.width}x${previewSize.render.height}`,
+      `effect:${previewSize.aspect.width}x${previewSize.aspect.height}`,
+      renderDoc.global.bg,
+      renderDoc.global.seed,
+      renderDoc.global.aspect,
+      allLayerSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      allMergeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      allColorSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      allRepeatSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      allEdgeSignatures.map(({ id, sig }) => `${id}:${sig}`).join(','),
+      allPrimitiveViewSignature,
+      imageSignature,
     ].join('::');
 
     return {
       previewKey,
+      graphRenderSessionKey,
       layerSignatures,
       mergeSignatures,
       colorSignatures,
@@ -145,8 +204,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     previewSize,
     previewTargetId,
     renderPrimitiveViewStates,
+    imageCache,
   ]);
-  const { previewKey } = signatureData;
+  const { graphRenderSessionKey, previewKey } = signatureData;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -197,6 +257,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     graph: renderGraph,
     imageCache,
     previewKey,
+    graphRenderSessionKey,
     previewSize,
     isExportPreview,
     previewTargetId,
@@ -209,6 +270,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       graph: renderGraph,
       imageCache,
       previewKey,
+      graphRenderSessionKey,
       previewSize,
       isExportPreview,
       previewTargetId,
@@ -219,6 +281,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     imageCache,
     isExportPreview,
     isGraphDraggingRef,
+    graphRenderSessionKey,
     previewKey,
     previewSize,
     previewTargetId,
@@ -269,8 +332,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
               graph: g,
               imageCache: cachedImages,
               previewKey: pk,
+              graphRenderSessionKey: latestGraphRenderSessionKey,
               previewSize: latestPreviewSize,
-              isExportPreview: latestIsExportPreview,
               previewTargetId: latestPreviewTargetId,
               primitiveViewStates: latestPrimitiveViewStates,
               isGraphDraggingRef: latestIsGraphDraggingRef,
@@ -304,29 +367,24 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
             if (!renderPromise) {
               renderPromise = (async () => {
                 const previewDoc: CanvasDocument = { ...d, graph: g };
-                const result = latestIsExportPreview
-                  ? await renderDocument(
-                      previewDoc,
-                      latestPreviewSize.render.width,
-                      latestPreviewSize.render.height,
-                      effectiveImageCache,
-                      {
-                        primitiveViewStates: latestPrimitiveViewStates,
-                        effectResolution: latestPreviewSize.aspect,
-                      },
-                    )
-                  : await renderGraphTarget(
-                      previewDoc,
-                      g,
-                      latestPreviewTargetId,
-                      latestPreviewSize.render.width,
-                      latestPreviewSize.render.height,
-                      effectiveImageCache,
-                      {
-                        primitiveViewStates: latestPrimitiveViewStates,
-                        effectResolution: latestPreviewSize.aspect,
-                      },
-                    );
+                const graphRenderCache: GraphRenderCache = {
+                  namespace: latestGraphRenderSessionKey,
+                  entries: thumbnailGraphRenderChainCache,
+                  limit: GRAPH_RENDER_CHAIN_CACHE_LIMIT,
+                };
+                const result = await renderGraphTarget(
+                  previewDoc,
+                  g,
+                  latestPreviewTargetId,
+                  latestPreviewSize.render.width,
+                  latestPreviewSize.render.height,
+                  effectiveImageCache,
+                  {
+                    primitiveViewStates: latestPrimitiveViewStates,
+                    effectResolution: latestPreviewSize.aspect,
+                  },
+                  graphRenderCache,
+                );
                 const clone = cloneCanvas(result);
                 rememberThumbnail(pk, clone);
                 return clone;
