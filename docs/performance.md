@@ -98,9 +98,13 @@ Recent manual profiling notes:
   In the current synthetic benchmark this reduced initial thumbnail renders
   from `21` to `8`, while leaving interaction scenarios at roughly one frame per
   `16-18ms`.
-- Initial-load long tasks can still come from the main canvas render path before
-  the node editor is fully interactive. Treat that as a separate bottleneck from
-  thumbnail scheduling.
+- The main layer preview now renders progressively: it paints a draft frame
+  first, then waits for a short idle window before starting the full-quality
+  pass. This prevents the layer preview from competing with node-editor mount
+  work when the user switches into nodes immediately after page load.
+- Initial-load long tasks can still come from the main canvas full-quality pass,
+  image decode, or GPU effects after the idle delay. Treat those as separate
+  bottlenecks from thumbnail scheduling.
 
 Future measurements can add named marks around:
 

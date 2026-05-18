@@ -3,6 +3,8 @@ import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
+const DEFERRED_FULL_RENDER_MS = 900;
+const DEFERRED_FULL_RENDER_TIMEOUT_MS = 1600;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
 const RENDER_CACHE_LIMIT = 6;
@@ -18,6 +20,8 @@ interface Options {
   renderScale?: number;
   /** Upper bound for the largest internal render dimension. */
   maxRenderDimension?: number;
+  /** Draw a quick draft first, then wait for an idle slot before full quality. */
+  deferFullRender?: boolean;
 }
 
 export interface DocumentRenderState {
@@ -163,6 +167,8 @@ export function useDocumentRenderer(
   const draftUntilRef = useRef(0);
   const gpuFallbackUntilRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredFullRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredFullRenderIdleRef = useRef<number | null>(null);
   const [renderState, setRenderState] = useState<DocumentRenderState>({
     isRendering: false,
     hasFrame: false,
@@ -195,6 +201,17 @@ export function useDocumentRenderer(
     options.renderScale,
     options.maxRenderDimension,
   ]);
+
+  const cancelDeferredFullRender = useCallback(() => {
+    if (deferredFullRenderTimerRef.current) {
+      clearTimeout(deferredFullRenderTimerRef.current);
+      deferredFullRenderTimerRef.current = null;
+    }
+    if (deferredFullRenderIdleRef.current !== null) {
+      globalThis.cancelIdleCallback?.(deferredFullRenderIdleRef.current);
+      deferredFullRenderIdleRef.current = null;
+    }
+  }, []);
 
   const doRender = useCallback(function renderNow() {
     if (renderingRef.current) {
@@ -328,6 +345,27 @@ export function useDocumentRenderer(
     });
   }, [doRender]);
 
+  const scheduleDeferredFullRender = useCallback(() => {
+    cancelDeferredFullRender();
+    const run = () => {
+      deferredFullRenderTimerRef.current = null;
+      deferredFullRenderIdleRef.current = null;
+      draftUntilRef.current = 0;
+      scheduleRender();
+    };
+
+    deferredFullRenderTimerRef.current = setTimeout(() => {
+      deferredFullRenderTimerRef.current = null;
+      if (typeof globalThis.requestIdleCallback === 'function') {
+        deferredFullRenderIdleRef.current = globalThis.requestIdleCallback(run, {
+          timeout: DEFERRED_FULL_RENDER_TIMEOUT_MS,
+        });
+        return;
+      }
+      run();
+    }, DEFERRED_FULL_RENDER_MS);
+  }, [cancelDeferredFullRender, scheduleRender]);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -367,11 +405,15 @@ export function useDocumentRenderer(
         error: null,
       });
     }
-    draftUntilRef.current = cachedFrame ? 0 : performance.now() + DRAFT_SETTLE_MS;
+    draftUntilRef.current =
+      cachedFrame && !options.deferFullRender
+        ? 0
+        : performance.now() + (options.deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
 
     scheduleRender();
 
     return () => {
+      cancelDeferredFullRender();
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -379,26 +421,53 @@ export function useDocumentRenderer(
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [pw, ph, options.cacheKey, options.renderScale, options.maxRenderDimension, scheduleRender]);
+  }, [
+    pw,
+    ph,
+    options.cacheKey,
+    options.renderScale,
+    options.maxRenderDimension,
+    options.deferFullRender,
+    scheduleRender,
+    cancelDeferredFullRender,
+  ]);
 
   useEffect(() => {
-    if (!lastGoodCanvasRef.current || (options.fast ?? false)) {
-      draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    const deferFullRender = options.deferFullRender && !(options.fast ?? false);
+    if (!lastGoodCanvasRef.current || (options.fast ?? false) || deferFullRender) {
+      draftUntilRef.current = performance.now() + (deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
     }
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = setTimeout(() => {
-      settleTimerRef.current = null;
-      scheduleRender();
-    }, DRAFT_SETTLE_MS + 16);
+    cancelDeferredFullRender();
     scheduleRender();
-  }, [doc, imageCache, options.fast, options.graphMode, options.cacheKey, scheduleRender]);
+    if (deferFullRender) {
+      scheduleDeferredFullRender();
+    } else {
+      settleTimerRef.current = setTimeout(() => {
+        settleTimerRef.current = null;
+        draftUntilRef.current = 0;
+        scheduleRender();
+      }, DRAFT_SETTLE_MS + 16);
+    }
+  }, [
+    doc,
+    imageCache,
+    options.fast,
+    options.graphMode,
+    options.cacheKey,
+    options.deferFullRender,
+    scheduleRender,
+    cancelDeferredFullRender,
+    scheduleDeferredFullRender,
+  ]);
 
   useEffect(
     () => () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      cancelDeferredFullRender();
     },
-    [],
+    [cancelDeferredFullRender],
   );
 
   return { containerRef, renderState };

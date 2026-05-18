@@ -25,6 +25,12 @@ The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
 canvas. Use that path when improving layer-preview/export parity without
 changing pointer math or handle coordinates.
 
+The layer preview is allowed to be progressive: on cold loads and heavy edits it
+may draw a draft frame first, then schedule the full-quality pass after a short
+idle delay. This keeps node-editor entry responsive. Export, output thumbnails,
+and graph-target previews should still call the renderer with the requested
+full-quality options directly.
+
 Transparent document backgrounds must stay transparent in renderer output and
 exports. UI preview surfaces may show a checkerboard behind the canvas to make
 alpha visible, but the checkerboard is interface chrome and must not be drawn
