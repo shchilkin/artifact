@@ -195,8 +195,9 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   fog: {
     title: 'Fog',
-    description: 'Luminance-weighted haze that softens highlights and atmosphere.',
-    valueLabel: 'fog 65',
+    description: 'Adds colored haze based on brightness, so highlights fill with mist before the shadows.',
+    valueLabel: 'haze 65',
+    goodFor: 'soft photo atmosphere, smoky covers, washed stage-light air',
     cfgOverride: { fog: 65, fogColor: '#c8d8e8' },
   },
   speedLines: {
@@ -489,21 +490,23 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   threshold: {
     title: 'Threshold',
-    description: 'Cuts luminance into stark black and white shapes.',
+    description: 'Converts brightness into pure black or white. Higher cutoff leaves only the brightest areas white.',
     valueLabel: 'cutoff 50',
     goodFor: 'xerox looks, harsh logos, high-contrast typography',
     cfgOverride: { threshold: 50 },
   },
   edgeDetect: {
     title: 'Edge Detect',
-    description: 'Finds hard contours and turns image detail into linework.',
-    valueLabel: 'edge 60',
+    description: 'Detects contrast boundaries and blends them back as grayscale contour linework.',
+    valueLabel: 'linework 60',
+    goodFor: 'photo outlines, noisy contours, rough photocopy detail',
     cfgOverride: { edgeDetect: 60 },
   },
   gradientOverlay: {
     title: 'Gradient Overlay',
-    description: 'Blends a two-color ramp over the source.',
+    description: 'Covers the source with a directional two-color ramp while preserving the source alpha.',
     valueLabel: 'mix 50',
+    goodFor: 'quick color washes, poster lighting, two-tone background pressure',
     cfgOverride: { gradMix: 50, gradA: '#0a0020', gradB: '#ff6ec7' },
   },
 };

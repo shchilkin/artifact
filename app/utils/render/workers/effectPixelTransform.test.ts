@@ -5,6 +5,12 @@ function makePixels() {
   return new Uint8ClampedArray([10, 20, 30, 255, 80, 90, 100, 255, 150, 160, 170, 255, 220, 230, 240, 255]);
 }
 
+function alphaValues(data: Uint8ClampedArray) {
+  const values: number[] = [];
+  for (let i = 3; i < data.length; i += 4) values.push(data[i] ?? 0);
+  return values;
+}
+
 describe('transformEffectPixels', () => {
   it('applies deterministic pixel operations', () => {
     const request: EffectPixelTransformRequest = {
@@ -46,7 +52,7 @@ describe('transformEffectPixels', () => {
       operations: [{ type: 'solarize', amount: 80 }],
     });
 
-    expect(Array.from(result.data.filter((_, index) => index % 4 === 3))).toEqual([255, 255, 255, 255]);
+    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
     expect(result.data).not.toEqual(makePixels());
   });
 
@@ -58,7 +64,19 @@ describe('transformEffectPixels', () => {
       operations: [{ type: 'bleachBypass', amount: 80 }],
     });
 
-    expect(Array.from(result.data.filter((_, index) => index % 4 === 3))).toEqual([255, 255, 255, 255]);
+    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
+    expect(result.data).not.toEqual(makePixels());
+  });
+
+  it('keeps fog output visible and alpha-preserving', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 2,
+      data: makePixels(),
+      operations: [{ type: 'fog', amount: 80, color: '#ddeeff' }],
+    });
+
+    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
     expect(result.data).not.toEqual(makePixels());
   });
 });
