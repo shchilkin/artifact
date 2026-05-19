@@ -519,19 +519,26 @@ export function NodeCanvas({
 
           {contextMenu?.type === 'node' &&
             typeof document !== 'undefined' &&
-            createPortal(
-              <NodeContextMenu
-                x={contextMenu.x}
-                y={contextMenu.y}
-                isMerge={contextMenu.isMerge}
-                isExport={contextMenu.isExport}
-                onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
-                onDelete={() => onDeleteNodes([contextMenu.nodeId])}
-                onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
-                menuRef={contextMenuRef}
-              />,
-              document.body,
-            )}
+            (() => {
+              const menuLayer = doc.layers.find((layer) => layer.id === contextMenu.nodeId);
+              return createPortal(
+                <NodeContextMenu
+                  x={contextMenu.x}
+                  y={contextMenu.y}
+                  isMerge={contextMenu.isMerge}
+                  isExport={contextMenu.isExport}
+                  muted={menuLayer ? !menuLayer.visible : undefined}
+                  onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
+                  onToggleMuted={
+                    menuLayer ? () => onUpdateLayer(menuLayer.id, { visible: !menuLayer.visible }) : undefined
+                  }
+                  onDelete={() => onDeleteNodes([contextMenu.nodeId])}
+                  onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+                  menuRef={contextMenuRef}
+                />,
+                document.body,
+              );
+            })()}
           {galleryDisplayLayer &&
             typeof document !== 'undefined' &&
             createPortal(

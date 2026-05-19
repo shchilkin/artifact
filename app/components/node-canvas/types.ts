@@ -200,7 +200,9 @@ export interface NodeMenuProps {
   y: number;
   isMerge: boolean;
   isExport: boolean;
+  muted?: boolean;
   onDuplicate: () => void;
+  onToggleMuted?: () => void;
   onDelete: () => void;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
