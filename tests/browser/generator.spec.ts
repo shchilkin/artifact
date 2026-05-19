@@ -621,6 +621,17 @@ test('selected layer nodes can be muted with keyboard shortcut', async ({ page }
 
   await page.keyboard.press('m');
   await expect(fillNode).not.toHaveClass(/node-shell-muted/);
+
+  await fillNode.click({ button: 'right' });
+  await page.locator('.node-menu').getByRole('button', { name: /Mute/ }).click();
+  await expect(fillNode).toHaveClass(/node-shell-muted/);
+
+  await fillNode.click({ button: 'right' });
+  await page
+    .locator('.node-menu')
+    .getByRole('button', { name: /Unmute/ })
+    .click();
+  await expect(fillNode).not.toHaveClass(/node-shell-muted/);
 });
 
 test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {
