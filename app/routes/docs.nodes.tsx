@@ -285,6 +285,10 @@ const SOURCE_RECIPE_GUIDE = [
 
 const PRACTICAL_START_GUIDE = [
   {
+    name: 'Starter recipe',
+    desc: 'Use Texture Type from the empty canvas or examples when you want a layer-only recipe with fill, noise, type, scanlines, and grain already composed as a stack.',
+  },
+  {
     name: 'Blank cover',
     desc: 'Start blank, add one Image or Fill layer, then add Text. Use Layers for quick stack work; switch to Nodes when the branch structure matters.',
   },

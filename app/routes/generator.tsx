@@ -15,8 +15,9 @@ import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
 import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
-import { type AspectRatio, getPreviewDims } from '../types/config';
+import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
 import { inferLinearGraph } from '../utils/nodeGraph';
+import { getStarterDocument, LAYER_STARTER_DOCUMENTS } from '../utils/starterDocuments';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -50,34 +51,58 @@ function EmptyCanvasStart({
   onImportImage,
   onAddText,
   onAddNoise,
+  onLoadStarter,
   onRandomize,
   onOpenNodes,
 }: {
   onImportImage: () => void;
   onAddText: () => void;
   onAddNoise: () => void;
+  onLoadStarter: (id: string) => void;
   onRandomize: () => void;
   onOpenNodes: () => void;
 }) {
+  const firstStarter = LAYER_STARTER_DOCUMENTS[0];
+
   return (
     <div className="empty-canvas-start" aria-label="Start a new artifact">
-      <div className="empty-canvas-start-kicker">new artifact</div>
+      <div className="empty-canvas-start-head">
+        <div>
+          <div className="empty-canvas-start-kicker">new artifact</div>
+          <p className="empty-canvas-start-title">Pick a first mark</p>
+        </div>
+        <span className="empty-canvas-start-alpha">transparent</span>
+      </div>
       <div className="empty-canvas-start-actions">
         <button type="button" onClick={onImportImage}>
-          Image
+          <span>Image</span>
+          <small>import</small>
         </button>
         <button type="button" onClick={onAddText}>
-          Text
+          <span>Text</span>
+          <small>layer</small>
         </button>
         <button type="button" onClick={onAddNoise}>
-          Noise
+          <span>Noise</span>
+          <small>source</small>
         </button>
+        {firstStarter && (
+          <button type="button" onClick={() => onLoadStarter(firstStarter.id)}>
+            <span>{firstStarter.shortName}</span>
+            <small>recipe</small>
+          </button>
+        )}
         <button type="button" onClick={onRandomize}>
-          Random
+          <span>Random</span>
+          <small>seed</small>
         </button>
-        <Link to="/examples">Examples</Link>
+        <Link to="/examples">
+          <span>Examples</span>
+          <small>remix</small>
+        </Link>
         <button type="button" onClick={onOpenNodes}>
-          Nodes
+          <span>Nodes</span>
+          <small>graph</small>
         </button>
       </div>
     </div>
@@ -241,6 +266,19 @@ export default function Generator() {
     setViewMode('layers');
   }, [closePresets, closeProjects, handleNewBlank, isBlank]);
 
+  const handleLoadStarter = useCallback(
+    (id: string) => {
+      const starter = getStarterDocument(id);
+      if (!starter) return;
+      closePresets();
+      closeProjects();
+      loadDocument(cloneDocument(starter.doc));
+      setPrimitiveViewStates({});
+      setViewMode('layers');
+    },
+    [closePresets, closeProjects, loadDocument],
+  );
+
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
     onRandomize: handleRandomize,
@@ -369,6 +407,7 @@ export default function Generator() {
                   onImportImage={() => imageFileInputRef.current?.click()}
                   onAddText={() => addLayer('text')}
                   onAddNoise={() => addLayer('noise')}
+                  onLoadStarter={handleLoadStarter}
                   onRandomize={handleRandomize}
                   onOpenNodes={() => setViewMode('nodes')}
                 />

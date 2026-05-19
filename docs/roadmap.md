@@ -476,13 +476,15 @@ Layer-mode improvements:
 
 Onboarding improvements:
 
-- [ ] Redesign the blank-canvas start panel around concrete creation paths:
+- [x] Redesign the blank-canvas start panel around concrete creation paths:
   image, text, texture, example, random seed, and blank transparent.
 - [ ] Add example categories and "start from this" copy that explains what the
   example teaches.
 - [ ] Add recipe starter documents for common covers: photo plus type, noisy
   texture plus type, sticker/grid motif, primitive over image, and print-damage
   poster.
+  Current note: v0.8 starts with a stack-only Texture Type recipe so users can
+  make a credible layer-mode cover without opening nodes.
 - [ ] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
 - [ ] Keep destructive starts guarded by confirmation and recovery drafts.
@@ -725,8 +727,9 @@ again feel like the fastest way to make a cover.
 
 Recommended order:
 
-1. Improve the blank-canvas start panel with concrete creation paths.
+1. Improve the blank-canvas start panel with concrete creation paths. [done]
 2. Add one or two layer-first recipe documents and use them from examples/docs.
+   [first recipe done]
 3. Improve the layer list around graph areas so it reads like lightweight
    folders without changing render order.
 4. Add practical docs for layers vs nodes, blend modes, effects, sources,

@@ -13,6 +13,7 @@ import {
 } from '../types/config';
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
+import { TEXTURE_TYPE_STACK_STARTER } from './starterDocuments';
 
 export interface CuratedExample {
   id: string;
@@ -58,6 +59,11 @@ function mkDoc(
 }
 
 export const CURATED_EXAMPLES: CuratedExample[] = [
+  {
+    id: TEXTURE_TYPE_STACK_STARTER.id,
+    name: TEXTURE_TYPE_STACK_STARTER.name,
+    doc: TEXTURE_TYPE_STACK_STARTER.doc,
+  },
   {
     id: 'static-orbit',
     name: 'Static Orbit',

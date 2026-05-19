@@ -698,13 +698,19 @@ input[type="range"] {
   left: 50%;
   z-index: 12;
   display: grid;
-  width: min(560px, calc(100% - 32px));
-  gap: 10px;
+  width: min(720px, calc(100% - 32px));
+  gap: 12px;
   transform: translateX(-50%);
   border: 1px solid var(--border);
   background: color-mix(in oklch, var(--sidebar-bg) 92%, transparent);
-  padding: 12px;
-  box-shadow: 0 16px 60px oklch(0% 0 0 / 0.28);
+  padding: 14px;
+}
+
+.empty-canvas-start-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .empty-canvas-start-kicker {
@@ -716,9 +722,26 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.empty-canvas-start-title {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.empty-canvas-start-alpha {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .empty-canvas-start-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -726,8 +749,8 @@ input[type="range"] {
 .empty-canvas-start-actions a {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 40px;
+  justify-content: space-between;
+  min-height: 48px;
   border: 1px solid var(--border);
   background: oklch(9% 0.015 42 / 0.82);
   color: var(--text);
@@ -744,10 +767,21 @@ input[type="range"] {
     color 120ms ease-out;
 }
 
+.empty-canvas-start-actions small {
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
 .empty-canvas-start-actions button:hover,
 .empty-canvas-start-actions a:hover {
   border-color: var(--accent);
   background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.empty-canvas-start-actions button:hover small,
+.empty-canvas-start-actions a:hover small {
   color: var(--accent);
 }
 
@@ -757,7 +791,7 @@ input[type="range"] {
   }
 
   .empty-canvas-start-actions {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 

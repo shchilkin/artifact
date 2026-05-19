@@ -543,6 +543,45 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await expectCanvasCenterAlpha(page, 0);
 });
 
+test('empty canvas can start from the layer-first texture recipe', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page
+    .locator('.empty-canvas-start')
+    .getByRole('button', { name: /Texture Type/i })
+    .click();
+
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.getByText('paper clouds')).toBeVisible();
+  await expect(page.getByText('paper tooth')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            aspect: doc.global?.aspect,
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      aspect: '1:1',
+      layerIds: [
+        'starter-plate',
+        'starter-clouds',
+        'starter-title',
+        'starter-registration',
+        'starter-scanlines',
+        'starter-grain',
+      ],
+    });
+});
+
 test('node previews respect document aspect ratio', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);

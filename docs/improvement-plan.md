@@ -68,9 +68,11 @@ the detailed source of truth.
   nodes.
 - [ ] Improve layer-list organization for graph-area documents so areas read
   like lightweight folders while staying non-rendering metadata.
-- [ ] Add starter paths for blank transparent, image-first, text-first,
+- [x] Add starter paths for blank transparent, image-first, text-first,
   texture-first, example remix, and random seed workflows.
 - [ ] Add recipe starter documents for common cover workflows.
+  Current note: v0.8 starts with a stack-only Texture Type recipe exposed from
+  the blank-canvas panel, examples, and docs.
 - [ ] Make user-facing docs task-oriented: first cover, layers workflow, nodes
   workflow, effects, sources, repeaters, export, and projects.
 - [ ] Explain blend modes with practical examples.
