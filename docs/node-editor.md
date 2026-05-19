@@ -88,7 +88,8 @@ until a dedicated render rule is designed and tested.
 
 The first area UI is intentionally passive: the node canvas draws area overlays
 around assigned nodes, and the layer panel groups layer-backed members under
-collapsible area folder rows. Graph-only members inside an area appear as
+collapsible area folder rows. Area folders may batch-toggle visibility for
+their layer-backed members. Graph-only members inside an area appear as
 read-only helper rows, not as stack layers. Folder collapse is local UI state;
 creating an area from selected nodes stores only node ids, name, color, and
 collapsed metadata. Areas do not own React Flow nodes, do not make node

@@ -583,6 +583,7 @@ input[type="range"] {
 }
 
 .layer-area-folder {
+  position: relative;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--sidebar-bg) 88%, transparent);
 }
@@ -593,7 +594,7 @@ input[type="range"] {
   min-height: 30px;
   align-items: center;
   gap: 7px;
-  padding: 0 12px;
+  padding: 0 40px 0 12px;
   border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   background: transparent;
@@ -612,6 +613,32 @@ input[type="range"] {
 .layer-area-folder-header:hover {
   background: color-mix(in srgb, var(--accent-dim) 42%, transparent);
   color: var(--text);
+}
+
+.layer-area-visibility {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  z-index: 1;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.layer-area-visibility:hover {
+  color: var(--text);
+}
+
+.layer-area-visibility:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 .layer-area-caret {

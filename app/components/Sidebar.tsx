@@ -127,6 +127,18 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleSetLayersVisible = useCallback(
+    (ids: string[], visible: boolean) => {
+      const idSet = new Set(ids);
+      const current = docRef.current;
+      onDocChange({
+        ...current,
+        layers: current.layers.map((layer) => (idSet.has(layer.id) ? { ...layer, visible } : layer)),
+      });
+    },
+    [onDocChange],
+  );
+
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
       const current = docRef.current;
@@ -190,6 +202,7 @@ export function Sidebar({
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={onReorderLayers}
           onToggleVisible={handleToggleVisible}
+          onSetLayersVisible={handleSetLayersVisible}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}
           modeSwitcher={modeSwitcher}

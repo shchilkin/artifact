@@ -21,6 +21,7 @@ interface Props {
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[]) => void;
   onToggleVisible: (id: string) => void;
+  onSetLayersVisible: (ids: string[], visible: boolean) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
   modeSwitcher?: React.ReactNode;
@@ -293,6 +294,7 @@ export function LayerPanel({
   onRemoveLayer,
   onReorderLayers,
   onToggleVisible,
+  onSetLayersVisible,
   onDuplicateLayer,
   onRenameLayer,
   modeSwitcher,
@@ -410,6 +412,15 @@ export function LayerPanel({
     });
   }, []);
 
+  const handleToggleAreaVisible = useCallback(
+    (layers: Layer[], visible: boolean) => {
+      const ids = layers.filter((layer) => layer.visible !== visible).map((layer) => layer.id);
+      if (ids.length === 0) return;
+      onSetLayersVisible(ids, visible);
+    },
+    [onSetLayersVisible],
+  );
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="layer-panel-header">
@@ -481,6 +492,21 @@ export function LayerPanel({
                 {item.graphHelpers.length > 0 && (
                   <span className="layer-area-graph-count">+{item.graphHelpers.length}</span>
                 )}
+              </button>
+              <button
+                type="button"
+                className="layer-area-visibility"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleToggleAreaVisible(item.layers, !item.layers.some((layer) => layer.visible));
+                }}
+                disabled={item.layers.length === 0}
+                aria-label={
+                  item.layers.some((layer) => layer.visible) ? `Hide ${item.area.name}` : `Show ${item.area.name}`
+                }
+                title={item.layers.some((layer) => layer.visible) ? 'Hide area layers' : 'Show area layers'}
+              >
+                {item.layers.some((layer) => layer.visible) ? '◉' : '○'}
               </button>
               {!activeCollapsedAreaIds.has(item.area.id) &&
                 item.layers.map((layer) => (

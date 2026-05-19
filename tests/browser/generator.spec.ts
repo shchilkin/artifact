@@ -686,6 +686,30 @@ test('selected area can be extended without stacking memberships', async ({ page
   await expect(page.locator('.layer-area-folder')).toHaveCount(1);
   await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expect(page.locator('.layer-area-more')).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Hide Area 1/ }).click();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers
+          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
+          .every((layer: { visible: boolean }) => layer.visible === false);
+      }),
+    )
+    .toBe(true);
+
+  await page.getByRole('button', { name: /Show Area 1/ }).click();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers
+          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
+          .every((layer: { visible: boolean }) => layer.visible === true);
+      }),
+    )
+    .toBe(true);
 });
 
 test('nodes stay visible while dragging inside an area', async ({ page }) => {
