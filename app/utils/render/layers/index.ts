@@ -10,9 +10,7 @@ import type {
   TextLayer,
 } from '../../../types/config';
 import { FONT_STACKS } from '../../../types/config';
-import { gpuRenderToCanvas } from '../../gpuRender';
 import { lcg } from '../../lcg';
-import { buildFiltersFromEffectLayer } from '../../pixiFilters';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
@@ -20,6 +18,24 @@ import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClie
 import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 export const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
+
+type GpuRenderToCanvas = typeof import('../../gpuRender').gpuRenderToCanvas;
+type BuildFiltersFromEffectLayer = typeof import('../../pixiFilters').buildFiltersFromEffectLayer;
+
+let gpuModulesPromise: Promise<{
+  gpuRenderToCanvas: GpuRenderToCanvas;
+  buildFiltersFromEffectLayer: BuildFiltersFromEffectLayer;
+}> | null = null;
+
+function loadGpuModules() {
+  gpuModulesPromise ??= Promise.all([import('../../gpuRender'), import('../../pixiFilters')]).then(
+    ([gpuRender, pixiFilters]) => ({
+      gpuRenderToCanvas: gpuRender.gpuRenderToCanvas,
+      buildFiltersFromEffectLayer: pixiFilters.buildFiltersFromEffectLayer,
+    }),
+  );
+  return gpuModulesPromise;
+}
 
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
@@ -512,7 +528,13 @@ async function applyCanvas2DEffects(
   }
 }
 
-function runGpuPass(current: HTMLCanvasElement, W: number, H: number, filters: Filter[]): Promise<HTMLCanvasElement> {
+async function runGpuPass(
+  current: HTMLCanvasElement,
+  W: number,
+  H: number,
+  filters: Filter[],
+): Promise<HTMLCanvasElement> {
+  const { gpuRenderToCanvas } = await loadGpuModules();
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
@@ -588,6 +610,7 @@ export async function applyGpuOnlyEffectLayerChain(
   options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
   if (options.skipEffects || layers.length === 0) return base;
+  const { buildFiltersFromEffectLayer } = await loadGpuModules();
   const filters: Filter[] = [];
   for (const layer of layers) {
     throwIfRenderAborted(options);
@@ -690,6 +713,7 @@ async function applyLayerToCanvasProfiled(
     await applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
     throwIfRenderAborted(options);
     if (!options.skipEffects) {
+      const { buildFiltersFromEffectLayer } = await loadGpuModules();
       const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
       if (filters?.length) {
         current = await runGpuPass(current, W, H, filters);

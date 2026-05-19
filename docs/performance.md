@@ -106,6 +106,10 @@ GPU pass. This preserves the separate-node editing model while avoiding repeated
 Canvas -> WebGL -> Canvas readbacks for chains such as bloom/barrel/hue/vignette.
 Effects with masks, Canvas 2D drawing, or pixel-worker transforms stay on the
 older per-node path so render semantics remain explicit and predictable.
+The Pixi bridge is loaded lazily on the first GPU-backed effect. Canvas-only
+documents and routes can render without eagerly importing Pixi's renderer/filter
+modules; once loaded, the same cached module boundary is reused by later GPU
+passes.
 
 The node editor also has a local debug overlay:
 
