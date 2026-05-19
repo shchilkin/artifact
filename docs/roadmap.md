@@ -441,7 +441,75 @@ First slice:
 - [ ] Add render or browser coverage for every effect/source control whose range
   changes.
 
-### v0.8: AI Generation Research And Architecture
+### v0.8: Layers, Docs, And Onboarding
+
+Goal: make Artifact easier to enter and easier to use without reducing the
+advanced node workflow. v0.7 put most of the energy into nodes, performance,
+and effect-control stability. v0.8 should make layers feel like a first-class
+fast workflow again, and make the product teach itself better.
+
+Product direction:
+
+- Layers are the quick composition mode: stack, reorder, mute, duplicate,
+  rename, tune, and export without needing to understand graph structure.
+- Nodes remain the advanced graph mode: branching, merges, repeaters, sources,
+  and explicit output structure.
+- Onboarding should help users choose a starting path: blank transparent
+  canvas, image-first, text-first, texture-first, example remix, or random
+  seed.
+- Docs should teach real cover-building workflows, not only list node types.
+
+Layer-mode improvements:
+
+- [ ] Improve the layer list hierarchy for graph-area documents so areas read
+  like lightweight folders without changing render order.
+- [ ] Add layer-row affordances for duplicate, mute, rename, delete, and quick
+  add where they are faster than opening the node canvas.
+- [ ] Add clearer layer empty states and quick-start actions for image, text,
+  fill, noise, and effect starts.
+- [ ] Add layer presets or recipes that create useful stacks without opening
+  nodes.
+- [ ] Ensure layer controls explain unavailable or node-owned controls instead
+  of silently hiding them.
+- [ ] Keep layer preview and export parity visible and trustworthy for stack
+  workflows.
+
+Onboarding improvements:
+
+- [ ] Redesign the blank-canvas start panel around concrete creation paths:
+  image, text, texture, example, random seed, and blank transparent.
+- [ ] Add example categories and "start from this" copy that explains what the
+  example teaches.
+- [ ] Add recipe starter documents for common covers: photo plus type, noisy
+  texture plus type, sticker/grid motif, primitive over image, and print-damage
+  poster.
+- [ ] Add a "what changed" or "open guide" path for first visits after a new
+  beta release.
+- [ ] Keep destructive starts guarded by confirmation and recovery drafts.
+
+Docs improvements:
+
+- [ ] Split user-facing docs into task pages or sections: first cover, layers
+  workflow, nodes workflow, effects, sources, repeaters, export, projects.
+- [ ] Explain blend modes with practical examples and when to use each one.
+- [ ] Add layer-vs-node guidance with examples of when to stay in layers and
+  when to switch to nodes.
+- [ ] Add effect-family recipes that stay aligned with separated focused effect
+  nodes.
+- [ ] Add troubleshooting guidance for blank previews, missing image assets,
+  browser storage limits, GPU/WebGL quirks, and export mismatch.
+
+Exit criteria:
+
+- A new user can start from blank, image, text, example, or random seed without
+  feeling lost.
+- A user can build and export a credible stack-only cover without opening nodes.
+- Layer mode does not contradict graph organization when a document uses areas.
+- Docs explain the core workflows with examples, not only parameter lists.
+- Browser smoke tests cover at least one layer-first starter path and one docs
+  "try this" path.
+
+### v0.9: AI Generation Research And Architecture
 
 Goal: make AI-generated imagery a creativity multiplier without weakening the
 editor's local-first reliability or leaking provider secrets into the browser.
@@ -650,20 +718,26 @@ Goal: align public docs with the current product.
 
 ## Recommended near-term focus
 
-The next engineering pass should focus on state boundaries and render parity before adding more node types or effects. Most recent bugs came from unclear ownership between document state, transient view state, and interactive gesture state. Fixing that foundation will make every future UI improvement cheaper.
+The next product pass should focus on v0.8: docs, onboarding, and layer-mode
+quality. The node editor is now powerful and fast enough for advanced work, but
+new users still need a clearer path into the product, and layer mode should
+again feel like the fastest way to make a cover.
 
 Recommended order:
 
-1. Extract document history/update modes.
-2. Add document-sync tests for undo/redo, import, and graph persistence.
-3. Add render parity fixtures.
-4. Split renderer internals behind the existing public entry points.
-5. Finish shared sidebar/inspector controls.
-6. Add a versioned document schema before the next persisted-shape change.
+1. Improve the blank-canvas start panel with concrete creation paths.
+2. Add one or two layer-first recipe documents and use them from examples/docs.
+3. Improve the layer list around graph areas so it reads like lightweight
+   folders without changing render order.
+4. Add practical docs for layers vs nodes, blend modes, effects, sources,
+   repeaters, export, and troubleshooting.
+5. Add browser smoke coverage for starter flows and docs "try this" actions.
+6. Keep AI generation as the next major creative research track after v0.8.
 
 ## Non-goals for now
 
 - Do not add backend persistence until the local document schema and asset strategy are stable.
+- Do not add AI generation before the v0.8 learning and layer-mode pass is usable.
 - Do not add more effect parameters until the effect update checklist is automated or tested.
 - Do not make a second preview renderer for speed unless it is clearly labeled as draft-only.
 - Do not duplicate node controls in both sidebar and inspector without shared field definitions.

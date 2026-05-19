@@ -61,6 +61,24 @@ the detailed source of truth.
 - [x] Improve empty-canvas onboarding around examples, presets, image import,
   text-first starts, and random seeds.
 
+### v0.8 Product Focus
+
+- [ ] Make layer mode feel first-class again: fast stack editing, clear empty
+  states, layer-first recipes, and quick controls that do not require opening
+  nodes.
+- [ ] Improve layer-list organization for graph-area documents so areas read
+  like lightweight folders while staying non-rendering metadata.
+- [ ] Add starter paths for blank transparent, image-first, text-first,
+  texture-first, example remix, and random seed workflows.
+- [ ] Add recipe starter documents for common cover workflows.
+- [ ] Make user-facing docs task-oriented: first cover, layers workflow, nodes
+  workflow, effects, sources, repeaters, export, and projects.
+- [ ] Explain blend modes with practical examples.
+- [ ] Add troubleshooting docs for blank previews, browser storage limits,
+  missing image assets, GPU/WebGL quirks, and export mismatch.
+- [ ] Add browser smoke coverage for at least one layer-first starter path and
+  one docs "try this" path.
+
 ### Highest leverage next
 
 - [x] Extract history/update behavior from `useGeneratorDocument.ts` into named
@@ -119,10 +137,10 @@ the detailed source of truth.
 - [x] Move imported image payloads out of active document localStorage and into
   IndexedDB asset records while keeping `.artifact.json` export portable.
 
-Recommended next commit: continue renderer internals by splitting another
-focused effect family only where that reduces real complexity. The public
-renderer facade is stable, so remaining work can be sliced without touching
-callers.
+Recommended next commit: start the v0.8 layer/onboarding pass with a small
+slice that improves the blank-canvas start panel and adds one layer-first recipe
+document. Keep nodes unchanged unless the layer workflow needs graph-area
+metadata to display truthfully.
 
 ## Phase 0: Agent Orientation
 
