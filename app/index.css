@@ -589,16 +589,36 @@ input[type="range"] {
 
 .layer-area-folder-header {
   display: flex;
+  width: 100%;
   min-height: 30px;
   align-items: center;
   gap: 7px;
   padding: 0 12px;
+  border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: transparent;
   color: var(--text-dim);
+  cursor: pointer;
   font-family: var(--mono);
   font-size: 9px;
   letter-spacing: 0.12em;
+  text-align: left;
   text-transform: uppercase;
+  transition:
+    background 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.layer-area-folder-header:hover {
+  background: color-mix(in srgb, var(--accent-dim) 42%, transparent);
+  color: var(--text);
+}
+
+.layer-area-caret {
+  width: 8px;
+  flex-shrink: 0;
+  color: var(--accent);
+  text-align: center;
 }
 
 .layer-area-folder .layer-row-nested {
@@ -632,6 +652,11 @@ input[type="range"] {
 .layer-area-count {
   margin-left: auto;
   color: var(--accent);
+}
+
+.layer-area-graph-count {
+  flex-shrink: 0;
+  color: var(--text-dim);
 }
 
 /* Desktop bottom bar is inside .main — hidden on mobile */

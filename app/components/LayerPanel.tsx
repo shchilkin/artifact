@@ -170,12 +170,13 @@ const LayerRow = memo(function LayerRow({
 
 type LayerDisplayItem =
   | { type: 'layer'; layer: Layer; areas: GraphArea[]; nested?: false }
-  | { type: 'area'; area: GraphArea; layers: Layer[] };
+  | { type: 'area'; area: GraphArea; layers: Layer[]; graphOnlyCount: number };
 
 function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<string, GraphArea[]>): LayerDisplayItem[] {
   const items: LayerDisplayItem[] = [];
   const renderedAreaIds = new Set<string>();
   const renderedLayerIds = new Set<string>();
+  const layerIds = new Set(displayLayers.map((layer) => layer.id));
 
   for (const layer of displayLayers) {
     if (renderedLayerIds.has(layer.id)) continue;
@@ -191,7 +192,12 @@ function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<stri
     const areaLayers = displayLayers.filter((item) => areaLayerIds.has(item.id));
     for (const item of areaLayers) renderedLayerIds.add(item.id);
     renderedAreaIds.add(area.id);
-    items.push({ type: 'area', area, layers: areaLayers });
+    items.push({
+      type: 'area',
+      area,
+      layers: areaLayers,
+      graphOnlyCount: area.nodeIds.filter((nodeId) => !layerIds.has(nodeId)).length,
+    });
   }
 
   return items;
@@ -213,6 +219,7 @@ export function LayerPanel({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
   const dragLayerId = useRef<string | null>(null);
   const addButtonRef = useRef<HTMLDivElement>(null);
 
@@ -233,6 +240,10 @@ export function LayerPanel({
     () => buildLayerDisplayItems(displayLayers, areasByLayerId),
     [areasByLayerId, displayLayers],
   );
+  const activeCollapsedAreaIds = useMemo(() => {
+    const areaIds = new Set((doc.graph?.areas ?? []).map((area) => area.id));
+    return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
+  }, [collapsedAreaIds, doc.graph?.areas]);
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
@@ -306,6 +317,18 @@ export function LayerPanel({
     dragLayerId.current = null;
   }, []);
 
+  const handleToggleAreaCollapsed = useCallback((areaId: string) => {
+    setCollapsedAreaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.add(areaId);
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="layer-panel-header">
@@ -356,32 +379,48 @@ export function LayerPanel({
         {displayItems.map((item) =>
           item.type === 'area' ? (
             <div key={item.area.id} className="layer-area-folder">
-              <div className="layer-area-folder-header">
+              <button
+                type="button"
+                className="layer-area-folder-header"
+                onClick={() => handleToggleAreaCollapsed(item.area.id)}
+                aria-expanded={!activeCollapsedAreaIds.has(item.area.id)}
+                aria-label={`${activeCollapsedAreaIds.has(item.area.id) ? 'Expand' : 'Collapse'} ${item.area.name}`}
+                title={`${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}${
+                  item.graphOnlyCount > 0
+                    ? `, ${item.graphOnlyCount} graph node${item.graphOnlyCount === 1 ? '' : 's'}`
+                    : ''
+                }`}
+              >
+                <span className="layer-area-caret" aria-hidden="true">
+                  {activeCollapsedAreaIds.has(item.area.id) ? '+' : '-'}
+                </span>
                 <span className="layer-area-dot" style={{ background: item.area.color }} aria-hidden="true" />
                 <span className="layer-area-name">{item.area.name}</span>
                 <span className="layer-area-count">{item.layers.length}</span>
-              </div>
-              {item.layers.map((layer) => (
-                <LayerRow
-                  key={layer.id}
-                  layer={layer}
-                  areas={[]}
-                  nested
-                  selected={selectedLayerId === layer.id}
-                  dragOver={dragOverId === layer.id}
-                  editing={editingId === layer.id}
-                  onSelect={handleSelectLayer}
-                  onStartEditing={handleStartEditing}
-                  onFinishRename={handleFinishRename}
-                  onDragStart={handleDragStart}
-                  onDragOverLayer={handleDragOverLayer}
-                  onDropLayer={handleDrop}
-                  onDragEnd={handleCancelDrag}
-                  onToggleVisible={onToggleVisible}
-                  onDuplicateLayer={onDuplicateLayer}
-                  onRemoveLayer={onRemoveLayer}
-                />
-              ))}
+                {item.graphOnlyCount > 0 && <span className="layer-area-graph-count">+{item.graphOnlyCount}</span>}
+              </button>
+              {!activeCollapsedAreaIds.has(item.area.id) &&
+                item.layers.map((layer) => (
+                  <LayerRow
+                    key={layer.id}
+                    layer={layer}
+                    areas={[]}
+                    nested
+                    selected={selectedLayerId === layer.id}
+                    dragOver={dragOverId === layer.id}
+                    editing={editingId === layer.id}
+                    onSelect={handleSelectLayer}
+                    onStartEditing={handleStartEditing}
+                    onFinishRename={handleFinishRename}
+                    onDragStart={handleDragStart}
+                    onDragOverLayer={handleDragOverLayer}
+                    onDropLayer={handleDrop}
+                    onDragEnd={handleCancelDrag}
+                    onToggleVisible={onToggleVisible}
+                    onDuplicateLayer={onDuplicateLayer}
+                    onRemoveLayer={onRemoveLayer}
+                  />
+                ))}
             </div>
           ) : (
             <LayerRow

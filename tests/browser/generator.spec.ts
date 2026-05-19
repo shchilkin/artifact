@@ -650,6 +650,22 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
   await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
 });
 
+test('layer area folders collapse and summarize graph-only nodes', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+
+  const folder = page.locator('.layer-area-folder').first();
+  await expect(folder).toContainText('Area 1');
+  await expect(folder.locator('.layer-area-count')).toHaveText('1');
+  await expect(folder.locator('.layer-area-graph-count')).toHaveText('+1');
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+
+  await folder.getByRole('button', { name: /Collapse Area 1/ }).click();
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(0);
+
+  await folder.getByRole('button', { name: /Expand Area 1/ }).click();
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+});
+
 test('selected area can be extended without stacking memberships', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
   await switchToNodeView(page);

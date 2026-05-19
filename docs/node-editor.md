@@ -88,9 +88,10 @@ until a dedicated render rule is designed and tested.
 
 The first area UI is intentionally passive: the node canvas draws area overlays
 around assigned nodes, and the layer panel groups layer-backed members under
-area folder rows. Creating an area from selected nodes stores only node ids,
-name, color, and collapsed metadata. Areas do not own React Flow nodes, do not
-make node positions relative, and do not affect render order.
+collapsible area folder rows. Folder collapse is local UI state; creating an
+area from selected nodes stores only node ids, name, color, and collapsed
+metadata. Areas do not own React Flow nodes, do not make node positions
+relative, and do not affect render order.
 
 Area membership is exclusive. A node belongs to at most one area in the current
 editor model; adding a node to another area removes it from the previous one.
