@@ -88,7 +88,12 @@ export function createPrimitiveMaterial(
  * Add the shared light rig to a scene.
  * Accent-colored key and rim lights derive from accentColor.
  */
-export function addSceneLights(scene: THREE.Scene, accentColor: string): void {
+export interface PrimitiveLightRig {
+  keyLight: THREE.DirectionalLight;
+  rimLight: THREE.PointLight;
+}
+
+export function addSceneLights(scene: THREE.Scene, accentColor: string): PrimitiveLightRig {
   const accent = new THREE.Color(accentColor);
 
   scene.add(new THREE.AmbientLight(NODE_CANVAS_COLORS.sceneAmbient, 1.15));
@@ -104,6 +109,14 @@ export function addSceneLights(scene: THREE.Scene, accentColor: string): void {
   const rim = new THREE.PointLight(accent, 0.55, 8);
   rim.position.set(-2.1, 1.6, 2.4);
   scene.add(rim);
+
+  return { keyLight, rimLight: rim };
+}
+
+export function updateSceneAccentLights(lightRig: PrimitiveLightRig, accentColor: string): void {
+  const accent = new THREE.Color(accentColor);
+  lightRig.keyLight.color.copy(accent);
+  lightRig.rimLight.color.copy(accent);
 }
 
 // ---------------------------------------------------------------------------

@@ -167,7 +167,13 @@ export default function Generator() {
     addImageFromSource,
     storeImageAssetSource,
   );
-  const effectivePrimitiveViewStates = doc.graph?.primitiveViewStates ?? primitiveViewStates;
+  const effectivePrimitiveViewStates = useMemo(
+    () => ({
+      ...(doc.graph?.primitiveViewStates ?? {}),
+      ...primitiveViewStates,
+    }),
+    [doc.graph?.primitiveViewStates, primitiveViewStates],
+  );
   const exportRenderOptions = useMemo(
     () => ({ primitiveViewStates: effectivePrimitiveViewStates }),
     [effectivePrimitiveViewStates],

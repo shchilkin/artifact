@@ -207,10 +207,17 @@ export async function drawSourceLayer(
   }
 
   if (layer.kind === 'primitive') {
-    const drawSize = SOURCE_SIZE;
-    const renderSize = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);
-    const threeCanvas = await renderPrimitiveToCanvas(layer, renderSize, primitiveViewState, { forceFallback: draft });
-    ctx.drawImage(threeCanvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
+    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
+    const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
+    const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const threeCanvas = await renderPrimitiveToCanvas(
+      layer,
+      { width: renderWidth, height: renderHeight },
+      primitiveViewState,
+      { forceFallback: draft },
+    );
+    ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   } else if (layer.kind === 'noise') {
     const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
     const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;

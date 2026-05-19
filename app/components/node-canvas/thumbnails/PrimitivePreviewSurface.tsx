@@ -29,14 +29,16 @@ export function PrimitivePreviewSurface({
   const { openGallery, updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const [draftViewState, setDraftViewState] = useState<{
-    base: PrimitiveViewportState;
+    baseKey: string;
     value: PrimitiveViewportState;
   } | null>(null);
   const committedViewState = useMemo(
     () => primitiveViewState ?? defaultPrimitiveViewportState(layer),
     [layer, primitiveViewState],
   );
-  const activeDraftViewState = selected && draftViewState?.base === committedViewState ? draftViewState.value : null;
+  const committedViewStateKey = primitiveViewStateKey(committedViewState);
+  const activeDraftViewState =
+    selected && draftViewState && draftViewState.baseKey === committedViewStateKey ? draftViewState.value : null;
   const effectiveViewState = activeDraftViewState ?? committedViewState;
   const effectiveRenderMode = primitiveRenderMode ?? 'shaded';
   const primitiveLocked = !!effectiveViewState.locked;
@@ -106,7 +108,7 @@ export function PrimitivePreviewSurface({
         renderMode={effectiveRenderMode}
         viewState={effectiveViewState}
         interactive
-        onViewStateDraft={(next) => setDraftViewState({ base: committedViewState, value: next })}
+        onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
         onViewStateChange={(next) => {
           setDraftViewState(null);
           updatePrimitiveView(layer.id, next);
@@ -157,6 +159,17 @@ export function PrimitivePreviewSurface({
       </div>
     </div>
   );
+}
+
+function primitiveViewStateKey(viewState: PrimitiveViewportState): string {
+  return [
+    viewState.rotationX,
+    viewState.rotationY,
+    viewState.zoom,
+    viewState.panX,
+    viewState.panY,
+    viewState.locked ? 1 : 0,
+  ].join(':');
 }
 
 function PrimitiveViewportFrame({

@@ -56,6 +56,19 @@ describe('renderPrimitiveToCanvas', () => {
     expect(hasVisiblePixels(canvas)).toBe(true);
   });
 
+  it('supports rectangular primitive render targets for aspect-aware previews', async () => {
+    const canvas = await renderPrimitiveToCanvas(
+      makeSourceLayer('primitive', { primitiveShape: 'sphere' }),
+      { width: 96, height: 54 },
+      undefined,
+      { forceFallback: true },
+    );
+
+    expect(canvas.width).toBe(96);
+    expect(canvas.height).toBe(54);
+    expect(hasVisiblePixels(canvas)).toBe(true);
+  });
+
   it('detects tiny off-grid primitive content so low zoom does not trigger fallback rendering', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 256;

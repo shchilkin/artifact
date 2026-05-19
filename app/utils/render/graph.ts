@@ -77,6 +77,16 @@ function throwIfRenderAborted(options: RenderOptions): void {
   throw error;
 }
 
+function withGraphPrimitiveViewStates(doc: CanvasDocument, graph: CanvasGraph, options: RenderOptions): RenderOptions {
+  const primitiveViewStates = {
+    ...(doc.graph?.primitiveViewStates ?? {}),
+    ...(graph.primitiveViewStates ?? {}),
+    ...(options.primitiveViewStates ?? {}),
+  };
+  if (Object.keys(primitiveViewStates).length === 0) return options;
+  return { ...options, primitiveViewStates };
+}
+
 function hashString(value: string): number {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {
@@ -428,6 +438,7 @@ export async function renderGraphTarget(
   renderCache?: GraphRenderCache,
 ): Promise<HTMLCanvasElement> {
   const cache = renderCache?.entries ?? new Map<string, Promise<HTMLCanvasElement>>();
+  const renderOptions = withGraphPrimitiveViewStates(doc, graph, options);
   return renderGraphNode(
     doc,
     graph,
@@ -435,7 +446,7 @@ export async function renderGraphTarget(
     W,
     H,
     imageCache,
-    options,
+    renderOptions,
     cache,
     renderCache?.namespace ?? null,
     renderCache?.limit ?? GRAPH_RENDER_CACHE_LIMIT,

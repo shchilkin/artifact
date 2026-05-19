@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { PrimitiveLayer } from '../types/config';
 import {
@@ -14,6 +14,8 @@ import {
   createPrimitiveGeometry,
   createPrimitiveMaterial,
   disposeMesh,
+  type PrimitiveLightRig,
+  updateSceneAccentLights,
 } from '../utils/primitiveScene';
 import {
   defaultPrimitiveViewportState,
@@ -49,6 +51,7 @@ export function PrimitiveViewport3D({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const lightRigRef = useRef<PrimitiveLightRig | null>(null);
   const objectGroupRef = useRef<THREE.Group | null>(null);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -70,6 +73,7 @@ export function PrimitiveViewport3D({
   const interactiveRef = useRef(interactive);
   const onViewStateChangeRef = useRef(onViewStateChange);
   const onViewStateDraftRef = useRef(onViewStateDraft);
+  const layerRef = useRef(layer);
   const layerTiltZRef = useRef(layer.tiltZ);
   const lockedRef = useRef(!!viewState.locked);
 
@@ -118,6 +122,26 @@ export function PrimitiveViewport3D({
     }, 90);
   }, []);
 
+  const flushPendingWheelCommit = useCallback(() => {
+    if (!wheelCommitTimerRef.current) return;
+    clearTimeout(wheelCommitTimerRef.current);
+    wheelCommitTimerRef.current = null;
+    onViewStateChangeRef.current({ ...viewStateRef.current });
+  }, []);
+
+  const primitiveMeshKey = useMemo(
+    () =>
+      [
+        layer.primitiveShape,
+        layer.primitiveDepth,
+        layer.primitiveShading,
+        layer.color,
+        layer.accentColor,
+        renderMode,
+      ].join(':'),
+    [layer.accentColor, layer.color, layer.primitiveDepth, layer.primitiveShading, layer.primitiveShape, renderMode],
+  );
+
   useLayoutEffect(() => {
     viewStateRef.current = viewState;
     lockedRef.current = !!viewState.locked;
@@ -133,13 +157,17 @@ export function PrimitiveViewport3D({
     interactiveRef.current = interactive;
     onViewStateChangeRef.current = onViewStateChange;
     onViewStateDraftRef.current = onViewStateDraft;
-    layerTiltZRef.current = layer.tiltZ;
     if (!interactive) {
       isHoveredRef.current = false;
       dragStateRef.current = null;
       unlockRFPane();
     }
-  }, [mode, interactive, onViewStateChange, onViewStateDraft, layer.tiltZ]);
+  }, [mode, interactive, onViewStateChange, onViewStateDraft]);
+
+  useLayoutEffect(() => {
+    layerRef.current = layer;
+    layerTiltZRef.current = layer.tiltZ;
+  }, [layer]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -166,7 +194,7 @@ export function PrimitiveViewport3D({
     const camera = createPrimitiveCamera();
     cameraRef.current = camera;
 
-    addSceneLights(scene, layer.accentColor);
+    lightRigRef.current = addSceneLights(scene, layerRef.current.accentColor);
 
     const objectGroup = new THREE.Group();
     objectGroupRef.current = objectGroup;
@@ -201,10 +229,7 @@ export function PrimitiveViewport3D({
     return () => {
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
-      if (wheelCommitTimerRef.current) {
-        clearTimeout(wheelCommitTimerRef.current);
-        wheelCommitTimerRef.current = null;
-      }
+      flushPendingWheelCommit();
       renderSceneRef.current = null;
       dragStateRef.current = null;
       if (meshRef.current) disposeMesh(meshRef.current);
@@ -212,10 +237,17 @@ export function PrimitiveViewport3D({
       rendererRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;
+      lightRigRef.current = null;
       objectGroupRef.current = null;
       meshRef.current = null;
     };
-  }, [applyViewState, layer.accentColor]); // intentional: only rebuild scene when accent color changes, not on every layer field update
+  }, [applyViewState, flushPendingWheelCommit]);
+
+  useEffect(() => {
+    if (!lightRigRef.current) return;
+    updateSceneAccentLights(lightRigRef.current, layer.accentColor);
+    renderSceneRef.current?.();
+  }, [layer.accentColor]);
 
   useEffect(() => {
     const objectGroup = objectGroupRef.current;
@@ -226,12 +258,20 @@ export function PrimitiveViewport3D({
       disposeMesh(existingMesh);
     }
 
-    const mesh = new THREE.Mesh(createPrimitiveGeometry(layer), createPrimitiveMaterial(layer, renderMode));
+    const currentLayer = layerRef.current;
+    const mesh = new THREE.Mesh(
+      createPrimitiveGeometry(currentLayer),
+      createPrimitiveMaterial(currentLayer, renderMode),
+    );
     mesh.rotation.z = 0; // full transform applied via applyMeshTransform in applyViewState
     objectGroup.add(mesh);
     meshRef.current = mesh;
     applyViewState(viewStateRef.current);
-  }, [applyViewState, layer, renderMode]);
+  }, [applyViewState, primitiveMeshKey, renderMode]);
+
+  useEffect(() => {
+    applyViewState(viewStateRef.current);
+  }, [applyViewState, layer.tiltZ]);
 
   useEffect(() => {
     applyViewState(viewState);
@@ -381,15 +421,12 @@ export function PrimitiveViewport3D({
 
     return () => {
       controller.abort();
-      if (wheelCommitTimerRef.current) {
-        clearTimeout(wheelCommitTimerRef.current);
-        wheelCommitTimerRef.current = null;
-      }
+      flushPendingWheelCommit();
       isHoveredRef.current = false;
       dragStateRef.current = null;
       unlockRFPane();
     };
-  }, [applyDraftViewState, interactive, scheduleWheelCommit]); // stable, all live values accessed via refs
+  }, [applyDraftViewState, flushPendingWheelCommit, interactive, scheduleWheelCommit]); // stable, all live values accessed via refs
 
   const locked = !!viewState.locked;
 
