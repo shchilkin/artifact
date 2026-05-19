@@ -52,58 +52,33 @@ function EmptyCanvasStart({
   onAddText,
   onAddNoise,
   onLoadStarter,
-  onRandomize,
-  onOpenNodes,
 }: {
   onImportImage: () => void;
   onAddText: () => void;
   onAddNoise: () => void;
   onLoadStarter: (id: string) => void;
-  onRandomize: () => void;
-  onOpenNodes: () => void;
 }) {
   const firstStarter = LAYER_STARTER_DOCUMENTS[0];
 
   return (
     <div className="empty-canvas-start" aria-label="Start a new artifact">
-      <div className="empty-canvas-start-head">
-        <div>
-          <div className="empty-canvas-start-kicker">new artifact</div>
-          <p className="empty-canvas-start-title">Pick a first mark</p>
-        </div>
-        <span className="empty-canvas-start-alpha">transparent</span>
-      </div>
+      <div className="empty-canvas-start-kicker">start with</div>
       <div className="empty-canvas-start-actions">
         <button type="button" onClick={onImportImage}>
-          <span>Image</span>
-          <small>import</small>
+          Image
         </button>
         <button type="button" onClick={onAddText}>
-          <span>Text</span>
-          <small>layer</small>
+          Text
         </button>
         <button type="button" onClick={onAddNoise}>
-          <span>Noise</span>
-          <small>source</small>
+          Noise
         </button>
         {firstStarter && (
           <button type="button" onClick={() => onLoadStarter(firstStarter.id)}>
-            <span>{firstStarter.shortName}</span>
-            <small>recipe</small>
+            {firstStarter.shortName}
           </button>
         )}
-        <button type="button" onClick={onRandomize}>
-          <span>Random</span>
-          <small>seed</small>
-        </button>
-        <Link to="/examples">
-          <span>Examples</span>
-          <small>remix</small>
-        </Link>
-        <button type="button" onClick={onOpenNodes}>
-          <span>Nodes</span>
-          <small>graph</small>
-        </button>
+        <Link to="/examples">Examples</Link>
       </div>
     </div>
   );
@@ -408,8 +383,6 @@ export default function Generator() {
                   onAddText={() => addLayer('text')}
                   onAddNoise={() => addLayer('noise')}
                   onLoadStarter={handleLoadStarter}
-                  onRandomize={handleRandomize}
-                  onOpenNodes={() => setViewMode('nodes')}
                 />
               )}
             </ErrorBoundary>
