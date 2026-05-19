@@ -337,6 +337,11 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const [hasRendered, setHasRendered] = useState(false);
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
+  const missingRequiredSource = useMemo(() => {
+    const targetLayer = doc.layers.find((layer) => layer.id === previewTargetId);
+    if (targetLayer?.kind !== 'effect') return false;
+    return !graph.edges.some((edge) => edge.toId === previewTargetId && edge.toPort === 'in');
+  }, [doc.layers, graph.edges, previewTargetId]);
 
   useEffect(() => {
     if (priority) return undefined;
@@ -480,5 +485,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     canvasOpacity: ready ? 1 : hasRendered ? 1 : 0,
     showSkeleton: !ready && !hasRendered,
     showPreparing: !ready && hasRendered,
+    missingRequiredSource,
   };
 }

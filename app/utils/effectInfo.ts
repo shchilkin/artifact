@@ -426,14 +426,17 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   solarize: {
     title: 'Solarize',
-    description: 'Inverts bright luminance values for a Sabattier negative effect.',
+    description:
+      'Flips pixels brighter than a moving threshold, creating a Sabattier-style negative/positive color break.',
     valueLabel: 'solarize 70',
+    goodFor: 'posterized skin tones, alien color breaks, darkroom accident looks',
     cfgOverride: { solarize: 70 },
   },
   bleachBypass: {
     title: 'Bleach Bypass',
-    description: 'Crushed contrast and reduced saturation, like skipped film bleach.',
+    description: 'Pushes the image toward high-contrast, low-saturation film with heavier shadows.',
     valueLabel: 'bleach 80',
+    goodFor: 'gritty photo contrast, cold editorial looks, metallic poster finishes',
     cfgOverride: { bleachBypass: 80 },
   },
   cyanotype: {

@@ -206,12 +206,14 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     params: [{ key: 'overprint', range: '0-100' }],
   },
   solarize: {
-    description: 'Luminance above threshold inverts to a surreal negative.',
-    params: [{ key: 'solarize', range: '0-100' }],
+    description:
+      'Inverts pixels above a moving brightness threshold. Low values affect only highlights; high values pull midtones into the negative break.',
+    params: [{ key: 'solarize', range: '0-100 threshold depth' }],
   },
   bleachBypass: {
-    description: 'Desaturated overlay blend with contrast and shadow crush.',
-    params: [{ key: 'bleachBypass', range: '0-100' }],
+    description:
+      'Simulates skipped film bleach by reducing saturation, lifting harsh contrast, and pushing shadows harder.',
+    params: [{ key: 'bleachBypass', range: '0-100 strength' }],
   },
   cyanotype: {
     description: 'Prussian blue photographic print process on ivory paper.',

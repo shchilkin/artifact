@@ -41,10 +41,14 @@ export function NodeShell({
             className="nodrag node-shell-action node-shell-mute"
             aria-label={muted ? 'Unmute node' : 'Mute node'}
             title={muted ? 'Unmute (M)' : 'Mute (M)'}
+            aria-keyshortcuts="M"
             aria-pressed={muted}
             onClick={onToggleMuted}
           >
-            {muted ? '○' : '●'}
+            <span className="node-shell-mute-dot" aria-hidden="true">
+              {muted ? '○' : '●'}
+            </span>
+            <span className="node-shell-mute-label">{muted ? 'Muted' : 'Mute'}</span>
           </NoPan>
         )}
         {onDelete && (

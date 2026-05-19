@@ -363,11 +363,27 @@
   border-color: transparent;
   background: transparent;
   color: var(--node-text-dim);
+  width: auto;
+  min-width: 52px;
+  column-gap: 6px;
+  grid-auto-flow: column;
+  padding: 0 7px;
   font-size: 10px;
+  text-transform: uppercase;
 }
 
 .node-shell-mute[aria-pressed="true"] {
   color: var(--node-text-muted);
+}
+
+.node-shell-mute-dot {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.node-shell-mute-label {
+  font-size: 8px;
+  letter-spacing: 0.12em;
 }
 
 .node-shell-delete:hover,

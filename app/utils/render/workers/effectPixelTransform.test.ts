@@ -37,4 +37,28 @@ describe('transformEffectPixels', () => {
     expect(result.height).toBe(2);
     expect(result.data).toHaveLength(16);
   });
+
+  it('keeps solarize output visible and alpha-preserving', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 2,
+      data: makePixels(),
+      operations: [{ type: 'solarize', amount: 80 }],
+    });
+
+    expect(Array.from(result.data.filter((_, index) => index % 4 === 3))).toEqual([255, 255, 255, 255]);
+    expect(result.data).not.toEqual(makePixels());
+  });
+
+  it('keeps bleach bypass output visible and alpha-preserving', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 2,
+      data: makePixels(),
+      operations: [{ type: 'bleachBypass', amount: 80 }],
+    });
+
+    expect(Array.from(result.data.filter((_, index) => index % 4 === 3))).toEqual([255, 255, 255, 255]);
+    expect(result.data).not.toEqual(makePixels());
+  });
 });
