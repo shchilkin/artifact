@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeEffectPresetLayer, makeImageLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
 import { getLayerControlSections, layerHasPlacementControls } from './controlModel';
+import { BLEND_MODE_HELP, BLEND_OPTIONS } from './fieldDefs';
 
 describe('layer control model', () => {
   it('keeps text and image placement as durable controls', () => {
@@ -31,5 +32,11 @@ describe('layer control model', () => {
 
   it('models effect controls as their own inspector surface', () => {
     expect(getLayerControlSections(makeEffectPresetLayer('grain'))).toEqual([{ id: 'effect', title: 'Effect' }]);
+  });
+
+  it('documents every blend mode surfaced by the controls', () => {
+    for (const mode of BLEND_OPTIONS) {
+      expect(BLEND_MODE_HELP[mode]).toContain('.');
+    }
   });
 });

@@ -5,13 +5,32 @@ import { clampPopupPosition } from '../helpers';
 import { NoPan } from '../nodes/NoPan';
 import type { NodeMenuProps } from '../types';
 
-export function NodeContextMenu({ x, y, isMerge, isExport, onDuplicate, onDelete, onClose, menuRef }: NodeMenuProps) {
+export function NodeContextMenu({
+  x,
+  y,
+  isMerge,
+  isExport,
+  muted,
+  onDuplicate,
+  onToggleMuted,
+  onDelete,
+  onClose,
+  menuRef,
+}: NodeMenuProps) {
   const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> =
     [];
   const menuWidth = 200;
 
   if (!isMerge && !isExport) {
     items.push({ label: 'Duplicate', hint: '⌘D', action: onDuplicate });
+  }
+  if (onToggleMuted && !isExport) {
+    items.push({
+      label: muted ? 'Unmute' : 'Mute',
+      hint: 'M',
+      action: onToggleMuted,
+      dividerBefore: items.length > 0,
+    });
   }
   if (!isExport) {
     items.push({

@@ -1,6 +1,6 @@
 import type { GraphMergeNode } from '../../../types/config';
 import { BLEND_OPTIONS } from '../constants';
-import { InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
+import { BlendModeNote, InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
 
 export function MergeInspector({
   mergeNode,
@@ -20,9 +20,7 @@ export function MergeInspector({
         options={BLEND_OPTIONS}
         onChange={(value) => onChange({ blendMode: value })}
       />
-      <p className="node-inspector-note">
-        Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
-      </p>
+      <BlendModeNote value={mergeNode.blendMode} />
       <InspectorSlider
         label="Opacity"
         value={mergeNode.opacity}

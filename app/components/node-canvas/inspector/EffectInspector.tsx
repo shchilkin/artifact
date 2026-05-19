@@ -8,7 +8,7 @@ import { BLEND_OPTIONS } from '../constants';
 import type { EffectSectionId } from '../types';
 import { EffectControlSections } from './EffectControlSections';
 import { EFFECT_CONTROL_PRESETS, effectSectionSummary, initialEffectSection } from './effectSectionModel';
-import { InspectorSection, InspectorSelect, InspectorTextInput, InspectorToggle } from './fields';
+import { BlendModeNote, InspectorSection, InspectorSelect, InspectorTextInput, InspectorToggle } from './fields';
 
 export function EffectInspector({
   layer,
@@ -67,9 +67,7 @@ export function EffectInspector({
           options={BLEND_OPTIONS}
           onChange={(value) => onChange({ blendMode: value })}
         />
-        <p className="node-inspector-note">
-          Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
-        </p>
+        <BlendModeNote value={layer.blendMode ?? 'normal'} />
       </InspectorSection>
 
       {!hasPresetControls && (

@@ -10,6 +10,13 @@
 
 export const BLEND_OPTIONS = ['normal', 'multiply', 'screen', 'overlay', 'luminosity'] as const;
 export type BlendMode = (typeof BLEND_OPTIONS)[number];
+export const BLEND_MODE_HELP: Record<BlendMode, string> = {
+  normal: 'Draws this node over what is below. Use it when the node should replace or sit plainly on top.',
+  multiply: 'Keeps dark ink and darkens the backdrop. Good for shadows, grain, paper texture, and printed dirt.',
+  screen: 'Keeps light pixels and brightens the backdrop. Good for glow, haze, bloom, and light leaks.',
+  overlay: 'Adds contrast from this node into the backdrop. Good for punchy texture without fully replacing color.',
+  luminosity: 'Uses this node brightness while preserving backdrop color. Good for masks, light maps, and tone passes.',
+};
 
 export const TEXT_ALIGN_OPTIONS = ['left', 'center', 'right'] as const;
 export const IMAGE_FIT_OPTIONS = ['cover', 'contain', 'tile', 'free'] as const;
