@@ -706,15 +706,6 @@ input[type="range"] {
   padding: 12px;
 }
 
-.empty-canvas-start-kicker {
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
 .empty-canvas-start-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -62,7 +62,6 @@ function EmptyCanvasStart({
 
   return (
     <div className="empty-canvas-start" aria-label="Start a new artifact">
-      <div className="empty-canvas-start-kicker">start with</div>
       <div className="empty-canvas-start-actions">
         <button type="button" onClick={onImportImage}>
           Image

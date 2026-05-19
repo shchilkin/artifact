@@ -477,7 +477,12 @@ Layer-mode improvements:
 Onboarding improvements:
 
 - [x] Redesign the blank-canvas start panel around concrete creation paths:
-  image, text, texture, example, random seed, and blank transparent.
+  image, text, noise, texture recipe, and examples. Keep mode switching,
+  randomization, and export controls in their existing app chrome.
+- [ ] Add a sectioned onboarding guide that explains how the app works: canvas,
+  layers, nodes, sources, effects, repeaters, export, projects, and examples.
+  Use strong section highlights and product-style guide blocks rather than a
+  tiny empty-state tooltip.
 - [ ] Add example categories and "start from this" copy that explains what the
   example teaches.
 - [ ] Add recipe starter documents for common covers: photo plus type, noisy

@@ -68,11 +68,16 @@ the detailed source of truth.
   nodes.
 - [ ] Improve layer-list organization for graph-area documents so areas read
   like lightweight folders while staying non-rendering metadata.
-- [x] Add starter paths for blank transparent, image-first, text-first,
-  texture-first, example remix, and random seed workflows.
+- [x] Add starter paths for image-first, text-first, noise-first,
+  texture-first, and example remix workflows. Keep random seed and mode
+  switching in the existing app chrome instead of duplicating them in the empty
+  state.
 - [ ] Add recipe starter documents for common cover workflows.
   Current note: v0.8 starts with a stack-only Texture Type recipe exposed from
   the blank-canvas panel, examples, and docs.
+- [ ] Plan a sectioned onboarding guide that teaches the app by workflow:
+  canvas, layers, nodes, sources, effects, repeaters, export, projects, and
+  examples, with prominent section highlights instead of small inline hints.
 - [ ] Make user-facing docs task-oriented: first cover, layers workflow, nodes
   workflow, effects, sources, repeaters, export, and projects.
 - [ ] Explain blend modes with practical examples.
