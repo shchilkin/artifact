@@ -1,3 +1,4 @@
+export { BlendModeNote } from './BlendModeNote';
 export { InspectorColorInput } from './InspectorColorInput';
 export { InspectorLabel } from './InspectorLabel';
 export { InspectorSection } from './InspectorSection';

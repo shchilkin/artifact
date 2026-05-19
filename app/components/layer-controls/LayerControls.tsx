@@ -18,6 +18,7 @@ import {
 } from '../../types/config';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
+  BlendModeNote,
   InspectorColorInput,
   InspectorLabel,
   InspectorSection,
@@ -48,14 +49,6 @@ function PlacementResetButton({ onClick }: { onClick: () => void }) {
     <button className="node-inspector-action nodrag nopan nowheel" type="button" onClick={onClick}>
       Reset placement
     </button>
-  );
-}
-
-function BlendModeNote() {
-  return (
-    <p className="node-inspector-note">
-      Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
-    </p>
   );
 }
 
@@ -172,7 +165,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
-          <BlendModeNote />
+          <BlendModeNote value={layer.blendMode} />
         </InspectorSection>
       </div>
     );
@@ -246,7 +239,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
-          <BlendModeNote />
+          <BlendModeNote value={layer.blendMode} />
         </InspectorSection>
       </div>
     );
@@ -286,7 +279,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v })}
           />
-          <BlendModeNote />
+          <BlendModeNote value={layer.blendMode} />
         </InspectorSection>
       </div>
     );
@@ -593,7 +586,7 @@ export function LayerControls({
             options={[...BLEND_OPTIONS]}
             onChange={(v) => onChange({ blendMode: v } as Partial<SourceLayer>)}
           />
-          <BlendModeNote />
+          <BlendModeNote value={layer.blendMode} />
         </InspectorSection>
       </div>
     );

@@ -1,7 +1,7 @@
 import type { GraphRepeatNode } from '../../../types/config';
 import { ARRAY_PATTERN_OPTIONS } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
-import { InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
+import { BlendModeNote, InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
 
 export function RepeatInspector({
   repeatNode,
@@ -95,6 +95,7 @@ export function RepeatInspector({
         options={BLEND_OPTIONS}
         onChange={(value) => onChange({ blendMode: value })}
       />
+      <BlendModeNote value={repeatNode.blendMode} />
       <InspectorSlider
         label="Opacity"
         value={repeatNode.opacity}

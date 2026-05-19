@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { Footer } from '../components/Footer';
+import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
 import { SiteNav } from '../components/SiteNav';
 import {
   type CanvasDocument,
@@ -267,6 +268,11 @@ const GRAPH_UTILITY_GUIDE = [
     desc: 'Repeats any source branch into line, grid, or radial patterns over an optional backdrop.',
   },
 ];
+
+const BLEND_GUIDE = BLEND_OPTIONS.map((mode) => ({
+  name: mode,
+  desc: BLEND_MODE_HELP[mode],
+}));
 
 const SOURCE_RECIPE_GUIDE = [
   {
@@ -610,6 +616,15 @@ export default function DocsNodes() {
             <div key={utility.name} className="docs-effect-guide__item">
               <span className="docs-effect-guide__name">{utility.name}</span>
               <p className="docs-effect-guide__desc">{utility.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="docs-effect-guide" aria-label="Blend modes">
+          {BLEND_GUIDE.map((mode) => (
+            <div key={mode.name} className="docs-effect-guide__item">
+              <span className="docs-effect-guide__name">{mode.name}</span>
+              <p className="docs-effect-guide__desc">{mode.desc}</p>
             </div>
           ))}
         </section>
