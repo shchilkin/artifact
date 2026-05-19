@@ -4,7 +4,7 @@ import { THUMB_SIZE } from '../constants';
 
 export const NODE_PREVIEW_RENDER_SCALE = 3;
 export const NODE_PREVIEW_PASSIVE_RENDER_SCALE = 1;
-export const NODE_PREVIEW_RENDER_MAX = 960;
+export const NODE_PREVIEW_RENDER_MAX = 1280;
 
 export interface NodePreviewSize {
   display: { width: number; height: number };
@@ -28,7 +28,11 @@ export function getNodePreviewSize(
 ): NodePreviewSize {
   const [aspectWidth, aspectHeight] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
   const display = fitToMax(aspectWidth, aspectHeight, maxDisplayDimension);
-  const renderMax = Math.min(NODE_PREVIEW_RENDER_MAX, Math.round(maxDisplayDimension * renderScale));
+  const effectBaselineMax = Math.min(NODE_PREVIEW_RENDER_MAX, Math.max(aspectWidth, aspectHeight));
+  const renderMax = Math.min(
+    NODE_PREVIEW_RENDER_MAX,
+    Math.max(effectBaselineMax, Math.round(maxDisplayDimension * renderScale)),
+  );
   const render = fitToMax(aspectWidth, aspectHeight, renderMax);
 
   return {

@@ -15,8 +15,9 @@ import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
 import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
 import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
-import { type AspectRatio, getPreviewDims } from '../types/config';
+import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
 import { inferLinearGraph } from '../utils/nodeGraph';
+import { getStarterDocument, LAYER_STARTER_DOCUMENTS } from '../utils/starterDocuments';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -50,18 +51,17 @@ function EmptyCanvasStart({
   onImportImage,
   onAddText,
   onAddNoise,
-  onRandomize,
-  onOpenNodes,
+  onLoadStarter,
 }: {
   onImportImage: () => void;
   onAddText: () => void;
   onAddNoise: () => void;
-  onRandomize: () => void;
-  onOpenNodes: () => void;
+  onLoadStarter: (id: string) => void;
 }) {
+  const firstStarter = LAYER_STARTER_DOCUMENTS[0];
+
   return (
     <div className="empty-canvas-start" aria-label="Start a new artifact">
-      <div className="empty-canvas-start-kicker">new artifact</div>
       <div className="empty-canvas-start-actions">
         <button type="button" onClick={onImportImage}>
           Image
@@ -72,13 +72,12 @@ function EmptyCanvasStart({
         <button type="button" onClick={onAddNoise}>
           Noise
         </button>
-        <button type="button" onClick={onRandomize}>
-          Random
-        </button>
+        {firstStarter && (
+          <button type="button" onClick={() => onLoadStarter(firstStarter.id)}>
+            {firstStarter.shortName}
+          </button>
+        )}
         <Link to="/examples">Examples</Link>
-        <button type="button" onClick={onOpenNodes}>
-          Nodes
-        </button>
       </div>
     </div>
   );
@@ -241,6 +240,19 @@ export default function Generator() {
     setViewMode('layers');
   }, [closePresets, closeProjects, handleNewBlank, isBlank]);
 
+  const handleLoadStarter = useCallback(
+    (id: string) => {
+      const starter = getStarterDocument(id);
+      if (!starter) return;
+      closePresets();
+      closeProjects();
+      loadDocument(cloneDocument(starter.doc));
+      setPrimitiveViewStates({});
+      setViewMode('layers');
+    },
+    [closePresets, closeProjects, loadDocument],
+  );
+
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
     onRandomize: handleRandomize,
@@ -369,8 +381,7 @@ export default function Generator() {
                   onImportImage={() => imageFileInputRef.current?.click()}
                   onAddText={() => addLayer('text')}
                   onAddNoise={() => addLayer('noise')}
-                  onRandomize={handleRandomize}
-                  onOpenNodes={() => setViewMode('nodes')}
+                  onLoadStarter={handleLoadStarter}
                 />
               )}
             </ErrorBoundary>

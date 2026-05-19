@@ -704,21 +704,11 @@ input[type="range"] {
   border: 1px solid var(--border);
   background: color-mix(in oklch, var(--sidebar-bg) 92%, transparent);
   padding: 12px;
-  box-shadow: 0 16px 60px oklch(0% 0 0 / 0.28);
-}
-
-.empty-canvas-start-kicker {
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
 }
 
 .empty-canvas-start-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -727,7 +717,7 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--border);
   background: oklch(9% 0.015 42 / 0.82);
   color: var(--text);
@@ -757,7 +747,7 @@ input[type="range"] {
   }
 
   .empty-canvas-start-actions {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
