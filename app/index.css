@@ -631,6 +631,52 @@ input[type="range"] {
   border-bottom: 0;
 }
 
+.layer-graph-helper-row {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 22px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
+  background: color-mix(in srgb, var(--bg) 36%, transparent);
+  color: color-mix(in srgb, var(--text-dim) 82%, transparent);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.layer-area-folder .layer-graph-helper-row:last-child {
+  border-bottom: 0;
+}
+
+.layer-graph-helper-grip {
+  width: 10px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.layer-graph-helper-icon {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 10px;
+  text-align: center;
+}
+
+.layer-graph-helper-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-graph-helper-kind {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--text-dim) 70%, transparent);
+}
+
 .layer-area-dot {
   width: 6px;
   height: 6px;

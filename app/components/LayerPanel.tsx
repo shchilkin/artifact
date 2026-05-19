@@ -1,7 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectLayer, EffectPreset, GraphArea, Layer, LayerKind } from '../types/config';
+import type {
+  CanvasDocument,
+  CanvasGraph,
+  EffectLayer,
+  EffectPreset,
+  GraphArea,
+  Layer,
+  LayerKind,
+} from '../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
 import { getLayerAreaMap } from '../utils/layerAreas';
+import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 
 interface Props {
   doc: CanvasDocument;
@@ -168,15 +177,87 @@ const LayerRow = memo(function LayerRow({
   );
 });
 
+type GraphHelperKind = 'merge' | 'color' | 'repeat' | 'export';
+
+interface GraphHelperRowData {
+  id: string;
+  name: string;
+  kind: GraphHelperKind;
+  icon: string;
+  label: string;
+}
+
+const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }> = {
+  merge: { icon: '◇', label: 'merge' },
+  color: { icon: '◐', label: 'grade' },
+  repeat: { icon: '▦', label: 'repeat' },
+  export: { icon: '↗', label: 'output' },
+};
+
+const GraphHelperRow = memo(function GraphHelperRow({ helper }: { helper: GraphHelperRowData }) {
+  return (
+    <div
+      className="layer-graph-helper-row"
+      aria-label={`${helper.label} graph node: ${helper.name}`}
+      title={`${helper.label} graph node`}
+    >
+      <span className="layer-graph-helper-grip" aria-hidden="true">
+        ·
+      </span>
+      <span className="layer-graph-helper-icon" aria-hidden="true">
+        {helper.icon}
+      </span>
+      <span className="layer-graph-helper-name">{helper.name}</span>
+      <span className="layer-graph-helper-kind">{helper.label}</span>
+    </div>
+  );
+});
+
 type LayerDisplayItem =
   | { type: 'layer'; layer: Layer; areas: GraphArea[]; nested?: false }
-  | { type: 'area'; area: GraphArea; layers: Layer[]; graphOnlyCount: number };
+  | { type: 'area'; area: GraphArea; layers: Layer[]; graphHelpers: GraphHelperRowData[] };
 
-function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<string, GraphArea[]>): LayerDisplayItem[] {
+function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): GraphHelperRowData[] {
+  if (!graph) return [];
+
+  const areaNodeIds = new Set(area.nodeIds);
+  const helpersById = new Map<string, GraphHelperRowData>();
+
+  graph.mergeNodes.forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'merge', ...GRAPH_HELPER_META.merge });
+  });
+  (graph.colorNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'color', ...GRAPH_HELPER_META.color });
+  });
+  (graph.repeatNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
+  });
+  if (areaNodeIds.has(EXPORT_NODE_ID)) {
+    helpersById.set(EXPORT_NODE_ID, {
+      id: EXPORT_NODE_ID,
+      name: 'Export',
+      kind: 'export',
+      ...GRAPH_HELPER_META.export,
+    });
+  }
+
+  return area.nodeIds.flatMap((nodeId) => {
+    const helper = helpersById.get(nodeId);
+    return helper ? [helper] : [];
+  });
+}
+
+function buildLayerDisplayItems(
+  displayLayers: Layer[],
+  areasByLayerId: Map<string, GraphArea[]>,
+  graph: CanvasGraph | undefined,
+): LayerDisplayItem[] {
   const items: LayerDisplayItem[] = [];
   const renderedAreaIds = new Set<string>();
   const renderedLayerIds = new Set<string>();
-  const layerIds = new Set(displayLayers.map((layer) => layer.id));
 
   for (const layer of displayLayers) {
     if (renderedLayerIds.has(layer.id)) continue;
@@ -196,7 +277,7 @@ function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<stri
       type: 'area',
       area,
       layers: areaLayers,
-      graphOnlyCount: area.nodeIds.filter((nodeId) => !layerIds.has(nodeId)).length,
+      graphHelpers: getAreaGraphHelpers(graph, area),
     });
   }
 
@@ -237,8 +318,8 @@ export function LayerPanel({
   const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
   const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
   const displayItems = useMemo(
-    () => buildLayerDisplayItems(displayLayers, areasByLayerId),
-    [areasByLayerId, displayLayers],
+    () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
+    [areasByLayerId, displayLayers, doc.graph],
   );
   const activeCollapsedAreaIds = useMemo(() => {
     const areaIds = new Set((doc.graph?.areas ?? []).map((area) => area.id));
@@ -386,8 +467,8 @@ export function LayerPanel({
                 aria-expanded={!activeCollapsedAreaIds.has(item.area.id)}
                 aria-label={`${activeCollapsedAreaIds.has(item.area.id) ? 'Expand' : 'Collapse'} ${item.area.name}`}
                 title={`${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}${
-                  item.graphOnlyCount > 0
-                    ? `, ${item.graphOnlyCount} graph node${item.graphOnlyCount === 1 ? '' : 's'}`
+                  item.graphHelpers.length > 0
+                    ? `, ${item.graphHelpers.length} graph node${item.graphHelpers.length === 1 ? '' : 's'}`
                     : ''
                 }`}
               >
@@ -397,7 +478,9 @@ export function LayerPanel({
                 <span className="layer-area-dot" style={{ background: item.area.color }} aria-hidden="true" />
                 <span className="layer-area-name">{item.area.name}</span>
                 <span className="layer-area-count">{item.layers.length}</span>
-                {item.graphOnlyCount > 0 && <span className="layer-area-graph-count">+{item.graphOnlyCount}</span>}
+                {item.graphHelpers.length > 0 && (
+                  <span className="layer-area-graph-count">+{item.graphHelpers.length}</span>
+                )}
               </button>
               {!activeCollapsedAreaIds.has(item.area.id) &&
                 item.layers.map((layer) => (
@@ -421,6 +504,8 @@ export function LayerPanel({
                     onRemoveLayer={onRemoveLayer}
                   />
                 ))}
+              {!activeCollapsedAreaIds.has(item.area.id) &&
+                item.graphHelpers.map((helper) => <GraphHelperRow key={helper.id} helper={helper} />)}
             </div>
           ) : (
             <LayerRow

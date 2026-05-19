@@ -658,12 +658,15 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
   await expect(folder.locator('.layer-area-count')).toHaveText('1');
   await expect(folder.locator('.layer-area-graph-count')).toHaveText('+1');
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+  await expect(folder.locator('.layer-graph-helper-row')).toContainText('Merge');
 
   await folder.getByRole('button', { name: /Collapse Area 1/ }).click();
   await expect(folder.locator('.layer-row-nested')).toHaveCount(0);
+  await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(0);
 
   await folder.getByRole('button', { name: /Expand Area 1/ }).click();
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+  await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(1);
 });
 
 test('selected area can be extended without stacking memberships', async ({ page }) => {
