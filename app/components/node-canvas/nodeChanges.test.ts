@@ -1,7 +1,7 @@
 import type { NodeChange, Node as RFNode } from '@xyflow/react';
 import { describe, expect, it } from 'vitest';
 
-import { stableNodeChanges } from './nodeChanges';
+import { retainNodeMeasurements, stableNodeChanges } from './nodeChanges';
 
 const node: RFNode = {
   id: 'node-a',
@@ -36,5 +36,39 @@ describe('stableNodeChanges', () => {
     ];
 
     expect(stableNodeChanges(changes, [node])).toEqual(changes);
+  });
+});
+
+describe('retainNodeMeasurements', () => {
+  it('keeps React Flow measurements when canonical nodes are rebuilt', () => {
+    const next: RFNode = {
+      id: 'node-a',
+      type: 'layerNode',
+      position: { x: 20, y: 30 },
+      data: {},
+    };
+
+    expect(retainNodeMeasurements([next], [node], { width: 320, height: 360 })).toEqual([
+      {
+        ...next,
+        measured: { width: 320, height: 220 },
+      },
+    ]);
+  });
+
+  it('seeds new nodes with a fallback measurement until ResizeObserver reports real dimensions', () => {
+    const next: RFNode = {
+      id: 'node-b',
+      type: 'layerNode',
+      position: { x: 20, y: 30 },
+      data: {},
+    };
+
+    expect(retainNodeMeasurements([next], [], { width: 320, height: 360 })).toEqual([
+      {
+        ...next,
+        measured: { width: 320, height: 360 },
+      },
+    ]);
   });
 });

@@ -320,6 +320,9 @@ test.beforeEach(async ({ page }) => {
   consoleIssues.set(page, issues);
   page.on('console', (message) => {
     if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
+    if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
+      issues.push(`${message.type()}: ${message.text()}`);
+    }
   });
   page.on('pageerror', (error) => {
     issues.push(`pageerror: ${error.message}`);

@@ -18,7 +18,7 @@ import {
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
-import { stableNodeChanges } from '../nodeChanges';
+import { retainNodeMeasurements, stableNodeChanges } from '../nodeChanges';
 
 export interface UseNodeDragStateOptions {
   baseNodes: RFNode[];
@@ -61,7 +61,9 @@ export function useNodeDragState({
   onGraphChange,
   onDeleteNodes,
 }: UseNodeDragStateOptions): UseNodeDragStateResult {
-  const [dragNodes, setDragNodes] = useState<RFNode[]>(baseNodes);
+  const [dragNodes, setDragNodes] = useState<RFNode[]>(() =>
+    retainNodeMeasurements(baseNodes, [], { width: NODE_W, height: NODE_H }),
+  );
   const [dragEdges, setDragEdges] = useState<RFEdge[]>(baseEdges);
   const isDraggingRef = useRef(false);
   const dragNodesRef = useRef<RFNode[]>(dragNodes);
@@ -73,7 +75,7 @@ export function useNodeDragState({
   // Sync shadow copy from canonical state when not dragging.
   useEffect(() => {
     if (!isDraggingRef.current) {
-      setDragNodes(baseNodes);
+      setDragNodes((prev) => retainNodeMeasurements(baseNodes, prev, { width: NODE_W, height: NODE_H }));
       setDragEdges(baseEdges);
     }
   }, [baseNodes, baseEdges]);
