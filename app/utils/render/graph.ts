@@ -380,7 +380,9 @@ async function renderGraphNode(
     const layer = findLayer(doc, nodeId);
     if (!layer) return createCanvas(W, H);
 
-    if (layer.kind === 'effect' && !options.skipEffects) {
+    // Pixel-space print effects must honor the same fixed effect baseline as stack/export rendering.
+    // The batched GPU path skips per-layer effectResolution handling, so keep it only for full-size renders.
+    if (layer.kind === 'effect' && !options.skipEffects && !options.effectResolution) {
       const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId);
       if (gpuEffectChain) {
         const base = gpuEffectChain.baseSourceId
