@@ -3,6 +3,8 @@ import type { CanvasDocument } from '../types/config';
 import { renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
+const DEFERRED_FULL_RENDER_MS = 1800;
+const DEFERRED_FULL_RENDER_TIMEOUT_MS = 3200;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
 const RENDER_CACHE_LIMIT = 6;
@@ -18,6 +20,8 @@ interface Options {
   renderScale?: number;
   /** Upper bound for the largest internal render dimension. */
   maxRenderDimension?: number;
+  /** Draw a quick draft first, then wait for an idle slot before full quality. */
+  deferFullRender?: boolean;
 }
 
 export interface DocumentRenderState {
@@ -132,6 +136,10 @@ function withRenderTimeout(
   });
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 export function useDocumentRenderer(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
@@ -143,6 +151,7 @@ export function useDocumentRenderer(
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderingRef = useRef(false);
   const pendingRef = useRef(false);
+  const activeAbortRef = useRef<AbortController | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastGoodCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef(doc);
@@ -163,6 +172,8 @@ export function useDocumentRenderer(
   const draftUntilRef = useRef(0);
   const gpuFallbackUntilRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredFullRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredFullRenderIdleRef = useRef<number | null>(null);
   const [renderState, setRenderState] = useState<DocumentRenderState>({
     isRendering: false,
     hasFrame: false,
@@ -196,18 +207,35 @@ export function useDocumentRenderer(
     options.maxRenderDimension,
   ]);
 
+  const cancelDeferredFullRender = useCallback(() => {
+    if (deferredFullRenderTimerRef.current) {
+      clearTimeout(deferredFullRenderTimerRef.current);
+      deferredFullRenderTimerRef.current = null;
+    }
+    if (deferredFullRenderIdleRef.current !== null) {
+      globalThis.cancelIdleCallback?.(deferredFullRenderIdleRef.current);
+      deferredFullRenderIdleRef.current = null;
+    }
+  }, []);
+
   const doRender = useCallback(function renderNow() {
+    if (!canvasRef.current) return;
     if (renderingRef.current) {
       pendingRef.current = true;
+      activeAbortRef.current?.abort();
       return;
     }
 
+    activeAbortRef.current?.abort();
+    const abortController = new AbortController();
+    activeAbortRef.current = abortController;
     const now = performance.now();
     const inDraftWindow = now < draftUntilRef.current || now < gpuFallbackUntilRef.current;
     const renderOptions = {
       skipEffects: fastRef.current || inDraftWindow,
       draft: inDraftWindow,
       graphMode: graphModeRef.current,
+      signal: abortController.signal,
     };
     const drawResult = (result: HTMLCanvasElement) => {
       const displayCanvas = canvasRef.current;
@@ -226,9 +254,12 @@ export function useDocumentRenderer(
     };
     const finishRender = () => {
       renderingRef.current = false;
-      if (pendingRef.current) {
+      if (activeAbortRef.current === abortController) activeAbortRef.current = null;
+      if (pendingRef.current && canvasRef.current) {
         pendingRef.current = false;
         renderNow();
+      } else {
+        pendingRef.current = false;
       }
     };
 
@@ -264,7 +295,10 @@ export function useDocumentRenderer(
               drawResult(isLikelyBlankRender(fallback, docRef.current) ? result : fallback);
               if (import.meta.env.DEV) console.warn('Canvas render produced a blank frame; used draft fallback.');
             })
-            .catch(() => drawResult(result))
+            .catch((fallbackError) => {
+              if (isAbortError(fallbackError) || abortController.signal.aborted) return;
+              drawResult(result);
+            })
             .finally(finishRender);
           return;
         }
@@ -273,6 +307,10 @@ export function useDocumentRenderer(
         finishRender();
       })
       .catch((error) => {
+        if (isAbortError(error) || abortController.signal.aborted) {
+          finishRender();
+          return;
+        }
         const hasNewerRenderPending = pendingRef.current;
         if (hasNewerRenderPending) {
           if (!renderOptions.skipEffects) gpuFallbackUntilRef.current = performance.now() + 5000;
@@ -306,6 +344,10 @@ export function useDocumentRenderer(
             if (import.meta.env.DEV) console.warn('Canvas render fell back to draft mode.', error);
           })
           .catch((fallbackError) => {
+            if (isAbortError(fallbackError) || abortController.signal.aborted) {
+              finishRender();
+              return;
+            }
             if (!pendingRef.current && lastGoodCanvasRef.current) drawResult(lastGoodCanvasRef.current);
             if (import.meta.env.DEV) console.warn('Canvas render failed.', fallbackError);
             setRenderState((state) => ({
@@ -327,6 +369,27 @@ export function useDocumentRenderer(
       doRender();
     });
   }, [doRender]);
+
+  const scheduleDeferredFullRender = useCallback(() => {
+    cancelDeferredFullRender();
+    const run = () => {
+      deferredFullRenderTimerRef.current = null;
+      deferredFullRenderIdleRef.current = null;
+      draftUntilRef.current = 0;
+      scheduleRender();
+    };
+
+    deferredFullRenderTimerRef.current = setTimeout(() => {
+      deferredFullRenderTimerRef.current = null;
+      if (typeof globalThis.requestIdleCallback === 'function') {
+        deferredFullRenderIdleRef.current = globalThis.requestIdleCallback(run, {
+          timeout: DEFERRED_FULL_RENDER_TIMEOUT_MS,
+        });
+        return;
+      }
+      run();
+    }, DEFERRED_FULL_RENDER_MS);
+  }, [cancelDeferredFullRender, scheduleRender]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -367,38 +430,73 @@ export function useDocumentRenderer(
         error: null,
       });
     }
-    draftUntilRef.current = cachedFrame ? 0 : performance.now() + DRAFT_SETTLE_MS;
+    draftUntilRef.current =
+      cachedFrame && !options.deferFullRender
+        ? 0
+        : performance.now() + (options.deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
 
     scheduleRender();
 
     return () => {
+      cancelDeferredFullRender();
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      activeAbortRef.current?.abort();
+      activeAbortRef.current = null;
       canvasRef.current = null;
       if (container.contains(canvas)) container.removeChild(canvas);
     };
-  }, [pw, ph, options.cacheKey, options.renderScale, options.maxRenderDimension, scheduleRender]);
+  }, [
+    pw,
+    ph,
+    options.cacheKey,
+    options.renderScale,
+    options.maxRenderDimension,
+    options.deferFullRender,
+    scheduleRender,
+    cancelDeferredFullRender,
+  ]);
 
   useEffect(() => {
-    if (!lastGoodCanvasRef.current || (options.fast ?? false)) {
-      draftUntilRef.current = performance.now() + DRAFT_SETTLE_MS;
+    const deferFullRender = options.deferFullRender && !(options.fast ?? false);
+    if (!lastGoodCanvasRef.current || (options.fast ?? false) || deferFullRender) {
+      draftUntilRef.current = performance.now() + (deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
     }
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = setTimeout(() => {
-      settleTimerRef.current = null;
-      scheduleRender();
-    }, DRAFT_SETTLE_MS + 16);
+    cancelDeferredFullRender();
     scheduleRender();
-  }, [doc, imageCache, options.fast, options.graphMode, options.cacheKey, scheduleRender]);
+    if (deferFullRender) {
+      scheduleDeferredFullRender();
+    } else {
+      settleTimerRef.current = setTimeout(() => {
+        settleTimerRef.current = null;
+        draftUntilRef.current = 0;
+        scheduleRender();
+      }, DRAFT_SETTLE_MS + 16);
+    }
+  }, [
+    doc,
+    imageCache,
+    options.fast,
+    options.graphMode,
+    options.cacheKey,
+    options.deferFullRender,
+    scheduleRender,
+    cancelDeferredFullRender,
+    scheduleDeferredFullRender,
+  ]);
 
   useEffect(
     () => () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      activeAbortRef.current?.abort();
+      activeAbortRef.current = null;
+      cancelDeferredFullRender();
     },
-    [],
+    [cancelDeferredFullRender],
   );
 
   return { containerRef, renderState };

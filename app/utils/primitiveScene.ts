@@ -3,7 +3,7 @@
  *
  * Both PrimitiveViewport3D (live viewport) and primitiveRenderer (offscreen export)
  * must call the same helpers here. Preview/export parity depends on this invariant:
- * geometry, material, lights, shadow, camera, and mesh transforms are defined once.
+ * geometry, material, lights, camera, and mesh transforms are defined once.
  *
  * Renderer lifecycle is intentionally kept separate:
  * - PrimitiveViewport3D owns the live WebGLRenderer + ResizeObserver.
@@ -22,8 +22,8 @@ export const CAMERA_DISTANCE = 3.2;
 export const CAMERA_FOV = 35;
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 100;
-export const CAMERA_ZOOM_MIN = 0.6;
-export const CAMERA_ZOOM_MAX = 2.6;
+export const CAMERA_ZOOM_MIN = 0.08;
+export const CAMERA_ZOOM_MAX = 6;
 
 // ---------------------------------------------------------------------------
 // Math helpers
@@ -81,14 +81,19 @@ export function createPrimitiveMaterial(
 }
 
 // ---------------------------------------------------------------------------
-// Scene lighting + shadow
+// Scene lighting
 // ---------------------------------------------------------------------------
 
 /**
  * Add the shared light rig to a scene.
  * Accent-colored key and rim lights derive from accentColor.
  */
-export function addSceneLights(scene: THREE.Scene, accentColor: string): void {
+export interface PrimitiveLightRig {
+  keyLight: THREE.DirectionalLight;
+  rimLight: THREE.PointLight;
+}
+
+export function addSceneLights(scene: THREE.Scene, accentColor: string): PrimitiveLightRig {
   const accent = new THREE.Color(accentColor);
 
   scene.add(new THREE.AmbientLight(NODE_CANVAS_COLORS.sceneAmbient, 1.15));
@@ -104,22 +109,14 @@ export function addSceneLights(scene: THREE.Scene, accentColor: string): void {
   const rim = new THREE.PointLight(accent, 0.55, 8);
   rim.position.set(-2.1, 1.6, 2.4);
   scene.add(rim);
+
+  return { keyLight, rimLight: rim };
 }
 
-/** Add the soft circular drop-shadow mesh to a scene. */
-export function addSceneShadow(scene: THREE.Scene): THREE.Mesh {
-  const geom = new THREE.CircleGeometry(1.35, 48);
-  const mat = new THREE.MeshBasicMaterial({
-    color: NODE_CANVAS_COLORS.sceneShadow,
-    transparent: true,
-    opacity: 0.18,
-  });
-  const shadow = new THREE.Mesh(geom, mat);
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, -1.18, 0);
-  shadow.scale.set(1.15, 0.6, 1);
-  scene.add(shadow);
-  return shadow;
+export function updateSceneAccentLights(lightRig: PrimitiveLightRig, accentColor: string): void {
+  const accent = new THREE.Color(accentColor);
+  lightRig.keyLight.color.copy(accent);
+  lightRig.rimLight.color.copy(accent);
 }
 
 // ---------------------------------------------------------------------------

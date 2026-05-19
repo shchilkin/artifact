@@ -3,6 +3,7 @@ import { ASPECT_SIZES } from '../../../types/config';
 import { THUMB_SIZE } from '../constants';
 
 export const NODE_PREVIEW_RENDER_SCALE = 3;
+export const NODE_PREVIEW_PASSIVE_RENDER_SCALE = 1;
 export const NODE_PREVIEW_RENDER_MAX = 960;
 
 export interface NodePreviewSize {

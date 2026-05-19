@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { THUMB_SIZE } from '../constants';
-import { getNodePreviewSize, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
+import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 
 describe('getNodePreviewSize', () => {
   it.each([
@@ -19,6 +19,16 @@ describe('getNodePreviewSize', () => {
     expect(size.render.width).toBeGreaterThan(size.display.width);
     expect(size.render.height).toBeGreaterThan(size.display.height);
     expect(size.renderScale).toBe(NODE_PREVIEW_RENDER_SCALE);
+  });
+
+  it('supports lighter passive preview renders without changing display geometry', () => {
+    const active = getNodePreviewSize('16:9');
+    const passive = getNodePreviewSize('16:9', undefined, NODE_PREVIEW_PASSIVE_RENDER_SCALE);
+
+    expect(passive.display).toEqual(active.display);
+    expect(passive.aspect).toEqual(active.aspect);
+    expect(passive.render.width).toBeLessThan(active.render.width);
+    expect(passive.renderScale).toBe(NODE_PREVIEW_PASSIVE_RENDER_SCALE);
   });
 
   it('preserves aspect ratio for high-DPI render dimensions', () => {

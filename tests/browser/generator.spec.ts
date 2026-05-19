@@ -320,6 +320,9 @@ test.beforeEach(async ({ page }) => {
   consoleIssues.set(page, issues);
   page.on('console', (message) => {
     if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
+    if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
+      issues.push(`${message.type()}: ${message.text()}`);
+    }
   });
   page.on('pageerror', (error) => {
     issues.push(`pageerror: ${error.message}`);
@@ -428,6 +431,35 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Reset camera' }).click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 100%');
+
+  const flowViewport = page.locator('.react-flow__viewport').first();
+  const beforeWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  const viewportBox = await viewport.boundingBox();
+  expect(viewportBox).not.toBeNull();
+  if (!viewportBox) return;
+
+  await page.mouse.move(viewportBox.x + viewportBox.width / 2, viewportBox.y + viewportBox.height / 2);
+  await viewport.dispatchEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true });
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
+  const afterWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('doc');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const firstState = Object.values(parsed.graph?.primitiveViewStates ?? {})[0] as { zoom?: number } | undefined;
+        return firstState?.zoom ?? null;
+      }),
+    )
+    .toBeGreaterThan(1);
+
+  await page.reload();
+  await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();
+  await page.locator('.node-shell-kind-primitive').first().click();
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
+  await expect(page.getByText('Oops!')).toHaveCount(0);
 });
 
 test('default document can export from the browser', async ({ page }) => {
@@ -525,6 +557,31 @@ test('node previews respect document aspect ratio', async ({ page }) => {
   const tallFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
   await expect(tallFrame).toBeVisible({ timeout: 15_000 });
   await expect.poll(async () => frameRatio(tallFrame), { timeout: 15_000 }).toBeLessThan(0.75);
+});
+
+test('selected layer nodes can be muted with keyboard shortcut', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  const fillNode = page.locator('.node-shell-kind-fill').first();
+  await expect(fillNode).toBeVisible({ timeout: 15_000 });
+  await fillNode.click();
+  await page.keyboard.press('m');
+
+  await expect(fillNode).toHaveClass(/node-shell-muted/);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { id: string }) => layer.id === 'wide-fill')?.visible;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(false);
+
+  await page.keyboard.press('m');
+  await expect(fillNode).not.toHaveClass(/node-shell-muted/);
 });
 
 test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {

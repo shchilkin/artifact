@@ -27,6 +27,7 @@ import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
+import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
 import { useNodeDragState } from './hooks/useNodeDragState';
 import { useNodeGallery } from './hooks/useNodeGallery';
@@ -57,6 +58,7 @@ const nodeTypes = {
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
 const AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
+const PERF_DEBUG_STORAGE_KEY = 'artifact-debug-perf';
 
 export function NodeCanvas({
   doc,
@@ -103,6 +105,7 @@ export function NodeCanvas({
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [perfDebugEnabled, setPerfDebugEnabled] = useState(() => isPerfDebugEnabledByDefault());
 
   // Focused hooks.
   const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
@@ -309,6 +312,39 @@ export function NodeCanvas({
     setSelectedAreaId(id);
   }, []);
 
+  const handleTogglePerfDebug = useCallback(() => {
+    setPerfDebugEnabled((enabled) => {
+      const next = !enabled;
+      try {
+        localStorage.setItem(PERF_DEBUG_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        // Debug preferences are best-effort.
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectedLayerVisibility = useCallback(() => {
+    const selectedLayers = selectedNodeIds
+      .map((id) => doc.layers.find((layer) => layer.id === id))
+      .filter((layer): layer is Layer => Boolean(layer));
+    if (selectedLayers.length === 0) return false;
+    const nextVisible = !selectedLayers.some((layer) => layer.visible);
+    selectedLayers.forEach((layer) => onUpdateLayer(layer.id, { visible: nextVisible }));
+    return true;
+  }, [doc.layers, onUpdateLayer, selectedNodeIds]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'm' || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableKeyTarget(event.target)) return;
+      if (!handleToggleSelectedLayerVisibility()) return;
+      event.preventDefault();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleToggleSelectedLayerVisibility]);
+
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(
     () => ({
       doc,
@@ -383,6 +419,16 @@ export function NodeCanvas({
                 <span aria-hidden="true">⌘</span>
                 Auto layout
               </button>
+              <button
+                type="button"
+                onClick={handleTogglePerfDebug}
+                aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
+                aria-pressed={perfDebugEnabled}
+                title="Show FPS, thumbnail queue, and long-task metrics"
+              >
+                <span aria-hidden="true">▥</span>
+                Perf
+              </button>
             </div>
 
             <ReactFlow
@@ -433,6 +479,7 @@ export function NodeCanvas({
               </ViewportPortal>
               <Controls showInteractive={false} />
             </ReactFlow>
+            <NodePerformanceOverlay debugEnabled={perfDebugEnabled} nodeCount={dragNodes.length} />
           </div>
           <NodePropertiesPanel
             open={selectedNodeId !== null}
@@ -555,4 +602,21 @@ export function NodeCanvas({
       </NodeCanvasActionsContext.Provider>
     </NodeCanvasPreviewContext.Provider>
   );
+}
+
+function isEditableKeyTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable;
+}
+
+function isPerfDebugEnabledByDefault() {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('debug') === 'perf' || params.get('perf') === '1') return true;
+  try {
+    return localStorage.getItem(PERF_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }

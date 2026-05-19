@@ -28,7 +28,18 @@ export function PrimitivePreviewSurface({
   const { graph } = useNodeCanvasPreview();
   const { openGallery, updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
-  const effectiveViewState = primitiveViewState ?? defaultPrimitiveViewportState(layer);
+  const [draftViewState, setDraftViewState] = useState<{
+    baseKey: string;
+    value: PrimitiveViewportState;
+  } | null>(null);
+  const committedViewState = useMemo(
+    () => primitiveViewState ?? defaultPrimitiveViewportState(layer),
+    [layer, primitiveViewState],
+  );
+  const committedViewStateKey = primitiveViewStateKey(committedViewState);
+  const activeDraftViewState =
+    selected && draftViewState && draftViewState.baseKey === committedViewStateKey ? draftViewState.value : null;
+  const effectiveViewState = activeDraftViewState ?? committedViewState;
   const effectiveRenderMode = primitiveRenderMode ?? 'shaded';
   const primitiveLocked = !!effectiveViewState.locked;
   const primitiveBgPreviewTargetId = useMemo(
@@ -42,11 +53,14 @@ export function PrimitivePreviewSurface({
   }, [layer.id, selected, setPrimitiveViewportActive]);
 
   const setPrimitiveLocked = (locked: boolean) => {
-    updatePrimitiveView(layer.id, { ...effectiveViewState, locked });
+    const next = { ...effectiveViewState, locked };
+    setDraftViewState(null);
+    updatePrimitiveView(layer.id, next);
     if (selected) setPrimitiveViewportActive(layer.id, !locked);
   };
 
   const resetPrimitiveCamera = () => {
+    setDraftViewState(null);
     updatePrimitiveView(layer.id, {
       ...defaultPrimitiveViewportState(layer),
       locked: primitiveLocked,
@@ -60,14 +74,7 @@ export function PrimitivePreviewSurface({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <PrimitiveViewportFrame
-          layer={layer}
-          bgPreviewTargetId={primitiveBgPreviewTargetId}
-          renderMode={effectiveRenderMode}
-          viewState={effectiveViewState}
-          interactive={false}
-          onViewStateChange={(next) => updatePrimitiveView(layer.id, next)}
-        />
+        <NodeThumbnail previewTargetId={layer.id} />
         <button
           type="button"
           className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
@@ -85,7 +92,7 @@ export function PrimitivePreviewSurface({
 
   return (
     <div
-      className={`node-preview-surface primitive-preview-surface${primitiveLocked ? ' primitive-preview-surface-locked' : ' nodrag nopan'}`}
+      className={`node-preview-surface primitive-preview-surface${primitiveLocked ? ' primitive-preview-surface-locked' : ' nodrag nopan nowheel'}`}
       onMouseEnter={() => {
         setHovered(true);
         if (!primitiveLocked) setPrimitiveViewportActive(layer.id, true);
@@ -101,7 +108,11 @@ export function PrimitivePreviewSurface({
         renderMode={effectiveRenderMode}
         viewState={effectiveViewState}
         interactive
-        onViewStateChange={(next) => updatePrimitiveView(layer.id, next)}
+        onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
+        onViewStateChange={(next) => {
+          setDraftViewState(null);
+          updatePrimitiveView(layer.id, next);
+        }}
       />
       <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
         <span className="primitive-node-camera-hint">
@@ -150,12 +161,24 @@ export function PrimitivePreviewSurface({
   );
 }
 
+function primitiveViewStateKey(viewState: PrimitiveViewportState): string {
+  return [
+    viewState.rotationX,
+    viewState.rotationY,
+    viewState.zoom,
+    viewState.panX,
+    viewState.panY,
+    viewState.locked ? 1 : 0,
+  ].join(':');
+}
+
 function PrimitiveViewportFrame({
   layer,
   bgPreviewTargetId,
   renderMode,
   viewState,
   interactive,
+  onViewStateDraft,
   onViewStateChange,
 }: {
   layer: PrimitiveLayer;
@@ -163,6 +186,7 @@ function PrimitiveViewportFrame({
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
   interactive: boolean;
+  onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
 }) {
   return (
@@ -175,6 +199,7 @@ function PrimitiveViewportFrame({
           renderMode={renderMode}
           viewState={viewState}
           interactive={interactive}
+          onViewStateDraft={onViewStateDraft}
           onViewStateChange={onViewStateChange}
           className="node-primitive-preview node-primitive-preview-transparent"
         />

@@ -17,7 +17,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Export config | `CanvasDocument.export` | Yes | Yes | Yes | No, except export thumbnail |
 | Selection and overlays | `nodeCanvasMachine`, route/component state | No | No | No | No |
 | Text/image transform draft | `useLayerTransformDraft` | No, until commit | Commit only | After commit | After commit |
-| Primitive camera state | `primitiveViewStates` passed to render options | Session state today | No, unless later promoted | Yes | Yes for primitive/upstream thumbnails |
+| Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
@@ -123,8 +123,8 @@ Primitive camera state is a special case: it is not a layer parameter, but it do
 
 Owner today:
 
-- `primitiveViewStates` in `NodeCanvas`
-- exported upward through `onPrimitiveViewStatesChange`
+- `primitiveViewStates` in `NodeCanvas` while a primitive viewport is live
+- `CanvasDocument.graph.primitiveViewStates` after committed camera changes
 - passed to render/export through `RenderOptions.primitiveViewStates`
 
 Fields:
@@ -143,10 +143,8 @@ Rules:
 - `layer.tiltZ` remains durable object spin.
 - Camera lock is editor behavior but is stored with camera state so the viewport can behave consistently.
 - Export must receive the same `primitiveViewStates` used by node/gallery preview.
-
-Open decision:
-
-- Whether primitive camera state should eventually become durable document state. If exported/shared documents must preserve camera exactly, promote it into `CanvasDocument` with a migration.
+- Primitive viewport state is serializable graph metadata; never store Three.js cameras, meshes, or renderer objects in the document.
+- Draft camera movement may stay local during drag/wheel interaction, but the committed state must be persisted so saved projects and revisited pages keep the same framing.
 
 ## Render options
 

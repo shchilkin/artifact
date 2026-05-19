@@ -8,6 +8,7 @@ import {
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
+  makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from './config';
@@ -168,6 +169,12 @@ describe('effect presets', () => {
   });
 });
 
+describe('makeImageLayer', () => {
+  it('defaults opacity to full strength', () => {
+    expect(makeImageLayer('').opacity).toBe(100);
+  });
+});
+
 describe('makeEmojiLayer', () => {
   it('returns a layer with kind: emoji', () => {
     const layer = makeEmojiLayer();
@@ -187,6 +194,12 @@ describe('makeEmojiLayer', () => {
     expect(typeof layer.maxSz).toBe('number');
     expect(typeof layer.blur).toBe('number');
     expect(typeof layer.opacity).toBe('number');
+  });
+
+  it('defaults to plain emoji scatter without built-in blur effects', () => {
+    const layer = makeEmojiLayer();
+    expect(layer.blur).toBe(0);
+    expect(layer.blendMode).toBe('normal');
   });
 
   it('accepts partial overrides', () => {

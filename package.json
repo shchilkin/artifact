@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:browser:headed": "playwright test --headed",
-    "test:browser:install": "playwright install chromium"
+    "test:browser:install": "playwright install chromium",
+    "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",

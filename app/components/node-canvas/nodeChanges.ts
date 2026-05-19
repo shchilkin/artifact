@@ -22,3 +22,23 @@ export function stableNodeChanges(changes: NodeChange[], nodes: RFNode[]): NodeC
     return true;
   });
 }
+
+export function retainNodeMeasurements(
+  nextNodes: RFNode[],
+  previousNodes: RFNode[],
+  fallback: { width: number; height: number },
+): RFNode[] {
+  const previousById = new Map(previousNodes.map((node) => [node.id, node]));
+
+  return nextNodes.map((node) => {
+    if (node.measured?.width !== undefined && node.measured.height !== undefined) return node;
+    const previous = previousById.get(node.id);
+    return {
+      ...node,
+      measured: {
+        width: node.measured?.width ?? previous?.measured?.width ?? fallback.width,
+        height: node.measured?.height ?? previous?.measured?.height ?? fallback.height,
+      },
+    };
+  });
+}

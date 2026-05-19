@@ -146,20 +146,21 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   },
   blur: { description: 'Gaussian blur across the entire frame.', params: [{ key: 'blurAmt', range: '0-100' }] },
   threshold: {
-    description: 'Luminance cutoff to stark black and white.',
-    params: [{ key: 'threshold', range: '0-100' }],
+    description:
+      'Luminance cutoff to stark black and white. 0 disables the pass; higher values require brighter pixels to stay white.',
+    params: [{ key: 'threshold', range: '0-100 cutoff' }],
   },
   edgeDetect: {
-    description: 'Highlight edge transitions with a convolution kernel.',
-    params: [{ key: 'edgeDetect', range: '0-100' }],
+    description: 'Find contrast boundaries and blend them back as grayscale contour linework.',
+    params: [{ key: 'edgeDetect', range: '0-100 linework mix' }],
   },
   gradientOverlay: {
-    description: 'Two-color gradient blended over the frame.',
+    description: 'Directional two-color ramp blended over the source while preserving source alpha.',
     params: [
-      { key: 'gradMix', range: '0-100' },
-      { key: 'gradA', range: 'hex' },
-      { key: 'gradB', range: 'hex' },
-      { key: 'gradAngle', range: '0-360' },
+      { key: 'gradMix', range: '0-100 overlay mix' },
+      { key: 'gradA', range: 'hex start color' },
+      { key: 'gradB', range: 'hex end color' },
+      { key: 'gradAngle', range: '0-360 direction' },
     ],
   },
   sepia: { description: 'Warm monochrome tone, classic darkroom look.', params: [{ key: 'sepia', range: '0-100' }] },
@@ -206,12 +207,14 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     params: [{ key: 'overprint', range: '0-100' }],
   },
   solarize: {
-    description: 'Luminance above threshold inverts to a surreal negative.',
-    params: [{ key: 'solarize', range: '0-100' }],
+    description:
+      'Inverts pixels above a moving brightness threshold. Low values affect only highlights; high values pull midtones into the negative break.',
+    params: [{ key: 'solarize', range: '0-100 threshold depth' }],
   },
   bleachBypass: {
-    description: 'Desaturated overlay blend with contrast and shadow crush.',
-    params: [{ key: 'bleachBypass', range: '0-100' }],
+    description:
+      'Simulates skipped film bleach by reducing saturation, lifting harsh contrast, and pushing shadows harder.',
+    params: [{ key: 'bleachBypass', range: '0-100 strength' }],
   },
   cyanotype: {
     description: 'Prussian blue photographic print process on ivory paper.',
@@ -252,10 +255,10 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     params: [{ key: 'linocut', range: '0-100' }],
   },
   fog: {
-    description: 'Luminance-weighted haze overlay for soft atmospheric mist.',
+    description: 'Colored haze that fills highlights first and softens the source without changing alpha.',
     params: [
-      { key: 'fog', range: '0-100' },
-      { key: 'fogColor', range: 'hex' },
+      { key: 'fog', range: '0-100 haze strength' },
+      { key: 'fogColor', range: 'hex haze color' },
     ],
   },
   speedLines: {

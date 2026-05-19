@@ -10,6 +10,7 @@ import {
   addRepeatNode,
   appendNodeToExportPath,
   assignNodesToGraphArea,
+  collectDownstreamNodeIds,
   collectUpstreamNodeIds,
   connectedPortIds,
   EXPORT_NODE_ID,
@@ -317,6 +318,55 @@ describe('collectUpstreamNodeIds', () => {
     expect([...collectUpstreamNodeIds(EXPORT_NODE_ID, graph)].sort()).toEqual(
       [EXPORT_NODE_ID, 'color-1', 'fill-1', 'merge-1', 'text-1'].sort(),
     );
+  });
+});
+
+describe('collectDownstreamNodeIds', () => {
+  it('returns a source and all downstream nodes, including graph-only nodes', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
+        { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
+        { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
+        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+    });
+
+    expect([...collectDownstreamNodeIds('text-1', graph)].sort()).toEqual(
+      [EXPORT_NODE_ID, 'color-1', 'merge-1', 'text-1'].sort(),
+    );
+  });
+
+  it('does not collect unrelated branches', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-a-merge', fromId: 'a', fromPort: 'out', toId: 'merge', toPort: 'a' },
+        { id: 'e-b-merge', fromId: 'b', fromPort: 'out', toId: 'merge', toPort: 'b' },
+        { id: 'e-merge-export', fromId: 'merge', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        { id: 'e-orphan-child', fromId: 'orphan', fromPort: 'out', toId: 'orphan-child', toPort: 'bg' },
+      ],
+    });
+
+    const downstream = collectDownstreamNodeIds('a', graph);
+
+    expect(downstream.has('a')).toBe(true);
+    expect(downstream.has('merge')).toBe(true);
+    expect(downstream.has(EXPORT_NODE_ID)).toBe(true);
+    expect(downstream.has('b')).toBe(false);
+    expect(downstream.has('orphan')).toBe(false);
+    expect(downstream.has('orphan-child')).toBe(false);
+  });
+
+  it('is safe for legacy cyclic graphs', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-a-b', fromId: 'a', fromPort: 'out', toId: 'b', toPort: 'bg' },
+        { id: 'e-b-c', fromId: 'b', fromPort: 'out', toId: 'c', toPort: 'bg' },
+        { id: 'e-c-a', fromId: 'c', fromPort: 'out', toId: 'a', toPort: 'bg' },
+      ],
+    });
+
+    expect([...collectDownstreamNodeIds('a', graph)].sort()).toEqual(['a', 'b', 'c']);
   });
 });
 

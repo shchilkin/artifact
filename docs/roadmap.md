@@ -430,6 +430,9 @@ First slice:
 
 - [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
   and threshold for range problems found in real projects.
+- [ ] Evaluate splitting Cells out of the generic Noise source into a dedicated
+  procedural source node if it keeps needing different controls from value and
+  cloud noise.
 - [x] Let Film Grain noise reach finer texture sizes instead of stopping at a
   visibly chunky minimum.
 - [x] Add docs that explain when to use Layers vs Nodes, when to use effect

@@ -16,9 +16,11 @@ interface NodeFrameProps {
   name: string;
   selected: boolean;
   editing: boolean;
+  muted?: boolean;
   targetHandles: NodeHandleConfig[];
   sourceHandles?: NodeHandleConfig[];
   onSelect: (event?: ReactMouseEvent<HTMLDivElement>) => void;
+  onToggleMuted?: () => void;
   onDelete?: () => void;
   className?: string;
   onWheelCapture?: WheelEventHandler<HTMLDivElement>;
@@ -32,9 +34,11 @@ export function NodeFrame({
   name,
   selected,
   editing,
+  muted,
   targetHandles,
   sourceHandles = [{ id: 'out' }],
   onSelect,
+  onToggleMuted,
   onDelete,
   className,
   onWheelCapture,
@@ -71,8 +75,10 @@ export function NodeFrame({
           label={label}
           name={name}
           selected={selected}
+          muted={muted}
           expanded={editing}
           expandable
+          onToggleMuted={onToggleMuted}
           onDelete={onDelete}
         >
           {children}

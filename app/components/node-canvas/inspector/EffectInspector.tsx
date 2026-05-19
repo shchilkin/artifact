@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EffectLayer, EffectPreset } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
+import { EFFECT_META } from '../../../utils/effectInfo';
 import { EffectInfoPopup } from '../../EffectInfoPopup';
 import { BLEND_OPTIONS } from '../constants';
 import type { EffectSectionId } from '../types';
@@ -36,6 +37,8 @@ export function EffectInspector({
     showAllSections || (layer.preset ? presets.includes(layer.preset) : false);
   const showControl = showSection;
   const hasPresetControls = !layer.preset || (layer.preset ? EFFECT_CONTROL_PRESETS.includes(layer.preset) : false);
+  const primaryEffectKey = layer.preset ? EFFECT_PRESETS[layer.preset]?.primary : null;
+  const effectDescription = primaryEffectKey ? EFFECT_META[primaryEffectKey]?.description : null;
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
@@ -44,6 +47,7 @@ export function EffectInspector({
           {layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset) : 'custom'}
         </span>
       </div>
+      {effectDescription && <p className="node-inspector-effect-description">{effectDescription}</p>}
 
       <InspectorSection
         title="Node"
@@ -63,6 +67,9 @@ export function EffectInspector({
           options={BLEND_OPTIONS}
           onChange={(value) => onChange({ blendMode: value })}
         />
+        <p className="node-inspector-note">
+          Normal draws as-is. Multiply darkens, Screen lightens, Overlay boosts contrast, Luminosity keeps brightness.
+        </p>
       </InspectorSection>
 
       {!hasPresetControls && (

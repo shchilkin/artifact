@@ -104,15 +104,20 @@ export function useNodeContextMenus({
     const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
     const anchorX = buttonRect?.left ?? surfaceRect?.left ?? 0;
     const anchorY = (buttonRect?.bottom ?? surfaceRect?.top ?? 0) + 8;
-    const screenPoint = surfaceRect
+    const screenPoint = buttonRect
       ? {
-          x: surfaceRect.left + surfaceRect.width / 2,
-          y: surfaceRect.top + surfaceRect.height / 2,
+          x: buttonRect.left + buttonRect.width / 2,
+          y: buttonRect.bottom + 12,
         }
-      : {
-          x: (buttonRect?.left ?? 0) + (buttonRect?.width ?? 0) / 2,
-          y: (buttonRect?.bottom ?? 0) + 16,
-        };
+      : surfaceRect
+        ? {
+            x: surfaceRect.left + 96,
+            y: surfaceRect.top + 96,
+          }
+        : {
+            x: 0,
+            y: 0,
+          };
     const flowPos = rfInstanceRef.current?.screenToFlowPosition(screenPoint) ?? { x: 0, y: 0 };
     send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchorX, y: anchorY, flowPos } });
   }, [send, addNodeButtonRef, canvasSurfaceRef, rfInstanceRef]);

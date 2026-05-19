@@ -61,7 +61,7 @@ export function randomEmojiLayer(): EmojiLayer {
     density: rand(15, 70),
     minSz,
     maxSz: rand(Math.max(minSz + 10, 40), 130),
-    blur: rand(0, 80),
+    blur: 0,
   });
 }
 
@@ -272,7 +272,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
         density: rand(15, 70),
         minSz,
         maxSz: rand(Math.max(minSz + 10, 40), 130),
-        blur: rand(0, 80),
+        blur: 0,
       };
     }
     case 'RAYS':

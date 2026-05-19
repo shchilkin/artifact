@@ -28,6 +28,7 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
     cacheKey: 'layer-preview',
     renderScale: PREVIEW_RENDER_SCALE,
     maxRenderDimension: PREVIEW_MAX_RENDER_DIMENSION,
+    deferFullRender: true,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');

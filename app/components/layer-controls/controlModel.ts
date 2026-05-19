@@ -35,6 +35,14 @@ export function getLayerControlSections(layer: Layer): LayerControlSection[] {
     ];
   }
 
+  if (layer.kind === 'noise') {
+    return [
+      { id: 'content', title: 'Content' },
+      { id: 'structure', title: 'Pattern' },
+      { id: 'style', title: 'Style' },
+    ];
+  }
+
   return [
     { id: 'content', title: 'Content' },
     { id: 'placement', title: 'Placement' },
@@ -44,5 +52,6 @@ export function getLayerControlSections(layer: Layer): LayerControlSection[] {
 }
 
 export function layerHasPlacementControls(layer: Layer): boolean {
+  if (layer.kind === 'noise') return false;
   return getLayerControlSections(layer).some((section) => section.id === 'placement');
 }

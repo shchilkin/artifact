@@ -109,8 +109,10 @@ not current behavior.
 | Drag node header/body outside local controls | Move node |
 | Connect handles | Create graph edge |
 | Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
+| Toolbar Add Node | Open add menu; created node appears at the menu/button anchor in graph space |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
+| `M` with layer nodes selected | Mute/unmute selected layer nodes by toggling visibility |
 
 ### Text and image nodes
 
@@ -143,6 +145,9 @@ Rules:
 
 - Primitive camera state is not `tiltX/tiltY`.
 - `tiltZ` remains durable object spin.
+- Material color and light color changes must not reset primitive camera state.
+- Shape, depth, and spin changes must reapply the current camera transform after the mesh is rebuilt.
+- The primitive scene should not add a built-in cast shadow; shadows are a separate effect/compositing concern.
 - Camera controls belong in the node, not in the global scene.
 - Primitive viewport must be clipped to the node preview frame.
 - Export receives the same primitive camera state as preview.
@@ -186,6 +191,9 @@ Examples:
 | Text/image transform gesture | Yes | Durable values visible in inspector |
 | Text content/font/color | No | Yes |
 | Effect parameters | No | Yes |
+| Emoji scatter density/size/set | No | Yes |
+| Emoji blur/trails/distortion | No | Dedicated effect node |
+| Noise placement | No | No; noise is a full-frame source |
 
 This avoids split-brain control where a side slider fights a direct manipulation surface.
 
@@ -207,6 +215,10 @@ Rules:
 - Thumbnail rendering should keep the last good frame during graph drag
   gestures. Dragging a node should move the node shell, not restart expensive
   render work inside every preview.
+- Only selected node previews should be urgent during edits. Output/export
+  thumbnails can render at higher quality when selected, but otherwise they
+  should stay passive so a control change does not redraw the whole graph on the
+  critical interaction path.
 
 ## Recommended refactor target
 

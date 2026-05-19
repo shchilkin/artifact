@@ -10,19 +10,32 @@ import type {
   TextLayer,
 } from '../../../types/config';
 import { FONT_STACKS } from '../../../types/config';
-import { gpuRenderToCanvas } from '../../gpuRender';
 import { lcg } from '../../lcg';
-import { buildFiltersFromEffectLayer } from '../../pixiFilters';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
-import {
-  applyDitherToImageData,
-  applyEmboss,
-  applyGrain,
-  applyLinocut,
-  applyMatte,
-  applyScanlines,
-} from './textureEffects';
+import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
+import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
+import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
+
+export const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
+
+type GpuRenderToCanvas = typeof import('../../gpuRender').gpuRenderToCanvas;
+type BuildFiltersFromEffectLayer = typeof import('../../pixiFilters').buildFiltersFromEffectLayer;
+
+let gpuModulesPromise: Promise<{
+  gpuRenderToCanvas: GpuRenderToCanvas;
+  buildFiltersFromEffectLayer: BuildFiltersFromEffectLayer;
+}> | null = null;
+
+function loadGpuModules() {
+  gpuModulesPromise ??= Promise.all([import('../../gpuRender'), import('../../pixiFilters')]).then(
+    ([gpuRender, pixiFilters]) => ({
+      gpuRenderToCanvas: gpuRender.gpuRenderToCanvas,
+      buildFiltersFromEffectLayer: pixiFilters.buildFiltersFromEffectLayer,
+    }),
+  );
+  return gpuModulesPromise;
+}
 
 export interface RenderOptions {
   /** Skip GPU effect passes during e.g. drag interactions for instant feedback. Canvas 2D effects and masking still apply. */
@@ -37,6 +50,45 @@ export interface RenderOptions {
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
   effectResolution?: { width: number; height: number };
+  /** Transient render cancellation signal. Never store this in document state. */
+  signal?: AbortSignal;
+}
+
+function throwIfRenderAborted(options: RenderOptions): void {
+  if (!options.signal?.aborted) return;
+  const error = new Error('Render aborted');
+  error.name = 'AbortError';
+  throw error;
+}
+
+function getLayerMeasureName(layer: Layer) {
+  const label = layer.kind === 'effect' ? `effect:${layer.preset}` : layer.kind;
+  return `${LAYER_RENDER_MEASURE_PREFIX}:${label}`;
+}
+
+async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
+  if (
+    typeof performance === 'undefined' ||
+    typeof performance.mark !== 'function' ||
+    typeof performance.measure !== 'function'
+  )
+    return task();
+
+  const measureName = getLayerMeasureName(layer);
+  const markId = `${measureName}:${layer.id}:${Math.random().toString(36).slice(2)}`;
+  const startMark = `${markId}:start`;
+  const endMark = `${markId}:end`;
+
+  try {
+    performance.mark(startMark);
+    const result = await task();
+    performance.mark(endMark);
+    performance.measure(measureName, startMark, endMark);
+    return result;
+  } finally {
+    performance.clearMarks?.(startMark);
+    performance.clearMarks?.(endMark);
+  }
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -76,7 +128,6 @@ function drawEmojiLayer(
   if (!layer.emojis.length || layer.density <= 0) return;
   const cx = W / 2;
   const cy = H / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
 
   const items = Array.from({ length: layer.density }, () => {
     const x = rng() * W;
@@ -94,7 +145,7 @@ function drawEmojiLayer(
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
 
   for (const item of items) {
-    const blurFactor = Math.max(0, 1 - item.dist / maxDist) * (layer.blur / 100);
+    const blurFactor = 0;
     ctx.save();
     ctx.translate(item.x, item.y);
     ctx.rotate(item.rotation);
@@ -203,7 +254,26 @@ function drawImageLayer(
   ctx.restore();
 }
 
-function applyCanvas2DEffects(
+async function applyImageDataTransforms(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  operations: EffectPixelTransformOp[],
+) {
+  if (operations.length === 0) return;
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const result = await renderEffectPixelTransforms({
+    width: W,
+    height: H,
+    data: imageData.data,
+    operations,
+  });
+  const output = ctx.createImageData(result.width, result.height);
+  output.data.set(result.data);
+  ctx.putImageData(output, 0, 0);
+}
+
+async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
@@ -261,26 +331,7 @@ function applyCanvas2DEffects(
   }
 
   if (layer.rgbSplit > 0) {
-    const rgbSplit = Math.round(layer.rgbSplit * scale);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const data = imageData.data;
-    const copy = new Uint8ClampedArray(data);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        const rx = Math.min(W - 1, x + rgbSplit);
-        const ry = Math.min(H - 1, y + rgbSplit);
-        const ri = (ry * W + rx) * 4;
-
-        const bx = Math.max(0, x - rgbSplit);
-        const by = Math.max(0, y - rgbSplit);
-        const bi = (by * W + bx) * 4;
-
-        data[i] = copy[ri]; // Red channel shifted down-right
-        data[i + 2] = copy[bi + 2]; // Blue channel shifted up-left
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'rgbSplit', amount: Math.round(layer.rgbSplit * scale) }]);
   }
 
   applyScanlines(ctx, W, H, layer, scale);
@@ -297,119 +348,29 @@ function applyCanvas2DEffects(
 
   const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
   if (needsPixelPass) {
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-
-    if (layer.sepia > 0 || layer.infrared > 0) {
-      const sepiaT = layer.sepia / 100;
-      const infraredT = layer.infrared / 100;
-      for (let i = 0; i < d.length; i += 4) {
-        let r = d[i];
-        let g = d[i + 1];
-        let b = d[i + 2];
-
-        if (sepiaT > 0) {
-          const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-          const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-          const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-          r = Math.round(r + (sr - r) * sepiaT);
-          g = Math.round(g + (sg - g) * sepiaT);
-          b = Math.round(b + (sb - b) * sepiaT);
-        }
-
-        if (infraredT > 0) {
-          const ir = r;
-          const ig = g;
-          const ib = b;
-          r = Math.min(255, Math.round(ir + ig * infraredT * 0.8));
-          g = Math.min(255, Math.round(ig * (1 - infraredT * 0.65)));
-          b = Math.min(255, Math.round(ib * (1 - infraredT * 0.3) + infraredT * 22));
-        }
-
-        d[i] = r;
-        d[i + 1] = g;
-        d[i + 2] = b;
-      }
-    }
-
-    if (layer.ca > 0) {
-      const amt = Math.round(layer.ca * scale);
-      const cx = W / 2,
-        cy = H / 2;
-      const copy = new Uint8ClampedArray(d);
-      const maxDist = Math.sqrt(cx * cx + cy * cy);
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const dx = (x - cx) / maxDist;
-          const dy = (y - cy) / maxDist;
-          const rx = Math.min(W - 1, Math.max(0, Math.round(x + dx * amt)));
-          const ry = Math.min(H - 1, Math.max(0, Math.round(y + dy * amt)));
-          const bx = Math.min(W - 1, Math.max(0, Math.round(x - dx * amt)));
-          const by = Math.min(H - 1, Math.max(0, Math.round(y - dy * amt)));
-          d[i] = copy[(ry * W + rx) * 4];
-          d[i + 2] = copy[(by * W + bx) * 4 + 2];
-        }
-      }
-    }
-
-    applyDitherToImageData(imageData, W, H, layer);
-
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      {
+        type: 'colorPass',
+        sepia: layer.sepia,
+        infrared: layer.infrared,
+        ca: Math.round(layer.ca * scale),
+        dither: layer.dither,
+      },
+    ]);
   }
 
   if (layer.vhsTracking > 0) {
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const bands = Math.max(3, Math.floor(layer.vhsTracking * 0.25 + 3));
-    const maxShift = Math.max(1, Math.floor((layer.vhsTracking * 0.08 * W) / 100));
-    const out = ctx.createImageData(W, H);
-    const od = out.data;
-    const sd = srcData.data;
-    const bandH = Math.ceil(H / bands);
-    for (let band = 0; band < bands; band++) {
-      const shiftX = Math.floor((rng() - 0.5) * 2 * maxShift);
-      const shiftR = Math.floor((rng() - 0.5) * maxShift * 0.5);
-      const y0 = band * bandH;
-      const y1 = Math.min(H, y0 + bandH);
-      for (let y = y0; y < y1; y++) {
-        for (let x = 0; x < W; x++) {
-          const oi = (y * W + x) * 4;
-          const sx = Math.min(W - 1, Math.max(0, x + shiftX));
-          const si = (y * W + sx) * 4;
-          const srx = Math.min(W - 1, Math.max(0, x + shiftX + shiftR));
-          const sri = (y * W + srx) * 4;
-          od[oi] = sd[sri];
-          od[oi + 1] = sd[si + 1];
-          od[oi + 2] = sd[si + 2];
-          od[oi + 3] = sd[si + 3];
-        }
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'vhsTracking', amount: layer.vhsTracking, seed: seed ^ 0x1a2b3c },
+    ]);
   }
 
   applyMatte(ctx, W, H, layer, seed);
 
   if (layer.waveAmt > 0) {
-    const maxShift = Math.round(layer.waveAmt * scale * 0.5);
-    const freq = (layer.waveFreq * Math.PI * 2) / H;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data;
-    const od = out.data;
-    for (let y = 0; y < H; y++) {
-      const shift = Math.round(Math.sin(y * freq) * maxShift);
-      for (let x = 0; x < W; x++) {
-        const sx = Math.min(W - 1, Math.max(0, x + shift));
-        const oi = (y * W + x) * 4;
-        const si = (y * W + sx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'wave', amount: layer.waveAmt, frequency: layer.waveFreq, scale },
+    ]);
   }
 
   if (layer.zoomBlur > 0) {
@@ -501,178 +462,47 @@ function applyCanvas2DEffects(
   }
 
   if (layer.solarize > 0) {
-    const threshold = 255 * (1 - (layer.solarize / 100) * 0.85);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      if (lum > threshold) {
-        d[i] = 255 - d[i];
-        d[i + 1] = 255 - d[i + 1];
-        d[i + 2] = 255 - d[i + 2];
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'solarize', amount: layer.solarize }]);
   }
 
   if (layer.bleachBypass > 0) {
-    const t = layer.bleachBypass / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i],
-        g = d[i + 1],
-        b = d[i + 2];
-      const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      const ov = (c: number) => (c < 128 ? (2 * c * lum) / 255 : 255 - (2 * (255 - c) * (255 - lum)) / 255);
-      d[i] = Math.min(255, Math.round(r + (ov(r) - r) * t));
-      d[i + 1] = Math.min(255, Math.round(g + (ov(g) - g) * t));
-      d[i + 2] = Math.min(255, Math.round(b + (ov(b) - b) * t));
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'bleachBypass', amount: layer.bleachBypass }]);
   }
 
   if (layer.cyanotype > 0) {
-    const t = layer.cyanotype / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-      // Prussian blue [0,49,83] to ivory paper [235,240,230]
-      const cr = Math.round(0 + (235 - 0) * lum);
-      const cg = Math.round(49 + (240 - 49) * lum);
-      const cb = Math.round(83 + (230 - 83) * lum);
-      d[i] = Math.round(d[i] + (cr - d[i]) * t);
-      d[i + 1] = Math.round(d[i + 1] + (cg - d[i + 1]) * t);
-      d[i + 2] = Math.round(d[i + 2] + (cb - d[i + 2]) * t);
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'cyanotype', amount: layer.cyanotype }]);
   }
 
   if (layer.splitToneAmt > 0) {
-    const t = layer.splitToneAmt / 100;
-    const sR = parseInt(layer.splitShadow.slice(1, 3), 16);
-    const sG = parseInt(layer.splitShadow.slice(3, 5), 16);
-    const sB = parseInt(layer.splitShadow.slice(5, 7), 16);
-    const hR = parseInt(layer.splitHighlight.slice(1, 3), 16);
-    const hG = parseInt(layer.splitHighlight.slice(3, 5), 16);
-    const hB = parseInt(layer.splitHighlight.slice(5, 7), 16);
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      const sw = Math.max(0, (128 - lum) / 128);
-      const hw = Math.max(0, (lum - 128) / 128);
-      d[i] = Math.min(255, Math.round(d[i] + (sR - d[i]) * sw * t + (hR - d[i]) * hw * t));
-      d[i + 1] = Math.min(255, Math.round(d[i + 1] + (sG - d[i + 1]) * sw * t + (hG - d[i + 1]) * hw * t));
-      d[i + 2] = Math.min(255, Math.round(d[i + 2] + (sB - d[i + 2]) * sw * t + (hB - d[i + 2]) * hw * t));
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      {
+        type: 'splitTone',
+        amount: layer.splitToneAmt,
+        shadow: layer.splitShadow,
+        highlight: layer.splitHighlight,
+      },
+    ]);
   }
 
   if (layer.rippleAmt > 0) {
-    const cx = W / 2,
-      cy = H / 2;
-    const maxDist = Math.sqrt(cx * cx + cy * cy);
-    const maxShift = layer.rippleAmt * scale * 0.5;
-    const freq = (layer.rippleFreq * Math.PI * 2) / maxDist;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const dx = x - cx,
-          dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        const shift = Math.sin(dist * freq) * maxShift;
-        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
-        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
-        const oi = (y * W + x) * 4,
-          si = (ny * W + nx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [
+      { type: 'ripple', amount: layer.rippleAmt, frequency: layer.rippleFreq, scale },
+    ]);
   }
 
   if (layer.kaleidoscope > 0) {
-    const segments = Math.max(3, Math.round(3 + (layer.kaleidoscope / 100) * 13));
-    const sectorAngle = (Math.PI * 2) / segments;
-    const cx = W / 2,
-      cy = H / 2;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const dx = x - cx,
-          dy = y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        let angle = Math.atan2(dy, dx);
-        if (angle < 0) angle += Math.PI * 2;
-        let a = angle % sectorAngle;
-        if (a > sectorAngle / 2) a = sectorAngle - a;
-        const nx = Math.min(W - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
-        const ny = Math.min(H - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
-        const oi = (y * W + x) * 4,
-          si = (ny * W + nx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'kaleidoscope', amount: layer.kaleidoscope }]);
   }
 
   if (layer.squeezeX !== 0 || layer.squeezeY !== 0) {
-    const xFactor = Math.max(0.01, 1 + layer.squeezeX / 100);
-    const yFactor = Math.max(0.01, 1 + layer.squeezeY / 100);
-    const cx = W / 2,
-      cy = H / 2;
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const out = ctx.createImageData(W, H);
-    const sd = srcData.data,
-      od = out.data;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const sx = Math.min(W - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
-        const sy = Math.min(H - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
-        const oi = (y * W + x) * 4,
-          si = (sy * W + sx) * 4;
-        od[oi] = sd[si];
-        od[oi + 1] = sd[si + 1];
-        od[oi + 2] = sd[si + 2];
-        od[oi + 3] = sd[si + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'squeeze', x: layer.squeezeX, y: layer.squeezeY }]);
   }
 
   applyEmboss(ctx, W, H, layer);
   applyLinocut(ctx, W, H, layer);
 
   if (layer.fog > 0) {
-    const fogR = parseInt(layer.fogColor.slice(1, 3), 16);
-    const fogG = parseInt(layer.fogColor.slice(3, 5), 16);
-    const fogB = parseInt(layer.fogColor.slice(5, 7), 16);
-    const t = layer.fog / 100;
-    const imageData = ctx.getImageData(0, 0, W, H);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-      const w = Math.min(1, t * (0.2 + lum * 0.8));
-      d[i] = Math.round(d[i] + (fogR - d[i]) * w);
-      d[i + 1] = Math.round(d[i + 1] + (fogG - d[i + 1]) * w);
-      d[i + 2] = Math.round(d[i + 2] + (fogB - d[i + 2]) * w);
-    }
-    ctx.putImageData(imageData, 0, 0);
+    await applyImageDataTransforms(ctx, W, H, [{ type: 'fog', amount: layer.fog, color: layer.fogColor }]);
   }
 
   if (layer.speedLines > 0) {
@@ -698,8 +528,97 @@ function applyCanvas2DEffects(
   }
 }
 
-function runGpuPass(current: HTMLCanvasElement, W: number, H: number, filters: Filter[]): Promise<HTMLCanvasElement> {
+async function runGpuPass(
+  current: HTMLCanvasElement,
+  W: number,
+  H: number,
+  filters: Filter[],
+): Promise<HTMLCanvasElement> {
+  const { gpuRenderToCanvas } = await loadGpuModules();
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
+}
+
+function hasCanvas2DEffect(layer: EffectLayer): boolean {
+  return (
+    (layer.rayInt > 0 && layer.rays > 0) ||
+    layer.glitch > 0 ||
+    layer.rgbSplit > 0 ||
+    layer.scanlines > 0 ||
+    layer.grain > 0 ||
+    layer.tintOp > 0 ||
+    layer.sepia > 0 ||
+    layer.infrared > 0 ||
+    layer.ca > 0 ||
+    layer.dither > 0 ||
+    layer.vhsTracking > 0 ||
+    layer.matte > 0 ||
+    layer.waveAmt > 0 ||
+    layer.zoomBlur > 0 ||
+    layer.neonGlow > 0 ||
+    layer.overprint > 0 ||
+    layer.solarize > 0 ||
+    layer.bleachBypass > 0 ||
+    layer.cyanotype > 0 ||
+    layer.splitToneAmt > 0 ||
+    layer.rippleAmt > 0 ||
+    layer.kaleidoscope > 0 ||
+    layer.squeezeX !== 0 ||
+    layer.squeezeY !== 0 ||
+    layer.emboss > 0 ||
+    layer.linocut > 0 ||
+    layer.fog > 0 ||
+    layer.speedLines > 0
+  );
+}
+
+function hasGpuEffect(layer: EffectLayer): boolean {
+  return (
+    layer.mirror > 0 ||
+    layer.dataMosh > 0 ||
+    layer.interlace > 0 ||
+    layer.noiseWarp > 0 ||
+    layer.morphAmt > 0 ||
+    layer.vortex > 0 ||
+    layer.barrel > 0 ||
+    layer.tearAmt > 0 ||
+    layer.pixelate > 0 ||
+    layer.posterize > 0 ||
+    layer.hueShift > 0 ||
+    layer.duotone > 0 ||
+    layer.halftone > 0 ||
+    layer.risoShift > 0 ||
+    layer.bloom > 0 ||
+    layer.blurAmt > 0 ||
+    layer.threshold > 0 ||
+    layer.edgeDetect > 0 ||
+    layer.gradMix > 0 ||
+    layer.vignette > 0 ||
+    layer.filmBurn > 0
+  );
+}
+
+export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
+  return layer.visible && !layer.maskAlpha && hasGpuEffect(layer) && !hasCanvas2DEffect(layer);
+}
+
+export async function applyGpuOnlyEffectLayerChain(
+  base: HTMLCanvasElement,
+  layers: EffectLayer[],
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  options: RenderOptions,
+): Promise<HTMLCanvasElement> {
+  if (options.skipEffects || layers.length === 0) return base;
+  const { buildFiltersFromEffectLayer } = await loadGpuModules();
+  const filters: Filter[] = [];
+  for (const layer of layers) {
+    throwIfRenderAborted(options);
+    const nextFilters = buildFiltersFromEffectLayer(layer, doc.global.seed, W, H);
+    if (nextFilters?.length) filters.push(...nextFilters);
+  }
+  if (filters.length === 0) return base;
+  return runGpuPass(cloneCanvas(base, W, H), W, H, filters);
 }
 
 export async function applyLayerToCanvas(
@@ -711,7 +630,26 @@ export async function applyLayerToCanvas(
   imageCache: Map<string, HTMLImageElement>,
   options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
+  return applyLayerToCanvasProfiled(base, layer, doc, W, H, imageCache, options, true);
+}
+
+async function applyLayerToCanvasProfiled(
+  base: HTMLCanvasElement,
+  layer: Layer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  options: RenderOptions,
+  shouldMeasure: boolean,
+): Promise<HTMLCanvasElement> {
+  throwIfRenderAborted(options);
   if (!layer.visible) return base;
+  if (shouldMeasure) {
+    return measureLayerRender(layer, () =>
+      applyLayerToCanvasProfiled(base, layer, doc, W, H, imageCache, options, false),
+    );
+  }
 
   const scale = W / REF;
   const seed = doc.global.seed;
@@ -740,6 +678,7 @@ export async function applyLayerToCanvas(
       sourceLayout,
     );
   } else if (layer.kind === 'effect') {
+    throwIfRenderAborted(options);
     if (options.skipEffects) return base;
     const effectResolution = options.effectResolution;
     if (effectResolution) {
@@ -749,10 +688,20 @@ export async function applyLayerToCanvas(
         const effectBase = createCanvas(effectW, effectH);
         const effectCtx = effectBase.getContext('2d', { willReadFrequently: true })!;
         effectCtx.drawImage(base, 0, 0, effectW, effectH);
-        const renderedEffect = await applyLayerToCanvas(effectBase, layer, doc, effectW, effectH, imageCache, {
-          ...options,
-          effectResolution: undefined,
-        });
+        const renderedEffect = await applyLayerToCanvasProfiled(
+          effectBase,
+          layer,
+          doc,
+          effectW,
+          effectH,
+          imageCache,
+          {
+            ...options,
+            effectResolution: undefined,
+          },
+          false,
+        );
+        throwIfRenderAborted(options);
         const scaled = createCanvas(W, H);
         const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;
         scaledCtx.imageSmoothingEnabled = false;
@@ -761,11 +710,14 @@ export async function applyLayerToCanvas(
       }
     }
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-    applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    await applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    throwIfRenderAborted(options);
     if (!options.skipEffects) {
+      const { buildFiltersFromEffectLayer } = await loadGpuModules();
       const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
       if (filters?.length) {
         current = await runGpuPass(current, W, H, filters);
+        throwIfRenderAborted(options);
       }
     }
     if (alphaMask) {
@@ -773,5 +725,6 @@ export async function applyLayerToCanvas(
     }
   }
 
+  throwIfRenderAborted(options);
   return current;
 }

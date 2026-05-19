@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { Layer } from '../../../types/config';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
@@ -39,37 +39,51 @@ export function usePrimitiveCameraState({
   layers,
   onPrimitiveViewStatesChange,
 }: UsePrimitiveCameraStateOptions): UsePrimitiveCameraStateResult {
-  const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>(
-    () => initialPrimitiveViewStates ?? {},
-  );
+  const [uncontrolledPrimitiveViewStates, setUncontrolledPrimitiveViewStates] = useState<
+    Record<string, PrimitiveViewportState>
+  >(() => initialPrimitiveViewStates ?? {});
   const [activePrimitiveViewportId, setActivePrimitiveViewportId] = useState<string | null>(null);
+  const primitiveViewStates = initialPrimitiveViewStates ?? uncontrolledPrimitiveViewStates;
 
-  // Lift state changes to the parent (generator.tsx) for export render options.
-  useEffect(() => {
-    onPrimitiveViewStatesChange?.(primitiveViewStates);
-  }, [onPrimitiveViewStatesChange, primitiveViewStates]);
+  const setPrimitiveViewStates = useCallback(
+    (
+      updater:
+        | Record<string, PrimitiveViewportState>
+        | ((current: Record<string, PrimitiveViewportState>) => Record<string, PrimitiveViewportState>),
+    ) => {
+      const current = initialPrimitiveViewStates ?? uncontrolledPrimitiveViewStates;
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      if (primitiveViewStateMapsEqual(current, next)) return;
+      if (initialPrimitiveViewStates === undefined) setUncontrolledPrimitiveViewStates(next);
+      onPrimitiveViewStatesChange?.(next);
+    },
+    [initialPrimitiveViewStates, onPrimitiveViewStatesChange, uncontrolledPrimitiveViewStates],
+  );
 
   const primitiveViewportLockActive =
     activePrimitiveViewportId !== null &&
     layers.some((layer) => layer.id === activePrimitiveViewportId && layer.kind === 'primitive');
 
-  const updatePrimitiveView = useCallback((id: string, viewState: PrimitiveViewportState) => {
-    setPrimitiveViewStates((current) => {
-      const previous = current[id];
-      if (
-        previous &&
-        previous.rotationX === viewState.rotationX &&
-        previous.rotationY === viewState.rotationY &&
-        previous.zoom === viewState.zoom &&
-        previous.panX === viewState.panX &&
-        previous.panY === viewState.panY &&
-        (previous.locked ?? false) === (viewState.locked ?? false)
-      ) {
-        return current;
-      }
-      return { ...current, [id]: viewState };
-    });
-  }, []);
+  const updatePrimitiveView = useCallback(
+    (id: string, viewState: PrimitiveViewportState) => {
+      setPrimitiveViewStates((current) => {
+        const previous = current[id];
+        if (
+          previous &&
+          previous.rotationX === viewState.rotationX &&
+          previous.rotationY === viewState.rotationY &&
+          previous.zoom === viewState.zoom &&
+          previous.panX === viewState.panX &&
+          previous.panY === viewState.panY &&
+          (previous.locked ?? false) === (viewState.locked ?? false)
+        ) {
+          return current;
+        }
+        return { ...current, [id]: viewState };
+      });
+    },
+    [setPrimitiveViewStates],
+  );
 
   const setPrimitiveViewportActive = useCallback((id: string, active: boolean) => {
     setActivePrimitiveViewportId((current) => {
@@ -97,7 +111,7 @@ export function usePrimitiveCameraState({
         return { ...current, [id]: { ...existing, locked } };
       });
     },
-    [layers],
+    [layers, setPrimitiveViewStates],
   );
 
   const resetPrimitiveCamera = useCallback(
@@ -111,7 +125,7 @@ export function usePrimitiveCameraState({
         return { ...current, [id]: { ...defaultPrimitiveViewportState(layer), locked } };
       });
     },
-    [layers],
+    [layers, setPrimitiveViewStates],
   );
 
   return {
@@ -124,4 +138,26 @@ export function usePrimitiveCameraState({
     setPrimitiveCameraLocked,
     resetPrimitiveCamera,
   };
+}
+
+function primitiveViewStateMapsEqual(
+  a: Record<string, PrimitiveViewportState>,
+  b: Record<string, PrimitiveViewportState>,
+) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => {
+    const left = a[key];
+    const right = b[key];
+    return (
+      right !== undefined &&
+      left.rotationX === right.rotationX &&
+      left.rotationY === right.rotationY &&
+      left.zoom === right.zoom &&
+      left.panX === right.panX &&
+      left.panY === right.panY &&
+      (left.locked ?? false) === (right.locked ?? false)
+    );
+  });
 }

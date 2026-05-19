@@ -3,9 +3,17 @@ import { memo } from 'react';
 import type { ThumbProps } from '../types';
 import { useNodeThumbnailRender } from './useNodeThumbnailRender';
 
-export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: ThumbProps) {
-  const { canvasRef, isExportPreview, previewSize, canvasOpacity, showSkeleton } =
-    useNodeThumbnailRender(previewTargetId);
+export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, priority = false }: ThumbProps) {
+  const {
+    frameRef,
+    canvasRef,
+    isExportPreview,
+    previewSize,
+    canvasOpacity,
+    showSkeleton,
+    showPreparing,
+    missingRequiredSource,
+  } = useNodeThumbnailRender(previewTargetId, { priority });
 
   return (
     <div
@@ -13,6 +21,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
       style={{ minHeight: previewSize.display.height }}
     >
       <div
+        ref={frameRef}
         className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
       >
@@ -24,6 +33,8 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId }: Th
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
         {showSkeleton && <div className="node-thumbnail-skeleton" />}
+        {showPreparing && <div className="node-thumbnail-preparing">Preparing</div>}
+        {missingRequiredSource && <div className="node-thumbnail-empty-label">Connect source</div>}
       </div>
     </div>
   );

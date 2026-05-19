@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CanvasDocument, CanvasGraph, ImageLayer, Layer, TextLayer } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
-import { EXPORT_NODE_ID } from '../utils/nodeGraph';
-import { renderDocument, renderGraphTarget } from '../utils/renderer';
+import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../utils/nodeGraph';
+import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
 import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
+
+const GALLERY_GRAPH_RENDER_CACHE_LIMIT = 96;
+const galleryGraphRenderCache = new Map<string, Promise<HTMLCanvasElement>>();
 
 interface Props {
   doc: CanvasDocument;
@@ -19,6 +22,15 @@ interface Props {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function imageCacheSignature(layers: ImageLayer[], imageCache: Map<string, HTMLImageElement>) {
+  return layers
+    .map((layer) => {
+      const image = imageCache.get(layer.src);
+      return `${layer.id}:${layer.src}:${image ? `${image.naturalWidth}x${image.naturalHeight}` : 'missing'}`;
+    })
+    .join(',');
 }
 
 export function NodeGalleryCanvas({
@@ -44,6 +56,29 @@ export function NodeGalleryCanvas({
       height: Math.max(1, Math.round(aspectHeight * scale)),
     };
   }, [doc.global.aspect]);
+  const renderSessionKey = useMemo(() => {
+    const imageLayers = doc.layers.filter((item): item is ImageLayer => item.kind === 'image');
+    return [
+      previewTargetId,
+      `${canvasSize.width}x${canvasSize.height}`,
+      doc.global.aspect,
+      doc.global.bg,
+      doc.global.seed,
+      JSON.stringify(doc.layers),
+      JSON.stringify(graph),
+      imageCacheSignature(imageLayers, imageCache),
+    ].join('::');
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    doc.global.aspect,
+    doc.global.bg,
+    doc.global.seed,
+    doc.layers,
+    graph,
+    imageCache,
+    previewTargetId,
+  ]);
 
   useLayoutEffect(() => {
     viewStateRef.current = viewState;
@@ -59,10 +94,56 @@ export function NodeGalleryCanvas({
 
     const render = async () => {
       const effectiveImageCache = new Map(imageCache);
+      const upstream =
+        previewTargetId === EXPORT_NODE_ID
+          ? new Set(doc.layers.map((item) => item.id))
+          : collectUpstreamNodeIds(previewTargetId, graph);
+      const missingImageSrcs = doc.layers
+        .filter((item): item is ImageLayer => item.kind === 'image' && upstream.has(item.id))
+        .map((item) => item.src)
+        .filter((src) => !effectiveImageCache.has(src));
+      await Promise.all(
+        missingImageSrcs.map(
+          (src) =>
+            new Promise<void>((resolve) => {
+              const image = new Image();
+              image.onload = () => {
+                imageCache.set(src, image);
+                effectiveImageCache.set(src, image);
+                resolve();
+              };
+              image.onerror = () => resolve();
+              image.src = src;
+            }),
+        ),
+      );
+      if (cancelled) return;
+
+      const graphRenderSessionCache: GraphRenderCache = {
+        namespace: renderSessionKey,
+        entries: galleryGraphRenderCache,
+        limit: GALLERY_GRAPH_RENDER_CACHE_LIMIT,
+      };
       const result =
         previewTargetId === EXPORT_NODE_ID
-          ? await renderDocument({ ...doc, graph }, width, height, effectiveImageCache, { graphMode: 'graph' })
-          : await renderGraphTarget({ ...doc, graph }, graph, previewTargetId, width, height, effectiveImageCache);
+          ? await renderDocument(
+              { ...doc, graph },
+              width,
+              height,
+              effectiveImageCache,
+              { effectResolution: { width, height }, graphMode: 'graph' },
+              graphRenderSessionCache,
+            )
+          : await renderGraphTarget(
+              { ...doc, graph },
+              graph,
+              previewTargetId,
+              width,
+              height,
+              effectiveImageCache,
+              { effectResolution: { width, height } },
+              graphRenderSessionCache,
+            );
       if (cancelled || !canvasRef.current) return;
       canvasRef.current.width = width;
       canvasRef.current.height = height;
@@ -76,7 +157,7 @@ export function NodeGalleryCanvas({
     return () => {
       cancelled = true;
     };
-  }, [canvasSize, doc, graph, imageCache, previewTargetId]);
+  }, [canvasSize, doc, graph, imageCache, previewTargetId, renderSessionKey]);
 
   const commitView = (next: MediaViewState) => {
     viewStateRef.current = next;

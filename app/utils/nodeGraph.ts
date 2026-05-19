@@ -334,6 +334,22 @@ export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<
   }
   return collected;
 }
+
+/** BFS forwards from nodeId, return every node id affected by it, including itself. */
+export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
+  const collected = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (collected.has(id)) continue;
+    collected.add(id);
+    for (const edge of graph.edges) {
+      if (edge.fromId === id && !collected.has(edge.toId)) queue.push(edge.toId);
+    }
+  }
+  return collected;
+}
+
 /** BFS backwards from nodeId, collect all layer IDs that feed into it. */
 export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
   const layerIds = new Set(layers.map((l) => l.id));

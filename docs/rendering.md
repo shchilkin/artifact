@@ -25,6 +25,12 @@ The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
 canvas. Use that path when improving layer-preview/export parity without
 changing pointer math or handle coordinates.
 
+The layer preview is allowed to be progressive: on cold loads and heavy edits it
+may draw a draft frame first, then schedule the full-quality pass after a short
+idle delay. This keeps node-editor entry responsive. Export, output thumbnails,
+and graph-target previews should still call the renderer with the requested
+full-quality options directly.
+
 Transparent document backgrounds must stay transparent in renderer output and
 exports. UI preview surfaces may show a checkerboard behind the canvas to make
 alpha visible, but the checkerboard is interface chrome and must not be drawn
@@ -46,6 +52,11 @@ Rule:
 `app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
 live under `app/utils/render/`; app code should keep importing the public entry
 points from the facade unless it is working inside the renderer itself.
+`renderDocument` and `renderGraphTarget` both support an optional external
+`GraphRenderCache` for UI preview sessions. Use it only for transient render
+reuse across sibling previews or repeated gallery/preset thumbnail work; export
+paths should render directly unless a cache namespace is proven to include every
+pixel-affecting input.
 
 ## Document render flow
 
@@ -82,6 +93,14 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
+Within one graph render call it caches node results by node id. Thumbnail
+rendering can also pass an external render-session cache so sibling thumbnails
+reuse shared upstream branch results. That cache stores canvases/promises
+outside `CanvasDocument` and is invalidated by a render-session key derived from
+document, graph, render size, image availability, and primitive camera state.
+Gallery previews and generated preset/example thumbnails use the same optional
+cache boundary so repeated graph branches are not recomputed while browsing or
+opening a high-resolution preview.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
@@ -150,7 +169,6 @@ Both must share the same scene recipe:
 - geometry
 - material
 - lights
-- shadow
 - camera position
 - mesh rotation
 - color handling
@@ -180,24 +198,27 @@ Node thumbnails are rendered by `NodeThumbnail`.
 The thumbnail system:
 
 - collects upstream node ids
-- tracks revisions
+- tracks content signatures for upstream render inputs
 - debounces rendering
 - caches recent canvases
 - preloads missing images
 - calls `renderGraphTarget` or `renderDocument`
+- delays passive offscreen thumbnail work until the thumbnail frame is visible
+  or near the viewport
+- keeps image-readiness invalidation scoped to images that are upstream of the
+  thumbnail target
 
 Risks:
 
-- Current invalidation is based on object identity revisions.
 - High-frequency document writes can trigger thumbnail rerenders.
 - Local gesture drafts must not touch document state until commit.
 
 Future target:
 
-- content-based signatures
 - invalidation reason logging
 - one render after gesture commit
-- downstream-only invalidation
+- explicit downstream invalidation scheduling for future centralized thumbnail
+  workers
 
 ## Live selected-node overlays
 

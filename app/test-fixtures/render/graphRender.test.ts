@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
-import { makeFillLayer, makeSourceLayer } from '../../types/config';
+import { makeEffectLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
-import { renderDocument, renderGraphTarget } from '../../utils/renderer';
+import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
+import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
 
 function samplePixel(canvas: HTMLCanvasElement, x: number, y: number): [number, number, number, number] {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -118,6 +119,54 @@ describe('renderDocument graph mode', () => {
 });
 
 describe('renderGraphTarget', () => {
+  it('classifies only readback-safe GPU effects as batchable', () => {
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40 }))).toBe(true);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40, maskAlpha: true }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40, grain: 20 }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ rgbSplit: 20 }))).toBe(false);
+    expect(isGpuOnlyEffectLayer(makeEffectLayer({ solarize: 70 }))).toBe(false);
+  });
+
+  it('can reuse an external render cache across sibling graph targets', async () => {
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-red-color-a', fromId: 'red-fill', fromPort: 'out', toId: 'color-a', toPort: 'in' },
+        { id: 'e-red-color-b', fromId: 'red-fill', fromPort: 'out', toId: 'color-b', toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [
+        {
+          id: 'color-a',
+          name: 'Color A',
+          contrast: 100,
+          brightness: 80,
+          saturation: 100,
+          hue: 0,
+        },
+        {
+          id: 'color-b',
+          name: 'Color B',
+          contrast: 100,
+          brightness: 60,
+          saturation: 100,
+          hue: 0,
+        },
+      ],
+    };
+    const doc = graphDocument(graph);
+    const cache: GraphRenderCache = { namespace: 'shared-session', entries: new Map() };
+
+    const uncached = await renderGraphTarget(doc, graph, 'color-b', 40, 40, new Map(), { skipEffects: true });
+    await renderGraphTarget(doc, graph, 'color-a', 40, 40, new Map(), { skipEffects: true }, cache);
+    const cachedUpstream = cache.entries.get('shared-session:red-fill');
+    const cached = await renderGraphTarget(doc, graph, 'color-b', 40, 40, new Map(), { skipEffects: true }, cache);
+
+    expect(cachedUpstream).toBeDefined();
+    expect(cache.entries.get('shared-session:red-fill')).toBe(cachedUpstream);
+    expect(pixelsEqual(allPixels(cached), allPixels(uncached))).toBe(true);
+  });
+
   it('composites merge node inputs with merge opacity', async () => {
     const graph: CanvasGraph = {
       edges: [

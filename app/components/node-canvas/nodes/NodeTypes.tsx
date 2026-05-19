@@ -26,10 +26,12 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       name={layer.name}
       selected={selected}
       editing={editing}
+      muted={!layer.visible}
       targetHandles={[{ id: inputPort }]}
       className={localTransformActive ? 'nowheel' : undefined}
       onWheelCapture={localTransformActive ? transform.handleWheel : undefined}
       onSelect={(event) => selectNode(layer.id, event)}
+      onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
     >
       <LayerPreviewSurface
@@ -67,7 +69,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
       onSelect={(event) => selectNode(colorNode.id, event)}
       onDelete={() => deleteNode(colorNode.id)}
     >
-      <NodeThumbnail previewTargetId={previewTargetId} />
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
         inputs={[{ label: 'source', portId: 'in', nodeId: colorNode.id }]}
         outputs={[{ label: 'graded', portId: 'out', nodeId: colorNode.id }]}
@@ -96,7 +98,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
       onSelect={(event) => selectNode(mergeNode.id, event)}
       onDelete={() => deleteNode(mergeNode.id)}
     >
-      <NodeThumbnail previewTargetId={previewTargetId} />
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
         inputs={[
           { label: 'base', portId: 'a', nodeId: mergeNode.id },
@@ -128,7 +130,7 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
       onSelect={(event) => selectNode(repeatNode.id, event)}
       onDelete={() => deleteNode(repeatNode.id)}
     >
-      <NodeThumbnail previewTargetId={previewTargetId} />
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
         inputs={[
           { label: 'source', portId: 'in', nodeId: repeatNode.id },
@@ -157,7 +159,7 @@ export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: N
       sourceHandles={[]}
       onSelect={(event) => selectNode(EXPORT_NODE_ID, event)}
     >
-      <NodeThumbnail previewTargetId={previewTargetId} />
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow inputs={[{ label: 'final', portId: 'in', nodeId: EXPORT_NODE_ID }]} outputs={[]} connected={connected} />
     </NodeFrame>
   );

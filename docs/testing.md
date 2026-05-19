@@ -6,6 +6,7 @@
 npm test                               # all tests (vitest run)
 npm run test:browser                   # Playwright browser smoke/regression tests
 npm run test:browser:install           # install Chromium for Playwright
+npm run perf:node-editor               # opt-in node editor performance benchmark
 npx vitest run app/types/config.test.ts  # single file
 ```
 
@@ -88,6 +89,19 @@ These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
 
+### Performance benchmarks
+
+Use the opt-in benchmark when a change may affect node-editor responsiveness:
+
+```bash
+npm run perf:node-editor
+```
+
+It writes JSON to `test-results/performance/node-editor.json` and reports frame
+timing, long tasks, and thumbnail render cost. See
+[`docs/performance.md`](performance.md) for comparison workflow and metric
+interpretation.
+
 ### Adding a fixture
 
 ```ts
@@ -162,4 +176,5 @@ npm run test:browser
 
 - [`docs/rendering.md`](rendering.md) — full pipeline walkthrough
 - [`docs/state-model.md`](state-model.md) — what state affects render output
+- [`docs/performance.md`](performance.md) — node-editor benchmark workflow
 - [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist

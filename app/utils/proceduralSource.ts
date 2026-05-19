@@ -2,21 +2,15 @@ import type { PrimitiveViewportState } from '../components/PrimitiveViewportStat
 import type { SourceLayer } from '../types/config';
 import { lcg } from './lcg';
 import { renderPrimitiveToCanvas } from './primitiveRenderer';
+import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
+import { renderNoiseTexture } from './render/workers/noiseTextureClient';
 
 type Rgb = { r: number; g: number; b: number };
 
 const SOURCE_SIZE = 540;
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
-}
-
-function smoothstep(t: number) {
-  return t * t * (3 - 2 * t);
 }
 
 function degToRad(deg: number) {
@@ -53,52 +47,7 @@ function rgbToStyle(color: Rgb, alpha = 1) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 }
 
-function hash2d(x: number, y: number, seed: number) {
-  const value = Math.sin(x * 127.1 + y * 311.7 + seed * 0.013) * 43758.5453123;
-  return value - Math.floor(value);
-}
-
-function valueNoise(x: number, y: number, seed: number) {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const tx = smoothstep(x - x0);
-  const ty = smoothstep(y - y0);
-  const a = hash2d(x0, y0, seed);
-  const b = hash2d(x0 + 1, y0, seed);
-  const c = hash2d(x0, y0 + 1, seed);
-  const d = hash2d(x0 + 1, y0 + 1, seed);
-  return lerp(lerp(a, b, tx), lerp(c, d, tx), ty);
-}
-
-function fbm(x: number, y: number, seed: number, octaves: number) {
-  let value = 0;
-  let amplitude = 0.5;
-  let frequency = 1;
-  let sum = 0;
-  for (let i = 0; i < octaves; i += 1) {
-    value += valueNoise(x * frequency, y * frequency, seed + i * 19.17) * amplitude;
-    sum += amplitude;
-    amplitude *= 0.5;
-    frequency *= 2;
-  }
-  return value / Math.max(0.0001, sum);
-}
-
-function worleyNoise(x: number, y: number, seed: number) {
-  const cellX = Math.floor(x);
-  const cellY = Math.floor(y);
-  let nearest = Infinity;
-  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-      const px = cellX + offsetX + hash2d(cellX + offsetX, cellY + offsetY, seed);
-      const py = cellY + offsetY + hash2d(cellX + offsetX, cellY + offsetY, seed + 73);
-      nearest = Math.min(nearest, Math.hypot(px - x, py - y));
-    }
-  }
-  return clamp(nearest / 1.25, 0, 1);
-}
-
-function drawNoiseLayer(
+async function drawNoiseLayer(
   ctx: CanvasRenderingContext2D,
   layer: SourceLayer,
   seed: number,
@@ -106,56 +55,20 @@ function drawNoiseLayer(
   drawWidth = SOURCE_SIZE,
   drawHeight = SOURCE_SIZE,
 ) {
-  const textureSize = (draft ? 112 : 192) + layer.noiseDetail * (draft ? 10 : 16);
+  const textureSize = draft ? 192 : 384;
   const canvas = document.createElement('canvas');
   canvas.width = textureSize;
   canvas.height = textureSize;
   const noiseCtx = canvas.getContext('2d', { willReadFrequently: true });
   if (!noiseCtx) return;
 
-  const image = noiseCtx.createImageData(textureSize, textureSize);
-  const data = image.data;
-  const base = hexToRgb(layer.color);
-  const accent = hexToRgb(layer.accentColor);
-  const scale = Math.max(1, layer.noiseScale);
-  const octaves = Math.max(1, Math.round(layer.noiseDetail));
-  const contrast = 0.6 + layer.noiseContrast / 45;
-  const balance = clamp(layer.noiseBalance / 100, 0.05, 0.95);
-  const warpAmount = clamp((layer.noiseWarp ?? 0) / 100, 0, 1) * 3.2;
-  const turbulence = clamp((layer.noiseTurbulence ?? 0) / 100, 0, 1);
-  const threshold = clamp((layer.noiseThreshold ?? 0) / 100, 0, 1);
-
-  for (let y = 0; y < textureSize; y += 1) {
-    for (let x = 0; x < textureSize; x += 1) {
-      let nx = x / scale;
-      let ny = y / scale;
-      if (warpAmount > 0) {
-        const warpX = fbm(nx * 0.42 + 17.3, ny * 0.42 - 4.1, seed + 101, Math.max(2, octaves));
-        const warpY = fbm(nx * 0.42 - 8.7, ny * 0.42 + 21.6, seed + 211, Math.max(2, octaves));
-        nx += (warpX - 0.5) * warpAmount;
-        ny += (warpY - 0.5) * warpAmount;
-      }
-      let raw =
-        layer.noiseType === 'cells'
-          ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
-          : layer.noiseType === 'value'
-            ? valueNoise(nx, ny, seed)
-            : fbm(nx, ny, seed, octaves);
-      if (turbulence > 0) {
-        raw = lerp(raw, Math.abs(raw - 0.5) * 2, turbulence);
-      }
-      const contrasted = clamp((raw - 0.5) * contrast + 0.5, 0, 1);
-      const shaped = threshold === 0 ? contrasted : lerp(contrasted, contrasted >= balance ? 1 : 0, threshold);
-      const alpha = clamp((shaped - balance) / (1 - balance), 0, 1);
-      const color = mixRgb(base, accent, clamp(raw * 1.1, 0, 1));
-      const index = (y * textureSize + x) * 4;
-      data[index] = color.r;
-      data[index + 1] = color.g;
-      data[index + 2] = color.b;
-      data[index + 3] = Math.round(alpha * 255);
-    }
-  }
-
+  const texture = await renderNoiseTexture({
+    layer: toNoiseTextureLayerConfig(layer),
+    seed,
+    textureSize,
+  });
+  const image = noiseCtx.createImageData(texture.width, texture.height);
+  image.data.set(texture.data);
   noiseCtx.putImageData(image, 0, 0);
   ctx.drawImage(canvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 }
@@ -294,14 +207,21 @@ export async function drawSourceLayer(
   }
 
   if (layer.kind === 'primitive') {
-    const drawSize = SOURCE_SIZE;
-    const renderSize = Math.min(Math.round(SOURCE_SIZE * Math.max(scale, 1)), 1024);
-    const threeCanvas = await renderPrimitiveToCanvas(layer, renderSize, primitiveViewState, { forceFallback: draft });
-    ctx.drawImage(threeCanvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
+    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
+    const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
+    const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const threeCanvas = await renderPrimitiveToCanvas(
+      layer,
+      { width: renderWidth, height: renderHeight },
+      primitiveViewState,
+      { forceFallback: draft },
+    );
+    ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   } else if (layer.kind === 'noise') {
     const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
     const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
-    drawNoiseLayer(ctx, layer, seed + (layer.seedOffset ?? 0), draft, drawWidth, drawHeight);
+    await drawNoiseLayer(ctx, layer, seed + (layer.seedOffset ?? 0), draft, drawWidth, drawHeight);
   } else {
     drawArrayLayer(ctx, layer, seed);
   }

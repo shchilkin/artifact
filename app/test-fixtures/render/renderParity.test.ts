@@ -549,6 +549,25 @@ describe('renderDocument — preview/export size parity', () => {
     expect(samplePixel(scaled, 20, 0)).toEqual(samplePixel(base, 10, 0));
     expect(samplePixel(scaled, 20, 6)).toEqual(samplePixel(base, 10, 3));
   });
+
+  it('solarize and bleach bypass render visible pixels over a source', async () => {
+    const source = makeFillLayer({ color: '#d6c8a5', opacity: 100 });
+    const effectDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [
+        source,
+        makeEffectPresetLayer('solarize', { solarize: 70 }),
+        makeEffectPresetLayer('bleachBypass', { bleachBypass: 70 }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const base = await renderDocument({ ...effectDoc, layers: [source] }, 64, 64, new Map(), { graphMode: 'stack' });
+    const effected = await renderDocument(effectDoc, 64, 64, new Map(), { graphMode: 'stack' });
+
+    expect(visiblePixelCount(effected)).toBe(64 * 64);
+    expect(samplePixel(effected, 32, 32)).not.toEqual(samplePixel(base, 32, 32));
+  });
 });
 
 // ---------------------------------------------------------------------------
