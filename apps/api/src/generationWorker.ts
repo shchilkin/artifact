@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AiGenerationSettings, AiProvider, GenerationQueuePayload } from './contracts.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiGenerationJobRow, JsonObject, JsonValue } from './db/types.js';
+import { logError, logInfo, logWarn } from './logger.js';
 import type { ImageGenerationResult, ProviderRegistry } from './providers/index.js';
 import type { QueueJob } from './queue.js';
 import type { AssetStorage } from './storage/index.js';
@@ -23,12 +24,30 @@ export async function processGenerationJob(
   deps: GenerationWorkerDeps,
 ): Promise<void> {
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
-  if (!job || job.status !== 'queued') return;
+  if (!job || job.status !== 'queued') {
+    logWarn('ai_generation.worker_skipped', {
+      jobId: queueJob.data.jobId,
+      userId: queueJob.data.userId,
+      reason: job ? `status_${job.status}` : 'not_found',
+    });
+    return;
+  }
   let storedStorageKey: string | null = null;
 
   try {
     const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
     const provider = deps.providers.get(running.provider as AiProvider);
+    logInfo('ai_generation.running', {
+      jobId: running.id,
+      userId: running.user_id,
+      provider: provider.provider,
+      model: running.model,
+    });
+    logInfo('ai_generation.provider_request', {
+      jobId: running.id,
+      provider: provider.provider,
+      model: running.model,
+    });
     const result = await provider.generateImage({
       jobId: running.id,
       userId: running.user_id,
@@ -36,6 +55,15 @@ export async function processGenerationJob(
       model: running.model,
       prompt: running.prompt,
       settings: running.settings_json as unknown as AiGenerationSettings,
+    });
+    logInfo('ai_generation.provider_response', {
+      jobId: running.id,
+      provider: result.provider,
+      model: result.model,
+      mimeType: result.mimeType,
+      width: result.width,
+      height: result.height,
+      sizeBytes: result.bytes.byteLength,
     });
     validateProviderResult(result, deps.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES);
     const assetId = deps.createId?.() ?? randomUUID();
@@ -45,6 +73,13 @@ export async function processGenerationJob(
       mimeType: result.mimeType,
     });
     storedStorageKey = stored.storageKey;
+    logInfo('ai_generation.asset_written', {
+      jobId: running.id,
+      assetId,
+      storageKey: stored.storageKey,
+      mimeType: stored.mimeType,
+      sizeBytes: stored.sizeBytes,
+    });
     const completedAt = deps.now?.() ?? new Date();
 
     await deps.repositories.assets.create({
@@ -59,11 +94,18 @@ export async function processGenerationJob(
       metadataJson: createGeneratedAssetMetadata(running, result, completedAt),
     });
     await deps.repositories.jobs.markSucceeded(running.id, assetId, completedAt);
+    logInfo('ai_generation.succeeded', { jobId: running.id, userId: running.user_id, assetId });
   } catch (error) {
     if (storedStorageKey) {
       await deps.storage.deleteImage(storedStorageKey).catch(() => undefined);
     }
     const failure = classifyGenerationFailure(error);
+    logError('ai_generation.failed', error, {
+      jobId: job.id,
+      userId: job.user_id,
+      code: failure.code,
+      retryable: failure.retryable,
+    });
     await deps.repositories.jobs.markFailed(job.id, {
       code: failure.code,
       message: failure.message,

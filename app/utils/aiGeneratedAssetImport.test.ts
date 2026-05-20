@@ -67,9 +67,24 @@ describe('storeAiGeneratedAssetSource', () => {
     );
     expect(fetcher).toHaveBeenCalledWith('https://api.example.test/assets/asset-1/file', {
       credentials: 'include',
+      headers: undefined,
       signal: undefined,
     });
     expect(saveBlobAsset).toHaveBeenCalledWith(expect.any(Blob));
+  });
+
+  it('downloads remote assets with the local development bearer token', async () => {
+    const saveBlobAsset = vi.fn(async () => 'artifact-asset://stored-blob');
+    const fetcher = vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }));
+
+    await expect(
+      storeAiGeneratedAssetSource(completeJob, { devToken: 'dev-token', fetcher, saveBlobAsset }),
+    ).resolves.toBe('artifact-asset://stored-blob');
+    expect(fetcher).toHaveBeenCalledWith('https://api.example.test/assets/asset-1/file', {
+      credentials: 'include',
+      headers: { authorization: 'Bearer dev-token' },
+      signal: undefined,
+    });
   });
 
   it('prefixes relative asset URLs with the configured API base URL', async () => {
@@ -87,8 +102,23 @@ describe('storeAiGeneratedAssetSource', () => {
     ).resolves.toBe('artifact-asset://stored-blob');
     expect(fetcher).toHaveBeenCalledWith('https://api.example.test/api/assets/asset-1/file', {
       credentials: 'include',
+      headers: undefined,
       signal: undefined,
     });
+  });
+
+  it('includes HTTP details when remote asset download fails', async () => {
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: 'unauthenticated', message: 'Sign in first.' }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    await expect(storeAiGeneratedAssetSource(completeJob, { fetcher })).rejects.toThrow(
+      'Could not download generated image asset. HTTP 401 - unauthenticated - Sign in first.',
+    );
   });
 
   it('rejects incomplete jobs', async () => {

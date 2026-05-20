@@ -1,11 +1,13 @@
 import { createServer } from 'node:http';
 import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
+import { createBullBoardHandler } from './bullBoard.js';
 import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { loadApiEnv } from './env.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
+import { logError, logInfo } from './logger.js';
 import {
   createMockImageProvider,
   createOpenAiImageProvider,
@@ -35,6 +37,7 @@ const providers = createProviderRegistry([
     ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
     : createMockImageProvider({ provider: 'xai' }),
 ]);
+const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
 const verifyJwtBearerToken = createJwtBearerVerifier({
   secret: config.authJwtSecret,
@@ -53,10 +56,17 @@ if (config.devBearerToken && store) {
 }
 
 const server = createServer(async (req, res) => {
+  const startedAt = Date.now();
   applyCorsHeaders(req, res, config.webOrigin);
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
+    logInfo('api.request', { method: req.method, path: req.url, status: 204, durationMs: Date.now() - startedAt });
+    return;
+  }
+
+  if (bullBoard?.handle(req, res)) {
+    logInfo('bull_board.request', { method: req.method, path: req.url, basePath: bullBoard.basePath });
     return;
   }
 
@@ -85,15 +95,31 @@ const server = createServer(async (req, res) => {
         storage,
         resolveAuth,
       }));
-    writeApiResponse(res, response ?? errorJson(404, 'not_found', 'API route not found.'));
+    const finalResponse = response ?? errorJson(404, 'not_found', 'API route not found.');
+    writeApiResponse(res, finalResponse);
+    logInfo('api.request', {
+      method: req.method,
+      path: req.url,
+      status: finalResponse.status,
+      durationMs: Date.now() - startedAt,
+    });
   } catch (error) {
-    console.error('Artifact API request failed', error);
+    logError('api.request_failed', error, { method: req.method, path: req.url, durationMs: Date.now() - startedAt });
     writeApiResponse(res, errorJson(500, 'server_error', 'Unexpected API error.'));
   }
 });
 
 server.listen(config.port, () => {
-  console.log(`Artifact API listening on :${config.port}`);
+  logInfo('api.started', {
+    port: config.port,
+    databaseDriver: config.databaseDriver,
+    queueDriver: config.queueDriver,
+    providers: providers
+      .list()
+      .map((provider) => provider.provider)
+      .join(','),
+    bullBoardPath: bullBoard?.basePath ?? null,
+  });
 });
 
 async function shutdown() {

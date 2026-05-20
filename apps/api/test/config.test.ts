@@ -64,6 +64,14 @@ describe('loadConfig', () => {
     });
   });
 
+  it('parses Bull Board enablement explicitly', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({ bullBoardEnabled: false });
+    expect(loadConfig({ ...requiredEnv, API_BULL_BOARD_ENABLED: 'true' })).toMatchObject({ bullBoardEnabled: true });
+    expect(() => loadConfig({ ...requiredEnv, API_BULL_BOARD_ENABLED: 'sometimes' })).toThrow(
+      'Environment variable API_BULL_BOARD_ENABLED must be true or false',
+    );
+  });
+
   it('defaults the OpenAI image model to the current configured provider target', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       openAiImageModel: 'gpt-image-2',

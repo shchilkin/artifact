@@ -122,6 +122,10 @@ export function createBullMqGenerationQueue(redisUrl: string): GenerationQueue {
   return new BullMqGenerationQueue(GENERATION_QUEUE_NAME, redisUrl);
 }
 
+export function getBullBoardQueue(queue: GenerationQueue): BullQueue<GenerationQueuePayload, void, string> | null {
+  return queue instanceof BullMqGenerationQueue ? queue.bullBoardQueue() : null;
+}
+
 class BullMqGenerationQueue implements QueuePort<GenerationQueuePayload> {
   private readonly connection: Redis;
   private readonly queue: BullQueue<GenerationQueuePayload, void, string>;
@@ -163,6 +167,10 @@ class BullMqGenerationQueue implements QueuePort<GenerationQueuePayload> {
   async close(): Promise<void> {
     await this.queue.close();
     await this.connection.quit();
+  }
+
+  bullBoardQueue() {
+    return this.queue;
   }
 }
 

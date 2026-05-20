@@ -12,6 +12,7 @@ import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
 import type { ApiRepositories } from '../db/repositories.js';
 import type { AiGenerationJobRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
+import { logInfo, logWarn } from '../logger.js';
 import type { ProviderRegistry } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
 import { checkMonthlyQuota, checkOneActiveJob, createQuotaSnapshot, getMonthlyQuotaPeriod } from '../quota.js';
@@ -100,10 +101,14 @@ export async function handleCreateGenerationRequest(
   deps: AiRouteDeps,
 ): Promise<JsonResponse<AiGenerationJobResponse | { code: string; message: string }>> {
   const auth = await deps.resolveAuth(request);
-  if (!auth.authenticated) return errorJson(401, 'unauthenticated', 'Sign in before generating images.');
+  if (!auth.authenticated) {
+    logWarn('ai_generation.create_denied', { reason: 'unauthenticated' });
+    return errorJson(401, 'unauthenticated', 'Sign in before generating images.');
+  }
 
   const user = await deps.repositories.users.findById(auth.user.id);
   if (!user?.ai_enabled || user.disabled_at) {
+    logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
     return errorJson(403, 'not_enabled', 'AI generation is not enabled for this user.');
   }
 
@@ -115,6 +120,7 @@ export async function handleCreateGenerationRequest(
   const model = body.model?.trim() || providerAdapter.defaultModel;
   const existing = await deps.repositories.jobs.findByIdempotencyKey(user.id, body.idempotencyKey);
   if (existing) {
+    logInfo('ai_generation.idempotency_hit', { jobId: existing.id, userId: user.id, status: existing.status });
     const period = getMonthlyQuotaPeriod(deps.now?.());
     const quota = createQuotaSnapshot(
       period,
@@ -126,6 +132,7 @@ export async function handleCreateGenerationRequest(
 
   const rate = deps.createRateLimiter?.check(`generation:create:user:${user.id}`);
   if (rate && !rate.allowed) {
+    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'rate_limited' });
     return json(
       429,
       { code: 'rate_limited', message: 'Too many generation requests.' },
@@ -139,7 +146,10 @@ export async function handleCreateGenerationRequest(
     userId: user.id,
     now: deps.now?.(),
   });
-  if (!quotaCheck.allowed) return errorJson(429, 'quota_exceeded', 'Monthly generation quota used.');
+  if (!quotaCheck.allowed) {
+    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'quota_exceeded' });
+    return errorJson(429, 'quota_exceeded', 'Monthly generation quota used.');
+  }
 
   const activeCheck = await checkOneActiveJob({
     activeJobReader: deps.repositories.jobs,
@@ -147,6 +157,7 @@ export async function handleCreateGenerationRequest(
     userId: user.id,
   });
   if (!activeCheck.allowed) {
+    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'active_job_exists' });
     return errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.');
   }
 
@@ -167,6 +178,13 @@ export async function handleCreateGenerationRequest(
     generationCountDelta: 1,
   });
   await deps.queue.enqueue({ jobId: job.id, userId: user.id }, { jobId: job.id });
+  logInfo('ai_generation.queued', {
+    jobId: job.id,
+    userId: user.id,
+    provider,
+    model,
+    quotaRemaining: quotaCheck.quota.remaining - 1,
+  });
 
   return json(
     201,

@@ -4,6 +4,7 @@ import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { loadApiEnv } from './env.js';
 import { processGenerationJob } from './generationWorker.js';
+import { logInfo } from './logger.js';
 import {
   createMockImageProvider,
   createOpenAiImageProvider,
@@ -39,11 +40,14 @@ const worker = queue.process(async (job) => {
   });
 });
 
-console.log('Artifact AI worker scaffold loaded', {
+logInfo('worker.started', {
   redisUrlConfigured: Boolean(config.redisUrl),
   queueDriver: config.queueDriver,
   storageDriver: config.assetStorageDriver,
-  providers: providers.list().map((provider) => provider.provider),
+  providers: providers
+    .list()
+    .map((provider) => provider.provider)
+    .join(','),
   workerReady: Boolean(worker),
 });
 

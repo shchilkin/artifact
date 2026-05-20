@@ -92,7 +92,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
     if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
     importedJobIds.current.add(job.id);
     setBusy(true);
-    storeAiGeneratedAssetSource(job, { baseUrl })
+    storeAiGeneratedAssetSource(job, { baseUrl, devToken })
       .then((src) => {
         onGeneratedImageSource(src);
         setMessage('Added image layer.');
@@ -102,7 +102,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
         setMessage(errorMessage(error));
       })
       .finally(() => setBusy(false));
-  }, [baseUrl, job, onGeneratedImageSource]);
+  }, [baseUrl, devToken, job, onGeneratedImageSource]);
 
   const handleGenerate = useCallback(() => {
     const trimmed = prompt.trim();

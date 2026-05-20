@@ -94,6 +94,9 @@ The API server and worker load `apps/api/.env` and `apps/api/.env.local`
 automatically. Shell-provided environment variables still take precedence, so
 you can override a setting for one run without editing the file.
 
+When `API_BULL_BOARD_ENABLED=true` and `API_QUEUE_DRIVER=bullmq`, Bull Board is
+available at `http://localhost:4000/admin/queues`.
+
 By default this uses the mock providers, so it does not spend provider tokens.
 Set `OPENAI_API_KEY` or `XAI_API_KEY` in the API and worker terminals to test a
 real provider.

@@ -9,6 +9,7 @@ export interface ApiConfig {
   authJwtIssuer?: string;
   authJwtAudience?: string;
   devBearerToken?: string;
+  bullBoardEnabled: boolean;
   openAiApiKey?: string;
   openAiImageModel: string;
   xAiApiKey?: string;
@@ -33,6 +34,14 @@ function numberEnv(env: NodeJS.ProcessEnv, name: string, fallback: number) {
     throw new Error(`Environment variable ${name} must be a non-negative number`);
   }
   return parsed;
+}
+
+function booleanEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean) {
+  const value = env[name];
+  if (!value) return fallback;
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  throw new Error(`Environment variable ${name} must be true or false`);
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
@@ -60,6 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     authJwtIssuer: env.AUTH_JWT_ISSUER,
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
     devBearerToken: env.API_DEV_BEARER_TOKEN,
+    bullBoardEnabled: booleanEnv(env, 'API_BULL_BOARD_ENABLED', false),
     openAiApiKey: env.OPENAI_API_KEY,
     openAiImageModel: env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2',
     xAiApiKey: env.XAI_API_KEY,
