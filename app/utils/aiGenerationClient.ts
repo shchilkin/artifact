@@ -22,6 +22,7 @@ export class AiGenerationApiError extends Error {
 
 export interface AiGenerationClientOptions {
   baseUrl?: string;
+  devToken?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 }
@@ -99,6 +100,7 @@ async function requestJson(path: string, init: RequestInit, options: AiGeneratio
     ...init,
     headers: {
       'content-type': 'application/json',
+      ...(options.devToken ? { authorization: `Bearer ${options.devToken}` } : {}),
       ...init.headers,
     },
     signal: options.signal,

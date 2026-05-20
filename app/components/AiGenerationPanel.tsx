@@ -25,6 +25,10 @@ function getAiApiBaseUrl() {
   return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_AI_API_BASE_URL;
 }
 
+function getAiApiDevToken() {
+  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_AI_API_DEV_TOKEN;
+}
+
 function createIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() ?? `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
@@ -50,12 +54,13 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
   const [message, setMessage] = useState<string | null>(null);
   const importedJobIds = useRef(new Set<string>());
   const baseUrl = useMemo(() => getAiApiBaseUrl(), []);
+  const devToken = useMemo(() => getAiApiDevToken(), []);
   const providers = access?.providers?.length ? access.providers : (['openai'] as AiGenerationProvider[]);
   const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
 
   useEffect(() => {
     const controller = new AbortController();
-    getAiGenerationAccess({ baseUrl, signal: controller.signal })
+    getAiGenerationAccess({ baseUrl, devToken, signal: controller.signal })
       .then((next) => {
         setAccess(next);
         setAccessError(null);
@@ -65,13 +70,13 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
         if (!controller.signal.aborted) setAccessError(errorMessage(error));
       });
     return () => controller.abort();
-  }, [baseUrl]);
+  }, [baseUrl, devToken]);
 
   useEffect(() => {
     if (!jobIsActive(job)) return;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      getAiGenerationJob(job.id, { baseUrl, signal: controller.signal })
+      getAiGenerationJob(job.id, { baseUrl, devToken, signal: controller.signal })
         .then(setJob)
         .catch((error) => {
           if (!controller.signal.aborted) setMessage(errorMessage(error));
@@ -81,7 +86,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [baseUrl, job]);
+  }, [baseUrl, devToken, job]);
 
   useEffect(() => {
     if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
@@ -111,12 +116,12 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
         settings: { aspect, quality },
         idempotencyKey: createIdempotencyKey(),
       },
-      { baseUrl },
+      { baseUrl, devToken },
     )
       .then(setJob)
       .catch((error) => setMessage(errorMessage(error)))
       .finally(() => setBusy(false));
-  }, [access?.enabled, aspect, baseUrl, prompt, provider, quality]);
+  }, [access?.enabled, aspect, baseUrl, devToken, prompt, provider, quality]);
 
   const disabledReason = accessError ?? (access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);

@@ -96,6 +96,23 @@ describe('ai generation client', () => {
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({ idempotencyKey: 'request-1' });
   });
 
+  it('can attach a local development bearer token', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return jsonResponse({
+        authenticated: true,
+        enabled: true,
+        providers: ['openai'],
+      });
+    };
+
+    await getAiGenerationAccess({ baseUrl: 'http://localhost:4000', devToken: 'dev-token', fetcher });
+
+    expect(calls[0]?.url).toBe('http://localhost:4000/api/ai/access');
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer dev-token' });
+  });
+
   it('reads AI access state', async () => {
     const calls: string[] = [];
     const fetcher = async (url: RequestInfo | URL) => {

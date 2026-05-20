@@ -71,6 +71,39 @@ Next:
 The API contract, DB shape, job lifecycle, and parallel implementation map are
 defined in [`../../docs/version-plans/v0.13-backend-contract.md`](../../docs/version-plans/v0.13-backend-contract.md).
 
+## Local Compose Smoke Test
+
+Use the local Compose file to run the same infrastructure shape as the VPS API
+without deploying anything:
+
+```bash
+npm run dev:ai:infra
+npm run dev:ai:api
+npm run dev:ai:worker
+npm run dev:ai:web
+```
+
+Run those last three commands in separate terminals. The Compose database is
+initialized with the v0.13 migration and a local `dev-user` with AI access. The
+web command exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
+the local API as that seeded user.
+
+By default this uses the mock providers, so it does not spend provider tokens.
+Set `OPENAI_API_KEY` or `XAI_API_KEY` in the API and worker terminals to test a
+real provider.
+
+To stop the infrastructure:
+
+```bash
+npm run dev:ai:infra:down
+```
+
+If you need to re-run the database init scripts, remove the Compose volume:
+
+```bash
+docker compose -f docker-compose.local.yml down -v
+```
+
 ## Frontend Bridge
 
 The Vercel app already has a client boundary in
