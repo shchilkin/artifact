@@ -33,13 +33,14 @@ Layers and nodes have different jobs:
 - **Nodes** are for advanced work: branching, merges, source/effect chains,
   reusable procedural structure, and explicit output control.
 
-Both views must stay truthful. If nodes define a meaningful structure, the layer
-view should respect that structure through folders, areas, or graph-derived
-grouping instead of becoming a misleading flat stack.
+Both views must stay truthful. If nodes define a meaningful structure, the
+layer view should respect that structure through folders, areas, or
+graph-derived grouping instead of becoming a misleading flat stack.
 
-v0.3 starts this organization track with serializable graph area metadata in
-`CanvasGraph.areas`. Areas are organizational only for now; they do not change
-render order or traversal until a dedicated render behavior is designed.
+The organization track now has serializable graph area metadata in
+`CanvasGraph.areas`, node-canvas area overlays, and layer-panel folder rows.
+Areas are organizational only for now; they do not change render order or
+traversal until a dedicated render behavior is designed.
 
 ## Feature Intake From Sticky Notes
 
@@ -114,10 +115,11 @@ stable.
 | --- | --- | --- |
 | Routing | `app/routes.ts`, `app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
 | Main generator | `app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
-| Document state | `app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations. |
-| Asset state | `app/hooks/useGeneratorAssets.ts` | Image upload/drop handling and `imageCache`. |
+| Document state | `app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
+| Asset state | `app/hooks/useGeneratorAssets.ts`, `app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
 | Export | `app/hooks/useGeneratorExport.ts`, `app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
 | Presets | `app/hooks/usePresets.ts`, `app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
+| Projects | `app/hooks/useProjects.ts`, `app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
 
 ### Data model
 
@@ -125,10 +127,21 @@ The canonical document type is `CanvasDocument` in `app/types/config.ts`.
 
 ```ts
 interface CanvasDocument {
+  schemaVersion?: number;
   global: GlobalConfig;
   layers: Layer[];
   graph?: CanvasGraph;
-  export?: ExportConfig;
+  export: ExportConfig;
+}
+
+interface CanvasGraph {
+  edges: GraphEdge[];
+  positions: Record<string, { x: number; y: number }>;
+  mergeNodes: GraphMergeNode[];
+  colorNodes: GraphColorNode[];
+  repeatNodes?: GraphRepeatNode[];
+  areas?: GraphArea[];
+  primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
 ```
 
@@ -143,18 +156,29 @@ Layer kinds are:
 - `noise`
 - `array`
 
-The layer stack remains the portable document model. The node graph is an optional editing/composition layer on top of the same document. This is good: it keeps old documents renderable and lets the app support both layer-stack and graph workflows.
+The layer stack remains the portable document model. The node graph is an
+optional editing/composition layer on top of the same document. Graph-only
+merge, color, repeat, export, and area metadata are still serializable document
+state, not a second editor format.
 
 ### Rendering pipeline
 
-Rendering is concentrated in `app/utils/renderer.ts`.
+Rendering is exposed through `app/utils/renderer.ts`. That file is the public
+facade; implementation internals live under `app/utils/render/`.
 
 1. `renderDocument` decides whether to use stack mode or graph mode.
 2. `renderGraphTarget` walks graph dependencies and renders each node.
-3. `applyLayerToCanvas` draws one layer over an input canvas.
-4. Canvas 2D handles text, image, fills, emojis, procedural sources, and some effect passes.
-5. PixiJS handles GPU effect filters.
-6. Three.js renders primitives through `app/utils/primitiveRenderer.ts`.
+3. Stack mode infers a linear graph from `doc.layers` so stack and graph
+   rendering share semantics.
+4. `applyLayerToCanvas` draws one layer/source/effect over an input canvas.
+5. Canvas 2D handles text, image, fills, emojis, procedural sources, and some
+   effect passes.
+6. PixiJS handles GPU effect filters, with adjacent GPU-only effect nodes
+   batched where semantics allow.
+7. CPU-only pixel effect kernels and procedural noise texture generation can
+   run in dedicated Web Workers with main-thread fallbacks.
+8. Three.js renders primitives through `app/utils/primitiveRenderer.ts` using
+   the shared scene recipe in `app/utils/primitiveScene.ts`.
 
 This is the most important invariant:
 
@@ -166,13 +190,14 @@ Node editing lives under `app/components/node-canvas`.
 
 | Area | Files | Current role |
 | --- | --- | --- |
-| Canvas shell | `NodeCanvas.tsx` | React Flow integration, context providers, graph events, gallery modal, transient primitive camera state. |
+| Canvas shell | `NodeCanvas.tsx` | React Flow integration, context providers, graph events, gallery modal, and primitive camera hook wiring. |
 | State machine | `machine.ts` | XState state for selection and overlays. |
 | Node construction | `buildRFNodes.ts` | Converts `CanvasDocument + CanvasGraph` to React Flow nodes. |
-| Node components | `nodes/NodeTypes.tsx`, `nodes/NodeShell.tsx` | Layer, merge, color, and output node renderers. |
+| Node components | `nodes/NodeTypes.tsx`, `nodes/NodeShell.tsx` | Layer, merge, color, repeat, and output node renderers. |
 | Previews | `thumbnails/NodeThumbnail.tsx`, `thumbnails/LayerPreviewSurface.tsx` | Cached async thumbnails plus interactive selected-node previews. |
 | Inspectors | `inspector/*.tsx`, `panel/NodePropertiesPanel.tsx` | Node-side property controls. |
 | Menus | `menus/*.tsx` | Pane and node context menus, including compact add menu. |
+| Areas | `areas/*` | Passive graph-area overlays and area bounds helpers. |
 
 The current direction is correct: node editing is a specialized UI over the same document and render model, not a separate editor format.
 
@@ -182,11 +207,13 @@ There are currently three state tiers:
 
 | Tier | Examples | Persistence |
 | --- | --- | --- |
-| Document state | Layers, effect parameters, graph edges, graph positions, export config | Saved in `CanvasDocument`. |
-| Session/UI state | Selection, open panels, gallery view, primitive camera overrides | In React state and context. |
+| Document state | Layers, effect parameters, graph edges, graph positions, repeat/color/merge nodes, graph areas, committed primitive camera states, export config | Saved in `CanvasDocument`. |
+| Session/UI state | Selection, open panels, gallery view, active primitive camera drafts | In React state and context. |
 | Gesture draft state | Text/image local transform drafts, active primitive drag state | Component-local refs/state, committed after gesture. |
 
-This split is necessary, but it needs stricter boundaries. Most recent bugs came from transient gesture state writing to document state too often, causing thumbnails and React Flow nodes to rebuild during interaction.
+This split is necessary. The current rule is to draft locally during hot
+gestures, then commit deliberately so undo history and thumbnail invalidation
+track creative decisions rather than pointer ticks.
 
 ## What is good
 
@@ -206,7 +233,7 @@ The app generally uses `renderDocument` and `renderGraphTarget` across preview, 
 
 Factory functions in `config.ts` reduce malformed layer creation. `normalizeDocument` and compatibility handling in `useGeneratorDocument.ts` keep old documents usable.
 
-### Good low-level testing coverage for data logic
+### Good low-level testing coverage for data and rendering logic
 
 Existing tests cover:
 
@@ -214,8 +241,11 @@ Existing tests cover:
 - random document generation
 - node graph helpers
 - node canvas reducer/helpers
+- document persistence and command helpers
+- render fixtures for deterministic Canvas 2D paths and graph traversal
+- thumbnail render signatures and scoped invalidation
 
-These tests protect the model layer from regressions.
+These tests protect the model and renderer boundary from regressions.
 
 ### Node canvas direction is promising
 
@@ -223,64 +253,54 @@ Using React Flow for graph mechanics and XState for selection/overlay state is a
 
 ## What is bad or risky
 
-### `generator.tsx` and `NodeCanvas.tsx` are too central
+### `generator.tsx` is still broad
 
-Both files coordinate too many concerns. `generator.tsx` wires document state, asset state, export, presets, layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` owns React Flow, graph operations, gallery modal, primitive camera state, selection sync, context menus, and export UI.
+`generator.tsx` wires document state, asset state, projects, export, presets,
+layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
+into focused hooks for selection sync, context menus, graph events, drag state,
+gallery state, and primitive camera state, but the route-level composition is
+still dense.
 
-This makes behavior hard to predict because small changes in interaction state can trigger document changes, graph changes, thumbnail renders, and React Flow rebuilds.
+This makes route-level behavior harder to scan and is the next likely place to
+extract controller-style hooks when feature work touches multiple panels.
 
-### Transient state boundaries are still fragile
+### Hot text/image canvas handles remain a known risk
 
-Text/image gestures, primitive camera gestures, gallery view state, React Flow drag state, and document updates all coexist. The code now has draft-state patterns, but there is no central rule that says:
+The node editor has draft-state patterns for selected text/image node previews,
+primitive camera movement, and React Flow node dragging. The classic
+`CanvasHandles` path still commits text/image transform movement through
+document updates during pointer moves, which can create extra history,
+thumbnail, or render work.
 
-- when to update local UI only
-- when to commit to the document
-- when to invalidate thumbnails
-- when to update undo history
+The direction remains: draft locally, commit once per gesture, invalidate only
+affected render paths.
 
-Without that contract, wheel and drag bugs will keep returning.
+### Visual regression coverage is still limited
 
-### Primitive rendering has duplicated scene logic
+The repo has deterministic render fixtures and focused browser smoke tests, but
+no broad visual snapshot suite yet. GPU/PixiJS and Three.js output still need a
+tolerance strategy before visual snapshots become useful.
 
-`PrimitiveViewport3D.tsx` and `primitiveRenderer.ts` both define camera, geometry, materials, lights, and shadow behavior. Recent work aligned these, but they are still separate implementations. That is a long-term preview/export parity risk.
+### Persistence is local-first
 
-### `renderer.ts` is a large mixed-responsibility module
-
-`renderer.ts` handles:
-
-- Canvas setup
-- Layer drawing
-- Graph traversal
-- effect passes
-- color node logic
-- merge node logic
-- render options
-
-It works, but it is difficult to test in isolation and hard to extend safely.
-
-### Thumbnail invalidation is coarse
-
-`NodeThumbnail` uses object identity revision maps. This is simple, but any layer object replacement increments revision even if the rendered output does not meaningfully change for a specific thumbnail. It also means high-frequency document writes can cause queued renders and stale-looking UI.
-
-### Inspector surfaces are duplicated
-
-Classic layer controls in `Sidebar.tsx` and node controls in `node-canvas/inspector/LayerInspector.tsx` overlap. This creates drift: a field can be removed or redesigned in one surface and remain in the other.
+Imported images, local projects, and recovery drafts now use IndexedDB, and
+`.artifact.json` files/share links hydrate local image assets when possible.
+This is enough for the local editor, but server-backed sharing, accounts, and
+large portable asset packages remain out of scope until a dedicated backend plan
+exists.
 
 ### CSS is a large monolith
 
-`node-canvas.css` contains the full node editor UI. It is coherent visually, but it is becoming hard to reason about. Component boundaries are not reflected in style boundaries.
+`node-canvas.css` contains the full node editor UI. It is coherent visually,
+but it is becoming hard to reason about. Component boundaries are not reflected
+in style boundaries.
 
-### Documentation is behind the product
+### Documentation must stay aligned
 
-`README.md` still describes the older five-layer model and does not fully explain procedural layers, node graph mode, transient camera state, graph export behavior, or the current node editor architecture.
+The architecture docs are much closer to the code now, but user-facing docs
+still need to become more task-oriented: first cover, layer workflow, nodes,
+effects, sources, repeaters, projects, export, and troubleshooting.
 
-### No visual regression or render parity tests
-
-The app's main promise is visual. Unit tests are useful, but they do not prove that preview, thumbnails, gallery, and export match. There is no golden-image or pixel-diff coverage for critical renderer paths.
-
-### Persistence is browser-only
-
-localStorage works for a creative toy, but it is fragile for large data URLs, presets, and shareability. There is no robust document sharing or asset persistence story yet.
 
 ## Improvement principles
 
@@ -293,173 +313,34 @@ localStorage works for a creative toy, but it is fragile for large data URLs, pr
 
 ## Roadmap
 
-### v0.2: Make Strong Covers Easier
+### Current release line
 
-Goal: move from "the beta works" to "the editor helps users reach strong,
-controlled covers faster."
+The latest local tag is `v0.10.0-beta.1`. Earlier `v0.2` through `v0.9` roadmap
+headings are release history, not active target buckets. Any unfinished work
+from those sections has been moved below into future versions.
 
-Product direction:
+Current shipped baseline:
 
-- Effects become more controllable and better documented.
-- New effects should be focused, composable nodes rather than old combined FX.
-- Export becomes predictable: aspect ratio and output scale are honored by layer
-  preview, node thumbnails, graph output, examples, and final export.
-- Layers remain the fast workflow, nodes become the advanced workflow, and both
-  views stay synchronized.
+- Local-first document editing with stack and graph workflows.
+- Graph nodes for layer, merge, color, repeat, and export composition.
+- Graph areas as serializable organization metadata with node overlays and
+  layer-panel folder rows.
+- Focused effect presets, procedural noise/array sources, repeater presets, and
+  per-node seed offsets.
+- Blank-canvas entry points and first starter paths.
+- Local project snapshots, imported image assets, and recovery drafts in
+  IndexedDB.
+- `.artifact.json` import/export and hydrated share-link behavior where local
+  assets are available.
+- Shared renderer facade, split renderer internals, render fixtures, browser
+  smoke tests, thumbnail signatures, and node-editor performance tooling.
 
-Priorities:
+### v0.11: Layer Workflow And Onboarding
 
-- Add curated example documents that demonstrate real workflows rather than
-  only random generation.
-- Improve typography and effect defaults so distorted text stays intentionally
-  readable instead of accidentally crushed.
-- Add a low-resolution / pixelate whole-image node for deliberate cover-wide
-  texture.
-- Add dedicated noise/procedural texture nodes with preset folders.
-- Add more focused procedural texture and effect nodes, keeping the old combined
-  FX path out of new examples.
-- Improve text workflow with better font browsing, imported fonts, and
-  typography presets.
-- Add folders or areas so dense layer stacks and node graphs can be organized.
-- Make the layer list respect graph structure where node workflows define the
-  composition.
-- Improve empty-canvas onboarding so a new user can choose between randomizing,
-  loading an example, importing an image, or starting from text.
-- Improve docs for nodes, effects, exports, examples, and common workflows.
-- Keep preview/export parity as a release gate for every rendering-facing
-  improvement.
+Detailed plan: [`version-plans/v0.11.md`](./version-plans/v0.11.md).
 
-Implemented first slice:
-
-- Node cards now use larger, aspect-aware, high-DPI preview surfaces so regular
-  nodes and export nodes share the same preview sizing rules.
-- Noise creation includes concrete, film grain, static, cells, clouds, paper,
-  and CRT dirt presets without changing the saved document schema.
-- The node graph now includes a graph-only repeater utility that can stamp any
-  upstream source branch into line, grid, or radial patterns over an optional
-  backdrop.
-- Effect help now exposes family intent and "good for" guidance in docs and
-  inspector popovers.
-- Text has a larger curated display-font set while arbitrary external font
-  import remains deferred until persistence and security rules are designed.
-
-Exit criteria:
-
-- A new user can open the app and create a credible cover from an example or
-  guided starting point in minutes.
-- Text-heavy covers have a clear path to controlled distortion.
-- New examples use separated effect nodes and remain editable in the node graph.
-- Aspect ratio is respected by every node preview and output surface.
-- Layer organization does not contradict node organization.
-- Browser smoke and manual QA still pass before the next beta tag.
-
-Known follow-up:
-
-- Layer rendering now follows graph branch structure for graph-backed
-  documents. The first organization UI shows passive graph-area overlays on the
-  node canvas and area folder rows in the layer list. Later work can add
-  collapse/rename controls, but folders must stay organizational unless a
-  render-order rule is explicitly designed and tested.
-
-### v0.3: Project Memory And Sharing
-
-Goal: make Artifact feel less like a local toy and more like a real creative
-workspace.
-
-Current browser-only scope:
-
-- [x] Local project library for named document snapshots.
-- [x] Project thumbnails, local open, and local delete controls.
-- [x] Existing `.artifact.json` file save/open and `?doc=` share links remain
-  the portable interchange path.
-
-Likely VPS/full-stack scope:
-
-- Accounts and login.
-- Server-side project saving.
-- Server-backed share links.
-- Preset database and community preset browsing.
-- Project pages, portfolio pages, and case-study pages.
-- Server-side asset storage for large uploads.
-
-Do this after the document schema, asset strategy, and export behavior are
-stable enough to migrate safely.
-
-### v0.5: Procedural Generation Depth
-
-Goal: make procedural sources and graph utilities feel intentionally
-controllable instead of just random.
-
-First slice:
-
-- [x] Add per-node seed offsets for noise, array, and repeater output.
-- [x] Add richer noise controls such as domain warp, turbulence, and threshold
-  shaping.
-- [x] Add repeater presets for common motif workflows.
-- [x] Add source/motif docs with practical recipes.
-
-### v0.6: Better Starts And Example Workflows
-
-Goal: make Artifact easier to enter, easier to learn, and faster to start real
-work without reducing the advanced node workflow.
-
-First slice:
-
-- [x] Add an explicit New Blank Canvas action that is reachable from the
-  generator, examples, home, and local projects surfaces.
-- [x] Make `?new=blank` force a transparent, layer-free document instead of
-  restoring localStorage.
-- [x] Ask for confirmation before replacing current work with a blank canvas.
-- [x] Keep the blank document transparent so checkerboard chrome reveals alpha
-  without entering export pixels.
-- [ ] Add recipe starter documents that create useful first graphs.
-- [ ] Improve examples with categories, used-node summaries, and clearer
-  "start from this" language.
-- [ ] Improve add-node search and grouping for recipes and starter workflows.
-- [ ] Add task-oriented docs for blank starts, recipes, layer-vs-node work, and
-  export.
-- [ ] Revisit effect-node controls after real project testing. Start with film
-  grain scale/size so it can be tuned much smaller and more subtly.
-
-### v0.7: Effect Control Polish And Useful Docs
-
-Goal: make the most-used effects and procedural sources easier to tune from
-subtle to destructive, and make docs teach practical cover-building workflows.
-
-First slice:
-
-- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
-  and threshold for range problems found in real projects.
-- [ ] Evaluate splitting Cells out of the generic Noise source into a dedicated
-  procedural source node if it keeps needing different controls from value and
-  cloud noise.
-- [x] Let Film Grain noise reach finer texture sizes instead of stopping at a
-  visibly chunky minimum.
-- [x] Add docs that explain when to use Layers vs Nodes, when to use effect
-  Grain vs source Film Grain, and how to build common texture/text/photo covers.
-- [ ] Keep docs examples aligned with separated focused effect nodes.
-- [ ] Add render or browser coverage for every effect/source control whose range
-  changes.
-
-### v0.8: Layers, Docs, And Onboarding
-
-Goal: make Artifact easier to enter and easier to use without reducing the
-advanced node workflow. v0.7 put most of the energy into nodes, performance,
-and effect-control stability. v0.8 should make layers feel like a first-class
-fast workflow again, and make the product teach itself better.
-
-Product direction:
-
-- Layers are the quick composition mode: stack, reorder, mute, duplicate,
-  rename, tune, and export without needing to understand graph structure.
-- Nodes remain the advanced graph mode: branching, merges, repeaters, sources,
-  and explicit output structure.
-- Onboarding should help users choose a starting path: blank transparent
-  canvas, image-first, text-first, texture-first, example remix, or random
-  seed.
-- Docs should teach real cover-building workflows, not only list node types.
-
-Layer-mode improvements:
+Goal: make layer mode feel like the fastest path to a finished cover while
+keeping node workflows truthful.
 
 - [ ] Improve the layer list hierarchy for graph-area documents so areas read
   like lightweight folders without changing render order.
@@ -473,31 +354,35 @@ Layer-mode improvements:
   of silently hiding them.
 - [ ] Keep layer preview and export parity visible and trustworthy for stack
   workflows.
-
-Onboarding improvements:
-
-- [x] Redesign the blank-canvas start panel around concrete creation paths:
-  image, text, noise, texture recipe, and examples. Keep mode switching,
-  randomization, and export controls in their existing app chrome.
-- [ ] Add a sectioned onboarding guide that explains how the app works: canvas,
-  layers, nodes, sources, effects, repeaters, export, projects, and examples.
-  Use strong section highlights and product-style guide blocks rather than a
-  tiny empty-state tooltip.
-- [ ] Add example categories and "start from this" copy that explains what the
-  example teaches.
-- [ ] Add recipe starter documents for common covers: photo plus type, noisy
-  texture plus type, sticker/grid motif, primitive over image, and print-damage
-  poster.
-  Current note: v0.8 starts with a stack-only Texture Type recipe so users can
-  make a credible layer-mode cover without opening nodes.
+- [ ] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
+  effects, repeaters, export, projects, and examples.
 - [ ] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
 - [ ] Keep destructive starts guarded by confirmation and recovery drafts.
 
-Docs improvements:
+Exit criteria:
 
+- A user can build and export a credible stack-only cover without opening nodes.
+- Layer mode does not contradict graph organization when a document uses areas.
+- New users can choose between blank, image, text, example, recipe, and random
+  starts without needing hidden knowledge.
+
+### v0.12: Examples, Recipes, And Effect Coverage
+
+Detailed plan: [`version-plans/v0.12.md`](./version-plans/v0.12.md).
+
+Goal: turn the current power features into learnable, regression-tested
+workflows.
+
+- [ ] Add recipe starter documents that create useful first graphs.
+- [ ] Add recipe starter documents for common covers: photo plus type, noisy
+  texture plus type, sticker/grid motif, primitive over image, and print-damage
+  poster.
+- [ ] Improve examples with categories, used-node summaries, and clearer "start
+  from this" language.
+- [ ] Improve add-node search and grouping for recipes and starter workflows.
 - [ ] Split user-facing docs into task pages or sections: first cover, layers
-  workflow, nodes workflow, effects, sources, repeaters, export, projects.
+  workflow, nodes workflow, effects, sources, repeaters, export, and projects.
 - [ ] Explain blend modes with practical examples and when to use each one.
 - [ ] Add layer-vs-node guidance with examples of when to stay in layers and
   when to switch to nodes.
@@ -505,18 +390,26 @@ Docs improvements:
   nodes.
 - [ ] Add troubleshooting guidance for blank previews, missing image assets,
   browser storage limits, GPU/WebGL quirks, and export mismatch.
+- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
+  and threshold for range problems found in real projects.
+- [ ] Revisit effect-node controls after real project testing, starting with
+  film grain scale/size so it can be tuned subtly.
+- [ ] Evaluate splitting Cells out of the generic Noise source into a dedicated
+  procedural source node if it keeps needing different controls from value and
+  cloud noise.
+- [ ] Keep docs examples aligned with separated focused effect nodes.
+- [ ] Add render or browser coverage for every effect/source control whose range
+  changes.
+- [ ] Add browser smoke coverage for at least one layer-first starter path and
+  one docs "try this" path.
 
 Exit criteria:
 
-- A new user can start from blank, image, text, example, or random seed without
-  feeling lost.
-- A user can build and export a credible stack-only cover without opening nodes.
-- Layer mode does not contradict graph organization when a document uses areas.
-- Docs explain the core workflows with examples, not only parameter lists.
-- Browser smoke tests cover at least one layer-first starter path and one docs
-  "try this" path.
+- Examples teach the feature they demonstrate.
+- Docs explain workflows with recipes, not only parameter lists.
+- Changed effect/source ranges have focused test coverage.
 
-### v0.9: AI Generation Research And Architecture
+### v0.13: AI Generation Research And Architecture
 
 Goal: make AI-generated imagery a creativity multiplier without weakening the
 editor's local-first reliability or leaking provider secrets into the browser.
@@ -563,195 +456,50 @@ These ideas are promising but should not block editor reliability:
 - 3D layer visualization.
 - Subscription/paywall experiments.
 
-### Phase 0: Stabilize the current branch
+## Historical phase plan
 
-Goal: finish the current node interaction work without adding more behavior.
-
-- [ ] Confirm primitive node viewport clipping inside the node frame.
-- [ ] Confirm right-click drag pans the primitive camera and does not open a context menu.
-- [ ] Confirm camera lock releases graph gestures.
-- [ ] Confirm text/image wheel and drag do not blink or rebuild thumbnails during the gesture.
-- [ ] Confirm export uses the same primitive camera state as node/gallery preview.
-- [ ] Remove or commit unrelated dirty files before a release branch.
-
-Acceptance criteria:
-
-- `npm run typecheck`
-- `npm run lint`
-- `npm test`
-- `npx react-router build`
-- Manual verification for text, image, primitive, effect, merge, and export nodes.
-
-### Phase 1: Define state boundaries
-
-Goal: make editor behavior predictable.
-
-- [ ] Write a short `docs/state-model.md` describing document state, graph state, UI state, gesture drafts, and render options.
-- [ ] Move primitive camera state ownership into a dedicated hook, for example `usePrimitiveCameraState`.
-- [ ] Move text/image transform drafts into a documented hook and make it the only allowed path for node-local transform gestures.
-- [ ] Add action names that distinguish `draft`, `commit`, and `document update`.
-- [ ] Audit undo history so continuous gestures produce one undo entry.
-
-Recommended ownership model:
-
-| Concern | Owner |
-| --- | --- |
-| `CanvasDocument` | `useGeneratorDocument` |
-| `CanvasGraph` | `useGeneratorDocument` plus graph helpers |
-| React Flow selection/menus | `nodeCanvasMachine` |
-| Primitive camera view | dedicated camera hook, passed to renderer as `primitiveViewStates` |
-| Text/image drag or scale draft | node-local draft hook, committed after gesture |
-| Export render options | `useGeneratorExport` |
-
-### Phase 2: Make preview/export parity testable
-
-Goal: prove "what you see is what you export."
-
-- [ ] Extract primitive scene creation into a shared helper used by both `PrimitiveViewport3D` and `primitiveRenderer`.
-- [ ] Add renderer fixtures for representative documents:
-  - text over fill
-  - image free-fit
-  - primitive with camera override
-  - effect after primitive
-  - merge/color graph
-- [ ] Add a lightweight pixel comparison test for deterministic Canvas 2D paths.
-- [ ] Add an integration smoke test for graph render parity between `renderGraphTarget` and export.
-- [ ] Define acceptable tolerance for GPU/WebGL differences.
-
-Important note: exact pixel equality may be unrealistic across WebGL implementations. The test strategy should separate deterministic Canvas paths from GPU-tolerant paths.
-
-### Phase 3: Reduce node editor complexity
-
-Goal: make node editing feel direct, compact, and predictable.
-
-- [ ] Split `NodeCanvas.tsx` into smaller hooks:
-  - `useNodeGraphEvents`
-  - `useNodeContextMenus`
-  - `useNodeSelectionSync`
-  - `useNodeGallery`
-  - `useNodeDragState`
-- [ ] Keep `NodeCanvas.tsx` as composition and provider wiring only.
-- [ ] Unify duplicated controls between `Sidebar.tsx` and `LayerInspector.tsx`.
-- [ ] Create shared field definitions per layer kind so both inspector surfaces use the same control metadata.
-- [ ] Make node-local controls visually distinct from document controls.
-- [ ] Document the interaction grammar:
-  - left drag over primitive: rotate camera
-  - right drag over primitive: pan camera
-  - wheel over primitive: zoom camera
-  - lock camera: graph gestures pass through
-  - wheel over text/image node: scale local content
-
-### Phase 4: Split renderer modules
-
-Goal: keep one render pipeline while making it easier to maintain.
-
-Proposed structure:
-
-```text
-app/utils/render/
-  canvas.ts              # create/clone/mask helpers
-  layers/
-    text.ts
-    image.ts
-    emoji.ts
-    fill.ts
-    source.ts
-    effect.ts
-  graph.ts               # renderGraphTarget, graph traversal
-  document.ts            # renderDocument entry point
-  primitiveScene.ts      # shared Three.js scene recipe
-```
-
-Rules:
-
-- `renderDocument` remains the public entry point.
-- `renderGraphTarget` remains the graph entry point.
-- Preview, thumbnails, gallery, export, and presets must call these entry points.
-- No duplicate preview-only renderer unless it is explicitly marked as a draft approximation.
-
-### Phase 5: Performance and thumbnail architecture
-
-Goal: keep the node editor responsive as documents grow.
-
-- [ ] Replace object-identity thumbnail revisions with content signatures per node.
-- [ ] Split signatures by render-relevant fields, not whole object replacement.
-- [ ] Cancel or collapse queued thumbnail renders when newer work supersedes them.
-- [ ] Consider `OffscreenCanvas` for supported browsers.
-- [ ] Add a debug overlay or dev-only logging for render invalidation causes.
-- [ ] Budget thumbnail queue work separately from main preview/export work.
-
-Useful target behavior:
-
-- Gesture drafts update instantly without thumbnail work.
-- Commit triggers one thumbnail render for affected downstream nodes.
-- Upstream-only changes invalidate downstream nodes, not unrelated nodes.
-
-### Phase 6: Persistence, sharing, and assets
-
-Goal: make documents portable and safe for real use.
-
-- [x] Move local imported image payloads out of active `CanvasDocument` data URLs
-  where possible.
-- [x] Add IndexedDB storage for local project snapshots and blank-canvas
-  recovery drafts.
-- [x] Add IndexedDB asset storage for imported image payloads used by local
-  documents.
-- [ ] Add backend or share-package storage for portable binary assets.
-- [x] Add document import/export as a `.artifact.json` file.
-- [ ] Add share links that separate document JSON from binary assets.
-- [ ] Define a versioned document schema and migration tests.
-- [ ] Decide whether cloud persistence belongs in this product or stays out of scope.
-
-### Phase 7: Accessibility and input coverage
-
-Goal: keep the tool usable across devices and input methods.
-
-- [ ] Define keyboard equivalents for node-local transform and primitive camera controls.
-- [ ] Ensure all node buttons meet 44px touch target rules or have a touch-specific layout.
-- [ ] Ensure `prefers-reduced-motion` covers node editor transitions.
-- [ ] Audit focus order in the node canvas, add menu, context menus, gallery, and inspector.
-- [ ] Add pointer interaction tests for context-menu edge cases where possible.
-
-### Phase 8: Documentation cleanup
-
-Goal: align public docs with the current product.
-
-- [x] Update `README.md` to include procedural layers, node graph mode, primitive camera state, and graph export.
-- [x] Add `docs/state-model.md`.
-- [x] Add `docs/rendering.md`.
-- [x] Add `docs/node-editor.md`.
-- [x] Add `docs/testing.md`.
-- [ ] Keep `PRODUCT.md` and `DESIGN.md` as product/design source of truth, not implementation docs.
+The older phase-by-phase architecture plan has been retired from this roadmap.
+Completed and remaining implementation details now live in
+[`docs/improvement-plan.md`](./improvement-plan.md), with testing specifics in
+[`docs/testing.md`](./testing.md) and performance specifics in
+[`docs/performance.md`](./performance.md).
 
 ## Recommended near-term focus
 
-The next product pass should focus on v0.8: docs, onboarding, and layer-mode
-quality. The node editor is now powerful and fast enough for advanced work, but
-new users still need a clearer path into the product, and layer mode should
-again feel like the fastest way to make a cover.
+The next product pass should focus on v0.11: layer workflow and onboarding.
+The node editor is now powerful and fast enough for advanced work, but new
+users still need a clearer path into the product, and layer mode should again
+feel like the fastest way to make a cover.
 
 Recommended order:
 
-1. Improve the blank-canvas start panel with concrete creation paths. [done]
-2. Add one or two layer-first recipe documents and use them from examples/docs.
-   [first recipe done]
-3. Improve the layer list around graph areas so it reads like lightweight
+1. Improve the layer list around graph areas so it reads like lightweight
    folders without changing render order.
+2. Add layer-row quick actions and clearer empty states.
+3. Add one or two layer-first recipe documents and use them from examples/docs.
 4. Add practical docs for layers vs nodes, blend modes, effects, sources,
    repeaters, export, and troubleshooting.
 5. Add browser smoke coverage for starter flows and docs "try this" actions.
-6. Keep AI generation as the next major creative research track after v0.8.
+6. Keep AI generation as the next major creative research track after v0.12.
 
 ## Non-goals for now
 
 - Do not add backend persistence until the local document schema and asset strategy are stable.
-- Do not add AI generation before the v0.8 learning and layer-mode pass is usable.
+- Do not add AI generation before the v0.11/v0.12 learning and layer-mode pass
+  is usable.
 - Do not add more effect parameters until the effect update checklist is automated or tested.
 - Do not make a second preview renderer for speed unless it is clearly labeled as draft-only.
 - Do not duplicate node controls in both sidebar and inspector without shared field definitions.
 
 ## Health summary
 
-The codebase is productive and already has a strong core: portable documents, deterministic rendering, GPU effects, node graph editing, and a clear visual identity. The main weakness is not lack of features. The main weakness is that interactions and render invalidation are spread across too many components without a written contract.
+The codebase is productive and has a strong core: portable documents,
+deterministic Canvas render fixtures, GPU effects, node graph editing, local
+asset/project persistence, and a clear visual identity. The main weakness is no
+longer missing architecture documentation; it is product legibility and
+remaining edge coverage.
 
-The best path forward is architectural consolidation: make state ownership explicit, keep one rendering truth, and prove preview/export parity with tests.
+The best path forward is to keep the architecture stable while making the app
+easier to enter: improve layer-first workflows, make docs task-oriented, keep
+one rendering truth, and add focused browser/visual coverage where regressions
+are most likely.

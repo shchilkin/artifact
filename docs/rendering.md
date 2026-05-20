@@ -164,7 +164,7 @@ Primitive rendering has two surfaces:
 | Live viewport | `app/components/PrimitiveViewport3D.tsx` | Interactive node/gallery camera control. |
 | Offscreen render | `app/utils/primitiveRenderer.ts` | Export/document render. |
 
-Both must share the same scene recipe:
+Both share the same scene recipe through `app/utils/primitiveScene.ts`:
 
 - geometry
 - material
@@ -173,9 +173,10 @@ Both must share the same scene recipe:
 - mesh rotation
 - color handling
 
-Current risk:
+Rule:
 
-- The scene recipe is still duplicated. It should be extracted into a shared `primitiveScene` helper.
+- Keep new primitive geometry, material, light, camera, and transform behavior in
+  `primitiveScene.ts` so the live viewport and offscreen renderer cannot drift.
 
 Primitive camera state comes from `RenderOptions.primitiveViewStates`.
 
