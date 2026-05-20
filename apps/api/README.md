@@ -47,6 +47,7 @@ Implemented:
 - Local asset storage adapter.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
+- Authenticated generated-asset download route handler.
 - API-local tests.
 
 Next:
@@ -55,7 +56,6 @@ Next:
 - BullMQ/Redis queue adapter.
 - Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.
-- Authenticated generated-asset download endpoint.
 
 ## Contract
 
