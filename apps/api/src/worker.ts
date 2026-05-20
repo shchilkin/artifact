@@ -2,6 +2,7 @@ import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
+import { loadApiEnv } from './env.js';
 import { processGenerationJob } from './generationWorker.js';
 import {
   createMockImageProvider,
@@ -12,6 +13,7 @@ import {
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { LocalAssetStorage } from './storage/index.js';
 
+loadApiEnv();
 const config = loadConfig();
 const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
 const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;

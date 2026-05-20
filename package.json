@@ -6,11 +6,11 @@
   "scripts": {
     "favicon": "node scripts/generate-favicon.mjs",
     "dev": "react-router dev",
-    "dev:ai:api": "API_DATABASE_DRIVER=postgres API_QUEUE_DRIVER=bullmq DATABASE_URL=postgres://artifact:artifact@localhost:5432/artifact REDIS_URL=redis://localhost:6379 AUTH_JWT_SECRET=local-dev-secret API_DEV_BEARER_TOKEN=dev-token WEB_ORIGIN=http://localhost:5173 ASSET_STORAGE_DIR=../../.local/artifact-api-storage npm --prefix apps/api run dev",
+    "dev:ai:api": "npm --prefix apps/api run dev",
     "dev:ai:infra": "docker compose -f docker-compose.local.yml up -d postgres redis",
     "dev:ai:infra:down": "docker compose -f docker-compose.local.yml down",
     "dev:ai:web": "VITE_AI_API_BASE_URL=http://localhost:4000 VITE_AI_API_DEV_TOKEN=dev-token react-router dev",
-    "dev:ai:worker": "API_DATABASE_DRIVER=postgres API_QUEUE_DRIVER=bullmq DATABASE_URL=postgres://artifact:artifact@localhost:5432/artifact REDIS_URL=redis://localhost:6379 AUTH_JWT_SECRET=local-dev-secret API_DEV_BEARER_TOKEN=dev-token ASSET_STORAGE_DIR=../../.local/artifact-api-storage npm --prefix apps/api run worker:dev",
+    "dev:ai:worker": "npm --prefix apps/api run worker:dev",
     "build": "react-router build",
     "build:ci": "react-router build",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:api && npm test",
