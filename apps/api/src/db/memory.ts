@@ -97,6 +97,18 @@ export class InMemoryApiStore {
     return updated;
   }
 
+  async markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow> {
+    const job = await this.requireJob(id);
+    const updated: AiGenerationJobRow = {
+      ...job,
+      status: 'cancelled',
+      cancelled_at: cancelledAt,
+      completed_at: cancelledAt,
+    };
+    this.jobs.set(id, updated);
+    return updated;
+  }
+
   async markFailed(
     id: string,
     error: {
@@ -195,6 +207,7 @@ export class InMemoryApiStore {
         findByIdForUser: (id, userId) => this.findGenerationJobByIdForUser(id, userId),
         findByIdempotencyKey: (userId, idempotencyKey) => this.findByIdempotencyKey(userId, idempotencyKey),
         countActiveJobs: (userId) => this.countActiveJobs(userId),
+        markCancelled: (id, cancelledAt) => this.markCancelled(id, cancelledAt),
       },
       assets: {
         create: (input) => this.createAsset(input),

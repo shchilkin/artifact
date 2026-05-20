@@ -127,6 +127,21 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return requireRow(result.rows, `Generation job not found: ${id}`);
   }
 
+  async markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow> {
+    const result = await this.client.query<AiGenerationJobRow>(
+      `
+        UPDATE ai_generation_jobs
+        SET status = 'cancelled',
+            cancelled_at = $2,
+            completed_at = $2
+        WHERE id = $1
+        RETURNING ${jobColumns}
+      `,
+      [id, cancelledAt],
+    );
+    return requireRow(result.rows, `Generation job not found: ${id}`);
+  }
+
   async markFailed(
     id: string,
     error: {

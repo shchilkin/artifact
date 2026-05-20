@@ -24,6 +24,7 @@ export interface JobReadWriteRepository {
   findByIdForUser(id: string, userId: string): Promise<AiGenerationJobRow | null>;
   findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null>;
   countActiveJobs(userId: string): Promise<number>;
+  markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow>;
 }
 
 export interface AssetReadWriteRepository {

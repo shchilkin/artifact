@@ -161,6 +161,7 @@ export interface AiGenerationJobRepository {
   findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null>;
   markRunning(id: string, startedAt: Date): Promise<AiGenerationJobRow>;
   markSucceeded(id: string, outputAssetId: string, completedAt: Date): Promise<AiGenerationJobRow>;
+  markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow>;
   markFailed(
     id: string,
     error: {

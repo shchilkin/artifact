@@ -45,7 +45,8 @@ Implemented:
 - In-memory generation queue.
 - Mock image provider.
 - Local asset storage adapter.
-- Mock-backed access and generation-create route handlers.
+- Mock-backed access, generation-create, generation-status, and
+  generation-cancel route handlers.
 - API-local tests.
 
 Next:
@@ -54,6 +55,7 @@ Next:
 - BullMQ/Redis queue adapter.
 - Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.
+- Authenticated generated-asset download endpoint.
 
 ## Contract
 

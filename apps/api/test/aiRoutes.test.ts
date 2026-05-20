@@ -5,7 +5,13 @@ import { InMemoryApiStore } from '../src/db/memory.js';
 import { createMockImageProvider, createProviderRegistry } from '../src/providers/index.js';
 import type { GenerationQueue, QueueJob } from '../src/queue.js';
 import { createInMemoryRateLimiter } from '../src/rateLimit.js';
-import { type AiRouteDeps, handleAccessRequest, handleCreateGenerationRequest } from '../src/routes/ai.js';
+import {
+  type AiRouteDeps,
+  handleAccessRequest,
+  handleCancelGenerationRequest,
+  handleCreateGenerationRequest,
+  handleGetGenerationRequest,
+} from '../src/routes/ai.js';
 
 function createQueueSpy() {
   const enqueue = vi.fn(
@@ -133,6 +139,58 @@ describe('AI route handlers', () => {
     ).resolves.toMatchObject({
       status: 409,
       body: { code: 'active_job_exists' },
+    });
+  });
+
+  it('reads an existing generation job for the owner', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateGenerationRequest({ headers: {} }, createBody, deps);
+
+    await expect(handleGetGenerationRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        id: 'job-1',
+        status: 'queued',
+        provider: 'openai',
+      },
+    });
+  });
+
+  it('cancels an active generation job', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateGenerationRequest({ headers: {} }, createBody, deps);
+
+    await expect(handleCancelGenerationRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        id: 'job-1',
+        status: 'cancelled',
+        completedAt: '2026-05-20T10:00:00.000Z',
+      },
+    });
+  });
+
+  it('rejects cancellation after a generation is no longer active', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateGenerationRequest({ headers: {} }, createBody, deps);
+    await handleCancelGenerationRequest({ headers: {} }, 'job-1', deps);
+
+    await expect(handleCancelGenerationRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 409,
+      body: { code: 'invalid_job_state' },
+    });
+  });
+
+  it('returns not found for missing generation jobs', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+
+    await expect(handleGetGenerationRequest({ headers: {} }, 'missing-job', deps)).resolves.toMatchObject({
+      status: 404,
+      body: { code: 'not_found' },
     });
   });
 });

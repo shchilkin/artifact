@@ -76,6 +76,17 @@ describe('PostgresAiGenerationJobRepository', () => {
       'Generation job not found: missing-job',
     );
   });
+
+  it('marks generation jobs as cancelled', async () => {
+    const row = createJobRow({ status: 'cancelled' });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiGenerationJobRepository(client);
+    const cancelledAt = new Date('2026-05-20T10:03:00.000Z');
+
+    await expect(repo.markCancelled('job-1', cancelledAt)).resolves.toBe(row);
+    expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain("SET status = 'cancelled'");
+    expect(client.queries[0]?.params).toEqual(['job-1', cancelledAt]);
+  });
 });
 
 describe('PostgresAssetRepository', () => {

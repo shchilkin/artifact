@@ -54,6 +54,16 @@ export async function handleAiRequest(
     return handleCreateGenerationRequest(request, body, deps);
   }
 
+  const generationMatch = /^\/api\/ai\/generations\/([^/]+)$/.exec(pathname);
+  if (generationMatch?.[1] && method === 'GET') {
+    return handleGetGenerationRequest(request, decodeURIComponent(generationMatch[1]), deps);
+  }
+
+  const cancelMatch = /^\/api\/ai\/generations\/([^/]+)\/cancel$/.exec(pathname);
+  if (cancelMatch?.[1] && method === 'POST') {
+    return handleCancelGenerationRequest(request, decodeURIComponent(cancelMatch[1]), deps);
+  }
+
   return null;
 }
 
@@ -164,6 +174,37 @@ export async function handleCreateGenerationRequest(
       createQuotaSnapshot(quotaCheck.quota.period, deps.monthlyGenerationLimit, quotaCheck.quota.used + 1),
     ),
   );
+}
+
+export async function handleGetGenerationRequest(
+  request: RequestLike,
+  jobId: string,
+  deps: AiRouteDeps,
+): Promise<JsonResponse<AiGenerationJobResponse | { code: string; message: string }>> {
+  const auth = await deps.resolveAuth(request);
+  if (!auth.authenticated) return errorJson(401, 'unauthenticated', 'Sign in before reading generation jobs.');
+
+  const job = await deps.repositories.jobs.findByIdForUser(jobId, auth.user.id);
+  if (!job) return errorJson(404, 'not_found', 'Generation job not found.');
+
+  return json(200, toJobResponse(job));
+}
+
+export async function handleCancelGenerationRequest(
+  request: RequestLike,
+  jobId: string,
+  deps: AiRouteDeps,
+): Promise<JsonResponse<AiGenerationJobResponse | { code: string; message: string }>> {
+  const auth = await deps.resolveAuth(request);
+  if (!auth.authenticated) return errorJson(401, 'unauthenticated', 'Sign in before cancelling generation jobs.');
+
+  const job = await deps.repositories.jobs.findByIdForUser(jobId, auth.user.id);
+  if (!job) return errorJson(404, 'not_found', 'Generation job not found.');
+  if (job.status !== 'queued' && job.status !== 'running') {
+    return errorJson(409, 'invalid_job_state', 'Only queued or running jobs can be cancelled.');
+  }
+
+  return json(200, toJobResponse(await deps.repositories.jobs.markCancelled(job.id, deps.now?.() ?? new Date())));
 }
 
 function validateCreateGenerationRequest(
