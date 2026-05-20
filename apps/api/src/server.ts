@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { resolveRequestUser } from './auth.js';
 import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
+import { createPostgresPool } from './db/pool.js';
+import { createPostgresRepositories } from './db/postgres.js';
 import { errorJson, writeApiResponse } from './http.js';
 import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
 import { createInMemoryGenerationQueue } from './queue.js';
@@ -11,7 +13,10 @@ import { handleAssetRequest } from './routes/assets.js';
 import { LocalAssetStorage } from './storage/index.js';
 
 const config = loadConfig();
-const store = new InMemoryApiStore();
+const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
+const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
+const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
+if (!repositories) throw new Error('No API repository backend configured.');
 const queue = createInMemoryGenerationQueue();
 const storage = new LocalAssetStorage(config.assetStorageDir);
 const providers = createProviderRegistry([
@@ -20,7 +25,7 @@ const providers = createProviderRegistry([
 ]);
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
 
-if (config.devBearerToken) {
+if (config.devBearerToken && store) {
   store.seedUser({
     id: 'dev-user',
     email: 'dev@artifact.local',
@@ -39,7 +44,6 @@ const server = createServer(async (req, res) => {
             ? { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' }
             : null,
       });
-    const repositories = store.repositories();
     const response =
       (await handleAiRequest(req, {
         repositories,
@@ -64,4 +68,16 @@ const server = createServer(async (req, res) => {
 
 server.listen(config.port, () => {
   console.log(`Artifact API listening on :${config.port}`);
+});
+
+async function shutdown() {
+  await pool?.end();
+  server.close();
+}
+
+process.once('SIGINT', () => {
+  void shutdown();
+});
+process.once('SIGTERM', () => {
+  void shutdown();
 });

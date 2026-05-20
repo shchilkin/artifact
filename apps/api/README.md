@@ -41,6 +41,7 @@ Implemented:
 - API contract types.
 - PostgreSQL schema migration and repository contracts.
 - Dependency-injected Postgres repository adapters.
+- Configurable local memory or VPS Postgres repository backend.
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
 - In-memory generation queue.
 - Mock image provider.
@@ -52,7 +53,6 @@ Implemented:
 
 Next:
 
-- Real `pg` client/pool wiring.
 - BullMQ/Redis queue adapter.
 - Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.

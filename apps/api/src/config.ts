@@ -1,6 +1,7 @@
 export interface ApiConfig {
   port: number;
   webOrigin: string;
+  databaseDriver: 'memory' | 'postgres';
   databaseUrl: string;
   redisUrl: string;
   authJwtSecret: string;
@@ -34,11 +35,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   if (driver !== 'local' && driver !== 's3') {
     throw new Error('ASSET_STORAGE_DRIVER must be local or s3');
   }
+  const databaseDriver = env.API_DATABASE_DRIVER ?? 'memory';
+  if (databaseDriver !== 'memory' && databaseDriver !== 'postgres') {
+    throw new Error('API_DATABASE_DRIVER must be memory or postgres');
+  }
 
   return {
     port: numberEnv(env, 'PORT', 4000),
     webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
-    databaseUrl: requiredEnv(env, 'DATABASE_URL'),
+    databaseDriver,
+    databaseUrl: databaseDriver === 'postgres' ? requiredEnv(env, 'DATABASE_URL') : (env.DATABASE_URL ?? ''),
     redisUrl: requiredEnv(env, 'REDIS_URL'),
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
     devBearerToken: env.API_DEV_BEARER_TOKEN,
