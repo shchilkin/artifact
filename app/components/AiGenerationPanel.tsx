@@ -129,6 +129,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
   return (
     <div className="ai-generation-panel">
       <textarea
+        data-ai-generation-prompt
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
         placeholder="Prompt"

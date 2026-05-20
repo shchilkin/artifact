@@ -271,7 +271,7 @@ export function Sidebar({
       </div>
 
       {onGeneratedImageSource && (
-        <Section title="AI Image">
+        <Section title="AI Image" defaultOpen>
           <AiGenerationPanel aspect={doc.global.aspect ?? '1:1'} onGeneratedImageSource={onGeneratedImageSource} />
         </Section>
       )}

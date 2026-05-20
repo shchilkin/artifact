@@ -49,11 +49,13 @@ type ViewMode = 'layers' | 'nodes';
 
 function EmptyCanvasStart({
   onImportImage,
+  onStartAiImage,
   onAddText,
   onAddNoise,
   onLoadStarter,
 }: {
   onImportImage: () => void;
+  onStartAiImage: () => void;
   onAddText: () => void;
   onAddNoise: () => void;
   onLoadStarter: (id: string) => void;
@@ -65,6 +67,9 @@ function EmptyCanvasStart({
       <div className="empty-canvas-start-actions">
         <button type="button" onClick={onImportImage}>
           Image
+        </button>
+        <button type="button" onClick={onStartAiImage}>
+          AI
         </button>
         <button type="button" onClick={onAddText}>
           Text
@@ -215,6 +220,13 @@ export default function Generator() {
     },
     [docRef, handleGraphChange],
   );
+
+  const handleStartAiImage = useCallback(() => {
+    setViewMode('layers');
+    window.setTimeout(() => {
+      document.querySelector<HTMLTextAreaElement>('[data-ai-generation-prompt]')?.focus();
+    }, 0);
+  }, []);
 
   const handleTogglePresets = useCallback(() => {
     closeProjects();
@@ -379,6 +391,7 @@ export default function Generator() {
               {doc.layers.length === 0 && (
                 <EmptyCanvasStart
                   onImportImage={() => imageFileInputRef.current?.click()}
+                  onStartAiImage={handleStartAiImage}
                   onAddText={() => addLayer('text')}
                   onAddNoise={() => addLayer('noise')}
                   onLoadStarter={handleLoadStarter}
