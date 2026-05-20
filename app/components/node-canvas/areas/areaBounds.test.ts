@@ -60,4 +60,31 @@ describe('getGraphAreaBounds', () => {
       ['area-2', 1],
     ]);
   });
+
+  it('splits a non-contiguous area into separate visual segments', () => {
+    const result = getGraphAreaBounds(
+      {
+        ...graph,
+        positions: {
+          a: { x: 100, y: 80 },
+          middle: { x: 560, y: 80 },
+          b: { x: 1120, y: 80 },
+        },
+      },
+      [
+        { id: 'a', position: { x: 100, y: 80 }, data: {}, measured: { width: 320, height: 300 } },
+        { id: 'middle', position: { x: 560, y: 80 }, data: {}, measured: { width: 320, height: 300 } },
+        { id: 'b', position: { x: 1120, y: 80 }, data: {}, measured: { width: 320, height: 300 } },
+      ],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(
+      result.map((bounds) => [bounds.area.id, bounds.nodeCount, bounds.segmentIndex, bounds.segmentCount]),
+    ).toEqual([
+      ['area-1', 2, 0, 2],
+      ['area-1', 2, 1, 2],
+    ]);
+    expect(result[0].x + result[0].width).toBeLessThan(result[1].x);
+  });
 });

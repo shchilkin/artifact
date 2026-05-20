@@ -104,7 +104,9 @@ Selecting an existing area and nodes extends that area instead of creating a
 stacked area over the same nodes. Nested areas/folders are a future design slice,
 not current behavior. Dragging one member away from the rest of an area removes
 that member from the area; dragging the whole area contents together keeps the
-membership intact.
+membership intact. If remaining area members are no longer visually contiguous,
+the node canvas may draw the same area as multiple outlined segments so detached
+nodes in between are not visually claimed by the area.
 
 ## Interaction grammar
 

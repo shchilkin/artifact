@@ -1104,7 +1104,8 @@ async function expectLayerCanvasToHavePixels(page: Page) {
 
 async function switchToNodeView(page: Page) {
   await expect(async () => {
-    const nodesButton = page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' });
+    if (await page.locator('.node-canvas-root').isVisible()) return;
+    const nodesButton = page.getByRole('button', { name: 'nodes' });
     await expect(nodesButton).toBeVisible({ timeout: 2_000 });
     await nodesButton.click();
     await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
