@@ -12,7 +12,8 @@ aspect ratio support, and equirectangular environment map export.
 - Three.js — 3D primitive rendering (sphere, cube, cylinder)
 - React Flow — node-graph composition canvas
 - XState v5 — node canvas interaction state machine
-- localStorage — document persistence and preset system
+- localStorage — active document state and preset system
+- IndexedDB — imported image assets, local project snapshots, and recovery drafts
 
 ## Routes
 
@@ -20,7 +21,8 @@ aspect ratio support, and equirectangular environment map export.
 | ----------- | ---------------------- | ---------------------------------------- |
 | `/`         | `routes/home.tsx`      | Landing page with animated hero covers   |
 | `/app`      | `routes/generator.tsx` | Main generator: canvas, layers, export   |
-| `/examples` | `routes/examples.tsx`  | 8 curated presets with live previews     |
+| `/examples` | `routes/examples.tsx`  | Curated examples with live previews      |
+| `/docs/nodes` | `routes/docs.nodes.tsx` | Task-oriented node, source, and effect docs |
 
 ## Layer system
 
@@ -49,7 +51,10 @@ layers into a directed acyclic graph. Nodes:
 - **Layer nodes** — one per layer, kind-specific preview and controls inline
 - **Merge nodes** — blend two branches with blend mode + opacity
 - **Color nodes** — contrast / brightness / saturation / hue correction
+- **Repeat nodes** — stamp any upstream branch into line, grid, or radial motifs
 - **Export node** — the output that feeds final render and export
+- **Graph areas** — serializable organization metadata shown as node overlays
+  and layer-panel folders; areas do not change render order
 
 The node canvas owns its own interaction state machine (`nodeCanvasMachine`,
 XState parallel machine). Regions: selection (idle / nodeSelected / edgeSelected)
@@ -61,18 +66,20 @@ and overlay (none / contextMenu / gallery).
 `app/utils/renderer.ts`. That file is the public facade; implementation details
 live under `app/utils/render/`.
 
-1. Draw background colour
-2. For each visible layer in order:
+1. Choose graph mode or stack mode. Stack mode infers a linear graph from the
+   layer list so both paths share renderer semantics.
+2. Draw the document background.
+3. Resolve the target branch and apply visible layers, sources, and effects:
    - `emoji` → seeded scatter, LCG sub-seed per layer
    - `text` → Canvas 2D text with scale/rotation/blend
    - `image` → cover / contain / tile / free-fit with alpha
    - `fill` → full-canvas `fillRect` with blend mode
-   - `primitive` / `noise` / `array` → Three.js offscreen render via `primitiveRenderer.ts`
-   - `effect` → Canvas 2D effects (grain, scanlines, glitch streaks, CA, tint,
-     rays, film burn), then GPU shader pass via PixiJS WebGL
+   - `primitive` → Three.js offscreen render via `primitiveRenderer.ts`
+   - `noise` / `array` → Canvas procedural sources, with workerized noise where supported
+   - `effect` → Canvas 2D effects and/or PixiJS WebGL filters
 
-All pixel-value parameters scale by `W / 540` so ×1/×2/×3 exports
-match the preview exactly.
+Pixel-like parameters scale from a 540px reference size so x1/x2/x3 exports keep
+the same composition and effect density as preview.
 
 **GPU shader passes** (`app/utils/pixiFilters.ts`)
 
@@ -89,14 +96,14 @@ All shaders use normalized UV coordinates so effects are resolution-independent.
 
 **3D primitive rendering** (`app/utils/primitiveScene.ts`, `app/utils/primitiveRenderer.ts`)
 
-Geometry, material, lights, shadow, and camera are defined once in
+Geometry, material, lights, and camera are defined once in
 `primitiveScene.ts`. Both the live viewport (`PrimitiveViewport3D`) and the
 offscreen export renderer call the same scene helper — preventing preview/export
 drift.
 
-Camera state (`PrimitiveViewportState`) is live interaction state, not stored in
-the layer. It is passed alongside the document as render options so export always
-matches what the user saw.
+Committed camera state (`PrimitiveViewportState`) is stored as graph metadata
+and passed alongside the document as render options. It is not written into
+primitive layer tilt fields, so export always matches the node/gallery preview.
 
 ## Aspect ratio and export
 
@@ -115,15 +122,19 @@ layers drawn from focused effect presets, all color-keyed to a shared base hue.
 
 ### Current (SPA, no server)
 
-| Method | Where stored | Limit | Shareable |
-| --- | --- | --- | --- |
-| Download (JPEG/PNG) | User's disk | None | Via file sharing |
-| localStorage presets | Browser | ~5 MB total | No |
-| `CanvasDocument` JSON in URL hash (potential) | URL | ~2 KB practical | Yes, via link |
-| IndexedDB (potential) | Browser | Hundreds of MB | No |
+| Method | Where stored | Shareable |
+| --- | --- | --- |
+| Download (JPEG/PNG) | User's disk | Via file sharing |
+| Active document | localStorage | No |
+| Presets | localStorage | No |
+| Imported image payloads | IndexedDB asset records | Hydrated into `.artifact.json` or share links when possible |
+| Local projects and recovery drafts | IndexedDB project records | No |
+| `.artifact.json` | User's disk | Yes, via file sharing |
+| `?doc=` share links | URL query string | Yes, but large hydrated images can make links heavy |
 
-The `CanvasDocument` JSON is the canonical source of truth. Presets already
-serialize it to localStorage; moving to any other backend is a drop-in swap.
+The `CanvasDocument` JSON is the canonical source of truth. Image layers keep a
+serializable `src`; local imports are migrated to `artifact-asset://...`
+references when possible so active localStorage documents stay small.
 
 ### Future (fullstack with DB)
 
@@ -151,10 +162,11 @@ covers (
 ## Features
 
 - Eight layer kinds: emoji, image, text, fill, effect, primitive, noise, array
-- Node-graph composition with merge, color, and export nodes
+- Node-graph composition with merge, color, repeat, and export nodes, plus
+  graph-area organization overlays
 - Photoshop-style layer stack: add, reorder, rename (inline), toggle visibility,
   duplicate, delete
-- Drag-and-drop / paste image import (5 MB cap, broken-image guard)
+- Drag-and-drop / paste image import with downscaling and IndexedDB asset storage
 - 3D primitives: sphere, cube, cylinder — drag to rotate, wheel to zoom, camera lock
 - Free-fit images: move outside canvas, uniform scale via trackpad/scroll,
   independent X/Y scale sliders
@@ -164,9 +176,10 @@ covers (
 - Export at ×1 / ×2 / ×3 as JPEG or PNG
 - Save/open full editable documents as `.artifact.json`
 - **Environment map export** — 4096×2048 equirectangular PNG (Blender-ready)
-- Preset system: save/load/delete, GPU-accurate thumbnails, localStorage (max 20)
-- 8 built-in curated presets (acid-rain, film-ghost, glitch-tape,
-  phantom-violet, pixel-death, riso-print, void-echo, vortex-dream)
+- Preset system: save/load/delete, renderer-backed thumbnails, localStorage (max 20)
+- Local project library with IndexedDB snapshots and thumbnails
+- Curated example documents, including graph-first examples and layer-first
+  starter recipes
 - `prefers-reduced-motion` respected throughout
 - **LogoGlyph** — animated navbar logo: random emoji with randomly-selected GPU
   effect variant (CRT glitch, riso, static-to-signal, phosphor bloom, pixel
@@ -187,6 +200,7 @@ npm run lint       # ESLint
 npm test           # vitest run (all tests)
 npm run test:browser:install # install Playwright Chromium once
 npm run test:browser # focused browser/WebGL smoke tests
+npm run perf:node-editor # opt-in node editor performance benchmark
 npm run check      # format check + lint + typecheck + tests
 ```
 
@@ -203,8 +217,13 @@ is an optional generated local bitmap and remains ignored.
 | [`docs/rendering.md`](docs/rendering.md) | Rendering pipeline: Canvas 2D + PixiJS + Three.js |
 | [`docs/node-editor.md`](docs/node-editor.md) | Node canvas interaction model and state machine |
 | [`docs/app-structure-guidelines.md`](docs/app-structure-guidelines.md) | Component boundaries, state ownership, and refactor rules |
+| [`docs/effect-development.md`](docs/effect-development.md) | Checklist for effect controls, metadata, renderer, and docs |
 | [`docs/testing.md`](docs/testing.md) | Testing strategy: unit, render parity, GPU smoke tests |
+| [`docs/performance.md`](docs/performance.md) | Node-editor benchmark workflow and render performance notes |
 | [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
+| [`docs/roadmap.md`](docs/roadmap.md) | Product and architecture roadmap |
+| [`docs/version-plans/v0.11.md`](docs/version-plans/v0.11.md) | v0.11 layer workflow and onboarding acceptance plan |
+| [`docs/version-plans/v0.12.md`](docs/version-plans/v0.12.md) | v0.12 examples, recipes, docs, and effect coverage acceptance plan |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
 
 ## Project structure
@@ -245,20 +264,23 @@ app/
         useNodeDragState.ts         # Node drag state and document commit
         useNodeGallery.ts           # Gallery media panel state
         usePrimitiveCameraState.ts  # Primitive camera state + lock + reset
+      areas/                # Graph area overlays and bounds helpers
       nodes/                # Per-kind node components
       inspector/            # Node property panels
       thumbnails/
         NodeThumbnail.tsx       # Scoped async thumbnail with content-based invalidation
-        renderSignature.ts      # Per-kind render-field signatures (Phase 8)
+        renderSignature.ts      # Per-kind render-field signatures
         thumbnailQueue.ts       # Debounced per-target render queue
   hooks/
     useDocumentRenderer.ts  # Canvas render loop: pw/ph → renderDocument → display
     usePresets.ts           # localStorage CRUD + thumbnail generation
     useGeneratorDocument.ts # Document state owner: undo/redo, setDoc wrapper
     useGeneratorAssets.ts   # Image cache management
+    useProjects.ts          # IndexedDB project snapshots
   utils/
     lcg.ts                  # Seeded LCG RNG
-    renderer.ts             # Full layer-stack pipeline (renderDocument)
+    renderer.ts             # Public render facade (renderDocument/renderGraphTarget)
+    render/                 # Renderer internals: graph, canvas, layers, workers
     pixiFilters.ts          # 30+ GLSL shaders + buildFilters() pipeline
     primitiveScene.ts       # Shared Three.js scene recipe (geometry/material/lights)
     primitiveRenderer.ts    # Offscreen Three.js render for export
@@ -266,6 +288,8 @@ app/
     exportCanvas.ts         # Hi-res export at ×1/×2/×3 (aspect-aware)
     exportEnvMap.ts         # 4096×2048 equirectangular export
     generateThumbnail.ts    # Full-pipeline 200×200 preset thumbnail
+    assetStore.ts           # IndexedDB image asset storage
+    projectStore.ts         # IndexedDB local project storage
     randomConfig.ts         # Document randomizer (RAND button)
     nodeGraph.ts            # Graph traversal helpers (collectUpstreamNodeIds, etc.)
     devLogging.ts           # Dev-only logging (thumbnail invalidation causes)
@@ -274,7 +298,6 @@ app/
     logoVariants.ts         # LogoGlyph effect variant definitions
   types/
     config.ts               # All types: Layer, CanvasDocument, EffectPreset, etc.
-  examples/                 # 8 curated preset JSON files
   test-fixtures/
     render/                 # Render parity fixtures and Canvas 2D pixel tests
 ```
