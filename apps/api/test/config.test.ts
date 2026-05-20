@@ -63,4 +63,13 @@ describe('loadConfig', () => {
       authJwtAudience: 'artifact-api',
     });
   });
+
+  it('defaults the OpenAI image model to the current configured provider target', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({
+      openAiImageModel: 'gpt-image-2',
+    });
+    expect(loadConfig({ ...requiredEnv, OPENAI_IMAGE_MODEL: 'gpt-image-1.5' })).toMatchObject({
+      openAiImageModel: 'gpt-image-1.5',
+    });
+  });
 });

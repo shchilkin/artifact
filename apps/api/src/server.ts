@@ -5,7 +5,7 @@ import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { errorJson, writeApiResponse } from './http.js';
-import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
+import { createMockImageProvider, createOpenAiImageProvider, createProviderRegistry } from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
@@ -21,7 +21,9 @@ const queue =
   config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
 const storage = new LocalAssetStorage(config.assetStorageDir);
 const providers = createProviderRegistry([
-  createMockImageProvider({ provider: 'openai' }),
+  config.openAiApiKey
+    ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
+    : createMockImageProvider({ provider: 'openai' }),
   createMockImageProvider({ provider: 'xai' }),
 ]);
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });

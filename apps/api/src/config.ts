@@ -10,6 +10,7 @@ export interface ApiConfig {
   authJwtAudience?: string;
   devBearerToken?: string;
   openAiApiKey?: string;
+  openAiImageModel: string;
   xAiApiKey?: string;
   assetStorageDriver: 'local' | 's3';
   assetStorageDir: string;
@@ -59,6 +60,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     openAiApiKey: env.OPENAI_API_KEY,
+    openAiImageModel: env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2',
     xAiApiKey: env.XAI_API_KEY,
     assetStorageDriver: driver,
     assetStorageDir: env.ASSET_STORAGE_DIR ?? './storage',

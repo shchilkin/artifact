@@ -3,7 +3,7 @@ import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { processGenerationJob } from './generationWorker.js';
-import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
+import { createMockImageProvider, createOpenAiImageProvider, createProviderRegistry } from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { LocalAssetStorage } from './storage/index.js';
 
@@ -16,7 +16,9 @@ const queue =
   config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
 const storage = new LocalAssetStorage(config.assetStorageDir);
 const providers = createProviderRegistry([
-  createMockImageProvider({ provider: 'openai' }),
+  config.openAiApiKey
+    ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
+    : createMockImageProvider({ provider: 'openai' }),
   createMockImageProvider({ provider: 'xai' }),
 ]);
 

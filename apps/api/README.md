@@ -48,6 +48,7 @@ Implemented:
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
+- OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
 - Local asset storage adapter.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
@@ -58,7 +59,8 @@ Implemented:
 
 Next:
 
-- OpenAI/xAI provider adapters after the mocked path works end to end.
+- xAI provider adapter.
+- Provider output validation and cleanup hardening.
 
 ## Contract
 
