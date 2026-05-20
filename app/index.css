@@ -680,7 +680,7 @@ input[type="range"] {
   min-height: 30px;
   align-items: center;
   gap: 7px;
-  padding: 0 68px 0 12px;
+  padding: 0 92px 0 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   background: transparent;
   color: var(--text-dim);
@@ -701,7 +701,8 @@ input[type="range"] {
 
 .layer-area-folder-toggle,
 .layer-area-name-button,
-.layer-area-rename {
+.layer-area-rename,
+.layer-area-remove {
   display: inline-flex;
   align-items: center;
   border: 0;
@@ -730,7 +731,8 @@ input[type="range"] {
 }
 
 .layer-area-name-button:hover,
-.layer-area-rename:hover {
+.layer-area-rename:hover,
+.layer-area-remove:hover {
   color: var(--text);
 }
 
@@ -748,15 +750,23 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
-.layer-area-rename {
+.layer-area-rename,
+.layer-area-remove {
   position: absolute;
   top: 4px;
-  right: 34px;
   z-index: 1;
   width: 22px;
   height: 22px;
   justify-content: center;
   padding: 0;
+}
+
+.layer-area-remove {
+  right: 58px;
+}
+
+.layer-area-rename {
+  right: 34px;
 }
 
 .layer-area-visibility {
@@ -846,6 +856,25 @@ input[type="range"] {
 .layer-graph-helper-kind {
   flex-shrink: 0;
   color: color-mix(in srgb, var(--text-dim) 70%, transparent);
+}
+
+.layer-graph-helper-remove {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-dim) 70%, transparent);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.layer-graph-helper-remove:hover {
+  color: var(--text);
 }
 
 .layer-area-dot {

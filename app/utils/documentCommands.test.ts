@@ -15,7 +15,9 @@ import {
   bootstrapDocumentGraph,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
+  removeGraphAreaInDocument,
   removeLayerFromDocument,
+  removeNodesFromGraphAreaInDocument,
   setDocumentAspect,
   setDocumentGraph,
   setDocumentSeed,
@@ -383,6 +385,25 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a'].includes(edge.fromId))).toBe(
       false,
     );
+  });
+
+  it('removes graph areas and graph-only area members without touching render graph nodes', () => {
+    const graph = {
+      ...makeGraph(),
+      areas: [{ id: 'area-a', name: 'Area A', color: '#ff6b5a', nodeIds: ['fill-a', 'merge-a', 'color-a'] }],
+    };
+    const doc = makeDoc(graph);
+    const withoutHelper = removeNodesFromGraphAreaInDocument(doc, 'area-a', ['merge-a']);
+
+    expect(withoutHelper.graph?.areas?.[0]?.nodeIds).toEqual(['fill-a', 'color-a']);
+    expect(withoutHelper.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
+    expect(withoutHelper.graph?.edges.some((edge) => edge.fromId === 'merge-a' || edge.toId === 'merge-a')).toBe(true);
+
+    const withoutArea = removeGraphAreaInDocument(withoutHelper, 'area-a');
+
+    expect(withoutArea.graph?.areas).toEqual([]);
+    expect(withoutArea.graph?.positions).toHaveProperty('fill-a');
+    expect(withoutArea.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
   });
 
   it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {

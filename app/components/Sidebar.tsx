@@ -14,7 +14,9 @@ import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetSt
 import {
   addLayersToGraphAreaInDocument,
   createGraphAreaInDocument,
+  removeGraphAreaInDocument,
   removeLayersFromGraphAreaInDocument,
+  removeNodesFromGraphAreaInDocument,
   renameGraphAreaInDocument,
 } from '../utils/documentCommands';
 import { LayerPanel } from './LayerPanel';
@@ -177,6 +179,21 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleRemoveNodesFromArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      onDocChange(removeNodesFromGraphAreaInDocument(docRef.current, areaId, ids));
+    },
+    [onDocChange],
+  );
+
+  const handleRemoveArea = useCallback(
+    (areaId: string) => {
+      onDocChange(removeGraphAreaInDocument(docRef.current, areaId));
+    },
+    [onDocChange],
+  );
+
   const handleRenameArea = useCallback(
     (areaId: string, name: string) => {
       onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name));
@@ -264,6 +281,8 @@ export function Sidebar({
           onCreateAreaFromLayers={handleCreateAreaFromLayers}
           onAddLayersToArea={handleAddLayersToArea}
           onRemoveLayersFromAreas={handleRemoveLayersFromAreas}
+          onRemoveNodesFromArea={handleRemoveNodesFromArea}
+          onRemoveArea={handleRemoveArea}
           onRenameArea={handleRenameArea}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}

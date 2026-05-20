@@ -34,6 +34,7 @@ import {
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
+  removeGraphArea,
   removeLayerFromGraph,
   removeMergeNode,
   removeNodesFromGraphArea,
@@ -168,9 +169,24 @@ export function removeLayersFromGraphAreaInDocument(
   areaId: string,
   layerIds: string[],
 ): CanvasDocument {
+  return removeNodesFromGraphAreaInDocument(doc, areaId, layerIds);
+}
+
+export function removeNodesFromGraphAreaInDocument(
+  doc: CanvasDocument,
+  areaId: string,
+  nodeIds: string[],
+): CanvasDocument {
   return {
     ...doc,
-    graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
+    graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, nodeIds),
+  };
+}
+
+export function removeGraphAreaInDocument(doc: CanvasDocument, areaId: string): CanvasDocument {
+  return {
+    ...doc,
+    graph: removeGraphArea(ensureDocumentGraph(doc), areaId),
   };
 }
 
