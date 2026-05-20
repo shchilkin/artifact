@@ -25,6 +25,7 @@ interface Props {
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
   onCreateAreaFromLayers: (ids: string[]) => void;
   onAddLayersToArea: (areaId: string, ids: string[]) => void;
+  onRenameArea: (areaId: string, name: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
   modeSwitcher?: React.ReactNode;
@@ -303,6 +304,7 @@ export function LayerPanel({
   onSetLayersVisible,
   onCreateAreaFromLayers,
   onAddLayersToArea,
+  onRenameArea,
   onDuplicateLayer,
   onRenameLayer,
   modeSwitcher,
@@ -310,6 +312,7 @@ export function LayerPanel({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
   const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(() => new Set());
   const [showAreaMenu, setShowAreaMenu] = useState(false);
@@ -433,6 +436,14 @@ export function LayerPanel({
       setEditingId(null);
     },
     [onRenameLayer],
+  );
+
+  const handleFinishAreaRename = useCallback(
+    (id: string, name: string | null) => {
+      if (name) onRenameArea(id, name);
+      setEditingAreaId(null);
+    },
+    [onRenameArea],
   );
 
   const handleDrop = useCallback(
@@ -602,28 +613,75 @@ export function LayerPanel({
         {displayItems.map((item) =>
           item.type === 'area' ? (
             <div key={item.area.id} className="layer-area-folder">
-              <button
-                type="button"
+              <div
                 className="layer-area-folder-header"
-                onClick={() => handleToggleAreaCollapsed(item.area.id)}
-                aria-expanded={!activeCollapsedAreaIds.has(item.area.id)}
-                aria-label={`${activeCollapsedAreaIds.has(item.area.id) ? 'Expand' : 'Collapse'} ${item.area.name}`}
                 title={`${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}${
                   item.graphHelpers.length > 0
                     ? `, ${item.graphHelpers.length} graph node${item.graphHelpers.length === 1 ? '' : 's'}`
                     : ''
                 }`}
               >
-                <span className="layer-area-caret" aria-hidden="true">
-                  {activeCollapsedAreaIds.has(item.area.id) ? '+' : '-'}
-                </span>
+                <button
+                  type="button"
+                  className="layer-area-folder-toggle"
+                  onClick={() => handleToggleAreaCollapsed(item.area.id)}
+                  aria-expanded={!activeCollapsedAreaIds.has(item.area.id)}
+                  aria-label={`${activeCollapsedAreaIds.has(item.area.id) ? 'Expand' : 'Collapse'} ${item.area.name}`}
+                >
+                  <span className="layer-area-caret" aria-hidden="true">
+                    {activeCollapsedAreaIds.has(item.area.id) ? '+' : '-'}
+                  </span>
+                </button>
                 <span className="layer-area-dot" style={{ background: item.area.color }} aria-hidden="true" />
-                <span className="layer-area-name">{item.area.name}</span>
+                {editingAreaId === item.area.id ? (
+                  <input
+                    autoFocus
+                    defaultValue={item.area.name}
+                    className="layer-area-name-input"
+                    aria-label={`Rename ${item.area.name}`}
+                    onBlur={(event) => {
+                      const value = event.target.value.trim();
+                      handleFinishAreaRename(item.area.id, value || null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        const value = event.currentTarget.value.trim();
+                        handleFinishAreaRename(item.area.id, value || null);
+                      } else if (event.key === 'Escape') {
+                        handleFinishAreaRename(item.area.id, null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="layer-area-name-button"
+                    onDoubleClick={(event) => {
+                      event.stopPropagation();
+                      setEditingAreaId(item.area.id);
+                    }}
+                    title="Double-click to rename"
+                  >
+                    <span className="layer-area-name">{item.area.name}</span>
+                  </button>
+                )}
                 <span className="layer-area-count">{item.layers.length}</span>
                 {item.graphHelpers.length > 0 && (
                   <span className="layer-area-graph-count">+{item.graphHelpers.length}</span>
                 )}
-              </button>
+                <button
+                  type="button"
+                  className="layer-area-rename"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEditingAreaId(item.area.id);
+                  }}
+                  aria-label={`Rename ${item.area.name}`}
+                  title="Rename area"
+                >
+                  ✎
+                </button>
+              </div>
               <button
                 type="button"
                 className="layer-area-visibility"

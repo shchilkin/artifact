@@ -11,7 +11,11 @@ import {
   type LayerKind,
 } from '../types/config';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
-import { addLayersToGraphAreaInDocument, createGraphAreaInDocument } from '../utils/documentCommands';
+import {
+  addLayersToGraphAreaInDocument,
+  createGraphAreaInDocument,
+  renameGraphAreaInDocument,
+} from '../utils/documentCommands';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -156,6 +160,13 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleRenameArea = useCallback(
+    (areaId: string, name: string) => {
+      onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name));
+    },
+    [onDocChange],
+  );
+
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
       const current = docRef.current;
@@ -222,6 +233,7 @@ export function Sidebar({
           onSetLayersVisible={handleSetLayersVisible}
           onCreateAreaFromLayers={handleCreateAreaFromLayers}
           onAddLayersToArea={handleAddLayersToArea}
+          onRenameArea={handleRenameArea}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}
           modeSwitcher={modeSwitcher}

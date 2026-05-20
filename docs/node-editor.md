@@ -94,7 +94,8 @@ read-only helper rows, not as stack layers. Folder collapse is local UI state;
 creating an area from selected nodes, or from selected layer rows in the Layers
 panel, stores only node ids, name, color, and collapsed metadata. Layer rows can
 be multi-selected to create a new area or added to an existing area from the
-selection action bar or row context menu. Areas do not own React Flow nodes, do not make node
+selection action bar or row context menu. Area names can be edited from the
+Layers folder row. Areas do not own React Flow nodes, do not make node
 positions relative, and do not affect render order.
 
 Area membership is exclusive. A node belongs to at most one area in the current

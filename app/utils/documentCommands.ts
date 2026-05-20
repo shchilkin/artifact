@@ -39,6 +39,7 @@ import {
   removeRepeatNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
+  updateGraphArea,
   updateRepeatNode as updateRepeatNodeInGraph,
 } from './nodeGraph';
 import type { NoisePresetId } from './noisePresets';
@@ -149,6 +150,15 @@ export function addLayersToGraphAreaInDocument(
   return {
     ...doc,
     graph: addNodesToGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
+  };
+}
+
+export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, name: string): CanvasDocument {
+  const trimmed = name.trim();
+  if (!trimmed) return doc;
+  return {
+    ...doc,
+    graph: updateGraphArea(ensureDocumentGraph(doc), areaId, { name: trimmed }),
   };
 }
 

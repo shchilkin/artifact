@@ -721,6 +721,26 @@ test('layers can create areas from multi-selected rows', async ({ page }) => {
     .toEqual(expect.arrayContaining(['layer-area-backdrop', 'layer-area-type']));
 });
 
+test('layer area folders can be renamed', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+
+  const folder = page.locator('.layer-area-folder').first();
+  await folder.getByRole('button', { name: /Rename Area 1/ }).click();
+  const input = folder.getByRole('textbox', { name: /Rename Area 1/ });
+  await input.fill('Print Stack');
+  await input.press('Enter');
+
+  await expect(folder).toContainText('Print Stack');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.name;
+      }),
+    )
+    .toBe('Print Stack');
+});
+
 test('layers can add rows to an existing area from the context menu', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
 
