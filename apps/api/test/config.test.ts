@@ -50,4 +50,17 @@ describe('loadConfig', () => {
       redisUrl: 'redis://localhost:6379',
     });
   });
+
+  it('keeps optional JWT issuer and audience when configured', () => {
+    expect(
+      loadConfig({
+        ...requiredEnv,
+        AUTH_JWT_ISSUER: 'artifact-web',
+        AUTH_JWT_AUDIENCE: 'artifact-api',
+      }),
+    ).toMatchObject({
+      authJwtIssuer: 'artifact-web',
+      authJwtAudience: 'artifact-api',
+    });
+  });
 });

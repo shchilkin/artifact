@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { resolveRequestUser } from './auth.js';
+import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
@@ -25,6 +25,11 @@ const providers = createProviderRegistry([
   createMockImageProvider({ provider: 'xai' }),
 ]);
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
+const verifyJwtBearerToken = createJwtBearerVerifier({
+  secret: config.authJwtSecret,
+  issuer: config.authJwtIssuer,
+  audience: config.authJwtAudience,
+});
 
 if (config.devBearerToken && store) {
   store.seedUser({
@@ -40,10 +45,12 @@ const server = createServer(async (req, res) => {
   try {
     const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
       resolveRequestUser(request, {
-        verifyBearerToken: (token) =>
-          config.devBearerToken && token === config.devBearerToken
-            ? { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' }
-            : null,
+        verifyBearerToken: async (token) => {
+          if (config.devBearerToken && token === config.devBearerToken) {
+            return { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' };
+          }
+          return verifyJwtBearerToken(token);
+        },
       });
     const response =
       (await handleAiRequest(req, {

@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AiAccessResponse, AiProvider, AiQuotaSnapshot } from './contracts.js';
 
 export interface RequestUser {
@@ -32,6 +33,24 @@ export type MaybePromise<T> = T | Promise<T>;
 export interface ResolveRequestUserOptions {
   devUser?: RequestUser;
   verifyBearerToken?: (token: string) => MaybePromise<RequestUser | null>;
+}
+
+export interface JwtVerifierOptions {
+  secret: string;
+  issuer?: string;
+  audience?: string;
+  now?: () => Date;
+}
+
+interface JwtClaims {
+  sub?: unknown;
+  id?: unknown;
+  email?: unknown;
+  role?: unknown;
+  iss?: unknown;
+  aud?: unknown;
+  exp?: unknown;
+  nbf?: unknown;
 }
 
 export interface ComputeAiAccessOptions {
@@ -89,6 +108,37 @@ export async function resolveRequestUser(
   return { authenticated: true, token, user };
 }
 
+export function createJwtBearerVerifier(options: JwtVerifierOptions) {
+  return async (token: string): Promise<RequestUser | null> => verifySignedBearerToken(token, options);
+}
+
+export function verifySignedBearerToken(token: string, options: JwtVerifierOptions): RequestUser | null {
+  const [encodedHeader, encodedPayload, signature] = token.split('.');
+  if (!encodedHeader || !encodedPayload || !signature) return null;
+
+  const header = parseJwtPart<{ alg?: unknown; typ?: unknown }>(encodedHeader);
+  const claims = parseJwtPart<JwtClaims>(encodedPayload);
+  if (!header || !claims || header.alg !== 'HS256') return null;
+
+  const expectedSignature = signJwtParts(`${encodedHeader}.${encodedPayload}`, options.secret);
+  if (!safeEqual(signature, expectedSignature)) return null;
+
+  const nowSeconds = Math.floor((options.now?.() ?? new Date()).getTime() / 1000);
+  if (typeof claims.exp === 'number' && claims.exp <= nowSeconds) return null;
+  if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds) return null;
+  if (options.issuer && claims.iss !== options.issuer) return null;
+  if (options.audience && !audienceMatches(claims.aud, options.audience)) return null;
+
+  const id = typeof claims.sub === 'string' ? claims.sub : typeof claims.id === 'string' ? claims.id : undefined;
+  if (!id) return null;
+
+  return {
+    id,
+    email: typeof claims.email === 'string' ? claims.email : undefined,
+    role: typeof claims.role === 'string' ? claims.role : undefined,
+  };
+}
+
 export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAccessResponse {
   const { aiEnabled, auth, maintenance = false, providers = [], quota } = options;
   const quotaExhausted = quota ? quota.remaining <= 0 : false;
@@ -110,4 +160,28 @@ export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAcce
     quota,
     user: auth.authenticated ? auth.user : undefined,
   };
+}
+
+function parseJwtPart<T>(encoded: string): T | null {
+  try {
+    return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as T;
+  } catch {
+    return null;
+  }
+}
+
+function signJwtParts(value: string, secret: string): string {
+  return createHmac('sha256', secret).update(value).digest('base64url');
+}
+
+function safeEqual(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.byteLength === right.byteLength && timingSafeEqual(left, right);
+}
+
+function audienceMatches(claimAudience: unknown, expectedAudience: string) {
+  if (typeof claimAudience === 'string') return claimAudience === expectedAudience;
+  if (Array.isArray(claimAudience)) return claimAudience.includes(expectedAudience);
+  return false;
 }

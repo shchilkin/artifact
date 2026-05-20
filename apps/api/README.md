@@ -43,6 +43,8 @@ Implemented:
 - Dependency-injected Postgres repository adapters.
 - Configurable local memory or VPS Postgres repository backend.
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
+- HS256 JWT bearer verification with optional issuer/audience checks, plus
+  dev bearer-token fallback.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
@@ -56,7 +58,6 @@ Implemented:
 
 Next:
 
-- Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.
 
 ## Contract

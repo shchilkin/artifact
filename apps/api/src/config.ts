@@ -6,6 +6,8 @@ export interface ApiConfig {
   queueDriver: 'memory' | 'bullmq';
   redisUrl: string;
   authJwtSecret: string;
+  authJwtIssuer?: string;
+  authJwtAudience?: string;
   devBearerToken?: string;
   openAiApiKey?: string;
   xAiApiKey?: string;
@@ -53,6 +55,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     queueDriver,
     redisUrl: queueDriver === 'bullmq' ? requiredEnv(env, 'REDIS_URL') : (env.REDIS_URL ?? ''),
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
+    authJwtIssuer: env.AUTH_JWT_ISSUER,
+    authJwtAudience: env.AUTH_JWT_AUDIENCE,
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     openAiApiKey: env.OPENAI_API_KEY,
     xAiApiKey: env.XAI_API_KEY,
