@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { FONT_STACKS, type Layer } from '../../../types/config';
 import { isAssetUri } from '../../../utils/assetStore';
 import { useNodeCanvasPreview } from '../context';
@@ -5,6 +6,20 @@ import { getLiveMediaReferenceScale } from './liveMediaSizing';
 import { getNodePreviewSize } from './previewSizing';
 
 export type LiveMediaLayer = Extract<Layer, { kind: 'text' | 'image' }>;
+type PreviewSize = ReturnType<typeof getNodePreviewSize>;
+
+function LiveMediaOverlayFrame({ previewSize, children }: { previewSize: PreviewSize; children: ReactNode }) {
+  return (
+    <div className="node-thumbnail node-live-media-overlay" style={{ minHeight: previewSize.display.height }}>
+      <div
+        className="node-thumbnail-frame node-live-media-overlay-frame"
+        style={{ width: previewSize.display.width, height: previewSize.display.height }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function EmptyThumbnailFrame({ label }: { label?: string }) {
   const { doc } = useNodeCanvasPreview();
@@ -30,7 +45,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
     const fontFamily = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
     const fontSize = Math.max(6, layer.size * referenceScale);
     return (
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <LiveMediaOverlayFrame previewSize={previewSize}>
         <div
           style={{
             position: 'absolute',
@@ -51,7 +66,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
         >
           {layer.content}
         </div>
-      </div>
+      </LiveMediaOverlayFrame>
     );
   }
 
@@ -61,7 +76,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
 
   if (layer.fit === 'tile') {
     return (
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <LiveMediaOverlayFrame previewSize={previewSize}>
         <div
           style={{
             position: 'absolute',
@@ -75,13 +90,13 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             transformOrigin: 'center center',
           }}
         />
-      </div>
+      </LiveMediaOverlayFrame>
     );
   }
 
   if (layer.fit === 'free') {
     return (
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <LiveMediaOverlayFrame previewSize={previewSize}>
         <img
           src={imageSrc}
           alt=""
@@ -97,13 +112,13 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             pointerEvents: 'none',
           }}
         />
-      </div>
+      </LiveMediaOverlayFrame>
     );
   }
 
   const objectFit = layer.fit === 'contain' ? 'contain' : 'cover';
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+    <LiveMediaOverlayFrame previewSize={previewSize}>
       <img
         src={imageSrc}
         alt=""
@@ -122,6 +137,6 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
           pointerEvents: 'none',
         }}
       />
-    </div>
+    </LiveMediaOverlayFrame>
   );
 }

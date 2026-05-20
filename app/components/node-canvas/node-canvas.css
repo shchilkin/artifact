@@ -157,6 +157,20 @@
   pointer-events: none;
 }
 
+.node-live-media-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+  border-bottom: none;
+  pointer-events: none;
+}
+
+.node-live-media-overlay-frame {
+  background: transparent;
+  border-color: transparent;
+}
+
 .node-thumbnail-empty-label {
   position: absolute;
   inset: 0;
