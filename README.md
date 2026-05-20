@@ -162,7 +162,8 @@ covers (
 ## Features
 
 - Eight layer kinds: emoji, image, text, fill, effect, primitive, noise, array
-- Node-graph composition with merge, color, repeat, area, and export nodes
+- Node-graph composition with merge, color, repeat, and export nodes, plus
+  graph-area organization overlays
 - Photoshop-style layer stack: add, reorder, rename (inline), toggle visibility,
   duplicate, delete
 - Drag-and-drop / paste image import with downscaling and IndexedDB asset storage
