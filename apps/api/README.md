@@ -50,6 +50,8 @@ Implemented:
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
 - Authenticated generated-asset download route handler.
+- Worker job processor that marks jobs running, writes mock provider output to
+  storage, creates generated asset records, and marks success/failure.
 - API-local tests.
 
 Next:

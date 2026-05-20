@@ -5,6 +5,7 @@ import type { AssetStorage, StoredAssetFile } from './types.js';
 const EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
+  'image/svg+xml': 'svg',
   'image/webp': 'webp',
 };
 
@@ -44,6 +45,7 @@ export class LocalAssetStorage implements AssetStorage {
 export function mimeTypeFromStorageKey(storageKey: string) {
   if (storageKey.endsWith('.jpg') || storageKey.endsWith('.jpeg')) return 'image/jpeg';
   if (storageKey.endsWith('.png')) return 'image/png';
+  if (storageKey.endsWith('.svg')) return 'image/svg+xml';
   if (storageKey.endsWith('.webp')) return 'image/webp';
   return 'application/octet-stream';
 }

@@ -1,35 +1,30 @@
 import { loadConfig } from './config.js';
+import { InMemoryApiStore } from './db/memory.js';
+import { createPostgresPool } from './db/pool.js';
+import { createPostgresRepositories } from './db/postgres.js';
+import { processGenerationJob } from './generationWorker.js';
 import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
+import { LocalAssetStorage } from './storage/index.js';
 
 const config = loadConfig();
+const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
+const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
+const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
+if (!repositories) throw new Error('No API repository backend configured.');
 const queue =
   config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
+const storage = new LocalAssetStorage(config.assetStorageDir);
 const providers = createProviderRegistry([
   createMockImageProvider({ provider: 'openai' }),
   createMockImageProvider({ provider: 'xai' }),
 ]);
 
 const worker = queue.process(async (job) => {
-  const provider = providers.get('openai');
-  const result = await provider.generateImage({
-    jobId: job.data.jobId,
-    userId: job.data.userId,
-    provider: provider.provider,
-    model: provider.defaultModel,
-    prompt: `Mock generation for ${job.data.jobId}`,
-    settings: {
-      aspect: '1:1',
-      quality: 'draft',
-    },
-  });
-
-  console.log('Artifact AI mock generation completed', {
-    jobId: job.data.jobId,
-    provider: result.provider,
-    model: result.model,
-    mimeType: result.mimeType,
-    bytes: result.bytes.byteLength,
+  await processGenerationJob(job, {
+    repositories,
+    providers,
+    storage,
   });
 });
 
@@ -39,4 +34,17 @@ console.log('Artifact AI worker scaffold loaded', {
   storageDriver: config.assetStorageDriver,
   providers: providers.list().map((provider) => provider.provider),
   workerReady: Boolean(worker),
+});
+
+async function shutdown() {
+  await worker.close();
+  await queue.close?.();
+  await pool?.end();
+}
+
+process.once('SIGINT', () => {
+  void shutdown();
+});
+process.once('SIGTERM', () => {
+  void shutdown();
 });

@@ -4,6 +4,7 @@ import type {
   AssetRow,
   CreateAiGenerationJobInput,
   CreateAssetInput,
+  JsonObject,
   UpsertAiUsageMonthlyInput,
   UserRow,
 } from './types.js';
@@ -24,7 +25,19 @@ export interface JobReadWriteRepository {
   findByIdForUser(id: string, userId: string): Promise<AiGenerationJobRow | null>;
   findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null>;
   countActiveJobs(userId: string): Promise<number>;
+  markRunning(id: string, startedAt: Date): Promise<AiGenerationJobRow>;
+  markSucceeded(id: string, outputAssetId: string, completedAt: Date): Promise<AiGenerationJobRow>;
   markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow>;
+  markFailed(
+    id: string,
+    error: {
+      code: string;
+      message: string;
+      retryable: boolean;
+      providerUsageJson?: JsonObject | null;
+      estimatedCost?: string | null;
+    },
+  ): Promise<AiGenerationJobRow>;
 }
 
 export interface AssetReadWriteRepository {

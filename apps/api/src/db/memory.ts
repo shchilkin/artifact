@@ -207,7 +207,10 @@ export class InMemoryApiStore {
         findByIdForUser: (id, userId) => this.findGenerationJobByIdForUser(id, userId),
         findByIdempotencyKey: (userId, idempotencyKey) => this.findByIdempotencyKey(userId, idempotencyKey),
         countActiveJobs: (userId) => this.countActiveJobs(userId),
+        markRunning: (id, startedAt) => this.markRunning(id, startedAt),
+        markSucceeded: (id, outputAssetId, completedAt) => this.markSucceeded(id, outputAssetId, completedAt),
         markCancelled: (id, cancelledAt) => this.markCancelled(id, cancelledAt),
+        markFailed: (id, error) => this.markFailed(id, error),
       },
       assets: {
         create: (input) => this.createAsset(input),
