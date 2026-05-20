@@ -59,12 +59,14 @@ Implemented:
   `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.
 - Credentialed CORS/preflight handling for `WEB_ORIGIN`.
+- Unauthenticated `GET /api/health` for liveness and VPS smoke checks.
+- VPS/local operations runbook in [`RUNBOOK.md`](./RUNBOOK.md).
 - API-local tests.
 
 Next:
 
 - Graph-native Image Generation node.
-- VPS deployment/runbook.
+- Keep [`RUNBOOK.md`](./RUNBOOK.md) updated as deployment assumptions change.
 
 ## Contract
 
@@ -97,6 +99,10 @@ you can override a setting for one run without editing the file.
 When `API_BULL_BOARD_ENABLED=true` and `API_QUEUE_DRIVER=bullmq`, Bull Board is
 available at `http://localhost:4000/admin/queues`.
 
+The API also exposes unauthenticated liveness metadata at
+`http://localhost:4000/api/health`. Use this for local smoke tests, reverse
+proxy checks, and VPS process monitoring.
+
 By default this uses the mock providers, so it does not spend provider tokens.
 Set `OPENAI_API_KEY` or `XAI_API_KEY` in the API and worker terminals to test a
 real provider.
@@ -123,3 +129,7 @@ and a generated asset import bridge in
 Completed generated assets should be downloaded by the browser, stored in
 IndexedDB, and inserted into the document as normal `artifact-asset://...`
 image sources.
+
+## VPS Runbook
+
+Deployment and operations notes live in [`RUNBOOK.md`](./RUNBOOK.md).

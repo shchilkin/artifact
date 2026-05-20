@@ -27,7 +27,7 @@ export function errorJson(status: number, code: string, message: string): JsonRe
   return json(status, { code, message });
 }
 
-export function writeApiResponse<T>(res: ServerResponse, response: ApiResponse<T>) {
+export function writeApiResponse(res: ServerResponse, response: ApiResponse<unknown>) {
   if ('bytes' in response) {
     res.writeHead(response.status, response.headers);
     res.end(response.bytes);
@@ -37,7 +37,7 @@ export function writeApiResponse<T>(res: ServerResponse, response: ApiResponse<T
   writeJsonResponse(res, response);
 }
 
-export function writeJsonResponse<T>(res: ServerResponse, response: JsonResponse<T>) {
+export function writeJsonResponse(res: ServerResponse, response: JsonResponse<unknown>) {
   res.writeHead(response.status, {
     'content-type': 'application/json',
     ...response.headers,

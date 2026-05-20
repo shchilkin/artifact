@@ -1,4 +1,5 @@
 export const AI_API_PATHS = {
+  health: '/api/health',
   access: '/api/ai/access',
   generations: '/api/ai/generations',
   generation: (id: string) => `/api/ai/generations/${encodeURIComponent(id)}`,
@@ -95,6 +96,16 @@ export interface AiAccessResponse {
 export interface AiErrorResponse {
   code: string;
   message: string;
+}
+
+export interface ApiHealthResponse {
+  ok: true;
+  service: 'artifact-api';
+  databaseDriver: 'memory' | 'postgres';
+  queueDriver: 'memory' | 'bullmq';
+  storageDriver: 'local' | 's3';
+  providers: AiProvider[];
+  bullBoardEnabled: boolean;
 }
 
 export interface GenerationQueuePayload {

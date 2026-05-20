@@ -18,6 +18,7 @@ import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './qu
 import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
+import { handleHealthRequest } from './routes/health.js';
 import { LocalAssetStorage } from './storage/index.js';
 
 loadApiEnv();
@@ -81,6 +82,13 @@ const server = createServer(async (req, res) => {
         },
       });
     const response =
+      handleHealthRequest(req, {
+        databaseDriver: config.databaseDriver,
+        queueDriver: config.queueDriver,
+        storageDriver: config.assetStorageDriver,
+        providers: providers.list().map((provider) => provider.provider),
+        bullBoardEnabled: Boolean(bullBoard),
+      }) ??
       (await handleAiRequest(req, {
         repositories,
         queue,
