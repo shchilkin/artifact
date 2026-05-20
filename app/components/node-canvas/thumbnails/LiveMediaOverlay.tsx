@@ -1,6 +1,7 @@
 import { FONT_STACKS, type Layer } from '../../../types/config';
 import { isAssetUri } from '../../../utils/assetStore';
 import { useNodeCanvasPreview } from '../context';
+import { getLiveMediaReferenceScale } from './liveMediaSizing';
 import { getNodePreviewSize } from './previewSizing';
 
 export type LiveMediaLayer = Extract<Layer, { kind: 'text' | 'image' }>;
@@ -24,9 +25,10 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
   const { doc, imageCache } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
   const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
+  const referenceScale = getLiveMediaReferenceScale(previewSize.display.width);
   if (layer.kind === 'text') {
     const fontFamily = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
-    const fontSize = Math.max(6, layer.size * (maxDisplayDimension / 540));
+    const fontSize = Math.max(6, layer.size * referenceScale);
     return (
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <div
@@ -89,7 +91,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             left: `${layer.x * 100}%`,
             top: `${layer.y * 100}%`,
             opacity: layer.opacity / 100,
-            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${(maxDisplayDimension / 540) * layer.scaleX}, ${(maxDisplayDimension / 540) * layer.scaleY})`,
+            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${referenceScale * layer.scaleX}, ${referenceScale * layer.scaleY})`,
             transformOrigin: 'center center',
             userSelect: 'none',
             pointerEvents: 'none',
