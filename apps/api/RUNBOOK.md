@@ -133,6 +133,25 @@ curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/generatio
 If the job stays queued, check that the worker process is running and points at
 the same `DATABASE_URL` and `REDIS_URL` as the API.
 
+You can run the same flow with the bundled smoke script after the API and
+worker are running:
+
+```bash
+npm --prefix apps/api run smoke
+```
+
+Useful overrides:
+
+```bash
+API_SMOKE_BASE_URL=https://api.example.com \
+API_SMOKE_TOKEN=<bearer-token> \
+API_SMOKE_PROVIDER=openai \
+npm --prefix apps/api run smoke
+```
+
+The smoke script checks `/api/health`, `/api/ai/access`, creates a generation
+job, polls it to completion, and downloads the generated asset bytes.
+
 ## Bull Board
 
 Enable only on trusted networks or behind your own auth:

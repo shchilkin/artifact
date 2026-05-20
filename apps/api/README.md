@@ -85,9 +85,11 @@ npm run dev:ai:infra
 npm run dev:ai:api
 npm run dev:ai:worker
 npm run dev:ai:web
+npm --prefix apps/api run smoke
 ```
 
-Run those last three commands in separate terminals. The Compose database is
+Run `dev:ai:api`, `dev:ai:worker`, and `dev:ai:web` in separate terminals. The
+Compose database is
 initialized with the v0.13 migration and a local `dev-user` with AI access. The
 root `.env` exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
 the local API as that seeded user.
