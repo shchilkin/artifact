@@ -95,10 +95,11 @@ creating an area from selected nodes, or from selected layer rows in the Layers
 panel, stores only node ids, name, color, and collapsed metadata. Layer rows can
 be multi-selected to create a new area or added to an existing area from the
 selection action bar or row context menu. Area membership can be removed either
-by dragging a single member outside the area, through the node context menu, or
-through the Layers row context menu. Area names can be edited from the
-Layers folder row. Areas do not own React Flow nodes, do not make node
-positions relative, and do not affect render order.
+by dragging a single member outside the area, through the node context menu,
+through the Layers row context menu, or from graph-helper rows inside an area
+folder. Area names can be edited from the Layers folder row, and an area can be
+ungrouped without deleting its member nodes. Areas do not own React Flow nodes,
+do not make node positions relative, and do not affect render order.
 
 Area membership is exclusive. A node belongs to at most one area in the current
 editor model; adding a node to another area removes it from the previous one.

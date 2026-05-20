@@ -26,6 +26,8 @@ interface Props {
   onCreateAreaFromLayers: (ids: string[]) => void;
   onAddLayersToArea: (areaId: string, ids: string[]) => void;
   onRemoveLayersFromAreas: (ids: string[]) => void;
+  onRemoveNodesFromArea: (areaId: string, ids: string[]) => void;
+  onRemoveArea: (areaId: string) => void;
   onRenameArea: (areaId: string, name: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
@@ -203,7 +205,15 @@ const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }
   export: { icon: '↗', label: 'output' },
 };
 
-const GraphHelperRow = memo(function GraphHelperRow({ helper }: { helper: GraphHelperRowData }) {
+const GraphHelperRow = memo(function GraphHelperRow({
+  helper,
+  areaId,
+  onRemoveFromArea,
+}: {
+  helper: GraphHelperRowData;
+  areaId: string;
+  onRemoveFromArea: (areaId: string, ids: string[]) => void;
+}) {
   return (
     <div
       className="layer-graph-helper-row"
@@ -218,6 +228,15 @@ const GraphHelperRow = memo(function GraphHelperRow({ helper }: { helper: GraphH
       </span>
       <span className="layer-graph-helper-name">{helper.name}</span>
       <span className="layer-graph-helper-kind">{helper.label}</span>
+      <button
+        type="button"
+        className="layer-graph-helper-remove"
+        onClick={() => onRemoveFromArea(areaId, [helper.id])}
+        aria-label={`Remove ${helper.name} from area`}
+        title="Remove from area"
+      >
+        ×
+      </button>
     </div>
   );
 });
@@ -306,6 +325,8 @@ export function LayerPanel({
   onCreateAreaFromLayers,
   onAddLayersToArea,
   onRemoveLayersFromAreas,
+  onRemoveNodesFromArea,
+  onRemoveArea,
   onRenameArea,
   onDuplicateLayer,
   onRenameLayer,
@@ -699,6 +720,18 @@ export function LayerPanel({
                 >
                   ✎
                 </button>
+                <button
+                  type="button"
+                  className="layer-area-remove"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemoveArea(item.area.id);
+                  }}
+                  aria-label={`Ungroup ${item.area.name}`}
+                  title="Ungroup area"
+                >
+                  ×
+                </button>
               </div>
               <button
                 type="button"
@@ -739,7 +772,14 @@ export function LayerPanel({
                   />
                 ))}
               {!activeCollapsedAreaIds.has(item.area.id) &&
-                item.graphHelpers.map((helper) => <GraphHelperRow key={helper.id} helper={helper} />)}
+                item.graphHelpers.map((helper) => (
+                  <GraphHelperRow
+                    key={helper.id}
+                    helper={helper}
+                    areaId={item.area.id}
+                    onRemoveFromArea={onRemoveNodesFromArea}
+                  />
+                ))}
             </div>
           ) : (
             <LayerRow
