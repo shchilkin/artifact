@@ -1,8 +1,10 @@
 import {
   type CanvasDocument,
+  type CanvasGraph,
   DEFAULT_EXPORT,
   makeEffectPresetLayer,
   makeFillLayer,
+  makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -74,8 +76,370 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
   },
 };
 
+const SAMPLE_IMAGE = '/girl_image_landing.png';
+
+function recipeDoc(seed: number, bg: string, layers: CanvasDocument['layers'], graph: CanvasGraph): CanvasDocument {
+  return {
+    global: { bg, seed, aspect: '1:1' },
+    export: { ...DEFAULT_EXPORT },
+    layers,
+    graph,
+  };
+}
+
+export const PHOTO_TYPE_GRAPH_RECIPE: StarterDocument = {
+  id: 'recipe-photo-type-graph',
+  name: 'Photo Plus Type Recipe',
+  shortName: 'Photo Type',
+  description: 'A graph recipe that treats an image, color wash, title, and print grain as editable steps.',
+  doc: recipeDoc(
+    91201,
+    '#070607',
+    [
+      makeFillLayer({ id: 'photo-base', name: 'matte plate', color: '#070607' }),
+      makeImageLayer(SAMPLE_IMAGE, {
+        id: 'photo-image',
+        name: 'cover photo',
+        fit: 'cover',
+        opacity: 92,
+        scaleX: 1.08,
+        scaleY: 1.08,
+      }),
+      makeEffectPresetLayer('duotone', {
+        id: 'photo-duotone',
+        value: 58,
+        duoA: '#151016',
+        duoB: '#f07848',
+      }),
+      makeTextLayer({
+        id: 'photo-title',
+        name: 'headline type',
+        content: 'AFTER\nIMAGE',
+        font: 'BEBAS',
+        size: 126,
+        color: '#fff1dc',
+        x: 0.5,
+        y: 0.66,
+        rotation: -3,
+        scaleX: 1.04,
+      }),
+      makeEffectPresetLayer('grain', { id: 'photo-grain', name: 'paper grain', value: 16 }),
+    ],
+    {
+      edges: [
+        { id: 'e-photo-base-image', fromId: 'photo-base', fromPort: 'out', toId: 'photo-image', toPort: 'bg' },
+        { id: 'e-photo-image-duotone', fromId: 'photo-image', fromPort: 'out', toId: 'photo-duotone', toPort: 'in' },
+        { id: 'e-photo-duotone-title', fromId: 'photo-duotone', fromPort: 'out', toId: 'photo-title', toPort: 'bg' },
+        { id: 'e-photo-title-grain', fromId: 'photo-title', fromPort: 'out', toId: 'photo-grain', toPort: 'in' },
+        { id: 'e-photo-export', fromId: 'photo-grain', fromPort: 'out', toId: '__export__', toPort: 'in' },
+      ],
+      positions: {
+        'photo-base': { x: -360, y: 60 },
+        'photo-image': { x: 0, y: 60 },
+        'photo-duotone': { x: 360, y: 60 },
+        'photo-title': { x: 720, y: 60 },
+        'photo-grain': { x: 1080, y: 60 },
+        __export__: { x: 1440, y: 60 },
+      },
+      mergeNodes: [],
+      colorNodes: [],
+    },
+  ),
+};
+
+export const STICKER_GRID_GRAPH_RECIPE: StarterDocument = {
+  id: 'recipe-sticker-grid-graph',
+  name: 'Sticker Grid Motif Recipe',
+  shortName: 'Sticker Grid',
+  description: 'A graph recipe for building a motif field, then placing type and registration effects over it.',
+  doc: recipeDoc(
+    91202,
+    '#100607',
+    [
+      makeFillLayer({ id: 'sticker-base', name: 'ink plate', color: '#100607' }),
+      makeSourceLayer('noise', {
+        id: 'sticker-paper',
+        name: 'paper noise',
+        noiseType: 'clouds',
+        noiseScale: 20,
+        noiseDetail: 5,
+        noiseContrast: 52,
+        noiseWarp: 18,
+        color: '#2a151b',
+        accentColor: '#ff8f5c',
+        opacity: 72,
+        blendMode: 'screen',
+      }),
+      makeSourceLayer('array', {
+        id: 'sticker-grid',
+        name: 'sticker grid',
+        arrayPattern: 'grid',
+        arrayShape: 'diamond',
+        arrayCount: 7,
+        arrayRows: 6,
+        arrayGap: 42,
+        arraySize: 28,
+        arrayJitter: 18,
+        color: '#ffe6a3',
+        accentColor: '#ff4f7a',
+        opacity: 90,
+        blendMode: 'screen',
+      }),
+      makeEffectPresetLayer('risoShift', {
+        id: 'sticker-registration',
+        name: 'loose registration',
+        value: 16,
+        risoAngle: 28,
+      }),
+      makeTextLayer({
+        id: 'sticker-title',
+        name: 'label type',
+        content: 'GRID\nMOTIF',
+        font: 'DISPLAY',
+        size: 114,
+        color: '#fff6dc',
+        y: 0.5,
+      }),
+      makeEffectPresetLayer('overprint', { id: 'sticker-overprint', name: 'ink pressure', value: 22 }),
+    ],
+    {
+      edges: [
+        { id: 'e-sticker-base-paper', fromId: 'sticker-base', fromPort: 'out', toId: 'sticker-paper', toPort: 'bg' },
+        { id: 'e-sticker-paper-grid', fromId: 'sticker-paper', fromPort: 'out', toId: 'sticker-grid', toPort: 'bg' },
+        {
+          id: 'e-sticker-grid-registration',
+          fromId: 'sticker-grid',
+          fromPort: 'out',
+          toId: 'sticker-registration',
+          toPort: 'in',
+        },
+        {
+          id: 'e-sticker-registration-title',
+          fromId: 'sticker-registration',
+          fromPort: 'out',
+          toId: 'sticker-title',
+          toPort: 'bg',
+        },
+        {
+          id: 'e-sticker-title-overprint',
+          fromId: 'sticker-title',
+          fromPort: 'out',
+          toId: 'sticker-overprint',
+          toPort: 'in',
+        },
+        { id: 'e-sticker-export', fromId: 'sticker-overprint', fromPort: 'out', toId: '__export__', toPort: 'in' },
+      ],
+      positions: {
+        'sticker-base': { x: -360, y: 60 },
+        'sticker-paper': { x: 0, y: 60 },
+        'sticker-grid': { x: 360, y: 60 },
+        'sticker-registration': { x: 720, y: 60 },
+        'sticker-title': { x: 1080, y: 60 },
+        'sticker-overprint': { x: 1440, y: 60 },
+        __export__: { x: 1800, y: 60 },
+      },
+      mergeNodes: [],
+      colorNodes: [],
+    },
+  ),
+};
+
+export const PRIMITIVE_IMAGE_GRAPH_RECIPE: StarterDocument = {
+  id: 'recipe-primitive-image-graph',
+  name: 'Primitive Over Image Recipe',
+  shortName: 'Primitive Image',
+  description: 'A graph recipe that merges a 3D primitive branch over an image branch before final print effects.',
+  doc: recipeDoc(
+    91203,
+    '#030405',
+    [
+      makeFillLayer({ id: 'primitive-base', name: 'dark plate', color: '#030405' }),
+      makeImageLayer(SAMPLE_IMAGE, {
+        id: 'primitive-image',
+        name: 'image branch',
+        fit: 'cover',
+        opacity: 74,
+        blendMode: 'normal',
+      }),
+      makeEffectPresetLayer('cyanotype', { id: 'primitive-cyan', name: 'cool image wash', value: 52 }),
+      makeSourceLayer('primitive', {
+        id: 'primitive-shape',
+        name: 'cover primitive',
+        primitiveShape: 'cylinder',
+        primitiveDepth: 72,
+        primitiveShading: 'flat',
+        tiltX: -12,
+        tiltY: 34,
+        tiltZ: -8,
+        color: '#ff6a3a',
+        accentColor: '#6ef0ff',
+        opacity: 96,
+      }),
+      makeEffectPresetLayer('neonGlow', {
+        id: 'primitive-glow',
+        name: 'primitive halo',
+        value: 36,
+        neonColor: '#60f5ff',
+      }),
+      makeTextLayer({
+        id: 'primitive-title',
+        name: 'small type',
+        content: 'OBJECT\nSTUDY',
+        font: 'BEBAS',
+        size: 72,
+        color: '#f7f4df',
+        y: 0.82,
+      }),
+      makeEffectPresetLayer('vignette', { id: 'primitive-vignette', name: 'frame falloff', value: 46 }),
+    ],
+    {
+      edges: [
+        {
+          id: 'e-primitive-base-image',
+          fromId: 'primitive-base',
+          fromPort: 'out',
+          toId: 'primitive-image',
+          toPort: 'bg',
+        },
+        {
+          id: 'e-primitive-image-cyan',
+          fromId: 'primitive-image',
+          fromPort: 'out',
+          toId: 'primitive-cyan',
+          toPort: 'in',
+        },
+        {
+          id: 'e-primitive-shape-glow',
+          fromId: 'primitive-shape',
+          fromPort: 'out',
+          toId: 'primitive-glow',
+          toPort: 'in',
+        },
+        {
+          id: 'e-primitive-cyan-merge',
+          fromId: 'primitive-cyan',
+          fromPort: 'out',
+          toId: 'merge-primitive-image',
+          toPort: 'a',
+        },
+        {
+          id: 'e-primitive-glow-merge',
+          fromId: 'primitive-glow',
+          fromPort: 'out',
+          toId: 'merge-primitive-image',
+          toPort: 'b',
+        },
+        {
+          id: 'e-primitive-merge-title',
+          fromId: 'merge-primitive-image',
+          fromPort: 'out',
+          toId: 'primitive-title',
+          toPort: 'bg',
+        },
+        {
+          id: 'e-primitive-title-vignette',
+          fromId: 'primitive-title',
+          fromPort: 'out',
+          toId: 'primitive-vignette',
+          toPort: 'in',
+        },
+        { id: 'e-primitive-export', fromId: 'primitive-vignette', fromPort: 'out', toId: '__export__', toPort: 'in' },
+      ],
+      positions: {
+        'primitive-base': { x: -360, y: 140 },
+        'primitive-image': { x: 0, y: 140 },
+        'primitive-cyan': { x: 360, y: 140 },
+        'primitive-shape': { x: 0, y: -220 },
+        'primitive-glow': { x: 360, y: -220 },
+        'merge-primitive-image': { x: 720, y: -40 },
+        'primitive-title': { x: 1080, y: -40 },
+        'primitive-vignette': { x: 1440, y: -40 },
+        __export__: { x: 1800, y: -40 },
+      },
+      mergeNodes: [{ id: 'merge-primitive-image', name: 'primitive over image', blendMode: 'screen', opacity: 92 }],
+      colorNodes: [],
+    },
+  ),
+};
+
+export const PRINT_DAMAGE_GRAPH_RECIPE: StarterDocument = {
+  id: 'recipe-print-damage-graph',
+  name: 'Print Damage Poster Recipe',
+  shortName: 'Print Damage',
+  description: 'A graph recipe for pushing type through paper texture, halftone, tears, and final grain.',
+  doc: recipeDoc(
+    91204,
+    '#0d0604',
+    [
+      makeFillLayer({ id: 'damage-base', name: 'aged plate', color: '#0d0604' }),
+      makeSourceLayer('noise', {
+        id: 'damage-paper',
+        name: 'paper fiber',
+        noiseType: 'cells',
+        noiseScale: 34,
+        noiseDetail: 6,
+        noiseContrast: 68,
+        noiseBalance: 46,
+        noiseWarp: 36,
+        noiseTurbulence: 24,
+        color: '#25120a',
+        accentColor: '#efc38a',
+        opacity: 82,
+        blendMode: 'screen',
+      }),
+      makeTextLayer({
+        id: 'damage-title',
+        name: 'poster type',
+        content: 'PRINT\nDAMAGE',
+        font: 'DISPLAY',
+        size: 124,
+        color: '#fff0cd',
+        rotation: -5,
+        scaleX: 1.08,
+      }),
+      makeEffectPresetLayer('halftone', { id: 'damage-halftone', name: 'screen dots', value: 14 }),
+      makeEffectPresetLayer('tear', { id: 'damage-tear', name: 'paper tear', value: 10, tearSize: 5 }),
+      makeEffectPresetLayer('grain', { id: 'damage-grain', name: 'dust pass', value: 28 }),
+    ],
+    {
+      edges: [
+        { id: 'e-damage-base-paper', fromId: 'damage-base', fromPort: 'out', toId: 'damage-paper', toPort: 'bg' },
+        { id: 'e-damage-paper-title', fromId: 'damage-paper', fromPort: 'out', toId: 'damage-title', toPort: 'bg' },
+        {
+          id: 'e-damage-title-halftone',
+          fromId: 'damage-title',
+          fromPort: 'out',
+          toId: 'damage-halftone',
+          toPort: 'in',
+        },
+        { id: 'e-damage-halftone-tear', fromId: 'damage-halftone', fromPort: 'out', toId: 'damage-tear', toPort: 'in' },
+        { id: 'e-damage-tear-grain', fromId: 'damage-tear', fromPort: 'out', toId: 'damage-grain', toPort: 'in' },
+        { id: 'e-damage-export', fromId: 'damage-grain', fromPort: 'out', toId: '__export__', toPort: 'in' },
+      ],
+      positions: {
+        'damage-base': { x: -360, y: 60 },
+        'damage-paper': { x: 0, y: 60 },
+        'damage-title': { x: 360, y: 60 },
+        'damage-halftone': { x: 720, y: 60 },
+        'damage-tear': { x: 1080, y: 60 },
+        'damage-grain': { x: 1440, y: 60 },
+        __export__: { x: 1800, y: 60 },
+      },
+      mergeNodes: [],
+      colorNodes: [],
+    },
+  ),
+};
+
 export const LAYER_STARTER_DOCUMENTS: StarterDocument[] = [TEXTURE_TYPE_STACK_STARTER];
+export const GRAPH_RECIPE_STARTER_DOCUMENTS: StarterDocument[] = [
+  PHOTO_TYPE_GRAPH_RECIPE,
+  STICKER_GRID_GRAPH_RECIPE,
+  PRIMITIVE_IMAGE_GRAPH_RECIPE,
+  PRINT_DAMAGE_GRAPH_RECIPE,
+];
+export const STARTER_DOCUMENTS: StarterDocument[] = [...LAYER_STARTER_DOCUMENTS, ...GRAPH_RECIPE_STARTER_DOCUMENTS];
 
 export function getStarterDocument(id: string): StarterDocument | undefined {
-  return LAYER_STARTER_DOCUMENTS.find((starter) => starter.id === id);
+  return STARTER_DOCUMENTS.find((starter) => starter.id === id);
 }

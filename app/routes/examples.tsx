@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 import { Footer } from '../components/Footer';
 import { SiteNav } from '../components/SiteNav';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
-import { CURATED_EXAMPLES } from '../utils/curatedExamples';
+import { CURATED_EXAMPLES, type CuratedExampleCategory } from '../utils/curatedExamples';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import { generateRandomHeroFrame } from '../utils/heroConfigs';
 
@@ -20,12 +20,23 @@ export const meta: MetaFunction = () => [
 interface ExampleItem {
   id: string;
   name: string;
+  category: CuratedExampleCategory | 'Random seed';
+  summary: string;
+  usedNodes: string[];
+  startCopy: string;
   aspect: AspectRatio;
   doc: CanvasDocument;
   thumbnail: string | null;
 }
 
 const ASPECT_ROTATION: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9', '4:5', '1:1', '16:9', '9:16'];
+const CATEGORY_ORDER: Array<ExampleItem['category']> = [
+  'Graph recipe',
+  'Layer recipe',
+  'Texture study',
+  'Effect stack',
+  'Random seed',
+];
 
 function pickAspect(index: number): AspectRatio {
   return ASPECT_ROTATION[index % ASPECT_ROTATION.length];
@@ -35,13 +46,26 @@ function withAspect(doc: CanvasDocument, aspect: AspectRatio): CanvasDocument {
   return { ...doc, global: { ...doc.global, aspect } };
 }
 
-const curatedExamples: ExampleItem[] = CURATED_EXAMPLES.map(({ id, name, doc }) => ({
-  id,
-  name,
-  aspect: doc.global.aspect,
-  doc,
-  thumbnail: null,
-}));
+const ASPECT_LABEL: Record<AspectRatio, string> = {
+  '1:1': 'square',
+  '4:5': 'story',
+  '9:16': 'vertical',
+  '16:9': 'wide',
+};
+
+const curatedExamples: ExampleItem[] = CURATED_EXAMPLES.map(
+  ({ id, name, category, summary, usedNodes, startCopy, doc }) => ({
+    id,
+    name,
+    category,
+    summary,
+    usedNodes,
+    startCopy,
+    aspect: doc.global.aspect,
+    doc,
+    thumbnail: null,
+  }),
+);
 
 function buildRandomItems(count: number, baseSeed: number, idPrefix: string): ExampleItem[] {
   return Array.from({ length: count }, (_, i) => {
@@ -52,6 +76,10 @@ function buildRandomItems(count: number, baseSeed: number, idPrefix: string): Ex
     return {
       id: `${idPrefix}-${seed}`,
       name: `Variant #${seed}`,
+      category: 'Random seed',
+      summary: 'Generated from the random cover engine for fast exploration.',
+      usedNodes: ['Random source', 'Effects', ASPECT_LABEL[aspect]],
+      startCopy: 'Open this seed when you want a surprising base to edit by hand.',
       aspect,
       doc,
       thumbnail: null,
@@ -62,15 +90,31 @@ function buildRandomItems(count: number, baseSeed: number, idPrefix: string): Ex
 const initialRandom = buildRandomItems(28, 300001, 'random');
 const initialItems: ExampleItem[] = [...curatedExamples, ...initialRandom];
 
-const ASPECT_LABEL: Record<AspectRatio, string> = {
-  '1:1': 'square',
-  '4:5': 'story',
-  '9:16': 'vertical',
-  '16:9': 'wide',
-};
+const thumbnailImageCache = new Map<string, Promise<HTMLImageElement | null>>();
+
+function loadThumbnailImage(src: string): Promise<HTMLImageElement | null> {
+  const existing = thumbnailImageCache.get(src);
+  if (existing) return existing;
+  const pending = new Promise<HTMLImageElement | null>((resolve) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+  thumbnailImageCache.set(src, pending);
+  return pending;
+}
+
+async function buildThumbnailImageCache(doc: CanvasDocument): Promise<Map<string, HTMLImageElement>> {
+  const sources = Array.from(new Set(doc.layers.filter((layer) => layer.kind === 'image').map((layer) => layer.src)));
+  const loaded = await Promise.all(sources.map(async (src) => [src, await loadThumbnailImage(src)] as const));
+  return new Map(loaded.filter((entry): entry is readonly [string, HTMLImageElement] => entry[1] !== null));
+}
 
 interface FilterState {
   aspect: AspectRatio | 'all';
+  category: ExampleItem['category'] | 'all';
 }
 
 function getColumnCount(width: number): number {
@@ -100,7 +144,7 @@ export default function Examples() {
   const navigate = useNavigate();
   const [items, setItems] = useState<ExampleItem[]>(initialItems);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState<FilterState>({ aspect: 'all' });
+  const [filter, setFilter] = useState<FilterState>({ aspect: 'all', category: 'all' });
   const [isTouch] = useState(() =>
     typeof window === 'undefined' ? false : window.matchMedia('(pointer: coarse)').matches,
   );
@@ -127,7 +171,7 @@ export default function Examples() {
       for (const ex of initialItems) {
         if (cancelled) break;
         try {
-          const thumb = await generateThumbnail(ex.doc, new Map());
+          const thumb = await generateThumbnail(ex.doc, await buildThumbnailImageCache(ex.doc));
           if (!cancelled) {
             setItems((prev) => prev.map((item) => (item.id === ex.id ? { ...item, thumbnail: thumb } : item)));
           }
@@ -151,7 +195,7 @@ export default function Examples() {
 
     for (const item of newItems) {
       try {
-        const thumb = await generateThumbnail(item.doc, new Map());
+        const thumb = await generateThumbnail(item.doc, await buildThumbnailImageCache(item.doc));
         setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, thumbnail: thumb } : x)));
       } catch {
         // ignore
@@ -188,13 +232,22 @@ export default function Examples() {
   }
 
   const filteredItems = useMemo(() => {
-    if (filter.aspect === 'all') return items;
-    return items.filter((item) => item.aspect === filter.aspect);
-  }, [items, filter.aspect]);
+    return items.filter((item) => {
+      const matchesAspect = filter.aspect === 'all' || item.aspect === filter.aspect;
+      const matchesCategory = filter.category === 'all' || item.category === filter.category;
+      return matchesAspect && matchesCategory;
+    });
+  }, [items, filter.aspect, filter.category]);
 
   const aspectTotals = useMemo(() => {
     const totals: Record<AspectRatio, number> = { '1:1': 0, '4:5': 0, '9:16': 0, '16:9': 0 };
     for (const item of items) totals[item.aspect] += 1;
+    return totals;
+  }, [items]);
+
+  const categoryTotals = useMemo(() => {
+    const totals = new Map<ExampleItem['category'], number>();
+    for (const item of items) totals.set(item.category, (totals.get(item.category) ?? 0) + 1);
     return totals;
   }, [items]);
 
@@ -223,7 +276,7 @@ export default function Examples() {
               label="all"
               count={items.length}
               active={filter.aspect === 'all'}
-              onClick={() => setFilter({ aspect: 'all' })}
+              onClick={() => setFilter((current) => ({ ...current, aspect: 'all' }))}
             />
             {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((aspect) => (
               <FilterButton
@@ -231,7 +284,24 @@ export default function Examples() {
                 label={`${aspect} ${ASPECT_LABEL[aspect]}`}
                 count={aspectTotals[aspect]}
                 active={filter.aspect === aspect}
-                onClick={() => setFilter({ aspect })}
+                onClick={() => setFilter((current) => ({ ...current, aspect }))}
+              />
+            ))}
+          </div>
+          <div className="examples-filters" role="tablist" aria-label="Filter by workflow category">
+            <FilterButton
+              label="all workflows"
+              count={items.length}
+              active={filter.category === 'all'}
+              onClick={() => setFilter((current) => ({ ...current, category: 'all' }))}
+            />
+            {CATEGORY_ORDER.map((category) => (
+              <FilterButton
+                key={category}
+                label={category}
+                count={categoryTotals.get(category) ?? 0}
+                active={filter.category === category}
+                onClick={() => setFilter((current) => ({ ...current, category }))}
               />
             ))}
           </div>
@@ -367,8 +437,13 @@ function ExampleTile({ item, revealed, isTouch, onOpen, onReveal, onHoverIn, onH
           <div className="examples-tile__loading" aria-hidden="true" />
         )}
         <div className="examples-tile__overlay">
-          <span className="examples-tile__seed">SEED #{item.doc.global.seed}</span>
+          <span className="examples-tile__seed">
+            {item.category} / SEED #{item.doc.global.seed}
+          </span>
           <span className="examples-tile__name">{item.name}</span>
+          <span className="examples-tile__summary">{item.summary}</span>
+          <span className="examples-tile__nodes">{item.usedNodes.join(' / ')}</span>
+          <span className="examples-tile__start">{item.startCopy}</span>
           <span className="examples-tile__cta">Open in generator →</span>
         </div>
       </div>

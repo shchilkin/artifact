@@ -1275,6 +1275,41 @@
   color: var(--node-text);
 }
 
+.nadd-recipes {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--node-border);
+  background: color-mix(in oklch, var(--sidebar-bg) 72%, var(--sidebar-raised));
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  flex-shrink: 0;
+}
+
+.nadd-recipe {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--node-border);
+  background: transparent;
+  color: var(--node-text-dim);
+  cursor: pointer;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nadd-recipe:hover,
+.nadd-recipe-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nadd-recipe-active {
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+}
+
 /* Flat scrollable list */
 .nadd-flat-list {
   max-height: 420px;
@@ -1287,7 +1322,10 @@
 }
 
 .nadd-section-header {
-  padding: 6px 10px 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px 5px;
   color: var(--node-text-dim);
   font-size: 9px;
   letter-spacing: 0.12em;
@@ -1295,6 +1333,14 @@
   background: var(--sidebar-bg);
   border-bottom: 1px solid var(--node-border);
   flex-shrink: 0;
+}
+
+.nadd-section-header small {
+  color: color-mix(in oklch, var(--node-text-dim) 74%, transparent);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
 }
 
 /* Row list */
@@ -1311,8 +1357,8 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 48px;
+  padding: 7px 10px;
   border: none;
   border-bottom: 1px solid color-mix(in oklch, var(--node-border) 50%, transparent);
   background: transparent;
@@ -1343,11 +1389,28 @@
   line-height: 1;
 }
 
+.nadd-row-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .nadd-row-label {
   color: var(--node-text);
   font-size: 10px;
   letter-spacing: 0.04em;
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nadd-row-desc {
+  color: var(--node-text-dim);
+  font-size: 9px;
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
