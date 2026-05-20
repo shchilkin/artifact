@@ -446,8 +446,9 @@ Research and architecture tasks:
   storage, or hybrid local-first storage with optional cloud sync.
 - [ ] Define quota/cost accounting before broad usage. Even a beta needs a
   clear limit so generation does not become a surprise bill.
-- [ ] Define how generated assets serialize in `.artifact.json` and shared
-  projects.
+- [x] Define how generated assets serialize in `.artifact.json` and shared
+  projects: completed outputs import into normal local image assets, and
+  save/share hydrates available local bytes into portable data URLs.
 - [ ] Prototype a minimal Image Generation node only after the storage and
   generation-job model are clear.
 

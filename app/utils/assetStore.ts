@@ -160,9 +160,17 @@ export async function storeDocumentImageAssets(doc: CanvasDocument): Promise<Can
   return changed ? { ...doc, layers } : doc;
 }
 
-export async function hydrateDocumentImageAssets(doc: CanvasDocument): Promise<CanvasDocument> {
+export interface HydrateDocumentImageAssetOptions {
+  loadAssetDataUrl?: typeof loadImageAssetDataUrl;
+}
+
+export async function hydrateDocumentImageAssets(
+  doc: CanvasDocument,
+  options: HydrateDocumentImageAssetOptions = {},
+): Promise<CanvasDocument> {
   let changed = false;
   const layers: Layer[] = [];
+  const loadAssetDataUrl = options.loadAssetDataUrl ?? loadImageAssetDataUrl;
 
   for (const layer of doc.layers) {
     if (layer.kind !== 'image' || !isAssetUri(layer.src)) {
@@ -170,7 +178,7 @@ export async function hydrateDocumentImageAssets(doc: CanvasDocument): Promise<C
       continue;
     }
 
-    const src = await loadImageAssetDataUrl(layer.src);
+    const src = await loadAssetDataUrl(layer.src);
     if (src) {
       changed = true;
       layers.push({ ...layer, src } satisfies ImageLayer);
