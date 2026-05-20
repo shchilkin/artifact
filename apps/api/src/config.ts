@@ -4,6 +4,7 @@ export interface ApiConfig {
   databaseUrl: string;
   redisUrl: string;
   authJwtSecret: string;
+  devBearerToken?: string;
   openAiApiKey?: string;
   xAiApiKey?: string;
   assetStorageDriver: 'local' | 's3';
@@ -40,6 +41,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     databaseUrl: requiredEnv(env, 'DATABASE_URL'),
     redisUrl: requiredEnv(env, 'REDIS_URL'),
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
+    devBearerToken: env.API_DEV_BEARER_TOKEN,
     openAiApiKey: env.OPENAI_API_KEY,
     xAiApiKey: env.XAI_API_KEY,
     assetStorageDriver: driver,

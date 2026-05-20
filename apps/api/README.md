@@ -40,16 +40,17 @@ Implemented:
 - Environment parsing.
 - API contract types.
 - PostgreSQL schema migration and repository contracts.
+- Dependency-injected Postgres repository adapters.
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
 - In-memory generation queue.
 - Mock image provider.
 - Local asset storage adapter.
+- Mock-backed access and generation-create route handlers.
 - API-local tests.
 
 Next:
 
-- Real route handlers.
-- Postgres repository implementations.
+- Real `pg` client/pool wiring.
 - BullMQ/Redis queue adapter.
 - Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.

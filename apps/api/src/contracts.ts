@@ -35,6 +35,50 @@ export interface CreateGenerationRequest {
   idempotencyKey: string;
 }
 
+export interface AiGeneratedAssetMetadata {
+  provider: AiProvider;
+  model: string;
+  prompt: string;
+  negativePrompt?: string;
+  settings: AiGenerationSettings;
+  seed?: string | number;
+  sourceAssetIds?: string[];
+  licenseNote?: string;
+  createdAt: string;
+}
+
+export interface AiGenerationAssetResponse {
+  id: string;
+  uri: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  sizeBytes: number;
+  createdAt: string;
+  metadata: AiGeneratedAssetMetadata;
+}
+
+export interface AiGenerationJobError {
+  code: string;
+  message: string;
+  retryable?: boolean;
+}
+
+export interface AiGenerationJobResponse {
+  id: string;
+  status: AiJobStatus;
+  provider: AiProvider;
+  model: string;
+  prompt: string;
+  settings: AiGenerationSettings;
+  asset?: AiGenerationAssetResponse;
+  quota?: AiQuotaSnapshot;
+  error?: AiGenerationJobError;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
 export interface AiAccessResponse {
   authenticated: boolean;
   enabled: boolean;
