@@ -20,7 +20,7 @@ interface Props {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onRemoveLayer: (id: string) => void;
-  onReorderLayers: (newOrder: Layer[]) => void;
+  onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
   onToggleVisible: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
   onCreateAreaFromLayers: (ids: string[]) => void;
@@ -459,13 +459,18 @@ export function LayerPanel({
       const sourceIdx = newDisplayLayers.findIndex((layer) => layer.id === sourceId);
       const targetIdx = newDisplayLayers.findIndex((layer) => layer.id === targetId);
       if (sourceIdx === -1 || targetIdx === -1) return;
+      const sourceArea = areasByLayerId.get(sourceId)?.[0];
+      const targetArea = areasByLayerId.get(targetId)?.[0];
       const [item] = newDisplayLayers.splice(sourceIdx, 1);
       newDisplayLayers.splice(targetIdx, 0, item);
-      onReorderLayers([...newDisplayLayers].reverse());
+      onReorderLayers(
+        [...newDisplayLayers].reverse(),
+        sourceArea && sourceArea.id !== targetArea?.id ? { areaId: sourceArea.id, ids: [sourceId] } : undefined,
+      );
       setDragOverId(null);
       dragLayerId.current = null;
     },
-    [displayLayers, onReorderLayers],
+    [areasByLayerId, displayLayers, onReorderLayers],
   );
 
   const handleAddLayer = useCallback(

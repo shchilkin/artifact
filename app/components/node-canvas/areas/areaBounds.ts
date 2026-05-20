@@ -3,11 +3,11 @@ import type { Node as RFNode } from '@xyflow/react';
 import type { CanvasGraph, GraphArea } from '../../../types/config';
 import { NODE_H, NODE_W } from '../constants';
 
-const AREA_PADDING_X = 32;
-const AREA_PADDING_TOP = 52;
-const AREA_PADDING_BOTTOM = 28;
-const AREA_MIN_W = 260;
-const AREA_MIN_H = 180;
+export const AREA_PADDING_X = 32;
+export const AREA_PADDING_TOP = 52;
+export const AREA_PADDING_BOTTOM = 28;
+export const AREA_MIN_W = 260;
+export const AREA_MIN_H = 180;
 
 export interface GraphAreaBounds {
   area: GraphArea;

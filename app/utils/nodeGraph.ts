@@ -321,6 +321,17 @@ export function addNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds:
   return assignNodesToGraphArea(graph, areaId, [...area.nodeIds, ...nodeIds]);
 }
 
+export function removeNodesFromGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const ids = new Set(uniqueNodeIds(nodeIds));
+  if (ids.size === 0) return graph;
+  return {
+    ...graph,
+    areas: (graph.areas ?? [])
+      .map((area) => (area.id === areaId ? { ...area, nodeIds: area.nodeIds.filter((id) => !ids.has(id)) } : area))
+      .filter((area) => area.nodeIds.length > 0),
+  };
+}
+
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
 export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
   const collected = new Set<string>();

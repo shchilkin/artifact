@@ -14,6 +14,7 @@ import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetSt
 import {
   addLayersToGraphAreaInDocument,
   createGraphAreaInDocument,
+  removeLayersFromGraphAreaInDocument,
   renameGraphAreaInDocument,
 } from '../utils/documentCommands';
 import { LayerPanel } from './LayerPanel';
@@ -167,6 +168,19 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleReorderLayers = useCallback(
+    (layers: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => {
+      if (!areaSeparation) {
+        onReorderLayers(layers);
+        return;
+      }
+      onDocChange(
+        removeLayersFromGraphAreaInDocument({ ...docRef.current, layers }, areaSeparation.areaId, areaSeparation.ids),
+      );
+    },
+    [onDocChange, onReorderLayers],
+  );
+
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
       const current = docRef.current;
@@ -228,7 +242,7 @@ export function Sidebar({
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
           onRemoveLayer={onRemoveLayer}
-          onReorderLayers={onReorderLayers}
+          onReorderLayers={handleReorderLayers}
           onToggleVisible={handleToggleVisible}
           onSetLayersVisible={handleSetLayersVisible}
           onCreateAreaFromLayers={handleCreateAreaFromLayers}

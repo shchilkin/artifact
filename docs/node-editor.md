@@ -102,7 +102,9 @@ Area membership is exclusive. A node belongs to at most one area in the current
 editor model; adding a node to another area removes it from the previous one.
 Selecting an existing area and nodes extends that area instead of creating a
 stacked area over the same nodes. Nested areas/folders are a future design slice,
-not current behavior.
+not current behavior. Dragging one member away from the rest of an area removes
+that member from the area; dragging the whole area contents together keeps the
+membership intact.
 
 ## Interaction grammar
 

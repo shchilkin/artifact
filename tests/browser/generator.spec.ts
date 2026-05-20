@@ -199,6 +199,27 @@ const areaExtendDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const areaSeparationDocument = {
+  ...areaExtendDocument,
+  layers: [
+    ...areaExtendDocument.layers,
+    {
+      id: 'outside-fill',
+      name: 'Outside fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#101018',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    ...areaExtendDocument.graph,
+    positions: { ...areaExtendDocument.graph.positions, 'outside-fill': { x: 0, y: 440 } },
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill', 'area-noise'] }],
+  },
+};
 const layerAreaCreationDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 8, aspect: '1:1' },
@@ -804,6 +825,55 @@ test('selected area can be extended without stacking memberships', async ({ page
       }),
     )
     .toBe(true);
+});
+
+test('dragging a node away from its area separates the node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+  await switchToNodeView(page);
+
+  const noiseNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('.node-shell-kind-noise') })
+    .first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  const nodeBox = await noiseNode.boundingBox();
+  expect(nodeBox).not.toBeNull();
+  if (!nodeBox) return;
+
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 520, { steps: 10 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(['area-fill']);
+});
+
+test('dragging a layer row out of an area separates the layer', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+
+  const source = page.locator('.layer-area-folder .layer-row-nested').filter({ hasText: 'Area noise' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Outside fill' }).first();
+  await expect(source).toBeVisible();
+  await expect(target).toBeVisible();
+
+  await source.dragTo(target);
+
+  await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(['area-fill']);
 });
 
 test('nodes stay visible while dragging inside an area', async ({ page }) => {

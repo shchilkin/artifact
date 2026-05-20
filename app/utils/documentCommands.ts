@@ -36,6 +36,7 @@ import {
   removeColorNode,
   removeLayerFromGraph,
   removeMergeNode,
+  removeNodesFromGraphArea,
   removeRepeatNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
@@ -159,6 +160,17 @@ export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, n
   return {
     ...doc,
     graph: updateGraphArea(ensureDocumentGraph(doc), areaId, { name: trimmed }),
+  };
+}
+
+export function removeLayersFromGraphAreaInDocument(
+  doc: CanvasDocument,
+  areaId: string,
+  layerIds: string[],
+): CanvasDocument {
+  return {
+    ...doc,
+    graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
   };
 }
 
