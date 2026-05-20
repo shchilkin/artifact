@@ -3,7 +3,6 @@ import { loadConfig } from '../src/config.js';
 
 const requiredEnv = {
   AUTH_JWT_SECRET: 'secret',
-  REDIS_URL: 'redis://localhost:6379',
 };
 
 describe('loadConfig', () => {
@@ -30,6 +29,25 @@ describe('loadConfig', () => {
     ).toMatchObject({
       databaseDriver: 'postgres',
       databaseUrl: 'postgres://artifact:artifact@localhost:5432/artifact',
+    });
+  });
+
+  it('requires REDIS_URL when BullMQ is selected', () => {
+    expect(() => loadConfig({ ...requiredEnv, API_QUEUE_DRIVER: 'bullmq' })).toThrow(
+      'Missing required environment variable: REDIS_URL',
+    );
+  });
+
+  it('accepts BullMQ configuration for the VPS runtime', () => {
+    expect(
+      loadConfig({
+        ...requiredEnv,
+        API_QUEUE_DRIVER: 'bullmq',
+        REDIS_URL: 'redis://localhost:6379',
+      }),
+    ).toMatchObject({
+      queueDriver: 'bullmq',
+      redisUrl: 'redis://localhost:6379',
     });
   });
 });

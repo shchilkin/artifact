@@ -1,9 +1,10 @@
 import { loadConfig } from './config.js';
 import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
-import { createInMemoryGenerationQueue } from './queue.js';
+import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 
 const config = loadConfig();
-const queue = createInMemoryGenerationQueue();
+const queue =
+  config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
 const providers = createProviderRegistry([
   createMockImageProvider({ provider: 'openai' }),
   createMockImageProvider({ provider: 'xai' }),
@@ -34,6 +35,7 @@ const worker = queue.process(async (job) => {
 
 console.log('Artifact AI worker scaffold loaded', {
   redisUrlConfigured: Boolean(config.redisUrl),
+  queueDriver: config.queueDriver,
   storageDriver: config.assetStorageDriver,
   providers: providers.list().map((provider) => provider.provider),
   workerReady: Boolean(worker),

@@ -3,6 +3,7 @@ export interface ApiConfig {
   webOrigin: string;
   databaseDriver: 'memory' | 'postgres';
   databaseUrl: string;
+  queueDriver: 'memory' | 'bullmq';
   redisUrl: string;
   authJwtSecret: string;
   devBearerToken?: string;
@@ -39,13 +40,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   if (databaseDriver !== 'memory' && databaseDriver !== 'postgres') {
     throw new Error('API_DATABASE_DRIVER must be memory or postgres');
   }
+  const queueDriver = env.API_QUEUE_DRIVER ?? 'memory';
+  if (queueDriver !== 'memory' && queueDriver !== 'bullmq') {
+    throw new Error('API_QUEUE_DRIVER must be memory or bullmq');
+  }
 
   return {
     port: numberEnv(env, 'PORT', 4000),
     webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
     databaseDriver,
     databaseUrl: databaseDriver === 'postgres' ? requiredEnv(env, 'DATABASE_URL') : (env.DATABASE_URL ?? ''),
-    redisUrl: requiredEnv(env, 'REDIS_URL'),
+    queueDriver,
+    redisUrl: queueDriver === 'bullmq' ? requiredEnv(env, 'REDIS_URL') : (env.REDIS_URL ?? ''),
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     openAiApiKey: env.OPENAI_API_KEY,

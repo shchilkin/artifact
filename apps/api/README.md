@@ -44,6 +44,7 @@ Implemented:
 - Configurable local memory or VPS Postgres repository backend.
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
 - In-memory generation queue.
+- BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - Local asset storage adapter.
 - Mock-backed access, generation-create, generation-status, and
@@ -53,7 +54,6 @@ Implemented:
 
 Next:
 
-- BullMQ/Redis queue adapter.
 - Real auth/session verification.
 - OpenAI/xAI provider adapters after the mocked path works end to end.
 

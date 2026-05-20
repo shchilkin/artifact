@@ -6,7 +6,7 @@ import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { errorJson, writeApiResponse } from './http.js';
 import { createMockImageProvider, createProviderRegistry } from './providers/index.js';
-import { createInMemoryGenerationQueue } from './queue.js';
+import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
@@ -17,7 +17,8 @@ const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null
 const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
 const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
 if (!repositories) throw new Error('No API repository backend configured.');
-const queue = createInMemoryGenerationQueue();
+const queue =
+  config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
 const storage = new LocalAssetStorage(config.assetStorageDir);
 const providers = createProviderRegistry([
   createMockImageProvider({ provider: 'openai' }),
@@ -71,6 +72,7 @@ server.listen(config.port, () => {
 });
 
 async function shutdown() {
+  await queue.close?.();
   await pool?.end();
   server.close();
 }

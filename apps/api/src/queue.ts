@@ -1,3 +1,5 @@
+import { type Job as BullJob, Queue as BullQueue, Worker as BullWorker } from 'bullmq';
+import { Redis } from 'ioredis';
 import type { GenerationQueuePayload } from './contracts.js';
 
 export const GENERATION_QUEUE_NAME = 'ai-generation';
@@ -25,6 +27,7 @@ export interface QueueEnqueueOptions {
 export interface QueuePort<TPayload> {
   enqueue(payload: TPayload, options?: QueueEnqueueOptions): Promise<QueueJob<TPayload>>;
   process(handler: (job: QueueJob<TPayload>) => Promise<void>): QueueWorker;
+  close?(): Promise<void>;
 }
 
 interface MutableQueueJob<TPayload> {
@@ -75,6 +78,12 @@ export class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
     };
   }
 
+  async close(): Promise<void> {
+    this.closed = true;
+    this.processor = undefined;
+    this.pending.length = 0;
+  }
+
   private drain() {
     const processor = this.processor;
     if (!processor || this.closed) return;
@@ -109,6 +118,54 @@ export function createInMemoryGenerationQueue(): GenerationQueue {
   return new InMemoryQueue<GenerationQueuePayload>();
 }
 
+export function createBullMqGenerationQueue(redisUrl: string): GenerationQueue {
+  return new BullMqGenerationQueue(GENERATION_QUEUE_NAME, redisUrl);
+}
+
+class BullMqGenerationQueue implements QueuePort<GenerationQueuePayload> {
+  private readonly connection: Redis;
+  private readonly queue: BullQueue<GenerationQueuePayload, void, string>;
+
+  constructor(
+    private readonly queueName: string,
+    redisUrl: string,
+  ) {
+    this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+    this.queue = new BullQueue<GenerationQueuePayload, void, string>(queueName, { connection: this.connection });
+  }
+
+  async enqueue(
+    payload: GenerationQueuePayload,
+    options: QueueEnqueueOptions = {},
+  ): Promise<QueueJob<GenerationQueuePayload>> {
+    const job = await this.queue.add(options.name ?? this.queueName, payload, { jobId: options.jobId });
+    return bullJobSnapshot(job, 'queued');
+  }
+
+  process(handler: (job: QueueJob<GenerationQueuePayload>) => Promise<void>): QueueWorker {
+    const connection = new Redis(this.connection.options);
+    const worker = new BullWorker<GenerationQueuePayload, void, string>(
+      this.queueName,
+      async (job) => {
+        await handler(bullJobSnapshot(job, 'running'));
+      },
+      { connection },
+    );
+
+    return {
+      close: async () => {
+        await worker.close();
+        await connection.quit();
+      },
+    };
+  }
+
+  async close(): Promise<void> {
+    await this.queue.close();
+    await this.connection.quit();
+  }
+}
+
 function snapshotJob<TPayload>(job: MutableQueueJob<TPayload>): QueueJob<TPayload> {
   return {
     id: job.id,
@@ -117,5 +174,19 @@ function snapshotJob<TPayload>(job: MutableQueueJob<TPayload>): QueueJob<TPayloa
     attemptsMade: job.attemptsMade,
     createdAt: new Date(job.createdAt),
     status: job.status,
+  };
+}
+
+function bullJobSnapshot(
+  job: BullJob<GenerationQueuePayload, void, string>,
+  status: QueueJobStatus,
+): QueueJob<GenerationQueuePayload> {
+  return {
+    id: String(job.id),
+    name: job.name,
+    data: job.data,
+    attemptsMade: job.attemptsMade,
+    createdAt: new Date(job.timestamp),
+    status,
   };
 }
