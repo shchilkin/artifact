@@ -11,14 +11,18 @@ import type { CanvasGraph, Layer } from '../../../types/config';
 import {
   EXPORT_NODE_ID,
   removeGraphEdge,
+  removeNodesFromGraphArea,
   splitEdgeWithNode,
   updateGraphPositions,
   wouldCreateCycle,
 } from '../../../utils/nodeGraph';
+import { AREA_PADDING_BOTTOM, AREA_PADDING_TOP, AREA_PADDING_X } from '../areas/areaBounds';
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
 import { retainNodeMeasurements, stableNodeChanges } from '../nodeChanges';
+
+const AREA_SEPARATION_GRACE = 18;
 
 export interface UseNodeDragStateOptions {
   baseNodes: RFNode[];
@@ -91,13 +95,64 @@ export function useNodeDragState({
     setDragEdges((prev) => applyEdgeChanges(changes, prev));
   }, []);
 
+  const separateMovedNodesFromAreas = useCallback(
+    (graph: CanvasGraph, movedNodes: RFNode[]) => {
+      if (!graph.areas?.length || movedNodes.length === 0) return graph;
+
+      const movedIds = new Set(movedNodes.map((node) => node.id));
+      const nodesById = new Map(dragNodesRef.current.map((node) => [node.id, node]));
+      for (const node of movedNodes) nodesById.set(node.id, node);
+
+      const getRect = (nodeId: string) => {
+        const node = nodesById.get(nodeId);
+        const position = node?.position ?? graph.positions[nodeId];
+        if (!position) return null;
+        const width = node?.measured?.width ?? node?.width ?? NODE_W;
+        const height = node?.measured?.height ?? node?.height ?? NODE_H;
+        return {
+          x1: position.x,
+          y1: position.y,
+          x2: position.x + width,
+          y2: position.y + height,
+          cx: position.x + width / 2,
+          cy: position.y + height / 2,
+        };
+      };
+
+      let next = graph;
+      for (const movedNode of movedNodes) {
+        const area = (next.areas ?? []).find((item) => item.nodeIds.includes(movedNode.id));
+        if (!area) continue;
+
+        const anchorRects = area.nodeIds
+          .filter((nodeId) => nodeId !== movedNode.id && !movedIds.has(nodeId))
+          .map(getRect)
+          .filter((rect): rect is NonNullable<typeof rect> => rect !== null);
+        if (anchorRects.length === 0) continue;
+
+        const movedRect = getRect(movedNode.id);
+        if (!movedRect) continue;
+
+        const minX = Math.min(...anchorRects.map((rect) => rect.x1)) - AREA_PADDING_X - AREA_SEPARATION_GRACE;
+        const minY = Math.min(...anchorRects.map((rect) => rect.y1)) - AREA_PADDING_TOP - AREA_SEPARATION_GRACE;
+        const maxX = Math.max(...anchorRects.map((rect) => rect.x2)) + AREA_PADDING_X + AREA_SEPARATION_GRACE;
+        const maxY = Math.max(...anchorRects.map((rect) => rect.y2)) + AREA_PADDING_BOTTOM + AREA_SEPARATION_GRACE;
+        const inside = movedRect.cx >= minX && movedRect.cx <= maxX && movedRect.cy >= minY && movedRect.cy <= maxY;
+        if (!inside) next = removeNodesFromGraphArea(next, area.id, [movedNode.id]);
+      }
+
+      return next;
+    },
+    [dragNodesRef],
+  );
+
   const commitNodePositions = useCallback(
     (nodes: RFNode[]) => {
       const moved = nodes.map((node) => ({ id: node.id, position: node.position }));
       if (moved.length === 0) return;
-      onGraphChange(updateGraphPositions(graphRef.current, moved));
+      onGraphChange(separateMovedNodesFromAreas(updateGraphPositions(graphRef.current, moved), nodes));
     },
-    [onGraphChange, graphRef],
+    [onGraphChange, graphRef, separateMovedNodesFromAreas],
   );
 
   const getInterceptInputPort = useCallback(
@@ -151,20 +206,21 @@ export function useNodeDragState({
     (_: unknown, node: RFNode) => {
       isDraggingRef.current = false;
       const movedGraph = updateGraphPositions(graphRef.current, [{ id: node.id, position: node.position }]);
+      const areaGraph = separateMovedNodesFromAreas(movedGraph, [node]);
       const interceptEdge = findInterceptEdge(node);
       const inputPort = getInterceptInputPort(node.id);
       if (
         interceptEdge &&
         inputPort &&
-        !wouldCreateCycle(removeGraphEdge(movedGraph, interceptEdge.id), interceptEdge.fromId, node.id) &&
-        !wouldCreateCycle(removeGraphEdge(movedGraph, interceptEdge.id), node.id, interceptEdge.toId)
+        !wouldCreateCycle(removeGraphEdge(areaGraph, interceptEdge.id), interceptEdge.fromId, node.id) &&
+        !wouldCreateCycle(removeGraphEdge(areaGraph, interceptEdge.id), node.id, interceptEdge.toId)
       ) {
-        onGraphChange(splitEdgeWithNode(movedGraph, interceptEdge.id, node.id, inputPort));
+        onGraphChange(splitEdgeWithNode(areaGraph, interceptEdge.id, node.id, inputPort));
         return;
       }
-      commitNodePositions([node]);
+      onGraphChange(areaGraph);
     },
-    [commitNodePositions, findInterceptEdge, getInterceptInputPort, onGraphChange, graphRef],
+    [findInterceptEdge, getInterceptInputPort, onGraphChange, graphRef, separateMovedNodesFromAreas],
   );
 
   const onSelectionDragStop = useCallback(

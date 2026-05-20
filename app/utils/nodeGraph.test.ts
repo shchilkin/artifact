@@ -20,6 +20,7 @@ import {
   removeGraphEdge,
   removeLayerFromGraph,
   removeMergeNode,
+  removeNodesFromGraphArea,
   removeRepeatNode,
   resolveRenderOrder,
   resolveUpstreamRenderLayers,
@@ -221,11 +222,15 @@ describe('graph mutations', () => {
     });
     const renamed = updateGraphArea(withArea, 'area-main', { name: 'Hero branch', collapsed: true });
     const assigned = assignNodesToGraphArea(renamed, 'area-main', ['b', 'c', 'b']);
+    const separated = removeNodesFromGraphArea(assigned, 'area-main', ['b']);
     const removed = removeGraphArea(assigned, 'area-main');
 
     expect(withArea.areas).toEqual([{ id: 'area-main', name: 'Main branch', color: '#ff6b5a', nodeIds: ['a', 'b'] }]);
     expect(renamed.areas?.[0]).toMatchObject({ name: 'Hero branch', collapsed: true, nodeIds: ['a', 'b'] });
     expect(assigned.areas?.[0]?.nodeIds).toEqual(['b', 'c']);
+    expect(separated.areas).toEqual([
+      { id: 'area-main', name: 'Hero branch', color: '#ff6b5a', nodeIds: ['c'], collapsed: true },
+    ]);
     expect(assigned.edges).toEqual(graph.edges);
     expect(removed.areas).toEqual([]);
     expect(graph.areas).toBeUndefined();

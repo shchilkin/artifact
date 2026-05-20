@@ -199,6 +199,54 @@ const areaExtendDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const areaSeparationDocument = {
+  ...areaExtendDocument,
+  layers: [
+    ...areaExtendDocument.layers,
+    {
+      id: 'outside-fill',
+      name: 'Outside fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#101018',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    ...areaExtendDocument.graph,
+    positions: { ...areaExtendDocument.graph.positions, 'outside-fill': { x: 0, y: 440 } },
+    areas: [{ id: 'area-1', name: 'Area 1', color: '#ff705f', nodeIds: ['area-fill', 'area-noise'] }],
+  },
+};
+const layerAreaCreationDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 8, aspect: '1:1' },
+  layers: [
+    {
+      id: 'layer-area-backdrop',
+      name: 'Backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#220033',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'layer-area-type',
+      name: 'Type wash',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#ff705f',
+      opacity: 70,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const tallNodeDocument = {
   ...wideNodeDocument,
   global: { bg: '#101018', seed: 3, aspect: '9:16' },
@@ -650,6 +698,92 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
   await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
 });
 
+test('layer area folders collapse and summarize graph-only nodes', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+
+  const folder = page.locator('.layer-area-folder').first();
+  await expect(folder).toContainText('Area 1');
+  await expect(folder.locator('.layer-area-count')).toHaveText('1');
+  await expect(folder.locator('.layer-area-graph-count')).toHaveText('+1');
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+  await expect(folder.locator('.layer-graph-helper-row')).toContainText('Merge');
+
+  await folder.getByRole('button', { name: /Collapse Area 1/ }).click();
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(0);
+  await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(0);
+
+  await folder.getByRole('button', { name: /Expand Area 1/ }).click();
+  await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
+  await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(1);
+});
+
+test('layers can create areas from multi-selected rows', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerAreaCreationDocument))}`);
+
+  await page.locator('.layer-row').filter({ hasText: 'Backdrop' }).click();
+  await page
+    .locator('.layer-row')
+    .filter({ hasText: 'Type wash' })
+    .click({ modifiers: ['Shift'] });
+
+  await expect(page.locator('.layer-selection-actions')).toContainText('2 selected');
+  await page.locator('.layer-selection-actions').getByRole('button', { name: 'Area' }).click();
+
+  await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const area = doc.graph?.areas?.[0];
+        return area?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(expect.arrayContaining(['layer-area-backdrop', 'layer-area-type']));
+});
+
+test('layer area folders can be renamed', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+
+  const folder = page.locator('.layer-area-folder').first();
+  await folder.getByRole('button', { name: /Rename Area 1/ }).click();
+  const input = folder.getByRole('textbox', { name: /Rename Area 1/ });
+  await input.fill('Print Stack');
+  await input.press('Enter');
+
+  await expect(folder).toContainText('Print Stack');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.name;
+      }),
+    )
+    .toBe('Print Stack');
+});
+
+test('layers can add rows to an existing area from the context menu', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+
+  await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click({ button: 'right' });
+  await expect(page.locator('.layer-context-menu')).toBeVisible();
+  await page
+    .locator('.layer-context-menu')
+    .getByRole('button', { name: /Add to Area 1/ })
+    .click();
+
+  await expect(page.locator('.layer-area-folder')).toHaveCount(1);
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(expect.arrayContaining(['area-fill', 'area-noise']));
+});
+
 test('selected area can be extended without stacking memberships', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
   await switchToNodeView(page);
@@ -667,6 +801,79 @@ test('selected area can be extended without stacking memberships', async ({ page
   await expect(page.locator('.layer-area-folder')).toHaveCount(1);
   await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expect(page.locator('.layer-area-more')).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Hide Area 1/ }).click();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers
+          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
+          .every((layer: { visible: boolean }) => layer.visible === false);
+      }),
+    )
+    .toBe(true);
+
+  await page.getByRole('button', { name: /Show Area 1/ }).click();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers
+          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
+          .every((layer: { visible: boolean }) => layer.visible === true);
+      }),
+    )
+    .toBe(true);
+});
+
+test('dragging a node away from its area separates the node', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+  await switchToNodeView(page);
+
+  const noiseNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('.node-shell-kind-noise') })
+    .first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  const nodeBox = await noiseNode.boundingBox();
+  expect(nodeBox).not.toBeNull();
+  if (!nodeBox) return;
+
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 520, { steps: 10 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(['area-fill']);
+});
+
+test('dragging a layer row out of an area separates the layer', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+
+  const source = page.locator('.layer-area-folder .layer-row-nested').filter({ hasText: 'Area noise' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Outside fill' }).first();
+  await expect(source).toBeVisible();
+  await expect(target).toBeVisible();
+
+  await source.dragTo(target);
+
+  await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(['area-fill']);
 });
 
 test('nodes stay visible while dragging inside an area', async ({ page }) => {
@@ -897,7 +1104,8 @@ async function expectLayerCanvasToHavePixels(page: Page) {
 
 async function switchToNodeView(page: Page) {
   await expect(async () => {
-    const nodesButton = page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' });
+    if (await page.locator('.node-canvas-root').isVisible()) return;
+    const nodesButton = page.getByRole('button', { name: 'nodes' });
     await expect(nodesButton).toBeVisible({ timeout: 2_000 });
     await nodesButton.click();
     await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });

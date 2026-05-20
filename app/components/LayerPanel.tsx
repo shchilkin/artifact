@@ -1,7 +1,17 @@
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectLayer, EffectPreset, GraphArea, Layer, LayerKind } from '../types/config';
+import type {
+  CanvasDocument,
+  CanvasGraph,
+  EffectLayer,
+  EffectPreset,
+  GraphArea,
+  Layer,
+  LayerKind,
+} from '../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
 import { getLayerAreaMap } from '../utils/layerAreas';
+import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 
 interface Props {
   doc: CanvasDocument;
@@ -10,8 +20,12 @@ interface Props {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onRemoveLayer: (id: string) => void;
-  onReorderLayers: (newOrder: Layer[]) => void;
+  onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
   onToggleVisible: (id: string) => void;
+  onSetLayersVisible: (ids: string[], visible: boolean) => void;
+  onCreateAreaFromLayers: (ids: string[]) => void;
+  onAddLayersToArea: (areaId: string, ids: string[]) => void;
+  onRenameArea: (areaId: string, name: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
   modeSwitcher?: React.ReactNode;
@@ -35,7 +49,8 @@ interface LayerRowProps {
   dragOver: boolean;
   editing: boolean;
   nested?: boolean;
-  onSelect: (id: string, selected: boolean) => void;
+  onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
@@ -55,6 +70,7 @@ const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   onSelect,
+  onOpenContextMenu,
   onStartEditing,
   onFinishRename,
   onDragStart,
@@ -78,12 +94,13 @@ const LayerRow = memo(function LayerRow({
         onDropLayer(layer.id);
       }}
       onDragEnd={onDragEnd}
-      onClick={() => onSelect(layer.id, selected)}
+      onClick={(event) => onSelect(layer.id, event)}
+      onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(e) => {
         e.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
+      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim' : 'hover:bg-accent-dim/50'
       } ${dragOver ? 'border-t-2 border-t-accent' : ''} ${nested ? 'layer-row-nested' : ''}`}
     >
@@ -168,11 +185,84 @@ const LayerRow = memo(function LayerRow({
   );
 });
 
+type GraphHelperKind = 'merge' | 'color' | 'repeat' | 'export';
+
+interface GraphHelperRowData {
+  id: string;
+  name: string;
+  kind: GraphHelperKind;
+  icon: string;
+  label: string;
+}
+
+const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }> = {
+  merge: { icon: '◇', label: 'merge' },
+  color: { icon: '◐', label: 'grade' },
+  repeat: { icon: '▦', label: 'repeat' },
+  export: { icon: '↗', label: 'output' },
+};
+
+const GraphHelperRow = memo(function GraphHelperRow({ helper }: { helper: GraphHelperRowData }) {
+  return (
+    <div
+      className="layer-graph-helper-row"
+      aria-label={`${helper.label} graph node: ${helper.name}`}
+      title={`${helper.label} graph node`}
+    >
+      <span className="layer-graph-helper-grip" aria-hidden="true">
+        ·
+      </span>
+      <span className="layer-graph-helper-icon" aria-hidden="true">
+        {helper.icon}
+      </span>
+      <span className="layer-graph-helper-name">{helper.name}</span>
+      <span className="layer-graph-helper-kind">{helper.label}</span>
+    </div>
+  );
+});
+
 type LayerDisplayItem =
   | { type: 'layer'; layer: Layer; areas: GraphArea[]; nested?: false }
-  | { type: 'area'; area: GraphArea; layers: Layer[] };
+  | { type: 'area'; area: GraphArea; layers: Layer[]; graphHelpers: GraphHelperRowData[] };
 
-function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<string, GraphArea[]>): LayerDisplayItem[] {
+function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): GraphHelperRowData[] {
+  if (!graph) return [];
+
+  const areaNodeIds = new Set(area.nodeIds);
+  const helpersById = new Map<string, GraphHelperRowData>();
+
+  graph.mergeNodes.forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'merge', ...GRAPH_HELPER_META.merge });
+  });
+  (graph.colorNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'color', ...GRAPH_HELPER_META.color });
+  });
+  (graph.repeatNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
+  });
+  if (areaNodeIds.has(EXPORT_NODE_ID)) {
+    helpersById.set(EXPORT_NODE_ID, {
+      id: EXPORT_NODE_ID,
+      name: 'Export',
+      kind: 'export',
+      ...GRAPH_HELPER_META.export,
+    });
+  }
+
+  return area.nodeIds.flatMap((nodeId) => {
+    const helper = helpersById.get(nodeId);
+    return helper ? [helper] : [];
+  });
+}
+
+function buildLayerDisplayItems(
+  displayLayers: Layer[],
+  areasByLayerId: Map<string, GraphArea[]>,
+  graph: CanvasGraph | undefined,
+): LayerDisplayItem[] {
   const items: LayerDisplayItem[] = [];
   const renderedAreaIds = new Set<string>();
   const renderedLayerIds = new Set<string>();
@@ -191,7 +281,12 @@ function buildLayerDisplayItems(displayLayers: Layer[], areasByLayerId: Map<stri
     const areaLayers = displayLayers.filter((item) => areaLayerIds.has(item.id));
     for (const item of areaLayers) renderedLayerIds.add(item.id);
     renderedAreaIds.add(area.id);
-    items.push({ type: 'area', area, layers: areaLayers });
+    items.push({
+      type: 'area',
+      area,
+      layers: areaLayers,
+      graphHelpers: getAreaGraphHelpers(graph, area),
+    });
   }
 
   return items;
@@ -206,6 +301,10 @@ export function LayerPanel({
   onRemoveLayer,
   onReorderLayers,
   onToggleVisible,
+  onSetLayersVisible,
+  onCreateAreaFromLayers,
+  onAddLayersToArea,
+  onRenameArea,
   onDuplicateLayer,
   onRenameLayer,
   modeSwitcher,
@@ -213,8 +312,15 @@ export function LayerPanel({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
+  const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
+  const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(() => new Set());
+  const [showAreaMenu, setShowAreaMenu] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const dragLayerId = useRef<string | null>(null);
+  const selectionAnchorId = useRef<string | null>(null);
   const addButtonRef = useRef<HTMLDivElement>(null);
+  const areaButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showAddMenu) return;
@@ -227,12 +333,47 @@ export function LayerPanel({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showAddMenu]);
 
+  useEffect(() => {
+    if (!showAreaMenu) return;
+    function handleOutside(e: MouseEvent) {
+      if (areaButtonRef.current && !areaButtonRef.current.contains(e.target as Node)) {
+        setShowAreaMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showAreaMenu]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    function handleClose() {
+      setContextMenu(null);
+    }
+    document.addEventListener('click', handleClose);
+    document.addEventListener('scroll', handleClose, true);
+    return () => {
+      document.removeEventListener('click', handleClose);
+      document.removeEventListener('scroll', handleClose, true);
+    };
+  }, [contextMenu]);
+
   const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
   const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
   const displayItems = useMemo(
-    () => buildLayerDisplayItems(displayLayers, areasByLayerId),
-    [areasByLayerId, displayLayers],
+    () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
+    [areasByLayerId, displayLayers, doc.graph],
   );
+  const activeCollapsedAreaIds = useMemo(() => {
+    const areaIds = new Set((doc.graph?.areas ?? []).map((area) => area.id));
+    return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
+  }, [collapsedAreaIds, doc.graph?.areas]);
+  const selectedActionLayerIds = useMemo(() => {
+    const layerIds = new Set(doc.layers.map((layer) => layer.id));
+    const validSelected = [...selectedLayerIds].filter((id) => layerIds.has(id));
+    if (validSelected.length > 0) return validSelected;
+    return selectedLayerId && layerIds.has(selectedLayerId) ? [selectedLayerId] : [];
+  }, [doc.layers, selectedLayerId, selectedLayerIds]);
+  const graphAreas = doc.graph?.areas ?? [];
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
@@ -243,10 +384,48 @@ export function LayerPanel({
   }, []);
 
   const handleSelectLayer = useCallback(
-    (id: string, selected: boolean) => {
-      onSelectLayer(selected ? null : id);
+    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+      const orderedLayerIds = displayLayers.map((layer) => layer.id);
+      const current = selectedLayerIds.size > 0 ? selectedLayerIds : new Set(selectedLayerId ? [selectedLayerId] : []);
+      let next: Set<string>;
+
+      if (event.shiftKey && selectionAnchorId.current) {
+        const anchorIndex = orderedLayerIds.indexOf(selectionAnchorId.current);
+        const targetIndex = orderedLayerIds.indexOf(id);
+        if (anchorIndex >= 0 && targetIndex >= 0) {
+          const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+          next = new Set(orderedLayerIds.slice(start, end + 1));
+        } else {
+          next = new Set([id]);
+        }
+      } else if (event.metaKey || event.ctrlKey) {
+        next = new Set(current);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        selectionAnchorId.current = id;
+      } else {
+        next = new Set([id]);
+        selectionAnchorId.current = id;
+      }
+
+      setSelectedLayerIds(next);
+      onSelectLayer(next.has(id) ? id : ([...next].at(-1) ?? null));
     },
-    [onSelectLayer],
+    [displayLayers, onSelectLayer, selectedLayerId, selectedLayerIds],
+  );
+
+  const handleOpenLayerContextMenu = useCallback(
+    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
+      setSelectedLayerIds(new Set(activeIds));
+      onSelectLayer(id);
+      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds });
+    },
+    [onSelectLayer, selectedActionLayerIds],
   );
 
   const handleStartEditing = useCallback((id: string) => setEditingId(id), []);
@@ -257,6 +436,14 @@ export function LayerPanel({
       setEditingId(null);
     },
     [onRenameLayer],
+  );
+
+  const handleFinishAreaRename = useCallback(
+    (id: string, name: string | null) => {
+      if (name) onRenameArea(id, name);
+      setEditingAreaId(null);
+    },
+    [onRenameArea],
   );
 
   const handleDrop = useCallback(
@@ -272,13 +459,18 @@ export function LayerPanel({
       const sourceIdx = newDisplayLayers.findIndex((layer) => layer.id === sourceId);
       const targetIdx = newDisplayLayers.findIndex((layer) => layer.id === targetId);
       if (sourceIdx === -1 || targetIdx === -1) return;
+      const sourceArea = areasByLayerId.get(sourceId)?.[0];
+      const targetArea = areasByLayerId.get(targetId)?.[0];
       const [item] = newDisplayLayers.splice(sourceIdx, 1);
       newDisplayLayers.splice(targetIdx, 0, item);
-      onReorderLayers([...newDisplayLayers].reverse());
+      onReorderLayers(
+        [...newDisplayLayers].reverse(),
+        sourceArea && sourceArea.id !== targetArea?.id ? { areaId: sourceArea.id, ids: [sourceId] } : undefined,
+      );
       setDragOverId(null);
       dragLayerId.current = null;
     },
-    [displayLayers, onReorderLayers],
+    [areasByLayerId, displayLayers, onReorderLayers],
   );
 
   const handleAddLayer = useCallback(
@@ -305,6 +497,47 @@ export function LayerPanel({
     setDragOverId(null);
     dragLayerId.current = null;
   }, []);
+
+  const handleToggleAreaCollapsed = useCallback((areaId: string) => {
+    setCollapsedAreaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.add(areaId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleAreaVisible = useCallback(
+    (layers: Layer[], visible: boolean) => {
+      const ids = layers.filter((layer) => layer.visible !== visible).map((layer) => layer.id);
+      if (ids.length === 0) return;
+      onSetLayersVisible(ids, visible);
+    },
+    [onSetLayersVisible],
+  );
+
+  const handleCreateAreaFromSelection = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      onCreateAreaFromLayers(ids);
+      setShowAreaMenu(false);
+      setContextMenu(null);
+    },
+    [onCreateAreaFromLayers],
+  );
+
+  const handleAddSelectionToArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      onAddLayersToArea(areaId, ids);
+      setShowAreaMenu(false);
+      setContextMenu(null);
+    },
+    [onAddLayersToArea],
+  );
 
   return (
     <div className="flex flex-col min-h-0 h-full">
@@ -353,45 +586,158 @@ export function LayerPanel({
         {displayLayers.length === 0 && (
           <div className="px-3.5 py-4 text-[10px] text-dim text-center font-mono">No layers. Add one above.</div>
         )}
+        {selectedActionLayerIds.length > 1 && (
+          <div className="layer-selection-actions">
+            <span>{selectedActionLayerIds.length} selected</span>
+            <button type="button" onClick={() => handleCreateAreaFromSelection(selectedActionLayerIds)}>
+              Area
+            </button>
+            {graphAreas.length > 0 && (
+              <div ref={areaButtonRef} className="relative">
+                <button type="button" onClick={() => setShowAreaMenu((value) => !value)}>
+                  Add
+                </button>
+                {showAreaMenu && (
+                  <div className="layer-area-action-menu">
+                    {graphAreas.map((area) => (
+                      <button
+                        key={area.id}
+                        type="button"
+                        onClick={() => handleAddSelectionToArea(area.id, selectedActionLayerIds)}
+                      >
+                        <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+                        {area.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {displayItems.map((item) =>
           item.type === 'area' ? (
             <div key={item.area.id} className="layer-area-folder">
-              <div className="layer-area-folder-header">
+              <div
+                className="layer-area-folder-header"
+                title={`${item.layers.length} layer${item.layers.length === 1 ? '' : 's'}${
+                  item.graphHelpers.length > 0
+                    ? `, ${item.graphHelpers.length} graph node${item.graphHelpers.length === 1 ? '' : 's'}`
+                    : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  className="layer-area-folder-toggle"
+                  onClick={() => handleToggleAreaCollapsed(item.area.id)}
+                  aria-expanded={!activeCollapsedAreaIds.has(item.area.id)}
+                  aria-label={`${activeCollapsedAreaIds.has(item.area.id) ? 'Expand' : 'Collapse'} ${item.area.name}`}
+                >
+                  <span className="layer-area-caret" aria-hidden="true">
+                    {activeCollapsedAreaIds.has(item.area.id) ? '+' : '-'}
+                  </span>
+                </button>
                 <span className="layer-area-dot" style={{ background: item.area.color }} aria-hidden="true" />
-                <span className="layer-area-name">{item.area.name}</span>
+                {editingAreaId === item.area.id ? (
+                  <input
+                    autoFocus
+                    defaultValue={item.area.name}
+                    className="layer-area-name-input"
+                    aria-label={`Rename ${item.area.name}`}
+                    onBlur={(event) => {
+                      const value = event.target.value.trim();
+                      handleFinishAreaRename(item.area.id, value || null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        const value = event.currentTarget.value.trim();
+                        handleFinishAreaRename(item.area.id, value || null);
+                      } else if (event.key === 'Escape') {
+                        handleFinishAreaRename(item.area.id, null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="layer-area-name-button"
+                    onDoubleClick={(event) => {
+                      event.stopPropagation();
+                      setEditingAreaId(item.area.id);
+                    }}
+                    title="Double-click to rename"
+                  >
+                    <span className="layer-area-name">{item.area.name}</span>
+                  </button>
+                )}
                 <span className="layer-area-count">{item.layers.length}</span>
+                {item.graphHelpers.length > 0 && (
+                  <span className="layer-area-graph-count">+{item.graphHelpers.length}</span>
+                )}
+                <button
+                  type="button"
+                  className="layer-area-rename"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEditingAreaId(item.area.id);
+                  }}
+                  aria-label={`Rename ${item.area.name}`}
+                  title="Rename area"
+                >
+                  ✎
+                </button>
               </div>
-              {item.layers.map((layer) => (
-                <LayerRow
-                  key={layer.id}
-                  layer={layer}
-                  areas={[]}
-                  nested
-                  selected={selectedLayerId === layer.id}
-                  dragOver={dragOverId === layer.id}
-                  editing={editingId === layer.id}
-                  onSelect={handleSelectLayer}
-                  onStartEditing={handleStartEditing}
-                  onFinishRename={handleFinishRename}
-                  onDragStart={handleDragStart}
-                  onDragOverLayer={handleDragOverLayer}
-                  onDropLayer={handleDrop}
-                  onDragEnd={handleCancelDrag}
-                  onToggleVisible={onToggleVisible}
-                  onDuplicateLayer={onDuplicateLayer}
-                  onRemoveLayer={onRemoveLayer}
-                />
-              ))}
+              <button
+                type="button"
+                className="layer-area-visibility"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleToggleAreaVisible(item.layers, !item.layers.some((layer) => layer.visible));
+                }}
+                disabled={item.layers.length === 0}
+                aria-label={
+                  item.layers.some((layer) => layer.visible) ? `Hide ${item.area.name}` : `Show ${item.area.name}`
+                }
+                title={item.layers.some((layer) => layer.visible) ? 'Hide area layers' : 'Show area layers'}
+              >
+                {item.layers.some((layer) => layer.visible) ? '◉' : '○'}
+              </button>
+              {!activeCollapsedAreaIds.has(item.area.id) &&
+                item.layers.map((layer) => (
+                  <LayerRow
+                    key={layer.id}
+                    layer={layer}
+                    areas={[]}
+                    nested
+                    selected={selectedActionLayerIds.includes(layer.id)}
+                    dragOver={dragOverId === layer.id}
+                    editing={editingId === layer.id}
+                    onSelect={handleSelectLayer}
+                    onOpenContextMenu={handleOpenLayerContextMenu}
+                    onStartEditing={handleStartEditing}
+                    onFinishRename={handleFinishRename}
+                    onDragStart={handleDragStart}
+                    onDragOverLayer={handleDragOverLayer}
+                    onDropLayer={handleDrop}
+                    onDragEnd={handleCancelDrag}
+                    onToggleVisible={onToggleVisible}
+                    onDuplicateLayer={onDuplicateLayer}
+                    onRemoveLayer={onRemoveLayer}
+                  />
+                ))}
+              {!activeCollapsedAreaIds.has(item.area.id) &&
+                item.graphHelpers.map((helper) => <GraphHelperRow key={helper.id} helper={helper} />)}
             </div>
           ) : (
             <LayerRow
               key={item.layer.id}
               layer={item.layer}
               areas={item.areas}
-              selected={selectedLayerId === item.layer.id}
+              selected={selectedActionLayerIds.includes(item.layer.id)}
               dragOver={dragOverId === item.layer.id}
               editing={editingId === item.layer.id}
               onSelect={handleSelectLayer}
+              onOpenContextMenu={handleOpenLayerContextMenu}
               onStartEditing={handleStartEditing}
               onFinishRename={handleFinishRename}
               onDragStart={handleDragStart}
@@ -405,6 +751,23 @@ export function LayerPanel({
           ),
         )}
       </div>
+      {contextMenu && (
+        <div
+          className="layer-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <button type="button" onClick={() => handleCreateAreaFromSelection(contextMenu.ids)}>
+            Create area
+          </button>
+          {graphAreas.map((area) => (
+            <button key={area.id} type="button" onClick={() => handleAddSelectionToArea(area.id, contextMenu.ids)}>
+              <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+              Add to {area.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

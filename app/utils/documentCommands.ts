@@ -23,19 +23,24 @@ import type { ArrayPresetId } from './arrayPresets';
 import { makeArrayPresetLayer } from './arrayPresets';
 import {
   addColorNode,
+  addGraphArea,
   addGraphEdge,
   addLayerToGraph,
   addMergeNode,
+  addNodesToGraphArea,
   addRepeatNode,
   appendNodeToExportPath,
+  GRAPH_AREA_COLORS,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeLayerFromGraph,
   removeMergeNode,
+  removeNodesFromGraphArea,
   removeRepeatNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
+  updateGraphArea,
   updateRepeatNode as updateRepeatNodeInGraph,
 } from './nodeGraph';
 import type { NoisePresetId } from './noisePresets';
@@ -120,6 +125,52 @@ export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDoc
     ...doc,
     layers: [...doc.layers, layer],
     graph: appendNodeToExportPath(graphWithLayer, layer.id, inputPort),
+  };
+}
+
+export function createGraphAreaInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
+  const graph = ensureDocumentGraph(doc);
+  const areaNumber = (graph.areas?.length ?? 0) + 1;
+  const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
+  return {
+    ...doc,
+    graph: addGraphArea(graph, {
+      id: `area-${Date.now().toString(36)}`,
+      name: `Area ${areaNumber}`,
+      color,
+      nodeIds,
+    }),
+  };
+}
+
+export function addLayersToGraphAreaInDocument(
+  doc: CanvasDocument,
+  areaId: string,
+  layerIds: string[],
+): CanvasDocument {
+  return {
+    ...doc,
+    graph: addNodesToGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
+  };
+}
+
+export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, name: string): CanvasDocument {
+  const trimmed = name.trim();
+  if (!trimmed) return doc;
+  return {
+    ...doc,
+    graph: updateGraphArea(ensureDocumentGraph(doc), areaId, { name: trimmed }),
+  };
+}
+
+export function removeLayersFromGraphAreaInDocument(
+  doc: CanvasDocument,
+  areaId: string,
+  layerIds: string[],
+): CanvasDocument {
+  return {
+    ...doc,
+    graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
   };
 }
 

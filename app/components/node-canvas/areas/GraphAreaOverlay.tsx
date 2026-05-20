@@ -19,9 +19,9 @@ export function GraphAreaOverlay({ graph, nodes, selectedAreaId, onSelectArea, o
 
   return (
     <div className="node-area-overlay" aria-hidden={false}>
-      {bounds.map(({ area, x, y, width, height, nodeCount }) => (
+      {bounds.map(({ area, x, y, width, height, nodeCount, segmentIndex }) => (
         <div
-          key={area.id}
+          key={`${area.id}:${segmentIndex}`}
           className={`node-area${area.collapsed ? ' node-area-collapsed' : ''}${
             selectedAreaId === area.id ? ' node-area-selected' : ''
           }`}

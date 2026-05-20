@@ -11,6 +11,12 @@ import {
   type LayerKind,
 } from '../types/config';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
+import {
+  addLayersToGraphAreaInDocument,
+  createGraphAreaInDocument,
+  removeLayersFromGraphAreaInDocument,
+  renameGraphAreaInDocument,
+} from '../utils/documentCommands';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -127,6 +133,54 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleSetLayersVisible = useCallback(
+    (ids: string[], visible: boolean) => {
+      const idSet = new Set(ids);
+      const current = docRef.current;
+      onDocChange({
+        ...current,
+        layers: current.layers.map((layer) => (idSet.has(layer.id) ? { ...layer, visible } : layer)),
+      });
+    },
+    [onDocChange],
+  );
+
+  const handleCreateAreaFromLayers = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      onDocChange(createGraphAreaInDocument(docRef.current, ids));
+    },
+    [onDocChange],
+  );
+
+  const handleAddLayersToArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      onDocChange(addLayersToGraphAreaInDocument(docRef.current, areaId, ids));
+    },
+    [onDocChange],
+  );
+
+  const handleRenameArea = useCallback(
+    (areaId: string, name: string) => {
+      onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name));
+    },
+    [onDocChange],
+  );
+
+  const handleReorderLayers = useCallback(
+    (layers: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => {
+      if (!areaSeparation) {
+        onReorderLayers(layers);
+        return;
+      }
+      onDocChange(
+        removeLayersFromGraphAreaInDocument({ ...docRef.current, layers }, areaSeparation.areaId, areaSeparation.ids),
+      );
+    },
+    [onDocChange, onReorderLayers],
+  );
+
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
       const current = docRef.current;
@@ -188,8 +242,12 @@ export function Sidebar({
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
           onRemoveLayer={onRemoveLayer}
-          onReorderLayers={onReorderLayers}
+          onReorderLayers={handleReorderLayers}
           onToggleVisible={handleToggleVisible}
+          onSetLayersVisible={handleSetLayersVisible}
+          onCreateAreaFromLayers={handleCreateAreaFromLayers}
+          onAddLayersToArea={handleAddLayersToArea}
+          onRenameArea={handleRenameArea}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}
           modeSwitcher={modeSwitcher}

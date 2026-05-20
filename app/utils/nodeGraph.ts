@@ -11,6 +11,7 @@ import {
 } from '../types/config';
 
 export const EXPORT_NODE_ID = '__export__';
+export const GRAPH_AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
 const BASE_NODE_W = 320;
 const ARTWORK_NODE_W = 340;
 const COL_GAP = 168;
@@ -318,6 +319,17 @@ export function addNodesToGraphArea(graph: CanvasGraph, areaId: string, nodeIds:
   const area = (graph.areas ?? []).find((item) => item.id === areaId);
   if (!area) return graph;
   return assignNodesToGraphArea(graph, areaId, [...area.nodeIds, ...nodeIds]);
+}
+
+export function removeNodesFromGraphArea(graph: CanvasGraph, areaId: string, nodeIds: string[]): CanvasGraph {
+  const ids = new Set(uniqueNodeIds(nodeIds));
+  if (ids.size === 0) return graph;
+  return {
+    ...graph,
+    areas: (graph.areas ?? [])
+      .map((area) => (area.id === areaId ? { ...area, nodeIds: area.nodeIds.filter((id) => !ids.has(id)) } : area))
+      .filter((area) => area.nodeIds.length > 0),
+  };
 }
 
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
