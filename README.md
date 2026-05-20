@@ -224,11 +224,24 @@ is an optional generated local bitmap and remains ignored.
 | [`docs/roadmap.md`](docs/roadmap.md) | Product and architecture roadmap |
 | [`docs/version-plans/v0.11.md`](docs/version-plans/v0.11.md) | v0.11 layer workflow and onboarding acceptance plan |
 | [`docs/version-plans/v0.12.md`](docs/version-plans/v0.12.md) | v0.12 examples, recipes, docs, and effect coverage acceptance plan |
+| [`docs/version-plans/v0.13.md`](docs/version-plans/v0.13.md) | v0.13 AI generation research and architecture acceptance plan |
+| [`docs/version-plans/v0.13-backend-contract.md`](docs/version-plans/v0.13-backend-contract.md) | v0.13 VPS backend API, schema, queue, and storage contract |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
 
 ## Project structure
 
 ```
+apps/
+  api/                       # VPS backend scaffold for v0.13 AI generation
+    src/
+      contracts.ts           # Endpoint paths and backend-facing contract types
+      config.ts              # Environment parsing
+      server.ts              # API process entry point
+      worker.ts              # Worker process entry point
+      db/                    # Future migrations/repositories
+      providers/             # Future OpenAI/xAI/mock adapters
+      storage/               # Future file/object storage adapters
+
 app/
   root.tsx                  # App shell, global nav, fonts
   routes.ts                 # Route definitions

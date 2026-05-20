@@ -70,6 +70,8 @@ These can mostly stay browser-only and fit the current architecture:
   and hybrid approaches.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
+- Downloadable project packages with a custom extension for local ownership,
+  offline work, backup, and eventual PWA file handling.
 - Voice/music visualizer node using browser audio input or uploaded audio.
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
@@ -285,9 +287,12 @@ tolerance strategy before visual snapshots become useful.
 
 Imported images, local projects, and recovery drafts now use IndexedDB, and
 `.artifact.json` files/share links hydrate local image assets when possible.
-This is enough for the local editor, but server-backed sharing, accounts, and
-large portable asset packages remain out of scope until a dedicated backend plan
-exists.
+This is enough for the local editor, but there should be a stronger data
+ownership path: a downloadable project package with a custom extension that can
+bundle the document, assets, thumbnails/previews, and metadata for offline
+storage and re-open. That package should remain compatible with PWA file
+handling where supported. Server-backed sharing, accounts, and large portable
+asset packages remain out of scope until a dedicated persistence plan exists.
 
 ### CSS is a large monolith
 
@@ -332,6 +337,8 @@ Current shipped baseline:
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
+- Future local project package direction: custom-extension downloads that keep
+  the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser
   smoke tests, thumbnail signatures, and node-editor performance tooling.
 
@@ -374,33 +381,33 @@ Detailed plan: [`version-plans/v0.12.md`](./version-plans/v0.12.md).
 Goal: turn the current power features into learnable, regression-tested
 workflows.
 
-- [ ] Add recipe starter documents that create useful first graphs.
-- [ ] Add recipe starter documents for common covers: photo plus type, noisy
+- [x] Add recipe starter documents that create useful first graphs.
+- [x] Add recipe starter documents for common covers: photo plus type, noisy
   texture plus type, sticker/grid motif, primitive over image, and print-damage
   poster.
-- [ ] Improve examples with categories, used-node summaries, and clearer "start
+- [x] Improve examples with categories, used-node summaries, and clearer "start
   from this" language.
-- [ ] Improve add-node search and grouping for recipes and starter workflows.
-- [ ] Split user-facing docs into task pages or sections: first cover, layers
+- [x] Improve add-node search and grouping for recipes and starter workflows.
+- [x] Split user-facing docs into task pages or sections: first cover, layers
   workflow, nodes workflow, effects, sources, repeaters, export, and projects.
-- [ ] Explain blend modes with practical examples and when to use each one.
-- [ ] Add layer-vs-node guidance with examples of when to stay in layers and
+- [x] Explain blend modes with practical examples and when to use each one.
+- [x] Add layer-vs-node guidance with examples of when to stay in layers and
   when to switch to nodes.
-- [ ] Add effect-family recipes that stay aligned with separated focused effect
+- [x] Add effect-family recipes that stay aligned with separated focused effect
   nodes.
-- [ ] Add troubleshooting guidance for blank previews, missing image assets,
+- [x] Add troubleshooting guidance for blank previews, missing image assets,
   browser storage limits, GPU/WebGL quirks, and export mismatch.
-- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
+- [x] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
   and threshold for range problems found in real projects.
-- [ ] Revisit effect-node controls after real project testing, starting with
+- [x] Revisit effect-node controls after real project testing, starting with
   film grain scale/size so it can be tuned subtly.
-- [ ] Evaluate splitting Cells out of the generic Noise source into a dedicated
+- [x] Evaluate splitting Cells out of the generic Noise source into a dedicated
   procedural source node if it keeps needing different controls from value and
   cloud noise.
-- [ ] Keep docs examples aligned with separated focused effect nodes.
-- [ ] Add render or browser coverage for every effect/source control whose range
+- [x] Keep docs examples aligned with separated focused effect nodes.
+- [x] Add render or browser coverage for every effect/source control whose range
   changes.
-- [ ] Add browser smoke coverage for at least one layer-first starter path and
+- [x] Add browser smoke coverage for at least one layer-first starter path and
   one docs "try this" path.
 
 Exit criteria:
@@ -410,6 +417,8 @@ Exit criteria:
 - Changed effect/source ranges have focused test coverage.
 
 ### v0.13: AI Generation Research And Architecture
+
+Detailed plan: [`version-plans/v0.13.md`](./version-plans/v0.13.md).
 
 Goal: make AI-generated imagery a creativity multiplier without weakening the
 editor's local-first reliability or leaking provider secrets into the browser.

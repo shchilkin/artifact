@@ -19,6 +19,7 @@ changes safer.
 
 | Folder | Responsibility |
 | --- | --- |
+| `apps/api` | Same-repo VPS backend scaffold for v0.13 AI generation: auth checks, jobs, worker, queue, provider adapters, storage, and DB boundaries. |
 | `app/routes` | Route-level composition and page shells. Keep business logic out when a hook or feature folder can own it. |
 | `app/components` | Reusable UI and feature UI. Large surfaces should have subfolders with their own components, hooks, and helpers. |
 | `app/components/node-canvas` | Node editor feature module: React Flow integration, node components, previews, inspector, menus, and editor state. |

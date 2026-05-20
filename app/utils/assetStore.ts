@@ -79,6 +79,18 @@ function estimateDataUrlBytes(dataUrl: string) {
   return Math.round((dataUrl.length - comma - 1) * 0.75);
 }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  if (!blob.type.startsWith('image/')) throw new Error('Only image blobs can be stored as image assets');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return `data:${blob.type};base64,${btoa(binary)}`;
+}
+
 export function isImageDataUrl(src: string) {
   return src.startsWith('data:image/');
 }
@@ -110,6 +122,10 @@ export async function saveImageAsset(dataUrl: string): Promise<string> {
     store.put(asset);
   });
   return assetUriFromId(asset.id);
+}
+
+export async function saveImageBlobAsset(blob: Blob): Promise<string> {
+  return saveImageAsset(await blobToDataUrl(blob));
 }
 
 export async function loadImageAssetDataUrl(src: string): Promise<string | null> {

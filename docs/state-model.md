@@ -231,6 +231,14 @@ Tradeoff:
 - Backend blob storage should be introduced only when there is a dedicated
   persistence layer and migration plan; decoded `HTMLImageElement` caches must
   still stay outside `CanvasDocument`.
+- Generated AI image payloads should follow the same rule as imported images:
+  the active document stores only a stable image `src` reference, while bytes,
+  provider metadata, job state, quota/cost accounting, and raw provider
+  responses live in asset/server records outside `CanvasDocument`.
+- If a future Image Generation node stores user-authored prompt/settings in the
+  document, those fields must stay serializable and render-relevant. Transient
+  queue state such as queued/running/progress/error details belongs in API or UI
+  state, not in the saved document.
 
 ## Do not do this
 

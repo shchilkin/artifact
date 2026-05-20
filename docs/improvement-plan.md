@@ -72,18 +72,18 @@ the detailed source of truth.
   texture-first, and example remix workflows. Keep random seed and mode
   switching in the existing app chrome instead of duplicating them in the empty
   state.
-- [ ] Add recipe starter documents for common cover workflows.
+- [x] Add recipe starter documents for common cover workflows.
   Current note: v0.8 starts with a stack-only Texture Type recipe exposed from
   the blank-canvas panel, examples, and docs.
-- [ ] Plan a sectioned onboarding guide that teaches the app by workflow:
+- [x] Plan a sectioned onboarding guide that teaches the app by workflow:
   canvas, layers, nodes, sources, effects, repeaters, export, projects, and
   examples, with prominent section highlights instead of small inline hints.
-- [ ] Make user-facing docs task-oriented: first cover, layers workflow, nodes
+- [x] Make user-facing docs task-oriented: first cover, layers workflow, nodes
   workflow, effects, sources, repeaters, export, and projects.
-- [ ] Explain blend modes with practical examples.
-- [ ] Add troubleshooting docs for blank previews, browser storage limits,
+- [x] Explain blend modes with practical examples.
+- [x] Add troubleshooting docs for blank previews, browser storage limits,
   missing image assets, GPU/WebGL quirks, and export mismatch.
-- [ ] Add browser smoke coverage for at least one layer-first starter path and
+- [x] Add browser smoke coverage for at least one layer-first starter path and
   one docs "try this" path.
 
 ### Highest leverage next

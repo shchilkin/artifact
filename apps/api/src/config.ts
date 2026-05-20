@@ -1,0 +1,50 @@
+export interface ApiConfig {
+  port: number;
+  webOrigin: string;
+  databaseUrl: string;
+  redisUrl: string;
+  authJwtSecret: string;
+  openAiApiKey?: string;
+  xAiApiKey?: string;
+  assetStorageDriver: 'local' | 's3';
+  assetStorageDir: string;
+  monthlyGenerationLimit: number;
+  maxActiveJobsPerUser: number;
+}
+
+function requiredEnv(env: NodeJS.ProcessEnv, name: string) {
+  const value = env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
+function numberEnv(env: NodeJS.ProcessEnv, name: string, fallback: number) {
+  const value = env[name];
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Environment variable ${name} must be a non-negative number`);
+  }
+  return parsed;
+}
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
+  const driver = env.ASSET_STORAGE_DRIVER ?? 'local';
+  if (driver !== 'local' && driver !== 's3') {
+    throw new Error('ASSET_STORAGE_DRIVER must be local or s3');
+  }
+
+  return {
+    port: numberEnv(env, 'PORT', 4000),
+    webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
+    databaseUrl: requiredEnv(env, 'DATABASE_URL'),
+    redisUrl: requiredEnv(env, 'REDIS_URL'),
+    authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
+    openAiApiKey: env.OPENAI_API_KEY,
+    xAiApiKey: env.XAI_API_KEY,
+    assetStorageDriver: driver,
+    assetStorageDir: env.ASSET_STORAGE_DIR ?? './storage',
+    monthlyGenerationLimit: numberEnv(env, 'AI_MONTHLY_GENERATION_LIMIT', 10),
+    maxActiveJobsPerUser: numberEnv(env, 'AI_MAX_ACTIVE_JOBS_PER_USER', 1),
+  };
+}
