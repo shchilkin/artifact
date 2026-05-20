@@ -157,6 +157,50 @@ describe('AI route handlers', () => {
     });
   });
 
+  it('includes generated asset metadata on completed generation jobs', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateGenerationRequest({ headers: {} }, createBody, deps);
+    await store.createAsset({
+      id: 'asset-1',
+      userId: 'user-1',
+      kind: 'generated-image',
+      storageKey: 'generated/asset-1.png',
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      sizeBytes: 3,
+      metadataJson: {
+        provider: 'openai',
+        model: 'mock-image',
+        prompt: createBody.prompt,
+        settings: createBody.settings,
+        createdAt: '2026-05-20T10:00:00.000Z',
+      },
+    });
+    await store.markSucceeded('job-1', 'asset-1', new Date('2026-05-20T10:01:00.000Z'));
+
+    await expect(handleGetGenerationRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        id: 'job-1',
+        status: 'succeeded',
+        asset: {
+          id: 'asset-1',
+          uri: '/api/assets/asset-1/file',
+          mimeType: 'image/png',
+          width: 1024,
+          height: 1024,
+          sizeBytes: 3,
+          metadata: {
+            provider: 'openai',
+            prompt: createBody.prompt,
+          },
+        },
+      },
+    });
+  });
+
   it('cancels an active generation job', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });

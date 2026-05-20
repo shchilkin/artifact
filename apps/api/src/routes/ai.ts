@@ -2,14 +2,15 @@ import { randomUUID } from 'node:crypto';
 import { computeAiAccessResponse, type RequestLike, type RequestUserResolution } from '../auth.js';
 import type {
   AiAccessResponse,
+  AiGenerationAssetResponse,
   AiGenerationJobResponse,
   AiGenerationSettings,
   AiProvider,
   CreateGenerationRequest,
 } from '../contracts.js';
-import { AI_PROVIDERS } from '../contracts.js';
+import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
 import type { ApiRepositories } from '../db/repositories.js';
-import type { AiGenerationJobRow, JsonObject } from '../db/types.js';
+import type { AiGenerationJobRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
 import type { ProviderRegistry } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
@@ -120,7 +121,7 @@ export async function handleCreateGenerationRequest(
       deps.monthlyGenerationLimit,
       await deps.repositories.usage.countMonthlyGenerations(user.id, period),
     );
-    return json(200, toJobResponse(existing, quota));
+    return json(200, await toJobResponseForUser(existing, user.id, deps.repositories, quota));
   }
 
   const rate = deps.createRateLimiter?.check(`generation:create:user:${user.id}`);
@@ -169,8 +170,10 @@ export async function handleCreateGenerationRequest(
 
   return json(
     201,
-    toJobResponse(
+    await toJobResponseForUser(
       job,
+      user.id,
+      deps.repositories,
       createQuotaSnapshot(quotaCheck.quota.period, deps.monthlyGenerationLimit, quotaCheck.quota.used + 1),
     ),
   );
@@ -187,7 +190,7 @@ export async function handleGetGenerationRequest(
   const job = await deps.repositories.jobs.findByIdForUser(jobId, auth.user.id);
   if (!job) return errorJson(404, 'not_found', 'Generation job not found.');
 
-  return json(200, toJobResponse(job));
+  return json(200, await toJobResponseForUser(job, auth.user.id, deps.repositories));
 }
 
 export async function handleCancelGenerationRequest(
@@ -204,7 +207,14 @@ export async function handleCancelGenerationRequest(
     return errorJson(409, 'invalid_job_state', 'Only queued or running jobs can be cancelled.');
   }
 
-  return json(200, toJobResponse(await deps.repositories.jobs.markCancelled(job.id, deps.now?.() ?? new Date())));
+  return json(
+    200,
+    await toJobResponseForUser(
+      await deps.repositories.jobs.markCancelled(job.id, deps.now?.() ?? new Date()),
+      auth.user.id,
+      deps.repositories,
+    ),
+  );
 }
 
 function validateCreateGenerationRequest(
@@ -241,7 +251,21 @@ function settingsToJson(settings: AiGenerationSettings): JsonObject {
   return Object.fromEntries(Object.entries(settings).filter(([, value]) => value !== undefined)) as JsonObject;
 }
 
-function toJobResponse(job: AiGenerationJobRow, quota?: AiGenerationJobResponse['quota']): AiGenerationJobResponse {
+async function toJobResponseForUser(
+  job: AiGenerationJobRow,
+  userId: string,
+  repositories: ApiRepositories,
+  quota?: AiGenerationJobResponse['quota'],
+): Promise<AiGenerationJobResponse> {
+  const asset = job.output_asset_id ? await repositories.assets.findByIdForUser(job.output_asset_id, userId) : null;
+  return toJobResponse(job, quota, asset && !asset.deleted_at ? toAssetResponse(asset) : undefined);
+}
+
+function toJobResponse(
+  job: AiGenerationJobRow,
+  quota?: AiGenerationJobResponse['quota'],
+  asset?: AiGenerationAssetResponse,
+): AiGenerationJobResponse {
   return {
     id: job.id,
     status: job.status,
@@ -249,6 +273,7 @@ function toJobResponse(job: AiGenerationJobRow, quota?: AiGenerationJobResponse[
     model: job.model,
     prompt: job.prompt,
     settings: job.settings_json as unknown as AiGenerationSettings,
+    asset,
     quota,
     error:
       job.error_code && job.error_message
@@ -261,6 +286,19 @@ function toJobResponse(job: AiGenerationJobRow, quota?: AiGenerationJobResponse[
     createdAt: job.created_at.toISOString(),
     startedAt: job.started_at?.toISOString(),
     completedAt: job.completed_at?.toISOString(),
+  };
+}
+
+function toAssetResponse(asset: AssetRow): AiGenerationAssetResponse {
+  return {
+    id: asset.id,
+    uri: AI_API_PATHS.assetFile(asset.id),
+    mimeType: asset.mime_type,
+    width: asset.width,
+    height: asset.height,
+    sizeBytes: asset.size_bytes,
+    createdAt: asset.created_at.toISOString(),
+    metadata: asset.metadata_json as unknown as AiGenerationAssetResponse['metadata'],
   };
 }
 
