@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { EffectPreset } from '../../../types/config';
 import { ADD_GROUPS, ADD_ITEMS, KIND_COLOR } from '../constants';
 import { clampPopupPosition } from '../helpers';
 import { NoPan } from '../nodes/NoPan';
@@ -64,6 +65,20 @@ const RECIPE_FILTERS = [
     actions: ['noisePreset:paper', 'layer:text', 'effect:halftone', 'effect:tear', 'effect:grain', 'effect:threshold'],
   },
 ] as const;
+
+const EFFECT_SEARCH_TERMS: Partial<Record<EffectPreset, string>> = {
+  duotone: 'photo tone color image recipe',
+  grain: 'paper dust texture print finish',
+  scanlines: 'crt print line signal texture',
+  risoShift: 'registration misregister print sticker grid',
+  overprint: 'ink pressure print sticker',
+  cyanotype: 'blue image wash primitive',
+  neonGlow: 'glow halo primitive light',
+  vignette: 'frame falloff focus image',
+  halftone: 'print dots poster damage',
+  tear: 'rip paper damage glitch',
+  threshold: 'black white damage print cutoff',
+};
 
 export function NodeAddMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
   const [query, setQuery] = useState('');
@@ -174,6 +189,7 @@ export function NodeAddMenu({ x, y, onAdd, onClose, menuRef }: PaneMenuProps) {
             type="button"
             className={`nadd-recipe${activeRecipeId === recipe.id ? ' nadd-recipe-active' : ''}`}
             title={recipe.hint}
+            aria-pressed={activeRecipeId === recipe.id}
             onClick={() => {
               setQuery('');
               setActiveRecipeId((current) => (current === recipe.id ? null : recipe.id));
@@ -323,19 +339,7 @@ function extraSearchTerms(action: AddAction) {
     }[action.layerKind];
   }
   if (action.kind === 'effect') {
-    return {
-      duotone: 'photo tone color image recipe',
-      grain: 'paper dust texture print finish',
-      scanlines: 'crt print line signal texture',
-      risoShift: 'registration misregister print sticker grid',
-      overprint: 'ink pressure print sticker',
-      cyanotype: 'blue image wash primitive',
-      neonGlow: 'glow halo primitive light',
-      vignette: 'frame falloff focus image',
-      halftone: 'print dots poster damage',
-      tear: 'rip paper damage glitch',
-      threshold: 'black white damage print cutoff',
-    }[action.preset];
+    return EFFECT_SEARCH_TERMS[action.preset] ?? '';
   }
   if (action.kind === 'noisePreset') return 'texture paper grain static source recipe';
   if (action.kind === 'arrayPreset') return 'motif sticker grid orbit shard pattern recipe';
