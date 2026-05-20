@@ -42,7 +42,28 @@ function createStorage(): AssetStorage {
       sizeBytes: input.bytes.byteLength,
     })),
     readImage: vi.fn(),
-    deleteImage: vi.fn(),
+    deleteImage: vi.fn(async () => undefined),
+  };
+}
+
+function createProvider(
+  result: Partial<Awaited<ReturnType<ImageGenerationProvider['generateImage']>>>,
+): ImageGenerationProvider {
+  return {
+    provider: 'openai',
+    defaultModel: 'openai-mock-image',
+    generateImage: vi.fn(async () => {
+      const output: Awaited<ReturnType<ImageGenerationProvider['generateImage']>> = {
+        provider: 'openai',
+        model: 'openai-mock-image',
+        mimeType: 'image/png',
+        bytes: new Uint8Array([1, 2, 3]),
+        width: 1024,
+        height: 1024,
+        ...result,
+      };
+      return output;
+    }),
   };
 }
 
@@ -105,6 +126,54 @@ describe('processGenerationJob', () => {
       status: 'failed',
       error_code: 'provider_error',
       error_message: 'provider exploded',
+      retryable: true,
+    });
+  });
+
+  it('rejects invalid provider output without writing storage', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store);
+    const storage = createStorage();
+
+    await processGenerationJob(createQueueJob(), {
+      repositories: store.repositories(),
+      providers: createProviderRegistry([createProvider({ mimeType: 'application/json' })]),
+      storage,
+    });
+
+    expect(storage.writeImage).not.toHaveBeenCalled();
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'invalid_provider_output',
+      retryable: false,
+    });
+  });
+
+  it('cleans up written storage when asset record creation fails', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store);
+    const storage = createStorage();
+    const repositories = store.repositories();
+
+    await processGenerationJob(createQueueJob(), {
+      repositories: {
+        ...repositories,
+        assets: {
+          ...repositories.assets,
+          create: vi.fn(async () => {
+            throw new Error('asset insert failed');
+          }),
+        },
+      },
+      providers: createProviderRegistry([createProvider({})]),
+      storage,
+      createId: () => 'asset-1',
+    });
+
+    expect(storage.deleteImage).toHaveBeenCalledWith('generated/asset-1.svg');
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'asset_write_failed',
       retryable: true,
     });
   });

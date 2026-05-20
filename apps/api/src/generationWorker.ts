@@ -10,9 +10,13 @@ export interface GenerationWorkerDeps {
   repositories: ApiRepositories;
   providers: ProviderRegistry;
   storage: AssetStorage;
+  maxOutputBytes?: number;
   now?: () => Date;
   createId?: () => string;
 }
+
+const DEFAULT_MAX_OUTPUT_BYTES = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
 
 export async function processGenerationJob(
   queueJob: QueueJob<GenerationQueuePayload>,
@@ -20,6 +24,7 @@ export async function processGenerationJob(
 ): Promise<void> {
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
   if (!job || job.status !== 'queued') return;
+  let storedStorageKey: string | null = null;
 
   try {
     const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
@@ -32,12 +37,14 @@ export async function processGenerationJob(
       prompt: running.prompt,
       settings: running.settings_json as unknown as AiGenerationSettings,
     });
+    validateProviderResult(result, deps.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES);
     const assetId = deps.createId?.() ?? randomUUID();
     const stored = await deps.storage.writeImage({
       assetId,
       bytes: result.bytes,
       mimeType: result.mimeType,
     });
+    storedStorageKey = stored.storageKey;
     const completedAt = deps.now?.() ?? new Date();
 
     await deps.repositories.assets.create({
@@ -53,14 +60,63 @@ export async function processGenerationJob(
     });
     await deps.repositories.jobs.markSucceeded(running.id, assetId, completedAt);
   } catch (error) {
+    if (storedStorageKey) {
+      await deps.storage.deleteImage(storedStorageKey).catch(() => undefined);
+    }
+    const failure = classifyGenerationFailure(error);
     await deps.repositories.jobs.markFailed(job.id, {
-      code: 'provider_error',
-      message: error instanceof Error ? error.message : 'Image generation failed.',
-      retryable: true,
+      code: failure.code,
+      message: failure.message,
+      retryable: failure.retryable,
       providerUsageJson: null,
       estimatedCost: null,
     });
   }
+}
+
+function validateProviderResult(result: ImageGenerationResult, maxOutputBytes: number) {
+  if (!ALLOWED_MIME_TYPES.has(result.mimeType)) {
+    throw new GenerationWorkerError(
+      'invalid_provider_output',
+      `Unsupported generated image mime type: ${result.mimeType}`,
+    );
+  }
+  if (result.bytes.byteLength === 0) {
+    throw new GenerationWorkerError('invalid_provider_output', 'Generated image output was empty.');
+  }
+  if (result.bytes.byteLength > maxOutputBytes) {
+    throw new GenerationWorkerError(
+      'invalid_provider_output',
+      'Generated image output exceeded the configured size limit.',
+    );
+  }
+  if (!Number.isInteger(result.width) || !Number.isInteger(result.height) || result.width <= 0 || result.height <= 0) {
+    throw new GenerationWorkerError('invalid_provider_output', 'Generated image dimensions were invalid.');
+  }
+}
+
+class GenerationWorkerError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly retryable = false,
+  ) {
+    super(message);
+  }
+}
+
+function classifyGenerationFailure(error: unknown) {
+  if (error instanceof GenerationWorkerError) {
+    return { code: error.code, message: error.message, retryable: error.retryable };
+  }
+  if (error instanceof Error && /storage|asset/i.test(error.message)) {
+    return { code: 'asset_write_failed', message: error.message, retryable: true };
+  }
+  return {
+    code: 'provider_error',
+    message: error instanceof Error ? error.message : 'Image generation failed.',
+    retryable: true,
+  };
 }
 
 function createGeneratedAssetMetadata(

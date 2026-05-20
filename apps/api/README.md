@@ -55,12 +55,13 @@ Implemented:
 - Authenticated generated-asset download route handler.
 - Worker job processor that marks jobs running, writes mock provider output to
   storage, creates generated asset records, and marks success/failure.
+- Provider output validation and storage cleanup around failed asset writes.
 - API-local tests.
 
 Next:
 
 - xAI provider adapter.
-- Provider output validation and cleanup hardening.
+- Frontend Image Generation node.
 
 ## Contract
 
