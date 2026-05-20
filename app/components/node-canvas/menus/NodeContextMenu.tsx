@@ -11,15 +11,17 @@ export function NodeContextMenu({
   isMerge,
   isExport,
   muted,
+  removeFromArea,
   onDuplicate,
   onToggleMuted,
+  onRemoveFromArea,
   onDelete,
   onClose,
   menuRef,
 }: NodeMenuProps) {
   const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> =
     [];
-  const menuWidth = 200;
+  const menuWidth = 232;
 
   if (!isMerge && !isExport) {
     items.push({ label: 'Duplicate', hint: '⌘D', action: onDuplicate });
@@ -29,6 +31,14 @@ export function NodeContextMenu({
       label: muted ? 'Unmute' : 'Mute',
       hint: 'M',
       action: onToggleMuted,
+      dividerBefore: items.length > 0,
+    });
+  }
+  if (onRemoveFromArea && removeFromArea && !isExport) {
+    items.push({
+      label: 'Remove from area',
+      hint: removeFromArea.areaName,
+      action: () => onRemoveFromArea(removeFromArea.areaId, removeFromArea.nodeId),
       dividerBefore: items.length > 0,
     });
   }

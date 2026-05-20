@@ -21,6 +21,7 @@ import {
   GRAPH_AREA_COLORS,
   inferLinearGraph,
   removeGraphArea,
+  removeNodesFromGraphArea,
 } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
@@ -308,6 +309,13 @@ export function NodeCanvas({
     [onGraphChange],
   );
 
+  const handleRemoveNodeFromArea = useCallback(
+    (areaId: string, nodeId: string) => {
+      onGraphChange(removeNodesFromGraphArea(graphRef.current, areaId, [nodeId]));
+    },
+    [onGraphChange],
+  );
+
   const handleSelectArea = useCallback((id: string) => {
     setSelectedAreaId(id);
   }, []);
@@ -521,6 +529,8 @@ export function NodeCanvas({
             typeof document !== 'undefined' &&
             (() => {
               const menuLayer = doc.layers.find((layer) => layer.id === contextMenu.nodeId);
+              const menuAreaId = areaByNodeId.get(contextMenu.nodeId);
+              const menuArea = menuAreaId ? (graph.areas ?? []).find((area) => area.id === menuAreaId) : undefined;
               return createPortal(
                 <NodeContextMenu
                   x={contextMenu.x}
@@ -528,10 +538,14 @@ export function NodeCanvas({
                   isMerge={contextMenu.isMerge}
                   isExport={contextMenu.isExport}
                   muted={menuLayer ? !menuLayer.visible : undefined}
+                  removeFromArea={
+                    menuArea ? { areaId: menuArea.id, nodeId: contextMenu.nodeId, areaName: menuArea.name } : undefined
+                  }
                   onDuplicate={() => onDuplicateLayer(contextMenu.nodeId)}
                   onToggleMuted={
                     menuLayer ? () => onUpdateLayer(menuLayer.id, { visible: !menuLayer.visible }) : undefined
                   }
+                  onRemoveFromArea={menuArea ? handleRemoveNodeFromArea : undefined}
                   onDelete={() => onDeleteNodes([contextMenu.nodeId])}
                   onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
                   menuRef={contextMenuRef}

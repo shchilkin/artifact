@@ -4,6 +4,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import type { Route } from './+types/root';
 import './index.css';
 import { ALL_EMOJIS } from './types/config';
+import { logAppBuildInfo } from './utils/appBuildInfo';
 
 // Default title/description — route-level meta() overrides these via <Meta />
 export const meta: MetaFunction = () => [
@@ -96,6 +97,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function Root() {
+  useEffect(() => {
+    logAppBuildInfo();
+  }, []);
+
   return <Outlet />;
 }
 
