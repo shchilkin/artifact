@@ -13,11 +13,24 @@ import {
 } from '../types/config';
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
-import { TEXTURE_TYPE_STACK_STARTER } from './starterDocuments';
+import {
+  PHOTO_TYPE_GRAPH_RECIPE,
+  PRIMITIVE_IMAGE_GRAPH_RECIPE,
+  PRINT_DAMAGE_GRAPH_RECIPE,
+  STICKER_GRID_GRAPH_RECIPE,
+  type StarterDocument,
+  TEXTURE_TYPE_STACK_STARTER,
+} from './starterDocuments';
+
+export type CuratedExampleCategory = 'Layer recipe' | 'Graph recipe' | 'Texture study' | 'Effect stack';
 
 export interface CuratedExample {
   id: string;
   name: string;
+  category: CuratedExampleCategory;
+  summary: string;
+  usedNodes: string[];
+  startCopy: string;
   doc: CanvasDocument;
 }
 
@@ -58,15 +71,56 @@ function mkDoc(
   };
 }
 
+function starterExample(
+  starter: StarterDocument,
+  metadata: Pick<CuratedExample, 'category' | 'summary' | 'usedNodes' | 'startCopy'>,
+): CuratedExample {
+  return {
+    id: starter.id,
+    name: starter.name,
+    doc: starter.doc,
+    ...metadata,
+  };
+}
+
 export const CURATED_EXAMPLES: CuratedExample[] = [
-  {
-    id: TEXTURE_TYPE_STACK_STARTER.id,
-    name: TEXTURE_TYPE_STACK_STARTER.name,
-    doc: TEXTURE_TYPE_STACK_STARTER.doc,
-  },
+  starterExample(TEXTURE_TYPE_STACK_STARTER, {
+    category: 'Layer recipe',
+    summary: 'Build a stack-only cover from fill, procedural texture, display type, and print effects.',
+    usedNodes: ['Fill', 'Noise', 'Text', 'Riso Shift', 'Scanlines', 'Grain'],
+    startCopy: 'Start with this layer stack and swap the title, colors, or texture seed.',
+  }),
+  starterExample(PHOTO_TYPE_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A photo-led graph where image tone, title placement, and final grain stay as separate editable steps.',
+    usedNodes: ['Fill', 'Image', 'Duotone', 'Text', 'Grain', 'Output'],
+    startCopy: 'Open this when you want to replace the image first, then tune type and color.',
+  }),
+  starterExample(STICKER_GRID_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A motif-grid workflow with paper texture, array shapes, registration drift, and label type.',
+    usedNodes: ['Fill', 'Noise', 'Array', 'Riso Shift', 'Text', 'Overprint'],
+    startCopy: 'Use this for sticker sheets, repeated marks, and grid-based cover systems.',
+  }),
+  starterExample(PRIMITIVE_IMAGE_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'Two branches merge a 3D primitive over an image wash before type and vignette finishing.',
+    usedNodes: ['Image', 'Primitive', 'Neon Glow', 'Merge', 'Text', 'Vignette'],
+    startCopy: 'Start here to practice keeping an object branch separate from the image branch.',
+  }),
+  starterExample(PRINT_DAMAGE_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A poster workflow that pushes type through paper fiber, halftone, tears, and dust.',
+    usedNodes: ['Fill', 'Noise', 'Text', 'Halftone', 'Tear', 'Grain'],
+    startCopy: 'Open this for distressed posters where every damage pass remains editable.',
+  }),
   {
     id: 'static-orbit',
     name: 'Static Orbit',
+    category: 'Texture study',
+    summary: 'Signal snow and orbit rings stay on separate branches before a screen merge and final grit.',
+    usedNodes: ['Fill', 'Noise', 'Array', 'Scanlines', 'Neon Glow', 'Merge'],
+    startCopy: 'Remix this to learn graph branches, screen blends, and procedural source variation.',
     doc: mkDoc(
       24001,
       '#030307',
@@ -134,6 +188,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'paper-shards',
     name: 'Paper Shards',
+    category: 'Texture study',
+    summary: 'Paper fiber, cyanotype color, shard arrays, and type show how source nodes become a print system.',
+    usedNodes: ['Fill', 'Noise', 'Array', 'Cyanotype', 'Riso Shift', 'Overprint'],
+    startCopy: 'Start here when you want a procedural paper-and-shape composition.',
     doc: mkDoc(
       24002,
       '#110704',
@@ -200,6 +258,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'tower-type',
     name: 'Tower Type',
+    category: 'Graph recipe',
+    summary: 'A concrete texture branch and a warped title branch merge into a type-driven cover.',
+    usedNodes: ['Noise', 'Duotone', 'Text', 'Wave', 'CA', 'Merge'],
+    startCopy: 'Use this to study type as its own branch instead of a final flat layer.',
     doc: mkDoc(
       16300,
       '#050101',
@@ -282,6 +344,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'phantom-violet',
     name: 'Phantom Violet',
+    category: 'Effect stack',
+    summary: 'A dense emoji source becomes a ghosted cover through morph, warp, rays, grain, and bloom.',
+    usedNodes: ['Emoji', 'Morph', 'Noise Warp', 'Rays', 'Grain', 'Bloom'],
+    startCopy: 'Open this to inspect a classic layer effect stack and reduce or reorder passes.',
     doc: mkDoc(42069, '#0d0020', '1:1', [
       makeEmojiLayer({
         name: 'phantoms',
@@ -305,6 +371,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'glitch-tape',
     name: 'Glitch Tape',
+    category: 'Effect stack',
+    summary: 'Video artifacts pile up through glitch, tear, mosh, interlace, split channels, and bloom.',
+    usedNodes: ['Emoji', 'Glitch', 'Tear', 'Data Mosh', 'Interlace', 'RGB Split'],
+    startCopy: 'Use this as a reference for VHS-style degradation without adding new nodes first.',
     doc: mkDoc(13370, '#001008', '16:9', [
       makeEmojiLayer({
         name: 'tape debris',
@@ -330,6 +400,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'vortex-dream',
     name: 'Vortex Dream',
+    category: 'Effect stack',
+    summary: 'Orbital emoji scatter is pulled through vortex, barrel distortion, rays, hue, and bloom.',
+    usedNodes: ['Emoji', 'Noise Warp', 'Vortex', 'Barrel', 'Rays', 'Bloom'],
+    startCopy: 'Start from this when you want a vertical motion-poster feel from simple sources.',
     doc: mkDoc(77777, '#000820', '9:16', [
       makeEmojiLayer({
         name: 'orbitals',
@@ -354,6 +428,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'film-ghost',
     name: 'Film Ghost',
+    category: 'Effect stack',
+    summary: 'A film-burn stack uses heat warp, grain, interlace, vignette, and soft bloom for aged stock.',
+    usedNodes: ['Emoji', 'Film Burn', 'Noise Warp', 'Grain', 'Interlace', 'Bloom'],
+    startCopy: 'Open this to tune subtle versus destructive film aging controls.',
     doc: mkDoc(9876, '#140800', '4:5', [
       makeEmojiLayer({
         name: 'apparitions',
@@ -377,6 +455,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'riso-print',
     name: 'Riso Print',
+    category: 'Effect stack',
+    summary: 'Duotone, posterize, halftone, registration shift, and grain create a print-shop finish.',
+    usedNodes: ['Emoji', 'Duotone', 'Posterize', 'Halftone', 'Riso Shift', 'Grain'],
+    startCopy: 'Use this to compare print effects that look similar but affect different parts of the image.',
     doc: mkDoc(31415, '#1a0010', '1:1', [
       makeEmojiLayer({
         name: 'petals',
@@ -401,6 +483,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'acid-rain',
     name: 'Acid Rain',
+    category: 'Effect stack',
+    summary: 'A toxic palette is built from glitch, corrosion warp, mosh, rays, scanlines, and bloom.',
+    usedNodes: ['Emoji', 'Glitch', 'Noise Warp', 'Data Mosh', 'Scanlines', 'Bloom'],
+    startCopy: 'Open this when you want to learn how color drift and damage stack together.',
     doc: mkDoc(55555, '#0a1000', '16:9', [
       makeEmojiLayer({
         name: 'acid drops',
@@ -428,6 +514,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'void-echo',
     name: 'Void Echo',
+    category: 'Effect stack',
+    summary: 'Mirror, morph, vortex, duotone, interlace, and vignette turn a scatter into a dark echo.',
+    usedNodes: ['Emoji', 'Mirror', 'Morph', 'Vortex', 'Duotone', 'Vignette'],
+    startCopy: 'Use this to study repeating spatial effects before adding more content.',
     doc: mkDoc(11111, '#04000a', '9:16', [
       makeEmojiLayer({
         name: 'eclipses',
@@ -454,6 +544,10 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   {
     id: 'pixel-death',
     name: 'Pixel Death',
+    category: 'Effect stack',
+    summary: 'Hard digital damage combines tear, mosh, interlace, pixelate, posterize, duotone, and scanlines.',
+    usedNodes: ['Emoji', 'Tear', 'Data Mosh', 'Pixelate', 'Posterize', 'Scanlines'],
+    startCopy: 'Open this for a destructive effects pass where the order matters.',
     doc: mkDoc(66666, '#200000', '4:5', [
       makeEmojiLayer({
         name: 'wreckage',

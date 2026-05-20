@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { Footer } from '../components/Footer';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
@@ -19,6 +19,14 @@ import {
 } from '../types/config';
 import { EFFECT_DOCS, EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
 import { renderDocument } from '../utils/renderer';
+import {
+  PHOTO_TYPE_GRAPH_RECIPE,
+  PRIMITIVE_IMAGE_GRAPH_RECIPE,
+  PRINT_DAMAGE_GRAPH_RECIPE,
+  STICKER_GRID_GRAPH_RECIPE,
+  type StarterDocument,
+  TEXTURE_TYPE_STACK_STARTER,
+} from '../utils/starterDocuments';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -289,29 +297,6 @@ const SOURCE_RECIPE_GUIDE = [
   },
 ];
 
-const PRACTICAL_START_GUIDE = [
-  {
-    name: 'Starter recipe',
-    desc: 'Use Texture Type from the empty canvas or examples when you want a layer-only recipe with fill, noise, type, scanlines, and grain already composed as a stack.',
-  },
-  {
-    name: 'Blank cover',
-    desc: 'Start blank, add one Image or Fill layer, then add Text. Use Layers for quick stack work; switch to Nodes when the branch structure matters.',
-  },
-  {
-    name: 'Photo poster',
-    desc: 'Import an image, set fit or free placement, add title text, then finish with one focused effect such as Grain, Scanlines, Tint, or Bloom.',
-  },
-  {
-    name: 'Texture-first cover',
-    desc: 'Create a Noise source first, choose Film Grain, Paper, Static, or CRT Dirt, then merge text or image branches over it.',
-  },
-  {
-    name: 'Node workflow',
-    desc: 'Build source branches left to right, use Merge to combine them, group related nodes into areas, and keep Export as the final readable target.',
-  },
-];
-
 const MOTIF_RECIPE_GUIDE = [
   {
     name: 'Sticker Wall',
@@ -326,6 +311,163 @@ const MOTIF_RECIPE_GUIDE = [
     desc: 'Feed a small source into Orbit Rings or Burst Field for halos, confetti clusters, constellation marks, and radial energy.',
   },
 ];
+
+const FIRST_COVER_STEPS = [
+  {
+    step: '01',
+    name: 'Pick the base',
+    desc: 'Use Image for a photo cover, Fill for a flat poster, or Noise when the texture is the artwork.',
+    action: 'Start in layers. One source is enough.',
+  },
+  {
+    step: '02',
+    name: 'Add type early',
+    desc: 'Set the title before you add damage. Type size, position, rotation, and contrast decide the cover faster than effects do.',
+    action: 'Use one strong text layer, then duplicate only when you need echoes.',
+  },
+  {
+    step: '03',
+    name: 'Finish with one effect family',
+    desc: 'Choose print, texture, signal damage, distortion, or color. Stack more effects only after the cover already reads.',
+    action: 'Try Grain, Scanlines, Tint, Duotone, Riso Shift, or Bloom first.',
+  },
+  {
+    step: '04',
+    name: 'Switch to nodes when branches matter',
+    desc: 'Stay in layers for straight stacks. Use nodes when the image, type, texture, and primitive need separate paths before they merge.',
+    action: 'The Export node should be the final readable target.',
+  },
+];
+
+const WORKFLOW_CHOICES = [
+  {
+    name: 'Stay in layers',
+    desc: 'Best for quick covers, simple stacks, image plus type, one texture bed, and final print treatment.',
+    cues: [
+      'You can explain the cover from bottom to top',
+      'Reordering layers is enough',
+      'You want speed more than structure',
+    ],
+  },
+  {
+    name: 'Switch to nodes',
+    desc: 'Best for branches, alternate effect paths, merging a primitive over an image, repeat motifs, or reusable source chains.',
+    cues: [
+      'Two parts need different effects',
+      'A texture should feed several outputs',
+      'You want to see the composition graph',
+    ],
+  },
+];
+
+const RECIPE_STARTERS: Array<{
+  starter: StarterDocument;
+  mode: string;
+  desc: string;
+  steps: string[];
+}> = [
+  {
+    starter: TEXTURE_TYPE_STACK_STARTER,
+    mode: 'Layer recipe',
+    desc: 'A fast stack-only cover that proves you can finish without opening nodes.',
+    steps: ['Fill plate', 'Noise texture', 'Title type', 'Registration shift', 'Scanlines and grain'],
+  },
+  {
+    starter: PHOTO_TYPE_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A photo-led cover where color wash, type, and grain stay editable as separate steps.',
+    steps: ['Image branch', 'Duotone', 'Headline type', 'Final grain'],
+  },
+  {
+    starter: STICKER_GRID_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A motif field recipe for repeated marks, sticker grids, and printed label energy.',
+    steps: ['Paper noise', 'Array motif', 'Riso shift', 'Label type', 'Overprint'],
+  },
+  {
+    starter: PRIMITIVE_IMAGE_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A branch recipe for merging a 3D primitive over an image without flattening the structure.',
+    steps: ['Image wash', 'Primitive branch', 'Merge', 'Small type', 'Vignette'],
+  },
+  {
+    starter: PRINT_DAMAGE_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A distressed poster recipe that keeps halftone, tear, and dust as individual choices.',
+    steps: ['Paper fiber', 'Poster type', 'Halftone', 'Tear', 'Dust pass'],
+  },
+];
+
+const PRACTICAL_BLEND_GUIDE = [
+  {
+    name: 'Screen',
+    desc: 'Use for light leaks, glow, dust, static, and pale texture over a dark plate.',
+  },
+  {
+    name: 'Multiply',
+    desc: 'Use for paper stains, ink shadow, halftone grime, and anything that should darken the cover.',
+  },
+  {
+    name: 'Overlay',
+    desc: 'Use when texture should inherit the colors underneath instead of sitting on top like a sticker.',
+  },
+  {
+    name: 'Difference',
+    desc: 'Use sparingly for harsh poster inversions, experimental type, and graphic accidents.',
+  },
+];
+
+const TROUBLESHOOTING_GUIDE = [
+  {
+    name: 'Blank preview',
+    desc: 'Check layer visibility, confirm the graph Export node has an input, and try stack mode if the document is meant to be layer-only.',
+  },
+  {
+    name: 'Missing image',
+    desc: 'Local images live in browser storage. If a shared document loses an image, reimport it or save a portable .artifact.json copy.',
+  },
+  {
+    name: 'Storage limit',
+    desc: 'Large imported images can fill browser storage. Save a project or .artifact.json before clearing site data.',
+  },
+  {
+    name: 'GPU or WebGL issue',
+    desc: 'Primitive and GPU effects depend on the browser. Reload, reduce active previews, or export again after switching tabs back.',
+  },
+  {
+    name: 'Export mismatch',
+    desc: 'Export uses the canonical renderer. Check aspect ratio, graph target, image readiness, and primitive camera state before exporting.',
+  },
+];
+
+function starterHref(starter: StarterDocument) {
+  return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}`;
+}
+
+function GuideSection({
+  id,
+  eyebrow,
+  title,
+  children,
+}: {
+  id?: string;
+  eyebrow: string;
+  title: string;
+  children: ReactNode;
+}) {
+  const titleId = `${id ?? `docs-${eyebrow.toLowerCase().replace(/\s+/g, '-')}`}-title`;
+  return (
+    <section id={id} className="docs-guide-section" aria-labelledby={titleId}>
+      <div className="docs-guide-section__header">
+        <span className="docs-guide-section__eyebrow">{eyebrow}</span>
+        <h2 id={titleId} className="docs-guide-section__title">
+          {title}
+        </h2>
+      </div>
+      <div className="docs-guide-section__body">{children}</div>
+    </section>
+  );
+}
 
 // ─── Humanize camelCase param keys ───────────────────────────────────────────
 
@@ -569,10 +711,10 @@ function NodePoster({ node }: { node: NodeDef }) {
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const meta: MetaFunction = () => [
-  { title: 'Visual Catalog | artifact' },
+  { title: 'Docs | artifact' },
   {
     name: 'description',
-    content: 'A live, interactive visual catalog of every node in the artifact graph.',
+    content: 'Task-oriented Artifact docs for layers, nodes, recipes, effects, blends, troubleshooting, and export.',
   },
 ];
 
@@ -582,75 +724,152 @@ export default function DocsNodes() {
       <SiteNav solid />
 
       <main className="docs-feed">
-        {/* ── Intro ── */}
         <section className="docs-intro" aria-labelledby="docs-title">
           <h1 id="docs-title" className="docs-intro__headline">
-            Visual Catalog
+            Make A Cover
           </h1>
           <p className="docs-intro__deck">
-            A stream of inspiration. Scroll to explore every content, source, and effect node. Hover or tap any poster
-            to reveal its live controls and tweak the visual in real-time.
+            Start from a workflow, not from a parameter list. Use this page when the empty canvas feels too open, when
+            layers and nodes blur together, or when an export does not match what you expected.
           </p>
+          <div className="docs-intro__actions" aria-label="Primary docs actions">
+            <a href="#docs-first-cover" className="docs-action docs-action--primary">
+              First cover path
+            </a>
+            <a href="#docs-recipes" className="docs-action">
+              Recipe starters
+            </a>
+            <a href="#docs-troubleshooting" className="docs-action">
+              Troubleshooting
+            </a>
+          </div>
         </section>
 
-        <section className="docs-effect-guide" aria-label="Practical starting points">
-          {PRACTICAL_START_GUIDE.map((item) => (
-            <div key={item.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{item.name}</span>
-              <p className="docs-effect-guide__desc">{item.desc}</p>
+        <GuideSection id="docs-first-cover" eyebrow="First Cover" title="A direct path from blank to export.">
+          <div className="docs-step-list">
+            {FIRST_COVER_STEPS.map((item) => (
+              <article key={item.step} className="docs-step">
+                <span className="docs-step__num">{item.step}</span>
+                <div className="docs-step__copy">
+                  <h3>{item.name}</h3>
+                  <p>{item.desc}</p>
+                  <span>{item.action}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
+
+        <GuideSection eyebrow="Layers Or Nodes" title="Choose the editor by the shape of the job.">
+          <div className="docs-choice-grid">
+            {WORKFLOW_CHOICES.map((choice) => (
+              <article key={choice.name} className="docs-choice">
+                <h3>{choice.name}</h3>
+                <p>{choice.desc}</p>
+                <ul>
+                  {choice.cues.map((cue) => (
+                    <li key={cue}>{cue}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
+
+        <GuideSection id="docs-recipes" eyebrow="Recipes" title="Open a working document, then change one decision.">
+          <div className="docs-recipe-list">
+            {RECIPE_STARTERS.map(({ starter, mode, desc, steps }) => (
+              <article key={starter.id} className="docs-recipe">
+                <div>
+                  <span className="docs-recipe__mode">{mode}</span>
+                  <h3>{starter.name}</h3>
+                  <p>{desc}</p>
+                  <div className="docs-recipe__steps">{steps.join(' / ')}</div>
+                </div>
+                <a href={starterHref(starter)} className="docs-recipe__link">
+                  Try this
+                </a>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
+
+        <GuideSection eyebrow="Blend Modes" title="Think in cover-making jobs, not math.">
+          <div className="docs-reference-grid">
+            {PRACTICAL_BLEND_GUIDE.map((mode) => (
+              <article key={mode.name} className="docs-reference-item">
+                <h3>{mode.name}</h3>
+                <p>{mode.desc}</p>
+              </article>
+            ))}
+          </div>
+          <details className="docs-details">
+            <summary>Full blend mode notes</summary>
+            <div className="docs-compact-grid">
+              {BLEND_GUIDE.map((mode) => (
+                <div key={mode.name}>
+                  <span>{mode.name}</span>
+                  <p>{mode.desc}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
+          </details>
+        </GuideSection>
 
-        <section className="docs-effect-guide" aria-label="Effect families">
-          {EFFECT_FAMILY_GUIDE.map((family) => (
-            <div key={family.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{family.name}</span>
-              <p className="docs-effect-guide__desc">{family.desc}</p>
-            </div>
-          ))}
-        </section>
+        <GuideSection eyebrow="Sources And Motifs" title="Use procedural nodes when the material should stay editable.">
+          <div className="docs-reference-grid">
+            {[...SOURCE_RECIPE_GUIDE, ...MOTIF_RECIPE_GUIDE].map((recipe) => (
+              <article key={recipe.name} className="docs-reference-item">
+                <h3>{recipe.name}</h3>
+                <p>{recipe.desc}</p>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
 
-        <section className="docs-effect-guide" aria-label="Graph utilities">
-          {GRAPH_UTILITY_GUIDE.map((utility) => (
-            <div key={utility.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{utility.name}</span>
-              <p className="docs-effect-guide__desc">{utility.desc}</p>
-            </div>
-          ))}
-        </section>
+        <GuideSection eyebrow="Effects" title="Pick one family first, then tune the exact node.">
+          <div className="docs-reference-grid docs-reference-grid--dense">
+            {EFFECT_FAMILY_GUIDE.map((family) => (
+              <article key={family.name} className="docs-reference-item">
+                <h3>{family.name}</h3>
+                <p>{family.desc}</p>
+              </article>
+            ))}
+            {GRAPH_UTILITY_GUIDE.map((utility) => (
+              <article key={utility.name} className="docs-reference-item">
+                <h3>{utility.name}</h3>
+                <p>{utility.desc}</p>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
 
-        <section className="docs-effect-guide" aria-label="Blend modes">
-          {BLEND_GUIDE.map((mode) => (
-            <div key={mode.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{mode.name}</span>
-              <p className="docs-effect-guide__desc">{mode.desc}</p>
-            </div>
-          ))}
-        </section>
+        <GuideSection
+          id="docs-troubleshooting"
+          eyebrow="Troubleshooting"
+          title="Fast checks when the result does not look right."
+        >
+          <div className="docs-trouble-list">
+            {TROUBLESHOOTING_GUIDE.map((item) => (
+              <article key={item.name} className="docs-trouble">
+                <h3>{item.name}</h3>
+                <p>{item.desc}</p>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
 
-        <section className="docs-effect-guide" aria-label="Source recipes">
-          {SOURCE_RECIPE_GUIDE.map((recipe) => (
-            <div key={recipe.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{recipe.name}</span>
-              <p className="docs-effect-guide__desc">{recipe.desc}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="docs-effect-guide" aria-label="Motif recipes">
-          {MOTIF_RECIPE_GUIDE.map((recipe) => (
-            <div key={recipe.name} className="docs-effect-guide__item">
-              <span className="docs-effect-guide__name">{recipe.name}</span>
-              <p className="docs-effect-guide__desc">{recipe.desc}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* ── Vertical Feed ── */}
-        {ALL_NODES.map((node) => (
-          <NodePoster key={node.id} node={node} />
-        ))}
+        <GuideSection eyebrow="Node Catalog" title="Live previews for every content, source, and effect node.">
+          <p className="docs-catalog-note">
+            Hover or focus a poster to reveal controls. Open a poster in the generator when a visual starts to feel
+            usable.
+          </p>
+          <div className="docs-node-feed">
+            {ALL_NODES.map((node) => (
+              <NodePoster key={node.id} node={node} />
+            ))}
+          </div>
+        </GuideSection>
       </main>
 
       <Footer />

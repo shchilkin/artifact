@@ -630,6 +630,39 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
     });
 });
 
+test('docs recipe try-this link opens an editable starter document', async ({ page }) => {
+  await page.goto('/docs/nodes');
+  await expect(page.getByRole('heading', { name: 'Make A Cover' })).toBeVisible();
+
+  const recipe = page.locator('.docs-recipe').filter({ hasText: 'Photo Plus Type Recipe' });
+  await expect(recipe).toBeVisible();
+  await recipe.getByRole('link', { name: 'Try this' }).click();
+
+  await expect(page).toHaveURL(/\/app\?doc=/);
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.getByText('cover photo')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('headline type')).toBeVisible();
+});
+
+test('add-node menu exposes recipe groups and workflow search', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await page.getByRole('button', { name: 'nodes' }).click();
+  await page.getByRole('button', { name: 'Add node' }).click();
+
+  await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Texture Type' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Print Damage' }).click();
+  await expect(page.locator('.nadd-row').filter({ hasText: 'Halftone' })).toBeVisible();
+  await expect(page.locator('.nadd-row').filter({ hasText: 'Tear' })).toBeVisible();
+  await expect(page.locator('.nadd-row').filter({ hasText: 'Paper' })).toBeVisible();
+
+  await page.getByLabel('Search nodes and effects').fill('photo type');
+  await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^T Text/ })).toBeVisible();
+});
+
 test('node previews respect document aspect ratio', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
   await switchToNodeView(page);
