@@ -18,6 +18,7 @@ import {
   addNodesToGraphArea,
   connectedPortIds,
   EXPORT_NODE_ID,
+  GRAPH_AREA_COLORS,
   inferLinearGraph,
   removeGraphArea,
 } from '../../utils/nodeGraph';
@@ -57,7 +58,6 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
-const AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
 const PERF_DEBUG_STORAGE_KEY = 'artifact-debug-perf';
 
 export function NodeCanvas({
@@ -289,7 +289,7 @@ export function NodeCanvas({
       return;
     }
     const areaNumber = (graphRef.current.areas?.length ?? 0) + 1;
-    const color = AREA_COLORS[(areaNumber - 1) % AREA_COLORS.length];
+    const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
     onGraphChange(
       addGraphArea(graphRef.current, {
         id: `area-${Date.now().toString(36)}`,

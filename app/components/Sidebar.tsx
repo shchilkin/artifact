@@ -11,6 +11,7 @@ import {
   type LayerKind,
 } from '../types/config';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
+import { addLayersToGraphAreaInDocument, createGraphAreaInDocument } from '../utils/documentCommands';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -139,6 +140,22 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleCreateAreaFromLayers = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      onDocChange(createGraphAreaInDocument(docRef.current, ids));
+    },
+    [onDocChange],
+  );
+
+  const handleAddLayersToArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      onDocChange(addLayersToGraphAreaInDocument(docRef.current, areaId, ids));
+    },
+    [onDocChange],
+  );
+
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
       const current = docRef.current;
@@ -203,6 +220,8 @@ export function Sidebar({
           onReorderLayers={onReorderLayers}
           onToggleVisible={handleToggleVisible}
           onSetLayersVisible={handleSetLayersVisible}
+          onCreateAreaFromLayers={handleCreateAreaFromLayers}
+          onAddLayersToArea={handleAddLayersToArea}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}
           modeSwitcher={modeSwitcher}

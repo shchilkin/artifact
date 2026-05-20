@@ -199,6 +199,33 @@ const areaExtendDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const layerAreaCreationDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 8, aspect: '1:1' },
+  layers: [
+    {
+      id: 'layer-area-backdrop',
+      name: 'Backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#220033',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'layer-area-type',
+      name: 'Type wash',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#ff705f',
+      opacity: 70,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const tallNodeDocument = {
   ...wideNodeDocument,
   global: { bg: '#101018', seed: 3, aspect: '9:16' },
@@ -667,6 +694,53 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
   await folder.getByRole('button', { name: /Expand Area 1/ }).click();
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
   await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(1);
+});
+
+test('layers can create areas from multi-selected rows', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerAreaCreationDocument))}`);
+
+  await page.locator('.layer-row').filter({ hasText: 'Backdrop' }).click();
+  await page
+    .locator('.layer-row')
+    .filter({ hasText: 'Type wash' })
+    .click({ modifiers: ['Shift'] });
+
+  await expect(page.locator('.layer-selection-actions')).toContainText('2 selected');
+  await page.locator('.layer-selection-actions').getByRole('button', { name: 'Area' }).click();
+
+  await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const area = doc.graph?.areas?.[0];
+        return area?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(expect.arrayContaining(['layer-area-backdrop', 'layer-area-type']));
+});
+
+test('layers can add rows to an existing area from the context menu', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+
+  await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click({ button: 'right' });
+  await expect(page.locator('.layer-context-menu')).toBeVisible();
+  await page
+    .locator('.layer-context-menu')
+    .getByRole('button', { name: /Add to Area 1/ })
+    .click();
+
+  await expect(page.locator('.layer-area-folder')).toHaveCount(1);
+  await expect(page.locator('.layer-area-folder')).toContainText('2');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.graph?.areas?.[0]?.nodeIds ?? [];
+      }),
+    )
+    .toEqual(expect.arrayContaining(['area-fill', 'area-noise']));
 });
 
 test('selected area can be extended without stacking memberships', async ({ page }) => {

@@ -1,3 +1,4 @@
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CanvasDocument,
@@ -22,6 +23,8 @@ interface Props {
   onReorderLayers: (newOrder: Layer[]) => void;
   onToggleVisible: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
+  onCreateAreaFromLayers: (ids: string[]) => void;
+  onAddLayersToArea: (areaId: string, ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
   modeSwitcher?: React.ReactNode;
@@ -45,7 +48,8 @@ interface LayerRowProps {
   dragOver: boolean;
   editing: boolean;
   nested?: boolean;
-  onSelect: (id: string, selected: boolean) => void;
+  onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
@@ -65,6 +69,7 @@ const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   onSelect,
+  onOpenContextMenu,
   onStartEditing,
   onFinishRename,
   onDragStart,
@@ -88,12 +93,13 @@ const LayerRow = memo(function LayerRow({
         onDropLayer(layer.id);
       }}
       onDragEnd={onDragEnd}
-      onClick={() => onSelect(layer.id, selected)}
+      onClick={(event) => onSelect(layer.id, event)}
+      onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(e) => {
         e.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
+      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim' : 'hover:bg-accent-dim/50'
       } ${dragOver ? 'border-t-2 border-t-accent' : ''} ${nested ? 'layer-row-nested' : ''}`}
     >
@@ -295,6 +301,8 @@ export function LayerPanel({
   onReorderLayers,
   onToggleVisible,
   onSetLayersVisible,
+  onCreateAreaFromLayers,
+  onAddLayersToArea,
   onDuplicateLayer,
   onRenameLayer,
   modeSwitcher,
@@ -303,8 +311,13 @@ export function LayerPanel({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
+  const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(() => new Set());
+  const [showAreaMenu, setShowAreaMenu] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const dragLayerId = useRef<string | null>(null);
+  const selectionAnchorId = useRef<string | null>(null);
   const addButtonRef = useRef<HTMLDivElement>(null);
+  const areaButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showAddMenu) return;
@@ -317,6 +330,30 @@ export function LayerPanel({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showAddMenu]);
 
+  useEffect(() => {
+    if (!showAreaMenu) return;
+    function handleOutside(e: MouseEvent) {
+      if (areaButtonRef.current && !areaButtonRef.current.contains(e.target as Node)) {
+        setShowAreaMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showAreaMenu]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    function handleClose() {
+      setContextMenu(null);
+    }
+    document.addEventListener('click', handleClose);
+    document.addEventListener('scroll', handleClose, true);
+    return () => {
+      document.removeEventListener('click', handleClose);
+      document.removeEventListener('scroll', handleClose, true);
+    };
+  }, [contextMenu]);
+
   const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
   const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
   const displayItems = useMemo(
@@ -327,6 +364,13 @@ export function LayerPanel({
     const areaIds = new Set((doc.graph?.areas ?? []).map((area) => area.id));
     return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
   }, [collapsedAreaIds, doc.graph?.areas]);
+  const selectedActionLayerIds = useMemo(() => {
+    const layerIds = new Set(doc.layers.map((layer) => layer.id));
+    const validSelected = [...selectedLayerIds].filter((id) => layerIds.has(id));
+    if (validSelected.length > 0) return validSelected;
+    return selectedLayerId && layerIds.has(selectedLayerId) ? [selectedLayerId] : [];
+  }, [doc.layers, selectedLayerId, selectedLayerIds]);
+  const graphAreas = doc.graph?.areas ?? [];
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
@@ -337,10 +381,48 @@ export function LayerPanel({
   }, []);
 
   const handleSelectLayer = useCallback(
-    (id: string, selected: boolean) => {
-      onSelectLayer(selected ? null : id);
+    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+      const orderedLayerIds = displayLayers.map((layer) => layer.id);
+      const current = selectedLayerIds.size > 0 ? selectedLayerIds : new Set(selectedLayerId ? [selectedLayerId] : []);
+      let next: Set<string>;
+
+      if (event.shiftKey && selectionAnchorId.current) {
+        const anchorIndex = orderedLayerIds.indexOf(selectionAnchorId.current);
+        const targetIndex = orderedLayerIds.indexOf(id);
+        if (anchorIndex >= 0 && targetIndex >= 0) {
+          const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+          next = new Set(orderedLayerIds.slice(start, end + 1));
+        } else {
+          next = new Set([id]);
+        }
+      } else if (event.metaKey || event.ctrlKey) {
+        next = new Set(current);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        selectionAnchorId.current = id;
+      } else {
+        next = new Set([id]);
+        selectionAnchorId.current = id;
+      }
+
+      setSelectedLayerIds(next);
+      onSelectLayer(next.has(id) ? id : ([...next].at(-1) ?? null));
     },
-    [onSelectLayer],
+    [displayLayers, onSelectLayer, selectedLayerId, selectedLayerIds],
+  );
+
+  const handleOpenLayerContextMenu = useCallback(
+    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
+      setSelectedLayerIds(new Set(activeIds));
+      onSelectLayer(id);
+      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds });
+    },
+    [onSelectLayer, selectedActionLayerIds],
   );
 
   const handleStartEditing = useCallback((id: string) => setEditingId(id), []);
@@ -421,6 +503,26 @@ export function LayerPanel({
     [onSetLayersVisible],
   );
 
+  const handleCreateAreaFromSelection = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      onCreateAreaFromLayers(ids);
+      setShowAreaMenu(false);
+      setContextMenu(null);
+    },
+    [onCreateAreaFromLayers],
+  );
+
+  const handleAddSelectionToArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length === 0) return;
+      onAddLayersToArea(areaId, ids);
+      setShowAreaMenu(false);
+      setContextMenu(null);
+    },
+    [onAddLayersToArea],
+  );
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="layer-panel-header">
@@ -467,6 +569,35 @@ export function LayerPanel({
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {displayLayers.length === 0 && (
           <div className="px-3.5 py-4 text-[10px] text-dim text-center font-mono">No layers. Add one above.</div>
+        )}
+        {selectedActionLayerIds.length > 1 && (
+          <div className="layer-selection-actions">
+            <span>{selectedActionLayerIds.length} selected</span>
+            <button type="button" onClick={() => handleCreateAreaFromSelection(selectedActionLayerIds)}>
+              Area
+            </button>
+            {graphAreas.length > 0 && (
+              <div ref={areaButtonRef} className="relative">
+                <button type="button" onClick={() => setShowAreaMenu((value) => !value)}>
+                  Add
+                </button>
+                {showAreaMenu && (
+                  <div className="layer-area-action-menu">
+                    {graphAreas.map((area) => (
+                      <button
+                        key={area.id}
+                        type="button"
+                        onClick={() => handleAddSelectionToArea(area.id, selectedActionLayerIds)}
+                      >
+                        <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+                        {area.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         {displayItems.map((item) =>
           item.type === 'area' ? (
@@ -515,10 +646,11 @@ export function LayerPanel({
                     layer={layer}
                     areas={[]}
                     nested
-                    selected={selectedLayerId === layer.id}
+                    selected={selectedActionLayerIds.includes(layer.id)}
                     dragOver={dragOverId === layer.id}
                     editing={editingId === layer.id}
                     onSelect={handleSelectLayer}
+                    onOpenContextMenu={handleOpenLayerContextMenu}
                     onStartEditing={handleStartEditing}
                     onFinishRename={handleFinishRename}
                     onDragStart={handleDragStart}
@@ -538,10 +670,11 @@ export function LayerPanel({
               key={item.layer.id}
               layer={item.layer}
               areas={item.areas}
-              selected={selectedLayerId === item.layer.id}
+              selected={selectedActionLayerIds.includes(item.layer.id)}
               dragOver={dragOverId === item.layer.id}
               editing={editingId === item.layer.id}
               onSelect={handleSelectLayer}
+              onOpenContextMenu={handleOpenLayerContextMenu}
               onStartEditing={handleStartEditing}
               onFinishRename={handleFinishRename}
               onDragStart={handleDragStart}
@@ -555,6 +688,23 @@ export function LayerPanel({
           ),
         )}
       </div>
+      {contextMenu && (
+        <div
+          className="layer-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <button type="button" onClick={() => handleCreateAreaFromSelection(contextMenu.ids)}>
+            Create area
+          </button>
+          {graphAreas.map((area) => (
+            <button key={area.id} type="button" onClick={() => handleAddSelectionToArea(area.id, contextMenu.ids)}>
+              <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+              Add to {area.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

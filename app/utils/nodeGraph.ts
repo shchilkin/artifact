@@ -11,6 +11,7 @@ import {
 } from '../types/config';
 
 export const EXPORT_NODE_ID = '__export__';
+export const GRAPH_AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
 const BASE_NODE_W = 320;
 const ARTWORK_NODE_W = 340;
 const COL_GAP = 168;
