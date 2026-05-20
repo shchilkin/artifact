@@ -16,7 +16,6 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
   const transform = useLayerTransformDraft(layer, updateLayer);
-  const localTransformActive = selected && transform.isTransformable;
 
   return (
     <NodeFrame
@@ -28,8 +27,6 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       editing={editing}
       muted={!layer.visible}
       targetHandles={[{ id: inputPort }]}
-      className={localTransformActive ? 'nowheel' : undefined}
-      onWheelCapture={localTransformActive ? transform.handleWheel : undefined}
       onSelect={(event) => selectNode(layer.id, event)}
       onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
@@ -43,7 +40,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
         transformActive={transform.hasDraft}
         onTransformDraft={transform.updateDraft}
         onTransformCommit={transform.commitDraft}
-        onTransformWheel={transform.handleWheel}
+        onTransformWheelDelta={transform.handleWheelDelta}
       />
       <PortRow
         inputs={[{ label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id }]}

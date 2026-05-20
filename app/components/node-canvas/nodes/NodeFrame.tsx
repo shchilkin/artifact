@@ -1,5 +1,5 @@
 import { Handle, Position } from '@xyflow/react';
-import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, WheelEventHandler } from 'react';
+import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 
 import { HANDLE_STYLE } from '../constants';
 import { NodeShell } from './NodeShell';
@@ -22,8 +22,6 @@ interface NodeFrameProps {
   onSelect: (event?: ReactMouseEvent<HTMLDivElement>) => void;
   onToggleMuted?: () => void;
   onDelete?: () => void;
-  className?: string;
-  onWheelCapture?: WheelEventHandler<HTMLDivElement>;
   children: ReactNode;
 }
 
@@ -40,17 +38,10 @@ export function NodeFrame({
   onSelect,
   onToggleMuted,
   onDelete,
-  className,
-  onWheelCapture,
   children,
 }: NodeFrameProps) {
   return (
-    <div
-      data-node-id={id}
-      style={{ position: 'relative', zIndex: editing ? 4 : 1 }}
-      className={className}
-      onWheelCapture={onWheelCapture}
-    >
+    <div data-node-id={id} style={{ position: 'relative', zIndex: editing ? 4 : 1 }}>
       {targetHandles.map((handle) => (
         <Handle
           key={`target:${handle.id}`}

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { FONT_STACKS, type Layer } from '../../../types/config';
-import { isAssetUri } from '../../../utils/assetStore';
 import { useNodeCanvasPreview } from '../context';
 import { getLiveMediaReferenceScale } from './liveMediaSizing';
 import { getNodePreviewSize } from './previewSizing';
@@ -36,8 +35,8 @@ export function EmptyThumbnailFrame({ label }: { label?: string }) {
   );
 }
 
-export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
-  const { doc, imageCache } = useNodeCanvasPreview();
+export function LiveMediaOverlay({ layer, imageSrc }: { layer: LiveMediaLayer; imageSrc?: string | null }) {
+  const { doc } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
   const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
   const referenceScale = getLiveMediaReferenceScale(previewSize.display.width);
@@ -70,9 +69,7 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
     );
   }
 
-  if (!layer.src) return null;
-  const imageSrc = imageCache.get(layer.src)?.src ?? layer.src;
-  if (isAssetUri(imageSrc)) return null;
+  if (!imageSrc) return null;
 
   if (layer.fit === 'tile') {
     return (
@@ -105,6 +102,8 @@ export function LiveMediaOverlay({ layer }: { layer: LiveMediaLayer }) {
             position: 'absolute',
             left: `${layer.x * 100}%`,
             top: `${layer.y * 100}%`,
+            maxWidth: 'none',
+            maxHeight: 'none',
             opacity: layer.opacity / 100,
             transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${referenceScale * layer.scaleX}, ${referenceScale * layer.scaleY})`,
             transformOrigin: 'center center',

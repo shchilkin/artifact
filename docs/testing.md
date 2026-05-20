@@ -83,6 +83,10 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 
 - Layer canvas still renders after switching from layers → nodes → layers.
 - Primitive nodes expose interactive camera controls in a real browser.
+- Text/image node transform gestures stay local to the selected node: wheel
+  scaling must not zoom the React Flow canvas, must not crash with maximum
+  update depth, and must keep the live overlay mounted through the deferred
+  commit.
 - Default document export triggers a browser download.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser
@@ -138,6 +142,39 @@ only when a fixture needs them.
 | Detailed Three.js primitive visual output | Needs stable GPU visual snapshots | Browser smoke test + manual visual pass |
 | Complex drag/connect gestures | Browser event timing can be brittle | Add targeted Playwright regressions for known bugs |
 | Preset thumbnails in the UI | Visual | Load presets page and eyeball |
+
+---
+
+## Gesture Regression Checklist
+
+When touching selected node previews, React Flow event isolation, thumbnail
+invalidation, or primitive camera controls, run at least:
+
+```bash
+npm run test:browser -- -g "image transform gestures stay local to the selected node"
+npm run test:browser -- -g "primitive node exposes interactive camera controls"
+```
+
+Run them sequentially. React Router type generation writes to
+`.react-router/types`, and concurrent Playwright web servers can race while
+creating that generated directory.
+
+For image/text transform bugs, the browser test should assert the behavior, not
+only absence of a crash:
+
+- the React Flow viewport transform is unchanged after wheel scaling inside the
+  selected preview
+- `.node-live-media-overlay` remains visible after the wheel idle commit
+- `.node-thumbnail-skeleton` is not visible while the selected-node live
+  surface owns the interaction
+- wheel over ordinary node chrome does not mutate the layer scale
+
+For primitive regressions, keep the test centered on the live viewport:
+
+- left drag rotates
+- wheel zooms the primitive camera
+- reset preserves the expected default
+- graph pan/zoom is still available when the primitive camera is locked
 
 ---
 

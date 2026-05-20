@@ -237,6 +237,40 @@ Rules:
 - They must commit to document/render options before export if they affect output.
 - If visual parity is not exact, the difference must be documented as draft-only.
 
+For text/image transform overlays, the live surface and canonical thumbnail are
+allowed to coexist. The live surface owns the active selected-node gesture; the
+thumbnail owns passive display after editing is no longer active. Do not tie
+live overlay visibility directly to "thumbnail is ready" or "draft equals
+document" checks, because the document commit itself invalidates the thumbnail
+signature. Dropping the live overlay at that exact point can reveal a stale
+canvas, skeleton, or preparing label.
+
+Image overlays must use a browser-loadable source:
+
+- direct `data:` or remote URLs can be used as-is
+- `artifact-asset://...` references must be resolved through the asset store or
+  image cache before they are passed to `<img>`
+- unresolved asset references should keep the canonical thumbnail path rather
+  than mounting an empty live overlay
+
+Free-fit DOM image overlays must opt out of global responsive image constraints
+with explicit `max-width: none` and `max-height: none`. The Canvas 2D renderer
+scales free-fit images from natural pixel dimensions against the 540px
+reference baseline; a DOM overlay capped by CSS before `transform: scale(...)`
+will visibly diverge from preview/export.
+
+Troubleshooting selected-node flicker:
+
+1. Confirm the selected node has one stable live surface during the gesture.
+2. Confirm `artifact-asset://...` has been resolved before rendering a live
+   image overlay.
+3. Confirm the React Flow viewport transform does not change while wheel
+   scaling inside the selected preview.
+4. Confirm thumbnail invalidation happens only on commit, not every pointer or
+   wheel tick.
+5. Confirm primitive 3D still receives its own wheel/drag events after any
+   changes to shared preview event isolation.
+
 ## Render options
 
 Current render options:

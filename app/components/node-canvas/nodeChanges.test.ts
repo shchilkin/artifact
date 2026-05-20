@@ -1,7 +1,7 @@
 import type { NodeChange, Node as RFNode } from '@xyflow/react';
 import { describe, expect, it } from 'vitest';
 
-import { retainNodeMeasurements, stableNodeChanges } from './nodeChanges';
+import { retainNodeMeasurements, sameNodeList, stableNodeChanges } from './nodeChanges';
 
 const node: RFNode = {
   id: 'node-a',
@@ -70,5 +70,28 @@ describe('retainNodeMeasurements', () => {
         measured: { width: 320, height: 360 },
       },
     ]);
+  });
+});
+
+describe('sameNodeList', () => {
+  it('treats rebuilt nodes with equivalent shallow data as unchanged', () => {
+    const connected = { sources: new Set<string>(), targets: new Set<string>() };
+    const first: RFNode = {
+      ...node,
+      data: { layer: { id: 'layer-a' }, connected, selected: true },
+      selected: true,
+    };
+    const rebuilt: RFNode = {
+      ...node,
+      data: { layer: first.data.layer, connected, selected: true },
+      selected: true,
+    };
+
+    expect(sameNodeList([first], [rebuilt])).toBe(true);
+  });
+
+  it('detects real selection and data changes', () => {
+    expect(sameNodeList([node], [{ ...node, selected: true }])).toBe(false);
+    expect(sameNodeList([node], [{ ...node, data: { changed: true } }])).toBe(false);
   });
 });

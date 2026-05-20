@@ -1,11 +1,12 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { resolveImageSource } from '../../../utils/assetStore';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
-import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
+import { isGalleryEligibleLayer, stopNodeEvent, stopNodeGestureEvent } from '../helpers';
 import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerTransformDraft';
 import type { LayerNodeData } from '../types';
 import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
-import { shouldUseLiveMediaOverlay } from './liveMediaOverlayMode';
+import { getLiveImageSource, shouldResolveLiveImageSource, shouldUseLiveMediaOverlay } from './liveMediaOverlayMode';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
 
@@ -16,17 +17,19 @@ type LayerPreviewSurfaceProps = Pick<
   transformActive?: boolean;
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
-  onTransformWheel?: (event: React.WheelEvent) => void;
+  onTransformWheelDelta?: (deltaY: number) => void;
 };
 
 function DragTransformOverlay({
   layer,
   onChange,
   onCommit,
+  onStart,
 }: {
   layer: TransformableLayer;
   onChange: (patch: LayerTransformPatch) => void;
   onCommit: () => void;
+  onStart: () => void;
 }) {
   const dragRef = useRef<{
     startClientX: number;
@@ -43,12 +46,12 @@ function DragTransformOverlay({
   const clampPosition = (value: number) => Math.max(-0.5, Math.min(1.5, value));
 
   const stopLocalGesture = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    stopNodeGestureEvent(e);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     stopLocalGesture(e);
+    onStart();
     if (e.shiftKey) {
       const rect = e.currentTarget.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -135,9 +138,65 @@ function DragTransformOverlay({
       onPointerMoveCapture={handlePointerMove}
       onPointerUpCapture={handlePointerUp}
       onPointerCancelCapture={handlePointerCancel}
-      onWheelCapture={stopLocalGesture}
     />
   );
+}
+
+function useNativeTransformWheel(
+  rootRef: React.RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+  onWheelDelta: ((deltaY: number) => void) | undefined,
+) {
+  const enabledRef = useRef(enabled);
+  const onWheelDeltaRef = useRef(onWheelDelta);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    onWheelDeltaRef.current = onWheelDelta;
+  }, [enabled, onWheelDelta]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!enabledRef.current || !onWheelDeltaRef.current) return;
+      if (!root.contains(event.target as Node)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      onWheelDeltaRef.current(event.deltaY);
+    };
+
+    const controller = new AbortController();
+    const options: AddEventListenerOptions = { capture: true, passive: false, signal: controller.signal };
+    root.addEventListener('wheel', handleWheel, options);
+    return () => controller.abort();
+  }, [rootRef]);
+}
+
+function useLiveImageSource(layer: LayerNodeData['layer'], imageCache: Map<string, HTMLImageElement>) {
+  const cachedSource = layer.kind === 'image' ? getLiveImageSource(layer, imageCache) : null;
+  const [resolvedSource, setResolvedSource] = useState<{ key: string; source: string | null } | null>(null);
+  const sourceKey = layer.kind === 'image' ? layer.src : '';
+  const shouldResolve = shouldResolveLiveImageSource(layer, cachedSource);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!shouldResolve) return () => undefined;
+    void resolveImageSource(sourceKey)
+      .then((source) => {
+        if (!cancelled) setResolvedSource({ key: sourceKey, source });
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedSource({ key: sourceKey, source: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldResolve, sourceKey]);
+
+  return cachedSource ?? (resolvedSource?.key === sourceKey ? resolvedSource.source : null);
 }
 
 export const LayerPreviewSurface = memo(function LayerPreviewSurface({
@@ -149,19 +208,25 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   transformActive = false,
   onTransformDraft,
   onTransformCommit,
-  onTransformWheel,
+  onTransformWheelDelta,
 }: LayerPreviewSurfaceProps) {
   const { graph, imageCache } = useNodeCanvasPreview();
   const { openGallery } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
-  const stopLocalWheel = (event: React.WheelEvent) => {
-    if (onTransformWheel) {
-      onTransformWheel(event);
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-  };
+  const previewSurfaceRef = useRef<HTMLDivElement>(null);
+  const isDraggableLayer = layer.kind === 'text' || layer.kind === 'image';
+  const [stickyTransformLayerId, setStickyTransformLayerId] = useState<string | null>(null);
+  const liveImageSource = useLiveImageSource(layer, imageCache);
+  const activateTransformSurface = useCallback(() => setStickyTransformLayerId(layer.id), [layer.id]);
+  const handleTransformWheelDelta = useCallback(
+    (deltaY: number) => {
+      activateTransformSurface();
+      onTransformWheelDelta?.(deltaY);
+    },
+    [activateTransformSurface, onTransformWheelDelta],
+  );
+  useNativeTransformWheel(previewSurfaceRef, isDraggableLayer && selected, handleTransformWheelDelta);
+
   const mediaBgPreviewTargetId = useMemo(
     () =>
       layer.kind === 'text' || layer.kind === 'image'
@@ -187,20 +252,21 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
 
   if (isGalleryEligibleLayer(layer)) {
     const isDraggable = layer.kind === 'text' || layer.kind === 'image';
+    const keepLiveTransformSurface = transformActive || stickyTransformLayerId === layer.id;
     const showLiveTransformOverlay =
       isDraggable &&
       shouldUseLiveMediaOverlay({
         layer,
         selected,
-        transformActive,
-        imageReady: layer.kind === 'image' && imageCache.has(layer.src),
+        transformActive: keepLiveTransformSurface,
+        liveImageSource,
       });
     return (
       <div
+        ref={previewSurfaceRef}
         className={`node-preview-surface nodrag nopan${isDraggable && selected ? ' nowheel' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onWheelCapture={isDraggable && selected ? stopLocalWheel : undefined}
       >
         <div className="node-live-preview-frame">
           {showLiveTransformOverlay ? (
@@ -210,7 +276,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               ) : (
                 <EmptyThumbnailFrame />
               )}
-              <LiveMediaOverlay layer={layer} />
+              <LiveMediaOverlay layer={layer} imageSrc={liveImageSource} />
             </>
           ) : (
             <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
@@ -220,6 +286,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
               layer={layer}
               onChange={onTransformDraft ?? (() => undefined)}
               onCommit={onTransformCommit ?? (() => undefined)}
+              onStart={activateTransformSurface}
             />
           )}
         </div>

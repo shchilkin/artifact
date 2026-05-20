@@ -20,7 +20,7 @@ import { AREA_PADDING_BOTTOM, AREA_PADDING_TOP, AREA_PADDING_X } from '../areas/
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
-import { retainNodeMeasurements, stableNodeChanges } from '../nodeChanges';
+import { retainNodeMeasurements, sameNodeList, stableNodeChanges } from '../nodeChanges';
 
 const AREA_SEPARATION_GRACE = 18;
 
@@ -79,8 +79,11 @@ export function useNodeDragState({
   // Sync shadow copy from canonical state when not dragging.
   useEffect(() => {
     if (!isDraggingRef.current) {
-      setDragNodes((prev) => retainNodeMeasurements(baseNodes, prev, { width: NODE_W, height: NODE_H }));
-      setDragEdges(baseEdges);
+      setDragNodes((prev) => {
+        const next = retainNodeMeasurements(baseNodes, prev, { width: NODE_W, height: NODE_H });
+        return sameNodeList(prev, next) ? prev : next;
+      });
+      setDragEdges((prev) => (prev === baseEdges ? prev : baseEdges));
     }
   }, [baseNodes, baseEdges]);
 

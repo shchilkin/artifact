@@ -5,10 +5,11 @@ import type { Layer } from '../../../types/config';
 export type TransformableLayer = Extract<Layer, { kind: 'text' | 'image' }>;
 export type LayerTransformPatch = Partial<Pick<TransformableLayer, 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY'>>;
 
-const WHEEL_SCALE_STEP = 0.002;
-const WHEEL_COMMIT_DELAY = 180;
+const WHEEL_SCALE_STEP = 0.0016;
+const WHEEL_COMMIT_DELAY = 90;
+const DRAFT_SETTLE_DELAY = 180;
 const MIN_SCALE = 0.05;
-const MAX_SCALE = 8;
+const MAX_SCALE = 5;
 
 function isTransformableLayer(layer: Layer): layer is TransformableLayer {
   return layer.kind === 'text' || layer.kind === 'image';
@@ -51,6 +52,7 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
   const draftFrameRef = useRef<number | null>(null);
   const layerRef = useRef(layer);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const clearDraftTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const flushPendingDraft = useCallback(() => {
     if (draftFrameRef.current !== null) {
@@ -64,16 +66,25 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
 
   useEffect(() => {
     layerRef.current = layer;
+    clearTimeout(clearDraftTimerRef.current);
     if (!isTransformableLayer(layer) || !draftRef.current) return;
     if (!sameTransform(layer, draftRef.current)) return;
-    draftRef.current = null;
-    pendingDraftRef.current = null;
-    setDraft(null);
+
+    const matchingDraft = draftRef.current;
+    clearDraftTimerRef.current = setTimeout(() => {
+      const currentLayer = layerRef.current;
+      if (!isTransformableLayer(currentLayer) || !draftRef.current) return;
+      if (!samePatch(draftRef.current, matchingDraft) || !sameTransform(currentLayer, draftRef.current)) return;
+      draftRef.current = null;
+      pendingDraftRef.current = null;
+      setDraft(null);
+    }, DRAFT_SETTLE_DELAY);
   }, [layer]);
 
   useEffect(
     () => () => {
       clearTimeout(commitTimerRef.current);
+      clearTimeout(clearDraftTimerRef.current);
       if (draftFrameRef.current !== null) cancelAnimationFrame(draftFrameRef.current);
       const currentLayer = layerRef.current;
       const currentDraft = draftRef.current;
@@ -127,12 +138,11 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
     [scheduleCommit],
   );
 
-  const handleWheel = useCallback(
-    (event: React.WheelEvent) => {
+  const handleWheelDelta = useCallback(
+    (deltaY: number) => {
       if (!isTransformableLayer(layerRef.current)) return;
-      event.stopPropagation();
       const current = draftRef.current ?? getTransform(layerRef.current);
-      const nextScale = clampScale(current.scaleX - event.deltaY * WHEEL_SCALE_STEP);
+      const nextScale = clampScale(current.scaleX - deltaY * WHEEL_SCALE_STEP);
       updateDraft({ scaleX: nextScale, scaleY: nextScale }, 'defer');
     },
     [updateDraft],
@@ -149,6 +159,6 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
     isTransformable: isTransformableLayer(layer),
     updateDraft,
     commitDraft,
-    handleWheel,
+    handleWheelDelta,
   };
 }

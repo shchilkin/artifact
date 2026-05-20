@@ -24,6 +24,12 @@ export function stopNodeEvent(e: SyntheticEvent) {
   e.stopPropagation();
 }
 
+export function stopNodeGestureEvent(e: SyntheticEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.nativeEvent.stopImmediatePropagation?.();
+}
+
 export function callAll<E extends SyntheticEvent>(...handlers: Array<((event: E) => void) | undefined>) {
   return (event: E) => {
     handlers.forEach((handler) => handler?.(event));

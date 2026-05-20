@@ -1053,11 +1053,37 @@ test('image transform gestures stay local to the selected node', async ({ page }
   const viewport = page.locator('.react-flow__viewport').first();
   const beforeWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, -240);
+  for (let i = 0; i < 8; i += 1) {
+    await page.mouse.wheel(0, -240);
+  }
+  await page.waitForTimeout(120);
+  await expect(imageNode.locator('.node-live-media-overlay')).toBeVisible();
+  await expect(imageNode.locator('.node-thumbnail-skeleton')).toHaveCount(0);
   const afterWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
 
   expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await page.waitForTimeout(250);
+  await expect(imageNode.locator('.node-live-media-overlay')).toBeVisible();
+  await expect(imageNode.locator('.node-thumbnail-skeleton')).toHaveCount(0);
 
+  const scaleAfterPreviewWheel = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { id: string }) => layer.id === 'image-drag-image')?.scaleX;
+  });
+  await imageNode.locator('.node-shell-header').hover();
+  await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(250);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'image-drag-image')?.scaleX;
+      }),
+    )
+    .toBe(scaleAfterPreviewWheel);
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   for (let i = 0; i < 10; i += 1) {
     await page.mouse.move(box.x + box.width / 2 + i * 22, box.y + box.height / 2 + (i % 2 === 0 ? 48 : -48));
