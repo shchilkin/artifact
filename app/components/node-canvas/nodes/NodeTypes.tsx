@@ -40,6 +40,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
         primitiveViewState={primitiveViewState}
         primitiveRenderMode={primitiveRenderMode}
         selected={selected}
+        transformActive={transform.hasDraft}
         onTransformDraft={transform.updateDraft}
         onTransformCommit={transform.commitDraft}
         onTransformWheel={transform.handleWheel}

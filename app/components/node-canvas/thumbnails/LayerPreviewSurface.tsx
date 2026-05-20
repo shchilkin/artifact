@@ -5,6 +5,7 @@ import { isGalleryEligibleLayer, stopNodeEvent } from '../helpers';
 import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerTransformDraft';
 import type { LayerNodeData } from '../types';
 import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
+import { shouldUseLiveMediaOverlay } from './liveMediaOverlayMode';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
 
@@ -12,6 +13,7 @@ type LayerPreviewSurfaceProps = Pick<
   LayerNodeData,
   'layer' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode' | 'selected'
 > & {
+  transformActive?: boolean;
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
   onTransformWheel?: (event: React.WheelEvent) => void;
@@ -144,11 +146,12 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   primitiveViewState,
   primitiveRenderMode,
   selected,
+  transformActive = false,
   onTransformDraft,
   onTransformCommit,
   onTransformWheel,
 }: LayerPreviewSurfaceProps) {
-  const { graph } = useNodeCanvasPreview();
+  const { graph, imageCache } = useNodeCanvasPreview();
   const { openGallery } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const stopLocalWheel = (event: React.WheelEvent) => {
@@ -184,6 +187,14 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
 
   if (isGalleryEligibleLayer(layer)) {
     const isDraggable = layer.kind === 'text' || layer.kind === 'image';
+    const showLiveTransformOverlay =
+      isDraggable &&
+      shouldUseLiveMediaOverlay({
+        layer,
+        selected,
+        transformActive,
+        imageReady: layer.kind === 'image' && imageCache.has(layer.src),
+      });
     return (
       <div
         className={`node-preview-surface nodrag nopan${isDraggable && selected ? ' nowheel' : ''}`}
@@ -192,7 +203,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
         onWheelCapture={isDraggable && selected ? stopLocalWheel : undefined}
       >
         <div className="node-live-preview-frame">
-          {isDraggable && selected ? (
+          {showLiveTransformOverlay ? (
             <>
               {mediaBgPreviewTargetId ? (
                 <NodeThumbnail previewTargetId={mediaBgPreviewTargetId} />

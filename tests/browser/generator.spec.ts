@@ -366,6 +366,16 @@ const emptyTransparentDocument = {
 test.beforeEach(async ({ page }) => {
   const issues: string[] = [];
   consoleIssues.set(page, issues);
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: false,
+        enabled: false,
+        disabledReason: 'AI generation is disabled in browser tests.',
+      }),
+    });
+  });
   page.on('console', (message) => {
     if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
     if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
@@ -1030,6 +1040,9 @@ test('image transform gestures stay local to the selected node', async ({ page }
   const imageNode = page.locator('.node-shell-kind-image').first();
   await expect(imageNode).toBeVisible({ timeout: 15_000 });
   await imageNode.click();
+
+  await expect(imageNode.locator('.node-live-media-overlay')).toHaveCount(0);
+  await expect(imageNode.locator('.node-thumbnail-canvas')).toBeVisible({ timeout: 15_000 });
 
   const overlay = imageNode.locator('.node-drag-overlay');
   await expect(overlay).toBeVisible({ timeout: 15_000 });

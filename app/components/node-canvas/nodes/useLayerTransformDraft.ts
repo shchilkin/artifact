@@ -145,6 +145,7 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
 
   return {
     effectiveLayer,
+    hasDraft: Boolean(draft),
     isTransformable: isTransformableLayer(layer),
     updateDraft,
     commitDraft,
