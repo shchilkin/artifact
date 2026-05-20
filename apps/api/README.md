@@ -56,6 +56,7 @@ Implemented:
 - Worker job processor that marks jobs running, writes mock provider output to
   storage, creates generated asset records, and marks success/failure.
 - Provider output validation and storage cleanup around failed asset writes.
+- Credentialed CORS/preflight handling for `WEB_ORIGIN`.
 - API-local tests.
 
 Next:

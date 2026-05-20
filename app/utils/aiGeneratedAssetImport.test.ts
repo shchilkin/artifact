@@ -72,6 +72,25 @@ describe('storeAiGeneratedAssetSource', () => {
     expect(saveBlobAsset).toHaveBeenCalledWith(expect.any(Blob));
   });
 
+  it('prefixes relative asset URLs with the configured API base URL', async () => {
+    const saveBlobAsset = vi.fn(async () => 'artifact-asset://stored-blob');
+    const fetcher = vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }));
+
+    await expect(
+      storeAiGeneratedAssetSource(
+        {
+          ...completeJob,
+          asset: completeJob.asset && { ...completeJob.asset, uri: '/api/assets/asset-1/file' },
+        },
+        { baseUrl: 'https://api.example.test/', fetcher, saveBlobAsset },
+      ),
+    ).resolves.toBe('artifact-asset://stored-blob');
+    expect(fetcher).toHaveBeenCalledWith('https://api.example.test/api/assets/asset-1/file', {
+      credentials: 'include',
+      signal: undefined,
+    });
+  });
+
   it('rejects incomplete jobs', async () => {
     await expect(storeAiGeneratedAssetSource({ ...completeJob, status: 'running', asset: undefined })).rejects.toThrow(
       'Generation job has no completed image asset.',

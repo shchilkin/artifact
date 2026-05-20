@@ -431,6 +431,7 @@ export default function Generator() {
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
+            onGeneratedImageSource={addImageFromSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
             modeSwitcher={<ViewModeToggle value={viewMode} onChange={setViewMode} variant="sidebar" />}
           />

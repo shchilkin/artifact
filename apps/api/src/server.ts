@@ -4,7 +4,7 @@ import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
-import { errorJson, writeApiResponse } from './http.js';
+import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
 import { createMockImageProvider, createOpenAiImageProvider, createProviderRegistry } from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
@@ -44,6 +44,13 @@ if (config.devBearerToken && store) {
 }
 
 const server = createServer(async (req, res) => {
+  applyCorsHeaders(req, res, config.webOrigin);
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   try {
     const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
       resolveRequestUser(request, {

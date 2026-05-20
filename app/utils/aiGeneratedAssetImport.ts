@@ -2,10 +2,17 @@ import type { AiGenerationJob } from '../types/aiGeneration';
 import { isAssetUri, isImageDataUrl, saveImageAsset, saveImageBlobAsset } from './assetStore';
 
 export interface StoreAiGeneratedAssetOptions {
+  baseUrl?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
   saveDataUrlAsset?: typeof saveImageAsset;
   saveBlobAsset?: typeof saveImageBlobAsset;
+}
+
+function assetEndpoint(baseUrl: string | undefined, uri: string) {
+  if (!baseUrl || /^https?:\/\//i.test(uri) || uri.startsWith('data:') || uri.startsWith('artifact-asset://'))
+    return uri;
+  return `${baseUrl.replace(/\/$/, '')}${uri.startsWith('/') ? uri : `/${uri}`}`;
 }
 
 export function getAiGeneratedAssetUri(job: AiGenerationJob): string {
@@ -24,7 +31,7 @@ export async function storeAiGeneratedAssetSource(
   if (isImageDataUrl(uri)) return (options.saveDataUrlAsset ?? saveImageAsset)(uri);
 
   const fetcher = options.fetcher ?? fetch;
-  const response = await fetcher(uri, {
+  const response = await fetcher(assetEndpoint(options.baseUrl, uri), {
     credentials: 'include',
     signal: options.signal,
   });

@@ -19,6 +19,7 @@ import {
   removeNodesFromGraphAreaInDocument,
   renameGraphAreaInDocument,
 } from '../utils/documentCommands';
+import { AiGenerationPanel } from './AiGenerationPanel';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -32,6 +33,7 @@ interface Props {
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
   onDuplicateLayer: (id: string) => void;
+  onGeneratedImageSource?: (src: string) => void;
   mobileActionBar?: React.ReactNode;
   modeSwitcher?: React.ReactNode;
 }
@@ -104,6 +106,7 @@ export function Sidebar({
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
+  onGeneratedImageSource,
   mobileActionBar,
   modeSwitcher,
 }: Props) {
@@ -266,6 +269,12 @@ export function Sidebar({
           </button>
         ))}
       </div>
+
+      {onGeneratedImageSource && (
+        <Section title="AI Image">
+          <AiGenerationPanel aspect={doc.global.aspect ?? '1:1'} onGeneratedImageSource={onGeneratedImageSource} />
+        </Section>
+      )}
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <LayerPanel

@@ -1,4 +1,4 @@
-import type { ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AiErrorResponse } from './contracts.js';
 
 export interface JsonResponse<T> {
@@ -51,4 +51,15 @@ export async function readJsonBody<T>(request: AsyncIterable<Buffer>): Promise<T
   const body = Buffer.concat(chunks).toString('utf8');
   if (!body) return {} as T;
   return JSON.parse(body) as T;
+}
+
+export function applyCorsHeaders(req: IncomingMessage, res: ServerResponse, webOrigin: string) {
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && origin === webOrigin) {
+    res.setHeader('access-control-allow-origin', origin);
+    res.setHeader('access-control-allow-credentials', 'true');
+    res.setHeader('vary', 'Origin');
+  }
+  res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
+  res.setHeader('access-control-allow-headers', 'authorization,content-type');
 }

@@ -1012,6 +1012,55 @@ input[type="range"] {
   color: var(--accent);
 }
 
+.ai-generation-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-generation-panel textarea,
+.ai-generation-panel select {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--bg) 82%, black);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.ai-generation-panel textarea {
+  min-height: 74px;
+  resize: vertical;
+  padding: 8px;
+  line-height: 1.35;
+}
+
+.ai-generation-panel select {
+  height: 34px;
+  padding: 0 8px;
+}
+
+.ai-generation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.ai-generation-submit {
+  min-height: 38px;
+}
+
+.ai-generation-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 14px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 768px) {
   .empty-canvas-start {
     bottom: 96px;
