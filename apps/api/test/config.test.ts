@@ -72,4 +72,13 @@ describe('loadConfig', () => {
       openAiImageModel: 'gpt-image-1.5',
     });
   });
+
+  it('defaults the xAI image model to the current Grok Imagine target', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({
+      xAiImageModel: 'grok-imagine-image-quality',
+    });
+    expect(loadConfig({ ...requiredEnv, XAI_IMAGE_MODEL: 'grok-imagine-image' })).toMatchObject({
+      xAiImageModel: 'grok-imagine-image',
+    });
+  });
 });

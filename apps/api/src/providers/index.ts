@@ -58,3 +58,4 @@ export function createProviderRegistry(providers: readonly ImageGenerationProvid
 
 export { createMockImageProvider } from './mock.js';
 export { createOpenAiImageProvider } from './openai.js';
+export { createXAiImageProvider } from './xai.js';

@@ -55,14 +55,16 @@ Implemented:
 - Authenticated generated-asset download route handler.
 - Worker job processor that marks jobs running, writes mock provider output to
   storage, creates generated asset records, and marks success/failure.
+- OpenAI and xAI provider adapters enabled by `OPENAI_API_KEY` and
+  `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.
 - Credentialed CORS/preflight handling for `WEB_ORIGIN`.
 - API-local tests.
 
 Next:
 
-- xAI provider adapter.
-- Frontend Image Generation node.
+- Graph-native Image Generation node.
+- VPS deployment/runbook.
 
 ## Contract
 

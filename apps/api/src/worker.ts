@@ -3,7 +3,12 @@ import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { processGenerationJob } from './generationWorker.js';
-import { createMockImageProvider, createOpenAiImageProvider, createProviderRegistry } from './providers/index.js';
+import {
+  createMockImageProvider,
+  createOpenAiImageProvider,
+  createProviderRegistry,
+  createXAiImageProvider,
+} from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { LocalAssetStorage } from './storage/index.js';
 
@@ -19,7 +24,9 @@ const providers = createProviderRegistry([
   config.openAiApiKey
     ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
     : createMockImageProvider({ provider: 'openai' }),
-  createMockImageProvider({ provider: 'xai' }),
+  config.xAiApiKey
+    ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
+    : createMockImageProvider({ provider: 'xai' }),
 ]);
 
 const worker = queue.process(async (job) => {

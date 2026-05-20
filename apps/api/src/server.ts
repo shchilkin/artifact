@@ -5,7 +5,12 @@ import { InMemoryApiStore } from './db/memory.js';
 import { createPostgresPool } from './db/pool.js';
 import { createPostgresRepositories } from './db/postgres.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
-import { createMockImageProvider, createOpenAiImageProvider, createProviderRegistry } from './providers/index.js';
+import {
+  createMockImageProvider,
+  createOpenAiImageProvider,
+  createProviderRegistry,
+  createXAiImageProvider,
+} from './providers/index.js';
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
@@ -24,7 +29,9 @@ const providers = createProviderRegistry([
   config.openAiApiKey
     ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
     : createMockImageProvider({ provider: 'openai' }),
-  createMockImageProvider({ provider: 'xai' }),
+  config.xAiApiKey
+    ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
+    : createMockImageProvider({ provider: 'xai' }),
 ]);
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
 const verifyJwtBearerToken = createJwtBearerVerifier({

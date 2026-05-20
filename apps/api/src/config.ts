@@ -12,6 +12,7 @@ export interface ApiConfig {
   openAiApiKey?: string;
   openAiImageModel: string;
   xAiApiKey?: string;
+  xAiImageModel: string;
   assetStorageDriver: 'local' | 's3';
   assetStorageDir: string;
   monthlyGenerationLimit: number;
@@ -62,6 +63,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     openAiApiKey: env.OPENAI_API_KEY,
     openAiImageModel: env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2',
     xAiApiKey: env.XAI_API_KEY,
+    xAiImageModel: env.XAI_IMAGE_MODEL ?? 'grok-imagine-image-quality',
     assetStorageDriver: driver,
     assetStorageDir: env.ASSET_STORAGE_DIR ?? './storage',
     monthlyGenerationLimit: numberEnv(env, 'AI_MONTHLY_GENERATION_LIMIT', 10),
