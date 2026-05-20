@@ -77,6 +77,7 @@ Use the local Compose file to run the same infrastructure shape as the VPS API
 without deploying anything:
 
 ```bash
+cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 npm run dev:ai:infra
 npm run dev:ai:api
@@ -86,7 +87,7 @@ npm run dev:ai:web
 
 Run those last three commands in separate terminals. The Compose database is
 initialized with the v0.13 migration and a local `dev-user` with AI access. The
-web command exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
+root `.env` exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
 the local API as that seeded user.
 
 The API server and worker load `apps/api/.env` and `apps/api/.env.local`
