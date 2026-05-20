@@ -380,6 +380,11 @@ export function LayerControls({
               </p>
             </>
           )}
+          {layer.kind === 'noise' && (
+            <p className="node-inspector-note">
+              Noise is a full-frame source, so placement controls are unavailable in layer mode.
+            </p>
+          )}
         </InspectorSection>
         {hasPlacementSection && (
           <InspectorSection
@@ -433,7 +438,7 @@ export function LayerControls({
                 }
               />
               <p className="node-inspector-note">
-                Camera angle is controlled in the preview: drag rotates, wheel zooms.
+                Camera angle is node-owned: open Nodes and use the primitive preview to rotate, pan, and zoom.
               </p>
               <InspectorSlider
                 label="Spin"

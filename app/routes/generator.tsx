@@ -20,6 +20,7 @@ import { inferLinearGraph } from '../utils/nodeGraph';
 import { getStarterDocument, LAYER_STARTER_DOCUMENTS } from '../utils/starterDocuments';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
+const V011_GUIDE_STORAGE_KEY = 'artifact:v0.11-guide-seen';
 
 function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
@@ -50,12 +51,18 @@ type ViewMode = 'layers' | 'nodes';
 function EmptyCanvasStart({
   onImportImage,
   onAddText,
+  onAddFill,
   onAddNoise,
+  onAddEffect,
+  onRandomize,
   onLoadStarter,
 }: {
   onImportImage: () => void;
   onAddText: () => void;
+  onAddFill: () => void;
   onAddNoise: () => void;
+  onAddEffect: () => void;
+  onRandomize: () => void;
   onLoadStarter: (id: string) => void;
 }) {
   const firstStarter = LAYER_STARTER_DOCUMENTS[0];
@@ -69,18 +76,32 @@ function EmptyCanvasStart({
         <button type="button" onClick={onAddText}>
           Text
         </button>
+        <button type="button" onClick={onAddFill}>
+          Fill
+        </button>
         <button type="button" onClick={onAddNoise}>
           Noise
+        </button>
+        <button type="button" onClick={onAddEffect}>
+          Effect
         </button>
         {firstStarter && (
           <button type="button" onClick={() => onLoadStarter(firstStarter.id)}>
             {firstStarter.shortName}
           </button>
         )}
+        <button type="button" onClick={onRandomize}>
+          Random
+        </button>
         <Link to="/examples">Examples</Link>
       </div>
     </div>
   );
+}
+
+function shouldShowV011GuideEntry() {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(V011_GUIDE_STORAGE_KEY) !== '1';
 }
 
 function ViewModeToggle({
@@ -124,6 +145,7 @@ export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  const [showGuideEntry, setShowGuideEntry] = useState(shouldShowV011GuideEntry);
   const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +155,7 @@ export default function Generator() {
     selectedLayerId,
     setSelectedLayerId,
     addLayer,
+    addLayerAfter,
     addEffectPreset,
     addImageFromSource,
     removeLayer,
@@ -151,6 +174,7 @@ export default function Generator() {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
+    startFromDocument,
     setDoc,
     setAspect,
     undo,
@@ -240,22 +264,47 @@ export default function Generator() {
     setViewMode('layers');
   }, [closePresets, closeProjects, handleNewBlank, isBlank]);
 
+  const handleRandomizeRequest = useCallback(() => {
+    if (
+      !isBlank &&
+      !window.confirm('Randomize this canvas? Current work will be saved as a recoverable draft first.')
+    ) {
+      return;
+    }
+    closePresets();
+    closeProjects();
+    handleRandomize();
+    setPrimitiveViewStates({});
+    setViewMode('layers');
+  }, [closePresets, closeProjects, handleRandomize, isBlank]);
+
   const handleLoadStarter = useCallback(
     (id: string) => {
       const starter = getStarterDocument(id);
       if (!starter) return;
+      if (
+        !isBlank &&
+        !window.confirm('Start from this recipe? Current work will be saved as a recoverable draft first.')
+      ) {
+        return;
+      }
       closePresets();
       closeProjects();
-      loadDocument(cloneDocument(starter.doc));
+      startFromDocument(cloneDocument(starter.doc));
       setPrimitiveViewStates({});
       setViewMode('layers');
     },
-    [closePresets, closeProjects, loadDocument],
+    [closePresets, closeProjects, isBlank, startFromDocument],
   );
+
+  const handleDismissGuideEntry = useCallback(() => {
+    localStorage.setItem(V011_GUIDE_STORAGE_KEY, '1');
+    setShowGuideEntry(false);
+  }, []);
 
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
-    onRandomize: handleRandomize,
+    onRandomize: handleRandomizeRequest,
     onUndo: undo,
     onRedo: redo,
     canUndo,
@@ -339,6 +388,17 @@ export default function Generator() {
           </button>
         </div>
       )}
+      {showGuideEntry && (
+        <div className="release-guide-entry" role="status">
+          <span>
+            v0.11 is tuned for layer-first covers: quick starts, row actions, recipes, recovery drafts, and a clearer{' '}
+            <Link to="/docs/nodes">workflow guide</Link>.
+          </span>
+          <button type="button" onClick={handleDismissGuideEntry} aria-label="Dismiss v0.11 guide note">
+            ×
+          </button>
+        </div>
+      )}
       <div className={`app app-${viewMode}`}>
         <main
           className={`main main-${viewMode}`}
@@ -380,7 +440,10 @@ export default function Generator() {
                 <EmptyCanvasStart
                   onImportImage={() => imageFileInputRef.current?.click()}
                   onAddText={() => addLayer('text')}
+                  onAddFill={() => addLayer('fill')}
                   onAddNoise={() => addLayer('noise')}
+                  onAddEffect={() => addEffectPreset('grain')}
+                  onRandomize={handleRandomizeRequest}
                   onLoadStarter={handleLoadStarter}
                 />
               )}
@@ -427,6 +490,7 @@ export default function Generator() {
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}
+            onAddLayerAfter={addLayerAfter}
             onAddEffectPreset={addEffectPreset}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}

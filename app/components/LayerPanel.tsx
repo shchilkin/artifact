@@ -18,6 +18,7 @@ interface Props {
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
+  onAddLayerAfter: (afterId: string, kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
@@ -55,6 +56,7 @@ interface LayerRowProps {
   onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
   onStartEditing: (id: string) => void;
+  onToggleQuickAdd: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
   onDragOverLayer: (id: string) => void;
@@ -63,6 +65,8 @@ interface LayerRowProps {
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
+  quickAddOpen: boolean;
+  onQuickAddLayer: (afterId: string, kind: Exclude<LayerKind, 'effect'>) => void;
 }
 
 const LayerRow = memo(function LayerRow({
@@ -75,6 +79,7 @@ const LayerRow = memo(function LayerRow({
   onSelect,
   onOpenContextMenu,
   onStartEditing,
+  onToggleQuickAdd,
   onFinishRename,
   onDragStart,
   onDragOverLayer,
@@ -83,6 +88,8 @@ const LayerRow = memo(function LayerRow({
   onToggleVisible,
   onDuplicateLayer,
   onRemoveLayer,
+  quickAddOpen,
+  onQuickAddLayer,
 }: LayerRowProps) {
   return (
     <div
@@ -162,6 +169,40 @@ const LayerRow = memo(function LayerRow({
       >
         {layer.visible ? '◉' : '○'}
       </button>
+      <button
+        className="text-[11px] flex-shrink-0 text-dim hover:text-accent bg-transparent border-none cursor-pointer p-0.5"
+        onClick={(e) => {
+          e.stopPropagation();
+          onStartEditing(layer.id);
+        }}
+        aria-label="Rename layer"
+        title="Rename"
+      >
+        ✎
+      </button>
+      <div className="layer-row-quick-add">
+        <button
+          className="text-[11px] flex-shrink-0 text-dim hover:text-accent bg-transparent border-none cursor-pointer p-0.5"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleQuickAdd(layer.id);
+          }}
+          aria-label="Quick insert layer after this row"
+          title="Quick add"
+        >
+          +
+        </button>
+        {quickAddOpen && (
+          <div className="layer-row-quick-menu" onClick={(event) => event.stopPropagation()}>
+            {(['text', 'image', 'fill', 'noise', 'array'] as Exclude<LayerKind, 'effect'>[]).map((kind) => (
+              <button key={kind} type="button" onClick={() => onQuickAddLayer(layer.id, kind)}>
+                <span>{KIND_ICONS[kind]}</span>
+                {kind}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         className="text-[11px] flex-shrink-0 text-dim hover:text-accent bg-transparent border-none cursor-pointer p-0.5"
         onClick={(e) => {
@@ -317,6 +358,7 @@ export function LayerPanel({
   selectedLayerId,
   onSelectLayer,
   onAddLayer,
+  onAddLayerAfter,
   onAddEffectPreset,
   onRemoveLayer,
   onReorderLayers,
@@ -333,6 +375,7 @@ export function LayerPanel({
   modeSwitcher,
 }: Props) {
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [quickAddLayerId, setQuickAddLayerId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
@@ -346,15 +389,18 @@ export function LayerPanel({
   const areaButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showAddMenu) return;
+    if (!showAddMenu && !quickAddLayerId) return;
     function handleOutside(e: MouseEvent) {
       if (addButtonRef.current && !addButtonRef.current.contains(e.target as Node)) {
         setShowAddMenu(false);
       }
+      if (!(e.target as Element).closest('.layer-row-quick-add')) {
+        setQuickAddLayerId(null);
+      }
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showAddMenu]);
+  }, [quickAddLayerId, showAddMenu]);
 
   useEffect(() => {
     if (!showAreaMenu) return;
@@ -504,6 +550,14 @@ export function LayerPanel({
     [onAddLayer],
   );
 
+  const handleQuickAddLayer = useCallback(
+    (afterId: string, kind: Exclude<LayerKind, 'effect'>) => {
+      onAddLayerAfter(afterId, kind);
+      setQuickAddLayerId(null);
+    },
+    [onAddLayerAfter],
+  );
+
   const handleAddEffectPreset = useCallback(
     (key: EffectPreset) => {
       onAddEffectPreset(key);
@@ -514,6 +568,10 @@ export function LayerPanel({
 
   const handleToggleAddMenu = useCallback(() => {
     setShowAddMenu((prev) => !prev);
+  }, []);
+
+  const handleToggleQuickAdd = useCallback((id: string) => {
+    setQuickAddLayerId((current) => (current === id ? null : id));
   }, []);
 
   const handleCancelDrag = useCallback(() => {
@@ -618,7 +676,26 @@ export function LayerPanel({
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {displayLayers.length === 0 && (
-          <div className="px-3.5 py-4 text-[10px] text-dim text-center font-mono">No layers. Add one above.</div>
+          <div className="layer-empty-state">
+            <p>No layers yet.</p>
+            <div className="layer-empty-actions">
+              <button type="button" onClick={() => handleAddLayer('image')}>
+                Image
+              </button>
+              <button type="button" onClick={() => handleAddLayer('text')}>
+                Text
+              </button>
+              <button type="button" onClick={() => handleAddLayer('fill')}>
+                Fill
+              </button>
+              <button type="button" onClick={() => handleAddLayer('noise')}>
+                Noise
+              </button>
+              <button type="button" onClick={() => handleAddEffectPreset('grain')}>
+                Effect
+              </button>
+            </div>
+          </div>
         )}
         {selectedActionLayerIds.length > 1 && (
           <div className="layer-selection-actions">
@@ -761,6 +838,7 @@ export function LayerPanel({
                     onSelect={handleSelectLayer}
                     onOpenContextMenu={handleOpenLayerContextMenu}
                     onStartEditing={handleStartEditing}
+                    onToggleQuickAdd={handleToggleQuickAdd}
                     onFinishRename={handleFinishRename}
                     onDragStart={handleDragStart}
                     onDragOverLayer={handleDragOverLayer}
@@ -769,6 +847,8 @@ export function LayerPanel({
                     onToggleVisible={onToggleVisible}
                     onDuplicateLayer={onDuplicateLayer}
                     onRemoveLayer={onRemoveLayer}
+                    quickAddOpen={quickAddLayerId === layer.id}
+                    onQuickAddLayer={handleQuickAddLayer}
                   />
                 ))}
               {!activeCollapsedAreaIds.has(item.area.id) &&
@@ -792,6 +872,7 @@ export function LayerPanel({
               onSelect={handleSelectLayer}
               onOpenContextMenu={handleOpenLayerContextMenu}
               onStartEditing={handleStartEditing}
+              onToggleQuickAdd={handleToggleQuickAdd}
               onFinishRename={handleFinishRename}
               onDragStart={handleDragStart}
               onDragOverLayer={handleDragOverLayer}
@@ -800,6 +881,8 @@ export function LayerPanel({
               onToggleVisible={onToggleVisible}
               onDuplicateLayer={onDuplicateLayer}
               onRemoveLayer={onRemoveLayer}
+              quickAddOpen={quickAddLayerId === item.layer.id}
+              onQuickAddLayer={handleQuickAddLayer}
             />
           ),
         )}

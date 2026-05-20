@@ -74,7 +74,80 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
   },
 };
 
-export const LAYER_STARTER_DOCUMENTS: StarterDocument[] = [TEXTURE_TYPE_STACK_STARTER];
+export const SIGNAL_POSTER_STACK_STARTER: StarterDocument = {
+  id: 'layer-starter-signal-poster',
+  name: 'Signal Poster Stack',
+  shortName: 'Signal Poster',
+  description: 'A stack-only poster cover: dark plate, static field, array burst, compact type, glow, and vignette.',
+  doc: {
+    global: { bg: '#050407', seed: 91033, aspect: '4:5' },
+    export: { ...DEFAULT_EXPORT },
+    layers: [
+      makeFillLayer({ id: 'signal-plate', name: 'signal plate', color: '#070509' }),
+      makeSourceLayer('noise', {
+        id: 'signal-static',
+        name: 'low signal',
+        noiseType: 'cells',
+        noiseScale: 42,
+        noiseDetail: 5,
+        noiseContrast: 72,
+        noiseBalance: 38,
+        noiseThreshold: 18,
+        color: '#160b1d',
+        accentColor: '#f0523b',
+        opacity: 72,
+        blendMode: 'screen',
+      }),
+      makeSourceLayer('array', {
+        id: 'signal-burst',
+        name: 'center burst',
+        arrayPattern: 'radial',
+        arrayShape: 'bar',
+        arrayCount: 12,
+        arrayRows: 2,
+        arrayRadius: 138,
+        arrayGap: 24,
+        arraySize: 18,
+        arrayJitter: 10,
+        color: '#f2d49b',
+        accentColor: '#f0523b',
+        opacity: 78,
+        blendMode: 'screen',
+      }),
+      makeTextLayer({
+        id: 'signal-title',
+        name: 'center type',
+        content: 'NO\nCARRIER',
+        font: 'BEBAS',
+        size: 112,
+        color: '#f7e2c2',
+        x: 0.5,
+        y: 0.53,
+        rotation: 0,
+        scaleX: 1.05,
+        scaleY: 1,
+      }),
+      {
+        ...makeEffectPresetLayer('neonGlow', { value: 16 }),
+        id: 'signal-glow',
+        name: 'tube glow',
+        neonColor: '#f0523b',
+      },
+      {
+        ...makeEffectPresetLayer('vignette', { value: 42 }),
+        id: 'signal-edge',
+        name: 'edge falloff',
+      },
+      {
+        ...makeEffectPresetLayer('grain', { value: 14 }),
+        id: 'signal-grain',
+        name: 'print grain',
+      },
+    ],
+  },
+};
+
+export const LAYER_STARTER_DOCUMENTS: StarterDocument[] = [TEXTURE_TYPE_STACK_STARTER, SIGNAL_POSTER_STACK_STARTER];
 
 export function getStarterDocument(id: string): StarterDocument | undefined {
   return LAYER_STARTER_DOCUMENTS.find((starter) => starter.id === id);

@@ -10,6 +10,7 @@ import {
   makeTextLayer,
 } from '../types/config';
 import {
+  addLayerAfterDocument,
   addLayerToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
@@ -103,6 +104,32 @@ describe('documentCommands', () => {
     expect(next.graph?.edges).toEqual([
       { id: `e-fill-b-${EXPORT_NODE_ID}-0`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
+  });
+
+  it('adds a layer after a chosen row while preserving graph export behavior', () => {
+    const doc = makeDoc(makeGraph());
+    const layer = makeFillLayer({ id: 'fill-b' });
+    const next = addLayerAfterDocument(doc, 'fill-a', layer);
+
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expect(next.graph?.positions).toHaveProperty('fill-b');
+    expect(next.graph?.edges).toContainEqual({
+      id: `e-fill-b-${EXPORT_NODE_ID}-1`,
+      fromId: 'fill-b',
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+    expect(next.graph?.edges.some((edge) => edge.toId === EXPORT_NODE_ID && edge.fromId !== 'fill-b')).toBe(false);
+    expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
+  });
+
+  it('falls back to append when adding after a missing row', () => {
+    const doc = makeDoc();
+    const layer = makeTextLayer({ id: 'text-b' });
+    const next = addLayerAfterDocument(doc, 'missing', layer);
+
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'text-b']);
   });
 
   it('inserts a merge node with source and target edges', () => {

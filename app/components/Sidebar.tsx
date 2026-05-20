@@ -28,6 +28,7 @@ interface Props {
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
+  onAddLayerAfter: (afterId: string, kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
@@ -100,6 +101,7 @@ export function Sidebar({
   selectedLayerId,
   onSelectLayer,
   onAddLayer,
+  onAddLayerAfter,
   onAddEffectPreset,
   onRemoveLayer,
   onReorderLayers,
@@ -273,6 +275,7 @@ export function Sidebar({
           selectedLayerId={selectedLayerId}
           onSelectLayer={onSelectLayer}
           onAddLayer={onAddLayer}
+          onAddLayerAfter={onAddLayerAfter}
           onAddEffectPreset={onAddEffectPreset}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={handleReorderLayers}

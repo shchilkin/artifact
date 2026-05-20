@@ -13,6 +13,7 @@ import {
 } from '../types/config';
 import { hydrateDocumentImageAssets } from '../utils/assetStore';
 import {
+  addLayerAfterDocument,
   addLayerToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
@@ -155,6 +156,20 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [commitDocument],
   );
 
+  const startFromDocument = useCallback(
+    (nextDoc: CanvasDocument) => {
+      const current = docRef.current;
+      if (!isBlankDocument(current)) {
+        void saveStoredPreBlankDraft(current).catch(() => {
+          // Recovery drafts are best-effort. Starting from a recipe should not be blocked by storage failure.
+        });
+      }
+      commitDocument(normalizeDocument(nextDoc), 'snapshot');
+      setSelectedLayerId(null);
+    },
+    [commitDocument],
+  );
+
   const setSeed = useCallback(
     (seed: number) => {
       commitDocument(setDocumentSeed(docRef.current, seed), 'snapshot');
@@ -213,6 +228,15 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     (kind: Exclude<LayerKind, 'effect'>) => {
       const layer = createLayerOfKind(kind);
       updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const addLayerAfter = useCallback(
+    (afterId: string, kind: Exclude<LayerKind, 'effect'>) => {
+      const layer = createLayerOfKind(kind);
+      updateDocument((current) => addLayerAfterDocument(current, afterId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -320,6 +344,12 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleRandomize = useCallback(() => {
+    const current = docRef.current;
+    if (!isBlankDocument(current)) {
+      void saveStoredPreBlankDraft(current).catch(() => {
+        // Recovery drafts are best-effort. Randomize should still work if IndexedDB is unavailable.
+      });
+    }
     commitDocument(randomDocument(), 'snapshot');
     setSelectedLayerId(null);
   }, [commitDocument]);
@@ -369,6 +399,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     selectedLayerId: safeSelectedLayerId,
     setSelectedLayerId,
     addLayer,
+    addLayerAfter,
     addEffectPreset,
     addImageFromSource,
     removeLayer,
@@ -387,6 +418,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument: replaceDocument,
+    startFromDocument,
     setDoc,
     setSeed,
     setAspect,

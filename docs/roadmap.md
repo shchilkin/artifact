@@ -315,7 +315,7 @@ effects, sources, repeaters, projects, export, and troubleshooting.
 
 ### Current release line
 
-The latest local tag is `v0.10.0-beta.1`. Earlier `v0.2` through `v0.9` roadmap
+The latest local tag is `v0.11.0-beta.1`. Earlier `v0.2` through `v0.10` roadmap
 headings are release history, not active target buckets. Any unfinished work
 from those sections has been moved below into future versions.
 
@@ -342,23 +342,23 @@ Detailed plan: [`version-plans/v0.11.md`](./version-plans/v0.11.md).
 Goal: make layer mode feel like the fastest path to a finished cover while
 keeping node workflows truthful.
 
-- [ ] Improve the layer list hierarchy for graph-area documents so areas read
+- [x] Improve the layer list hierarchy for graph-area documents so areas read
   like lightweight folders without changing render order.
-- [ ] Add layer-row affordances for duplicate, mute, rename, delete, and quick
+- [x] Add layer-row affordances for duplicate, mute, rename, delete, and quick
   add where they are faster than opening the node canvas.
-- [ ] Add clearer layer empty states and quick-start actions for image, text,
+- [x] Add clearer layer empty states and quick-start actions for image, text,
   fill, noise, and effect starts.
-- [ ] Add layer presets or recipes that create useful stacks without opening
+- [x] Add layer presets or recipes that create useful stacks without opening
   nodes.
-- [ ] Ensure layer controls explain unavailable or node-owned controls instead
+- [x] Ensure layer controls explain unavailable or node-owned controls instead
   of silently hiding them.
-- [ ] Keep layer preview and export parity visible and trustworthy for stack
+- [x] Keep layer preview and export parity visible and trustworthy for stack
   workflows.
-- [ ] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
+- [x] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
   effects, repeaters, export, projects, and examples.
-- [ ] Add a "what changed" or "open guide" path for first visits after a new
+- [x] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
-- [ ] Keep destructive starts guarded by confirmation and recovery drafts.
+- [x] Keep destructive starts guarded by confirmation and recovery drafts.
 
 Exit criteria:
 

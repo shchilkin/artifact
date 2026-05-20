@@ -364,6 +364,9 @@ const emptyTransparentDocument = {
 };
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('artifact:v0.11-guide-seen', '1');
+  });
   const issues: string[] = [];
   consoleIssues.set(page, issues);
   page.on('console', (message) => {
@@ -628,6 +631,33 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
         'starter-grain',
       ],
     });
+});
+
+test('layer rows expose quick insert and rename actions', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+
+  const row = page.locator('.layer-row').filter({ hasText: 'Browser smoke fill' });
+  await row.getByRole('button', { name: 'Quick insert layer after this row' }).click();
+  await row.locator('.layer-row-quick-menu').getByRole('button', { name: /Fill/i }).click();
+
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(2, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { kind: string; name: string }) => `${layer.kind}:${layer.name}`) ?? [];
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(['fill:Browser smoke fill', 'fill:Fill']);
+
+  const inserted = page.locator('.layer-row').first();
+  await inserted.getByRole('button', { name: 'Rename layer' }).click();
+  await inserted.getByRole('textbox').fill('Ink wash');
+  await inserted.getByRole('textbox').press('Enter');
+
+  await expect(page.getByText('Ink wash')).toBeVisible();
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {

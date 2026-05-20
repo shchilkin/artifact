@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURATED_EXAMPLES } from './curatedExamples';
 import { renderDocument } from './renderer';
-import { TEXTURE_TYPE_STACK_STARTER } from './starterDocuments';
+import { LAYER_STARTER_DOCUMENTS } from './starterDocuments';
 
 describe('CURATED_EXAMPLES', () => {
   it('contains unique example ids', () => {
@@ -9,8 +9,10 @@ describe('CURATED_EXAMPLES', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('includes the layer-first starter document', () => {
-    expect(CURATED_EXAMPLES.some((example) => example.id === TEXTURE_TYPE_STACK_STARTER.id)).toBe(true);
+  it('includes all layer-first starter documents', () => {
+    for (const starter of LAYER_STARTER_DOCUMENTS) {
+      expect(CURATED_EXAMPLES.some((example) => example.id === starter.id)).toBe(true);
+    }
   });
 
   it('renders every curated document in smoke mode', async () => {

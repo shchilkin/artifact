@@ -129,6 +129,24 @@ export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDoc
   };
 }
 
+export function addLayerAfterDocument(doc: CanvasDocument, afterId: string, layer: Layer): CanvasDocument {
+  const index = doc.layers.findIndex((item) => item.id === afterId);
+  if (index === -1) return addLayerToDocument(doc, layer);
+
+  const nextLayers = [...doc.layers];
+  nextLayers.splice(index + 1, 0, layer);
+
+  if (!doc.graph) return { ...doc, layers: nextLayers };
+
+  const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
+  const graphWithLayer = addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph));
+  return {
+    ...doc,
+    layers: nextLayers,
+    graph: appendNodeToExportPath(graphWithLayer, layer.id, inputPort),
+  };
+}
+
 export function createGraphAreaInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
   const graph = ensureDocumentGraph(doc);
   const areaNumber = (graph.areas?.length ?? 0) + 1;
