@@ -1,10 +1,31 @@
+import { execSync } from 'node:child_process';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-plugin-tsconfig-paths';
 
+function readGitValue(command: string, fallback: string) {
+  try {
+    return execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const appVersion =
+  process.env.VITE_APP_VERSION ?? readGitValue('git describe --tags --always --dirty', 'local-development');
+const appCommit =
+  process.env.VITE_APP_COMMIT ??
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
+  process.env.GITHUB_SHA?.slice(0, 12) ??
+  readGitValue('git rev-parse --short=12 HEAD', 'unknown');
+
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  define: {
+    __ARTIFACT_APP_VERSION__: JSON.stringify(appVersion),
+    __ARTIFACT_COMMIT_HASH__: JSON.stringify(appCommit),
+  },
   resolve: {
     dedupe: ['react', 'react-dom'],
   },

@@ -25,6 +25,7 @@ interface Props {
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
   onCreateAreaFromLayers: (ids: string[]) => void;
   onAddLayersToArea: (areaId: string, ids: string[]) => void;
+  onRemoveLayersFromAreas: (ids: string[]) => void;
   onRenameArea: (areaId: string, name: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
@@ -304,6 +305,7 @@ export function LayerPanel({
   onSetLayersVisible,
   onCreateAreaFromLayers,
   onAddLayersToArea,
+  onRemoveLayersFromAreas,
   onRenameArea,
   onDuplicateLayer,
   onRenameLayer,
@@ -539,6 +541,17 @@ export function LayerPanel({
     [onAddLayersToArea],
   );
 
+  const handleRemoveSelectionFromAreas = useCallback(
+    (ids: string[]) => {
+      const removableIds = ids.filter((id) => areasByLayerId.has(id));
+      if (removableIds.length === 0) return;
+      onRemoveLayersFromAreas(removableIds);
+      setShowAreaMenu(false);
+      setContextMenu(null);
+    },
+    [areasByLayerId, onRemoveLayersFromAreas],
+  );
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="layer-panel-header">
@@ -766,6 +779,11 @@ export function LayerPanel({
               Add to {area.name}
             </button>
           ))}
+          {contextMenu.ids.some((id) => areasByLayerId.has(id)) && (
+            <button type="button" onClick={() => handleRemoveSelectionFromAreas(contextMenu.ids)}>
+              Remove from area
+            </button>
+          )}
         </div>
       )}
     </div>

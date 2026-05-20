@@ -161,6 +161,22 @@ export function Sidebar({
     [onDocChange],
   );
 
+  const handleRemoveLayersFromAreas = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      let next = docRef.current;
+      for (const area of next.graph?.areas ?? []) {
+        const areaLayerIds = area.nodeIds.filter((id) => idSet.has(id));
+        if (areaLayerIds.length > 0) {
+          next = removeLayersFromGraphAreaInDocument(next, area.id, areaLayerIds);
+        }
+      }
+      if (next !== docRef.current) onDocChange(next);
+    },
+    [onDocChange],
+  );
+
   const handleRenameArea = useCallback(
     (areaId: string, name: string) => {
       onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name));
@@ -247,6 +263,7 @@ export function Sidebar({
           onSetLayersVisible={handleSetLayersVisible}
           onCreateAreaFromLayers={handleCreateAreaFromLayers}
           onAddLayersToArea={handleAddLayersToArea}
+          onRemoveLayersFromAreas={handleRemoveLayersFromAreas}
           onRenameArea={handleRenameArea}
           onDuplicateLayer={onDuplicateLayer}
           onRenameLayer={handleRenameLayer}

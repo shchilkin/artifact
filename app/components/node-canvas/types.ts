@@ -201,8 +201,10 @@ export interface NodeMenuProps {
   isMerge: boolean;
   isExport: boolean;
   muted?: boolean;
+  removeFromArea?: { areaId: string; nodeId: string; areaName?: string };
   onDuplicate: () => void;
   onToggleMuted?: () => void;
+  onRemoveFromArea?: (areaId: string, nodeId: string) => void;
   onDelete: () => void;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
