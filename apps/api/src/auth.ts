@@ -123,11 +123,8 @@ export function createJwtBearerVerifier(options: JwtVerifierOptions) {
 export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
   return async (token: string): Promise<RequestUser | null> => {
     if (!options.secretKey && !options.jwtKey) return null;
-    const result = await verifyToken(token, {
-      secretKey: options.secretKey,
-      jwtKey: options.jwtKey,
-      authorizedParties: options.authorizedParties?.filter(Boolean),
-    });
+    const result = await verifyClerkToken(token, options);
+    if (!result) return null;
     if (result.errors) {
       logWarn('auth.clerk_token_rejected', {
         reason: clerkErrorSummary(result.errors),
@@ -147,6 +144,21 @@ export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
       role: typeof role === 'string' ? role : undefined,
     };
   };
+}
+
+async function verifyClerkToken(token: string, options: ClerkBearerVerifierOptions) {
+  try {
+    return await verifyToken(token, {
+      secretKey: options.secretKey,
+      jwtKey: options.jwtKey,
+      authorizedParties: options.authorizedParties?.filter(Boolean),
+    });
+  } catch (error) {
+    logWarn('auth.clerk_token_rejected', {
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+    return null;
+  }
 }
 
 export function verifySignedBearerToken(token: string, options: JwtVerifierOptions): RequestUser | null {

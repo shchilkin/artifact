@@ -111,6 +111,10 @@ describe('auth helpers', () => {
     await expect(createClerkBearerVerifier({})('not-a-clerk-token')).resolves.toBeNull();
   });
 
+  it('treats malformed Clerk bearer tokens as invalid credentials', async () => {
+    await expect(createClerkBearerVerifier({ secretKey: 'sk_test_fake' })('not-a-jwt')).resolves.toBeNull();
+  });
+
   it('separates missing and invalid bearer credentials in access state', () => {
     expect(
       computeAiAccessResponse({
