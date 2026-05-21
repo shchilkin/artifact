@@ -479,15 +479,21 @@ Research and architecture tasks:
   pull-only deploys. Plan:
   [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
   Initial foundation is in progress: API workspace wiring, web workspace
-  relocation, API/web Turbo scripts, production API build/start scripts,
-  service Dockerfiles, and the additive GHCR image workflow are implemented
-  before shared-contract extraction.
+  relocation, shared AI contracts, API/web/shared Turbo scripts, production API
+  build/start scripts, service Dockerfiles, and the additive GHCR image
+  workflow are implemented.
 
 Release checklist:
 
-- [ ] Commit the current AI Image node reliability batch: generated variant
+- [x] Commit the current AI Image node reliability batch: generated variant
   history, loading/failure states, React Flow measurement stability, and local
-  asset preview fixes.
+  asset preview fixes. Focused browser coverage now includes multiple AI image
+  generations in the same node across reload, history traversal, and completed
+  jobs whose asset import fails.
+- [x] Fix Vercel preview deploy drift after the workspace move: the repo build
+  stays React Router, while Vercel is explicitly configured as a static Vite
+  output deploy for `apps/web/build/client`; the accidental extra Vercel
+  project created during local CLI validation was removed.
 - [ ] Run private-alpha QA against the local VPS-shaped stack with real API,
   Postgres, Redis, worker, BullMQ, Bull Board, and local file storage.
 - [ ] Add explicit AI Image retry/recovery actions and compact job/asset

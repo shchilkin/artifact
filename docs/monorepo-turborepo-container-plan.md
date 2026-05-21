@@ -35,6 +35,12 @@ Completed in the web relocation slice:
   `@artifact/web`.
 - Vercel remains rooted at the repository and points output to
   `apps/web/build/client`, preserving the root `api/og.tsx` function.
+- Vercel's repo config now explicitly uses the `vite` framework preset for
+  deployment output while the app itself remains React Router. This prevents
+  stale project-level framework detection from applying Remix/React Router
+  build assumptions to the monorepo output.
+- A root `tsconfig.json` covers only the Vercel `api/**/*.tsx` function surface
+  so the root Open Graph Edge Function compiles JSX during Vercel builds.
 - Vite loads root `.env` values through `envDir: '../..'`, so existing local
   `VITE_*` setup still works.
 - Playwright starts the web dev server from `apps/web` directly and clears the
@@ -45,6 +51,10 @@ Completed in the web relocation slice:
 - Validation passed for `npm run check`, `npm run build`, `npm run turbo:check`,
   the focused AI image multi-generation browser regression, and local Docker
   builds for API, worker, and Bull Board images.
+- GitHub PR validation passed for quality, browser tests, Vercel preview, and
+  GHCR API/worker/Bull Board image builds. The accidental `album-cover-utils`
+  Vercel project created during CLI validation was removed; future PR pushes
+  should only produce the real `artifact` Vercel deployment check.
 
 Still pending:
 
