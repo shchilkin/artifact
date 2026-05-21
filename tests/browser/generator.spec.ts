@@ -747,6 +747,28 @@ test('AI-enabled user can generate an image and keep prompt provenance after rel
   });
 });
 
+test('AI generation keeps polling until a queued job succeeds', async ({ page }) => {
+  const prompt = 'late arriving neon portrait';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockPolledAiGeneration(page, prompt);
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+});
+
 test('AI quota exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
   await mockAiAccess(page, {
     authenticated: true,
@@ -1369,6 +1391,75 @@ async function mockSuccessfulAiGeneration(page: Page, expectedPrompt: string) {
         completedAt: '2026-05-21T00:00:01.000Z',
       }),
     });
+  });
+}
+
+async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
+  let pollCount = 0;
+  await page.route('**/api/ai/generations**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+      expect(body.prompt).toBe(expectedPrompt);
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'browser-ai-polled-job',
+          status: 'queued',
+          provider: body.provider ?? 'openai',
+          model: 'mock-image-model',
+          prompt: body.prompt,
+          settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+          quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
+          createdAt: '2026-05-21T00:00:00.000Z',
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && request.url().includes('/api/ai/generations/browser-ai-polled-job')) {
+      pollCount += 1;
+      const succeeded = pollCount >= 2;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'browser-ai-polled-job',
+          status: succeeded ? 'succeeded' : 'running',
+          provider: 'openai',
+          model: 'mock-image-model',
+          prompt: expectedPrompt,
+          settings: { aspect: '1:1', quality: 'standard' },
+          ...(succeeded
+            ? {
+                asset: {
+                  id: 'browser-ai-polled-asset',
+                  uri: generatedImageDataUrl,
+                  mimeType: 'image/png',
+                  width: 1,
+                  height: 1,
+                  sizeBytes: 70,
+                  createdAt: '2026-05-21T00:00:02.000Z',
+                  metadata: {
+                    provider: 'openai',
+                    model: 'mock-image-model',
+                    prompt: expectedPrompt,
+                    settings: { aspect: '1:1', quality: 'standard' },
+                    createdAt: '2026-05-21T00:00:02.000Z',
+                  },
+                },
+                completedAt: '2026-05-21T00:00:02.000Z',
+              }
+            : {}),
+          createdAt: '2026-05-21T00:00:00.000Z',
+          startedAt: '2026-05-21T00:00:01.000Z',
+        }),
+      });
+      return;
+    }
+
+    await route.fallback();
   });
 }
 

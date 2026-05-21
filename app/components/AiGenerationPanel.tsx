@@ -177,6 +177,7 @@ export function AiGenerationPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const importedJobIds = useRef(new Set<string>());
+  const getBearerTokenRef = useRef<() => Promise<string | undefined>>(async () => undefined);
   const auth = useArtifactAuth();
   const {
     configured: authConfigured,
@@ -190,11 +191,17 @@ export function AiGenerationPanel({
   const devToken = useMemo(() => getAiApiDevToken(), []);
   const providers = access?.providers?.length ? access.providers : (['openai'] as AiGenerationProvider[]);
   const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
+  const activeJobId = jobIsActive(job) ? job.id : null;
+  const activeJobStatus = jobIsActive(job) ? job.status : null;
   const getBearerToken = useCallback(async () => {
     if (devToken) return devToken;
     if (!authSignedIn) return undefined;
     return (await withTimeout(getAuthToken(), 8_000, tokenTimeoutError)) ?? undefined;
   }, [authSignedIn, devToken, getAuthToken]);
+
+  useEffect(() => {
+    getBearerTokenRef.current = getBearerToken;
+  }, [getBearerToken]);
 
   useEffect(() => {
     if (authConfigured && !authLoaded && !devToken) return;
@@ -240,35 +247,64 @@ export function AiGenerationPanel({
   }, [authConfigured, authLoaded, authSignedIn, authUserId, baseUrl, devToken, getBearerToken]);
 
   useEffect(() => {
-    if (!jobIsActive(job)) return;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      getBearerToken()
-        .then((bearerToken) => getAiGenerationJob(job.id, { baseUrl, bearerToken, signal: controller.signal }))
-        .then(setJob)
-        .catch((error) => {
-          if (!controller.signal.aborted) setMessage(errorMessage(error));
-        });
-    }, 1500);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
+    if (!activeJobId || !activeJobStatus) return;
+    let stopped = false;
+    let timeout: number | undefined;
+    let controller: AbortController | null = null;
+
+    const schedulePoll = () => {
+      timeout = window.setTimeout(() => {
+        controller = new AbortController();
+        getBearerTokenRef
+          .current()
+          .then((bearerToken) => getAiGenerationJob(activeJobId, { baseUrl, bearerToken, signal: controller?.signal }))
+          .then((nextJob) => {
+            if (stopped) return;
+            logAiPanelDebug('job_poll.result', {
+              jobId: nextJob.id,
+              status: nextJob.status,
+              hasAsset: Boolean(nextJob.asset?.uri),
+            });
+            setJob(nextJob);
+            if (jobIsActive(nextJob)) schedulePoll();
+          })
+          .catch((error) => {
+            if (!stopped && !controller?.signal.aborted) setMessage(errorMessage(error));
+          });
+      }, 1500);
     };
-  }, [baseUrl, getBearerToken, job]);
+
+    logAiPanelDebug('job_poll.start', { jobId: activeJobId, status: activeJobStatus });
+    schedulePoll();
+
+    return () => {
+      stopped = true;
+      if (timeout !== undefined) window.clearTimeout(timeout);
+      controller?.abort();
+    };
+  }, [activeJobId, activeJobStatus, baseUrl]);
 
   useEffect(() => {
     if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
     importedJobIds.current.add(job.id);
     setBusy(true);
+    logAiPanelDebug('asset_import.start', {
+      jobId: job.id,
+      assetId: job.asset?.id ?? null,
+      hasAssetUri: Boolean(job.asset?.uri),
+    });
     getBearerToken()
       .then((bearerToken) => storeAiGeneratedAssetSource(job, { baseUrl, devToken: bearerToken }))
       .then((src) => {
+        logAiPanelDebug('asset_import.success', { jobId: job.id });
         onGeneratedImageSource(src, generationMetadataFromJob(job));
         setMessage(successMessage);
       })
       .catch((error) => {
         importedJobIds.current.delete(job.id);
-        setMessage(errorMessage(error));
+        const message = errorMessage(error);
+        logAiPanelDebug('asset_import.failed', { jobId: job.id, message });
+        setMessage(message);
       })
       .finally(() => setBusy(false));
   }, [baseUrl, getBearerToken, job, onGeneratedImageSource, successMessage]);
