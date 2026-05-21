@@ -47,10 +47,13 @@ describe('retainNodeMeasurements', () => {
       position: { x: 20, y: 30 },
       data: {},
     };
+    const measuredNode = { ...node, width: 320, height: 220 };
 
-    expect(retainNodeMeasurements([next], [node], { width: 320, height: 360 })).toEqual([
+    expect(retainNodeMeasurements([next], [measuredNode], { width: 320, height: 360 })).toEqual([
       {
         ...next,
+        width: 320,
+        height: 220,
         measured: { width: 320, height: 220 },
       },
     ]);

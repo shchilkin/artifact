@@ -88,6 +88,11 @@ const LayerRow = memo(function LayerRow({
 }: LayerRowProps) {
   const aiState = layer.kind === 'image' ? getAiGenerationUiState(layer.aiGeneration) : 'idle';
   const aiStatusLabel = layer.kind === 'image' ? getAiGenerationStatusLabel((layer as ImageLayer).aiGeneration) : null;
+  const aiHistoryCount = layer.kind === 'image' ? ((layer as ImageLayer).aiGenerationHistory?.length ?? 0) : 0;
+  const aiHistoryIndex =
+    layer.kind === 'image'
+      ? Math.min(Math.max((layer as ImageLayer).aiGenerationHistoryIndex ?? aiHistoryCount - 1, 0), aiHistoryCount - 1)
+      : 0;
   return (
     <div
       draggable
@@ -148,6 +153,11 @@ const LayerRow = memo(function LayerRow({
         <span className={`layer-ai-status layer-ai-status-${aiState}`} title={aiStatusLabel}>
           {aiState === 'loading' && <span className="layer-ai-status-spinner" aria-hidden="true" />}
           {aiStatusLabel}
+        </span>
+      )}
+      {aiHistoryCount > 1 && (
+        <span className="layer-ai-history-count" title={`${aiHistoryCount} generated images`}>
+          {aiHistoryIndex + 1}/{aiHistoryCount}
         </span>
       )}
       {areas.length > 0 && !nested && (

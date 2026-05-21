@@ -20,7 +20,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
-| AI generation provenance | `ImageLayer.aiGeneration` | Yes, lightweight prompt/job status only | Yes when attached to a layer | No until `src` changes | UI status only until `src` changes |
+| AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 
 ## Durable document state
@@ -238,9 +238,12 @@ Tradeoff:
   responses live in asset/server records outside `CanvasDocument`.
 - The current v0.13 `AI Image` node is a normal image layer node. After a
   successful generation, the image layer may store serializable provenance in
-  `aiGeneration` so the prompt stays tied to the resulting image. This metadata
-  is editor context, not a render input; queued/running/error state and raw
-  provider responses still belong in API or UI state.
+  `aiGeneration` so the prompt stays tied to the resulting image. Successful
+  variants may also be listed in `aiGenerationHistory` as `{ src, aiGeneration
+  }` records, with `aiGenerationHistoryIndex` selecting which generated asset is
+  active. The history stores references and prompts, not image bytes. Queued,
+  running, error state, raw provider responses, quota, and costs still belong in
+  API or UI/server state.
 - If a future Image Generation node stores user-authored prompt/settings in the
   document, those fields must stay serializable and render-relevant. Transient
   queue state such as queued/running/progress/error details belongs in API or UI

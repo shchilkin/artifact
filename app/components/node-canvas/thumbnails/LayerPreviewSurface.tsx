@@ -40,6 +40,17 @@ function AiGenerationPreviewOverlay({ generation }: { generation: ImageLayer['ai
   );
 }
 
+function AiGenerationHistoryBadge({ layer }: { layer: ImageLayer }) {
+  const count = layer.aiGenerationHistory?.length ?? 0;
+  if (count <= 1) return null;
+  const currentIndex = Math.min(Math.max(layer.aiGenerationHistoryIndex ?? count - 1, 0), count - 1);
+  return (
+    <div className="node-ai-history-badge" aria-label={`Generated image ${currentIndex + 1} of ${count}`}>
+      {currentIndex + 1}/{count}
+    </div>
+  );
+}
+
 function DragTransformOverlay({
   layer,
   onChange,
@@ -302,6 +313,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
             <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
           )}
           {layer.kind === 'image' && <AiGenerationPreviewOverlay generation={layer.aiGeneration} />}
+          {layer.kind === 'image' && <AiGenerationHistoryBadge layer={layer} />}
           {isDraggable && selected && (
             <DragTransformOverlay
               layer={layer}

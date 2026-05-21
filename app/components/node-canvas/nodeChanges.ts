@@ -77,6 +77,8 @@ export function retainNodeMeasurements(
     const previous = previousById.get(node.id);
     return {
       ...node,
+      width: node.width ?? previous?.width,
+      height: node.height ?? previous?.height,
       measured: {
         width: node.measured?.width ?? previous?.measured?.width ?? fallback.width,
         height: node.measured?.height ?? previous?.measured?.height ?? fallback.height,

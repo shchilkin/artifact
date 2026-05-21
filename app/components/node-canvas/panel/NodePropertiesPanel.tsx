@@ -5,6 +5,7 @@ import type {
   GraphColorNode,
   GraphMergeNode,
   GraphRepeatNode,
+  ImageLayer,
   Layer,
 } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
@@ -26,6 +27,48 @@ interface NodePropertiesPanelProps {
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   onExport: () => void;
   onClose: () => void;
+}
+
+function appendAiGenerationVariant(
+  layer: ImageLayer,
+  src: string,
+  aiGeneration: NonNullable<ImageLayer['aiGeneration']>,
+): Partial<ImageLayer> {
+  const existing =
+    layer.aiGenerationHistory?.length || !layer.src || !layer.aiGeneration
+      ? (layer.aiGenerationHistory ?? [])
+      : [{ src: layer.src, aiGeneration: layer.aiGeneration }];
+  const nextVariant = { src, aiGeneration };
+  const nextHistory = [
+    ...existing.filter((item) => item.src !== src && item.aiGeneration.jobId !== aiGeneration.jobId),
+    nextVariant,
+  ];
+  return {
+    src,
+    aiGeneration,
+    aiGenerationHistory: nextHistory,
+    aiGenerationHistoryIndex: nextHistory.length - 1,
+  };
+}
+
+function seedCurrentAiGenerationVariant(layer: ImageLayer): Partial<ImageLayer> {
+  if (layer.aiGenerationHistory?.length || !layer.src || !layer.aiGeneration) return {};
+  return {
+    aiGenerationHistory: [{ src: layer.src, aiGeneration: layer.aiGeneration }],
+    aiGenerationHistoryIndex: 0,
+  };
+}
+
+function selectAiGenerationVariant(layer: ImageLayer, index: number): Partial<ImageLayer> | null {
+  const history = layer.aiGenerationHistory ?? [];
+  const nextIndex = Math.min(Math.max(index, 0), history.length - 1);
+  const selected = history[nextIndex];
+  if (!selected) return null;
+  return {
+    src: selected.src,
+    aiGeneration: selected.aiGeneration,
+    aiGenerationHistoryIndex: nextIndex,
+  };
 }
 
 export function NodePropertiesPanel({
@@ -106,8 +149,18 @@ export function NodePropertiesPanel({
                     <AiGenerationPanel
                       aspect={doc.global.aspect}
                       generation={layer.aiGeneration}
-                      onGeneratedImageSource={(src, aiGeneration) => onUpdateLayer(layer.id, { src, aiGeneration })}
-                      onGenerationStateChange={(aiGeneration) => onUpdateLayer(layer.id, { aiGeneration })}
+                      generationHistory={layer.aiGenerationHistory}
+                      generationHistoryIndex={layer.aiGenerationHistoryIndex}
+                      onGeneratedImageSource={(src, aiGeneration) =>
+                        onUpdateLayer(layer.id, appendAiGenerationVariant(layer, src, aiGeneration))
+                      }
+                      onGenerationStateChange={(aiGeneration) =>
+                        onUpdateLayer(layer.id, { ...seedCurrentAiGenerationVariant(layer), aiGeneration })
+                      }
+                      onGenerationHistorySelect={(index) => {
+                        const patch = selectAiGenerationVariant(layer, index);
+                        if (patch) onUpdateLayer(layer.id, patch);
+                      }}
                       submitLabel={layer.src ? 'Replace Image' : 'Generate Image'}
                       successMessage="Updated image node."
                     />

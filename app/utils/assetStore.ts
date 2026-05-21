@@ -147,14 +147,36 @@ export async function storeDocumentImageAssets(doc: CanvasDocument): Promise<Can
   const layers: Layer[] = [];
 
   for (const layer of doc.layers) {
-    if (layer.kind !== 'image' || !isImageDataUrl(layer.src)) {
+    if (layer.kind !== 'image') {
       layers.push(layer);
       continue;
     }
 
-    const src = await saveImageAsset(layer.src);
-    changed ||= src !== layer.src;
-    layers.push({ ...layer, src } satisfies ImageLayer);
+    const storedSrcByDataUrl = new Map<string, string>();
+    const storeSource = async (source: string) => {
+      if (!isImageDataUrl(source)) return source;
+      const cached = storedSrcByDataUrl.get(source);
+      if (cached) return cached;
+      const stored = await saveImageAsset(source);
+      storedSrcByDataUrl.set(source, stored);
+      return stored;
+    };
+
+    const src = await storeSource(layer.src);
+    const aiGenerationHistory = layer.aiGenerationHistory?.length
+      ? await Promise.all(
+          layer.aiGenerationHistory.map(async (variant) => {
+            const variantSrc = await storeSource(variant.src);
+            return variantSrc === variant.src ? variant : { ...variant, src: variantSrc };
+          }),
+        )
+      : layer.aiGenerationHistory;
+
+    const layerChanged =
+      src !== layer.src ||
+      Boolean(aiGenerationHistory?.some((variant, index) => variant.src !== layer.aiGenerationHistory?.[index]?.src));
+    changed ||= layerChanged;
+    layers.push({ ...layer, src, aiGenerationHistory } satisfies ImageLayer);
   }
 
   return changed ? { ...doc, layers } : doc;
@@ -173,18 +195,35 @@ export async function hydrateDocumentImageAssets(
   const loadAssetDataUrl = options.loadAssetDataUrl ?? loadImageAssetDataUrl;
 
   for (const layer of doc.layers) {
-    if (layer.kind !== 'image' || !isAssetUri(layer.src)) {
+    if (layer.kind !== 'image') {
       layers.push(layer);
       continue;
     }
 
-    const src = await loadAssetDataUrl(layer.src);
-    if (src) {
-      changed = true;
-      layers.push({ ...layer, src } satisfies ImageLayer);
-    } else {
-      layers.push(layer);
-    }
+    const loadedSrcByAsset = new Map<string, string | null>();
+    const loadSource = async (source: string) => {
+      if (!isAssetUri(source)) return source;
+      if (loadedSrcByAsset.has(source)) return loadedSrcByAsset.get(source) ?? source;
+      const loaded = await loadAssetDataUrl(source);
+      loadedSrcByAsset.set(source, loaded);
+      return loaded ?? source;
+    };
+
+    const src = await loadSource(layer.src);
+    const aiGenerationHistory = layer.aiGenerationHistory?.length
+      ? await Promise.all(
+          layer.aiGenerationHistory.map(async (variant) => {
+            const variantSrc = await loadSource(variant.src);
+            return variantSrc === variant.src ? variant : { ...variant, src: variantSrc };
+          }),
+        )
+      : layer.aiGenerationHistory;
+
+    const layerChanged =
+      src !== layer.src ||
+      Boolean(aiGenerationHistory?.some((variant, index) => variant.src !== layer.aiGenerationHistory?.[index]?.src));
+    changed ||= layerChanged;
+    layers.push({ ...layer, src, aiGenerationHistory } satisfies ImageLayer);
   }
 
   return changed ? { ...doc, layers } : doc;

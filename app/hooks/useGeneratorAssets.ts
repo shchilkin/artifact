@@ -53,7 +53,7 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
 export function useGeneratorAssets(
   doc: CanvasDocument,
   onImportImage: (src: string) => void,
-  onStoreImageAsset?: (layerId: string, src: string) => void,
+  onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
   const [dropError, setDropError] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export function useGeneratorAssets(
         saveImageAsset(layer.src)
           .then((assetSrc) => {
             pendingAssetStoresRef.current.delete(layer.src);
-            if (mountedRef.current && assetSrc !== layer.src) onStoreImageAsset(layer.id, assetSrc);
+            if (mountedRef.current && assetSrc !== layer.src) onStoreImageAsset(layer.id, assetSrc, layer.src);
           })
           .catch(() => {
             pendingAssetStoresRef.current.delete(layer.src);

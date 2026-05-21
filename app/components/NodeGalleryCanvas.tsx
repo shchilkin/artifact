@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CanvasDocument, CanvasGraph, ImageLayer, Layer, TextLayer } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
+import { resolveImageSource } from '../utils/assetStore';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../utils/nodeGraph';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
@@ -113,7 +114,12 @@ export function NodeGalleryCanvas({
                 resolve();
               };
               image.onerror = () => resolve();
-              image.src = src;
+              resolveImageSource(src)
+                .then((resolvedSrc) => {
+                  if (resolvedSrc) image.src = resolvedSrc;
+                  else resolve();
+                })
+                .catch(() => resolve());
             }),
         ),
       );

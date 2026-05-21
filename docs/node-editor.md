@@ -86,9 +86,11 @@ normal image layer node named `AI Image`, then the image-node properties panel
 can generate or replace its `src` through the account-gated AI workflow. This is
 not a new serialized layer kind. Generations can attach lightweight
 serializable `aiGeneration` provenance to the image layer so the prompt, current
-job status, and failure reason remain visible with the image/card. Heavy queue
-records, provider responses, blobs, and decoded images stay outside
-`CanvasDocument`.
+job status, and failure reason remain visible with the image/card. Successful
+generated variants can be kept in `aiGenerationHistory` as lightweight image
+source/provenance pairs, and selecting a previous/next variant updates the
+normal image layer `src`. Heavy queue records, provider responses, blobs, and
+decoded images stay outside `CanvasDocument`.
 
 Graph areas/groups live in `CanvasGraph.areas`. They are serializable
 organization metadata for dense workflows; they should help the layer list and

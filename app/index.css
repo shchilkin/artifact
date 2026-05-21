@@ -854,6 +854,19 @@ input[type="range"] {
   animation: ai-status-spin 900ms linear infinite;
 }
 
+.layer-ai-history-count {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
+  border: 1px solid color-mix(in oklch, var(--accent) 34%, var(--border));
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 8px;
+  line-height: 1;
+  padding: 0 5px;
+}
+
 .layer-graph-helper-row {
   display: flex;
   min-height: 30px;
@@ -1115,6 +1128,41 @@ input[type="range"] {
   border: 1px solid var(--border);
   background: color-mix(in oklch, var(--bg) 88%, black);
   padding: 10px 12px;
+}
+
+.ai-generation-history-nav {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--bg) 82%, black);
+}
+
+.ai-generation-history-button {
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ai-generation-history-button:disabled {
+  cursor: default;
+  opacity: 0.32;
+}
+
+.ai-generation-history-count {
+  min-width: 0;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .ai-generation-provenance-loading {

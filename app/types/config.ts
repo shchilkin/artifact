@@ -52,6 +52,11 @@ export interface ImageAiGenerationMetadata {
   errorMessage?: string;
 }
 
+export interface ImageAiGenerationVariant {
+  src: string;
+  aiGeneration: ImageAiGenerationMetadata;
+}
+
 export type ImageAiGenerationStatus =
   | 'queued'
   | 'running'
@@ -65,6 +70,8 @@ export interface ImageLayer extends BaseLayer {
   kind: 'image';
   src: string;
   aiGeneration?: ImageAiGenerationMetadata;
+  aiGenerationHistory?: ImageAiGenerationVariant[];
+  aiGenerationHistoryIndex?: number;
   fit: 'cover' | 'contain' | 'tile' | 'free';
   opacity: number;
   blendMode: string;

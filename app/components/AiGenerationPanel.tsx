@@ -21,12 +21,16 @@ import {
 } from '../utils/aiGenerationStatus';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
+const ASSET_IMPORT_TIMEOUT_MS = 30_000;
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
   generation?: ImageLayer['aiGeneration'];
+  generationHistory?: ImageLayer['aiGenerationHistory'];
+  generationHistoryIndex?: number;
   onGeneratedImageSource: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   onGenerationStateChange?: (generation: NonNullable<ImageLayer['aiGeneration']>) => void;
+  onGenerationHistorySelect?: (index: number) => void;
   submitLabel?: string;
   successMessage?: string;
 }
@@ -179,11 +183,57 @@ function GenerationProvenance({ generation }: { generation: ImageLayer['aiGenera
   );
 }
 
+function GenerationHistoryNavigator({
+  history,
+  index,
+  onSelect,
+}: {
+  history: ImageLayer['aiGenerationHistory'];
+  index?: number;
+  onSelect?: (index: number) => void;
+}) {
+  const count = history?.length ?? 0;
+  if (count <= 1) return null;
+  const currentIndex = Math.min(Math.max(index ?? count - 1, 0), count - 1);
+  const current = history?.[currentIndex];
+  const title = current?.aiGeneration.prompt
+    ? `Image prompt: ${current.aiGeneration.prompt}`
+    : 'Generated image history';
+  return (
+    <div className="ai-generation-history-nav" aria-label="Generated image history">
+      <button
+        type="button"
+        className="ai-generation-history-button"
+        onClick={() => onSelect?.(currentIndex - 1)}
+        disabled={!onSelect || currentIndex <= 0}
+        aria-label="Previous generated image"
+      >
+        ‹
+      </button>
+      <span className="ai-generation-history-count" title={title}>
+        {currentIndex + 1}/{count}
+      </span>
+      <button
+        type="button"
+        className="ai-generation-history-button"
+        onClick={() => onSelect?.(currentIndex + 1)}
+        disabled={!onSelect || currentIndex >= count - 1}
+        aria-label="Next generated image"
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
 export function AiGenerationPanel({
   aspect,
   generation,
+  generationHistory,
+  generationHistoryIndex,
   onGeneratedImageSource,
   onGenerationStateChange,
+  onGenerationHistorySelect,
   submitLabel = 'Generate',
   successMessage = 'Added image layer.',
 }: AiGenerationPanelProps) {
@@ -197,6 +247,7 @@ export function AiGenerationPanel({
   const [message, setMessage] = useState<string | null>(null);
   const importedJobIds = useRef(new Set<string>());
   const getBearerTokenRef = useRef<() => Promise<string | undefined>>(async () => undefined);
+  const onGeneratedImageSourceRef = useRef<AiGenerationPanelProps['onGeneratedImageSource']>(onGeneratedImageSource);
   const onGenerationStateChangeRef = useRef<AiGenerationPanelProps['onGenerationStateChange']>(undefined);
   const auth = useArtifactAuth();
   const {
@@ -222,6 +273,10 @@ export function AiGenerationPanel({
   useEffect(() => {
     getBearerTokenRef.current = getBearerToken;
   }, [getBearerToken]);
+
+  useEffect(() => {
+    onGeneratedImageSourceRef.current = onGeneratedImageSource;
+  }, [onGeneratedImageSource]);
 
   useEffect(() => {
     onGenerationStateChangeRef.current = onGenerationStateChange;
@@ -319,21 +374,38 @@ export function AiGenerationPanel({
       assetId: job.asset?.id ?? null,
       hasAssetUri: Boolean(job.asset?.uri),
     });
+    const controller = new AbortController();
     getBearerToken()
-      .then((bearerToken) => storeAiGeneratedAssetSource(job, { baseUrl, devToken: bearerToken }))
+      .then((bearerToken) =>
+        withTimeout(
+          storeAiGeneratedAssetSource(job, { baseUrl, devToken: bearerToken, signal: controller.signal }),
+          ASSET_IMPORT_TIMEOUT_MS,
+          () => new Error('Generated image import timed out.'),
+        ),
+      )
       .then((src) => {
         logAiPanelDebug('asset_import.success', { jobId: job.id });
-        onGeneratedImageSource(src, generationMetadataFromJob(job));
+        onGeneratedImageSourceRef.current(src, generationMetadataFromJob(job));
         setMessage(successMessage);
       })
       .catch((error) => {
         importedJobIds.current.delete(job.id);
         const message = errorMessage(error);
         logAiPanelDebug('asset_import.failed', { jobId: job.id, message });
+        onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'failed', message));
+        setJob({
+          ...job,
+          status: 'failed',
+          error: { code: 'asset_import_failed', message, retryable: true },
+          completedAt: job.completedAt ?? new Date().toISOString(),
+        });
         setMessage(message);
       })
-      .finally(() => setBusy(false));
-  }, [baseUrl, getBearerToken, job, onGeneratedImageSource, successMessage]);
+      .finally(() => {
+        controller.abort();
+        setBusy(false);
+      });
+  }, [baseUrl, getBearerToken, job, successMessage]);
 
   const handleGenerate = useCallback(() => {
     const trimmed = prompt.trim();
@@ -399,6 +471,11 @@ export function AiGenerationPanel({
             Create Account
           </button>
         )}
+        <GenerationHistoryNavigator
+          history={generationHistory}
+          index={generationHistoryIndex}
+          onSelect={onGenerationHistorySelect}
+        />
         <GenerationProvenance generation={generation} />
       </div>
     );
@@ -406,6 +483,11 @@ export function AiGenerationPanel({
 
   return (
     <div className="ai-generation-panel">
+      <GenerationHistoryNavigator
+        history={generationHistory}
+        index={generationHistoryIndex}
+        onSelect={onGenerationHistorySelect}
+      />
       <GenerationProvenance generation={generation} />
       <textarea
         data-ai-generation-prompt

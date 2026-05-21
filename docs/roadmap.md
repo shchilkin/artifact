@@ -461,6 +461,40 @@ Research and architecture tasks:
   This should reduce preview deploy timeouts and make deploy failures separate
   from image build failures.
 
+Release checklist:
+
+- [ ] Commit the current AI Image node reliability batch: generated variant
+  history, loading/failure states, React Flow measurement stability, and local
+  asset preview fixes.
+- [ ] Run private-alpha QA against the local VPS-shaped stack with real API,
+  Postgres, Redis, worker, BullMQ, Bull Board, and local file storage.
+- [ ] Add explicit AI Image retry/recovery actions and compact job/asset
+  diagnostics in the node properties panel.
+- [ ] Add generated-job and generated-asset cleanup operations plus runbook
+  notes.
+- [ ] Write v0.13 release notes and accepted-risk checklist before tagging.
+
+Private-alpha merge gate:
+
+- [ ] Merge blocker: reliability batch is committed and the full local
+  validation suite passes.
+- [ ] Merge blocker: real local stack QA passes for Clerk login, AI-enabled
+  account access, quota display, first generation, multiple generations in one
+  AI Image node, history traversal, reload, export, provider failure, failed
+  asset import, and quota exhaustion.
+- [ ] Merge blocker: alpha-blocking bugs found in QA are fixed or documented
+  with an accepted workaround that does not risk token spend, export failure,
+  or document corruption.
+- [ ] Merge blocker: minimal retry/recovery and compact job diagnostics exist
+  so a failed generation can be understood without immediately opening logs.
+- [ ] Post-merge follow-up: generated-job cleanup, provider/defaults research,
+  prebuilt container deploys, and final v0.13 release notes can land after the
+  private alpha merge if the blockers above pass.
+
+Estimated effort before deciding whether to merge: 2 focused days in the best
+case, 3 focused days expected, and 4 focused days if auth/session, asset import,
+or worker-state edge cases need another pass.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:

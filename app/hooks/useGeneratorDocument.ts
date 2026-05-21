@@ -230,7 +230,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const addImageFromSource = useCallback(
     (src: string, aiGeneration?: ImageLayer['aiGeneration']) => {
-      const layer = { ...createImageLayerFromSource(src), aiGeneration };
+      const layer = {
+        ...createImageLayerFromSource(src),
+        aiGeneration,
+        ...(aiGeneration ? { aiGenerationHistory: [{ src, aiGeneration }], aiGenerationHistoryIndex: 0 } : {}),
+      };
       updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
@@ -263,8 +267,14 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const storeImageAssetSource = useCallback(
-    (id: string, src: string) => {
-      updateDocument((current) => updateLayerInDocument(current, id, { src } as Partial<Layer>), 'silent');
+    (id: string, src: string, previousSrc: string) => {
+      updateDocument((current) => {
+        const layer = current.layers.find((item): item is ImageLayer => item.id === id && item.kind === 'image');
+        const aiGenerationHistory = layer?.aiGenerationHistory?.map((variant) =>
+          variant.src === previousSrc ? { ...variant, src } : variant,
+        );
+        return updateLayerInDocument(current, id, { src, aiGenerationHistory } as Partial<Layer>);
+      }, 'silent');
     },
     [updateDocument],
   );
