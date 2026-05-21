@@ -10,6 +10,7 @@ services:
     volumes:
       - artifact-postgres-data:/var/lib/postgresql/data
       - ./apps/api/src/db/migrations/001_initial_ai_generation.sql:/docker-entrypoint-initdb.d/001_initial_ai_generation.sql:ro
+      - ./apps/api/src/db/migrations/002_users_email_nullable.sql:/docker-entrypoint-initdb.d/002_users_email_nullable.sql:ro
       - ./apps/api/docker/init/002_local_dev_seed.sql:/docker-entrypoint-initdb.d/002_local_dev_seed.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U artifact -d artifact']

@@ -11,7 +11,7 @@ export type AiGenerationJobStatus = 'queued' | 'running' | 'succeeded' | 'failed
 
 export interface UserRow {
   id: string;
-  email: string;
+  email: string | null;
   role: UserRole;
   ai_enabled: boolean;
   plus_status: PlusStatus;
@@ -101,10 +101,15 @@ export interface AiRateLimitEventRow {
 
 export interface CreateUserInput {
   id: string;
-  email: string;
+  email?: string | null;
   role?: UserRole;
   aiEnabled?: boolean;
   plusStatus?: PlusStatus;
+}
+
+export interface UpsertAuthenticatedUserInput {
+  id: string;
+  email?: string | null;
 }
 
 export interface CreateAiGenerationJobInput {
@@ -152,6 +157,7 @@ export interface UserRepository {
   findById(id: string): Promise<UserRow | null>;
   findByEmail(email: string): Promise<UserRow | null>;
   create(input: CreateUserInput): Promise<UserRow>;
+  upsertFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow>;
   setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow>;
 }
 

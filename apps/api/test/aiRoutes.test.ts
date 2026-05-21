@@ -82,6 +82,29 @@ describe('AI route handlers', () => {
     });
   });
 
+  it('creates a disabled user record for a verified account on access check', async () => {
+    const { deps, store } = createDeps({
+      authenticated: true,
+      user: { id: 'clerk-user-1', email: 'me@example.com' },
+    });
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        authenticated: true,
+        disabledReason: 'not_enabled',
+        enabled: false,
+        user: { id: 'clerk-user-1', email: 'me@example.com' },
+      },
+    });
+    await expect(store.findById('clerk-user-1')).resolves.toMatchObject({
+      id: 'clerk-user-1',
+      email: 'me@example.com',
+      ai_enabled: false,
+      plus_status: 'none',
+    });
+  });
+
   it('returns enabled access state with quota for an AI-enabled user', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });

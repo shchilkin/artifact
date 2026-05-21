@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/server.ts",
+    "grant:ai": "node scripts/grant-ai-access.mjs",
+    "migrate": "node scripts/migrate.mjs",
     "smoke": "node scripts/smoke.mjs",
     "worker:dev": "tsx src/worker.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",

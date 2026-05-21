@@ -68,14 +68,22 @@ Vercel web origin that requests Clerk tokens, for example
 
 Clerk sign-in only identifies the browser user. AI generation still requires a
 matching `users.id` row with `ai_enabled=true`; use the Clerk `userId` as the
-database id when granting private alpha access.
+database id when granting private alpha access. The API creates or refreshes a
+disabled `users` row automatically after a session verifies, so granting access
+is a separate operator step:
+
+```bash
+npm --prefix apps/api run grant:ai -- user_xxx user@example.com
+```
+
+The email argument is optional; the Clerk user id is the durable key.
 
 ## Database Bootstrap
 
 Apply migrations before starting the API or worker:
 
 ```bash
-psql "$DATABASE_URL" -f apps/api/src/db/migrations/001_initial_ai_generation.sql
+npm --prefix apps/api run migrate
 ```
 
 For local Compose only, `docker-compose.local.yml` mounts the migration and

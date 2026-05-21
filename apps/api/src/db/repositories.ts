@@ -6,18 +6,20 @@ import type {
   CreateAssetInput,
   JsonObject,
   UpsertAiUsageMonthlyInput,
+  UpsertAuthenticatedUserInput,
   UserRow,
 } from './types.js';
 
 export interface ApiRepositories {
-  users: UserReadRepository;
+  users: UserReadWriteRepository;
   jobs: JobReadWriteRepository;
   assets: AssetReadWriteRepository;
   usage: UsageReadWriteRepository;
 }
 
-export interface UserReadRepository {
+export interface UserReadWriteRepository {
   findById(id: string): Promise<UserRow | null>;
+  upsertFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow>;
 }
 
 export interface JobReadWriteRepository {

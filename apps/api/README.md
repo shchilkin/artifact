@@ -46,6 +46,9 @@ Implemented:
 - HS256 JWT bearer verification with optional issuer/audience checks, plus
   dev bearer-token fallback.
 - Clerk bearer-token verification with `CLERK_SECRET_KEY` or `CLERK_JWT_KEY`.
+- First-login user provisioning with AI disabled by default, plus
+  `npm --prefix apps/api run grant:ai -- <clerk-user-id> [email]` for private
+  alpha entitlement.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.

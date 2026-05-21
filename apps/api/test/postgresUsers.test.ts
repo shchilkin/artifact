@@ -63,6 +63,31 @@ describe('PostgresUserRepository', () => {
     expect(client.calls[0]?.sql).toContain('RETURNING');
   });
 
+  it('upserts authenticated users without changing entitlements', async () => {
+    const existing = { ...user, email: 'new@example.com', ai_enabled: true, plus_status: 'active' };
+    const client = new FakeQueryClient([[existing]]);
+    const repository = new PostgresUserRepository(client);
+
+    await expect(repository.upsertFromAuth({ id: 'user-1', email: 'new@example.com' })).resolves.toEqual(existing);
+
+    expect(client.calls[0]?.values).toEqual(['user-1', 'new@example.com']);
+    expect(client.calls[0]?.sql).toContain('ON CONFLICT (id) DO UPDATE');
+    expect(client.calls[0]?.sql).toContain('COALESCE(EXCLUDED.email, users.email)');
+    expect(client.calls[0]?.sql).not.toContain('ai_enabled =');
+  });
+
+  it('can upsert authenticated users before email is known', async () => {
+    const client = new FakeQueryClient([[{ ...user, email: null, ai_enabled: false }]]);
+    const repository = new PostgresUserRepository(client);
+
+    await expect(repository.upsertFromAuth({ id: 'user-1' })).resolves.toMatchObject({
+      email: null,
+      ai_enabled: false,
+    });
+
+    expect(client.calls[0]?.values).toEqual(['user-1', null]);
+  });
+
   it('updates ai access and throws when the user is missing', async () => {
     const client = new FakeQueryClient([[{ ...user, ai_enabled: false }], []]);
     const repository = new PostgresUserRepository(client);

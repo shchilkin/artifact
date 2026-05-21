@@ -74,7 +74,7 @@ export async function handleAccessRequest(
   deps: AiRouteDeps,
 ): Promise<JsonResponse<AiAccessResponse>> {
   const auth = await deps.resolveAuth(request);
-  const user = auth.authenticated ? await deps.repositories.users.findById(auth.user.id) : null;
+  const user = auth.authenticated ? await ensureAuthenticatedUser(auth, deps) : null;
   logInfo('ai_generation.access_checked', {
     authenticated: auth.authenticated,
     reason: auth.authenticated ? undefined : auth.reason,
@@ -112,7 +112,7 @@ export async function handleCreateGenerationRequest(
     return errorJson(401, 'unauthenticated', 'Sign in before generating images.');
   }
 
-  const user = await deps.repositories.users.findById(auth.user.id);
+  const user = await ensureAuthenticatedUser(auth, deps);
   if (!user?.ai_enabled || user.disabled_at) {
     logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
     return errorJson(403, 'not_enabled', 'AI generation is not enabled for this user.');
@@ -201,6 +201,16 @@ export async function handleCreateGenerationRequest(
       createQuotaSnapshot(quotaCheck.quota.period, deps.monthlyGenerationLimit, quotaCheck.quota.used + 1),
     ),
   );
+}
+
+async function ensureAuthenticatedUser(
+  auth: Extract<RequestUserResolution, { authenticated: true }>,
+  deps: AiRouteDeps,
+) {
+  return deps.repositories.users.upsertFromAuth({
+    id: auth.user.id,
+    email: auth.user.email ?? null,
+  });
 }
 
 export async function handleGetGenerationRequest(

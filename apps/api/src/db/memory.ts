@@ -7,6 +7,7 @@ import type {
   CreateAssetInput,
   CreateUserInput,
   JsonObject,
+  UpsertAuthenticatedUserInput,
   UserRow,
 } from './types.js';
 
@@ -22,7 +23,7 @@ export class InMemoryApiStore {
     const now = new Date();
     const row: UserRow = {
       id: input.id,
-      email: input.email,
+      email: input.email ?? null,
       role: input.role ?? 'user',
       ai_enabled: input.aiEnabled ?? false,
       plus_status: input.plusStatus ?? 'none',
@@ -45,6 +46,33 @@ export class InMemoryApiStore {
   async createUser(input: CreateUserInput): Promise<UserRow> {
     if (this.users.has(input.id)) throw new Error(`User already exists: ${input.id}`);
     return this.seedUser(input);
+  }
+
+  async upsertUserFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow> {
+    const existing = this.users.get(input.id);
+    const now = new Date();
+    if (existing) {
+      const updated: UserRow = {
+        ...existing,
+        email: input.email ?? existing.email,
+        updated_at: now,
+      };
+      this.users.set(input.id, updated);
+      return updated;
+    }
+
+    const row: UserRow = {
+      id: input.id,
+      email: input.email ?? null,
+      role: 'user',
+      ai_enabled: false,
+      plus_status: 'none',
+      created_at: now,
+      updated_at: now,
+      disabled_at: null,
+    };
+    this.users.set(row.id, row);
+    return row;
   }
 
   async setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow> {
@@ -201,6 +229,7 @@ export class InMemoryApiStore {
     return {
       users: {
         findById: (id) => this.findById(id),
+        upsertFromAuth: (input) => this.upsertUserFromAuth(input),
       },
       jobs: {
         create: (input) => this.createGenerationJob(input),

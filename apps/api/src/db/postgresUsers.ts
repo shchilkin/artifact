@@ -1,4 +1,4 @@
-import type { CreateUserInput, UserRepository, UserRow } from './types.js';
+import type { CreateUserInput, UpsertAuthenticatedUserInput, UserRepository, UserRow } from './types.js';
 
 export interface PostgresQueryClient {
   query<Row>(sql: string, values?: readonly unknown[]): Promise<{ rows: Row[] }>;
@@ -52,6 +52,21 @@ export class PostgresUserRepository implements UserRepository {
       [input.id, input.email, input.role ?? 'user', input.aiEnabled ?? false, input.plusStatus ?? 'none'],
     );
     return requireSingleRow(result.rows, `User was not created: ${input.id}`);
+  }
+
+  async upsertFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow> {
+    const result = await this.client.query<UserRow>(
+      `
+        INSERT INTO users (id, email, role, ai_enabled, plus_status)
+        VALUES ($1, $2, 'user', false, 'none')
+        ON CONFLICT (id) DO UPDATE
+        SET email = COALESCE(EXCLUDED.email, users.email),
+            updated_at = now()
+        RETURNING ${userColumns}
+      `,
+      [input.id, input.email ?? null],
+    );
+    return requireSingleRow(result.rows, `User was not upserted from auth: ${input.id}`);
   }
 
   async setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow> {

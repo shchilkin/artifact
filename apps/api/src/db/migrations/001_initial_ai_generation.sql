@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS users (
   id text PRIMARY KEY,
-  email text UNIQUE NOT NULL,
+  email text UNIQUE NULL,
   role text NOT NULL DEFAULT 'user',
   ai_enabled boolean NOT NULL DEFAULT false,
   plus_status text NOT NULL DEFAULT 'none',
