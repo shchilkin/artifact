@@ -43,12 +43,16 @@ function jobIsActive(job: AiGenerationJob | null) {
 
 function errorMessage(error: unknown) {
   if (error instanceof AiGenerationApiError) return error.message;
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return 'AI API is not reachable. Start the local API server and try again.';
+  }
   if (error instanceof Error) return error.message;
   return 'Generation failed.';
 }
 
 function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
   if (reason === 'anonymous') return 'Account required.';
+  if (reason === 'invalid_session') return 'Account session could not be verified.';
   if (reason === 'not_enabled') return 'AI access is not enabled for this account.';
   if (reason === 'quota_exhausted') return 'Monthly AI quota used.';
   if (reason === 'maintenance') return 'AI generation is temporarily unavailable.';
@@ -57,6 +61,7 @@ function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason']
 
 function disabledReasonTitle(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
   if (reason === 'anonymous') return 'Account required for AI';
+  if (reason === 'invalid_session') return 'Account verification failed';
   if (reason === 'not_enabled') return 'AI access is not enabled';
   if (reason === 'quota_exhausted') return 'Monthly AI quota used';
   if (reason === 'maintenance') return 'AI generation is paused';
@@ -65,6 +70,8 @@ function disabledReasonTitle(reason: AiGenerationAccessState['disabledReason'] |
 
 function disabledReasonBody(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
   if (reason === 'anonymous') return 'This feature uses AI. To use AI features, create an account.';
+  if (reason === 'invalid_session')
+    return 'The API could not verify this browser session. Sign out, sign in, and try again.';
   if (reason === 'not_enabled') return 'Your account needs AI access before it can create images.';
   if (reason === 'quota_exhausted') return 'Your monthly generation limit is used for this account.';
   if (reason === 'maintenance') return 'Generation is temporarily unavailable while the service is being maintained.';
@@ -81,6 +88,29 @@ function generationMetadataFromJob(job: AiGenerationJob): NonNullable<ImageLayer
     assetId: job.asset?.id,
     createdAt: job.completedAt ?? job.asset?.createdAt ?? job.createdAt,
   };
+}
+
+function tokenTimeoutError() {
+  return new AiGenerationApiError(
+    'Could not read account session token. Refresh and sign in again.',
+    0,
+    'token_timeout',
+  );
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, createError: () => Error): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(createError()), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  });
+}
+
+function logAiPanelDebug(event: string, fields: Record<string, boolean | number | string | null | undefined> = {}) {
+  const env = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
+  if (env?.DEV) console.info('[ai-generation]', event, fields);
 }
 
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
@@ -124,23 +154,39 @@ export function AiGenerationPanel({
   const getBearerToken = useCallback(async () => {
     if (devToken) return devToken;
     if (!authSignedIn) return undefined;
-    return (await getAuthToken()) ?? undefined;
+    return (await withTimeout(getAuthToken(), 8_000, tokenTimeoutError)) ?? undefined;
   }, [authSignedIn, devToken, getAuthToken]);
 
   useEffect(() => {
     if (authConfigured && !authLoaded && !devToken) return;
     const controller = new AbortController();
+    logAiPanelDebug('access_check.start', {
+      authConfigured,
+      authLoaded,
+      authSignedIn,
+      hasDevToken: Boolean(devToken),
+      baseUrl: baseUrl ?? null,
+    });
     getBearerToken()
       .then((bearerToken) => getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal }))
       .then((next) => {
         if (!controller.signal.aborted) {
+          logAiPanelDebug('access_check.success', {
+            authenticated: next.authenticated,
+            enabled: next.enabled,
+            disabledReason: next.disabledReason ?? null,
+          });
           setAccess(next);
           setAccessError(null);
           if (next.providers?.[0]) setProvider(next.providers[0]);
         }
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setAccessError(errorMessage(error));
+        if (!controller.signal.aborted) {
+          const message = errorMessage(error);
+          logAiPanelDebug('access_check.failed', { message });
+          setAccessError(message);
+        }
       });
     return () => controller.abort();
   }, [authConfigured, authLoaded, authSignedIn, baseUrl, devToken, getBearerToken]);
@@ -203,7 +249,13 @@ export function AiGenerationPanel({
 
   const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
-  const accessBlockReason = accessError ? accessError : access?.enabled ? null : access?.disabledReason;
+  const accessBlockReason = accessError
+    ? accessError
+    : access?.enabled
+      ? null
+      : authSignedIn && access?.authenticated === false
+        ? 'invalid_session'
+        : access?.disabledReason;
 
   if (!access?.enabled) {
     return (
@@ -213,7 +265,9 @@ export function AiGenerationPanel({
           <p>
             {access
               ? disabledReasonBody(accessBlockReason)
-              : 'Generation controls will appear when this browser has AI access.'}
+              : authSignedIn
+                ? 'Signed in. Checking the AI API and account access.'
+                : 'Generation controls will appear when this browser has AI access.'}
           </p>
         </div>
         {accessBlockReason === 'anonymous' && authConfigured && (
