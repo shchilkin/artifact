@@ -6,10 +6,12 @@ import type {
   EffectLayer,
   EffectPreset,
   GraphArea,
+  ImageLayer,
   Layer,
   LayerKind,
 } from '../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../types/config';
+import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../utils/aiGenerationStatus';
 import { getLayerAreaMap } from '../utils/layerAreas';
 import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 
@@ -84,6 +86,8 @@ const LayerRow = memo(function LayerRow({
   onDuplicateLayer,
   onRemoveLayer,
 }: LayerRowProps) {
+  const aiState = layer.kind === 'image' ? getAiGenerationUiState(layer.aiGeneration) : 'idle';
+  const aiStatusLabel = layer.kind === 'image' ? getAiGenerationStatusLabel((layer as ImageLayer).aiGeneration) : null;
   return (
     <div
       draggable
@@ -138,6 +142,12 @@ const LayerRow = memo(function LayerRow({
       ) : (
         <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
           {layer.name}
+        </span>
+      )}
+      {aiState !== 'idle' && aiState !== 'done' && aiStatusLabel && (
+        <span className={`layer-ai-status layer-ai-status-${aiState}`} title={aiStatusLabel}>
+          {aiState === 'loading' && <span className="layer-ai-status-spinner" aria-hidden="true" />}
+          {aiStatusLabel}
         </span>
       )}
       {areas.length > 0 && !nested && (

@@ -43,10 +43,23 @@ export interface ImageAiGenerationMetadata {
   provider?: string;
   model?: string;
   quality?: string;
+  status?: ImageAiGenerationStatus;
   jobId?: string;
   assetId?: string;
   createdAt?: string;
+  updatedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
 }
+
+export type ImageAiGenerationStatus =
+  | 'queued'
+  | 'running'
+  | 'importing'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'expired';
 
 export interface ImageLayer extends BaseLayer {
   kind: 'image';

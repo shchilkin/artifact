@@ -6,7 +6,7 @@ import type {
   AiGenerationProvider,
   AiGenerationQuality,
 } from '../types/aiGeneration';
-import type { AspectRatio, ImageLayer } from '../types/config';
+import type { AspectRatio, ImageAiGenerationStatus, ImageLayer } from '../types/config';
 import { storeAiGeneratedAssetSource } from '../utils/aiGeneratedAssetImport';
 import {
   AiGenerationApiError,
@@ -14,6 +14,11 @@ import {
   getAiGenerationAccess,
   getAiGenerationJob,
 } from '../utils/aiGenerationClient';
+import {
+  getAiGenerationStatusDetail,
+  getAiGenerationStatusLabel,
+  getAiGenerationUiState,
+} from '../utils/aiGenerationStatus';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 
@@ -21,6 +26,7 @@ export interface AiGenerationPanelProps {
   aspect: AspectRatio;
   generation?: ImageLayer['aiGeneration'];
   onGeneratedImageSource: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
+  onGenerationStateChange?: (generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   submitLabel?: string;
   successMessage?: string;
 }
@@ -78,15 +84,23 @@ function disabledReasonBody(reason: AiGenerationAccessState['disabledReason'] | 
   return disabledReasonMessage(reason) ?? 'Generation is not available right now.';
 }
 
-function generationMetadataFromJob(job: AiGenerationJob): NonNullable<ImageLayer['aiGeneration']> {
+function generationMetadataFromJob(
+  job: AiGenerationJob,
+  status: ImageAiGenerationStatus = job.status,
+  errorMessage = job.error?.message,
+): NonNullable<ImageLayer['aiGeneration']> {
   return {
     prompt: job.prompt,
     provider: job.provider,
     model: job.model,
     quality: job.settings.quality,
+    status,
     jobId: job.id,
     assetId: job.asset?.id,
     createdAt: job.completedAt ?? job.asset?.createdAt ?? job.createdAt,
+    updatedAt: job.completedAt ?? new Date().toISOString(),
+    errorCode: job.error?.code,
+    errorMessage,
   };
 }
 
@@ -153,10 +167,14 @@ function logBearerTokenClaims(token: string | undefined) {
 
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
   if (!generation?.prompt) return null;
+  const state = getAiGenerationUiState(generation);
+  const label = getAiGenerationStatusLabel(generation);
+  const detail = getAiGenerationStatusDetail(generation);
   return (
-    <div className="ai-generation-provenance">
-      <span>Current image prompt</span>
+    <div className={`ai-generation-provenance ai-generation-provenance-${state}`}>
+      <span>{label && state !== 'done' ? label : 'Current image prompt'}</span>
       <p>{generation.prompt}</p>
+      {state === 'failed' && detail && <p>{detail}</p>}
     </div>
   );
 }
@@ -165,6 +183,7 @@ export function AiGenerationPanel({
   aspect,
   generation,
   onGeneratedImageSource,
+  onGenerationStateChange,
   submitLabel = 'Generate',
   successMessage = 'Added image layer.',
 }: AiGenerationPanelProps) {
@@ -178,6 +197,7 @@ export function AiGenerationPanel({
   const [message, setMessage] = useState<string | null>(null);
   const importedJobIds = useRef(new Set<string>());
   const getBearerTokenRef = useRef<() => Promise<string | undefined>>(async () => undefined);
+  const onGenerationStateChangeRef = useRef<AiGenerationPanelProps['onGenerationStateChange']>(undefined);
   const auth = useArtifactAuth();
   const {
     configured: authConfigured,
@@ -202,6 +222,10 @@ export function AiGenerationPanel({
   useEffect(() => {
     getBearerTokenRef.current = getBearerToken;
   }, [getBearerToken]);
+
+  useEffect(() => {
+    onGenerationStateChangeRef.current = onGenerationStateChange;
+  }, [onGenerationStateChange]);
 
   useEffect(() => {
     if (authConfigured && !authLoaded && !devToken) return;
@@ -265,6 +289,7 @@ export function AiGenerationPanel({
               status: nextJob.status,
               hasAsset: Boolean(nextJob.asset?.uri),
             });
+            onGenerationStateChangeRef.current?.(generationMetadataFromJob(nextJob));
             setJob(nextJob);
             if (jobIsActive(nextJob)) schedulePoll();
           })
@@ -288,6 +313,7 @@ export function AiGenerationPanel({
     if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
     importedJobIds.current.add(job.id);
     setBusy(true);
+    onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'importing'));
     logAiPanelDebug('asset_import.start', {
       jobId: job.id,
       assetId: job.asset?.id ?? null,
@@ -326,10 +352,24 @@ export function AiGenerationPanel({
           { baseUrl, bearerToken },
         ),
       )
-      .then(setJob)
-      .catch((error) => setMessage(errorMessage(error)))
+      .then((nextJob) => {
+        onGenerationStateChange?.(generationMetadataFromJob(nextJob));
+        setJob(nextJob);
+      })
+      .catch((error) => {
+        const message = errorMessage(error);
+        onGenerationStateChange?.({
+          prompt: trimmed,
+          provider,
+          quality,
+          status: 'failed',
+          updatedAt: new Date().toISOString(),
+          errorMessage: message,
+        });
+        setMessage(message);
+      })
       .finally(() => setBusy(false));
-  }, [access?.enabled, aspect, baseUrl, getBearerToken, prompt, provider, quality]);
+  }, [access?.enabled, aspect, baseUrl, getBearerToken, onGenerationStateChange, prompt, provider, quality]);
 
   const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);

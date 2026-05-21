@@ -1,5 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { ImageLayer } from '../../../types/config';
+import {
+  getAiGenerationStatusDetail,
+  getAiGenerationStatusLabel,
+  getAiGenerationUiState,
+} from '../../../utils/aiGenerationStatus';
 import { resolveImageSource } from '../../../utils/assetStore';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { isGalleryEligibleLayer, stopNodeEvent, stopNodeGestureEvent } from '../helpers';
@@ -19,6 +25,20 @@ type LayerPreviewSurfaceProps = Pick<
   onTransformCommit?: () => void;
   onTransformWheelDelta?: (deltaY: number) => void;
 };
+
+function AiGenerationPreviewOverlay({ generation }: { generation: ImageLayer['aiGeneration'] }) {
+  const state = getAiGenerationUiState(generation);
+  if (state === 'idle' || state === 'done') return null;
+  const label = getAiGenerationStatusLabel(generation) ?? 'Generating';
+  const detail = getAiGenerationStatusDetail(generation);
+  return (
+    <div className={`node-ai-status-overlay node-ai-status-${state}`} role="status" aria-live="polite">
+      {state === 'loading' && <span className="node-ai-status-spinner" aria-hidden="true" />}
+      <span className="node-ai-status-label">{label}</span>
+      {detail && <span className="node-ai-status-detail">{detail}</span>}
+    </div>
+  );
+}
 
 function DragTransformOverlay({
   layer,
@@ -281,6 +301,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
           ) : (
             <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
           )}
+          {layer.kind === 'image' && <AiGenerationPreviewOverlay generation={layer.aiGeneration} />}
           {isDraggable && selected && (
             <DragTransformOverlay
               layer={layer}

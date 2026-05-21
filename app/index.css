@@ -30,6 +30,7 @@
   --text-dim: oklch(50% 0.018 68);
   --accent: oklch(66% 0.16 28);
   --accent-dim: oklch(66% 0.16 28 / 0.15);
+  --danger: oklch(66% 0.18 28);
   --node-kind-fill: oklch(69% 0.12 42);
   --node-kind-image: oklch(74% 0.08 78);
   --node-kind-text: oklch(80% 0.05 92);
@@ -49,6 +50,12 @@
   --display: "Barlow Condensed", sans-serif;
   --sidebar-w: 260px;
   --touch: 44px;
+}
+
+@keyframes ai-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .checkerboard-surface {
@@ -812,6 +819,41 @@ input[type="range"] {
   border-bottom: 0;
 }
 
+.layer-ai-status {
+  display: inline-flex;
+  max-width: 86px;
+  min-height: 18px;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--accent) 38%, var(--border));
+  color: var(--accent);
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.layer-ai-status-failed {
+  border-color: color-mix(in oklch, var(--danger) 52%, var(--border));
+  color: var(--danger);
+}
+
+.layer-ai-status-spinner {
+  width: 9px;
+  height: 9px;
+  border: 1px solid color-mix(in oklch, var(--accent) 24%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  flex-shrink: 0;
+  animation: ai-status-spin 900ms linear infinite;
+}
+
 .layer-graph-helper-row {
   display: flex;
   min-height: 30px;
@@ -1073,6 +1115,20 @@ input[type="range"] {
   border: 1px solid var(--border);
   background: color-mix(in oklch, var(--bg) 88%, black);
   padding: 10px 12px;
+}
+
+.ai-generation-provenance-loading {
+  border-color: color-mix(in oklch, var(--accent) 45%, var(--border));
+  background: color-mix(in oklch, var(--accent) 7%, var(--bg));
+}
+
+.ai-generation-provenance-failed {
+  border-color: color-mix(in oklch, var(--danger) 50%, var(--border));
+  background: color-mix(in oklch, var(--danger) 8%, var(--bg));
+}
+
+.ai-generation-provenance-failed span {
+  color: var(--danger);
 }
 
 .ai-generation-panel textarea,

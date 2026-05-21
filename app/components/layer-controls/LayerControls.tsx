@@ -16,6 +16,11 @@ import {
   type SourceLayer,
   type TextLayer,
 } from '../../types/config';
+import {
+  getAiGenerationStatusDetail,
+  getAiGenerationStatusLabel,
+  getAiGenerationUiState,
+} from '../../utils/aiGenerationStatus';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
@@ -68,10 +73,14 @@ function sourceColorLabels(layer: SourceLayer): { primary: string; secondary: st
 
 function ImageGenerationProvenance({ layer }: { layer: ImageLayer }) {
   if (!layer.aiGeneration?.prompt) return null;
+  const state = getAiGenerationUiState(layer.aiGeneration);
+  const label = getAiGenerationStatusLabel(layer.aiGeneration);
+  const detail = getAiGenerationStatusDetail(layer.aiGeneration);
   return (
-    <div className="ai-generation-provenance">
-      <span>Current image prompt</span>
+    <div className={`ai-generation-provenance ai-generation-provenance-${state}`}>
+      <span>{label && state !== 'done' ? label : 'Current image prompt'}</span>
       <p>{layer.aiGeneration.prompt}</p>
+      {state === 'failed' && detail && <p>{detail}</p>}
     </div>
   );
 }

@@ -20,6 +20,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
+| AI generation provenance | `ImageLayer.aiGeneration` | Yes, lightweight prompt/job status only | Yes when attached to a layer | No until `src` changes | UI status only until `src` changes |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 
 ## Durable document state

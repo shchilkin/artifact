@@ -46,6 +46,36 @@ const layeredFillDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const aiRunningLayerDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-running-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: '',
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'loading cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'running',
+        jobId: 'browser-ai-running-layer-job',
+      },
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const graphPreviewDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 9, aspect: '1:1' },
@@ -379,6 +409,13 @@ test.beforeEach(async ({ page }) => {
     });
   });
   page.on('console', (message) => {
+    if (
+      message.type() === 'error' &&
+      /clerk\.accounts\.dev/.test(message.text()) &&
+      /Failed to fetch/.test(message.text())
+    ) {
+      return;
+    }
     if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
     if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
       issues.push(`${message.type()}: ${message.text()}`);
@@ -695,6 +732,21 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
   await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
   await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI image node shows generation progress on the node surface', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Generating', { timeout: 15_000 });
+});
+
+test('AI generation state is visible in the layer list', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+
+  const row = page.locator('.layer-row').filter({ hasText: 'AI Image' }).first();
+  await expect(row.locator('.layer-ai-status')).toContainText('Generating', { timeout: 15_000 });
 });
 
 test('AI-enabled user can generate an image and keep prompt provenance after reload', async ({ page }) => {
