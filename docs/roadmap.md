@@ -92,6 +92,10 @@ These make the product easier to understand and market:
 These likely need a VPS/backend, database, object storage, auth, or billing:
 
 - Accounts.
+- CI-built container images for VPS/Coolify deploys: build and tag service
+  images in GitHub PR/CI, push them to a registry, then make the VPS deploy pull
+  already-built images instead of running long multi-service Docker builds on
+  the deploy host.
 - Server-side project saving.
 - Server-backed share links.
 - Preset database and community preset browsing.
@@ -451,6 +455,11 @@ Research and architecture tasks:
   save/share hydrates available local bytes into portable data URLs.
 - [ ] Prototype a minimal Image Generation node only after the storage and
   generation-job model are clear.
+- [ ] Add a deploy hardening pass for VPS services: build API/worker/Bull Board
+  containers in GitHub PR/CI, publish immutable image tags, and configure the
+  VPS/Coolify deploy step to run those images instead of rebuilding on the VPS.
+  This should reduce preview deploy timeouts and make deploy failures separate
+  from image build failures.
 
 ### Experimental Track
 
