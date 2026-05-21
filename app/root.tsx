@@ -3,6 +3,7 @@ import type { MetaFunction } from 'react-router';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 import './index.css';
+import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
 import { ALL_EMOJIS } from './types/config';
 import { logAppBuildInfo } from './utils/appBuildInfo';
 
@@ -101,7 +102,11 @@ export default function Root() {
     logAppBuildInfo();
   }, []);
 
-  return <Outlet />;
+  return (
+    <ArtifactAuthProvider>
+      <Outlet />
+    </ArtifactAuthProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

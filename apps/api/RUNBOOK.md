@@ -38,6 +38,9 @@ AUTH_JWT_SECRET=change-me-long-random-secret
 AUTH_JWT_ISSUER=
 AUTH_JWT_AUDIENCE=
 API_DEV_BEARER_TOKEN=
+CLERK_SECRET_KEY=
+CLERK_JWT_KEY=
+CLERK_AUTHORIZED_PARTIES=https://your-vercel-domain.example
 
 API_BULL_BOARD_ENABLED=false
 
@@ -54,8 +57,18 @@ AI_MAX_ACTIVE_JOBS_PER_USER=1
 ```
 
 Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
-prefer real bearer tokens verified by `AUTH_JWT_SECRET` and optional issuer /
-audience checks.
+prefer Clerk session tokens or real bearer tokens verified by `AUTH_JWT_SECRET`
+and optional issuer / audience checks.
+
+For Clerk-backed browser auth, set `VITE_CLERK_PUBLISHABLE_KEY` in the root
+`.env` and set either `CLERK_SECRET_KEY` or `CLERK_JWT_KEY` in
+`apps/api/.env`. `CLERK_AUTHORIZED_PARTIES` should include the exact local or
+Vercel web origin that requests Clerk tokens, for example
+`http://localhost:5173` locally and the production Vercel origin on the VPS.
+
+Clerk sign-in only identifies the browser user. AI generation still requires a
+matching `users.id` row with `ai_enabled=true`; use the Clerk `userId` as the
+database id when granting private alpha access.
 
 ## Database Bootstrap
 
@@ -210,6 +223,12 @@ npm run dev:ai:api
 npm run dev:ai:worker
 npm run dev:ai:web
 ```
+
+The Compose database is initialized with the v0.13 migration and a local
+`dev-user` with AI access. The root `.env` can expose
+`VITE_AI_API_DEV_TOKEN=dev-token` so the browser calls the local API as that
+seeded user without signing in. Leave that Vite dev token empty to test the
+Clerk sign-in flow instead.
 
 Stop local infrastructure:
 

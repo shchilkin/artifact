@@ -45,6 +45,7 @@ Implemented:
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
 - HS256 JWT bearer verification with optional issuer/audience checks, plus
   dev bearer-token fallback.
+- Clerk bearer-token verification with `CLERK_SECRET_KEY` or `CLERK_JWT_KEY`.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
@@ -93,6 +94,10 @@ Compose database is
 initialized with the v0.13 migration and a local `dev-user` with AI access. The
 root `.env` exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
 the local API as that seeded user.
+
+To test real browser sign-in instead, leave `VITE_AI_API_DEV_TOKEN` empty, set
+`VITE_CLERK_PUBLISHABLE_KEY` in the root `.env`, and configure either
+`CLERK_SECRET_KEY` or `CLERK_JWT_KEY` in `apps/api/.env`.
 
 The API server and worker load `apps/api/.env` and `apps/api/.env.local`
 automatically. Shell-provided environment variables still take precedence, so

@@ -1047,6 +1047,26 @@ input[type="range"] {
   overflow-wrap: anywhere;
 }
 
+.ai-generation-access-action,
+.site-nav-account {
+  border: 1px solid color-mix(in oklch, var(--accent) 52%, var(--border));
+  background: var(--accent-dim);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  min-height: 34px;
+  padding: 0 12px;
+  text-transform: uppercase;
+}
+
+.ai-generation-access-action:disabled,
+.site-nav-account:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .ai-generation-provenance {
   display: grid;
   gap: 7px;

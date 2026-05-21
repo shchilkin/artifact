@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router';
+import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
 
 const LINKS = [
@@ -16,6 +17,18 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState(false);
+  const auth = useArtifactAuth();
+
+  const accountButton = auth.configured ? (
+    <button
+      type="button"
+      className="site-nav-account"
+      onClick={auth.signedIn ? () => void auth.signOut() : auth.openSignIn}
+      disabled={!auth.loaded}
+    >
+      {auth.loaded ? (auth.signedIn ? 'Sign Out' : 'Sign In') : 'Account'}
+    </button>
+  ) : null;
 
   return (
     <>
@@ -55,6 +68,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
             >
               GitHub ↗
             </a>
+            {accountButton}
           </div>
         )}
 
@@ -118,6 +132,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
             >
               GitHub ↗
             </a>
+            {accountButton}
           </motion.div>
         )}
       </AnimatePresence>

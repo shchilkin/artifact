@@ -23,6 +23,7 @@ export class AiGenerationApiError extends Error {
 export interface AiGenerationClientOptions {
   baseUrl?: string;
   devToken?: string;
+  bearerToken?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 }
@@ -95,12 +96,13 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 
 async function requestJson(path: string, init: RequestInit, options: AiGenerationClientOptions): Promise<unknown> {
   const fetcher = options.fetcher ?? fetch;
+  const token = options.bearerToken ?? options.devToken;
   const response = await fetcher(endpoint(options.baseUrl, path), {
     credentials: 'include',
     ...init,
     headers: {
       'content-type': 'application/json',
-      ...(options.devToken ? { authorization: `Bearer ${options.devToken}` } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
     signal: options.signal,

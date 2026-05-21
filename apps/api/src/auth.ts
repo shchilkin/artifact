@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { verifyToken } from '@clerk/backend';
 import type { AiAccessResponse, AiProvider, AiQuotaSnapshot } from './contracts.js';
 
 export interface RequestUser {
@@ -40,6 +41,12 @@ export interface JwtVerifierOptions {
   issuer?: string;
   audience?: string;
   now?: () => Date;
+}
+
+export interface ClerkBearerVerifierOptions {
+  secretKey?: string;
+  jwtKey?: string;
+  authorizedParties?: string[];
 }
 
 interface JwtClaims {
@@ -110,6 +117,30 @@ export async function resolveRequestUser(
 
 export function createJwtBearerVerifier(options: JwtVerifierOptions) {
   return async (token: string): Promise<RequestUser | null> => verifySignedBearerToken(token, options);
+}
+
+export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
+  return async (token: string): Promise<RequestUser | null> => {
+    if (!options.secretKey && !options.jwtKey) return null;
+    const result = await verifyToken(token, {
+      secretKey: options.secretKey,
+      jwtKey: options.jwtKey,
+      authorizedParties: options.authorizedParties?.filter(Boolean),
+    });
+    if (result.errors) return null;
+
+    const payload = result.data;
+    if (!payload || typeof payload !== 'object') return null;
+
+    const claims = payload as Record<string, unknown>;
+    const { sub, email, role } = claims;
+    if (typeof sub !== 'string' || !sub) return null;
+    return {
+      id: sub,
+      email: typeof email === 'string' ? email : undefined,
+      role: typeof role === 'string' ? role : undefined,
+    };
+  };
 }
 
 export function verifySignedBearerToken(token: string, options: JwtVerifierOptions): RequestUser | null {

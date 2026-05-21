@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
+import { createClerkBearerVerifier, createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { createBullBoardHandler } from './bullBoard.js';
 import { loadConfig } from './config.js';
 import { InMemoryApiStore } from './db/memory.js';
@@ -45,6 +45,11 @@ const verifyJwtBearerToken = createJwtBearerVerifier({
   issuer: config.authJwtIssuer,
   audience: config.authJwtAudience,
 });
+const verifyClerkBearerToken = createClerkBearerVerifier({
+  secretKey: config.clerkSecretKey,
+  jwtKey: config.clerkJwtKey,
+  authorizedParties: config.clerkAuthorizedParties,
+});
 
 if (config.devBearerToken && store) {
   store.seedUser({
@@ -78,7 +83,7 @@ const server = createServer(async (req, res) => {
           if (config.devBearerToken && token === config.devBearerToken) {
             return { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' };
           }
-          return verifyJwtBearerToken(token);
+          return (await verifyClerkBearerToken(token)) ?? verifyJwtBearerToken(token);
         },
       });
     const response =

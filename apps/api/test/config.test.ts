@@ -64,6 +64,25 @@ describe('loadConfig', () => {
     });
   });
 
+  it('keeps Clerk verification settings when configured', () => {
+    expect(
+      loadConfig({
+        ...requiredEnv,
+        WEB_ORIGIN: 'https://artifact.example',
+        CLERK_SECRET_KEY: 'sk_test_123',
+        CLERK_JWT_KEY: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
+        CLERK_AUTHORIZED_PARTIES: 'https://artifact.example,http://localhost:5173',
+      }),
+    ).toMatchObject({
+      clerkSecretKey: 'sk_test_123',
+      clerkJwtKey: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
+      clerkAuthorizedParties: ['https://artifact.example', 'http://localhost:5173'],
+    });
+    expect(loadConfig({ ...requiredEnv, WEB_ORIGIN: 'https://artifact.example' })).toMatchObject({
+      clerkAuthorizedParties: ['https://artifact.example'],
+    });
+  });
+
   it('parses Bull Board enablement explicitly', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({ bullBoardEnabled: false });
     expect(loadConfig({ ...requiredEnv, API_BULL_BOARD_ENABLED: 'true' })).toMatchObject({ bullBoardEnabled: true });

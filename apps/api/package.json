@@ -13,6 +13,7 @@
   "dependencies": {
     "@bull-board/api": "^7.1.5",
     "@bull-board/express": "^7.1.5",
+    "@clerk/backend": "^3.4.11",
     "bullmq": "^5.0.0",
     "express": "^5.2.1",
     "ioredis": "^5.0.0",

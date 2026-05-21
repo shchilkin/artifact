@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import type {
   AiGenerationAccessState,
   AiGenerationJob,
@@ -108,30 +109,48 @@ export function AiGenerationPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const importedJobIds = useRef(new Set<string>());
+  const auth = useArtifactAuth();
+  const {
+    configured: authConfigured,
+    loaded: authLoaded,
+    signedIn: authSignedIn,
+    getToken: getAuthToken,
+    openSignIn,
+  } = auth;
   const baseUrl = useMemo(() => getAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
   const providers = access?.providers?.length ? access.providers : (['openai'] as AiGenerationProvider[]);
   const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
+  const getBearerToken = useCallback(async () => {
+    if (devToken) return devToken;
+    if (!authSignedIn) return undefined;
+    return (await getAuthToken()) ?? undefined;
+  }, [authSignedIn, devToken, getAuthToken]);
 
   useEffect(() => {
+    if (authConfigured && !authLoaded && !devToken) return;
     const controller = new AbortController();
-    getAiGenerationAccess({ baseUrl, devToken, signal: controller.signal })
+    getBearerToken()
+      .then((bearerToken) => getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal }))
       .then((next) => {
-        setAccess(next);
-        setAccessError(null);
-        if (next.providers?.[0]) setProvider(next.providers[0]);
+        if (!controller.signal.aborted) {
+          setAccess(next);
+          setAccessError(null);
+          if (next.providers?.[0]) setProvider(next.providers[0]);
+        }
       })
       .catch((error) => {
         if (!controller.signal.aborted) setAccessError(errorMessage(error));
       });
     return () => controller.abort();
-  }, [baseUrl, devToken]);
+  }, [authConfigured, authLoaded, authSignedIn, baseUrl, devToken, getBearerToken]);
 
   useEffect(() => {
     if (!jobIsActive(job)) return;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      getAiGenerationJob(job.id, { baseUrl, devToken, signal: controller.signal })
+      getBearerToken()
+        .then((bearerToken) => getAiGenerationJob(job.id, { baseUrl, bearerToken, signal: controller.signal }))
         .then(setJob)
         .catch((error) => {
           if (!controller.signal.aborted) setMessage(errorMessage(error));
@@ -141,13 +160,14 @@ export function AiGenerationPanel({
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [baseUrl, devToken, job]);
+  }, [baseUrl, getBearerToken, job]);
 
   useEffect(() => {
     if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
     importedJobIds.current.add(job.id);
     setBusy(true);
-    storeAiGeneratedAssetSource(job, { baseUrl, devToken })
+    getBearerToken()
+      .then((bearerToken) => storeAiGeneratedAssetSource(job, { baseUrl, devToken: bearerToken }))
       .then((src) => {
         onGeneratedImageSource(src, generationMetadataFromJob(job));
         setMessage(successMessage);
@@ -157,26 +177,29 @@ export function AiGenerationPanel({
         setMessage(errorMessage(error));
       })
       .finally(() => setBusy(false));
-  }, [baseUrl, devToken, job, onGeneratedImageSource, successMessage]);
+  }, [baseUrl, getBearerToken, job, onGeneratedImageSource, successMessage]);
 
   const handleGenerate = useCallback(() => {
     const trimmed = prompt.trim();
     if (!trimmed || !access?.enabled) return;
     setBusy(true);
     setMessage(null);
-    createAiGenerationJob(
-      {
-        prompt: trimmed,
-        provider,
-        settings: { aspect, quality },
-        idempotencyKey: createIdempotencyKey(),
-      },
-      { baseUrl, devToken },
-    )
+    getBearerToken()
+      .then((bearerToken) =>
+        createAiGenerationJob(
+          {
+            prompt: trimmed,
+            provider,
+            settings: { aspect, quality },
+            idempotencyKey: createIdempotencyKey(),
+          },
+          { baseUrl, bearerToken },
+        ),
+      )
       .then(setJob)
       .catch((error) => setMessage(errorMessage(error)))
       .finally(() => setBusy(false));
-  }, [access?.enabled, aspect, baseUrl, devToken, prompt, provider, quality]);
+  }, [access?.enabled, aspect, baseUrl, getBearerToken, prompt, provider, quality]);
 
   const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
@@ -193,6 +216,11 @@ export function AiGenerationPanel({
               : 'Generation controls will appear when this browser has AI access.'}
           </p>
         </div>
+        {accessBlockReason === 'anonymous' && authConfigured && (
+          <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
+            Create Account
+          </button>
+        )}
         <GenerationProvenance generation={generation} />
       </div>
     );
