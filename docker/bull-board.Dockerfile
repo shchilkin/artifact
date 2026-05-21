@@ -19,6 +19,7 @@ ENV API_BULL_BOARD_ENABLED=true
 
 COPY . .
 RUN npm ci --omit=dev --ignore-scripts
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 
 WORKDIR /app/apps/api

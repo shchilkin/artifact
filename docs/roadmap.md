@@ -96,7 +96,9 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - CI-built container images for VPS/Coolify deploys: build and tag service
   images in GitHub PR/CI, push them to a registry, then make the VPS deploy pull
   already-built images instead of running long multi-service Docker builds on
-  the deploy host.
+  the deploy host. The concrete target is GHCR images for `artifact-api`,
+  `artifact-worker`, and `artifact-bull-board`, deployed in Coolify by immutable
+  `sha-<shortsha>` tags or digests with `latest` disabled.
 - Monorepo/Turborepo infrastructure migration for workspace-aware validation,
   shared API contracts, dedicated backend containers, and pull-only Coolify/VPS
   deploys. Detailed plan:
@@ -466,7 +468,10 @@ Research and architecture tasks:
   containers in GitHub PR/CI, publish immutable image tags, and configure the
   VPS/Coolify deploy step to run those images instead of rebuilding on the VPS.
   This should reduce preview deploy timeouts and make deploy failures separate
-  from image build failures.
+  from image build failures. The GHCR/Coolify plan now covers image references,
+  required `packages: write` publishing permission, read-only Coolify package
+  pulls, shared API/worker/BullMQ/Postgres/storage env, migration-before-deploy
+  order, and rollback by previous tag or digest.
 - [ ] Run the monorepo/Turborepo migration as a dedicated infrastructure track:
   introduce workspaces, add Turborepo task orchestration, move the web app into
   `apps/web`, extract stable shared contracts, build dedicated service

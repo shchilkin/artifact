@@ -39,17 +39,27 @@ Completed in the web relocation slice:
   `VITE_*` setup still works.
 - Playwright starts the web dev server from `apps/web` directly and clears the
   Clerk publishable key for browser tests, keeping unauthenticated QA stable.
+- `packages/shared` owns the browser/server-neutral AI API contract, generation
+  status/provider enums, health response, and queue payload types. Web and API
+  local contract files now re-export from it.
 - Validation passed for `npm run check`, `npm run build`, `npm run turbo:check`,
   the focused AI image multi-generation browser regression, and local Docker
   builds for API, worker, and Bull Board images.
 
 Still pending:
 
-- Extract stable shared contracts into `packages/shared`.
 - Finish converting the main web validation path to Turborepo where it improves
   CI/runtime ergonomics.
 - Wire Coolify/VPS to pull CI-built image tags.
 - Add migration/release deployment orchestration around the containers.
+
+Documented in this plan:
+
+- GHCR package visibility, token, and package access requirements for pull-only
+  deploys.
+- Concrete Coolify image references and environment expectations for API,
+  worker, and Bull Board services.
+- Release order, migration handling, and rollback by image tag/digest.
 
 ## Goals
 
@@ -95,6 +105,7 @@ apps/
 packages/
   shared/
     src/
+      index.ts
     package.json
     tsconfig.json
   config/
@@ -240,9 +251,9 @@ GitHub Actions should become the build authority for service images:
 Recommended tags:
 
 ```text
-ghcr.io/<owner>/<repo>/artifact-api:sha-<commit>
-ghcr.io/<owner>/<repo>/artifact-worker:sha-<commit>
-ghcr.io/<owner>/<repo>/artifact-bull-board:sha-<commit>
+ghcr.io/<owner>/<repo>/artifact-api:sha-<short-commit>
+ghcr.io/<owner>/<repo>/artifact-worker:sha-<short-commit>
+ghcr.io/<owner>/<repo>/artifact-bull-board:sha-<short-commit>
 ghcr.io/<owner>/<repo>/artifact-api:pr-<number>
 ```
 
@@ -255,6 +266,58 @@ artifact-api:v0.13.0
 
 Coolify should deploy immutable SHA tags for preview environments and release
 tags for stable environments. Avoid deploying `latest`.
+
+The current container workflow uses `docker/metadata-action` with
+`latest=false`, so the expected tags are:
+
+- `sha-<shortsha>` for every built ref.
+- `<branch-name>` for branch pushes.
+- `pr-<number>` for pull requests.
+- `<semver>` for `v*` tags.
+
+Pull-only deployments should prefer immutable `sha-<shortsha>` tags, or an
+image digest copied from the workflow summary, for all three services at once.
+Branch aliases are useful for disposable staging only. Semver tags are release
+aliases. Do not deploy `latest`.
+
+### GHCR Permissions
+
+GitHub Actions publishes with the repository `GITHUB_TOKEN`, so the image
+workflow needs:
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+```
+
+For Coolify pulls, choose one of these GHCR access patterns:
+
+- Preferred private-package setup: create a GitHub token for a machine account
+  with read-only package access to this repository's packages. Store it in
+  Coolify as the registry password. The username is the GitHub user or machine
+  account that owns the token.
+- Public package setup: make the three container packages public in GitHub
+  Packages, then Coolify can pull without registry credentials. This is
+  simplest operationally but exposes image metadata and layers.
+
+For private packages, each GHCR package must be connected to the repository or
+grant the Coolify token account explicit package read access:
+
+- `artifact-api`
+- `artifact-worker`
+- `artifact-bull-board`
+
+The Coolify registry entry should use:
+
+```text
+Registry: ghcr.io
+Username: <github-user-or-machine-account>
+Password: <read:packages token>
+```
+
+Keep the token read-only for packages. It should not need repository write,
+workflow, or delete-package permissions.
 
 ## Coolify/VPS Deploy Shape
 
@@ -281,6 +344,139 @@ postgres  -> VPS/Coolify managed service
 redis     -> VPS/Coolify managed service
 storage   -> local volume first, object storage later
 ```
+
+### Coolify Service Image References
+
+Configure API, worker, and Bull Board as image-based services, not Git/source
+build services. For one release, all three should point at the same pushed ref:
+
+```text
+api image:
+  ghcr.io/<owner>/<repo>/artifact-api:sha-<shortsha>
+
+worker image:
+  ghcr.io/<owner>/<repo>/artifact-worker:sha-<shortsha>
+
+bullboard image:
+  ghcr.io/<owner>/<repo>/artifact-bull-board:sha-<shortsha>
+```
+
+Use the lowercase owner/repo path shown in the GitHub workflow summary. If
+Coolify supports digest pinning for the service type in use, pin the digest
+from the workflow summary instead of a mutable alias:
+
+```text
+ghcr.io/<owner>/<repo>/artifact-api@sha256:<digest>
+```
+
+The API service should be public behind the Coolify proxy and healthchecked at
+`/api/health`. The worker should be private, long-running, and not exposed over
+HTTP. Bull Board should be private/admin-only; either expose it through a
+protected internal domain/VPN, or keep it disabled until auth/proxy protection
+is configured.
+
+### Runtime Environment Expectations
+
+Production-like Coolify services should share the same Postgres, Redis, auth,
+provider, and storage configuration. The baseline environment is:
+
+```text
+PORT=4000
+WEB_ORIGIN=https://<vercel-or-web-origin>
+
+API_DATABASE_DRIVER=postgres
+DATABASE_URL=postgres://...
+
+API_QUEUE_DRIVER=bullmq
+REDIS_URL=redis://...
+
+AUTH_JWT_SECRET=<long-random-secret>
+AUTH_JWT_ISSUER=<optional>
+AUTH_JWT_AUDIENCE=<optional>
+CLERK_SECRET_KEY=<optional-if-using-clerk>
+CLERK_JWT_KEY=<optional-if-using-clerk>
+CLERK_AUTHORIZED_PARTIES=https://<vercel-or-web-origin>
+API_DEV_BEARER_TOKEN=<local-or-admin-only-dev-token-if-needed>
+
+OPENAI_API_KEY=<optional-provider-key>
+OPENAI_IMAGE_MODEL=gpt-image-2
+XAI_API_KEY=<optional-provider-key>
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+
+ASSET_STORAGE_DRIVER=local
+ASSET_STORAGE_DIR=/var/lib/artifact/generated-assets
+
+AI_MONTHLY_GENERATION_LIMIT=10
+AI_MAX_ACTIVE_JOBS_PER_USER=1
+```
+
+Service-specific notes:
+
+- API: set `API_BULL_BOARD_ENABLED=false` unless Bull Board is intentionally
+  served from the API container.
+- Worker: use the same `DATABASE_URL`, `REDIS_URL`, provider keys, auth
+  defaults, quota limits, and storage settings as API. It does not need a
+  public route, but it still loads the same config module.
+- Bull Board: set `API_BULL_BOARD_ENABLED=true` and
+  `API_QUEUE_DRIVER=bullmq`. It must share `REDIS_URL` with the API and worker.
+  If it uses the API server entry point, give it a separate internal/admin
+  domain and route protection.
+- Local asset storage: mount a persistent volume at `ASSET_STORAGE_DIR` for
+  both API and worker. If Bull Board only reads queue state, it does not need
+  the asset volume.
+- Object storage later: when `ASSET_STORAGE_DRIVER=s3` becomes real, replace
+  the local volume expectation with bucket credentials and document the required
+  variables in the API runbook before enabling it.
+
+### Migration And Deploy Order
+
+Deploy one immutable image set at a time:
+
+1. Pick the GitHub workflow run and record the `sha-<shortsha>` tag or digest
+   for `artifact-api`, `artifact-worker`, and `artifact-bull-board`.
+2. Confirm Coolify can pull all three images with the configured GHCR registry
+   credentials before changing running services.
+3. Pause or scale down the worker so no generation job is mid-write during a
+   schema migration.
+4. Apply database migrations once against the production database. Until there
+   is a dedicated migration image/service, run
+   `npm --workspace @artifact/api run migrate` from a trusted release checkout
+   or an equivalent one-off container/command using the same image contents and
+   `DATABASE_URL`.
+5. Deploy the API image and wait for `/api/health` to return `200`.
+6. Deploy the worker image and verify it connects to Redis/Postgres without
+   repeated restarts.
+7. Deploy or re-enable Bull Board last, then confirm the queue view points at
+   the same Redis instance.
+8. Run the API smoke flow and one AI generation smoke test before moving the
+   Vercel web app or announcing the release.
+
+Migration scripts must be forward-safe for the old worker during the short
+pause window. If a migration requires incompatible code on both sides, keep the
+worker stopped until API and worker are both on the new image set.
+
+### Rollback Notes
+
+Rollback is an image reference change, not a source rebuild:
+
+- Record the previous working API, worker, and Bull Board image tags/digests in
+  the deploy notes before every release.
+- Roll back all long-running services to the previous compatible image set
+  together. Avoid mixing a new worker with an old API unless the change was
+  explicitly tested as compatible.
+- If the failure happened before migrations, switch the image references back
+  and redeploy API, worker, then Bull Board.
+- If migrations already ran, only roll back to an older image that is compatible
+  with the migrated schema. Prefer additive migrations and feature flags so
+  schema rollback is rarely needed.
+- If a worker deploy is bad, pause/scale down the worker first to stop job
+  churn, then redeploy the previous worker image. API can usually stay up if
+  the job schema and queue payloads are compatible.
+- If Bull Board is bad, disable or roll back only Bull Board. It should not be
+  required for user-facing generation.
+- If local asset storage is involved, do not delete or remount the
+  `ASSET_STORAGE_DIR` volume during rollback. The database and asset directory
+  must remain paired.
 
 ## Migration Phases
 
@@ -384,14 +580,18 @@ Exit criteria:
 
 - Reconfigure Coolify services to pull the CI-built tags.
 - Disable VPS-side source builds for API/worker/Bull Board.
-- Add healthchecks and migration runbook.
-- Document rollback by image tag.
+- Add healthchecks and the migration/deploy order above to the API deployment
+  runbook.
+- Document the previous working image set before each deploy and roll back by
+  image tag or digest.
 
 Exit criteria:
 
 - Coolify deploy no longer builds service images on the VPS.
 - Deploy failure logs point to runtime/env/health issues, not long Docker build
   compilation.
+- API, worker, and Bull Board can be advanced or rolled back by changing only
+  their Coolify image references.
 
 ## Parallel Work Plan For Subagents
 

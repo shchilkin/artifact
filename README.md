@@ -257,4 +257,6 @@ apps/
       types/                 # CanvasDocument, Layer, graph, factory types
       test-fixtures/         # Render parity fixtures and Canvas 2D pixel tests
     public/                  # Deployed static assets
+packages/
+  shared/                    # Browser/server-neutral API contract types
 ```

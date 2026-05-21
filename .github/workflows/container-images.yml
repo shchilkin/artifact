@@ -81,8 +81,17 @@ jobs:
       - name: Decide whether to push
         id: publish
         if: steps.dockerfile.outputs.exists == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_IMAGES: ${{ inputs['push-images'] || 'false' }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || { [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs['push-images'] }}" = "true" ]; }; then
+          if [ "$EVENT_NAME" = "push" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$PUSH_IMAGES" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_HEAD_REPOSITORY" = "$REPOSITORY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
