@@ -656,7 +656,7 @@ test('docs recipe try-this link opens an editable starter document', async ({ pa
 
 test('add-node menu exposes recipe groups and workflow search', async ({ page }) => {
   await page.goto('/app?new=blank');
-  await page.getByRole('button', { name: 'nodes' }).click();
+  await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();
 
   await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
@@ -678,7 +678,7 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
   await page.goto('/app?new=blank');
-  await page.getByRole('button', { name: 'nodes' }).click();
+  await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();
   await page.getByLabel('Search nodes and effects').fill('ai image');
   await page.getByRole('button', { name: /^◧ AI Image/ }).click();
@@ -686,9 +686,13 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-props-panel')).toContainText('AI Image');
-  await expect(page.locator('.node-props-panel')).toContainText('Account required.');
+  await expect(page.locator('.node-props-panel')).toContainText('Account required for AI');
+  await expect(page.locator('.node-props-panel')).toContainText(
+    'This feature uses AI. To use AI features, create an account.',
+  );
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
-  await expect(page.locator('.ai-generation-submit')).toBeDisabled();
+  await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
+  await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {

@@ -38,9 +38,20 @@ export interface TextLayer extends BaseLayer {
   scaleY: number;
 }
 
+export interface ImageAiGenerationMetadata {
+  prompt: string;
+  provider?: string;
+  model?: string;
+  quality?: string;
+  jobId?: string;
+  assetId?: string;
+  createdAt?: string;
+}
+
 export interface ImageLayer extends BaseLayer {
   kind: 'image';
   src: string;
+  aiGeneration?: ImageAiGenerationMetadata;
   fit: 'cover' | 'contain' | 'tile' | 'free';
   opacity: number;
   blendMode: string;

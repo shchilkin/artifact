@@ -33,7 +33,7 @@ interface Props {
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
   onDuplicateLayer: (id: string) => void;
-  onGeneratedImageSource?: (src: string) => void;
+  onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
   modeSwitcher?: React.ReactNode;
 }

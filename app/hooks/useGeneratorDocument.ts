@@ -8,6 +8,7 @@ import {
   type GraphColorNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type ImageLayer,
   type Layer,
   type LayerKind,
 } from '../types/config';
@@ -228,8 +229,8 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const addImageFromSource = useCallback(
-    (src: string) => {
-      const layer = createImageLayerFromSource(src);
+    (src: string, aiGeneration?: ImageLayer['aiGeneration']) => {
+      const layer = { ...createImageLayerFromSource(src), aiGeneration };
       updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },

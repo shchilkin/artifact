@@ -1017,6 +1017,44 @@ input[type="range"] {
   gap: 8px;
 }
 
+.ai-generation-access-banner {
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in oklch, var(--accent) 42%, var(--border));
+  background: color-mix(in oklch, var(--accent) 7%, transparent);
+  padding: 12px;
+  color: var(--text);
+}
+
+.ai-generation-access-banner span,
+.ai-generation-provenance span {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ai-generation-access-banner p,
+.ai-generation-provenance p {
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-provenance {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--bg) 88%, black);
+  padding: 10px 12px;
+}
+
 .ai-generation-panel textarea,
 .ai-generation-panel select {
   width: 100%;

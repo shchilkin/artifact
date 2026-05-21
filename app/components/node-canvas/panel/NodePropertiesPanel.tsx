@@ -105,7 +105,8 @@ export function NodePropertiesPanel({
                     </div>
                     <AiGenerationPanel
                       aspect={doc.global.aspect}
-                      onGeneratedImageSource={(src) => onUpdateLayer(layer.id, { src })}
+                      generation={layer.aiGeneration}
+                      onGeneratedImageSource={(src, aiGeneration) => onUpdateLayer(layer.id, { src, aiGeneration })}
                       submitLabel={layer.src ? 'Replace Image' : 'Generate Image'}
                       successMessage="Updated image node."
                     />

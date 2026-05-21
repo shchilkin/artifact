@@ -5,7 +5,7 @@ import type {
   AiGenerationProvider,
   AiGenerationQuality,
 } from '../types/aiGeneration';
-import type { AspectRatio } from '../types/config';
+import type { AspectRatio, ImageLayer } from '../types/config';
 import { storeAiGeneratedAssetSource } from '../utils/aiGeneratedAssetImport';
 import {
   AiGenerationApiError,
@@ -18,7 +18,8 @@ const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
-  onGeneratedImageSource: (src: string) => void;
+  generation?: ImageLayer['aiGeneration'];
+  onGeneratedImageSource: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   submitLabel?: string;
   successMessage?: string;
 }
@@ -53,8 +54,47 @@ function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason']
   return reason ?? null;
 }
 
+function disabledReasonTitle(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
+  if (reason === 'anonymous') return 'Account required for AI';
+  if (reason === 'not_enabled') return 'AI access is not enabled';
+  if (reason === 'quota_exhausted') return 'Monthly AI quota used';
+  if (reason === 'maintenance') return 'AI generation is paused';
+  return 'AI generation unavailable';
+}
+
+function disabledReasonBody(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
+  if (reason === 'anonymous') return 'This feature uses AI. To use AI features, create an account.';
+  if (reason === 'not_enabled') return 'Your account needs AI access before it can create images.';
+  if (reason === 'quota_exhausted') return 'Your monthly generation limit is used for this account.';
+  if (reason === 'maintenance') return 'Generation is temporarily unavailable while the service is being maintained.';
+  return disabledReasonMessage(reason) ?? 'Generation is not available right now.';
+}
+
+function generationMetadataFromJob(job: AiGenerationJob): NonNullable<ImageLayer['aiGeneration']> {
+  return {
+    prompt: job.prompt,
+    provider: job.provider,
+    model: job.model,
+    quality: job.settings.quality,
+    jobId: job.id,
+    assetId: job.asset?.id,
+    createdAt: job.completedAt ?? job.asset?.createdAt ?? job.createdAt,
+  };
+}
+
+function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
+  if (!generation?.prompt) return null;
+  return (
+    <div className="ai-generation-provenance">
+      <span>Current image prompt</span>
+      <p>{generation.prompt}</p>
+    </div>
+  );
+}
+
 export function AiGenerationPanel({
   aspect,
+  generation,
   onGeneratedImageSource,
   submitLabel = 'Generate',
   successMessage = 'Added image layer.',
@@ -109,7 +149,7 @@ export function AiGenerationPanel({
     setBusy(true);
     storeAiGeneratedAssetSource(job, { baseUrl, devToken })
       .then((src) => {
-        onGeneratedImageSource(src);
+        onGeneratedImageSource(src, generationMetadataFromJob(job));
         setMessage(successMessage);
       })
       .catch((error) => {
@@ -140,9 +180,27 @@ export function AiGenerationPanel({
 
   const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
+  const accessBlockReason = accessError ? accessError : access?.enabled ? null : access?.disabledReason;
+
+  if (!access?.enabled) {
+    return (
+      <div className="ai-generation-panel">
+        <div className="ai-generation-access-banner" role="status" id="ai-generation-status">
+          <span>{access ? disabledReasonTitle(accessBlockReason) : 'Checking AI access'}</span>
+          <p>
+            {access
+              ? disabledReasonBody(accessBlockReason)
+              : 'Generation controls will appear when this browser has AI access.'}
+          </p>
+        </div>
+        <GenerationProvenance generation={generation} />
+      </div>
+    );
+  }
 
   return (
     <div className="ai-generation-panel">
+      <GenerationProvenance generation={generation} />
       <textarea
         data-ai-generation-prompt
         value={prompt}

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { makeEffectPresetLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../../types/config';
+import {
+  makeEffectPresetLayer,
+  makeFillLayer,
+  makeImageLayer,
+  makeSourceLayer,
+  makeTextLayer,
+} from '../../../types/config';
 import {
   colorNodeRenderSig,
   edgeRenderSig,
@@ -39,6 +45,18 @@ describe('layerRenderSig', () => {
     const edited = { ...base, color: '#00ff00' };
 
     expect(layerRenderSig(edited)).not.toBe(layerRenderSig(base));
+  });
+
+  it('ignores AI image generation provenance for image layers', () => {
+    const base = makeImageLayer('artifact-asset://generated', {
+      aiGeneration: { prompt: 'misty album cover' },
+    });
+    const edited = {
+      ...base,
+      aiGeneration: { prompt: 'different provenance note', provider: 'openai' },
+    };
+
+    expect(layerRenderSig(edited)).toBe(layerRenderSig(base));
   });
 
   it('ignores editor-only metadata for effect layers', () => {
