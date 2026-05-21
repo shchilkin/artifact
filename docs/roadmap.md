@@ -496,8 +496,10 @@ Release checklist:
   project created during local CLI validation was removed.
 - [ ] Run private-alpha QA against the local VPS-shaped stack with real API,
   Postgres, Redis, worker, BullMQ, Bull Board, and local file storage.
-- [ ] Add explicit AI Image retry/recovery actions and compact job/asset
-  diagnostics in the node properties panel.
+- [x] Add explicit AI Image retry/recovery actions and compact job/asset
+  diagnostics in the AI Image panels. Failed generations expose retry, asset
+  import failures expose recovery from the durable job id, and compact
+  status/job/asset/error/provider metadata is visible without opening logs.
 - [ ] Add generated-job and generated-asset cleanup operations plus runbook
   notes.
 - [ ] Write v0.13 release notes and accepted-risk checklist before tagging.

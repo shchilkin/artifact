@@ -169,6 +169,24 @@ function logBearerTokenClaims(token: string | undefined) {
   });
 }
 
+function shortId(id: string | undefined) {
+  if (!id) return null;
+  if (id.length <= 12) return id;
+  return `${id.slice(0, 8)}...${id.slice(-4)}`;
+}
+
+function formatGenerationDate(value: string | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
   if (!generation?.prompt) return null;
   const state = getAiGenerationUiState(generation);
@@ -179,6 +197,43 @@ function GenerationProvenance({ generation }: { generation: ImageLayer['aiGenera
       <span>{label && state !== 'done' ? label : 'Current image prompt'}</span>
       <p>{generation.prompt}</p>
       {state === 'failed' && detail && <p>{detail}</p>}
+    </div>
+  );
+}
+
+function GenerationDiagnostics({
+  generation,
+  job,
+}: {
+  generation: ImageLayer['aiGeneration'];
+  job: AiGenerationJob | null;
+}) {
+  const status = generation?.status ?? job?.status;
+  const jobId = generation?.jobId ?? job?.id;
+  const assetId = generation?.assetId ?? job?.asset?.id;
+  const provider = generation?.provider ?? job?.provider;
+  const model = generation?.model ?? job?.model;
+  const errorCode = generation?.errorCode ?? job?.error?.code;
+  const updatedAt = generation?.updatedAt ?? job?.completedAt ?? job?.startedAt ?? job?.createdAt;
+  const rows = [
+    ['status', status],
+    ['job', shortId(jobId)],
+    ['asset', shortId(assetId)],
+    ['error', errorCode],
+    ['provider', provider && model ? `${provider} / ${model}` : provider || model],
+    ['updated', formatGenerationDate(updatedAt)],
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+
+  if (!rows.length) return null;
+
+  return (
+    <div className="ai-generation-diagnostics" aria-label="AI generation diagnostics">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <code>{value}</code>
+        </div>
+      ))}
     </div>
   );
 }
@@ -264,6 +319,21 @@ export function AiGenerationPanel({
   const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
   const activeJobId = jobIsActive(job) ? job.id : null;
   const activeJobStatus = jobIsActive(job) ? job.status : null;
+  const latestGenerationPrompt = generation?.prompt ?? job?.prompt;
+  const latestGenerationJobId = generation?.jobId ?? job?.id;
+  const latestGenerationErrorCode = generation?.errorCode ?? job?.error?.code;
+  const hasFailedGeneration =
+    generation?.status === 'failed' || job?.status === 'failed' || Boolean(latestGenerationErrorCode);
+  const canRetryGeneration = Boolean(
+    access?.enabled && hasFailedGeneration && latestGenerationPrompt && !busy && !jobIsActive(job),
+  );
+  const canRecoverGeneration = Boolean(
+    access?.enabled &&
+      latestGenerationErrorCode === 'asset_import_failed' &&
+      latestGenerationJobId &&
+      !busy &&
+      !jobIsActive(job),
+  );
   const getBearerToken = useCallback(async () => {
     if (devToken) return devToken;
     if (!authSignedIn) return undefined;
@@ -407,41 +477,77 @@ export function AiGenerationPanel({
       });
   }, [baseUrl, getBearerToken, job, successMessage]);
 
-  const handleGenerate = useCallback(() => {
-    const trimmed = prompt.trim();
-    if (!trimmed || !access?.enabled) return;
-    setBusy(true);
-    setMessage(null);
-    getBearerToken()
-      .then((bearerToken) =>
-        createAiGenerationJob(
-          {
+  const submitGeneration = useCallback(
+    (rawPrompt: string) => {
+      const trimmed = rawPrompt.trim();
+      if (!trimmed || !access?.enabled) return;
+      setBusy(true);
+      setMessage(null);
+      getBearerToken()
+        .then((bearerToken) =>
+          createAiGenerationJob(
+            {
+              prompt: trimmed,
+              provider,
+              settings: { aspect, quality },
+              idempotencyKey: createIdempotencyKey(),
+            },
+            { baseUrl, bearerToken },
+          ),
+        )
+        .then((nextJob) => {
+          onGenerationStateChange?.(generationMetadataFromJob(nextJob));
+          setJob(nextJob);
+        })
+        .catch((error) => {
+          const message = errorMessage(error);
+          onGenerationStateChange?.({
             prompt: trimmed,
             provider,
-            settings: { aspect, quality },
-            idempotencyKey: createIdempotencyKey(),
-          },
-          { baseUrl, bearerToken },
-        ),
-      )
+            quality,
+            status: 'failed',
+            updatedAt: new Date().toISOString(),
+            errorMessage: message,
+          });
+          setMessage(message);
+        })
+        .finally(() => setBusy(false));
+    },
+    [access?.enabled, aspect, baseUrl, getBearerToken, onGenerationStateChange, provider, quality],
+  );
+
+  const handleGenerate = useCallback(() => submitGeneration(prompt), [prompt, submitGeneration]);
+
+  const handleRetryGeneration = useCallback(() => {
+    if (!latestGenerationPrompt) return;
+    setPrompt(latestGenerationPrompt);
+    submitGeneration(latestGenerationPrompt);
+  }, [latestGenerationPrompt, submitGeneration]);
+
+  const handleRecoverGeneration = useCallback(() => {
+    const jobId = latestGenerationJobId;
+    if (!jobId || !access?.enabled) return;
+    let handedToImport = false;
+    setBusy(true);
+    setMessage('Checking generated asset.');
+    importedJobIds.current.delete(jobId);
+    getBearerToken()
+      .then((bearerToken) => getAiGenerationJob(jobId, { baseUrl, bearerToken }))
       .then((nextJob) => {
         onGenerationStateChange?.(generationMetadataFromJob(nextJob));
         setJob(nextJob);
+        if (nextJob.status === 'succeeded') {
+          handedToImport = true;
+          setMessage('Recovering generated asset.');
+          return;
+        }
+        setMessage(nextJob.error?.message ?? `Generation job is ${nextJob.status}.`);
       })
-      .catch((error) => {
-        const message = errorMessage(error);
-        onGenerationStateChange?.({
-          prompt: trimmed,
-          provider,
-          quality,
-          status: 'failed',
-          updatedAt: new Date().toISOString(),
-          errorMessage: message,
-        });
-        setMessage(message);
-      })
-      .finally(() => setBusy(false));
-  }, [access?.enabled, aspect, baseUrl, getBearerToken, onGenerationStateChange, prompt, provider, quality]);
+      .catch((error) => setMessage(errorMessage(error)))
+      .finally(() => {
+        if (!handedToImport) setBusy(false);
+      });
+  }, [access?.enabled, baseUrl, getBearerToken, latestGenerationJobId, onGenerationStateChange]);
 
   const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
@@ -477,6 +583,7 @@ export function AiGenerationPanel({
           onSelect={onGenerationHistorySelect}
         />
         <GenerationProvenance generation={generation} />
+        <GenerationDiagnostics generation={generation} job={job} />
       </div>
     );
   }
@@ -489,6 +596,21 @@ export function AiGenerationPanel({
         onSelect={onGenerationHistorySelect}
       />
       <GenerationProvenance generation={generation} />
+      {(canRetryGeneration || canRecoverGeneration) && (
+        <div className="ai-generation-actions">
+          {canRetryGeneration && (
+            <button type="button" className="ai-generation-action" onClick={handleRetryGeneration}>
+              Retry Prompt
+            </button>
+          )}
+          {canRecoverGeneration && (
+            <button type="button" className="ai-generation-action" onClick={handleRecoverGeneration}>
+              Recover Asset
+            </button>
+          )}
+        </div>
+      )}
+      <GenerationDiagnostics generation={generation} job={job} />
       <textarea
         data-ai-generation-prompt
         value={prompt}

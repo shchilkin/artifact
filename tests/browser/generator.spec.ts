@@ -1256,6 +1256,10 @@ test('AI provider failure leaves the editor usable and shows the API error', asy
   await panel.getByRole('button', { name: 'Generate' }).click();
 
   await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
+  await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
+  await expect(panel.locator('.ai-generation-diagnostics')).toContainText('provider_unavailable');
+  await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Recover Asset' })).toHaveCount(0);
   await expect(page.locator('.empty-canvas-start')).toBeVisible();
 });
 

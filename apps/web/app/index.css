@@ -1179,6 +1179,61 @@ input[type="range"] {
   color: var(--danger);
 }
 
+.ai-generation-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-generation-action {
+  min-height: 32px;
+  border: 1px solid color-mix(in oklch, var(--accent) 42%, var(--border));
+  background: color-mix(in oklch, var(--accent) 7%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-generation-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ai-generation-diagnostics {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  background: color-mix(in oklch, var(--bg) 90%, black);
+  padding: 8px 10px;
+}
+
+.ai-generation-diagnostics div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.ai-generation-diagnostics span {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-generation-diagnostics code {
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
 .ai-generation-panel textarea,
 .ai-generation-panel select {
   width: 100%;
