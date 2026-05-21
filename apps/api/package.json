@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/server.ts",
+    "export:job-image": "node scripts/export-job-image.mjs",
     "grant:ai": "node scripts/grant-ai-access.mjs",
     "migrate": "node scripts/migrate.mjs",
     "smoke": "node scripts/smoke.mjs",
