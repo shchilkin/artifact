@@ -1,8 +1,8 @@
 # Artifact VPS API
 
 This package is the planned VPS backend for v0.13 AI generation. It lives in
-the same repository as the Vercel React Router app, but it is intentionally not
-wired into the root build yet.
+the same repository as the Vercel React Router app in `apps/web`, but it builds
+and deploys as a separate VPS service.
 
 ## Responsibilities
 
@@ -65,6 +65,8 @@ Implemented:
 - Credentialed CORS/preflight handling for `WEB_ORIGIN`.
 - Unauthenticated `GET /api/health` for liveness and VPS smoke checks.
 - VPS/local operations runbook in [`RUNBOOK.md`](./RUNBOOK.md).
+- Production `build`, `start`, and `worker:start` scripts for container
+  runtime.
 - API-local tests.
 
 Next:
@@ -132,9 +134,9 @@ docker compose -f docker-compose.local.yml down -v
 ## Frontend Bridge
 
 The Vercel app already has a client boundary in
-[`../../app/utils/aiGenerationClient.ts`](../../app/utils/aiGenerationClient.ts)
+[`../web/app/utils/aiGenerationClient.ts`](../web/app/utils/aiGenerationClient.ts)
 and a generated asset import bridge in
-[`../../app/utils/aiGeneratedAssetImport.ts`](../../app/utils/aiGeneratedAssetImport.ts).
+[`../web/app/utils/aiGeneratedAssetImport.ts`](../web/app/utils/aiGeneratedAssetImport.ts).
 
 Completed generated assets should be downloaded by the browser, stored in
 IndexedDB, and inserted into the document as normal `artifact-asset://...`

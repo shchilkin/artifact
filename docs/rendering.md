@@ -14,7 +14,7 @@ The same document, graph, image cache, and primitive camera state should produce
 
 Size and antialiasing can differ, especially with WebGL, but the render path and source state should not.
 
-Node previews use `app/components/node-canvas/thumbnails/previewSizing.ts` to
+Node previews use `apps/web/app/components/node-canvas/thumbnails/previewSizing.ts` to
 derive both CSS display size and internal render size from `doc.global.aspect`.
 Use that helper for new thumbnail-like surfaces so `16:9`, `9:16`, `4:5`, and
 `1:1` documents keep the same composition shape across nodes and export.
@@ -40,17 +40,17 @@ into document pixels.
 
 | Function | File | Use |
 | --- | --- | --- |
-| `renderDocument` | `app/utils/renderer.ts` | Main document render entry. Chooses stack or graph mode. |
-| `renderGraphTarget` | `app/utils/renderer.ts` | Renders a specific node target through graph traversal. |
-| `renderPrimitiveToCanvas` | `app/utils/primitiveRenderer.ts` | One-shot Three.js primitive render for document/export pipeline. |
-| `generateThumbnail` | `app/utils/generateThumbnail.ts` | Preset/example thumbnail generation. |
+| `renderDocument` | `apps/web/app/utils/renderer.ts` | Main document render entry. Chooses stack or graph mode. |
+| `renderGraphTarget` | `apps/web/app/utils/renderer.ts` | Renders a specific node target through graph traversal. |
+| `renderPrimitiveToCanvas` | `apps/web/app/utils/primitiveRenderer.ts` | One-shot Three.js primitive render for document/export pipeline. |
+| `generateThumbnail` | `apps/web/app/utils/generateThumbnail.ts` | Preset/example thumbnail generation. |
 
 Rule:
 
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
 
-`app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
-live under `app/utils/render/`; app code should keep importing the public entry
+`apps/web/app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
+live under `apps/web/app/utils/render/`; app code should keep importing the public entry
 points from the facade unless it is working inside the renderer itself.
 `renderDocument` and `renderGraphTarget` both support an optional external
 `GraphRenderCache` for UI preview sessions. Use it only for transient render
@@ -161,10 +161,10 @@ Primitive rendering has two surfaces:
 
 | Surface | File | Purpose |
 | --- | --- | --- |
-| Live viewport | `app/components/PrimitiveViewport3D.tsx` | Interactive node/gallery camera control. |
-| Offscreen render | `app/utils/primitiveRenderer.ts` | Export/document render. |
+| Live viewport | `apps/web/app/components/PrimitiveViewport3D.tsx` | Interactive node/gallery camera control. |
+| Offscreen render | `apps/web/app/utils/primitiveRenderer.ts` | Export/document render. |
 
-Both share the same scene recipe through `app/utils/primitiveScene.ts`:
+Both share the same scene recipe through `apps/web/app/utils/primitiveScene.ts`:
 
 - geometry
 - material
@@ -348,7 +348,7 @@ Test strategy:
 Long-term shape:
 
 ```text
-app/utils/render/
+apps/web/app/utils/render/
   canvas.ts
   document.ts
   graph.ts
@@ -366,10 +366,10 @@ The split should reduce file size and improve testability without changing the p
 
 Current implementation status:
 
-- `app/utils/renderer.ts` re-exports the public facade.
-- `app/utils/render/canvas.ts` owns shared Canvas 2D helpers.
-- `app/utils/render/graph.ts` owns graph traversal rendering.
-- `app/utils/render/layers/index.ts` owns layer/effect passes while the
+- `apps/web/app/utils/renderer.ts` re-exports the public facade.
+- `apps/web/app/utils/render/canvas.ts` owns shared Canvas 2D helpers.
+- `apps/web/app/utils/render/graph.ts` owns graph traversal rendering.
+- `apps/web/app/utils/render/layers/index.ts` owns layer/effect passes while the
   remaining per-kind files are extracted.
 - Per-kind layer/effect files should be introduced incrementally only when they
   reduce complexity, guarded by render parity fixtures.

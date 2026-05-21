@@ -20,12 +20,13 @@ changes safer.
 | Folder | Responsibility |
 | --- | --- |
 | `apps/api` | Same-repo VPS backend scaffold for v0.13 AI generation: auth checks, jobs, worker, queue, provider adapters, storage, and DB boundaries. |
-| `app/routes` | Route-level composition and page shells. Keep business logic out when a hook or feature folder can own it. |
-| `app/components` | Reusable UI and feature UI. Large surfaces should have subfolders with their own components, hooks, and helpers. |
-| `app/components/node-canvas` | Node editor feature module: React Flow integration, node components, previews, inspector, menus, and editor state. |
-| `app/hooks` | Cross-surface hooks used by route-level composition. Avoid putting node-only or renderer-only hooks here. |
-| `app/types` | Serializable app model, factories, migrations, and schema-level constants. |
-| `app/utils` | Rendering, export, graph algorithms, deterministic random helpers, and other non-React logic. |
+| `apps/web` | Vercel React Router app workspace and browser editor package. |
+| `apps/web/app/routes` | Route-level composition and page shells. Keep business logic out when a hook or feature folder can own it. |
+| `apps/web/app/components` | Reusable UI and feature UI. Large surfaces should have subfolders with their own components, hooks, and helpers. |
+| `apps/web/app/components/node-canvas` | Node editor feature module: React Flow integration, node components, previews, inspector, menus, and editor state. |
+| `apps/web/app/hooks` | Cross-surface hooks used by route-level composition. Avoid putting node-only or renderer-only hooks here. |
+| `apps/web/app/types` | Serializable app model, factories, migrations, and schema-level constants. |
+| `apps/web/app/utils` | Rendering, export, graph algorithms, deterministic random helpers, and other non-React logic. |
 
 ## Component design rules
 
@@ -113,7 +114,7 @@ renderers should both consume that shared recipe.
 1. Add node shell behavior to `NodeFrame`, not to every node type.
 2. Add kind-specific preview behavior to a named preview surface.
 3. Keep node data construction in `buildRFNodes.ts`.
-4. Keep graph algorithms in `app/utils/nodeGraph.ts`.
+4. Keep graph algorithms in `apps/web/app/utils/nodeGraph.ts`.
 5. Keep inspector controls in `inspector` or shared `layer-controls`.
 6. Keep transient interaction refs out of `CanvasDocument`.
 

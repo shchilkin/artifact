@@ -21,6 +21,7 @@ const appCommit =
   readGitValue('git rev-parse --short=12 HEAD', 'unknown');
 
 export default defineConfig({
+  envDir: '../..',
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   define: {
     __ARTIFACT_APP_VERSION__: JSON.stringify(appVersion),

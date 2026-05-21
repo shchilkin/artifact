@@ -124,17 +124,18 @@ stable.
 
 | Area | Main files | Notes |
 | --- | --- | --- |
-| Routing | `app/routes.ts`, `app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
-| Main generator | `app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
-| Document state | `app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
-| Asset state | `app/hooks/useGeneratorAssets.ts`, `app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
-| Export | `app/hooks/useGeneratorExport.ts`, `app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
-| Presets | `app/hooks/usePresets.ts`, `app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
-| Projects | `app/hooks/useProjects.ts`, `app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
+| Routing | `apps/web/app/routes.ts`, `apps/web/app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
+| Main generator | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
+| Document state | `apps/web/app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
+| Asset state | `apps/web/app/hooks/useGeneratorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
+| Export | `apps/web/app/hooks/useGeneratorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
+| Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
+| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
 
 ### Data model
 
-The canonical document type is `CanvasDocument` in `app/types/config.ts`.
+The canonical document type is `CanvasDocument` in
+`apps/web/app/types/config.ts`.
 
 ```ts
 interface CanvasDocument {
@@ -174,8 +175,8 @@ state, not a second editor format.
 
 ### Rendering pipeline
 
-Rendering is exposed through `app/utils/renderer.ts`. That file is the public
-facade; implementation internals live under `app/utils/render/`.
+Rendering is exposed through `apps/web/app/utils/renderer.ts`. That file is the
+public facade; implementation internals live under `apps/web/app/utils/render/`.
 
 1. `renderDocument` decides whether to use stack mode or graph mode.
 2. `renderGraphTarget` walks graph dependencies and renders each node.
@@ -188,8 +189,9 @@ facade; implementation internals live under `app/utils/render/`.
    batched where semantics allow.
 7. CPU-only pixel effect kernels and procedural noise texture generation can
    run in dedicated Web Workers with main-thread fallbacks.
-8. Three.js renders primitives through `app/utils/primitiveRenderer.ts` using
-   the shared scene recipe in `app/utils/primitiveScene.ts`.
+8. Three.js renders primitives through
+   `apps/web/app/utils/primitiveRenderer.ts` using the shared scene recipe in
+   `apps/web/app/utils/primitiveScene.ts`.
 
 This is the most important invariant:
 
@@ -197,7 +199,7 @@ This is the most important invariant:
 
 ### Node canvas
 
-Node editing lives under `app/components/node-canvas`.
+Node editing lives under `apps/web/app/components/node-canvas`.
 
 | Area | Files | Current role |
 | --- | --- | --- |
@@ -471,9 +473,10 @@ Research and architecture tasks:
   containers, publish images from GitHub PR/CI, and switch Coolify/VPS to
   pull-only deploys. Plan:
   [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
-  Initial foundation is in progress: API workspace wiring, API-scoped Turbo
-  scripts, production API build/start scripts, service Dockerfiles, and the
-  additive GHCR image workflow are implemented before the web relocation phase.
+  Initial foundation is in progress: API workspace wiring, web workspace
+  relocation, API/web Turbo scripts, production API build/start scripts,
+  service Dockerfiles, and the additive GHCR image workflow are implemented
+  before shared-contract extraction.
 
 Release checklist:
 

@@ -6,18 +6,18 @@ update data, rendering, controls, docs, and tests in one slice.
 
 ## Required Surfaces
 
-- `app/types/config.ts`: add durable fields to `EffectLayer`,
+- `apps/web/app/types/config.ts`: add durable fields to `EffectLayer`,
   `DEFAULT_EFFECT_LAYER_PROPS`, focused preset metadata, and menu order.
-- `app/components/node-canvas/inspector/EffectInspector.tsx`: expose durable
+- `apps/web/app/components/node-canvas/inspector/EffectInspector.tsx`: expose durable
   controls, labels, ranges, override ranges, and info-popover keys.
-- `app/utils/effectInfo.ts`: add slider/help metadata and popup preview
+- `apps/web/app/utils/effectInfo.ts`: add slider/help metadata and popup preview
   overrides.
-- `app/utils/effectDocs.ts`: add user-facing docs text, key parameters, and
+- `apps/web/app/utils/effectDocs.ts`: add user-facing docs text, key parameters, and
   ranges for the node docs page.
-- `app/utils/render/layers/index.ts`: implement or route the actual pixel pass.
-- `app/utils/randomConfig.ts`: include randomization/zeroing behavior if the
+- `apps/web/app/utils/render/layers/index.ts`: implement or route the actual pixel pass.
+- `apps/web/app/utils/randomConfig.ts`: include randomization/zeroing behavior if the
   effect can be randomized from the classic layer controls.
-- `app/utils/effectLayerMigration.ts`: migrate legacy combined effect state if
+- `apps/web/app/utils/effectLayerMigration.ts`: migrate legacy combined effect state if
   the new effect replaces or splits older behavior.
 
 ## Validation

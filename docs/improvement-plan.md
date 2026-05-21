@@ -13,13 +13,13 @@ phase should leave the repo in a better state even if later phases change.
 - CI has separate fast quality/build and browser smoke jobs.
 - The node canvas already has focused hooks for selection, context menus,
   graph events, dragging, gallery state, and primitive camera state.
-- Primitive live/offscreen rendering already shares `app/utils/primitiveScene.ts`.
+- Primitive live/offscreen rendering already shares `apps/web/app/utils/primitiveScene.ts`.
 - Node thumbnails already use render signatures and a render queue.
 - Editable document import/export is available through `.artifact.json`.
-- Effect docs metadata has a dedicated `app/utils/effectDocs.ts` module and
+- Effect docs metadata has a dedicated `apps/web/app/utils/effectDocs.ts` module and
   `docs/effect-development.md` describes the effect-change checklist.
 - Texture-style effect renderers are split into
-  `app/utils/render/layers/textureEffects.ts`.
+  `apps/web/app/utils/render/layers/textureEffects.ts`.
 - `EffectInspector.tsx` is now orchestration over data-driven effect section
   definitions instead of one large repeated control surface.
 
@@ -100,7 +100,7 @@ the detailed source of truth.
 
 ### Rendering and parity
 
-- [x] Split `app/utils/renderer.ts` behind the existing `renderDocument` and
+- [x] Split `apps/web/app/utils/renderer.ts` behind the existing `renderDocument` and
   `renderGraphTarget` facades.
 - [x] Add render fixtures for image free-fit, procedural source layers, and graph
   export traversal.
@@ -130,7 +130,7 @@ the detailed source of truth.
 - [x] Add CI gates for format/lint/typecheck/unit tests, build, and browser
   smoke tests.
 - [x] Add a production readiness checklist for manual release QA.
-- [x] Ignore generated `public/favicon.png` local noise.
+- [x] Ignore generated `apps/web/public/favicon.png` local noise.
 - [x] Replace the generated favicon with a deliberate committed static asset
   before production release.
 - [ ] Keep `README.md`, `AGENTS.md`, `COPILOT.md`, `CLAUDE.md`, and
@@ -204,8 +204,8 @@ Exit criteria:
 Goal: keep domain logic independent from React and React Flow.
 
 - [x] Move the React Flow edge adapter `toRFEdges` out of
-  `app/utils/nodeGraph.ts` into the node-canvas feature folder.
-- [x] Keep `app/utils/nodeGraph.ts` limited to serializable graph data,
+  `apps/web/app/utils/nodeGraph.ts` into the node-canvas feature folder.
+- [x] Keep `apps/web/app/utils/nodeGraph.ts` limited to serializable graph data,
   traversal, mutation, validation, and layout.
 - [x] Add tests around the moved adapter only where visual mapping logic is
   meaningful.
@@ -213,8 +213,8 @@ Goal: keep domain logic independent from React and React Flow.
 
 Exit criteria:
 
-- `app/utils/nodeGraph.ts` imports only domain types and pure utilities.
-- React Flow-specific shapes live under `app/components/node-canvas`.
+- `apps/web/app/utils/nodeGraph.ts` imports only domain types and pure utilities.
+- React Flow-specific shapes live under `apps/web/app/components/node-canvas`.
 - Existing graph tests still run without React Flow imports.
 
 ## Phase 3: Document State and History
@@ -247,11 +247,11 @@ Exit criteria:
 Goal: split renderer internals without creating a second render truth.
 
 - [x] Keep `renderDocument` and `renderGraphTarget` as the public facade.
-- [x] Move renderer implementation behind `app/utils/render/*` so callers use
+- [x] Move renderer implementation behind `apps/web/app/utils/render/*` so callers use
   the facade.
-- [x] Move canvas helpers into `app/utils/render/canvas.ts`.
-- [x] Move graph traversal rendering into `app/utils/render/graph.ts`.
-- [x] Move layer renderers into `app/utils/render/layers/*`.
+- [x] Move canvas helpers into `apps/web/app/utils/render/canvas.ts`.
+- [x] Move graph traversal rendering into `apps/web/app/utils/render/graph.ts`.
+- [x] Move layer renderers into `apps/web/app/utils/render/layers/*`.
 - [x] Keep `primitiveScene.ts` as the shared Three.js scene recipe.
 - [x] Add or update render parity tests with every moved renderer slice.
 
@@ -267,7 +267,7 @@ Exit criteria:
 Goal: prevent classic layer controls and node inspector controls from drifting.
 
 - [x] Share layer field ranges and option lists through
-  `app/components/layer-controls/fieldDefs.ts`.
+  `apps/web/app/components/layer-controls/fieldDefs.ts`.
 - [x] Route node layer inspector controls through shared `LayerControls`.
 - [x] Add shared control metadata for durable layer sections and primitive
   placement exclusions.

@@ -3,14 +3,18 @@
 ## Running tests
 
 ```bash
-npm test                               # all tests (vitest run)
+npm test                               # web Vitest suite
+npm run test:api                       # API tests
+npm run check                          # format, lint, web/API typecheck, web/API tests
 npm run test:browser                   # Playwright browser smoke/regression tests
 npm run test:browser:install           # install Chromium for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
-npx vitest run app/types/config.test.ts  # single file
+npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web test file
 ```
 
-Tests are co-located with the code they cover or grouped under `app/test-fixtures/`.
+Web tests are co-located with the code they cover under `apps/web/app` or
+grouped under `apps/web/app/test-fixtures/`. API tests live under
+`apps/api/test`.
 
 ---
 
@@ -22,20 +26,20 @@ Fast, no browser required. Run in Node with `@napi-rs/canvas` polyfilling Canvas
 
 | File | Covers |
 | --- | --- |
-| `app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
-| `app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
-| `app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
-| `app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
-| `app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
-| `app/components/node-canvas/helpers.test.ts` | Node canvas helper utilities |
-| `app/components/node-canvas/thumbnails/renderSignature.test.ts` | thumbnail invalidation signatures for layers, graph nodes, and edges |
+| `apps/web/app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
+| `apps/web/app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
+| `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
+| `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
+| `apps/web/app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
+| `apps/web/app/components/node-canvas/helpers.test.ts` | Node canvas helper utilities |
+| `apps/web/app/components/node-canvas/thumbnails/renderSignature.test.ts` | thumbnail invalidation signatures for layers, graph nodes, and edges |
 
 ### Render baseline tests
 
 Verify deterministic renderer behavior for the Canvas 2D paths that are stable
 in the Node test environment.
 
-**Location:** `app/test-fixtures/render/renderParity.test.ts`
+**Location:** `apps/web/app/test-fixtures/render/renderParity.test.ts`
 
 **Current fixtures covered:**
 - Fill-only document
@@ -58,7 +62,7 @@ in the Node test environment.
 
 Verify graph traversal and graph-only nodes through the canonical renderer.
 
-**Location:** `app/test-fixtures/render/graphRender.test.ts`
+**Location:** `apps/web/app/test-fixtures/render/graphRender.test.ts`
 
 **Current fixtures covered:**
 - Export node traversal uses graph topology instead of layer-stack order
@@ -115,7 +119,7 @@ interpretation.
 ### Adding a fixture
 
 ```ts
-// app/test-fixtures/render/renderParity.test.ts
+// apps/web/app/test-fixtures/render/renderParity.test.ts
 it('my new fixture', async () => {
   const doc = {
     global: { bg: '#000000', seed: 1, aspect: '1:1' },
@@ -162,8 +166,8 @@ npm run test:browser -- -g "primitive node exposes interactive camera controls"
 ```
 
 Run them sequentially. React Router type generation writes to
-`.react-router/types`, and concurrent Playwright web servers can race while
-creating that generated directory.
+`apps/web/.react-router/types`, and concurrent Playwright web servers can race
+while creating that generated directory.
 
 For image/text transform bugs, the browser test should assert the behavior, not
 only absence of a crash:

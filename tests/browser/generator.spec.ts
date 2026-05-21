@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, test } from '@playwright/test';
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const consoleIssues = new WeakMap<Page, string[]>();
 const lightDocument = {
@@ -458,7 +462,7 @@ const aiImageHistoryDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
-const uploadImagePngBase64 = readFileSync('public/og.png').toString('base64');
+const uploadImagePngBase64 = readFileSync(resolve(repoRoot, 'apps/web/public/og.png')).toString('base64');
 const imageDragDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 8, aspect: '16:9' },

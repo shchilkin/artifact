@@ -29,11 +29,11 @@ Durable document state is the creative artifact. It is serialized, persisted, sh
 
 Current owner:
 
-- `app/hooks/useGeneratorDocument.ts`
-- `app/utils/documentCommands.ts` for pure document mutations
-- `app/utils/documentPersistence.ts` for normalization and initial document
+- `apps/web/app/hooks/useGeneratorDocument.ts`
+- `apps/web/app/utils/documentCommands.ts` for pure document mutations
+- `apps/web/app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
-- `app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
+- `apps/web/app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
   import/export mechanics
 
 Includes:
@@ -63,7 +63,7 @@ Graph state describes composition. It is part of the document because it affects
 Owner:
 
 - `CanvasDocument.graph`
-- helpers in `app/utils/nodeGraph.ts`
+- helpers in `apps/web/app/utils/nodeGraph.ts`
 
 Rules:
 
@@ -84,7 +84,7 @@ Selection and overlays are editor state. They do not affect output.
 
 Owner:
 
-- `app/components/node-canvas/machine.ts`
+- `apps/web/app/components/node-canvas/machine.ts`
 - `NodeCanvas.tsx` while orchestration is still centralized
 
 Includes:
@@ -153,7 +153,7 @@ Render options are explicit inputs that affect rendering but are not necessarily
 
 Current type:
 
-- `RenderOptions` in `app/utils/renderer.ts`
+- `RenderOptions` in `apps/web/app/utils/renderer.ts`
 
 Important fields:
 
@@ -211,7 +211,7 @@ Should not invalidate:
 ## Image persistence decision
 
 Artifact remains a browser-only editor for now. Imported image payloads are
-stored in IndexedDB through `app/utils/assetStore.ts`. Image layers keep a
+stored in IndexedDB through `apps/web/app/utils/assetStore.ts`. Image layers keep a
 serializable `src` string, but local imports are migrated from `data:image/...`
 payloads to lightweight `artifact-asset://...` references.
 
@@ -224,7 +224,7 @@ Tradeoff:
 - Very large images can still make exported `.artifact.json` files or share URLs
   heavy after hydration.
 - Local project snapshots and the pre-blank recovery draft are stored in
-  IndexedDB via `app/utils/projectStore.ts` so large document snapshots do not
+  IndexedDB via `apps/web/app/utils/projectStore.ts` so large document snapshots do not
   exhaust the small localStorage quota.
 - Active quick-reload document state still uses localStorage through
   `documentPersistence`; it should contain asset references, not imported image

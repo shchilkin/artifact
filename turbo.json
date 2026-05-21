@@ -1,7 +1,30 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalDependencies": [".env.example", "apps/api/.env.example"],
-  "globalEnv": ["CI", "NODE_ENV"],
+  "globalDependencies": [".env", ".env.example", "apps/api/.env", "apps/api/.env.example"],
+  "globalEnv": [
+    "AI_MAX_ACTIVE_JOBS_PER_USER",
+    "AI_MONTHLY_GENERATION_LIMIT",
+    "API_DATABASE_DRIVER",
+    "API_QUEUE_DRIVER",
+    "ASSET_STORAGE_DRIVER",
+    "ASSET_STORAGE_DIR",
+    "AUTH_JWT_AUDIENCE",
+    "AUTH_JWT_ISSUER",
+    "CI",
+    "CLERK_AUTHORIZED_PARTIES",
+    "DATABASE_URL",
+    "NODE_ENV",
+    "OPENAI_IMAGE_MODEL",
+    "PORT",
+    "REDIS_URL",
+    "VERCEL_GIT_COMMIT_SHA",
+    "VITE_AI_API_BASE_URL",
+    "VITE_APP_COMMIT",
+    "VITE_APP_VERSION",
+    "VITE_CLERK_PUBLISHABLE_KEY",
+    "WEB_ORIGIN",
+    "XAI_IMAGE_MODEL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

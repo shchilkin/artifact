@@ -9,6 +9,8 @@ packages/*/node_modules
 
 build
 dist
+apps/web/build
+apps/web/.react-router
 apps/*/dist
 coverage
 playwright-report

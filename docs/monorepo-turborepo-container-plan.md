@@ -10,15 +10,14 @@ alpha merge unless deploy instability becomes the blocker.
 
 ## Implementation Status
 
-Initial workspace and container foundation is in progress.
+Workspace and container foundation is in progress.
 
 Completed in the first slice:
 
 - Root npm workspaces include `apps/api`.
 - Root lockfile owns API workspace dependencies; the old nested API lockfile is
   removed.
-- Turborepo is installed with API-scoped build/typecheck/test scripts while the
-  web app still lives at the repo root.
+- Turborepo is installed with API-scoped build/typecheck/test scripts.
 - `@artifact/api` has production `build`, `start`, and `worker:start` scripts
   that emit and run compiled `dist` output.
 - Dedicated API, worker, and Bull Board Dockerfiles exist under `docker/`.
@@ -26,12 +25,29 @@ Completed in the first slice:
   Bull Board images.
 - Docker context excludes local agent/cache/build artifacts and env secrets.
 
+Completed in the web relocation slice:
+
+- Root npm workspaces include `apps/web`.
+- The React Router app source, public assets, Vite/React Router config,
+  web TypeScript config, and web Vitest config live under `apps/web`.
+- Root `dev`, `build`, `build:ci`, `preview`, `typecheck`, `test`,
+  `test:browser`, and `favicon` scripts are stable wrappers around
+  `@artifact/web`.
+- Vercel remains rooted at the repository and points output to
+  `apps/web/build/client`, preserving the root `api/og.tsx` function.
+- Vite loads root `.env` values through `envDir: '../..'`, so existing local
+  `VITE_*` setup still works.
+- Playwright starts the web dev server from `apps/web` directly and clears the
+  Clerk publishable key for browser tests, keeping unauthenticated QA stable.
+- Validation passed for `npm run check`, `npm run build`, `npm run turbo:check`,
+  the focused AI image multi-generation browser regression, and local Docker
+  builds for API, worker, and Bull Board images.
+
 Still pending:
 
-- Move the web app into `apps/web`.
 - Extract stable shared contracts into `packages/shared`.
-- Convert the main web validation path to Turborepo after the web app is a
-  workspace.
+- Finish converting the main web validation path to Turborepo where it improves
+  CI/runtime ergonomics.
 - Wire Coolify/VPS to pull CI-built image tags.
 - Add migration/release deployment orchestration around the containers.
 
@@ -73,7 +89,6 @@ apps/
     tsconfig.json
   api/
     src/
-    docker/
     package.json
     tsconfig.json
 

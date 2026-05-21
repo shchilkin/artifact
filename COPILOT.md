@@ -18,13 +18,14 @@ Prefer these docs over older inline summaries when they disagree. Update the rel
 
 ## Core rules
 
-- `CanvasDocument` in `app/types/config.ts` is the canonical source of truth.
+- `CanvasDocument` in `apps/web/app/types/config.ts` is the canonical source of truth.
 - `doc.graph` is optional, serialized state; keep it JSON-safe.
-- Graph logic belongs in `app/utils/nodeGraph.ts`.
-- Node canvas UI belongs in `app/components/node-canvas/*`.
-- Document/history/persistence logic belongs in `app/hooks/useGeneratorDocument.ts`.
-- Public rendering imports belong at `app/utils/renderer.ts`; implementation
-  internals live under `app/utils/render/`.
+- Graph logic belongs in `apps/web/app/utils/nodeGraph.ts`.
+- Node canvas UI belongs in `apps/web/app/components/node-canvas/*`.
+- Document/history/persistence logic belongs in
+  `apps/web/app/hooks/useGeneratorDocument.ts`.
+- Public rendering imports belong at `apps/web/app/utils/renderer.ts`;
+  implementation internals live under `apps/web/app/utils/render/`.
 - The main cover preview intentionally renders with `graphMode: 'stack'`.
 - Graph-target previews intentionally render through graph traversal.
 
@@ -44,9 +45,9 @@ Prefer `Vitest` and the lowest layer that proves the behavior.
 
 ### Unit
 
-- `app/utils/nodeGraph.ts`
-- `app/components/node-canvas/machine.ts`
-- `app/components/node-canvas/helpers.ts`
+- `apps/web/app/utils/nodeGraph.ts`
+- `apps/web/app/components/node-canvas/machine.ts`
+- `apps/web/app/components/node-canvas/helpers.ts`
 - `tests/browser/*` for browser-only regressions such as WebGL, export downloads,
   and tab-switch rendering bugs
 
@@ -65,19 +66,22 @@ Examples of high-value coverage:
 
 ### Browser/E2E
 
-No browser test runner is configured today. Do not add Playwright or Cypress unless the task specifically calls for it. If one is added later, focus on connect-drag, pan/zoom, selection, and graph-backed preview/export flows.
+Playwright browser tests live under `tests/browser/` and are run through the
+root `npm run test:browser` wrapper. Keep them focused on browser-only
+regressions: WebGL, export downloads, local gesture isolation, pan/zoom,
+selection, and graph-backed preview/export flows.
 
 ## Change checklist
 
 When adding or changing graph behavior, check whether you also need to update:
 
-1. graph types/factories in `app/types/config.ts`
-2. graph helpers in `app/utils/nodeGraph.ts`
-3. document sync in `app/hooks/useGeneratorDocument.ts`
-4. node creation/rendering in `app/components/node-canvas/buildRFNodes.ts`
-5. node UI and properties panels in `app/components/node-canvas/*`
-6. graph-aware rendering in `app/utils/render/graph.ts` when the node affects pixels
-7. docs in `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `app/routes/docs.nodes.tsx`
+1. graph types/factories in `apps/web/app/types/config.ts`
+2. graph helpers in `apps/web/app/utils/nodeGraph.ts`
+3. document sync in `apps/web/app/hooks/useGeneratorDocument.ts`
+4. node creation/rendering in `apps/web/app/components/node-canvas/buildRFNodes.ts`
+5. node UI and properties panels in `apps/web/app/components/node-canvas/*`
+6. graph-aware rendering in `apps/web/app/utils/render/graph.ts` when the node affects pixels
+7. docs in `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, or `apps/web/app/routes/docs.nodes.tsx`
 8. tests
 
 For state, rendering, or node-editor changes, also update the matching file in `docs/`.

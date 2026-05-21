@@ -34,7 +34,7 @@ Use these docs as the source of truth over older summaries in this file if they 
 
 ## Architecture: Data Model
 
-**Core type** — `CanvasDocument` in `app/types/config.ts`:
+**Core type** — `CanvasDocument` in `apps/web/app/types/config.ts`:
 
 ```ts
 interface CanvasDocument {
@@ -67,13 +67,13 @@ interface CanvasDocument {
 
 ## Architecture: Rendering Pipeline
 
-`app/utils/renderer.ts` is the public facade for `renderDocument` and
-`renderGraphTarget`; implementation internals live under `app/utils/render/`.
+`apps/web/app/utils/renderer.ts` is the public facade for `renderDocument` and
+`renderGraphTarget`; implementation internals live under `apps/web/app/utils/render/`.
 The current two-stage pipeline is:
 
 1. **Canvas 2D** — `renderDocument` iterates `doc.layers` in order, drawing each layer to a single `<canvas>`. Effect layers run `applyCanvas2DEffects` (rays, glitch, CA, scanlines, grain, tint).
 
-2. **PixiJS WebGL** — after each `effect` layer's Canvas 2D pass, `buildFiltersFromEffectLayer` (in `app/utils/pixiFilters.ts`) returns a `Filter[]`. If non-empty, `runGpuPass` blits the current canvas into a Pixi render texture, applies filters, and extracts a new canvas. The pipeline then continues on that output canvas.
+2. **PixiJS WebGL** — after each `effect` layer's Canvas 2D pass, `buildFiltersFromEffectLayer` (in `apps/web/app/utils/pixiFilters.ts`) returns a `Filter[]`. If non-empty, `runGpuPass` blits the current canvas into a Pixi render texture, applies filters, and extracts a new canvas. The pipeline then continues on that output canvas.
 
 **Entry point for export/preview:**
 ```ts
@@ -90,8 +90,8 @@ Graph-only utility nodes such as merge, color, and repeat live in
 
 ## Architecture: State Management
 
-Document state is owned by `app/hooks/useGeneratorDocument.ts` and orchestrated
-by `app/routes/generator.tsx`:
+Document state is owned by `apps/web/app/hooks/useGeneratorDocument.ts` and orchestrated
+by `apps/web/app/routes/generator.tsx`:
 
 - Document changes go through explicit update modes: `snapshot`, `debounce`, or `silent`.
 - Continuous gestures should create one undo entry through the debounced history path.
@@ -105,21 +105,21 @@ by `app/routes/generator.tsx`:
 
 | File | Purpose |
 |------|---------|
-| `app/types/config.ts` | All types, factory functions, `cloneDocument`, `migrateFromV1`, `EFFECT_PRESETS` |
-| `app/utils/renderer.ts` | Public render facade: `renderDocument`, `renderGraphTarget` |
-| `app/utils/render/layers/index.ts` | Layer/effect render passes while smaller per-kind modules are extracted |
-| `app/utils/pixiFilters.ts` | `buildFiltersFromEffectLayer` — maps `EffectLayer` fields to Pixi `Filter[]` |
-| `app/utils/gpuRender.ts` | One-shot Pixi renderer for export (no persistent `Renderer`) |
-| `app/utils/randomConfig.ts` | `randomDocument`, `randomEffectLayer`, `randomLayerSection`, `zeroLayerSection` |
-| `app/utils/exportCanvas.ts` | PNG/JPEG export at 1×/2×/3× — calls `renderDocument` then triggers download |
-| `app/utils/exportEnvMap.ts` | Equirectangular env map export for 3D use |
-| `app/routes/generator.tsx` | Main page: all state, undo/redo, image cache, event handlers |
-| `app/components/Sidebar.tsx` | Layer list + selected-layer controls (sliders, color pickers, toggles) |
-| `app/components/CanvasPreview.tsx` | Live canvas preview; drag-to-reposition text/image layers |
-| `app/components/LayerPanel.tsx` | Drag-to-reorder layer list, add/remove/duplicate/rename |
-| `app/components/PresetsPanel.tsx` | Save/load/delete named presets (stored in `localStorage`) |
-| `app/hooks/useDocumentRenderer.ts` | Hook that drives the async render loop for preview |
-| `app/utils/lcg.ts` | Deterministic LCG RNG seeded by `doc.global.seed` |
+| `apps/web/app/types/config.ts` | All types, factory functions, `cloneDocument`, `migrateFromV1`, `EFFECT_PRESETS` |
+| `apps/web/app/utils/renderer.ts` | Public render facade: `renderDocument`, `renderGraphTarget` |
+| `apps/web/app/utils/render/layers/index.ts` | Layer/effect render passes while smaller per-kind modules are extracted |
+| `apps/web/app/utils/pixiFilters.ts` | `buildFiltersFromEffectLayer` — maps `EffectLayer` fields to Pixi `Filter[]` |
+| `apps/web/app/utils/gpuRender.ts` | One-shot Pixi renderer for export (no persistent `Renderer`) |
+| `apps/web/app/utils/randomConfig.ts` | `randomDocument`, `randomEffectLayer`, `randomLayerSection`, `zeroLayerSection` |
+| `apps/web/app/utils/exportCanvas.ts` | PNG/JPEG export at 1×/2×/3× — calls `renderDocument` then triggers download |
+| `apps/web/app/utils/exportEnvMap.ts` | Equirectangular env map export for 3D use |
+| `apps/web/app/routes/generator.tsx` | Main page: all state, undo/redo, image cache, event handlers |
+| `apps/web/app/components/Sidebar.tsx` | Layer list + selected-layer controls (sliders, color pickers, toggles) |
+| `apps/web/app/components/CanvasPreview.tsx` | Live canvas preview; drag-to-reposition text/image layers |
+| `apps/web/app/components/LayerPanel.tsx` | Drag-to-reorder layer list, add/remove/duplicate/rename |
+| `apps/web/app/components/PresetsPanel.tsx` | Save/load/delete named presets (stored in `localStorage`) |
+| `apps/web/app/hooks/useDocumentRenderer.ts` | Hook that drives the async render loop for preview |
+| `apps/web/app/utils/lcg.ts` | Deterministic LCG RNG seeded by `doc.global.seed` |
 
 ---
 

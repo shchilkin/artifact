@@ -19,9 +19,9 @@ aspect ratio support, and equirectangular environment map export.
 
 | Path        | File                   | Description                              |
 | ----------- | ---------------------- | ---------------------------------------- |
-| `/`         | `routes/home.tsx`      | Landing page with animated hero covers   |
-| `/app`      | `routes/generator.tsx` | Main generator: canvas, layers, export   |
-| `/examples` | `routes/examples.tsx`  | Curated examples with live previews      |
+| `/`         | `apps/web/app/routes/home.tsx`      | Landing page with animated hero covers   |
+| `/app`      | `apps/web/app/routes/generator.tsx` | Main generator: canvas, layers, export   |
+| `/examples` | `apps/web/app/routes/examples.tsx`  | Curated examples with live previews      |
 | `/docs/nodes` | `routes/docs.nodes.tsx` | Task-oriented node, source, and effect docs |
 
 ## Layer system
@@ -63,8 +63,8 @@ and overlay (none / contextMenu / gallery).
 ## Rendering pipeline
 
 `renderDocument(doc, W, H, imageCache)` is exported from
-`app/utils/renderer.ts`. That file is the public facade; implementation details
-live under `app/utils/render/`.
+`apps/web/app/utils/renderer.ts`. That file is the public facade;
+implementation details live under `apps/web/app/utils/render/`.
 
 1. Choose graph mode or stack mode. Stack mode infers a linear graph from the
    layer list so both paths share renderer semantics.
@@ -81,7 +81,7 @@ live under `app/utils/render/`.
 Pixel-like parameters scale from a 540px reference size so x1/x2/x3 exports keep
 the same composition and effect density as preview.
 
-**GPU shader passes** (`app/utils/pixiFilters.ts`)
+**GPU shader passes** (`apps/web/app/utils/pixiFilters.ts`)
 
 Canvas 2D output is blitted to a `RenderTexture`, then GLSL filters run in
 order within each effect layer:
@@ -94,7 +94,8 @@ order within each effect layer:
 
 All shaders use normalized UV coordinates so effects are resolution-independent.
 
-**3D primitive rendering** (`app/utils/primitiveScene.ts`, `app/utils/primitiveRenderer.ts`)
+**3D primitive rendering** (`apps/web/app/utils/primitiveScene.ts`,
+`apps/web/app/utils/primitiveRenderer.ts`)
 
 Geometry, material, lights, and camera are defined once in
 `primitiveScene.ts`. Both the live viewport (`PrimitiveViewport3D`) and the
@@ -113,10 +114,11 @@ multiplies the base dimensions.
 
 ## Seeded randomness
 
-LCG RNG (`app/utils/lcg.ts`). Each layer gets an independent sub-seed via XOR
-constants. The RAND button (`randomDocument`) generates a full document: random
-aspect ratio, a seeded emoji layer, and 2–8 randomized preset-based effect
-layers drawn from focused effect presets, all color-keyed to a shared base hue.
+LCG RNG (`apps/web/app/utils/lcg.ts`). Each layer gets an independent sub-seed
+via XOR constants. The RAND button (`randomDocument`) generates a full document:
+random aspect ratio, a seeded emoji layer, and 2–8 randomized preset-based
+effect layers drawn from focused effect presets, all color-keyed to a shared
+base hue.
 
 ## Image persistence
 
@@ -189,7 +191,7 @@ covers (
 
 ```bash
 npm install
-npm run dev        # React Router dev server
+npm run dev        # React Router dev server for @artifact/web
 npm run build      # production build
 npm run build:ci   # CI alias for production build
 npm run favicon    # optional local bitmap favicon generation
@@ -197,17 +199,20 @@ npm run format     # Biome format + import organization
 npm run format:check
 npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
-npm test           # vitest run (all tests)
+npm test           # web Vitest suite
+npm run test:api   # API Vitest suite
 npm run test:browser:install # install Playwright Chromium once
 npm run test:browser # focused browser/WebGL smoke tests
 npm run perf:node-editor # opt-in node editor performance benchmark
-npm run check      # format check + lint + typecheck + tests
+npm run check      # format check + lint + web/API typecheck + web/API tests
 ```
 
-Deploys to Vercel via `react-router build` → `build/client/`.
+Deploys to Vercel from the repo root via the `@artifact/web` workspace:
+`react-router build` → `apps/web/build/client/`.
 
-`public/favicon.svg` is the committed production favicon. `public/favicon.png`
-is an optional generated local bitmap and remains ignored.
+`apps/web/public/favicon.svg` is the committed production favicon.
+`apps/web/public/favicon.png` is an optional generated local bitmap and remains
+ignored.
 
 ## Architecture docs
 
@@ -241,76 +246,15 @@ apps/
       db/                    # Future migrations/repositories
       providers/             # Future OpenAI/xAI/mock adapters
       storage/               # Future file/object storage adapters
-
-app/
-  root.tsx                  # App shell, global nav, fonts
-  routes.ts                 # Route definitions
-  routes/
-    home.tsx                # Landing page
-    generator.tsx           # Main generator UI + state root
-    examples.tsx            # Curated examples gallery
-  components/
-    SiteNav.tsx             # Top navigation bar (with LogoGlyph lockup)
-    LogoGlyph.tsx           # Animated emoji logo (6 GPU variants)
-    BottomBar.tsx           # Randomize, undo/redo, share link, export, presets toggle
-    CanvasPreview.tsx       # Preview canvas + scroll-to-scale + CanvasHandles
-    CanvasHandles.tsx       # SVG move/scale/rotate handles for selected layer
-    LayerPanel.tsx          # Layer list: drag-reorder, visibility, rename, add menu
-    Sidebar.tsx             # Classic layer controls + aspect strip
-    PresetsPanel.tsx        # Preset save/load UI
-    HeroCover.tsx           # Animated cover for the home hero
-    EffectInfoPopup.tsx     # Tooltip descriptions for GPU effects
-    Footer.tsx              # Site footer
-    layer-controls/
-      fieldDefs.ts          # Canonical slider ranges + select options (single source of truth)
-      LayerControls.tsx     # Shared inspector-style layer control renderer
-    node-canvas/
-      NodeCanvas.tsx        # Node graph canvas: composition of hooks + React Flow
-      context.tsx           # Node canvas React contexts
-      machine.ts            # XState v5 parallel interaction state machine
-      constants.ts          # Shared constants (THUMB_SIZE, BLEND_OPTIONS, etc.)
-      types.ts              # Node canvas TypeScript types
-      hooks/
-        useNodeSelectionSync.ts     # Syncs XState selection ↔ React Flow selection
-        useNodeContextMenus.ts      # Right-click context menu logic
-        useNodeGraphEvents.ts       # Graph mutation events (add/delete/connect)
-        useNodeDragState.ts         # Node drag state and document commit
-        useNodeGallery.ts           # Gallery media panel state
-        usePrimitiveCameraState.ts  # Primitive camera state + lock + reset
-      areas/                # Graph area overlays and bounds helpers
-      nodes/                # Per-kind node components
-      inspector/            # Node property panels
-      thumbnails/
-        NodeThumbnail.tsx       # Scoped async thumbnail with content-based invalidation
-        renderSignature.ts      # Per-kind render-field signatures
-        thumbnailQueue.ts       # Debounced per-target render queue
-  hooks/
-    useDocumentRenderer.ts  # Canvas render loop: pw/ph → renderDocument → display
-    usePresets.ts           # localStorage CRUD + thumbnail generation
-    useGeneratorDocument.ts # Document state owner: undo/redo, setDoc wrapper
-    useGeneratorAssets.ts   # Image cache management
-    useProjects.ts          # IndexedDB project snapshots
-  utils/
-    lcg.ts                  # Seeded LCG RNG
-    renderer.ts             # Public render facade (renderDocument/renderGraphTarget)
-    render/                 # Renderer internals: graph, canvas, layers, workers
-    pixiFilters.ts          # 30+ GLSL shaders + buildFilters() pipeline
-    primitiveScene.ts       # Shared Three.js scene recipe (geometry/material/lights)
-    primitiveRenderer.ts    # Offscreen Three.js render for export
-    gpuRender.ts            # Off-screen PixiJS GPU render utility
-    exportCanvas.ts         # Hi-res export at ×1/×2/×3 (aspect-aware)
-    exportEnvMap.ts         # 4096×2048 equirectangular export
-    generateThumbnail.ts    # Full-pipeline 200×200 preset thumbnail
-    assetStore.ts           # IndexedDB image asset storage
-    projectStore.ts         # IndexedDB local project storage
-    randomConfig.ts         # Document randomizer (RAND button)
-    nodeGraph.ts            # Graph traversal helpers (collectUpstreamNodeIds, etc.)
-    devLogging.ts           # Dev-only logging (thumbnail invalidation causes)
-    effectInfo.ts           # Human-readable GPU effect descriptions + previews
-    heroConfigs.ts          # Curated configs used on the home hero
-    logoVariants.ts         # LogoGlyph effect variant definitions
-  types/
-    config.ts               # All types: Layer, CanvasDocument, EffectPreset, etc.
-  test-fixtures/
-    render/                 # Render parity fixtures and Canvas 2D pixel tests
+  web/                       # Vercel React Router app workspace
+    app/
+      root.tsx               # App shell, global nav, fonts
+      routes.ts              # Route definitions
+      routes/                # Landing, generator, examples, node docs
+      components/            # UI and feature components
+      hooks/                 # Web app orchestration hooks
+      utils/                 # Renderer, graph helpers, persistence, export
+      types/                 # CanvasDocument, Layer, graph, factory types
+      test-fixtures/         # Render parity fixtures and Canvas 2D pixel tests
+    public/                  # Deployed static assets
 ```

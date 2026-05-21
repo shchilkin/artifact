@@ -12,15 +12,15 @@ The node editor should not become a second document model.
 
 | Area | Files |
 | --- | --- |
-| Shell | `app/components/node-canvas/NodeCanvas.tsx` |
-| State machine | `app/components/node-canvas/machine.ts` |
-| Context | `app/components/node-canvas/context.ts` |
-| Node construction | `app/components/node-canvas/buildRFNodes.ts` |
-| Node components | `app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
-| Node previews | `app/components/node-canvas/thumbnails/*` |
-| Inspectors | `app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
-| Menus | `app/components/node-canvas/menus/*` |
-| Graph helpers | `app/utils/nodeGraph.ts` |
+| Shell | `apps/web/app/components/node-canvas/NodeCanvas.tsx` |
+| State machine | `apps/web/app/components/node-canvas/machine.ts` |
+| Context | `apps/web/app/components/node-canvas/context.ts` |
+| Node construction | `apps/web/app/components/node-canvas/buildRFNodes.ts` |
+| Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
+| Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
+| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| Menus | `apps/web/app/components/node-canvas/menus/*` |
+| Graph helpers | `apps/web/app/utils/nodeGraph.ts` |
 
 ## Architecture overview
 
