@@ -12,6 +12,7 @@ Related architecture docs:
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`production-readiness.md`](./production-readiness.md)
+- [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
 ## Product summary
 
@@ -96,6 +97,10 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
   images in GitHub PR/CI, push them to a registry, then make the VPS deploy pull
   already-built images instead of running long multi-service Docker builds on
   the deploy host.
+- Monorepo/Turborepo infrastructure migration for workspace-aware validation,
+  shared API contracts, dedicated backend containers, and pull-only Coolify/VPS
+  deploys. Detailed plan:
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
 - Server-side project saving.
 - Server-backed share links.
 - Preset database and community preset browsing.
@@ -460,6 +465,15 @@ Research and architecture tasks:
   VPS/Coolify deploy step to run those images instead of rebuilding on the VPS.
   This should reduce preview deploy timeouts and make deploy failures separate
   from image build failures.
+- [ ] Run the monorepo/Turborepo migration as a dedicated infrastructure track:
+  introduce workspaces, add Turborepo task orchestration, move the web app into
+  `apps/web`, extract stable shared contracts, build dedicated service
+  containers, publish images from GitHub PR/CI, and switch Coolify/VPS to
+  pull-only deploys. Plan:
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
+  Initial foundation is in progress: API workspace wiring, API-scoped Turbo
+  scripts, production API build/start scripts, service Dockerfiles, and the
+  additive GHCR image workflow are implemented before the web relocation phase.
 
 Release checklist:
 
@@ -490,6 +504,9 @@ Private-alpha merge gate:
 - [ ] Post-merge follow-up: generated-job cleanup, provider/defaults research,
   prebuilt container deploys, and final v0.13 release notes can land after the
   private alpha merge if the blockers above pass.
+- [ ] Post-merge follow-up: monorepo/Turborepo workspace migration can be done
+  in parallel tracks after the private alpha merge decision, following
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
 
 Estimated effort before deciding whether to merge: 2 focused days in the best
 case, 3 focused days expected, and 4 focused days if auth/session, asset import,

@@ -47,7 +47,7 @@ Implemented:
   dev bearer-token fallback.
 - Clerk bearer-token verification with `CLERK_SECRET_KEY` or `CLERK_JWT_KEY`.
 - First-login user provisioning with AI disabled by default, plus
-  `npm --prefix apps/api run grant:ai -- <clerk-user-id> [email]` for private
+  `npm --workspace @artifact/api run grant:ai -- <clerk-user-id> [email]` for private
   alpha entitlement.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
@@ -89,7 +89,7 @@ npm run dev:ai:infra
 npm run dev:ai:api
 npm run dev:ai:worker
 npm run dev:ai:web
-npm --prefix apps/api run smoke
+npm --workspace @artifact/api run smoke
 ```
 
 Run `dev:ai:api`, `dev:ai:worker`, and `dev:ai:web` in separate terminals. The

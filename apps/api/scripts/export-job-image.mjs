@@ -9,7 +9,7 @@ loadEnvFile(resolve(process.cwd(), 'apps/api/.env.local'));
 
 const [jobId, outputPathArg] = process.argv.slice(2);
 if (!jobId) {
-  console.error('Usage: npm --prefix apps/api run export:job-image -- <job-id> [output-path]');
+  console.error('Usage: npm --workspace @artifact/api run export:job-image -- <job-id> [output-path]');
   process.exit(1);
 }
 

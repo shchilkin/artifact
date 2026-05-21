@@ -10,8 +10,8 @@ Run these as separate long-lived processes:
 
 | Process | Command | Purpose |
 | --- | --- | --- |
-| API | `npm --prefix apps/api run dev` | HTTP API, auth, quota, job creation, asset downloads, Bull Board |
-| Worker | `npm --prefix apps/api run worker:dev` | BullMQ consumer, provider calls, storage writes, job completion |
+| API | `npm --workspace @artifact/api run dev` | HTTP API, auth, quota, job creation, asset downloads, Bull Board |
+| Worker | `npm --workspace @artifact/api run worker:dev` | BullMQ consumer, provider calls, storage writes, job completion |
 | Postgres | VPS service or container | users, jobs, assets, usage |
 | Redis | VPS service or container | BullMQ queue |
 
@@ -73,7 +73,7 @@ disabled `users` row automatically after a session verifies, so granting access
 is a separate operator step:
 
 ```bash
-npm --prefix apps/api run grant:ai -- user_xxx user@example.com
+npm --workspace @artifact/api run grant:ai -- user_xxx user@example.com
 ```
 
 The email argument is optional; the Clerk user id is the durable key.
@@ -83,7 +83,7 @@ The email argument is optional; the Clerk user id is the durable key.
 Apply migrations before starting the API or worker:
 
 ```bash
-npm --prefix apps/api run migrate
+npm --workspace @artifact/api run migrate
 ```
 
 For local Compose only, `docker-compose.local.yml` mounts the migration and
@@ -158,7 +158,7 @@ You can run the same flow with the bundled smoke script after the API and
 worker are running:
 
 ```bash
-npm --prefix apps/api run smoke
+npm --workspace @artifact/api run smoke
 ```
 
 Useful overrides:
@@ -167,7 +167,7 @@ Useful overrides:
 API_SMOKE_BASE_URL=https://api.example.com \
 API_SMOKE_TOKEN=<bearer-token> \
 API_SMOKE_PROVIDER=openai \
-npm --prefix apps/api run smoke
+npm --workspace @artifact/api run smoke
 ```
 
 The smoke script checks `/api/health`, `/api/ai/access`, creates a generation
