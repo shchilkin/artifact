@@ -20,6 +20,21 @@ if (!databaseUrl) {
 const pool = new pg.Pool({ connectionString: databaseUrl });
 
 try {
+  await pool.query('BEGIN');
+  const detachedEmailRows = email
+    ? await pool.query(
+        `
+          UPDATE users
+          SET email = NULL,
+              updated_at = now()
+          WHERE email = $2
+            AND id <> $1
+          RETURNING id
+        `,
+        [userId, email],
+      )
+    : { rows: [] };
+
   const result = await pool.query(
     `
       INSERT INTO users (id, email, role, ai_enabled, plus_status)
@@ -34,7 +49,20 @@ try {
     `,
     [userId, email ?? null],
   );
-  console.log(JSON.stringify({ user: result.rows[0] }, null, 2));
+  await pool.query('COMMIT');
+  console.log(
+    JSON.stringify(
+      {
+        user: result.rows[0],
+        detachedEmailFromUserIds: detachedEmailRows.rows.map((row) => row.id),
+      },
+      null,
+      2,
+    ),
+  );
+} catch (error) {
+  await pool.query('ROLLBACK');
+  throw error;
 } finally {
   await pool.end();
 }
