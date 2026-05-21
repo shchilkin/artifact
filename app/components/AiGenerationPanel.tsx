@@ -117,6 +117,40 @@ function logAiPanelDebug(event: string, fields: Record<string, boolean | number 
   console.info(`[ai-generation] ${event}${summary ? ` ${summary}` : ''}`, fields);
 }
 
+function decodeBearerTokenClaims(token: string | undefined) {
+  if (!token || token.split('.').length < 3) return null;
+  try {
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) return null;
+    const normalized = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const binary = window.atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function debugClaim(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(debugClaim).filter(Boolean).join(',');
+  return null;
+}
+
+function logBearerTokenClaims(token: string | undefined) {
+  const claims = decodeBearerTokenClaims(token);
+  if (!claims) return;
+  logAiPanelDebug('access_check.token_claims', {
+    sub: debugClaim(claims.sub),
+    iss: debugClaim(claims.iss),
+    aud: debugClaim(claims.aud),
+    azp: debugClaim(claims.azp),
+    sid: debugClaim(claims.sid),
+  });
+}
+
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
   if (!generation?.prompt) return null;
   return (
@@ -148,6 +182,7 @@ export function AiGenerationPanel({
     configured: authConfigured,
     loaded: authLoaded,
     signedIn: authSignedIn,
+    userId: authUserId,
     getToken: getAuthToken,
     openSignIn,
   } = auth;
@@ -168,6 +203,7 @@ export function AiGenerationPanel({
       authConfigured,
       authLoaded,
       authSignedIn,
+      authUserId,
       hasDevToken: Boolean(devToken),
       baseUrl: baseUrl ?? null,
     });
@@ -175,8 +211,10 @@ export function AiGenerationPanel({
       .then((bearerToken) => {
         logAiPanelDebug('access_check.token', {
           authSignedIn,
+          authUserId,
           hasBearerToken: Boolean(bearerToken),
         });
+        logBearerTokenClaims(bearerToken);
         return getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal });
       })
       .then((next) => {
@@ -199,7 +237,7 @@ export function AiGenerationPanel({
         }
       });
     return () => controller.abort();
-  }, [authConfigured, authLoaded, authSignedIn, baseUrl, devToken, getBearerToken]);
+  }, [authConfigured, authLoaded, authSignedIn, authUserId, baseUrl, devToken, getBearerToken]);
 
   useEffect(() => {
     if (!jobIsActive(job)) return;

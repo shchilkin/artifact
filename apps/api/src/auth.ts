@@ -57,6 +57,8 @@ interface JwtClaims {
   role?: unknown;
   iss?: unknown;
   aud?: unknown;
+  azp?: unknown;
+  sid?: unknown;
   exp?: unknown;
   nbf?: unknown;
 }
@@ -123,16 +125,7 @@ export function createJwtBearerVerifier(options: JwtVerifierOptions) {
 export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
   return async (token: string): Promise<RequestUser | null> => {
     if (!options.secretKey && !options.jwtKey) return null;
-    const result = await verifyClerkToken(token, options);
-    if (!result) return null;
-    if (result.errors) {
-      logWarn('auth.clerk_token_rejected', {
-        reason: clerkErrorSummary(result.errors),
-      });
-      return null;
-    }
-
-    const payload = result.data;
+    const payload = await verifyClerkToken(token, options);
     if (!payload || typeof payload !== 'object') return null;
 
     const claims = payload as Record<string, unknown>;
@@ -156,6 +149,8 @@ async function verifyClerkToken(token: string, options: ClerkBearerVerifierOptio
   } catch (error) {
     logWarn('auth.clerk_token_rejected', {
       reason: error instanceof Error ? error.message : 'unknown',
+      authorizedParties: formatAuthorizedParties(options.authorizedParties),
+      ...summarizeBearerTokenClaims(token),
     });
     return null;
   }
@@ -220,6 +215,37 @@ function parseJwtPart<T>(encoded: string): T | null {
   }
 }
 
+function summarizeBearerTokenClaims(token: string) {
+  const [, encodedPayload] = token.split('.');
+  const claims = encodedPayload ? parseJwtPart<JwtClaims>(encodedPayload) : null;
+  if (!claims) {
+    return {
+      tokenClaims: 'unavailable',
+    };
+  }
+
+  return {
+    tokenClaims: 'decoded',
+    tokenSub: debugClaim(claims.sub),
+    tokenIss: debugClaim(claims.iss),
+    tokenAud: debugClaim(claims.aud),
+    tokenAzp: debugClaim(claims.azp),
+    tokenSid: debugClaim(claims.sid),
+  };
+}
+
+function debugClaim(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(debugClaim).filter(Boolean).join(',');
+  return null;
+}
+
+function formatAuthorizedParties(parties: string[] | undefined) {
+  const filtered = parties?.filter(Boolean) ?? [];
+  return filtered.length ? filtered.join(',') : null;
+}
+
 function signJwtParts(value: string, secret: string): string {
   return createHmac('sha256', secret).update(value).digest('base64url');
 }
@@ -234,15 +260,4 @@ function audienceMatches(claimAudience: unknown, expectedAudience: string) {
   if (typeof claimAudience === 'string') return claimAudience === expectedAudience;
   if (Array.isArray(claimAudience)) return claimAudience.includes(expectedAudience);
   return false;
-}
-
-function clerkErrorSummary(errors: unknown) {
-  if (!Array.isArray(errors)) return 'unknown';
-  return errors
-    .map((error) => {
-      if (!error || typeof error !== 'object') return 'unknown';
-      const fields = error as Record<string, unknown>;
-      return String(fields.code ?? fields.reason ?? fields.message ?? 'unknown');
-    })
-    .join(',');
 }
