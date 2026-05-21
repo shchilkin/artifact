@@ -90,6 +90,9 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 - AI Image node add flow exposes the account-gated source node, and anonymous
   browser-test access disables generation instead of hiding or breaking the
   rest of the editor.
+- Mocked AI alpha QA covers an AI-enabled generation flow, generated image
+  export, prompt provenance after reload, quota-exhausted access, and provider
+  failure messaging without spending provider tokens.
 - Default document export triggers a browser download.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser

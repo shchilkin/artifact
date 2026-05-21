@@ -309,6 +309,8 @@ const textDragDocument = {
 };
 const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
+const generatedImageDataUrl =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const uploadImagePngBase64 = readFileSync('public/og.png').toString('base64');
 const imageDragDocument = {
   schemaVersion: 1,
@@ -693,6 +695,111 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
   await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
   await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI-enabled user can generate an image and keep prompt provenance after reload', async ({ page }) => {
+  const prompt = 'red square cassette cover';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockSuccessfulAiGeneration(page, prompt);
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.getByText('Current image prompt')).toBeVisible();
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const image = doc.layers?.find((layer: { kind: string }) => layer.kind === 'image');
+          return {
+            prompt: image?.aiGeneration?.prompt,
+            provider: image?.aiGeneration?.provider,
+            src: image?.src,
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatchObject({ prompt, provider: 'openai', src: expect.stringMatching(/^artifact-asset:\/\//) });
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+  await page.locator('.sidebar [draggable="true"]').first().click();
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible({
+    timeout: 15_000,
+  });
+});
+
+test('AI quota exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: false,
+    disabledReason: 'quota_exhausted',
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+
+  await page.goto('/app?new=blank');
+
+  await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI quota used');
+  await expect(page.locator('.ai-generation-access-banner')).toContainText(
+    'Your monthly generation limit is used for this account.',
+  );
+  await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI provider failure leaves the editor usable and shows the API error', async ({ page }) => {
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 1, remaining: 9 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await page.route('**/api/ai/generations', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'browser-ai-failed-job',
+        status: 'failed',
+        provider: 'openai',
+        model: 'mock-image-model',
+        prompt: 'failed noisy cover',
+        settings: { aspect: '1:1', quality: 'standard' },
+        error: { code: 'provider_unavailable', message: 'Provider timed out.', retryable: true },
+        quota: { period: '2026-05', limit: 10, used: 2, remaining: 8 },
+        createdAt: '2026-05-21T00:00:00.000Z',
+      }),
+    });
+  });
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill('failed noisy cover');
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
+  await expect(page.locator('.empty-canvas-start')).toBeVisible();
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {
@@ -1213,6 +1320,56 @@ async function switchToLayerView(page: Page) {
     await layersButton.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 10_000 });
+}
+
+async function mockAiAccess(page: Page, access: Record<string, unknown>) {
+  await page.unroute('**/api/ai/access');
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(access),
+    });
+  });
+}
+
+async function mockSuccessfulAiGeneration(page: Page, expectedPrompt: string) {
+  await page.route('**/api/ai/generations', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return route.fallback();
+    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+    expect(body.prompt).toBe(expectedPrompt);
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'browser-ai-job-1',
+        status: 'succeeded',
+        provider: body.provider ?? 'openai',
+        model: 'mock-image-model',
+        prompt: body.prompt,
+        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+        asset: {
+          id: 'browser-ai-asset-1',
+          uri: generatedImageDataUrl,
+          mimeType: 'image/png',
+          width: 1,
+          height: 1,
+          sizeBytes: 70,
+          createdAt: '2026-05-21T00:00:00.000Z',
+          metadata: {
+            provider: body.provider ?? 'openai',
+            model: 'mock-image-model',
+            prompt: body.prompt,
+            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+            createdAt: '2026-05-21T00:00:00.000Z',
+          },
+        },
+        quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+        createdAt: '2026-05-21T00:00:00.000Z',
+        completedAt: '2026-05-21T00:00:01.000Z',
+      }),
+    });
+  });
 }
 
 async function getCanvasCenterRgb(page: Page) {

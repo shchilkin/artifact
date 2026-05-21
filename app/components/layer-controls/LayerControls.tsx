@@ -66,6 +66,16 @@ function sourceColorLabels(layer: SourceLayer): { primary: string; secondary: st
   return { primary: 'Base', secondary: 'Accent' };
 }
 
+function ImageGenerationProvenance({ layer }: { layer: ImageLayer }) {
+  if (!layer.aiGeneration?.prompt) return null;
+  return (
+    <div className="ai-generation-provenance">
+      <span>Current image prompt</span>
+      <p>{layer.aiGeneration.prompt}</p>
+    </div>
+  );
+}
+
 export function LayerControls({
   layer,
   onChange,
@@ -181,6 +191,7 @@ export function LayerControls({
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+          <ImageGenerationProvenance layer={layer} />
           <InspectorSelect
             label="Fit"
             value={layer.fit}
