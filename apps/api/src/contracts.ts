@@ -83,7 +83,7 @@ export interface AiGenerationJobResponse {
 export interface AiAccessResponse {
   authenticated: boolean;
   enabled: boolean;
-  disabledReason?: 'anonymous' | 'not_enabled' | 'quota_exhausted' | 'maintenance';
+  disabledReason?: 'anonymous' | 'invalid_session' | 'not_enabled' | 'quota_exhausted' | 'maintenance';
   user?: {
     id: string;
     email?: string;

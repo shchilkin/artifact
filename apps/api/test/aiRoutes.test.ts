@@ -69,6 +69,19 @@ describe('AI route handlers', () => {
     });
   });
 
+  it('returns invalid session state when bearer credentials are rejected', async () => {
+    const { deps } = createDeps({ authenticated: false, reason: 'invalid_credentials' });
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        authenticated: false,
+        disabledReason: 'invalid_session',
+        enabled: false,
+      },
+    });
+  });
+
   it('returns enabled access state with quota for an AI-enabled user', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });

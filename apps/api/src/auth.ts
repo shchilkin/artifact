@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { verifyToken } from '@clerk/backend';
 import type { AiAccessResponse, AiProvider, AiQuotaSnapshot } from './contracts.js';
+import { logWarn } from './logger.js';
 
 export interface RequestUser {
   id: string;
@@ -127,7 +128,12 @@ export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
       jwtKey: options.jwtKey,
       authorizedParties: options.authorizedParties?.filter(Boolean),
     });
-    if (result.errors) return null;
+    if (result.errors) {
+      logWarn('auth.clerk_token_rejected', {
+        reason: clerkErrorSummary(result.errors),
+      });
+      return null;
+    }
 
     const payload = result.data;
     if (!payload || typeof payload !== 'object') return null;
@@ -178,7 +184,8 @@ export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAcce
   let disabledReason: AiAccessResponse['disabledReason'];
   if (!enabled) {
     if (maintenance) disabledReason = 'maintenance';
-    else if (!auth.authenticated) disabledReason = 'anonymous';
+    else if (!auth.authenticated)
+      disabledReason = auth.reason === 'invalid_credentials' ? 'invalid_session' : 'anonymous';
     else if (!aiEnabled) disabledReason = 'not_enabled';
     else if (quotaExhausted) disabledReason = 'quota_exhausted';
   }
@@ -215,4 +222,15 @@ function audienceMatches(claimAudience: unknown, expectedAudience: string) {
   if (typeof claimAudience === 'string') return claimAudience === expectedAudience;
   if (Array.isArray(claimAudience)) return claimAudience.includes(expectedAudience);
   return false;
+}
+
+function clerkErrorSummary(errors: unknown) {
+  if (!Array.isArray(errors)) return 'unknown';
+  return errors
+    .map((error) => {
+      if (!error || typeof error !== 'object') return 'unknown';
+      const fields = error as Record<string, unknown>;
+      return String(fields.code ?? fields.reason ?? fields.message ?? 'unknown');
+    })
+    .join(',');
 }

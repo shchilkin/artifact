@@ -75,6 +75,12 @@ export async function handleAccessRequest(
 ): Promise<JsonResponse<AiAccessResponse>> {
   const auth = await deps.resolveAuth(request);
   const user = auth.authenticated ? await deps.repositories.users.findById(auth.user.id) : null;
+  logInfo('ai_generation.access_checked', {
+    authenticated: auth.authenticated,
+    reason: auth.authenticated ? undefined : auth.reason,
+    userId: auth.authenticated ? auth.user.id : undefined,
+    aiEnabled: Boolean(user?.ai_enabled && !user.disabled_at),
+  });
   const period = getMonthlyQuotaPeriod(deps.now?.());
   const quota = auth.authenticated
     ? createQuotaSnapshot(

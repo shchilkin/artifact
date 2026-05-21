@@ -110,7 +110,11 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, createError: () 
 
 function logAiPanelDebug(event: string, fields: Record<string, boolean | number | string | null | undefined> = {}) {
   const env = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
-  if (env?.DEV) console.info('[ai-generation]', event, fields);
+  if (!env?.DEV) return;
+  const summary = Object.entries(fields)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
+  console.info(`[ai-generation] ${event}${summary ? ` ${summary}` : ''}`, fields);
 }
 
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
@@ -168,7 +172,13 @@ export function AiGenerationPanel({
       baseUrl: baseUrl ?? null,
     });
     getBearerToken()
-      .then((bearerToken) => getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal }))
+      .then((bearerToken) => {
+        logAiPanelDebug('access_check.token', {
+          authSignedIn,
+          hasBearerToken: Boolean(bearerToken),
+        });
+        return getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal });
+      })
       .then((next) => {
         if (!controller.signal.aborted) {
           logAiPanelDebug('access_check.success', {

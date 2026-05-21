@@ -110,6 +110,21 @@ describe('auth helpers', () => {
   it('ignores Clerk bearer verification when Clerk keys are not configured', async () => {
     await expect(createClerkBearerVerifier({})('not-a-clerk-token')).resolves.toBeNull();
   });
+
+  it('separates missing and invalid bearer credentials in access state', () => {
+    expect(
+      computeAiAccessResponse({
+        aiEnabled: false,
+        auth: { authenticated: false, reason: 'missing_credentials' },
+      }),
+    ).toMatchObject({ disabledReason: 'anonymous' });
+    expect(
+      computeAiAccessResponse({
+        aiEnabled: false,
+        auth: { authenticated: false, reason: 'invalid_credentials' },
+      }),
+    ).toMatchObject({ disabledReason: 'invalid_session' });
+  });
 });
 
 function createTestJwt(payload: Record<string, unknown>, secret: string) {
