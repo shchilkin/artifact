@@ -152,6 +152,22 @@ npm --prefix apps/api run smoke
 The smoke script checks `/api/health`, `/api/ai/access`, creates a generation
 job, polls it to completion, and downloads the generated asset bytes.
 
+If smoke fails with:
+
+```text
+GET /api/health failed with 404
+```
+
+then the script reached a server that does not have the current API routes.
+Usually this means an old `dev:ai:api` process is still running on port `4000`,
+or `API_SMOKE_BASE_URL` points at the React Router/Vercel web server instead of
+the API server. Stop and restart the API process from the current checkout, then
+check:
+
+```bash
+curl http://127.0.0.1:4000/api/health
+```
+
 ## Bull Board
 
 Enable only on trusted networks or behind your own auth:

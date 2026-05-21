@@ -31,6 +31,16 @@ async function requestJson(path, init = {}) {
   });
   const body = await readJson(response);
   if (!response.ok) {
+    if (path === '/api/health' && response.status === 404 && body?.code === 'not_found') {
+      throw new Error(
+        [
+          `GET ${path} failed with 404 from ${baseUrl}.`,
+          'The smoke script reached an Artifact API-shaped server, but it does not expose /api/health.',
+          'Restart npm run dev:ai:api from the current checkout, or set API_SMOKE_BASE_URL to the API server URL.',
+          'Do not point API_SMOKE_BASE_URL at the React Router/Vercel web server.',
+        ].join(' '),
+      );
+    }
     throw new Error(`${init.method ?? 'GET'} ${path} failed with ${response.status}: ${JSON.stringify(body)}`);
   }
   return body;
