@@ -100,7 +100,7 @@ export function NodePropertiesPanel({
                 {layer.kind === 'image' && (
                   <div className="node-ai-generation-section">
                     <div className="node-ai-generation-heading">
-                      <span>AI Image</span>
+                      <span>Generate</span>
                       <span>Account gated</span>
                     </div>
                     <AiGenerationPanel
