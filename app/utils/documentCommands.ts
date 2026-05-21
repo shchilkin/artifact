@@ -51,6 +51,7 @@ import { makeRepeatPresetNode } from './repeatPresets';
 
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
@@ -101,6 +102,13 @@ export function createEffectPresetLayer(preset: EffectPreset): Layer {
 
 export function createImageLayerFromSource(src: string): Layer {
   return makeImageLayer(src);
+}
+
+export function createAiImageLayer(): Layer {
+  return makeImageLayer('', {
+    name: 'AI Image',
+    fit: 'cover',
+  });
 }
 
 function nodeSeedOffsetFromId(id: string): number {
@@ -304,7 +312,9 @@ export function addNodeAtDocument(
         ? withGeneratedNodeSeed(makeNoisePresetLayer(action.preset))
         : action.kind === 'arrayPreset'
           ? makeArrayPresetLayer(action.preset)
-          : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
+          : action.kind === 'aiImage'
+            ? createAiImageLayer()
+            : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),

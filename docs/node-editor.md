@@ -81,6 +81,14 @@ Current React Flow node types:
 Layer nodes map to `CanvasDocument.layers`. Merge, color, and repeat nodes live
 in `CanvasGraph`.
 
+The v0.13 `AI Image` add-menu entry is intentionally layer-backed: it creates a
+normal image layer node named `AI Image`, then the image-node properties panel
+can generate or replace its `src` through the account-gated AI workflow. This is
+not a new serialized layer kind. If future versions persist prompt/settings on
+an image-generation node, those fields must stay serializable and
+render-relevant; job state, provider responses, blobs, and decoded images stay
+outside `CanvasDocument`.
+
 Graph areas/groups live in `CanvasGraph.areas`. They are serializable
 organization metadata for dense workflows; they should help the layer list and
 node canvas explain structure, but they must not change rendering or traversal
@@ -225,6 +233,7 @@ Examples:
 | Primitive shape/depth/shading | No | Yes |
 | Text/image transform gesture | Yes | Durable values visible in inspector |
 | Text content/font/color | No | Yes |
+| AI image generation prompt | No | Yes, account-gated image-node properties |
 | Effect parameters | No | Yes |
 | Emoji scatter density/size/set | No | Yes |
 | Emoji blur/trails/distortion | No | Dedicated effect node |

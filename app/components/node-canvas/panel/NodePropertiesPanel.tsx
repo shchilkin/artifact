@@ -9,6 +9,7 @@ import type {
 } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { AiGenerationPanel } from '../../AiGenerationPanel';
 import { ColorInspector, ExportInspector, LayerInspector, MergeInspector, RepeatInspector } from '../inspector';
 
 interface NodePropertiesPanelProps {
@@ -95,12 +96,28 @@ export function NodePropertiesPanel({
           </div>
           <div className="node-props-body">
             {layer && (
-              <LayerInspector
-                key={layer.id}
-                layer={layer}
-                onChange={(patch) => onUpdateLayer(layer.id, patch)}
-                detached
-              />
+              <>
+                {layer.kind === 'image' && (
+                  <div className="node-ai-generation-section">
+                    <div className="node-ai-generation-heading">
+                      <span>AI Image</span>
+                      <span>Account gated</span>
+                    </div>
+                    <AiGenerationPanel
+                      aspect={doc.global.aspect}
+                      onGeneratedImageSource={(src) => onUpdateLayer(layer.id, { src })}
+                      submitLabel={layer.src ? 'Replace Image' : 'Generate Image'}
+                      successMessage="Updated image node."
+                    />
+                  </div>
+                )}
+                <LayerInspector
+                  key={layer.id}
+                  layer={layer}
+                  onChange={(patch) => onUpdateLayer(layer.id, patch)}
+                  detached
+                />
+              </>
             )}
             {!layer && colorNode && (
               <ColorInspector

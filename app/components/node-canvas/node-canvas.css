@@ -1848,6 +1848,33 @@
   scrollbar-color: var(--border) transparent;
 }
 
+.node-ai-generation-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.node-ai-generation-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.node-ai-generation-heading span:last-child {
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
 .node-props-body .node-inspector-section {
   border: none;
   border-bottom: 1px solid var(--border);

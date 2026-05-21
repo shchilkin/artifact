@@ -87,6 +87,9 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
   scaling must not zoom the React Flow canvas, must not crash with maximum
   update depth, and must keep the live overlay mounted through the deferred
   commit.
+- AI Image node add flow exposes the account-gated source node, and anonymous
+  browser-test access disables generation instead of hiding or breaking the
+  rest of the editor.
 - Default document export triggers a browser download.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser

@@ -327,6 +327,7 @@ function itemSearchScore(item: AddItem, tokens: string[]) {
 }
 
 function extraSearchTerms(action: AddAction) {
+  if (action.kind === 'aiImage') return 'ai image generate generation prompt openai xai account asset source photo';
   if (action.kind === 'layer') {
     return {
       fill: 'background base plate color wash poster photo type texture recipe',
@@ -351,6 +352,7 @@ function extraSearchTerms(action: AddAction) {
 }
 
 function itemColor(action: AddAction) {
+  if (action.kind === 'aiImage') return KIND_COLOR.image;
   return KIND_COLOR[
     action.kind === 'layer'
       ? action.layerKind

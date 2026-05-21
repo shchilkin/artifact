@@ -50,4 +50,14 @@ describe('node source preset menu', () => {
   it('exposes the graph repeater utility node', () => {
     expect(ADD_NODE_ITEMS.map((item) => item.action)).toContainEqual({ kind: 'repeat' });
   });
+
+  it('exposes an AI image source node', () => {
+    expect(ADD_NODE_ITEMS).toContainEqual(
+      expect.objectContaining({
+        label: 'AI Image',
+        group: 'generators',
+        action: { kind: 'aiImage' },
+      }),
+    );
+  });
 });

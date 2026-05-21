@@ -251,6 +251,37 @@ describe('documentCommands', () => {
     });
   });
 
+  it('inserts an AI image as a normal image layer node', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'aiImage' },
+      { x: 460, y: 320 },
+      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
+    expect(result.doc.layers[1]).toMatchObject({ id: layerId, kind: 'image', name: 'AI Image', src: '' });
+    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${layerId}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: layerId,
+      toPort: 'bg',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-1-${layerId}-${EXPORT_NODE_ID}`,
+      fromId: layerId,
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+  });
+
   it('connects a dropped source node into the dragged target port', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(

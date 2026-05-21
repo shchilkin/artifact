@@ -19,6 +19,8 @@ const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
   onGeneratedImageSource: (src: string) => void;
+  submitLabel?: string;
+  successMessage?: string;
 }
 
 function getAiApiBaseUrl() {
@@ -43,7 +45,20 @@ function errorMessage(error: unknown) {
   return 'Generation failed.';
 }
 
-export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerationPanelProps) {
+function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
+  if (reason === 'anonymous') return 'Account required.';
+  if (reason === 'not_enabled') return 'AI access is not enabled for this account.';
+  if (reason === 'quota_exhausted') return 'Monthly AI quota used.';
+  if (reason === 'maintenance') return 'AI generation is temporarily unavailable.';
+  return reason ?? null;
+}
+
+export function AiGenerationPanel({
+  aspect,
+  onGeneratedImageSource,
+  submitLabel = 'Generate',
+  successMessage = 'Added image layer.',
+}: AiGenerationPanelProps) {
   const [access, setAccess] = useState<AiGenerationAccessState | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -95,14 +110,14 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
     storeAiGeneratedAssetSource(job, { baseUrl, devToken })
       .then((src) => {
         onGeneratedImageSource(src);
-        setMessage('Added image layer.');
+        setMessage(successMessage);
       })
       .catch((error) => {
         importedJobIds.current.delete(job.id);
         setMessage(errorMessage(error));
       })
       .finally(() => setBusy(false));
-  }, [baseUrl, devToken, job, onGeneratedImageSource]);
+  }, [baseUrl, devToken, job, onGeneratedImageSource, successMessage]);
 
   const handleGenerate = useCallback(() => {
     const trimmed = prompt.trim();
@@ -123,7 +138,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
       .finally(() => setBusy(false));
   }, [access?.enabled, aspect, baseUrl, devToken, prompt, provider, quality]);
 
-  const disabledReason = accessError ?? (access && !access.enabled ? access.disabledReason : null);
+  const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
   const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
 
   return (
@@ -135,6 +150,7 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
         placeholder="Prompt"
         rows={3}
         disabled={!access?.enabled || busy}
+        aria-describedby={!access?.enabled ? 'ai-generation-status' : undefined}
       />
       <div className="ai-generation-grid">
         <select value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
@@ -158,9 +174,9 @@ export function AiGenerationPanel({ aspect, onGeneratedImageSource }: AiGenerati
         onClick={handleGenerate}
         disabled={!canGenerate}
       >
-        {busy || jobIsActive(job) ? '...' : 'Generate'}
+        {busy || jobIsActive(job) ? '...' : submitLabel}
       </button>
-      <div className="ai-generation-meta">
+      <div className="ai-generation-meta" id="ai-generation-status">
         <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
         <span>{status}</span>
       </div>

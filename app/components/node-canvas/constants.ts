@@ -93,6 +93,13 @@ export const ADD_ITEMS: Array<{
     action: { kind: 'layer', layerKind: 'image' },
   },
   {
+    label: 'AI Image',
+    symbol: '◧',
+    description: 'Generate a private alpha image asset, then use it like any other image.',
+    group: 'source',
+    action: { kind: 'aiImage' },
+  },
+  {
     label: 'Text',
     symbol: 'T',
     description: 'Set titles, credits, or typographic shapes.',
@@ -211,6 +218,13 @@ export const ADD_NODE_ITEMS: Array<{
     description: 'Place uploaded art, scans, or textures.',
     group: 'layers',
     action: { kind: 'layer', layerKind: 'image' },
+  },
+  {
+    label: 'AI Image',
+    symbol: '◧',
+    description: 'Generate a private alpha image asset, then pipe it through the graph.',
+    group: 'generators',
+    action: { kind: 'aiImage' },
   },
   {
     label: 'Text',

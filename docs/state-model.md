@@ -235,6 +235,9 @@ Tradeoff:
   the active document stores only a stable image `src` reference, while bytes,
   provider metadata, job state, quota/cost accounting, and raw provider
   responses live in asset/server records outside `CanvasDocument`.
+- The current v0.13 `AI Image` node is a normal image layer node. The prompt,
+  settings, job id, provider response, and backend asset metadata are UI/server
+  concerns; after import, the document stores only the local image `src`.
 - If a future Image Generation node stores user-authored prompt/settings in the
   document, those fields must stay serializable and render-relevant. Transient
   queue state such as queued/running/progress/error details belongs in API or UI

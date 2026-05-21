@@ -30,6 +30,7 @@ export type GalleryEligibleLayer =
 
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
