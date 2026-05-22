@@ -19,6 +19,46 @@ For production, use a process manager such as systemd, PM2, Docker Compose, or
 your existing VPS supervisor. The API and worker must share the same `.env`
 values for database, queue, providers, and storage.
 
+## Coolify Compose Resource
+
+For the first Coolify deploy, keep Postgres and Redis as Coolify managed
+resources, then create one Docker Compose resource for the backend application
+processes:
+
+- Compose file: `docker-compose.coolify.yml`
+- Services: `api`, `worker`, `bull-board`
+- Build context: repository root
+- Branch: `development`
+
+This shape intentionally keeps `api` and `worker` inside the same compose
+resource so they can mount the same Docker named volume:
+
+```text
+artifact-generated-assets -> /var/lib/artifact/generated-assets
+```
+
+The worker writes generated images to that volume and the API serves those same
+files through `/api/assets/:id/file`. Creating API and worker as separate
+Coolify applications is possible, but do not give them separate generated-asset
+volumes or completed jobs will reference files that the API cannot read.
+
+Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
+`bull-board` only behind an admin-only domain or Coolify protection; it is an
+operator surface, not a public app feature.
+
+After the first successful image build, run migrations from the API container
+terminal before enabling traffic or creating generation jobs:
+
+```bash
+npm run migrate
+```
+
+Then grant the intended Clerk user AI access from the same API container:
+
+```bash
+npm run grant:ai -- user_xxx user@example.com
+```
+
 ## Required Environment
 
 Minimum VPS-like configuration:
