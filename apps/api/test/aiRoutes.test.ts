@@ -125,6 +125,27 @@ describe('AI route handlers', () => {
     });
   });
 
+  it('returns exhausted quota access state for an AI-enabled user at the monthly limit', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await store.upsertMonthlyUsage({
+      userId: 'user-1',
+      period: '2026-05',
+      generationLimit: 10,
+      generationCountDelta: 10,
+    });
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        authenticated: true,
+        disabledReason: 'quota_exhausted',
+        enabled: false,
+        quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+      },
+    });
+  });
+
   it('rejects generation creation for anonymous users', async () => {
     const { deps } = createDeps({ authenticated: false, reason: 'missing_credentials' });
 
@@ -148,6 +169,46 @@ describe('AI route handlers', () => {
       },
     });
     expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+  });
+
+  it('allows the final monthly generation and returns an exhausted quota snapshot', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await store.upsertMonthlyUsage({
+      userId: 'user-1',
+      period: '2026-05',
+      generationLimit: 10,
+      generationCountDelta: 9,
+    });
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 201,
+      body: {
+        id: 'job-1',
+        quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+      },
+    });
+    expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+  });
+
+  it('rejects generation creation when the monthly quota is exhausted', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await store.upsertMonthlyUsage({
+      userId: 'user-1',
+      period: '2026-05',
+      generationLimit: 10,
+      generationCountDelta: 10,
+    });
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 429,
+      body: {
+        code: 'quota_exceeded',
+        message: 'Monthly generation quota used.',
+      },
+    });
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('returns existing idempotent jobs without consuming quota again', async () => {
