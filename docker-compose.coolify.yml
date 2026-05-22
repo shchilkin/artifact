@@ -30,7 +30,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-artifact}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     volumes:
-      - artifact-postgres-data:/var/lib/postgresql/data
+      - artifact-postgres-data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s

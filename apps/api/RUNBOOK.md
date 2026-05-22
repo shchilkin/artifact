@@ -28,15 +28,23 @@ backend stack:
 - Services: `api`, `worker`, `bull-board`, `postgres`, `redis`
 - Build context: repository root
 - Branch: `development`
+- Postgres image: `postgres:18-alpine`
 
 This shape intentionally keeps the app processes and infrastructure inside the
 same compose resource so Docker DNS and shared volumes stay simple:
 
 ```text
 artifact-generated-assets -> /var/lib/artifact/generated-assets
-artifact-postgres-data    -> /var/lib/postgresql/data
+artifact-postgres-data    -> /var/lib/postgresql
 artifact-redis-data       -> /data
 ```
+
+Postgres 18 uses the official image's versioned data layout. Mount the volume at
+`/var/lib/postgresql`, not `/var/lib/postgresql/data`; the image stores the
+cluster under `/var/lib/postgresql/18/docker`. If an earlier failed deploy
+created data in `/var/lib/postgresql/data`, remove the empty/stale Postgres
+volume before redeploying, or migrate real data with dump/restore or
+`pg_upgrade` instead of reusing the old path.
 
 The worker writes generated images to that volume and the API serves those same
 files through `/api/assets/:id/file`. Creating API and worker as separate
