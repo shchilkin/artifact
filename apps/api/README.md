@@ -87,14 +87,14 @@ without deploying anything:
 ```bash
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
-npm run dev:ai:infra
-npm run dev:ai:api
-npm run dev:ai:worker
-npm run dev:ai:web
+npm run dev:infra
+npm run dev:api
+npm run dev:worker
+npm run dev:web
 npm --workspace @artifact/api run smoke
 ```
 
-Run `dev:ai:api`, `dev:ai:worker`, and `dev:ai:web` in separate terminals. The
+Run `dev:api`, `dev:worker`, and `dev:web` in separate terminals. The
 Compose database is
 initialized with the v0.13 migration and a local `dev-user` with AI access. The
 root `.env` exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
@@ -122,7 +122,7 @@ real provider.
 To stop the infrastructure:
 
 ```bash
-npm run dev:ai:infra:down
+npm run dev:infra:down
 ```
 
 If you need to re-run the database init scripts, remove the Compose volume:

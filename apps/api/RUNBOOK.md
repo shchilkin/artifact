@@ -180,7 +180,7 @@ GET /api/health failed with 404
 ```
 
 then the script reached a server that does not have the current API routes.
-Usually this means an old `dev:ai:api` process is still running on port `4000`,
+Usually this means an old `dev:api` process is still running on port `4000`,
 or `API_SMOKE_BASE_URL` points at the React Router/Vercel web server instead of
 the API server. Stop and restart the API process from the current checkout, then
 check:
@@ -273,10 +273,10 @@ before freeing old generated files on the VPS.
 ```bash
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
-npm run dev:ai:infra
-npm run dev:ai:api
-npm run dev:ai:worker
-npm run dev:ai:web
+npm run dev:infra
+npm run dev:api
+npm run dev:worker
+npm run dev:web
 ```
 
 The Compose database is initialized with the v0.13 migration and a local
@@ -288,7 +288,7 @@ Clerk sign-in flow instead.
 Stop local infrastructure:
 
 ```bash
-npm run dev:ai:infra:down
+npm run dev:infra:down
 ```
 
 Reset local Postgres/Redis volumes:

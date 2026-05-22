@@ -36,7 +36,7 @@ async function requestJson(path, init = {}) {
         [
           `GET ${path} failed with 404 from ${baseUrl}.`,
           'The smoke script reached an Artifact API-shaped server, but it does not expose /api/health.',
-          'Restart npm run dev:ai:api from the current checkout, or set API_SMOKE_BASE_URL to the API server URL.',
+          'Restart npm run dev:api from the current checkout, or set API_SMOKE_BASE_URL to the API server URL.',
           'Do not point API_SMOKE_BASE_URL at the React Router/Vercel web server.',
         ].join(' '),
       );
