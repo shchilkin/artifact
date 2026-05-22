@@ -207,6 +207,53 @@ http://127.0.0.1:4000/admin/queues
 Bull Board is for queue debugging only. It should not be exposed publicly during
 the private alpha.
 
+## Cleanup
+
+The AI cleanup command is intentionally manual for the private alpha. It is safe
+to run as a dry run first, inspect the JSON summary, then apply the same command
+when the candidates look right.
+
+Dry run:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai
+```
+
+Apply:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai -- --apply
+```
+
+Production/dist equivalent:
+
+```bash
+npm --workspace @artifact/api run build
+npm --workspace @artifact/api run cleanup:ai:start -- --apply
+```
+
+The command:
+
+- marks stale `queued` / `running` jobs as `expired`;
+- soft-deletes generated asset rows that are not referenced by any generation
+  job;
+- deletes local files for old soft-deleted generated assets;
+- deletes local generated files that do not have a matching database asset row.
+
+Useful knobs:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai -- \
+  --stale-active-hours=6 \
+  --orphan-asset-hours=24 \
+  --deleted-asset-file-days=7 \
+  --limit=100
+```
+
+Only run `--apply` against the intended `DATABASE_URL` and `ASSET_STORAGE_DIR`.
+For private alpha, run cleanup after investigating stuck jobs in Bull Board or
+before freeing old generated files on the VPS.
+
 ## Operational Notes
 
 - Run API and worker from the same git revision.

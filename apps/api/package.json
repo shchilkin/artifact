@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && tsc -p tsconfig.build.json",
+    "cleanup:ai": "tsx src/cleanupCli.ts",
+    "cleanup:ai:start": "node dist/cleanupCli.js",
     "dev": "npm --workspace @artifact/shared run build && tsx src/server.ts",
     "export:job-image": "node scripts/export-job-image.mjs",
     "grant:ai": "node scripts/grant-ai-access.mjs",

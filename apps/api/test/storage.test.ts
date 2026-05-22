@@ -31,4 +31,25 @@ describe('LocalAssetStorage', () => {
     expect(read?.mimeType).toBe('image/png');
     expect(Array.from(read?.bytes ?? [])).toEqual([1, 2, 3]);
   });
+
+  it('lists generated image storage keys', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'artifact-api-storage-'));
+    const storage = new LocalAssetStorage(tempDir);
+
+    await storage.writeImage({
+      assetId: 'asset-b',
+      bytes: new Uint8Array([2]),
+      mimeType: 'image/png',
+    });
+    await storage.writeImage({
+      assetId: 'asset-a',
+      bytes: new Uint8Array([1]),
+      mimeType: 'image/webp',
+    });
+
+    await expect(storage.listGeneratedImageKeys()).resolves.toEqual([
+      'generated/asset-a.webp',
+      'generated/asset-b.png',
+    ]);
+  });
 });

@@ -1,5 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, sep } from 'node:path';
 import type { AssetStorage, StoredAssetFile } from './types.js';
 
 const EXTENSIONS: Record<string, string> = {
@@ -39,6 +39,31 @@ export class LocalAssetStorage implements AssetStorage {
 
   async deleteImage(storageKey: string): Promise<void> {
     await rm(join(this.rootDir, storageKey), { force: true });
+  }
+
+  async listGeneratedImageKeys(): Promise<string[]> {
+    const generatedDir = join(this.rootDir, 'generated');
+    const keys: string[] = [];
+    await collectFiles(generatedDir, keys, this.rootDir);
+    return keys.sort();
+  }
+}
+
+async function collectFiles(dir: string, keys: string[], rootDir: string): Promise<void> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await collectFiles(path, keys, rootDir);
+    } else if (entry.isFile()) {
+      keys.push(relative(rootDir, path).split(sep).join('/'));
+    }
   }
 }
 
