@@ -46,6 +46,10 @@ Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an
 operator surface, not a public app feature.
 
+For Clerk browser auth, set at least one backend verifier: `CLERK_SECRET_KEY`
+or `CLERK_JWT_KEY`. `CLERK_SECRET_KEY` is the simpler first Coolify setup. If
+`CLERK_AUTHORIZED_PARTIES` is set, include the exact Vercel/frontend origin.
+
 After the first successful image build, run migrations from the API container
 terminal before enabling traffic or creating generation jobs:
 
