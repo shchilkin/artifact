@@ -60,6 +60,12 @@ Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an
 operator surface, not a public app feature.
 
+The API service defines a container healthcheck against
+`http://127.0.0.1:4000/api/health`. Coolify/Traefik will not route public
+traffic while the resource is unhealthy, so if the public API domain returns
+`503 no available server`, check the API, Postgres, and Redis container health
+first.
+
 For Clerk browser auth, set at least one backend verifier: `CLERK_SECRET_KEY`
 or `CLERK_JWT_KEY`. `CLERK_SECRET_KEY` is the simpler first Coolify setup. If
 `CLERK_AUTHORIZED_PARTIES` is set, include the exact Vercel/frontend origin.
