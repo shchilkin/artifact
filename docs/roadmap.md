@@ -494,8 +494,10 @@ Release checklist:
   stays React Router, while Vercel is explicitly configured as a static Vite
   output deploy for `apps/web/build/client`; the accidental extra Vercel
   project created during local CLI validation was removed.
-- [ ] Run private-alpha QA against the local VPS-shaped stack with real API,
-  Postgres, Redis, worker, BullMQ, Bull Board, and local file storage.
+- [x] Run private-alpha QA against the local VPS-shaped stack with real API,
+  Postgres, Redis, worker, BullMQ, Bull Board, and local file storage. Manual
+  private-alpha QA on 2026-05-22 covered the required AI Image flow and found
+  no current alpha-blocking issues.
 - [x] Add explicit AI Image retry/recovery actions and compact job/asset
   diagnostics in the AI Image panels. Failed generations expose retry, asset
   import failures expose recovery from the durable job id, and compact
@@ -506,16 +508,18 @@ Release checklist:
 
 Private-alpha merge gate:
 
-- [ ] Merge blocker: reliability batch is committed and the full local
-  validation suite passes.
-- [ ] Merge blocker: real local stack QA passes for Clerk login, AI-enabled
+- [x] Merge blocker: reliability batch is committed and the full local
+  validation suite passes. Validation passed on 2026-05-22 with
+  `npm run check`, `npm run build`, `npm run build:api`, and focused
+  AI Image Playwright coverage.
+- [x] Merge blocker: real local stack QA passes for Clerk login, AI-enabled
   account access, quota display, first generation, multiple generations in one
   AI Image node, history traversal, reload, export, provider failure, failed
   asset import, and quota exhaustion.
-- [ ] Merge blocker: alpha-blocking bugs found in QA are fixed or documented
+- [x] Merge blocker: alpha-blocking bugs found in QA are fixed or documented
   with an accepted workaround that does not risk token spend, export failure,
   or document corruption.
-- [ ] Merge blocker: minimal retry/recovery and compact job diagnostics exist
+- [x] Merge blocker: minimal retry/recovery and compact job diagnostics exist
   so a failed generation can be understood without immediately opening logs.
 - [ ] Post-merge follow-up: generated-job cleanup, provider/defaults research,
   prebuilt container deploys, and final v0.13 release notes can land after the
