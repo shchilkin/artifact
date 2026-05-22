@@ -77,21 +77,21 @@ composition they previewed.
 
 Keep graph rules, traversal, and validation centered in pure data and helpers:
 
-- graph types and factories live in `app/types/config.ts`
-- graph helpers live in `app/utils/nodeGraph.ts`
-- graph rendering lives behind the public `app/utils/renderer.ts` facade, with
-  internals under `app/utils/render/`
+- graph types and factories live in `apps/web/app/types/config.ts`
+- graph helpers live in `apps/web/app/utils/nodeGraph.ts`
+- graph rendering lives behind the public `apps/web/app/utils/renderer.ts` facade, with
+  internals under `apps/web/app/utils/render/`
 - React Flow adapters such as node/edge shape mapping belong under
-  `app/components/node-canvas/*`
+  `apps/web/app/components/node-canvas/*`
 
 Key graph behaviors include edge insertion, edge splitting, upstream/downstream
 traversal, render-order resolution, layout, connected-port detection, cycle
 prevention, repeat nodes, and graph areas. Do not push UI concerns into
-`app/utils/nodeGraph.ts`.
+`apps/web/app/utils/nodeGraph.ts`.
 
 ### 2. State/document sync
 
-`app/hooks/useGeneratorDocument.ts` is the bridge between graph edits, layer
+`apps/web/app/hooks/useGeneratorDocument.ts` is the bridge between graph edits, layer
 edits, undo/redo, URL import, localStorage persistence, and `.artifact.json`
 document import/export. Preserve this boundary:
 
@@ -99,8 +99,8 @@ document import/export. Preserve this boundary:
 - Graph edits must stay compatible with history and persistence.
 - State must remain serializable JSON.
 - Durable document mutations should be expressed through
-  `app/utils/documentCommands.ts`, `app/utils/documentHistory.ts`,
-  `app/utils/documentPersistence.ts`, and graph helpers where possible.
+  `apps/web/app/utils/documentCommands.ts`, `apps/web/app/utils/documentHistory.ts`,
+  `apps/web/app/utils/documentPersistence.ts`, and graph helpers where possible.
 - Active local documents should contain lightweight image references, not large
   imported image payloads.
 
@@ -113,13 +113,13 @@ outside the document.
 
 The UI should read and manipulate state, not define graph semantics:
 
-- `app/components/node-canvas/*` renders and edits the node editor.
-- `app/components/node-canvas/machine.ts` owns selection/overlay UI state via
+- `apps/web/app/components/node-canvas/*` renders and edits the node editor.
+- `apps/web/app/components/node-canvas/machine.ts` owns selection/overlay UI state via
   XState.
-- `app/components/node-canvas/hooks/*` owns node-canvas orchestration slices
+- `apps/web/app/components/node-canvas/hooks/*` owns node-canvas orchestration slices
   such as selection sync, context menus, graph events, drag state, gallery state,
   and primitive camera state.
-- `app/utils/renderer.ts` is the public rendering facade. App code should
+- `apps/web/app/utils/renderer.ts` is the public rendering facade. App code should
   import `renderDocument`, `renderGraphTarget`, and renderer types from there
   unless it is working inside renderer internals.
 
@@ -164,14 +164,14 @@ behavior, pass `graphMode: 'stack'` deliberately.
 
 If you add a new graph node concept, update all relevant surfaces together:
 
-1. graph types, defaults, factories, and migrations in `app/types/config.ts`
-2. graph helpers in `app/utils/nodeGraph.ts`
-3. document commands/sync in `app/utils/documentCommands.ts` and
-   `app/hooks/useGeneratorDocument.ts`
-4. React Flow node construction in `app/components/node-canvas/buildRFNodes.ts`
-5. node UI in `app/components/node-canvas/nodes/*`
-6. inspector/properties UI in `app/components/node-canvas/inspector/*` and
-   `app/components/node-canvas/panel/NodePropertiesPanel.tsx`
+1. graph types, defaults, factories, and migrations in `apps/web/app/types/config.ts`
+2. graph helpers in `apps/web/app/utils/nodeGraph.ts`
+3. document commands/sync in `apps/web/app/utils/documentCommands.ts` and
+   `apps/web/app/hooks/useGeneratorDocument.ts`
+4. React Flow node construction in `apps/web/app/components/node-canvas/buildRFNodes.ts`
+5. node UI in `apps/web/app/components/node-canvas/nodes/*`
+6. inspector/properties UI in `apps/web/app/components/node-canvas/inspector/*` and
+   `apps/web/app/components/node-canvas/panel/NodePropertiesPanel.tsx`
 7. graph-aware rendering, thumbnails, gallery, export, and render signatures
 8. tests and docs
 
@@ -180,9 +180,9 @@ If you add a new graph node concept, update all relevant surfaces together:
 - Active quick-reload document state still uses localStorage through
   `documentPersistence`, but imported images should be represented as
   `artifact-asset://...` references when possible.
-- Imported image payloads live in IndexedDB via `app/utils/assetStore.ts`.
+- Imported image payloads live in IndexedDB via `apps/web/app/utils/assetStore.ts`.
 - Local projects and the pre-blank recovery draft live in IndexedDB via
-  `app/utils/projectStore.ts`, with migration/fallback paths for older
+  `apps/web/app/utils/projectStore.ts`, with migration/fallback paths for older
   localStorage records.
 - `.artifact.json` export and share-link creation should hydrate local asset
   references back to portable data URLs when possible.
@@ -193,7 +193,7 @@ If you add a new graph node concept, update all relevant surfaces together:
 
 - Keep preview, thumbnails, gallery, presets, and export on the public renderer
   entry points unless an intentional draft-only shortcut is documented.
-- Use `app/components/node-canvas/thumbnails/previewSizing.ts` for
+- Use `apps/web/app/components/node-canvas/thumbnails/previewSizing.ts` for
   thumbnail-like aspect sizing.
 - Use `useDocumentRenderer` render scaling/downsampling for layer-preview
   quality improvements without changing pointer math.
@@ -231,7 +231,7 @@ Priorities:
 - validation rules: `wouldCreateCycle` and any future port/type validation
 - document commands, history update modes, normalization, URL import, and
   serialization-safe round trips
-- XState/reducer/helper logic under `app/components/node-canvas/*`
+- XState/reducer/helper logic under `apps/web/app/components/node-canvas/*`
 - thumbnail render signatures and invalidation boundaries
 - pure worker kernels before browser worker wiring
 
@@ -340,7 +340,7 @@ render mode, or effect control, update the human guidance too:
 - `README.md`
 - `COPILOT.md`
 - `CLAUDE.md`
-- `app/routes/docs.nodes.tsx` when user-facing node/effect/source docs change
+- `apps/web/app/routes/docs.nodes.tsx` when user-facing node/effect/source docs change
 - `.github/copilot-instructions.md` if that file is reintroduced
 
 ### 6. Validate with existing commands

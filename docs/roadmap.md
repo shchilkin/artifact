@@ -12,6 +12,7 @@ Related architecture docs:
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`production-readiness.md`](./production-readiness.md)
+- [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
 ## Product summary
 
@@ -70,6 +71,8 @@ These can mostly stay browser-only and fit the current architecture:
   and hybrid approaches.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
+- Downloadable project packages with a custom extension for local ownership,
+  offline work, backup, and eventual PWA file handling.
 - Voice/music visualizer node using browser audio input or uploaded audio.
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
@@ -90,6 +93,16 @@ These make the product easier to understand and market:
 These likely need a VPS/backend, database, object storage, auth, or billing:
 
 - Accounts.
+- CI-built container images for VPS/Coolify deploys: build and tag service
+  images in GitHub PR/CI, push them to a registry, then make the VPS deploy pull
+  already-built images instead of running long multi-service Docker builds on
+  the deploy host. The concrete target is GHCR images for `artifact-api`,
+  `artifact-worker`, and `artifact-bull-board`, deployed in Coolify by immutable
+  `sha-<shortsha>` tags or digests with `latest` disabled.
+- Monorepo/Turborepo infrastructure migration for workspace-aware validation,
+  shared API contracts, dedicated backend containers, and pull-only Coolify/VPS
+  deploys. Detailed plan:
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
 - Server-side project saving.
 - Server-backed share links.
 - Preset database and community preset browsing.
@@ -113,17 +126,18 @@ stable.
 
 | Area | Main files | Notes |
 | --- | --- | --- |
-| Routing | `app/routes.ts`, `app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
-| Main generator | `app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
-| Document state | `app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
-| Asset state | `app/hooks/useGeneratorAssets.ts`, `app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
-| Export | `app/hooks/useGeneratorExport.ts`, `app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
-| Presets | `app/hooks/usePresets.ts`, `app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
-| Projects | `app/hooks/useProjects.ts`, `app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
+| Routing | `apps/web/app/routes.ts`, `apps/web/app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
+| Main generator | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
+| Document state | `apps/web/app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
+| Asset state | `apps/web/app/hooks/useGeneratorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
+| Export | `apps/web/app/hooks/useGeneratorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
+| Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
+| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
 
 ### Data model
 
-The canonical document type is `CanvasDocument` in `app/types/config.ts`.
+The canonical document type is `CanvasDocument` in
+`apps/web/app/types/config.ts`.
 
 ```ts
 interface CanvasDocument {
@@ -163,8 +177,8 @@ state, not a second editor format.
 
 ### Rendering pipeline
 
-Rendering is exposed through `app/utils/renderer.ts`. That file is the public
-facade; implementation internals live under `app/utils/render/`.
+Rendering is exposed through `apps/web/app/utils/renderer.ts`. That file is the
+public facade; implementation internals live under `apps/web/app/utils/render/`.
 
 1. `renderDocument` decides whether to use stack mode or graph mode.
 2. `renderGraphTarget` walks graph dependencies and renders each node.
@@ -177,8 +191,9 @@ facade; implementation internals live under `app/utils/render/`.
    batched where semantics allow.
 7. CPU-only pixel effect kernels and procedural noise texture generation can
    run in dedicated Web Workers with main-thread fallbacks.
-8. Three.js renders primitives through `app/utils/primitiveRenderer.ts` using
-   the shared scene recipe in `app/utils/primitiveScene.ts`.
+8. Three.js renders primitives through
+   `apps/web/app/utils/primitiveRenderer.ts` using the shared scene recipe in
+   `apps/web/app/utils/primitiveScene.ts`.
 
 This is the most important invariant:
 
@@ -186,7 +201,7 @@ This is the most important invariant:
 
 ### Node canvas
 
-Node editing lives under `app/components/node-canvas`.
+Node editing lives under `apps/web/app/components/node-canvas`.
 
 | Area | Files | Current role |
 | --- | --- | --- |
@@ -285,9 +300,12 @@ tolerance strategy before visual snapshots become useful.
 
 Imported images, local projects, and recovery drafts now use IndexedDB, and
 `.artifact.json` files/share links hydrate local image assets when possible.
-This is enough for the local editor, but server-backed sharing, accounts, and
-large portable asset packages remain out of scope until a dedicated backend plan
-exists.
+This is enough for the local editor, but there should be a stronger data
+ownership path: a downloadable project package with a custom extension that can
+bundle the document, assets, thumbnails/previews, and metadata for offline
+storage and re-open. That package should remain compatible with PWA file
+handling where supported. Server-backed sharing, accounts, and large portable
+asset packages remain out of scope until a dedicated persistence plan exists.
 
 ### CSS is a large monolith
 
@@ -332,6 +350,8 @@ Current shipped baseline:
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
+- Future local project package direction: custom-extension downloads that keep
+  the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser
   smoke tests, thumbnail signatures, and node-editor performance tooling.
 
@@ -374,33 +394,33 @@ Detailed plan: [`version-plans/v0.12.md`](./version-plans/v0.12.md).
 Goal: turn the current power features into learnable, regression-tested
 workflows.
 
-- [ ] Add recipe starter documents that create useful first graphs.
-- [ ] Add recipe starter documents for common covers: photo plus type, noisy
+- [x] Add recipe starter documents that create useful first graphs.
+- [x] Add recipe starter documents for common covers: photo plus type, noisy
   texture plus type, sticker/grid motif, primitive over image, and print-damage
   poster.
-- [ ] Improve examples with categories, used-node summaries, and clearer "start
+- [x] Improve examples with categories, used-node summaries, and clearer "start
   from this" language.
-- [ ] Improve add-node search and grouping for recipes and starter workflows.
-- [ ] Split user-facing docs into task pages or sections: first cover, layers
+- [x] Improve add-node search and grouping for recipes and starter workflows.
+- [x] Split user-facing docs into task pages or sections: first cover, layers
   workflow, nodes workflow, effects, sources, repeaters, export, and projects.
-- [ ] Explain blend modes with practical examples and when to use each one.
-- [ ] Add layer-vs-node guidance with examples of when to stay in layers and
+- [x] Explain blend modes with practical examples and when to use each one.
+- [x] Add layer-vs-node guidance with examples of when to stay in layers and
   when to switch to nodes.
-- [ ] Add effect-family recipes that stay aligned with separated focused effect
+- [x] Add effect-family recipes that stay aligned with separated focused effect
   nodes.
-- [ ] Add troubleshooting guidance for blank previews, missing image assets,
+- [x] Add troubleshooting guidance for blank previews, missing image assets,
   browser storage limits, GPU/WebGL quirks, and export mismatch.
-- [ ] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
+- [x] Audit grain/noise, scanlines, rays, speed lines, halftone, barcode arrays,
   and threshold for range problems found in real projects.
-- [ ] Revisit effect-node controls after real project testing, starting with
+- [x] Revisit effect-node controls after real project testing, starting with
   film grain scale/size so it can be tuned subtly.
-- [ ] Evaluate splitting Cells out of the generic Noise source into a dedicated
+- [x] Evaluate splitting Cells out of the generic Noise source into a dedicated
   procedural source node if it keeps needing different controls from value and
   cloud noise.
-- [ ] Keep docs examples aligned with separated focused effect nodes.
-- [ ] Add render or browser coverage for every effect/source control whose range
+- [x] Keep docs examples aligned with separated focused effect nodes.
+- [x] Add render or browser coverage for every effect/source control whose range
   changes.
-- [ ] Add browser smoke coverage for at least one layer-first starter path and
+- [x] Add browser smoke coverage for at least one layer-first starter path and
   one docs "try this" path.
 
 Exit criteria:
@@ -410,6 +430,8 @@ Exit criteria:
 - Changed effect/source ranges have focused test coverage.
 
 ### v0.13: AI Generation Research And Architecture
+
+Detailed plan: [`version-plans/v0.13.md`](./version-plans/v0.13.md).
 
 Goal: make AI-generated imagery a creativity multiplier without weakening the
 editor's local-first reliability or leaking provider secrets into the browser.
@@ -437,10 +459,85 @@ Research and architecture tasks:
   storage, or hybrid local-first storage with optional cloud sync.
 - [ ] Define quota/cost accounting before broad usage. Even a beta needs a
   clear limit so generation does not become a surprise bill.
-- [ ] Define how generated assets serialize in `.artifact.json` and shared
-  projects.
+- [x] Define how generated assets serialize in `.artifact.json` and shared
+  projects: completed outputs import into normal local image assets, and
+  save/share hydrates available local bytes into portable data URLs.
 - [ ] Prototype a minimal Image Generation node only after the storage and
   generation-job model are clear.
+- [ ] Add a deploy hardening pass for VPS services: build API/worker/Bull Board
+  containers in GitHub PR/CI, publish immutable image tags, and configure the
+  VPS/Coolify deploy step to run those images instead of rebuilding on the VPS.
+  This should reduce preview deploy timeouts and make deploy failures separate
+  from image build failures. The GHCR/Coolify plan now covers image references,
+  required `packages: write` publishing permission, read-only Coolify package
+  pulls, shared API/worker/BullMQ/Postgres/storage env, migration-before-deploy
+  order, and rollback by previous tag or digest.
+- [ ] Run the monorepo/Turborepo migration as a dedicated infrastructure track:
+  introduce workspaces, add Turborepo task orchestration, move the web app into
+  `apps/web`, extract stable shared contracts, build dedicated service
+  containers, publish images from GitHub PR/CI, and switch Coolify/VPS to
+  pull-only deploys. Plan:
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
+  Initial foundation is in progress: API workspace wiring, web workspace
+  relocation, shared AI contracts, API/web/shared Turbo scripts, production API
+  build/start scripts, service Dockerfiles, and the additive GHCR image
+  workflow are implemented.
+
+Release checklist:
+
+- [x] Commit the current AI Image node reliability batch: generated variant
+  history, loading/failure states, React Flow measurement stability, and local
+  asset preview fixes. Focused browser coverage now includes multiple AI image
+  generations in the same node across reload, history traversal, and completed
+  jobs whose asset import fails.
+- [x] Fix Vercel preview deploy drift after the workspace move: the repo build
+  stays React Router, while Vercel is explicitly configured as a static Vite
+  output deploy for `apps/web/build/client`; the accidental extra Vercel
+  project created during local CLI validation was removed.
+- [x] Run private-alpha QA against the local VPS-shaped stack with real API,
+  Postgres, Redis, worker, BullMQ, Bull Board, and local file storage. Manual
+  private-alpha QA on 2026-05-22 covered the required AI Image flow and found
+  no current alpha-blocking issues.
+- [x] Add explicit AI Image retry/recovery actions and compact job/asset
+  diagnostics in the AI Image panels. Failed generations expose retry, asset
+  import failures expose recovery from the durable job id, and compact
+  status/job/asset/error/provider metadata is visible without opening logs.
+- [x] Add generated-job and generated-asset cleanup operations plus runbook
+  notes.
+- [x] Write v0.13 release notes and accepted-risk checklist before tagging.
+
+Private-alpha merge gate:
+
+- [x] Merge blocker: reliability batch is committed and the full local
+  validation suite passes. Validation passed on 2026-05-22 with
+  `npm run check`, `npm run build`, `npm run build:api`, and focused
+  AI Image Playwright coverage.
+- [x] Merge blocker: real local stack QA passes for Clerk login, AI-enabled
+  account access, quota display, first generation, multiple generations in one
+  AI Image node, history traversal, reload, export, provider failure, failed
+  asset import, and quota exhaustion.
+- [x] Merge blocker: alpha-blocking bugs found in QA are fixed or documented
+  with an accepted workaround that does not risk token spend, export failure,
+  or document corruption.
+- [x] Merge blocker: minimal retry/recovery and compact job diagnostics exist
+  so a failed generation can be understood without immediately opening logs.
+- [ ] Post-merge follow-up: provider/defaults research and prebuilt container
+  deploys can land after the private alpha merge if the blockers above pass.
+- [ ] Post-merge follow-up: harden AI accounting before broader beta access.
+  Current private-alpha safeguards are acceptable because the database enforces
+  one active generation per user, queue enqueue failures refund quota, and the
+  active-job migration self-expires old duplicate active rows before creating
+  the guard index. Before increasing concurrency or opening access beyond the
+  private alpha, move quota consumption into an atomic database operation and
+  make concurrent same-idempotency-key requests return the existing job instead
+  of occasionally surfacing `active_job_exists`.
+- [ ] Post-merge follow-up: monorepo/Turborepo workspace migration can be done
+  in parallel tracks after the private alpha merge decision, following
+  [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
+
+Estimated effort before deciding whether to merge: 2 focused days in the best
+case, 3 focused days expected, and 4 focused days if auth/session, asset import,
+or worker-state edge cases need another pass.
 
 ### Experimental Track
 

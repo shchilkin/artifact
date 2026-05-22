@@ -12,15 +12,15 @@ The node editor should not become a second document model.
 
 | Area | Files |
 | --- | --- |
-| Shell | `app/components/node-canvas/NodeCanvas.tsx` |
-| State machine | `app/components/node-canvas/machine.ts` |
-| Context | `app/components/node-canvas/context.ts` |
-| Node construction | `app/components/node-canvas/buildRFNodes.ts` |
-| Node components | `app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
-| Node previews | `app/components/node-canvas/thumbnails/*` |
-| Inspectors | `app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
-| Menus | `app/components/node-canvas/menus/*` |
-| Graph helpers | `app/utils/nodeGraph.ts` |
+| Shell | `apps/web/app/components/node-canvas/NodeCanvas.tsx` |
+| State machine | `apps/web/app/components/node-canvas/machine.ts` |
+| Context | `apps/web/app/components/node-canvas/context.ts` |
+| Node construction | `apps/web/app/components/node-canvas/buildRFNodes.ts` |
+| Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
+| Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
+| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| Menus | `apps/web/app/components/node-canvas/menus/*` |
+| Graph helpers | `apps/web/app/utils/nodeGraph.ts` |
 
 ## Architecture overview
 
@@ -80,6 +80,17 @@ Current React Flow node types:
 
 Layer nodes map to `CanvasDocument.layers`. Merge, color, and repeat nodes live
 in `CanvasGraph`.
+
+The v0.13 `AI Image` add-menu entry is intentionally layer-backed: it creates a
+normal image layer node named `AI Image`, then the image-node properties panel
+can generate or replace its `src` through the account-gated AI workflow. This is
+not a new serialized layer kind. Generations can attach lightweight
+serializable `aiGeneration` provenance to the image layer so the prompt, current
+job status, and failure reason remain visible with the image/card. Successful
+generated variants can be kept in `aiGenerationHistory` as lightweight image
+source/provenance pairs, and selecting a previous/next variant updates the
+normal image layer `src`. Heavy queue records, provider responses, blobs, and
+decoded images stay outside `CanvasDocument`.
 
 Graph areas/groups live in `CanvasGraph.areas`. They are serializable
 organization metadata for dense workflows; they should help the layer list and
@@ -142,6 +153,10 @@ Rules:
 - Text/image gestures update local draft state first.
 - Document state updates after the gesture, not on every tick.
 - Draft interaction must not cause thumbnail rerenders.
+- Once a selected text/image transform gesture starts, keep the interactive
+  live surface mounted until the node is no longer selected. Do not switch back
+  to thumbnail mode at the same moment the committed document update invalidates
+  thumbnails.
 
 ### Primitive nodes
 
@@ -178,6 +193,24 @@ Use:
 
 Do not isolate events when the interaction should pass through to the graph, for example a locked primitive camera.
 
+### Text/image vs React Flow wheel isolation
+
+Text/image wheel scaling and primitive camera zoom both happen inside custom
+React Flow nodes, but they should not share one global listener.
+
+Rules:
+
+- Text/image scale wheel handling should be scoped to the selected preview root.
+- Primitive 3D may use document/window capture plus the React Flow pane hover
+  lock because it owns a live WebGL viewport and needs to receive events before
+  d3-zoom.
+- Do not add a broad document/window wheel listener for text/image previews. It
+  can steal or reorder events that the primitive viewport expects.
+- Verify wheel gestures do not change the React Flow viewport transform when
+  the pointer is over an unlocked selected preview.
+- Verify graph wheel zoom still works on empty canvas and over locked primitive
+  viewports.
+
 ## Context menu edge cases
 
 Right-click is both a common context-menu gesture and a useful camera pan gesture.
@@ -203,6 +236,7 @@ Examples:
 | Primitive shape/depth/shading | No | Yes |
 | Text/image transform gesture | Yes | Durable values visible in inspector |
 | Text content/font/color | No | Yes |
+| AI image generation prompt | No | Yes, account-gated image-node properties |
 | Effect parameters | No | Yes |
 | Emoji scatter density/size/set | No | Yes |
 | Emoji blur/trails/distortion | No | Dedicated effect node |
@@ -223,6 +257,10 @@ Rules:
 - Interactive mode is for direct manipulation.
 - Interactive mode must commit back to document/render options.
 - Interactive mode should stay visually close to canonical renderer.
+- Interactive mode should be visually stable across commit boundaries. A local
+  gesture commit invalidates the canonical thumbnail; the UI must not briefly
+  replace the live surface with a stale canvas, skeleton, or preparing state
+  while that new thumbnail is rendering.
 - Node cards may size by content type; avoid assumptions that every node is the
   same fixed width.
 - Thumbnail rendering should keep the last good frame during graph drag
@@ -232,6 +270,48 @@ Rules:
   thumbnails can render at higher quality when selected, but otherwise they
   should stay passive so a control change does not redraw the whole graph on the
   critical interaction path.
+
+### Regression note: image transform flicker
+
+The selected image-node flicker regression came from a race between two valid
+render surfaces:
+
+- the live DOM overlay used during selected-node transform gestures
+- the async canonical `NodeThumbnail` canvas used for passive previews
+
+Wheel scaling updated local draft state, then committed `scaleX/scaleY` to the
+document after wheel idle. That commit changed the thumbnail render signature
+and kicked off async thumbnail work. If the live overlay was unmounted as soon
+as the draft matched the committed layer, the user saw the node swap from live
+overlay to a stale/empty thumbnail frame while the new thumbnail was still
+rendering.
+
+Two secondary issues made the swap more visible:
+
+- generated/imported images may be stored as `artifact-asset://...`; a live
+  `<img>` cannot render that URI until it is resolved to a cached browser image
+  or portable data URL
+- global image CSS can cap intrinsic `<img>` dimensions; free-fit live images
+  must opt out with `max-width: none` / `max-height: none` so DOM overlay scale
+  matches the Canvas 2D renderer
+
+The fix is:
+
+- keep transform state local during the gesture and commit after wheel idle or
+  pointer-up
+- activate the live transform surface from the actual gesture handler, not from
+  an effect that mirrors state
+- keep the live transform surface mounted while the node remains selected after
+  the first transform gesture
+- resolve `artifact-asset://...` image sources before passing them to live DOM
+  image overlays
+- keep wheel interception scoped to the selected preview root so primitive 3D
+  camera controls keep their own event path
+
+When this class of bug returns, inspect the DOM during the gesture. A selected
+image node should keep `.node-live-media-overlay` mounted and should not show
+`.node-thumbnail-skeleton` or `Preparing` while the pointer is still editing
+that node.
 
 ## Recommended refactor target
 

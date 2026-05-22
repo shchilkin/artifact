@@ -1,5 +1,5 @@
 /**
- * Generates public/favicon.png by capturing the real GPU render from useFaviconGlyph().
+ * Generates apps/web/public/favicon.png by capturing the real GPU render from useFaviconGlyph().
  *
  * Strategy:
  *   - Expose a Node.js callback via page.exposeFunction('__faviconReady')
@@ -15,6 +15,7 @@ import { createServer } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
+const webRoot = resolve(root, 'apps/web');
 const PORT = 5199;
 
 let server;
@@ -23,7 +24,7 @@ let browser;
 try {
   process.stdout.write('favicon: starting dev server... ');
   server = await createServer({
-    root,
+    root: webRoot,
     server: { port: PORT, strictPort: true },
     logLevel: 'silent',
   });
@@ -93,15 +94,15 @@ try {
 
   const base64 = dataURL.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64, 'base64');
-  const out = resolve(root, 'public/favicon.png');
+  const out = resolve(webRoot, 'public/favicon.png');
   writeFileSync(out, buffer);
-  console.log(`favicon → public/favicon.png`);
+  console.log(`favicon → apps/web/public/favicon.png`);
 } catch (err) {
   // In CI environments (e.g. Vercel) Chrome system dependencies may be absent.
   // Favicon generation is optional in restricted environments. A deliberate
   // static favicon replacement should be committed before production release.
   console.warn('\nfavicon: skipping generation —', err.message);
-  console.warn('favicon: leaving any existing local public/favicon.png untouched.');
+  console.warn('favicon: leaving any existing local apps/web/public/favicon.png untouched.');
 } finally {
   await browser?.close();
   await server?.close();

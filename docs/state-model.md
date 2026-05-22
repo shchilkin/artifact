@@ -20,6 +20,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
+| AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 
 ## Durable document state
@@ -28,11 +29,11 @@ Durable document state is the creative artifact. It is serialized, persisted, sh
 
 Current owner:
 
-- `app/hooks/useGeneratorDocument.ts`
-- `app/utils/documentCommands.ts` for pure document mutations
-- `app/utils/documentPersistence.ts` for normalization and initial document
+- `apps/web/app/hooks/useGeneratorDocument.ts`
+- `apps/web/app/utils/documentCommands.ts` for pure document mutations
+- `apps/web/app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
-- `app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
+- `apps/web/app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
   import/export mechanics
 
 Includes:
@@ -62,7 +63,7 @@ Graph state describes composition. It is part of the document because it affects
 Owner:
 
 - `CanvasDocument.graph`
-- helpers in `app/utils/nodeGraph.ts`
+- helpers in `apps/web/app/utils/nodeGraph.ts`
 
 Rules:
 
@@ -83,7 +84,7 @@ Selection and overlays are editor state. They do not affect output.
 
 Owner:
 
-- `app/components/node-canvas/machine.ts`
+- `apps/web/app/components/node-canvas/machine.ts`
 - `NodeCanvas.tsx` while orchestration is still centralized
 
 Includes:
@@ -152,7 +153,7 @@ Render options are explicit inputs that affect rendering but are not necessarily
 
 Current type:
 
-- `RenderOptions` in `app/utils/renderer.ts`
+- `RenderOptions` in `apps/web/app/utils/renderer.ts`
 
 Important fields:
 
@@ -210,7 +211,7 @@ Should not invalidate:
 ## Image persistence decision
 
 Artifact remains a browser-only editor for now. Imported image payloads are
-stored in IndexedDB through `app/utils/assetStore.ts`. Image layers keep a
+stored in IndexedDB through `apps/web/app/utils/assetStore.ts`. Image layers keep a
 serializable `src` string, but local imports are migrated from `data:image/...`
 payloads to lightweight `artifact-asset://...` references.
 
@@ -223,7 +224,7 @@ Tradeoff:
 - Very large images can still make exported `.artifact.json` files or share URLs
   heavy after hydration.
 - Local project snapshots and the pre-blank recovery draft are stored in
-  IndexedDB via `app/utils/projectStore.ts` so large document snapshots do not
+  IndexedDB via `apps/web/app/utils/projectStore.ts` so large document snapshots do not
   exhaust the small localStorage quota.
 - Active quick-reload document state still uses localStorage through
   `documentPersistence`; it should contain asset references, not imported image
@@ -231,6 +232,22 @@ Tradeoff:
 - Backend blob storage should be introduced only when there is a dedicated
   persistence layer and migration plan; decoded `HTMLImageElement` caches must
   still stay outside `CanvasDocument`.
+- Generated AI image payloads should follow the same rule as imported images:
+  the active document stores only a stable image `src` reference, while bytes,
+  provider payloads, queue state, quota/cost accounting, and raw provider
+  responses live in asset/server records outside `CanvasDocument`.
+- The current v0.13 `AI Image` node is a normal image layer node. After a
+  successful generation, the image layer may store serializable provenance in
+  `aiGeneration` so the prompt stays tied to the resulting image. Successful
+  variants may also be listed in `aiGenerationHistory` as `{ src, aiGeneration
+  }` records, with `aiGenerationHistoryIndex` selecting which generated asset is
+  active. The history stores references and prompts, not image bytes. Queued,
+  running, error state, raw provider responses, quota, and costs still belong in
+  API or UI/server state.
+- If a future Image Generation node stores user-authored prompt/settings in the
+  document, those fields must stay serializable and render-relevant. Transient
+  queue state such as queued/running/progress/error details belongs in API or UI
+  state, not in the saved document.
 
 ## Do not do this
 

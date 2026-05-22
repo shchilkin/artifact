@@ -206,20 +206,20 @@ document state.
 
 The first implemented worker boundary is procedural noise texture generation:
 
-- `app/utils/render/workers/noiseTexture.ts` owns pure deterministic pixel
+- `apps/web/app/utils/render/workers/noiseTexture.ts` owns pure deterministic pixel
   generation.
-- `app/utils/render/workers/noiseTexture.worker.ts` runs that pixel generation
+- `apps/web/app/utils/render/workers/noiseTexture.worker.ts` runs that pixel generation
   in a dedicated Web Worker when the browser supports it.
-- `app/utils/render/workers/noiseTextureClient.ts` falls back to the same pure
+- `apps/web/app/utils/render/workers/noiseTextureClient.ts` falls back to the same pure
   generator on the main thread for tests, SSR-like environments, old browsers,
   worker failures, or worker timeouts.
 
 The second worker boundary is CPU-only image-data effect transforms:
 
-- `app/utils/render/workers/effectPixelTransform.ts` owns pure pixel kernels.
-- `app/utils/render/workers/effectPixelTransform.worker.ts` runs those kernels
+- `apps/web/app/utils/render/workers/effectPixelTransform.ts` owns pure pixel kernels.
+- `apps/web/app/utils/render/workers/effectPixelTransform.worker.ts` runs those kernels
   off the main thread.
-- `app/utils/render/workers/effectPixelTransformClient.ts` preserves a fallback
+- `apps/web/app/utils/render/workers/effectPixelTransformClient.ts` preserves a fallback
   path and tracks worker diagnostics.
 
 Workerized effects currently include RGB split, sepia/infrared/chromatic

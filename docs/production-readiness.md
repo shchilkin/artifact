@@ -97,6 +97,8 @@ The sticky-note ideas split into two tracks.
 - Voice/music visualizer node using Web Audio.
 - Better docs, examples, and tutorial presets.
 - Better localization/i18n hooks.
+- Downloadable local project packages with a custom extension for backups,
+  offline ownership, and eventual PWA file handling.
 
 ### Full-Stack / VPS Candidates
 

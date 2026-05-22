@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+
+ENV CI=true
+ENV HUSKY=0
+
+COPY . .
+RUN npm ci
+RUN npm run build --workspace=@artifact/api
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HUSKY=0
+ENV API_BULL_BOARD_ENABLED=true
+
+COPY . .
+RUN npm ci --omit=dev --ignore-scripts
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+
+WORKDIR /app/apps/api
+USER node
+
+EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "const port = process.env.PORT || 4000; fetch(`http://127.0.0.1:${port}/api/health`).then((res) => { if (!res.ok) process.exit(1); }).catch(() => process.exit(1));"
+
+CMD ["node", "dist/server.js"]

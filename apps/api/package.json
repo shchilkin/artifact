@@ -1,0 +1,39 @@
+{
+  "name": "@artifact/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "npm --workspace @artifact/shared run build && tsc -p tsconfig.build.json",
+    "cleanup:ai": "tsx src/cleanupCli.ts",
+    "cleanup:ai:start": "node dist/cleanupCli.js",
+    "dev": "npm --workspace @artifact/shared run build && tsx src/server.ts",
+    "export:job-image": "node scripts/export-job-image.mjs",
+    "grant:ai": "node scripts/grant-ai-access.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "start": "node dist/server.js",
+    "worker:dev": "npm --workspace @artifact/shared run build && tsx src/worker.ts",
+    "worker:start": "node dist/worker.js",
+    "typecheck": "npm --workspace @artifact/shared run build && tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@artifact/shared": "0.0.0",
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/express": "^7.1.5",
+    "@clerk/backend": "^3.4.11",
+    "bullmq": "^5.0.0",
+    "express": "^5.2.1",
+    "ioredis": "^5.0.0",
+    "pg": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.8.1",
+    "typescript": "~6.0.0",
+    "vitest": "^4.0.0"
+  }
+}

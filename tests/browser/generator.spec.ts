@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, test } from '@playwright/test';
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const consoleIssues = new WeakMap<Page, string[]>();
 const lightDocument = {
@@ -42,6 +46,36 @@ const layeredFillDocument = {
       color: '#dd3322',
       opacity: 100,
       blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const aiRunningLayerDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-running-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: '',
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'loading cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'running',
+        jobId: 'browser-ai-running-layer-job',
+      },
     },
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
@@ -309,7 +343,158 @@ const textDragDocument = {
 };
 const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
-const uploadImagePngBase64 = readFileSync('public/og.png').toString('base64');
+const generatedImageDataUrl =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const aiFailedImageDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-failed-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: generatedImageDataUrl,
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'failed export cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'failed',
+        jobId: 'browser-ai-failed-export-job',
+        errorCode: 'provider_unavailable',
+        errorMessage: 'Provider timed out.',
+      },
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const aiReplacingLayerDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-replacing-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: generatedImageDataUrl,
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'replacement loading cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'running',
+        jobId: 'browser-ai-replacing-layer-job',
+      },
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const aiExistingImageDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 2, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-existing-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: generatedImageDataUrl,
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'first generated cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'succeeded',
+        jobId: 'browser-ai-existing-job-1',
+        assetId: 'browser-ai-existing-asset-1',
+      },
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const aiImageHistoryDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 2, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-history-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: generatedImageDataUrl,
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'first generated cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'succeeded',
+        jobId: 'browser-ai-history-job-1',
+        assetId: 'browser-ai-history-asset-1',
+      },
+      aiGenerationHistory: [
+        {
+          src: generatedImageDataUrl,
+          aiGeneration: {
+            prompt: 'first generated cover',
+            provider: 'openai',
+            quality: 'standard',
+            status: 'succeeded',
+            jobId: 'browser-ai-history-job-1',
+            assetId: 'browser-ai-history-asset-1',
+          },
+        },
+        {
+          src: testImageSrc,
+          aiGeneration: {
+            prompt: 'second generated cover',
+            provider: 'openai',
+            quality: 'standard',
+            status: 'succeeded',
+            jobId: 'browser-ai-history-job-2',
+            assetId: 'browser-ai-history-asset-2',
+          },
+        },
+      ],
+      aiGenerationHistoryIndex: 0,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const uploadImagePngBase64 = readFileSync(resolve(repoRoot, 'apps/web/public/og.png')).toString('base64');
 const imageDragDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 8, aspect: '16:9' },
@@ -366,7 +551,24 @@ const emptyTransparentDocument = {
 test.beforeEach(async ({ page }) => {
   const issues: string[] = [];
   consoleIssues.set(page, issues);
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: false,
+        enabled: false,
+        disabledReason: 'anonymous',
+      }),
+    });
+  });
   page.on('console', (message) => {
+    if (
+      message.type() === 'error' &&
+      /clerk\.accounts\.dev/.test(message.text()) &&
+      /Failed to fetch/.test(message.text())
+    ) {
+      return;
+    }
     if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
     if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
       issues.push(`${message.type()}: ${message.text()}`);
@@ -646,7 +848,7 @@ test('docs recipe try-this link opens an editable starter document', async ({ pa
 
 test('add-node menu exposes recipe groups and workflow search', async ({ page }) => {
   await page.goto('/app?new=blank');
-  await page.getByRole('button', { name: 'nodes' }).click();
+  await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();
 
   await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
@@ -661,6 +863,453 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await page.getByLabel('Search nodes and effects').fill('photo type');
   await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^T Text/ })).toBeVisible();
+
+  await page.getByLabel('Search nodes and effects').fill('ai image');
+  await expect(page.getByRole('button', { name: /^◧ AI Image/ })).toBeVisible();
+});
+
+test('AI image node can be added and explains account-gated access', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await switchToNodeView(page);
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('ai image');
+  await page.getByRole('button', { name: /^◧ AI Image/ }).click();
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await expect(aiNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-props-panel')).toContainText('AI Image');
+  await expect(page.locator('.node-props-panel')).toContainText('Account required for AI');
+  await expect(page.locator('.node-props-panel')).toContainText(
+    'This feature uses AI. To use AI features, create an account.',
+  );
+  await expect(page.locator('.ai-generation-panel')).toBeVisible();
+  await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
+  await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI image node shows generation progress on the node surface', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Generating', { timeout: 15_000 });
+});
+
+test('AI image node keeps generation progress visible while selected', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiReplacingLayerDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.locator('.node-preview-surface').click();
+  await aiNode.locator('.node-preview-surface').click();
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Generating', { timeout: 15_000 });
+  await expect(aiNode.locator('.node-live-media-overlay')).toBeVisible({ timeout: 15_000 });
+  const layers = await aiNode.evaluate((node) => {
+    const status = node.querySelector('.node-ai-status-overlay');
+    const live = node.querySelector('.node-live-media-overlay');
+    return {
+      statusZ: status ? Number.parseInt(window.getComputedStyle(status).zIndex, 10) : 0,
+      liveZ: live ? Number.parseInt(window.getComputedStyle(live).zIndex, 10) : 0,
+    };
+  });
+  expect(layers.statusZ).toBeGreaterThan(layers.liveZ);
+});
+
+test('AI generation state is visible in the layer list', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+
+  const row = page.locator('.layer-row').filter({ hasText: 'AI Image' }).first();
+  await expect(row.locator('.layer-ai-status')).toContainText('Generating', { timeout: 15_000 });
+});
+
+test('AI image node keeps generated image history and can switch variants', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiImageHistoryDocument))}`);
+
+  const row = page.locator('.layer-row').filter({ hasText: 'AI Image' }).first();
+  await expect(row.locator('.layer-ai-history-count')).toHaveText('1/2', { timeout: 15_000 });
+
+  await switchToNodeView(page);
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await expect(aiNode.locator('.node-ai-history-badge')).toHaveText('1/2', { timeout: 15_000 });
+  await aiNode.click();
+
+  const panel = page.locator('.node-props-panel');
+  await expect(panel.locator('.ai-generation-history-count')).toHaveText('1/2', { timeout: 15_000 });
+  await panel.getByRole('button', { name: 'Next generated image' }).click();
+  await expect(panel.locator('.ai-generation-history-count')).toHaveText('2/2');
+  await expect(aiNode.locator('.node-ai-history-badge')).toHaveText('2/2');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-history-layer');
+        const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
+        return {
+          historyCount: image?.aiGenerationHistory?.length,
+          index: image?.aiGenerationHistoryIndex,
+          prompt: image?.aiGeneration?.prompt,
+          srcMatchesSelectedVariant: Boolean(selectedVariant?.src && image?.src === selectedVariant.src),
+        };
+      }),
+    )
+    .toEqual({
+      historyCount: 2,
+      index: 1,
+      prompt: 'second generated cover',
+      srcMatchesSelectedVariant: true,
+    });
+
+  await panel.getByRole('button', { name: 'Previous generated image' }).click();
+  await expect(panel.locator('.ai-generation-history-count')).toHaveText('1/2');
+  await expect(aiNode.locator('.node-ai-history-badge')).toHaveText('1/2');
+});
+
+test('AI image node appends history when replacing an existing generated image', async ({ page }) => {
+  const prompt = 'replacement generated cover';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockSuccessfulAiGeneration(page, prompt);
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  const panel = page.locator('.node-props-panel');
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Replace Image' }).click();
+
+  await expect(panel.locator('.ai-generation-history-count')).toHaveText('2/2', { timeout: 15_000 });
+  await panel.getByRole('button', { name: 'Previous generated image' }).click();
+  await expect(panel.locator('.ai-generation-history-count')).toHaveText('1/2');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
+        return {
+          index: image?.aiGenerationHistoryIndex,
+          prompt: image?.aiGeneration?.prompt,
+          historyPrompts: image?.aiGenerationHistory?.map(
+            (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt,
+          ),
+        };
+      }),
+    )
+    .toEqual({
+      index: 0,
+      prompt: 'first generated cover',
+      historyPrompts: ['first generated cover', prompt],
+    });
+});
+
+test('AI image node supports multiple generations in the same node across reload', async ({ page }) => {
+  const prompts = ['second generated cover', 'third generated cover'];
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockSequentialSuccessfulAiGenerations(page, prompts);
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  const panel = page.locator('.node-props-panel');
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+
+  for (let index = 0; index < prompts.length; index += 1) {
+    await panel.locator('[data-ai-generation-prompt]').fill(prompts[index]);
+    await panel.getByRole('button', { name: 'Replace Image' }).click();
+    await expect(panel.locator('.ai-generation-history-count')).toHaveText(`${index + 2}/${index + 2}`, {
+      timeout: 15_000,
+    });
+    await expect(aiNode.locator('.node-ai-history-badge')).toHaveText(`${index + 2}/${index + 2}`);
+    await expect(aiNode.locator('.node-ai-status-overlay')).toHaveCount(0);
+  }
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
+        return {
+          historyCount: image?.aiGenerationHistory?.length,
+          index: image?.aiGenerationHistoryIndex,
+          prompt: image?.aiGeneration?.prompt,
+          historyPrompts: image?.aiGenerationHistory?.map(
+            (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt,
+          ),
+        };
+      }),
+    )
+    .toEqual({
+      historyCount: 3,
+      index: 2,
+      prompt: 'third generated cover',
+      historyPrompts: ['first generated cover', 'second generated cover', 'third generated cover'],
+    });
+
+  await page.reload();
+  await switchToNodeView(page);
+  const reloadedNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await reloadedNode.click();
+  const reloadedPanel = page.locator('.node-props-panel');
+  await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('3/3', { timeout: 15_000 });
+  await reloadedPanel.getByRole('button', { name: 'Previous generated image' }).click();
+  await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('2/3');
+  await reloadedPanel.getByRole('button', { name: 'Previous generated image' }).click();
+  await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('1/3');
+  await reloadedPanel.getByRole('button', { name: 'Next generated image' }).click();
+  await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('2/3');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
+        const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
+        return {
+          index: image?.aiGenerationHistoryIndex,
+          prompt: image?.aiGeneration?.prompt,
+          srcMatchesSelectedVariant: Boolean(selectedVariant?.src && image?.src === selectedVariant.src),
+        };
+      }),
+    )
+    .toEqual({
+      index: 1,
+      prompt: 'second generated cover',
+      srcMatchesSelectedVariant: true,
+    });
+});
+
+test('AI image node leaves loading state when completed asset import fails', async ({ page }) => {
+  const prompt = 'replacement missing asset cover';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await page.route('**/api/ai/generations', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return route.fallback();
+    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+    expect(body.prompt).toBe(prompt);
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'browser-ai-import-failed-job',
+        status: 'succeeded',
+        provider: body.provider ?? 'openai',
+        model: 'mock-image-model',
+        prompt: body.prompt,
+        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+        asset: {
+          id: 'browser-ai-import-failed-asset',
+          uri: '/api/generated/missing.png',
+          mimeType: 'image/png',
+          width: 1,
+          height: 1,
+          sizeBytes: 70,
+          createdAt: '2026-05-21T00:00:00.000Z',
+          metadata: {
+            provider: body.provider ?? 'openai',
+            model: 'mock-image-model',
+            prompt: body.prompt,
+            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+            createdAt: '2026-05-21T00:00:00.000Z',
+          },
+        },
+        quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+        createdAt: '2026-05-21T00:00:00.000Z',
+        completedAt: '2026-05-21T00:00:01.000Z',
+      }),
+    });
+  });
+  await page.route('**/api/generated/missing.png', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'invalid_asset', message: 'Generated asset was not an image.' }),
+    });
+  });
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  const panel = page.locator('.node-props-panel');
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Replace Image' }).click();
+
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Failed', { timeout: 15_000 });
+  await expect(panel).toContainText('Only image blobs can be stored as image assets');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer')?.aiGeneration?.status;
+      }),
+    )
+    .toBe('failed');
+});
+
+test('AI-enabled user can generate an image and keep prompt provenance after reload', async ({ page }) => {
+  const prompt = 'red square cassette cover';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockSuccessfulAiGeneration(page, prompt);
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.getByText('Current image prompt')).toBeVisible();
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const image = doc.layers?.find((layer: { kind: string }) => layer.kind === 'image');
+          return {
+            prompt: image?.aiGeneration?.prompt,
+            provider: image?.aiGeneration?.provider,
+            src: image?.src,
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toMatchObject({ prompt, provider: 'openai', src: expect.stringMatching(/^artifact-asset:\/\//) });
+
+  await page.reload();
+  await expectLayerCanvasToHavePixels(page);
+  await page.locator('.sidebar [draggable="true"]').first().click();
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible({
+    timeout: 15_000,
+  });
+});
+
+test('AI generation keeps polling until a queued job succeeds', async ({ page }) => {
+  const prompt = 'late arriving neon portrait';
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await mockPolledAiGeneration(page, prompt);
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+});
+
+test('AI quota exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: false,
+    disabledReason: 'quota_exhausted',
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+
+  await page.goto('/app?new=blank');
+
+  await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI quota used');
+  await expect(page.locator('.ai-generation-access-banner')).toContainText(
+    'Your monthly generation limit is used for this account.',
+  );
+  await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI provider failure leaves the editor usable and shows the API error', async ({ page }) => {
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: 1, remaining: 9 },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+  await page.route('**/api/ai/generations', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'browser-ai-failed-job',
+        status: 'failed',
+        provider: 'openai',
+        model: 'mock-image-model',
+        prompt: 'failed noisy cover',
+        settings: { aspect: '1:1', quality: 'standard' },
+        error: { code: 'provider_unavailable', message: 'Provider timed out.', retryable: true },
+        quota: { period: '2026-05', limit: 10, used: 2, remaining: 8 },
+        createdAt: '2026-05-21T00:00:00.000Z',
+      }),
+    });
+  });
+
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill('failed noisy cover');
+  await panel.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
+  await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
+  await expect(panel.locator('.ai-generation-diagnostics')).toContainText('provider_unavailable');
+  await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Recover Asset' })).toHaveCount(0);
+  await expect(page.locator('.empty-canvas-start')).toBeVisible();
+});
+
+test('export does not destabilize React Flow when an AI image node is failed', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiFailedImageDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Failed');
+  await expect(page.locator('.node-props-panel .ai-generation-provenance')).toHaveCount(1);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expect(page.getByText('Oops!')).toHaveCount(0);
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {
@@ -1031,6 +1680,9 @@ test('image transform gestures stay local to the selected node', async ({ page }
   await expect(imageNode).toBeVisible({ timeout: 15_000 });
   await imageNode.click();
 
+  await expect(imageNode.locator('.node-live-media-overlay')).toHaveCount(0);
+  await expect(imageNode.locator('.node-thumbnail-canvas')).toBeVisible({ timeout: 15_000 });
+
   const overlay = imageNode.locator('.node-drag-overlay');
   await expect(overlay).toBeVisible({ timeout: 15_000 });
   const box = await overlay.boundingBox();
@@ -1040,11 +1692,37 @@ test('image transform gestures stay local to the selected node', async ({ page }
   const viewport = page.locator('.react-flow__viewport').first();
   const beforeWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, -240);
+  for (let i = 0; i < 8; i += 1) {
+    await page.mouse.wheel(0, -240);
+  }
+  await page.waitForTimeout(120);
+  await expect(imageNode.locator('.node-live-media-overlay')).toBeVisible();
+  await expect(imageNode.locator('.node-thumbnail-skeleton')).toHaveCount(0);
   const afterWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
 
   expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await expect(page.getByText('Oops!')).toHaveCount(0);
+  await page.waitForTimeout(250);
+  await expect(imageNode.locator('.node-live-media-overlay')).toBeVisible();
+  await expect(imageNode.locator('.node-thumbnail-skeleton')).toHaveCount(0);
 
+  const scaleAfterPreviewWheel = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { id: string }) => layer.id === 'image-drag-image')?.scaleX;
+  });
+  await imageNode.locator('.node-shell-header').hover();
+  await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(250);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'image-drag-image')?.scaleX;
+      }),
+    )
+    .toBe(scaleAfterPreviewWheel);
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   for (let i = 0; i < 10; i += 1) {
     await page.mouse.move(box.x + box.width / 2 + i * 22, box.y + box.height / 2 + (i % 2 === 0 ? 48 : -48));
@@ -1152,6 +1830,168 @@ async function switchToLayerView(page: Page) {
     await layersButton.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 10_000 });
+}
+
+async function mockAiAccess(page: Page, access: Record<string, unknown>) {
+  await page.unroute('**/api/ai/access');
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(access),
+    });
+  });
+}
+
+async function mockSuccessfulAiGeneration(page: Page, expectedPrompt: string) {
+  await page.route('**/api/ai/generations', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return route.fallback();
+    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+    expect(body.prompt).toBe(expectedPrompt);
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'browser-ai-job-1',
+        status: 'succeeded',
+        provider: body.provider ?? 'openai',
+        model: 'mock-image-model',
+        prompt: body.prompt,
+        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+        asset: {
+          id: 'browser-ai-asset-1',
+          uri: generatedImageDataUrl,
+          mimeType: 'image/png',
+          width: 1,
+          height: 1,
+          sizeBytes: 70,
+          createdAt: '2026-05-21T00:00:00.000Z',
+          metadata: {
+            provider: body.provider ?? 'openai',
+            model: 'mock-image-model',
+            prompt: body.prompt,
+            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+            createdAt: '2026-05-21T00:00:00.000Z',
+          },
+        },
+        quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+        createdAt: '2026-05-21T00:00:00.000Z',
+        completedAt: '2026-05-21T00:00:01.000Z',
+      }),
+    });
+  });
+}
+
+async function mockSequentialSuccessfulAiGenerations(page: Page, expectedPrompts: string[]) {
+  let requestIndex = 0;
+  await page.route('**/api/ai/generations', async (route) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return route.fallback();
+    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+    const expectedPrompt = expectedPrompts[requestIndex];
+    expect(body.prompt).toBe(expectedPrompt);
+    requestIndex += 1;
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: `browser-ai-sequence-job-${requestIndex}`,
+        status: 'succeeded',
+        provider: body.provider ?? 'openai',
+        model: 'mock-image-model',
+        prompt: body.prompt,
+        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+        asset: {
+          id: `browser-ai-sequence-asset-${requestIndex}`,
+          uri: requestIndex % 2 === 0 ? testImageSrc : generatedImageDataUrl,
+          mimeType: requestIndex % 2 === 0 ? 'image/svg+xml' : 'image/png',
+          width: 1,
+          height: 1,
+          sizeBytes: 70,
+          createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
+          metadata: {
+            provider: body.provider ?? 'openai',
+            model: 'mock-image-model',
+            prompt: body.prompt,
+            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+            createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
+          },
+        },
+        quota: { period: '2026-05', limit: 10, used: 4 + requestIndex, remaining: 6 - requestIndex },
+        createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
+        completedAt: `2026-05-21T00:00:0${requestIndex}.500Z`,
+      }),
+    });
+  });
+}
+
+async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
+  let pollCount = 0;
+  await page.route('**/api/ai/generations**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+      expect(body.prompt).toBe(expectedPrompt);
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'browser-ai-polled-job',
+          status: 'queued',
+          provider: body.provider ?? 'openai',
+          model: 'mock-image-model',
+          prompt: body.prompt,
+          settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+          quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
+          createdAt: '2026-05-21T00:00:00.000Z',
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'GET' && request.url().includes('/api/ai/generations/browser-ai-polled-job')) {
+      pollCount += 1;
+      const succeeded = pollCount >= 2;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'browser-ai-polled-job',
+          status: succeeded ? 'succeeded' : 'running',
+          provider: 'openai',
+          model: 'mock-image-model',
+          prompt: expectedPrompt,
+          settings: { aspect: '1:1', quality: 'standard' },
+          ...(succeeded
+            ? {
+                asset: {
+                  id: 'browser-ai-polled-asset',
+                  uri: generatedImageDataUrl,
+                  mimeType: 'image/png',
+                  width: 1,
+                  height: 1,
+                  sizeBytes: 70,
+                  createdAt: '2026-05-21T00:00:02.000Z',
+                  metadata: {
+                    provider: 'openai',
+                    model: 'mock-image-model',
+                    prompt: expectedPrompt,
+                    settings: { aspect: '1:1', quality: 'standard' },
+                    createdAt: '2026-05-21T00:00:02.000Z',
+                  },
+                },
+                completedAt: '2026-05-21T00:00:02.000Z',
+              }
+            : {}),
+          createdAt: '2026-05-21T00:00:00.000Z',
+          startedAt: '2026-05-21T00:00:01.000Z',
+        }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
 }
 
 async function getCanvasCenterRgb(page: Page) {

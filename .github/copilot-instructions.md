@@ -26,16 +26,19 @@ npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # vitest run (all tests)
 npm run test:browser # focused Playwright browser/WebGL smoke tests
-npx vitest run app/types/config.test.ts   # run a single test file
+npm --workspace @artifact/web run test -- app/types/config.test.ts   # run a single web test file
 ```
 
-> Build no longer depends on `npm run favicon` (requires Puppeteer/WebGL). The committed fallback is `public/favicon.svg`; `public/favicon.png` is optional local generated output.
+> Build no longer depends on `npm run favicon` (requires Puppeteer/WebGL). The
+> committed fallback is `apps/web/public/favicon.svg`;
+> `apps/web/public/favicon.png` is optional local generated output.
 
 ## Architecture
 
-**SPA only** — `react-router.config.ts` sets `ssr: false`. Never add server-only imports to the render pipeline.
+**SPA only** — `apps/web/react-router.config.ts` sets `ssr: false`. Never add
+server-only imports to the render pipeline.
 
-### Data model (`app/types/config.ts`)
+### Data model (`apps/web/app/types/config.ts`)
 
 The canonical document type is `CanvasDocument`:
 
@@ -60,10 +63,10 @@ Use `makeEffectPresetLayer` for new effect layers. Legacy combined effect
 presets are not part of the current model; document normalization splits stored
 combined effects into focused preset layers.
 
-### Two-stage rendering pipeline (`app/utils/renderer.ts`)
+### Two-stage rendering pipeline (`apps/web/app/utils/renderer.ts`)
 
-`app/utils/renderer.ts` is the public facade. Renderer implementation internals
-live under `app/utils/render/`.
+`apps/web/app/utils/renderer.ts` is the public facade. Renderer implementation
+internals live under `apps/web/app/utils/render/`.
 
 Use Playwright browser tests only for browser-only behavior: WebGL primitive
 controls, export downloads, tab switching, and input-event regressions.
@@ -71,11 +74,11 @@ controls, export downloads, tab switching, and input-event regressions.
 `renderDocument(doc, W, H, imageCache)` is **async** and returns a `Promise<HTMLCanvasElement>`:
 
 1. **Canvas 2D** — iterates layers in order; effect layers run `applyCanvas2DEffects` (grain, glitch, CA, scanlines, tint, rays).
-2. **PixiJS WebGL** — after each effect layer, `buildFiltersFromEffectLayer` (`app/utils/pixiFilters.ts`) returns a `Filter[]`. If non-empty, `gpuRenderToCanvas` blits the canvas into a Pixi render texture, applies GLSL filters, and returns a new canvas. The pipeline continues on that output.
+2. **PixiJS WebGL** — after each effect layer, `buildFiltersFromEffectLayer` (`apps/web/app/utils/pixiFilters.ts`) returns a `Filter[]`. If non-empty, `gpuRenderToCanvas` blits the canvas into a Pixi render texture, applies GLSL filters, and returns a new canvas. The pipeline continues on that output.
 
 Scale baseline: `REF = 540`. All authored size values are at 540px and multiplied by `W / 540` at render time, so preview and export match exactly.
 
-### State management (`app/routes/generator.tsx`)
+### State management (`apps/web/app/routes/generator.tsx`)
 
 All document state lives here. Key rules:
 - **Never call `_setDoc` directly** — always use the `setDoc` wrapper (records undo history, 400 ms debounce).
@@ -108,4 +111,6 @@ Mutating `doc` in place causes silent render bugs and breaks undo. Emoji layers 
 
 **No `as unknown` casts** — fix the type instead.
 
-**`prefers-reduced-motion`** — disable non-essential animations when the media query matches. See `app/index.css` and `HeroCover.tsx` for existing patterns.
+**`prefers-reduced-motion`** — disable non-essential animations when the media
+query matches. See `apps/web/app/index.css` and `HeroCover.tsx` for existing
+patterns.

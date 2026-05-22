@@ -1,0 +1,305 @@
+# Artifact API Runbook
+
+This runbook covers the v0.13 private AI generation backend. The frontend stays
+on Vercel; the API, worker, Postgres, Redis, provider keys, and generated image
+storage live on the VPS.
+
+## Processes
+
+Run these as separate long-lived processes:
+
+| Process | Command | Purpose |
+| --- | --- | --- |
+| API | `npm --workspace @artifact/api run dev` | HTTP API, auth, quota, job creation, asset downloads, Bull Board |
+| Worker | `npm --workspace @artifact/api run worker:dev` | BullMQ consumer, provider calls, storage writes, job completion |
+| Postgres | VPS service or container | users, jobs, assets, usage |
+| Redis | VPS service or container | BullMQ queue |
+
+For production, use a process manager such as systemd, PM2, Docker Compose, or
+your existing VPS supervisor. The API and worker must share the same `.env`
+values for database, queue, providers, and storage.
+
+## Required Environment
+
+Minimum VPS-like configuration:
+
+```bash
+NODE_ENV=production
+PORT=4000
+WEB_ORIGIN=https://your-vercel-domain.example
+
+API_DATABASE_DRIVER=postgres
+DATABASE_URL=postgres://artifact:change-me@127.0.0.1:5432/artifact
+
+API_QUEUE_DRIVER=bullmq
+REDIS_URL=redis://127.0.0.1:6379
+
+AUTH_JWT_SECRET=change-me-long-random-secret
+AUTH_JWT_ISSUER=
+AUTH_JWT_AUDIENCE=
+API_DEV_BEARER_TOKEN=
+CLERK_SECRET_KEY=
+CLERK_JWT_KEY=
+CLERK_AUTHORIZED_PARTIES=https://your-vercel-domain.example
+
+API_BULL_BOARD_ENABLED=false
+
+OPENAI_API_KEY=
+OPENAI_IMAGE_MODEL=gpt-image-2
+XAI_API_KEY=
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+
+ASSET_STORAGE_DRIVER=local
+ASSET_STORAGE_DIR=/var/lib/artifact/generated-assets
+
+AI_MONTHLY_GENERATION_LIMIT=10
+AI_MAX_ACTIVE_JOBS_PER_USER=1
+```
+
+Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
+prefer Clerk session tokens or real bearer tokens verified by `AUTH_JWT_SECRET`
+and optional issuer / audience checks.
+
+For Clerk-backed browser auth, set `VITE_CLERK_PUBLISHABLE_KEY` in the root
+`.env` and set either `CLERK_SECRET_KEY` or `CLERK_JWT_KEY` in
+`apps/api/.env`. `CLERK_AUTHORIZED_PARTIES` should include the exact local or
+Vercel web origin that requests Clerk tokens, for example
+`http://localhost:5173` locally and the production Vercel origin on the VPS.
+
+Clerk sign-in only identifies the browser user. AI generation still requires a
+matching `users.id` row with `ai_enabled=true`; use the Clerk `userId` as the
+database id when granting private alpha access. The API creates or refreshes a
+disabled `users` row automatically after a session verifies, so granting access
+is a separate operator step:
+
+```bash
+npm --workspace @artifact/api run grant:ai -- user_xxx user@example.com
+```
+
+The email argument is optional; the Clerk user id is the durable key.
+
+## Database Bootstrap
+
+Apply migrations before starting the API or worker:
+
+```bash
+npm --workspace @artifact/api run migrate
+```
+
+The active-generation guard migration is self-healing for private-alpha
+duplicates. Before creating the one-active-job-per-user partial unique index, it
+keeps one `queued` / `running` job per user, preferring `running` over `queued`
+and then the newest job, and marks the other active duplicates as `expired` with
+`error_code = active_job_guard_migration_expired`. This prevents deploy-time
+failure from old stuck duplicate jobs while leaving an auditable database trail.
+
+For local Compose only, `docker-compose.local.yml` mounts the migration and
+`apps/api/docker/init/002_local_dev_seed.sql` automatically. That seed creates
+`dev-user` with AI access for browser smoke tests.
+
+## Storage
+
+The first storage driver is local disk. Create the directory and make it
+writable by the API and worker user:
+
+```bash
+mkdir -p /var/lib/artifact/generated-assets
+chown -R artifact:artifact /var/lib/artifact/generated-assets
+```
+
+Back this directory up with the database. Asset rows point at files through
+`storage_key`, so losing either side breaks generated asset downloads.
+
+## Health And Smoke Checks
+
+Unauthenticated liveness:
+
+```bash
+curl http://127.0.0.1:4000/api/health
+```
+
+Expected shape:
+
+```json
+{
+  "ok": true,
+  "service": "artifact-api",
+  "databaseDriver": "postgres",
+  "queueDriver": "bullmq",
+  "storageDriver": "local",
+  "providers": ["openai", "xai"],
+  "bullBoardEnabled": false
+}
+```
+
+Access check with a local dev token:
+
+```bash
+curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/access
+```
+
+Create a mock-backed job locally:
+
+```bash
+curl -X POST http://127.0.0.1:4000/api/ai/generations \
+  -H 'Authorization: Bearer dev-token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "prompt": "grainy shoegaze album cover",
+    "provider": "openai",
+    "settings": { "aspect": "1:1", "quality": "standard" },
+    "idempotencyKey": "manual-smoke-1"
+  }'
+```
+
+Poll the returned job id:
+
+```bash
+curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/generations/<job-id>
+```
+
+If the job stays queued, check that the worker process is running and points at
+the same `DATABASE_URL` and `REDIS_URL` as the API.
+
+You can run the same flow with the bundled smoke script after the API and
+worker are running:
+
+```bash
+npm --workspace @artifact/api run smoke
+```
+
+Useful overrides:
+
+```bash
+API_SMOKE_BASE_URL=https://api.example.com \
+API_SMOKE_TOKEN=<bearer-token> \
+API_SMOKE_PROVIDER=openai \
+npm --workspace @artifact/api run smoke
+```
+
+The smoke script checks `/api/health`, `/api/ai/access`, creates a generation
+job, polls it to completion, and downloads the generated asset bytes.
+
+If smoke fails with:
+
+```text
+GET /api/health failed with 404
+```
+
+then the script reached a server that does not have the current API routes.
+Usually this means an old `dev:api` process is still running on port `4000`,
+or `API_SMOKE_BASE_URL` points at the React Router/Vercel web server instead of
+the API server. Stop and restart the API process from the current checkout, then
+check:
+
+```bash
+curl http://127.0.0.1:4000/api/health
+```
+
+## Bull Board
+
+Enable only on trusted networks or behind your own auth:
+
+```bash
+API_BULL_BOARD_ENABLED=true
+API_QUEUE_DRIVER=bullmq
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4000/admin/queues
+```
+
+Bull Board is for queue debugging only. It should not be exposed publicly during
+the private alpha.
+
+## Cleanup
+
+The AI cleanup command is intentionally manual for the private alpha. It is safe
+to run as a dry run first, inspect the JSON summary, then apply the same command
+when the candidates look right.
+
+Dry run:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai
+```
+
+Apply:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai -- --apply
+```
+
+Production/dist equivalent:
+
+```bash
+npm --workspace @artifact/api run build
+npm --workspace @artifact/api run cleanup:ai:start -- --apply
+```
+
+The command:
+
+- marks stale `queued` / `running` jobs as `expired`;
+- soft-deletes generated asset rows that are not referenced by any generation
+  job;
+- deletes local files for old soft-deleted generated assets;
+- deletes local generated files that do not have a matching database asset row.
+
+Useful knobs:
+
+```bash
+npm --workspace @artifact/api run cleanup:ai -- \
+  --stale-active-hours=6 \
+  --orphan-asset-hours=24 \
+  --deleted-asset-file-days=7 \
+  --limit=100
+```
+
+Only run `--apply` against the intended `DATABASE_URL` and `ASSET_STORAGE_DIR`.
+For private alpha, run cleanup after investigating stuck jobs in Bull Board or
+before freeing old generated files on the VPS.
+
+## Operational Notes
+
+- Run API and worker from the same git revision.
+- Keep provider keys out of the frontend and Vercel client env.
+- Set `WEB_ORIGIN` to the exact Vercel app origin. Credentialed CORS only echoes
+  that configured origin.
+- Failed provider calls should mark the job failed and not leave orphan files.
+- If asset creation fails after writing bytes, storage cleanup should remove the
+  just-written file.
+- One active job per user and monthly quota are enforced server-side.
+- Generated image bytes are downloaded by the browser through
+  `/api/assets/:id/file`, then imported into local IndexedDB as normal
+  `artifact-asset://...` editor assets.
+
+## Local Commands
+
+```bash
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+npm run dev:infra
+npm run dev:api
+npm run dev:worker
+npm run dev:web
+```
+
+The Compose database is initialized with the v0.13 migration and a local
+`dev-user` with AI access. The root `.env` can expose
+`VITE_AI_API_DEV_TOKEN=dev-token` so the browser calls the local API as that
+seeded user without signing in. Leave that Vite dev token empty to test the
+Clerk sign-in flow instead.
+
+Stop local infrastructure:
+
+```bash
+npm run dev:infra:down
+```
+
+Reset local Postgres/Redis volumes:
+
+```bash
+docker compose -f docker-compose.local.yml down -v
+```

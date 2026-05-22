@@ -1,0 +1,159 @@
+name: Container Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      push-images:
+        description: "Push built images to GHCR"
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/workflows/container-images.yml"
+      - "apps/api/**"
+      - "docker/**"
+      - "package.json"
+      - "package-lock.json"
+      - "packages/**"
+      - "turbo.json"
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+    paths:
+      - ".github/workflows/container-images.yml"
+      - "apps/api/**"
+      - "docker/**"
+      - "package.json"
+      - "package-lock.json"
+      - "packages/**"
+      - "turbo.json"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: container-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: API
+            image: artifact-api
+            dockerfile: docker/api.Dockerfile
+          - name: Worker
+            image: artifact-worker
+            dockerfile: docker/worker.Dockerfile
+          - name: Bull Board
+            image: artifact-bull-board
+            dockerfile: docker/bull-board.Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile
+        id: dockerfile
+        run: |
+          if [ -f "${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Skipping ${{ matrix.name }} image::${{ matrix.dockerfile }} does not exist yet."
+          fi
+
+      - name: Set image namespace
+        id: image
+        if: steps.dockerfile.outputs.exists == 'true'
+        run: |
+          echo "namespace=$(echo "ghcr.io/${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to push
+        id: publish
+        if: steps.dockerfile.outputs.exists == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_IMAGES: ${{ inputs['push-images'] || 'false' }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$PUSH_IMAGES" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_HEAD_REPOSITORY" = "$REPOSITORY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.publish.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Collect image metadata
+        id: meta
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.namespace }}/${{ matrix.image }}
+          flavor: |
+            latest=false
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+
+      - name: Build image
+        id: build
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: ${{ steps.publish.outputs.enabled == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max,ignore-error=true
+
+      - name: Summarize built image
+        if: steps.dockerfile.outputs.exists == 'true'
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dockerfile: \`${{ matrix.dockerfile }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed: \`${{ steps.publish.outputs.enabled }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tags:" >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.meta.outputs.tags }}' | sed 's/^/- `/' | sed 's/$/`/' >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.build.outputs.digest }}" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Digest: \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summarize skipped image
+        if: steps.dockerfile.outputs.exists != 'true'
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Skipped because \`${{ matrix.dockerfile }}\` is not present in this branch." >> "$GITHUB_STEP_SUMMARY"

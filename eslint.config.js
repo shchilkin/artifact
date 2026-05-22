@@ -6,9 +6,27 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['dist', 'build', '.react-router', 'api', '.claude', 'test-results', 'playwright-report']),
+  globalIgnores([
+    'dist',
+    'build',
+    '.react-router',
+    'apps/web/build',
+    'apps/web/.react-router',
+    'api',
+    '.claude',
+    'test-results',
+    'playwright-report',
+  ]),
+  {
+    files: ['apps/api/**/*.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['apps/api/**'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
