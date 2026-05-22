@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ACTIVE_GENERATION_JOB_INDEX, ActiveGenerationJobExistsError } from '../src/db/errors.js';
 import { type PostgresQueryClient as AssetQueryClient, PostgresAssetRepository } from '../src/db/postgresAssets.js';
 import {
   type PostgresQueryClient as JobQueryClient,
@@ -22,6 +23,15 @@ class FakeQueryClient implements AssetQueryClient, JobQueryClient {
   async query<TRow>(sql: string, params: readonly unknown[] = []): Promise<{ rows: TRow[] }> {
     this.queries.push({ sql, params });
     return { rows: (this.rows.shift() ?? []) as TRow[] };
+  }
+}
+
+class ThrowingQueryClient implements JobQueryClient {
+  async query<TRow>(): Promise<{ rows: TRow[] }> {
+    throw Object.assign(new Error('duplicate active generation'), {
+      code: '23505',
+      constraint: ACTIVE_GENERATION_JOB_INDEX,
+    });
   }
 }
 
@@ -66,6 +76,22 @@ describe('PostgresAiGenerationJobRepository', () => {
 
     expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain("status IN ('queued', 'running')");
     expect(client.queries[0]?.params).toEqual(['user-1']);
+  });
+
+  it('maps active-job unique violations to a domain error', async () => {
+    const repo = new PostgresAiGenerationJobRepository(new ThrowingQueryClient());
+
+    await expect(
+      repo.create({
+        id: 'job-1',
+        userId: 'user-1',
+        provider: 'openai',
+        model: 'image-model',
+        prompt: 'cover art',
+        settingsJson: {},
+        idempotencyKey: 'idem-1',
+      }),
+    ).rejects.toBeInstanceOf(ActiveGenerationJobExistsError);
   });
 
   it('throws when a job update misses', async () => {

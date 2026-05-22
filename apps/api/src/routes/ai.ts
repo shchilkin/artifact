@@ -9,6 +9,7 @@ import type {
   CreateGenerationRequest,
 } from '../contracts.js';
 import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
+import { isActiveGenerationJobExistsError } from '../db/errors.js';
 import type { ApiRepositories } from '../db/repositories.js';
 import type { AiGenerationJobRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
@@ -167,23 +168,52 @@ export async function handleCreateGenerationRequest(
     return errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.');
   }
 
-  const job = await deps.repositories.jobs.create({
-    id: deps.createId?.() ?? randomUUID(),
-    userId: user.id,
-    provider,
-    model,
-    prompt: body.prompt.trim(),
-    negativePrompt: body.settings.negativePrompt,
-    settingsJson: settingsToJson(body.settings),
-    idempotencyKey: body.idempotencyKey,
-  });
+  let job: AiGenerationJobRow;
+  try {
+    job = await deps.repositories.jobs.create({
+      id: deps.createId?.() ?? randomUUID(),
+      userId: user.id,
+      provider,
+      model,
+      prompt: body.prompt.trim(),
+      negativePrompt: body.settings.negativePrompt,
+      settingsJson: settingsToJson(body.settings),
+      idempotencyKey: body.idempotencyKey,
+    });
+  } catch (error) {
+    if (isActiveGenerationJobExistsError(error)) {
+      logWarn('ai_generation.create_denied', { userId: user.id, reason: 'active_job_exists' });
+      return errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.');
+    }
+    throw error;
+  }
   await deps.repositories.usage.upsertMonthlyUsage({
     userId: user.id,
     period: quotaCheck.quota.period,
     generationLimit: deps.monthlyGenerationLimit,
     generationCountDelta: 1,
   });
-  await deps.queue.enqueue({ jobId: job.id, userId: user.id }, { jobId: job.id });
+  try {
+    await deps.queue.enqueue({ jobId: job.id, userId: user.id }, { jobId: job.id });
+  } catch (error) {
+    logWarn('ai_generation.enqueue_failed', {
+      jobId: job.id,
+      userId: user.id,
+      reason: error instanceof Error ? error.message : 'unknown_error',
+    });
+    await deps.repositories.jobs.markFailed(job.id, {
+      code: 'queue_enqueue_failed',
+      message: 'Generation queue is unavailable. Try again later.',
+      retryable: true,
+    });
+    await deps.repositories.usage.upsertMonthlyUsage({
+      userId: user.id,
+      period: quotaCheck.quota.period,
+      generationLimit: deps.monthlyGenerationLimit,
+      generationCountDelta: -1,
+    });
+    return errorJson(503, 'queue_unavailable', 'Generation queue is unavailable. Try again later.');
+  }
   logInfo('ai_generation.queued', {
     jobId: job.id,
     userId: user.id,

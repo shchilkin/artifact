@@ -1,3 +1,4 @@
+import { ActiveGenerationJobExistsError, isActiveGenerationJobUniqueViolation } from './errors.js';
 import type {
   AiGenerationJobRepository,
   AiGenerationJobRow,
@@ -39,36 +40,43 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
   constructor(private readonly client: PostgresQueryClient) {}
 
   async create(input: CreateAiGenerationJobInput): Promise<AiGenerationJobRow> {
-    const result = await this.client.query<AiGenerationJobRow>(
-      `
-        INSERT INTO ai_generation_jobs (
-          id,
-          user_id,
-          provider,
-          model,
-          prompt,
-          negative_prompt,
-          settings_json,
-          idempotency_key,
-          status,
-          expires_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, 'queued', $9)
-        RETURNING ${jobColumns}
-      `,
-      [
-        input.id,
-        input.userId,
-        input.provider,
-        input.model,
-        input.prompt,
-        input.negativePrompt ?? null,
-        input.settingsJson,
-        input.idempotencyKey,
-        input.expiresAt ?? null,
-      ],
-    );
-    return requireRow(result.rows, `Generation job was not created: ${input.id}`);
+    try {
+      const result = await this.client.query<AiGenerationJobRow>(
+        `
+          INSERT INTO ai_generation_jobs (
+            id,
+            user_id,
+            provider,
+            model,
+            prompt,
+            negative_prompt,
+            settings_json,
+            idempotency_key,
+            status,
+            expires_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, 'queued', $9)
+          RETURNING ${jobColumns}
+        `,
+        [
+          input.id,
+          input.userId,
+          input.provider,
+          input.model,
+          input.prompt,
+          input.negativePrompt ?? null,
+          input.settingsJson,
+          input.idempotencyKey,
+          input.expiresAt ?? null,
+        ],
+      );
+      return requireRow(result.rows, `Generation job was not created: ${input.id}`);
+    } catch (error) {
+      if (isActiveGenerationJobUniqueViolation(error)) {
+        throw new ActiveGenerationJobExistsError(input.userId);
+      }
+      throw error;
+    }
   }
 
   async findByIdForUser(id: string, userId: string): Promise<AiGenerationJobRow | null> {

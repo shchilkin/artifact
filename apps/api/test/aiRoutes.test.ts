@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RequestUserResolution } from '../src/auth.js';
 import type { GenerationQueuePayload } from '../src/contracts.js';
+import { ActiveGenerationJobExistsError } from '../src/db/errors.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
 import { createMockImageProvider, createProviderRegistry } from '../src/providers/index.js';
 import type { GenerationQueue, QueueJob } from '../src/queue.js';
@@ -237,6 +238,53 @@ describe('AI route handlers', () => {
       status: 409,
       body: { code: 'active_job_exists' },
     });
+  });
+
+  it('maps repository active-job conflicts from concurrent creates', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.repositories = {
+      ...deps.repositories,
+      jobs: {
+        ...deps.repositories.jobs,
+        countActiveJobs: async () => 0,
+        create: async () => {
+          throw new ActiveGenerationJobExistsError('user-1');
+        },
+      },
+    };
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 409,
+      body: { code: 'active_job_exists' },
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
+  });
+
+  it('fails queued jobs and refunds quota when enqueue fails', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    const enqueue = vi.fn(async () => {
+      throw new Error('redis is down');
+    });
+    deps.queue = {
+      enqueue,
+      process: () => ({ close: async () => undefined }),
+    };
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 503,
+      body: { code: 'queue_unavailable' },
+    });
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'queue_enqueue_failed',
+      retryable: true,
+    });
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
+    await expect(store.countActiveJobs('user-1')).resolves.toBe(0);
+    expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
   });
 
   it('reads an existing generation job for the owner', async () => {

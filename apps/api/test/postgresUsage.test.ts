@@ -83,6 +83,22 @@ describe('PostgresUsageRepository', () => {
     expect(client.calls[0]?.sql).toContain('RETURNING');
   });
 
+  it('supports negative generation deltas for immediate queue-enqueue refunds', async () => {
+    const client = new FakeQueryClient([[{ ...usage, generation_count: 1 }]]);
+    const repository = new PostgresUsageRepository(client);
+
+    await expect(
+      repository.upsertMonthlyUsage({
+        userId: 'user-1',
+        period: '2026-05',
+        generationLimit: 10,
+        generationCountDelta: -1,
+      }),
+    ).resolves.toMatchObject({ generation_count: 1 });
+
+    expect(client.calls[0]?.values).toEqual(['user-1', '2026-05', 10, -1, '0']);
+  });
+
   it('counts monthly generations from the usage row', async () => {
     const client = new FakeQueryClient([[usage], []]);
     const repository = new PostgresUsageRepository(client);

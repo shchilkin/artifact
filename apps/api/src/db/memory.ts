@@ -1,3 +1,4 @@
+import { ActiveGenerationJobExistsError } from './errors.js';
 import type { ApiRepositories } from './repositories.js';
 import type {
   AiGenerationJobRow,
@@ -255,6 +256,10 @@ export class InMemoryApiStore {
 
   async createGenerationJob(input: CreateAiGenerationJobInput): Promise<AiGenerationJobRow> {
     if (this.jobs.has(input.id)) throw new Error(`Generation job already exists: ${input.id}`);
+    const activeJob = Array.from(this.jobs.values()).find(
+      (job) => job.user_id === input.userId && (job.status === 'queued' || job.status === 'running'),
+    );
+    if (activeJob) throw new ActiveGenerationJobExistsError(input.userId);
     const now = new Date();
     const row: AiGenerationJobRow = {
       id: input.id,
