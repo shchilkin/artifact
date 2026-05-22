@@ -21,26 +21,32 @@ values for database, queue, providers, and storage.
 
 ## Coolify Compose Resource
 
-For the first Coolify deploy, keep Postgres and Redis as Coolify managed
-resources, then create one Docker Compose resource for the backend application
-processes:
+For the first Coolify deploy, create one Docker Compose resource for the whole
+backend stack:
 
 - Compose file: `docker-compose.coolify.yml`
-- Services: `api`, `worker`, `bull-board`
+- Services: `api`, `worker`, `bull-board`, `postgres`, `redis`
 - Build context: repository root
 - Branch: `development`
 
-This shape intentionally keeps `api` and `worker` inside the same compose
-resource so they can mount the same Docker named volume:
+This shape intentionally keeps the app processes and infrastructure inside the
+same compose resource so Docker DNS and shared volumes stay simple:
 
 ```text
 artifact-generated-assets -> /var/lib/artifact/generated-assets
+artifact-postgres-data    -> /var/lib/postgresql/data
+artifact-redis-data       -> /data
 ```
 
 The worker writes generated images to that volume and the API serves those same
 files through `/api/assets/:id/file`. Creating API and worker as separate
 Coolify applications is possible, but do not give them separate generated-asset
 volumes or completed jobs will reference files that the API cannot read.
+
+The compose file wires app services to `postgres` and `redis` by service name,
+so do not set `DATABASE_URL` or `REDIS_URL` manually for this first setup. Set
+`POSTGRES_PASSWORD` instead, and optionally override `POSTGRES_DB` /
+`POSTGRES_USER` if needed.
 
 Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an

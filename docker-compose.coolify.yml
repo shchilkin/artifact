@@ -3,9 +3,9 @@ x-artifact-api-env: &artifact-api-env
   PORT: 4000
   WEB_ORIGIN: ${WEB_ORIGIN:?Set the public Vercel/frontend origin}
   API_DATABASE_DRIVER: postgres
-  DATABASE_URL: ${DATABASE_URL:?Set the Coolify Postgres internal URL}
+  DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artifact}
   API_QUEUE_DRIVER: bullmq
-  REDIS_URL: ${REDIS_URL:?Set the Coolify Redis internal URL}
+  REDIS_URL: redis://redis:6379
   AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a long random JWT fallback secret}
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
   AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
@@ -23,6 +23,33 @@ x-artifact-api-env: &artifact-api-env
   AI_MAX_ACTIVE_JOBS_PER_USER: ${AI_MAX_ACTIVE_JOBS_PER_USER:-1}
 
 services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-artifact}
+      POSTGRES_USER: ${POSTGRES_USER:-artifact}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - artifact-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - artifact-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -30,6 +57,11 @@ services:
     environment:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
     expose:
@@ -43,6 +75,11 @@ services:
     environment:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
     restart: unless-stopped
@@ -54,6 +91,9 @@ services:
     environment:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: true
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
     expose:
@@ -62,3 +102,5 @@ services:
 
 volumes:
   artifact-generated-assets:
+  artifact-postgres-data:
+  artifact-redis-data:
