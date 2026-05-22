@@ -345,6 +345,38 @@ const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
 const generatedImageDataUrl =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const aiFailedImageDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+  layers: [
+    {
+      id: 'ai-failed-layer',
+      name: 'AI Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: generatedImageDataUrl,
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      aiGeneration: {
+        prompt: 'failed export cover',
+        provider: 'openai',
+        quality: 'standard',
+        status: 'failed',
+        jobId: 'browser-ai-failed-export-job',
+        errorCode: 'provider_unavailable',
+        errorMessage: 'Provider timed out.',
+      },
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const aiReplacingLayerDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 1, aspect: '1:1' },
@@ -1261,6 +1293,23 @@ test('AI provider failure leaves the editor usable and shows the API error', asy
   await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Recover Asset' })).toHaveCount(0);
   await expect(page.locator('.empty-canvas-start')).toBeVisible();
+});
+
+test('export does not destabilize React Flow when an AI image node is failed', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiFailedImageDocument))}`);
+  await switchToNodeView(page);
+
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Failed');
+  await expect(page.locator('.node-props-panel .ai-generation-provenance')).toHaveCount(1);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expect(page.getByText('Oops!')).toHaveCount(0);
 });
 
 test('node previews respect document aspect ratio', async ({ page }) => {

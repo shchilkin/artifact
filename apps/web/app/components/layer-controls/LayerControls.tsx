@@ -89,10 +89,12 @@ export function LayerControls({
   layer,
   onChange,
   detached = false,
+  showAiGenerationProvenance = true,
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
   detached?: boolean;
+  showAiGenerationProvenance?: boolean;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<'content' | 'placement' | 'style' | 'structure'>('content');
@@ -200,7 +202,7 @@ export function LayerControls({
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-          <ImageGenerationProvenance layer={layer} />
+          {showAiGenerationProvenance && <ImageGenerationProvenance layer={layer} />}
           <InspectorSelect
             label="Fit"
             value={layer.fit}

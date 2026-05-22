@@ -12,7 +12,6 @@ export function buildRFNodes(
   selectedNodeIds: Set<string>,
   editorNodeId: string | null,
   connected: { sources: Set<string>; targets: Set<string> },
-  exportBusy: boolean,
   primitiveViewStates: Record<string, PrimitiveViewportState>,
   primitiveRenderModes: Record<string, PrimitiveRenderMode>,
 ): RFNode[] {
@@ -104,7 +103,6 @@ export function buildRFNodes(
       selected: selectedNodeIds.has(EXPORT_NODE_ID),
       editing: editorNodeId === EXPORT_NODE_ID,
       connected,
-      busy: exportBusy,
     } satisfies ExportNodeData,
   });
 

@@ -122,7 +122,6 @@ export type ExportNodeData = {
   selected: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
-  busy: boolean;
 };
 
 export interface NodeCanvasPreviewContextValue {

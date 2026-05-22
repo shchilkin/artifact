@@ -166,20 +166,10 @@ export function NodeCanvas({
         selectedNodeIdSet,
         activeEditorNodeId,
         connected,
-        exportBusy,
         primitiveViewStates,
         primitiveRenderModes,
       ),
-    [
-      doc,
-      graph,
-      selectedNodeIdSet,
-      activeEditorNodeId,
-      connected,
-      exportBusy,
-      primitiveRenderModes,
-      primitiveViewStates,
-    ],
+    [doc, graph, selectedNodeIdSet, activeEditorNodeId, connected, primitiveRenderModes, primitiveViewStates],
   );
   const baseEdges = useMemo(
     () =>

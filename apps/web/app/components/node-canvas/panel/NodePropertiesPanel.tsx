@@ -171,6 +171,7 @@ export function NodePropertiesPanel({
                   layer={layer}
                   onChange={(patch) => onUpdateLayer(layer.id, patch)}
                   detached
+                  showAiGenerationProvenance={false}
                 />
               </>
             )}
