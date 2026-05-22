@@ -21,11 +21,13 @@ describe('AI generation migrations', () => {
     expect(activeGuardMigrationSql).toContain(`CREATE UNIQUE INDEX IF NOT EXISTS ${ACTIVE_GENERATION_JOB_INDEX}`);
     expect(activeGuardMigrationSql).toContain('ON ai_generation_jobs (user_id)');
     expect(activeGuardMigrationSql).toContain("WHERE status IN ('queued', 'running')");
+    expect(activeGuardMigrationSql).toContain("status = 'expired'");
+    expect(activeGuardMigrationSql).toContain("error_code = 'active_job_guard_migration_expired'");
   });
 });
 
 integrationDescribe('AI generation migration integration', () => {
-  it('fails on pre-existing duplicate active jobs until old active rows are resolved', async () => {
+  it('expires pre-existing duplicate active jobs before creating the active guard index', async () => {
     if (!pool) throw new Error('API_TEST_DATABASE_URL is required for this test.');
 
     const schema = `artifact_migration_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -42,13 +44,23 @@ integrationDescribe('AI generation migration integration', () => {
           ('job-2', 'user-1', 'openai', 'gpt-image-2', 'second', '{}'::jsonb, 'idem-2', 'running')
       `);
 
-      await expect(client.query(activeGuardMigrationSql)).rejects.toMatchObject({
-        code: '23505',
-        constraint: ACTIVE_GENERATION_JOB_INDEX,
-      });
-
-      await client.query("UPDATE ai_generation_jobs SET status = 'failed', completed_at = now() WHERE id = 'job-2'");
       await expect(client.query(activeGuardMigrationSql)).resolves.toBeDefined();
+      await expect(
+        client.query<{ id: string; status: string; error_code: string | null }>(
+          "SELECT id, status, error_code FROM ai_generation_jobs WHERE user_id = 'user-1' ORDER BY id",
+        ),
+      ).resolves.toMatchObject({
+        rows: [
+          { id: 'job-1', status: 'expired', error_code: 'active_job_guard_migration_expired' },
+          { id: 'job-2', status: 'running', error_code: null },
+        ],
+      });
+      await expect(
+        client.query<{ indexname: string }>(
+          'SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND indexname = $1',
+          [ACTIVE_GENERATION_JOB_INDEX],
+        ),
+      ).resolves.toMatchObject({ rows: [{ indexname: ACTIVE_GENERATION_JOB_INDEX }] });
     } finally {
       await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       client.release();

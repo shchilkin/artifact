@@ -86,6 +86,13 @@ Apply migrations before starting the API or worker:
 npm --workspace @artifact/api run migrate
 ```
 
+The active-generation guard migration is self-healing for private-alpha
+duplicates. Before creating the one-active-job-per-user partial unique index, it
+keeps one `queued` / `running` job per user, preferring `running` over `queued`
+and then the newest job, and marks the other active duplicates as `expired` with
+`error_code = active_job_guard_migration_expired`. This prevents deploy-time
+failure from old stuck duplicate jobs while leaving an auditable database trail.
+
 For local Compose only, `docker-compose.local.yml` mounts the migration and
 `apps/api/docker/init/002_local_dev_seed.sql` automatically. That seed creates
 `dev-user` with AI access for browser smoke tests.
