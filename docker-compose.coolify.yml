@@ -1,0 +1,116 @@
+x-artifact-api-env: &artifact-api-env
+  NODE_ENV: production
+  PORT: 4000
+  WEB_ORIGIN: ${WEB_ORIGIN:?Set the public Vercel/frontend origin}
+  API_DATABASE_DRIVER: postgres
+  DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artifact}
+  API_QUEUE_DRIVER: bullmq
+  REDIS_URL: redis://redis:6379
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a long random JWT fallback secret}
+  AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
+  AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
+  API_DEV_BEARER_TOKEN: ${API_DEV_BEARER_TOKEN:-}
+  CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+  CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+  CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:?Set the OpenAI API key}
+  OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-gpt-image-2}
+  XAI_API_KEY: ${XAI_API_KEY:-}
+  XAI_IMAGE_MODEL: ${XAI_IMAGE_MODEL:-grok-imagine-image-quality}
+  ASSET_STORAGE_DRIVER: local
+  ASSET_STORAGE_DIR: /var/lib/artifact/generated-assets
+  AI_MONTHLY_GENERATION_LIMIT: ${AI_MONTHLY_GENERATION_LIMIT:-10}
+  AI_MAX_ACTIVE_JOBS_PER_USER: ${AI_MAX_ACTIVE_JOBS_PER_USER:-1}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-artifact}
+      POSTGRES_USER: ${POSTGRES_USER:-artifact}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - artifact-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - artifact-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      <<: *artifact-api-env
+      API_BULL_BOARD_ENABLED: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - artifact-generated-assets:/var/lib/artifact/generated-assets
+    expose:
+      - '4000'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      <<: *artifact-api-env
+      API_BULL_BOARD_ENABLED: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - artifact-generated-assets:/var/lib/artifact/generated-assets
+    restart: unless-stopped
+
+  bull-board:
+    build:
+      context: .
+      dockerfile: docker/bull-board.Dockerfile
+    environment:
+      <<: *artifact-api-env
+      API_BULL_BOARD_ENABLED: true
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
+    expose:
+      - '4000'
+    restart: unless-stopped
+
+volumes:
+  artifact-generated-assets:
+  artifact-postgres-data:
+  artifact-redis-data:

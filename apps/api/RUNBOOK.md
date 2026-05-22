@@ -19,6 +19,70 @@ For production, use a process manager such as systemd, PM2, Docker Compose, or
 your existing VPS supervisor. The API and worker must share the same `.env`
 values for database, queue, providers, and storage.
 
+## Coolify Compose Resource
+
+For the first Coolify deploy, create one Docker Compose resource for the whole
+backend stack:
+
+- Compose file: `docker-compose.coolify.yml`
+- Services: `api`, `worker`, `bull-board`, `postgres`, `redis`
+- Build context: repository root
+- Branch: `development`
+- Postgres image: `postgres:18-alpine`
+
+This shape intentionally keeps the app processes and infrastructure inside the
+same compose resource so Docker DNS and shared volumes stay simple:
+
+```text
+artifact-generated-assets -> /var/lib/artifact/generated-assets
+artifact-postgres-data    -> /var/lib/postgresql
+artifact-redis-data       -> /data
+```
+
+Postgres 18 uses the official image's versioned data layout. Mount the volume at
+`/var/lib/postgresql`, not `/var/lib/postgresql/data`; the image stores the
+cluster under `/var/lib/postgresql/18/docker`. If an earlier failed deploy
+created data in `/var/lib/postgresql/data`, remove the empty/stale Postgres
+volume before redeploying, or migrate real data with dump/restore or
+`pg_upgrade` instead of reusing the old path.
+
+The worker writes generated images to that volume and the API serves those same
+files through `/api/assets/:id/file`. Creating API and worker as separate
+Coolify applications is possible, but do not give them separate generated-asset
+volumes or completed jobs will reference files that the API cannot read.
+
+The compose file wires app services to `postgres` and `redis` by service name,
+so do not set `DATABASE_URL` or `REDIS_URL` manually for this first setup. Set
+`POSTGRES_PASSWORD` instead, and optionally override `POSTGRES_DB` /
+`POSTGRES_USER` if needed.
+
+Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
+`bull-board` only behind an admin-only domain or Coolify protection; it is an
+operator surface, not a public app feature.
+
+The API service defines a container healthcheck against
+`http://127.0.0.1:4000/api/health`. Coolify/Traefik will not route public
+traffic while the resource is unhealthy, so if the public API domain returns
+`503 no available server`, check the API, Postgres, and Redis container health
+first.
+
+For Clerk browser auth, set at least one backend verifier: `CLERK_SECRET_KEY`
+or `CLERK_JWT_KEY`. `CLERK_SECRET_KEY` is the simpler first Coolify setup. If
+`CLERK_AUTHORIZED_PARTIES` is set, include the exact Vercel/frontend origin.
+
+After the first successful image build, run migrations from the API container
+terminal before enabling traffic or creating generation jobs:
+
+```bash
+npm run migrate
+```
+
+Then grant the intended Clerk user AI access from the same API container:
+
+```bash
+npm run grant:ai -- user_xxx user@example.com
+```
+
 ## Required Environment
 
 Minimum VPS-like configuration:

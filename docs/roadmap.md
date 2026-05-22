@@ -333,9 +333,10 @@ effects, sources, repeaters, projects, export, and troubleshooting.
 
 ### Current release line
 
-The latest local tag is `v0.10.0-beta.1`. Earlier `v0.2` through `v0.9` roadmap
-headings are release history, not active target buckets. Any unfinished work
-from those sections has been moved below into future versions.
+The active release target is `v0.13.0-alpha.1`, a private AI generation alpha.
+Earlier `v0.2` through `v0.12` roadmap headings are release history, not active
+target buckets. Any unfinished work from those sections has been moved below
+into future versions.
 
 Current shipped baseline:
 
@@ -350,6 +351,9 @@ Current shipped baseline:
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
+- Private AI Image alpha workflow with Clerk-gated access, VPS API/worker,
+  Postgres, Redis/BullMQ, generated asset storage, quota guards, retries,
+  diagnostics, and local asset import.
 - Future local project package direction: custom-extension downloads that keep
   the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser

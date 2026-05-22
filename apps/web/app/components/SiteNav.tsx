@@ -40,8 +40,8 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
           solid
             ? `relative flex items-center justify-between px-5 py-2.5 bg-bg border-b border-border shrink-0 z-[100] ${
                 compact ? 'site-nav-compact' : ''
-              }`
-            : 'fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-5 py-2.5 bg-transparent pointer-events-none *:pointer-events-auto'
+              } gap-3`
+            : 'fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-2.5 bg-transparent pointer-events-none *:pointer-events-auto'
         }
         aria-label="Site navigation"
       >
@@ -51,6 +51,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
             artifact
           </span>
         </Link>
+        {compact ? accountButton : null}
 
         {/* Desktop links */}
         {!compact && (
