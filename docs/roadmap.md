@@ -523,6 +523,14 @@ Private-alpha merge gate:
   so a failed generation can be understood without immediately opening logs.
 - [ ] Post-merge follow-up: provider/defaults research and prebuilt container
   deploys can land after the private alpha merge if the blockers above pass.
+- [ ] Post-merge follow-up: harden AI accounting before broader beta access.
+  Current private-alpha safeguards are acceptable because the database enforces
+  one active generation per user, queue enqueue failures refund quota, and the
+  active-job migration self-expires old duplicate active rows before creating
+  the guard index. Before increasing concurrency or opening access beyond the
+  private alpha, move quota consumption into an atomic database operation and
+  make concurrent same-idempotency-key requests return the existing job instead
+  of occasionally surfacing `active_job_exists`.
 - [ ] Post-merge follow-up: monorepo/Turborepo workspace migration can be done
   in parallel tracks after the private alpha merge decision, following
   [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).
