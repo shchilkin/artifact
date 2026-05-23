@@ -60,6 +60,7 @@ export function PrimitiveViewport3D({
   const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasRenderedFrameRef = useRef(false);
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -174,8 +175,31 @@ export function PrimitiveViewport3D({
     const canvas = canvasRef.current;
     if (!root || !canvas) return;
 
+    const context = (() => {
+      try {
+        return canvas.getContext('webgl2', {
+          alpha: true,
+          antialias: true,
+          preserveDrawingBuffer: true,
+        });
+      } catch {
+        return null;
+      }
+    })();
+    if (!context) {
+      setWebglUnavailable(true);
+      hasRenderedFrameRef.current = true;
+      setHasRenderedFrame(true);
+      return () => {
+        flushPendingWheelCommit();
+        dragStateRef.current = null;
+      };
+    }
+
+    setWebglUnavailable(false);
     const renderer = new THREE.WebGLRenderer({
       canvas,
+      context,
       antialias: true,
       alpha: true,
       preserveDrawingBuffer: true,
@@ -541,6 +565,24 @@ export function PrimitiveViewport3D({
           transition: 'opacity 80ms ease-out',
         }}
       />
+      {webglUnavailable ? (
+        <div
+          className="node-primitive-webgl-fallback"
+          aria-live="polite"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'grid',
+            placeItems: 'center',
+            color: 'var(--muted)',
+            fontSize: 11,
+            letterSpacing: 0,
+            textTransform: 'uppercase',
+          }}
+        >
+          3D preview unavailable
+        </div>
+      ) : null}
     </div>
   );
 }

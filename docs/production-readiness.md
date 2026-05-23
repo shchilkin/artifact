@@ -18,7 +18,9 @@ CI should run:
 
 - `npm run check`
 - `npm run build:ci`
-- `npm run test:browser` in a browser-capable job
+- `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
+  WebKit installed. The suite includes desktop projects plus focused mobile
+  Chromium/WebKit smoke.
 
 ## Manual QA
 
@@ -60,9 +62,13 @@ CI should run:
 
 ### Browser Smoke
 
-- Chrome/Chromium: required.
-- Safari: manual pass before a public announcement.
-- Firefox: manual pass before a public announcement.
+- Chrome/Chromium: automated browser suite required.
+- Firefox: automated browser suite required.
+- WebKit/Safari-family: automated browser suite required through Playwright
+  WebKit.
+- Mobile: automated Chromium/WebKit smoke required for shell layout and starter
+  actions.
+- Safari: manual pass on macOS before a public announcement.
 - Mobile/tablet viewport: at least smoke-test opening, randomizing, and export UI visibility.
 
 ## Known Release Risks
