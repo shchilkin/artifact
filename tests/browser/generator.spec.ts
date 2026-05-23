@@ -714,7 +714,10 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
   await page.locator('.node-shell-kind-fill').first().click();
   await expect(page.locator('.node-shell-kind-fill').first()).toHaveClass(/node-shell-selected/);
 
-  await page.locator('.node-area-select').first().click();
+  await page
+    .locator('.node-area-select')
+    .first()
+    .evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.locator('.node-area').first()).toHaveClass(/node-area-selected/);
 
   await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
@@ -724,7 +727,27 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     const area = document.querySelector('.node-area-selected');
     const areaLabel = area?.querySelector('.node-area-label');
     const perf = document.querySelector('.node-canvas-toolbar button[aria-pressed="true"]');
+    const root = document.querySelector('.node-canvas-root');
+    const rootStyles = root ? getComputedStyle(root) : null;
+    const readLightness = (name: string) => {
+      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
+      const match = value.match(/oklch\(([\d.]+)%/);
+      return match ? Number(match[1]) : Number.NaN;
+    };
+    const readAlpha = (name: string) => {
+      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
+      const match = value.match(/\/\s*([\d.]+)\)/);
+      return match ? Number(match[1]) : 1;
+    };
     return {
+      canvasBg: root ? getComputedStyle(root).backgroundColor : '',
+      nodeBg: node ? getComputedStyle(node).backgroundColor : '',
+      nodeBorder: node ? getComputedStyle(node).borderColor : '',
+      canvasLightness: readLightness('--editor-canvas-bg'),
+      nodeCardLightness: readLightness('--node-card-bg'),
+      nodeBorderLightness: readLightness('--node-card-border'),
+      gridLightness: readLightness('--editor-grid-dot'),
+      gridAlpha: readAlpha('--editor-grid-dot'),
       selectedNodeShadow: node ? getComputedStyle(node).boxShadow : '',
       selectedNodeHeaderBg: nodeHeader ? getComputedStyle(nodeHeader).backgroundColor : '',
       selectedAreaShadow: area ? getComputedStyle(area).boxShadow : '',
@@ -733,6 +756,11 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     };
   });
 
+  expect(stateStyles.nodeBg).not.toBe(stateStyles.canvasBg);
+  expect(stateStyles.nodeBorder).not.toBe(stateStyles.canvasBg);
+  expect(stateStyles.nodeCardLightness - stateStyles.canvasLightness).toBeGreaterThanOrEqual(4);
+  expect(stateStyles.nodeBorderLightness).toBeGreaterThan(stateStyles.gridLightness);
+  expect(stateStyles.gridAlpha).toBeLessThan(0.6);
   expect(stateStyles.selectedNodeShadow).not.toBe('none');
   expect(stateStyles.selectedNodeHeaderBg).not.toBe('');
   expect(stateStyles.selectedAreaShadow).not.toBe('none');

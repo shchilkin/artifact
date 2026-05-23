@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
 @theme {
   --color-bg: oklch(8% 0.012 42);
@@ -22,26 +23,26 @@
 }
 
 :root {
-  --app-bg: oklch(7.5% 0.012 42);
-  --workspace-bg: oklch(9.5% 0.014 42);
-  --panel-bg: oklch(12.5% 0.016 42);
-  --panel-raised: oklch(16% 0.018 42);
-  --surface-bg: oklch(14% 0.017 42);
-  --surface-hover: oklch(18% 0.021 42);
-  --surface-input: oklch(10.5% 0.014 42);
-  --surface-selected: oklch(21% 0.036 36);
+  --app-bg: var(--surface-app);
+  --workspace-bg: var(--surface-workspace);
+  --panel-bg: var(--surface-panel);
+  --panel-raised: var(--surface-panel-raised);
+  --surface-bg: var(--surface-card);
+  --surface-hover: var(--surface-control-hover);
+  --surface-input: var(--surface-control);
+  --surface-selected: var(--surface-control-selected);
   --canvas-stage-bg: oklch(11% 0.013 42);
-  --border-muted: oklch(21% 0.016 42);
-  --border: oklch(29% 0.02 42);
-  --border-strong: oklch(38% 0.024 42);
-  --text: oklch(84% 0.022 68);
-  --text-dim: oklch(62% 0.019 68);
-  --text-muted: oklch(48% 0.017 68);
+  --border-muted: var(--line-muted);
+  --border: var(--line-default);
+  --border-strong: var(--line-strong);
+  --text: var(--text-primary);
+  --text-dim: var(--text-secondary);
+  --text-muted: var(--token-ash-3);
   --bg: var(--app-bg);
   --sidebar-bg: var(--panel-bg);
   --sidebar-raised: var(--panel-raised);
-  --accent: oklch(66% 0.16 28);
-  --accent-dim: oklch(66% 0.16 28 / 0.2);
+  --accent: var(--accent-primary);
+  --accent-dim: var(--accent-soft);
   --danger: oklch(66% 0.18 28);
   --node-kind-fill: oklch(69% 0.12 42);
   --node-kind-image: oklch(74% 0.08 78);
@@ -55,7 +56,7 @@
   --node-kind-color: oklch(70% 0.07 200);
   --node-kind-export: oklch(84% 0.03 88);
   --node-handle: oklch(74% 0.17 152);
-  --node-grid: oklch(24% 0.014 42 / 0.62);
+  --node-grid: var(--editor-grid-dot);
   --node-danger: oklch(62% 0.15 25);
   --node-backdrop: color-mix(in oklch, var(--bg) 82%, transparent);
   --mono: ui-monospace, Consolas, "Courier New", monospace;
