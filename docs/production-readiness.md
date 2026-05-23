@@ -27,6 +27,18 @@ CI should run:
 
 ## Manual QA
 
+### v0.16.0 Release Prep
+
+- User verified the latest editor workflow polish locally on 2026-05-23.
+- Automated browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit.
+- Layer and node contrast/state changes were validated without changing render
+  semantics, graph traversal, thumbnails, project persistence, or export
+  behavior.
+- Optional AI diagnostics were verified as debug-gated, with normal user
+  sessions keeping the AI panel and console quiet.
+- Release notes live in `docs/releases/v0.16.0.md`.
+
 ### v0.1.0-beta.1 Deployed Smoke
 
 - Deployed beta was tested with a real cover workflow that used image, text,

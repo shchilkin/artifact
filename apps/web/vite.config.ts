@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
@@ -12,8 +13,21 @@ function readGitValue(command: string, fallback: string) {
   }
 }
 
+function readPackageVersion() {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      version?: unknown;
+    };
+    return typeof pkg.version === 'string' && pkg.version.trim() ? pkg.version.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 const appVersion =
-  process.env.VITE_APP_VERSION ?? readGitValue('git describe --tags --always --dirty', 'local-development');
+  process.env.VITE_APP_VERSION ??
+  readPackageVersion() ??
+  readGitValue('git describe --tags --always --dirty', 'local-development');
 const appCommit =
   process.env.VITE_APP_COMMIT ??
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
