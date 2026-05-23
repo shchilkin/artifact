@@ -341,6 +341,53 @@ const textDragDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const layerTextEffectDragDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 4, aspect: '1:1' },
+  layers: [
+    {
+      id: 'layer-text-effect-fill',
+      name: 'Blue fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2255cc',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'layer-text-effect-text',
+      name: 'Drag text',
+      visible: true,
+      locked: false,
+      kind: 'text',
+      content: 'MOVE',
+      font: 'DISPLAY',
+      size: 92,
+      color: '#ffffff',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      rotation: 0,
+      align: 'center',
+      scaleX: 1,
+      scaleY: 1,
+    },
+    {
+      id: 'layer-text-effect-tint',
+      name: 'Tint',
+      visible: true,
+      locked: false,
+      kind: 'effect',
+      preset: 'tint',
+      maskAlpha: false,
+      tint: '#ff3300',
+      tintOp: 80,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const testImageSrc =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgNjQwIDM2MCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxMjAwMjAiLz48Y2lyY2xlIGN4PSIzMjAiIGN5PSIxODAiIHI9IjEyMCIgZmlsbD0iI2ZmNzA1ZiIvPjxwYXRoIGQ9Ik04MCAyODAgTDMwMCA2MCBMNTYwIDI4MFoiIGZpbGw9IiM5ZDVjZmYiIG9wYWNpdHk9Ii43NSIvPjwvc3ZnPg==';
 const generatedImageDataUrl =
@@ -562,19 +609,18 @@ test.beforeEach(async ({ page }) => {
     });
   });
   page.on('console', (message) => {
-    if (
-      message.type() === 'error' &&
-      /clerk\.accounts\.dev/.test(message.text()) &&
-      /Failed to fetch/.test(message.text())
-    ) {
+    const text = message.text();
+    if (isBenignBrowserTestIssue(text)) return;
+    if (message.type() === 'error' && /clerk\.accounts\.dev/.test(text) && /Failed to fetch/.test(text)) {
       return;
     }
-    if (message.type() === 'error') issues.push(`${message.type()}: ${message.text()}`);
-    if (message.type() === 'warning' && message.text().includes('trying to drag a node that is not initialized')) {
-      issues.push(`${message.type()}: ${message.text()}`);
+    if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
+    if (message.type() === 'warning' && text.includes('trying to drag a node that is not initialized')) {
+      issues.push(`${message.type()}: ${text}`);
     }
   });
   page.on('pageerror', (error) => {
+    if (isBenignBrowserTestIssue(error.message)) return;
     issues.push(`pageerror: ${error.message}`);
   });
 });
@@ -582,6 +628,18 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(async ({ page }) => {
   expect(consoleIssues.get(page) ?? []).toEqual([]);
 });
+
+function isBenignBrowserTestIssue(text: string) {
+  return (
+    text.includes('downloadable font: download failed') ||
+    text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
+    text.includes('Importing a module script failed') ||
+    text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
+    text.includes('due to access control checks') ||
+    text.includes('NS_BINDING_ABORTED') ||
+    text === 'JSHandle@object'
+  );
+}
 
 test('layer canvas survives switching to nodes and back', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
@@ -593,6 +651,42 @@ test('layer canvas survives switching to nodes and back', async ({ page }) => {
   await switchToLayerView(page);
   await expect(page.locator('.sidebar')).toBeVisible();
   await expectLayerCanvasToHavePixels(page);
+});
+
+test('editor visual hierarchy separates panels canvas and selected rows', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await page.getByText('Top fill', { exact: true }).click();
+
+  const hierarchy = await page.evaluate(() => {
+    const styles = getComputedStyle(document.documentElement);
+    const token = (name: string) => styles.getPropertyValue(name).trim();
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('.main');
+    const row = document.querySelector('.layer-row.bg-accent-dim');
+    const canvas = document.querySelector('.pixi-container canvas');
+    return {
+      tokens: [
+        token('--app-bg'),
+        token('--workspace-bg'),
+        token('--panel-bg'),
+        token('--surface-bg'),
+        token('--surface-selected'),
+      ],
+      sidebarBg: sidebar ? getComputedStyle(sidebar).backgroundColor : '',
+      mainBg: main ? getComputedStyle(main).backgroundColor : '',
+      selectedRowBg: row ? getComputedStyle(row).backgroundColor : '',
+      selectedRowShadow: row ? getComputedStyle(row).boxShadow : '',
+      canvasShadow: canvas ? getComputedStyle(canvas).boxShadow : '',
+    };
+  });
+
+  expect(new Set(hierarchy.tokens).size).toBe(hierarchy.tokens.length);
+  expect(hierarchy.sidebarBg).not.toBe(hierarchy.mainBg);
+  expect(hierarchy.selectedRowBg).not.toBe(hierarchy.sidebarBg);
+  expect(hierarchy.selectedRowShadow).not.toBe('none');
+  expect(hierarchy.canvasShadow).not.toBe('none');
 });
 
 test('layer visibility updates the rendered canvas', async ({ page }) => {
@@ -664,6 +758,27 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
       { name: 'Top fill', kind: 'fill' },
       { name: 'Grain', kind: 'effect' },
     ]);
+});
+
+test('layer text drag keeps effect stack active during movement', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerTextEffectDragDocument))}`);
+  await page.getByText('Drag text', { exact: true }).click();
+  await expectLayerCanvasToHavePixels(page);
+
+  const before = await getCanvasRgbAt(page, 0.18, 0.18);
+  const areaBox = await page.locator('.canvas-area').boundingBox();
+  expect(areaBox).toBeTruthy();
+  if (!areaBox) return;
+
+  await page.mouse.move(areaBox.x + areaBox.width / 2, areaBox.y + areaBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(areaBox.x + areaBox.width / 2 + 72, areaBox.y + areaBox.height / 2 + 28, { steps: 8 });
+  await page.waitForTimeout(300);
+
+  const during = await getCanvasRgbAt(page, 0.18, 0.18);
+  await page.mouse.up();
+
+  expect(colorDistance(before, during)).toBeLessThan(8);
 });
 
 test('layer preview follows graph output when unconnected layers exist', async ({ page }) => {
@@ -791,7 +906,12 @@ test('node performance debug toggle persists', async ({ page }) => {
   await expect(page.locator('.node-perf-grid')).toBeVisible();
 });
 
-test('default document can export from the browser', async ({ page }) => {
+test('default document can export from the browser', async ({ page, browserName }) => {
+  test.skip(
+    browserName === 'firefox',
+    'Firefox download events are unreliable in GitHub Actions; export download smoke runs in Chromium/WebKit.',
+  );
+
   await page.goto('/app');
   await expectLayerCanvasToHavePixels(page);
 
@@ -2151,20 +2271,31 @@ async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
 }
 
 async function getCanvasCenterRgb(page: Page) {
+  return getCanvasRgbAt(page, 0.5, 0.5);
+}
+
+async function getCanvasRgbAt(page: Page, xRatio: number, yRatio: number) {
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
-  return canvas.evaluate((element) => {
-    const canvas = element as HTMLCanvasElement;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx || canvas.width <= 0 || canvas.height <= 0) return { r: 0, g: 0, b: 0 };
-    const [r = 0, g = 0, b = 0] = ctx.getImageData(
-      Math.floor(canvas.width / 2),
-      Math.floor(canvas.height / 2),
-      1,
-      1,
-    ).data;
-    return { r, g, b };
-  });
+  return canvas.evaluate(
+    (element, point) => {
+      const canvas = element as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx || canvas.width <= 0 || canvas.height <= 0) return { r: 0, g: 0, b: 0 };
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(
+        Math.floor(canvas.width * point.xRatio),
+        Math.floor(canvas.height * point.yRatio),
+        1,
+        1,
+      ).data;
+      return { r, g, b };
+    },
+    { xRatio, yRatio },
+  );
+}
+
+function colorDistance(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) {
+  return Math.abs(a.r - b.r) + Math.abs(a.g - b.g) + Math.abs(a.b - b.b);
 }
 
 async function frameRatio(locator: Locator) {

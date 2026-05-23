@@ -22,6 +22,7 @@ import {
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
+const AI_DEBUG_STORAGE_KEY = 'artifact-debug-ai';
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
@@ -126,13 +127,43 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, createError: () 
   });
 }
 
-function logAiPanelDebug(event: string, fields: Record<string, boolean | number | string | null | undefined> = {}) {
-  const env = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
+function aiDebugValueIsEnabled(value: string | boolean | undefined | null) {
+  return value === true || value === '1' || value === 'true' || value === 'ai' || value === 'all';
+}
+
+function aiDebugStorageValue() {
+  try {
+    return window.localStorage.getItem(AI_DEBUG_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function aiDebugQueryValue() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('debug') ?? params.get('aiDebug') ?? params.get('debugAi');
+  } catch {
+    return null;
+  }
+}
+
+function aiGenerationDebugEnabled() {
+  const env = (import.meta as unknown as { env?: Record<string, string | boolean | undefined> }).env;
   if (!env?.DEV) return;
+  return (
+    aiDebugValueIsEnabled(env.VITE_AI_DEBUG) ||
+    aiDebugValueIsEnabled(aiDebugQueryValue()) ||
+    aiDebugValueIsEnabled(aiDebugStorageValue())
+  );
+}
+
+function logAiPanelDebug(event: string, fields: Record<string, boolean | number | string | null | undefined> = {}) {
+  if (!aiGenerationDebugEnabled()) return;
   const summary = Object.entries(fields)
     .map(([key, value]) => `${key}=${String(value)}`)
     .join(' ');
-  console.info(`[ai-generation] ${event}${summary ? ` ${summary}` : ''}`, fields);
+  console.debug(`[ai-generation] ${event}${summary ? ` ${summary}` : ''}`, fields);
 }
 
 function decodeBearerTokenClaims(token: string | undefined) {
@@ -158,6 +189,7 @@ function debugClaim(value: unknown) {
 }
 
 function logBearerTokenClaims(token: string | undefined) {
+  if (!aiGenerationDebugEnabled()) return;
   const claims = decodeBearerTokenClaims(token);
   if (!claims) return;
   logAiPanelDebug('access_check.token_claims', {

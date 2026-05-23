@@ -153,11 +153,26 @@ export async function renderPrimitiveToCanvas(
   renderCanvas.width = renderWidth;
   renderCanvas.height = renderHeight;
 
+  const context = (() => {
+    try {
+      return renderCanvas.getContext('webgl2', {
+        alpha: true,
+        antialias: true,
+      });
+    } catch {
+      return null;
+    }
+  })();
+  if (!context) {
+    drawFallbackPrimitive(offscreen, layer);
+    return offscreen;
+  }
+
   let renderer: THREE.WebGLRenderer | null = null;
   let mesh: THREE.Mesh | null = null;
 
   try {
-    renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, antialias: true, alpha: true });
+    renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, context, antialias: true, alpha: true });
     renderer.setPixelRatio(1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setSize(renderWidth, renderHeight, false);

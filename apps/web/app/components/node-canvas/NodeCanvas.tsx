@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
+import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import type { Layer } from '../../types/config';
 import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
@@ -73,6 +74,7 @@ export function NodeCanvas({
   onDeleteNodes,
   onDuplicateLayer,
 }: NodeCanvasProps) {
+  const auth = useArtifactAuth();
   const graph = useMemo(() => doc.graph ?? inferLinearGraph(doc.layers), [doc.graph, doc.layers]);
 
   const graphRef = useRef(graph);
@@ -361,6 +363,16 @@ export function NodeCanvas({
                 <span aria-hidden="true">▥</span>
                 Perf
               </button>
+              {auth.configured && (
+                <button
+                  type="button"
+                  className="node-toolbar-account"
+                  onClick={auth.signedIn ? () => void auth.signOut() : auth.openSignIn}
+                  disabled={!auth.loaded}
+                >
+                  {auth.loaded ? (auth.signedIn ? 'Sign out' : 'Sign in') : 'Account'}
+                </button>
+              )}
             </div>
 
             <ReactFlow

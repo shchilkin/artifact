@@ -1,7 +1,7 @@
 {
   "name": "@artifact/web",
   "private": true,
-  "version": "0.14.0-beta.1",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",
@@ -11,7 +11,11 @@
     "preview": "vite preview --outDir build/client",
     "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc",
     "test": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts",
-    "test:browser": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts"
+    "test:browser": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts",
+    "test:browser:chromium": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=chromium",
+    "test:browser:firefox": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=firefox",
+    "test:browser:mobile": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=mobile-chromium --project=mobile-webkit",
+    "test:browser:webkit": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=webkit"
   },
   "dependencies": {
     "@artifact/shared": "0.0.0",

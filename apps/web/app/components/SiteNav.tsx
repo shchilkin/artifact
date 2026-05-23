@@ -51,8 +51,6 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
             artifact
           </span>
         </Link>
-        {compact ? accountButton : null}
-
         {/* Desktop links */}
         {!compact && (
           <div className="hidden md:flex items-center gap-5">

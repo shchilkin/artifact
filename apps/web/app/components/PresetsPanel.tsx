@@ -31,7 +31,7 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
         onClick={onClose}
       />
       <motion.div
-        className="fixed top-0 right-0 bottom-0 w-[min(320px,100vw)] bg-sidebar border-l border-border flex flex-col z-300 overflow-hidden"
+        className="library-panel fixed top-0 right-0 bottom-0 w-[min(320px,100vw)] bg-sidebar border-l border-border flex flex-col z-300 overflow-hidden"
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
@@ -76,7 +76,7 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
             {presets.map((preset) => (
               <div
                 key={preset.id}
-                className="flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30"
+                className="library-card flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30"
               >
                 <img src={preset.thumbnail} alt={preset.name} className="w-16 h-16 rounded object-cover shrink-0" />
                 <div className="flex-1 flex flex-col justify-between min-w-0">

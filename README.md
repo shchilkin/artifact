@@ -201,8 +201,8 @@ npm run typecheck  # react-router typegen + tsc
 npm run lint       # ESLint
 npm test           # web Vitest suite
 npm run test:api   # API Vitest suite
-npm run test:browser:install # install Playwright Chromium once
-npm run test:browser # focused browser/WebGL smoke tests
+npm run test:browser:install # install Playwright Chromium, Firefox, and WebKit
+npm run test:browser # focused desktop browser/WebGL tests plus mobile smoke
 npm run perf:node-editor # opt-in node editor performance benchmark
 npm run check      # format check + lint + web/API typecheck + web/API tests
 ```
@@ -232,6 +232,7 @@ ignored.
 | [`docs/version-plans/v0.13.md`](docs/version-plans/v0.13.md) | v0.13 AI generation research and architecture acceptance plan |
 | [`docs/version-plans/v0.13-backend-contract.md`](docs/version-plans/v0.13-backend-contract.md) | v0.13 VPS backend API, schema, queue, and storage contract |
 | [`docs/version-plans/v0.14.md`](docs/version-plans/v0.14.md) | v0.14 editor beta, layer workflow, onboarding, and local-first reliability acceptance plan |
+| [`docs/version-plans/v0.15.md`](docs/version-plans/v0.15.md) | v0.15 visual clarity and cross-browser confidence acceptance plan |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
 
 ## Project structure

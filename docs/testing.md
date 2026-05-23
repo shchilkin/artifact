@@ -6,8 +6,12 @@
 npm test                               # web Vitest suite
 npm run test:api                       # API tests
 npm run check                          # format, lint, web/API typecheck, web/API tests
-npm run test:browser                   # Playwright browser smoke/regression tests
-npm run test:browser:install           # install Chromium for Playwright
+npm run test:browser                   # Playwright smoke/regression tests in Chromium, Firefox, WebKit, plus mobile smoke
+npm run test:browser:chromium          # focused Chromium browser tests
+npm run test:browser:firefox           # focused Firefox browser tests
+npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
+npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
+npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web test file
 ```
@@ -15,6 +19,14 @@ npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web
 Web tests are co-located with the code they cover under `apps/web/app` or
 grouped under `apps/web/app/test-fixtures/`. API tests live under
 `apps/api/test`.
+
+## Debug Flags
+
+- Node performance overlay: `?debug=perf`, `?perf=1`, or
+  `localStorage.setItem('artifact-debug-perf', '1')`.
+- AI generation access/job diagnostics: `?debug=ai`, `?aiDebug=1`,
+  `?debugAi=1`, `VITE_AI_DEBUG=1`, or
+  `localStorage.setItem('artifact-debug-ai', '1')`.
 
 ---
 
@@ -97,7 +109,12 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 - Mocked AI alpha QA covers an AI-enabled generation flow, generated image
   export, prompt provenance after reload, quota-exhausted access, and provider
   failure messaging without spending provider tokens.
-- Default document export triggers a browser download.
+- Default document export triggers a browser download in Chromium and WebKit.
+  Firefox still runs the editor/export-adjacent suite, but its CI download event
+  is skipped because GitHub Actions does not report the Playwright download
+  event reliably there.
+- Mobile smoke keeps the starter actions, layer list, canvas, and primary
+  action bar visible without horizontal overflow.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
@@ -201,7 +218,8 @@ signal with less maintenance cost than component snapshots.
 CI has two jobs:
 
 - Fast quality/build: format check, lint, typecheck, unit/render tests, and production build.
-- Browser smoke: installs Playwright Chromium and runs `npm run test:browser`.
+- Browser smoke: installs Playwright Chromium, Firefox, and WebKit and runs
+  `npm run test:browser`.
 
 If a deployment environment cannot provide Chromium/WebGL, explicitly waive the
 browser job in release notes instead of silently removing coverage.

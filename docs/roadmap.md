@@ -578,8 +578,8 @@ Release stance:
   cutting `v0.14.0-beta.1`.
 
 Current status: the local release gate for `v0.14.0-beta.1` has passed. The
-remaining release work is packaging only: package version bump, tagging, and any
-optional Safari/Firefox/mobile manual smoke before public announcement.
+release was packaged and published as a prerelease. Follow-up editor polish now
+continues in v0.15.
 
 Exit criteria:
 
@@ -590,6 +590,39 @@ Exit criteria:
   starts without needing hidden knowledge.
 - AI alpha work can continue on `v0.13.x-alpha` without blocking the editor
   beta.
+
+### v0.15: Visual Clarity And Cross-Browser Confidence
+
+Detailed plan: [`version-plans/v0.15.md`](./version-plans/v0.15.md).
+
+Goal: make the dark editor easier to read and safer to trust across Chromium,
+Firefox, and WebKit without changing render semantics or adding new AI scope.
+
+Release stance:
+
+- [x] Add Playwright desktop projects for Chromium, Firefox, and WebKit.
+- [x] Update CI browser setup to install all desktop Playwright browsers.
+- [x] Add a first visual hierarchy token pass for app background, workspace,
+  panels, layer rows, canvas stage, and node surfaces.
+- [x] Add focused visual hierarchy browser assertions for selected/hover/focus
+  editor states.
+- [x] Audit remaining dialogs, text controls, project flows, and export menus
+  for contrast and state clarity.
+- [x] Add focused mobile Chromium/WebKit smoke for starter actions and layer
+  editor layout.
+- [x] Run full cross-browser browser suite before cutting the release.
+
+Exit criteria:
+
+- The main editor E2E suite runs in Chromium, Firefox, and WebKit.
+- Users can distinguish the canvas, panels, selected layers, selected nodes,
+  toolbar actions, and graph areas at a glance.
+- The app stays dark, raw, mono, and warm-tinted, but no longer reads as one
+  black field.
+- Preview/export/render behavior stays unchanged.
+
+Current status: the local release gate for `v0.15.0` has passed with
+`npm run check`, `npm run build`, and `npm run test:browser`.
 
 ### Experimental Track
 
@@ -615,27 +648,22 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-`v0.14.0-beta.1` is prepared as the editor/local-first release line. The node
-editor is powerful and fast enough for advanced work, and the layer workflow now
-has the quick actions, starter paths, guide entry, and focused browser coverage
-needed for this beta. The v0.13 AI alpha can continue in parallel for
-operations and reliability work.
+The next product pass should start from `v0.16` planning now that `v0.15` has
+closed the visual hierarchy and cross-browser confidence gate. The v0.13 AI
+alpha can continue in parallel for operations and reliability work.
 
 Recommended order:
 
-1. Bump package metadata and tag/cut `v0.14.0-beta.1`.
-2. Optionally run Safari, Firefox, and mobile manual smoke before announcing the
-   beta publicly.
-3. Keep shared editor fixes cherry-pickable between `v0.13.x-alpha` and
-   `v0.14.x-beta`.
-4. Choose the next product slice after the beta cut: either v0.15 editor polish
-   or more v0.13 AI alpha operations hardening.
+1. Review the remaining product gaps from the editor, AI, examples, and export
+   tracks.
+2. Pick one narrow `v0.16` theme with explicit non-goals.
+3. Write a version plan before moving implementation scope into the release.
 
 ## Non-goals for now
 
 - Do not add backend persistence until the local document schema and asset
   strategy are stable.
-- Do not add new AI product scope to the v0.14 editor beta.
+- Do not add new AI product scope to the v0.15 editor clarity pass.
 - Do not add more effect parameters until the effect update checklist is automated or tested.
 - Do not make a second preview renderer for speed unless it is clearly labeled as draft-only.
 - Do not duplicate node controls in both sidebar and inspector without shared field definitions.
