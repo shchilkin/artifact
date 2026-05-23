@@ -331,12 +331,20 @@ effects, sources, repeaters, projects, export, and troubleshooting.
 
 ## Roadmap
 
-### Current release line
+### Current release lines
 
-The active release target is `v0.13.0-alpha.1`, a private AI generation alpha.
+Artifact now has two parallel release lines:
+
+- `v0.13.x-alpha`: private AI generation alpha. This line is for AI operations,
+  HTTPS/API smoke, quota/accounting, provider defaults, cleanup, and VPS/Coolify
+  deploy hardening.
+- `v0.14.x-beta`: editor/local-first beta. This line is for layer workflow,
+  onboarding, local project reliability, examples/docs polish, and production
+  readiness for users who do not need AI access.
+
 Earlier `v0.2` through `v0.12` roadmap headings are release history, not active
 target buckets. Any unfinished work from those sections has been moved below
-into future versions.
+into future versions or into the v0.14 editor beta.
 
 Current shipped baseline:
 
@@ -366,23 +374,23 @@ Detailed plan: [`version-plans/v0.11.md`](./version-plans/v0.11.md).
 Goal: make layer mode feel like the fastest path to a finished cover while
 keeping node workflows truthful.
 
-- [ ] Improve the layer list hierarchy for graph-area documents so areas read
+- [x] Improve the layer list hierarchy for graph-area documents so areas read
   like lightweight folders without changing render order.
-- [ ] Add layer-row affordances for duplicate, mute, rename, delete, and quick
+- [x] Add layer-row affordances for duplicate, mute, rename, delete, and quick
   add where they are faster than opening the node canvas.
-- [ ] Add clearer layer empty states and quick-start actions for image, text,
+- [x] Add clearer layer empty states and quick-start actions for image, text,
   fill, noise, and effect starts.
-- [ ] Add layer presets or recipes that create useful stacks without opening
+- [x] Add layer presets or recipes that create useful stacks without opening
   nodes.
-- [ ] Ensure layer controls explain unavailable or node-owned controls instead
+- [x] Ensure layer controls explain unavailable or node-owned controls instead
   of silently hiding them.
-- [ ] Keep layer preview and export parity visible and trustworthy for stack
+- [x] Keep layer preview and export parity visible and trustworthy for stack
   workflows.
-- [ ] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
+- [x] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
   effects, repeaters, export, projects, and examples.
-- [ ] Add a "what changed" or "open guide" path for first visits after a new
+- [x] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
-- [ ] Keep destructive starts guarded by confirmation and recovery drafts.
+- [x] Keep destructive starts guarded by confirmation and recovery drafts.
 
 Exit criteria:
 
@@ -543,6 +551,46 @@ Estimated effort before deciding whether to merge: 2 focused days in the best
 case, 3 focused days expected, and 4 focused days if auth/session, asset import,
 or worker-state edge cases need another pass.
 
+### v0.14: Editor Beta And Local-First Reliability
+
+Detailed plan: [`version-plans/v0.14.md`](./version-plans/v0.14.md).
+
+Goal: ship a parallel editor-focused beta that makes Artifact easier to learn
+and more trustworthy as a local-first cover editor, without waiting on the
+v0.13 AI alpha infrastructure.
+
+Release stance:
+
+- [x] Keep v0.14 independent from Clerk, the VPS API, provider credentials, and
+  server-side project sync.
+- [x] Improve the layer list around graph areas so areas read like lightweight
+  folders without changing render order.
+- [x] Add layer-row quick actions and clearer empty states.
+- [x] Add one or two layer-first recipe documents and use them from examples
+  and docs.
+- [x] Explain node-owned or unavailable layer controls for primitive camera,
+  full-canvas noise placement, and graph-area organization.
+- [x] Add practical onboarding for canvas, layers, nodes, sources, effects,
+  repeaters, export, projects, and examples.
+- [x] Keep AI controls private/disabled unless the existing v0.13 gates are
+  explicitly configured.
+- [x] Run `npm run check`, `npm run build`, and `npm run test:browser` before
+  cutting `v0.14.0-beta.1`.
+
+Current status: the local release gate for `v0.14.0-beta.1` has passed. The
+remaining release work is packaging only: package version bump, tagging, and any
+optional Safari/Firefox/mobile manual smoke before public announcement.
+
+Exit criteria:
+
+- A user can build and export a credible stack-only cover without opening
+  nodes.
+- Layer mode does not contradict graph organization when a document uses areas.
+- New users can choose between blank, image, text, example, recipe, and random
+  starts without needing hidden knowledge.
+- AI alpha work can continue on `v0.13.x-alpha` without blocking the editor
+  beta.
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:
@@ -567,27 +615,27 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-The next product pass should focus on v0.11: layer workflow and onboarding.
-The node editor is now powerful and fast enough for advanced work, but new
-users still need a clearer path into the product, and layer mode should again
-feel like the fastest way to make a cover.
+`v0.14.0-beta.1` is prepared as the editor/local-first release line. The node
+editor is powerful and fast enough for advanced work, and the layer workflow now
+has the quick actions, starter paths, guide entry, and focused browser coverage
+needed for this beta. The v0.13 AI alpha can continue in parallel for
+operations and reliability work.
 
 Recommended order:
 
-1. Improve the layer list around graph areas so it reads like lightweight
-   folders without changing render order.
-2. Add layer-row quick actions and clearer empty states.
-3. Add one or two layer-first recipe documents and use them from examples/docs.
-4. Add practical docs for layers vs nodes, blend modes, effects, sources,
-   repeaters, export, and troubleshooting.
-5. Add browser smoke coverage for starter flows and docs "try this" actions.
-6. Keep AI generation as the next major creative research track after v0.12.
+1. Bump package metadata and tag/cut `v0.14.0-beta.1`.
+2. Optionally run Safari, Firefox, and mobile manual smoke before announcing the
+   beta publicly.
+3. Keep shared editor fixes cherry-pickable between `v0.13.x-alpha` and
+   `v0.14.x-beta`.
+4. Choose the next product slice after the beta cut: either v0.15 editor polish
+   or more v0.13 AI alpha operations hardening.
 
 ## Non-goals for now
 
-- Do not add backend persistence until the local document schema and asset strategy are stable.
-- Do not add AI generation before the v0.11/v0.12 learning and layer-mode pass
-  is usable.
+- Do not add backend persistence until the local document schema and asset
+  strategy are stable.
+- Do not add new AI product scope to the v0.14 editor beta.
 - Do not add more effect parameters until the effect update checklist is automated or tested.
 - Do not make a second preview renderer for speed unless it is clearly labeled as draft-only.
 - Do not duplicate node controls in both sidebar and inspector without shared field definitions.

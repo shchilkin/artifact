@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
+import { createLayerPreviewRenderCache } from '../utils/layerPreviewRenderCache';
 import { renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
-const DEFERRED_FULL_RENDER_MS = 1800;
-const DEFERRED_FULL_RENDER_TIMEOUT_MS = 3200;
+const DEFAULT_DEFERRED_FULL_RENDER_MS = 1800;
+const DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS = 3200;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
 const RENDER_CACHE_LIMIT = 6;
@@ -20,8 +21,18 @@ interface Options {
   renderScale?: number;
   /** Upper bound for the largest internal render dimension. */
   maxRenderDimension?: number;
-  /** Draw a quick draft first, then wait for an idle slot before full quality. */
+  /** Optional lower render scale for immediate preview / fast frames. */
+  draftRenderScale?: number;
+  /** Optional lower max dimension for immediate preview / fast frames. */
+  draftMaxRenderDimension?: number;
+  /** Draw a quick lower-resolution preview first, then wait for an idle slot before full quality. */
   deferFullRender?: boolean;
+  /** Whether the immediate low-resolution pass should also simplify sources and skip effects. */
+  deferredPreviewQuality?: 'draft' | 'full';
+  /** Delay before the deferred full-quality pass is allowed to start. */
+  deferredFullRenderMs?: number;
+  /** requestIdleCallback timeout for the deferred full-quality pass. */
+  deferredFullRenderTimeoutMs?: number;
 }
 
 export interface DocumentRenderState {
@@ -37,7 +48,7 @@ function makeRenderCacheKey(cacheKey: string | undefined, pw: number, ph: number
   return cacheKey ? `${cacheKey}:${pw}x${ph}` : null;
 }
 
-function getRenderDimensions(
+export function getRenderDimensions(
   pw: number,
   ph: number,
   renderScale = 1,
@@ -152,6 +163,7 @@ export function useDocumentRenderer(
   const renderingRef = useRef(false);
   const pendingRef = useRef(false);
   const activeAbortRef = useRef<AbortController | null>(null);
+  const layerGraphCacheEntriesRef = useRef(new Map<string, Promise<HTMLCanvasElement>>());
   const rafRef = useRef<number | null>(null);
   const lastGoodCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef(doc);
@@ -169,6 +181,13 @@ export function useDocumentRenderer(
   const fastRef = useRef(options.fast ?? false);
   const graphModeRef = useRef(options.graphMode ?? 'auto');
   const cacheKeyRef = useRef(makeRenderCacheKey(options.cacheKey, pw, ph));
+  const draftRenderScaleRef = useRef(options.draftRenderScale ?? options.renderScale);
+  const draftMaxRenderDimensionRef = useRef(options.draftMaxRenderDimension ?? options.maxRenderDimension);
+  const deferredPreviewQualityRef = useRef(options.deferredPreviewQuality ?? 'draft');
+  const deferredFullRenderMsRef = useRef(options.deferredFullRenderMs ?? DEFAULT_DEFERRED_FULL_RENDER_MS);
+  const deferredFullRenderTimeoutMsRef = useRef(
+    options.deferredFullRenderTimeoutMs ?? DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS,
+  );
   const draftUntilRef = useRef(0);
   const gpuFallbackUntilRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -195,6 +214,12 @@ export function useDocumentRenderer(
     fastRef.current = options.fast ?? false;
     graphModeRef.current = options.graphMode ?? 'auto';
     cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, renderWidthRef.current, renderHeightRef.current);
+    draftRenderScaleRef.current = options.draftRenderScale ?? options.renderScale;
+    draftMaxRenderDimensionRef.current = options.draftMaxRenderDimension ?? options.maxRenderDimension;
+    deferredPreviewQualityRef.current = options.deferredPreviewQuality ?? 'draft';
+    deferredFullRenderMsRef.current = options.deferredFullRenderMs ?? DEFAULT_DEFERRED_FULL_RENDER_MS;
+    deferredFullRenderTimeoutMsRef.current =
+      options.deferredFullRenderTimeoutMs ?? DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS;
   }, [
     doc,
     imageCache,
@@ -205,6 +230,11 @@ export function useDocumentRenderer(
     options.cacheKey,
     options.renderScale,
     options.maxRenderDimension,
+    options.draftRenderScale,
+    options.draftMaxRenderDimension,
+    options.deferredPreviewQuality,
+    options.deferredFullRenderMs,
+    options.deferredFullRenderTimeoutMs,
   ]);
 
   const cancelDeferredFullRender = useCallback(() => {
@@ -230,10 +260,24 @@ export function useDocumentRenderer(
     const abortController = new AbortController();
     activeAbortRef.current = abortController;
     const now = performance.now();
-    const inDraftWindow = now < draftUntilRef.current || now < gpuFallbackUntilRef.current;
+    const inDeferredPreviewWindow = now < draftUntilRef.current;
+    const inGpuFallbackWindow = now < gpuFallbackUntilRef.current;
+    const usePreviewSize = fastRef.current || inDeferredPreviewWindow || inGpuFallbackWindow;
+    const useDraftQuality =
+      fastRef.current ||
+      inGpuFallbackWindow ||
+      (inDeferredPreviewWindow && deferredPreviewQualityRef.current === 'draft');
+    const [targetWidth, targetHeight] = usePreviewSize
+      ? getRenderDimensions(
+          pwRef.current,
+          phRef.current,
+          draftRenderScaleRef.current,
+          draftMaxRenderDimensionRef.current,
+        )
+      : [renderWidthRef.current, renderHeightRef.current];
     const renderOptions = {
-      skipEffects: fastRef.current || inDraftWindow,
-      draft: inDraftWindow,
+      skipEffects: useDraftQuality,
+      draft: useDraftQuality,
       graphMode: graphModeRef.current,
       signal: abortController.signal,
     };
@@ -242,9 +286,14 @@ export function useDocumentRenderer(
       if (!displayCanvas) return;
       const ctx = displayCanvas.getContext('2d')!;
       ctx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
-      ctx.drawImage(result, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality =
+        result.width < displayCanvas.width || result.height < displayCanvas.height ? 'medium' : 'high';
+      ctx.drawImage(result, 0, 0, displayCanvas.width, displayCanvas.height);
       lastGoodCanvasRef.current = result;
-      rememberRenderFrame(cacheKeyRef.current, result);
+      if (result.width === displayCanvas.width && result.height === displayCanvas.height) {
+        rememberRenderFrame(cacheKeyRef.current, result);
+      }
       setRenderState({
         isRendering: false,
         hasFrame: true,
@@ -272,10 +321,17 @@ export function useDocumentRenderer(
     }));
     const primaryRender = renderDocument(
       docRef.current,
-      renderWidthRef.current,
-      renderHeightRef.current,
+      targetWidth,
+      targetHeight,
       imageCacheRef.current,
       renderOptions,
+      renderOptions.graphMode === 'stack'
+        ? createLayerPreviewRenderCache(docRef.current, imageCacheRef.current, layerGraphCacheEntriesRef.current, {
+            width: targetWidth,
+            height: targetHeight,
+            renderOptions,
+          })
+        : undefined,
     );
     const timedPrimaryRender = renderOptions.skipEffects ? primaryRender : withRenderTimeout(primaryRender);
 
@@ -284,12 +340,37 @@ export function useDocumentRenderer(
         const hasNewerRenderPending = pendingRef.current;
         if (!hasNewerRenderPending && !renderOptions.skipEffects && isLikelyBlankRender(result, docRef.current)) {
           gpuFallbackUntilRef.current = performance.now() + 5000;
+          const fallbackOptions = {
+            ...renderOptions,
+            skipEffects: true,
+            draft: true,
+          };
+          const [fallbackWidth, fallbackHeight] = getRenderDimensions(
+            pwRef.current,
+            phRef.current,
+            draftRenderScaleRef.current,
+            draftMaxRenderDimensionRef.current,
+          );
           withRenderTimeout(
-            renderDocument(docRef.current, renderWidthRef.current, renderHeightRef.current, imageCacheRef.current, {
-              ...renderOptions,
-              skipEffects: true,
-              draft: true,
-            }),
+            renderDocument(
+              docRef.current,
+              fallbackWidth,
+              fallbackHeight,
+              imageCacheRef.current,
+              fallbackOptions,
+              fallbackOptions.graphMode === 'stack'
+                ? createLayerPreviewRenderCache(
+                    docRef.current,
+                    imageCacheRef.current,
+                    layerGraphCacheEntriesRef.current,
+                    {
+                      width: fallbackWidth,
+                      height: fallbackHeight,
+                      renderOptions: fallbackOptions,
+                    },
+                  )
+                : undefined,
+            ),
           )
             .then((fallback) => {
               drawResult(isLikelyBlankRender(fallback, docRef.current) ? result : fallback);
@@ -332,12 +413,37 @@ export function useDocumentRenderer(
         }
 
         gpuFallbackUntilRef.current = performance.now() + 5000;
+        const fallbackOptions = {
+          ...renderOptions,
+          skipEffects: true,
+          draft: true,
+        };
+        const [fallbackWidth, fallbackHeight] = getRenderDimensions(
+          pwRef.current,
+          phRef.current,
+          draftRenderScaleRef.current,
+          draftMaxRenderDimensionRef.current,
+        );
         withRenderTimeout(
-          renderDocument(docRef.current, renderWidthRef.current, renderHeightRef.current, imageCacheRef.current, {
-            ...renderOptions,
-            skipEffects: true,
-            draft: true,
-          }),
+          renderDocument(
+            docRef.current,
+            fallbackWidth,
+            fallbackHeight,
+            imageCacheRef.current,
+            fallbackOptions,
+            fallbackOptions.graphMode === 'stack'
+              ? createLayerPreviewRenderCache(
+                  docRef.current,
+                  imageCacheRef.current,
+                  layerGraphCacheEntriesRef.current,
+                  {
+                    width: fallbackWidth,
+                    height: fallbackHeight,
+                    renderOptions: fallbackOptions,
+                  },
+                )
+              : undefined,
+          ),
         )
           .then((fallback) => {
             if (!pendingRef.current) drawResult(fallback);
@@ -383,12 +489,12 @@ export function useDocumentRenderer(
       deferredFullRenderTimerRef.current = null;
       if (typeof globalThis.requestIdleCallback === 'function') {
         deferredFullRenderIdleRef.current = globalThis.requestIdleCallback(run, {
-          timeout: DEFERRED_FULL_RENDER_TIMEOUT_MS,
+          timeout: deferredFullRenderTimeoutMsRef.current,
         });
         return;
       }
       run();
-    }, DEFERRED_FULL_RENDER_MS);
+    }, deferredFullRenderMsRef.current);
   }, [cancelDeferredFullRender, scheduleRender]);
 
   useLayoutEffect(() => {
@@ -433,7 +539,10 @@ export function useDocumentRenderer(
     draftUntilRef.current =
       cachedFrame && !options.deferFullRender
         ? 0
-        : performance.now() + (options.deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
+        : performance.now() +
+          (options.deferFullRender
+            ? (options.deferredFullRenderTimeoutMs ?? DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS)
+            : DRAFT_SETTLE_MS);
 
     scheduleRender();
 
@@ -454,7 +563,12 @@ export function useDocumentRenderer(
     options.cacheKey,
     options.renderScale,
     options.maxRenderDimension,
+    options.draftRenderScale,
+    options.draftMaxRenderDimension,
     options.deferFullRender,
+    options.deferredPreviewQuality,
+    options.deferredFullRenderMs,
+    options.deferredFullRenderTimeoutMs,
     scheduleRender,
     cancelDeferredFullRender,
   ]);
@@ -462,7 +576,11 @@ export function useDocumentRenderer(
   useEffect(() => {
     const deferFullRender = options.deferFullRender && !(options.fast ?? false);
     if (!lastGoodCanvasRef.current || (options.fast ?? false) || deferFullRender) {
-      draftUntilRef.current = performance.now() + (deferFullRender ? DEFERRED_FULL_RENDER_TIMEOUT_MS : DRAFT_SETTLE_MS);
+      draftUntilRef.current =
+        performance.now() +
+        (deferFullRender
+          ? (options.deferredFullRenderTimeoutMs ?? DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS)
+          : DRAFT_SETTLE_MS);
     }
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
     cancelDeferredFullRender();
@@ -483,6 +601,11 @@ export function useDocumentRenderer(
     options.graphMode,
     options.cacheKey,
     options.deferFullRender,
+    options.deferredPreviewQuality,
+    options.deferredFullRenderMs,
+    options.deferredFullRenderTimeoutMs,
+    options.draftRenderScale,
+    options.draftMaxRenderDimension,
     scheduleRender,
     cancelDeferredFullRender,
     scheduleDeferredFullRender,

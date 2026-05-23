@@ -605,6 +605,67 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
 
+test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+
+  await topFillRow.getByRole('button', { name: /Rename layer Top fill/ }).click();
+  const renameInput = page.getByRole('textbox', { name: /Rename layer Top fill/ });
+  await renameInput.fill('Cover Type');
+  await renameInput.press('Enter');
+  await expect(page.locator('.layer-row').filter({ hasText: 'Cover Type' })).toHaveCount(1);
+
+  const renamedRow = page.locator('.layer-row').filter({ hasText: 'Cover Type' }).first();
+  await renamedRow.getByRole('button', { name: /Duplicate layer Cover Type/ }).click();
+
+  const duplicateRow = page.locator('.layer-row').filter({ hasText: 'Cover Type copy' }).first();
+  await expect(duplicateRow).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.layer-row')).toHaveCount(3);
+
+  await duplicateRow.getByRole('button', { name: /Hide layer Cover Type copy/ }).click();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { name: string }) => layer.name === 'Cover Type copy')?.visible;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(false);
+
+  await duplicateRow.getByRole('button', { name: /Delete layer Cover Type copy/ }).click();
+  await expect(page.locator('.layer-row').filter({ hasText: 'Cover Type copy' })).toHaveCount(0);
+  await expect(page.locator('.layer-row')).toHaveCount(2);
+});
+
+test('layer rows can quick-add a layer above the current row', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
+  await page.getByRole('button', { name: /Grain/i }).click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Grain' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual([
+      { name: 'Bottom fill', kind: 'fill' },
+      { name: 'Top fill', kind: 'fill' },
+      { name: 'Grain', kind: 'effect' },
+    ]);
+});
+
 test('layer preview follows graph output when unconnected layers exist', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
 
@@ -620,8 +681,9 @@ test('layers added after graph bootstrap connect into the export path', async ({
   await switchToNodeView(page);
   await switchToLayerView(page);
 
-  await page.getByRole('button', { name: 'Add layer' }).click();
-  await page.getByRole('button', { name: /fill/i }).click();
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  await header.getByRole('button', { name: /fill/i }).click();
 
   await expect
     .poll(
@@ -662,11 +724,12 @@ test('layers added after graph bootstrap connect into the export path', async ({
 });
 
 test('primitive node exposes interactive camera controls', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto('/app?new=blank');
   await page.getByRole('button', { name: 'Add layer' }).click();
   await page.getByRole('button', { name: /primitive/i }).click();
+  await expect(page.getByText('Camera framing is node-owned')).toBeVisible({ timeout: 15_000 });
 
-  await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();
+  await switchToNodeView(page);
   const primitiveNode = page.locator('.node-shell-kind-primitive').first();
   await expect(primitiveNode).toBeVisible();
   await primitiveNode.click();
@@ -710,6 +773,22 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.locator('.node-shell-kind-primitive').first().click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect(page.getByText('Oops!')).toHaveCount(0);
+});
+
+test('node performance debug toggle persists', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+
+  await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
+  await expect(page.locator('.node-perf-grid')).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('artifact-debug-perf')), { timeout: 15_000 })
+    .toBe('1');
+
+  await page.reload();
+  await switchToNodeView(page);
+  await expect(page.getByRole('button', { name: 'Hide performance debug overlay' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-perf-grid')).toBeVisible();
 });
 
 test('default document can export from the browser', async ({ page }) => {
@@ -779,6 +858,33 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expectLayerCanvasToHavePixels(page);
 });
 
+test('empty layer panel offers direct layer quick starts', async ({ page }) => {
+  await page.goto('/app?new=blank');
+
+  const emptyPanel = page.locator('.layer-empty-state');
+  await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
+  await expect(emptyPanel).toContainText('Start with one layer');
+  await expect(emptyPanel.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
+    'href',
+    '/docs/nodes#docs-first-cover',
+  );
+
+  await emptyPanel.getByRole('button', { name: 'Text' }).click();
+  await expect(page.locator('.layer-empty-state')).toHaveCount(0);
+  await expect(page.locator('.layer-row').filter({ hasText: /Text/i })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.[0]?.kind;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe('text');
+});
+
 test('new blank canvas action confirms before replacing current work', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
   await expectLayerCanvasToHavePixels(page);
@@ -796,6 +902,8 @@ test('new blank canvas action confirms before replacing current work', async ({ 
 test('empty canvas can start from the layer-first texture recipe', async ({ page }) => {
   await page.goto('/app?new=blank');
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' })).toBeVisible();
+  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Noise Poster' })).toBeVisible();
 
   await page
     .locator('.empty-canvas-start')
@@ -814,6 +922,7 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
           return {
             aspect: doc.global?.aspect,
+            hasGraph: Boolean(doc.graph),
             layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
           };
         }),
@@ -821,6 +930,7 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
     )
     .toEqual({
       aspect: '1:1',
+      hasGraph: false,
       layerIds: [
         'starter-plate',
         'starter-clouds',
@@ -828,6 +938,44 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
         'starter-registration',
         'starter-scanlines',
         'starter-grain',
+      ],
+    });
+});
+
+test('empty canvas can start from the layer-first photo stack recipe', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' }).click();
+
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.getByText('cover photo')).toBeVisible();
+  await expect(page.getByText('headline type')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            aspect: doc.global?.aspect,
+            hasGraph: Boolean(doc.graph),
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      aspect: '4:5',
+      hasGraph: false,
+      layerIds: [
+        'photo-stack-plate',
+        'photo-stack-image',
+        'photo-stack-duotone',
+        'photo-stack-title',
+        'photo-stack-registration',
+        'photo-stack-grain',
       ],
     });
 });
@@ -1385,8 +1533,9 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
 
   const folder = page.locator('.layer-area-folder').first();
   await expect(folder).toContainText('Area 1');
-  await expect(folder.locator('.layer-area-count')).toHaveText('1');
-  await expect(folder.locator('.layer-area-graph-count')).toHaveText('+1');
+  await expect(folder).toContainText('Organizes nodes only');
+  await expect(folder.locator('.layer-area-count')).toHaveText('1 layer');
+  await expect(folder.locator('.layer-area-graph-count')).toHaveText('+1 node');
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
   await expect(folder.locator('.layer-graph-helper-row')).toContainText('Merge');
 
@@ -1397,6 +1546,13 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
   await folder.getByRole('button', { name: /Expand Area 1/ }).click();
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
   await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(1);
+});
+
+test('noise layer explains unavailable placement controls in layers', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+
+  await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click();
+  await expect(page.getByText('Noise fills the canvas')).toBeVisible({ timeout: 15_000 });
 });
 
 test('layers can create areas from multi-selected rows', async ({ page }) => {
@@ -1547,7 +1703,7 @@ test('dragging a layer row out of an area separates the layer', async ({ page })
 
   await source.dragTo(target);
 
-  await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1');
+  await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
   await expect
     .poll(async () =>
       page.evaluate(() => {

@@ -26,10 +26,15 @@ canvas. Use that path when improving layer-preview/export parity without
 changing pointer math or handle coordinates.
 
 The layer preview is allowed to be progressive: on cold loads and heavy edits it
-may draw a draft frame first, then schedule the full-quality pass after a short
-idle delay. This keeps node-editor entry responsive. Export, output thumbnails,
-and graph-target previews should still call the renderer with the requested
+may draw a lower-resolution full-effects frame first, then schedule the
+full-resolution pass after a short idle delay. This keeps layer edits feeling
+final while avoiding extra node-thumbnail work. Export, output thumbnails, and
+graph-target previews should still call the renderer with the requested
 full-quality options directly.
+For stack-mode layer previews, the transient graph render cache may use
+per-layer prefix signatures so lower layers can be reused when an upper layer
+changes. Those signatures must include every pixel-affecting input and remain
+outside `CanvasDocument`.
 
 Transparent document backgrounds must stay transparent in renderer output and
 exports. UI preview surfaces may show a checkerboard behind the canvas to make

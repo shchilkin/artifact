@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type CanvasDocument, makeSourceLayer } from '../types/config';
-import { isLikelyBlankRender } from './useDocumentRenderer';
+import { getRenderDimensions, isLikelyBlankRender } from './useDocumentRenderer';
 
 function makeDoc(layers: CanvasDocument['layers']): CanvasDocument {
   return {
@@ -40,5 +40,15 @@ describe('isLikelyBlankRender', () => {
     ctx.fillRect(16, 16, 32, 32);
 
     expect(isLikelyBlankRender(canvas, doc)).toBe(false);
+  });
+});
+
+describe('getRenderDimensions', () => {
+  it('caps high-resolution preview renders by their largest edge', () => {
+    expect(getRenderDimensions(540, 960, 2, 720)).toEqual([405, 720]);
+  });
+
+  it('keeps draft preview renders at the display aspect when scale is one', () => {
+    expect(getRenderDimensions(540, 960, 1, 540)).toEqual([304, 540]);
   });
 });

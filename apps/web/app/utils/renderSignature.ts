@@ -9,7 +9,7 @@
  * primitiveScene.ts, or primitiveRenderer.ts.
  */
 
-import type { GraphColorNode, GraphEdge, GraphMergeNode, GraphRepeatNode, Layer } from '../../../types/config';
+import type { GraphColorNode, GraphEdge, GraphMergeNode, GraphRepeatNode, Layer } from '../types/config';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {

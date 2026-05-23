@@ -7,22 +7,32 @@ import {
   makeGraphColorNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
+  makeImageLayer,
   makeTextLayer,
 } from '../types/config';
 import {
   addLayerToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
+  canInsertLayerAbove,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
+  insertLayerAboveInDocument,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
+  removeNodesFromAllGraphAreasInDocument,
   removeNodesFromGraphAreaInDocument,
+  renameLayerInDocument,
+  reorderDocumentLayers,
+  replaceSelectedImageSourceInDocument,
   setDocumentAspect,
   setDocumentGraph,
   setDocumentSeed,
+  setLayersVisibilityInDocument,
+  toggleLayerVisibilityInDocument,
   updateColorNodeInDocument,
   updateDocumentExportConfig,
+  updateGlobalInDocument,
   updateLayerInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
@@ -103,6 +113,64 @@ describe('documentCommands', () => {
     expect(next.graph?.edges).toEqual([
       { id: `e-fill-b-${EXPORT_NODE_ID}-0`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
+  });
+
+  it('inserts a layer above a stack row without requiring a graph', () => {
+    const doc = makeDoc();
+    const layer = makeFillLayer({ id: 'fill-b', name: 'Fill B' });
+    const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
+
+    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expect(next.graph).toBeUndefined();
+    expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
+  });
+
+  it('inserts a layer above a linear graph row and rewires the export path', () => {
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-fill-a-text-a', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
+        { id: 'e-text-a-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {
+        'fill-a': { x: 0, y: 80 },
+        'text-a': { x: 480, y: 80 },
+        [EXPORT_NODE_ID]: { x: 960, y: 80 },
+      },
+      mergeNodes: [],
+      colorNodes: [],
+      repeatNodes: [],
+      areas: [{ id: 'area-a', name: 'Area A', color: '#ff705f', nodeIds: ['fill-a'] }],
+    };
+    const doc = makeDoc(graph);
+    const next = insertLayerAboveInDocument(doc, 'fill-a', makeFillLayer({ id: 'fill-b' }));
+
+    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expect(next.graph?.edges).not.toContainEqual(expect.objectContaining({ id: 'e-fill-a-text-a' }));
+    expect(next.graph?.edges).toContainEqual({
+      id: 'e-fill-a-fill-b',
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: 'fill-b',
+      toPort: 'bg',
+    });
+    expect(next.graph?.edges).toContainEqual({
+      id: 'e-fill-b-text-a',
+      fromId: 'fill-b',
+      fromPort: 'out',
+      toId: 'text-a',
+      toPort: 'bg',
+    });
+    expect(next.graph?.areas?.[0]?.nodeIds).toEqual(['fill-a']);
+  });
+
+  it('does not insert layer rows into arbitrary custom graphs', () => {
+    const doc = makeDoc(makeGraph());
+    const layer = makeFillLayer({ id: 'fill-b' });
+
+    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(false);
+    expect(insertLayerAboveInDocument(doc, 'fill-a', layer)).toBe(doc);
   });
 
   it('inserts a merge node with source and target edges', () => {
@@ -437,6 +505,51 @@ describe('documentCommands', () => {
     expect(withoutArea.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
   });
 
+  it('removes nodes from every graph area without deleting graph nodes', () => {
+    const graph = {
+      ...makeGraph(),
+      areas: [
+        { id: 'area-a', name: 'Area A', color: '#ff6b5a', nodeIds: ['fill-a', 'merge-a'] },
+        { id: 'area-b', name: 'Area B', color: '#63d297', nodeIds: ['text-a', 'merge-a', 'color-a'] },
+      ],
+    };
+    const next = removeNodesFromAllGraphAreasInDocument(makeDoc(graph), ['merge-a', 'text-a']);
+
+    expect(next.graph?.areas?.[0]?.nodeIds).toEqual(['fill-a']);
+    expect(next.graph?.areas?.[1]?.nodeIds).toEqual(['color-a']);
+    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
+    expect(next.graph?.edges.some((edge) => edge.fromId === 'merge-a' || edge.toId === 'merge-a')).toBe(true);
+  });
+
+  it('renames layers, toggles visibility, batches visibility, and replaces selected image sources', () => {
+    const image = makeImageLayer('', { id: 'image-a' });
+    const doc: CanvasDocument = { ...makeDoc(), layers: [...makeDoc().layers, image] };
+
+    expect(renameLayerInDocument(doc, 'text-a', '  Title  ').layers[1]?.name).toBe('Title');
+    expect(renameLayerInDocument(doc, 'text-a', '   ')).toBe(doc);
+
+    const toggled = toggleLayerVisibilityInDocument(doc, 'text-a');
+    expect(toggled.layers[1]?.visible).toBe(false);
+    expect(doc.layers[1]?.visible).toBe(true);
+
+    const hidden = setLayersVisibilityInDocument(doc, ['fill-a', 'text-a'], false);
+    expect(hidden.layers.map((layer) => layer.visible)).toEqual([false, false, true]);
+
+    expect(replaceSelectedImageSourceInDocument(doc, 'text-a', 'data:image/png;base64,x')).toBe(doc);
+    expect(replaceSelectedImageSourceInDocument(doc, 'image-a', 'data:image/png;base64,x').layers[2]).toMatchObject({
+      src: 'data:image/png;base64,x',
+    });
+  });
+
+  it('reorders layers while preserving graph metadata', () => {
+    const doc = makeDoc(makeGraph());
+    const reordered = [doc.layers[1]!, doc.layers[0]!];
+    const next = reorderDocumentLayers(doc, reordered);
+
+    expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
+    expect(next.graph).toBe(doc.graph);
+  });
+
   it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {
     const doc = makeDoc(makeGraph());
     const graph: CanvasGraph = { edges: [], positions: {}, mergeNodes: [], colorNodes: [] };
@@ -447,6 +560,7 @@ describe('documentCommands', () => {
     expect(updateRepeatNodeInDocument(doc, 'repeat-a', { count: 8 }).graph?.repeatNodes?.[0]?.count).toBe(8);
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');
+    expect(updateGlobalInDocument(doc, { bg: '#ffffff' }).global.bg).toBe('#ffffff');
     expect(updateDocumentExportConfig(doc, { scale: 3 }).export.scale).toBe(3);
     expect(setDocumentGraph(doc, graph).graph).toBe(graph);
     expect(doc.global.seed).toBe(12);

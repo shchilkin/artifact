@@ -20,7 +20,9 @@ import {
 import { EFFECT_DOCS, EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
 import { renderDocument } from '../utils/renderer';
 import {
+  NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
+  PHOTO_TYPE_STACK_STARTER,
   PRIMITIVE_IMAGE_GRAPH_RECIPE,
   PRINT_DAMAGE_GRAPH_RECIPE,
   STICKER_GRID_GRAPH_RECIPE,
@@ -371,6 +373,18 @@ const RECIPE_STARTERS: Array<{
     mode: 'Layer recipe',
     desc: 'A fast stack-only cover that proves you can finish without opening nodes.',
     steps: ['Fill plate', 'Noise texture', 'Title type', 'Registration shift', 'Scanlines and grain'],
+  },
+  {
+    starter: PHOTO_TYPE_STACK_STARTER,
+    mode: 'Layer recipe',
+    desc: 'A photo-first layer recipe for replacing an image, tuning type, and finishing with print texture.',
+    steps: ['Matte plate', 'Cover photo', 'Duotone wash', 'Headline type', 'Drift and grain'],
+  },
+  {
+    starter: NOISE_POSTER_STACK_STARTER,
+    mode: 'Layer recipe',
+    desc: 'A texture-and-type poster recipe that stays completely in the layer stack.',
+    steps: ['Burnt plate', 'Paper static', 'Poster type', 'Halftone', 'Scanlines and dust'],
   },
   {
     starter: PHOTO_TYPE_GRAPH_RECIPE,

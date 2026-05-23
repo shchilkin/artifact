@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURATED_EXAMPLES } from './curatedExamples';
 import { renderDocument } from './renderer';
-import { GRAPH_RECIPE_STARTER_DOCUMENTS, getStarterDocument, TEXTURE_TYPE_STACK_STARTER } from './starterDocuments';
+import { GRAPH_RECIPE_STARTER_DOCUMENTS, getStarterDocument, LAYER_STARTER_DOCUMENTS } from './starterDocuments';
 
 describe('CURATED_EXAMPLES', () => {
   it('contains unique example ids', () => {
@@ -9,8 +9,13 @@ describe('CURATED_EXAMPLES', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('includes the layer-first starter document', () => {
-    expect(CURATED_EXAMPLES.some((example) => example.id === TEXTURE_TYPE_STACK_STARTER.id)).toBe(true);
+  it('includes layer-first starter documents as stack-only examples', () => {
+    for (const starter of LAYER_STARTER_DOCUMENTS) {
+      const example = CURATED_EXAMPLES.find((item) => item.id === starter.id);
+      expect(example?.category, starter.id).toBe('Layer recipe');
+      expect(example?.doc.graph, starter.id).toBeUndefined();
+      expect(getStarterDocument(starter.id)?.doc.graph, starter.id).toBeUndefined();
+    }
   });
 
   it('includes graph recipe starters as editable documents', () => {

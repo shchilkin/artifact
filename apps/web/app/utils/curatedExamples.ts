@@ -14,7 +14,9 @@ import {
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
 import {
+  NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
+  PHOTO_TYPE_STACK_STARTER,
   PRIMITIVE_IMAGE_GRAPH_RECIPE,
   PRINT_DAMAGE_GRAPH_RECIPE,
   STICKER_GRID_GRAPH_RECIPE,
@@ -89,6 +91,18 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
     summary: 'Build a stack-only cover from fill, procedural texture, display type, and print effects.',
     usedNodes: ['Fill', 'Noise', 'Text', 'Riso Shift', 'Scanlines', 'Grain'],
     startCopy: 'Start with this layer stack and swap the title, colors, or texture seed.',
+  }),
+  starterExample(PHOTO_TYPE_STACK_STARTER, {
+    category: 'Layer recipe',
+    summary: 'A photo-first stack that keeps replacement image, color wash, type, and print grain in layer order.',
+    usedNodes: ['Fill', 'Image', 'Duotone', 'Text', 'Riso Shift', 'Grain'],
+    startCopy: 'Open this when you want to replace the photo, rewrite the title, and export without touching nodes.',
+  }),
+  starterExample(NOISE_POSTER_STACK_STARTER, {
+    category: 'Layer recipe',
+    summary: 'A type poster built from procedural paper static, oversized text, halftone, scanlines, and dust.',
+    usedNodes: ['Fill', 'Noise', 'Text', 'Halftone', 'Scanlines', 'Grain'],
+    startCopy: 'Use this for quick poster studies where texture and type are enough to finish the cover.',
   }),
   starterExample(PHOTO_TYPE_GRAPH_RECIPE, {
     category: 'Graph recipe',

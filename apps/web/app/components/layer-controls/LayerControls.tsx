@@ -90,11 +90,13 @@ export function LayerControls({
   onChange,
   detached = false,
   showAiGenerationProvenance = true,
+  surface = 'nodes',
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
+  surface?: 'layers' | 'nodes';
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<'content' | 'placement' | 'style' | 'structure'>('content');
@@ -366,6 +368,14 @@ export function LayerControls({
     const hasPlacementSection = layerHasPlacementControls(layer);
     const arrayLabels = layer.kind === 'array' ? getArrayControlLabels(layer) : undefined;
     const colorLabels = sourceColorLabels(layer);
+    const layerSurfaceNote =
+      surface === 'layers'
+        ? layer.kind === 'primitive'
+          ? 'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.'
+          : layer.kind === 'noise'
+            ? 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.'
+            : null
+        : null;
 
     return (
       <div className={sectionClassName}>
@@ -388,6 +398,7 @@ export function LayerControls({
             value={layer.accentColor}
             onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
           />
+          {layerSurfaceNote && <p className="node-inspector-note">{layerSurfaceNote}</p>}
           {layer.kind !== 'primitive' && (
             <>
               <InspectorSlider
@@ -454,9 +465,11 @@ export function LayerControls({
                   onChange({ primitiveShape: v as SourceLayer['primitiveShape'] } as Partial<SourceLayer>)
                 }
               />
-              <p className="node-inspector-note">
-                Camera angle is controlled in the preview: drag rotates, wheel zooms.
-              </p>
+              {surface === 'nodes' && (
+                <p className="node-inspector-note">
+                  Camera angle is controlled in the preview: drag rotates, wheel zooms.
+                </p>
+              )}
               <InspectorSlider
                 label="Spin"
                 value={Math.round(layer.tiltZ)}

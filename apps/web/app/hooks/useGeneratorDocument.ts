@@ -22,6 +22,7 @@ import {
   createLayerOfKind,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
+  insertLayerAboveInDocument,
   removeLayerFromDocument,
   reorderDocumentLayers,
   setDocumentAspect,
@@ -228,6 +229,19 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const insertLayerAbove = useCallback(
+    (
+      targetLayerId: string,
+      action: { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> } | { kind: 'effect'; preset: EffectPreset },
+    ) => {
+      const layer =
+        action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+      updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
   const addImageFromSource = useCallback(
     (src: string, aiGeneration?: ImageLayer['aiGeneration']) => {
       const layer = {
@@ -381,6 +395,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId,
     addLayer,
     addEffectPreset,
+    insertLayerAbove,
     addImageFromSource,
     removeLayer,
     deleteNodeSelection,
