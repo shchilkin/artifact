@@ -14,17 +14,19 @@
 }
 
 .node-canvas-root {
-  --node-bg: var(--workspace-bg);
-  --node-surface: var(--surface-bg);
-  --node-surface-raised: var(--surface-hover);
-  --node-border: var(--border);
-  --node-border-strong: var(--border-strong);
+  --node-bg: var(--editor-canvas-bg);
+  --node-surface: var(--node-card-bg);
+  --node-surface-raised: var(--node-card-bg-hover);
+  --node-header-surface: var(--node-card-header-bg);
+  --node-border: var(--node-card-border-soft);
+  --node-border-strong: var(--node-card-border);
   --node-text: var(--text);
   --node-text-dim: var(--text-dim);
   --node-text-muted: color-mix(in oklch, var(--node-text-dim) 68%, transparent);
   --node-focus: var(--accent);
   --node-width: 160px;
   --node-editor-width: 292px;
+  background: var(--node-bg);
   min-width: 0;
 }
 
@@ -202,6 +204,9 @@
   background: var(--node-surface);
   border: 1px solid var(--node-border-strong);
   border-radius: 0;
+  box-shadow:
+    0 0 0 1px var(--node-card-outline),
+    inset 0 0 0 1px color-mix(in oklch, var(--node-text) 3%, transparent);
   overflow: hidden;
   cursor: default;
   user-select: none;
@@ -214,7 +219,10 @@
 
 .node-shell-frame:hover .node-shell {
   border-color: color-mix(in oklch, var(--node-accent) 34%, var(--node-border-strong));
-  background: color-mix(in oklch, var(--node-accent) 5%, var(--node-surface));
+  background: color-mix(in oklch, var(--node-accent) 4%, var(--node-surface-raised));
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--node-accent) 24%, var(--node-card-outline)),
+    inset 0 0 0 1px color-mix(in oklch, var(--node-text) 4%, transparent);
 }
 
 .react-flow__node.dragging .node-shell {
@@ -248,14 +256,15 @@
 
 .node-shell-selected {
   border-color: var(--node-accent);
-  background: color-mix(in oklch, var(--node-accent) 10%, var(--node-surface));
+  background: color-mix(in oklch, var(--node-accent) 8%, var(--node-card-selected-bg));
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--node-accent) 52%, transparent),
-    0 0 0 5px color-mix(in oklch, var(--node-accent) 14%, transparent);
+    0 0 0 1px var(--editor-selection-outline),
+    0 0 0 5px color-mix(in oklch, var(--node-accent) 15%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, var(--node-text) 5%, transparent);
 }
 
 .node-shell-selected .node-shell-header {
-  background: color-mix(in oklch, var(--node-accent) 12%, var(--node-bg));
+  background: color-mix(in oklch, var(--node-accent) 14%, var(--node-card-selected-header-bg));
   border-bottom-color: color-mix(in oklch, var(--node-accent) 40%, var(--node-border));
 }
 
@@ -290,7 +299,7 @@
   align-items: center;
   gap: 8px;
   padding: 9px 8px 9px 10px;
-  background: color-mix(in oklch, var(--node-bg) 76%, var(--node-surface));
+  background: var(--node-header-surface);
   border-bottom: 1px solid var(--node-border);
   min-height: var(--touch);
 }
