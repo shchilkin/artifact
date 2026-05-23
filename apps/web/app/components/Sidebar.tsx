@@ -15,9 +15,16 @@ import {
   addLayersToGraphAreaInDocument,
   createGraphAreaInDocument,
   removeGraphAreaInDocument,
-  removeLayersFromGraphAreaInDocument,
+  removeNodesFromAllGraphAreasInDocument,
   removeNodesFromGraphAreaInDocument,
   renameGraphAreaInDocument,
+  renameLayerInDocument,
+  reorderDocumentLayersAndRemoveFromGraphArea,
+  replaceSelectedImageSourceInDocument,
+  setLayersVisibilityInDocument,
+  toggleLayerVisibilityInDocument,
+  updateGlobalInDocument,
+  updateLayerInDocument,
 } from '../utils/documentCommands';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { LayerPanel } from './LayerPanel';
@@ -30,6 +37,10 @@ interface Props {
   onSelectLayer: (id: string | null) => void;
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
+  onInsertLayerAbove: (
+    targetLayerId: string,
+    action: { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> } | { kind: 'effect'; preset: EffectPreset },
+  ) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
   onDuplicateLayer: (id: string) => void;
@@ -62,17 +73,6 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   );
 }
 
-function updateLayer<T extends Layer>(doc: CanvasDocument, id: string, patch: Partial<T>): CanvasDocument {
-  return {
-    ...doc,
-    layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
-  };
-}
-
-function updateGlobal(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
-  return { ...doc, global: { ...doc.global, ...patch } };
-}
-
 function AssetImagePreview({ src }: { src: string }) {
   const [resolvedAsset, setResolvedAsset] = useState({ src: '', value: '' });
 
@@ -103,6 +103,7 @@ export function Sidebar({
   onSelectLayer,
   onAddLayer,
   onAddEffectPreset,
+  onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
@@ -119,33 +120,26 @@ export function Sidebar({
   }, [doc]);
 
   const setGlobal = <K extends keyof CanvasDocument['global']>(key: K, value: CanvasDocument['global'][K]) => {
-    onDocChange(updateGlobal(doc, { [key]: value }));
+    onDocChange(updateGlobalInDocument(doc, { [key]: value }));
   };
 
   const applySelectedPatch = <T extends Layer>(patch: Partial<T>) => {
     if (!selectedLayer) return;
-    onDocChange(updateLayer(doc, selectedLayer.id, patch));
+    onDocChange(updateLayerInDocument(doc, selectedLayer.id, patch as Partial<Layer>));
   };
 
   const handleToggleVisible = useCallback(
     (id: string) => {
       const current = docRef.current;
-      onDocChange({
-        ...current,
-        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, visible: !layer.visible } : layer)),
-      });
+      onDocChange(toggleLayerVisibilityInDocument(current, id));
     },
     [onDocChange],
   );
 
   const handleSetLayersVisible = useCallback(
     (ids: string[], visible: boolean) => {
-      const idSet = new Set(ids);
       const current = docRef.current;
-      onDocChange({
-        ...current,
-        layers: current.layers.map((layer) => (idSet.has(layer.id) ? { ...layer, visible } : layer)),
-      });
+      onDocChange(setLayersVisibilityInDocument(current, ids, visible));
     },
     [onDocChange],
   );
@@ -169,14 +163,7 @@ export function Sidebar({
   const handleRemoveLayersFromAreas = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return;
-      const idSet = new Set(ids);
-      let next = docRef.current;
-      for (const area of next.graph?.areas ?? []) {
-        const areaLayerIds = area.nodeIds.filter((id) => idSet.has(id));
-        if (areaLayerIds.length > 0) {
-          next = removeLayersFromGraphAreaInDocument(next, area.id, areaLayerIds);
-        }
-      }
+      const next = removeNodesFromAllGraphAreasInDocument(docRef.current, ids);
       if (next !== docRef.current) onDocChange(next);
     },
     [onDocChange],
@@ -211,7 +198,7 @@ export function Sidebar({
         return;
       }
       onDocChange(
-        removeLayersFromGraphAreaInDocument({ ...docRef.current, layers }, areaSeparation.areaId, areaSeparation.ids),
+        reorderDocumentLayersAndRemoveFromGraphArea(docRef.current, layers, areaSeparation.areaId, areaSeparation.ids),
       );
     },
     [onDocChange, onReorderLayers],
@@ -219,24 +206,23 @@ export function Sidebar({
 
   const handleRenameLayer = useCallback(
     (id: string, name: string) => {
-      const current = docRef.current;
-      onDocChange({
-        ...current,
-        layers: current.layers.map((layer) => (layer.id === id ? { ...layer, name } : layer)),
-      });
+      onDocChange(renameLayerInDocument(docRef.current, id, name));
     },
     [onDocChange],
   );
 
   const handleImageFile = (file: File) => {
     if (!selectedLayer || selectedLayer.kind !== 'image') return;
+    const targetLayerId = selectedLayer.id;
     const reader = new FileReader();
     reader.onload = (event) => {
       const src = event.target?.result;
       if (typeof src === 'string') {
         void saveImageAsset(src)
-          .then((assetSrc) => applySelectedPatch<ImageLayer>({ src: assetSrc }))
-          .catch(() => applySelectedPatch<ImageLayer>({ src }));
+          .then((assetSrc) =>
+            onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, assetSrc)),
+          )
+          .catch(() => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, src)));
       }
     };
     reader.readAsDataURL(file);
@@ -283,6 +269,7 @@ export function Sidebar({
           onSelectLayer={onSelectLayer}
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
+          onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={handleReorderLayers}
           onToggleVisible={handleToggleVisible}
@@ -385,6 +372,7 @@ export function Sidebar({
           <LayerControls
             layer={selectedLayer}
             detached
+            surface="layers"
             onChange={(patch) => applySelectedPatch(patch as Partial<Layer>)}
           />
         </div>

@@ -136,12 +136,17 @@ Recent manual profiling notes:
   In the current synthetic benchmark this reduced initial thumbnail renders
   from `21` to `8`, while leaving interaction scenarios at roughly one frame per
   `16-18ms`.
-- The main layer preview now renders progressively: it paints a draft frame
-  first, then waits for a short idle window before starting the full-quality
-  pass. This prevents the layer preview from competing with node-editor mount
-  work when the user switches into nodes immediately after page load. The
-  full-quality pass is intentionally delayed longer than a normal tab switch so
-  the pending work can be cancelled before expensive rendering starts.
+- The main layer preview now renders progressively: it paints a lower-resolution
+  full-effects frame first, then starts the full-resolution pass after a short
+  idle window. This keeps layer edits responsive while preserving the user's
+  expectation that the visible layer preview is the final composition, not a
+  placeholder. Node thumbnails keep their separate queue, sizing, and graph-cache
+  path.
+- Stack-mode layer previews also keep a transient per-layer prefix cache. When
+  an upper effect changes, the preview can reuse the already-rendered lower
+  stack instead of recomputing every source layer. The cache is keyed by render
+  size, render quality, global seed, image readiness, primitive view state, and
+  render-relevant layer fields.
 - Main preview renders are abortable between graph/layer steps. If the preview
   unmounts or a newer render supersedes the current one, the old render receives
   a transient `AbortSignal` and stops before continuing through stale expensive

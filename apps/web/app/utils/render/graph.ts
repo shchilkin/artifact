@@ -17,6 +17,7 @@ const GRAPH_RENDER_CACHE_LIMIT = 160;
 export interface GraphRenderCache {
   namespace: string;
   entries: Map<string, Promise<HTMLCanvasElement>>;
+  entryKey?: (nodeId: string) => string | null;
   limit?: number;
 }
 
@@ -285,12 +286,28 @@ async function renderGraphNode(
   options: RenderOptions,
   cache: Map<string, Promise<HTMLCanvasElement>>,
   cacheNamespace: string | null,
+  cacheEntryKey: ((nodeId: string) => string | null) | null,
   cacheLimit: number,
 ): Promise<HTMLCanvasElement> {
   throwIfRenderAborted(options);
-  const cacheKey = cacheNamespace ? `${cacheNamespace}:${nodeId}` : nodeId;
+  const nodeCacheKey = cacheEntryKey?.(nodeId) ?? nodeId;
+  const cacheKey = cacheNamespace ? `${cacheNamespace}:${nodeCacheKey}` : nodeCacheKey;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
+  const renderDependency = (dependencyId: string) =>
+    renderGraphNode(
+      doc,
+      graph,
+      dependencyId,
+      W,
+      H,
+      imageCache,
+      options,
+      cache,
+      cacheNamespace,
+      cacheEntryKey,
+      cacheLimit,
+    );
 
   const renderPromise = (async () => {
     throwIfRenderAborted(options);
@@ -300,18 +317,7 @@ async function renderGraphNode(
       drawBackground(ctx, W, H, doc.global.bg);
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       if (sourceId) {
-        const rendered = await renderGraphNode(
-          doc,
-          graph,
-          sourceId,
-          W,
-          H,
-          imageCache,
-          options,
-          cache,
-          cacheNamespace,
-          cacheLimit,
-        );
+        const rendered = await renderDependency(sourceId);
         throwIfRenderAborted(options);
         ctx.drawImage(rendered, 0, 0);
       }
@@ -322,26 +328,9 @@ async function renderGraphNode(
     if (mergeNode) {
       const baseId = findIncomingSource(graph, nodeId, 'a');
       const overlayId = findIncomingSource(graph, nodeId, 'b');
-      const canvas = baseId
-        ? cloneCanvas(
-            await renderGraphNode(doc, graph, baseId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit),
-            W,
-            H,
-          )
-        : createCanvas(W, H);
+      const canvas = baseId ? cloneCanvas(await renderDependency(baseId), W, H) : createCanvas(W, H);
       if (overlayId) {
-        const overlay = await renderGraphNode(
-          doc,
-          graph,
-          overlayId,
-          W,
-          H,
-          imageCache,
-          options,
-          cache,
-          cacheNamespace,
-          cacheLimit,
-        );
+        const overlay = await renderDependency(overlayId);
         throwIfRenderAborted(options);
         const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
         ctx.save();
@@ -356,9 +345,7 @@ async function renderGraphNode(
     const colorNode = findColorNode(graph, nodeId);
     if (colorNode) {
       const sourceId = findIncomingSource(graph, nodeId, 'in');
-      const source = sourceId
-        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
-        : createCanvas(W, H);
+      const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
       throwIfRenderAborted(options);
       return applyColorNode(source, colorNode, W, H);
     }
@@ -367,12 +354,8 @@ async function renderGraphNode(
     if (repeatNode) {
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       const backdropId = findIncomingSource(graph, nodeId, 'bg');
-      const source = sourceId
-        ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
-        : createCanvas(W, H);
-      const backdrop = backdropId
-        ? await renderGraphNode(doc, graph, backdropId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
-        : null;
+      const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
+      const backdrop = backdropId ? await renderDependency(backdropId) : null;
       throwIfRenderAborted(options);
       return applyRepeatNode(source, backdrop, repeatNode, doc.global.seed, W, H);
     }
@@ -386,18 +369,7 @@ async function renderGraphNode(
       const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId);
       if (gpuEffectChain) {
         const base = gpuEffectChain.baseSourceId
-          ? await renderGraphNode(
-              doc,
-              graph,
-              gpuEffectChain.baseSourceId,
-              W,
-              H,
-              imageCache,
-              options,
-              cache,
-              cacheNamespace,
-              cacheLimit,
-            )
+          ? await renderDependency(gpuEffectChain.baseSourceId)
           : createCanvas(W, H);
         throwIfRenderAborted(options);
         return applyGpuOnlyEffectLayerChain(base, gpuEffectChain.layers, doc, W, H, options);
@@ -406,9 +378,7 @@ async function renderGraphNode(
 
     const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
     const sourceId = findIncomingSource(graph, nodeId, inputPort);
-    const base = sourceId
-      ? await renderGraphNode(doc, graph, sourceId, W, H, imageCache, options, cache, cacheNamespace, cacheLimit)
-      : createCanvas(W, H);
+    const base = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
     throwIfRenderAborted(options);
     const layerOptions =
       layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array'
@@ -451,6 +421,7 @@ export async function renderGraphTarget(
     renderOptions,
     cache,
     renderCache?.namespace ?? null,
+    renderCache?.entryKey ?? null,
     renderCache?.limit ?? GRAPH_RENDER_CACHE_LIMIT,
   );
 }

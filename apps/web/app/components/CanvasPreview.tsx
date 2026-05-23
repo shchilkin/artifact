@@ -8,6 +8,10 @@ const SCROLL_SCALE_SENSITIVITY = 0.002;
 const FAST_PATH_RELEASE_MS = 180;
 const PREVIEW_RENDER_SCALE = 2;
 const PREVIEW_MAX_RENDER_DIMENSION = 1080;
+const PREVIEW_DRAFT_RENDER_SCALE = 1;
+const PREVIEW_DRAFT_MAX_RENDER_DIMENSION = 540;
+const PREVIEW_FULL_RENDER_DELAY_MS = 240;
+const PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS = 900;
 
 interface Props {
   doc: CanvasDocument;
@@ -28,7 +32,12 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
     cacheKey: 'layer-preview',
     renderScale: PREVIEW_RENDER_SCALE,
     maxRenderDimension: PREVIEW_MAX_RENDER_DIMENSION,
+    draftRenderScale: PREVIEW_DRAFT_RENDER_SCALE,
+    draftMaxRenderDimension: PREVIEW_DRAFT_MAX_RENDER_DIMENSION,
     deferFullRender: true,
+    deferredPreviewQuality: 'full',
+    deferredFullRenderMs: PREVIEW_FULL_RENDER_DELAY_MS,
+    deferredFullRenderTimeoutMs: PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');

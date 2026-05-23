@@ -13,7 +13,7 @@ import {
   layerRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
-} from './renderSignature';
+} from '../../../utils/renderSignature';
 
 describe('layerRenderSig', () => {
   it('ignores layer identity and editor-only metadata', () => {

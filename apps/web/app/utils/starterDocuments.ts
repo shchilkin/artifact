@@ -78,6 +78,116 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
 
 const SAMPLE_IMAGE = '/girl_image_landing.png';
 
+export const PHOTO_TYPE_STACK_STARTER: StarterDocument = {
+  id: 'layer-starter-photo-type',
+  name: 'Photo Type Stack',
+  shortName: 'Photo Stack',
+  description: 'A stack-only cover: image, duotone wash, big type, registration drift, and grain.',
+  doc: {
+    global: { bg: '#080607', seed: 87104, aspect: '4:5' },
+    export: { ...DEFAULT_EXPORT },
+    layers: [
+      makeFillLayer({ id: 'photo-stack-plate', name: 'matte plate', color: '#080607' }),
+      makeImageLayer(SAMPLE_IMAGE, {
+        id: 'photo-stack-image',
+        name: 'cover photo',
+        fit: 'cover',
+        opacity: 94,
+        scaleX: 1.04,
+        scaleY: 1.04,
+      }),
+      makeEffectPresetLayer('duotone', {
+        id: 'photo-stack-duotone',
+        name: 'warm duotone',
+        value: 54,
+        duoA: '#120b10',
+        duoB: '#f07848',
+      }),
+      makeTextLayer({
+        id: 'photo-stack-title',
+        name: 'headline type',
+        content: 'PHOTO\nTYPE',
+        font: 'BEBAS',
+        size: 118,
+        color: '#f5ead8',
+        x: 0.5,
+        y: 0.66,
+        rotation: -4,
+        scaleX: 1.05,
+      }),
+      {
+        ...makeEffectPresetLayer('risoShift', { value: 10 }),
+        id: 'photo-stack-registration',
+        name: 'type drift',
+        risoAngle: 12,
+      },
+      {
+        ...makeEffectPresetLayer('grain', { value: 18 }),
+        id: 'photo-stack-grain',
+        name: 'print grain',
+      },
+    ],
+  },
+};
+
+export const NOISE_POSTER_STACK_STARTER: StarterDocument = {
+  id: 'layer-starter-noise-poster',
+  name: 'Noise Poster Stack',
+  shortName: 'Noise Poster',
+  description: 'A stack-only poster: fill, paper noise, oversized type, halftone, scanlines, and dust.',
+  doc: {
+    global: { bg: '#0b0504', seed: 87191, aspect: '1:1' },
+    export: { ...DEFAULT_EXPORT },
+    layers: [
+      makeFillLayer({ id: 'noise-poster-plate', name: 'burnt plate', color: '#0b0504' }),
+      makeSourceLayer('noise', {
+        id: 'noise-poster-paper',
+        name: 'paper static',
+        noiseType: 'cells',
+        noiseScale: 30,
+        noiseDetail: 6,
+        noiseContrast: 70,
+        noiseBalance: 48,
+        noiseWarp: 24,
+        noiseTurbulence: 18,
+        color: '#2b1209',
+        accentColor: '#f4bb77',
+        opacity: 84,
+        blendMode: 'screen',
+      }),
+      makeTextLayer({
+        id: 'noise-poster-title',
+        name: 'poster type',
+        content: 'NOISE\nPOSTER',
+        font: 'DISPLAY',
+        size: 118,
+        color: '#f6e8c9',
+        x: 0.5,
+        y: 0.5,
+        rotation: 3,
+        scaleX: 1.05,
+        scaleY: 0.96,
+      }),
+      makeEffectPresetLayer('halftone', {
+        id: 'noise-poster-halftone',
+        name: 'screen dots',
+        value: 12,
+      }),
+      {
+        ...makeEffectPresetLayer('scanlines', { value: 10 }),
+        id: 'noise-poster-scanlines',
+        name: 'print bands',
+        scanlineWidth: 2,
+      },
+      {
+        ...makeEffectPresetLayer('grain', { value: 24 }),
+        id: 'noise-poster-grain',
+        name: 'dust pass',
+      },
+    ],
+  },
+};
+
 function recipeDoc(seed: number, bg: string, layers: CanvasDocument['layers'], graph: CanvasGraph): CanvasDocument {
   return {
     global: { bg, seed, aspect: '1:1' },
@@ -431,7 +541,11 @@ export const PRINT_DAMAGE_GRAPH_RECIPE: StarterDocument = {
   ),
 };
 
-export const LAYER_STARTER_DOCUMENTS: StarterDocument[] = [TEXTURE_TYPE_STACK_STARTER];
+export const LAYER_STARTER_DOCUMENTS: StarterDocument[] = [
+  TEXTURE_TYPE_STACK_STARTER,
+  PHOTO_TYPE_STACK_STARTER,
+  NOISE_POSTER_STACK_STARTER,
+];
 export const GRAPH_RECIPE_STARTER_DOCUMENTS: StarterDocument[] = [
   PHOTO_TYPE_GRAPH_RECIPE,
   STICKER_GRID_GRAPH_RECIPE,

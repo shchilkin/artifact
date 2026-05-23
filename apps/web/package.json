@@ -1,7 +1,7 @@
 {
   "name": "@artifact/web",
   "private": true,
-  "version": "0.13.0-alpha.1",
+  "version": "0.14.0-beta.1",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",

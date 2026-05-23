@@ -5,15 +5,15 @@ import { resolveImageSource } from '../../../utils/assetStore';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { type GraphRenderCache, renderGraphTarget } from '../../../utils/renderer';
-import { useNodeCanvasPreview } from '../context';
-import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
   colorNodeRenderSig,
   edgeRenderSig,
   layerRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
-} from './renderSignature';
+} from '../../../utils/renderSignature';
+import { useNodeCanvasPreview } from '../context';
+import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
   scheduleThumbnailRender,
   THUMB_DEBOUNCE_MS,

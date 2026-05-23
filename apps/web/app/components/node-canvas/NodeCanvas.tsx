@@ -7,22 +7,13 @@ import {
   type ReactFlowInstance,
   ViewportPortal,
 } from '@xyflow/react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
 import type { Layer } from '../../types/config';
-import {
-  addGraphArea,
-  addNodesToGraphArea,
-  connectedPortIds,
-  EXPORT_NODE_ID,
-  GRAPH_AREA_COLORS,
-  inferLinearGraph,
-  removeGraphArea,
-  removeNodesFromGraphArea,
-} from '../../utils/nodeGraph';
+import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
@@ -30,10 +21,12 @@ import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
+import { useNodeAreaActions } from './hooks/useNodeAreaActions';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
 import { useNodeDragState } from './hooks/useNodeDragState';
 import { useNodeGallery } from './hooks/useNodeGallery';
 import { useNodeGraphEvents } from './hooks/useNodeGraphEvents';
+import { useNodePerfDebug } from './hooks/useNodePerfDebug';
 import { useNodeSelectionSync } from './hooks/useNodeSelectionSync';
 import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
 import { nodeCanvasMachine } from './machine';
@@ -59,7 +52,6 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
-const PERF_DEBUG_STORAGE_KEY = 'artifact-debug-perf';
 
 export function NodeCanvas({
   doc,
@@ -105,8 +97,7 @@ export function NodeCanvas({
     input: { selectedNodeIds: selectedLayerId ? [selectedLayerId] : [] },
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const [perfDebugEnabled, setPerfDebugEnabled] = useState(() => isPerfDebugEnabledByDefault());
+  const { perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
 
   // Focused hooks.
   const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
@@ -232,6 +223,23 @@ export function NodeCanvas({
       onAddLayerAt,
     });
 
+  const {
+    selectedAreaId,
+    areaByNodeId,
+    areaActionTargetId,
+    areaActionDisabled,
+    clearSelectedArea,
+    handleCreateAreaFromSelection,
+    handleRemoveArea,
+    handleRemoveNodeFromArea,
+    handleSelectArea,
+  } = useNodeAreaActions({
+    graph,
+    graphRef,
+    selectedNodeIds,
+    onGraphChange,
+  });
+
   // Fit view on first render.
   useEffect(() => {
     if (!fittedRef.current && dragNodes.length > 0 && rfInstanceRef.current) {
@@ -241,85 +249,11 @@ export function NodeCanvas({
   }, [dragNodes.length]);
 
   const onPaneClick = useCallback(() => {
-    setSelectedAreaId(null);
+    clearSelectedArea();
     send({ type: 'PANE_CLICKED' });
-  }, [send]);
+  }, [clearSelectedArea, send]);
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
-  }, []);
-
-  const areaCandidateNodeIds = useMemo(() => selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID), [selectedNodeIds]);
-  const areaByNodeId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const area of graph.areas ?? []) {
-      for (const id of area.nodeIds) map.set(id, area.id);
-    }
-    return map;
-  }, [graph.areas]);
-  const selectedArea = useMemo(
-    () => (selectedAreaId ? (graph.areas ?? []).find((area) => area.id === selectedAreaId) : undefined),
-    [graph.areas, selectedAreaId],
-  );
-  const inferredAreaId = useMemo(() => {
-    const areaIds = [...new Set(areaCandidateNodeIds.map((id) => areaByNodeId.get(id)).filter(Boolean))] as string[];
-    return areaIds.length === 1 ? areaIds[0] : null;
-  }, [areaByNodeId, areaCandidateNodeIds]);
-  const areaActionTargetId = selectedArea?.id ?? inferredAreaId;
-  const ungroupedAreaCandidateNodeIds = useMemo(
-    () => areaCandidateNodeIds.filter((id) => !areaByNodeId.has(id)),
-    [areaByNodeId, areaCandidateNodeIds],
-  );
-  const areaActionNodeIds = areaActionTargetId ? areaCandidateNodeIds : ungroupedAreaCandidateNodeIds;
-  const areaActionDisabled = areaActionNodeIds.length === 0;
-
-  const handleCreateAreaFromSelection = useCallback(() => {
-    if (areaActionDisabled) return;
-    if (areaActionTargetId) {
-      onGraphChange(addNodesToGraphArea(graphRef.current, areaActionTargetId, areaActionNodeIds));
-      setSelectedAreaId(areaActionTargetId);
-      return;
-    }
-    const areaNumber = (graphRef.current.areas?.length ?? 0) + 1;
-    const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
-    onGraphChange(
-      addGraphArea(graphRef.current, {
-        id: `area-${Date.now().toString(36)}`,
-        name: `Area ${areaNumber}`,
-        color,
-        nodeIds: areaActionNodeIds,
-      }),
-    );
-  }, [areaActionDisabled, areaActionNodeIds, areaActionTargetId, onGraphChange]);
-
-  const handleRemoveArea = useCallback(
-    (id: string) => {
-      setSelectedAreaId((current) => (current === id ? null : current));
-      onGraphChange(removeGraphArea(graphRef.current, id));
-    },
-    [onGraphChange],
-  );
-
-  const handleRemoveNodeFromArea = useCallback(
-    (areaId: string, nodeId: string) => {
-      onGraphChange(removeNodesFromGraphArea(graphRef.current, areaId, [nodeId]));
-    },
-    [onGraphChange],
-  );
-
-  const handleSelectArea = useCallback((id: string) => {
-    setSelectedAreaId(id);
-  }, []);
-
-  const handleTogglePerfDebug = useCallback(() => {
-    setPerfDebugEnabled((enabled) => {
-      const next = !enabled;
-      try {
-        localStorage.setItem(PERF_DEBUG_STORAGE_KEY, next ? '1' : '0');
-      } catch {
-        // Debug preferences are best-effort.
-      }
-      return next;
-    });
   }, []);
 
   const handleToggleSelectedLayerVisibility = useCallback(() => {
@@ -619,15 +553,4 @@ function isEditableKeyTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   const tagName = target.tagName.toLowerCase();
   return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable;
-}
-
-function isPerfDebugEnabledByDefault() {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('debug') === 'perf' || params.get('perf') === '1') return true;
-  try {
-    return localStorage.getItem(PERF_DEBUG_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
 }

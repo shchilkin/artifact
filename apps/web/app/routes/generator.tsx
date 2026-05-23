@@ -1,11 +1,10 @@
 import { AnimatePresence } from 'framer-motion';
-import { type CSSProperties, lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { PresetsPanel } from '../components/PresetsPanel';
-import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
@@ -16,8 +15,11 @@ import { useGeneratorExport } from '../hooks/useGeneratorExport';
 import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
 import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
 import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
-import { inferLinearGraph } from '../utils/nodeGraph';
-import { getStarterDocument, LAYER_STARTER_DOCUMENTS } from '../utils/starterDocuments';
+import { getStarterDocument } from '../utils/starterDocuments';
+import { EmptyCanvasStart } from './generator/EmptyCanvasStart';
+import { useGeneratorPanels } from './generator/useGeneratorPanels';
+import { useGeneratorPrimitiveExportState } from './generator/useGeneratorPrimitiveExportState';
+import { type ViewMode, ViewModeToggle } from './generator/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -45,91 +47,10 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   );
 }
 
-type ViewMode = 'layers' | 'nodes';
-
-function EmptyCanvasStart({
-  onImportImage,
-  onStartAiImage,
-  onAddText,
-  onAddNoise,
-  onLoadStarter,
-}: {
-  onImportImage: () => void;
-  onStartAiImage: () => void;
-  onAddText: () => void;
-  onAddNoise: () => void;
-  onLoadStarter: (id: string) => void;
-}) {
-  const firstStarter = LAYER_STARTER_DOCUMENTS[0];
-
-  return (
-    <div className="empty-canvas-start" aria-label="Start a new artifact">
-      <div className="empty-canvas-start-actions">
-        <button type="button" onClick={onImportImage}>
-          Image
-        </button>
-        <button type="button" onClick={onStartAiImage}>
-          AI
-        </button>
-        <button type="button" onClick={onAddText}>
-          Text
-        </button>
-        <button type="button" onClick={onAddNoise}>
-          Noise
-        </button>
-        {firstStarter && (
-          <button type="button" onClick={() => onLoadStarter(firstStarter.id)}>
-            {firstStarter.shortName}
-          </button>
-        )}
-        <Link to="/examples">Examples</Link>
-      </div>
-    </div>
-  );
-}
-
-function ViewModeToggle({
-  value,
-  onChange,
-  variant = 'floating',
-}: {
-  value: ViewMode;
-  onChange: (mode: ViewMode) => void;
-  variant?: 'floating' | 'sidebar';
-}) {
-  const buttonStyle = (active: boolean, side: 'left' | 'right'): CSSProperties => ({
-    minHeight: 'var(--touch)',
-    padding: '0 16px',
-    fontFamily: 'var(--mono)',
-    fontSize: 11,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    background: active ? 'var(--text)' : 'transparent',
-    color: active ? 'var(--bg)' : 'var(--text-dim)',
-    border: '1px solid var(--border)',
-    borderRight: side === 'left' ? 'none' : undefined,
-    borderRadius: 0,
-    transition: 'background 120ms ease-out, color 120ms ease-out',
-  });
-
-  return (
-    <div className={`view-mode-toggle view-mode-toggle-${variant}`}>
-      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>
-        layers
-      </button>
-      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>
-        nodes
-      </button>
-    </div>
-  );
-}
-
 export default function Generator() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
-  const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -139,6 +60,7 @@ export default function Generator() {
     setSelectedLayerId,
     addLayer,
     addEffectPreset,
+    insertLayerAbove,
     addImageFromSource,
     removeLayer,
     deleteNodeSelection,
@@ -171,17 +93,16 @@ export default function Generator() {
     addImageFromSource,
     storeImageAssetSource,
   );
-  const effectivePrimitiveViewStates = useMemo(
-    () => ({
-      ...(doc.graph?.primitiveViewStates ?? {}),
-      ...primitiveViewStates,
-    }),
-    [doc.graph?.primitiveViewStates, primitiveViewStates],
-  );
-  const exportRenderOptions = useMemo(
-    () => ({ primitiveViewStates: effectivePrimitiveViewStates }),
-    [effectivePrimitiveViewStates],
-  );
+  const {
+    effectivePrimitiveViewStates,
+    exportRenderOptions,
+    handlePrimitiveViewStatesChange,
+    resetPrimitiveViewStates,
+  } = useGeneratorPrimitiveExportState({
+    doc,
+    docRef,
+    onGraphChange: handleGraphChange,
+  });
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
   const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
     useDocumentFileTransfer(docRef, loadDocument);
@@ -209,17 +130,12 @@ export default function Generator() {
     onLoadDocument: loadDocument,
   });
 
-  const handlePrimitiveViewStatesChange = useCallback(
-    (next: Record<string, PrimitiveViewportState>) => {
-      setPrimitiveViewStates((current) => (primitiveViewStateMapsEqual(current, next) ? current : next));
-      const currentDoc = docRef.current;
-      const graph = currentDoc.graph ?? inferLinearGraph(currentDoc.layers);
-      const currentPersisted = graph.primitiveViewStates ?? {};
-      if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
-      handleGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers) });
-    },
-    [docRef, handleGraphChange],
-  );
+  const { handleTogglePresets, handleToggleProjects, closePanels } = useGeneratorPanels({
+    closePresets,
+    closeProjects,
+    togglePresets,
+    toggleProjects,
+  });
 
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
@@ -228,16 +144,6 @@ export default function Generator() {
     }, 0);
   }, []);
 
-  const handleTogglePresets = useCallback(() => {
-    closeProjects();
-    togglePresets();
-  }, [closeProjects, togglePresets]);
-
-  const handleToggleProjects = useCallback(() => {
-    closePresets();
-    toggleProjects();
-  }, [closePresets, toggleProjects]);
-
   const handleNewBlankRequest = useCallback(() => {
     if (
       !isBlank &&
@@ -245,24 +151,22 @@ export default function Generator() {
     ) {
       return;
     }
-    closePresets();
-    closeProjects();
+    closePanels();
     handleNewBlank();
-    setPrimitiveViewStates({});
+    resetPrimitiveViewStates();
     setViewMode('layers');
-  }, [closePresets, closeProjects, handleNewBlank, isBlank]);
+  }, [closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
 
   const handleLoadStarter = useCallback(
     (id: string) => {
       const starter = getStarterDocument(id);
       if (!starter) return;
-      closePresets();
-      closeProjects();
+      closePanels();
       loadDocument(cloneDocument(starter.doc));
-      setPrimitiveViewStates({});
+      resetPrimitiveViewStates();
       setViewMode('layers');
     },
-    [closePresets, closeProjects, loadDocument],
+    [closePanels, loadDocument, resetPrimitiveViewStates],
   );
 
   const bottomBarProps = {
@@ -441,6 +345,7 @@ export default function Generator() {
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}
             onAddEffectPreset={addEffectPreset}
+            onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
@@ -478,35 +383,4 @@ export default function Generator() {
       </div>
     </div>
   );
-}
-
-function primitiveViewStateMapsEqual(
-  a: Record<string, PrimitiveViewportState>,
-  b: Record<string, PrimitiveViewportState>,
-) {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => {
-    const left = a[key];
-    const right = b[key];
-    return (
-      right !== undefined &&
-      left.rotationX === right.rotationX &&
-      left.rotationY === right.rotationY &&
-      left.zoom === right.zoom &&
-      left.panX === right.panX &&
-      left.panY === right.panY &&
-      (left.locked ?? false) === (right.locked ?? false)
-    );
-  });
-}
-
-function prunePrimitiveViewStates(
-  viewStates: Record<string, PrimitiveViewportState>,
-  layers: Array<{ id: string; kind: string }>,
-) {
-  const primitiveIds = new Set(layers.filter((layer) => layer.kind === 'primitive').map((layer) => layer.id));
-  const entries = Object.entries(viewStates).filter(([id]) => primitiveIds.has(id));
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

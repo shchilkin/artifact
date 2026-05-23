@@ -30,11 +30,13 @@ import {
   addNodesToGraphArea,
   addRepeatNode,
   appendNodeToExportPath,
+  EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeGraphArea,
+  removeGraphEdge,
   removeLayerFromGraph,
   removeMergeNode,
   removeNodesFromGraphArea,
@@ -137,6 +139,89 @@ export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDoc
   };
 }
 
+function layerInputPort(layer: Layer): GraphEdge['toPort'] {
+  return layer.kind === 'effect' ? 'in' : 'bg';
+}
+
+function expectedLinearGraphEdge(fromId: string, toLayerOrExport: Layer | string) {
+  const toId = typeof toLayerOrExport === 'string' ? toLayerOrExport : toLayerOrExport.id;
+  return {
+    fromId,
+    toId,
+    toPort: typeof toLayerOrExport === 'string' ? 'in' : layerInputPort(toLayerOrExport),
+  };
+}
+
+function isLinearLayerGraph(doc: CanvasDocument): boolean {
+  const graph = doc.graph;
+  if (!graph) return true;
+  if (graph.mergeNodes.length > 0 || (graph.colorNodes?.length ?? 0) > 0 || (graph.repeatNodes?.length ?? 0) > 0)
+    return false;
+  if (graph.edges.length !== doc.layers.length) return false;
+  if (doc.layers.length === 0) return graph.edges.length === 0;
+
+  return doc.layers.every((layer, index) => {
+    const next = doc.layers[index + 1] ?? EXPORT_NODE_ID;
+    const expected = expectedLinearGraphEdge(layer.id, next);
+    return graph.edges.some(
+      (edge) =>
+        edge.fromId === expected.fromId &&
+        edge.fromPort === 'out' &&
+        edge.toId === expected.toId &&
+        edge.toPort === expected.toPort,
+    );
+  });
+}
+
+export function canInsertLayerAbove(doc: CanvasDocument, targetLayerId: string): boolean {
+  return doc.layers.some((layer) => layer.id === targetLayerId) && isLinearLayerGraph(doc);
+}
+
+function insertLayerIntoLinearGraph(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasGraph {
+  const graph = doc.graph ?? inferLinearGraph(doc.layers);
+  const targetIndex = doc.layers.findIndex((item) => item.id === targetLayerId);
+  const nextLayer = doc.layers[targetIndex + 1];
+  const existingEdge = graph.edges.find(
+    (edge) => edge.fromId === targetLayerId && edge.toId === (nextLayer?.id ?? EXPORT_NODE_ID),
+  );
+  const targetPosition = graph.positions[targetLayerId] ?? nextDropPosition(graph);
+  const nextPosition = nextLayer ? graph.positions[nextLayer.id] : graph.positions[EXPORT_NODE_ID];
+  const position = nextPosition
+    ? { x: Math.round((targetPosition.x + nextPosition.x) / 2), y: Math.round((targetPosition.y + nextPosition.y) / 2) }
+    : { x: targetPosition.x + 360, y: targetPosition.y };
+  let nextGraph = addLayerToGraph(graph, layer.id, position);
+
+  if (existingEdge) nextGraph = removeGraphEdge(nextGraph, existingEdge.id);
+  nextGraph = addGraphEdge(nextGraph, {
+    id: `e-${targetLayerId}-${layer.id}`,
+    fromId: targetLayerId,
+    fromPort: 'out',
+    toId: layer.id,
+    toPort: layerInputPort(layer),
+  });
+  nextGraph = addGraphEdge(nextGraph, {
+    id: `e-${layer.id}-${nextLayer?.id ?? EXPORT_NODE_ID}`,
+    fromId: layer.id,
+    fromPort: 'out',
+    toId: nextLayer?.id ?? EXPORT_NODE_ID,
+    toPort: nextLayer ? layerInputPort(nextLayer) : 'in',
+  });
+  return nextGraph;
+}
+
+export function insertLayerAboveInDocument(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasDocument {
+  if (!canInsertLayerAbove(doc, targetLayerId)) return doc;
+  const targetIndex = doc.layers.findIndex((item) => item.id === targetLayerId);
+  const layers = [...doc.layers];
+  layers.splice(targetIndex + 1, 0, layer);
+  if (!doc.graph) return { ...doc, layers };
+  return {
+    ...doc,
+    layers,
+    graph: insertLayerIntoLinearGraph(doc, targetLayerId, layer),
+  };
+}
+
 export function createGraphAreaInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
   const graph = ensureDocumentGraph(doc);
   const areaNumber = (graph.areas?.length ?? 0) + 1;
@@ -189,6 +274,19 @@ export function removeNodesFromGraphAreaInDocument(
     ...doc,
     graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, nodeIds),
   };
+}
+
+export function removeNodesFromAllGraphAreasInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
+  if (!doc.graph?.areas || nodeIds.length === 0) return doc;
+  const idSet = new Set(nodeIds);
+  let next = doc;
+  for (const area of doc.graph.areas) {
+    const areaNodeIds = area.nodeIds.filter((id) => idSet.has(id));
+    if (areaNodeIds.length > 0) {
+      next = removeNodesFromGraphAreaInDocument(next, area.id, areaNodeIds);
+    }
+  }
+  return next;
 }
 
 export function removeGraphAreaInDocument(doc: CanvasDocument, areaId: string): CanvasDocument {
@@ -372,6 +470,38 @@ export function updateLayerInDocument(doc: CanvasDocument, id: string, patch: Pa
   };
 }
 
+export function renameLayerInDocument(doc: CanvasDocument, id: string, name: string): CanvasDocument {
+  const trimmed = name.trim();
+  if (!trimmed) return doc;
+  return updateLayerInDocument(doc, id, { name: trimmed });
+}
+
+export function toggleLayerVisibilityInDocument(doc: CanvasDocument, id: string): CanvasDocument {
+  const layer = doc.layers.find((item) => item.id === id);
+  if (!layer) return doc;
+  return updateLayerInDocument(doc, id, { visible: !layer.visible });
+}
+
+export function setLayersVisibilityInDocument(doc: CanvasDocument, ids: string[], visible: boolean): CanvasDocument {
+  if (ids.length === 0) return doc;
+  const idSet = new Set(ids);
+  return {
+    ...doc,
+    layers: doc.layers.map((layer) => (idSet.has(layer.id) ? { ...layer, visible } : layer)),
+  };
+}
+
+export function replaceSelectedImageSourceInDocument(
+  doc: CanvasDocument,
+  selectedLayerId: string | null,
+  src: string,
+): CanvasDocument {
+  if (!selectedLayerId) return doc;
+  const layer = doc.layers.find((item) => item.id === selectedLayerId);
+  if (layer?.kind !== 'image') return doc;
+  return updateLayerInDocument(doc, selectedLayerId, { src });
+}
+
 export function updateMergeNodeInDocument(
   doc: CanvasDocument,
   id: string,
@@ -407,6 +537,15 @@ export function updateRepeatNodeInDocument(
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
   return { ...doc, layers };
+}
+
+export function reorderDocumentLayersAndRemoveFromGraphArea(
+  doc: CanvasDocument,
+  layers: Layer[],
+  areaId: string,
+  ids: string[],
+): CanvasDocument {
+  return removeLayersFromGraphAreaInDocument(reorderDocumentLayers(doc, layers), areaId, ids);
 }
 
 function cloneLayerForDuplicate(layer: Layer, id: string): Layer {
@@ -451,6 +590,10 @@ export function setDocumentSeed(doc: CanvasDocument, seed: number): CanvasDocume
 
 export function setDocumentAspect(doc: CanvasDocument, aspect: AspectRatio): CanvasDocument {
   return { ...doc, global: { ...doc.global, aspect } };
+}
+
+export function updateGlobalInDocument(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
+  return { ...doc, global: { ...doc.global, ...patch } };
 }
 
 export function setDocumentGraph(doc: CanvasDocument, graph: CanvasGraph): CanvasDocument {
