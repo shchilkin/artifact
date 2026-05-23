@@ -19,6 +19,7 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../utils/aiGenerationStatus';
+import { getAppBuildInfo } from '../utils/appBuildInfo';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
@@ -150,9 +151,8 @@ function aiDebugQueryValue() {
 
 function aiGenerationDebugEnabled() {
   const env = (import.meta as unknown as { env?: Record<string, string | boolean | undefined> }).env;
-  if (!env?.DEV) return;
   return (
-    aiDebugValueIsEnabled(env.VITE_AI_DEBUG) ||
+    aiDebugValueIsEnabled(env?.VITE_AI_DEBUG) ||
     aiDebugValueIsEnabled(aiDebugQueryValue()) ||
     aiDebugValueIsEnabled(aiDebugStorageValue())
   );
@@ -205,6 +205,11 @@ function shortId(id: string | undefined) {
   if (!id) return null;
   if (id.length <= 12) return id;
   return `${id.slice(0, 8)}...${id.slice(-4)}`;
+}
+
+function yesNo(value: boolean | null | undefined) {
+  if (value === undefined || value === null) return 'unknown';
+  return value ? 'yes' : 'no';
 }
 
 function formatGenerationDate(value: string | undefined) {
@@ -266,6 +271,82 @@ function GenerationDiagnostics({
           <code>{value}</code>
         </div>
       ))}
+    </div>
+  );
+}
+
+type AccessCheckState = {
+  state: 'idle' | 'checking' | 'success' | 'failed';
+  checkedAt?: string;
+  message?: string;
+  hasBearerToken?: boolean;
+};
+
+function AiDeveloperDiagnostics({
+  access,
+  accessError,
+  accessCheck,
+  authConfigured,
+  authLoaded,
+  authSignedIn,
+  authUserId,
+  baseUrl,
+  devToken,
+  onRetryAccess,
+}: {
+  access: AiGenerationAccessState | null;
+  accessError: string | null;
+  accessCheck: AccessCheckState;
+  authConfigured: boolean;
+  authLoaded: boolean;
+  authSignedIn: boolean;
+  authUserId: string | null;
+  baseUrl?: string;
+  devToken?: string;
+  onRetryAccess: () => void;
+}) {
+  const build = getAppBuildInfo();
+  const providers = access?.providers?.join(', ');
+  const quota = access?.quota ? `${access.quota.remaining}/${access.quota.limit} ${access.quota.period}` : null;
+  const accessSummary =
+    accessCheck.state === 'checking'
+      ? 'checking'
+      : access
+        ? `enabled=${yesNo(access.enabled)} authenticated=${yesNo(access.authenticated)}${
+            access.disabledReason ? ` reason=${access.disabledReason}` : ''
+          }`
+        : (accessError ?? accessCheck.message ?? accessCheck.state);
+  const rows = [
+    ['version', `${build.version} sha:${build.shortCommitHash}`],
+    ['api', baseUrl ?? 'same-origin'],
+    [
+      'auth',
+      `configured=${yesNo(authConfigured)} loaded=${yesNo(authLoaded)} signedIn=${yesNo(authSignedIn)}${
+        authUserId ? ` user=${shortId(authUserId)}` : ''
+      }`,
+    ],
+    ['token', `dev=${yesNo(Boolean(devToken))} bearer=${yesNo(accessCheck.hasBearerToken)}`],
+    ['access', accessSummary],
+    ['providers', providers],
+    ['quota', quota],
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+
+  return (
+    <div className="ai-generation-dev-diagnostics" aria-label="AI developer diagnostics">
+      <div className="ai-generation-dev-diagnostics-header">
+        <span>AI diagnostics</span>
+        <button type="button" onClick={onRetryAccess} disabled={accessCheck.state === 'checking'}>
+          {accessCheck.state === 'checking' ? 'Checking' : 'Retry'}
+        </button>
+      </div>
+      <div className="ai-generation-dev-diagnostics-rows">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <code>{value}</code>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -332,6 +413,8 @@ export function AiGenerationPanel({
   const [job, setJob] = useState<AiGenerationJob | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [accessCheckNonce, setAccessCheckNonce] = useState(0);
+  const [accessCheck, setAccessCheck] = useState<AccessCheckState>({ state: 'checking' });
   const importedJobIds = useRef(new Set<string>());
   const getBearerTokenRef = useRef<() => Promise<string | undefined>>(async () => undefined);
   const onGeneratedImageSourceRef = useRef<AiGenerationPanelProps['onGeneratedImageSource']>(onGeneratedImageSource);
@@ -347,6 +430,7 @@ export function AiGenerationPanel({
   } = auth;
   const baseUrl = useMemo(() => getAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
+  const diagnosticsEnabled = useMemo(() => aiGenerationDebugEnabled(), []);
   const providers = access?.providers?.length ? access.providers : (['openai'] as AiGenerationProvider[]);
   const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
   const activeJobId = jobIsActive(job) ? job.id : null;
@@ -397,6 +481,14 @@ export function AiGenerationPanel({
     });
     getBearerToken()
       .then((bearerToken) => {
+        if (!controller.signal.aborted) {
+          setAccessCheck({
+            state: 'checking',
+            checkedAt: new Date().toISOString(),
+            message: 'Checking AI access.',
+            hasBearerToken: Boolean(bearerToken),
+          });
+        }
         logAiPanelDebug('access_check.token', {
           authSignedIn,
           authUserId,
@@ -414,6 +506,12 @@ export function AiGenerationPanel({
           });
           setAccess(next);
           setAccessError(null);
+          setAccessCheck((current) => ({
+            ...current,
+            state: 'success',
+            checkedAt: new Date().toISOString(),
+            message: next.enabled ? 'AI access enabled.' : disabledReasonMessage(next.disabledReason),
+          }));
           if (next.providers?.[0]) setProvider(next.providers[0]);
         }
       })
@@ -422,10 +520,16 @@ export function AiGenerationPanel({
           const message = errorMessage(error);
           logAiPanelDebug('access_check.failed', { message });
           setAccessError(message);
+          setAccessCheck((current) => ({
+            ...current,
+            state: 'failed',
+            checkedAt: new Date().toISOString(),
+            message,
+          }));
         }
       });
     return () => controller.abort();
-  }, [authConfigured, authLoaded, authSignedIn, authUserId, baseUrl, devToken, getBearerToken]);
+  }, [accessCheckNonce, authConfigured, authLoaded, authSignedIn, authUserId, baseUrl, devToken, getBearerToken]);
 
   useEffect(() => {
     if (!activeJobId || !activeJobStatus) return;
@@ -549,6 +653,14 @@ export function AiGenerationPanel({
   );
 
   const handleGenerate = useCallback(() => submitGeneration(prompt), [prompt, submitGeneration]);
+  const handleRetryAccessCheck = useCallback(() => {
+    setAccessCheck({
+      state: 'checking',
+      checkedAt: new Date().toISOString(),
+      message: 'Checking AI access.',
+    });
+    setAccessCheckNonce((current) => current + 1);
+  }, []);
 
   const handleRetryGeneration = useCallback(() => {
     if (!latestGenerationPrompt) return;
@@ -609,6 +721,20 @@ export function AiGenerationPanel({
             Create Account
           </button>
         )}
+        {diagnosticsEnabled && (
+          <AiDeveloperDiagnostics
+            access={access}
+            accessError={accessError}
+            accessCheck={accessCheck}
+            authConfigured={authConfigured}
+            authLoaded={authLoaded}
+            authSignedIn={authSignedIn}
+            authUserId={authUserId}
+            baseUrl={baseUrl}
+            devToken={devToken}
+            onRetryAccess={handleRetryAccessCheck}
+          />
+        )}
         <GenerationHistoryNavigator
           history={generationHistory}
           index={generationHistoryIndex}
@@ -628,6 +754,20 @@ export function AiGenerationPanel({
         onSelect={onGenerationHistorySelect}
       />
       <GenerationProvenance generation={generation} />
+      {diagnosticsEnabled && (
+        <AiDeveloperDiagnostics
+          access={access}
+          accessError={accessError}
+          accessCheck={accessCheck}
+          authConfigured={authConfigured}
+          authLoaded={authLoaded}
+          authSignedIn={authSignedIn}
+          authUserId={authUserId}
+          baseUrl={baseUrl}
+          devToken={devToken}
+          onRetryAccess={handleRetryAccessCheck}
+        />
+      )}
       {(canRetryGeneration || canRecoverGeneration) && (
         <div className="ai-generation-actions">
           {canRetryGeneration && (
