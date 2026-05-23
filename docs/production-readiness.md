@@ -21,6 +21,9 @@ CI should run:
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
   WebKit installed. The suite includes desktop projects plus focused mobile
   Chromium/WebKit smoke.
+- GitHub JavaScript actions should run with the Node 24 action runtime opt-in
+  (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) so release checks do not carry
+  the Node.js 20 action-runtime deprecation warning.
 
 ## Manual QA
 
