@@ -658,6 +658,15 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
   await expectLayerCanvasToHavePixels(page);
 
   await page.getByText('Top fill', { exact: true }).click();
+  await page
+    .locator('.layer-row')
+    .filter({ hasText: 'Top fill' })
+    .getByRole('button', { name: 'Hide layer Top fill' })
+    .click();
+
+  await expect
+    .poll(() => page.locator('.layer-row-hidden').evaluate((row) => Number(getComputedStyle(row).opacity)))
+    .toBeLessThan(0.9);
 
   const hierarchy = await page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -665,6 +674,8 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
     const sidebar = document.querySelector('.sidebar');
     const main = document.querySelector('.main');
     const row = document.querySelector('.layer-row.bg-accent-dim');
+    const hiddenRow = document.querySelector('.layer-row-hidden');
+    const hiddenName = hiddenRow?.querySelector('span:nth-child(3)');
     const canvas = document.querySelector('.pixi-container canvas');
     return {
       tokens: [
@@ -678,6 +689,9 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
       mainBg: main ? getComputedStyle(main).backgroundColor : '',
       selectedRowBg: row ? getComputedStyle(row).backgroundColor : '',
       selectedRowShadow: row ? getComputedStyle(row).boxShadow : '',
+      selectedRowClasses: row ? Array.from(row.classList) : [],
+      hiddenRowOpacity: hiddenRow ? getComputedStyle(hiddenRow).opacity : '',
+      hiddenRowDecoration: hiddenName ? getComputedStyle(hiddenName).textDecorationLine : '',
       canvasShadow: canvas ? getComputedStyle(canvas).boxShadow : '',
     };
   });
@@ -686,7 +700,44 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
   expect(hierarchy.sidebarBg).not.toBe(hierarchy.mainBg);
   expect(hierarchy.selectedRowBg).not.toBe(hierarchy.sidebarBg);
   expect(hierarchy.selectedRowShadow).not.toBe('none');
+  expect(hierarchy.selectedRowClasses).toEqual(expect.arrayContaining(['layer-row-selected', 'layer-row-hidden']));
+  expect(Number(hierarchy.hiddenRowOpacity)).toBeLessThan(0.9);
+  expect(hierarchy.hiddenRowDecoration).toContain('line-through');
   expect(hierarchy.canvasShadow).not.toBe('none');
+});
+
+test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-fill')).toBeVisible({ timeout: 15_000 });
+
+  await page.locator('.node-shell-kind-fill').first().click();
+  await expect(page.locator('.node-shell-kind-fill').first()).toHaveClass(/node-shell-selected/);
+
+  await page.locator('.node-area-select').first().click();
+  await expect(page.locator('.node-area').first()).toHaveClass(/node-area-selected/);
+
+  await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
+  const stateStyles = await page.evaluate(() => {
+    const node = document.querySelector('.node-shell-selected');
+    const nodeHeader = node?.querySelector('.node-shell-header');
+    const area = document.querySelector('.node-area-selected');
+    const areaLabel = area?.querySelector('.node-area-label');
+    const perf = document.querySelector('.node-canvas-toolbar button[aria-pressed="true"]');
+    return {
+      selectedNodeShadow: node ? getComputedStyle(node).boxShadow : '',
+      selectedNodeHeaderBg: nodeHeader ? getComputedStyle(nodeHeader).backgroundColor : '',
+      selectedAreaShadow: area ? getComputedStyle(area).boxShadow : '',
+      selectedAreaLabelBg: areaLabel ? getComputedStyle(areaLabel).backgroundColor : '',
+      perfActiveShadow: perf ? getComputedStyle(perf).boxShadow : '',
+    };
+  });
+
+  expect(stateStyles.selectedNodeShadow).not.toBe('none');
+  expect(stateStyles.selectedNodeHeaderBg).not.toBe('');
+  expect(stateStyles.selectedAreaShadow).not.toBe('none');
+  expect(stateStyles.selectedAreaLabelBg).not.toBe('');
+  expect(stateStyles.perfActiveShadow).not.toBe('none');
 });
 
 test('layer visibility updates the rendered canvas', async ({ page }) => {
@@ -1660,10 +1711,13 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
   await expect(folder.locator('.layer-graph-helper-row')).toContainText('Merge');
 
   await folder.getByRole('button', { name: /Collapse Area 1/ }).click();
+  await expect(folder).toHaveClass(/layer-area-folder-collapsed/);
+  await expect(folder.locator('.layer-area-folder-note')).toBeHidden();
   await expect(folder.locator('.layer-row-nested')).toHaveCount(0);
   await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(0);
 
   await folder.getByRole('button', { name: /Expand Area 1/ }).click();
+  await expect(folder).not.toHaveClass(/layer-area-folder-collapsed/);
   await expect(folder.locator('.layer-row-nested')).toHaveCount(1);
   await expect(folder.locator('.layer-graph-helper-row')).toHaveCount(1);
 });

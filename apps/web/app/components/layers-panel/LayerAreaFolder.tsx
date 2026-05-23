@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
 import { GraphHelperRow } from './GraphHelperRow';
 import type { LayerInsertAction } from './LayerQuickAddMenu';
@@ -65,9 +66,14 @@ export function LayerAreaFolder({
   onRemoveNodesFromArea,
 }: LayerAreaFolderProps) {
   const hasVisibleLayer = layers.some((layer) => layer.visible);
+  const areaStyle = { '--layer-area-color': area.color } as CSSProperties;
 
   return (
-    <div className="layer-area-folder">
+    <div
+      className={`layer-area-folder${collapsed ? ' layer-area-folder-collapsed' : ''}`}
+      data-area-collapsed={collapsed ? 'true' : 'false'}
+      style={areaStyle}
+    >
       <div
         className="layer-area-folder-header"
         title={`${layers.length} layer${layers.length === 1 ? '' : 's'}${
