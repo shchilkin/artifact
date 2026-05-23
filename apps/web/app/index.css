@@ -1583,6 +1583,76 @@ input[type="range"] {
   overflow-wrap: anywhere;
 }
 
+.ai-generation-dev-diagnostics {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in oklch, var(--accent) 36%, var(--border));
+  background: color-mix(in oklch, var(--accent) 5%, var(--surface-input));
+  padding: 9px 10px;
+}
+
+.ai-generation-dev-diagnostics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-generation-dev-diagnostics-header span {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-header button {
+  min-height: 28px;
+  border: 1px solid color-mix(in oklch, var(--accent) 44%, var(--border));
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  padding: 0 9px;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-header button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.ai-generation-dev-diagnostics-rows {
+  display: grid;
+  gap: 5px;
+}
+
+.ai-generation-dev-diagnostics-rows div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.ai-generation-dev-diagnostics-rows span {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-rows code {
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
 .ai-generation-panel textarea,
 .ai-generation-panel select {
   width: 100%;

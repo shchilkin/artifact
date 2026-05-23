@@ -1231,7 +1231,39 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   );
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
   await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
+  await expect(page.locator('.ai-generation-dev-diagnostics')).toHaveCount(0);
   await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
+});
+
+test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
+  await mockAiAccess(page, {
+    authenticated: false,
+    enabled: false,
+    disabledReason: 'anonymous',
+    providers: ['openai'],
+  });
+
+  await page.goto('/app?new=blank&debug=ai');
+  await switchToNodeView(page);
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('ai image');
+  await page.getByRole('button', { name: /^◧ AI Image/ }).click();
+
+  const panel = page.locator('.node-props-panel');
+  const diagnostics = panel.locator('.ai-generation-dev-diagnostics');
+  await expect(diagnostics).toBeVisible({ timeout: 15_000 });
+  await expect(diagnostics).toContainText('AI diagnostics');
+  await expect(diagnostics).toContainText(/v[0-9].*sha:/);
+  await expect(diagnostics).toContainText('api');
+  await expect(diagnostics).toContainText('auth');
+  await expect(diagnostics).toContainText('configured=no');
+  await expect(diagnostics).toContainText('token');
+  await expect(diagnostics).toContainText('dev=no');
+  await expect(diagnostics).toContainText('access');
+  await expect(diagnostics).toContainText('reason=anonymous');
+
+  await diagnostics.getByRole('button', { name: 'Retry' }).click();
+  await expect(diagnostics).toContainText('reason=anonymous');
 });
 
 test('AI image node shows generation progress on the node surface', async ({ page }) => {
@@ -1286,24 +1318,28 @@ test('AI image node keeps generated image history and can switch variants', asyn
   await expect(panel.locator('.ai-generation-history-count')).toHaveText('2/2');
   await expect(aiNode.locator('.node-ai-history-badge')).toHaveText('2/2');
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-history-layer');
-        const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
-        return {
-          historyCount: image?.aiGenerationHistory?.length,
-          index: image?.aiGenerationHistoryIndex,
-          prompt: image?.aiGeneration?.prompt,
-          srcMatchesSelectedVariant: Boolean(selectedVariant?.src && image?.src === selectedVariant.src),
-        };
-      }),
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-history-layer');
+          const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
+          return {
+            historyCount: image?.aiGenerationHistory?.length,
+            index: image?.aiGenerationHistoryIndex,
+            prompt: image?.aiGeneration?.prompt,
+            generationMatchesSelectedVariant: Boolean(
+              selectedVariant?.aiGeneration?.jobId && image?.aiGeneration?.jobId === selectedVariant.aiGeneration.jobId,
+            ),
+          };
+        }),
+      { timeout: 15_000 },
     )
     .toEqual({
       historyCount: 2,
       index: 1,
       prompt: 'second generated cover',
-      srcMatchesSelectedVariant: true,
+      generationMatchesSelectedVariant: true,
     });
 
   await panel.getByRole('button', { name: 'Previous generated image' }).click();
