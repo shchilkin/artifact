@@ -14,6 +14,12 @@ Related architecture docs:
 - [`production-readiness.md`](./production-readiness.md)
 - [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
+Current active version plan:
+
+- [`version-plans/v0.16.md`](./version-plans/v0.16.md) — editor workflow
+  polish, CI/release hygiene, layer/node state clarity, and optional AI
+  diagnostics.
+
 ## Product summary
 
 Artifact is a browser-based creative image/poster generator for indie musicians
@@ -366,6 +372,12 @@ Current shipped baseline:
   the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser
   smoke tests, thumbnail signatures, and node-editor performance tooling.
+
+Current near-term focus:
+
+- `v0.16`: editor workflow polish. Keep v0.15 render/browser confidence, then
+  improve layer/node state clarity, layer-first ergonomics, optional AI
+  diagnostics, and release hygiene without changing render semantics.
 
 ### v0.11: Layer Workflow And Onboarding
 
