@@ -55,10 +55,20 @@ export const LayerRow = memo(function LayerRow({
     layer.kind === 'image'
       ? Math.min(Math.max((layer as ImageLayer).aiGenerationHistoryIndex ?? aiHistoryCount - 1, 0), aiHistoryCount - 1)
       : 0;
+  const stateClassNames = [
+    selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50',
+    dragOver ? 'border-t-2 border-t-accent layer-row-drop-target' : '',
+    nested ? 'layer-row-nested' : '',
+    layer.visible ? '' : 'layer-row-hidden',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
       draggable
+      aria-selected={selected}
+      data-layer-visible={layer.visible ? 'true' : 'false'}
       onDragStart={() => onDragStart(layer.id)}
       onDragOver={(event) => {
         event.preventDefault();
@@ -75,9 +85,7 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
-        selected ? 'bg-accent-dim' : 'hover:bg-accent-dim/50'
-      } ${dragOver ? 'border-t-2 border-t-accent' : ''} ${nested ? 'layer-row-nested' : ''}`}
+      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
       <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
       <span
@@ -140,6 +148,7 @@ export const LayerRow = memo(function LayerRow({
         <button
           type="button"
           className="layer-row-action"
+          aria-pressed={layer.visible}
           onClick={(event) => {
             event.stopPropagation();
             onStartEditing(layer.id);
