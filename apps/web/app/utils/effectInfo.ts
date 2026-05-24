@@ -1,4 +1,4 @@
-import type { CanvasDocument, EffectLayer } from '../types/config';
+import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
 import { DEFAULT_EXPORT, makeEmojiLayer } from '../types/config';
 import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 import { renderDocument } from './renderer';
@@ -241,8 +241,8 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   grain: {
     title: 'Film Grain',
     description: 'Noise layered at overlay blend mode, adds organic texture.',
-    valueLabel: 'grain 50',
-    cfgOverride: { grain: 50 },
+    valueLabel: 'grain 28%',
+    cfgOverride: { grain: 28 },
   },
   scanlines: {
     title: 'Scanlines',
@@ -265,8 +265,8 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   dither: {
     title: 'Dither',
     description: 'Ordered Bayer dithering that visibly reduces tone steps.',
-    valueLabel: 'dither 80',
-    cfgOverride: { dither: 80 },
+    valueLabel: 'dither 38%',
+    cfgOverride: { dither: 38 },
   },
   emboss: {
     title: 'Emboss',
@@ -402,10 +402,10 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   },
   pixelate: {
     title: 'Pixelate',
-    description: 'Mosaic pixelation. Larger values produce bigger blocks.',
-    valueLabel: 'block 8',
+    description: 'Whole-image low-resolution block treatment. Larger values produce bigger pixel blocks.',
+    valueLabel: 'block 6px',
     goodFor: 'lo-fi exports, pixel art, intentional low-resolution moods',
-    cfgOverride: { pixelate: 8 },
+    cfgOverride: { pixelate: 6 },
   },
   posterize: {
     title: 'Posterize',
@@ -467,8 +467,8 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   risoShift: {
     title: 'Misregistration',
     description: 'Print misregistration offset: a double-exposed riso print look.',
-    valueLabel: 'shift 22',
-    cfgOverride: { risoShift: 22, risoAngle: 30 },
+    valueLabel: 'shift 14px',
+    cfgOverride: { risoShift: 14, risoAngle: 30 },
   },
   risoAngle: {
     title: 'Misreg Angle',
@@ -514,10 +514,25 @@ export const EFFECT_META: Record<string, EffectMeta> = {
 const THUMB_SIZE = 200;
 const thumbCache = new Map<string, string>();
 
-export async function renderEffectThumb(key: string): Promise<string> {
-  if (thumbCache.has(key)) return thumbCache.get(key)!;
+const EFFECT_THUMB_KEY_ALIASES: Partial<Record<EffectPreset, string>> = {
+  tint: 'tintOp',
+  morph: 'morphAmt',
+  tear: 'tearAmt',
+  wave: 'waveAmt',
+  ripple: 'rippleAmt',
+  squeeze: 'squeezeX',
+  splitTone: 'splitToneAmt',
+};
 
-  const meta = EFFECT_META[key];
+export function resolveEffectThumbKey(key: string) {
+  return EFFECT_META[key] ? key : (EFFECT_THUMB_KEY_ALIASES[key as EffectPreset] ?? key);
+}
+
+export async function renderEffectThumb(key: string): Promise<string> {
+  const thumbKey = resolveEffectThumbKey(key);
+  if (thumbCache.has(thumbKey)) return thumbCache.get(thumbKey)!;
+
+  const meta = EFFECT_META[thumbKey];
   if (!meta) return '';
 
   const doc: CanvasDocument = {
@@ -528,6 +543,6 @@ export async function renderEffectThumb(key: string): Promise<string> {
 
   const canvas = await renderDocument(doc, THUMB_SIZE, THUMB_SIZE, new Map());
   const url = canvas.toDataURL('image/jpeg', 0.8);
-  thumbCache.set(key, url);
+  thumbCache.set(thumbKey, url);
   return url;
 }

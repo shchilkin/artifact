@@ -6,6 +6,7 @@ import { InspectorLabel } from './InspectorLabel';
 export function InspectorSlider({
   label,
   value,
+  valueLabel,
   min,
   max,
   step = 1,
@@ -17,6 +18,7 @@ export function InspectorSlider({
 }: {
   label: string;
   value: number;
+  valueLabel?: string;
   min: number;
   max: number;
   step?: number;
@@ -51,7 +53,7 @@ export function InspectorSlider({
             </NoPan>
           )}
         </span>
-        <span className="node-inspector-value">{value}</span>
+        <span className="node-inspector-value">{valueLabel ?? value}</span>
       </div>
       <div className="node-slider-row">
         <input

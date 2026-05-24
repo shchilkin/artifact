@@ -65,7 +65,7 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   grain: {
     description:
       'Photographic overlay grain across the full frame. For editable texture branches, use a Noise source set to Film Grain.',
-    params: [{ key: 'grain', range: '0-100 amount' }],
+    params: [{ key: 'grain', range: '0-50 slider, 0-100 manual amount' }],
   },
   scanlines: {
     description: 'CRT phosphor bands with adjustable opacity and thickness.',
@@ -118,8 +118,8 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     params: [{ key: 'vignette', range: '0-100' }],
   },
   pixelate: {
-    description: 'Downscale then upscale for pixel block texture.',
-    params: [{ key: 'pixelate', range: '0-100' }],
+    description: 'Downscale then upscale the whole image for a deliberate low-resolution block treatment.',
+    params: [{ key: 'pixelate', range: '0-20px slider, 0-80px manual block size' }],
   },
   posterize: {
     description: 'Quantize color values to a fixed step count.',
@@ -135,12 +135,12 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   },
   halftone: {
     description: 'Simulate print dots at configurable frequency.',
-    params: [{ key: 'halftone', range: '0-100' }],
+    params: [{ key: 'halftone', range: '0-30px dot scale' }],
   },
   risoShift: {
     description: 'Color channels shifted as if mis-fed through a press.',
     params: [
-      { key: 'risoShift', range: '0-100' },
+      { key: 'risoShift', range: '0-24px slider, 0-60px manual shift' },
       { key: 'risoAngle', range: '0-360' },
     ],
   },
@@ -181,7 +181,7 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   },
   dither: {
     description: 'Bayer ordered dithering reduces the color palette visibly.',
-    params: [{ key: 'dither', range: '0-100' }],
+    params: [{ key: 'dither', range: '0-70 slider, 0-100 manual amount' }],
   },
   infrared: {
     description: 'Channel swap shifts green to red, simulating IR film.',

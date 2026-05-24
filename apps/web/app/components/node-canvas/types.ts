@@ -191,6 +191,7 @@ export interface PaneMenuProps {
   y: number;
   mode: 'add' | 'insert';
   onAdd: (action: AddAction) => void;
+  onDragAdd?: (action: AddAction, point: { x: number; y: number }) => boolean;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
 }

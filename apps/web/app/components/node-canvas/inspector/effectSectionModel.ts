@@ -59,7 +59,7 @@ export function effectSectionSummary(layer: EffectLayer, section: EffectSectionI
       if (preset === 'dither') return `${layer.dither}% dither`;
       if (preset === 'emboss') return `${layer.emboss}% emboss`;
       if (preset === 'linocut') return `${layer.linocut}% lino`;
-      return `${layer.grain} grain`;
+      return `${layer.grain}% grain`;
     case 'tint':
       return `${layer.tintOp}%`;
     case 'warp':
@@ -78,7 +78,7 @@ export function effectSectionSummary(layer: EffectLayer, section: EffectSectionI
     case 'color':
       if (preset === 'rgbSplit') return `${layer.rgbSplit} split`;
       if (preset === 'vignette') return `${layer.vignette}% vignette`;
-      if (preset === 'pixelate') return `${layer.pixelate}px`;
+      if (preset === 'pixelate') return `${layer.pixelate}px blocks`;
       if (preset === 'posterize') return `${layer.posterize} bands`;
       if (preset === 'sepia') return `${layer.sepia}% sepia`;
       if (preset === 'infrared') return `${layer.infrared}% infrared`;

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS } from '../types/config';
-import { randomDocument, randomEffectLayer, randomEmojiLayer, randomGlobal, zeroLayerSection } from './randomConfig';
+import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS, makeEffectPresetLayer } from '../types/config';
+import {
+  randomDocument,
+  randomEffectLayer,
+  randomEmojiLayer,
+  randomGlobal,
+  randomLayerSection,
+  zeroLayerSection,
+} from './randomConfig';
 
 describe('randomGlobal', () => {
   it('returns a valid GlobalConfig with hex bg and numeric seed in [0, 999999]', () => {
@@ -193,5 +200,28 @@ describe('zeroLayerSection', () => {
   it('unknown section returns empty object', () => {
     const result = zeroLayerSection('UNKNOWN');
     expect(result).toEqual({});
+  });
+});
+
+describe('randomLayerSection', () => {
+  it('keeps texture and print randomization inside useful creative ranges', () => {
+    const grainLayer = makeEffectPresetLayer('grain');
+    const pixelLayer = makeEffectPresetLayer('pixelate');
+    const risoLayer = makeEffectPresetLayer('risoShift');
+
+    for (let i = 0; i < 50; i += 1) {
+      const texture = randomLayerSection(grainLayer, 'TEXTURE');
+      const color = randomLayerSection(pixelLayer, 'COLORFX');
+      const riso = randomLayerSection(risoLayer, 'RISO');
+
+      expect(texture.grain).toBeGreaterThanOrEqual(0);
+      expect(texture.grain).toBeLessThanOrEqual(42);
+      expect(texture.dither).toBeGreaterThanOrEqual(0);
+      expect(texture.dither).toBeLessThanOrEqual(50);
+      expect(color.pixelate).toBeGreaterThanOrEqual(0);
+      expect(color.pixelate).toBeLessThanOrEqual(10);
+      expect(riso.risoShift).toBeGreaterThanOrEqual(0);
+      expect(riso.risoShift).toBeLessThanOrEqual(18);
+    }
   });
 });

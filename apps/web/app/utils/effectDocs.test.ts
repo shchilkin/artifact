@@ -20,4 +20,11 @@ describe('effectDocs', () => {
     expect(EFFECT_FAMILY_GUIDE.map((family) => family.name)).toContain('Texture');
     expect(EFFECT_FAMILY_GUIDE.map((family) => family.name)).toContain('Signal Damage');
   });
+
+  it('documents the focused creative ranges for texture, pixel, and print effects', () => {
+    expect(EFFECT_DOCS.grain.params.find((param) => param.key === 'grain')?.range).toContain('0-50 slider');
+    expect(EFFECT_DOCS.dither.params.find((param) => param.key === 'dither')?.range).toContain('0-70 slider');
+    expect(EFFECT_DOCS.pixelate.params.find((param) => param.key === 'pixelate')?.range).toContain('block size');
+    expect(EFFECT_DOCS.risoShift.params.find((param) => param.key === 'risoShift')?.range).toContain('0-24px slider');
+  });
 });

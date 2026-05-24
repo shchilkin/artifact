@@ -105,7 +105,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = { dataMosh: rand(10, 70) };
       break;
     case 'grain':
-      overrides = { grain: rand(10, 60) };
+      overrides = { grain: rand(8, 42) };
       break;
     case 'scanlines':
       overrides = { scanlines: rand(5, 80), scanlineWidth: rand(1, 4) };
@@ -138,7 +138,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = { vignette: rand(0, 80) };
       break;
     case 'pixelate':
-      overrides = { pixelate: rand(2, 15) };
+      overrides = { pixelate: rand(2, 10) };
       break;
     case 'posterize':
       overrides = { posterize: rand(3, 12) };
@@ -154,7 +154,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = { halftone: rand(5, 20) };
       break;
     case 'risoShift':
-      overrides = { risoShift: rand(5, 30), risoAngle: rand(0, 360) };
+      overrides = { risoShift: rand(4, 18), risoAngle: rand(0, 360) };
       break;
     case 'blur':
       overrides = { blurAmt: rand(10, 70) };
@@ -186,7 +186,7 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
       overrides = { vhsTracking: rand(10, 60) };
       break;
     case 'dither':
-      overrides = { dither: rand(25, 80) };
+      overrides = { dither: rand(18, 54) };
       break;
     case 'infrared':
       overrides = { infrared: rand(40, 90) };
@@ -298,12 +298,12 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
       };
     case 'TEXTURE':
       return {
-        grain: rand(0, 60),
+        grain: rand(0, 42),
         scanlines: rand(0, 80),
         scanlineWidth: rand(1, 4),
         blurAmt: Math.random() < 0.4 ? rand(0, 60) : 0,
         matte: Math.random() < 0.35 ? rand(10, 60) : 0,
-        dither: Math.random() < 0.25 ? rand(20, 75) : 0,
+        dither: Math.random() < 0.25 ? rand(15, 50) : 0,
         emboss: Math.random() < 0.2 ? rand(20, 80) : 0,
         linocut: Math.random() < 0.2 ? rand(20, 80) : 0,
       };
@@ -333,7 +333,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
         hueShift: spark() ? rand(10, 350) : 0,
         rgbSplit: spark() ? rand(3, 25) : 0,
         vignette: rand(0, 80),
-        pixelate: spark() ? rand(2, 15) : 0,
+        pixelate: spark() ? rand(2, 10) : 0,
         posterize: spark() ? rand(3, 12) : 0,
         threshold: Math.random() < 0.2 ? rand(30, 70) : 0,
         edgeDetect: Math.random() < 0.2 ? rand(30, 80) : 0,
@@ -351,7 +351,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
         duoA: randomHsl(h, [30, 60], [3, 12]),
         duoB: randomHsl(ah, [60, 100], [55, 85]),
         halftone: Math.random() < 0.5 ? rand(5, 20) : 0,
-        risoShift: Math.random() < 0.5 ? rand(5, 30) : 0,
+        risoShift: Math.random() < 0.5 ? rand(4, 18) : 0,
         risoAngle: rand(0, 360),
         overprint: Math.random() < 0.3 ? rand(10, 55) : 0,
       };

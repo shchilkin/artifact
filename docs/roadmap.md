@@ -16,9 +16,11 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.16.md`](./version-plans/v0.16.md) — editor workflow
-  polish, CI/release hygiene, layer/node state clarity, and optional AI
-  diagnostics.
+- [`version-plans/v0.17.md`](./version-plans/v0.17.md) — editor creative
+  controls, shared Add Library, useful texture/print ranges, Pixelate as a
+  focused low-resolution workflow, and renderer-backed menu previews. Local
+  release validation has passed for `v0.17.0`; the next planning pass should
+  start from `v0.18`.
 
 ## Product summary
 
@@ -375,9 +377,9 @@ Current shipped baseline:
 
 Current near-term focus:
 
-- `v0.16`: editor workflow polish. Keep v0.15 render/browser confidence, then
-  improve layer/node state clarity, layer-first ergonomics, optional AI
-  diagnostics, and release hygiene without changing render semantics.
+- `v0.17`: editor creative controls and shared Add Library. Keep render/export
+  semantics stable while making effect controls, menu search, and add flows feel
+  like creative tooling instead of engineering configuration.
 
 ### v0.11: Layer Workflow And Onboarding
 
@@ -636,6 +638,59 @@ Exit criteria:
 Current status: the local release gate for `v0.15.0` has passed with
 `npm run check`, `npm run build`, and `npm run test:browser`.
 
+### v0.16: Editor Workflow Polish
+
+Detailed plan: [`version-plans/v0.16.md`](./version-plans/v0.16.md).
+
+Goal: make the editor state clearer and the release/debug path quieter without
+changing document semantics, graph traversal, thumbnails, AI alpha scope, or
+export behavior.
+
+Release stance:
+
+- [x] Strengthen layer selected, hidden, focused, hover, disabled, active, drag,
+  and drop-target states.
+- [x] Improve node contrast for selected nodes, muted nodes, graph areas,
+  handles, toolbar actions, and canvas chrome.
+- [x] Add the first editor visual-system contract and centralize foundation,
+  semantic, and node-card tokens.
+- [x] Keep normal console output quiet with a single styled build/version entry.
+- [x] Add opt-in AI diagnostics that expose safe status only when explicitly
+  enabled.
+- [x] Run the release gate before cutting `v0.16.0`.
+
+Current status: the local release gate for `v0.16.0` passed, and release notes
+live in [`releases/v0.16.0.md`](./releases/v0.16.0.md).
+
+### v0.17: Editor Creative Controls
+
+Detailed plan: [`version-plans/v0.17.md`](./version-plans/v0.17.md).
+
+Goal: make effect controls and add menus feel like creative tooling while
+preserving document semantics, renderer/export behavior, graph traversal,
+thumbnail scheduling, and AI alpha scope.
+
+Release stance:
+
+- [x] Format effect slider values with readable units and useful creative
+  ranges.
+- [x] Lower destructive defaults and random ranges for Grain, Dither, Pixelate,
+  and Misregistration.
+- [x] Present Pixelate as a focused low-resolution workflow without a schema
+  migration or new graph node type.
+- [x] Replace long add dropdowns with the shared Add Library across Layers and
+  Nodes.
+- [x] Add Add Library search, categories, recent/popular starts, and
+  drag-to-canvas for Nodes.
+- [x] Render Add Library hover/detail previews through cached renderer output
+  so menu preview follows the output mental model.
+- [x] Run the release gate before cutting `v0.17.0`.
+
+Current status: the local release gate for `v0.17.0` has passed with
+`npm run check`, `npm run build`, `npm run test:browser`, and
+`npm run perf:node-editor`. Release notes live in
+[`releases/v0.17.0.md`](./releases/v0.17.0.md).
+
 ### Experimental Track
 
 These ideas are promising but should not block editor reliability:
@@ -660,15 +715,15 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-The next product pass should start from `v0.16` planning now that `v0.15` has
-closed the visual hierarchy and cross-browser confidence gate. The v0.13 AI
-alpha can continue in parallel for operations and reliability work.
+The next product pass should start from `v0.18` planning now that `v0.17` has
+closed the creative-controls and Add Library gate. The v0.13 AI alpha can
+continue in parallel for operations and reliability work.
 
 Recommended order:
 
 1. Review the remaining product gaps from the editor, AI, examples, and export
    tracks.
-2. Pick one narrow `v0.16` theme with explicit non-goals.
+2. Pick one narrow `v0.18` theme with explicit non-goals.
 3. Write a version plan before moving implementation scope into the release.
 
 ## Non-goals for now

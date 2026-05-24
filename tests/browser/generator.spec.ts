@@ -637,6 +637,7 @@ function isBenignBrowserTestIssue(text: string) {
     text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
     text.includes('due to access control checks') ||
     text.includes('NS_BINDING_ABORTED') ||
+    text.includes('Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)') ||
     text === 'JSHandle@object'
   );
 }
@@ -839,6 +840,42 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
     ]);
 });
 
+test('layer add library supports search keyboard add and recent items', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeVisible({ timeout: 15_000 });
+  await search.fill('pixelate');
+  await search.press('Enter');
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Pixelate' })).toHaveCount(1, { timeout: 15_000 });
+
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await expect(menu).toContainText('Recent');
+  await expect(menu.locator('.add-library-section').filter({ hasText: 'Recent' })).toContainText('Pixelate');
+  await expect(menu.locator('.add-library-detail')).toBeVisible();
+  await expect(menu.locator('img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
+});
+
+test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
+  await page.getByRole('button', { name: /Pixelate/i }).click();
+
+  const pixelateRow = page.locator('.layer-row').filter({ hasText: 'Pixelate' }).first();
+  await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
+  await pixelateRow.click();
+  await expect(page.locator('.sidebar')).toContainText('Block Size');
+  await expect(page.locator('.sidebar .node-inspector-value')).toContainText('6px');
+  await expectLayerCanvasToHavePixels(page);
+});
+
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerTextEffectDragDocument))}`);
   await page.getByText('Drag text', { exact: true }).click();
@@ -877,7 +914,11 @@ test('layers added after graph bootstrap connect into the export path', async ({
 
   const header = page.locator('.layer-panel-header');
   await header.getByRole('button', { name: 'Add layer' }).click();
-  await header.getByRole('button', { name: /fill/i }).click();
+  await page
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Fill$/ }) })
+    .first()
+    .click();
 
   await expect
     .poll(
@@ -1213,6 +1254,42 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 
   await page.getByLabel('Search nodes and effects').fill('ai image');
   await expect(page.getByRole('button', { name: /^◧ AI Image/ })).toBeVisible();
+
+  await page.getByLabel('Search nodes and effects').fill('split tone');
+  await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
+});
+
+test('node add menu can add Pixelate with the shared formatted controls', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('pixelate');
+  await expect(page.locator('.add-library-node-menu img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: /^▦ Pixelate/ }).click();
+
+  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
+  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-props-panel')).toContainText('Block Size');
+  await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
+  await switchToLayerView(page);
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('node add menu can drag an effect onto the canvas', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('pixelate');
+
+  await page.getByRole('button', { name: /^▦ Pixelate/ }).dragTo(page.locator('.react-flow__pane'), {
+    targetPosition: { x: 520, y: 320 },
+  });
+
+  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
+  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.add-library-node-menu')).toHaveCount(0);
 });
 
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
