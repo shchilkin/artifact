@@ -16,16 +16,27 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.18.md`](./version-plans/v0.18.md) — Add Library workflow:
-  category browsing, local favorites, stronger menu navigation, and continued
-  Layers/Nodes parity without changing document or render semantics.
+- [`version-plans/v0.19.md`](./version-plans/v0.19.md) — Node Graph Usability:
+  active output-path readability, selected-node clarity, graph navigation, and
+  continued Layers/Nodes parity without changing document or render semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.18.md`](./version-plans/v0.18.md) — Add Library workflow:
+  category browsing, local favorites, stronger menu navigation, use-case tags,
+  intent-aware search, and continued Layers/Nodes parity. Released as
+  `v0.18.0`.
 - [`version-plans/v0.17.md`](./version-plans/v0.17.md) — editor creative
   controls, shared Add Library, useful texture/print ranges, Pixelate as a
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
+
+Next strong candidate:
+
+- **Text Workflow v1** — typography presets, better font browsing, text layout
+  starts, multi-font cover workflows, and text effect chains. This remains a
+  first-class editor direction and is the preferred `v0.20` candidate after
+  graph usability.
 
 ## Product summary
 
@@ -89,6 +100,11 @@ These can mostly stay browser-only and fit the current architecture:
 - Voice/music visualizer node using browser audio input or uploaded audio.
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
+
+Near-term sequencing note: `v0.19` focuses on node graph usability. Text and
+font work remains intentionally preserved as the preferred `v0.20` candidate so
+typography can get its own coherent product slice instead of being squeezed into
+graph navigation work.
 
 ### Content And Learning
 

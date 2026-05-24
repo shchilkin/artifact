@@ -72,6 +72,7 @@ export interface NodeShellProps {
   label: string;
   name: string;
   selected?: boolean;
+  outputPath?: boolean;
   muted?: boolean;
   expanded?: boolean;
   expandable?: boolean;
@@ -85,6 +86,7 @@ export type LayerNodeData = {
   layer: Layer;
   previewTargetId: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
   primitiveViewState?: PrimitiveViewportState;
@@ -95,6 +97,7 @@ export type MergeNodeData = {
   mergeNode: GraphMergeNode;
   previewTargetId: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
 };
@@ -103,6 +106,7 @@ export type ColorNodeData = {
   colorNode: GraphColorNode;
   previewTargetId: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
 };
@@ -111,6 +115,7 @@ export type RepeatNodeData = {
   repeatNode: GraphRepeatNode;
   previewTargetId: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
 };
@@ -120,6 +125,7 @@ export type ExportNodeData = {
   aspect: AspectRatio;
   previewTargetId: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
 };

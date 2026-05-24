@@ -14,7 +14,7 @@ import './node-canvas.css';
 
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import type { Layer } from '../../types/config';
-import { connectedPortIds, inferLinearGraph } from '../../utils/nodeGraph';
+import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
@@ -84,6 +84,7 @@ export function NodeCanvas({
   }, [graph]);
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
+  const outputPath = useMemo(() => resolveOutputPath(graph), [graph]);
 
   // Stable DOM refs shared across hooks.
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -160,25 +161,48 @@ export function NodeCanvas({
         graph,
         selectedNodeIdSet,
         activeEditorNodeId,
+        outputPath.nodeIds,
         connected,
         primitiveViewStates,
         primitiveRenderModes,
       ),
-    [doc, graph, selectedNodeIdSet, activeEditorNodeId, connected, primitiveRenderModes, primitiveViewStates],
+    [
+      doc,
+      graph,
+      selectedNodeIdSet,
+      activeEditorNodeId,
+      outputPath.nodeIds,
+      connected,
+      primitiveRenderModes,
+      primitiveViewStates,
+    ],
   );
   const baseEdges = useMemo(
     () =>
-      toRFEdges(graph).map((edge) => ({
-        ...edge,
-        selected: selectedEdgeId === edge.id,
-        style: {
-          ...edge.style,
-          stroke: selectedEdgeId === edge.id ? 'var(--text)' : edge.style?.stroke,
-          strokeWidth: selectedEdgeId === edge.id ? 2.5 : edge.style?.strokeWidth,
-          opacity: selectedEdgeId === null || selectedEdgeId === edge.id ? 0.75 : 0.45,
-        },
-      })),
-    [graph, selectedEdgeId],
+      toRFEdges(graph).map((edge) => {
+        const selected = selectedEdgeId === edge.id;
+        const onOutputPath = outputPath.edgeIds.has(edge.id);
+        return {
+          ...edge,
+          className: onOutputPath ? 'node-edge-output-path' : edge.className,
+          selected,
+          style: {
+            ...edge.style,
+            stroke: selected ? 'var(--text)' : onOutputPath ? 'var(--accent)' : edge.style?.stroke,
+            strokeWidth: selected ? 2.75 : onOutputPath ? 2.4 : edge.style?.strokeWidth,
+            opacity: selected
+              ? 0.95
+              : selectedEdgeId === null
+                ? onOutputPath
+                  ? 0.9
+                  : 0.42
+                : onOutputPath
+                  ? 0.58
+                  : 0.24,
+          },
+        };
+      }),
+    [graph, outputPath.edgeIds, selectedEdgeId],
   );
 
   const {
@@ -259,6 +283,25 @@ export function NodeCanvas({
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
+
+  const handleJumpToOutput = useCallback(() => {
+    const outputPosition = graphRef.current.positions[EXPORT_NODE_ID];
+    if (!outputPosition) return;
+    void rfInstanceRef.current?.setCenter(outputPosition.x + 160, outputPosition.y + 170, {
+      zoom: 0.9,
+      duration: 220,
+    });
+  }, []);
+
+  const handleFitOutputPath = useCallback(() => {
+    const nodes = [...outputPath.nodeIds].map((id) => ({ id }));
+    void rfInstanceRef.current?.fitView({
+      nodes,
+      padding: 0.24,
+      maxZoom: 1.05,
+      duration: 220,
+    });
+  }, [outputPath.nodeIds]);
 
   const handleToggleSelectedLayerVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
@@ -354,6 +397,14 @@ export function NodeCanvas({
               <button type="button" onClick={() => handleOrganizeNodes(doc.layers)} aria-label="Auto layout nodes">
                 <span aria-hidden="true">⌘</span>
                 Auto layout
+              </button>
+              <button type="button" onClick={handleFitOutputPath} aria-label="Fit output path">
+                <span aria-hidden="true">◇</span>
+                Path
+              </button>
+              <button type="button" onClick={handleJumpToOutput} aria-label="Jump to output node">
+                <span aria-hidden="true">◎</span>
+                Output
               </button>
               <button
                 type="button"

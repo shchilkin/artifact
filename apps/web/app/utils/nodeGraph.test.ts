@@ -22,6 +22,7 @@ import {
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
+  resolveOutputPath,
   resolveRenderOrder,
   resolveUpstreamRenderLayers,
   splitEdgeWithNode,
@@ -372,6 +373,27 @@ describe('collectDownstreamNodeIds', () => {
     });
 
     expect([...collectDownstreamNodeIds('a', graph)].sort()).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('resolveOutputPath', () => {
+  it('returns only nodes and edges that feed the output target', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
+        { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
+        { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
+        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        { id: 'e-orphan-child', fromId: 'orphan', fromPort: 'out', toId: 'orphan-child', toPort: 'bg' },
+      ],
+    });
+
+    const outputPath = resolveOutputPath(graph);
+
+    expect([...outputPath.nodeIds].sort()).toEqual([EXPORT_NODE_ID, 'color-1', 'fill-1', 'merge-1', 'text-1'].sort());
+    expect([...outputPath.edgeIds].sort()).toEqual(
+      ['e-color-merge', 'e-fill-merge', 'e-merge-export', 'e-text-color'].sort(),
+    );
   });
 });
 

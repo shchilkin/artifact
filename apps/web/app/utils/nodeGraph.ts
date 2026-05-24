@@ -362,6 +362,14 @@ export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Se
   return collected;
 }
 
+export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_NODE_ID) {
+  const nodeIds = collectUpstreamNodeIds(targetId, graph);
+  const edgeIds = new Set(
+    graph.edges.filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId)).map((edge) => edge.id),
+  );
+  return { nodeIds, edgeIds };
+}
+
 /** BFS backwards from nodeId, collect all layer IDs that feed into it. */
 export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
   const layerIds = new Set(layers.map((l) => l.id));

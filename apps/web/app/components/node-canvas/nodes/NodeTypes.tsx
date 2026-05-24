@@ -12,7 +12,8 @@ import { useLayerTransformDraft } from './useLayerTransformDraft';
 
 export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
   const { selectNode, deleteNode, updateLayer } = useNodeCanvasActions();
-  const { layer, previewTargetId, selected, editing, connected, primitiveViewState, primitiveRenderMode } = data;
+  const { layer, previewTargetId, selected, outputPath, editing, connected, primitiveViewState, primitiveRenderMode } =
+    data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
   const transform = useLayerTransformDraft(layer, updateLayer);
@@ -24,6 +25,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       label={layer.kind}
       name={layer.name}
       selected={selected}
+      outputPath={outputPath}
       editing={editing}
       muted={!layer.visible}
       targetHandles={[{ id: inputPort }]}
@@ -53,7 +55,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
 
 export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
-  const { colorNode, previewTargetId, selected, editing, connected } = data;
+  const { colorNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
     <NodeFrame
@@ -62,6 +64,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
       label="color"
       name={colorNode.name}
       selected={selected}
+      outputPath={outputPath}
       editing={editing}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(colorNode.id, event)}
@@ -79,7 +82,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
 
 export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<MergeNodeData>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
-  const { mergeNode, previewTargetId, selected, editing, connected } = data;
+  const { mergeNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
     <NodeFrame
@@ -88,6 +91,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
       label="merge"
       name={mergeNode.name}
       selected={selected}
+      outputPath={outputPath}
       editing={editing}
       targetHandles={[
         { id: 'a', top: '36%' },
@@ -111,7 +115,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
 
 export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: NodeProps<RepeatNodeData>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
-  const { repeatNode, previewTargetId, selected, editing, connected } = data;
+  const { repeatNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
     <NodeFrame
@@ -120,6 +124,7 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
       label="repeat"
       name={repeatNode.name}
       selected={selected}
+      outputPath={outputPath}
       editing={editing}
       targetHandles={[
         { id: 'in', top: '36%' },
@@ -143,7 +148,7 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
 
 export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProps<ExportNodeData>) {
   const { selectNode } = useNodeCanvasActions();
-  const { previewTargetId, selected, editing, connected } = data;
+  const { previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
     <NodeFrame
@@ -152,6 +157,7 @@ export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: N
       label="export"
       name="Output"
       selected={selected}
+      outputPath={outputPath}
       editing={editing}
       targetHandles={[{ id: 'in' }]}
       sourceHandles={[]}
