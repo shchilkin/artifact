@@ -99,6 +99,14 @@ The interface looks like the artwork it produces. Crude on purpose. Mono-typed l
 
 The system rejects three things by name. It rejects the overdesigned dev-tool aesthetic: neon gradients, crypto-bro purple, glowing grids. It rejects generic SaaS neutrality (Canva, Adobe Express): polished, corporate-safe, identity-free. And it rejects any palette someone could guess from the domain alone. The accent color is a warm red-orange, not a tech-blue or a creator-purple, and it is used like a printer's registration mark: rare, deliberate, load-bearing.
 
+This rejection is about feeling, not discipline. Artifact should keep the good
+operational habits of mature software: clear information architecture, fast
+search, keyboardable menus, stable focus states, accessible contrast, explicit
+errors, and consistent controls. What it must not inherit is the visual and
+emotional shape of corporate SaaS: neutral dashboards, table-first management
+screens, soft generic cards, verbose configuration panels, and admin-like flows
+that make art-making feel like account management.
+
 **Key Characteristics:**
 - Dark, warm-tinted neutrals (chroma 0.012–0.022, hue 42–68); never pure `#000` or `#fff`
 - One accent (`oklch(66% 0.16 28)`), used on ≤10% of any screen
@@ -203,10 +211,16 @@ The one place state pushes a surface forward is the examples tile on hover: a 2p
 - **Do** square the corners. Reserve small radii (2–9px) for native form affordances only.
 - **Do** treat the seed number as identity. Display it in mono meta, ALL CAPS, with a `#` prefix.
 - **Do** ship a 44px minimum touch target on every interactive element.
+- **Do** borrow strong product mechanics from mature SaaS: search, categories,
+  keyboard navigation, predictable state, accessibility, and clear error
+  recovery.
 
 ### Don't:
 - **Don't** use overdesigned dev-tool aesthetics: neon gradients, crypto-bro purple, glowing grid backgrounds, glassmorphism, or stacked decorative effects in the chrome.
 - **Don't** ship anything that reads as generic "modern" SaaS: Canva-flat, Adobe-Express-friendly, identity-free.
+- **Don't** let useful SaaS mechanics become admin chrome: table-first
+  management screens, soft generic cards, verbose setup copy, or neutral
+  dashboards.
 - **Don't** use a palette someone could guess from the domain alone. The accent is intentionally not crypto-purple, not tech-blue, not creator-purple.
 - **Don't** use side-stripe borders (`border-left` > 1px as a colored accent). Selected layer rows use a 1px hairline, not a 2–4px stripe.
 - **Don't** use gradient text (`background-clip: text` over a gradient). Emphasis is by weight, scale, and ALL CAPS — never by gradient.

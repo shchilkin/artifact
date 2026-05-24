@@ -27,6 +27,21 @@ CI should run:
 
 ## Manual QA
 
+### v0.17.0 Release Prep
+
+- User verified the renderer-backed Add Library preview direction locally on
+  2026-05-24.
+- Automated browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `174 passed, 1 skipped`.
+- Creative controls, Add Library search/recent/popular flows, rendered Add
+  Library previews, and node drag-to-canvas placement were validated without
+  changing document semantics, graph traversal, thumbnail scheduling, AI scope,
+  or export behavior.
+- `npm run perf:node-editor` passed after fixing the benchmark launcher. Drag,
+  slider, and pan interaction scenarios had zero long tasks and p95 frame times
+  around `17-18ms`.
+- Release notes live in `docs/releases/v0.17.0.md`.
+
 ### v0.16.0 Release Prep
 
 - User verified the latest editor workflow polish locally on 2026-05-23.

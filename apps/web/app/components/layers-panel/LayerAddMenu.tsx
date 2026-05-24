@@ -1,17 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { EffectPreset, LayerKind } from '../../types/config';
-import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
-import { KIND_ICONS } from './layerDisplayItems';
+import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
+import type { AddLibraryAction } from '../add-library/addLibraryModel';
+import { clampPopupPosition } from '../node-canvas/helpers';
 
-const LAYER_ADD_KINDS: Exclude<LayerKind, 'effect'>[] = [
-  'text',
-  'image',
-  'emoji',
-  'fill',
-  'primitive',
-  'noise',
-  'array',
-];
+const LAYER_ADD_MENU_W = 540;
+const LAYER_ADD_MENU_H = 560;
 
 export function LayerAddMenu({
   onAddLayer,
@@ -22,17 +17,28 @@ export function LayerAddMenu({
 }) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addButtonRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
 
   useEffect(() => {
     if (!showAddMenu) return;
     function handleOutside(event: MouseEvent) {
-      if (addButtonRef.current && !addButtonRef.current.contains(event.target as Node)) {
-        setShowAddMenu(false);
-      }
+      const target = event.target as Node;
+      if (addButtonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setShowAddMenu(false);
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showAddMenu]);
+
+  const openMenu = useCallback(() => {
+    const rect = addButtonRef.current?.getBoundingClientRect();
+    const position = rect
+      ? clampPopupPosition(rect.left, rect.bottom + 4, LAYER_ADD_MENU_W, LAYER_ADD_MENU_H)
+      : { left: 8, top: 8 };
+    setMenuPosition(position);
+    setShowAddMenu((prev) => !prev);
+  }, []);
 
   const handleAddLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
@@ -50,39 +56,37 @@ export function LayerAddMenu({
     [onAddEffectPreset],
   );
 
+  const handleAddLibraryAction = useCallback(
+    (action: AddLibraryAction) => {
+      if (action.kind === 'layer') handleAddLayer(action.layerKind);
+      if (action.kind === 'effect') handleAddEffectPreset(action.preset);
+    },
+    [handleAddEffectPreset, handleAddLayer],
+  );
+
   return (
     <div ref={addButtonRef} className="relative">
-      <button className="layer-add-button" onClick={() => setShowAddMenu((prev) => !prev)} aria-label="Add layer">
+      <button className="layer-add-button" onClick={openMenu} aria-label="Add layer">
         + ADD
       </button>
-      {showAddMenu && (
-        <div className="absolute right-0 top-full mt-1 bg-bg border border-border z-50 min-w-[130px]">
-          {LAYER_ADD_KINDS.map((kind) => (
-            <button
-              key={kind}
-              className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
-              onClick={() => handleAddLayer(kind)}
-            >
-              <span className="text-accent w-4 text-center">{KIND_ICONS[kind]}</span>
-              {kind.toUpperCase()}
-            </button>
-          ))}
-          <div className="border-t border-border my-1" />
-          {EFFECT_PRESET_MENU_ORDER.map((key) => {
-            const preset = EFFECT_PRESETS[key];
-            return (
-              <button
-                key={key}
-                className="flex items-center gap-2 w-full px-3 py-2 font-mono text-[10px] text-left text-dim hover:text-accent hover:bg-accent-dim border-none bg-transparent cursor-pointer"
-                onClick={() => handleAddEffectPreset(key)}
-              >
-                <span className="text-accent w-4 text-center">{preset.icon}</span>
-                {preset.name.toUpperCase()}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {showAddMenu &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="add-library-surface add-library-layer-menu"
+            style={{ left: menuPosition.left, top: menuPosition.top } as CSSProperties}
+          >
+            <AddLibraryPanel
+              surface="layers"
+              searchLabel="Search layers and effects"
+              placeholder="Add layer…"
+              onAdd={handleAddLibraryAction}
+              onClose={() => setShowAddMenu(false)}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

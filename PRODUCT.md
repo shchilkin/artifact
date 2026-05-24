@@ -42,6 +42,19 @@ The next product arc is control:
 - examples, presets, and docs that make the empty canvas less intimidating
 - predictable export where aspect ratio is respected by every render surface
 
+Artifact should borrow the useful skeleton of mature SaaS tools without
+borrowing their corporate feeling. The product needs clear information
+architecture, search, keyboard navigation, predictable states, accessibility,
+error handling, and consistent interaction patterns across Layers and Nodes.
+Those are reliability features, not a visual identity.
+
+What Artifact should avoid is the admin-panel version of those patterns:
+neutral dashboards, table-first management screens, generic card grids, verbose
+configuration copy, and anything that makes the editor feel like a corporate
+content tool. The editor should stay direct, compact, creative, dark, raw, mono,
+and low-chrome. Its menus should behave like fast command/library palettes, not
+like SaaS settings catalogs.
+
 ## Brand Personality
 
 Rebellious. Deliberate. Lo-fi. The personality of a photocopied zine or a risograph print: imprecise on purpose, with strong opinions baked in. Not aggressive or chaotic — purposefully crude.
@@ -50,6 +63,9 @@ Rebellious. Deliberate. Lo-fi. The personality of a photocopied zine or a risogr
 
 - Overdesigned dev-tool aesthetic: heavy neon gradients, crypto-bro purple, glowing grid backgrounds, too many visual effects competing with the UI itself.
 - Generic "modern" SaaS without identity: Canva, Adobe Express — polished, neutral, corporate-safe.
+- Corporate admin/productivity UI: dashboards, management tables, verbose setup
+  panels, and configuration-heavy flows that make creative actions feel like
+  back-office operations.
 - Any design where someone could guess the palette from the domain name alone.
 
 ## Design Principles

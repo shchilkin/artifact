@@ -233,6 +233,8 @@ ignored.
 | [`docs/version-plans/v0.13-backend-contract.md`](docs/version-plans/v0.13-backend-contract.md) | v0.13 VPS backend API, schema, queue, and storage contract |
 | [`docs/version-plans/v0.14.md`](docs/version-plans/v0.14.md) | v0.14 editor beta, layer workflow, onboarding, and local-first reliability acceptance plan |
 | [`docs/version-plans/v0.15.md`](docs/version-plans/v0.15.md) | v0.15 visual clarity and cross-browser confidence acceptance plan |
+| [`docs/version-plans/v0.16.md`](docs/version-plans/v0.16.md) | v0.16 editor workflow polish, debug hygiene, and visual-system consolidation plan |
+| [`docs/version-plans/v0.17.md`](docs/version-plans/v0.17.md) | v0.17 creative controls, shared Add Library, and renderer-backed menu previews plan |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
 
 ## Project structure

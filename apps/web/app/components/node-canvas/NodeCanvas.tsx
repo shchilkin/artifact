@@ -455,6 +455,25 @@ export function NodeCanvas({
                     contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
                   )
                 }
+                onDragAdd={(action, point) => {
+                  const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
+                  if (
+                    !surfaceRect ||
+                    point.x < surfaceRect.left ||
+                    point.x > surfaceRect.right ||
+                    point.y < surfaceRect.top ||
+                    point.y > surfaceRect.bottom
+                  ) {
+                    return false;
+                  }
+                  const flowPos = rfInstanceRef.current?.screenToFlowPosition(point) ?? contextMenu.flowPos;
+                  handleAddFromMenu(
+                    action,
+                    flowPos,
+                    contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
+                  );
+                  return true;
+                }}
                 onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
                 menuRef={contextMenuRef}
               />,

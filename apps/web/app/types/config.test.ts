@@ -167,6 +167,13 @@ describe('effect presets', () => {
 
     expect(effectPresets).toEqual(['rays', 'tint', 'grain', 'scanlines', 'rgbSplit']);
   });
+
+  it('keeps texture and print preset defaults immediately usable', () => {
+    expect(EFFECT_PRESETS.grain.partial.grain).toBe(26);
+    expect(EFFECT_PRESETS.dither.partial.dither).toBe(36);
+    expect(EFFECT_PRESETS.pixelate.partial.pixelate).toBe(6);
+    expect(EFFECT_PRESETS.risoShift.partial.risoShift).toBe(14);
+  });
 });
 
 describe('makeImageLayer', () => {

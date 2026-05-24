@@ -8,6 +8,14 @@ The visual system must not change document semantics, render output, graph
 traversal, export behavior, thumbnail scheduling, or primitive camera behavior.
 It only governs UI surfaces around the renderable document.
 
+Artifact should use the reliable mechanics of mature SaaS interfaces without
+adopting their corporate shell. Search, categories, keyboard navigation,
+accessible focus, explicit states, and clear recovery paths are desirable
+editor infrastructure. Neutral dashboards, generic card catalogs, table-first
+management screens, verbose configuration panels, and admin-like flows are not.
+The editor should remain a compact creative tool: direct, dark, mono, raw, and
+low-chrome.
+
 ## Token Layers
 
 Editor styling uses three token layers:

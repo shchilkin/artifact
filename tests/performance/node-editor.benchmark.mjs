@@ -6,6 +6,9 @@ import { chromium } from '@playwright/test';
 
 const PORT = Number(process.env.PERF_PORT ?? 4174);
 const BASE_URL = process.env.PERF_BASE_URL ?? `http://127.0.0.1:${PORT}`;
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const WEB_ROOT = join(REPO_ROOT, 'apps/web');
+const REACT_ROUTER_BIN = join(REPO_ROOT, 'node_modules/.bin/react-router');
 const OUTPUT_PATH =
   process.env.PERF_OUTPUT ??
   join(dirname(fileURLToPath(import.meta.url)), '../../test-results/performance/node-editor.json');
@@ -43,7 +46,7 @@ const EFFECTS = [
   ['bench-ripple', 'Ripple', 'ripple', { rippleAmt: 28, rippleFreq: 5 }],
 ];
 
-const server = process.env.PERF_BASE_URL ? null : startServer();
+const server = process.env.PERF_BASE_URL ? null : await startServer();
 
 try {
   if (!process.env.PERF_BASE_URL) await waitForServer(BASE_URL);
@@ -56,9 +59,10 @@ try {
   if (server) server.kill('SIGTERM');
 }
 
-function startServer() {
-  const child = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
-    cwd: join(dirname(fileURLToPath(import.meta.url)), '../..'),
+async function startServer() {
+  await runCommand('npm', ['--workspace', '@artifact/shared', 'run', 'build'], REPO_ROOT);
+  const child = spawn(REACT_ROUTER_BIN, ['dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+    cwd: WEB_ROOT,
     env: { ...process.env, BROWSER: 'none' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -66,6 +70,26 @@ function startServer() {
   child.stdout.on('data', (chunk) => process.stdout.write(`[perf-server] ${chunk}`));
   child.stderr.on('data', (chunk) => process.stderr.write(`[perf-server] ${chunk}`));
   return child;
+}
+
+function runCommand(command, args, cwd) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    child.stdout.on('data', (chunk) => process.stdout.write(`[perf-setup] ${chunk}`));
+    child.stderr.on('data', (chunk) => process.stderr.write(`[perf-setup] ${chunk}`));
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
+    });
+  });
 }
 
 async function waitForServer(url) {
