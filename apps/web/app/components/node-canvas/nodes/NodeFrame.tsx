@@ -15,6 +15,7 @@ interface NodeFrameProps {
   label: string;
   name: string;
   selected: boolean;
+  outputPath: boolean;
   editing: boolean;
   muted?: boolean;
   targetHandles: NodeHandleConfig[];
@@ -31,6 +32,7 @@ export function NodeFrame({
   label,
   name,
   selected,
+  outputPath,
   editing,
   muted,
   targetHandles,
@@ -66,6 +68,7 @@ export function NodeFrame({
           label={label}
           name={name}
           selected={selected}
+          outputPath={outputPath}
           muted={muted}
           expanded={editing}
           expandable

@@ -9,6 +9,7 @@ export function NodeShell({
   label,
   name,
   selected,
+  outputPath,
   muted,
   expanded,
   expandable,
@@ -24,7 +25,7 @@ export function NodeShell({
   const showName = name.trim().toLowerCase() !== label.trim().toLowerCase();
   return (
     <div
-      className={`node-shell node-shell-kind-${kind}${selected ? ' node-shell-selected' : ''}${muted ? ' node-shell-muted' : ''}`}
+      className={`node-shell node-shell-kind-${kind}${outputPath ? ' node-shell-output-path' : ''}${selected ? ' node-shell-selected' : ''}${muted ? ' node-shell-muted' : ''}`}
       style={{ '--node-accent': accent, '--node-default-width': `${NODE_W}px` } as CSSProperties}
     >
       <div className="node-shell-accent" aria-hidden="true" />

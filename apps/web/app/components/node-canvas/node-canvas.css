@@ -97,6 +97,13 @@
 .react-flow__background {
   background: var(--node-bg);
 }
+
+.react-flow__edge:not(.node-edge-output-path) .react-flow__edge-path {
+  transition:
+    opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .nodrag {
   pointer-events: auto;
 }
@@ -259,8 +266,25 @@
   background: color-mix(in oklch, var(--node-accent) 8%, var(--node-card-selected-bg));
   box-shadow:
     0 0 0 1px var(--editor-selection-outline),
-    0 0 0 5px color-mix(in oklch, var(--node-accent) 15%, transparent),
+    0 0 0 7px color-mix(in oklch, var(--node-accent) 17%, transparent),
     inset 0 0 0 1px color-mix(in oklch, var(--node-text) 5%, transparent);
+}
+
+.node-shell-output-path:not(.node-shell-selected) {
+  border-color: color-mix(in oklch, var(--accent) 54%, var(--node-border-strong));
+  background: color-mix(in oklch, var(--accent) 4%, var(--node-surface));
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--accent) 18%, var(--node-card-outline)),
+    inset 0 0 0 1px color-mix(in oklch, var(--node-text) 4%, transparent);
+}
+
+.node-shell-output-path:not(.node-shell-selected) .node-shell-accent {
+  height: 2px;
+  background: color-mix(in oklch, var(--accent) 74%, var(--node-accent));
+}
+
+.node-shell-output-path:not(.node-shell-selected) .node-shell-header {
+  background: color-mix(in oklch, var(--accent) 7%, var(--node-header-surface));
 }
 
 .node-shell-selected .node-shell-header {

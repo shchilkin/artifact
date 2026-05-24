@@ -769,6 +769,35 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
   expect(stateStyles.perfActiveShadow).not.toBe('none');
 });
 
+test('node graph highlights the active output path and exposes output navigation', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+  await switchToNodeView(page);
+
+  const connectedNode = page.locator('.react-flow__node').filter({ hasText: 'Connected fill' });
+  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
+  await expect(connectedNode.locator('.node-shell')).toHaveClass(/node-shell-output-path/, { timeout: 15_000 });
+  await expect(orphanNode.locator('.node-shell')).not.toHaveClass(/node-shell-output-path/);
+  await expect(page.locator('.react-flow__edge.node-edge-output-path')).toHaveCount(1);
+
+  const paneBox = await page.locator('.react-flow__pane').boundingBox();
+  expect(paneBox).toBeTruthy();
+  if (!paneBox) return;
+  const viewport = page.locator('.react-flow__viewport').first();
+  await page.mouse.move(paneBox.x + paneBox.width - 120, paneBox.y + paneBox.height - 120);
+  await page.mouse.down();
+  await page.mouse.move(paneBox.x + paneBox.width - 420, paneBox.y + paneBox.height - 300, { steps: 6 });
+  await page.mouse.up();
+  const panned = await viewport.evaluate((element) => getComputedStyle(element).transform);
+  await page.getByRole('button', { name: 'Jump to output node' }).click();
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible();
+  await expect
+    .poll(() => viewport.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
+    .not.toBe(panned);
+
+  await page.getByRole('button', { name: 'Fit output path' }).click();
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible();
+});
+
 test('layer visibility updates the rendered canvas', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
 
