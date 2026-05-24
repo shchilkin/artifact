@@ -367,6 +367,7 @@ function AddLibraryRow({
         <span className="add-library-row-label nadd-row-label">{item.label}</span>
         <span className="add-library-row-desc nadd-row-desc">{item.description}</span>
       </span>
+      {draggable && <span className="add-library-row-drag">Drag</span>}
       {group && <span className="add-library-row-tag nadd-row-tag">{group.label}</span>}
     </button>
   );

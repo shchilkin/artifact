@@ -1044,6 +1044,10 @@ input[type="range"] {
   cursor: grabbing;
 }
 
+.add-library-row[draggable="true"] .add-library-row-symbol {
+  cursor: grab;
+}
+
 .add-library-row:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
@@ -1104,6 +1108,24 @@ input[type="range"] {
   font-size: 8px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.add-library-row-drag {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid color-mix(in oklch, var(--accent) 34%, transparent);
+  color: var(--accent);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  text-transform: uppercase;
+  transition: opacity 90ms ease-out;
+}
+
+.add-library-row:hover .add-library-row-drag,
+.add-library-row-active .add-library-row-drag,
+.add-library-row:focus-visible .add-library-row-drag {
+  opacity: 1;
 }
 
 .add-library-empty {

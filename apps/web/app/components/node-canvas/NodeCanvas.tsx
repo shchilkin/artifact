@@ -22,6 +22,7 @@ import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
+import { useNodeAddLibraryDropHint } from './hooks/useNodeAddLibraryDropHint';
 import { useNodeAreaActions } from './hooks/useNodeAreaActions';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
 import { useNodeDragState } from './hooks/useNodeDragState';
@@ -100,6 +101,7 @@ export function NodeCanvas({
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
   const { perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
+  useNodeAddLibraryDropHint(canvasSurfaceRef);
 
   // Focused hooks.
   const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
@@ -424,6 +426,12 @@ export function NodeCanvas({
               <Controls showInteractive={false} />
             </ReactFlow>
             <NodePerformanceOverlay debugEnabled={perfDebugEnabled} nodeCount={dragNodes.length} />
+            <div className="node-add-drop-hint node-add-drop-hint-idle" aria-hidden="true">
+              Move over canvas
+            </div>
+            <div className="node-add-drop-hint node-add-drop-hint-ready" aria-hidden="true">
+              Drop to place node
+            </div>
           </div>
           <NodePropertiesPanel
             open={selectedNodeId !== null}

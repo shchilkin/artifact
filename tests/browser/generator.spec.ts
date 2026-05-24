@@ -1295,7 +1295,31 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
   await page.getByRole('button', { name: 'Add node' }).click();
   await page.getByLabel('Search nodes and effects').fill('pixelate');
 
-  await page.getByRole('button', { name: /^▦ Pixelate/ }).dragTo(page.locator('.react-flow__pane'), {
+  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+  await expect(pixelateMenuRow).toContainText('Drag');
+  await page.locator('.react-flow__pane').evaluate((pane) => {
+    const rect = pane.getBoundingClientRect();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData(
+      'application/x-artifact-add-library-action',
+      JSON.stringify({ kind: 'effect', preset: 'pixelate' }),
+    );
+    pane.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 520,
+        clientY: rect.top + 320,
+        dataTransfer,
+      }),
+    );
+  });
+  await expect(page.locator('.node-canvas-add-drop-ready .node-add-drop-hint-ready')).toBeVisible();
+  await page.evaluate(() => {
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+  });
+
+  await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), {
     targetPosition: { x: 520, y: 320 },
   });
 
