@@ -1047,6 +1047,44 @@
   text-align: right;
 }
 
+.node-add-drop-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  display: none;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--node-border-strong);
+  background: color-mix(in oklch, var(--node-surface) 90%, transparent);
+  color: var(--node-text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%);
+}
+
+.node-canvas-add-drop-active .node-add-drop-hint-idle {
+  display: inline-flex;
+}
+
+.node-canvas-add-drop-ready .node-add-drop-hint-idle {
+  display: none;
+}
+
+.node-canvas-add-drop-ready .node-add-drop-hint-ready {
+  display: inline-flex;
+}
+
+.node-add-drop-hint-ready {
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 12%, var(--node-surface));
+  color: var(--accent);
+}
+
 .node-area-overlay {
   position: absolute;
   inset: 0;

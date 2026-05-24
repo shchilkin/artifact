@@ -858,6 +858,14 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section').filter({ hasText: 'Recent' })).toContainText('Pixelate');
   await expect(menu.locator('.add-library-detail')).toBeVisible();
   await expect(menu.locator('img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
+  await menu.getByRole('button', { name: 'Add favorite' }).click();
+  await expect(menu.locator('.add-library-section').filter({ hasText: 'Favorites' })).toContainText('Pixelate');
+  await expect(menu.locator('.add-library-tags')).toContainText('low-res');
+
+  await menu.getByRole('button', { name: 'Tone', exact: true }).click();
+  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
+  await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
+  await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
 });
 
 test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
@@ -1238,15 +1246,23 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await page.goto('/app?new=blank');
   await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();
+  const recipeRail = page.locator('.add-library-recipes');
+  const nodeAddRowByLabel = (label: RegExp) =>
+    page.locator('.nadd-row').filter({ has: page.locator('.nadd-row-label', { hasText: label }) });
 
-  await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Texture Type' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Print Damage' }).click();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Halftone' })).toBeVisible();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Tear' })).toBeVisible();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Paper' })).toBeVisible();
+  await page.getByRole('button', { name: /^Tone$/ }).click();
+  await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
+  await page.getByRole('button', { name: /^All$/ }).click();
+
+  await recipeRail.getByRole('button', { name: 'Print Damage' }).click();
+  await expect(nodeAddRowByLabel(/^Halftone$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Tear$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
   await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
@@ -1257,6 +1273,7 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 
   await page.getByLabel('Search nodes and effects').fill('split tone');
   await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.add-library-tags')).toContainText('photo');
 });
 
 test('node add menu can add Pixelate with the shared formatted controls', async ({ page }) => {
@@ -1283,7 +1300,31 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
   await page.getByRole('button', { name: 'Add node' }).click();
   await page.getByLabel('Search nodes and effects').fill('pixelate');
 
-  await page.getByRole('button', { name: /^▦ Pixelate/ }).dragTo(page.locator('.react-flow__pane'), {
+  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+  await expect(pixelateMenuRow).toContainText('Drag');
+  await page.locator('.react-flow__pane').evaluate((pane) => {
+    const rect = pane.getBoundingClientRect();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData(
+      'application/x-artifact-add-library-action',
+      JSON.stringify({ kind: 'effect', preset: 'pixelate' }),
+    );
+    pane.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 520,
+        clientY: rect.top + 320,
+        dataTransfer,
+      }),
+    );
+  });
+  await expect(page.locator('.node-canvas-add-drop-ready .node-add-drop-hint-ready')).toBeVisible();
+  await page.evaluate(() => {
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+  });
+
+  await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), {
     targetPosition: { x: 520, y: 320 },
   });
 
