@@ -1265,6 +1265,21 @@ input[type="range"] {
   line-height: 1.5;
 }
 
+.add-library-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.add-library-tags span {
+  padding: 2px 5px;
+  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .add-library-favorite {
   align-self: flex-start;
   min-height: 30px;

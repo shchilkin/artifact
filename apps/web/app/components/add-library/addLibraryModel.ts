@@ -37,6 +37,7 @@ export type AddLibraryItem = {
   group: AddLibraryGroupId;
   action: AddLibraryAction;
   surfaces: readonly AddLibrarySurface[];
+  tags?: readonly string[];
   keywords?: string;
   popular?: boolean;
 };
@@ -135,9 +136,9 @@ const EFFECT_FAMILIES: Array<{
 ];
 
 const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
-  duotone: 'photo tone color image recipe',
-  grain: 'paper dust texture print finish popular',
-  scanlines: 'crt print line signal texture',
+  duotone: 'photo tone color image recipe two color poster old photo',
+  grain: 'paper dust texture print finish popular old photo noisy film',
+  scanlines: 'crt print line signal texture tv monitor old screen',
   risoShift: 'registration misregister print sticker grid popular',
   overprint: 'ink pressure print sticker',
   cyanotype: 'blue image wash primitive',
@@ -146,8 +147,72 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   halftone: 'print dots poster damage',
   tear: 'rip paper damage glitch',
   threshold: 'black white damage print cutoff',
-  pixelate: 'pixel block low-res low resolution mosaic popular',
+  pixelate: 'pixel block low-res low resolution low res mosaic popular',
   dither: 'pixel pattern bayer print texture popular',
+};
+
+const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
+  grain: 'Fine surface noise for paper, dust, and old-photo finish.',
+  dither: 'Bayer-style pixel texture for crunchy low-color poster output.',
+  pixelate: 'Whole-image block size for low-resolution cover treatments.',
+  splitTone: 'Push shadows and highlights into two controlled color casts.',
+  halftone: 'Screen-print dots for poster texture and print damage.',
+  risoShift: 'Ink misregistration for risograph-style color drift.',
+  scanlines: 'CRT-style horizontal bands for monitor and video texture.',
+  tear: 'Ripped spatial offset for damaged paper and broken motion.',
+  kaleidoscope: 'Radial mirrored repetition from the center of the image.',
+  neonGlow: 'Hot colored bloom around bright pixels and synthetic light.',
+};
+
+const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
+  rays: ['light', 'poster'],
+  bloom: ['light', 'photo'],
+  filmBurn: ['light', 'photo'],
+  neonGlow: ['light', 'glow'],
+  fog: ['light', 'haze'],
+  speedLines: ['motion', 'graphic'],
+  glitch: ['signal', 'damage'],
+  rgbSplit: ['signal', 'color'],
+  ca: ['signal', 'photo'],
+  interlace: ['signal', 'crt'],
+  dataMosh: ['signal', 'damage'],
+  vhsTracking: ['signal', 'crt'],
+  grain: ['texture', 'paper', 'photo'],
+  scanlines: ['texture', 'crt'],
+  matte: ['texture', 'paper'],
+  dither: ['texture', 'low-res'],
+  emboss: ['texture', 'relief'],
+  linocut: ['texture', 'print'],
+  noiseWarp: ['warp', 'liquid'],
+  morph: ['warp', 'motion'],
+  vortex: ['warp', 'spin'],
+  barrel: ['warp', 'lens'],
+  tear: ['warp', 'damage'],
+  mirror: ['warp', 'repeat'],
+  wave: ['warp', 'motion'],
+  zoomBlur: ['warp', 'motion'],
+  ripple: ['warp', 'liquid'],
+  kaleidoscope: ['warp', 'repeat'],
+  squeeze: ['warp', 'stretch'],
+  tint: ['tone', 'color'],
+  hueShift: ['tone', 'color'],
+  vignette: ['tone', 'photo'],
+  pixelate: ['tone', 'low-res'],
+  posterize: ['tone', 'steps'],
+  sepia: ['tone', 'photo'],
+  infrared: ['tone', 'photo'],
+  solarize: ['tone', 'photo'],
+  bleachBypass: ['tone', 'photo'],
+  cyanotype: ['tone', 'blue'],
+  splitTone: ['tone', 'photo'],
+  duotone: ['print', 'photo'],
+  halftone: ['print', 'dots'],
+  risoShift: ['print', 'register'],
+  overprint: ['print', 'ink'],
+  blur: ['graphic', 'soft'],
+  threshold: ['graphic', 'cutoff'],
+  edgeDetect: ['graphic', 'line'],
+  gradientOverlay: ['graphic', 'wash'],
 };
 
 const KIND_SYMBOL: Record<Exclude<LayerKind, 'effect'>, string> = {
@@ -169,6 +234,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'content',
     action: { kind: 'layer', layerKind: 'fill' },
     surfaces: ['layers', 'nodes'],
+    tags: ['base', 'color'],
     keywords: 'background base plate color wash poster photo type texture recipe',
     popular: true,
   },
@@ -180,6 +246,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'content',
     action: { kind: 'layer', layerKind: 'image' },
     surfaces: ['layers', 'nodes'],
+    tags: ['photo', 'source'],
     keywords: 'photo picture cover upload scan artwork type recipe',
     popular: true,
   },
@@ -191,6 +258,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'content',
     action: { kind: 'layer', layerKind: 'text' },
     surfaces: ['layers', 'nodes'],
+    tags: ['type', 'title'],
     keywords: 'photo type title headline typography caption label recipe',
     popular: true,
   },
@@ -202,6 +270,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'content',
     action: { kind: 'layer', layerKind: 'emoji' },
     surfaces: ['layers', 'nodes'],
+    tags: ['sticker', 'glyph'],
     keywords: 'glyph scatter symbol icon sticker',
   },
   {
@@ -212,6 +281,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'source',
     action: { kind: 'aiImage' },
     surfaces: ['nodes'],
+    tags: ['source', 'ai'],
     keywords: 'ai image generate generation prompt openai xai account asset source photo',
   },
   {
@@ -222,6 +292,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'source',
     action: { kind: 'layer', layerKind: 'primitive' },
     surfaces: ['layers', 'nodes'],
+    tags: ['source', '3d'],
     keywords: '3d object shape cylinder sphere cube image branch',
   },
   {
@@ -232,6 +303,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'source',
     action: { kind: 'layer', layerKind: 'noise' },
     surfaces: ['layers', 'nodes'],
+    tags: ['source', 'texture'],
     keywords: 'texture paper grain static concrete source',
   },
   {
@@ -242,6 +314,7 @@ const layerItems: AddLibraryItem[] = [
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
     surfaces: ['layers', 'nodes'],
+    tags: ['source', 'pattern'],
     keywords: 'motif sticker grid pattern repeated marks',
   },
 ];
@@ -255,6 +328,7 @@ const sourcePresetItems: AddLibraryItem[] = [
     group: 'source' as const,
     action: { kind: 'noisePreset', preset } as AddLibraryAction,
     surfaces: ['nodes'] as const,
+    tags: ['source', 'texture'],
     keywords: 'texture paper grain static source recipe',
   })),
   ...ARRAY_PRESET_IDS.map((preset) => ({
@@ -265,6 +339,7 @@ const sourcePresetItems: AddLibraryItem[] = [
     group: 'source' as const,
     action: { kind: 'arrayPreset', preset } as AddLibraryAction,
     surfaces: ['nodes'] as const,
+    tags: ['source', 'pattern'],
     keywords: 'motif sticker grid orbit shard pattern recipe',
   })),
 ];
@@ -275,11 +350,12 @@ const effectItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.map((preset) => {
   return {
     id: `effect:${preset}`,
     label: meta.name,
-    description: family.description,
+    description: EFFECT_DESCRIPTIONS[preset] ?? family.description,
     symbol: meta.icon,
     group: family.group,
     action: { kind: 'effect', preset },
     surfaces: ['layers', 'nodes'],
+    tags: EFFECT_TAGS[preset],
     keywords: EFFECT_KEYWORDS[preset],
     popular: ['grain', 'pixelate', 'dither', 'risoShift'].includes(preset),
   };
@@ -294,6 +370,7 @@ const utilityItems: AddLibraryItem[] = [
     group: 'utility',
     action: { kind: 'merge' },
     surfaces: ['nodes'],
+    tags: ['utility', 'blend'],
     keywords: 'blend combine branches graph recipe',
   },
   {
@@ -304,6 +381,7 @@ const utilityItems: AddLibraryItem[] = [
     group: 'utility',
     action: { kind: 'color' },
     surfaces: ['nodes'],
+    tags: ['utility', 'tone'],
     keywords: 'grade tone contrast saturation hue',
   },
   {
@@ -314,6 +392,7 @@ const utilityItems: AddLibraryItem[] = [
     group: 'utility',
     action: { kind: 'repeat' },
     surfaces: ['nodes'],
+    tags: ['utility', 'repeat'],
     keywords: 'repeat motif grid line radial branch',
   },
   ...REPEAT_PRESET_IDS.map((preset) => ({
@@ -324,6 +403,7 @@ const utilityItems: AddLibraryItem[] = [
     group: 'utility' as const,
     action: { kind: 'repeatPreset', preset } as AddLibraryAction,
     surfaces: ['nodes'] as const,
+    tags: ['utility', 'repeat'],
     keywords: 'motif sticker grid echo orbit repeat recipe',
   })),
 ];
@@ -407,6 +487,34 @@ export function addLibraryRecipesForSurface(surface: AddLibrarySurface) {
 export function addLibraryGroupsForSurface(surface: AddLibrarySurface) {
   const groupIds = new Set(addLibraryItemsForSurface(surface).map((item) => item.group));
   return ADD_LIBRARY_GROUPS.filter((group) => groupIds.has(group.id));
+}
+
+export function searchAddLibraryItems(items: readonly AddLibraryItem[], query: string) {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
+  return items
+    .map((item) => ({ item, score: itemSearchScore(item, tokens) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.item.label.localeCompare(b.item.label))
+    .map(({ item }) => item);
+}
+
+function itemSearchScore(item: AddLibraryItem, tokens: string[]) {
+  const query = tokens.join(' ');
+  const label = item.label.toLowerCase();
+  const tags = item.tags?.join(' ') ?? '';
+  const text = [item.label, item.description, item.symbol, item.group, item.id, tags, item.keywords]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const phraseScore = query.length > 2 && text.includes(query) ? 8 : 0;
+  return tokens.reduce((score, token) => {
+    if (!text.includes(token)) return score;
+    if (label.startsWith(token)) return score + 5;
+    if (label.includes(token)) return score + 4;
+    if (item.tags?.some((tag) => tag.toLowerCase().includes(token))) return score + 3;
+    return score + 1;
+  }, phraseScore);
 }
 
 export function serializeAddLibraryAction(action: AddLibraryAction) {

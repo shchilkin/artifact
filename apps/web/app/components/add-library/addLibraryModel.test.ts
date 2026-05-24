@@ -8,6 +8,7 @@ import {
   addLibraryItemsForSurface,
   addLibraryRecipesForSurface,
   parseAddLibraryAction,
+  searchAddLibraryItems,
   serializeAddLibraryAction,
 } from './addLibraryModel';
 
@@ -55,6 +56,29 @@ describe('addLibraryModel', () => {
     expect(popularIds).toEqual(
       expect.arrayContaining(['layer:image', 'layer:text', 'effect:grain', 'effect:pixelate']),
     );
+  });
+
+  it('uses creative metadata for search intent queries', () => {
+    const items = addLibraryItemsForSurface('nodes');
+    const firstIdsFor = (query: string) =>
+      searchAddLibraryItems(items, query)
+        .slice(0, 4)
+        .map((item) => item.id);
+
+    expect(firstIdsFor('low res')).toContain('effect:pixelate');
+    expect(firstIdsFor('dots')).toContain('effect:halftone');
+    expect(firstIdsFor('old photo')).toEqual(expect.arrayContaining(['effect:grain', 'effect:duotone']));
+    expect(firstIdsFor('crt')).toEqual(expect.arrayContaining(['effect:scanlines', 'effect:vhsTracking']));
+    expect(firstIdsFor('paper')).toContain('effect:grain');
+  });
+
+  it('gives key effect items individual descriptions and use-case tags', () => {
+    const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
+
+    expect(itemsById.get('effect:pixelate')?.description).toContain('block size');
+    expect(itemsById.get('effect:splitTone')?.description).toContain('shadows');
+    expect(itemsById.get('effect:grain')?.tags).toEqual(expect.arrayContaining(['texture', 'paper']));
+    expect(itemsById.get('effect:halftone')?.tags).toEqual(expect.arrayContaining(['print', 'dots']));
   });
 
   it('round trips drag actions and rejects unknown payloads', () => {

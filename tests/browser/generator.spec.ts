@@ -860,6 +860,7 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
   await menu.getByRole('button', { name: 'Add favorite' }).click();
   await expect(menu.locator('.add-library-section').filter({ hasText: 'Favorites' })).toContainText('Pixelate');
+  await expect(menu.locator('.add-library-tags')).toContainText('low-res');
 
   await menu.getByRole('button', { name: 'Tone', exact: true }).click();
   await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
@@ -1245,20 +1246,23 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await page.goto('/app?new=blank');
   await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();
+  const recipeRail = page.locator('.add-library-recipes');
+  const nodeAddRowByLabel = (label: RegExp) =>
+    page.locator('.nadd-row').filter({ has: page.locator('.nadd-row-label', { hasText: label }) });
 
-  await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Texture Type' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
+  await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
 
   await page.getByRole('button', { name: /^Tone$/ }).click();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Pixelate' })).toBeVisible();
-  await expect(page.locator('.nadd-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+  await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
   await page.getByRole('button', { name: /^All$/ }).click();
 
-  await page.getByRole('button', { name: 'Print Damage' }).click();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Halftone' })).toBeVisible();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Tear' })).toBeVisible();
-  await expect(page.locator('.nadd-row').filter({ hasText: 'Paper' })).toBeVisible();
+  await recipeRail.getByRole('button', { name: 'Print Damage' }).click();
+  await expect(nodeAddRowByLabel(/^Halftone$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Tear$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
   await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
@@ -1269,6 +1273,7 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 
   await page.getByLabel('Search nodes and effects').fill('split tone');
   await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.add-library-tags')).toContainText('photo');
 });
 
 test('node add menu can add Pixelate with the shared formatted controls', async ({ page }) => {

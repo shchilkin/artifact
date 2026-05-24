@@ -10,6 +10,7 @@ import {
   addLibraryGroupsForSurface,
   addLibraryItemsForSurface,
   addLibraryRecipesForSurface,
+  searchAddLibraryItems,
   serializeAddLibraryAction,
 } from './addLibraryModel';
 
@@ -54,13 +55,7 @@ export function AddLibraryPanel({
   }, []);
 
   const searchResults = useMemo(() => {
-    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return [];
-    return scopedItems
-      .map((item) => ({ item, score: itemSearchScore(item, tokens) }))
-      .filter(({ score }) => score > 0)
-      .sort((a, b) => b.score - a.score || a.item.label.localeCompare(b.item.label))
-      .map(({ item }) => item);
+    return searchAddLibraryItems(scopedItems, query);
   }, [query, scopedItems]);
 
   const recipeItems = useMemo(() => {
@@ -315,6 +310,13 @@ function AddLibraryDetail({
             <span className="add-library-detail-kicker">{group?.label ?? 'Add'}</span>
             <strong>{item.label}</strong>
             <p>{item.description}</p>
+            {item.tags && item.tags.length > 0 && (
+              <span className="add-library-tags" aria-label="Use cases">
+                {item.tags.slice(0, 4).map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </span>
+            )}
             <button
               type="button"
               className={`add-library-favorite${favorite ? ' add-library-favorite-active' : ''}`}
@@ -371,18 +373,6 @@ function AddLibraryRow({
       {group && <span className="add-library-row-tag nadd-row-tag">{group.label}</span>}
     </button>
   );
-}
-
-function itemSearchScore(item: AddLibraryItem, tokens: string[]) {
-  const label = item.label.toLowerCase();
-  const text = [item.label, item.description, item.symbol, item.group, item.id, item.keywords]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return tokens.reduce((score, token) => {
-    if (!text.includes(token)) return score;
-    return score + (label.startsWith(token) ? 3 : label.includes(token) ? 2 : 1);
-  }, 0);
 }
 
 function recentKey(surface: AddLibrarySurface) {
