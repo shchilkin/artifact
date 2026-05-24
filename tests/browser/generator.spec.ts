@@ -858,6 +858,13 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section').filter({ hasText: 'Recent' })).toContainText('Pixelate');
   await expect(menu.locator('.add-library-detail')).toBeVisible();
   await expect(menu.locator('img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
+  await menu.getByRole('button', { name: 'Add favorite' }).click();
+  await expect(menu.locator('.add-library-section').filter({ hasText: 'Favorites' })).toContainText('Pixelate');
+
+  await menu.getByRole('button', { name: 'Tone', exact: true }).click();
+  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
+  await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
+  await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
 });
 
 test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
@@ -1242,6 +1249,11 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(page.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+
+  await page.getByRole('button', { name: /^Tone$/ }).click();
+  await expect(page.locator('.nadd-row').filter({ hasText: 'Pixelate' })).toBeVisible();
+  await expect(page.locator('.nadd-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /^All$/ }).click();
 
   await page.getByRole('button', { name: 'Print Damage' }).click();
   await expect(page.locator('.nadd-row').filter({ hasText: 'Halftone' })).toBeVisible();

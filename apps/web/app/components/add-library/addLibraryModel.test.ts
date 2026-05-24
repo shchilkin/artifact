@@ -4,6 +4,7 @@ import { EFFECT_PRESET_MENU_ORDER } from '../../types/config';
 import {
   ADD_LIBRARY_ITEMS,
   ADD_LIBRARY_RECIPES,
+  addLibraryGroupsForSurface,
   addLibraryItemsForSurface,
   addLibraryRecipesForSurface,
   parseAddLibraryAction,
@@ -35,6 +36,17 @@ describe('addLibraryModel', () => {
     for (const recipe of ADD_LIBRARY_RECIPES) {
       expect(recipe.itemIds.every((id) => nodeItemIds.has(id))).toBe(true);
     }
+  });
+
+  it('exposes only groups that are available on each surface', () => {
+    const layerGroups = addLibraryGroupsForSurface('layers').map((group) => group.id);
+    const nodeGroups = addLibraryGroupsForSurface('nodes').map((group) => group.id);
+
+    expect(layerGroups).toContain('content');
+    expect(layerGroups).toContain('tone');
+    expect(layerGroups).not.toContain('utility');
+    expect(nodeGroups).toContain('utility');
+    expect(nodeGroups).toContain('source');
   });
 
   it('marks common creative starts as popular', () => {

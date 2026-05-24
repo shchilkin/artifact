@@ -404,6 +404,11 @@ export function addLibraryRecipesForSurface(surface: AddLibrarySurface) {
   return ADD_LIBRARY_RECIPES.filter((recipe) => recipe.surfaces.includes(surface));
 }
 
+export function addLibraryGroupsForSurface(surface: AddLibrarySurface) {
+  const groupIds = new Set(addLibraryItemsForSurface(surface).map((item) => item.group));
+  return ADD_LIBRARY_GROUPS.filter((group) => groupIds.has(group.id));
+}
+
 export function serializeAddLibraryAction(action: AddLibraryAction) {
   return JSON.stringify(action);
 }

@@ -16,11 +16,16 @@ Related architecture docs:
 
 Current active version plan:
 
+- [`version-plans/v0.18.md`](./version-plans/v0.18.md) — Add Library workflow:
+  category browsing, local favorites, stronger menu navigation, and continued
+  Layers/Nodes parity without changing document or render semantics.
+
+Recently shipped:
+
 - [`version-plans/v0.17.md`](./version-plans/v0.17.md) — editor creative
   controls, shared Add Library, useful texture/print ranges, Pixelate as a
-  focused low-resolution workflow, and renderer-backed menu previews. Local
-  release validation has passed for `v0.17.0`; the next planning pass should
-  start from `v0.18`.
+  focused low-resolution workflow, and renderer-backed menu previews. Released
+  as `v0.17.0`.
 
 ## Product summary
 
