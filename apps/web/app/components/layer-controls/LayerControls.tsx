@@ -10,7 +10,7 @@ import { useState } from 'react';
 import {
   type EmojiLayer,
   type FillLayer,
-  FONT_LABELS,
+  getBundledFontRegistryItem,
   type ImageLayer,
   type Layer,
   type SourceLayer,
@@ -21,6 +21,7 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../../utils/aiGenerationStatus';
+import { getCachedImportedFont, isFontUri } from '../../utils/fontStore';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
@@ -104,11 +105,14 @@ export function LayerControls({
   const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
 
   if (layer.kind === 'text') {
+    const fontSummary = isFontUri(layer.font)
+      ? (getCachedImportedFont(layer.font)?.label ?? 'Imported font')
+      : getBundledFontRegistryItem(layer.font).label;
     return (
       <div className={sectionClassName}>
         <InspectorSection
           title="Content"
-          summary={`${FONT_LABELS[layer.font]} · ${layer.size}px`}
+          summary={`${fontSummary} · ${layer.size}px`}
           open={openSection === 'content'}
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
         >

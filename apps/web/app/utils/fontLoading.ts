@@ -1,21 +1,45 @@
-import { type CanvasDocument, FONT_REGISTRY, FONT_STACKS, type FontName } from '../types/config';
+import {
+  type CanvasDocument,
+  FONT_REGISTRY,
+  FONT_STACKS,
+  getBundledFontStack,
+  isBundledFontName,
+  type TextFontRef,
+} from '../types/config';
+import { ensureImportedFontLoaded, getCachedImportedFont, isFontUri } from './fontStore';
 
-const loadedCanvasFonts = new Set<FontName>();
+const loadedCanvasFonts = new Set<string>();
 
 function hasFontFaceSet(): boolean {
   return typeof document !== 'undefined' && 'fonts' in document;
 }
 
-export function collectDocumentFontNames(doc: CanvasDocument): FontName[] {
+export function collectDocumentFontNames(doc: CanvasDocument): TextFontRef[] {
   return Array.from(new Set(doc.layers.filter((layer) => layer.kind === 'text').map((layer) => layer.font)));
 }
 
-export async function ensureCanvasFontLoaded(font: FontName, sizePx = 64): Promise<void> {
+export function getCanvasFontStack(font: TextFontRef): string {
+  if (isFontUri(font)) {
+    const asset = getCachedImportedFont(font);
+    return asset ? `"${asset.family}", ${FONT_STACKS.MONO}` : FONT_STACKS.MONO;
+  }
+  return getBundledFontStack(font);
+}
+
+export async function ensureCanvasFontLoaded(font: TextFontRef, sizePx = 64): Promise<void> {
   if (loadedCanvasFonts.has(font) || !hasFontFaceSet()) return;
+
+  if (isFontUri(font)) {
+    await ensureImportedFontLoaded(font);
+    loadedCanvasFonts.add(font);
+    return;
+  }
+
+  if (!isBundledFontName(font)) return;
 
   const fonts = document.fonts;
   const family = FONT_REGISTRY[font]?.family;
-  const stack = FONT_STACKS[font] ?? FONT_STACKS.MONO;
+  const stack = getCanvasFontStack(font);
   const spec = `${Math.max(1, Math.round(sizePx))}px ${family ? `"${family}"` : stack}`;
 
   try {
@@ -27,6 +51,6 @@ export async function ensureCanvasFontLoaded(font: FontName, sizePx = 64): Promi
   }
 }
 
-export async function ensureCanvasFontsLoaded(fonts: readonly FontName[], sizePx = 64): Promise<void> {
+export async function ensureCanvasFontsLoaded(fonts: readonly TextFontRef[], sizePx = 64): Promise<void> {
   await Promise.all(Array.from(new Set(fonts)).map((font) => ensureCanvasFontLoaded(font, sizePx)));
 }

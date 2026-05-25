@@ -8,6 +8,7 @@ import {
   parseArtifactDocument,
   serializeArtifactDocument,
 } from '../utils/documentPersistence';
+import { hydrateDocumentFontAssets, storeDocumentFontAssets } from '../utils/fontStore';
 
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 
@@ -28,6 +29,7 @@ export function useDocumentFileTransfer(
 
   const handleSaveDocument = useCallback(() => {
     hydrateDocumentImageAssets(docRef.current)
+      .then((portableDoc) => hydrateDocumentFontAssets(portableDoc))
       .then((portableDoc) => {
         const blob = new Blob([serializeArtifactDocument(portableDoc)], { type: ARTIFACT_FILE_MIME });
         const url = URL.createObjectURL(blob);
@@ -68,7 +70,7 @@ export function useDocumentFileTransfer(
           showDocumentFileError('Could not read document JSON.');
           return;
         }
-        onLoadDocument(importedDoc);
+        onLoadDocument(await storeDocumentFontAssets(importedDoc));
         setDocumentFileError(null);
       } catch {
         showDocumentFileError('Could not read document file.');

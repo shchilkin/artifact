@@ -1,4 +1,4 @@
-import type { FontName } from './typography';
+import type { TextFontRef } from './typography';
 
 export {
   ALL_EMOJIS,
@@ -9,6 +9,11 @@ export {
   FONT_STACKS,
   type FontName,
   GOOGLE_FONT_STYLESHEET_URL,
+  getBundledFontRegistryItem,
+  getBundledFontStack,
+  type ImportedFontRef,
+  isBundledFontName,
+  type TextFontRef,
 } from './typography';
 
 export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
@@ -34,7 +39,7 @@ interface BaseLayer {
 export interface TextLayer extends BaseLayer {
   kind: 'text';
   content: string;
-  font: FontName;
+  font: TextFontRef;
   size: number;
   color: string;
   opacity: number;
@@ -388,12 +393,23 @@ export interface ExportConfig {
   target: 'cover' | 'envmap';
 }
 
+export interface PortableFontAsset {
+  id: string;
+  dataUrl: string;
+  mime: string;
+  bytes: number;
+  label: string;
+  family: string;
+  createdAt: string;
+}
+
 export interface CanvasDocument {
   schemaVersion?: number;
   global: GlobalConfig;
   layers: Layer[];
   graph?: CanvasGraph;
   export: ExportConfig;
+  fontAssets?: PortableFontAsset[];
 }
 
 export const DOCUMENT_SCHEMA_VERSION = 1;
@@ -932,6 +948,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
     schemaVersion: doc.schemaVersion,
     global: { ...doc.global },
     export: { ...doc.export },
+    fontAssets: doc.fontAssets?.map((asset) => ({ ...asset })),
     layers: doc.layers.map((layer) => ({
       ...layer,
       ...(layer.kind === 'emoji' ? { emojis: [...layer.emojis] } : {}),

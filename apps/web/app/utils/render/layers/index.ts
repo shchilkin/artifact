@@ -9,8 +9,7 @@ import type {
   Layer,
   TextLayer,
 } from '../../../types/config';
-import { FONT_STACKS } from '../../../types/config';
-import { ensureCanvasFontLoaded } from '../../fontLoading';
+import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
@@ -182,7 +181,7 @@ function drawEmojiLayer(
 function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: TextLayer, scale: number) {
   if (!layer.content.trim()) return;
   const fontSize = layer.size * scale;
-  const fontStack = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
+  const fontStack = getCanvasFontStack(layer.font);
 
   ctx.save();
   ctx.font = `${fontSize}px ${fontStack}`; // must be set before wrapText uses measureText

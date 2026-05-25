@@ -20,6 +20,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
+| Imported font assets/cache | `fontStore`, shared Font Library picker, renderer font loading | Font payloads in IndexedDB; `FontFace` cache is not | No | Yes, as render input for text | Yes for text thumbnails/output |
 | AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 
@@ -248,6 +249,29 @@ Tradeoff:
   document, those fields must stay serializable and render-relevant. Transient
   queue state such as queued/running/progress/error details belongs in API or UI
   state, not in the saved document.
+
+## Font persistence decision
+
+Imported font payloads follow the same local-first shape as imported images, but
+with a separate font store. Text layers keep a serializable `font` string. Bundled
+fonts use their registry id, and imported fonts use lightweight
+`artifact-font://...` references.
+
+Rules:
+
+- Font binaries live in IndexedDB through `apps/web/app/utils/fontStore.ts`.
+- `CanvasDocument` should not keep `FontFace`, `ArrayBuffer`, `Blob`, file
+  handles, or other live font objects.
+- Active localStorage documents should contain only `artifact-font://...`
+  references for imported fonts.
+- `.artifact.json` export and copy-link creation may attach portable
+  `fontAssets` records so another browser can hydrate the referenced imported
+  fonts back into IndexedDB.
+- Imported `.artifact.json` or `?doc=` payloads that contain `fontAssets` should
+  store those assets locally and then strip the payload from the active
+  document.
+- Missing imported font payloads must fall back to a bundled stack instead of
+  producing blank text.
 
 ## Do not do this
 

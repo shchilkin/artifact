@@ -134,6 +134,8 @@ export const FONT_REGISTRY = {
 } as const satisfies Record<string, FontRegistryItem>;
 
 export type FontName = keyof typeof FONT_REGISTRY;
+export type ImportedFontRef = `artifact-font://${string}`;
+export type TextFontRef = FontName | ImportedFontRef | (string & {});
 
 export const FONT_NAMES = Object.keys(FONT_REGISTRY) as FontName[];
 
@@ -149,6 +151,18 @@ export const FONT_OPTIONS = FONT_NAMES.map((font) => ({
   value: font,
   label: FONT_REGISTRY[font].label,
 }));
+
+export function isBundledFontName(font: string): font is FontName {
+  return font in FONT_REGISTRY;
+}
+
+export function getBundledFontRegistryItem(font: TextFontRef): FontRegistryItem {
+  return isBundledFontName(font) ? FONT_REGISTRY[font] : FONT_REGISTRY.MONO;
+}
+
+export function getBundledFontStack(font: TextFontRef): string {
+  return isBundledFontName(font) ? FONT_STACKS[font] : FONT_STACKS.MONO;
+}
 
 function googleFamilyParam(font: FontRegistryItem): string | null {
   if (!font.googleFamily) return null;

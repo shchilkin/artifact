@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { FONT_STACKS, type Layer } from '../../../types/config';
+import type { Layer } from '../../../types/config';
+import { getCanvasFontStack } from '../../../utils/fontLoading';
 import { useNodeCanvasPreview } from '../context';
 import { getLiveMediaReferenceScale } from './liveMediaSizing';
 import { getNodePreviewSize } from './previewSizing';
@@ -41,7 +42,7 @@ export function LiveMediaOverlay({ layer, imageSrc }: { layer: LiveMediaLayer; i
   const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
   const referenceScale = getLiveMediaReferenceScale(previewSize.display.width);
   if (layer.kind === 'text') {
-    const fontFamily = FONT_STACKS[layer.font] ?? FONT_STACKS.MONO;
+    const fontFamily = getCanvasFontStack(layer.font);
     const fontSize = Math.max(6, layer.size * referenceScale);
     return (
       <LiveMediaOverlayFrame previewSize={previewSize}>

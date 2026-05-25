@@ -12,6 +12,7 @@ import {
   type EffectLayer,
   type Layer,
   makeSourceLayer,
+  type PortableFontAsset,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
@@ -91,6 +92,28 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
   };
 }
 
+function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const assets = value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const id = typeof item.id === 'string' ? item.id : '';
+    const dataUrl = typeof item.dataUrl === 'string' ? item.dataUrl : '';
+    if (!id || !dataUrl.startsWith('data:')) return [];
+    return [
+      {
+        id,
+        dataUrl,
+        mime: typeof item.mime === 'string' ? item.mime : 'application/octet-stream',
+        bytes: Number.isFinite(Number(item.bytes)) ? Number(item.bytes) : 0,
+        label: typeof item.label === 'string' ? item.label : 'Imported Font',
+        family: typeof item.family === 'string' ? item.family : `Artifact Imported ${id}`,
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date(0).toISOString(),
+      },
+    ];
+  });
+  return assets.length > 0 ? assets : undefined;
+}
+
 export function normalizeDocument(raw: unknown): CanvasDocument {
   const doc = isRecord(raw) ? raw : {};
   const global = isRecord(doc.global) ? doc.global : {};
@@ -119,13 +142,17 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
       }) as Layer[])
     : [];
 
+  const fontAssets = normalizePortableFontAssets(doc.fontAssets);
+  const documentFields = { ...(doc as Partial<CanvasDocument>) };
+  delete documentFields.fontAssets;
   return {
-    ...(doc as Partial<CanvasDocument>),
+    ...documentFields,
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...DEFAULT_GLOBAL, ...global, aspect },
     layers,
     export: { ...DEFAULT_EXPORT, ...exportConfig } as CanvasDocument['export'],
     graph: normalizeGraph(doc.graph),
+    ...(fontAssets ? { fontAssets } : {}),
   };
 }
 
