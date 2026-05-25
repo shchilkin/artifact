@@ -142,9 +142,18 @@ export async function resolveImageSource(src: string): Promise<string | null> {
   return isAssetUri(src) ? loadImageAssetDataUrl(src) : src;
 }
 
-export async function storeDocumentImageAssets(doc: CanvasDocument): Promise<CanvasDocument> {
+export interface StoreDocumentImageAssetOptions {
+  saveAssetDataUrl?: typeof saveImageAsset;
+}
+
+export async function storeDocumentImageAssets(
+  doc: CanvasDocument,
+  options: StoreDocumentImageAssetOptions = {},
+): Promise<CanvasDocument> {
   let changed = false;
   const layers: Layer[] = [];
+  const saveAssetDataUrl = options.saveAssetDataUrl ?? saveImageAsset;
+  const storedSrcByDataUrl = new Map<string, string>();
 
   for (const layer of doc.layers) {
     if (layer.kind !== 'image') {
@@ -152,12 +161,11 @@ export async function storeDocumentImageAssets(doc: CanvasDocument): Promise<Can
       continue;
     }
 
-    const storedSrcByDataUrl = new Map<string, string>();
     const storeSource = async (source: string) => {
       if (!isImageDataUrl(source)) return source;
       const cached = storedSrcByDataUrl.get(source);
       if (cached) return cached;
-      const stored = await saveImageAsset(source);
+      const stored = await saveAssetDataUrl(source);
       storedSrcByDataUrl.set(source, stored);
       return stored;
     };
@@ -193,6 +201,7 @@ export async function hydrateDocumentImageAssets(
   let changed = false;
   const layers: Layer[] = [];
   const loadAssetDataUrl = options.loadAssetDataUrl ?? loadImageAssetDataUrl;
+  const loadedSrcByAsset = new Map<string, string | null>();
 
   for (const layer of doc.layers) {
     if (layer.kind !== 'image') {
@@ -200,7 +209,6 @@ export async function hydrateDocumentImageAssets(
       continue;
     }
 
-    const loadedSrcByAsset = new Map<string, string | null>();
     const loadSource = async (source: string) => {
       if (!isAssetUri(source)) return source;
       if (loadedSrcByAsset.has(source)) return loadedSrcByAsset.get(source) ?? source;

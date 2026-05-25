@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
+import { storePortableDocumentAssets } from '../utils/documentAssets';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import {
   MAX_PROJECTS,
@@ -85,16 +86,16 @@ export function useProjects() {
       }
 
       const now = new Date().toISOString();
-      const project: SavedProject = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name,
-        doc,
-        thumbnail,
-        createdAt: now,
-        updatedAt: now,
-      };
-
       try {
+        const storedDoc = await storePortableDocumentAssets(doc);
+        const project: SavedProject = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name,
+          doc: storedDoc,
+          thumbnail,
+          createdAt: now,
+          updatedAt: now,
+        };
         const next = await saveStoredProject(project);
         setStorageError(null);
         if (mountedRef.current) setProjects(next);

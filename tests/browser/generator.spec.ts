@@ -595,6 +595,130 @@ const imageDragDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const portableAssetDocument = {
+  schemaVersion: 1,
+  global: { bg: '#07050a', seed: 22, aspect: '1:1' },
+  layers: [
+    {
+      id: 'portable-image',
+      name: 'Portable Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: testImageSrc,
+      fit: 'cover',
+      opacity: 92,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    },
+    {
+      id: 'portable-type',
+      name: 'Portable Type',
+      visible: true,
+      locked: false,
+      kind: 'text',
+      content: 'PORTABLE',
+      font: 'BUNGEE',
+      size: 88,
+      color: '#fff2dd',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      rotation: -3,
+      align: 'center',
+      scaleX: 1,
+      scaleY: 1,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const portableAssetGraphDocument = {
+  ...portableAssetDocument,
+  graph: {
+    edges: [
+      { id: 'e-portable-image-type', fromId: 'portable-image', fromPort: 'out', toId: 'portable-type', toPort: 'bg' },
+      { id: 'e-portable-type-export', fromId: 'portable-type', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {
+      'portable-image': { x: 0, y: 80 },
+      'portable-type': { x: 500, y: 80 },
+      __export__: { x: 1000, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+};
+const portableShareLinkDocument = {
+  ...portableAssetDocument,
+  layers: portableAssetDocument.layers.map((layer) =>
+    layer.id === 'portable-type' ? { ...layer, font: 'artifact-font://tiny-share-font' } : layer,
+  ),
+  fontAssets: [
+    {
+      id: 'tiny-share-font',
+      dataUrl: 'data:font/ttf;base64,AA==',
+      mime: 'font/ttf',
+      bytes: 1,
+      label: 'Tiny Share Font',
+      family: 'Tiny Share Font',
+      createdAt: '2026-05-25T00:00:00.000Z',
+    },
+  ],
+};
+const missingImageDocument = {
+  schemaVersion: 1,
+  global: { bg: '#07050a', seed: 23, aspect: '1:1' },
+  layers: [
+    {
+      id: 'missing-image',
+      name: 'Missing Image',
+      visible: true,
+      locked: false,
+      kind: 'image',
+      src: 'artifact-asset://missing-browser-asset',
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const missingFontDocument = {
+  schemaVersion: 1,
+  global: { bg: '#07050a', seed: 24, aspect: '1:1' },
+  layers: [
+    {
+      id: 'missing-font-text',
+      name: 'Missing Font Type',
+      visible: true,
+      locked: false,
+      kind: 'text',
+      content: 'FONT FALLBACK',
+      font: 'artifact-font://missing-browser-font',
+      size: 72,
+      color: '#fff2dd',
+      opacity: 100,
+      blendMode: 'normal',
+      x: 0.5,
+      y: 0.5,
+      rotation: 0,
+      align: 'center',
+      scaleX: 1,
+      scaleY: 1,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const emptyTransparentDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 5, aspect: '1:1' },
@@ -652,6 +776,58 @@ function isBenignBrowserTestIssue(text: string) {
 function readBrowserFontFixture() {
   if (!browserFontFixture) throw new Error('No local browser font fixture found');
   return readFileSync(browserFontFixture);
+}
+
+async function importPortableFontForLayer(page: Page, layerName = 'Portable Type') {
+  await page.locator('.layer-row').filter({ hasText: layerName }).first().click();
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Import font').setInputFiles({
+    name: 'Portable Poster.ttf',
+    mimeType: 'font/ttf',
+    buffer: readBrowserFontFixture(),
+  });
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Portable Poster');
+}
+
+async function expectPortableRefsStored(page: Page) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const image = doc.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+          const text = doc.layers?.find((layer: { id: string }) => layer.id === 'portable-type');
+          const serialized = localStorage.getItem('doc') ?? '';
+          return {
+            imageIsAssetRef: /^artifact-asset:\/\//.test(image?.src ?? ''),
+            fontIsAssetRef: /^artifact-font:\/\//.test(text?.font ?? ''),
+            hasFontAssets: Boolean(doc.fontAssets?.length),
+            hasImagePayload: serialized.includes('data:image/'),
+            hasFontAssetsField: serialized.includes('fontAssets'),
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      imageIsAssetRef: true,
+      fontIsAssetRef: true,
+      hasFontAssets: false,
+      hasImagePayload: false,
+      hasFontAssetsField: false,
+    });
+}
+
+async function captureCopiedShareLink(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          (window as Window & { __artifactCopiedLink?: string }).__artifactCopiedLink = text;
+        },
+      },
+    });
+  });
 }
 
 test('layer canvas survives switching to nodes and back', async ({ page }) => {
@@ -1025,6 +1201,147 @@ test('layers can import a local font through the shared font picker', async ({ p
   await page.locator('.sidebar .font-picker-trigger').click();
   await page.locator('.sidebar .font-picker-option').filter({ hasText: 'Local Poster' }).click();
   await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
+});
+
+test('portable documents save and reopen imported image and font payloads', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Portable payload download/import coverage runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save document file' }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) return;
+  const artifactJson = readFileSync(artifactPath, 'utf8');
+  const artifactDoc = JSON.parse(artifactJson);
+  const portableImage = artifactDoc.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+
+  expect(portableImage?.src).toContain('data:image/');
+  expect(artifactDoc.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+
+  await page.goto('/app?new=blank');
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'portable-assets.artifact.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(artifactJson),
+  });
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+});
+
+test('portable stack documents with imported image and font export', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Portable asset export smoke runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+});
+
+test('portable graph documents export imported assets through the output node', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Portable graph export smoke runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetGraphDocument))}`);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'EXPORT' }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+});
+
+test('portable share links include imported image and font payloads', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Portable share-link coverage runs once in Chromium.');
+
+  await captureCopiedShareLink(page);
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableShareLinkDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+
+  await page.getByRole('button', { name: 'Copy link to current state' }).click();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => (window as Window & { __artifactCopiedLink?: string }).__artifactCopiedLink ?? ''),
+      { timeout: 15_000 },
+    )
+    .toContain('/app?doc=');
+
+  const shareUrl = await page.evaluate(
+    () => (window as Window & { __artifactCopiedLink?: string }).__artifactCopiedLink ?? '',
+  );
+  const shareDoc = JSON.parse(new URL(shareUrl).searchParams.get('doc') ?? '{}');
+  const portableImage = shareDoc.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+  expect(portableImage?.src).toContain('data:image/');
+  expect(shareDoc.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+
+  await page.goto('/app?new=blank');
+  await page.goto(shareUrl);
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+});
+
+test('local projects preserve imported image and font assets across save and load', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Portable local-project coverage runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByLabel('Project name').fill('Portable Project');
+  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
+
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByRole('button', { name: 'Load Portable Project' }).click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expectPortableRefsStored(page);
+});
+
+test('missing imported image shows a clear replacement state', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingImageDocument))}`);
+  await page.locator('.layer-row').filter({ hasText: 'Missing Image' }).click();
+
+  await expect(page.getByText('Image unavailable')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Replace the source to restore this layer.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Replace image' })).toBeVisible();
+});
+
+test('missing imported font keeps fallback text visible', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingFontDocument))}`);
+  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
+
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {

@@ -97,7 +97,16 @@ function AssetImagePreview({ src }: { src: string }) {
   }, [src]);
 
   const resolvedSrc = isAssetUri(src) ? (resolvedAsset.src === src ? resolvedAsset.value : '') : src;
-  if (!resolvedSrc) return <div className="w-full aspect-square border border-border checkerboard-surface" />;
+  if (!resolvedSrc) {
+    return (
+      <div className="w-full aspect-square border border-border checkerboard-surface flex flex-col items-center justify-center gap-2 px-3 text-center">
+        <span className="font-mono text-[10px] uppercase tracking-[2.5px] text-accent">Image unavailable</span>
+        <span className="font-mono text-[10px] text-dim leading-relaxed">
+          Replace the source to restore this layer.
+        </span>
+      </div>
+    );
+  }
   return <img src={resolvedSrc} alt="" className="w-full aspect-square object-cover border border-border" />;
 }
 

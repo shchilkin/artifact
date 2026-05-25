@@ -16,9 +16,11 @@ Related architecture docs:
 
 Current active version plan:
 
-- `v0.22` — next planning slot. Candidate direction: project/share/export
-  robustness after local font import, with the Typography Library v3 and Graph
-  Add Library Drag v2 ideas preserved as follow-up candidates.
+- [`version-plans/v0.22.md`](./version-plans/v0.22.md) — Project & Asset
+  Robustness: portable document integrity, imported image/font dependency
+  inventory, missing asset fallbacks, save/open/share/export confidence, and
+  local-first project boundaries without changing graph traversal or render
+  semantics.
 
 Recently shipped:
 
