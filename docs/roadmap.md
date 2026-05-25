@@ -16,14 +16,17 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.21.md`](./version-plans/v0.21.md) — Font Import /
-  Typography Library v2: local font import, imported font persistence, Font
-  Library integration, Layers/Nodes parity, and portable/fallback-safe
-  `.artifact.json` behavior without changing graph traversal or render/export
-  semantics.
+- `v0.22` — next planning slot. Candidate direction: project/share/export
+  robustness after local font import, with the Typography Library v3 and Graph
+  Add Library Drag v2 ideas preserved as follow-up candidates.
 
 Recently shipped:
 
+- [`version-plans/v0.21.md`](./version-plans/v0.21.md) — Font Import /
+  Typography Library v2: local font import, imported font persistence, Font
+  Library integration, Layers/Nodes parity, and portable/fallback-safe
+  `.artifact.json` behavior. Released as `v0.21.0`; release notes are in
+  [`releases/v0.21.0.md`](./releases/v0.21.0.md).
 - [`version-plans/v0.20.md`](./version-plans/v0.20.md) — Text Workflow v1:
   typography starts, better font browsing, clearer text controls, multi-font
   cover workflows, and Layers/Nodes parity. Released as `v0.20.0`; release
