@@ -15,6 +15,7 @@ import {
   type ImportedFontAsset,
   isFontUri,
   listImportedFonts,
+  normalizeImportedFontLabel,
   saveImportedFontFile,
 } from '../../../../utils/fontStore';
 import { InspectorLabel } from './InspectorLabel';
@@ -30,13 +31,10 @@ interface FontOptionItem {
   sample: string;
 }
 
-function importedSample(label: string) {
-  return (
-    label
-      .replaceAll(/[^a-zA-Z0-9]+/g, '')
-      .slice(0, 8)
-      .toUpperCase() || 'TYPE'
-  );
+const IMPORTED_FONT_SAMPLE = 'TYPE';
+
+function importedFontLabel(font: ImportedFontAsset) {
+  return normalizeImportedFontLabel(font.sourceName || font.label);
 }
 
 export function FontPicker({
@@ -100,11 +98,11 @@ export function FontPicker({
     });
     const imported = importedFonts.map((font) => ({
       value: fontUriFromId(font.id),
-      label: font.label,
+      label: importedFontLabel(font),
       category: 'Imported',
       family: font.family,
       stack: `"${font.family}", ${FONT_STACKS.MONO}`,
-      sample: importedSample(font.label),
+      sample: IMPORTED_FONT_SAMPLE,
     }));
     return [...imported, ...bundled];
   }, [importedFonts]);

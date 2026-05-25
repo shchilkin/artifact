@@ -5,6 +5,7 @@ import {
   fontUriFromId,
   hydrateDocumentFontAssets,
   isFontUri,
+  normalizeImportedFontLabel,
   storeDocumentFontAssets,
 } from './fontStore';
 
@@ -23,6 +24,13 @@ describe('fontStore document helpers', () => {
     expect(fontUriFromId('font-a')).toBe('artifact-font://font-a');
     expect(isFontUri('artifact-font://font-a')).toBe(true);
     expect(isFontUri('BUNGEE')).toBe(false);
+  });
+
+  it('normalizes imported font labels for picker display', () => {
+    expect(normalizeImportedFontLabel('Jost-VariableFont_wght.ttf')).toBe('Jost');
+    expect(normalizeImportedFontLabel('Poppins Bold.otf')).toBe('Poppins');
+    expect(normalizeImportedFontLabel('Inter_18pt-Regular.woff2')).toBe('Inter');
+    expect(normalizeImportedFontLabel('Local Poster.ttf')).toBe('Local Poster');
   });
 
   it('collects unique document font references', () => {

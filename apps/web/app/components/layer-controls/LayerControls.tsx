@@ -21,7 +21,7 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../../utils/aiGenerationStatus';
-import { getCachedImportedFont, isFontUri } from '../../utils/fontStore';
+import { getCachedImportedFont, isFontUri, normalizeImportedFontLabel } from '../../utils/fontStore';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
@@ -105,8 +105,9 @@ export function LayerControls({
   const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
 
   if (layer.kind === 'text') {
+    const importedFont = isFontUri(layer.font) ? getCachedImportedFont(layer.font) : null;
     const fontSummary = isFontUri(layer.font)
-      ? (getCachedImportedFont(layer.font)?.label ?? 'Imported font')
+      ? normalizeImportedFontLabel(importedFont?.sourceName ?? importedFont?.label ?? 'Imported font')
       : getBundledFontRegistryItem(layer.font).label;
     return (
       <div className={sectionClassName}>

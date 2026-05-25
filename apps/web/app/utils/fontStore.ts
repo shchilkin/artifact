@@ -94,8 +94,46 @@ function extensionMime(name: string) {
   return 'application/octet-stream';
 }
 
-function sanitizeLabel(name: string) {
-  return name.replace(FONT_FILE_RE, '').replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim() || 'Imported Font';
+const FONT_LABEL_NOISE = new Set([
+  'variablefont',
+  'wght',
+  'wdth',
+  'opsz',
+  'ital',
+  'slnt',
+  'thin',
+  'extralight',
+  'ultralight',
+  'light',
+  'regular',
+  'medium',
+  'semibold',
+  'demibold',
+  'bold',
+  'extrabold',
+  'ultrabold',
+  'black',
+  'heavy',
+  'italic',
+  'oblique',
+]);
+
+export function normalizeImportedFontLabel(name: string) {
+  const cleaned =
+    name
+      .replace(FONT_FILE_RE, '')
+      .replaceAll(/variablefont/gi, ' ')
+      .replaceAll(/([a-z])([A-Z])/g, '$1 $2')
+      .replaceAll(/[_-]+/g, ' ')
+      .replaceAll(/\s+/g, ' ')
+      .trim() || 'Imported Font';
+  const tokens = cleaned.split(' ');
+  const familyTokens = tokens.filter((token) => {
+    const normalized = token.toLowerCase().replaceAll(/[^a-z0-9]+/g, '');
+    if (/^\d+pt$/.test(normalized)) return false;
+    return !FONT_LABEL_NOISE.has(normalized);
+  });
+  return familyTokens.length > 0 ? familyTokens.join(' ') : cleaned;
 }
 
 function familyForId(id: string) {
@@ -136,7 +174,7 @@ export async function saveImportedFontFile(file: File): Promise<ImportedFontAsse
     dataUrl,
     mime: file.type || extensionMime(file.name),
     bytes: file.size || estimateDataUrlBytes(dataUrl),
-    label: sanitizeLabel(file.name),
+    label: normalizeImportedFontLabel(file.name),
     family: familyForId(id),
     createdAt: new Date().toISOString(),
     sourceName: file.name,
@@ -150,7 +188,7 @@ export async function saveImportedFontAsset(asset: ImportedFontAsset | PortableF
     sourceName: asset.label,
     ...asset,
     family: asset.family || familyForId(asset.id),
-    label: asset.label || 'Imported Font',
+    label: normalizeImportedFontLabel(asset.sourceName || asset.label || 'Imported Font'),
     bytes: asset.bytes || estimateDataUrlBytes(asset.dataUrl),
     mime: asset.mime || 'application/octet-stream',
     createdAt: asset.createdAt || new Date().toISOString(),
