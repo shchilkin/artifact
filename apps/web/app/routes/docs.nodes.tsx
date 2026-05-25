@@ -109,7 +109,7 @@ const CONTENT_NODES: NodeDef[] = [
     id: 'text',
     symbol: 'T',
     name: 'Text',
-    desc: 'Type set directly on the canvas. Use text starts for title, subtitle, label, credits, or poster type, then tune font, placement, and blend.',
+    desc: 'Type set directly on the canvas. Use text starts for title, subtitle, label, credits, or poster type, then tune curated poster, mono, pixel, and typewriter fonts.',
     params: [
       { key: 'size', range: '8–160' },
       { key: 'x', range: '0–1' },

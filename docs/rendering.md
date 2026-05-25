@@ -137,6 +137,12 @@ Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
 
 Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
 
+Text rendering uses the shared font registry in `apps/web/app/types/typography.ts`.
+Before a text layer is drawn, the renderer asks `document.fonts` to load the
+selected canvas font when the browser supports the FontFaceSet API. This keeps
+preview, thumbnails, graph output, and export closer to the same font metrics
+without adding external font objects to `CanvasDocument`.
+
 When `draft` rendering is requested, primitive layers may use a Canvas 2D fallback shape instead of creating a new offscreen WebGL renderer. This keeps the live layer preview responsive after GPU/context loss without changing the canonical export path.
 
 ## Effect rendering

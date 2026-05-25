@@ -10,6 +10,7 @@ import type {
   TextLayer,
 } from '../../../types/config';
 import { FONT_STACKS } from '../../../types/config';
+import { ensureCanvasFontLoaded } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
@@ -659,6 +660,7 @@ async function applyLayerToCanvasProfiled(
   if (layer.kind === 'emoji') {
     drawEmojiLayer(ctx, W, H, layer, lcg(seed ^ 0x7a8b9c), scale);
   } else if (layer.kind === 'text') {
+    await ensureCanvasFontLoaded(layer.font, layer.size * scale);
     drawTextLayer(ctx, W, H, layer, scale);
   } else if (layer.kind === 'image') {
     drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);

@@ -22,7 +22,7 @@ export const TEXT_PRESETS: Record<TextPresetId, TextPresetDefinition> = {
     partial: {
       name: 'Title Type',
       content: 'TITLE',
-      font: 'DISPLAY',
+      font: 'ARCHIVO_BLACK',
       size: 92,
       color: '#f5ead8',
       x: 0.5,
@@ -41,7 +41,7 @@ export const TEXT_PRESETS: Record<TextPresetId, TextPresetDefinition> = {
     partial: {
       name: 'Subtitle',
       content: 'SUBTITLE',
-      font: 'MONO',
+      font: 'SPACE_MONO',
       size: 24,
       color: '#e9d9c3',
       x: 0.5,
@@ -79,7 +79,7 @@ export const TEXT_PRESETS: Record<TextPresetId, TextPresetDefinition> = {
     partial: {
       name: 'Credits',
       content: 'ARTIST\nTRACK',
-      font: 'MONO',
+      font: 'SPACE_MONO',
       size: 18,
       color: '#d8c6ae',
       x: 0.5,
@@ -99,7 +99,7 @@ export const TEXT_PRESETS: Record<TextPresetId, TextPresetDefinition> = {
     partial: {
       name: 'Poster Type',
       content: 'POSTER',
-      font: 'ANTON',
+      font: 'BUNGEE',
       size: 118,
       color: '#f5ead8',
       x: 0.5,

@@ -1,6 +1,15 @@
 import type { FontName } from './typography';
 
-export { ALL_EMOJIS, FONT_LABELS, FONT_NAMES, FONT_OPTIONS, FONT_STACKS, type FontName } from './typography';
+export {
+  ALL_EMOJIS,
+  FONT_LABELS,
+  FONT_NAMES,
+  FONT_OPTIONS,
+  FONT_REGISTRY,
+  FONT_STACKS,
+  type FontName,
+  GOOGLE_FONT_STYLESHEET_URL,
+} from './typography';
 
 export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
 export type LayerKind = (typeof LAYER_KINDS)[number];

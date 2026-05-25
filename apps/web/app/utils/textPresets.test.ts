@@ -26,4 +26,10 @@ describe('textPresets', () => {
     expect(layer.size).toBe(44);
     expect(layer.name).toBe('Title Type');
   });
+
+  it('uses curated font-library entries for cover-ready starts', () => {
+    expect(makeTextPresetLayer('title').font).toBe('ARCHIVO_BLACK');
+    expect(makeTextPresetLayer('subtitle').font).toBe('SPACE_MONO');
+    expect(makeTextPresetLayer('poster').font).toBe('BUNGEE');
+  });
 });

@@ -934,7 +934,7 @@ test('layers can add title text starts with readable font controls', async ({ pa
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
   });
-  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'DISPLAY' });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'ARCHIVO_BLACK' });
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
@@ -1364,7 +1364,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return doc.layers?.find((layer: { name: string }) => layer.name === 'Poster Type');
   });
-  expect(textLayer).toMatchObject({ kind: 'text', content: 'POSTER', font: 'ANTON' });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'POSTER', font: 'BUNGEE' });
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

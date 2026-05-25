@@ -12,6 +12,7 @@ import {
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESET_MENU_ORDER,
+  FONT_NAMES,
   makeEffectPresetLayer,
   makeEmojiLayer,
 } from '../types/config';
@@ -357,7 +358,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
       };
     case 'TEXT':
       return {
-        font: ['MONO', 'DISPLAY', 'ANTON', 'BEBAS', 'RUBIK_MONO', 'VT323', 'SPECIAL'][rand(0, 6)] as TextLayer['font'],
+        font: FONT_NAMES[rand(0, FONT_NAMES.length - 1)],
         size: rand(28, 96),
         color: randomHsl(ah, [0, 100], [50, 100]),
         opacity: rand(70, 100),

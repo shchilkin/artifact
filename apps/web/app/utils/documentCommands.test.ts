@@ -336,7 +336,7 @@ describe('documentCommands', () => {
       kind: 'text',
       name: 'Poster Type',
       content: 'POSTER',
-      font: 'ANTON',
+      font: 'BUNGEE',
     });
     expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
     expect(result.doc.graph?.edges).toContainEqual({
