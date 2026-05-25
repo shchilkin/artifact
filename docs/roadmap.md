@@ -16,14 +16,18 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.20.md`](./version-plans/v0.20.md) — Text Workflow v1:
-  typography starts, better font browsing, clearer text controls, multi-font
-  cover workflows, and Layers/Nodes parity without changing render/export
-  semantics. Release validation passed on 2026-05-25; release notes are in
-  [`releases/v0.20.0.md`](./releases/v0.20.0.md).
+- [`version-plans/v0.21.md`](./version-plans/v0.21.md) — Font Import /
+  Typography Library v2: local font import, imported font persistence, Font
+  Library integration, Layers/Nodes parity, and portable/fallback-safe
+  `.artifact.json` behavior without changing graph traversal or render/export
+  semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.20.md`](./version-plans/v0.20.md) — Text Workflow v1:
+  typography starts, better font browsing, clearer text controls, multi-font
+  cover workflows, and Layers/Nodes parity. Released as `v0.20.0`; release
+  notes are in [`releases/v0.20.0.md`](./releases/v0.20.0.md).
 - [`version-plans/v0.19.md`](./version-plans/v0.19.md) — Node Graph Usability:
   active output-path readability, selected-node clarity, graph navigation, and
   continued Layers/Nodes parity without changing document or render semantics.
@@ -39,11 +43,11 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Custom Font / Typography Library v2** — font import, external font catalog
-  research, and saved font sets after the v0.20 text workflow proves the core
-  interaction.
 - **Graph Add Library Drag v2** — drag from Add Library onto edges or specific
   graph insertion points while preserving the existing graph helper boundaries.
+- **Typography Library v3** — arbitrary Google Fonts search/import, saved font
+  sets, and account-synced font libraries after local font import proves the
+  storage and render-readiness model.
 
 ## Product summary
 
@@ -108,10 +112,10 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.20` focuses on text workflow. Font import,
-external font catalogs, command-palette entry, and advanced graph insertion
-ideas remain preserved as follow-up candidates so this release can stay
-coherent and low-risk.
+Near-term sequencing note: `v0.21` focuses on local font import and Font
+Library persistence. Arbitrary external font catalogs, command-palette entry,
+and advanced graph insertion ideas remain preserved as follow-up candidates so
+this release can stay coherent and low-risk.
 
 ### Content And Learning
 
