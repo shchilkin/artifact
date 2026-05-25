@@ -1,6 +1,7 @@
 import { type MutableRefObject, useCallback, useEffect, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
+import { storePortableDocumentAssets } from '../utils/documentAssets';
 import { type SavedProject } from '../utils/projectLibrary';
 import { useProjects } from './useProjects';
 
@@ -31,8 +32,12 @@ export function useGeneratorProjectsController({
   const handleLoadProject = useCallback(
     (project: SavedProject) => {
       const { doc } = loadProject(project);
-      onLoadDocument(doc);
-      setShowProjects(false);
+      void storePortableDocumentAssets(doc)
+        .catch(() => doc)
+        .then((storedDoc) => {
+          onLoadDocument(storedDoc);
+          setShowProjects(false);
+        });
     },
     [loadProject, onLoadDocument],
   );

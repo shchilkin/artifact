@@ -12,7 +12,12 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
-import { hydrateDocumentImageAssets } from '../utils/assetStore';
+import {
+  hasPortableDocumentPayloads,
+  preparePortableDocument,
+  storePortableDocumentAssets,
+  stripPortableDocumentAssets,
+} from '../utils/documentAssets';
 import {
   addLayerToDocument,
   addNodeAtDocument,
@@ -54,7 +59,6 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
-import { hydrateDocumentFontAssets, storeDocumentFontAssets, stripDocumentFontAssets } from '../utils/fontStore';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import type { TextPresetId } from '../utils/textPresets';
@@ -209,14 +213,16 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   }, [doc]);
 
   useEffect(() => {
-    if (!doc.fontAssets?.length) return;
+    if (!hasPortableDocumentPayloads(doc)) return;
+    const sourceDoc = doc;
     let cancelled = false;
-    void storeDocumentFontAssets(doc)
-      .then(() => {
-        if (!cancelled) commitDocument(stripDocumentFontAssets(docRef.current), 'silent');
+    void storePortableDocumentAssets(sourceDoc)
+      .then((storedDoc) => {
+        if (!cancelled && docRef.current === sourceDoc) commitDocument(storedDoc, 'silent');
       })
       .catch(() => {
-        if (!cancelled) commitDocument(stripDocumentFontAssets(docRef.current), 'silent');
+        if (!cancelled && docRef.current === sourceDoc)
+          commitDocument(stripPortableDocumentAssets(docRef.current), 'silent');
       });
     return () => {
       cancelled = true;
@@ -386,9 +392,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const handleNewBlank = useCallback(() => {
     const current = docRef.current;
     if (!isBlankDocument(current)) {
-      void saveStoredPreBlankDraft(current).catch(() => {
-        // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
-      });
+      void storePortableDocumentAssets(current)
+        .then((storedDoc) => saveStoredPreBlankDraft(storedDoc))
+        .catch(() => {
+          // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
+        });
     }
     commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
     setSelectedLayerId(null);
@@ -409,8 +417,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleCopyLink = useCallback(() => {
-    void hydrateDocumentImageAssets(docRef.current)
-      .then((portableDoc) => hydrateDocumentFontAssets(portableDoc))
+    void preparePortableDocument(docRef.current)
       .then((portableDoc) => createDocumentShareUrl(window.location.origin, portableDoc))
       .then((url) => {
         navigator.clipboard.writeText(url).catch(() => {

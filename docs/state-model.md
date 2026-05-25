@@ -34,6 +34,8 @@ Current owner:
 - `apps/web/app/utils/documentCommands.ts` for pure document mutations
 - `apps/web/app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
+- `apps/web/app/utils/documentAssets.ts` for dependency inventory and portable
+  save/open/share/project asset boundaries
 - `apps/web/app/hooks/useDocumentFileTransfer.ts` for browser-only `.artifact.json`
   import/export mechanics
 
@@ -222,6 +224,8 @@ Tradeoff:
   images.
 - `.artifact.json` export and copy-link creation hydrate local asset references
   back to data URLs when possible so documents remain portable.
+- Save/open/share/project flows should go through `documentAssets` helpers so
+  image and font payload handling does not drift between UI surfaces.
 - Very large images can still make exported `.artifact.json` files or share URLs
   heavy after hydration.
 - Local project snapshots and the pre-blank recovery draft are stored in
@@ -267,6 +271,9 @@ Rules:
 - `.artifact.json` export and copy-link creation may attach portable
   `fontAssets` records so another browser can hydrate the referenced imported
   fonts back into IndexedDB.
+- Shared portable document helpers combine image hydration and font hydration at
+  file/share/project boundaries; UI components should not reassemble those
+  steps directly.
 - Imported `.artifact.json` or `?doc=` payloads that contain `fontAssets` should
   store those assets locally and then strip the payload from the active
   document.

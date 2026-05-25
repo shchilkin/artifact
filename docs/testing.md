@@ -40,6 +40,7 @@ Fast, no browser required. Run in Node with `@napi-rs/canvas` polyfilling Canvas
 | --- | --- |
 | `apps/web/app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
 | `apps/web/app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
+| `apps/web/app/utils/documentAssets.test.ts` | imported image/font dependency inventory, portable document hydration/storage boundaries, storage-unavailable fallback |
 | `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
 | `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
 | `apps/web/app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
