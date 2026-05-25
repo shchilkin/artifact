@@ -14,6 +14,7 @@ import {
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
 import {
+  MULTI_FONT_TYPE_STACK_STARTER,
   NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
   PHOTO_TYPE_STACK_STARTER,
@@ -86,6 +87,12 @@ function starterExample(
 }
 
 export const CURATED_EXAMPLES: CuratedExample[] = [
+  starterExample(MULTI_FONT_TYPE_STACK_STARTER, {
+    category: 'Layer recipe',
+    summary: 'A text-first stack for mixing poster, mono, pixel, and typewriter fonts with a print finish.',
+    usedNodes: ['Fill', 'Image', 'Noise', 'Text', 'Riso Shift', 'Grain'],
+    startCopy: 'Open this to swap the words, audition fonts, and keep the whole cover in layer mode.',
+  }),
   starterExample(TEXTURE_TYPE_STACK_STARTER, {
     category: 'Layer recipe',
     summary: 'Build a stack-only cover from fill, procedural texture, display type, and print effects.',

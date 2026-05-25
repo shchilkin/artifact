@@ -50,9 +50,11 @@ import type { NoisePresetId } from './noisePresets';
 import { makeNoisePresetLayer } from './noisePresets';
 import type { RepeatPresetId } from './repeatPresets';
 import { makeRepeatPresetNode } from './repeatPresets';
+import { makeTextPresetLayer, type TextPresetId } from './textPresets';
 
 export type DocumentAddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'textPreset'; preset: TextPresetId }
   | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
@@ -96,6 +98,10 @@ export function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
             ? makeEmojiLayer()
             : makeSourceLayer(kind);
   return withGeneratedNodeSeed(layer);
+}
+
+export function createTextPresetLayer(preset: TextPresetId): Layer {
+  return makeTextPresetLayer(preset);
 }
 
 export function createEffectPresetLayer(preset: EffectPreset): Layer {
@@ -410,9 +416,11 @@ export function addNodeAtDocument(
         ? withGeneratedNodeSeed(makeNoisePresetLayer(action.preset))
         : action.kind === 'arrayPreset'
           ? makeArrayPresetLayer(action.preset)
-          : action.kind === 'aiImage'
-            ? createAiImageLayer()
-            : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
+          : action.kind === 'textPreset'
+            ? createTextPresetLayer(action.preset)
+            : action.kind === 'aiImage'
+              ? createAiImageLayer()
+              : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),

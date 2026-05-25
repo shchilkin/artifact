@@ -4,7 +4,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import type { Route } from './+types/root';
 import './index.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
-import { ALL_EMOJIS } from './types/config';
+import { ALL_EMOJIS, GOOGLE_FONT_STYLESHEET_URL } from './types/config';
 import { logAppBuildInfo } from './utils/appBuildInfo';
 
 // Default title/description — route-level meta() overrides these via <Meta />
@@ -81,10 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="twitter:image" content="https://artifact.shchilkin.dev/og.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@700;900&family=Bebas+Neue&family=Rubik+Mono+One&family=Special+Elite&family=VT323&display=swap"
-          rel="stylesheet"
-        />
+        <link href={GOOGLE_FONT_STYLESHEET_URL} rel="stylesheet" />
         <Meta />
         <Links />
       </head>

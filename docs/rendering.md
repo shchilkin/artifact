@@ -106,6 +106,11 @@ document, graph, render size, image availability, and primitive camera state.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.
+The graph export/output node does not implicitly paint `doc.global.bg`; it returns
+the pixels provided by the connected graph branch. Add an explicit fill, image,
+or procedural source node when graph output should have a solid/background plate.
+Classic stack rendering still paints `doc.global.bg` before applying the inferred
+linear layer graph, preserving layer-mode behavior.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
@@ -137,6 +142,12 @@ Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
 
 Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
 
+Text rendering uses the shared font registry in `apps/web/app/types/typography.ts`.
+Before a text layer is drawn, the renderer asks `document.fonts` to load the
+selected canvas font when the browser supports the FontFaceSet API. This keeps
+preview, thumbnails, graph output, and export closer to the same font metrics
+without adding external font objects to `CanvasDocument`.
+
 When `draft` rendering is requested, primitive layers may use a Canvas 2D fallback shape instead of creating a new offscreen WebGL renderer. This keeps the live layer preview responsive after GPU/context loss without changing the canonical export path.
 
 ## Effect rendering
@@ -159,6 +170,8 @@ Rules:
 - Effect params must be initialized in defaults, presets, randomizer, renderer, and controls.
 - GPU effects should use normalized coordinates where possible.
 - If an effect depends on output size, pass dimensions explicitly.
+- If the browser cannot create a WebGL/Pixi context, the GPU pass must return
+  the input canvas unchanged instead of producing a blank preview/export frame.
 
 ## Primitive rendering
 

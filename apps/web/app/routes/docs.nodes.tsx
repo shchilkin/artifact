@@ -20,6 +20,7 @@ import {
 import { EFFECT_DOCS, EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
 import { renderDocument } from '../utils/renderer';
 import {
+  MULTI_FONT_TYPE_STACK_STARTER,
   NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
   PHOTO_TYPE_STACK_STARTER,
@@ -109,9 +110,9 @@ const CONTENT_NODES: NodeDef[] = [
     id: 'text',
     symbol: 'T',
     name: 'Text',
-    desc: 'Type set directly on the canvas. Curated display fonts, normalized XY position, free rotation.',
+    desc: 'Type set directly on the canvas. Use text starts for title, subtitle, label, credits, or poster type, then tune curated poster, mono, pixel, and typewriter fonts.',
     params: [
-      { key: 'size', range: '8–400' },
+      { key: 'size', range: '8–160' },
       { key: 'x', range: '0–1' },
       { key: 'y', range: '0–1' },
     ],
@@ -368,6 +369,12 @@ const RECIPE_STARTERS: Array<{
   desc: string;
   steps: string[];
 }> = [
+  {
+    starter: MULTI_FONT_TYPE_STACK_STARTER,
+    mode: 'Layer recipe',
+    desc: 'A text-first layer recipe for mixing poster, mono, pixel, and typewriter fonts over one cover.',
+    steps: ['Photo wash', 'Paper tooth', 'Poster title', 'Subtitle and credits', 'Print finish'],
+  },
   {
     starter: TEXTURE_TYPE_STACK_STARTER,
     mode: 'Layer recipe',

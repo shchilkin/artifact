@@ -24,8 +24,13 @@ describe('addLibraryModel', () => {
   it('keeps layers focused on stack-safe add actions', () => {
     const layerItems = addLibraryItemsForSurface('layers');
     expect(layerItems.length).toBeGreaterThan(0);
-    expect(layerItems.every((item) => item.action.kind === 'layer' || item.action.kind === 'effect')).toBe(true);
+    expect(
+      layerItems.every(
+        (item) => item.action.kind === 'layer' || item.action.kind === 'textPreset' || item.action.kind === 'effect',
+      ),
+    ).toBe(true);
     expect(layerItems.map((item) => item.id)).toContain('effect:pixelate');
+    expect(layerItems.map((item) => item.id)).toContain('textPreset:title');
     expect(layerItems.map((item) => item.id)).not.toContain('merge');
   });
 
@@ -54,7 +59,7 @@ describe('addLibraryModel', () => {
     const popularIds = ADD_LIBRARY_ITEMS.filter((item) => item.popular).map((item) => item.id);
 
     expect(popularIds).toEqual(
-      expect.arrayContaining(['layer:image', 'layer:text', 'effect:grain', 'effect:pixelate']),
+      expect.arrayContaining(['layer:image', 'layer:text', 'textPreset:title', 'textPreset:poster', 'effect:grain']),
     );
   });
 
@@ -66,6 +71,8 @@ describe('addLibraryModel', () => {
         .map((item) => item.id);
 
     expect(firstIdsFor('low res')).toContain('effect:pixelate');
+    expect(firstIdsFor('headline')).toContain('textPreset:title');
+    expect(firstIdsFor('credit')).toContain('textPreset:credit');
     expect(firstIdsFor('dots')).toContain('effect:halftone');
     expect(firstIdsFor('old photo')).toEqual(expect.arrayContaining(['effect:grain', 'effect:duotone']));
     expect(firstIdsFor('crt')).toEqual(expect.arrayContaining(['effect:scanlines', 'effect:vhsTracking']));
@@ -82,10 +89,15 @@ describe('addLibraryModel', () => {
   });
 
   it('round trips drag actions and rejects unknown payloads', () => {
-    const action = { kind: 'effect' as const, preset: 'pixelate' as const };
+    const action = { kind: 'textPreset' as const, preset: 'poster' as const };
 
     expect(parseAddLibraryAction(serializeAddLibraryAction(action))).toEqual(action);
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'effect', preset: 'pixelate' }))).toEqual({
+      kind: 'effect',
+      preset: 'pixelate',
+    });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
+    expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction('not json')).toBeNull();
   });
 });

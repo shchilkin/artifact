@@ -319,6 +319,35 @@ describe('documentCommands', () => {
     });
   });
 
+  it('inserts text preset nodes as normal text layers', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'textPreset', preset: 'poster' },
+      { x: 460, y: 320 },
+      { sourceId: 'fill-a' },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const layerId = result.selectedLayerId;
+
+    expect(layerId).toBeTruthy();
+    expect(result.doc.layers[1]).toMatchObject({
+      id: layerId,
+      kind: 'text',
+      name: 'Poster Type',
+      content: 'POSTER',
+      font: 'BUNGEE',
+    });
+    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${layerId}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: layerId,
+      toPort: 'bg',
+    });
+  });
+
   it('inserts an AI image as a normal image layer node', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(

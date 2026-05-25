@@ -1,6 +1,7 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EffectPreset, LayerKind } from '../../types/config';
+import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
 import { clampPopupPosition } from '../node-canvas/helpers';
@@ -11,9 +12,11 @@ const LAYER_ADD_MENU_H = 560;
 export function LayerAddMenu({
   onAddLayer,
   onAddEffectPreset,
+  onAddTextPreset,
 }: {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
+  onAddTextPreset: (preset: TextPresetId) => void;
 }) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addButtonRef = useRef<HTMLDivElement>(null);
@@ -56,12 +59,21 @@ export function LayerAddMenu({
     [onAddEffectPreset],
   );
 
+  const handleAddTextPreset = useCallback(
+    (preset: TextPresetId) => {
+      onAddTextPreset(preset);
+      setShowAddMenu(false);
+    },
+    [onAddTextPreset],
+  );
+
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
       if (action.kind === 'layer') handleAddLayer(action.layerKind);
+      if (action.kind === 'textPreset') handleAddTextPreset(action.preset);
       if (action.kind === 'effect') handleAddEffectPreset(action.preset);
     },
-    [handleAddEffectPreset, handleAddLayer],
+    [handleAddEffectPreset, handleAddLayer, handleAddTextPreset],
   );
 
   return (

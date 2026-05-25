@@ -26,6 +26,7 @@ import {
   updateGlobalInDocument,
   updateLayerInDocument,
 } from '../utils/documentCommands';
+import type { TextPresetId } from '../utils/textPresets';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
@@ -37,9 +38,13 @@ interface Props {
   onSelectLayer: (id: string | null) => void;
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
+  onAddTextPreset: (preset: TextPresetId) => void;
   onInsertLayerAbove: (
     targetLayerId: string,
-    action: { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> } | { kind: 'effect'; preset: EffectPreset },
+    action:
+      | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+      | { kind: 'textPreset'; preset: TextPresetId }
+      | { kind: 'effect'; preset: EffectPreset },
   ) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
@@ -103,6 +108,7 @@ export function Sidebar({
   onSelectLayer,
   onAddLayer,
   onAddEffectPreset,
+  onAddTextPreset,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -269,6 +275,7 @@ export function Sidebar({
           onSelectLayer={onSelectLayer}
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
+          onAddTextPreset={onAddTextPreset}
           onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={handleReorderLayers}

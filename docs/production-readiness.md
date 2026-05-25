@@ -27,6 +27,21 @@ CI should run:
 
 ## Manual QA
 
+### v0.20.0 Release Prep
+
+- User verified the v0.20 text workflow and follow-up fixes locally on
+  2026-05-25.
+- Automated browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `189 passed, 1 skipped`.
+- Text starts, Font Library picker, curated font loading, multi-font starter
+  flow, text control parity, transparent graph output, and graceful auth
+  fallback were validated without adding document schema fields or changing
+  graph traversal.
+- Firefox CI exposed a no-WebGL environment. The release now falls back to the
+  source canvas when a GPU-only Pixi effect cannot initialize, avoiding blank
+  preview/export output in that environment.
+- Release notes live in `docs/releases/v0.20.0.md`.
+
 ### v0.17.0 Release Prep
 
 - User verified the renderer-backed Add Library preview direction locally on

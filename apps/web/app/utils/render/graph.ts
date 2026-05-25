@@ -314,7 +314,9 @@ async function renderGraphNode(
     if (nodeId === EXPORT_NODE_ID) {
       const canvas = createCanvas(W, H);
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-      drawBackground(ctx, W, H, doc.global.bg);
+      if (options.outputBackground === 'document') {
+        drawBackground(ctx, W, H, doc.global.bg);
+      }
       const sourceId = findIncomingSource(graph, nodeId, 'in');
       if (sourceId) {
         const rendered = await renderDependency(sourceId);

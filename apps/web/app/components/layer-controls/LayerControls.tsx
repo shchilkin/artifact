@@ -10,7 +10,7 @@ import { useState } from 'react';
 import {
   type EmojiLayer,
   type FillLayer,
-  FONT_NAMES,
+  FONT_LABELS,
   type ImageLayer,
   type Layer,
   type SourceLayer,
@@ -24,6 +24,7 @@ import {
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
+  FontPicker,
   InspectorColorInput,
   InspectorLabel,
   InspectorSection,
@@ -107,16 +108,15 @@ export function LayerControls({
       <div className={sectionClassName}>
         <InspectorSection
           title="Content"
-          summary={`${layer.font} · ${layer.size}px`}
+          summary={`${FONT_LABELS[layer.font]} · ${layer.size}px`}
           open={openSection === 'content'}
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} placeholder="Layer name" />
           <InspectorTextArea value={layer.content} onChange={(v) => onChange({ content: v } as Partial<TextLayer>)} />
-          <InspectorSelect
+          <FontPicker
             label="Font"
             value={layer.font}
-            options={[...FONT_NAMES]}
             onChange={(v) => onChange({ font: v as TextLayer['font'] } as Partial<TextLayer>)}
           />
           <InspectorSlider

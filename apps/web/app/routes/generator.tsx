@@ -60,6 +60,7 @@ export default function Generator() {
     setSelectedLayerId,
     addLayer,
     addEffectPreset,
+    addTextPreset,
     insertLayerAbove,
     addImageFromSource,
     removeLayer,
@@ -345,6 +346,7 @@ export default function Generator() {
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}
             onAddEffectPreset={addEffectPreset}
+            onAddTextPreset={addTextPreset}
             onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}

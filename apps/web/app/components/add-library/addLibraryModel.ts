@@ -3,11 +3,13 @@ import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS, type ArrayPresetId } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS, type NoisePresetId } from '../../utils/noisePresets';
 import { REPEAT_PRESET_IDS, REPEAT_PRESETS, type RepeatPresetId } from '../../utils/repeatPresets';
+import { TEXT_PRESET_IDS, TEXT_PRESETS, type TextPresetId } from '../../utils/textPresets';
 
 export type AddLibrarySurface = 'layers' | 'nodes';
 
 export type AddLibraryAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'textPreset'; preset: TextPresetId }
   | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
@@ -262,6 +264,18 @@ const layerItems: AddLibraryItem[] = [
     keywords: 'photo type title headline typography caption label recipe',
     popular: true,
   },
+  ...TEXT_PRESET_IDS.map((preset) => ({
+    id: `textPreset:${preset}`,
+    label: TEXT_PRESETS[preset].name,
+    symbol: KIND_SYMBOL.text,
+    description: TEXT_PRESETS[preset].description,
+    group: 'content' as const,
+    action: { kind: 'textPreset', preset } as AddLibraryAction,
+    surfaces: ['layers', 'nodes'] as const,
+    tags: TEXT_PRESETS[preset].tags,
+    keywords: TEXT_PRESETS[preset].keywords,
+    popular: TEXT_PRESETS[preset].popular,
+  })),
   {
     id: 'layer:emoji',
     label: 'Emoji',
@@ -421,7 +435,7 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
     label: 'Photo + Type',
     hint: 'image / duotone / title / grain',
     surfaces: ['nodes'],
-    itemIds: ['layer:fill', 'layer:image', 'effect:duotone', 'layer:text', 'effect:grain'],
+    itemIds: ['layer:fill', 'layer:image', 'effect:duotone', 'textPreset:title', 'effect:grain'],
   },
   {
     id: 'texture-type',
@@ -432,7 +446,7 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'layer:fill',
       'layer:noise',
       'noisePreset:paper',
-      'layer:text',
+      'textPreset:title',
       'effect:risoShift',
       'effect:scanlines',
       'effect:grain',
@@ -448,7 +462,7 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'arrayPreset:stickerGrid',
       'repeatPreset:stickerGrid',
       'effect:risoShift',
-      'layer:text',
+      'textPreset:label',
       'effect:overprint',
     ],
   },
@@ -463,7 +477,7 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'effect:cyanotype',
       'effect:neonGlow',
       'merge',
-      'layer:text',
+      'textPreset:title',
       'effect:vignette',
     ],
   },
@@ -472,7 +486,14 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
     label: 'Print Damage',
     hint: 'paper / halftone / tear / dust',
     surfaces: ['nodes'],
-    itemIds: ['noisePreset:paper', 'layer:text', 'effect:halftone', 'effect:tear', 'effect:grain', 'effect:threshold'],
+    itemIds: [
+      'noisePreset:paper',
+      'textPreset:poster',
+      'effect:halftone',
+      'effect:tear',
+      'effect:grain',
+      'effect:threshold',
+    ],
   },
 ];
 
@@ -537,6 +558,11 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   }
   if (value.kind === 'layer') {
     return 'layerKind' in value && isLayerAddKind(value.layerKind);
+  }
+  if (value.kind === 'textPreset') {
+    return (
+      'preset' in value && typeof value.preset === 'string' && TEXT_PRESET_IDS.includes(value.preset as TextPresetId)
+    );
   }
   if (value.kind === 'effect') {
     return 'preset' in value && isEffectPreset(value.preset);

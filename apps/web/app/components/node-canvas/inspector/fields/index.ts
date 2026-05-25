@@ -1,4 +1,5 @@
 export { BlendModeNote } from './BlendModeNote';
+export { FontPicker } from './FontPicker';
 export { InspectorColorInput } from './InspectorColorInput';
 export { InspectorLabel } from './InspectorLabel';
 export { InspectorSection } from './InspectorSection';

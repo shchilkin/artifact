@@ -20,6 +20,7 @@ import {
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
+  createTextPresetLayer,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
   insertLayerAboveInDocument,
@@ -55,6 +56,7 @@ import {
 } from '../utils/documentPersistence';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
+import type { TextPresetId } from '../utils/textPresets';
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
@@ -229,13 +231,29 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const addTextPreset = useCallback(
+    (preset: TextPresetId) => {
+      const layer = createTextPresetLayer(preset);
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
   const insertLayerAbove = useCallback(
     (
       targetLayerId: string,
-      action: { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> } | { kind: 'effect'; preset: EffectPreset },
+      action:
+        | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+        | { kind: 'textPreset'; preset: TextPresetId }
+        | { kind: 'effect'; preset: EffectPreset },
     ) => {
       const layer =
-        action.kind === 'effect' ? createEffectPresetLayer(action.preset) : createLayerOfKind(action.layerKind);
+        action.kind === 'effect'
+          ? createEffectPresetLayer(action.preset)
+          : action.kind === 'textPreset'
+            ? createTextPresetLayer(action.preset)
+            : createLayerOfKind(action.layerKind);
       updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
@@ -395,6 +413,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId,
     addLayer,
     addEffectPreset,
+    addTextPreset,
     insertLayerAbove,
     addImageFromSource,
     removeLayer,

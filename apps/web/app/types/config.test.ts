@@ -5,6 +5,11 @@ import {
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESETS,
+  FONT_NAMES,
+  FONT_OPTIONS,
+  FONT_REGISTRY,
+  FONT_STACKS,
+  GOOGLE_FONT_STYLESHEET_URL,
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
@@ -45,6 +50,31 @@ describe('makeTextLayer', () => {
     expect(layer.content).toBe('Hello');
     expect(layer.size).toBe(72);
     expect(layer.kind).toBe('text');
+  });
+
+  it('defaults to visible cover text', () => {
+    const layer = makeTextLayer();
+    expect(layer.content).toBe('TITLE');
+    expect(layer.size).toBeGreaterThan(60);
+    expect(layer.color).not.toBe('#ffffff');
+  });
+
+  it('exposes readable font options for controls', () => {
+    expect(FONT_OPTIONS.map((option) => option.value)).toContain('DISPLAY');
+    expect(FONT_OPTIONS.map((option) => option.label)).toContain('Display / condensed');
+  });
+
+  it('keeps font registry, options, stacks, and stylesheet in sync', () => {
+    expect(FONT_NAMES).toContain('ARCHIVO_BLACK');
+    expect(FONT_NAMES).toContain('PRESS_START');
+    expect(FONT_OPTIONS).toHaveLength(FONT_NAMES.length);
+    for (const font of FONT_NAMES) {
+      expect(FONT_REGISTRY[font].label).toBeTruthy();
+      expect(FONT_STACKS[font]).toContain(FONT_REGISTRY[font].family);
+    }
+    expect(GOOGLE_FONT_STYLESHEET_URL).toContain('family=Archivo+Black');
+    expect(GOOGLE_FONT_STYLESHEET_URL).toContain('family=Press+Start+2P');
+    expect(GOOGLE_FONT_STYLESHEET_URL).toContain('display=swap');
   });
 
   it('generates unique ids for each call', () => {

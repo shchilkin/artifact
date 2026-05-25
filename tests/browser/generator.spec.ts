@@ -707,6 +707,45 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
   expect(hierarchy.canvasShadow).not.toBe('none');
 });
 
+test('rand creates cover-ready text layers with curated fonts', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await page.getByRole('button', { name: 'RAND' }).click();
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text').length ?? 0;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(1);
+
+  const randomizedTextLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { kind: string }) => layer.kind === 'text') ?? null;
+  });
+  expect(randomizedTextLayer.content.trim().length).toBeGreaterThan(0);
+  expect([
+    'BUNGEE',
+    'ANTON',
+    'ARCHIVO_BLACK',
+    'RUBIK_MONO',
+    'DISPLAY',
+    'BEBAS',
+    'STAATLICHES',
+    'SPACE_MONO',
+    'MONO',
+    'SPECIAL',
+    'VT323',
+    'PRESS_START',
+  ]).toContain(randomizedTextLayer.font);
+  expect(randomizedTextLayer.size).toBeGreaterThanOrEqual(12);
+  expect(randomizedTextLayer.size).toBeLessThanOrEqual(142);
+});
+
 test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
   await switchToNodeView(page);
@@ -911,6 +950,34 @@ test('layers can quick-add Pixelate with formatted creative controls', async ({ 
   await expect(page.locator('.sidebar')).toContainText('Block Size');
   await expect(page.locator('.sidebar .node-inspector-value')).toContainText('6px');
   await expectLayerCanvasToHavePixels(page);
+});
+
+test('layers can add title text starts with readable font controls', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeVisible({ timeout: 15_000 });
+  await search.fill('headline');
+  await page.getByRole('button', { name: /^T Title Type/ }).click();
+
+  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
+  await expect(titleRow).toBeVisible({ timeout: 15_000 });
+  await titleRow.click();
+  await expect(page.locator('.sidebar')).toContainText('Archivo Black / dense cover');
+  await expect(page.locator('.sidebar')).toContainText('TITLE');
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Search fonts').fill('pixel');
+  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
+  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+  await expectLayerCanvasToHavePixels(page);
+
+  const textLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
+  });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'PRESS_START' });
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
@@ -1179,8 +1246,8 @@ test('new blank canvas action confirms before replacing current work', async ({ 
 test('empty canvas can start from the layer-first texture recipe', async ({ page }) => {
   await page.goto('/app?new=blank');
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' })).toBeVisible();
-  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Noise Poster' })).toBeVisible();
 
   await page
     .locator('.empty-canvas-start')
@@ -1215,6 +1282,53 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
         'starter-registration',
         'starter-scanlines',
         'starter-grain',
+      ],
+    });
+});
+
+test('empty canvas can start from the multi-font type recipe', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
+
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(10, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.getByText('poster title')).toBeVisible();
+  await expect(page.getByText('mono subtitle')).toBeVisible();
+  await expect(page.getByText('pixel label')).toBeVisible();
+  await expect(page.getByText('type credits')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
+          return {
+            aspect: doc.global?.aspect,
+            hasGraph: Boolean(doc.graph),
+            textFonts: textLayers.map((layer: { font: string }) => layer.font),
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      aspect: '4:5',
+      hasGraph: false,
+      textFonts: ['BUNGEE', 'SPACE_MONO', 'PRESS_START', 'SPECIAL'],
+      layerIds: [
+        'multi-font-plate',
+        'multi-font-image',
+        'multi-font-duotone',
+        'multi-font-paper',
+        'multi-font-title',
+        'multi-font-subtitle',
+        'multi-font-label',
+        'multi-font-credit',
+        'multi-font-registration',
+        'multi-font-grain',
       ],
     });
 });
@@ -1318,6 +1432,28 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
   await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
+  await switchToLayerView(page);
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('node add menu can add poster text starts', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('poster type');
+  await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: /^T Poster Type/ }).click();
+
+  const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
+  await expect(posterNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-props-panel')).toContainText('Bungee / sign painter');
+  await expect(page.locator('.node-props-panel')).toContainText('POSTER');
+
+  const textLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { name: string }) => layer.name === 'Poster Type');
+  });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'POSTER', font: 'BUNGEE' });
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });
@@ -2339,8 +2475,8 @@ async function expectLayerCanvasToHavePixels(page: Page) {
           let maxChannel = 0;
           let alphaTotal = 0;
           let samples = 0;
-          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 12))) {
-            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 12))) {
+          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 32))) {
+            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 32))) {
               const index = (y * canvas.width + x) * 4;
               maxChannel = Math.max(maxChannel, pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
               alphaTotal += pixels[index + 3] ?? 0;

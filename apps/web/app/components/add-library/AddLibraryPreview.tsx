@@ -13,6 +13,7 @@ import { makeArrayPresetLayer } from '../../utils/arrayPresets';
 import { renderEffectThumb } from '../../utils/effectInfo';
 import { makeNoisePresetLayer } from '../../utils/noisePresets';
 import { renderDocument } from '../../utils/renderer';
+import { makeTextPresetLayer } from '../../utils/textPresets';
 import type { AddLibraryItem } from './addLibraryModel';
 
 const PREVIEW_SIZE = 200;
@@ -53,6 +54,7 @@ export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
 function previewKindForItem(item: AddLibraryItem) {
   if (item.action.kind === 'effect') return `effect-${item.action.preset}`;
   if (item.action.kind === 'layer') return `layer-${item.action.layerKind}`;
+  if (item.action.kind === 'textPreset') return `text-${item.action.preset}`;
   if (item.action.kind === 'noisePreset') return `noise-${item.action.preset}`;
   if (item.action.kind === 'arrayPreset') return `array-${item.action.preset}`;
   if (item.action.kind === 'repeatPreset') return `repeat-${item.action.preset}`;
@@ -139,6 +141,16 @@ async function makeAddLibraryPreviewDocument(
     }
     return {
       doc: baseDoc([makeSourceLayer(item.action.layerKind, { id: `add-preview-${item.action.layerKind}` })]),
+      imageCache,
+    };
+  }
+
+  if (item.action.kind === 'textPreset') {
+    return {
+      doc: baseDoc([
+        makeFillLayer({ id: 'add-preview-text-bg', color: '#240905' }),
+        makeTextPresetLayer(item.action.preset, { id: `add-preview-text-${item.action.preset}` }),
+      ]),
       imageCache,
     };
   }
@@ -253,7 +265,7 @@ function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
   if (item.action.kind === 'layer' && item.action.layerKind === 'fill') {
     ctx.globalAlpha = 0.9;
     ctx.fillRect(52, 52, 96, 96);
-  } else if (item.action.kind === 'layer' && item.action.layerKind === 'text') {
+  } else if ((item.action.kind === 'layer' && item.action.layerKind === 'text') || item.action.kind === 'textPreset') {
     drawCenteredFallbackText(ctx, 'T', 88);
   } else if (item.action.kind === 'layer' && item.action.layerKind === 'image') {
     ctx.lineWidth = 8;

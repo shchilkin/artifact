@@ -1,12 +1,14 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EffectPreset, LayerKind } from '../../types/config';
+import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
 import { clampPopupPosition } from '../node-canvas/helpers';
 
 export type LayerInsertAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'textPreset'; preset: TextPresetId }
   | { kind: 'effect'; preset: EffectPreset };
 
 const LAYER_QUICK_MENU_W = 520;
@@ -55,6 +57,7 @@ export function LayerQuickAddMenu({
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
       if (action.kind === 'layer') handleInsert({ kind: 'layer', layerKind: action.layerKind });
+      if (action.kind === 'textPreset') handleInsert({ kind: 'textPreset', preset: action.preset });
       if (action.kind === 'effect') handleInsert({ kind: 'effect', preset: action.preset });
     },
     [handleInsert],
