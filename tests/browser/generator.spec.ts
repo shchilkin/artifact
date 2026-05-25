@@ -1293,8 +1293,8 @@ test('empty canvas can start from the multi-font type recipe', async ({ page }) 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expectLayerCanvasToHavePixels(page);
   await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(10, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('poster title')).toBeVisible();
   await expect(page.getByText('mono subtitle')).toBeVisible();
   await expect(page.getByText('pixel label')).toBeVisible();
@@ -2475,8 +2475,8 @@ async function expectLayerCanvasToHavePixels(page: Page) {
           let maxChannel = 0;
           let alphaTotal = 0;
           let samples = 0;
-          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 12))) {
-            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 12))) {
+          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 32))) {
+            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 32))) {
               const index = (y * canvas.width + x) * 4;
               maxChannel = Math.max(maxChannel, pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
               alphaTotal += pixels[index + 3] ?? 0;
