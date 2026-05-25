@@ -1446,7 +1446,6 @@ test('node add menu can add poster text starts', async ({ page }) => {
 
   const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
   await expect(posterNode).toBeVisible({ timeout: 15_000 });
-  await posterNode.click();
   await expect(page.locator('.node-props-panel')).toContainText('Bungee / sign painter');
   await expect(page.locator('.node-props-panel')).toContainText('POSTER');
 
