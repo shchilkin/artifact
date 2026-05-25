@@ -181,11 +181,6 @@ export const MULTI_FONT_TYPE_STACK_STARTER: StarterDocument = {
         name: 'registration slip',
         risoAngle: 22,
       },
-      makeEffectPresetLayer('halftone', {
-        id: 'multi-font-halftone',
-        name: 'screen dots',
-        value: 5,
-      }),
       {
         ...makeEffectPresetLayer('grain', { value: 14 }),
         id: 'multi-font-grain',

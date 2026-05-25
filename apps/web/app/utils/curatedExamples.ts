@@ -90,7 +90,7 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   starterExample(MULTI_FONT_TYPE_STACK_STARTER, {
     category: 'Layer recipe',
     summary: 'A text-first stack for mixing poster, mono, pixel, and typewriter fonts with a print finish.',
-    usedNodes: ['Fill', 'Image', 'Noise', 'Text', 'Riso Shift', 'Halftone', 'Grain'],
+    usedNodes: ['Fill', 'Image', 'Noise', 'Text', 'Riso Shift', 'Grain'],
     startCopy: 'Open this to swap the words, audition fonts, and keep the whole cover in layer mode.',
   }),
   starterExample(TEXTURE_TYPE_STACK_STARTER, {

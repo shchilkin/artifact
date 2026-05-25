@@ -1294,7 +1294,7 @@ test('empty canvas can start from the multi-font type recipe', async ({ page }) 
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(11, { timeout: 15_000 });
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(10, { timeout: 15_000 });
   await expect(page.getByText('poster title')).toBeVisible();
   await expect(page.getByText('mono subtitle')).toBeVisible();
   await expect(page.getByText('pixel label')).toBeVisible();
@@ -1328,7 +1328,6 @@ test('empty canvas can start from the multi-font type recipe', async ({ page }) 
         'multi-font-label',
         'multi-font-credit',
         'multi-font-registration',
-        'multi-font-halftone',
         'multi-font-grain',
       ],
     });
