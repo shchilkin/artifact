@@ -16,14 +16,17 @@ Related architecture docs:
 
 Current active version plan:
 
+- No active implementation plan selected yet. Start the next product planning
+  pass from `v0.23` after `v0.22.0` release validation.
+
+Recently shipped:
+
 - [`version-plans/v0.22.md`](./version-plans/v0.22.md) — Project & Asset
   Robustness: portable document integrity, imported image/font dependency
   inventory, missing asset fallbacks, save/open/share/export confidence, and
   local-first project boundaries without changing graph traversal or render
-  semantics.
-
-Recently shipped:
-
+  semantics. Released as `v0.22.0`; release notes are in
+  [`releases/v0.22.0.md`](./releases/v0.22.0.md).
 - [`version-plans/v0.21.md`](./version-plans/v0.21.md) — Font Import /
   Typography Library v2: local font import, imported font persistence, Font
   Library integration, Layers/Nodes parity, and portable/fallback-safe
@@ -117,10 +120,11 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.21` focuses on local font import and Font
-Library persistence. Arbitrary external font catalogs, command-palette entry,
-and advanced graph insertion ideas remain preserved as follow-up candidates so
-this release can stay coherent and low-risk.
+Near-term sequencing note: `v0.22` hardened imported asset/font portability and
+local project reliability. Arbitrary external font catalogs, command-palette
+entry, project bundles, server-backed sharing, and advanced graph insertion
+ideas remain preserved as follow-up candidates so each release can stay
+coherent and low-risk.
 
 ### Content And Learning
 
