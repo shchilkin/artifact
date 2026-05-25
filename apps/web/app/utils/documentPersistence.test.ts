@@ -51,6 +51,27 @@ describe('normalizeDocument', () => {
     expect(doc.layers[0]?.id).toBe('legacy-fill');
   });
 
+  it('normalizes portable imported font assets without keeping invalid payloads', () => {
+    const doc = normalizeDocument({
+      layers: [makeTextLayer({ font: 'artifact-font://poster-local' })],
+      fontAssets: [
+        {
+          id: 'poster-local',
+          dataUrl: 'data:font/woff2;base64,AAAA',
+          mime: 'font/woff2',
+          bytes: 128,
+          label: 'Poster Local',
+          family: 'Artifact Imported Poster Local',
+          createdAt: '2026-05-25T00:00:00.000Z',
+        },
+        { id: 'broken', dataUrl: 'not-a-data-url' },
+      ],
+    });
+
+    expect(doc.fontAssets).toHaveLength(1);
+    expect(doc.fontAssets?.[0]).toMatchObject({ id: 'poster-local', label: 'Poster Local' });
+  });
+
   it('falls back to the default aspect when stored aspect is invalid', () => {
     const doc = normalizeDocument({
       global: { bg: '#ffffff', seed: 7, aspect: 'poster' },

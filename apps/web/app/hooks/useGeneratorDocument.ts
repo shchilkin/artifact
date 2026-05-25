@@ -54,6 +54,7 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { hydrateDocumentFontAssets, storeDocumentFontAssets, stripDocumentFontAssets } from '../utils/fontStore';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import type { TextPresetId } from '../utils/textPresets';
@@ -206,6 +207,21 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   useEffect(() => {
     saveDocumentToStorage(doc);
   }, [doc]);
+
+  useEffect(() => {
+    if (!doc.fontAssets?.length) return;
+    let cancelled = false;
+    void storeDocumentFontAssets(doc)
+      .then(() => {
+        if (!cancelled) commitDocument(stripDocumentFontAssets(docRef.current), 'silent');
+      })
+      .catch(() => {
+        if (!cancelled) commitDocument(stripDocumentFontAssets(docRef.current), 'silent');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [commitDocument, doc]);
 
   useEffect(() => {
     if (nodeModeEnabled && !docRef.current.graph) {
@@ -394,6 +410,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
 
   const handleCopyLink = useCallback(() => {
     void hydrateDocumentImageAssets(docRef.current)
+      .then((portableDoc) => hydrateDocumentFontAssets(portableDoc))
       .then((portableDoc) => createDocumentShareUrl(window.location.origin, portableDoc))
       .then((url) => {
         navigator.clipboard.writeText(url).catch(() => {

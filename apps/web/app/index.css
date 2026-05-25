@@ -437,6 +437,31 @@ body {
   min-height: 38px;
 }
 
+.font-picker-import {
+  min-height: 36px;
+  border: 1px solid var(--accent);
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.font-picker-import:hover {
+  background: color-mix(in oklch, var(--accent) 16%, var(--surface-bg));
+}
+
+.font-picker-error {
+  border: 1px solid var(--accent);
+  padding: 8px 9px;
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .font-picker-categories {
   display: flex;
   gap: 5px;

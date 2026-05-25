@@ -148,6 +148,13 @@ selected canvas font when the browser supports the FontFaceSet API. This keeps
 preview, thumbnails, graph output, and export closer to the same font metrics
 without adding external font objects to `CanvasDocument`.
 
+Bundled fonts resolve through the static registry. Imported fonts resolve through
+`artifact-font://...` references and `apps/web/app/utils/fontStore.ts`. The
+renderer may register a transient `FontFace` from IndexedDB-backed font bytes,
+but that `FontFace` object remains outside `CanvasDocument`. If the imported
+font bytes are missing or cannot be loaded, text must render with the fallback
+mono stack instead of becoming blank.
+
 When `draft` rendering is requested, primitive layers may use a Canvas 2D fallback shape instead of creating a new offscreen WebGL renderer. This keeps the live layer preview responsive after GPU/context loss without changing the canonical export path.
 
 ## Effect rendering

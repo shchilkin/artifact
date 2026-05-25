@@ -1,9 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const browserFontFixture = [
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+  '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+  '/System/Library/Fonts/Supplemental/Arial.ttf',
+  '/System/Library/Fonts/Supplemental/Helvetica.ttf',
+  '/Library/Fonts/Arial.ttf',
+].find((file) => existsSync(file));
 
 const consoleIssues = new WeakMap<Page, string[]>();
 const lightDocument = {
@@ -642,6 +649,11 @@ function isBenignBrowserTestIssue(text: string) {
   );
 }
 
+function readBrowserFontFixture() {
+  if (!browserFontFixture) throw new Error('No local browser font fixture found');
+  return readFileSync(browserFontFixture);
+}
+
 test('layer canvas survives switching to nodes and back', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
   await expectLayerCanvasToHavePixels(page);
@@ -978,6 +990,41 @@ test('layers can add title text starts with readable font controls', async ({ pa
     return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
   });
   expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'PRESS_START' });
+});
+
+test('layers can import a local font through the shared font picker', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  await page.getByLabel('Search layers and effects').fill('headline');
+  await page.getByRole('button', { name: /^T Title Type/ }).click();
+
+  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
+  await expect(titleRow).toBeVisible({ timeout: 15_000 });
+  await titleRow.click();
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Import font').setInputFiles({
+    name: 'Local Poster.ttf',
+    mimeType: 'font/ttf',
+    buffer: readBrowserFontFixture(),
+  });
+
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Imported');
+  await expectLayerCanvasToHavePixels(page);
+
+  const importedLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
+  });
+  expect(importedLayer.font).toMatch(/^artifact-font:\/\//);
+
+  await page.reload();
+  await page.locator('.layer-row').filter({ hasText: 'Title Type' }).first().click();
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.locator('.sidebar .font-picker-option').filter({ hasText: 'Local Poster' }).click();
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
