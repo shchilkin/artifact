@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CURATED_EXAMPLES } from './curatedExamples';
 import { renderDocument } from './renderer';
-import { GRAPH_RECIPE_STARTER_DOCUMENTS, getStarterDocument, LAYER_STARTER_DOCUMENTS } from './starterDocuments';
+import {
+  GRAPH_RECIPE_STARTER_DOCUMENTS,
+  getStarterDocument,
+  LAYER_STARTER_DOCUMENTS,
+  MULTI_FONT_TYPE_STACK_STARTER,
+} from './starterDocuments';
 
 describe('CURATED_EXAMPLES', () => {
   it('contains unique example ids', () => {
@@ -34,6 +39,18 @@ describe('CURATED_EXAMPLES', () => {
       expect(example.startCopy.length, example.id).toBeGreaterThan(24);
       expect(example.usedNodes.length, example.id).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('includes a multi-font text workflow starter', () => {
+    const example = CURATED_EXAMPLES.find((item) => item.id === MULTI_FONT_TYPE_STACK_STARTER.id);
+    const textLayers = MULTI_FONT_TYPE_STACK_STARTER.doc.layers.filter((layer) => layer.kind === 'text');
+    const fonts = new Set(textLayers.map((layer) => layer.font));
+
+    expect(example?.category).toBe('Layer recipe');
+    expect(textLayers.length).toBeGreaterThanOrEqual(3);
+    expect(fonts.size).toBeGreaterThanOrEqual(3);
+    expect([...fonts]).toEqual(expect.arrayContaining(['BUNGEE', 'SPACE_MONO', 'PRESS_START']));
+    expect(MULTI_FONT_TYPE_STACK_STARTER.doc.graph).toBeUndefined();
   });
 
   it('renders every curated document in smoke mode', async () => {

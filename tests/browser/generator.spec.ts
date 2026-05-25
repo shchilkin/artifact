@@ -1246,8 +1246,8 @@ test('new blank canvas action confirms before replacing current work', async ({ 
 test('empty canvas can start from the layer-first texture recipe', async ({ page }) => {
   await page.goto('/app?new=blank');
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' })).toBeVisible();
-  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Noise Poster' })).toBeVisible();
 
   await page
     .locator('.empty-canvas-start')
@@ -1282,6 +1282,54 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
         'starter-registration',
         'starter-scanlines',
         'starter-grain',
+      ],
+    });
+});
+
+test('empty canvas can start from the multi-font type recipe', async ({ page }) => {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
+
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(11, { timeout: 15_000 });
+  await expect(page.getByText('poster title')).toBeVisible();
+  await expect(page.getByText('mono subtitle')).toBeVisible();
+  await expect(page.getByText('pixel label')).toBeVisible();
+  await expect(page.getByText('type credits')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
+          return {
+            aspect: doc.global?.aspect,
+            hasGraph: Boolean(doc.graph),
+            textFonts: textLayers.map((layer: { font: string }) => layer.font),
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      aspect: '4:5',
+      hasGraph: false,
+      textFonts: ['BUNGEE', 'SPACE_MONO', 'PRESS_START', 'SPECIAL'],
+      layerIds: [
+        'multi-font-plate',
+        'multi-font-image',
+        'multi-font-duotone',
+        'multi-font-paper',
+        'multi-font-title',
+        'multi-font-subtitle',
+        'multi-font-label',
+        'multi-font-credit',
+        'multi-font-registration',
+        'multi-font-halftone',
+        'multi-font-grain',
       ],
     });
 });
