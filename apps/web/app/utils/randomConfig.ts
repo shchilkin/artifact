@@ -12,9 +12,9 @@ import {
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESET_MENU_ORDER,
-  FONT_NAMES,
   makeEffectPresetLayer,
   makeEmojiLayer,
+  makeTextLayer,
 } from '../types/config';
 
 function rand(min: number, max: number): number {
@@ -43,8 +43,105 @@ function spark(): boolean {
   return Math.random() < 0.4;
 }
 
-const TEXT_ALIGNS = ['left', 'center', 'right'] as const;
-const TEXT_BLENDS = ['normal', 'screen', 'overlay', 'multiply'] as const;
+function pick<T>(items: readonly T[]): T {
+  return items[rand(0, items.length - 1)];
+}
+
+function randPercent(min: number, max: number): number {
+  return rand(min * 100, max * 100) / 100;
+}
+
+const TEXT_RANDOM_ROLES = ['poster', 'title', 'subtitle', 'label', 'credit'] as const;
+
+type TextRandomRole = (typeof TEXT_RANDOM_ROLES)[number];
+
+interface TextRandomRoleConfig {
+  fonts: readonly TextLayer['font'][];
+  size: readonly [number, number];
+  x: readonly [number, number];
+  y: readonly [number, number];
+  rotation: readonly [number, number];
+  scaleX: readonly [number, number];
+  scaleY: readonly [number, number];
+  align: readonly TextLayer['align'][];
+  blendMode: readonly string[];
+  opacity: readonly [number, number];
+  content: string;
+  name: string;
+}
+
+const TEXT_ROLE_CONFIGS: Record<TextRandomRole, TextRandomRoleConfig> = {
+  poster: {
+    name: 'Poster Type',
+    content: 'POSTER',
+    fonts: ['BUNGEE', 'ANTON', 'ARCHIVO_BLACK', 'RUBIK_MONO'],
+    size: [92, 142],
+    x: [0.48, 0.52],
+    y: [0.42, 0.58],
+    rotation: [-6, 6],
+    scaleX: [0.86, 1.08],
+    scaleY: [0.78, 0.98],
+    align: ['center'],
+    blendMode: ['normal', 'screen', 'overlay'],
+    opacity: [82, 100],
+  },
+  title: {
+    name: 'Title Type',
+    content: 'TITLE',
+    fonts: ['ARCHIVO_BLACK', 'DISPLAY', 'BEBAS', 'STAATLICHES', 'ANTON'],
+    size: [58, 116],
+    x: [0.45, 0.55],
+    y: [0.34, 0.58],
+    rotation: [-9, 9],
+    scaleX: [0.92, 1.14],
+    scaleY: [0.84, 1],
+    align: ['center'],
+    blendMode: ['normal', 'screen', 'overlay', 'multiply'],
+    opacity: [78, 100],
+  },
+  subtitle: {
+    name: 'Subtitle',
+    content: 'SUBTITLE',
+    fonts: ['SPACE_MONO', 'MONO', 'SPECIAL', 'VT323'],
+    size: [18, 34],
+    x: [0.42, 0.58],
+    y: [0.58, 0.74],
+    rotation: [-4, 4],
+    scaleX: [0.96, 1.08],
+    scaleY: [0.96, 1.04],
+    align: ['center', 'left'],
+    blendMode: ['normal', 'screen', 'overlay'],
+    opacity: [70, 100],
+  },
+  label: {
+    name: 'Label Type',
+    content: 'LABEL',
+    fonts: ['SPECIAL', 'SPACE_MONO', 'VT323', 'PRESS_START'],
+    size: [14, 34],
+    x: [0.16, 0.84],
+    y: [0.14, 0.86],
+    rotation: [-13, 13],
+    scaleX: [0.94, 1.08],
+    scaleY: [0.94, 1.08],
+    align: ['left', 'center'],
+    blendMode: ['normal', 'screen'],
+    opacity: [72, 100],
+  },
+  credit: {
+    name: 'Credits',
+    content: 'ARTIST\nTRACK',
+    fonts: ['SPACE_MONO', 'MONO', 'VT323'],
+    size: [12, 22],
+    x: [0.44, 0.56],
+    y: [0.78, 0.92],
+    rotation: [-2, 2],
+    scaleX: [0.96, 1.06],
+    scaleY: [0.96, 1.04],
+    align: ['center'],
+    blendMode: ['normal', 'screen'],
+    opacity: [68, 100],
+  },
+};
 
 export function randomGlobal(baseHue?: number): Omit<GlobalConfig, 'aspect'> {
   const h = baseHue ?? rand(0, 359);
@@ -70,6 +167,49 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   const baseHueValue = baseHue ?? rand(0, 359);
   const preset = ALL_PRESETS[Math.floor(Math.random() * ALL_PRESETS.length)];
   return randomEffectPresetLayer(preset, baseHueValue);
+}
+
+function inferTextRandomRole(layer?: TextLayer): TextRandomRole {
+  const marker = `${layer?.name ?? ''} ${layer?.content ?? ''}`.toLowerCase();
+  if (marker.includes('poster')) return 'poster';
+  if (marker.includes('credit') || marker.includes('artist') || marker.includes('track')) return 'credit';
+  if (marker.includes('subtitle')) return 'subtitle';
+  if (marker.includes('label')) return 'label';
+  if (marker.includes('title')) return 'title';
+  return pick(TEXT_RANDOM_ROLES);
+}
+
+function randomTextPatch(role: TextRandomRole, baseHue: number, layer?: TextLayer): Partial<TextLayer> {
+  const config = TEXT_ROLE_CONFIGS[role];
+  const accentHue = (baseHue + rand(130, 230)) % 360;
+  const isSmallText = role === 'subtitle' || role === 'label' || role === 'credit';
+  const color = isSmallText
+    ? randomHsl(accentHue, [45, 95], [58, 88])
+    : Math.random() < 0.72
+      ? randomHsl(accentHue, [8, 32], [76, 96])
+      : randomHsl(accentHue, [60, 100], [58, 82]);
+
+  return {
+    name: layer?.name || config.name,
+    content: layer?.content?.trim() ? layer.content : config.content,
+    font: pick(config.fonts),
+    size: rand(...config.size),
+    color,
+    opacity: rand(...config.opacity),
+    rotation: rand(...config.rotation),
+    align: pick(config.align),
+    blendMode: pick(config.blendMode),
+    x: randPercent(...config.x),
+    y: randPercent(...config.y),
+    scaleX: randPercent(...config.scaleX),
+    scaleY: randPercent(...config.scaleY),
+  };
+}
+
+export function randomTextLayer(baseHue?: number, role?: TextRandomRole): TextLayer {
+  const baseHueValue = baseHue ?? rand(0, 359);
+  const textRole = role ?? pick(TEXT_RANDOM_ROLES);
+  return makeTextLayer(randomTextPatch(textRole, baseHueValue));
 }
 
 const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
@@ -249,10 +389,17 @@ export function randomDocument(): CanvasDocument {
   const effectLayers = Array.from({ length: n }, (_, i) =>
     randomEffectPresetLayer(shuffled[i % shuffled.length], baseHue),
   );
+  const textLayers =
+    Math.random() < 0.62
+      ? [
+          randomTextLayer(baseHue, pick(['poster', 'title'])),
+          randomTextLayer(baseHue, pick(['subtitle', 'label', 'credit'])),
+        ]
+      : [randomTextLayer(baseHue, pick(['poster', 'title', 'label']))];
   return {
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...randomGlobal(baseHue), aspect },
-    layers: [randomEmojiLayer(baseHue), ...effectLayers],
+    layers: [randomEmojiLayer(baseHue), ...textLayers, ...effectLayers],
     export: { ...DEFAULT_EXPORT },
   };
 }
@@ -357,15 +504,7 @@ export function randomLayerSection(layer: unknown, section: string): Partial<unk
         overprint: Math.random() < 0.3 ? rand(10, 55) : 0,
       };
     case 'TEXT':
-      return {
-        font: FONT_NAMES[rand(0, FONT_NAMES.length - 1)],
-        size: rand(28, 96),
-        color: randomHsl(ah, [0, 100], [50, 100]),
-        opacity: rand(70, 100),
-        rotation: rand(-25, 25),
-        align: TEXT_ALIGNS[rand(0, TEXT_ALIGNS.length - 1)],
-        blendMode: TEXT_BLENDS[rand(0, TEXT_BLENDS.length - 1)],
-      };
+      return randomTextPatch(inferTextRandomRole(layer as TextLayer), h, layer as TextLayer);
     default:
       return layer ?? {};
   }

@@ -707,6 +707,45 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
   expect(hierarchy.canvasShadow).not.toBe('none');
 });
 
+test('rand creates cover-ready text layers with curated fonts', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await page.getByRole('button', { name: 'RAND' }).click();
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text').length ?? 0;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThanOrEqual(1);
+
+  const randomizedTextLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { kind: string }) => layer.kind === 'text') ?? null;
+  });
+  expect(randomizedTextLayer.content.trim().length).toBeGreaterThan(0);
+  expect([
+    'BUNGEE',
+    'ANTON',
+    'ARCHIVO_BLACK',
+    'RUBIK_MONO',
+    'DISPLAY',
+    'BEBAS',
+    'STAATLICHES',
+    'SPACE_MONO',
+    'MONO',
+    'SPECIAL',
+    'VT323',
+    'PRESS_START',
+  ]).toContain(randomizedTextLayer.font);
+  expect(randomizedTextLayer.size).toBeGreaterThanOrEqual(12);
+  expect(randomizedTextLayer.size).toBeLessThanOrEqual(142);
+});
+
 test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
   await switchToNodeView(page);

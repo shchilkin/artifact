@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS, makeEffectPresetLayer } from '../types/config';
+import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS, makeEffectPresetLayer, makeTextLayer } from '../types/config';
 import {
   randomDocument,
   randomEffectLayer,
   randomEmojiLayer,
   randomGlobal,
   randomLayerSection,
+  randomTextLayer,
   zeroLayerSection,
 } from './randomConfig';
 
@@ -138,6 +139,23 @@ describe('randomEffectLayer', () => {
   });
 });
 
+describe('randomTextLayer', () => {
+  it('returns a text layer with cover-ready typography fields', () => {
+    const layer = randomTextLayer(120, 'poster');
+
+    expect(layer.kind).toBe('text');
+    expect(layer.name).toBe('Poster Type');
+    expect(layer.content).toBe('POSTER');
+    expect(['BUNGEE', 'ANTON', 'ARCHIVO_BLACK', 'RUBIK_MONO']).toContain(layer.font);
+    expect(layer.size).toBeGreaterThanOrEqual(92);
+    expect(layer.size).toBeLessThanOrEqual(142);
+    expect(layer.x).toBeGreaterThanOrEqual(0.48);
+    expect(layer.x).toBeLessThanOrEqual(0.52);
+    expect(layer.y).toBeGreaterThanOrEqual(0.42);
+    expect(layer.y).toBeLessThanOrEqual(0.58);
+  });
+});
+
 describe('randomDocument', () => {
   it('returns a CanvasDocument with global and layers', () => {
     const doc = randomDocument();
@@ -164,9 +182,14 @@ describe('randomDocument', () => {
     expect(doc.layers[0].kind).toBe('emoji');
   });
 
-  it('generates only focused effect preset layers after the emoji layer', () => {
+  it('adds cover-ready text layers before focused effect preset layers', () => {
     const doc = randomDocument();
-    const effectLayers = doc.layers.slice(1);
+    const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
+    const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
+
+    expect(textLayers.length).toBeGreaterThanOrEqual(1);
+    expect(textLayers.length).toBeLessThanOrEqual(2);
+    expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
 
     expect(
       effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS),
@@ -204,6 +227,29 @@ describe('zeroLayerSection', () => {
 });
 
 describe('randomLayerSection', () => {
+  it('keeps text randomization aligned to the current layer role', () => {
+    const posterLayer = makeTextLayer({ name: 'Poster Type', content: 'POSTER', font: 'BUNGEE' });
+    const creditLayer = makeTextLayer({ name: 'Credits', content: 'ARTIST\nTRACK', font: 'SPACE_MONO' });
+
+    for (let i = 0; i < 40; i += 1) {
+      const poster = randomLayerSection(posterLayer, 'TEXT');
+      const credit = randomLayerSection(creditLayer, 'TEXT');
+
+      expect(['BUNGEE', 'ANTON', 'ARCHIVO_BLACK', 'RUBIK_MONO']).toContain(poster.font);
+      expect(poster.size).toBeGreaterThanOrEqual(92);
+      expect(poster.size).toBeLessThanOrEqual(142);
+      expect(poster.align).toBe('center');
+      expect(poster.content).toBe('POSTER');
+
+      expect(['SPACE_MONO', 'MONO', 'VT323']).toContain(credit.font);
+      expect(credit.size).toBeGreaterThanOrEqual(12);
+      expect(credit.size).toBeLessThanOrEqual(22);
+      expect(credit.y).toBeGreaterThanOrEqual(0.78);
+      expect(credit.y).toBeLessThanOrEqual(0.92);
+      expect(credit.content).toBe('ARTIST\nTRACK');
+    }
+  });
+
   it('keeps texture and print randomization inside useful creative ranges', () => {
     const grainLayer = makeEffectPresetLayer('grain');
     const pixelLayer = makeEffectPresetLayer('pixelate');
