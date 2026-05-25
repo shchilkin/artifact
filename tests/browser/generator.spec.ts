@@ -926,15 +926,19 @@ test('layers can add title text starts with readable font controls', async ({ pa
   const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
   await expect(titleRow).toBeVisible({ timeout: 15_000 });
   await titleRow.click();
-  await expect(page.locator('.sidebar')).toContainText('Display / condensed');
+  await expect(page.locator('.sidebar')).toContainText('Archivo Black / dense cover');
   await expect(page.locator('.sidebar')).toContainText('TITLE');
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Search fonts').fill('pixel');
+  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
+  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
   await expectLayerCanvasToHavePixels(page);
 
   const textLayer = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
   });
-  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'ARCHIVO_BLACK' });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'PRESS_START' });
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
@@ -1357,7 +1361,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
   const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
   await expect(posterNode).toBeVisible({ timeout: 15_000 });
   await posterNode.click();
-  await expect(page.locator('.node-props-panel')).toContainText('Anton / heavy poster');
+  await expect(page.locator('.node-props-panel')).toContainText('Bungee / sign painter');
   await expect(page.locator('.node-props-panel')).toContainText('POSTER');
 
   const textLayer = await page.evaluate(() => {

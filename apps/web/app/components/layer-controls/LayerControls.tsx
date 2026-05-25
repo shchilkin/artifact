@@ -11,7 +11,6 @@ import {
   type EmojiLayer,
   type FillLayer,
   FONT_LABELS,
-  FONT_OPTIONS,
   type ImageLayer,
   type Layer,
   type SourceLayer,
@@ -25,6 +24,7 @@ import {
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
+  FontPicker,
   InspectorColorInput,
   InspectorLabel,
   InspectorSection,
@@ -114,10 +114,9 @@ export function LayerControls({
         >
           <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} placeholder="Layer name" />
           <InspectorTextArea value={layer.content} onChange={(v) => onChange({ content: v } as Partial<TextLayer>)} />
-          <InspectorSelect
+          <FontPicker
             label="Font"
             value={layer.font}
-            options={FONT_OPTIONS}
             onChange={(v) => onChange({ font: v as TextLayer['font'] } as Partial<TextLayer>)}
           />
           <InspectorSlider

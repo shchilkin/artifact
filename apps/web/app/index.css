@@ -378,6 +378,139 @@ body {
   background: color-mix(in oklch, var(--surface-bg) 84%, black);
 }
 
+.font-picker {
+  position: relative;
+}
+
+.font-picker-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.font-picker-trigger-copy,
+.font-picker-option-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.font-picker-trigger-label,
+.font-picker-option-name {
+  overflow: hidden;
+  color: var(--node-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-picker-trigger-meta,
+.font-picker-option-category {
+  color: var(--node-text-dim);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.font-picker-trigger-sample,
+.font-picker-option-sample {
+  color: var(--node-text);
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.font-picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  background: color-mix(in oklch, var(--panel-raised) 92%, var(--bg));
+}
+
+.font-picker-search {
+  min-height: 38px;
+}
+
+.font-picker-categories {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.font-picker-category {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--node-text-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.font-picker-category:hover,
+.font-picker-category-active {
+  border-color: var(--border-strong);
+  color: var(--node-text);
+  background: var(--surface-hover);
+}
+
+.font-picker-list {
+  display: flex;
+  max-height: 260px;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+}
+
+.font-picker-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--node-text);
+  font-family: var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.font-picker-option:last-child {
+  border-bottom: 0;
+}
+
+.font-picker-option:hover,
+.font-picker-option-selected {
+  background: color-mix(in oklch, var(--accent) 9%, var(--surface-bg));
+}
+
+.font-picker-option-selected .font-picker-option-name,
+.font-picker-option-selected .font-picker-option-sample {
+  color: var(--accent);
+}
+
+.font-picker-empty {
+  padding: 14px 10px;
+  color: var(--node-text-dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .node-inspector-action {
   min-height: var(--touch);
   border: 1px solid var(--border);
