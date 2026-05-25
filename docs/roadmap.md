@@ -16,8 +16,10 @@ Related architecture docs:
 
 Current active version plan:
 
-- No active implementation plan selected yet. Start the next product planning
-  pass from `v0.23` after `v0.22.0` release validation.
+- [`version-plans/v0.23.md`](./version-plans/v0.23.md) — Graph Add Library
+  Drag is the current implementation target: drag Add Library items onto useful
+  graph insertion targets, especially edges, while preserving graph traversal,
+  render/export semantics, thumbnail scheduling, and document schema.
 
 Recently shipped:
 
@@ -51,8 +53,17 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Graph Add Library Drag v2** — drag from Add Library onto edges or specific
-  graph insertion points while preserving the existing graph helper boundaries.
+- **Large Share / Project Package Direction** — v0.22 proved that URL share
+  links are not the right long-term vehicle for large imported images and real
+  font payloads. Preserve this as a platform/product track: either a dedicated
+  `.artifact` project bundle for local ownership and offline backup, a
+  server-backed share link with stored assets, or both.
+- **Font Licensing & Portable Project Policy** — artwork image export can stay
+  pixel-only, but portable document/project/share exports that include font
+  files become font software redistribution. Future bundle/share work needs
+  license-aware modes: default refs-only for unknown local fonts, allowlisted
+  open fonts with license notices, and explicit user confirmation before
+  embedding user-provided font files.
 - **Typography Library v3** — arbitrary Google Fonts search/import, saved font
   sets, and account-synced font libraries after local font import proves the
   storage and render-readiness model.
@@ -116,15 +127,21 @@ These can mostly stay browser-only and fit the current architecture:
 - Improved empty-canvas onboarding.
 - Downloadable project packages with a custom extension for local ownership,
   offline work, backup, and eventual PWA file handling.
+- Large-project/share flow that moves heavy imported image/font payloads out of
+  URL query strings and into either portable project bundles or server-backed
+  share records.
+- License-aware font packaging for portable projects: keep raster artwork
+  export separate from font-file distribution, store font license metadata where
+  available, include allowlisted open fonts with notices, and require explicit
+  user confirmation before bundling unknown imported font files.
 - Voice/music visualizer node using browser audio input or uploaded audio.
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.22` hardened imported asset/font portability and
-local project reliability. Arbitrary external font catalogs, command-palette
-entry, project bundles, server-backed sharing, and advanced graph insertion
-ideas remain preserved as follow-up candidates so each release can stay
-coherent and low-risk.
+Near-term sequencing note: `v0.23` focuses on graph Add Library drag insertion.
+Arbitrary external font catalogs, command-palette entry, project bundles,
+server-backed sharing, and font licensing policy remain preserved as follow-up
+candidates so each release can stay coherent and low-risk.
 
 ### Content And Learning
 
