@@ -19,7 +19,8 @@ Current active version plan:
 - [`version-plans/v0.20.md`](./version-plans/v0.20.md) — Text Workflow v1:
   typography starts, better font browsing, clearer text controls, multi-font
   cover workflows, and Layers/Nodes parity without changing render/export
-  semantics.
+  semantics. Release validation passed on 2026-05-25; release notes are in
+  [`releases/v0.20.0.md`](./releases/v0.20.0.md).
 
 Recently shipped:
 
