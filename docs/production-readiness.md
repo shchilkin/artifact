@@ -27,6 +27,22 @@ CI should run:
 
 ## Manual QA
 
+### v0.22.0 Release Prep
+
+- User verified the v0.22 project and asset robustness work locally before
+  release prep.
+- Automated browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `203 passed, 11 skipped`.
+- Portable `.artifact.json` save/open, share-link hydration with practical
+  payloads, local project roundtrip, stack export, graph export through the
+  output node, missing imported image fallback, and missing imported font
+  fallback were validated without changing graph traversal, renderer semantics,
+  thumbnail scheduling, or document schema.
+- Real imported font portability is covered by `.artifact.json` and local
+  project roundtrips. URL share links still have browser/server size limits for
+  large imported payloads.
+- Release notes live in `docs/releases/v0.22.0.md`.
+
 ### v0.20.0 Release Prep
 
 - User verified the v0.20 text workflow and follow-up fixes locally on
