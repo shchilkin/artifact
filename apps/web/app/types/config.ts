@@ -1,6 +1,6 @@
 import type { FontName } from './typography';
 
-export { ALL_EMOJIS, FONT_NAMES, FONT_STACKS, type FontName } from './typography';
+export { ALL_EMOJIS, FONT_LABELS, FONT_NAMES, FONT_OPTIONS, FONT_STACKS, type FontName } from './typography';
 
 export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
 export type LayerKind = (typeof LAYER_KINDS)[number];
@@ -485,10 +485,10 @@ export function makeTextLayer(partial: Partial<TextLayer> = {}): TextLayer {
     visible: true,
     locked: false,
     kind: 'text',
-    content: '',
+    content: 'TITLE',
     font: 'DISPLAY',
-    size: 52,
-    color: '#ffffff',
+    size: 74,
+    color: '#f5ead8',
     opacity: 100,
     blendMode: 'normal',
     x: 0.5,

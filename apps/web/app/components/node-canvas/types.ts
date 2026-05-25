@@ -19,6 +19,7 @@ import type {
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import type { RepeatPresetId } from '../../utils/repeatPresets';
+import type { TextPresetId } from '../../utils/textPresets';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
@@ -30,6 +31,7 @@ export type GalleryEligibleLayer =
 
 export type AddAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'textPreset'; preset: TextPresetId }
   | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }

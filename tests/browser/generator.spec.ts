@@ -913,6 +913,30 @@ test('layers can quick-add Pixelate with formatted creative controls', async ({ 
   await expectLayerCanvasToHavePixels(page);
 });
 
+test('layers can add title text starts with readable font controls', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeVisible({ timeout: 15_000 });
+  await search.fill('headline');
+  await page.getByRole('button', { name: /^T Title Type/ }).click();
+
+  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
+  await expect(titleRow).toBeVisible({ timeout: 15_000 });
+  await titleRow.click();
+  await expect(page.locator('.sidebar')).toContainText('Display / condensed');
+  await expect(page.locator('.sidebar')).toContainText('TITLE');
+  await expectLayerCanvasToHavePixels(page);
+
+  const textLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
+  });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'DISPLAY' });
+});
+
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerTextEffectDragDocument))}`);
   await page.getByText('Drag text', { exact: true }).click();
@@ -1318,6 +1342,29 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
   await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
+  await switchToLayerView(page);
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('node add menu can add poster text starts', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await switchToNodeView(page);
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill('poster type');
+  await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: /^T Poster Type/ }).click();
+
+  const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
+  await expect(posterNode).toBeVisible({ timeout: 15_000 });
+  await posterNode.click();
+  await expect(page.locator('.node-props-panel')).toContainText('Anton / heavy poster');
+  await expect(page.locator('.node-props-panel')).toContainText('POSTER');
+
+  const textLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { name: string }) => layer.name === 'Poster Type');
+  });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'POSTER', font: 'ANTON' });
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

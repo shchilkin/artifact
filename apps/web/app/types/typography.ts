@@ -25,6 +25,18 @@ export const FONT_NAMES = ['MONO', 'DISPLAY', 'ANTON', 'BEBAS', 'RUBIK_MONO', 'V
 
 export type FontName = (typeof FONT_NAMES)[number];
 
+export const FONT_LABELS: Record<FontName, string> = {
+  MONO: 'Mono / utility',
+  DISPLAY: 'Display / condensed',
+  ANTON: 'Anton / heavy poster',
+  BEBAS: 'Bebas / tall title',
+  RUBIK_MONO: 'Rubik Mono / block',
+  VT323: 'VT323 / pixel terminal',
+  SPECIAL: 'Special Elite / typewriter',
+};
+
+export const FONT_OPTIONS = FONT_NAMES.map((font) => ({ value: font, label: FONT_LABELS[font] }));
+
 export const FONT_STACKS: Record<FontName, string> = {
   MONO: '"Courier New", monospace',
   DISPLAY: '"Barlow Condensed", "Arial Black", sans-serif',

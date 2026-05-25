@@ -5,6 +5,7 @@ import {
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESETS,
+  FONT_OPTIONS,
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
@@ -45,6 +46,18 @@ describe('makeTextLayer', () => {
     expect(layer.content).toBe('Hello');
     expect(layer.size).toBe(72);
     expect(layer.kind).toBe('text');
+  });
+
+  it('defaults to visible cover text', () => {
+    const layer = makeTextLayer();
+    expect(layer.content).toBe('TITLE');
+    expect(layer.size).toBeGreaterThan(60);
+    expect(layer.color).not.toBe('#ffffff');
+  });
+
+  it('exposes readable font options for controls', () => {
+    expect(FONT_OPTIONS.map((option) => option.value)).toContain('DISPLAY');
+    expect(FONT_OPTIONS.map((option) => option.label)).toContain('Display / condensed');
   });
 
   it('generates unique ids for each call', () => {

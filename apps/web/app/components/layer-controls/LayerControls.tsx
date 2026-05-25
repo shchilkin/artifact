@@ -10,7 +10,8 @@ import { useState } from 'react';
 import {
   type EmojiLayer,
   type FillLayer,
-  FONT_NAMES,
+  FONT_LABELS,
+  FONT_OPTIONS,
   type ImageLayer,
   type Layer,
   type SourceLayer,
@@ -107,7 +108,7 @@ export function LayerControls({
       <div className={sectionClassName}>
         <InspectorSection
           title="Content"
-          summary={`${layer.font} · ${layer.size}px`}
+          summary={`${FONT_LABELS[layer.font]} · ${layer.size}px`}
           open={openSection === 'content'}
           onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
         >
@@ -116,7 +117,7 @@ export function LayerControls({
           <InspectorSelect
             label="Font"
             value={layer.font}
-            options={[...FONT_NAMES]}
+            options={FONT_OPTIONS}
             onChange={(v) => onChange({ font: v as TextLayer['font'] } as Partial<TextLayer>)}
           />
           <InspectorSlider
