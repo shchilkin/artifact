@@ -106,6 +106,11 @@ document, graph, render size, image availability, and primitive camera state.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.
+The graph export/output node does not implicitly paint `doc.global.bg`; it returns
+the pixels provided by the connected graph branch. Add an explicit fill, image,
+or procedural source node when graph output should have a solid/background plate.
+Classic stack rendering still paints `doc.global.bg` before applying the inferred
+linear layer graph, preserving layer-mode behavior.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,

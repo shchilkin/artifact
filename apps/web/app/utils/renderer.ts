@@ -55,6 +55,15 @@ export async function renderDocument(
     // This guarantees identical rendering logic between layer and node views,
     // bypassing any custom edges in doc.graph while preserving correct layer order.
     const tempGraph = inferLinearGraph(doc.layers);
-    return renderGraphTarget(doc, tempGraph, EXPORT_NODE_ID, W, H, imageCache, options, renderCache);
+    return renderGraphTarget(
+      doc,
+      tempGraph,
+      EXPORT_NODE_ID,
+      W,
+      H,
+      imageCache,
+      { ...options, outputBackground: 'document' },
+      renderCache,
+    );
   });
 }

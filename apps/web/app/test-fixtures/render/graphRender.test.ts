@@ -116,6 +116,45 @@ describe('renderDocument graph mode', () => {
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
   });
+
+  it('keeps graph output transparent when no upstream node provides a background', async () => {
+    const transparentFill = makeFillLayer({
+      id: 'transparent-fill',
+      color: '#ff0000',
+      opacity: 0,
+      blendMode: 'normal',
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-transparent-export', fromId: transparentFill.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: '#552266', seed: 1, aspect: '1:1' },
+      layers: [transparentFill],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const graphCanvas = await renderDocument(doc, 32, 32, new Map(), {
+      skipEffects: true,
+      graphMode: 'graph',
+    });
+    const outputCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), {
+      skipEffects: true,
+    });
+    const stackCanvas = await renderDocument(doc, 32, 32, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(centerPixel(graphCanvas)[3]).toBe(0);
+    expect(centerPixel(outputCanvas)[3]).toBe(0);
+    expect(centerPixel(stackCanvas)[3]).toBe(255);
+  });
 });
 
 describe('renderGraphTarget', () => {

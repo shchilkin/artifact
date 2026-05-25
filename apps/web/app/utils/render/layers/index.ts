@@ -45,6 +45,8 @@ export interface RenderOptions {
   draft?: boolean;
   /** Choose whether to render via saved node graph or plain ordered layer stack. */
   graphMode?: 'auto' | 'graph' | 'stack';
+  /** Export/output nodes stay transparent in graph mode; stack mode asks them to paint the document background. */
+  outputBackground?: 'transparent' | 'document';
   /** Optional live primitive viewport overrides so node/output/export renders can match the interactive 3D preview. */
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   /** Source nodes render as full-frame generators in graph mode; stack mode keeps authored placement. */
