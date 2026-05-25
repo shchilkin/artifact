@@ -22,6 +22,7 @@ export const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
  */
 let sharedRenderer: Renderer | null = null;
 let sharedRendererSize = { w: 0, h: 0 };
+let gpuUnavailable = false;
 
 function disposeShared() {
   if (sharedRenderer) {
@@ -36,6 +37,7 @@ function disposeShared() {
 }
 
 function getSharedRenderer(W: number, H: number): Renderer | null {
+  if (gpuUnavailable) return null;
   try {
     if (!sharedRenderer) {
       sharedRenderer = new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
@@ -52,8 +54,17 @@ function getSharedRenderer(W: number, H: number): Renderer | null {
     return sharedRenderer;
   } catch {
     disposeShared();
+    gpuUnavailable = true;
     return null;
   }
+}
+
+function cloneSourceCanvas(source: HTMLCanvasElement, W: number, H: number): HTMLCanvasElement {
+  const copy = document.createElement('canvas');
+  copy.width = W;
+  copy.height = H;
+  copy.getContext('2d')!.drawImage(source, 0, 0, W, H);
+  return copy;
 }
 
 /**
@@ -195,7 +206,15 @@ export async function gpuRenderToCanvas({
         }
       }
 
-      const renderer = new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
+      if (gpuUnavailable) return cloneSourceCanvas(source, W, H);
+
+      let renderer: Renderer;
+      try {
+        renderer = new Renderer({ width: W, height: H, backgroundAlpha: 0, antialias: false });
+      } catch {
+        gpuUnavailable = true;
+        return cloneSourceCanvas(source, W, H);
+      }
       try {
         return await renderWithRenderer(renderer, W, H, source, filters);
       } finally {

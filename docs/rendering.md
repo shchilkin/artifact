@@ -170,6 +170,8 @@ Rules:
 - Effect params must be initialized in defaults, presets, randomizer, renderer, and controls.
 - GPU effects should use normalized coordinates where possible.
 - If an effect depends on output size, pass dimensions explicitly.
+- If the browser cannot create a WebGL/Pixi context, the GPU pass must return
+  the input canvas unchanged instead of producing a blank preview/export frame.
 
 ## Primitive rendering
 
