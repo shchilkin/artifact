@@ -16,14 +16,17 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.25.md`](./version-plans/v0.25.md) — Typography Library v3
-  & Font Policy is the current implementation target: add Google Fonts import,
-  preserve source/license metadata, make editable project packages
-  license-aware by default, and expose an explicit all-font package export path
-  without changing raster export or render semantics.
+- The next active version plan is not selected yet. Strong candidates are
+  layer-mode polish, server-backed share links, or deeper font catalog/account
+  sync after `v0.25.0` is cut.
 
 Recently shipped:
 
+- [`version-plans/v0.25.md`](./version-plans/v0.25.md) — Typography Library v3
+  & Font Policy: Google Fonts import, source/license metadata, license-aware
+  editable project packages, and explicit all-font package export without
+  changing raster export or render semantics. Released as `v0.25.0`; release
+  notes are in [`releases/v0.25.0.md`](./releases/v0.25.0.md).
 - [`version-plans/v0.24.md`](./version-plans/v0.24.md) — Project Package &
   Font Export Policy: safer editable `.artifact` project packages for large
   assets and imported font metadata while keeping raster artwork export
