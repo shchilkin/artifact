@@ -1240,6 +1240,139 @@ test('portable documents save and reopen imported image and font payloads', asyn
   await expectPortableRefsStored(page);
 });
 
+test('project packages save images with font metadata but no font files by default', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Project package download/import coverage runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save editable project package' }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) return;
+  const packageJson = readFileSync(artifactPath, 'utf8');
+  const projectPackage = JSON.parse(packageJson);
+  const packagedImage = projectPackage.document?.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+
+  expect(projectPackage.artifactPackage).toBe('project');
+  expect(projectPackage.manifest?.fontEmbeddingMode).toBe('metadata-only');
+  expect(projectPackage.manifest?.rasterExportPolicy).toBe('pixel-only-no-font-files');
+  expect(projectPackage.manifest?.editableTextPolicy).toBe('original-text-plus-font-metadata');
+  expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
+    kind: 'imported',
+    embedding: 'metadata-only',
+    recovery: 'editable-text-replace-font',
+    textContents: ['PORTABLE'],
+  });
+  expect(packagedImage?.src).toContain('data:image/');
+  expect(projectPackage.document?.fontAssets).toBeUndefined();
+
+  await page.goto('/app?new=blank');
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'portable-assets.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('project packages keep missing-font text editable for replacement', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Missing-font package coverage runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingFontDocument))}`);
+  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
+  await expectLayerCanvasToHavePixels(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save editable project package' }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) return;
+  const packageJson = readFileSync(artifactPath, 'utf8');
+  const projectPackage = JSON.parse(packageJson);
+
+  expect(projectPackage.document?.fontAssets).toBeUndefined();
+  expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
+    ref: 'artifact-font://missing-browser-font',
+    kind: 'imported',
+    embedding: 'missing-metadata',
+    recovery: 'editable-text-replace-font',
+    textContents: ['FONT FALLBACK'],
+  });
+
+  await page.goto('/app?new=blank');
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'missing-font.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+
+  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Search fonts').fill('pixel');
+  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
+  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+
+  const textLayer = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { id: string }) => layer.id === 'missing-font-text');
+  });
+  expect(textLayer).toMatchObject({ kind: 'text', content: 'FONT FALLBACK', font: 'PRESS_START' });
+});
+
+test('project packages reopen graph documents with output previews', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Graph package coverage runs once in Chromium.');
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetGraphDocument))}`);
+  await importPortableFontForLayer(page);
+  await expectLayerCanvasToHavePixels(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save editable project package' }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) return;
+  const packageJson = readFileSync(artifactPath, 'utf8');
+  const projectPackage = JSON.parse(packageJson);
+
+  expect(projectPackage.manifest?.hasGraphExportTarget).toBe(true);
+  expect(projectPackage.manifest?.missingGraphExportTarget).toBe(false);
+  expect(projectPackage.document?.graph?.edges).toEqual(
+    expect.arrayContaining([expect.objectContaining({ fromId: 'portable-type', toId: '__export__', toPort: 'in' })]),
+  );
+
+  await page.goto('/app?new=blank');
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'portable-graph.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  await switchToNodeView(page);
+  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+});
+
 test('portable stack documents with imported image and font export', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable asset export smoke runs once in Chromium.');
 

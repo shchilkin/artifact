@@ -14,6 +14,7 @@ interface Props {
   onCopyLink: () => void;
   onOpenDocument: () => void;
   onSaveDocument: () => void;
+  onSaveProjectPackage: () => void;
   onExport: () => void;
   exportBusy: boolean;
 }
@@ -29,6 +30,7 @@ export function BottomBar({
   onCopyLink,
   onOpenDocument,
   onSaveDocument,
+  onSaveProjectPackage,
   onPresetsToggle,
   onProjectsToggle,
   onExport,
@@ -61,11 +63,24 @@ export function BottomBar({
       </div>
 
       <div className="bottom-link-group">
-        <button className="btn" onClick={onOpenDocument} aria-label="Open document file" title="Open .artifact.json">
+        <button
+          className="btn"
+          onClick={onOpenDocument}
+          aria-label="Open document file"
+          title="Open .artifact or .artifact.json"
+        >
           OPEN
         </button>
         <button className="btn" onClick={onSaveDocument} aria-label="Save document file" title="Save .artifact.json">
           SAVE
+        </button>
+        <button
+          className="btn"
+          onClick={onSaveProjectPackage}
+          aria-label="Save editable project package"
+          title="Save editable .artifact project package"
+        >
+          PACKAGE
         </button>
         <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>

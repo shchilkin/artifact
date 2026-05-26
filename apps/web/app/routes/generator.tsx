@@ -105,8 +105,14 @@ export default function Generator() {
     onGraphChange: handleGraphChange,
   });
   const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
-  const { fileInputRef, documentFileError, handleOpenDocument, handleOpenDocumentPicker, handleSaveDocument } =
-    useDocumentFileTransfer(docRef, loadDocument);
+  const {
+    fileInputRef,
+    documentFileError,
+    handleOpenDocument,
+    handleOpenDocumentPicker,
+    handleSaveDocument,
+    handleSaveProjectPackage,
+  } = useDocumentFileTransfer(docRef, loadDocument);
   const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
     useGeneratorPresetsController({
       docRef,
@@ -183,6 +189,7 @@ export default function Generator() {
     onCopyLink: handleCopyLink,
     onOpenDocument: handleOpenDocumentPicker,
     onSaveDocument: handleSaveDocument,
+    onSaveProjectPackage: handleSaveProjectPackage,
     onExport: handleNodeExport,
     exportBusy,
   };
@@ -194,7 +201,7 @@ export default function Generator() {
         ref={fileInputRef}
         className="sr-only"
         type="file"
-        accept=".artifact.json,application/json"
+        accept=".artifact,.artifact.json,application/json,application/vnd.artifact.project+json"
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           void handleOpenDocument(file);
