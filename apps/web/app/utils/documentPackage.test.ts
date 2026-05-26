@@ -27,6 +27,19 @@ describe('documentPackage', () => {
     label: 'Poster Local',
     family: 'Artifact Imported font a',
     createdAt: '2026-05-25T00:00:00.000Z',
+    source: 'local-file' as const,
+    embeddingPolicy: 'user-confirmed-required' as const,
+  };
+  const googleFontAsset = {
+    ...fontAsset,
+    id: 'google-font-a',
+    label: 'Space Grotesk',
+    family: 'Artifact Google google font a',
+    source: 'google-fonts' as const,
+    sourceName: 'Space Grotesk (Google Fonts)',
+    sourceUrl: 'https://fonts.googleapis.com/css2?family=Space+Grotesk&display=swap',
+    license: { name: 'SIL Open Font License 1.1', allowsEmbedding: true },
+    embeddingPolicy: 'open-license-embeddable' as const,
   };
 
   function doc(partial: Partial<CanvasDocument> = {}): CanvasDocument {
@@ -99,7 +112,7 @@ describe('documentPackage', () => {
     ]);
   });
 
-  it('prepares metadata-only packages without embedding imported font files by default', async () => {
+  it('prepares license-aware packages without embedding unknown local font files by default', async () => {
     const loadAssetDataUrl = vi.fn(async (src: string) => (src === imageRef ? imageDataUrl : null));
     const loadFontAsset = vi.fn(async (font: string) => (font === fontRef ? fontAsset : null));
 
@@ -112,12 +125,32 @@ describe('documentPackage', () => {
     expect(loadFontAsset).toHaveBeenCalledWith(fontRef);
     expect(projectPackage.document.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
     expect(projectPackage.document.fontAssets).toBeUndefined();
-    expect(projectPackage.manifest.fontEmbeddingMode).toBe('metadata-only');
+    expect(projectPackage.manifest.fontEmbeddingMode).toBe('license-aware');
     expect(projectPackage.manifest.fonts[0]).toMatchObject({
       ref: fontRef,
       embedding: 'metadata-only',
       recovery: 'editable-text-replace-font',
       textContents: ['POSTER'],
+    });
+  });
+
+  it('embeds open-license Google fonts in license-aware packages', async () => {
+    const googleRef = fontUriFromId(googleFontAsset.id);
+    const projectPackage = await prepareArtifactProjectPackage(
+      doc({ layers: [makeTextLayer({ id: 'title', content: 'POSTER', font: googleRef })] }),
+      { loadFontAsset: vi.fn(async () => googleFontAsset) },
+    );
+
+    expect(projectPackage.document.fontAssets).toEqual([googleFontAsset]);
+    expect(projectPackage.manifest.fontEmbeddingMode).toBe('license-aware');
+    expect(projectPackage.manifest.fonts[0]).toMatchObject({
+      ref: googleRef,
+      embedding: 'embedded-file',
+      asset: expect.objectContaining({
+        label: 'Space Grotesk',
+        source: 'google-fonts',
+        license: { name: 'SIL Open Font License 1.1', allowsEmbedding: true },
+      }),
     });
   });
 

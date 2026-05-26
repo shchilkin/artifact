@@ -453,7 +453,7 @@ const TROUBLESHOOTING_GUIDE = [
   },
   {
     name: 'Missing font',
-    desc: 'Imported fonts may be unavailable on another browser. The text remains editable, and the font can be replaced from the Font Library.',
+    desc: 'Imported fonts may be unavailable on another browser. The text remains editable, and the font can be replaced from the Font Library. Google Fonts imports carry open-license metadata.',
   },
   {
     name: 'GPU or WebGL issue',
@@ -476,7 +476,11 @@ const PROJECT_FILE_GUIDE = [
   },
   {
     name: 'Project package',
-    desc: 'PACKAGE downloads an editable .artifact project. It carries image payloads and font metadata, while unknown imported font files stay out by default.',
+    desc: 'PACKAGE downloads an editable .artifact project. It carries image payloads, font metadata, and open-license Google font files. Unknown local font files stay out by default.',
+  },
+  {
+    name: 'Package + fonts',
+    desc: 'PKG+FONTS includes every imported font file. Use it only when you have the right to distribute those font files.',
   },
   {
     name: 'Font recovery',

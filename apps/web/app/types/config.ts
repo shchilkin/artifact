@@ -401,6 +401,15 @@ export interface PortableFontAsset {
   label: string;
   family: string;
   createdAt: string;
+  source?: 'local-file' | 'google-fonts';
+  sourceName?: string;
+  sourceUrl?: string;
+  license?: {
+    name: string;
+    url?: string;
+    allowsEmbedding?: boolean;
+  };
+  embeddingPolicy?: 'user-confirmed-required' | 'open-license-embeddable';
 }
 
 export interface CanvasDocument {

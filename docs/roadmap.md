@@ -16,14 +16,19 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.24.md`](./version-plans/v0.24.md) — Project Package &
-  Font Export Policy is the current implementation target: define and build a
-  safer editable project package path for large assets and imported fonts while
-  keeping raster artwork export pixel-only and preserving document/render
-  semantics.
+- [`version-plans/v0.25.md`](./version-plans/v0.25.md) — Typography Library v3
+  & Font Policy is the current implementation target: add Google Fonts import,
+  preserve source/license metadata, make editable project packages
+  license-aware by default, and expose an explicit all-font package export path
+  without changing raster export or render semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.24.md`](./version-plans/v0.24.md) — Project Package &
+  Font Export Policy: safer editable `.artifact` project packages for large
+  assets and imported font metadata while keeping raster artwork export
+  pixel-only. Released as `v0.24.0`; release notes are in
+  [`releases/v0.24.0.md`](./releases/v0.24.0.md).
 - [`version-plans/v0.23.md`](./version-plans/v0.23.md) — Graph Add Library
   Drag: drag Add Library items onto useful graph insertion targets, especially
   edges, while preserving graph traversal, render/export semantics, thumbnail
@@ -59,9 +64,6 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Typography Library v3** — arbitrary Google Fonts search/import, saved font
-  sets, and account-synced font libraries after local font import proves the
-  storage and render-readiness model.
 - **Layer Mode First-Class Pass** — fast stack editing, clear empty states,
   layer-first recipes, better graph-area readability in layer mode, and quick
   controls that do not require switching to nodes.
@@ -139,10 +141,11 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.24` focuses on project packages and font export
-policy. Arbitrary external font catalogs, command-palette entry, server-backed
-sharing, and deeper layer-mode product polish remain preserved as follow-up
-candidates so each release can stay coherent and low-risk.
+Near-term sequencing note: `v0.25` follows the project-package foundation with
+Google Fonts import and license-aware package defaults. Catalog API keys,
+account-synced font sets, command-palette entry, server-backed sharing, and
+deeper layer-mode product polish remain preserved as follow-up candidates so
+each release can stay coherent and low-risk.
 
 ### Content And Learning
 
