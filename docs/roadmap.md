@@ -16,13 +16,19 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.23.md`](./version-plans/v0.23.md) — Graph Add Library
-  Drag is the current implementation target: drag Add Library items onto useful
-  graph insertion targets, especially edges, while preserving graph traversal,
-  render/export semantics, thumbnail scheduling, and document schema.
+- [`version-plans/v0.24.md`](./version-plans/v0.24.md) — Project Package &
+  Font Export Policy is the current implementation target: define and build a
+  safer editable project package path for large assets and imported fonts while
+  keeping raster artwork export pixel-only and preserving document/render
+  semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.23.md`](./version-plans/v0.23.md) — Graph Add Library
+  Drag: drag Add Library items onto useful graph insertion targets, especially
+  edges, while preserving graph traversal, render/export semantics, thumbnail
+  scheduling, and document schema. Released as `v0.23.0`; release notes are in
+  [`releases/v0.23.0.md`](./releases/v0.23.0.md).
 - [`version-plans/v0.22.md`](./version-plans/v0.22.md) — Project & Asset
   Robustness: portable document integrity, imported image/font dependency
   inventory, missing asset fallbacks, save/open/share/export confidence, and
@@ -53,20 +59,15 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Large Share / Project Package Direction** — v0.22 proved that URL share
-  links are not the right long-term vehicle for large imported images and real
-  font payloads. Preserve this as a platform/product track: either a dedicated
-  `.artifact` project bundle for local ownership and offline backup, a
-  server-backed share link with stored assets, or both.
-- **Font Licensing & Portable Project Policy** — artwork image export can stay
-  pixel-only, but portable document/project/share exports that include font
-  files become font software redistribution. Future bundle/share work needs
-  license-aware modes: default refs-only for unknown local fonts, allowlisted
-  open fonts with license notices, and explicit user confirmation before
-  embedding user-provided font files.
 - **Typography Library v3** — arbitrary Google Fonts search/import, saved font
   sets, and account-synced font libraries after local font import proves the
   storage and render-readiness model.
+- **Layer Mode First-Class Pass** — fast stack editing, clear empty states,
+  layer-first recipes, better graph-area readability in layer mode, and quick
+  controls that do not require switching to nodes.
+- **Server-backed Share Links** — once the package and font policy are stable,
+  add stored-asset share records so large projects can be shared without URL
+  payload limits.
 
 ## Product summary
 
@@ -138,9 +139,9 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.23` focuses on graph Add Library drag insertion.
-Arbitrary external font catalogs, command-palette entry, project bundles,
-server-backed sharing, and font licensing policy remain preserved as follow-up
+Near-term sequencing note: `v0.24` focuses on project packages and font export
+policy. Arbitrary external font catalogs, command-palette entry, server-backed
+sharing, and deeper layer-mode product polish remain preserved as follow-up
 candidates so each release can stay coherent and low-risk.
 
 ### Content And Learning

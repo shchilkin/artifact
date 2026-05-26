@@ -27,6 +27,20 @@ CI should run:
 
 ## Manual QA
 
+### v0.24.0 Release Prep
+
+- User verified the v0.24 project package flow locally on 2026-05-26.
+- Automated release gate passed on 2026-05-26.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `209 passed, 17 skipped`.
+- Editable `.artifact` project packages were validated for stack documents,
+  graph documents with output nodes, imported image payloads, imported font
+  metadata without bundled unknown font files, and missing-font replacement.
+- Raster artwork export remains pixel-only; unknown imported font files are not
+  silently redistributed in editable project packages.
+- Release notes live in `docs/releases/v0.24.0.md`.
+
 ### v0.23.0 Release Prep
 
 - Automated release gate passed on 2026-05-26.
@@ -114,6 +128,10 @@ CI should run:
 - Add, hide, duplicate, rename, reorder, and delete layers.
 - Verify layer visibility changes the rendered canvas.
 - Save a `.artifact.json` file and reopen it.
+- Save an editable `.artifact` project package and reopen it.
+- For a package with imported fonts, confirm unknown font files are not bundled
+  by default, original text remains editable, and the font can be replaced if
+  missing.
 - Copy a share link and verify the document loads from `?doc=`.
 - Confirm undo/redo after layer edits and continuous slider edits.
 
@@ -153,6 +171,9 @@ CI should run:
 - Imported image payloads are stored in IndexedDB for local editing, but
   `.artifact.json` export/share hydration can still create large portable
   payloads.
+- Editable `.artifact` project packages preserve imported font metadata and
+  original text, but unknown imported font files are not bundled by default.
+  Missing fonts rely on fallback rendering until the user replaces the font.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
 - Presets are localStorage-backed only.
 - Projects and the pre-blank recovery draft are IndexedDB-backed convenience

@@ -445,11 +445,15 @@ const TROUBLESHOOTING_GUIDE = [
   },
   {
     name: 'Missing image',
-    desc: 'Local images live in browser storage. If a shared document loses an image, reimport it or save a portable .artifact.json copy.',
+    desc: 'Local images live in browser storage. If a shared document loses an image, reimport it or save an editable .artifact package.',
   },
   {
     name: 'Storage limit',
-    desc: 'Large imported images can fill browser storage. Save a project or .artifact.json before clearing site data.',
+    desc: 'Large imported images can fill browser storage. Save an editable .artifact package before clearing site data.',
+  },
+  {
+    name: 'Missing font',
+    desc: 'Imported fonts may be unavailable on another browser. The text remains editable, and the font can be replaced from the Font Library.',
   },
   {
     name: 'GPU or WebGL issue',
@@ -458,6 +462,25 @@ const TROUBLESHOOTING_GUIDE = [
   {
     name: 'Export mismatch',
     desc: 'Export uses the canonical renderer. Check aspect ratio, graph target, image readiness, and primitive camera state before exporting.',
+  },
+];
+
+const PROJECT_FILE_GUIDE = [
+  {
+    name: 'Raster export',
+    desc: 'EXPORT downloads pixels. It does not include font files, project metadata, or editable layer data.',
+  },
+  {
+    name: 'Document save',
+    desc: 'SAVE downloads a readable .artifact.json document for small portable work and compatibility with older files.',
+  },
+  {
+    name: 'Project package',
+    desc: 'PACKAGE downloads an editable .artifact project. It carries image payloads and font metadata, while unknown imported font files stay out by default.',
+  },
+  {
+    name: 'Font recovery',
+    desc: 'Packages preserve original text plus font identity. If a font is missing later, replace it and keep editing the same text layer.',
   },
 ];
 
@@ -860,6 +883,17 @@ export default function DocsNodes() {
               <article key={utility.name} className="docs-reference-item">
                 <h3>{utility.name}</h3>
                 <p>{utility.desc}</p>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
+
+        <GuideSection eyebrow="Project Files" title="Choose the file by what needs to survive.">
+          <div className="docs-reference-grid">
+            {PROJECT_FILE_GUIDE.map((item) => (
+              <article key={item.name} className="docs-reference-item">
+                <h3>{item.name}</h3>
+                <p>{item.desc}</p>
               </article>
             ))}
           </div>
