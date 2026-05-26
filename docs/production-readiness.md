@@ -29,6 +29,12 @@ CI should run:
 
 ### v0.25.0 Release Prep
 
+- User verified the v0.25 Google font and package policy workflow locally on
+  2026-05-27.
+- Automated release gate passed on 2026-05-27.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `210 passed, 19 skipped`.
 - Validate Google Fonts import by family name and by CSS2 URL from the Font
   Library.
 - Confirm imported Google fonts render in Layers and Nodes, survive project
@@ -38,6 +44,7 @@ CI should run:
 - Confirm `PKG+FONTS` includes all imported font files only through the explicit
   user action.
 - Confirm raster `EXPORT` remains pixel-only and includes no font files.
+- Release notes live in `docs/releases/v0.25.0.md`.
 
 ### v0.24.0 Release Prep
 
