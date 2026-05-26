@@ -356,9 +356,14 @@ function AddLibraryRow({
       onPointerEnter={onPointerEnter}
       onDragStart={(event) => {
         if (!draggable) return;
+        const serialized = serializeAddLibraryAction(item.action);
         event.dataTransfer.effectAllowed = 'copy';
-        event.dataTransfer.setData(ADD_LIBRARY_ACTION_MIME, serializeAddLibraryAction(item.action));
+        event.dataTransfer.setData(ADD_LIBRARY_ACTION_MIME, serialized);
         event.dataTransfer.setData('text/plain', item.label);
+        document.documentElement.dataset.artifactAddLibraryAction = serialized;
+      }}
+      onDragEnd={() => {
+        delete document.documentElement.dataset.artifactAddLibraryAction;
       }}
       onClick={() => onAdd(item)}
     >

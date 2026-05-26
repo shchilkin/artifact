@@ -27,6 +27,20 @@ CI should run:
 
 ## Manual QA
 
+### v0.23.0 Release Prep
+
+- Automated release gate passed on 2026-05-26.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `206 passed, 11 skipped`.
+- `npm run perf:node-editor` passed after rerunning outside the filesystem
+  sandbox because the benchmark needs to bind `127.0.0.1:4174`.
+- Focused coverage verifies Add Library drag-to-canvas, drag-to-edge insertion,
+  edge splitting, undo/redo, and nonblank layer preview after insertion without
+  changing document schema, graph traversal, renderer/export semantics, or
+  thumbnail scheduling.
+- Release notes live in `docs/releases/v0.23.0.md`.
+
 ### v0.22.0 Release Prep
 
 - User verified the v0.22 project and asset robustness work locally before
