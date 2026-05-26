@@ -7,7 +7,7 @@ import {
   type ReactFlowInstance,
   ViewportPortal,
 } from '@xyflow/react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
@@ -20,8 +20,10 @@ import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
+import { EDGE_INTERCEPT_THRESHOLD } from './constants';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
+import { resolveNearestEdgeInsertionTarget } from './graphInsertion';
 import { useNodeAddLibraryDropHint } from './hooks/useNodeAddLibraryDropHint';
 import { useNodeAreaActions } from './hooks/useNodeAreaActions';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
@@ -95,6 +97,7 @@ export function NodeCanvas({
   const galleryModalRef = useRef<HTMLDivElement>(null);
   const galleryCloseButtonRef = useRef<HTMLButtonElement>(null);
   const galleryReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [addLibraryHoverEdgeId, setAddLibraryHoverEdgeId] = useState<string | null>(null);
 
   // XState machine — single source of UI state.
   const [machineState, send] = useMachine(nodeCanvasMachine, {
@@ -102,7 +105,6 @@ export function NodeCanvas({
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
   const { perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
-  useNodeAddLibraryDropHint(canvasSurfaceRef);
 
   // Focused hooks.
   const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
@@ -210,6 +212,7 @@ export function NodeCanvas({
     dragEdges,
     isDraggingRef,
     onEdgesChange,
+    dragNodesRef,
     onNodeDragStart,
     onNodeDragStop,
     onSelectionDragStop,
@@ -224,6 +227,35 @@ export function NodeCanvas({
     onGraphChange,
     onDeleteNodes,
   });
+
+  const resolveAddLibraryEdgeInsertionAtPoint = useCallback(
+    (action: Parameters<NodeCanvasProps['onAddLayerAt']>[0], point: { x: number; y: number }) => {
+      const flowPoint = rfInstanceRef.current?.screenToFlowPosition(point);
+      if (!flowPoint) return null;
+      return resolveNearestEdgeInsertionTarget({
+        action,
+        graph: graphRef.current,
+        nodes: dragNodesRef.current,
+        point: flowPoint,
+        threshold: EDGE_INTERCEPT_THRESHOLD,
+      });
+    },
+    [dragNodesRef, graphRef, rfInstanceRef],
+  );
+
+  useNodeAddLibraryDropHint(canvasSurfaceRef, {
+    resolveEdgeId: (action, point) => resolveAddLibraryEdgeInsertionAtPoint(action, point)?.edge.id ?? null,
+    onEdgeHoverChange: setAddLibraryHoverEdgeId,
+  });
+
+  const displayedDragEdges = useMemo(() => {
+    if (!addLibraryHoverEdgeId) return dragEdges;
+    return dragEdges.map((edge) =>
+      edge.id === addLibraryHoverEdgeId
+        ? { ...edge, className: `${edge.className ?? ''} node-edge-add-target`.trim() }
+        : edge,
+    );
+  }, [addLibraryHoverEdgeId, dragEdges]);
 
   const { isValidConnection, onConnect, onEdgesDelete, onEdgeClick, handleOrganizeNodes } = useNodeGraphEvents({
     graphRef,
@@ -430,7 +462,7 @@ export function NodeCanvas({
 
             <ReactFlow
               nodes={dragNodes}
-              edges={dragEdges}
+              edges={displayedDragEdges}
               onNodesChange={handleNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -526,10 +558,11 @@ export function NodeCanvas({
                     return false;
                   }
                   const flowPos = rfInstanceRef.current?.screenToFlowPosition(point) ?? contextMenu.flowPos;
+                  const edgeInsertion = resolveAddLibraryEdgeInsertionAtPoint(action, point)?.insertion;
                   handleAddFromMenu(
                     action,
                     flowPos,
-                    contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined,
+                    edgeInsertion ?? (contextMenu.type === 'pane-insert' ? contextMenu.insertion : undefined),
                   );
                   return true;
                 }}

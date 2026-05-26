@@ -104,6 +104,13 @@
     stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.react-flow__edge.node-edge-add-target .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 7px color-mix(in oklch, var(--accent) 42%, transparent));
+}
+
 .nodrag {
   pointer-events: auto;
 }
@@ -1107,6 +1114,12 @@
   border-color: var(--accent);
   background: color-mix(in oklch, var(--accent) 12%, var(--node-surface));
   color: var(--accent);
+}
+
+.node-canvas-add-drop-edge .node-add-drop-hint-ready {
+  border-color: var(--node-accent);
+  background: color-mix(in oklch, var(--node-accent) 14%, var(--node-surface));
+  color: var(--node-accent);
 }
 
 .node-area-overlay {
