@@ -271,6 +271,10 @@ Rules:
 - `.artifact.json` export and copy-link creation may attach portable
   `fontAssets` records so another browser can hydrate the referenced imported
   fonts back into IndexedDB.
+- Imported font asset metadata may record source, source URL, license, and
+  embedding policy. Google Fonts imports are treated as open-license font assets
+  for package export; local font files require explicit user confirmation before
+  their bytes are bundled into a project package.
 - Shared portable document helpers combine image hydration and font hydration at
   file/share/project boundaries; UI components should not reassemble those
   steps directly.

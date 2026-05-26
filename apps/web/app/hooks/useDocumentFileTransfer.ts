@@ -7,6 +7,7 @@ import {
   createArtifactProjectPackageFileName,
   importArtifactProjectPackage,
   isArtifactProjectPackageFile,
+  type ProjectPackageFontEmbeddingMode,
   parseArtifactProjectPackage,
   prepareArtifactProjectPackage,
   serializeArtifactProjectPackage,
@@ -61,27 +62,30 @@ export function useDocumentFileTransfer(
       });
   }, [docRef, showDocumentFileError]);
 
-  const handleSaveProjectPackage = useCallback(() => {
-    prepareArtifactProjectPackage(docRef.current)
-      .then((projectPackage) => {
-        const blob = new Blob([serializeArtifactProjectPackage(projectPackage)], {
-          type: ARTIFACT_PROJECT_PACKAGE_MIME,
+  const handleSaveProjectPackage = useCallback(
+    (fontEmbeddingMode: ProjectPackageFontEmbeddingMode = 'license-aware') => {
+      prepareArtifactProjectPackage(docRef.current, { fontEmbeddingMode })
+        .then((projectPackage) => {
+          const blob = new Blob([serializeArtifactProjectPackage(projectPackage)], {
+            type: ARTIFACT_PROJECT_PACKAGE_MIME,
+          });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = createArtifactProjectPackageFileName(docRef.current);
+          anchor.rel = 'noopener';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(url);
+          setDocumentFileError(null);
+        })
+        .catch(() => {
+          showDocumentFileError('Could not prepare project package.');
         });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = createArtifactProjectPackageFileName(docRef.current);
-        anchor.rel = 'noopener';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setDocumentFileError(null);
-      })
-      .catch(() => {
-        showDocumentFileError('Could not prepare project package.');
-      });
-  }, [docRef, showDocumentFileError]);
+    },
+    [docRef, showDocumentFileError],
+  );
 
   const handleOpenDocumentPicker = useCallback(() => {
     fileInputRef.current?.click();

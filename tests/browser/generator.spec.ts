@@ -1203,6 +1203,66 @@ test('layers can import a local font through the shared font picker', async ({ p
   await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
 });
 
+test('layers can import a Google font with license-aware package metadata', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Google font import coverage uses mocked network once in Chromium.');
+
+  await page.route('https://fonts.googleapis.com/css2?*', (route) =>
+    route.fulfill({
+      contentType: 'text/css',
+      body: `
+        @font-face {
+          font-family: 'Mock Google';
+          src: url(https://fonts.gstatic.com/s/mockgoogle/mock.ttf) format('truetype');
+          unicode-range: U+0000-00FF;
+        }
+      `,
+    }),
+  );
+  await page.route('https://fonts.gstatic.com/s/mockgoogle/mock.ttf', (route) =>
+    route.fulfill({
+      contentType: 'font/ttf',
+      body: readBrowserFontFixture(),
+    }),
+  );
+
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  await page.getByLabel('Search layers and effects').fill('headline');
+  await page.getByRole('button', { name: /^T Title Type/ }).click();
+
+  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
+  await expect(titleRow).toBeVisible({ timeout: 15_000 });
+  await titleRow.click();
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Import Google font').fill('Mock Google');
+  await page.locator('.sidebar .font-picker-google-action').click();
+
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Mock Google');
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Google');
+  await expectLayerCanvasToHavePixels(page);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save editable project package' }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) return;
+  const projectPackage = JSON.parse(readFileSync(artifactPath, 'utf8'));
+
+  expect(projectPackage.manifest?.fontEmbeddingMode).toBe('license-aware');
+  expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
+    kind: 'imported',
+    embedding: 'embedded-file',
+    asset: {
+      label: 'Mock Google',
+      source: 'google-fonts',
+      license: { name: 'SIL Open Font License 1.1', allowsEmbedding: true },
+    },
+  });
+  expect(projectPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+});
+
 test('portable documents save and reopen imported image and font payloads', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable payload download/import coverage runs once in Chromium.');
 
@@ -1240,7 +1300,7 @@ test('portable documents save and reopen imported image and font payloads', asyn
   await expectPortableRefsStored(page);
 });
 
-test('project packages save images with font metadata but no font files by default', async ({ page }, testInfo) => {
+test('project packages save images with license-aware font policy by default', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Project package download/import coverage runs once in Chromium.');
 
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
@@ -1259,7 +1319,7 @@ test('project packages save images with font metadata but no font files by defau
   const packagedImage = projectPackage.document?.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
 
   expect(projectPackage.artifactPackage).toBe('project');
-  expect(projectPackage.manifest?.fontEmbeddingMode).toBe('metadata-only');
+  expect(projectPackage.manifest?.fontEmbeddingMode).toBe('license-aware');
   expect(projectPackage.manifest?.rasterExportPolicy).toBe('pixel-only-no-font-files');
   expect(projectPackage.manifest?.editableTextPolicy).toBe('original-text-plus-font-metadata');
   expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
@@ -1270,6 +1330,21 @@ test('project packages save images with font metadata but no font files by defau
   });
   expect(packagedImage?.src).toContain('data:image/');
   expect(projectPackage.document?.fontAssets).toBeUndefined();
+
+  const explicitDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save project package with all imported font files' }).click();
+  const explicitDownload = await explicitDownloadPromise;
+  const explicitArtifactPath = await explicitDownload.path();
+  expect(explicitArtifactPath).toBeTruthy();
+  if (explicitArtifactPath) {
+    const explicitPackage = JSON.parse(readFileSync(explicitArtifactPath, 'utf8'));
+    expect(explicitPackage.manifest?.fontEmbeddingMode).toBe('explicit-font-files');
+    expect(explicitPackage.manifest?.fonts?.[0]).toMatchObject({
+      kind: 'imported',
+      embedding: 'embedded-file',
+    });
+    expect(explicitPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+  }
 
   await page.goto('/app?new=blank');
   const chooserPromise = page.waitForEvent('filechooser');

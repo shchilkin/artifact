@@ -1,4 +1,10 @@
 import type { CanvasDocument, PortableFontAsset } from '../types/config';
+import {
+  createGoogleFontAssetMetadata,
+  createGoogleFontRequest,
+  parseGoogleFontFaces,
+  pickGoogleFontFace,
+} from './googleFonts';
 
 const DB_NAME = 'artifact-local-fonts';
 const DB_VERSION = 1;
@@ -141,11 +147,15 @@ function familyForId(id: string) {
 }
 
 function fileToDataUrl(file: File): Promise<string> {
+  return blobToDataUrl(file);
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => resolve(typeof event.target?.result === 'string' ? event.target.result : '');
     reader.onerror = () => reject(reader.error ?? new Error('Could not read font file'));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -177,8 +187,39 @@ export async function saveImportedFontFile(file: File): Promise<ImportedFontAsse
     label: normalizeImportedFontLabel(file.name),
     family: familyForId(id),
     createdAt: new Date().toISOString(),
+    source: 'local-file',
     sourceName: file.name,
+    embeddingPolicy: 'user-confirmed-required',
   };
+  await saveImportedFontAsset(asset);
+  return asset;
+}
+
+export async function saveGoogleFontFamily(input: string): Promise<ImportedFontAsset> {
+  const request = createGoogleFontRequest(input);
+  if (!request) throw new Error('Unsupported Google Fonts request');
+
+  const cssResponse = await fetch(request.cssUrl);
+  if (!cssResponse.ok) throw new Error('Could not load Google Fonts stylesheet');
+  const face = pickGoogleFontFace(parseGoogleFontFaces(await cssResponse.text()));
+  if (!face) throw new Error('Could not find a Google Fonts face');
+
+  const fontResponse = await fetch(face.fontUrl);
+  if (!fontResponse.ok) throw new Error('Could not download Google font file');
+  const fontBlob = await fontResponse.blob();
+  const id = `google-${request.family
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')}-${randomId()}`;
+  const asset = createGoogleFontAssetMetadata({
+    id,
+    family: request.family,
+    request,
+    face,
+    dataUrl: await blobToDataUrl(fontBlob),
+    bytes: fontBlob.size,
+  });
+
   await saveImportedFontAsset(asset);
   return asset;
 }
@@ -188,10 +229,14 @@ export async function saveImportedFontAsset(asset: ImportedFontAsset | PortableF
     sourceName: asset.label,
     ...asset,
     family: asset.family || familyForId(asset.id),
-    label: normalizeImportedFontLabel(asset.sourceName || asset.label || 'Imported Font'),
+    label: normalizeImportedFontLabel(
+      asset.source === 'google-fonts' ? asset.label : asset.sourceName || asset.label || 'Imported Font',
+    ),
     bytes: asset.bytes || estimateDataUrlBytes(asset.dataUrl),
     mime: asset.mime || 'application/octet-stream',
     createdAt: asset.createdAt || new Date().toISOString(),
+    source: asset.source || 'local-file',
+    embeddingPolicy: asset.embeddingPolicy || 'user-confirmed-required',
   };
   await withFontStore('readwrite', (store) => {
     store.put(stored);
@@ -262,7 +307,21 @@ export async function hydrateDocumentFontAssets(
     const asset = await loadFontAsset(font);
     if (asset) {
       const { id, dataUrl, mime, bytes, label, family, createdAt } = asset;
-      fontAssets.push({ id, dataUrl, mime, bytes, label, family, createdAt });
+      const { source, sourceName, sourceUrl, license, embeddingPolicy } = asset;
+      fontAssets.push({
+        id,
+        dataUrl,
+        mime,
+        bytes,
+        label,
+        family,
+        createdAt,
+        ...(source ? { source } : {}),
+        ...(sourceName ? { sourceName } : {}),
+        ...(sourceUrl ? { sourceUrl } : {}),
+        ...(license ? { license } : {}),
+        ...(embeddingPolicy ? { embeddingPolicy } : {}),
+      });
     }
   }
   if (fontAssets.length === 0) return doc.fontAssets ? stripDocumentFontAssets(doc) : doc;

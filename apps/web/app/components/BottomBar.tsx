@@ -14,7 +14,7 @@ interface Props {
   onCopyLink: () => void;
   onOpenDocument: () => void;
   onSaveDocument: () => void;
-  onSaveProjectPackage: () => void;
+  onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
   onExport: () => void;
   exportBusy: boolean;
 }
@@ -76,11 +76,19 @@ export function BottomBar({
         </button>
         <button
           className="btn"
-          onClick={onSaveProjectPackage}
+          onClick={() => onSaveProjectPackage('license-aware')}
           aria-label="Save editable project package"
-          title="Save editable .artifact project package"
+          title="Save editable .artifact project package. Open-license Google fonts are included; unknown local fonts stay metadata-only."
         >
           PACKAGE
+        </button>
+        <button
+          className="btn"
+          onClick={() => onSaveProjectPackage('explicit-font-files')}
+          aria-label="Save project package with all imported font files"
+          title="Save .artifact with all imported font files. Only use this when you have rights to distribute those files."
+        >
+          PKG+FONTS
         </button>
         <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
           <AnimatePresence mode="wait" initial={false}>

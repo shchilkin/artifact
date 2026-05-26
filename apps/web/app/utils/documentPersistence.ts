@@ -108,6 +108,23 @@ function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | unde
         label: typeof item.label === 'string' ? item.label : 'Imported Font',
         family: typeof item.family === 'string' ? item.family : `Artifact Imported ${id}`,
         createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date(0).toISOString(),
+        ...(item.source === 'local-file' || item.source === 'google-fonts' ? { source: item.source } : {}),
+        ...(typeof item.sourceName === 'string' ? { sourceName: item.sourceName } : {}),
+        ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
+        ...(isRecord(item.license) && typeof item.license.name === 'string'
+          ? {
+              license: {
+                name: item.license.name,
+                ...(typeof item.license.url === 'string' ? { url: item.license.url } : {}),
+                ...(typeof item.license.allowsEmbedding === 'boolean'
+                  ? { allowsEmbedding: item.license.allowsEmbedding }
+                  : {}),
+              },
+            }
+          : {}),
+        ...(item.embeddingPolicy === 'user-confirmed-required' || item.embeddingPolicy === 'open-license-embeddable'
+          ? { embeddingPolicy: item.embeddingPolicy }
+          : {}),
       },
     ];
   });

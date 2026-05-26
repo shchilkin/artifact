@@ -437,6 +437,12 @@ body {
   min-height: 38px;
 }
 
+.font-picker-google {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
 .font-picker-import {
   min-height: 36px;
   border: 1px solid var(--accent);
@@ -451,6 +457,34 @@ body {
 
 .font-picker-import:hover {
   background: color-mix(in oklch, var(--accent) 16%, var(--surface-bg));
+}
+
+.font-picker-google-action {
+  min-height: 38px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--node-text);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.font-picker-google-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.font-picker-google-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.font-picker-policy {
+  color: var(--node-text-dim);
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .font-picker-error {

@@ -27,6 +27,18 @@ CI should run:
 
 ## Manual QA
 
+### v0.25.0 Release Prep
+
+- Validate Google Fonts import by family name and by CSS2 URL from the Font
+  Library.
+- Confirm imported Google fonts render in Layers and Nodes, survive project
+  package roundtrip, and remain editable as text.
+- Confirm regular `PACKAGE` export includes open-license Google font files with
+  source/license metadata, while unknown local font files remain metadata-only.
+- Confirm `PKG+FONTS` includes all imported font files only through the explicit
+  user action.
+- Confirm raster `EXPORT` remains pixel-only and includes no font files.
+
 ### v0.24.0 Release Prep
 
 - User verified the v0.24 project package flow locally on 2026-05-26.
@@ -129,9 +141,10 @@ CI should run:
 - Verify layer visibility changes the rendered canvas.
 - Save a `.artifact.json` file and reopen it.
 - Save an editable `.artifact` project package and reopen it.
-- For a package with imported fonts, confirm unknown font files are not bundled
-  by default, original text remains editable, and the font can be replaced if
-  missing.
+- For a package with imported fonts, confirm open-license Google font files can
+  travel in the package, unknown local font files are not bundled by default,
+  original text remains editable, and the font can be replaced if missing.
+- Use `PKG+FONTS` only for an explicit all-font package export.
 - Copy a share link and verify the document loads from `?doc=`.
 - Confirm undo/redo after layer edits and continuous slider edits.
 
@@ -172,8 +185,9 @@ CI should run:
   `.artifact.json` export/share hydration can still create large portable
   payloads.
 - Editable `.artifact` project packages preserve imported font metadata and
-  original text, but unknown imported font files are not bundled by default.
-  Missing fonts rely on fallback rendering until the user replaces the font.
+  original text. License-aware packages may include open-license Google font
+  files; unknown local font files are not bundled by default. Missing fonts rely
+  on fallback rendering until the user replaces the font.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
 - Presets are localStorage-backed only.
 - Projects and the pre-blank recovery draft are IndexedDB-backed convenience

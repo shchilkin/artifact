@@ -24,7 +24,7 @@ export const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
 export const ARTIFACT_PROJECT_PACKAGE_EXTENSION = '.artifact';
 export const ARTIFACT_PROJECT_PACKAGE_MIME = 'application/vnd.artifact.project+json';
 
-export type ProjectPackageFontEmbeddingMode = 'metadata-only' | 'explicit-font-files';
+export type ProjectPackageFontEmbeddingMode = 'metadata-only' | 'license-aware' | 'explicit-font-files';
 
 export interface ProjectPackageFontMetadata {
   id: string;
@@ -33,6 +33,11 @@ export interface ProjectPackageFontMetadata {
   mime?: string;
   bytes?: number;
   createdAt?: string;
+  source?: PortableFontAsset['source'];
+  sourceName?: string;
+  sourceUrl?: string;
+  license?: PortableFontAsset['license'];
+  embeddingPolicy?: PortableFontAsset['embeddingPolicy'];
 }
 
 export interface ProjectPackageFontInventoryItem {
@@ -78,6 +83,7 @@ export interface PrepareArtifactProjectPackageOptions
   extends HydrateDocumentImageAssetOptions,
     HydrateDocumentFontAssetOptions {
   includeFontFiles?: boolean;
+  fontEmbeddingMode?: ProjectPackageFontEmbeddingMode;
   now?: Date;
 }
 
@@ -116,6 +122,11 @@ function metadataFromFontAsset(asset: PortableFontAsset): ProjectPackageFontMeta
     mime: asset.mime,
     bytes: asset.bytes,
     createdAt: asset.createdAt,
+    source: asset.source,
+    sourceName: asset.sourceName,
+    sourceUrl: asset.sourceUrl,
+    license: asset.license,
+    embeddingPolicy: asset.embeddingPolicy,
   };
 }
 
@@ -138,6 +149,20 @@ async function collectFontMetadata(
     if (asset) assets.set(id, metadataFromFontAsset(asset));
   }
   return assets;
+}
+
+async function hydrateLicenseAwareFontAssets(
+  doc: CanvasDocument,
+  options: PrepareArtifactProjectPackageOptions,
+): Promise<CanvasDocument> {
+  const fontAssets: PortableFontAsset[] = [];
+  const loadFontAsset = options.loadFontAsset ?? loadImportedFontAsset;
+  for (const font of textLayersByFont(doc).keys()) {
+    if (!isFontUri(font)) continue;
+    const asset = await loadFontAsset(font);
+    if (asset?.embeddingPolicy === 'open-license-embeddable') fontAssets.push(asset);
+  }
+  return fontAssets.length > 0 ? { ...doc, fontAssets } : stripDocumentFontAssets(doc);
 }
 
 function buildFontInventory(
@@ -166,6 +191,8 @@ function buildFontInventory(
     if (isFontUri(font)) {
       const id = fontIdFromUri(font);
       const asset = id ? metadataById.get(id) : undefined;
+      const embedsOpenFont = mode === 'license-aware' && asset?.embeddingPolicy === 'open-license-embeddable';
+      const embedsFontFile = mode === 'explicit-font-files' || embedsOpenFont;
       return {
         ref: font,
         kind: 'imported',
@@ -174,7 +201,7 @@ function buildFontInventory(
         label: asset?.label ?? 'Missing imported font',
         family: asset?.family ?? font,
         asset,
-        embedding: asset ? (mode === 'explicit-font-files' ? 'embedded-file' : 'metadata-only') : 'missing-metadata',
+        embedding: asset ? (embedsFontFile ? 'embedded-file' : 'metadata-only') : 'missing-metadata',
         recovery: 'editable-text-replace-font',
       };
     }
@@ -226,12 +253,16 @@ export async function prepareArtifactProjectPackage(
   doc: CanvasDocument,
   options: PrepareArtifactProjectPackageOptions = {},
 ): Promise<ArtifactProjectPackage> {
-  const mode: ProjectPackageFontEmbeddingMode = options.includeFontFiles ? 'explicit-font-files' : 'metadata-only';
+  const mode: ProjectPackageFontEmbeddingMode =
+    options.fontEmbeddingMode ?? (options.includeFontFiles ? 'explicit-font-files' : 'license-aware');
   const metadataById = await collectFontMetadata(doc, options.loadFontAsset ?? loadImportedFontAsset);
   const imagePortableDoc = await hydrateDocumentImageAssets(doc, options);
-  const packageDoc = options.includeFontFiles
-    ? await hydrateDocumentFontAssets(imagePortableDoc, options)
-    : stripDocumentFontAssets(imagePortableDoc);
+  const packageDoc =
+    mode === 'explicit-font-files'
+      ? await hydrateDocumentFontAssets(imagePortableDoc, options)
+      : mode === 'license-aware'
+        ? await hydrateLicenseAwareFontAssets(imagePortableDoc, options)
+        : stripDocumentFontAssets(imagePortableDoc);
 
   return {
     artifactPackage: 'project',

@@ -16,11 +16,22 @@ import {
   isFontUri,
   listImportedFonts,
   normalizeImportedFontLabel,
+  saveGoogleFontFamily,
   saveImportedFontFile,
 } from '../../../../utils/fontStore';
 import { InspectorLabel } from './InspectorLabel';
 
-const FONT_CATEGORIES = ['All', 'Imported', 'Poster', 'Condensed', 'Mono', 'Pixel', 'Typewriter', 'Utility'] as const;
+const FONT_CATEGORIES = [
+  'All',
+  'Imported',
+  'Google',
+  'Poster',
+  'Condensed',
+  'Mono',
+  'Pixel',
+  'Typewriter',
+  'Utility',
+] as const;
 
 interface FontOptionItem {
   value: TextFontRef;
@@ -34,7 +45,11 @@ interface FontOptionItem {
 const IMPORTED_FONT_SAMPLE = 'TYPE';
 
 function importedFontLabel(font: ImportedFontAsset) {
-  return normalizeImportedFontLabel(font.sourceName || font.label);
+  return normalizeImportedFontLabel(font.source === 'google-fonts' ? font.label : font.sourceName || font.label);
+}
+
+function importedFontCategory(font: ImportedFontAsset) {
+  return font.source === 'google-fonts' ? 'Google' : 'Imported';
 }
 
 export function FontPicker({
@@ -51,6 +66,8 @@ export function FontPicker({
   const [category, setCategory] = useState<(typeof FONT_CATEGORIES)[number]>('All');
   const [importedFonts, setImportedFonts] = useState<ImportedFontAsset[]>([]);
   const [fontError, setFontError] = useState<string | null>(null);
+  const [googleFontInput, setGoogleFontInput] = useState('');
+  const [googleFontBusy, setGoogleFontBusy] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,7 +116,7 @@ export function FontPicker({
     const imported = importedFonts.map((font) => ({
       value: fontUriFromId(font.id),
       label: importedFontLabel(font),
-      category: 'Imported',
+      category: importedFontCategory(font),
       family: font.family,
       stack: `"${font.family}", ${FONT_STACKS.MONO}`,
       sample: IMPORTED_FONT_SAMPLE,
@@ -156,6 +173,24 @@ export function FontPicker({
     }
   }
 
+  async function handleImportGoogleFont() {
+    if (!googleFontInput.trim() || googleFontBusy) return;
+    setGoogleFontBusy(true);
+    try {
+      const imported = await saveGoogleFontFamily(googleFontInput);
+      await ensureImportedFontLoaded(fontUriFromId(imported.id));
+      setImportedFonts((current) => [imported, ...current.filter((font) => font.id !== imported.id)]);
+      onChange(fontUriFromId(imported.id));
+      setCategory('Google');
+      setGoogleFontInput('');
+      setFontError(null);
+    } catch {
+      setFontError('Could not import Google font');
+    } finally {
+      setGoogleFontBusy(false);
+    }
+  }
+
   return (
     <div className="node-inspector-control font-picker">
       <InspectorLabel>{label}</InspectorLabel>
@@ -184,8 +219,32 @@ export function FontPicker({
             onChange={(event) => void handleImportFont(event.target.files?.[0])}
           />
           <button className="font-picker-import" type="button" onClick={() => importInputRef.current?.click()}>
-            + Import font
+            + Import file
           </button>
+          <div className="font-picker-google">
+            <input
+              className="font-picker-search node-field"
+              value={googleFontInput}
+              aria-label="Import Google font"
+              placeholder="Google family or CSS URL..."
+              onChange={(event) => setGoogleFontInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleImportGoogleFont();
+                if (event.key === 'Escape') setOpen(false);
+              }}
+            />
+            <button
+              className="font-picker-google-action"
+              type="button"
+              disabled={!googleFontInput.trim() || googleFontBusy}
+              onClick={() => void handleImportGoogleFont()}
+            >
+              {googleFontBusy ? '…' : 'Google'}
+            </button>
+          </div>
+          <div className="font-picker-policy">
+            Google fonts carry open-license metadata. Local files stay metadata-only unless you export PKG+FONTS.
+          </div>
           {fontError && <div className="font-picker-error">{fontError}</div>}
           <input
             className="font-picker-search node-field"
