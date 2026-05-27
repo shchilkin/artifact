@@ -1,8 +1,10 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CanvasDocument, EffectPreset, Layer, LayerKind } from '../../types/config';
+import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { canInsertLayerAbove } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
+import type { NoisePresetId } from '../../utils/noisePresets';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
@@ -21,6 +23,9 @@ interface Props {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onAddTextPreset: (preset: TextPresetId) => void;
+  onAddNoisePreset: (preset: NoisePresetId) => void;
+  onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onStartAiImage?: () => void;
   onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
@@ -44,6 +49,9 @@ export function LayerPanel({
   onAddLayer,
   onAddEffectPreset,
   onAddTextPreset,
+  onAddNoisePreset,
+  onAddArrayPreset,
+  onStartAiImage,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -194,7 +202,14 @@ export function LayerPanel({
         {modeSwitcher ?? (
           <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
         )}
-        <LayerAddMenu onAddLayer={onAddLayer} onAddEffectPreset={onAddEffectPreset} onAddTextPreset={onAddTextPreset} />
+        <LayerAddMenu
+          onAddLayer={onAddLayer}
+          onAddEffectPreset={onAddEffectPreset}
+          onAddTextPreset={onAddTextPreset}
+          onAddNoisePreset={onAddNoisePreset}
+          onAddArrayPreset={onAddArrayPreset}
+          onStartAiImage={onStartAiImage}
+        />
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">

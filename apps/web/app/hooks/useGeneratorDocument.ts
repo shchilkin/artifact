@@ -12,6 +12,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import { type ArrayPresetId, makeArrayPresetLayer } from '../utils/arrayPresets';
 import {
   hasPortableDocumentPayloads,
   preparePortableDocument,
@@ -59,6 +60,7 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import type { TextPresetId } from '../utils/textPresets';
@@ -262,12 +264,32 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const addNoisePreset = useCallback(
+    (preset: NoisePresetId) => {
+      const layer = makeNoisePresetLayer(preset);
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const addArrayPreset = useCallback(
+    (preset: ArrayPresetId) => {
+      const layer = makeArrayPresetLayer(preset);
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
   const insertLayerAbove = useCallback(
     (
       targetLayerId: string,
       action:
         | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
         | { kind: 'textPreset'; preset: TextPresetId }
+        | { kind: 'noisePreset'; preset: NoisePresetId }
+        | { kind: 'arrayPreset'; preset: ArrayPresetId }
         | { kind: 'effect'; preset: EffectPreset },
     ) => {
       const layer =
@@ -275,7 +297,11 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           ? createEffectPresetLayer(action.preset)
           : action.kind === 'textPreset'
             ? createTextPresetLayer(action.preset)
-            : createLayerOfKind(action.layerKind);
+            : action.kind === 'noisePreset'
+              ? makeNoisePresetLayer(action.preset)
+              : action.kind === 'arrayPreset'
+                ? makeArrayPresetLayer(action.preset)
+                : createLayerOfKind(action.layerKind);
       updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
@@ -438,6 +464,8 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     addLayer,
     addEffectPreset,
     addTextPreset,
+    addNoisePreset,
+    addArrayPreset,
     insertLayerAbove,
     addImageFromSource,
     removeLayer,

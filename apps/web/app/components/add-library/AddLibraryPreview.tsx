@@ -264,9 +264,17 @@ function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
 
   if (item.action.kind === 'layer' && item.action.layerKind === 'fill') {
     ctx.globalAlpha = 0.9;
-    ctx.fillRect(52, 52, 96, 96);
+    ctx.fillRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE);
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = '#f5ead8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(30, 30, PREVIEW_SIZE - 60, PREVIEW_SIZE - 60);
   } else if ((item.action.kind === 'layer' && item.action.layerKind === 'text') || item.action.kind === 'textPreset') {
-    drawCenteredFallbackText(ctx, 'T', 88);
+    drawCenteredFallbackText(
+      ctx,
+      item.action.kind === 'textPreset' ? item.label.slice(0, 2).toUpperCase() : 'TYPE',
+      42,
+    );
   } else if (item.action.kind === 'layer' && item.action.layerKind === 'image') {
     ctx.lineWidth = 8;
     ctx.strokeRect(52, 48, 96, 104);
@@ -276,6 +284,20 @@ function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
     ctx.lineTo(116, 122);
     ctx.lineTo(144, 80);
     ctx.stroke();
+  } else if (item.action.kind === 'aiImage') {
+    drawImageLikeFallback(ctx);
+    ctx.fillStyle = '#f5ead8';
+    drawCenteredFallbackText(ctx, 'AI', 56);
+  } else if (
+    item.action.kind === 'noisePreset' ||
+    (item.action.kind === 'layer' && item.action.layerKind === 'noise')
+  ) {
+    drawNoiseFallback(ctx, groupColor);
+  } else if (
+    item.action.kind === 'arrayPreset' ||
+    (item.action.kind === 'layer' && item.action.layerKind === 'array')
+  ) {
+    drawArrayFallback(ctx, groupColor);
   } else {
     drawFallbackGlyph(ctx, item);
   }
@@ -285,10 +307,66 @@ function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
 }
 
 function drawCenteredFallbackText(ctx: CanvasRenderingContext2D, text: string, size: number) {
-  ctx.font = `700 ${size}px serif`;
+  ctx.font = `700 ${size}px ui-monospace, Consolas, "Courier New", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, PREVIEW_SIZE / 2, PREVIEW_SIZE / 2 + 4);
+}
+
+function drawImageLikeFallback(ctx: CanvasRenderingContext2D) {
+  const gradient = ctx.createLinearGradient(36, 34, 164, 166);
+  gradient.addColorStop(0, '#25100d');
+  gradient.addColorStop(0.45, '#7f382b');
+  gradient.addColorStop(1, '#160617');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(34, 34, 132, 132);
+  ctx.strokeStyle = '#f5b38c';
+  ctx.globalAlpha = 0.64;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(78, 82, 24, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(40, 152);
+  ctx.lineTo(82, 106);
+  ctx.lineTo(118, 136);
+  ctx.lineTo(160, 76);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawNoiseFallback(ctx: CanvasRenderingContext2D, color: string) {
+  ctx.fillStyle = '#120806';
+  ctx.fillRect(32, 32, 136, 136);
+  let seed = 9173;
+  for (let i = 0; i < 260; i += 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const x = 34 + (seed % 132);
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const y = 34 + (seed % 132);
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const size = 1 + (seed % 5);
+    ctx.globalAlpha = 0.18 + ((seed >>> 4) % 70) / 100;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, size, size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawArrayFallback(ctx: CanvasRenderingContext2D, color: string) {
+  ctx.fillStyle = '#120806';
+  ctx.fillRect(30, 30, 140, 140);
+  ctx.fillStyle = color;
+  for (let y = 48; y <= 150; y += 26) {
+    for (let x = 48; x <= 150; x += 26) {
+      const offset = (x + y) % 52 === 0 ? 5 : -3;
+      ctx.globalAlpha = 0.52 + ((x + y) % 5) * 0.08;
+      ctx.beginPath();
+      ctx.arc(x + offset, y - offset, 7 + ((x + y) % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawFallbackGlyph(ctx: CanvasRenderingContext2D, item: AddLibraryItem) {

@@ -10,6 +10,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import type { ArrayPresetId } from '../utils/arrayPresets';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
   addLayersToGraphAreaInDocument,
@@ -26,6 +27,7 @@ import {
   updateGlobalInDocument,
   updateLayerInDocument,
 } from '../utils/documentCommands';
+import type { NoisePresetId } from '../utils/noisePresets';
 import type { TextPresetId } from '../utils/textPresets';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { LayerPanel } from './LayerPanel';
@@ -39,11 +41,16 @@ interface Props {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onAddTextPreset: (preset: TextPresetId) => void;
+  onAddNoisePreset: (preset: NoisePresetId) => void;
+  onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onStartAiImage?: () => void;
   onInsertLayerAbove: (
     targetLayerId: string,
     action:
       | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
       | { kind: 'textPreset'; preset: TextPresetId }
+      | { kind: 'noisePreset'; preset: NoisePresetId }
+      | { kind: 'arrayPreset'; preset: ArrayPresetId }
       | { kind: 'effect'; preset: EffectPreset },
   ) => void;
   onRemoveLayer: (id: string) => void;
@@ -118,6 +125,9 @@ export function Sidebar({
   onAddLayer,
   onAddEffectPreset,
   onAddTextPreset,
+  onAddNoisePreset,
+  onAddArrayPreset,
+  onStartAiImage,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -285,6 +295,9 @@ export function Sidebar({
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
           onAddTextPreset={onAddTextPreset}
+          onAddNoisePreset={onAddNoisePreset}
+          onAddArrayPreset={onAddArrayPreset}
+          onStartAiImage={onStartAiImage}
           onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={handleReorderLayers}

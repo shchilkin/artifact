@@ -61,6 +61,8 @@ export default function Generator() {
     addLayer,
     addEffectPreset,
     addTextPreset,
+    addNoisePreset,
+    addArrayPreset,
     insertLayerAbove,
     addImageFromSource,
     removeLayer,
@@ -354,6 +356,9 @@ export default function Generator() {
             onAddLayer={addLayer}
             onAddEffectPreset={addEffectPreset}
             onAddTextPreset={addTextPreset}
+            onAddNoisePreset={addNoisePreset}
+            onAddArrayPreset={addArrayPreset}
+            onStartAiImage={handleStartAiImage}
             onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}

@@ -1077,7 +1077,10 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
   const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
   await expect(topFillRow).toBeVisible({ timeout: 15_000 });
   await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
-  await page.getByRole('button', { name: /Grain/i }).click();
+  await page
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Grain$/ }) })
+    .click();
 
   await expect(page.locator('.layer-row').filter({ hasText: 'Grain' })).toHaveCount(1, { timeout: 15_000 });
   await expect
@@ -1122,6 +1125,50 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+});
+
+test('layer add library shows source previews and can add source presets', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+
+  const fillRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Fill$/ }),
+  });
+  await fillRow.hover();
+  await expect(menu.getByAltText('Fill preview')).toBeVisible({ timeout: 15_000 });
+
+  const imageRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Image$/ }),
+  });
+  await imageRow.hover();
+  await expect(menu.getByAltText('Image preview')).toBeVisible({ timeout: 15_000 });
+
+  const textRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Text$/ }),
+  });
+  await textRow.hover();
+  await expect(menu.getByAltText('Text preview')).toBeVisible({ timeout: 15_000 });
+
+  await menu.getByRole('button', { name: 'Source', exact: true }).click();
+  const aiRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }),
+  });
+  await aiRow.hover();
+  await expect(menu.getByAltText('AI Image preview')).toBeVisible({ timeout: 15_000 });
+
+  const paperRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Paper$/ }),
+  });
+  await paperRow.hover();
+  await expect(menu.getByAltText('Paper preview')).toBeVisible({ timeout: 15_000 });
+  await paperRow.click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Paper' })).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
 });
 
 test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
