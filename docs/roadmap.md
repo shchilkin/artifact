@@ -16,9 +16,11 @@ Related architecture docs:
 
 Current active version plan:
 
-- The next active version plan is not selected yet. Strong candidates are
-  layer-mode polish, server-backed share links, or deeper font catalog/account
-  sync after `v0.25.0` is cut.
+- [`version-plans/v0.26.md`](./version-plans/v0.26.md) — Layer Mode Polish is
+  the current implementation target: make Layers feel first-class as the fast
+  linear path to a final image, polish the layer Add Library, improve empty
+  starts and layer-state readability, and preserve document, renderer, graph,
+  export, thumbnail, AI, and package/font semantics.
 
 Recently shipped:
 
@@ -67,12 +69,15 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Layer Mode First-Class Pass** — fast stack editing, clear empty states,
-  layer-first recipes, better graph-area readability in layer mode, and quick
-  controls that do not require switching to nodes.
 - **Server-backed Share Links** — once the package and font policy are stable,
   add stored-asset share records so large projects can be shared without URL
   payload limits.
+- **Font Catalog And Account Sync** — add deeper font discovery, saved font
+  sets, and account-backed font/project continuity after the local font policy
+  has been proven in release.
+- **Editor Visual Regression** — add a small snapshot strategy for layer-state,
+  Add Library, graph output, and export/preview parity once the v0.26 visual
+  polish settles.
 
 ## Product summary
 
@@ -144,11 +149,11 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.25` follows the project-package foundation with
-Google Fonts import and license-aware package defaults. Catalog API keys,
-account-synced font sets, command-palette entry, server-backed sharing, and
-deeper layer-mode product polish remain preserved as follow-up candidates so
-each release can stay coherent and low-risk.
+Near-term sequencing note: `v0.26` is the layer-mode product polish pass after
+the project-package and font-policy foundation. Catalog API keys, account-synced
+font sets, command-palette entry, server-backed sharing, and deeper backend work
+remain preserved as follow-up candidates so each release can stay coherent and
+low-risk.
 
 ### Content And Learning
 

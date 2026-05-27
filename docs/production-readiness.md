@@ -27,8 +27,27 @@ CI should run:
 
 ## Manual QA
 
+### v0.26.0 Release Prep
+
+- Validate the Layers workflow from empty document to export.
+- Confirm Layers Add Library search, category filtering, hover preview, and
+  click-to-add behavior remain consistent with the shared Add Library model.
+- Confirm Fill, Image, Text, and AI Image previews represent their source type.
+- Confirm selected, hidden/muted, drag-over, and focused layer-row states remain
+  readable in the dark editor.
+- Confirm layer row actions still work: select, rename, duplicate, hide/show,
+  reorder, delete, and add effect/source.
+- Confirm quick slider/control edits keep the visible final preview responsive.
+- Confirm Layers -> Nodes -> Layers keeps the visible preview nonblank.
+- Confirm stack export and graph-backed export still match the visible preview.
+- Confirm no document schema migration, graph traversal change, render/export
+  semantic change, thumbnail scheduling change, AI scope change, or package/font
+  policy change is introduced.
+
 ### v0.25.0 Release Prep
 
+- Released as `v0.25.0` on 2026-05-27:
+  https://github.com/shchilkin/artifact/releases/tag/v0.25.0
 - User verified the v0.25 Google font and package policy workflow locally on
   2026-05-27.
 - Automated release gate passed on 2026-05-27.
