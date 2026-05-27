@@ -1868,8 +1868,10 @@ test('layer drag reorder shows a readable insertion target and preserves output'
       row.textContent?.includes('Bottom fill'),
     );
     if (!source || !target) throw new Error('Layer rows were not found');
+    const handle = source.querySelector<HTMLElement>('.layer-row-drag-handle');
+    if (!handle) throw new Error('Layer drag handle was not found');
     const dataTransfer = new DataTransfer();
-    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    handle.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(
       new DragEvent('dragover', {
@@ -2627,7 +2629,7 @@ test('AI-enabled user can generate an image and keep prompt provenance after rel
 
   await page.reload();
   await expectLayerCanvasToHavePixels(page);
-  await page.locator('.sidebar [draggable="true"]').first().click();
+  await page.locator('.sidebar .layer-row').first().click();
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible({
     timeout: 15_000,
   });
@@ -2975,7 +2977,7 @@ test('dragging a layer row out of an area separates the layer', async ({ page })
   await expect(source).toBeVisible();
   await expect(target).toBeVisible();
 
-  await source.dragTo(target);
+  await source.locator('.layer-row-drag-handle').dragTo(target);
 
   await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
   await expect

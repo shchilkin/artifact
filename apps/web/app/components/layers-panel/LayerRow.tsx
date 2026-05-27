@@ -67,10 +67,8 @@ export const LayerRow = memo(function LayerRow({
 
   return (
     <div
-      draggable
       aria-selected={selected}
       data-layer-visible={layer.visible ? 'true' : 'false'}
-      onDragStart={() => onDragStart(layer.id)}
       onDragOver={(event) => {
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
@@ -92,7 +90,22 @@ export const LayerRow = memo(function LayerRow({
       }}
       className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
-      <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
+      <button
+        type="button"
+        className="layer-row-drag-handle text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0"
+        draggable
+        aria-label={`Drag layer ${layer.name}`}
+        title="Drag to reorder"
+        onDragStart={(event) => {
+          event.stopPropagation();
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', layer.id);
+          onDragStart(layer.id);
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        ⠿
+      </button>
       <span
         className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
         style={{ fontWeight: 700 }}
