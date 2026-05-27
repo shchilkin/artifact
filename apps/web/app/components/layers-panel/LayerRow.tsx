@@ -4,12 +4,13 @@ import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
 import { type LayerInsertAction, LayerQuickAddMenu } from './LayerQuickAddMenu';
 import { getLayerIcon } from './layerDisplayItems';
+import type { LayerDropPosition } from './useLayerDragReorder';
 
 export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
   selected: boolean;
-  dragOver: boolean;
+  dragOverPosition: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
   onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
@@ -17,8 +18,8 @@ export interface LayerRowProps {
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
-  onDragOverLayer: (id: string) => void;
-  onDropLayer: (id: string) => void;
+  onDragOverLayer: (id: string, position: LayerDropPosition) => void;
+  onDropLayer: (id: string, position: LayerDropPosition) => void;
   onDragEnd: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
@@ -31,7 +32,7 @@ export const LayerRow = memo(function LayerRow({
   layer,
   areas,
   selected,
-  dragOver,
+  dragOverPosition,
   editing,
   nested = false,
   onSelect,
@@ -57,7 +58,7 @@ export const LayerRow = memo(function LayerRow({
       : 0;
   const stateClassNames = [
     selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50',
-    dragOver ? 'border-t-2 border-t-accent layer-row-drop-target' : '',
+    dragOverPosition ? `layer-row-drop-target layer-row-drop-${dragOverPosition}` : '',
     nested ? 'layer-row-nested' : '',
     layer.visible ? '' : 'layer-row-hidden',
   ]
@@ -69,14 +70,30 @@ export const LayerRow = memo(function LayerRow({
       draggable
       aria-selected={selected}
       data-layer-visible={layer.visible ? 'true' : 'false'}
-      onDragStart={() => onDragStart(layer.id)}
+      onDragStart={(event) => {
+        const target = event.target as HTMLElement;
+        if (
+          target.closest('.layer-row-actions, input, textarea, select') &&
+          !target.closest('.layer-row-drag-handle')
+        ) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', layer.id);
+        onDragStart(layer.id);
+      }}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOverLayer(layer.id);
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+        onDragOverLayer(layer.id, position);
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDropLayer(layer.id);
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+        onDropLayer(layer.id, position);
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}
@@ -87,7 +104,22 @@ export const LayerRow = memo(function LayerRow({
       }}
       className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
-      <span className="text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0">⠿</span>
+      <button
+        type="button"
+        className="layer-row-drag-handle text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0"
+        draggable
+        aria-label={`Drag layer ${layer.name}`}
+        title="Drag to reorder"
+        onDragStart={(event) => {
+          event.stopPropagation();
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', layer.id);
+          onDragStart(layer.id);
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        ⠿
+      </button>
       <span
         className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
         style={{ fontWeight: 700 }}

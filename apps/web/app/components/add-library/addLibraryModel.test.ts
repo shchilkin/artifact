@@ -21,16 +21,25 @@ describe('addLibraryModel', () => {
     }
   });
 
-  it('keeps layers focused on stack-safe add actions', () => {
+  it('keeps layers focused on layer-safe library actions', () => {
     const layerItems = addLibraryItemsForSurface('layers');
     expect(layerItems.length).toBeGreaterThan(0);
     expect(
       layerItems.every(
-        (item) => item.action.kind === 'layer' || item.action.kind === 'textPreset' || item.action.kind === 'effect',
+        (item) =>
+          item.action.kind === 'layer' ||
+          item.action.kind === 'textPreset' ||
+          item.action.kind === 'noisePreset' ||
+          item.action.kind === 'arrayPreset' ||
+          item.action.kind === 'aiImage' ||
+          item.action.kind === 'effect',
       ),
     ).toBe(true);
     expect(layerItems.map((item) => item.id)).toContain('effect:pixelate');
     expect(layerItems.map((item) => item.id)).toContain('textPreset:title');
+    expect(layerItems.map((item) => item.id)).toContain('aiImage');
+    expect(layerItems.map((item) => item.id)).toContain('noisePreset:paper');
+    expect(layerItems.map((item) => item.id)).toContain('arrayPreset:stickerGrid');
     expect(layerItems.map((item) => item.id)).not.toContain('merge');
   });
 
@@ -95,6 +104,10 @@ describe('addLibraryModel', () => {
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'effect', preset: 'pixelate' }))).toEqual({
       kind: 'effect',
       preset: 'pixelate',
+    });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'noisePreset', preset: 'paper' }))).toEqual({
+      kind: 'noisePreset',
+      preset: 'paper',
     });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();

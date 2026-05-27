@@ -1,6 +1,8 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EffectPreset, LayerKind } from '../../types/config';
+import type { ArrayPresetId } from '../../utils/arrayPresets';
+import type { NoisePresetId } from '../../utils/noisePresets';
 import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
@@ -13,10 +15,16 @@ export function LayerAddMenu({
   onAddLayer,
   onAddEffectPreset,
   onAddTextPreset,
+  onAddNoisePreset,
+  onAddArrayPreset,
+  onStartAiImage,
 }: {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onAddTextPreset: (preset: TextPresetId) => void;
+  onAddNoisePreset: (preset: NoisePresetId) => void;
+  onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onStartAiImage?: () => void;
 }) {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addButtonRef = useRef<HTMLDivElement>(null);
@@ -67,13 +75,44 @@ export function LayerAddMenu({
     [onAddTextPreset],
   );
 
+  const handleAddNoisePreset = useCallback(
+    (preset: NoisePresetId) => {
+      onAddNoisePreset(preset);
+      setShowAddMenu(false);
+    },
+    [onAddNoisePreset],
+  );
+
+  const handleAddArrayPreset = useCallback(
+    (preset: ArrayPresetId) => {
+      onAddArrayPreset(preset);
+      setShowAddMenu(false);
+    },
+    [onAddArrayPreset],
+  );
+
+  const handleStartAiImage = useCallback(() => {
+    onStartAiImage?.();
+    setShowAddMenu(false);
+  }, [onStartAiImage]);
+
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
       if (action.kind === 'layer') handleAddLayer(action.layerKind);
       if (action.kind === 'textPreset') handleAddTextPreset(action.preset);
+      if (action.kind === 'noisePreset') handleAddNoisePreset(action.preset);
+      if (action.kind === 'arrayPreset') handleAddArrayPreset(action.preset);
+      if (action.kind === 'aiImage') handleStartAiImage();
       if (action.kind === 'effect') handleAddEffectPreset(action.preset);
     },
-    [handleAddEffectPreset, handleAddLayer, handleAddTextPreset],
+    [
+      handleAddArrayPreset,
+      handleAddEffectPreset,
+      handleAddLayer,
+      handleAddNoisePreset,
+      handleAddTextPreset,
+      handleStartAiImage,
+    ],
   );
 
   return (

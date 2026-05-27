@@ -29,7 +29,6 @@ import {
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
-  appendNodeToExportPath,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
   inferLinearGraph,
@@ -134,14 +133,29 @@ function withGeneratedNodeSeed(layer: Layer): Layer {
   return { ...layer, seedOffset: nodeSeedOffsetFromId(layer.id) };
 }
 
+function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): CanvasGraph {
+  const linearGraph = inferLinearGraph(layers);
+  const layerOrExportIds = new Set([...layers.map((layer) => layer.id), EXPORT_NODE_ID]);
+  const graphOnlyEdges = graph.edges.filter(
+    (edge) => !layerOrExportIds.has(edge.fromId) && !layerOrExportIds.has(edge.toId),
+  );
+  return {
+    ...graph,
+    edges: [...graphOnlyEdges, ...linearGraph.edges],
+    positions: { ...graph.positions, ...linearGraph.positions },
+    mergeNodes: graph.mergeNodes ?? [],
+    colorNodes: graph.colorNodes ?? [],
+    repeatNodes: graph.repeatNodes ?? [],
+  };
+}
+
 export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDocument {
   if (!doc.graph) return { ...doc, layers: [...doc.layers, layer] };
-  const inputPort = layer.kind === 'effect' ? 'in' : 'bg';
-  const graphWithLayer = addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph));
+  const layers = [...doc.layers, layer];
   return {
     ...doc,
-    layers: [...doc.layers, layer],
-    graph: appendNodeToExportPath(graphWithLayer, layer.id, inputPort),
+    layers,
+    graph: syncGraphToLayerStackOrder(addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)), layers),
   };
 }
 
@@ -180,7 +194,7 @@ function isLinearLayerGraph(doc: CanvasDocument): boolean {
 }
 
 export function canInsertLayerAbove(doc: CanvasDocument, targetLayerId: string): boolean {
-  return doc.layers.some((layer) => layer.id === targetLayerId) && isLinearLayerGraph(doc);
+  return doc.layers.some((layer) => layer.id === targetLayerId);
 }
 
 function insertLayerIntoLinearGraph(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasGraph {
@@ -221,6 +235,13 @@ export function insertLayerAboveInDocument(doc: CanvasDocument, targetLayerId: s
   const layers = [...doc.layers];
   layers.splice(targetIndex + 1, 0, layer);
   if (!doc.graph) return { ...doc, layers };
+  if (!isLinearLayerGraph(doc)) {
+    return {
+      ...doc,
+      layers,
+      graph: syncGraphToLayerStackOrder(addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)), layers),
+    };
+  }
   return {
     ...doc,
     layers,
@@ -544,6 +565,9 @@ export function updateRepeatNodeInDocument(
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
+  if (doc.graph) {
+    return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
+  }
   return { ...doc, layers };
 }
 

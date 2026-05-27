@@ -132,6 +132,51 @@ const graphPreviewDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const customGraphLayerReorderDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 10, aspect: '1:1' },
+  layers: [
+    {
+      id: 'custom-bottom-fill',
+      name: 'Custom bottom',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2255cc',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'custom-top-fill',
+      name: 'Custom top',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#dd3322',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-stale-bottom-export',
+        fromId: 'custom-bottom-fill',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'custom-bottom-fill': { x: 0, y: 80 },
+      'custom-top-fill': { x: 0, y: 420 },
+      __export__: { x: 520, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const wideFillLayer = {
   id: 'wide-fill',
   name: 'Wide fill',
@@ -1077,7 +1122,10 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
   const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
   await expect(topFillRow).toBeVisible({ timeout: 15_000 });
   await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
-  await page.getByRole('button', { name: /Grain/i }).click();
+  await page
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Grain$/ }) })
+    .click();
 
   await expect(page.locator('.layer-row').filter({ hasText: 'Grain' })).toHaveCount(1, { timeout: 15_000 });
   await expect
@@ -1091,6 +1139,57 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
     )
     .toEqual([
       { name: 'Bottom fill', kind: 'fill' },
+      { name: 'Top fill', kind: 'fill' },
+      { name: 'Grain', kind: 'effect' },
+    ]);
+
+  const bottomFillRow = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
+  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
+  const quickMenu = page.locator('.add-library-layer-quick-menu');
+  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
+  await quickMenu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }) })
+    .click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'AI Image' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual([
+      { name: 'Bottom fill', kind: 'fill' },
+      { name: 'AI Image', kind: 'image' },
+      { name: 'Top fill', kind: 'fill' },
+      { name: 'Grain', kind: 'effect' },
+    ]);
+
+  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
+  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
+  await quickMenu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Array$/ }) })
+    .click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Array' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual([
+      { name: 'Bottom fill', kind: 'fill' },
+      { name: 'Array', kind: 'array' },
+      { name: 'AI Image', kind: 'image' },
       { name: 'Top fill', kind: 'fill' },
       { name: 'Grain', kind: 'effect' },
     ]);
@@ -1122,6 +1221,50 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+});
+
+test('layer add library shows source previews and can add source presets', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const header = page.locator('.layer-panel-header');
+  await header.getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+
+  const fillRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Fill$/ }),
+  });
+  await fillRow.hover();
+  await expect(menu.getByAltText('Fill preview')).toBeVisible({ timeout: 15_000 });
+
+  const imageRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Image$/ }),
+  });
+  await imageRow.hover();
+  await expect(menu.getByAltText('Image preview')).toBeVisible({ timeout: 15_000 });
+
+  const textRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Text$/ }),
+  });
+  await textRow.hover();
+  await expect(menu.getByAltText('Text preview')).toBeVisible({ timeout: 15_000 });
+
+  await menu.getByRole('button', { name: 'Source', exact: true }).click();
+  const aiRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }),
+  });
+  await aiRow.hover();
+  await expect(menu.getByAltText('AI Image preview')).toBeVisible({ timeout: 15_000 });
+
+  const paperRow = menu.locator('.add-library-row').filter({
+    has: page.locator('.add-library-row-label', { hasText: /^Paper$/ }),
+  });
+  await paperRow.hover();
+  await expect(menu.getByAltText('Paper preview')).toBeVisible({ timeout: 15_000 });
+  await paperRow.click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Paper' })).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
 });
 
 test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
@@ -1741,7 +1884,7 @@ test('uploaded images are stored as asset references and survive reload', async 
     target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, uploadImagePngBase64);
 
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect
     .poll(
@@ -1765,7 +1908,7 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await page.goto('/app?new=blank');
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(0);
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
   await expectCanvasCenterAlpha(page, 0);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
@@ -1779,16 +1922,19 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
 
   const emptyPanel = page.locator('.layer-empty-state');
   await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
-  await expect(emptyPanel).toContainText('Start with one layer');
+  await expect(emptyPanel).toContainText('Fast starts');
   await expect(emptyPanel.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(emptyPanel.getByRole('button', { name: 'Open saved work' })).toBeVisible();
+  await expect(emptyPanel.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
     'href',
     '/docs/nodes#docs-first-cover',
   );
 
-  await emptyPanel.getByRole('button', { name: 'Text' }).click();
+  await emptyPanel.getByRole('button', { name: 'Title' }).click();
   await expect(page.locator('.layer-empty-state')).toHaveCount(0);
-  await expect(page.locator('.layer-row').filter({ hasText: /Text/i })).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.layer-row').filter({ hasText: 'Title Type' })).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
   await expect
     .poll(
       async () =>
@@ -1799,6 +1945,159 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
       { timeout: 15_000 },
     )
     .toBe('text');
+});
+
+test('layer drag reorder shows a readable insertion target and syncs the linear graph', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+  await switchToNodeView(page);
+  await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+  await switchToLayerView(page);
+
+  const source = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate(() => {
+    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Top fill'),
+    );
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Bottom fill'),
+    );
+    if (!source || !target) throw new Error('Layer rows were not found');
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+  });
+
+  await expect(target).toHaveClass(/layer-row-drop-after/);
+
+  await page.evaluate(() => {
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Bottom fill'),
+    );
+    if (!target) throw new Error('Target layer row was not found');
+    const dataTransfer = new DataTransfer();
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const layerIds = doc.layers?.map((layer: { id: string }) => layer.id);
+          const graphEdges = doc.graph?.edges?.map(
+            (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
+          );
+          const positions = doc.graph?.positions ?? {};
+          return {
+            layerIds,
+            graphEdges,
+            topBeforeBottom: positions['top-fill']?.x < positions['bottom-fill']?.x,
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      layerIds: ['top-fill', 'bottom-fill'],
+      graphEdges: ['top-fill->bottom-fill', 'bottom-fill->__export__'],
+      topBeforeBottom: true,
+    });
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('layer drag reorder makes a custom graph follow the layer stack', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(customGraphLayerReorderDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.graph?.edges?.map((edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`);
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(['custom-bottom-fill->__export__']);
+
+  const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Custom bottom' }).first();
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate(() => {
+    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Custom top'),
+    );
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Custom bottom'),
+    );
+    if (!source || !target) throw new Error('Custom graph layer rows were not found');
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id),
+            graphEdges: doc.graph?.edges?.map(
+              (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
+            ),
+            topBeforeBottom:
+              doc.graph?.positions?.['custom-top-fill']?.x < doc.graph?.positions?.['custom-bottom-fill']?.x,
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      layerIds: ['custom-top-fill', 'custom-bottom-fill'],
+      graphEdges: ['custom-top-fill->custom-bottom-fill', 'custom-bottom-fill->__export__'],
+      topBeforeBottom: true,
+    });
+  await expectLayerCanvasToHavePixels(page);
 });
 
 test('new blank canvas action confirms before replacing current work', async ({ page }) => {
@@ -1828,7 +2127,7 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
   await expect(page.getByText('paper clouds')).toBeVisible();
   await expect(page.getByText('paper tooth')).toBeVisible();
   await expect
@@ -1865,7 +2164,7 @@ test('empty canvas can start from the multi-font type recipe', async ({ page }) 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(10, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(10, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('poster title')).toBeVisible();
   await expect(page.getByText('mono subtitle')).toBeVisible();
@@ -1913,7 +2212,7 @@ test('empty canvas can start from the layer-first photo stack recipe', async ({ 
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
   await expect(page.getByText('cover photo')).toBeVisible();
   await expect(page.getByText('headline type')).toBeVisible();
   await expect
@@ -2488,7 +2787,7 @@ test('AI-enabled user can generate an image and keep prompt provenance after rel
   await panel.getByRole('button', { name: 'Generate' }).click();
 
   await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('Current image prompt')).toBeVisible();
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
@@ -2514,7 +2813,7 @@ test('AI-enabled user can generate an image and keep prompt provenance after rel
 
   await page.reload();
   await expectLayerCanvasToHavePixels(page);
-  await page.locator('.sidebar [draggable="true"]').first().click();
+  await page.locator('.sidebar .layer-row').first().click();
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible({
     timeout: 15_000,
   });
@@ -2538,7 +2837,7 @@ test('AI generation keeps polling until a queued job succeeds', async ({ page })
   await panel.getByRole('button', { name: 'Generate' }).click();
 
   await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
 });
 
