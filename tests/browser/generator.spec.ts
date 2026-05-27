@@ -1851,9 +1851,12 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
     .toBe('text');
 });
 
-test('layer drag reorder shows a readable insertion target and preserves output', async ({ page }) => {
+test('layer drag reorder shows a readable insertion target and syncs the linear graph', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
   await expectLayerCanvasToHavePixels(page);
+  await switchToNodeView(page);
+  await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+  await switchToLayerView(page);
 
   const source = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
   const target = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
@@ -1908,11 +1911,24 @@ test('layer drag reorder shows a readable insertion target and preserves output'
       async () =>
         page.evaluate(() => {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.map((layer: { id: string }) => layer.id);
+          const layerIds = doc.layers?.map((layer: { id: string }) => layer.id);
+          const graphEdges = doc.graph?.edges?.map(
+            (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
+          );
+          const positions = doc.graph?.positions ?? {};
+          return {
+            layerIds,
+            graphEdges,
+            topBeforeBottom: positions['top-fill']?.x < positions['bottom-fill']?.x,
+          };
         }),
       { timeout: 15_000 },
     )
-    .toEqual(['top-fill', 'bottom-fill']);
+    .toEqual({
+      layerIds: ['top-fill', 'bottom-fill'],
+      graphEdges: ['top-fill->bottom-fill', 'bottom-fill->__export__'],
+      topBeforeBottom: true,
+    });
   await expectLayerCanvasToHavePixels(page);
 });
 

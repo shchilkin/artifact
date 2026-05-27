@@ -570,7 +570,21 @@ describe('documentCommands', () => {
     });
   });
 
-  it('reorders layers while preserving graph metadata', () => {
+  it('reorders layers and keeps a linear graph in sync', () => {
+    const doc = bootstrapDocumentGraph(makeDoc());
+    const reordered = [doc.layers[1]!, doc.layers[0]!];
+    const next = reorderDocumentLayers(doc, reordered);
+
+    expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
+      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(next.graph?.positions['text-a']?.x).toBeLessThan(next.graph?.positions['fill-a']?.x ?? 0);
+    expect(next.graph).not.toBe(doc.graph);
+  });
+
+  it('reorders layers while preserving complex graph topology', () => {
     const doc = makeDoc(makeGraph());
     const reordered = [doc.layers[1]!, doc.layers[0]!];
     const next = reorderDocumentLayers(doc, reordered);

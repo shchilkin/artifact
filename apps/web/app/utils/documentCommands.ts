@@ -544,6 +544,21 @@ export function updateRepeatNodeInDocument(
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
+  if (doc.graph && isLinearLayerGraph(doc)) {
+    const graph = inferLinearGraph(layers);
+    return {
+      ...doc,
+      layers,
+      graph: {
+        ...doc.graph,
+        edges: graph.edges,
+        positions: graph.positions,
+        mergeNodes: [],
+        colorNodes: [],
+        repeatNodes: [],
+      },
+    };
+  }
   return { ...doc, layers };
 }
 
