@@ -1097,6 +1097,32 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
       { name: 'Top fill', kind: 'fill' },
       { name: 'Grain', kind: 'effect' },
     ]);
+
+  const bottomFillRow = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
+  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
+  const quickMenu = page.locator('.add-library-layer-quick-menu');
+  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
+  await quickMenu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }) })
+    .click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'AI Image' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual([
+      { name: 'Bottom fill', kind: 'fill' },
+      { name: 'AI Image', kind: 'image' },
+      { name: 'Top fill', kind: 'fill' },
+      { name: 'Grain', kind: 'effect' },
+    ]);
 });
 
 test('layer add library supports search keyboard add and recent items', async ({ page }) => {

@@ -11,6 +11,7 @@ import { clampPopupPosition } from '../node-canvas/helpers';
 export type LayerInsertAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'textPreset'; preset: TextPresetId }
+  | { kind: 'aiImage' }
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset };
@@ -62,6 +63,7 @@ export function LayerQuickAddMenu({
     (action: AddLibraryAction) => {
       if (action.kind === 'layer') handleInsert({ kind: 'layer', layerKind: action.layerKind });
       if (action.kind === 'textPreset') handleInsert({ kind: 'textPreset', preset: action.preset });
+      if (action.kind === 'aiImage') handleInsert({ kind: 'aiImage' });
       if (action.kind === 'noisePreset') handleInsert({ kind: 'noisePreset', preset: action.preset });
       if (action.kind === 'arrayPreset') handleInsert({ kind: 'arrayPreset', preset: action.preset });
       if (action.kind === 'effect') handleInsert({ kind: 'effect', preset: action.preset });

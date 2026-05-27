@@ -52,8 +52,4 @@ auto_review:
 chat:
   auto_reply: true
 
-tone_instructions: |
-  Be concise and direct. Lead with correctness, regression risk, missing tests, state ownership, rendering/export parity,
-  and performance issues. Do not leave purely stylistic nits unless they affect maintainability or user-visible behavior.
-  Prefer actionable comments with concrete file/line references. Avoid corporate tone; keep comments practical and
-  engineering-focused.
+tone_instructions: 'Be concise and direct. Focus on correctness, regression risk, missing tests, state ownership, render/export parity, and performance. Skip style nits unless they affect maintainability.'

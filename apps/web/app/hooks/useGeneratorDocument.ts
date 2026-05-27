@@ -23,6 +23,7 @@ import {
   addLayerToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
+  createAiImageLayer,
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
@@ -288,6 +289,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
       action:
         | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
         | { kind: 'textPreset'; preset: TextPresetId }
+        | { kind: 'aiImage' }
         | { kind: 'noisePreset'; preset: NoisePresetId }
         | { kind: 'arrayPreset'; preset: ArrayPresetId }
         | { kind: 'effect'; preset: EffectPreset },
@@ -297,11 +299,13 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
           ? createEffectPresetLayer(action.preset)
           : action.kind === 'textPreset'
             ? createTextPresetLayer(action.preset)
-            : action.kind === 'noisePreset'
-              ? makeNoisePresetLayer(action.preset)
-              : action.kind === 'arrayPreset'
-                ? makeArrayPresetLayer(action.preset)
-                : createLayerOfKind(action.layerKind);
+            : action.kind === 'aiImage'
+              ? createAiImageLayer()
+              : action.kind === 'noisePreset'
+                ? makeNoisePresetLayer(action.preset)
+                : action.kind === 'arrayPreset'
+                  ? makeArrayPresetLayer(action.preset)
+                  : createLayerOfKind(action.layerKind);
       updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },

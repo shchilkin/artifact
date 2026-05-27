@@ -42,6 +42,8 @@ export function useLayerDragReorder({
   }, []);
 
   const handleDragOverLayer = useCallback((id: string, position: LayerDropPosition) => {
+    const current = dropTargetRef.current;
+    if (current?.id === id && current.position === position) return;
     const target = { id, position };
     dropTargetRef.current = target;
     setDragOverTarget(target);
