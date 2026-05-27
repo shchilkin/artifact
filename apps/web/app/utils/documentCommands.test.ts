@@ -601,9 +601,35 @@ describe('documentCommands', () => {
       { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
       { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
+    expect(next.graph?.positions['text-a']?.x).toBeLessThan(next.graph?.positions['fill-a']?.x ?? 0);
+    expect(next.graph?.positions[EXPORT_NODE_ID]?.x).toBeGreaterThan(next.graph?.positions['fill-a']?.x ?? 0);
     expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
     expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
     expect(next.graph?.repeatNodes?.map((node) => node.id)).toEqual(['repeat-a']);
+  });
+
+  it('drops stale layer and export edges when syncing custom graphs to the layer stack', () => {
+    const graph: CanvasGraph = {
+      ...makeGraph(),
+      edges: [
+        { id: 'e-merge-color', fromId: 'merge-a', fromPort: 'out', toId: 'color-a', toPort: 'in' },
+        { id: 'e-color-repeat', fromId: 'color-a', fromPort: 'out', toId: 'repeat-a', toPort: 'in' },
+        { id: 'e-fill-merge', fromId: 'fill-a', fromPort: 'out', toId: 'merge-a', toPort: 'a' },
+        { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        { id: 'e-repeat-export', fromId: 'repeat-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+    };
+    const doc = makeDoc(graph);
+    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
+
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-merge-color', fromId: 'merge-a', fromPort: 'out', toId: 'color-a', toPort: 'in' },
+      { id: 'e-color-repeat', fromId: 'color-a', fromPort: 'out', toId: 'repeat-a', toPort: 'in' },
+      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
+      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(next.graph?.edges.some((edge) => edge.id === 'e-fill-merge')).toBe(false);
+    expect(next.graph?.edges.some((edge) => edge.id === 'e-repeat-export')).toBe(false);
   });
 
   it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {

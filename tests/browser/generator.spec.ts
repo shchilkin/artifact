@@ -132,6 +132,51 @@ const graphPreviewDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const customGraphLayerReorderDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 10, aspect: '1:1' },
+  layers: [
+    {
+      id: 'custom-bottom-fill',
+      name: 'Custom bottom',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2255cc',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'custom-top-fill',
+      name: 'Custom top',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#dd3322',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-stale-bottom-export',
+        fromId: 'custom-bottom-fill',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'custom-bottom-fill': { x: 0, y: 80 },
+      'custom-top-fill': { x: 0, y: 420 },
+      __export__: { x: 520, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const wideFillLayer = {
   id: 'wide-fill',
   name: 'Wide fill',
@@ -1972,6 +2017,80 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
     .toEqual({
       layerIds: ['top-fill', 'bottom-fill'],
       graphEdges: ['top-fill->bottom-fill', 'bottom-fill->__export__'],
+      topBeforeBottom: true,
+    });
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('layer drag reorder makes a custom graph follow the layer stack', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(customGraphLayerReorderDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.graph?.edges?.map((edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`);
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(['custom-bottom-fill->__export__']);
+
+  const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Custom bottom' }).first();
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate(() => {
+    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Custom top'),
+    );
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Custom bottom'),
+    );
+    if (!source || !target) throw new Error('Custom graph layer rows were not found');
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id),
+            graphEdges: doc.graph?.edges?.map(
+              (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
+            ),
+            topBeforeBottom:
+              doc.graph?.positions?.['custom-top-fill']?.x < doc.graph?.positions?.['custom-bottom-fill']?.x,
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      layerIds: ['custom-top-fill', 'custom-bottom-fill'],
+      graphEdges: ['custom-top-fill->custom-bottom-fill', 'custom-bottom-fill->__export__'],
       topBeforeBottom: true,
     });
   await expectLayerCanvasToHavePixels(page);

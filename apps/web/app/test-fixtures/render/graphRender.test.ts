@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import { makeEffectLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
+import { reorderDocumentLayers } from '../../utils/documentCommands';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
@@ -115,6 +116,29 @@ describe('renderDocument graph mode', () => {
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
+  });
+
+  it('renders layer reorder results through the synced graph export path', async () => {
+    const doc = graphDocument({
+      edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    });
+    const reordered = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
+
+    const graphCanvas = await renderDocument(reordered, 40, 40, new Map(), {
+      skipEffects: true,
+      graphMode: 'graph',
+    });
+    const stackCanvas = await renderDocument(reordered, 40, 40, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+
+    expect(pixelsEqual(allPixels(graphCanvas), allPixels(stackCanvas))).toBe(true);
+    expect(centerPixel(graphCanvas)[0]).toBeGreaterThan(240);
+    expect(centerPixel(graphCanvas)[2]).toBeLessThan(10);
   });
 
   it('keeps graph output transparent when no upstream node provides a background', async () => {
