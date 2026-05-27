@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
 
+export type LayerDropPosition = 'before' | 'after';
+
 export function useLayerDragReorder({
   displayLayers,
   areasByLayerId,
@@ -10,24 +12,24 @@ export function useLayerDragReorder({
   areasByLayerId: Map<string, GraphArea[]>;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
 }) {
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; position: LayerDropPosition } | null>(null);
   const dragLayerId = useRef<string | null>(null);
 
   const handleDragStart = useCallback((id: string) => {
     dragLayerId.current = id;
   }, []);
 
-  const handleDragOverLayer = useCallback((id: string) => {
-    setDragOverId(id);
+  const handleDragOverLayer = useCallback((id: string, position: LayerDropPosition) => {
+    setDragOverTarget({ id, position });
   }, []);
 
   const handleCancelDrag = useCallback(() => {
-    setDragOverId(null);
+    setDragOverTarget(null);
     dragLayerId.current = null;
   }, []);
 
   const handleDrop = useCallback(
-    (targetId: string) => {
+    (targetId: string, position: LayerDropPosition) => {
       const sourceId = dragLayerId.current;
       if (!sourceId || sourceId === targetId) {
         handleCancelDrag();
@@ -42,7 +44,9 @@ export function useLayerDragReorder({
       const sourceArea = areasByLayerId.get(sourceId)?.[0];
       const targetArea = areasByLayerId.get(targetId)?.[0];
       const [item] = newDisplayLayers.splice(sourceIdx, 1);
-      newDisplayLayers.splice(targetIdx, 0, item);
+      const adjustedTargetIdx = sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
+      const insertIdx = position === 'after' ? adjustedTargetIdx + 1 : adjustedTargetIdx;
+      newDisplayLayers.splice(insertIdx, 0, item);
       onReorderLayers(
         [...newDisplayLayers].reverse(),
         sourceArea && sourceArea.id !== targetArea?.id ? { areaId: sourceArea.id, ids: [sourceId] } : undefined,
@@ -53,7 +57,7 @@ export function useLayerDragReorder({
   );
 
   return {
-    dragOverId,
+    dragOverTarget,
     handleDragStart,
     handleDragOverLayer,
     handleDrop,

@@ -5,6 +5,7 @@ import type { LayerInsertAction } from './LayerQuickAddMenu';
 import type { LayerRowProps } from './LayerRow';
 import { LayerRow } from './LayerRow';
 import type { GraphHelperRowData } from './layerDisplayItems';
+import type { LayerDropPosition } from './useLayerDragReorder';
 
 interface LayerAreaFolderProps {
   area: GraphArea;
@@ -13,7 +14,7 @@ interface LayerAreaFolderProps {
   collapsed: boolean;
   editingArea: boolean;
   selectedActionLayerIds: string[];
-  dragOverId: string | null;
+  dragOverTarget: { id: string; position: LayerDropPosition } | null;
   editingId: string | null;
   onToggleCollapsed: (areaId: string) => void;
   onStartAreaEditing: (areaId: string) => void;
@@ -43,7 +44,7 @@ export function LayerAreaFolder({
   collapsed,
   editingArea,
   selectedActionLayerIds,
-  dragOverId,
+  dragOverTarget,
   editingId,
   onToggleCollapsed,
   onStartAreaEditing,
@@ -180,7 +181,7 @@ export function LayerAreaFolder({
             areas={[]}
             nested
             selected={selectedActionLayerIds.includes(layer.id)}
-            dragOver={dragOverId === layer.id}
+            dragOverPosition={dragOverTarget?.id === layer.id ? dragOverTarget.position : null}
             editing={editingId === layer.id}
             onSelect={onSelectLayer}
             onOpenContextMenu={onOpenLayerContextMenu}

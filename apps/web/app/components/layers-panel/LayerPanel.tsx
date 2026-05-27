@@ -26,6 +26,9 @@ interface Props {
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
   onStartAiImage?: () => void;
+  onLoadStarter?: (id: string) => void;
+  onOpenProjects?: () => void;
+  onRandomize?: () => void;
   onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
@@ -52,6 +55,9 @@ export function LayerPanel({
   onAddNoisePreset,
   onAddArrayPreset,
   onStartAiImage,
+  onLoadStarter,
+  onOpenProjects,
+  onRandomize,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -109,7 +115,7 @@ export function LayerPanel({
     onSelectLayer,
   });
 
-  const { dragOverId, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
+  const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
     onReorderLayers,
@@ -214,7 +220,15 @@ export function LayerPanel({
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {displayLayers.length === 0 && (
-          <EmptyLayerPanelStart onAddLayer={onAddLayer} onAddEffectPreset={onAddEffectPreset} />
+          <EmptyLayerPanelStart
+            onAddLayer={onAddLayer}
+            onAddEffectPreset={onAddEffectPreset}
+            onAddTextPreset={onAddTextPreset}
+            onStartAiImage={onStartAiImage}
+            onLoadStarter={onLoadStarter}
+            onOpenProjects={onOpenProjects}
+            onRandomize={onRandomize}
+          />
         )}
         {selectedActionLayerIds.length > 1 && (
           <div className="layer-selection-actions">
@@ -255,7 +269,7 @@ export function LayerPanel({
               collapsed={activeCollapsedAreaIds.has(item.area.id)}
               editingArea={editingAreaId === item.area.id}
               selectedActionLayerIds={selectedActionLayerIds}
-              dragOverId={dragOverId}
+              dragOverTarget={dragOverTarget}
               editingId={editingId}
               onToggleCollapsed={handleToggleAreaCollapsed}
               onStartAreaEditing={setEditingAreaId}
@@ -283,7 +297,7 @@ export function LayerPanel({
               layer={item.layer}
               areas={item.areas}
               selected={selectedActionLayerIds.includes(item.layer.id)}
-              dragOver={dragOverId === item.layer.id}
+              dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
               editing={editingId === item.layer.id}
               onSelect={handleSelectLayer}
               onOpenContextMenu={handleOpenLayerContextMenu}

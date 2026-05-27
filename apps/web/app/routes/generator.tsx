@@ -359,6 +359,9 @@ export default function Generator() {
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
             onStartAiImage={handleStartAiImage}
+            onLoadStarter={handleLoadStarter}
+            onOpenProjects={handleToggleProjects}
+            onRandomize={handleRandomize}
             onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}

@@ -4,12 +4,13 @@ import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
 import { type LayerInsertAction, LayerQuickAddMenu } from './LayerQuickAddMenu';
 import { getLayerIcon } from './layerDisplayItems';
+import type { LayerDropPosition } from './useLayerDragReorder';
 
 export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
   selected: boolean;
-  dragOver: boolean;
+  dragOverPosition: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
   onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
@@ -17,8 +18,8 @@ export interface LayerRowProps {
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
-  onDragOverLayer: (id: string) => void;
-  onDropLayer: (id: string) => void;
+  onDragOverLayer: (id: string, position: LayerDropPosition) => void;
+  onDropLayer: (id: string, position: LayerDropPosition) => void;
   onDragEnd: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
@@ -31,7 +32,7 @@ export const LayerRow = memo(function LayerRow({
   layer,
   areas,
   selected,
-  dragOver,
+  dragOverPosition,
   editing,
   nested = false,
   onSelect,
@@ -57,7 +58,7 @@ export const LayerRow = memo(function LayerRow({
       : 0;
   const stateClassNames = [
     selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50',
-    dragOver ? 'border-t-2 border-t-accent layer-row-drop-target' : '',
+    dragOverPosition ? `layer-row-drop-target layer-row-drop-${dragOverPosition}` : '',
     nested ? 'layer-row-nested' : '',
     layer.visible ? '' : 'layer-row-hidden',
   ]
@@ -72,11 +73,15 @@ export const LayerRow = memo(function LayerRow({
       onDragStart={() => onDragStart(layer.id)}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOverLayer(layer.id);
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+        onDragOverLayer(layer.id, position);
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDropLayer(layer.id);
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+        onDropLayer(layer.id, position);
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}

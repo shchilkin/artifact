@@ -1826,16 +1826,19 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
 
   const emptyPanel = page.locator('.layer-empty-state');
   await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
-  await expect(emptyPanel).toContainText('Start with one layer');
+  await expect(emptyPanel).toContainText('Fast starts');
   await expect(emptyPanel.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(emptyPanel.getByRole('button', { name: 'Open saved work' })).toBeVisible();
+  await expect(emptyPanel.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
     'href',
     '/docs/nodes#docs-first-cover',
   );
 
-  await emptyPanel.getByRole('button', { name: 'Text' }).click();
+  await emptyPanel.getByRole('button', { name: 'Title' }).click();
   await expect(page.locator('.layer-empty-state')).toHaveCount(0);
-  await expect(page.locator('.layer-row').filter({ hasText: /Text/i })).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.layer-row').filter({ hasText: 'Title Type' })).toHaveCount(1, { timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
   await expect
     .poll(
       async () =>
@@ -1846,6 +1849,69 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
       { timeout: 15_000 },
     )
     .toBe('text');
+});
+
+test('layer drag reorder shows a readable insertion target and preserves output', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  const source = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  const target = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
+  await expect(source).toBeVisible({ timeout: 15_000 });
+  await expect(target).toBeVisible({ timeout: 15_000 });
+
+  await page.evaluate(() => {
+    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Top fill'),
+    );
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Bottom fill'),
+    );
+    if (!source || !target) throw new Error('Layer rows were not found');
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+  });
+
+  await expect(target).toHaveClass(/layer-row-drop-after/);
+
+  await page.evaluate(() => {
+    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+      row.textContent?.includes('Bottom fill'),
+    );
+    if (!target) throw new Error('Target layer row was not found');
+    const dataTransfer = new DataTransfer();
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + rect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { id: string }) => layer.id);
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(['top-fill', 'bottom-fill']);
+  await expectLayerCanvasToHavePixels(page);
 });
 
 test('new blank canvas action confirms before replacing current work', async ({ page }) => {

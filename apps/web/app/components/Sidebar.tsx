@@ -44,6 +44,9 @@ interface Props {
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
   onStartAiImage?: () => void;
+  onLoadStarter?: (id: string) => void;
+  onOpenProjects?: () => void;
+  onRandomize?: () => void;
   onInsertLayerAbove: (
     targetLayerId: string,
     action:
@@ -128,6 +131,9 @@ export function Sidebar({
   onAddNoisePreset,
   onAddArrayPreset,
   onStartAiImage,
+  onLoadStarter,
+  onOpenProjects,
+  onRandomize,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -298,6 +304,9 @@ export function Sidebar({
           onAddNoisePreset={onAddNoisePreset}
           onAddArrayPreset={onAddArrayPreset}
           onStartAiImage={onStartAiImage}
+          onLoadStarter={onLoadStarter}
+          onOpenProjects={onOpenProjects}
+          onRandomize={onRandomize}
           onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={handleReorderLayers}
