@@ -67,8 +67,22 @@ export const LayerRow = memo(function LayerRow({
 
   return (
     <div
+      draggable
       aria-selected={selected}
       data-layer-visible={layer.visible ? 'true' : 'false'}
+      onDragStart={(event) => {
+        const target = event.target as HTMLElement;
+        if (
+          target.closest('.layer-row-actions, input, textarea, select') &&
+          !target.closest('.layer-row-drag-handle')
+        ) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', layer.id);
+        onDragStart(layer.id);
+      }}
       onDragOver={(event) => {
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();

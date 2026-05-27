@@ -93,14 +93,14 @@ describe('documentCommands', () => {
 
     expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'text-b']);
     expect(next.graph?.positions).toHaveProperty('text-b');
-    expect(next.graph?.edges).toContainEqual({
-      id: `e-text-b-${EXPORT_NODE_ID}-1`,
-      fromId: 'text-b',
-      fromPort: 'out',
-      toId: EXPORT_NODE_ID,
-      toPort: 'in',
-    });
-    expect(next.graph?.edges.some((edge) => edge.toId === EXPORT_NODE_ID && edge.fromId !== 'text-b')).toBe(false);
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-fill-a-text-a', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
+      { id: 'e-text-a-text-b', fromId: 'text-a', fromPort: 'out', toId: 'text-b', toPort: 'bg' },
+      { id: `e-text-b-${EXPORT_NODE_ID}`, fromId: 'text-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
+    expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
+    expect(next.graph?.repeatNodes?.map((node) => node.id)).toEqual(['repeat-a']);
     expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
   });
 
@@ -111,7 +111,7 @@ describe('documentCommands', () => {
 
     expect(next.layers.map((item) => item.id)).toEqual(['fill-b']);
     expect(next.graph?.edges).toEqual([
-      { id: `e-fill-b-${EXPORT_NODE_ID}-0`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      { id: `e-fill-b-${EXPORT_NODE_ID}`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
   });
 
@@ -165,12 +165,19 @@ describe('documentCommands', () => {
     expect(next.graph?.areas?.[0]?.nodeIds).toEqual(['fill-a']);
   });
 
-  it('does not insert layer rows into arbitrary custom graphs', () => {
+  it('inserts layer rows into custom graphs and syncs the stack export path', () => {
     const doc = makeDoc(makeGraph());
     const layer = makeFillLayer({ id: 'fill-b' });
+    const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
 
-    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(false);
-    expect(insertLayerAboveInDocument(doc, 'fill-a', layer)).toBe(doc);
+    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-fill-a-fill-b', fromId: 'fill-a', fromPort: 'out', toId: 'fill-b', toPort: 'bg' },
+      { id: 'e-fill-b-text-a', fromId: 'fill-b', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
+      { id: `e-text-a-${EXPORT_NODE_ID}`, fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
   });
 
   it('inserts a merge node with source and target edges', () => {
@@ -584,13 +591,19 @@ describe('documentCommands', () => {
     expect(next.graph).not.toBe(doc.graph);
   });
 
-  it('reorders layers while preserving complex graph topology', () => {
+  it('reorders layers in custom graphs by syncing the stack export path', () => {
     const doc = makeDoc(makeGraph());
     const reordered = [doc.layers[1]!, doc.layers[0]!];
     const next = reorderDocumentLayers(doc, reordered);
 
     expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
-    expect(next.graph).toBe(doc.graph);
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
+      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
+    expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
+    expect(next.graph?.repeatNodes?.map((node) => node.id)).toEqual(['repeat-a']);
   });
 
   it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {

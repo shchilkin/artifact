@@ -1918,10 +1918,8 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
       row.textContent?.includes('Bottom fill'),
     );
     if (!source || !target) throw new Error('Layer rows were not found');
-    const handle = source.querySelector<HTMLElement>('.layer-row-drag-handle');
-    if (!handle) throw new Error('Layer drag handle was not found');
     const dataTransfer = new DataTransfer();
-    handle.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(
       new DragEvent('dragover', {
@@ -3040,7 +3038,7 @@ test('dragging a layer row out of an area separates the layer', async ({ page })
   await expect(source).toBeVisible();
   await expect(target).toBeVisible();
 
-  await source.locator('.layer-row-drag-handle').dragTo(target);
+  await source.dragTo(target);
 
   await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
   await expect
