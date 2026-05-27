@@ -1,0 +1,59 @@
+language: en-US
+early_access: false
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_title_placeholder: '@coderabbitai'
+  auto_title_instructions: 'Keep PR titles concise, conventional, and product-oriented.'
+  path_filters:
+    - '!apps/web/build/**'
+    - '!apps/web/.react-router/**'
+    - '!coverage/**'
+    - '!playwright-report/**'
+    - '!test-results/**'
+  path_instructions:
+    - path: 'apps/web/app/utils/documentCommands.ts'
+      instructions: |
+        Focus on CanvasDocument invariants, immutable updates, history-safe behavior, graph/layer synchronization,
+        serializable state, and preview/export parity. Flag broad document patches or schema changes unless they are
+        explicitly documented and tested.
+    - path: 'apps/web/app/utils/render/**'
+      instructions: |
+        Review renderer changes for stack/graph parity, transparent background behavior, deterministic output,
+        export semantics, worker boundaries, and cache invalidation. Avoid style-only comments unless they hide a
+        rendering or performance risk.
+    - path: 'apps/web/app/components/node-canvas/**'
+      instructions: |
+        Prioritize React Flow interaction regressions, event isolation, node drag responsiveness, thumbnail scheduling,
+        graph area behavior, and unnecessary rerenders. Check that UI code does not redefine graph semantics.
+    - path: 'apps/web/app/components/layers-panel/**'
+      instructions: |
+        Prioritize layer order correctness, selection and drag/drop reliability, keyboard/mouse accessibility,
+        layer/node parity, and preservation of existing render semantics.
+    - path: 'tests/**'
+      instructions: |
+        Review whether tests prove the behavior at the lowest useful layer. Prefer focused regression coverage over
+        broad brittle browser assertions. Flag missing browser coverage for issues that require real DOM, canvas, or
+        worker behavior.
+    - path: 'docs/**'
+      instructions: |
+        Check that docs stay aligned with implementation scope and release risk. Avoid copy-edit nitpicks unless wording
+        changes acceptance criteria or user-facing behavior.
+
+auto_review:
+  enabled: true
+  drafts: false
+
+chat:
+  auto_reply: true
+
+tone_instructions: |
+  Be concise and direct. Lead with correctness, regression risk, missing tests, state ownership, rendering/export parity,
+  and performance issues. Do not leave purely stylistic nits unless they affect maintainability or user-visible behavior.
+  Prefer actionable comments with concrete file/line references. Avoid corporate tone; keep comments practical and
+  engineering-focused.
