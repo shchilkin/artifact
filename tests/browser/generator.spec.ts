@@ -1123,6 +1123,27 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
       { name: 'Top fill', kind: 'fill' },
       { name: 'Grain', kind: 'effect' },
     ]);
+
+  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
+  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
+  await quickMenu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Array$/ }) })
+    .click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Array' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.some(
+            (layer: { name: string; kind: string }) => layer.name === 'Array' && layer.kind === 'array',
+          );
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
 });
 
 test('layer add library supports search keyboard add and recent items', async ({ page }) => {
