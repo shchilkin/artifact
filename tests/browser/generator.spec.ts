@@ -1182,13 +1182,17 @@ test('layer rows can quick-add a layer above the current row', async ({ page }) 
       async () =>
         page.evaluate(() => {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.some(
-            (layer: { name: string; kind: string }) => layer.name === 'Array' && layer.kind === 'array',
-          );
+          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
         }),
       { timeout: 15_000 },
     )
-    .toBe(true);
+    .toEqual([
+      { name: 'Bottom fill', kind: 'fill' },
+      { name: 'Array', kind: 'array' },
+      { name: 'AI Image', kind: 'image' },
+      { name: 'Top fill', kind: 'fill' },
+      { name: 'Grain', kind: 'effect' },
+    ]);
 });
 
 test('layer add library supports search keyboard add and recent items', async ({ page }) => {
@@ -1880,7 +1884,7 @@ test('uploaded images are stored as asset references and survive reload', async 
     target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, uploadImagePngBase64);
 
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect
     .poll(
@@ -1904,7 +1908,7 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await page.goto('/app?new=blank');
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(0);
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
   await expectCanvasCenterAlpha(page, 0);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
@@ -2123,7 +2127,7 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
   await expect(page.getByText('paper clouds')).toBeVisible();
   await expect(page.getByText('paper tooth')).toBeVisible();
   await expect
@@ -2160,7 +2164,7 @@ test('empty canvas can start from the multi-font type recipe', async ({ page }) 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(10, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(10, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('poster title')).toBeVisible();
   await expect(page.getByText('mono subtitle')).toBeVisible();
@@ -2208,7 +2212,7 @@ test('empty canvas can start from the layer-first photo stack recipe', async ({ 
 
   await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(6, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
   await expect(page.getByText('cover photo')).toBeVisible();
   await expect(page.getByText('headline type')).toBeVisible();
   await expect
@@ -2783,7 +2787,7 @@ test('AI-enabled user can generate an image and keep prompt provenance after rel
   await panel.getByRole('button', { name: 'Generate' }).click();
 
   await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('Current image prompt')).toBeVisible();
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
@@ -2833,7 +2837,7 @@ test('AI generation keeps polling until a queued job succeeds', async ({ page })
   await panel.getByRole('button', { name: 'Generate' }).click();
 
   await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.sidebar [draggable="true"]')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
 });
 
