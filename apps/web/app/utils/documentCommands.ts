@@ -462,6 +462,8 @@ export function addNodeAtDocument(
 }
 
 export function removeLayerFromDocument(doc: CanvasDocument, id: string): CanvasDocument {
+  const layer = doc.layers.find((item) => item.id === id);
+  if (layer?.locked) return doc;
   return {
     ...doc,
     layers: doc.layers.filter((layer) => layer.id !== id),
@@ -470,7 +472,9 @@ export function removeLayerFromDocument(doc: CanvasDocument, id: string): Canvas
 }
 
 export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): CanvasDocument {
-  const idSet = new Set(ids);
+  const lockedLayerIds = new Set(doc.layers.filter((layer) => layer.locked).map((layer) => layer.id));
+  const idSet = new Set(ids.filter((id) => !lockedLayerIds.has(id)));
+  if (idSet.size === 0) return doc;
   const nextLayers = doc.layers.filter((layer) => !idSet.has(layer.id));
   let nextGraph = doc.graph;
 
@@ -484,7 +488,7 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
     for (const repeatNode of nextGraph?.repeatNodes ?? []) {
       if (idSet.has(repeatNode.id)) nextGraph = removeRepeatNode(nextGraph!, repeatNode.id);
     }
-    for (const id of ids) {
+    for (const id of idSet) {
       if (doc.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
     }
   }
@@ -565,6 +569,8 @@ export function updateRepeatNodeInDocument(
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
+  const nextIndexById = new Map(layers.map((layer, index) => [layer.id, index]));
+  if (doc.layers.some((layer, index) => layer.locked && nextIndexById.get(layer.id) !== index)) return doc;
   if (doc.graph) {
     return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
   }

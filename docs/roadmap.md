@@ -16,14 +16,19 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.26.md`](./version-plans/v0.26.md) — Layer Mode Polish is
-  the current implementation target: make Layers feel first-class as the fast
-  linear path to a final image, polish the layer Add Library, improve empty
-  starts and layer-state readability, and preserve document, renderer, graph,
-  export, thumbnail, AI, and package/font semantics.
+- [`version-plans/v0.27.md`](./version-plans/v0.27.md) — Editor Confidence And
+  Coverage is the current implementation target: make the active editing target
+  explicit in Layers and Nodes, improve properties-panel orientation, surface
+  hidden/output-path guardrails, and add a repeatable Vitest coverage baseline
+  without changing document, renderer, graph, export, thumbnail, AI, package, or
+  font semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.26.md`](./version-plans/v0.26.md) — Layer Mode Polish:
+  Layers Add Library previews, empty starts, layer-state readability, and layer
+  reorder syncing with the graph-backed document order. Merged to
+  `development`; release prep is pending.
 - [`version-plans/v0.25.md`](./version-plans/v0.25.md) — Typography Library v3
   & Font Policy: Google Fonts import, source/license metadata, license-aware
   editable project packages, and explicit all-font package export without

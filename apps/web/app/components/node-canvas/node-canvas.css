@@ -1342,6 +1342,15 @@
   background: var(--node-surface-raised);
 }
 
+.node-menu-item-disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.node-menu-item-disabled:hover {
+  background: transparent;
+}
+
 .node-menu-item-symbol {
   font-size: 10px;
   width: 14px;

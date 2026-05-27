@@ -16,7 +16,8 @@
     "worker:dev": "npm --workspace @artifact/shared run build && tsx src/worker.ts",
     "worker:start": "node dist/worker.js",
     "typecheck": "npm --workspace @artifact/shared run build && tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@artifact/shared": "0.0.0",

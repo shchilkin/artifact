@@ -32,6 +32,7 @@ export interface UseNodeDragStateOptions {
   send: (event: NodeCanvasMachineEvent) => void;
   onGraphChange: (graph: CanvasGraph) => void;
   onDeleteNodes: (ids: string[]) => void;
+  canDeleteNode?: (id: string) => boolean;
 }
 
 export interface UseNodeDragStateResult {
@@ -64,6 +65,7 @@ export function useNodeDragState({
   send,
   onGraphChange,
   onDeleteNodes,
+  canDeleteNode,
 }: UseNodeDragStateOptions): UseNodeDragStateResult {
   const [dragNodes, setDragNodes] = useState<RFNode[]>(() =>
     retainNodeMeasurements(baseNodes, [], { width: NODE_W, height: NODE_H }),
@@ -254,8 +256,8 @@ export function useNodeDragState({
     (changes: NodeChange[]) => {
       const nonRemove = changes.filter((c) => {
         if (c.type !== 'remove') return true;
-        const isExport = c.id === EXPORT_NODE_ID;
-        if (!isExport) {
+        const isDeletable = c.id !== EXPORT_NODE_ID && (canDeleteNode?.(c.id) ?? true);
+        if (isDeletable) {
           onDeleteNodes([c.id]);
           send({ type: 'NODE_IDS_REMOVED', ids: [c.id] });
         }
@@ -263,7 +265,7 @@ export function useNodeDragState({
       });
       if (nonRemove.length) onNodesChange(nonRemove);
     },
-    [onNodesChange, onDeleteNodes, send],
+    [onNodesChange, onDeleteNodes, canDeleteNode, send],
   );
 
   return {

@@ -16,11 +16,18 @@ export function NodeContextMenu({
   onToggleMuted,
   onRemoveFromArea,
   onDelete,
+  deleteDisabled,
   onClose,
   menuRef,
 }: NodeMenuProps) {
-  const items: Array<{ label: string; hint?: string; action: () => void; danger?: boolean; dividerBefore?: boolean }> =
-    [];
+  const items: Array<{
+    label: string;
+    hint?: string;
+    action: () => void;
+    danger?: boolean;
+    disabled?: boolean;
+    dividerBefore?: boolean;
+  }> = [];
   const menuWidth = 232;
 
   if (!isMerge && !isExport) {
@@ -45,9 +52,10 @@ export function NodeContextMenu({
   if (!isExport) {
     items.push({
       label: 'Delete',
-      hint: '⌫',
+      hint: deleteDisabled ? 'locked' : '⌫',
       action: onDelete,
       danger: true,
+      disabled: deleteDisabled,
       dividerBefore: !isMerge && items.length > 0,
     });
   }
@@ -69,11 +77,13 @@ export function NodeContextMenu({
           <NoPan
             as="button"
             type="button"
+            disabled={item.disabled}
             onClick={() => {
+              if (item.disabled) return;
               item.action();
               onClose();
             }}
-            className="node-menu-item node-menu-item-between"
+            className={`node-menu-item node-menu-item-between${item.disabled ? ' node-menu-item-disabled' : ''}`}
           >
             <span
               className={`node-menu-item-label${item.danger ? ' node-menu-item-danger' : ''}`}

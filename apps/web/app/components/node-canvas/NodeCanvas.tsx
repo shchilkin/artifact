@@ -87,6 +87,19 @@ export function NodeCanvas({
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
   const outputPath = useMemo(() => resolveOutputPath(graph), [graph]);
+  const lockedLayerIds = useMemo(
+    () => new Set(doc.layers.filter((layer) => layer.locked).map((layer) => layer.id)),
+    [doc.layers],
+  );
+  const canDeleteNode = useCallback((id: string) => !lockedLayerIds.has(id), [lockedLayerIds]);
+  const deleteUnlockedNodes = useCallback(
+    (ids: string[]) => {
+      const unlockedIds = ids.filter(canDeleteNode);
+      if (unlockedIds.length === 0) return;
+      onDeleteNodes(unlockedIds);
+    },
+    [canDeleteNode, onDeleteNodes],
+  );
 
   // Stable DOM refs shared across hooks.
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -225,7 +238,8 @@ export function NodeCanvas({
     layers: doc.layers,
     send,
     onGraphChange,
-    onDeleteNodes,
+    onDeleteNodes: deleteUnlockedNodes,
+    canDeleteNode,
   });
 
   const resolveAddLibraryEdgeInsertionAtPoint = useCallback(
@@ -278,7 +292,8 @@ export function NodeCanvas({
       selectedEdgeId,
       selectedNodeIds,
       graphRef,
-      onDeleteNodes,
+      onDeleteNodes: deleteUnlockedNodes,
+      canDeleteNode,
       onGraphChange,
       onAddLayerAt,
     });
@@ -378,7 +393,7 @@ export function NodeCanvas({
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
-      deleteNode: (id: string) => onDeleteNodes([id]),
+      deleteNode: (id: string) => deleteUnlockedNodes([id]),
       openGallery,
       updatePrimitiveView,
       setPrimitiveViewportActive,
@@ -386,7 +401,7 @@ export function NodeCanvas({
     [
       handleSelectNode,
       handleToggleEditor,
-      onDeleteNodes,
+      deleteUnlockedNodes,
       onExport,
       onUpdateAspectRatio,
       onUpdateColorNode,
@@ -593,7 +608,8 @@ export function NodeCanvas({
                     menuLayer ? () => onUpdateLayer(menuLayer.id, { visible: !menuLayer.visible }) : undefined
                   }
                   onRemoveFromArea={menuArea ? handleRemoveNodeFromArea : undefined}
-                  onDelete={() => onDeleteNodes([contextMenu.nodeId])}
+                  onDelete={() => deleteUnlockedNodes([contextMenu.nodeId])}
+                  deleteDisabled={menuLayer?.locked}
                   onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
                   menuRef={contextMenuRef}
                 />,

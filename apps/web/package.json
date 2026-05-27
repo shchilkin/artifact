@@ -11,6 +11,7 @@
     "preview": "vite preview --outDir build/client",
     "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc",
     "test": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts",
+    "test:coverage": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "test:browser": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts",
     "test:browser:chromium": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=chromium",
     "test:browser:firefox": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts --project=firefox",

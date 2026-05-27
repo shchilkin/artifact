@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ALL_EMOJIS,
   type AspectRatio,
@@ -27,9 +27,11 @@ import {
   updateGlobalInDocument,
   updateLayerInDocument,
 } from '../utils/documentCommands';
+import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import type { NoisePresetId } from '../utils/noisePresets';
 import type { TextPresetId } from '../utils/textPresets';
 import { AiGenerationPanel } from './AiGenerationPanel';
+import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 
@@ -143,6 +145,16 @@ export function Sidebar({
   modeSwitcher,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedTargetSummary = useMemo(
+    () =>
+      selectedLayer
+        ? buildLayerTargetSummary(selectedLayer, {
+            surface: 'layers',
+            graph: doc.graph,
+          })
+        : null,
+    [doc.graph, selectedLayer],
+  );
   const docRef = useRef(doc);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -326,6 +338,7 @@ export function Sidebar({
 
       {selectedLayer && (
         <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
+          {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
           <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
             <div className="flex justify-between items-center text-dim text-[10px]">
               <span>Visible</span>
@@ -351,6 +364,21 @@ export function Sidebar({
                 </label>
               </div>
             )}
+            <div className="flex justify-between items-center text-dim text-[10px]">
+              <span>Locked</span>
+              <label
+                className="toggle-switch"
+                aria-label="Toggle layer delete and reorder lock"
+                title="Protect from delete and layer reorder"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedLayer.locked}
+                  onChange={(event) => applySelectedPatch({ locked: event.target.checked } as Partial<Layer>)}
+                />
+                <span className="toggle-switch__track" />
+              </label>
+            </div>
           </Section>
 
           {selectedLayer.kind === 'image' && (

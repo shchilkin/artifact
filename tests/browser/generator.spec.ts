@@ -132,6 +132,32 @@ const graphPreviewDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const outputNoInputDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 12, aspect: '1:1' },
+  layers: [
+    {
+      id: 'loose-fill',
+      name: 'Loose fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#994422',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [],
+    positions: {
+      'loose-fill': { x: 0, y: 80 },
+      __export__: { x: 520, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const customGraphLayerReorderDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 10, aspect: '1:1' },
@@ -1080,6 +1106,53 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
 
+test('layer properties show the active editing target and hidden state', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  await topFillRow.click();
+  await topFillRow.getByRole('button', { name: /Hide layer Top fill/ }).click();
+
+  const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
+  await expect(targetHeader).toContainText('Layers / Source');
+  await expect(targetHeader).toContainText('Top fill');
+  await expect(targetHeader).toContainText('Hidden');
+});
+
+test('locked layer surfaces status and blocks row deletion', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+
+  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
+  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  await topFillRow.click();
+
+  await page.getByLabel('Toggle layer delete and reorder lock').check({ force: true });
+
+  await expect(topFillRow).toHaveAttribute('data-layer-locked', 'true');
+  await expect(topFillRow.locator('.layer-lock-badge')).toContainText('lock');
+  const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
+  await expect(targetHeader).toContainText('Locked');
+
+  await expect(topFillRow.getByRole('button', { name: /Delete layer Top fill/ })).toBeDisabled();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.map((layer: { id: string; locked?: boolean }) => ({
+            id: layer.id,
+            locked: !!layer.locked,
+          }));
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual([
+      { id: 'bottom-fill', locked: false },
+      { id: 'top-fill', locked: true },
+    ]);
+});
+
 test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
 
@@ -1724,6 +1797,64 @@ test('layer preview follows graph output when unconnected layers exist', async (
   await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
   await switchToLayerView(page);
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
+});
+
+test('node properties show whether the selected target feeds output', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+  await switchToNodeView(page);
+
+  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
+  await expect(orphanNode).toBeVisible({ timeout: 15_000 });
+  await orphanNode.click();
+
+  const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
+  await expect(targetHeader).toContainText('Nodes / Source');
+  await expect(targetHeader).toContainText('Unconnected top fill');
+  await expect(targetHeader).toContainText('Not in output');
+});
+
+test('locked node target stays in the graph when delete is pressed', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+  await switchToNodeView(page);
+
+  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
+  await expect(orphanNode).toBeVisible({ timeout: 15_000 });
+  await orphanNode.click();
+  const nodePropsPanel = page.locator('.node-props-panel-open');
+  await expect(nodePropsPanel).toBeVisible();
+  await nodePropsPanel.getByLabel('Toggle node delete lock').check();
+
+  const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(targetHeader).toContainText('Locked');
+
+  await orphanNode.click();
+  await page.keyboard.press('Delete');
+
+  await expect(orphanNode).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { id: string }) => layer.id === 'graph-unconnected-fill')?.locked;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+});
+
+test('output properties explain missing graph input', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(outputNoInputDocument))}`);
+  await switchToNodeView(page);
+
+  const outputNode = page.locator('.react-flow__node').filter({ hasText: 'OUTPUT' });
+  await expect(outputNode).toBeVisible({ timeout: 15_000 });
+  await outputNode.click();
+
+  const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
+  await expect(targetHeader).toContainText('Nodes / Output');
+  await expect(targetHeader).toContainText('No input');
+  await expect(targetHeader).toContainText('Connect a source, effect, or utility branch to the output before export.');
 });
 
 test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
