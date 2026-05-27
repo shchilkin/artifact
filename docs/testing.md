@@ -34,7 +34,7 @@ Current baseline, captured during the v0.27 planning slice:
 
 | Command | Files / tests | Statements | Branches | Functions | Lines |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `npm run test:coverage:web` | 51 files / 368 tests | 59.14% | 55.02% | 68.06% | 61.99% |
+| `npm run test:coverage:web` | 51 files / 369 tests | 59.27% | 55.10% | 68.06% | 62.13% |
 | `npm run test:coverage:api` | 21 files / 93 passed, 1 skipped | 77.51% | 69.11% | 83.77% | 81.58% |
 
 ## Debug Flags

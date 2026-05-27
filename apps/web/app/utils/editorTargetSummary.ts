@@ -37,13 +37,17 @@ interface GraphTargetOptions {
 }
 
 const SOURCE_KINDS = new Set<Layer['kind']>(['fill', 'image', 'text', 'emoji', 'primitive', 'noise', 'array']);
+const ROLE_BADGES: Record<EditorTargetRole, EditorTargetBadge> = {
+  source: { label: 'Source', tone: 'success' },
+  effect: { label: 'Effect', tone: 'accent' },
+  utility: { label: 'Utility', tone: 'muted' },
+  output: { label: 'Output', tone: 'accent' },
+};
 
 export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOptions): EditorTargetSummary {
   const role = layer.kind === 'effect' ? 'effect' : SOURCE_KINDS.has(layer.kind) ? 'source' : 'utility';
   const kindLabel = getLayerKindLabel(layer);
-  const badges: EditorTargetBadge[] = [
-    { label: role === 'effect' ? 'Effect' : 'Source', tone: role === 'effect' ? 'accent' : 'success' },
-  ];
+  const badges: EditorTargetBadge[] = [ROLE_BADGES[role]];
   const notes: EditorTargetNote[] = [];
 
   if (layer.visible === false) {
@@ -115,7 +119,6 @@ export function buildGraphTargetSummary(
   const [kindLabel, description] = labels[target.kind];
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
   const notes: EditorTargetNote[] = [];
-  addConnectionBadges(badges, notes, id, options.graph, 'utility');
   addGraphStatus(badges, notes, id, 'utility', options.graph, options.surface);
 
   return {

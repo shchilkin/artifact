@@ -1127,7 +1127,10 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect(topFillRow).toBeVisible({ timeout: 15_000 });
   await topFillRow.click();
 
-  await page.getByLabel('Toggle layer delete and reorder lock').check({ force: true });
+  const lockToggle = page.getByLabel('Toggle layer delete and reorder lock');
+  await expect(lockToggle).toBeVisible();
+  await expect(lockToggle).toBeEnabled();
+  await lockToggle.check();
 
   await expect(topFillRow).toHaveAttribute('data-layer-locked', 'true');
   await expect(topFillRow.locator('.layer-lock-badge')).toContainText('lock');
@@ -1135,6 +1138,7 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect(targetHeader).toContainText('Locked');
 
   await expect(topFillRow.getByRole('button', { name: /Delete layer Top fill/ })).toBeDisabled();
+  await expect(topFillRow.getByRole('button', { name: /Drag layer Top fill/ })).toBeDisabled();
   await expect
     .poll(
       async () =>
@@ -1827,7 +1831,6 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
 
-  await orphanNode.click();
   await page.keyboard.press('Delete');
 
   await expect(orphanNode).toBeVisible();

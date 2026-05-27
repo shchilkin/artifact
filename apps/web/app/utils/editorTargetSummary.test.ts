@@ -99,6 +99,31 @@ describe('editor target summaries', () => {
     });
   });
 
+  it('deduplicates no-input status for utility graph targets', () => {
+    const graph = {
+      edges: [],
+      positions: {},
+      mergeNodes: [{ id: 'merge-a', name: 'Merge A', blendMode: 'source-over', opacity: 100 }],
+      colorNodes: [],
+    } as const;
+
+    const summary = buildGraphTargetSummary({ kind: 'merge', node: graph.mergeNodes[0] }, { surface: 'nodes', graph });
+
+    expect(summary.badges.filter((badge) => badge.label === 'No input')).toEqual([
+      { label: 'No input', tone: 'warning' },
+    ]);
+    expect(
+      summary.notes.filter(
+        (note) => note.text === 'Utility nodes need at least one upstream input before they can affect output.',
+      ),
+    ).toEqual([
+      {
+        text: 'Utility nodes need at least one upstream input before they can affect output.',
+        tone: 'warning',
+      },
+    ]);
+  });
+
   it('shows output connection state for export target', () => {
     const graph = {
       edges: [],
