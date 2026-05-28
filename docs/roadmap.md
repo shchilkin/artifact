@@ -16,15 +16,19 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.28.md`](./version-plans/v0.28.md) — Editor Guardrails v2
-  is the current implementation target: clarify lock behavior, breadcrumbs,
-  selected-target context, hidden/output-path guardrails, and Layers/Nodes
-  properties parity without changing document, renderer, graph, export,
-  thumbnail, AI, package, or font semantics unless an explicit scoped bug fix
-  requires it.
+- [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
+  Refresh is the current planning target: refresh the landing page, update
+  examples to match the current editor, bridge examples and docs, and add a
+  small visual confidence baseline without changing document, renderer, graph,
+  export, thumbnail, AI, package, or font semantics.
 
 Recently shipped:
 
+- [`version-plans/v0.28.md`](./version-plans/v0.28.md) — Editor Guardrails v2:
+  layer-backed lock policy, shared guardrail helpers, target breadcrumbs,
+  area/output-path context, and Layers/Nodes properties parity. Released as
+  `v0.28.0`; release notes are in
+  [`releases/v0.28.0.md`](./releases/v0.28.0.md).
 - [`version-plans/v0.27.md`](./version-plans/v0.27.md) — Editor Confidence And
   Coverage: shared selected-target summaries in Layers and Nodes, source/effect
   and output-path status, soft lock guardrails, and repeatable Vitest coverage
@@ -85,9 +89,9 @@ Next strong candidates:
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
-- **Editor Visual Regression** — add a small snapshot strategy for layer-state,
-  Add Library, graph output, and export/preview parity once the v0.26 visual
-  polish settles.
+- **Editor Visual Regression Expansion** — after the v0.29 product-surface
+  baseline proves useful, expand snapshots toward layer-state, Add Library,
+  graph output, and export/preview parity.
 
 ## Product summary
 
@@ -159,11 +163,11 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.28` is the next editor-confidence pass after the
-layer-mode polish and coverage baseline. Catalog API keys, account-synced font
-sets, command-palette entry, server-backed sharing, and deeper backend work
-remain preserved as follow-up candidates so each release can stay coherent and
-low-risk.
+Near-term sequencing note: `v0.29` should make the product surface catch up to
+the editor through landing, examples, docs bridge, and small visual confidence
+coverage. Catalog API keys, account-synced font sets, command-palette entry,
+server-backed sharing, and deeper backend work remain preserved as follow-up
+candidates so each release can stay coherent and low-risk.
 
 ### Content And Learning
 

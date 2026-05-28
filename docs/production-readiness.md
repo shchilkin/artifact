@@ -27,6 +27,24 @@ CI should run:
 
 ## Manual QA
 
+### v0.28.0 Release Prep
+
+- Released as the public Editor Guardrails v2 release after v0.27.
+- User verified the v0.28 editor guardrails workflow locally before release
+  prep.
+- Automated release gate passed on 2026-05-28.
+- `npm run format:check`, `npm run check`, `npm run build`, and
+  `npm run test:browser` passed during implementation and release prep.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `237 passed, 19 skipped`.
+- PR validation for the implementation branch passed quality, browser,
+  GitGuardian, Vercel, Vercel Preview Comments, and CodeRabbit checks before
+  merge.
+- `npm run perf:node-editor` was not required because the release does not
+  change React Flow wiring, thumbnail scheduling, node preview rendering, or
+  high-frequency gestures.
+- Release notes live in `docs/releases/v0.28.0.md`.
+
 ### v0.27.0 Release Prep
 
 - Released as the cumulative public editor release for the already-merged v0.26
