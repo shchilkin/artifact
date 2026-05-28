@@ -215,6 +215,7 @@ export interface NodeMenuProps {
   onToggleMuted?: () => void;
   onRemoveFromArea?: (areaId: string, nodeId: string) => void;
   onDelete: () => void;
+  deleteDisabled?: boolean;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
 }

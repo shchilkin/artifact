@@ -591,6 +591,17 @@ describe('documentCommands', () => {
     expect(next.graph).not.toBe(doc.graph);
   });
 
+  it('does not reorder a locked layer', () => {
+    const base = bootstrapDocumentGraph(makeDoc());
+    const doc = {
+      ...base,
+      layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
+    };
+    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
+
+    expect(next).toBe(doc);
+  });
+
   it('reorders layers in custom graphs by syncing the stack export path', () => {
     const doc = makeDoc(makeGraph());
     const reordered = [doc.layers[1]!, doc.layers[0]!];
@@ -630,6 +641,30 @@ describe('documentCommands', () => {
     ]);
     expect(next.graph?.edges.some((edge) => edge.id === 'e-fill-merge')).toBe(false);
     expect(next.graph?.edges.some((edge) => edge.id === 'e-repeat-export')).toBe(false);
+  });
+
+  it('does not remove a locked layer', () => {
+    const base = makeDoc(makeGraph());
+    const doc = {
+      ...base,
+      layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
+    };
+    const next = removeLayerFromDocument(doc, 'fill-a');
+
+    expect(next).toBe(doc);
+  });
+
+  it('skips locked layer-backed nodes when deleting a mixed node selection', () => {
+    const base = makeDoc(makeGraph());
+    const doc = {
+      ...base,
+      layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
+    };
+    const next = deleteNodesFromDocument(doc, ['fill-a', 'text-a']);
+
+    expect(next.layers.map((layer) => layer.id)).toEqual(['fill-a']);
+    expect(next.graph?.positions['fill-a']).toEqual(doc.graph?.positions['fill-a']);
+    expect(next.graph?.edges.some((edge) => edge.fromId === 'text-a' || edge.toId === 'text-a')).toBe(false);
   });
 
   it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {

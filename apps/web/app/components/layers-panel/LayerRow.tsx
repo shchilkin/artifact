@@ -61,16 +61,22 @@ export const LayerRow = memo(function LayerRow({
     dragOverPosition ? `layer-row-drop-target layer-row-drop-${dragOverPosition}` : '',
     nested ? 'layer-row-nested' : '',
     layer.visible ? '' : 'layer-row-hidden',
+    layer.locked ? 'layer-row-locked' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
     <div
-      draggable
+      draggable={!layer.locked}
       aria-selected={selected}
       data-layer-visible={layer.visible ? 'true' : 'false'}
+      data-layer-locked={layer.locked ? 'true' : 'false'}
       onDragStart={(event) => {
+        if (layer.locked) {
+          event.preventDefault();
+          return;
+        }
         const target = event.target as HTMLElement;
         if (
           target.closest('.layer-row-actions, input, textarea, select') &&
@@ -107,11 +113,16 @@ export const LayerRow = memo(function LayerRow({
       <button
         type="button"
         className="layer-row-drag-handle text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0"
-        draggable
+        draggable={!layer.locked}
+        disabled={layer.locked}
         aria-label={`Drag layer ${layer.name}`}
-        title="Drag to reorder"
+        title={layer.locked ? 'Unlock to reorder' : 'Drag to reorder'}
         onDragStart={(event) => {
           event.stopPropagation();
+          if (layer.locked) {
+            event.preventDefault();
+            return;
+          }
           event.dataTransfer.effectAllowed = 'move';
           event.dataTransfer.setData('text/plain', layer.id);
           onDragStart(layer.id);
@@ -160,6 +171,11 @@ export const LayerRow = memo(function LayerRow({
       {aiHistoryCount > 1 && (
         <span className="layer-ai-history-count" title={`${aiHistoryCount} generated images`}>
           {aiHistoryIndex + 1}/{aiHistoryCount}
+        </span>
+      )}
+      {layer.locked && (
+        <span className="layer-lock-badge" title="Locked layer">
+          lock
         </span>
       )}
       {areas.length > 0 && !nested && (
@@ -217,12 +233,14 @@ export const LayerRow = memo(function LayerRow({
         <button
           type="button"
           className="layer-row-action layer-row-action-danger"
+          disabled={layer.locked}
           onClick={(event) => {
             event.stopPropagation();
+            if (layer.locked) return;
             onRemoveLayer(layer.id);
           }}
           aria-label={`Delete layer ${layer.name}`}
-          title="Delete"
+          title={layer.locked ? 'Unlock to delete' : 'Delete'}
         >
           ×
         </button>

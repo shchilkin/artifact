@@ -18,6 +18,7 @@ export interface UseNodeContextMenusOptions {
   selectedNodeIds: string[];
   graphRef: React.RefObject<CanvasGraph>;
   onDeleteNodes: (ids: string[]) => void;
+  canDeleteNode?: (id: string) => boolean;
   onGraphChange: (graph: CanvasGraph) => void;
   onAddLayerAt: (action: AddAction, pos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
 }
@@ -47,6 +48,7 @@ export function useNodeContextMenus({
   selectedNodeIds,
   graphRef,
   onDeleteNodes,
+  canDeleteNode,
   onGraphChange,
   onAddLayerAt,
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
@@ -89,7 +91,7 @@ export function useNodeContextMenus({
         send({ type: 'EDGE_IDS_REMOVED', ids: [selectedEdgeId] });
         return;
       }
-      const deletableNodeIds = selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID);
+      const deletableNodeIds = selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID && (canDeleteNode?.(id) ?? true));
       if (deletableNodeIds.length === 0) return;
       e.preventDefault();
       onDeleteNodes(deletableNodeIds);
@@ -97,7 +99,7 @@ export function useNodeContextMenus({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, onGraphChange, graphRef, send]);
+  }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, canDeleteNode, onGraphChange, graphRef, send]);
 
   const openAddNodeMenu = useCallback(() => {
     const buttonRect = addNodeButtonRef.current?.getBoundingClientRect();

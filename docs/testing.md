@@ -5,6 +5,9 @@
 ```bash
 npm test                               # web Vitest suite
 npm run test:api                       # API tests
+npm run test:coverage                  # web + API Vitest coverage baseline
+npm run test:coverage:web              # web Vitest coverage baseline
+npm run test:coverage:api              # API Vitest coverage baseline
 npm run check                          # format, lint, web/API typecheck, web/API tests
 npm run test:browser                   # Playwright smoke/regression tests in Chromium, Firefox, WebKit, plus mobile smoke
 npm run test:browser:chromium          # focused Chromium browser tests
@@ -19,6 +22,20 @@ npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web
 Web tests are co-located with the code they cover under `apps/web/app` or
 grouped under `apps/web/app/test-fixtures/`. API tests live under
 `apps/api/test`.
+
+Coverage is a diagnostic baseline, not a release threshold yet. The coverage
+commands use Vitest's V8 provider and emit a console summary plus
+`coverage/coverage-summary.json` in the workspace that ran the command. Use the
+numbers to find untested risk areas, but keep release confidence tied to the
+test categories below: pure logic, render fixtures, browser regressions, and
+manual visual QA where snapshots would be brittle.
+
+Current baseline, captured during the v0.27 planning slice:
+
+| Command | Files / tests | Statements | Branches | Functions | Lines |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `npm run test:coverage:web` | 51 files / 369 tests | 59.27% | 55.10% | 68.06% | 62.13% |
+| `npm run test:coverage:api` | 21 files / 93 passed, 1 skipped | 77.51% | 69.11% | 83.77% | 81.58% |
 
 ## Debug Flags
 
@@ -35,6 +52,18 @@ grouped under `apps/web/app/test-fixtures/`. API tests live under
 ### Unit tests
 
 Fast, no browser required. Run in Node with `@napi-rs/canvas` polyfilling Canvas 2D.
+
+To measure the current unit/render baseline:
+
+```bash
+npm run test:coverage:web
+npm run test:coverage:api
+```
+
+Do not chase line coverage blindly. For this app, a small render or browser
+regression around graph traversal, preview/export parity, asset persistence, or
+gesture isolation can be more valuable than broad coverage over presentational
+markup.
 
 | File | Covers |
 | --- | --- |

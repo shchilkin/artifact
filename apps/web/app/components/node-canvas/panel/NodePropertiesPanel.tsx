@@ -8,9 +8,10 @@ import type {
   ImageLayer,
   Layer,
 } from '../../../types/config';
-import { EFFECT_PRESETS } from '../../../types/config';
+import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { AiGenerationPanel } from '../../AiGenerationPanel';
+import { EditorTargetHeader } from '../../editor-target/EditorTargetHeader';
 import { ColorInspector, ExportInspector, LayerInspector, MergeInspector, RepeatInspector } from '../inspector';
 
 interface NodePropertiesPanelProps {
@@ -101,43 +102,56 @@ export function NodePropertiesPanel({
       : null;
   const isExport = selectedNodeId === EXPORT_NODE_ID;
 
-  let title = 'Properties';
-  let subtitle = '';
-
-  if (layer) {
-    title = layer.name;
-    subtitle =
-      layer.kind === 'effect'
-        ? `effect · ${layer.preset ? (EFFECT_PRESETS[layer.preset]?.name ?? layer.preset).toLowerCase() : 'custom'}`
-        : layer.kind;
-  } else if (colorNode) {
-    title = colorNode.name;
-    subtitle = 'color';
-  } else if (mergeNode) {
-    title = mergeNode.name;
-    subtitle = 'merge';
-  } else if (repeatNode) {
-    title = repeatNode.name;
-    subtitle = 'repeat';
-  } else if (isExport) {
-    title = 'Output';
-    subtitle = 'export';
-  }
+  const targetSummary = layer
+    ? buildLayerTargetSummary(layer, { surface: 'nodes', graph })
+    : colorNode
+      ? buildGraphTargetSummary({ kind: 'color', node: colorNode }, { surface: 'nodes', graph })
+      : mergeNode
+        ? buildGraphTargetSummary({ kind: 'merge', node: mergeNode }, { surface: 'nodes', graph })
+        : repeatNode
+          ? buildGraphTargetSummary({ kind: 'repeat', node: repeatNode }, { surface: 'nodes', graph })
+          : isExport
+            ? buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph })
+            : null;
 
   return (
-    <div className={`node-props-panel${open ? ' node-props-panel-open' : ''}`} aria-hidden={!open}>
+    <div
+      className={`node-props-panel nodrag nopan nowheel${open ? ' node-props-panel-open' : ''}`}
+      aria-hidden={!open}
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
       {open ? (
         <div className="node-props-inner">
           <div className="node-props-header">
             <div className="node-props-titles">
-              <span className="node-props-title">{title}</span>
-              {subtitle && <span className="node-props-subtitle">{subtitle}</span>}
+              <span className="node-props-title">Properties</span>
+              <span className="node-props-subtitle">{targetSummary?.eyebrow ?? 'No target'}</span>
             </div>
             <button type="button" className="node-props-close" onClick={onClose} aria-label="Close properties">
               ×
             </button>
           </div>
           <div className="node-props-body">
+            {targetSummary && <EditorTargetHeader summary={targetSummary} />}
+            {layer && (
+              <div className="node-target-actions">
+                <label
+                  className="node-target-toggle"
+                  aria-label="Toggle node delete lock"
+                  title="Protect this layer-backed node from delete actions"
+                >
+                  <span>Locked</span>
+                  <input
+                    className="node-check"
+                    type="checkbox"
+                    checked={layer.locked}
+                    onChange={(event) => onUpdateLayer(layer.id, { locked: event.target.checked })}
+                  />
+                </label>
+              </div>
+            )}
             {layer && (
               <>
                 {layer.kind === 'image' && (
