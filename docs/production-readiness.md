@@ -27,7 +27,24 @@ CI should run:
 
 ## Manual QA
 
-### v0.26.0 Release Prep
+### v0.27.0 Release Prep
+
+- Released as the cumulative public editor release for the already-merged v0.26
+  Layer Mode Polish work and the v0.27 Editor Confidence and Coverage work.
+- User verified the v0.27 editor confidence and layer reorder behavior locally
+  before release prep.
+- Automated release gate passed on 2026-05-28.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `234 passed, 19 skipped`.
+- Coverage baseline commands passed with `npm run test:coverage:web` and
+  `npm run test:coverage:api`.
+- `npm run perf:node-editor` passed during v0.27 validation after rerunning
+  outside the filesystem sandbox because the benchmark needs to bind a local
+  preview server.
+- Release notes live in `docs/releases/v0.27.0.md`.
+
+### v0.26.0 Release Prep (Rolled Into v0.27.0)
 
 - Validate the Layers workflow from empty document to export.
 - Confirm Layers Add Library search, category filtering, hover preview, and
