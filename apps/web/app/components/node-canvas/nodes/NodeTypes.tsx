@@ -32,6 +32,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       onSelect={(event) => selectNode(layer.id, event)}
       onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
+      deleteDisabled={layer.locked}
     >
       <LayerPreviewSurface
         layer={transform.effectiveLayer}

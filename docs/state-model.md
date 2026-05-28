@@ -58,6 +58,10 @@ Rules:
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
 - Procedural per-node variation belongs in source/repeat node `seedOffset`
   fields. The document seed remains the global scene seed.
+- Layer-backed `locked` is a document guardrail, not a render property. It
+  protects layer deletion, layer-stack reorder, and layer-backed node deletion.
+  It does not affect pixels, visibility toggles, inspector controls, node
+  position, graph traversal, thumbnails, or export.
 
 ## Graph state
 
@@ -80,6 +84,10 @@ Rules:
 - Graph edits should be undoable.
 - Graph traversal for preview/export must go through `renderGraphTarget`.
 - Graph edits should not be hidden in UI-only state.
+- Graph-only merge, color, repeat, and output nodes do not have a durable lock
+  field in v0.28. If graph-only locking is added later, it must update schema,
+  migration/normalization, document/package import-export, UI guardrails, and
+  tests together.
 
 ## Selection and overlay state
 

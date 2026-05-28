@@ -278,6 +278,32 @@ body {
   font-size: 11px;
 }
 
+.editor-target-header__breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: color-mix(in oklch, var(--text-dim) 82%, var(--text));
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.editor-target-header__breadcrumbs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.editor-target-header__breadcrumbs span:not(:last-child)::after {
+  content: "/";
+  color: var(--border-strong);
+}
+
 .editor-target-header__description {
   margin: 0;
   color: var(--text-dim);

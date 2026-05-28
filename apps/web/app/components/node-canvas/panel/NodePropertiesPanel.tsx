@@ -103,7 +103,7 @@ export function NodePropertiesPanel({
   const isExport = selectedNodeId === EXPORT_NODE_ID;
 
   const targetSummary = layer
-    ? buildLayerTargetSummary(layer, { surface: 'nodes', graph })
+    ? buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: doc.layers })
     : colorNode
       ? buildGraphTargetSummary({ kind: 'color', node: colorNode }, { surface: 'nodes', graph })
       : mergeNode

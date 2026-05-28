@@ -82,6 +82,7 @@ export interface NodeShellProps {
   children: ReactNode;
   onToggleMuted?: () => void;
   onDelete?: () => void;
+  deleteDisabled?: boolean;
 }
 
 export type LayerNodeData = {

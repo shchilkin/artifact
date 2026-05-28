@@ -151,9 +151,10 @@ export function Sidebar({
         ? buildLayerTargetSummary(selectedLayer, {
             surface: 'layers',
             graph: doc.graph,
+            layers: doc.layers,
           })
         : null,
-    [doc.graph, selectedLayer],
+    [doc.graph, doc.layers, selectedLayer],
   );
   const docRef = useRef(doc);
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -141,6 +141,18 @@ nodes in between are not visually claimed by the area.
 | Right-click node shell | Open node context menu |
 | `M` with layer nodes selected | Mute/unmute selected layer nodes by toggling visibility |
 
+### Guardrails
+
+Layer-backed nodes inherit the layer `locked` guardrail from the canonical
+document. A locked layer-backed node cannot be deleted from the node canvas or
+node context menu, but it can still be selected, moved on the graph, muted,
+renamed, and edited through the shared inspector controls. Locking is an editor
+safety rail, not a traversal or render rule.
+
+Graph-only merge, color, repeat, and output nodes do not have durable lock state
+in v0.28. The properties panel should describe them as graph-only utility or
+output targets instead of showing a fake lock toggle.
+
 ### Text and image nodes
 
 | Gesture | Behavior |
