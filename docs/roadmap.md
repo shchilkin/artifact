@@ -16,19 +16,24 @@ Related architecture docs:
 
 Current active version plan:
 
-- [`version-plans/v0.27.md`](./version-plans/v0.27.md) — Editor Confidence And
-  Coverage is the current implementation target: make the active editing target
-  explicit in Layers and Nodes, improve properties-panel orientation, surface
-  hidden/output-path guardrails, and add a repeatable Vitest coverage baseline
-  without changing document, renderer, graph, export, thumbnail, AI, package, or
-  font semantics.
+- [`version-plans/v0.28.md`](./version-plans/v0.28.md) — Editor Guardrails v2
+  is the current implementation target: clarify lock behavior, breadcrumbs,
+  selected-target context, hidden/output-path guardrails, and Layers/Nodes
+  properties parity without changing document, renderer, graph, export,
+  thumbnail, AI, package, or font semantics unless an explicit scoped bug fix
+  requires it.
 
 Recently shipped:
 
+- [`version-plans/v0.27.md`](./version-plans/v0.27.md) — Editor Confidence And
+  Coverage: shared selected-target summaries in Layers and Nodes, source/effect
+  and output-path status, soft lock guardrails, and repeatable Vitest coverage
+  baseline. Released as the cumulative `v0.27.0` editor release; release notes
+  are in [`releases/v0.27.0.md`](./releases/v0.27.0.md).
 - [`version-plans/v0.26.md`](./version-plans/v0.26.md) — Layer Mode Polish:
   Layers Add Library previews, empty starts, layer-state readability, and layer
-  reorder syncing with the graph-backed document order. Merged to
-  `development`; release prep is pending.
+  reorder syncing with the graph-backed document order. Rolled into the
+  cumulative `v0.27.0` release instead of being separately tagged.
 - [`version-plans/v0.25.md`](./version-plans/v0.25.md) — Typography Library v3
   & Font Policy: Google Fonts import, source/license metadata, license-aware
   editable project packages, and explicit all-font package export without
@@ -74,9 +79,9 @@ Recently shipped:
 
 Next strong candidates:
 
-- **Server-backed Share Links** — once the package and font policy are stable,
-  add stored-asset share records so large projects can be shared without URL
-  payload limits.
+- **Server-backed Share Links** — once the current editor guardrails settle, add
+  stored-asset share records so large projects can be shared without URL payload
+  limits.
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
@@ -154,9 +159,9 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.26` is the layer-mode product polish pass after
-the project-package and font-policy foundation. Catalog API keys, account-synced
-font sets, command-palette entry, server-backed sharing, and deeper backend work
+Near-term sequencing note: `v0.28` is the next editor-confidence pass after the
+layer-mode polish and coverage baseline. Catalog API keys, account-synced font
+sets, command-palette entry, server-backed sharing, and deeper backend work
 remain preserved as follow-up candidates so each release can stay coherent and
 low-risk.
 
