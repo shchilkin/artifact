@@ -7,11 +7,12 @@ describe('editor target summaries', () => {
   it('labels visible source layers as editable sources', () => {
     const layer = makeTextLayer({ id: 'title', name: 'poster title' });
 
-    expect(buildLayerTargetSummary(layer, { surface: 'layers' })).toMatchObject({
+    expect(buildLayerTargetSummary(layer, { surface: 'layers', layers: [layer] })).toMatchObject({
       title: 'poster title',
       eyebrow: 'Layers / Source',
       role: 'source',
       kindLabel: 'Text',
+      breadcrumbs: ['Layers', 'Layer 1/1'],
       badges: [
         { label: 'Source', tone: 'success' },
         { label: 'Visible', tone: 'muted' },
@@ -49,10 +50,13 @@ describe('editor target summaries', () => {
       colorNodes: [],
     } as const;
 
-    expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph }).badges).toContainEqual({
+    const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [layer] });
+
+    expect(summary.badges).toContainEqual({
       label: 'On output path',
       tone: 'success',
     });
+    expect(summary.breadcrumbs).toEqual(['Nodes', 'Layer 1/1', 'Output path']);
   });
 
   it('warns when a selected node is outside the graph output path', () => {
@@ -67,6 +71,25 @@ describe('editor target summaries', () => {
     expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph }).badges).toContainEqual({
       label: 'Not in output',
       tone: 'warning',
+    });
+  });
+
+  it('includes graph area membership in layer target breadcrumbs', () => {
+    const layer = makeFillLayer({ id: 'fill', name: 'background' });
+    const graph = {
+      edges: [],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      areas: [{ id: 'area-a', name: 'Print Stack', color: '#ff735f', nodeIds: ['fill'] }],
+    } as const;
+
+    const summary = buildLayerTargetSummary(layer, { surface: 'layers', graph, layers: [layer] });
+
+    expect(summary.breadcrumbs).toEqual(['Layers', 'Layer 1/1', 'Area: Print Stack', 'Off output path']);
+    expect(summary.notes).toContainEqual({
+      text: 'This layer is also grouped in the "Print Stack" graph area.',
+      tone: 'muted',
     });
   });
 
@@ -109,6 +132,7 @@ describe('editor target summaries', () => {
 
     const summary = buildGraphTargetSummary({ kind: 'merge', node: graph.mergeNodes[0] }, { surface: 'nodes', graph });
 
+    expect(summary.breadcrumbs).toEqual(['Nodes', 'Utility', 'Off output path']);
     expect(summary.badges.filter((badge) => badge.label === 'No input')).toEqual([
       { label: 'No input', tone: 'warning' },
     ]);

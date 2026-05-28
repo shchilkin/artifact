@@ -17,6 +17,7 @@ export function NodeShell({
   children,
   onToggleMuted,
   onDelete,
+  deleteDisabled,
 }: NodeShellProps) {
   void expanded;
   void expandable;
@@ -58,6 +59,8 @@ export function NodeShell({
             type="button"
             className="nodrag node-shell-action node-shell-delete"
             aria-label="Delete node"
+            disabled={deleteDisabled}
+            title={deleteDisabled ? 'Locked layer-backed node' : 'Delete node'}
             onClick={onDelete}
           >
             ×

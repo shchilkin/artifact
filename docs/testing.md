@@ -128,6 +128,9 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 **Current coverage:**
 
 - Layer canvas still renders after switching from layers → nodes → layers.
+- Editor guardrail coverage verifies selected-target breadcrumbs, hidden status,
+  layer-backed lock status, disabled locked node deletion, graph-only utility
+  context, and output no-input messaging.
 - Primitive nodes expose interactive camera controls in a real browser.
 - Text/image node transform gestures stay local to the selected node: wheel
   scaling must not zoom the React Flow canvas, must not crash with maximum

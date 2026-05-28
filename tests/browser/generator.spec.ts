@@ -1117,6 +1117,7 @@ test('layer properties show the active editing target and hidden state', async (
   const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
   await expect(targetHeader).toContainText('Layers / Source');
   await expect(targetHeader).toContainText('Top fill');
+  await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).toContainText('Hidden');
 });
 
@@ -1136,6 +1137,7 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect(topFillRow.locator('.layer-lock-badge')).toContainText('lock');
   const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
+  await expect(targetHeader).toContainText('Layer 2/2');
 
   await expect(topFillRow.getByRole('button', { name: /Delete layer Top fill/ })).toBeDisabled();
   await expect(topFillRow.getByRole('button', { name: /Drag layer Top fill/ })).toBeDisabled();
@@ -1814,7 +1816,9 @@ test('node properties show whether the selected target feeds output', async ({ p
   const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
+  await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).toContainText('Not in output');
+  await expect(targetHeader).toContainText('Off output path');
 });
 
 test('locked node target stays in the graph when delete is pressed', async ({ page }) => {
@@ -1830,6 +1834,7 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
 
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
+  await expect(orphanNode.getByRole('button', { name: 'Delete node' })).toBeDisabled();
 
   await page.keyboard.press('Delete');
 
@@ -1857,7 +1862,27 @@ test('output properties explain missing graph input', async ({ page }) => {
   const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
   await expect(targetHeader).toContainText('Nodes / Output');
   await expect(targetHeader).toContainText('No input');
+  await expect(targetHeader).toContainText('Needs input');
   await expect(targetHeader).toContainText('Connect a source, effect, or utility branch to the output before export.');
+});
+
+test('graph-only utility properties show area and output context without lock controls', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await switchToNodeView(page);
+
+  const mergeNode = page.locator('.react-flow__node').filter({ hasText: 'MERGE' });
+  await expect(mergeNode).toBeVisible({ timeout: 15_000 });
+  await mergeNode.click();
+
+  const nodePropsPanel = page.locator('.node-props-panel-open');
+  const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(targetHeader).toContainText('Nodes / Utility');
+  await expect(targetHeader).toContainText('Area: Area 1');
+  await expect(targetHeader).toContainText('Output path');
+  await expect(targetHeader).toContainText(
+    'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
+  );
+  await expect(nodePropsPanel.getByLabel('Toggle node delete lock')).toHaveCount(0);
 });
 
 test('layers added after graph bootstrap connect into the export path', async ({ page }) => {

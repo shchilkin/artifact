@@ -13,6 +13,13 @@ export function EditorTargetHeader({ summary, compact = false }: EditorTargetHea
         <span>{summary.kindLabel}</span>
       </div>
       <div className="editor-target-header__title">{summary.title}</div>
+      {summary.breadcrumbs.length > 0 && (
+        <div className="editor-target-header__breadcrumbs" aria-label="Editing target path">
+          {summary.breadcrumbs.map((crumb) => (
+            <span key={crumb}>{crumb}</span>
+          ))}
+        </div>
+      )}
       {!compact && <p className="editor-target-header__description">{summary.description}</p>}
       <div className="editor-target-header__badges" aria-label="Editing target status">
         {summary.badges.map((badge) => (

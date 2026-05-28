@@ -21,6 +21,7 @@ import {
 } from '../types/config';
 import type { ArrayPresetId } from './arrayPresets';
 import { makeArrayPresetLayer } from './arrayPresets';
+import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
 import {
   addColorNode,
   addGraphArea,
@@ -463,7 +464,7 @@ export function addNodeAtDocument(
 
 export function removeLayerFromDocument(doc: CanvasDocument, id: string): CanvasDocument {
   const layer = doc.layers.find((item) => item.id === id);
-  if (layer?.locked) return doc;
+  if (!canDeleteLayer(layer)) return doc;
   return {
     ...doc,
     layers: doc.layers.filter((layer) => layer.id !== id),
@@ -472,8 +473,7 @@ export function removeLayerFromDocument(doc: CanvasDocument, id: string): Canvas
 }
 
 export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): CanvasDocument {
-  const lockedLayerIds = new Set(doc.layers.filter((layer) => layer.locked).map((layer) => layer.id));
-  const idSet = new Set(ids.filter((id) => !lockedLayerIds.has(id)));
+  const idSet = new Set(ids.filter((id) => canDeleteNodeFromDocument(doc, id)));
   if (idSet.size === 0) return doc;
   const nextLayers = doc.layers.filter((layer) => !idSet.has(layer.id));
   let nextGraph = doc.graph;
@@ -569,8 +569,7 @@ export function updateRepeatNodeInDocument(
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
-  const nextIndexById = new Map(layers.map((layer, index) => [layer.id, index]));
-  if (doc.layers.some((layer, index) => layer.locked && nextIndexById.get(layer.id) !== index)) return doc;
+  if (!canReorderDocumentLayers(doc.layers, layers)) return doc;
   if (doc.graph) {
     return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
   }

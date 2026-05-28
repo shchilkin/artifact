@@ -488,6 +488,15 @@
   color: var(--node-text);
 }
 
+.node-shell-action:disabled,
+.node-shell-action:disabled:hover,
+.node-shell-action:disabled:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: color-mix(in oklch, var(--node-text-dim) 55%, transparent);
+  cursor: not-allowed;
+}
+
 .node-inspector-effect-description {
   margin: -2px 0 8px;
   color: var(--node-text-dim);

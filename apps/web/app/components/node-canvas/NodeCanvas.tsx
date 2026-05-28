@@ -14,6 +14,7 @@ import './node-canvas.css';
 
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import type { Layer } from '../../types/config';
+import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
@@ -87,11 +88,7 @@ export function NodeCanvas({
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
   const outputPath = useMemo(() => resolveOutputPath(graph), [graph]);
-  const lockedLayerIds = useMemo(
-    () => new Set(doc.layers.filter((layer) => layer.locked).map((layer) => layer.id)),
-    [doc.layers],
-  );
-  const canDeleteNode = useCallback((id: string) => !lockedLayerIds.has(id), [lockedLayerIds]);
+  const canDeleteNode = useCallback((id: string) => canDeleteNodeFromDocument(doc, id), [doc]);
   const deleteUnlockedNodes = useCallback(
     (ids: string[]) => {
       const unlockedIds = ids.filter(canDeleteNode);

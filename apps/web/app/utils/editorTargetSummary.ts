@@ -1,5 +1,6 @@
 import type { CanvasGraph, EffectLayer, GraphColorNode, GraphMergeNode, GraphRepeatNode, Layer } from '../types/config';
 import { EFFECT_PRESETS } from '../types/config';
+import { getLayerGuardrailState } from './editorGuardrails';
 import { EXPORT_NODE_ID, resolveOutputPath } from './nodeGraph';
 
 export type EditorTargetTone = 'accent' | 'muted' | 'warning' | 'success';
@@ -22,12 +23,14 @@ export interface EditorTargetSummary {
   role: EditorTargetRole;
   kindLabel: string;
   description: string;
+  breadcrumbs: string[];
   badges: EditorTargetBadge[];
   notes: EditorTargetNote[];
 }
 
 interface LayerTargetOptions {
   graph?: CanvasGraph;
+  layers?: Layer[];
   surface: EditorTargetSurface;
 }
 
@@ -49,6 +52,7 @@ export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOption
   const kindLabel = getLayerKindLabel(layer);
   const badges: EditorTargetBadge[] = [ROLE_BADGES[role]];
   const notes: EditorTargetNote[] = [];
+  const guardrail = getLayerGuardrailState(layer);
 
   if (layer.visible === false) {
     badges.push({ label: 'Hidden', tone: 'warning' });
@@ -60,15 +64,13 @@ export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOption
     badges.push({ label: 'Visible', tone: 'muted' });
   }
 
-  if (layer.locked) {
+  if (guardrail.locked) {
     badges.push({ label: 'Locked', tone: 'warning' });
-    notes.push({
-      text: 'Locked layer targets are protected from delete actions and layer-stack reorder.',
-      tone: 'warning',
-    });
+    if (guardrail.reason) notes.push({ text: guardrail.reason, tone: 'warning' });
   }
 
   addGraphStatus(badges, notes, layer.id, role, options.graph, options.surface);
+  addLayerContextNotes(notes, layer, options);
 
   return {
     title: layer.name,
@@ -76,6 +78,7 @@ export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOption
     role,
     kindLabel,
     description: getLayerDescription(layer),
+    breadcrumbs: buildLayerBreadcrumbs(layer, options),
     badges,
     notes,
   };
@@ -97,6 +100,7 @@ export function buildGraphTargetSummary(
       role: 'output',
       kindLabel: 'Final render target',
       description: 'Exports the connected graph branch. Select upstream nodes to edit the artwork feeding it.',
+      breadcrumbs: ['Nodes', 'Output target', connected ? 'Connected branch' : 'Needs input'],
       badges: [
         { label: 'Final', tone: 'accent' },
         {
@@ -120,6 +124,10 @@ export function buildGraphTargetSummary(
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
   const notes: EditorTargetNote[] = [];
   addGraphStatus(badges, notes, id, 'utility', options.graph, options.surface);
+  notes.push({
+    text: 'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
+    tone: 'muted',
+  });
 
   return {
     title: target.node.name,
@@ -127,6 +135,7 @@ export function buildGraphTargetSummary(
     role: 'utility',
     kindLabel,
     description,
+    breadcrumbs: buildGraphBreadcrumbs(id, options.graph),
     badges,
     notes,
   };
@@ -179,6 +188,43 @@ function addGraphStatus(
       tone: 'warning',
     });
   }
+}
+
+function addLayerContextNotes(notes: EditorTargetNote[], layer: Layer, options: LayerTargetOptions) {
+  const area = options.graph?.areas?.find((item) => item.nodeIds.includes(layer.id));
+  if (area && options.surface === 'layers') {
+    notes.push({
+      text: `This layer is also grouped in the "${area.name}" graph area.`,
+      tone: 'muted',
+    });
+  }
+}
+
+function buildLayerBreadcrumbs(layer: Layer, options: LayerTargetOptions): string[] {
+  const crumbs = [capitalize(options.surface)];
+  if (options.layers) {
+    const index = options.layers.findIndex((item) => item.id === layer.id);
+    if (index >= 0) crumbs.push(`Layer ${index + 1}/${options.layers.length}`);
+  }
+
+  const area = options.graph?.areas?.find((item) => item.nodeIds.includes(layer.id));
+  if (area) crumbs.push(`Area: ${area.name}`);
+
+  if (options.graph) {
+    const outputPath = resolveOutputPath(options.graph);
+    crumbs.push(outputPath.nodeIds.has(layer.id) ? 'Output path' : 'Off output path');
+  }
+
+  return crumbs;
+}
+
+function buildGraphBreadcrumbs(nodeId: string, graph: CanvasGraph): string[] {
+  const crumbs = ['Nodes', 'Utility'];
+  const area = graph.areas?.find((item) => item.nodeIds.includes(nodeId));
+  if (area) crumbs.push(`Area: ${area.name}`);
+  const outputPath = resolveOutputPath(graph);
+  crumbs.push(outputPath.nodeIds.has(nodeId) ? 'Output path' : 'Off output path');
+  return crumbs;
 }
 
 function addConnectionBadges(
