@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-Browser-based album cover generator: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
+Browser-based album cover editor: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
 
 ## Required docs before architecture work
 

@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
-import type { AddAction, ContextMenuState, InsertConnectionConfig } from '../types';
+import type { AddAction, InsertConnectionConfig } from '../types';
 
 export interface UseNodeContextMenusOptions {
   send: (event: NodeCanvasMachineEvent) => void;
@@ -11,9 +11,6 @@ export interface UseNodeContextMenusOptions {
   rfInstanceRef: React.RefObject<ReactFlowInstance | null>;
   addNodeButtonRef: React.RefObject<HTMLButtonElement | null>;
   canvasSurfaceRef: React.RefObject<HTMLDivElement | null>;
-  contextMenuRef: React.RefObject<HTMLDivElement | null>;
-  /** Current context menu state from machine context. */
-  contextMenu: ContextMenuState | null;
   selectedEdgeId: string | null;
   selectedNodeIds: string[];
   graphRef: React.RefObject<CanvasGraph>;
@@ -42,8 +39,6 @@ export function useNodeContextMenus({
   rfInstanceRef,
   addNodeButtonRef,
   canvasSurfaceRef,
-  contextMenuRef,
-  contextMenu,
   selectedEdgeId,
   selectedNodeIds,
   graphRef,
@@ -52,26 +47,6 @@ export function useNodeContextMenus({
   onGraphChange,
   onAddLayerAt,
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
-  // Dismiss context menu on outside click or Escape.
-  useEffect(() => {
-    if (!contextMenu) return;
-    const dismiss = () => send({ type: 'CONTEXT_MENU_CLOSED' });
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-    };
-    const onPointerDown = (e: MouseEvent) => {
-      const target = e.target;
-      if (target instanceof Node && contextMenuRef.current?.contains(target)) return;
-      dismiss();
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onPointerDown);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onPointerDown);
-    };
-  }, [contextMenu, send, contextMenuRef]);
-
   // Delete/Backspace shortcut for selected nodes and edges.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

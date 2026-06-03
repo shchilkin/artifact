@@ -6,19 +6,37 @@ product
 
 ## Users
 
-Indie musicians and designers at their intersection — people who make their own album art and want aesthetic control without hiring anyone. They know what "risograph" means. They are the creator and the art director simultaneously. They use this on a phone between ideas or on a laptop before an upload. Context: lo-fi studio, bedroom, transit. Mood: making something weird, on purpose.
+Indie musicians and designers at their intersection — people who make their own album art and want aesthetic control without hiring anyone. They know what "risograph" means. They are the creator and the art director simultaneously. They use this on a phone between ideas or on a laptop before an upload. Context: lo-fi studio, bedroom, transit. Mood: shaping a cover with intent, whether the result is spare, elegant, textured, loud, or rough.
 
 ## Product Purpose
 
-A creative image/poster generator for covers, posters, music visuals, and
+A creative image/poster editor for covers, posters, music visuals, and
 eventually project/case-study presentation pages. Artifact starts as a
 browser-first editor: choose a seed, layer or node workflow, presets, effects,
 typography, procedural textures, primitives, and export-ready aspect ratios.
 
-The tool is for people who want their art to look handmade and strange, not
-clean and scalable. The long-term product should feel less like a one-shot
-randomizer and more like a compact creative studio: fast enough for sketches,
-controllable enough for finished work.
+The tool is for people who want direct control over image, type, texture,
+effects, and composition. Artifact should not prescribe the final style: the
+work may be clean, rough, elegant, loud, restrained, or experimental. The
+long-term product should feel less like a one-shot randomizer and more like a
+compact creative studio: fast enough for sketches, controllable enough for
+finished work.
+
+Terminology rule: Artifact is an **editor** and a compact creative studio. Use
+"generate" only for specific actions that create source material, such as AI
+images, procedural textures, random seeds, or thumbnail rendering. Do not call
+the product, workspace, primary route, or public CTA a "generator".
+
+Public-surface terminology:
+
+- **Showcase** is the made-in-Artifact gallery: curated work first, seeded
+  random work second, and future reviewed agent-generated work once that
+  pipeline can produce editable projects safely.
+- **How-to / recipes** is a future learning surface for specific workflows. Do
+  not turn the showcase into a manual.
+- **Open editor** and **New blank canvas** both open the editor with a blank
+  canvas by default. Showcase tiles are the path into existing editable
+  projects.
 
 ## Product Direction
 
@@ -39,7 +57,9 @@ The next product arc is control:
 - more predictable effect controls
 - more focused effects and procedural sources
 - typography and font workflows that make strong type covers easy
-- examples, presets, and docs that make the empty canvas less intimidating
+- a showcase wall of made-in-Artifact work that makes the empty canvas less
+  intimidating without mixing gallery browsing with how-to teaching
+- a future how-to / recipes surface for learning specific workflows
 - predictable export where aspect ratio is respected by every render surface
 
 Artifact should borrow the useful skeleton of mature SaaS tools without
@@ -51,13 +71,15 @@ Those are reliability features, not a visual identity.
 What Artifact should avoid is the admin-panel version of those patterns:
 neutral dashboards, table-first management screens, generic card grids, verbose
 configuration copy, and anything that makes the editor feel like a corporate
-content tool. The editor should stay direct, compact, creative, dark, raw, mono,
-and low-chrome. Its menus should behave like fast command/library palettes, not
-like SaaS settings catalogs.
+content tool. The editor chrome should stay direct, compact, creative, dark,
+print-like, mono, and low-chrome. Its menus should behave like fast
+command/library palettes, not like SaaS settings catalogs.
 
 ## Brand Personality
 
-Rebellious. Deliberate. Lo-fi. The personality of a photocopied zine or a risograph print: imprecise on purpose, with strong opinions baked in. Not aggressive or chaotic — purposefully crude.
+Deliberate. Tactile. Lo-fi in its materials, precise in its control. The
+personality of a photocopied zine or risograph proof belongs to the interface
+language, not to every user output.
 
 ## Anti-references
 
@@ -68,9 +90,17 @@ Rebellious. Deliberate. Lo-fi. The personality of a photocopied zine or a risogr
   back-office operations.
 - Any design where someone could guess the palette from the domain name alone.
 
+## Banned Words
+
+- weird
+
+Avoid broad labels that judge the whole output as strange. Prefer language that
+names material, control, or finish: expressive, elegant, textured, rough,
+experimental, polished, deliberate, layered, editable, or export-ready.
+
 ## Design Principles
 
-1. **The tool looks like its output.** The UI should feel adjacent to the art it makes — a little raw, a little deliberate. Not a polished app wrapping a rough tool.
+1. **The tool has a material language.** The UI can feel print-like, tactile, and direct without deciding what the user's finished work should look like.
 2. **Control without noise.** Every slider, button, and label earns its place. The interface is a mixing board, not a feature list. Remove chrome, not controls.
 3. **Mobile is the first canvas.** This tool is used in moments — between ideas, on the go. Pocket-first layout is not an afterthought; it's the primary constraint.
 4. **The seed is identity.** The seed number is a creative artifact — a serial number for a piece of art. It should be treated with weight, not as a form field.

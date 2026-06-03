@@ -1,9 +1,9 @@
 import { useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
-import { Link, useNavigate } from 'react-router';
 import { Footer } from '../components/Footer';
 import { SiteNav } from '../components/SiteNav';
+import { ActionLink } from '../components/ui/ActionButton';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -30,7 +30,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: 'Fill.',
-    body: 'A tinted plane. Every cover starts here, with one decision about color.',
+    body: 'A tinted plane. Every cover starts with one decision about color.',
     layers: [makeFillLayer({ color: '#1a0a1f', name: 'fill' })],
   },
   {
@@ -39,7 +39,7 @@ const STEPS: Step[] = [
     layers: [makeEffectPresetLayer('rays')],
   },
   {
-    title: 'Emoji.',
+    title: 'Symbols.',
     body: 'Glyphs scattered, sized, blurred. Raw material, not punctuation.',
     layers: [
       makeEmojiLayer({
@@ -55,7 +55,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Halftone.',
-    body: 'Print dots eat the emoji into a mechanical pattern.',
+    body: 'Print dots eat the source into a mechanical pattern.',
     layers: [makeEffectPresetLayer('halftone')],
   },
   {
@@ -83,9 +83,9 @@ const STEPS: Step[] = [
     body: 'Set the name. Display weight, oversized, low in the frame.',
     layers: [
       makeTextLayer({
-        content: 'WEIRDER',
+        content: 'ARTIFACT',
         font: 'DISPLAY',
-        size: 140,
+        size: 126,
         color: '#fff2dc',
         x: 0.5,
         y: 0.82,
@@ -101,7 +101,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Misregister.',
-    body: 'Color channels split, shift apart. Off-press print error, on purpose.',
+    body: 'Color channels split, shift apart. Off-press print error under your control.',
     layers: [makeEffectPresetLayer('risoShift')],
   },
   {
@@ -126,16 +126,15 @@ function buildDoc(stepIndex: number): CanvasDocument {
 }
 
 export const meta: MetaFunction = () => [
-  { title: 'Album Cover Generator | Layer it Up' },
+  { title: 'Artifact | Local-first Cover Art Editor' },
   {
     name: 'description',
     content:
-      'Stack layers, run GPU effects, export at 3000×3000. A browser-based glitch cover generator for the deliberately strange.',
+      'Artifact is a local-first creative editor for cover art, posters, type, texture, effects, nodes, local projects, and clean raster export.',
   },
 ];
 
 export default function Home() {
-  const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
   const [step, setStep] = useState(0);
@@ -366,11 +365,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey);
   }, [step, prefersReducedMotion]);
 
-  function handleCTA() {
-    const doc = buildDoc(STEPS.length - 1);
-    navigate(`/app?doc=${encodeURIComponent(JSON.stringify(doc))}`);
-  }
-
   return (
     <div className="flex flex-col min-h-dvh bg-bg">
       <SiteNav solid />
@@ -469,24 +463,23 @@ export default function Home() {
             className={`home-hero-overlay${heroVisible ? '' : ' home-hero-overlay--faded'}`}
             aria-labelledby="home-hero-title"
           >
-            <p className="home-hero__eyebrow">Album cover generator</p>
+            <p className="home-hero__eyebrow">Artifact editor</p>
             <h1 id="home-hero-title" className="home-hero__headline">
               Stack layers.
               <br />
-              Make weirder
-              <br />
-              covers.
+              Shape covers.
             </h1>
             <p className="home-hero__deck">
-              Scroll to watch one cover compose itself, layer by layer. Browser-based, GPU-driven, no account.
+              Scroll to watch one cover compose itself, layer by layer. Open the editor blank when you are ready to make
+              your own.
             </p>
             <div className="home-hero__actions">
-              <button type="button" className="home-hero__skip" onClick={handleCTA}>
-                Open generator →
-              </button>
-              <Link to="/app?new=blank" className="home-cta-link">
-                New blank canvas
-              </Link>
+              <ActionLink to="/app?new=blank" variant="primary">
+                Open editor
+              </ActionLink>
+              <ActionLink to="/showcase" variant="quiet">
+                View showcase
+              </ActionLink>
             </div>
             <p className={`home-hero__hint${!heroVisible ? ' home-hero__hint--used' : ''}`} aria-hidden="true">
               ↓ scroll
@@ -520,21 +513,21 @@ export default function Home() {
             >
               <p className="home-cta-eyebrow">Your turn</p>
               <h2 id="home-cta-title" className="home-cta-title">
-                Open the generator. Make one stranger.
+                Open the editor. Start from a blank document.
               </h2>
               <div className="home-cta-row">
-                <button type="button" className="home-cta" onClick={handleCTA}>
-                  Open generator
+                <ActionLink to="/app?new=blank" variant="primary">
+                  Open editor
                   <span aria-hidden="true">→</span>
-                </button>
-                <Link to="/examples" className="home-cta-link">
-                  or browse examples ↗
-                </Link>
-                <Link to="/app?new=blank" className="home-cta-link">
-                  start blank
-                </Link>
+                </ActionLink>
+                <ActionLink to="/showcase" variant="quiet">
+                  view showcase
+                </ActionLink>
               </div>
-              <p className="home-cta-fineprint">Everything is editable once inside. Re-seed or swap any layer.</p>
+              <p className="home-cta-fineprint">
+                The default editor opens empty. Add sources, stack layers, route nodes, and export when the piece is
+                ready.
+              </p>
             </section>
           </div>
         </div>

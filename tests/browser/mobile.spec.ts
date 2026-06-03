@@ -64,8 +64,8 @@ test('mobile layers smoke keeps canvas actions and layer list usable', async ({ 
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
   await expectLayerCanvasToHavePixels(page);
 
-  await expect(page.getByRole('button', { name: 'layers' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'nodes' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'layers' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'nodes' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'export' })).toBeVisible();
 
   await page.getByText('Top fill', { exact: true }).click();
@@ -100,6 +100,10 @@ test('mobile empty start exposes starter actions without horizontal overflow', a
 function isBenignBrowserTestIssue(text: string) {
   return (
     text.includes('downloadable font: download failed') ||
+    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
+    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
+    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
+    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
     text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
     text.includes('Importing a module script failed') ||
     text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||

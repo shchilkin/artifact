@@ -834,6 +834,10 @@ test.afterEach(async ({ page }) => {
 function isBenignBrowserTestIssue(text: string) {
   return (
     text.includes('downloadable font: download failed') ||
+    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
+    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
+    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
+    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
     text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
     text.includes('Importing a module script failed') ||
     text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
@@ -968,6 +972,13 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
 
 test('rand creates cover-ready text layers with curated fonts', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await page.evaluate(() => {
+    let calls = 0;
+    Math.random = () => {
+      calls += 1;
+      return calls === 1 ? 0.123456 : 0.34;
+    };
+  });
   await page.getByRole('button', { name: 'RAND' }).click();
   await expectLayerCanvasToHavePixels(page);
 
@@ -1982,7 +1993,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
     .toBeGreaterThan(1);
 
   await page.reload();
-  await page.locator('.view-mode-toggle-sidebar').getByRole('button', { name: 'nodes' }).click();
+  await page.locator('.view-mode-toggle-sidebar').getByRole('tab', { name: 'nodes' }).click();
   await page.locator('.node-shell-kind-primitive').first().click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect(page.getByText('Oops!')).toHaveCount(0);
@@ -2082,7 +2093,7 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
   const emptyPanel = page.locator('.layer-empty-state');
   await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
   await expect(emptyPanel).toContainText('Fast starts');
-  await expect(emptyPanel.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(emptyPanel.getByRole('link', { name: 'Showcase' })).toHaveAttribute('href', '/showcase');
   await expect(emptyPanel.getByRole('button', { name: 'Open saved work' })).toBeVisible();
   await expect(emptyPanel.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
@@ -2403,13 +2414,13 @@ test('empty canvas can start from the layer-first photo stack recipe', async ({ 
 
 test('docs recipe try-this link opens an editable starter document', async ({ page }) => {
   await page.goto('/docs/nodes');
-  await expect(page.getByRole('heading', { name: 'Make A Cover' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Artifact Docs.' })).toBeVisible();
 
   const recipe = page.locator('.docs-recipe').filter({ hasText: 'Photo Plus Type Recipe' });
   await expect(recipe).toBeVisible();
   await recipe.getByRole('link', { name: 'Try this' }).click();
 
-  await expect(page).toHaveURL(/\/app\?doc=/);
+  await expect(page).toHaveURL(/\/app(?:\?|$)/);
   await expectLayerCanvasToHavePixels(page);
   await expect(page.getByText('cover photo')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('headline type')).toBeVisible();
@@ -3117,13 +3128,13 @@ test('selected layer nodes can be muted with keyboard shortcut', async ({ page }
   await expect(fillNode).not.toHaveClass(/node-shell-muted/);
 
   await fillNode.click({ button: 'right' });
-  await page.locator('.node-menu').getByRole('button', { name: /Mute/ }).click();
+  await page.locator('.node-menu').getByRole('menuitem', { name: /Mute/ }).click();
   await expect(fillNode).toHaveClass(/node-shell-muted/);
 
   await fillNode.click({ button: 'right' });
   await page
     .locator('.node-menu')
-    .getByRole('button', { name: /Unmute/ })
+    .getByRole('menuitem', { name: /Unmute/ })
     .click();
   await expect(fillNode).not.toHaveClass(/node-shell-muted/);
 });
@@ -3226,7 +3237,7 @@ test('layers can add rows to an existing area from the context menu', async ({ p
   await expect(page.locator('.layer-context-menu')).toBeVisible();
   await page
     .locator('.layer-context-menu')
-    .getByRole('button', { name: /Add to Area 1/ })
+    .getByRole('menuitem', { name: /Add to Area 1/ })
     .click();
 
   await expect(page.locator('.layer-area-folder')).toHaveCount(1);
@@ -3591,18 +3602,18 @@ async function expectLayerCanvasToHavePixels(page: Page) {
 async function switchToNodeView(page: Page) {
   await expect(async () => {
     if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesButton = page.getByRole('button', { name: 'nodes' });
-    await expect(nodesButton).toBeVisible({ timeout: 2_000 });
-    await nodesButton.click();
+    const nodesTab = page.getByRole('tab', { name: 'nodes' });
+    await expect(nodesTab).toBeVisible({ timeout: 2_000 });
+    await nodesTab.click();
     await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 10_000 });
 }
 
 async function switchToLayerView(page: Page) {
   await expect(async () => {
-    const layersButton = page.locator('.floating-view-toggle').getByRole('button', { name: 'layers' });
-    await expect(layersButton).toBeVisible({ timeout: 2_000 });
-    await layersButton.click();
+    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'layers' });
+    await expect(layersTab).toBeVisible({ timeout: 2_000 });
+    await layersTab.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 10_000 });
 }

@@ -3,15 +3,16 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
+import { ActionButton } from './ui/ActionButton';
+import { actionButtonClassName } from './ui/actionButtonClassName';
 
 const LINKS = [
   { to: '/docs/nodes', label: 'Docs' },
-  { to: '/examples', label: 'Examples' },
-  { to: '/app', label: 'Generator' },
+  { to: '/showcase', label: 'Showcase' },
 ] as const;
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `font-mono text-[0.8rem] tracking-[0.05em] uppercase no-underline transition-colors duration-150 ${
+  `inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-3 font-mono text-[14px] tracking-[0.04em] uppercase no-underline transition-colors duration-150 ${
     isActive ? 'text-text' : 'text-dim hover:text-text'
   }`;
 
@@ -20,14 +21,13 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
   const auth = useArtifactAuth();
 
   const accountButton = auth.configured ? (
-    <button
-      type="button"
-      className="site-nav-account"
+    <ActionButton
+      variant="secondary"
       onClick={auth.signedIn ? () => void auth.signOut() : auth.openSignIn}
       disabled={!auth.loaded}
     >
       {auth.loaded ? (auth.signedIn ? 'Sign Out' : 'Sign In') : 'Account'}
-    </button>
+    </ActionButton>
   ) : null;
 
   return (
@@ -45,9 +45,9 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
         }
         aria-label="Site navigation"
       >
-        <Link to="/" className="group flex items-center gap-2 no-underline">
+        <Link to="/" className="group flex min-h-[44px] items-center gap-2 no-underline">
           <LogoGlyph />
-          <span className="font-display text-[1.1rem] font-black tracking-[-0.01em] leading-none text-text group-hover:text-accent transition-colors duration-150">
+          <span className="font-display text-[20px] font-black tracking-[0] leading-none text-text group-hover:text-accent transition-colors duration-150">
             artifact
           </span>
         </Link>
@@ -63,10 +63,16 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
               href="https://github.com/shchilkin/album-cover-generator"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[0.8rem] text-dim tracking-[0.05em] uppercase no-underline hover:text-text transition-colors duration-150"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-3 font-mono text-[14px] text-dim tracking-[0.04em] uppercase no-underline hover:text-text transition-colors duration-150"
             >
               GitHub ↗
             </a>
+            <NavLink
+              to="/app?new=blank"
+              className={({ isActive }) => actionButtonClassName({ active: isActive, variant: 'primary' })}
+            >
+              Open editor
+            </NavLink>
             {accountButton}
           </div>
         )}
@@ -75,7 +81,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
         {!compact && (
           <button
             type="button"
-            className="md:hidden flex flex-col justify-center items-center gap-[5px] w-11 h-11 bg-transparent border-0 cursor-pointer p-0"
+            className="md:hidden flex flex-col justify-center items-center gap-[5px] w-[44px] h-[44px] bg-transparent border-0 cursor-pointer p-0"
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
@@ -115,7 +121,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
                 to={to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `font-mono text-[0.85rem] tracking-[0.05em] uppercase no-underline transition-colors duration-150 py-3 border-b border-border last:border-0 ${
+                  `flex min-h-[44px] items-center font-mono text-[15px] tracking-[0.04em] uppercase no-underline transition-colors duration-150 py-3 border-b border-border last:border-0 ${
                     isActive ? 'text-text' : 'text-dim hover:text-text'
                   }`
                 }
@@ -123,11 +129,20 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
                 {label}
               </NavLink>
             ))}
+            <NavLink
+              to="/app?new=blank"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                actionButtonClassName({ active: isActive, className: 'site-nav-mobile-action', variant: 'primary' })
+              }
+            >
+              Open editor
+            </NavLink>
             <a
               href="https://github.com/shchilkin/album-cover-generator"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[0.85rem] text-dim tracking-[0.05em] uppercase no-underline hover:text-text transition-colors duration-150 py-3"
+              className="flex min-h-[44px] items-center font-mono text-[15px] text-dim tracking-[0.04em] uppercase no-underline hover:text-text transition-colors duration-150 py-3"
             >
               GitHub ↗
             </a>

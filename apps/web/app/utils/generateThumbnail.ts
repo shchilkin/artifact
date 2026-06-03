@@ -1,8 +1,8 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
-const THUMB_LONG_EDGE = 180;
-const THUMB_QUALITY = 0.62;
+const THUMB_LONG_EDGE = 360;
+const THUMB_QUALITY = 0.86;
 const THUMBNAIL_DATA_URL_CACHE_LIMIT = 64;
 const THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT = 128;
 const thumbnailDataUrlCache = new Map<string, string>();

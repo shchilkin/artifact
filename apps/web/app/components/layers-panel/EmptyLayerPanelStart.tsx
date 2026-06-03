@@ -70,7 +70,7 @@ export function EmptyLayerPanelStart({
         <button type="button" onClick={onOpenProjects} disabled={!onOpenProjects} aria-label="Open saved work">
           Projects
         </button>
-        <Link to="/examples">Examples</Link>
+        <Link to="/showcase">Showcase</Link>
       </div>
     </div>
   );

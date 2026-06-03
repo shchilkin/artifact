@@ -14,16 +14,19 @@ Related architecture docs:
 - [`production-readiness.md`](./production-readiness.md)
 - [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
-Current active version plan:
+Current planning status:
 
-- [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
-  Refresh is the current planning target: refresh the landing page, update
-  examples to match the current editor, bridge examples and docs, and add a
-  small visual confidence baseline without changing document, renderer, graph,
-  export, thumbnail, AI, package, or font semantics.
+- No next active version plan is selected yet. The next planning pass should
+  choose between the deferred landing slice, the future Showcase / How-to split,
+  or deeper editor work before implementation starts.
 
 Recently shipped:
 
+- [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
+  Recovery: terminology, docs, showcase, public navigation, shared UI
+  primitives, and focused browser coverage. Released as `v0.29.0`; release
+  notes are in [`releases/v0.29.0.md`](./releases/v0.29.0.md). Landing refresh
+  was explicitly deferred out of v0.29.
 - [`version-plans/v0.28.md`](./version-plans/v0.28.md) — Editor Guardrails v2:
   layer-backed lock policy, shared guardrail helpers, target breadcrumbs,
   area/output-path context, and Layers/Nodes properties parity. Released as
@@ -95,12 +98,14 @@ Next strong candidates:
 
 ## Product summary
 
-Artifact is a browser-based creative image/poster generator for indie musicians
-and designers who want direct aesthetic control. It starts with album covers,
-but the broader direction includes posters, music visuals, and eventually
-portfolio or case-study pages for music/design projects. The product is
-intentionally raw: warm dark UI, mono labels, square edges, seeded randomness,
-layer composition, node editing, and export-ready artwork.
+Artifact is a browser-based, local-first creative editor for indie musicians and
+designers who want direct control over covers, posters, type compositions,
+textures, effects, and export-ready artwork. It starts with album covers, but
+the broader direction includes posters, music visuals, and eventually portfolio
+or case-study pages for music/design projects. The interface is intentionally
+print-like and low-chrome: warm dark UI, mono labels, square edges, seeded
+randomness, layer composition, node editing, portable projects, and
+export-ready artwork.
 
 The core promise is simple: a user should be able to build a visual from layers
 and nodes, preview it accurately, then export the same image at production
@@ -163,22 +168,92 @@ These can mostly stay browser-only and fit the current architecture:
 - Physics/animation-style effects where the final export remains deterministic.
 - Improved localization/i18n structure.
 
-Near-term sequencing note: `v0.29` should make the product surface catch up to
-the editor through landing, examples, docs bridge, and small visual confidence
-coverage. Catalog API keys, account-synced font sets, command-palette entry,
-server-backed sharing, and deeper backend work remain preserved as follow-up
-candidates so each release can stay coherent and low-risk.
+Recent sequencing note: `v0.29` made the product surface catch up to the
+editor through a focused recovery pass: Artifact now reads as a local-first
+creative editor, not a style generator, not an output-style generator, and not
+an internal WIP board. The release stabilized terminology, split showcase from
+how-to/workflow teaching, kept showcase as a curated plus random
+made-in-Artifact gallery, made docs more useful for current reference material,
+and added small browser confidence coverage. Landing refresh is deferred to a
+dedicated future pass instead of being a hidden blocker. Catalog API keys,
+account-synced font sets, command-palette entry, server-backed sharing, and
+deeper backend work remain preserved as follow-up candidates so each release can
+stay coherent and low-risk.
+
+### UI System And Primitive Libraries
+
+Tailwind is already available in the web app and should be the first-choice
+tool for simple layout and responsive composition. It should not replace
+Artifact's design system, feature CSS, or editor-specific tokens. Reusable UI
+should move toward shared product primitives under
+`apps/web/app/components/ui/*` when the same behavior and visual contract appear
+on multiple surfaces.
+
+shadcn/ui is a possible source-owned primitive layer, not a visual direction.
+The useful adoption path is to import one primitive at a time, rewrite it to
+Artifact tokens and square mono styling, then validate keyboard, focus, mobile,
+and browser behavior before adding another.
+
+Best shadcn candidates and current adoption:
+
+- **Command** for a future command palette and possible Add Library
+  improvements. The current Add Library already behaves like a creative command
+  surface, so a command primitive could help with keyboard navigation and
+  search ergonomics if the product keeps expanding the catalog.
+- **Dialog / Sheet** now backs Projects, Presets, Add Library mobile behavior,
+  and the node gallery; keep using it for future import/export flows where
+  focus trapping and close behavior matter.
+- **Floating menu / Popover** now backs effect info, layer context menus, node
+  context menus, and desktop Add Library placement. Use this pattern for short
+  anchored surfaces that should dismiss predictably without custom document
+  listeners.
+- **Tabs** now backs the Layers/Nodes switcher and remains a good fit for
+  future docs/how-to splits or panel switching when native route navigation is
+  not the right model.
+- **Select** only if native select or the current inspector select stops being
+  enough. Most inspector controls should stay compact and CSS-first until
+  custom select behavior is clearly needed.
+
+Poor shadcn candidates:
+
+- **Button** as a default import. Public CTAs already use `ActionButton` /
+  `ActionLink`, and editor controls need Artifact-specific pressed, selected,
+  disabled, and focus states.
+- **Card** as a layout default. Artifact avoids generic card-heavy composition;
+  repeated items should use product-specific frames only when the frame carries
+  meaning.
+- Any default shadcn visual styling. It must be treated as implementation
+  scaffolding, not as product identity.
 
 ### Content And Learning
 
 These make the product easier to understand and market:
 
+- A landing page that sells the real editor: Layers, Nodes, typography, effects,
+  local projects, packages, and export rather than only showing final outputs.
+- Product-proof visuals that use editor fragments, graph snippets, effect
+  chains, type specimens, package cards, and showcase work instead of
+  decorative SaaS imagery.
 - Better user-facing node/effect documentation.
-- Example projects and tutorial presets.
+- Showcase projects and tutorial presets.
+- Showcase / How-to split: keep `/showcase` as an infinite wall of work made in
+  Artifact, and create a future how-to / recipes surface for task-oriented
+  workflows such as "make a type cover" or "build a print texture".
+- Public editor CTAs should open a blank canvas by default. Showcase tiles are
+  the entry point for opening existing editable projects.
+- Showcase filters remain a future affordance, added only when the wall has
+  enough volume to benefit from them.
+- Showcase sources: curated work first, seeded random work second, and future
+  agent-generated work only after a reviewed pipeline can produce editable
+  projects safely.
+- Random Showcase v2: move random generation from one generic poster recipe to
+  multiple archetypes. The first slice covers image-backed poster, type-only
+  poster, texture/source study, and texture/effect stack; node-ready composition,
+  richer text packs, and a bundled source-image library remain follow-ups.
 - Mood/style preset folders.
 - Procedural texture preset folders.
 - Project/case-study pages for the Artifact portfolio.
-- Showcase pages explaining how covers were made.
+- Future how-to / recipes pages explaining how covers were made.
 
 ### Platform / Full-Stack Candidates
 
@@ -219,7 +294,7 @@ stable.
 | Area | Main files | Notes |
 | --- | --- | --- |
 | Routing | `apps/web/app/routes.ts`, `apps/web/app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
-| Main generator | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
+| Main editor | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
 | Document state | `apps/web/app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
 | Asset state | `apps/web/app/hooks/useGeneratorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
 | Export | `apps/web/app/hooks/useGeneratorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
@@ -326,7 +401,7 @@ track creative decisions rather than pointer ticks.
 
 ### Strong product identity
 
-`PRODUCT.md` and `DESIGN.md` are unusually specific. The app has a clear audience, mood, and visual vocabulary: warm dark neutrals, mono UI, square controls, rare accent use, and a raw zine-like tone. This makes design decisions easier.
+`PRODUCT.md` and `DESIGN.md` are unusually specific. The app has a clear audience, mood, and visual vocabulary: warm dark neutrals, mono UI, square controls, rare accent use, and a print-like zine tone. This makes design decisions easier.
 
 ### Canonical document model
 
@@ -334,7 +409,9 @@ track creative decisions rather than pointer ticks.
 
 ### Shared rendering path
 
-The app generally uses `renderDocument` and `renderGraphTarget` across preview, thumbnails, examples, and export. That is the right architecture for "what you see is what you export."
+The app generally uses `renderDocument` and `renderGraphTarget` across preview,
+thumbnails, showcase output, and export. That is the right architecture for
+"what you see is what you export."
 
 ### Layer factories and migration helpers
 
@@ -431,7 +508,7 @@ Artifact now has two parallel release lines:
   HTTPS/API smoke, quota/accounting, provider defaults, cleanup, and VPS/Coolify
   deploy hardening.
 - `v0.14.x-beta`: editor/local-first beta. This line is for layer workflow,
-  onboarding, local project reliability, examples/docs polish, and production
+  onboarding, local project reliability, showcase/docs polish, and production
   readiness for users who do not need AI access.
 
 Earlier `v0.2` through `v0.12` roadmap headings are release history, not active
@@ -485,7 +562,7 @@ keeping node workflows truthful.
 - [x] Keep layer preview and export parity visible and trustworthy for stack
   workflows.
 - [x] Add a sectioned onboarding guide for canvas, layers, nodes, sources,
-  effects, repeaters, export, projects, and examples.
+  effects, repeaters, export, projects, and showcase starts.
 - [x] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
 - [x] Keep destructive starts guarded by confirmation and recovery drafts.
@@ -506,8 +583,8 @@ workflows.
 
 - [x] Add recipe starter documents that create useful first graphs.
 - [x] Add recipe starter documents for common covers: photo plus type, noisy
-  texture plus type, sticker/grid motif, primitive over image, and print-damage
-  poster.
+  texture plus type, sticker/grid motif, primitive over image, and
+  print-treatment poster.
 - [x] Improve examples with categories, used-node summaries, and clearer "start
   from this" language.
 - [x] Improve add-node search and grouping for recipes and starter workflows.
@@ -664,12 +741,12 @@ Release stance:
 - [x] Improve the layer list around graph areas so areas read like lightweight
   folders without changing render order.
 - [x] Add layer-row quick actions and clearer empty states.
-- [x] Add one or two layer-first recipe documents and use them from examples
-  and docs.
+- [x] Add one or two layer-first recipe documents and use them from showcase
+  starts and docs.
 - [x] Explain node-owned or unavailable layer controls for primitive camera,
   full-canvas noise placement, and graph-area organization.
 - [x] Add practical onboarding for canvas, layers, nodes, sources, effects,
-  repeaters, export, projects, and examples.
+  repeaters, export, projects, and showcase starts.
 - [x] Keep AI controls private/disabled unless the existing v0.13 gates are
   explicitly configured.
 - [x] Run `npm run check`, `npm run build`, and `npm run test:browser` before
@@ -715,7 +792,7 @@ Exit criteria:
 - The main editor E2E suite runs in Chromium, Firefox, and WebKit.
 - Users can distinguish the canvas, panels, selected layers, selected nodes,
   toolbar actions, and graph areas at a glance.
-- The app stays dark, raw, mono, and warm-tinted, but no longer reads as one
+- The app stays dark, print-like, mono, and warm-tinted, but no longer reads as one
   black field.
 - Preview/export/render behavior stays unchanged.
 
@@ -805,7 +882,7 @@ continue in parallel for operations and reliability work.
 
 Recommended order:
 
-1. Review the remaining product gaps from the editor, AI, examples, and export
+1. Review the remaining product gaps from the editor, AI, showcase, and export
    tracks.
 2. Pick one narrow `v0.18` theme with explicit non-goals.
 3. Write a version plan before moving implementation scope into the release.

@@ -111,7 +111,7 @@ export function HeroCover() {
       >
         <img
           src={activeFrame?.url ?? FALLBACK_URL}
-          alt="Generated album cover"
+          alt="Editable album cover preview"
           className={`hero-cover__img${fading ? ' hero-cover__img--fade' : ''}`}
           width={SIZE}
           height={SIZE}
@@ -119,7 +119,7 @@ export function HeroCover() {
         {hovered && activeFrame?.frame && (
           <div className="hero-cover__overlay">
             <div className="hero-cover__seed">SEED #{activeFrame.frame.doc.global.seed}</div>
-            <div className="hero-cover__cta">Open in Generator →</div>
+            <div className="hero-cover__cta">Open in Editor →</div>
           </div>
         )}
       </div>

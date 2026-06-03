@@ -1,4 +1,4 @@
-import { type MutableRefObject, useCallback, useEffect, useState } from 'react';
+import { type MutableRefObject, useCallback, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
 import { type Preset, usePresets } from './usePresets';
 
@@ -24,15 +24,6 @@ export function useGeneratorPresetsController({
     },
     [loadPreset, onLoadDocument],
   );
-
-  useEffect(() => {
-    if (!showPresets) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setShowPresets(false);
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [showPresets]);
 
   return {
     showPresets,

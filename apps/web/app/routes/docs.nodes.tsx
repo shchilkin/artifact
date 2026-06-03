@@ -1,5 +1,5 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { MetaFunction } from 'react-router';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link, type MetaFunction } from 'react-router';
 import { Footer } from '../components/Footer';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
 import { SiteNav } from '../components/SiteNav';
@@ -315,53 +315,51 @@ const MOTIF_RECIPE_GUIDE = [
   },
 ];
 
-const FIRST_COVER_STEPS = [
+const COMPACT_WORKFLOW_GUIDES = [
   {
-    step: '01',
-    name: 'Pick the base',
-    desc: 'Use Image for a photo cover, Fill for a flat poster, or Noise when the texture is the artwork.',
-    action: 'Start in layers. One source is enough.',
+    id: 'docs-start-with-layers',
+    name: 'Start with Layers',
+    desc: 'Use the layer stack when the piece is one readable path: base, image or type, texture, finish, export.',
+    cue: 'Use when the order is bottom to top.',
+    next: 'Set the base, place image or type, add one texture pass, then export or save.',
+    action: { label: 'Open layer starter', href: starterHref(PHOTO_TYPE_STACK_STARTER) },
+    secondary: { label: 'Browse showcase projects', href: '/showcase' },
   },
   {
-    step: '02',
-    name: 'Add type early',
-    desc: 'Set the title before you add damage. Type size, position, rotation, and contrast decide the cover faster than effects do.',
-    action: 'Use one strong text layer, then duplicate only when you need echoes.',
+    id: 'docs-when-to-use-nodes',
+    name: 'When to use Nodes',
+    desc: 'Use nodes when parts of the artwork need separate paths before they become one output.',
+    cue: 'Use when one source feeds several paths.',
+    next: 'Start from a source, route the branches, merge them, then check the Export node.',
+    action: { label: 'Open node starter', href: starterHref(PHOTO_TYPE_GRAPH_RECIPE) },
+    secondary: { label: 'See node types', href: '#docs-node-catalog' },
   },
   {
-    step: '03',
-    name: 'Finish with one effect family',
-    desc: 'Choose print, texture, signal damage, distortion, or color. Stack more effects only after the cover already reads.',
-    action: 'Try Grain, Scanlines, Tint, Duotone, Riso Shift, or Bloom first.',
+    id: 'docs-typography-fonts',
+    name: 'Typography and fonts',
+    desc: 'Build type while the text remains editable: title, subtitle, label, credits, font choice, print finish.',
+    cue: 'Use when words carry the identity.',
+    next: 'Pick the type role, choose a font source, tune contrast, and package fonts only when licensed.',
+    action: { label: 'Open type starter', href: starterHref(MULTI_FONT_TYPE_STACK_STARTER) },
+    secondary: { label: 'Read file policy', href: '#docs-project-files' },
   },
   {
-    step: '04',
-    name: 'Switch to nodes when branches matter',
-    desc: 'Stay in layers for straight stacks. Use nodes when the image, type, texture, and primitive need separate paths before they merge.',
-    action: 'The Export node should be the final readable target.',
+    id: 'docs-export-packages',
+    name: 'Export and packages',
+    desc: 'Choose the file by what must survive after the session: pixels, editable structure, image payloads, or font files.',
+    cue: 'Use when the project must travel.',
+    next: 'Export PNG for pixels, save documents for small work, package assets for handoff.',
+    action: { label: 'Project file guide', href: '#docs-project-files' },
+    secondary: { label: 'Fix export issues', href: '#docs-troubleshooting' },
   },
-];
+] as const;
 
-const WORKFLOW_CHOICES = [
-  {
-    name: 'Stay in layers',
-    desc: 'Best for quick covers, simple stacks, image plus type, one texture bed, and final print treatment.',
-    cues: [
-      'You can explain the cover from bottom to top',
-      'Reordering layers is enough',
-      'You want speed more than structure',
-    ],
-  },
-  {
-    name: 'Switch to nodes',
-    desc: 'Best for branches, alternate effect paths, merging a primitive over an image, repeat motifs, or reusable source chains.',
-    cues: [
-      'Two parts need different effects',
-      'A texture should feed several outputs',
-      'You want to see the composition graph',
-    ],
-  },
-];
+const DOCS_JUMP_LINKS = [
+  { label: 'Workflows', href: '#docs-workflow-guides' },
+  { label: 'Starters', href: '#docs-recipes' },
+  { label: 'Reference', href: '#docs-reference-start' },
+  { label: 'Node types', href: '#docs-node-catalog' },
+] as const;
 
 const RECIPE_STARTERS: Array<{
   starter: StarterDocument;
@@ -488,8 +486,175 @@ const PROJECT_FILE_GUIDE = [
   },
 ];
 
+const RESEARCH_MAP = [
+  {
+    name: 'Choose source material',
+    desc: 'Start by choosing what carries the piece: a photo, fill, procedural texture, repeated motif, primitive, or type.',
+    questions: ['What is the main source?', 'What should stay editable?', 'What texture sets the tone?'],
+  },
+  {
+    name: 'Choose layers or nodes',
+    desc: 'Use layers when the stack is simple. Use nodes when photo, type, texture, or primitive branches need different treatment before one output.',
+    questions: ['Is this bottom-to-top?', 'Do branches merge?', 'Does one source feed many outputs?'],
+  },
+  {
+    name: 'Pick a finish',
+    desc: 'Add print, color, signal, distortion, or light treatment after the composition already reads.',
+    questions: ['Does it need paper, damage, color, motion, or light?', 'Is one family enough?'],
+  },
+  {
+    name: 'Save or export safely',
+    desc: 'Choose what needs to survive after export: pixels only, editable structure, image payloads, font metadata, or distributable font files.',
+    questions: ['Will this be reopened?', 'Will it travel to another browser?', 'Are fonts licensed to package?'],
+  },
+];
+
+const HOW_IT_WORKS_FLOW = [
+  {
+    name: 'Document',
+    desc: 'One serializable Artifact document stores global settings, layers, optional graph data, and export settings.',
+    tags: ['local-first', 'undoable', 'portable'],
+  },
+  {
+    name: 'Layers',
+    desc: 'The fast path. Stack image, text, fill, emoji, noise, primitive, array, and effect layers directly.',
+    tags: ['quick covers', 'direct edits', 'linear stack'],
+  },
+  {
+    name: 'Nodes',
+    desc: 'The deeper path. Route sources, effects, merge nodes, repeaters, color passes, and output targets as a graph over the same document.',
+    tags: ['branches', 'merge', 'output target'],
+  },
+  {
+    name: 'Preview',
+    desc: 'Preview, node thumbnails, showcase tiles, and export use the same render path so the composition stays recognizable.',
+    tags: ['preview', 'thumbnail', 'export parity'],
+  },
+  {
+    name: 'Export',
+    desc: 'Raster export downloads pixels. Project saves and packages preserve editable structure, assets, and font metadata according to the chosen file type.',
+    tags: ['png', 'artifact package', 'font policy'],
+  },
+];
+
+const APPLICATION_GUIDE = [
+  {
+    name: 'Album cover',
+    desc: 'Image or fill base, readable title, one texture bed, one finishing family, export at the target aspect.',
+    start: 'Start with Photo Type Stack or Multi-Font Type Stack.',
+    type: 'layers',
+  },
+  {
+    name: 'Event poster',
+    desc: 'Large editable type, metadata labels, procedural texture, and print finish that survives resizing.',
+    start: 'Start with Texture Type Stack, then tune typography first.',
+    type: 'layers',
+  },
+  {
+    name: 'Texture study',
+    desc: 'Use noise, array, halftone, scanlines, grain, and color passes to build a material system before adding type.',
+    start: 'Start with Noise Poster Stack or a source node.',
+    type: 'source',
+  },
+  {
+    name: 'Node composition',
+    desc: 'Keep image, primitive, type, and texture as branches, then merge them into one output without flattening the idea too early.',
+    start: 'Start with Primitive Image Graph or Photo Type Graph.',
+    type: 'nodes',
+  },
+  {
+    name: 'Typography system',
+    desc: 'Mix built-in, local, or Google fonts while keeping text editable and exports raster-safe.',
+    start: 'Start with Multi-Font Type Stack.',
+    type: 'type',
+  },
+  {
+    name: 'Project handoff',
+    desc: 'Choose document save, package, or package-with-fonts based on what another browser needs to reopen safely.',
+    start: 'Use Project Files after the artwork works visually.',
+    type: 'export',
+  },
+];
+
+const DOC_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'research', label: 'Guides' },
+  { id: 'workflow', label: 'How it works' },
+  { id: 'application', label: 'Applications' },
+  { id: 'recipe', label: 'Recipes' },
+  { id: 'node', label: 'Nodes' },
+  { id: 'effect', label: 'Effects' },
+  { id: 'file', label: 'Files' },
+  { id: 'fix', label: 'Fixes' },
+] as const;
+
+const DOCS_START_POINTS = [
+  {
+    id: 'make-cover',
+    href: '#docs-start-with-layers',
+    title: 'Make a cover',
+    desc: 'Start with one image, one title, one texture pass, then export.',
+    action: 'Start here',
+  },
+  {
+    id: 'find-effect',
+    filter: 'effect',
+    title: 'Find an effect',
+    desc: 'Look up noise, grain, scanlines, color passes, print damage, and type treatments.',
+    action: 'Show effects',
+  },
+  {
+    id: 'fix-export',
+    query: 'export',
+    title: 'Fix or export',
+    desc: 'Find blank preview checks, project files, font packaging, and raster export notes.',
+    action: 'Search export',
+  },
+] as const;
+
+type DocFilter = (typeof DOC_FILTERS)[number]['id'];
+
+interface SearchItem {
+  id: string;
+  type: DocFilter;
+  title: string;
+  body: string;
+  href: string;
+  meta: string;
+}
+
+function nodeSearchType(node: NodeDef): DocFilter {
+  if (node.id in EFFECT_PRESETS) return 'effect';
+  return 'node';
+}
+
+function nodeTypeLabel(node: NodeDef): string {
+  if (node.id in EFFECT_PRESETS) return 'Effect node';
+  if (SOURCE_NODES.some((item) => item.id === node.id)) return 'Source node';
+  return 'Content node';
+}
+
+function itemMatches(item: SearchItem, query: string, filter: DocFilter) {
+  if (filter !== 'all' && item.type !== filter) return false;
+  if (!query) return true;
+  const haystack = `${item.title} ${item.body} ${item.meta} ${item.type}`.toLowerCase();
+  return haystack.includes(query);
+}
+
 function starterHref(starter: StarterDocument) {
   return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}`;
+}
+
+function DocsLink({ children, className, href }: { children: ReactNode; className?: string; href: string }) {
+  return href.startsWith('/') ? (
+    <Link to={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
 }
 
 function GuideSection({
@@ -618,10 +783,12 @@ function NodePoster({ node }: { node: NodeDef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, HTMLImageElement>());
   const [doc, setDoc] = useState<CanvasDocument>(node.doc);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const docRef = useRef(doc);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
+  const controlsId = `node-${node.id}-controls`;
 
   useLayoutEffect(() => {
     docRef.current = doc;
@@ -694,10 +861,20 @@ function NodePoster({ node }: { node: NodeDef }) {
     <article className="docs-poster" id={`node-${node.id}`}>
       <div className="docs-poster__canvas-wrap">
         <canvas ref={canvasRef} width={THUMB} height={THUMB} className="docs-poster__canvas" aria-hidden="true" />
-
-        {/* Hover Sandbox UI */}
         {node.params.length > 0 && (
-          <div className="docs-poster__sandbox">
+          <button
+            type="button"
+            className="docs-poster__tune"
+            aria-expanded={controlsOpen}
+            aria-controls={controlsId}
+            onClick={() => setControlsOpen((open) => !open)}
+          >
+            {controlsOpen ? 'Hide controls' : 'Tune preview'}
+          </button>
+        )}
+
+        {node.params.length > 0 && controlsOpen && (
+          <div className="docs-poster__sandbox" id={controlsId}>
             <div className="docs-poster__controls">
               {node.params.map((p) => {
                 const parsed = parseRange(p.range);
@@ -738,9 +915,9 @@ function NodePoster({ node }: { node: NodeDef }) {
                 );
               })}
             </div>
-            <a href={tryHref} className="docs-poster__try">
-              Open in generator →
-            </a>
+            <DocsLink href={tryHref} className="docs-poster__try">
+              Open in editor →
+            </DocsLink>
           </div>
         )}
       </div>
@@ -759,14 +936,123 @@ function NodePoster({ node }: { node: NodeDef }) {
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const meta: MetaFunction = () => [
-  { title: 'Docs | artifact' },
+  { title: 'Docs | Artifact' },
   {
     name: 'description',
-    content: 'Task-oriented Artifact docs for layers, nodes, recipes, effects, blends, troubleshooting, and export.',
+    content: 'Artifact docs for editor workflows, node types, applications, effects, files, and export.',
   },
 ];
 
 export default function DocsNodes() {
+  const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<DocFilter>('all');
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const searchItems = useMemo<SearchItem[]>(
+    () => [
+      ...RESEARCH_MAP.map((item) => ({
+        id: `research-${item.name}`,
+        type: 'research' as const,
+        title: item.name,
+        body: `${item.desc} ${item.questions.join(' ')}`,
+        href: '#docs-workflow-guides',
+        meta: 'Guide',
+      })),
+      ...HOW_IT_WORKS_FLOW.map((item) => ({
+        id: `workflow-${item.name}`,
+        type: 'workflow' as const,
+        title: item.name,
+        body: `${item.desc} ${item.tags.join(' ')}`,
+        href: '#docs-how-it-works',
+        meta: 'How it works',
+      })),
+      ...COMPACT_WORKFLOW_GUIDES.map((item) => ({
+        id: `workflow-guide-${item.id}`,
+        type: 'workflow' as const,
+        title: item.name,
+        body: `${item.desc} ${item.cue} ${item.next}`,
+        href: `#${item.id}`,
+        meta: 'Workflow guide',
+      })),
+      ...APPLICATION_GUIDE.map((item) => ({
+        id: `application-${item.name}`,
+        type: 'application' as const,
+        title: item.name,
+        body: `${item.desc} ${item.start} ${item.type}`,
+        href: '#docs-applications',
+        meta: `Application / ${item.type}`,
+      })),
+      ...RECIPE_STARTERS.map(({ starter, mode, desc, steps }) => ({
+        id: `recipe-${starter.id}`,
+        type: 'recipe' as const,
+        title: starter.name,
+        body: `${desc} ${steps.join(' ')}`,
+        href: starterHref(starter),
+        meta: mode,
+      })),
+      ...ALL_NODES.map((node) => ({
+        id: `node-${node.id}`,
+        type: nodeSearchType(node),
+        title: node.name,
+        body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
+        href: `#node-${node.id}`,
+        meta: nodeTypeLabel(node),
+      })),
+      ...PRACTICAL_BLEND_GUIDE.map((mode) => ({
+        id: `blend-${mode.name}`,
+        type: 'effect' as const,
+        title: mode.name,
+        body: mode.desc,
+        href: '#docs-blends',
+        meta: 'Blend mode',
+      })),
+      ...PROJECT_FILE_GUIDE.map((item) => ({
+        id: `file-${item.name}`,
+        type: 'file' as const,
+        title: item.name,
+        body: item.desc,
+        href: '#docs-project-files',
+        meta: 'Project file',
+      })),
+      ...TROUBLESHOOTING_GUIDE.map((item) => ({
+        id: `fix-${item.name}`,
+        type: 'fix' as const,
+        title: item.name,
+        body: item.desc,
+        href: '#docs-troubleshooting',
+        meta: 'Troubleshooting',
+      })),
+    ],
+    [],
+  );
+  const matchingItems = useMemo(
+    () => searchItems.filter((item) => itemMatches(item, normalizedQuery, activeFilter)),
+    [activeFilter, normalizedQuery, searchItems],
+  );
+  const hasActiveSearch = Boolean(normalizedQuery) || activeFilter !== 'all';
+  const resultLimit = hasActiveSearch ? 12 : 0;
+  const filteredItems = useMemo(() => matchingItems.slice(0, resultLimit), [matchingItems, resultLimit]);
+  const catalogFilter = activeFilter === 'node' || activeFilter === 'effect' ? activeFilter : 'all';
+  const catalogNodes = useMemo(
+    () =>
+      ALL_NODES.filter((node) =>
+        itemMatches(
+          {
+            id: `node-${node.id}`,
+            type: nodeSearchType(node),
+            title: node.name,
+            body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
+            href: `#node-${node.id}`,
+            meta: nodeTypeLabel(node),
+          },
+          normalizedQuery,
+          catalogFilter,
+        ),
+      ),
+    [catalogFilter, normalizedQuery],
+  );
+  const visibleCatalogNodes = normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;
+
   return (
     <div className="docs-page">
       <SiteNav solid />
@@ -774,51 +1060,169 @@ export default function DocsNodes() {
       <main className="docs-feed">
         <section className="docs-intro" aria-labelledby="docs-title">
           <h1 id="docs-title" className="docs-intro__headline">
-            Make A Cover
+            Artifact Docs.
           </h1>
           <p className="docs-intro__deck">
-            Start from a workflow, not from a parameter list. Use this page when the empty canvas feels too open, when
-            layers and nodes blur together, or when an export does not match what you expected.
+            Learn the editor, choose layers or nodes, find effects, open recipes, and export covers, posters, textures,
+            and type studies with confidence.
           </p>
-          <div className="docs-intro__actions" aria-label="Primary docs actions">
-            <a href="#docs-first-cover" className="docs-action docs-action--primary">
-              First cover path
-            </a>
-            <a href="#docs-recipes" className="docs-action">
-              Recipe starters
-            </a>
-            <a href="#docs-troubleshooting" className="docs-action">
-              Troubleshooting
-            </a>
-          </div>
         </section>
 
-        <GuideSection id="docs-first-cover" eyebrow="First Cover" title="A direct path from blank to export.">
-          <div className="docs-step-list">
-            {FIRST_COVER_STEPS.map((item) => (
-              <article key={item.step} className="docs-step">
-                <span className="docs-step__num">{item.step}</span>
-                <div className="docs-step__copy">
-                  <h3>{item.name}</h3>
-                  <p>{item.desc}</p>
-                  <span>{item.action}</span>
+        <section id="docs-search" className="docs-search-panel" aria-labelledby="docs-search-title">
+          <div className="docs-search-panel__header">
+            <div>
+              <span className="docs-guide-section__eyebrow">Docs</span>
+              <h2 id="docs-search-title">Find an answer or start here.</h2>
+            </div>
+            <span className="docs-search-count">
+              {hasActiveSearch
+                ? `${matchingItems.length} matches${matchingItems.length > filteredItems.length ? `, showing ${filteredItems.length}` : ''}`
+                : '3 start points'}
+            </span>
+          </div>
+          <label className="docs-search-box">
+            <span className="sr-only">Search docs</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search effects, export, fonts, nodes..."
+            />
+          </label>
+          <details className="docs-filter-details">
+            <summary>
+              <span>Filter results by type</span>
+              <span className="docs-filter-details__mark" aria-hidden="true">
+                +
+              </span>
+            </summary>
+            <div className="docs-type-filter" aria-label="Filter docs by type">
+              {DOC_FILTERS.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.id}
+                  className={`docs-type-filter__item${activeFilter === filter.id ? ' docs-type-filter__item--active' : ''}`}
+                  onClick={() => setActiveFilter(filter.id)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </details>
+          {hasActiveSearch ? (
+            <div className="docs-search-results" aria-live="polite">
+              {filteredItems.length > 0 ? (
+                filteredItems.map((item) => (
+                  <DocsLink key={item.id} href={item.href} className="docs-search-result">
+                    <span className="docs-search-result__meta">{item.meta}</span>
+                    <strong>{item.title}</strong>
+                    <span>{item.body}</span>
+                  </DocsLink>
+                ))
+              ) : (
+                <p className="docs-search-empty">No matches. Try `type`, `export`, `noise`, `font`, or `nodes`.</p>
+              )}
+            </div>
+          ) : (
+            <div className="docs-start-points" aria-label="Start with">
+              {DOCS_START_POINTS.map((point) =>
+                'href' in point ? (
+                  <DocsLink key={point.id} href={point.href} className="docs-start-point">
+                    <span className="docs-start-point__action">{point.action}</span>
+                    <strong>{point.title}</strong>
+                    <span>{point.desc}</span>
+                  </DocsLink>
+                ) : (
+                  <button
+                    key={point.id}
+                    type="button"
+                    className="docs-start-point"
+                    onClick={() => {
+                      setActiveFilter('filter' in point ? point.filter : 'all');
+                      setQuery('query' in point ? point.query : '');
+                    }}
+                  >
+                    <span className="docs-start-point__action">{point.action}</span>
+                    <strong>{point.title}</strong>
+                    <span>{point.desc}</span>
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+          {hasActiveSearch && (
+            <button
+              type="button"
+              className="docs-search-reset"
+              onClick={() => {
+                setActiveFilter('all');
+                setQuery('');
+              }}
+            >
+              Clear search
+            </button>
+          )}
+        </section>
+
+        <nav className="docs-jump-row" aria-label="Docs sections">
+          {DOCS_JUMP_LINKS.map((link) => (
+            <a key={link.href} href={link.href}>
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <GuideSection id="docs-workflow-guides" eyebrow="Start Here" title="Four paths.">
+          <div className="docs-workflow-guide-grid">
+            {COMPACT_WORKFLOW_GUIDES.map((guide, index) => (
+              <article key={guide.id} id={guide.id} className="docs-workflow-guide">
+                <span className="docs-workflow-guide__num">{String(index + 1).padStart(2, '0')}</span>
+                <h3>{guide.name}</h3>
+                <p>{guide.desc}</p>
+                <div className="docs-workflow-guide__next">
+                  <span>{guide.cue}</span>
+                  <strong>{guide.next}</strong>
+                </div>
+                <div className="docs-workflow-guide__links">
+                  <DocsLink href={guide.action.href}>{guide.action.label}</DocsLink>
+                  <DocsLink href={guide.secondary.href} className="docs-workflow-guide__secondary">
+                    {guide.secondary.label}
+                  </DocsLink>
                 </div>
               </article>
             ))}
           </div>
         </GuideSection>
 
-        <GuideSection eyebrow="Layers Or Nodes" title="Choose the editor by the shape of the job.">
-          <div className="docs-choice-grid">
-            {WORKFLOW_CHOICES.map((choice) => (
-              <article key={choice.name} className="docs-choice">
-                <h3>{choice.name}</h3>
-                <p>{choice.desc}</p>
-                <ul>
-                  {choice.cues.map((cue) => (
-                    <li key={cue}>{cue}</li>
+        <GuideSection id="docs-how-it-works" eyebrow="How It Works" title="One document, two ways to build.">
+          <div className="docs-flow-map">
+            {HOW_IT_WORKS_FLOW.map((item, index) => (
+              <article key={item.name} className="docs-flow-step">
+                <span className="docs-flow-step__num">{String(index + 1).padStart(2, '0')}</span>
+                <h3>{item.name}</h3>
+                <p>{item.desc}</p>
+                <div className="docs-flow-step__tags">
+                  {item.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
                   ))}
-                </ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </GuideSection>
+
+        <GuideSection
+          id="docs-applications"
+          eyebrow="Applications"
+          title="Start from the job, then choose layers or nodes."
+        >
+          <div className="docs-application-grid">
+            {APPLICATION_GUIDE.map((item) => (
+              <article key={item.name} className="docs-application">
+                <span className="docs-recipe__mode">{item.type}</span>
+                <h3>{item.name}</h3>
+                <p>{item.desc}</p>
+                <span>{item.start}</span>
               </article>
             ))}
           </div>
@@ -834,15 +1238,20 @@ export default function DocsNodes() {
                   <p>{desc}</p>
                   <div className="docs-recipe__steps">{steps.join(' / ')}</div>
                 </div>
-                <a href={starterHref(starter)} className="docs-recipe__link">
+                <DocsLink href={starterHref(starter)} className="docs-recipe__link">
                   Try this
-                </a>
+                </DocsLink>
               </article>
             ))}
           </div>
         </GuideSection>
 
-        <GuideSection eyebrow="Blend Modes" title="Think in cover-making jobs, not math.">
+        <section id="docs-reference-start" className="docs-reference-break" aria-labelledby="docs-reference-title">
+          <span className="docs-guide-section__eyebrow">Reference</span>
+          <h2 id="docs-reference-title">Use these when you need a specific answer.</h2>
+        </section>
+
+        <GuideSection id="docs-blends" eyebrow="Blend Modes" title="Think in cover-making jobs, not math.">
           <div className="docs-reference-grid">
             {PRACTICAL_BLEND_GUIDE.map((mode) => (
               <article key={mode.name} className="docs-reference-item">
@@ -892,7 +1301,7 @@ export default function DocsNodes() {
           </div>
         </GuideSection>
 
-        <GuideSection eyebrow="Project Files" title="Choose the file by what needs to survive.">
+        <GuideSection id="docs-project-files" eyebrow="Project Files" title="Choose the file by what needs to survive.">
           <div className="docs-reference-grid">
             {PROJECT_FILE_GUIDE.map((item) => (
               <article key={item.name} className="docs-reference-item">
@@ -918,13 +1327,21 @@ export default function DocsNodes() {
           </div>
         </GuideSection>
 
-        <GuideSection eyebrow="Node Catalog" title="Live previews for every content, source, and effect node.">
+        <GuideSection
+          id="docs-node-catalog"
+          eyebrow="Node Types"
+          title="Live previews for content, source, and effect types."
+        >
           <p className="docs-catalog-note">
-            Hover or focus a poster to reveal controls. Open a poster in the generator when a visual starts to feel
-            usable.
+            Search above to narrow the list. Use preview controls to tune a node, or open a poster in the editor when a
+            visual starts to feel usable.
           </p>
+          <div className="docs-catalog-actions" aria-label="Node catalog actions">
+            <a href="#docs-search">Search node types</a>
+            <span>Tune preview controls appear on each poster.</span>
+          </div>
           <div className="docs-node-feed">
-            {ALL_NODES.map((node) => (
+            {visibleCatalogNodes.map((node) => (
               <NodePoster key={node.id} node={node} />
             ))}
           </div>
