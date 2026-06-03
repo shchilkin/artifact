@@ -18,6 +18,7 @@ Artifact work. Do not treat every globally installed skill as project-relevant.
 | `vercel:shadcn` | shadcn/Radix primitive installation, composition, and source-owned UI primitive guidance. |
 | `vercel-composition-patterns` | Shared component extraction, component APIs, slot/composition decisions, and avoiding boolean-mode components. |
 | `vercel:react-best-practices` | React quality review after substantial TSX changes, hooks/state structure, and performance-sensitive component edits. |
+| `artifact-release` | Project-local skill for release prep, version bumps, tags, and GitHub Releases. Must enforce `docs/release-template.md` before publishing. |
 
 ### Should use when relevant
 
@@ -57,4 +58,3 @@ Use `-g` only for global installs:
 ```bash
 npx skills add owner/repo@skill-name -g -y
 ```
-

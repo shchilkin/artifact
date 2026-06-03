@@ -30,6 +30,9 @@ primitive controls, read the current docs:
   coverage scope, acceptance criteria, validation, and QA.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known
   risks, and feature intake split.
+- `docs/release-template.md` — mandatory release notes template and release
+  checklist. All releases must use this template before tag or GitHub Release
+  publication.
 - `docs/agent-skills.md` — preferred Codex skill profile for this project,
   including design, React Router, React Flow, browser QA, GitHub, and security
   skill usage.
@@ -54,6 +57,9 @@ skills. In short:
   React review.
 - Use GitHub and Codex Security skills when PR publishing, CI, review comments,
   or security scans are in scope.
+- Use the project-local `artifact-release` skill for release prep, version
+  bumps, tags, and GitHub Releases. Do not tag or publish a release unless
+  `docs/releases/vX.Y.Z.md` has been filled from `docs/release-template.md`.
 
 Do not use `frontend-design` as a default Artifact skill. Its installed copy
 appears Anthropic-origin and overlaps with `impeccable`; prefer `impeccable`

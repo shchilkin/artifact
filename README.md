@@ -213,7 +213,9 @@ npm run check      # format check + lint + web/API typecheck + web/API tests
 Agent workflow guidance lives in [`AGENTS.md`](AGENTS.md). The project-specific
 Codex skill profile lives in [`docs/agent-skills.md`](docs/agent-skills.md);
 global skills are available, but agents should prefer that curated set for
-Artifact work.
+Artifact work. Release prep is template-gated: use
+[`docs/release-template.md`](docs/release-template.md) for every release before
+creating tags or GitHub Releases.
 
 Deploys to Vercel from the repo root via the `@artifact/web` workspace:
 `react-router build` → `apps/web/build/client/`.
@@ -245,6 +247,7 @@ ignored.
 | [`docs/version-plans/v0.16.md`](docs/version-plans/v0.16.md) | v0.16 editor workflow polish, debug hygiene, and visual-system consolidation plan |
 | [`docs/version-plans/v0.17.md`](docs/version-plans/v0.17.md) | v0.17 creative controls, shared Add Library, and renderer-backed menu previews plan |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
+| [`docs/release-template.md`](docs/release-template.md) | Mandatory release notes template and release checklist |
 
 ## Project structure
 

@@ -14,6 +14,10 @@ npm run build
 npm run test:browser
 ```
 
+Release notes are template-gated. Before committing a release, copy
+`docs/release-template.md` to `docs/releases/vX.Y.Z.md` and fill every required
+section. Do not create a tag or GitHub Release from free-form notes.
+
 CI should run:
 
 - `npm run check`
