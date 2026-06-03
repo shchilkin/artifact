@@ -19,6 +19,7 @@ import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath }
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode } from '../PrimitiveViewportState';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
@@ -104,8 +105,6 @@ export function NodeCanvas({
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const canvasSurfaceRef = useRef<HTMLDivElement>(null);
   const addNodeButtonRef = useRef<HTMLButtonElement>(null);
-  const galleryModalRef = useRef<HTMLDivElement>(null);
-  const galleryCloseButtonRef = useRef<HTMLButtonElement>(null);
   const galleryReturnFocusRef = useRef<HTMLElement | null>(null);
   const [addLibraryHoverEdgeId, setAddLibraryHoverEdgeId] = useState<string | null>(null);
 
@@ -152,8 +151,6 @@ export function NodeCanvas({
     galleryDisplayDoc,
     galleryPrimitiveViewState,
     galleryMediaViewState,
-    galleryTitleId,
-    galleryDescriptionId,
     galleryHint,
   } = useNodeGallery({
     send,
@@ -161,8 +158,6 @@ export function NodeCanvas({
     graph,
     primitiveViewStates,
     galleryNodeId,
-    galleryModalRef,
-    galleryCloseButtonRef,
     galleryReturnFocusRef,
   });
 
@@ -284,8 +279,6 @@ export function NodeCanvas({
       rfInstanceRef,
       addNodeButtonRef,
       canvasSurfaceRef,
-      contextMenuRef,
-      contextMenu,
       selectedEdgeId,
       selectedNodeIds,
       graphRef,
@@ -613,72 +606,63 @@ export function NodeCanvas({
                 document.body,
               );
             })()}
-          {galleryDisplayLayer &&
-            typeof document !== 'undefined' &&
-            createPortal(
-              <div className="node-gallery-backdrop" onClick={closeGallery}>
-                <div
-                  className="node-gallery-modal"
-                  ref={galleryModalRef}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby={galleryTitleId}
-                  aria-describedby={galleryDescriptionId}
-                  tabIndex={-1}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className="node-gallery-close"
-                    ref={galleryCloseButtonRef}
-                    onClick={closeGallery}
-                    aria-label="Close gallery"
-                  >
-                    ×
-                  </button>
-                  <div className="node-gallery-header">
-                    <div className="node-gallery-heading">
-                      <span id={galleryTitleId} className="node-gallery-title">
-                        {galleryDisplayLayer.name}
-                      </span>
-                      <span id={galleryDescriptionId} className="node-gallery-subtitle">
-                        {galleryDisplayLayer.kind === 'primitive'
-                          ? 'Interactive primitive viewport'
-                          : `${galleryDisplayLayer.kind} preview`}
-                      </span>
-                      <span className="node-gallery-hint">{galleryHint}</span>
-                    </div>
-                  </div>
-
-                  <div className="node-gallery-surface">
-                    <div className="node-gallery-viewport">
-                      {galleryDisplayLayer.kind === 'primitive' && galleryPrimitiveViewState ? (
-                        <PrimitiveViewport3D
-                          layer={galleryDisplayLayer}
-                          mode="modal"
-                          renderMode={primitiveRenderModes[galleryDisplayLayer.id] ?? 'shaded'}
-                          viewState={galleryPrimitiveViewState}
-                          onViewStateChange={(next) => updatePrimitiveView(galleryDisplayLayer.id, next)}
-                          className="node-primitive-preview"
-                        />
-                      ) : galleryDisplayDoc ? (
-                        <NodeGalleryCanvas
-                          doc={galleryDisplayDoc}
-                          graph={graph}
-                          imageCache={imageCache}
-                          previewTargetId={galleryDisplayLayer.id}
-                          layer={galleryDisplayLayer}
-                          viewState={galleryMediaViewState}
-                          onViewStateChange={(next) => updateMediaView(galleryDisplayLayer.id, next)}
-                          onLayerUpdate={(patch) => onUpdateLayer(galleryDisplayLayer.id, patch as Partial<Layer>)}
-                        />
-                      ) : null}
-                    </div>
+          {galleryDisplayLayer && typeof document !== 'undefined' && (
+            <Dialog
+              open
+              onOpenChange={(open) => {
+                if (!open) closeGallery();
+              }}
+            >
+              <DialogContent
+                className="node-gallery-modal"
+                onCloseAutoFocus={(event) => {
+                  event.preventDefault();
+                  galleryReturnFocusRef.current?.focus();
+                }}
+              >
+                <DialogClose className="node-gallery-close" aria-label="Close gallery">
+                  x
+                </DialogClose>
+                <div className="node-gallery-header">
+                  <div className="node-gallery-heading">
+                    <DialogTitle className="node-gallery-title">{galleryDisplayLayer.name}</DialogTitle>
+                    <DialogDescription className="node-gallery-subtitle">
+                      {galleryDisplayLayer.kind === 'primitive'
+                        ? 'Interactive primitive viewport'
+                        : `${galleryDisplayLayer.kind} preview`}
+                    </DialogDescription>
+                    <span className="node-gallery-hint">{galleryHint}</span>
                   </div>
                 </div>
-              </div>,
-              document.body,
-            )}
+
+                <div className="node-gallery-surface">
+                  <div className="node-gallery-viewport">
+                    {galleryDisplayLayer.kind === 'primitive' && galleryPrimitiveViewState ? (
+                      <PrimitiveViewport3D
+                        layer={galleryDisplayLayer}
+                        mode="modal"
+                        renderMode={primitiveRenderModes[galleryDisplayLayer.id] ?? 'shaded'}
+                        viewState={galleryPrimitiveViewState}
+                        onViewStateChange={(next) => updatePrimitiveView(galleryDisplayLayer.id, next)}
+                        className="node-primitive-preview"
+                      />
+                    ) : galleryDisplayDoc ? (
+                      <NodeGalleryCanvas
+                        doc={galleryDisplayDoc}
+                        graph={graph}
+                        imageCache={imageCache}
+                        previewTargetId={galleryDisplayLayer.id}
+                        layer={galleryDisplayLayer}
+                        viewState={galleryMediaViewState}
+                        onViewStateChange={(next) => updateMediaView(galleryDisplayLayer.id, next)}
+                        onLayerUpdate={(patch) => onUpdateLayer(galleryDisplayLayer.id, patch as Partial<Layer>)}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </NodeCanvasActionsContext.Provider>
     </NodeCanvasPreviewContext.Provider>

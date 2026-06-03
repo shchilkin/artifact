@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EFFECT_META, getEffectFamilyMeta, renderEffectThumb } from '../utils/effectInfo';
+import { FloatingMenu } from './ui/floating-menu';
 
 const POPUP_WIDTH = 220;
 const POPUP_GAP = 12;
@@ -13,15 +14,7 @@ interface Props {
 }
 
 export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEnter, onMouseLeave }: Props) {
-  const [visible, setVisible] = useState(false);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-
-  // Trigger enter animation after mount (one rAF gives the browser a chance to
-  // paint the initial opacity:0 state before the transition fires)
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   // Load thumbnail lazily; cancel if the popup unmounts before render finishes
   useEffect(() => {
@@ -43,9 +36,11 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
   const top = Math.max(8, Math.min(anchorRect.top - 8, window.innerHeight - 290));
 
   return (
-    <div
-      className={`effect-popup${visible ? ' effect-popup--visible' : ''}`}
-      style={{ left, top, width: POPUP_WIDTH }}
+    <FloatingMenu
+      x={left}
+      y={top}
+      className="effect-popup effect-popup--visible"
+      style={{ width: POPUP_WIDTH }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       role="tooltip"
@@ -74,6 +69,6 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
         )}
         <span className="effect-popup__value">{meta.valueLabel}</span>
       </div>
-    </div>
+    </FloatingMenu>
   );
 }

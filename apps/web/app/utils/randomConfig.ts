@@ -14,11 +14,16 @@ import {
   EFFECT_PRESET_MENU_ORDER,
   makeEffectPresetLayer,
   makeEmojiLayer,
+  makeFillLayer,
+  makeImageLayer,
+  makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 
-function rand(min: number, max: number): number {
-  return Math.round(min + Math.random() * (max - min));
+type Rng = () => number;
+
+function rand(min: number, max: number, rng: Rng = Math.random): number {
+  return Math.round(min + rng() * (max - min));
 }
 
 function hslToHex(h: number, s: number, l: number): string {
@@ -35,20 +40,33 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-function randomHsl(hue: number, satRange: [number, number], litRange: [number, number]): string {
-  return hslToHex(hue, rand(...satRange), rand(...litRange));
+function randomHsl(
+  hue: number,
+  satRange: [number, number],
+  litRange: [number, number],
+  rng: Rng = Math.random,
+): string {
+  return hslToHex(hue, rand(satRange[0], satRange[1], rng), rand(litRange[0], litRange[1], rng));
 }
 
-function spark(): boolean {
-  return Math.random() < 0.4;
+function spark(rng: Rng = Math.random): boolean {
+  return rng() < 0.4;
 }
 
-function pick<T>(items: readonly T[]): T {
-  return items[rand(0, items.length - 1)];
+function pick<T>(items: readonly T[], rng: Rng = Math.random): T {
+  return items[rand(0, items.length - 1, rng)];
 }
 
-function randPercent(min: number, max: number): number {
-  return rand(min * 100, max * 100) / 100;
+function randPercent(min: number, max: number, rng: Rng = Math.random): number {
+  return rand(min * 100, max * 100, rng) / 100;
+}
+
+function lcg(seed: number): Rng {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
 }
 
 const TEXT_RANDOM_ROLES = ['poster', 'title', 'subtitle', 'label', 'credit'] as const;
@@ -143,22 +161,22 @@ const TEXT_ROLE_CONFIGS: Record<TextRandomRole, TextRandomRoleConfig> = {
   },
 };
 
-export function randomGlobal(baseHue?: number): Omit<GlobalConfig, 'aspect'> {
-  const h = baseHue ?? rand(0, 359);
+export function randomGlobal(baseHue?: number, rng: Rng = Math.random): Omit<GlobalConfig, 'aspect'> {
+  const h = baseHue ?? rand(0, 359, rng);
   return {
-    bg: randomHsl(h, [20, 55], [3, 14]),
-    seed: Math.floor(Math.random() * 999999),
+    bg: randomHsl(h, [20, 55], [3, 14], rng),
+    seed: Math.floor(rng() * 999999),
   };
 }
 
-export function randomEmojiLayer(): EmojiLayer {
-  const pool = [...ALL_EMOJIS].sort(() => Math.random() - 0.5);
-  const minSz = rand(10, 50);
+export function randomEmojiLayer(rng: Rng = Math.random): EmojiLayer {
+  const pool = [...ALL_EMOJIS].sort(() => rng() - 0.5);
+  const minSz = rand(10, 50, rng);
   return makeEmojiLayer({
-    emojis: pool.slice(0, rand(2, 6)),
-    density: rand(15, 70),
+    emojis: pool.slice(0, rand(2, 6, rng)),
+    density: rand(15, 70, rng),
     minSz,
-    maxSz: rand(Math.max(minSz + 10, 40), 130),
+    maxSz: rand(Math.max(minSz + 10, 40), 130, rng),
     blur: 0,
   });
 }
@@ -179,41 +197,266 @@ function inferTextRandomRole(layer?: TextLayer): TextRandomRole {
   return pick(TEXT_RANDOM_ROLES);
 }
 
-function randomTextPatch(role: TextRandomRole, baseHue: number, layer?: TextLayer): Partial<TextLayer> {
+function randomTextPatch(
+  role: TextRandomRole,
+  baseHue: number,
+  layer?: TextLayer,
+  rng: Rng = Math.random,
+): Partial<TextLayer> {
   const config = TEXT_ROLE_CONFIGS[role];
-  const accentHue = (baseHue + rand(130, 230)) % 360;
+  const accentHue = (baseHue + rand(130, 230, rng)) % 360;
   const isSmallText = role === 'subtitle' || role === 'label' || role === 'credit';
   const color = isSmallText
-    ? randomHsl(accentHue, [45, 95], [58, 88])
-    : Math.random() < 0.72
-      ? randomHsl(accentHue, [8, 32], [76, 96])
-      : randomHsl(accentHue, [60, 100], [58, 82]);
+    ? randomHsl(accentHue, [45, 95], [58, 88], rng)
+    : rng() < 0.72
+      ? randomHsl(accentHue, [8, 32], [76, 96], rng)
+      : randomHsl(accentHue, [60, 100], [58, 82], rng);
 
   return {
     name: layer?.name || config.name,
     content: layer?.content?.trim() ? layer.content : config.content,
-    font: pick(config.fonts),
-    size: rand(...config.size),
+    font: pick(config.fonts, rng),
+    size: rand(config.size[0], config.size[1], rng),
     color,
-    opacity: rand(...config.opacity),
-    rotation: rand(...config.rotation),
-    align: pick(config.align),
-    blendMode: pick(config.blendMode),
-    x: randPercent(...config.x),
-    y: randPercent(...config.y),
-    scaleX: randPercent(...config.scaleX),
-    scaleY: randPercent(...config.scaleY),
+    opacity: rand(config.opacity[0], config.opacity[1], rng),
+    rotation: rand(config.rotation[0], config.rotation[1], rng),
+    align: pick(config.align, rng),
+    blendMode: pick(config.blendMode, rng),
+    x: randPercent(config.x[0], config.x[1], rng),
+    y: randPercent(config.y[0], config.y[1], rng),
+    scaleX: randPercent(config.scaleX[0], config.scaleX[1], rng),
+    scaleY: randPercent(config.scaleY[0], config.scaleY[1], rng),
   };
 }
 
-export function randomTextLayer(baseHue?: number, role?: TextRandomRole): TextLayer {
-  const baseHueValue = baseHue ?? rand(0, 359);
-  const textRole = role ?? pick(TEXT_RANDOM_ROLES);
-  return makeTextLayer(randomTextPatch(textRole, baseHueValue));
+export function randomTextLayer(baseHue?: number, role?: TextRandomRole, rng: Rng = Math.random): TextLayer {
+  const baseHueValue = baseHue ?? rand(0, 359, rng);
+  const textRole = role ?? pick(TEXT_RANDOM_ROLES, rng);
+  return makeTextLayer(randomTextPatch(textRole, baseHueValue, undefined, rng));
 }
 
 const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
 const ALL_ASPECTS: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9'];
+const SAMPLE_IMAGE_SRC = '/girl_image_landing.png';
+
+export const RANDOM_FORMULA_IDS = ['imagePoster', 'typePoster', 'texturePlate', 'printDamage'] as const;
+export type RandomFormulaId = (typeof RANDOM_FORMULA_IDS)[number];
+
+const POSTER_TITLES = [
+  'AFTER\nIMAGE',
+  'TYPE\nMIX',
+  'STATIC\nFIELD',
+  'NOISE\nPOSTER',
+  'SOURCE\nFIRST',
+  'PRINT\nDAMAGE',
+  'LOW\nLIGHT',
+  'SIGNAL\nROOM',
+] as const;
+
+const SUBTITLE_LINES = [
+  'ALPHA / PRINT / SOURCE',
+  'LOCAL PROJECT / RASTER EXPORT',
+  'FIELD NOTES / VERSION TWO',
+  'ARCHIVE / TYPE / DAMAGE',
+  'OPEN / CHANGE / EXPORT',
+  'SOURCE MATERIAL STUDY',
+] as const;
+
+const LABEL_LINES = ['V0.29', 'CAT-420', 'FRIDAY 23:00', 'NO. 014', 'ARTIFACT PRESS', 'LOCAL FIRST'] as const;
+
+function formulaFx(preset: EffectPreset, name: string, value: number, partial: Partial<EffectLayer> = {}): EffectLayer {
+  return {
+    ...makeEffectPresetLayer(preset, { value }),
+    name,
+    ...partial,
+  };
+}
+
+function formulaText(rng: Rng, baseHue: number, role: TextRandomRole, partial: Partial<TextLayer> = {}): TextLayer {
+  return makeTextLayer({
+    ...randomTextPatch(role, baseHue, undefined, rng),
+    ...partial,
+  });
+}
+
+function randomPlateColor(baseHue: number, rng: Rng): string {
+  return randomHsl(baseHue, [22, 54], [4, 12], rng);
+}
+
+function buildImagePosterFormula(rng: Rng, baseHue: number): CanvasDocument['layers'] {
+  const accentHue = (baseHue + rand(135, 220, rng)) % 360;
+  return [
+    makeFillLayer({ name: 'ink plate', color: randomPlateColor(baseHue, rng) }),
+    makeImageLayer(SAMPLE_IMAGE_SRC, {
+      name: 'source photo',
+      opacity: rand(58, 88, rng),
+      scaleX: randPercent(1, 1.16, rng),
+      scaleY: randPercent(1, 1.16, rng),
+      rotation: rand(-4, 4, rng),
+    }),
+    formulaFx('duotone', 'photo wash', rand(22, 58, rng), {
+      duoA: randomHsl(baseHue, [24, 48], [3, 10], rng),
+      duoB: randomHsl(accentHue, [42, 82], [55, 82], rng),
+    }),
+    formulaText(rng, baseHue, 'poster', {
+      content: pick(POSTER_TITLES, rng),
+      y: randPercent(0.36, 0.52, rng),
+      color: randomHsl(accentHue, [8, 28], [82, 96], rng),
+    }),
+    formulaText(rng, baseHue, 'subtitle', {
+      content: pick(SUBTITLE_LINES, rng),
+      y: randPercent(0.64, 0.78, rng),
+    }),
+    formulaFx('risoShift', 'registration slip', rand(8, 18, rng), { risoAngle: rand(0, 360, rng) }),
+    formulaFx('grain', 'print grain', rand(16, 32, rng)),
+  ];
+}
+
+function buildTypePosterFormula(rng: Rng, baseHue: number): CanvasDocument['layers'] {
+  const accentHue = (baseHue + rand(120, 240, rng)) % 360;
+  return [
+    makeFillLayer({ name: 'flat plate', color: randomPlateColor(baseHue, rng) }),
+    makeSourceLayer('noise', {
+      name: 'paper field',
+      noiseType: pick(['paper', 'clouds', 'static'], rng),
+      noiseScale: rand(18, 44, rng),
+      noiseDetail: rand(3, 7, rng),
+      noiseContrast: rand(46, 70, rng),
+      noiseBalance: rand(36, 55, rng),
+      color: randomHsl(baseHue, [24, 52], [8, 18], rng),
+      accentColor: randomHsl(accentHue, [50, 86], [48, 76], rng),
+      opacity: rand(18, 44, rng),
+      blendMode: pick(['screen', 'overlay'], rng),
+    }),
+    formulaText(rng, baseHue, 'poster', {
+      content: pick(POSTER_TITLES, rng),
+      y: randPercent(0.38, 0.56, rng),
+      scaleX: randPercent(0.82, 1.12, rng),
+      scaleY: randPercent(0.72, 0.96, rng),
+      color: randomHsl(accentHue, [8, 28], [82, 96], rng),
+      blendMode: pick(['normal', 'screen'], rng),
+      opacity: rand(88, 100, rng),
+    }),
+    formulaText(rng, baseHue, 'label', {
+      content: pick(LABEL_LINES, rng),
+      x: randPercent(0.14, 0.28, rng),
+      y: randPercent(0.12, 0.26, rng),
+    }),
+    formulaText(rng, baseHue, 'credit', {
+      content: pick(SUBTITLE_LINES, rng),
+      y: randPercent(0.78, 0.9, rng),
+    }),
+    formulaFx('scanlines', 'print bands', rand(6, 18, rng), { scanlineWidth: rand(1, 3, rng) }),
+    formulaFx('grain', 'paper tooth', rand(12, 28, rng)),
+  ];
+}
+
+function buildTexturePlateFormula(rng: Rng, baseHue: number): CanvasDocument['layers'] {
+  const accentHue = (baseHue + rand(100, 230, rng)) % 360;
+  const surfacePreset = pick(['dither', 'halftone', 'scanlines'] as const, rng);
+  const surfaceValue =
+    surfacePreset === 'scanlines'
+      ? rand(6, 18, rng)
+      : surfacePreset === 'halftone'
+        ? rand(6, 16, rng)
+        : rand(18, 38, rng);
+  return [
+    makeFillLayer({ name: 'base plate', color: randomPlateColor(baseHue, rng) }),
+    makeSourceLayer('noise', {
+      name: 'source texture',
+      noiseType: pick(['cells', 'clouds', 'paper', 'static'], rng),
+      noiseScale: rand(12, 56, rng),
+      noiseDetail: rand(4, 8, rng),
+      noiseContrast: rand(58, 82, rng),
+      noiseBalance: rand(34, 58, rng),
+      noiseWarp: rand(10, 34, rng),
+      noiseTurbulence: rand(8, 34, rng),
+      color: randomHsl(baseHue, [28, 60], [5, 18], rng),
+      accentColor: randomHsl(accentHue, [58, 96], [45, 78], rng),
+      opacity: rand(74, 96, rng),
+      blendMode: 'screen',
+    }),
+    formulaFx('gradientOverlay', 'tone map', rand(24, 52, rng), {
+      gradA: randomHsl(baseHue, [30, 60], [4, 14], rng),
+      gradB: randomHsl(accentHue, [55, 92], [52, 78], rng),
+      gradAngle: rand(0, 360, rng),
+    }),
+    formulaFx(surfacePreset, 'print surface', surfaceValue),
+    formulaFx('grain', 'finish grain', rand(14, 30, rng)),
+  ];
+}
+
+function buildPrintDamageFormula(rng: Rng, baseHue: number): CanvasDocument['layers'] {
+  const accentHue = (baseHue + rand(135, 230, rng)) % 360;
+  return [
+    makeFillLayer({ name: 'aged plate', color: randomPlateColor(baseHue, rng) }),
+    rng() < 0.56
+      ? makeImageLayer(SAMPLE_IMAGE_SRC, {
+          name: 'damaged photo',
+          opacity: rand(28, 58, rng),
+          blendMode: pick(['normal', 'screen', 'overlay'], rng),
+          scaleX: randPercent(1.02, 1.2, rng),
+          scaleY: randPercent(1.02, 1.2, rng),
+        })
+      : makeEmojiLayer({
+          name: 'source debris',
+          emojis: ['✦', '●', '■', '◆', '▦'],
+          density: rand(18, 40, rng),
+          minSz: rand(12, 28, rng),
+          maxSz: rand(42, 82, rng),
+          blur: rand(20, 54, rng),
+          opacity: rand(44, 78, rng),
+        }),
+    formulaText(rng, baseHue, 'title', {
+      content: pick(POSTER_TITLES, rng),
+      color: randomHsl(accentHue, [8, 28], [78, 95], rng),
+      y: randPercent(0.42, 0.6, rng),
+    }),
+    formulaFx('halftone', 'screen dots', rand(7, 18, rng)),
+    formulaFx('scanlines', 'press bands', rand(8, 22, rng), { scanlineWidth: rand(1, 3, rng) }),
+    formulaFx('risoShift', 'loose registration', rand(8, 18, rng), { risoAngle: rand(0, 360, rng) }),
+    formulaFx('grain', 'dust pass', rand(18, 36, rng)),
+    formulaFx('vignette', 'edge pressure', rand(22, 58, rng)),
+  ];
+}
+
+function buildFormulaLayers(formula: RandomFormulaId, rng: Rng, baseHue: number): CanvasDocument['layers'] {
+  switch (formula) {
+    case 'imagePoster':
+      return buildImagePosterFormula(rng, baseHue);
+    case 'typePoster':
+      return buildTypePosterFormula(rng, baseHue);
+    case 'texturePlate':
+      return buildTexturePlateFormula(rng, baseHue);
+    case 'printDamage':
+      return buildPrintDamageFormula(rng, baseHue);
+  }
+}
+
+export function randomDocumentForFormula(
+  formula: RandomFormulaId,
+  seed = Math.floor(Math.random() * 999999),
+): CanvasDocument {
+  const rng = lcg(seed);
+  const baseHue = rand(0, 359, rng);
+  const aspect = pick(ALL_ASPECTS, rng);
+  const layers = buildFormulaLayers(formula, rng, baseHue).map((layer, index) => ({
+    ...layer,
+    id: `random-${formula}-${seed}-${index}`,
+  }));
+  return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    global: { bg: randomPlateColor(baseHue, rng), seed, aspect },
+    layers,
+    export: { ...DEFAULT_EXPORT },
+  };
+}
+
+export function randomDocumentFromSeed(seed: number): CanvasDocument {
+  const rng = lcg(seed);
+  const formula = pick(RANDOM_FORMULA_IDS, rng);
+  return randomDocumentForFormula(formula, seed);
+}
 
 function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
   const base = makeEffectPresetLayer(preset);
@@ -382,26 +625,9 @@ function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectL
 }
 
 export function randomDocument(): CanvasDocument {
-  const baseHue = rand(0, 359);
-  const aspect = ALL_ASPECTS[Math.floor(Math.random() * ALL_ASPECTS.length)];
-  const shuffled = [...ALL_PRESETS].sort(() => Math.random() - 0.5);
-  const n = rand(2, 8);
-  const effectLayers = Array.from({ length: n }, (_, i) =>
-    randomEffectPresetLayer(shuffled[i % shuffled.length], baseHue),
-  );
-  const textLayers =
-    Math.random() < 0.62
-      ? [
-          randomTextLayer(baseHue, pick(['poster', 'title'])),
-          randomTextLayer(baseHue, pick(['subtitle', 'label', 'credit'])),
-        ]
-      : [randomTextLayer(baseHue, pick(['poster', 'title', 'label']))];
-  return {
-    schemaVersion: DOCUMENT_SCHEMA_VERSION,
-    global: { ...randomGlobal(baseHue), aspect },
-    layers: [randomEmojiLayer(baseHue), ...textLayers, ...effectLayers],
-    export: { ...DEFAULT_EXPORT },
-  };
+  const seed = Math.floor(Math.random() * 999999);
+  const formula = pick(RANDOM_FORMULA_IDS);
+  return randomDocumentForFormula(formula, seed);
 }
 
 export function randomLayerSection(layer: EmojiLayer, section: 'EMOJIS'): Partial<EmojiLayer>;

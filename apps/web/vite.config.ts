@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
@@ -42,6 +43,9 @@ export default defineConfig({
     __ARTIFACT_COMMIT_HASH__: JSON.stringify(appCommit),
   },
   resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./app', import.meta.url)),
+    },
     dedupe: ['react', 'react-dom'],
   },
   build: {

@@ -1,0 +1,47 @@
+.artifact-floating-menu-anchor {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.artifact-floating-menu-content {
+  z-index: 10000;
+  outline: none;
+}
+
+.artifact-floating-menu-content[data-state="open"] {
+  animation: artifact-floating-menu-in 120ms ease-out;
+}
+
+.artifact-floating-menu-content[data-state="closed"] {
+  animation: artifact-floating-menu-out 90ms ease-in;
+}
+
+@keyframes artifact-floating-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes artifact-floating-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-floating-menu-content {
+    animation-duration: 0.01ms !important;
+  }
+}

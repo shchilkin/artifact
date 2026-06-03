@@ -40,7 +40,7 @@ export function EmptyCanvasStart({
             {starter.shortName}
           </button>
         ))}
-        <Link to="/examples">Examples</Link>
+        <Link to="/showcase">Showcase</Link>
       </div>
     </div>
   );

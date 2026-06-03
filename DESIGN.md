@@ -1,6 +1,6 @@
 ---
 name: Artifact
-description: Browser-based glitch album cover generator for indie musicians who want their art to look handmade and strange.
+description: Browser-based cover and poster editor for musicians and designers who want control over image, type, texture, effects, and export.
 colors:
   ink-bg: "oklch(8% 0.012 42)"
   ink-sidebar: "oklch(11% 0.016 42)"
@@ -95,7 +95,12 @@ components:
 
 **Creative North Star: "The Photocopied Zine"**
 
-The interface looks like the artwork it produces. Crude on purpose. Mono-typed labels, square edges, raw rules. The screen is dark because the user is in a bedroom studio at 1am, laptop open, ambient screen-light only, making something weird on purpose. Restraint here is not minimalism for safety; it is the chassis of a mixing board, where every control earns its place.
+The interface has the material feel of a print proof: mono labels, square edges,
+warm dark surfaces, and raw rules. The screen is dark because the user is in a
+bedroom studio at 1am, laptop open, ambient screen-light only, shaping artwork
+with intent. Restraint here is not minimalism for safety; it is the chassis of
+a mixing board, where every control earns its place. Artifact does not decide
+whether the result is clean, elegant, rough, loud, or restrained.
 
 The system rejects three things by name. It rejects the overdesigned dev-tool aesthetic: neon gradients, crypto-bro purple, glowing grids. It rejects generic SaaS neutrality (Canva, Adobe Express): polished, corporate-safe, identity-free. And it rejects any palette someone could guess from the domain alone. The accent color is a warm red-orange, not a tech-blue or a creator-purple, and it is used like a printer's registration mark: rare, deliberate, load-bearing.
 
@@ -124,7 +129,7 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 ### Neutral
 - **Ink BG** (`oklch(8% 0.012 42)`): The page background and the canvas around the artwork. Warm-tinted dark, never `#000`.
-- **Ink Sidebar** (`oklch(11% 0.016 42)`): One step up from BG. Used for the generator sidebar, tile backgrounds, and any surface that needs to read as a panel without a border.
+- **Ink Sidebar** (`oklch(11% 0.016 42)`): One step up from BG. Used for the editor sidebar, tile backgrounds, and any surface that needs to read as a panel without a border.
 - **Ink Border** (`oklch(24% 0.018 42)`): Hairline rules between sections. Used for borders, dividers, slider tracks.
 - **Ink Rule** (`oklch(20% 0.018 42)`): Dashed step separators on the home stage. One notch dimmer than Ink Border.
 - **Ash Text** (`oklch(80% 0.022 68)`): Body and headline text. Warm off-white; never `#fff`.
@@ -140,13 +145,13 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 **Display Font:** Barlow Condensed (fallback: `sans-serif`), weights 700 / 900
 **Body / Label Font:** System mono (`ui-monospace, Consolas, "Courier New", monospace`)
-**Inside the canvas only:** VT323 and Special Elite, loaded for the generator's text-layer presets — never used in UI chrome.
+**Inside the canvas only:** VT323 and Special Elite, loaded for the editor's text-layer presets — never used in UI chrome.
 
 **Character:** Condensed all-caps display headlines paired with a system mono UI. The display gives the work the weight of a concert poster; the mono keeps the chrome honest, fast, and machine-typed. No webfont body serif anywhere — the project would not look like itself with one.
 
 ### Hierarchy
 - **Hero** (900, `clamp(3rem, 11vw, 11rem)`, line-height 0.86, tracking -0.02em): Used once per page, on the landing hero. ALL CAPS.
-- **Display** (900, `clamp(2.4rem, 7vw, 5.5rem)`, line-height 0.9, tracking -0.015em): Step titles, section titles, examples header. ALL CAPS.
+- **Display** (900, `clamp(2.4rem, 7vw, 5.5rem)`, line-height 0.9, tracking -0.015em): Step titles, section titles, showcase header. ALL CAPS.
 - **Body** (400, `clamp(0.9rem, 1.05vw, 1rem)`, line-height 1.6): Mono. Step bodies, deck copy. Max width ~38–60ch.
 - **Label** (400, `0.7rem`, tracking 0.18em, ALL CAPS): Mono. Eyebrows, filter chips, button text, layer kind hints.
 - **Meta** (400, `0.65rem`, tracking 0.14em, ALL CAPS): Mono. Seed numerals, step counters (`07 / 11`), small timestamps.
@@ -161,7 +166,7 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 Flat by default. Depth is conveyed through tonal layering of the warm-tinted dark neutrals (BG → Sidebar → BG-with-border) and through hairline 1px rules. The system uses no drop shadows for ambient depth.
 
-The one place state pushes a surface forward is the examples tile on hover: a 2px upward translate plus an accent outline. That motion is feedback, not decoration — it answers "is this clickable" without adding a shadow vocabulary the rest of the system doesn't have.
+The one place state pushes a surface forward is the showcase tile on hover: a 2px upward translate plus an accent outline. That motion is feedback, not decoration — it answers "is this clickable" without adding a shadow vocabulary the rest of the system doesn't have.
 
 ### Named Rules
 
@@ -171,17 +176,41 @@ The one place state pushes a surface forward is the examples tile on hover: a 2p
 
 ## 5. Components
 
+### Styling Implementation
+- Tailwind is a layout tool first. Use it for route shells, spacing, responsive
+  alignment, and small low-state wrappers. Do not let utility strings replace
+  Artifact's visual language.
+- Reusable controls should become product primitives. Public CTAs, editor
+  controls, menus, rows, panels, and future command surfaces should expose
+  named components with Artifact tokens and states instead of duplicating class
+  strings.
+- Complex and art-directed surfaces stay CSS-first: editor chrome, node canvas,
+  canvas/renderer frames, thumbnails, showcase walls, and any surface where
+  aspect ratio, hover feedback, or visual rhythm is part of the product.
+- shadcn/ui may be used for source-owned accessibility primitives, not for
+  default style. Candidate primitives must be restyled to square corners, mono
+  labels, warm dark tokens, hairline rules, and rare accent usage before they
+  appear in product UI.
+- Do not import shadcn Button or Card as default building blocks. Artifact
+  already has public action primitives, and generic card layouts are explicitly
+  outside the system unless a repeated item truly needs a frame.
+
 ### Buttons
 - **Shape:** Square (radius 0).
+- **Implementation:** Public surface CTAs use `ActionButton` / `ActionLink`
+  from `apps/web/app/components/ui/ActionButton.tsx`; shared button styles live
+  in `apps/web/app/components/ui/action-button.css`.
 - **Primary CTA:** Accent fill (`oklch(66% 0.16 28)`), Ink BG text, padding 16px 28px, mono label tracking 0.14em, ALL CAPS. Hover: invert to Ash Text fill, Ink BG text. No shadow, no scale change.
-- **Tertiary / Link:** Underlined mono in Ash Dim, hover lifts to Ash Text. Used for "or browse examples" and similar.
+- **Tertiary / Link:** Underlined mono in Ash Dim, hover lifts to Ash Text. Used for secondary route links and similar.
 
 ### Filter Chips
+- Future-only on the showcase surface until the wall has enough volume to need
+  them. Do not show filters before they reduce real scanning friction.
 - **Style:** Square (radius 0), 1px Ink Border, transparent background, Ash Dim mono label, padding 8px 14px, min-height 36px.
 - **Hover:** Border lightens to `oklch(40% 0.02 42)`, text lifts to Ash Text.
 - **Active:** Inverts to Ash Text background, Ink BG text. The active chip reads as a stamped tag, not a colored pill.
 
-### Tiles (Examples)
+### Tiles (Showcase)
 - **Shape:** Square (radius 0). Aspect derived from the artwork (1:1, 4:5, 9:16, 16:9).
 - **Background:** Ink Sidebar (`oklch(12% 0.01 42)`) so the cover sits on a matching dark surface, not on the page background.
 - **Resting outline:** 1px `oklch(18% 0.012 42)` so tiles separate from BG even when their content is dark.
@@ -189,12 +218,12 @@ The one place state pushes a surface forward is the examples tile on hover: a 2p
 - **Overlay:** Bottom-anchored gradient revealing seed and CTA on hover; opacity-faded only (no layout animation).
 
 ### Cards / Panels
-- The system avoids cards as a default. Generator panels are flat surfaces with hairline borders; landing copy sits in flow with no container. Where a panel is needed (sidebar, mobile action bar), it is a flat Ink Sidebar surface separated by a 1px Ink Border, no rounding, no shadow.
+- The system avoids cards as a default. Editor panels are flat surfaces with hairline borders; landing copy sits in flow with no container. Where a panel is needed (sidebar, mobile action bar), it is a flat Ink Sidebar surface separated by a 1px Ink Border, no rounding, no shadow.
 
 ### Sliders
-- Square track 3px tall, Ink Border background, accent fill on the active portion, 9–14px square thumb. Used throughout the generator for effect parameters. The slider is the chrome the user touches most; it reads as analog-mixing-desk, not iOS.
+- Square track 3px tall, Ink Border background, accent fill on the active portion, 9–14px square thumb. Used throughout the editor for effect parameters. The slider is the chrome the user touches most; it reads as analog-mixing-desk, not iOS.
 
-### Layer Row (Generator)
+### Layer Row (Editor)
 - Mono label, 8px padding, 36px height, 1px Ink Border between rows. Selected row shows accent left edge as a 1px hairline (not a stripe — a 1px hairline carries the meaning without becoming a band).
 - Drag handle is a mono character (`⋮⋮`), accent-colored on hover.
 
@@ -227,4 +256,6 @@ The one place state pushes a surface forward is the examples tile on hover: a 2p
 - **Don't** put drop shadows on resting surfaces. Use tonal layering and 1px borders.
 - **Don't** mix display into UI chrome (buttons, labels). Display is reserved for headlines.
 - **Don't** use `#000` or `#fff`. Every neutral carries 0.012–0.022 chroma along the warm 42–68 hue band.
-- **Don't** modal a flow that fits inline. A modal is the lazy answer; the generator opens as a route, the examples remix opens by deep-linking the doc into the generator.
+- **Don't** modal a flow that fits inline. A modal is the lazy answer; the editor opens as a route, public editor CTAs start blank, and showcase tiles deep-link their editable project into the editor.
+- **Don't** call Artifact a generator in public product copy. "Generate" is reserved for specific source-making actions: AI images, procedural textures, random seeds, and thumbnails. The product, workspace, route labels, and CTAs are "editor", "workspace", "open in editor", or "start editing".
+- **Don't** use the word `weird` in product or marketing copy. Do not replace it with broad outcome labels like strange, raw, damaged, or glitchy at the product-promise level. Prefer control and process language: editable, shaped, layered, textured, local-first, export-ready, deliberate.

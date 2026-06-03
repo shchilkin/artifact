@@ -6,8 +6,9 @@ import {
   type AddLibraryAction,
   parseAddLibraryAction,
 } from '../../add-library/addLibraryModel';
+import { FloatingMenu } from '../../ui/floating-menu';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../ui/sheet';
 import { clampPopupPosition } from '../helpers';
-import { NoPan } from '../nodes/NoPan';
 import type { AddAction, PaneMenuProps } from '../types';
 
 const MENU_W = 540;
@@ -46,29 +47,48 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
     onClose();
   };
 
+  const content = (
+    <AddLibraryPanel
+      surface="nodes"
+      searchLabel="Search nodes and effects"
+      placeholder="Add node…"
+      onAdd={handleAdd}
+      onClose={onClose}
+      draggable
+    />
+  );
+
+  if (mobileSheet) {
+    return (
+      <Sheet open onOpenChange={(open) => !open && onClose()}>
+        <SheetContent
+          ref={menuRef}
+          side="bottom"
+          className="add-library-surface add-library-node-menu nadd-surface add-library-mobile nadd-mobile"
+          style={{ '--artifact-sheet-height': '82vh' } as CSSProperties}
+          onWheelCapture={(event) => event.stopPropagation()}
+        >
+          <SheetTitle className="sr-only">Add node</SheetTitle>
+          <SheetDescription className="sr-only">
+            Search nodes, sources, effects, and utilities to add to the graph.
+          </SheetDescription>
+          {content}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
-    <NoPan
+    <FloatingMenu
       ref={menuRef}
-      className={`add-library-surface add-library-node-menu nadd-surface${mobileSheet ? ' add-library-mobile nadd-mobile' : ''}`}
-      style={
-        {
-          left: mobileSheet ? 8 : position.left,
-          right: mobileSheet ? 8 : undefined,
-          top: mobileSheet ? undefined : position.top,
-          bottom: mobileSheet ? 'calc(env(safe-area-inset-bottom, 0px) + 8px)' : undefined,
-          width: mobileSheet ? 'auto' : MENU_W,
-        } as CSSProperties
-      }
+      x={position.left}
+      y={position.top}
+      className="add-library-surface add-library-node-menu nadd-surface"
+      style={{ width: MENU_W }}
+      onOpenChange={(open) => !open && onClose()}
       onWheelCapture={(event) => event.stopPropagation()}
     >
-      <AddLibraryPanel
-        surface="nodes"
-        searchLabel="Search nodes and effects"
-        placeholder="Add node…"
-        onAdd={handleAdd}
-        onClose={onClose}
-        draggable
-      />
-    </NoPan>
+      {content}
+    </FloatingMenu>
   );
 }

@@ -1,0 +1,83 @@
+.action-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  min-height: 44px;
+  height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 0 18px;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition:
+    background 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+  white-space: nowrap;
+}
+
+.action-button:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.action-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.action-button:disabled,
+.action-button[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.action-button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.action-button--primary:hover,
+.action-button--primary.action-button--active {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.action-button--secondary {
+  border-color: color-mix(in oklch, var(--accent) 52%, var(--border));
+  background: color-mix(in oklch, var(--accent) 9%, transparent);
+  color: var(--accent);
+}
+
+.action-button--secondary:hover,
+.action-button--secondary.action-button--active {
+  border-color: var(--text);
+  background: transparent;
+  color: var(--text);
+}
+
+.action-button--quiet {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.action-button--quiet:hover,
+.action-button--quiet.action-button--active {
+  border-color: var(--text-dim);
+  color: var(--text);
+}

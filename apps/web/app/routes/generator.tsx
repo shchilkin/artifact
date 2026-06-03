@@ -285,7 +285,7 @@ export default function Generator() {
             }
           }}
         >
-          <h1 className="sr-only">Album Cover Generator</h1>
+          <h1 className="sr-only">Artifact Cover Editor</h1>
           {viewMode === 'nodes' && (
             <div className="floating-view-toggle">
               <ViewModeToggle value={viewMode} onChange={setViewMode} />

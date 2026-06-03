@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 
 import type { SavedProject } from '../utils/projectLibrary';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
   projects: SavedProject[];
@@ -45,33 +45,24 @@ export function ProjectsPanel({
   };
 
   return (
-    <>
-      <motion.div
-        className="fixed inset-0 bg-black/60 z-299"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="library-panel fixed top-0 right-0 bottom-0 w-[min(360px,100vw)] bg-sidebar border-l border-border flex flex-col z-300 overflow-hidden"
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex items-center justify-between px-4 min-h-11 border-b border-border shrink-0">
-          <span className="text-[10px] tracking-[2.5px] text-accent font-semibold">PROJECTS</span>
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="library-panel" style={{ '--artifact-sheet-width': '360px' } as CSSProperties}>
+        <SheetHeader className="flex items-center justify-between px-4 min-h-11 border-b border-border shrink-0">
+          <div>
+            <SheetTitle className="text-[10px] tracking-[2.5px] text-accent font-semibold">PROJECTS</SheetTitle>
+            <SheetDescription className="sr-only">
+              Save, load, delete, or start local Artifact projects.
+            </SheetDescription>
+          </div>
           <div className="flex items-center gap-2.5">
             <span className={`text-[9px] tracking-[0.5px] ${nearLimit ? 'text-accent' : 'text-dim'}`}>
               {projects.length} / {maxProjects}
             </span>
-            <button className="btn btn-icon" onClick={onClose} aria-label="Close projects">
-              ✕
-            </button>
+            <SheetClose className="btn btn-icon" aria-label="Close projects">
+              x
+            </SheetClose>
           </div>
-        </div>
+        </SheetHeader>
         <div className="flex gap-2 px-4 py-2.5 border-b border-border shrink-0">
           <label htmlFor="project-name-input" className="sr-only">
             Project name
@@ -175,7 +166,7 @@ export function ProjectsPanel({
             ))}
           </div>
         )}
-      </motion.div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }

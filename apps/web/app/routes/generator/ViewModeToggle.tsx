@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export type ViewMode = 'layers' | 'nodes';
 
@@ -28,13 +29,19 @@ export function ViewModeToggle({
   });
 
   return (
-    <div className={`view-mode-toggle view-mode-toggle-${variant}`}>
-      <button type="button" onClick={() => onChange('layers')} style={buttonStyle(value === 'layers', 'left')}>
-        layers
-      </button>
-      <button type="button" onClick={() => onChange('nodes')} style={buttonStyle(value === 'nodes', 'right')}>
-        nodes
-      </button>
-    </div>
+    <Tabs
+      value={value}
+      onValueChange={(next) => onChange(next as ViewMode)}
+      className={`view-mode-toggle view-mode-toggle-${variant}`}
+    >
+      <TabsList>
+        <TabsTrigger value="layers" style={buttonStyle(value === 'layers', 'left')}>
+          layers
+        </TabsTrigger>
+        <TabsTrigger value="nodes" style={buttonStyle(value === 'nodes', 'right')}>
+          nodes
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }

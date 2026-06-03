@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-Browser-based album cover generator: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
+Browser-based album cover editor: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
 
 ## Required docs before architecture work
 
@@ -15,6 +15,7 @@ Read these docs before changing state ownership, rendering, node editor behavior
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
+- `docs/release-template.md` — mandatory release notes template and checklist. Do not tag or publish releases from free-form notes.
 
 Use these docs as the source of truth over older summaries in this file if they disagree.
 

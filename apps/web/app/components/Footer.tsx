@@ -14,7 +14,7 @@ export function Footer() {
         href="https://vantaa-underground.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="shrink-0 opacity-70 hover:opacity-100 transition-opacity duration-150"
+        className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center opacity-70 transition-opacity duration-150 hover:opacity-100"
         aria-label="Vantaa Underground"
       >
         <img src={vuLogo} alt="Vantaa Underground" className="h-7 w-7 rounded-full" />
@@ -25,7 +25,7 @@ export function Footer() {
           href="https://vantaa-underground.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-text hover:text-accent transition-colors duration-150 no-underline"
+          className="inline-flex min-h-[44px] items-center text-text no-underline transition-colors duration-150 hover:text-accent"
         >
           Vantaa Underground
         </a>{' '}
@@ -37,7 +37,7 @@ export function Footer() {
           href="https://shchilkin.dev"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-text hover:text-accent transition-colors duration-150 no-underline"
+          className="inline-flex min-h-[44px] items-center text-text no-underline transition-colors duration-150 hover:text-accent"
         >
           Aleksandr Shchilkin
         </a>

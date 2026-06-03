@@ -12,7 +12,7 @@ export const meta: MetaFunction = () => [
   { title: 'artifact | Create Album Covers' },
   {
     name: 'description',
-    content: 'Generate glitchy, GPU-rendered album covers with emoji, effects, and one click.',
+    content: 'Design editable, GPU-rendered album covers with photos, type, texture, effects, layers, and nodes.',
   },
 ];
 
@@ -64,19 +64,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta property="og:title" content="artifact | Create Album Covers" />
         <meta
           property="og:description"
-          content="Generate glitchy, GPU-rendered album covers with emoji, effects, and one click."
+          content="Design editable, GPU-rendered album covers with photos, type, texture, effects, layers, and nodes."
         />
         <meta property="og:image" content="https://artifact.shchilkin.dev/og.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="artifact: glitch album cover generator" />
+        <meta property="og:image:alt" content="artifact: editable album cover workspace" />
         <meta property="og:logo" content="https://artifact.shchilkin.dev/favicon.svg" />
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="artifact | Create Album Covers" />
         <meta
           name="twitter:description"
-          content="Generate glitchy, GPU-rendered album covers with emoji, effects, and one click."
+          content="Design editable, GPU-rendered album covers with photos, type, texture, effects, layers, and nodes."
         />
         <meta name="twitter:image" content="https://artifact.shchilkin.dev/og.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -1,5 +1,4 @@
-import type { CSSProperties } from 'react';
-
+import { FloatingMenu } from '../../ui/floating-menu';
 import { NODE_CANVAS_COLORS } from '../constants';
 import { clampPopupPosition } from '../helpers';
 import { NoPan } from '../nodes/NoPan';
@@ -66,10 +65,16 @@ export function NodeContextMenu({
   const position = clampPopupPosition(x, y, menuWidth, menuHeight);
 
   return (
-    <NoPan
+    <FloatingMenu
       ref={menuRef}
+      x={position.left}
+      y={position.top}
       className="node-menu"
-      style={{ left: position.left, top: position.top, width: menuWidth, padding: '4px 0' } as CSSProperties}
+      style={{ width: menuWidth, padding: '4px 0' }}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      role="menu"
     >
       {items.map((item, i) => (
         <div key={i}>
@@ -77,6 +82,7 @@ export function NodeContextMenu({
           <NoPan
             as="button"
             type="button"
+            role="menuitem"
             disabled={item.disabled}
             onClick={() => {
               if (item.disabled) return;
@@ -95,6 +101,6 @@ export function NodeContextMenu({
           </NoPan>
         </div>
       ))}
-    </NoPan>
+    </FloatingMenu>
   );
 }

@@ -186,13 +186,13 @@ export const ADD_ITEMS: Array<{
 ];
 
 export const ADD_MENU_BROWSE_MODES = [
-  { id: 'nodes', label: 'Nodes', hint: 'Layers, generators, utilities' },
+  { id: 'nodes', label: 'Nodes', hint: 'Layers, sources, utilities' },
   { id: 'effects', label: 'Effects', hint: 'Preset looks and treatments' },
 ] as const;
 
 export const ADD_NODE_GROUPS = [
   { id: 'layers', label: 'Layers', description: 'Direct artwork, text, and decorative content.' },
-  { id: 'generators', label: 'Generators', description: 'Build source material procedurally before styling it.' },
+  { id: 'generators', label: 'Sources', description: 'Build editable source material before styling it.' },
   { id: 'utilities', label: 'Utilities', description: 'Combine branches and shape the final output.' },
 ] as const;
 

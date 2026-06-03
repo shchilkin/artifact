@@ -1,7 +1,7 @@
 # Editor Visual System
 
 This document is the implementation contract for editor chrome. `DESIGN.md`
-describes the brand direction; this file describes how the generator applies
+describes the brand direction; this file describes how the editor applies
 that direction to daily editing surfaces.
 
 The visual system must not change document semantics, render output, graph
@@ -29,6 +29,22 @@ Editor styling uses three token layers:
 New editor CSS should prefer semantic or feature tokens over ad hoc OKLCH
 values. Add a token when the value describes a reusable role or state. Keep
 one-off values local when they are truly tied to a single effect.
+
+## Tailwind and primitive libraries
+
+Tailwind can be used around editor surfaces for simple layout, spacing, and
+responsive wrappers, but it does not define editor chrome. Feature CSS remains
+the source of truth for node cards, panels, graph overlays, controls,
+thumbnails, and canvas-adjacent states because those surfaces depend on
+semantic tokens and interaction-specific states.
+
+shadcn/ui may help the editor only as source-owned interaction infrastructure:
+dialogs, sheets, command surfaces, context menus, popovers, tooltips, tabs, or
+similar keyboardable primitives. Any imported primitive must be rewritten to
+Artifact's tokens, square geometry, mono labels, focus states, and low-chrome
+surface rules before it is used. Do not use default shadcn visuals as editor
+style, and do not replace working editor CSS with shadcn components unless the
+primitive improves accessibility, keyboard behavior, or state clarity.
 
 ## Contrast Rules
 

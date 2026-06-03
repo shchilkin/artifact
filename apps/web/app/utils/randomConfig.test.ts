@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS, makeEffectPresetLayer, makeTextLayer } from '../types/config';
 import {
+  RANDOM_FORMULA_IDS,
   randomDocument,
+  randomDocumentForFormula,
+  randomDocumentFromSeed,
   randomEffectLayer,
   randomEmojiLayer,
   randomGlobal,
@@ -177,23 +180,50 @@ describe('randomDocument', () => {
     expect(doc.layers.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('first layer is an emoji layer', () => {
+  it('starts from one of the v2 random formula source layers', () => {
     const doc = randomDocument();
-    expect(doc.layers[0].kind).toBe('emoji');
+    expect(['fill', 'image', 'emoji', 'noise']).toContain(doc.layers[0].kind);
   });
 
-  it('adds cover-ready text layers before focused effect preset layers', () => {
+  it('adds valid text layers when a formula includes type and focused effect preset layers', () => {
     const doc = randomDocument();
     const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
     const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
 
-    expect(textLayers.length).toBeGreaterThanOrEqual(1);
-    expect(textLayers.length).toBeLessThanOrEqual(2);
     expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
 
     expect(
       effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS),
     ).toBe(true);
+  });
+
+  it('can build each v2 random formula as a valid document', () => {
+    for (const formula of RANDOM_FORMULA_IDS) {
+      const doc = randomDocumentForFormula(formula, 12000 + RANDOM_FORMULA_IDS.indexOf(formula));
+      const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
+      const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
+
+      expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+      expect(doc.layers.length).toBeGreaterThanOrEqual(4);
+      expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
+      expect(effectLayers.every((layer) => layer.preset && layer.preset in EFFECT_PRESETS)).toBe(true);
+    }
+  });
+
+  it('creates deterministic documents from a seed for random examples', () => {
+    expect(randomDocumentFromSeed(424242)).toEqual(randomDocumentFromSeed(424242));
+  });
+
+  it('covers image, type, texture, and print-damage formula shapes', () => {
+    const imagePoster = randomDocumentForFormula('imagePoster', 1001);
+    const typePoster = randomDocumentForFormula('typePoster', 1002);
+    const texturePlate = randomDocumentForFormula('texturePlate', 1003);
+    const printDamage = randomDocumentForFormula('printDamage', 1004);
+
+    expect(imagePoster.layers.some((layer) => layer.kind === 'image')).toBe(true);
+    expect(typePoster.layers.filter((layer) => layer.kind === 'text').length).toBeGreaterThanOrEqual(3);
+    expect(texturePlate.layers.some((layer) => layer.kind === 'noise')).toBe(true);
+    expect(printDamage.layers.some((layer) => layer.kind === 'effect' && layer.preset === 'halftone')).toBe(true);
   });
 });
 

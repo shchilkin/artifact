@@ -1829,20 +1829,14 @@
   color: var(--node-accent, var(--accent));
 }
 
-.node-gallery-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20000;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 24px;
-  background: var(--node-backdrop);
-}
-
 .node-gallery-modal {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: calc(100vh - 48px);
+  max-height: 980px;
   width: min(1440px, 100%);
+  transform: translate(-50%, -50%);
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 14px;
@@ -2226,10 +2220,6 @@
     left: 10px;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
     justify-content: space-between;
-  }
-
-  .node-gallery-backdrop {
-    padding: 12px;
   }
 
   .node-gallery-header {

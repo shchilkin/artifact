@@ -1,0 +1,80 @@
+.artifact-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: var(--node-backdrop, color-mix(in oklch, var(--bg) 82%, transparent));
+}
+
+.artifact-dialog-overlay[data-state="open"] {
+  animation: artifact-dialog-overlay-in 180ms ease-out;
+}
+
+.artifact-dialog-overlay[data-state="closed"] {
+  animation: artifact-dialog-overlay-out 140ms ease-in;
+}
+
+.artifact-dialog-content {
+  position: fixed;
+  z-index: 20001;
+  outline: none;
+}
+
+.artifact-dialog-content:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.artifact-dialog-content[data-state="open"] {
+  animation: artifact-dialog-content-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artifact-dialog-content[data-state="closed"] {
+  animation: artifact-dialog-content-out 140ms ease-in;
+}
+
+@keyframes artifact-dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes artifact-dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes artifact-dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes artifact-dialog-content-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-dialog-overlay,
+  .artifact-dialog-content {
+    animation-duration: 0.01ms !important;
+  }
+}

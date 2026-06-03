@@ -1,6 +1,6 @@
 # Artifact
 
-Glitch-aesthetic album cover generator. Procedural 3D primitives, emoji and
+Glitch-aesthetic album cover editor. Procedural 3D primitives, emoji and
 image layers, 30+ GPU shader effects, node-graph composition, seeded randomness,
 aspect ratio support, and equirectangular environment map export.
 
@@ -20,13 +20,13 @@ aspect ratio support, and equirectangular environment map export.
 | Path        | File                   | Description                              |
 | ----------- | ---------------------- | ---------------------------------------- |
 | `/`         | `apps/web/app/routes/home.tsx`      | Landing page with animated hero covers   |
-| `/app`      | `apps/web/app/routes/generator.tsx` | Main generator: canvas, layers, export   |
-| `/examples` | `apps/web/app/routes/examples.tsx`  | Curated examples with live previews      |
+| `/app`      | `apps/web/app/routes/generator.tsx` | Main editor: blank-canvas entry, layers, export |
+| `/showcase` | `apps/web/app/routes/showcase.tsx`  | Infinite made-in-Artifact wall with editable projects |
 | `/docs/nodes` | `routes/docs.nodes.tsx` | Task-oriented node, source, and effect docs |
 
 ## Layer system
 
-The generator uses a layered `CanvasDocument`. Each layer is one of eight kinds:
+The editor uses a layered `CanvasDocument`. Each layer is one of eight kinds:
 
 | Kind        | Description                                                      |
 | ----------- | ---------------------------------------------------------------- |
@@ -180,8 +180,11 @@ covers (
 - **Environment map export** — 4096×2048 equirectangular PNG (Blender-ready)
 - Preset system: save/load/delete, renderer-backed thumbnails, localStorage (max 20)
 - Local project library with IndexedDB snapshots and thumbnails
-- Curated example documents, including graph-first examples and layer-first
-  starter recipes
+- Showcase wall with curated work, seeded starters, and future reviewed
+  agent-generated work. Public **Open editor** and **New blank canvas** CTAs
+  both start from a blank canvas; showcase tiles open their editable projects.
+- Future how-to / recipes pages are the separate surface for learning specific
+  workflows. The showcase should stay a made-in-Artifact gallery, not a manual.
 - `prefers-reduced-motion` respected throughout
 - **LogoGlyph** — animated navbar logo: random emoji with randomly-selected GPU
   effect variant (CRT glitch, riso, static-to-signal, phosphor bloom, pixel
@@ -207,6 +210,13 @@ npm run perf:node-editor # opt-in node editor performance benchmark
 npm run check      # format check + lint + web/API typecheck + web/API tests
 ```
 
+Agent workflow guidance lives in [`AGENTS.md`](AGENTS.md). The project-specific
+Codex skill profile lives in [`docs/agent-skills.md`](docs/agent-skills.md);
+global skills are available, but agents should prefer that curated set for
+Artifact work. Release prep is template-gated: use
+[`docs/release-template.md`](docs/release-template.md) for every release before
+creating tags or GitHub Releases.
+
 Deploys to Vercel from the repo root via the `@artifact/web` workspace:
 `react-router build` → `apps/web/build/client/`.
 
@@ -227,6 +237,7 @@ ignored.
 | [`docs/performance.md`](docs/performance.md) | Node-editor benchmark workflow and render performance notes |
 | [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
 | [`docs/roadmap.md`](docs/roadmap.md) | Product and architecture roadmap |
+| [`docs/agent-skills.md`](docs/agent-skills.md) | Preferred Codex skills for Artifact work |
 | [`docs/version-plans/v0.11.md`](docs/version-plans/v0.11.md) | v0.11 layer workflow and onboarding acceptance plan |
 | [`docs/version-plans/v0.12.md`](docs/version-plans/v0.12.md) | v0.12 examples, recipes, docs, and effect coverage acceptance plan |
 | [`docs/version-plans/v0.13.md`](docs/version-plans/v0.13.md) | v0.13 AI generation research and architecture acceptance plan |
@@ -236,6 +247,7 @@ ignored.
 | [`docs/version-plans/v0.16.md`](docs/version-plans/v0.16.md) | v0.16 editor workflow polish, debug hygiene, and visual-system consolidation plan |
 | [`docs/version-plans/v0.17.md`](docs/version-plans/v0.17.md) | v0.17 creative controls, shared Add Library, and renderer-backed menu previews plan |
 | [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
+| [`docs/release-template.md`](docs/release-template.md) | Mandatory release notes template and release checklist |
 
 ## Project structure
 
@@ -254,7 +266,7 @@ apps/
     app/
       root.tsx               # App shell, global nav, fonts
       routes.ts              # Route definitions
-      routes/                # Landing, generator, examples, node docs
+      routes/                # Landing, editor, showcase, node docs
       components/            # UI and feature components
       hooks/                 # Web app orchestration hooks
       utils/                 # Renderer, graph helpers, persistence, export

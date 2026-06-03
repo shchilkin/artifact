@@ -1,4 +1,4 @@
-import { type MutableRefObject, useCallback, useEffect, useState } from 'react';
+import { type MutableRefObject, useCallback, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
 import { storePortableDocumentAssets } from '../utils/documentAssets';
@@ -41,15 +41,6 @@ export function useGeneratorProjectsController({
     },
     [loadProject, onLoadDocument],
   );
-
-  useEffect(() => {
-    if (!showProjects) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setShowProjects(false);
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [showProjects]);
 
   return {
     showProjects,

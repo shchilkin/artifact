@@ -30,9 +30,40 @@ primitive controls, read the current docs:
   coverage scope, acceptance criteria, validation, and QA.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known
   risks, and feature intake split.
+- `docs/release-template.md` — mandatory release notes template and release
+  checklist. All releases must use this template before tag or GitHub Release
+  publication.
+- `docs/agent-skills.md` — preferred Codex skill profile for this project,
+  including design, React Router, React Flow, browser QA, GitHub, and security
+  skill usage.
 
 These docs are the source of truth for architecture work. If this file conflicts
 with them, follow the docs and update this file.
+
+## Preferred agent skills
+
+Use the repo skill profile in `docs/agent-skills.md` when choosing among global
+skills. In short:
+
+- Prefer `impeccable` for UI critique, polish, visual hierarchy, product copy,
+  and design quality gates.
+- Use `react-router-framework-mode` for route modules, navigation, route config,
+  typegen, and SPA/SSR React Router decisions.
+- Use `react-flow` for node editor graph behavior and React Flow patterns.
+- Use browser verification skills for local visual QA after meaningful frontend
+  changes.
+- Use `vercel:shadcn`, `vercel-composition-patterns`, and
+  `vercel:react-best-practices` for shared UI primitives, component APIs, and
+  React review.
+- Use GitHub and Codex Security skills when PR publishing, CI, review comments,
+  or security scans are in scope.
+- Use the project-local `artifact-release` skill for release prep, version
+  bumps, tags, and GitHub Releases. Do not tag or publish a release unless
+  `docs/releases/vX.Y.Z.md` has been filled from `docs/release-template.md`.
+
+Do not use `frontend-design` as a default Artifact skill. Its installed copy
+appears Anthropic-origin and overlaps with `impeccable`; prefer `impeccable`
+unless the user explicitly asks to compare or invoke `frontend-design`.
 
 ## Version planning workflow
 
@@ -55,7 +86,7 @@ When implementing a version-plan item:
 
 ## Project scope
 
-Artifact is a browser-only creative image/poster generator that starts with
+Artifact is a browser-only creative image/poster editor that starts with
 album covers. It has a hybrid editing model:
 
 - a canonical layered document (`CanvasDocument`)

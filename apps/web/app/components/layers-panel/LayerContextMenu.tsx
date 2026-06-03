@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import type { GraphArea } from '../../types/config';
+import { FloatingMenu } from '../ui/floating-menu';
 
 export interface LayerContextMenuState {
   x: number;
@@ -24,38 +24,37 @@ export function LayerContextMenu({
   onAddSelectionToArea: (areaId: string, ids: string[]) => void;
   onRemoveSelectionFromAreas: (ids: string[]) => void;
 }) {
-  useEffect(() => {
-    if (!contextMenu) return;
-    document.addEventListener('click', onClose);
-    document.addEventListener('scroll', onClose, true);
-    return () => {
-      document.removeEventListener('click', onClose);
-      document.removeEventListener('scroll', onClose, true);
-    };
-  }, [contextMenu, onClose]);
-
   if (!contextMenu) return null;
 
   return (
-    <div
+    <FloatingMenu
+      x={contextMenu.x}
+      y={contextMenu.y}
       className="layer-context-menu"
-      style={{ left: contextMenu.x, top: contextMenu.y }}
-      onMouseDown={(event) => event.stopPropagation()}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      role="menu"
     >
-      <button type="button" onClick={() => onCreateAreaFromSelection(contextMenu.ids)}>
+      <button type="button" role="menuitem" onClick={() => onCreateAreaFromSelection(contextMenu.ids)}>
         Create area
       </button>
       {graphAreas.map((area) => (
-        <button key={area.id} type="button" onClick={() => onAddSelectionToArea(area.id, contextMenu.ids)}>
+        <button
+          key={area.id}
+          type="button"
+          role="menuitem"
+          onClick={() => onAddSelectionToArea(area.id, contextMenu.ids)}
+        >
           <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
           Add to {area.name}
         </button>
       ))}
       {contextMenu.ids.some(hasAreaMembership) && (
-        <button type="button" onClick={() => onRemoveSelectionFromAreas(contextMenu.ids)}>
+        <button type="button" role="menuitem" onClick={() => onRemoveSelectionFromAreas(contextMenu.ids)}>
           Remove from area
         </button>
       )}
-    </div>
+    </FloatingMenu>
   );
 }

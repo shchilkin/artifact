@@ -30,6 +30,41 @@ changes safer.
 
 ## Component design rules
 
+## Styling strategy
+
+Tailwind is available in the web workspace and should be treated as the first
+choice for simple structure: route shells, flex and grid layout, spacing,
+responsive visibility, alignment, and low-state wrappers. Tailwind is not the
+visual system. Artifact's visual contract still comes from `DESIGN.md`, shared
+CSS tokens, and feature-level CSS.
+
+Use this decision rule:
+
+| Surface | Default approach |
+| --- | --- |
+| Simple route/page layout | Tailwind-first utilities. |
+| Reused public UI | Shared component in `apps/web/app/components/ui/*` plus colocated CSS for its stable visual contract. |
+| Editor and graph surfaces | CSS-first feature styles using semantic/feature tokens. |
+| Canvas, renderer, thumbnails, and showcase artwork walls | CSS-first when aspect ratios, hover states, masonry behavior, or art direction are part of the product. |
+| One-off spacing/alignment around existing components | Tailwind utilities. |
+
+When a Tailwind class string becomes long, repeated, or filled with state
+branches, extract a component or explicit variant instead of copying more
+utilities. Shared primitives should expose product-shaped APIs such as
+`ActionButton`, `ActionLink`, `NodeFrame`, or `LayerPreviewSurface`; callers
+should not reassemble the same chrome from utility strings.
+
+Use tokens instead of ad hoc colors. Prefer CSS variables and token aliases such
+as `var(--bg)`, `var(--text)`, `var(--accent)`, `bg-bg`, or `border-border`
+over arbitrary color literals in JSX. Arbitrary Tailwind values are acceptable
+only for local geometry that does not describe reusable product meaning.
+
+Third-party primitive libraries may help with accessibility and interaction
+mechanics, but they must not define Artifact's look. shadcn/Radix primitives
+must stay source-owned under `apps/web/app/components/ui/*`, use Artifact
+tokens, and expand one behavior family at a time after validation. Do not
+import default shadcn visual patterns as the product shell.
+
 ### Use explicit variants instead of boolean modes
 
 If a component has multiple layouts or interaction models, split it into named
