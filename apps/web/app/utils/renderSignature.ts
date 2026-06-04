@@ -38,8 +38,8 @@ export function layerRenderSig(layer: Layer): string {
       return JSON.stringify([layer.kind, visible, src, fit, opacity, blendMode, x, y, scaleX, scaleY, rotation]);
     }
     case 'emoji': {
-      const { visible, emojis, density, minSz, maxSz, blur, opacity, blendMode } = layer;
-      return JSON.stringify([layer.kind, visible, emojis, density, minSz, maxSz, blur, opacity, blendMode]);
+      const { visible, emojis, density, minSz, maxSz, blur, seedOffset, opacity, blendMode } = layer;
+      return JSON.stringify([layer.kind, visible, emojis, density, minSz, maxSz, blur, seedOffset, opacity, blendMode]);
     }
     case 'fill': {
       const { visible, color, opacity, blendMode } = layer;

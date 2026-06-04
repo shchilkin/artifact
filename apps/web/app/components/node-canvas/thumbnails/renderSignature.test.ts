@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   makeEffectPresetLayer,
+  makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
   makeSourceLayer,
@@ -79,6 +80,20 @@ describe('layerRenderSig', () => {
   it('keeps procedural render fields in the signature', () => {
     const base = makeSourceLayer('primitive', { primitiveDepth: 30 });
     const edited = { ...base, primitiveDepth: 70 };
+
+    expect(layerRenderSig(edited)).not.toBe(layerRenderSig(base));
+  });
+
+  it('changes when emoji seed offset changes', () => {
+    const base = makeEmojiLayer({ seedOffset: 0 });
+    const edited = { ...base, seedOffset: 12 };
+
+    expect(layerRenderSig(edited)).not.toBe(layerRenderSig(base));
+  });
+
+  it('changes when effect seed offset changes', () => {
+    const base = makeEffectPresetLayer('grain', { seedOffset: 0 });
+    const edited = { ...base, seedOffset: 12 };
 
     expect(layerRenderSig(edited)).not.toBe(layerRenderSig(base));
   });

@@ -7,21 +7,44 @@ Related architecture docs:
 - [`state-model.md`](./state-model.md)
 - [`rendering.md`](./rendering.md)
 - [`node-editor.md`](./node-editor.md)
+- [`style-guide.md`](./style-guide.md)
+- [`editor-design-system.md`](./editor-design-system.md)
 - [`app-structure-guidelines.md`](./app-structure-guidelines.md)
 - [`effect-development.md`](./effect-development.md)
 - [`testing.md`](./testing.md)
 - [`improvement-plan.md`](./improvement-plan.md)
+- [`version-planning.md`](./version-planning.md)
 - [`production-readiness.md`](./production-readiness.md)
 - [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
 Current planning status:
 
-- No next active version plan is selected yet. The next planning pass should
-  choose between the deferred landing slice, the future Showcase / How-to split,
-  or deeper editor work before implementation starts.
+- v0.30 is complete as the Editor Visual Baseline and Design System release.
+  The next release thesis should be chosen as a dedicated product slice, with
+  Command Palette / Add Library command improvements, server-backed share
+  links, and Fallow codebase intelligence as the strongest current candidates.
+- New version scopes should be split using
+  [`version-planning.md`](./version-planning.md): one release thesis, one
+  primary blast radius, explicit non-goals, checkable acceptance criteria, and a
+  clear discovery-versus-release boundary.
+
+Next deferred product tracks:
+
+- Landing refresh remains deferred until it has its own focused plan and
+  critique/prototype gate.
+- Showcase / How-to split remains deferred until the showcase wall and docs
+  bridge need a dedicated learning surface.
 
 Recently shipped:
 
+- [`version-plans/v0.30.md`](./version-plans/v0.30.md) — Editor Visual
+  Baseline and Design System: curated browser visual baseline, internal
+  `/docs/style-guide`, editor design-system docs, source-owned shared
+  primitives, low-risk primitive extraction, effect local seed offsets, and
+  node alignment guides. Released as `v0.30.0`; release notes are in
+  [`releases/v0.30.0.md`](./releases/v0.30.0.md). Landing, Showcase / How-to,
+  Fallow, server-backed sharing, and command-palette work were explicitly
+  deferred out of v0.30.
 - [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
   Recovery: terminology, docs, showcase, public navigation, shared UI
   primitives, and focused browser coverage. Released as `v0.29.0`; release
@@ -84,7 +107,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates:
+Next strong candidates after v0.30:
 
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
@@ -92,9 +115,16 @@ Next strong candidates:
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
-- **Editor Visual Regression Expansion** — after the v0.29 product-surface
-  baseline proves useful, expand snapshots toward layer-state, Add Library,
-  graph output, and export/preview parity.
+- **Command Palette / Add Library Command Improvements** — make repeated editor
+  actions faster once visual regression coverage protects the main editor
+  states.
+- **How-To / Recipes** — split task-oriented learning from Showcase after the
+  editor baseline is stable enough to support recipe screenshots and examples.
+- **Fallow Codebase Intelligence** — add Fallow as a local, CI, and agent
+  workflow tool after the v0.30 design-system baseline is stable. Start with
+  read-only local reports for dead code, duplication, health, dependency
+  placement, and changed-code audit; then add a soft CI gate for new PR risk
+  before considering stricter checks.
 
 ## Product summary
 
@@ -286,6 +316,28 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 Near-term rule: ship a reliable local editor first. Full-stack work becomes
 much cheaper after the document schema, asset strategy, and export behavior are
 stable.
+
+### Codebase Quality And Agent Workflows
+
+Fallow should be added as a codebase-intelligence layer once the v0.30
+style-guide/design-system batch is stable enough to produce a useful baseline.
+It should support three workflows:
+
+- **Local**: scripts for dead-code, duplication, health, dependency, and
+  changed-code audit reports. Initial usage should be read-only; auto-fix should
+  require an explicit dry run and focused review.
+- **CI**: a soft `fallow audit --base main` style gate for changed files before
+  any strict whole-repo fail mode. The first CI goal is to prevent new debt, not
+  block releases on existing legacy debt.
+- **Agents**: update agent guidance so Codex uses Fallow for cleanup
+  opportunities, duplicated UI/component code, complexity hotspots, dependency
+  placement, and architecture-boundary checks. Fallow security output should be
+  treated as unverified candidates that require downstream validation, not as a
+  confirmed vulnerability verdict.
+
+Do not make Fallow part of the release gate until the first baseline report has
+been reviewed and noisy findings have been configured, suppressed, or turned
+into planned cleanup work.
 
 ## Current architecture
 
@@ -522,7 +574,7 @@ Current shipped baseline:
 - Graph areas as serializable organization metadata with node overlays and
   layer-panel folder rows.
 - Focused effect presets, procedural noise/array sources, repeater presets, and
-  per-node seed offsets.
+  per-node seed offsets for seeded emoji, sources, effects, and repeaters.
 - Blank-canvas entry points and first starter paths.
 - Local project snapshots, imported image assets, and recovery drafts in
   IndexedDB.

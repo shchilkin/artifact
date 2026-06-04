@@ -150,6 +150,7 @@ describe('makeEffectLayer', () => {
       'linocut',
       'fog',
       'speedLines',
+      'seedOffset',
     ] as const;
 
     for (const field of numericFields) {
@@ -172,6 +173,7 @@ describe('makeEffectLayer', () => {
     expect(layer.rgbSplit).toBe(0);
     expect(layer.rays).toBe(0);
     expect(layer.tintOp).toBe(0);
+    expect(layer.seedOffset).toBe(0);
   });
 });
 
@@ -230,6 +232,7 @@ describe('makeEmojiLayer', () => {
     expect(typeof layer.minSz).toBe('number');
     expect(typeof layer.maxSz).toBe('number');
     expect(typeof layer.blur).toBe('number');
+    expect(typeof layer.seedOffset).toBe('number');
     expect(typeof layer.opacity).toBe('number');
   });
 

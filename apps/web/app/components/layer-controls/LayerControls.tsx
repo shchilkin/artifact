@@ -340,6 +340,13 @@ export function LayerControls({
             onChange={(v) => onChange({ density: v } as Partial<EmojiLayer>)}
           />
           <InspectorSlider
+            label="Seed"
+            value={Math.round(layer.seedOffset ?? 0)}
+            {...R.seedOffset}
+            overrideMax={9999}
+            onChange={(v) => onChange({ seedOffset: v } as Partial<EmojiLayer>)}
+          />
+          <InspectorSlider
             label="Smallest"
             value={layer.minSz}
             {...R.minSz}

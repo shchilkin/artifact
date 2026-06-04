@@ -2,7 +2,10 @@
 
 This document defines how the app should be organized as it grows. The goal is
 to keep feature work direct, reduce cross-file guesswork, and make future UI
-changes safer.
+changes safer. For editor UI tokens, shared primitives, style-guide rules, and
+Radix/shadcn boundaries, read [`style-guide.md`](./style-guide.md) first, then
+[`editor-design-system.md`](./editor-design-system.md) for editor-specific
+migration details.
 
 ## Guiding principles
 
@@ -58,6 +61,11 @@ Use tokens instead of ad hoc colors. Prefer CSS variables and token aliases such
 as `var(--bg)`, `var(--text)`, `var(--accent)`, `bg-bg`, or `border-border`
 over arbitrary color literals in JSX. Arbitrary Tailwind values are acceptable
 only for local geometry that does not describe reusable product meaning.
+
+Keep internal planning language out of app copy. Version-plan notes, migration
+instructions, QA strategy, test names, release gates, and agent workflow text
+belong in `docs/` by default. App routes and components should only render copy
+that helps the person using that surface.
 
 Third-party primitive libraries may help with accessibility and interaction
 mechanics, but they must not define Artifact's look. shadcn/Radix primitives

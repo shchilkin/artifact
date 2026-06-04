@@ -7,77 +7,90 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--control-font-size-md);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--control-letter-spacing);
   line-height: 1;
   padding: 0 18px;
   text-align: center;
   text-decoration: none;
   text-transform: uppercase;
   transition:
-    background 150ms ease-out,
-    border-color 150ms ease-out,
-    color 150ms ease-out;
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
   white-space: nowrap;
 }
 
 .action-button:hover {
-  border-color: var(--text);
-  color: var(--text);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .action-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .action-button:disabled,
 .action-button[aria-disabled="true"] {
   cursor: default;
-  opacity: 0.55;
+  opacity: var(--state-disabled-opacity);
 }
 
 .action-button--primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg);
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--surface-app);
 }
 
 .action-button--primary:hover,
 .action-button--primary.action-button--active {
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--bg);
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--surface-app);
 }
 
 .action-button--secondary {
-  border-color: color-mix(in oklch, var(--accent) 52%, var(--border));
-  background: color-mix(in oklch, var(--accent) 9%, transparent);
-  color: var(--accent);
+  border-color: color-mix(in oklch, var(--accent-primary) 52%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-primary) 9%, transparent);
+  color: var(--accent-primary);
 }
 
 .action-button--secondary:hover,
 .action-button--secondary.action-button--active {
-  border-color: var(--text);
+  border-color: var(--text-primary);
   background: transparent;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .action-button--quiet {
-  border-color: var(--border);
+  border-color: var(--line-default);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .action-button--quiet:hover,
 .action-button--quiet.action-button--active {
-  border-color: var(--text-dim);
-  color: var(--text);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.action-button--danger {
+  border-color: color-mix(in oklch, var(--state-danger) 58%, var(--line-default));
+  background: transparent;
+  color: var(--state-danger);
+}
+
+.action-button--danger:hover,
+.action-button--danger.action-button--active {
+  border-color: var(--state-danger);
+  background: color-mix(in oklch, var(--state-danger) 10%, transparent);
+  color: var(--state-danger);
 }

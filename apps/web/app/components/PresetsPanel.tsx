@@ -1,6 +1,7 @@
 import { type CSSProperties, useState } from 'react';
 import type { Preset } from '../hooks/usePresets';
 import { MAX_PRESETS } from '../hooks/usePresets';
+import { ActionButton } from './ui/ActionButton';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
@@ -32,8 +33,10 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
             <span className={`text-[9px] tracking-[0.5px] ${nearLimit ? 'text-accent' : 'text-dim'}`}>
               {presets.length} / {MAX_PRESETS}
             </span>
-            <SheetClose className="btn btn-icon" aria-label="Close presets">
-              x
+            <SheetClose asChild>
+              <ActionButton aria-label="Close presets" variant="quiet">
+                x
+              </ActionButton>
             </SheetClose>
           </div>
         </SheetHeader>
@@ -50,9 +53,9 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             className="flex-1 bg-sidebar-raised border border-border text-text font-mono text-[11px] px-2 h-11 rounded-sm outline-none focus:border-accent placeholder:text-dim"
           />
-          <button className="btn btn-primary" onClick={handleSave}>
+          <ActionButton onClick={handleSave} variant="primary">
             SAVE
-          </button>
+          </ActionButton>
         </div>
         {presets.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
@@ -72,16 +75,22 @@ export function PresetsPanel({ presets, onSave, onLoad, onDelete, onClose }: Pro
                   <div className="text-[12px] text-text truncate">{preset.name}</div>
                   <div className="text-[10px] text-dim tracking-[0.5px]">seed: {preset.doc.global.seed}</div>
                   <div className="flex gap-1.5">
-                    <button className="btn btn-small" aria-label={`Load ${preset.name}`} onClick={() => onLoad(preset)}>
+                    <ActionButton
+                      className="library-card-action"
+                      aria-label={`Load ${preset.name}`}
+                      onClick={() => onLoad(preset)}
+                      variant="quiet"
+                    >
                       LOAD
-                    </button>
-                    <button
-                      className="btn btn-small btn-danger"
+                    </ActionButton>
+                    <ActionButton
+                      className="library-card-action"
                       aria-label={`Delete ${preset.name}`}
                       onClick={() => onDelete(preset.id)}
+                      variant="danger"
                     >
                       DEL
-                    </button>
+                    </ActionButton>
                   </div>
                 </div>
               </div>

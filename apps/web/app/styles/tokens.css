@@ -31,6 +31,71 @@
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
 
+  /* Reusable editor controls. */
+  --control-h-compact: 32px;
+  --control-h-default: 44px;
+  --control-h-large: 52px;
+  --control-pad-x-compact: 10px;
+  --control-pad-x-default: 16px;
+  --control-radius: 0;
+  --control-font-size-xs: 10px;
+  --control-font-size-sm: 11px;
+  --control-font-size-md: 12px;
+  --control-letter-spacing: 0.12em;
+  --row-h-compact: 36px;
+  --row-h-default: 44px;
+  --focus-ring: 2px solid var(--accent-primary);
+  --focus-ring-offset: 3px;
+  --state-danger: oklch(66% 0.18 28);
+  --state-success: oklch(72% 0.14 152);
+  --state-warning: oklch(74% 0.12 68);
+  --state-hidden-opacity: 0.58;
+  --state-disabled-opacity: 0.55;
+
+  /* Spacing scale. Prefer these before introducing one-off gaps. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radius scale. Artifact is square by default. */
+  --radius-sm: 0;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  --radius-xl: 9px;
+
+  /* Typography scale. UI chrome uses mono; page titles use display. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --type-ui-xs: 10px;
+  --type-ui-sm: 11px;
+  --type-ui-md: 12px;
+  --type-body: 15px;
+  --type-title: 28px;
+  --type-display: clamp(48px, 6vw, 88px);
+  --leading-ui: 1.2;
+  --leading-body: 1.65;
+  --leading-tight: 0.92;
+  --weight-ui: 600;
+  --weight-strong: 700;
+  --weight-display: 900;
+
+  /* Elevation. Resting surfaces stay flat; overlays may lift. */
+  --shadow-none: none;
+  --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--accent-primary) 20%, transparent);
+  --shadow-overlay: 0 22px 70px color-mix(in oklch, var(--surface-app) 70%, transparent);
+
+  /* Motion. Do not animate layout properties. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 260ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-emphasized: cubic-bezier(0.25, 1, 0.5, 1);
+
   /* Editor surfaces. */
   --editor-canvas-bg: oklch(8.8% 0.013 42);
   --editor-grid-dot: oklch(22% 0.014 42 / 0.48);

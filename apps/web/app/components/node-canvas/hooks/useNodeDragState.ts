@@ -20,6 +20,7 @@ import { AREA_PADDING_BOTTOM, AREA_PADDING_TOP, AREA_PADDING_X } from '../areas/
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
+import { type AlignableNode, type NodeAlignmentGuide, snapNodeToAlignment } from '../nodeAlignment';
 import { retainNodeMeasurements, sameNodeList, stableNodeChanges } from '../nodeChanges';
 
 const AREA_SEPARATION_GRACE = 18;
@@ -38,6 +39,7 @@ export interface UseNodeDragStateOptions {
 export interface UseNodeDragStateResult {
   dragNodes: RFNode[];
   dragEdges: RFEdge[];
+  alignmentGuides: NodeAlignmentGuide[];
   /** True while a node drag gesture is in progress. */
   isDraggingRef: React.MutableRefObject<boolean>;
   /** Stable ref for latest dragNodes — safe to read inside callbacks. */
@@ -50,6 +52,15 @@ export interface UseNodeDragStateResult {
   onSelectionChange: (args: { nodes: RFNode[]; edges: RFEdge[] }) => void;
   handleNodesChange: (changes: NodeChange[]) => void;
   commitNodePositions: (nodes: RFNode[]) => void;
+}
+
+function toAlignableNode(node: RFNode): AlignableNode {
+  return {
+    id: node.id,
+    position: node.position,
+    width: node.measured?.width ?? node.width ?? NODE_W,
+    height: node.measured?.height ?? node.height ?? NODE_H,
+  };
 }
 
 /**
@@ -71,6 +82,7 @@ export function useNodeDragState({
     retainNodeMeasurements(baseNodes, [], { width: NODE_W, height: NODE_H }),
   );
   const [dragEdges, setDragEdges] = useState<RFEdge[]>(baseEdges);
+  const [alignmentGuides, setAlignmentGuides] = useState<NodeAlignmentGuide[]>([]);
   const isDraggingRef = useRef(false);
   const dragNodesRef = useRef<RFNode[]>(dragNodes);
   const selectionSigRef = useRef('');
@@ -86,13 +98,36 @@ export function useNodeDragState({
         return sameNodeList(prev, next) ? prev : next;
       });
       setDragEdges((prev) => (prev === baseEdges ? prev : baseEdges));
+      setAlignmentGuides((prev) => (prev.length ? [] : prev));
     }
   }, [baseNodes, baseEdges]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setDragNodes((prev) => {
       const relevant = stableNodeChanges(changes, prev);
-      return relevant.length ? applyNodeChanges(relevant, prev) : prev;
+      if (!relevant.length) return prev;
+      const positionChanges = relevant.filter((change) => change.type === 'position' && change.position);
+      let next = applyNodeChanges(relevant, prev);
+      if (isDraggingRef.current && positionChanges.length === 1) {
+        const movingId = positionChanges[0].id;
+        const movingNode = next.find((node) => node.id === movingId);
+        if (movingNode) {
+          const snap = snapNodeToAlignment(
+            toAlignableNode(movingNode),
+            next.filter((node) => node.id !== movingId).map(toAlignableNode),
+          );
+          if (snap.guides.length) {
+            next = next.map((node) => (node.id === movingId ? { ...node, position: snap.position } : node));
+          }
+          setAlignmentGuides(snap.guides);
+        } else {
+          setAlignmentGuides([]);
+        }
+      } else if (positionChanges.length) {
+        setAlignmentGuides([]);
+      }
+      dragNodesRef.current = next;
+      return next;
     });
   }, []);
 
@@ -205,14 +240,19 @@ export function useNodeDragState({
 
   const onNodeDragStart = useCallback(() => {
     isDraggingRef.current = true;
+    setAlignmentGuides([]);
   }, []);
 
   const onNodeDragStop = useCallback(
     (_: unknown, node: RFNode) => {
       isDraggingRef.current = false;
-      const movedGraph = updateGraphPositions(graphRef.current, [{ id: node.id, position: node.position }]);
-      const areaGraph = separateMovedNodesFromAreas(movedGraph, [node]);
-      const interceptEdge = findInterceptEdge(node);
+      setAlignmentGuides([]);
+      const committedNode = dragNodesRef.current.find((item) => item.id === node.id) ?? node;
+      const movedGraph = updateGraphPositions(graphRef.current, [
+        { id: committedNode.id, position: committedNode.position },
+      ]);
+      const areaGraph = separateMovedNodesFromAreas(movedGraph, [committedNode]);
+      const interceptEdge = findInterceptEdge(committedNode);
       const inputPort = getInterceptInputPort(node.id);
       if (
         interceptEdge &&
@@ -231,6 +271,7 @@ export function useNodeDragState({
   const onSelectionDragStop = useCallback(
     (_: React.MouseEvent, nodes: RFNode[]) => {
       isDraggingRef.current = false;
+      setAlignmentGuides([]);
       commitNodePositions(nodes);
     },
     [commitNodePositions],
@@ -271,6 +312,7 @@ export function useNodeDragState({
   return {
     dragNodes,
     dragEdges,
+    alignmentGuides,
     isDraggingRef,
     dragNodesRef,
     onNodesChange,

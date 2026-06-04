@@ -2,15 +2,15 @@
   position: fixed;
   inset: 0;
   z-index: 20000;
-  background: var(--node-backdrop, color-mix(in oklch, var(--bg) 82%, transparent));
+  background: var(--node-backdrop, color-mix(in oklch, var(--surface-app) 82%, transparent));
 }
 
 .artifact-dialog-overlay[data-state="open"] {
-  animation: artifact-dialog-overlay-in 180ms ease-out;
+  animation: artifact-dialog-overlay-in var(--motion-base) var(--ease-out);
 }
 
 .artifact-dialog-overlay[data-state="closed"] {
-  animation: artifact-dialog-overlay-out 140ms ease-in;
+  animation: artifact-dialog-overlay-out var(--motion-fast) ease-in;
 }
 
 .artifact-dialog-content {
@@ -20,16 +20,16 @@
 }
 
 .artifact-dialog-content:focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--accent-primary);
   outline-offset: -1px;
 }
 
 .artifact-dialog-content[data-state="open"] {
-  animation: artifact-dialog-content-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: artifact-dialog-content-in var(--motion-slow) var(--ease-out);
 }
 
 .artifact-dialog-content[data-state="closed"] {
-  animation: artifact-dialog-content-out 140ms ease-in;
+  animation: artifact-dialog-content-out var(--motion-fast) ease-in;
 }
 
 @keyframes artifact-dialog-overlay-in {

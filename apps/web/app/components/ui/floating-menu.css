@@ -11,11 +11,11 @@
 }
 
 .artifact-floating-menu-content[data-state="open"] {
-  animation: artifact-floating-menu-in 120ms ease-out;
+  animation: artifact-floating-menu-in var(--motion-fast) var(--ease-out);
 }
 
 .artifact-floating-menu-content[data-state="closed"] {
-  animation: artifact-floating-menu-out 90ms ease-in;
+  animation: artifact-floating-menu-out var(--motion-fast) ease-in;
 }
 
 @keyframes artifact-floating-menu-in {

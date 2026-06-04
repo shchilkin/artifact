@@ -1,8 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
-import { Footer } from '../components/Footer';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
-import { SiteNav } from '../components/SiteNav';
+import { PublicPageLayout } from '../components/PublicPageLayout';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -259,7 +258,7 @@ const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
   symbol: EFFECT_PRESETS[preset].icon,
   name: EFFECT_PRESETS[preset].name,
   desc: EFFECT_DOCS[preset].description,
-  params: EFFECT_DOCS[preset].params,
+  params: [...EFFECT_DOCS[preset].params, { key: 'seedOffset', range: '-999-999' }],
   doc: buildEffectDoc(preset),
 }));
 
@@ -708,7 +707,7 @@ function humanizeParam(key: string): string {
 
 function parseRange(rangeStr: string) {
   if (rangeStr.includes('hex')) return { type: 'color' };
-  const numMatch = rangeStr.match(/([0-9.]+)[–-]([0-9.]+)/);
+  const numMatch = rangeStr.match(/(-?[0-9.]+)[–-](-?[0-9.]+)/);
   if (numMatch) {
     const min = parseFloat(numMatch[1]);
     const max = parseFloat(numMatch[2]);
@@ -1054,9 +1053,7 @@ export default function DocsNodes() {
   const visibleCatalogNodes = normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;
 
   return (
-    <div className="docs-page">
-      <SiteNav solid />
-
+    <PublicPageLayout className="docs-page">
       <main className="docs-feed">
         <section className="docs-intro" aria-labelledby="docs-title">
           <h1 id="docs-title" className="docs-intro__headline">
@@ -1347,8 +1344,6 @@ export default function DocsNodes() {
           </div>
         </GuideSection>
       </main>
-
-      <Footer />
-    </div>
+    </PublicPageLayout>
   );
 }

@@ -35,5 +35,8 @@ update data, rendering, controls, docs, and tests in one slice.
 - Keep controls named by what the user sees, not by implementation details.
 - If an effect uses output size, make the scale behavior explicit so preview
   and export density match.
+- If an effect uses seeded randomness, read `doc.global.seed + layer.seedOffset`
+  in both Canvas 2D and GPU paths so one effect node can vary without
+  re-rolling the whole document.
 - If a slider needs creative values beyond the common range, expose an override
   input instead of hiding the capability.

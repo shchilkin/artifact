@@ -42,6 +42,7 @@ export type AddLibraryItem = {
   tags?: readonly string[];
   keywords?: string;
   popular?: boolean;
+  showInBrowse?: boolean;
 };
 
 export const ADD_LIBRARY_ACTION_MIME = 'application/x-artifact-add-library-action';
@@ -275,6 +276,7 @@ const layerItems: AddLibraryItem[] = [
     tags: TEXT_PRESETS[preset].tags,
     keywords: TEXT_PRESETS[preset].keywords,
     popular: TEXT_PRESETS[preset].popular,
+    showInBrowse: false,
   })),
   {
     id: 'layer:emoji',
@@ -499,6 +501,10 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
 
 export function addLibraryItemsForSurface(surface: AddLibrarySurface) {
   return ADD_LIBRARY_ITEMS.filter((item) => item.surfaces.includes(surface));
+}
+
+export function addLibraryBrowseItemsForSurface(surface: AddLibrarySurface) {
+  return addLibraryItemsForSurface(surface).filter((item) => item.showInBrowse !== false);
 }
 
 export function addLibraryRecipesForSurface(surface: AddLibrarySurface) {

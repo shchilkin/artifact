@@ -1,4 +1,4 @@
-export type ActionButtonVariant = 'primary' | 'secondary' | 'quiet';
+export type ActionButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 
 interface ActionButtonClassOptions {
   active?: boolean;

@@ -2,15 +2,15 @@
   position: fixed;
   inset: 0;
   z-index: 299;
-  background: color-mix(in oklch, var(--bg) 62%, transparent);
+  background: color-mix(in oklch, var(--surface-app) 62%, transparent);
 }
 
 .artifact-sheet-overlay[data-state="open"] {
-  animation: artifact-sheet-overlay-in 180ms ease-out;
+  animation: artifact-sheet-overlay-in var(--motion-base) var(--ease-out);
 }
 
 .artifact-sheet-overlay[data-state="closed"] {
-  animation: artifact-sheet-overlay-out 160ms ease-in;
+  animation: artifact-sheet-overlay-out var(--motion-base) ease-in;
 }
 
 .artifact-sheet-content {
@@ -19,13 +19,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--sidebar-bg);
-  color: var(--text);
+  background: var(--surface-panel);
+  color: var(--text-primary);
   outline: none;
 }
 
 .artifact-sheet-content:focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--accent-primary);
   outline-offset: -1px;
 }
 
@@ -34,7 +34,7 @@
   right: 0;
   bottom: 0;
   width: min(var(--artifact-sheet-width, 360px), 100vw);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--line-default);
 }
 
 .artifact-sheet-content-left {
@@ -42,7 +42,7 @@
   bottom: 0;
   left: 0;
   width: min(var(--artifact-sheet-width, 360px), 100vw);
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--line-default);
 }
 
 .artifact-sheet-content-top {
@@ -50,7 +50,7 @@
   right: 0;
   left: 0;
   min-height: min(var(--artifact-sheet-height, 360px), 100vh);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .artifact-sheet-content-bottom {
@@ -58,45 +58,45 @@
   bottom: 0;
   left: 0;
   min-height: min(var(--artifact-sheet-height, 360px), 100vh);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line-default);
 }
 
 .artifact-sheet-content-right[data-state="open"] {
-  animation: artifact-sheet-right-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: artifact-sheet-right-in var(--motion-slow) var(--ease-out);
 }
 
 .artifact-sheet-content-right[data-state="closed"] {
-  animation: artifact-sheet-right-out 220ms ease-in;
+  animation: artifact-sheet-right-out var(--motion-base) ease-in;
 }
 
 .artifact-sheet-content-left[data-state="open"] {
-  animation: artifact-sheet-left-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: artifact-sheet-left-in var(--motion-slow) var(--ease-out);
 }
 
 .artifact-sheet-content-left[data-state="closed"] {
-  animation: artifact-sheet-left-out 220ms ease-in;
+  animation: artifact-sheet-left-out var(--motion-base) ease-in;
 }
 
 .artifact-sheet-content-top[data-state="open"] {
-  animation: artifact-sheet-top-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: artifact-sheet-top-in var(--motion-slow) var(--ease-out);
 }
 
 .artifact-sheet-content-top[data-state="closed"] {
-  animation: artifact-sheet-top-out 220ms ease-in;
+  animation: artifact-sheet-top-out var(--motion-base) ease-in;
 }
 
 .artifact-sheet-content-bottom[data-state="open"] {
-  animation: artifact-sheet-bottom-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: artifact-sheet-bottom-in var(--motion-slow) var(--ease-out);
 }
 
 .artifact-sheet-content-bottom[data-state="closed"] {
-  animation: artifact-sheet-bottom-out 220ms ease-in;
+  animation: artifact-sheet-bottom-out var(--motion-base) ease-in;
 }
 
 .artifact-sheet-header,
 .artifact-sheet-footer {
   flex-shrink: 0;
-  border-color: var(--border);
+  border-color: var(--line-default);
 }
 
 .artifact-sheet-body {

@@ -616,7 +616,8 @@ export async function applyGpuOnlyEffectLayerChain(
   const filters: Filter[] = [];
   for (const layer of layers) {
     throwIfRenderAborted(options);
-    const nextFilters = buildFiltersFromEffectLayer(layer, doc.global.seed, W, H);
+    const effectSeed = doc.global.seed + (layer.seedOffset ?? 0);
+    const nextFilters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
     if (nextFilters?.length) filters.push(...nextFilters);
   }
   if (filters.length === 0) return base;
@@ -659,7 +660,7 @@ async function applyLayerToCanvasProfiled(
   const ctx = current.getContext('2d', { willReadFrequently: true })!;
 
   if (layer.kind === 'emoji') {
-    drawEmojiLayer(ctx, W, H, layer, lcg(seed ^ 0x7a8b9c), scale);
+    drawEmojiLayer(ctx, W, H, layer, lcg((seed + (layer.seedOffset ?? 0)) ^ 0x7a8b9c), scale);
   } else if (layer.kind === 'text') {
     await ensureCanvasFontLoaded(layer.font, layer.size * scale);
     drawTextLayer(ctx, W, H, layer, scale);
@@ -713,11 +714,12 @@ async function applyLayerToCanvasProfiled(
       }
     }
     const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-    await applyCanvas2DEffects(ctx, W, H, layer, seed, scale, lcg(seed ^ 0x1a2b3c));
+    const effectSeed = seed + (layer.seedOffset ?? 0);
+    await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
     throwIfRenderAborted(options);
     if (!options.skipEffects) {
       const { buildFiltersFromEffectLayer } = await loadGpuModules();
-      const filters = buildFiltersFromEffectLayer(layer, seed, W, H);
+      const filters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
       if (filters?.length) {
         current = await runGpuPass(current, W, H, filters);
         throwIfRenderAborted(options);

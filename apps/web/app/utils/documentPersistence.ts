@@ -11,6 +11,7 @@ import {
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
   type Layer,
+  makeEmojiLayer,
   makeSourceLayer,
   type PortableFontAsset,
   SOURCE_TYPES,
@@ -147,7 +148,9 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
             ? ({ ...DEFAULT_EFFECT_LAYER_PROPS, ...normalizedLayer } as Partial<EffectLayer>)
             : SOURCE_TYPES.includes(normalizedLayer.kind as SourceType)
               ? { ...makeSourceLayer(normalizedLayer.kind as SourceType), ...normalizedLayer }
-              : normalizedLayer;
+              : normalizedLayer.kind === 'emoji'
+                ? { ...makeEmojiLayer(), ...normalizedLayer }
+                : normalizedLayer;
 
         if (layerWithDefaults.kind === 'effect' && shouldSplitEffectLayer(layerWithDefaults as Partial<EffectLayer>)) {
           return splitEffectPatchIntoPresetLayers(layerWithDefaults as Partial<EffectLayer>, {

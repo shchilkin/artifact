@@ -10,11 +10,23 @@ Before changing state ownership, rendering, node editor behavior, thumbnails, pr
 - `docs/rendering.md`
 - `docs/node-editor.md`
 - `docs/effect-development.md`
+- `docs/style-guide.md`
+- `docs/editor-design-system.md`
 - `docs/improvement-plan.md`
 - `docs/roadmap.md`
+- `docs/version-planning.md`
 - `docs/production-readiness.md`
 
 Prefer these docs over older inline summaries when they disagree. Update the relevant doc in the same change when architecture or interaction rules change.
+
+## User-facing copy boundary
+
+Do not put internal agent/process language on app surfaces. Migration plans,
+test strategy, release-plan notes, QA wording, and implementation commentary
+belong in `docs/` by default, not in route copy, editor panels, public docs, or
+style-guide surfaces. Avoid UI copy like "baseline", "migrate carefully",
+"before broad adoption", or "focused Playwright checks" unless building an
+explicit internal operations page.
 
 ## Core rules
 

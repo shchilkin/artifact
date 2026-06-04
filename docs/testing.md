@@ -148,10 +148,32 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
   event reliably there.
 - Mobile smoke keeps the starter actions, layer list, canvas, and primary
   action bar visible without horizontal overflow.
+- The v0.30 visual baseline in `tests/browser/v030-visual.spec.ts` covers a
+  curated set of editor states with deterministic fixtures: blank editor,
+  selected/hidden/locked layer rows, Layers Add Library, Nodes output-path
+  context, Nodes Add Library, nonblank preview, and graph output color sampling.
+- Layer reorder regressions cover both canonical stack synchronization and stale
+  dragover/drop ordering, so the final drop row wins even if the visual hover
+  target changed earlier in the drag.
+- Effect node inspector coverage verifies that local effect `seedOffset`
+  controls are exposed in Nodes mode and persist into the document.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
+
+The v0.30 visual baseline deliberately does not start with broad golden
+screenshots. UI surfaces use layout, computed-style, readable-control, and
+structural assertions; canvas-heavy surfaces use nonblank and color-sampling
+assertions. Add golden screenshots only after a surface proves deterministic
+across supported browsers and operating systems.
+
+As the v0.30 editor design-system foundation lands, add focused browser
+coverage for the internal style-guide route before broad editor migration. The
+style-guide checks should prove reusable primitives and their states are
+visible, readable, focusable, non-overlapping, and deterministic. Editor flow
+tests should keep proving behavior; style-guide tests should prove the reusable
+visual contract.
 
 ### Performance benchmarks
 

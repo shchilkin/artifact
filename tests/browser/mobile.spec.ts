@@ -64,8 +64,8 @@ test('mobile layers smoke keeps canvas actions and layer list usable', async ({ 
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
   await expectLayerCanvasToHavePixels(page);
 
-  await expect(page.getByRole('tab', { name: 'layers' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'nodes' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Switch to layers view' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Switch to nodes view' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'export' })).toBeVisible();
 
   await page.getByText('Top fill', { exact: true }).click();

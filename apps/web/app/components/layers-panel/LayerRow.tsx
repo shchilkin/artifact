@@ -70,6 +70,7 @@ export const LayerRow = memo(function LayerRow({
     <div
       draggable={!layer.locked}
       aria-selected={selected}
+      data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
       onDragStart={(event) => {

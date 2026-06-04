@@ -57,6 +57,70 @@ const layeredFillDocument = {
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const threeLayerReorderDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 3, aspect: '1:1' },
+  layers: [
+    {
+      id: 'reorder-bottom',
+      name: 'Reorder bottom',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#2255cc',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'reorder-middle',
+      name: 'Reorder middle',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#22aa66',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'reorder-top',
+      name: 'Reorder top',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#dd3322',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+const effectSeedDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 11, aspect: '1:1' },
+  layers: [
+    {
+      id: 'effect-seed-fill',
+      name: 'Seed backdrop',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#777777',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'effect-seed-grain',
+      name: 'Seeded grain',
+      visible: true,
+      locked: false,
+      kind: 'effect',
+      preset: 'grain',
+      grain: 28,
+      seedOffset: 0,
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const aiRunningLayerDocument = {
   schemaVersion: 1,
   global: { bg: 'transparent', seed: 1, aspect: '1:1' },
@@ -1564,9 +1628,17 @@ test('project packages save images with license-aware font policy by default', a
   expect(packagedImage?.src).toContain('data:image/');
   expect(projectPackage.document?.fontAssets).toBeUndefined();
 
+  const explicitDialogPromise = new Promise<string>((resolve) => {
+    page.once('dialog', async (dialog) => {
+      const message = dialog.message();
+      await dialog.accept();
+      resolve(message);
+    });
+  });
   const explicitDownloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save project package with all imported font files' }).click();
   const explicitDownload = await explicitDownloadPromise;
+  await expect(explicitDialogPromise).resolves.toContain('PKG+FONTS embeds imported local font files');
   const explicitArtifactPath = await explicitDownload.path();
   expect(explicitArtifactPath).toBeTruthy();
   if (explicitArtifactPath) {
@@ -1785,6 +1857,38 @@ test('missing imported font keeps fallback text visible', async ({ page }) => {
   await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
 });
 
+test('effect node inspector exposes and persists local seed offsets', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(effectSeedDocument))}`);
+  await switchToNodeView(page);
+
+  const effectNode = page.locator('[data-node-id="effect-seed-grain"]');
+  await expect(effectNode).toBeVisible({ timeout: 15_000 });
+  await effectNode.locator('.node-shell-frame').click();
+
+  await page.locator('.node-props-panel-open button').filter({ hasText: /^Node/ }).first().click();
+  const seedControl = page.locator('.node-props-panel-open .node-inspector-control').filter({ hasText: /^Seed/ });
+  const seedSlider = seedControl.locator('input[type="range"]').first();
+  await expect(seedSlider).toBeVisible({ timeout: 15_000 });
+  await seedSlider.evaluate((input) => {
+    const slider = input as HTMLInputElement;
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    valueSetter?.call(slider, '42');
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.layers?.find((layer: { id: string }) => layer.id === 'effect-seed-grain')?.seedOffset;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(42);
+});
+
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
   await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerTextEffectDragDocument))}`);
   await page.getByText('Drag text', { exact: true }).click();
@@ -1993,7 +2097,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
     .toBeGreaterThan(1);
 
   await page.reload();
-  await page.locator('.view-mode-toggle-sidebar').getByRole('tab', { name: 'nodes' }).click();
+  await page.locator('.view-mode-toggle-sidebar').getByRole('tab', { name: 'Switch to nodes view' }).click();
   await page.locator('.node-shell-kind-primitive').first().click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect(page.getByText('Oops!')).toHaveCount(0);
@@ -2194,6 +2298,85 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
       topBeforeBottom: true,
     });
   await expectLayerCanvasToHavePixels(page);
+});
+
+test('layer drag reorder uses the final drop row even after stale dragover state', async ({ page }) => {
+  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(threeLayerReorderDocument))}`);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expect
+    .poll(
+      async () =>
+        page
+          .locator('.sidebar .layer-row')
+          .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId)),
+      { timeout: 15_000 },
+    )
+    .toEqual(['reorder-top', 'reorder-middle', 'reorder-bottom']);
+
+  await page.evaluate(() => {
+    const row = (id: string) => document.querySelector<HTMLElement>(`.layer-row[data-layer-id="${id}"]`);
+    const source = row('reorder-top');
+    const staleTarget = row('reorder-bottom');
+    const finalTarget = row('reorder-middle');
+    if (!source || !staleTarget || !finalTarget) throw new Error('Layer reorder rows were not found');
+
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+
+    const staleRect = staleTarget.getBoundingClientRect();
+    staleTarget.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientY: staleRect.top + staleRect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+
+    const finalRect = finalTarget.getBoundingClientRect();
+    finalTarget.dispatchEvent(
+      new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: finalRect.top + finalRect.height * 0.75,
+        dataTransfer,
+      }),
+    );
+    source.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            stack: doc.layers?.map((layer: { id: string }) => layer.id),
+            display: [...document.querySelectorAll<HTMLElement>('.sidebar .layer-row')].map(
+              (row) => row.dataset.layerId,
+            ),
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      stack: ['reorder-bottom', 'reorder-top', 'reorder-middle'],
+      display: ['reorder-middle', 'reorder-top', 'reorder-bottom'],
+    });
+
+  await switchToNodeView(page);
+  await expect(page.locator('.node-canvas-root')).toBeVisible();
+  await switchToLayerView(page);
+  await expect
+    .poll(
+      async () =>
+        page
+          .locator('.sidebar .layer-row')
+          .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId)),
+      { timeout: 15_000 },
+    )
+    .toEqual(['reorder-middle', 'reorder-top', 'reorder-bottom']);
 });
 
 test('layer drag reorder makes a custom graph follow the layer stack', async ({ page }) => {
@@ -3602,7 +3785,7 @@ async function expectLayerCanvasToHavePixels(page: Page) {
 async function switchToNodeView(page: Page) {
   await expect(async () => {
     if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesTab = page.getByRole('tab', { name: 'nodes' });
+    const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
     await expect(nodesTab).toBeVisible({ timeout: 2_000 });
     await nodesTab.click();
     await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
@@ -3611,7 +3794,7 @@ async function switchToNodeView(page: Page) {
 
 async function switchToLayerView(page: Page) {
   await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'layers' });
+    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
     await expect(layersTab).toBeVisible({ timeout: 2_000 });
     await layersTab.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });

@@ -18,7 +18,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { type CanvasDocument, makeEffectPresetLayer, makeFillLayer, makeSourceLayer } from '../../types/config';
+import {
+  type CanvasDocument,
+  makeEffectPresetLayer,
+  makeEmojiLayer,
+  makeFillLayer,
+  makeSourceLayer,
+} from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
 import {
   createTestImageCache,
@@ -210,6 +216,23 @@ describe('renderDocument — emoji seeded determinism', () => {
     const docB = { ...emojiSeeded, global: { ...emojiSeeded.global, seed: 999 } };
     const a = await renderDocument(docA, 100, 100, new Map(), opts);
     const b = await renderDocument(docB, 100, 100, new Map(), opts);
+    expect(pixelsEqual(allPixels(a), allPixels(b))).toBe(false);
+  });
+
+  it('a different emoji seed offset produces different pixels without changing the document seed', async () => {
+    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const docA = emojiSeeded;
+    const docB: CanvasDocument = {
+      ...emojiSeeded,
+      layers: emojiSeeded.layers.map((layer) =>
+        layer.kind === 'emoji' ? makeEmojiLayer({ ...layer, seedOffset: 42 }) : layer,
+      ),
+    };
+
+    const a = await renderDocument(docA, 100, 100, new Map(), opts);
+    const b = await renderDocument(docB, 100, 100, new Map(), opts);
+
+    expect(docA.global.seed).toBe(docB.global.seed);
     expect(pixelsEqual(allPixels(a), allPixels(b))).toBe(false);
   });
 });
@@ -418,6 +441,36 @@ describe('renderDocument — preview/export size parity', () => {
     expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
   });
 
+  it('effect seed offsets vary one effect node without changing the document seed', async () => {
+    const makeEffectDoc = (seedOffset: number): CanvasDocument => ({
+      global: { bg: '#111111', seed: 42, aspect: '1:1' },
+      layers: [
+        makeFillLayer({ color: '#777777', opacity: 100 }),
+        makeEffectPresetLayer('grain', {
+          grain: 60,
+          seedOffset,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const first = await renderDocument(makeEffectDoc(0), 120, 120, new Map(), {
+      skipEffects: false,
+      graphMode: 'stack',
+    });
+    const firstAgain = await renderDocument(makeEffectDoc(0), 120, 120, new Map(), {
+      skipEffects: false,
+      graphMode: 'stack',
+    });
+    const varied = await renderDocument(makeEffectDoc(17), 120, 120, new Map(), {
+      skipEffects: false,
+      graphMode: 'stack',
+    });
+
+    expect(pixelsEqual(allPixels(first), allPixels(firstAgain))).toBe(true);
+    expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
+  });
+
   it('noise shaping controls alter procedural texture pixels deterministically', async () => {
     const makeNoiseDoc = (patch: Partial<ReturnType<typeof makeSourceLayer>> = {}): CanvasDocument => ({
       global: { bg: 'transparent', seed: 77, aspect: '1:1' },
@@ -436,19 +489,20 @@ describe('renderDocument — preview/export size parity', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     });
     const options = { skipEffects: true, graphMode: 'stack' as const };
+    const size = 120;
 
-    const base = await renderDocument(makeNoiseDoc(), 180, 180, new Map(), options);
+    const base = await renderDocument(makeNoiseDoc(), size, size, new Map(), options);
     const shaped = await renderDocument(
       makeNoiseDoc({ noiseWarp: 70, noiseTurbulence: 62, noiseThreshold: 48 }),
-      180,
-      180,
+      size,
+      size,
       new Map(),
       options,
     );
     const shapedAgain = await renderDocument(
       makeNoiseDoc({ noiseWarp: 70, noiseTurbulence: 62, noiseThreshold: 48 }),
-      180,
-      180,
+      size,
+      size,
       new Map(),
       options,
     );

@@ -35,10 +35,10 @@ export function ViewModeToggle({
       className={`view-mode-toggle view-mode-toggle-${variant}`}
     >
       <TabsList>
-        <TabsTrigger value="layers" style={buttonStyle(value === 'layers', 'left')}>
+        <TabsTrigger value="layers" style={buttonStyle(value === 'layers', 'left')} aria-label="Switch to layers view">
           layers
         </TabsTrigger>
-        <TabsTrigger value="nodes" style={buttonStyle(value === 'nodes', 'right')}>
+        <TabsTrigger value="nodes" style={buttonStyle(value === 'nodes', 'right')} aria-label="Switch to nodes view">
           nodes
         </TabsTrigger>
       </TabsList>

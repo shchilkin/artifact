@@ -1,4 +1,9 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ActionButton } from '../ui/ActionButton';
+import { Badge } from '../ui/Badge';
+import { EmptyState } from '../ui/EmptyState';
+import { SearchField } from '../ui/SearchField';
+import { ToolbarButton } from '../ui/Toolbar';
 import { AddLibraryPreview } from './AddLibraryPreview';
 import {
   ADD_LIBRARY_ACTION_MIME,
@@ -7,6 +12,7 @@ import {
   type AddLibraryGroupId,
   type AddLibraryItem,
   type AddLibrarySurface,
+  addLibraryBrowseItemsForSurface,
   addLibraryGroupsForSurface,
   addLibraryItemsForSurface,
   addLibraryRecipesForSurface,
@@ -23,6 +29,7 @@ export function AddLibraryPanel({
   placeholder,
   onAdd,
   onClose,
+  autoFocusSearch = true,
   draggable = false,
 }: {
   surface: AddLibrarySurface;
@@ -30,6 +37,7 @@ export function AddLibraryPanel({
   placeholder: string;
   onAdd: (action: AddLibraryAction) => void;
   onClose: () => void;
+  autoFocusSearch?: boolean;
   draggable?: boolean;
 }) {
   const [query, setQuery] = useState('');
@@ -41,18 +49,24 @@ export function AddLibraryPanel({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const items = useMemo(() => addLibraryItemsForSurface(surface), [surface]);
+  const browsableItems = useMemo(() => addLibraryBrowseItemsForSurface(surface), [surface]);
   const recipes = useMemo(() => addLibraryRecipesForSurface(surface), [surface]);
   const groups = useMemo(() => addLibraryGroupsForSurface(surface), [surface]);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const activeRecipe = recipes.find((recipe) => recipe.id === activeRecipeId) ?? null;
   const activeGroup = groups.find((group) => group.id === activeGroupId) ?? null;
   const scopedItems = activeGroupId ? items.filter((item) => item.group === activeGroupId) : items;
+  const browsableScopedItems = useMemo(
+    () => (activeGroupId ? browsableItems.filter((item) => item.group === activeGroupId) : browsableItems),
+    [activeGroupId, browsableItems],
+  );
   const isSearching = !!query.trim();
 
   useEffect(() => {
+    if (!autoFocusSearch) return;
     const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [autoFocusSearch]);
 
   const searchResults = useMemo(() => {
     return searchAddLibraryItems(scopedItems, query);
@@ -78,7 +92,7 @@ export function AddLibraryPanel({
       return [{ id: activeRecipe.id, label: activeRecipe.label, hint: activeRecipe.hint, items: recipeItems }];
     }
     if (activeGroup) {
-      return [{ id: activeGroup.id, label: activeGroup.label, hint: activeGroup.hint, items: scopedItems }];
+      return [{ id: activeGroup.id, label: activeGroup.label, hint: activeGroup.hint, items: browsableScopedItems }];
     }
 
     const favoriteItems = favoriteIds
@@ -86,12 +100,12 @@ export function AddLibraryPanel({
       .filter((item): item is AddLibraryItem => Boolean(item));
     const recentItems = recentIds.map((id) => itemById.get(id)).filter((item): item is AddLibraryItem => Boolean(item));
     const pinnedIds = new Set([...favoriteIds, ...recentIds]);
-    const popularItems = items.filter((item) => item.popular && !pinnedIds.has(item.id));
+    const popularItems = browsableItems.filter((item) => item.popular && !pinnedIds.has(item.id));
     const grouped = ADD_LIBRARY_GROUPS.map((group) => ({
       id: group.id,
       label: group.label,
       hint: group.hint,
-      items: items.filter((item) => item.group === group.id && !pinnedIds.has(item.id) && !item.popular),
+      items: browsableItems.filter((item) => item.group === group.id && !pinnedIds.has(item.id) && !item.popular),
     })).filter((section) => section.items.length > 0);
 
     return [
@@ -107,13 +121,13 @@ export function AddLibraryPanel({
   }, [
     activeGroup,
     activeRecipe,
+    browsableItems,
+    browsableScopedItems,
     favoriteIds,
     isSearching,
     itemById,
-    items,
     recentIds,
     recipeItems,
-    scopedItems,
     searchResults,
   ]);
 
@@ -170,38 +184,28 @@ export function AddLibraryPanel({
 
   return (
     <>
-      <div className="add-library-search nadd-search">
-        <span className="add-library-search-icon nadd-search-icon">⌕</span>
-        <input
-          ref={inputRef}
-          className="add-library-search-input nadd-search-input"
-          aria-label={searchLabel}
-          placeholder={placeholder}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setActiveRecipeId(null);
-            setActiveIndex(0);
-          }}
-          onKeyDown={handleKeyDown}
-        />
-        {query && (
-          <button
-            type="button"
-            className="add-library-search-clear nadd-search-clear"
-            onClick={() => {
-              setQuery('');
-              setActiveIndex(0);
-            }}
-            aria-label="Clear"
-          >
-            ×
-          </button>
-        )}
-      </div>
+      <SearchField
+        ref={inputRef}
+        className="add-library-search nadd-search"
+        clearClassName="add-library-search-clear nadd-search-clear"
+        inputClassName="add-library-search-input nadd-search-input"
+        aria-label={searchLabel}
+        placeholder={placeholder}
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setActiveRecipeId(null);
+          setActiveIndex(0);
+        }}
+        onClear={() => {
+          setQuery('');
+          setActiveIndex(0);
+        }}
+        onKeyDown={handleKeyDown}
+      />
 
       <div className="add-library-browse nadd-browse" aria-label="Browse library groups">
-        <button
+        <ToolbarButton
           type="button"
           className={`add-library-browse-item nadd-browse-item${activeGroupId === null ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
           aria-pressed={activeGroupId === null}
@@ -212,9 +216,9 @@ export function AddLibraryPanel({
           }}
         >
           All
-        </button>
+        </ToolbarButton>
         {groups.map((group) => (
-          <button
+          <ToolbarButton
             key={group.id}
             type="button"
             className={`add-library-browse-item nadd-browse-item${activeGroupId === group.id ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
@@ -227,14 +231,14 @@ export function AddLibraryPanel({
             }}
           >
             {group.label}
-          </button>
+          </ToolbarButton>
         ))}
       </div>
 
       {recipes.length > 0 && (
         <div className="add-library-recipes nadd-recipes" aria-label="Recipe node groups">
           {recipes.map((recipe) => (
-            <button
+            <ToolbarButton
               key={recipe.id}
               type="button"
               className={`add-library-recipe nadd-recipe${activeRecipeId === recipe.id ? ' add-library-recipe-active nadd-recipe-active' : ''}`}
@@ -248,7 +252,7 @@ export function AddLibraryPanel({
               }}
             >
               {recipe.label}
-            </button>
+            </ToolbarButton>
           ))}
         </div>
       )}
@@ -256,7 +260,7 @@ export function AddLibraryPanel({
       <div className="add-library-body">
         <div className="add-library-list nadd-list nadd-flat-list" onWheelCapture={(event) => event.stopPropagation()}>
           {sections.length === 0 || flatItems.length === 0 ? (
-            <div className="add-library-empty nadd-empty">No matches</div>
+            <EmptyState className="add-library-empty nadd-empty" title="No matches" />
           ) : (
             sections.map((section) => (
               <div key={section.id} className="add-library-section nadd-section">
@@ -313,22 +317,25 @@ function AddLibraryDetail({
             {item.tags && item.tags.length > 0 && (
               <span className="add-library-tags" aria-label="Use cases">
                 {item.tags.slice(0, 4).map((tag) => (
-                  <span key={tag}>{tag}</span>
+                  <Badge key={tag} className="add-library-tag">
+                    {tag}
+                  </Badge>
                 ))}
               </span>
             )}
-            <button
+            <ActionButton
               type="button"
               className={`add-library-favorite${favorite ? ' add-library-favorite-active' : ''}`}
+              variant="quiet"
               aria-pressed={favorite}
               onClick={() => onToggleFavorite(item)}
             >
               {favorite ? 'Favorited' : 'Add favorite'}
-            </button>
+            </ActionButton>
           </div>
         </>
       ) : (
-        <div className="add-library-detail-empty">Search or choose an item</div>
+        <EmptyState className="add-library-detail-empty" title="Choose an item" body="Search or browse the library." />
       )}
     </aside>
   );
@@ -375,7 +382,7 @@ function AddLibraryRow({
         <span className="add-library-row-desc nadd-row-desc">{item.description}</span>
       </span>
       {draggable && <span className="add-library-row-drag">Drag</span>}
-      {group && <span className="add-library-row-tag nadd-row-tag">{group.label}</span>}
+      {group && <Badge className="add-library-row-tag nadd-row-tag">{group.label}</Badge>}
     </button>
   );
 }
