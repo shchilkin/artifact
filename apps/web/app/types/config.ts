@@ -103,6 +103,7 @@ export interface EmojiLayer extends BaseLayer {
   minSz: number;
   maxSz: number;
   blur: number;
+  seedOffset: number;
   opacity: number;
   blendMode: string;
 }
@@ -286,6 +287,7 @@ export interface EffectLayer extends BaseLayer {
   fog: number;
   fogColor: string;
   speedLines: number;
+  seedOffset: number;
 }
 
 export type Layer =
@@ -505,6 +507,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   fog: 0,
   fogColor: '#c8d8e8',
   speedLines: 0,
+  seedOffset: 0,
 };
 
 let _idCounter = 0;
@@ -567,6 +570,7 @@ export function makeEmojiLayer(partial: Partial<EmojiLayer> = {}): EmojiLayer {
     minSz: 24,
     maxSz: 72,
     blur: 0,
+    seedOffset: 0,
     opacity: 100,
     blendMode: 'normal',
     ...partial,
@@ -713,6 +717,7 @@ const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kin
   fog: 0,
   fogColor: '#c8d8e8',
   speedLines: 0,
+  seedOffset: 0,
 };
 
 export type EffectNumericField = {

@@ -1,5 +1,5 @@
 import { FloatingMenu } from '../../ui/floating-menu';
-import { NODE_CANVAS_COLORS } from '../constants';
+import { MenuDivider } from '../../ui/MenuItem';
 import { clampPopupPosition } from '../helpers';
 import { NoPan } from '../nodes/NoPan';
 import type { NodeMenuProps } from '../types';
@@ -69,7 +69,7 @@ export function NodeContextMenu({
       ref={menuRef}
       x={position.left}
       y={position.top}
-      className="node-menu"
+      className="artifact-menu node-menu"
       style={{ width: menuWidth, padding: '4px 0' }}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -78,7 +78,7 @@ export function NodeContextMenu({
     >
       {items.map((item, i) => (
         <div key={i}>
-          {item.dividerBefore && <div className="node-menu-divider" />}
+          {item.dividerBefore && <MenuDivider />}
           <NoPan
             as="button"
             type="button"
@@ -89,15 +89,12 @@ export function NodeContextMenu({
               item.action();
               onClose();
             }}
-            className={`node-menu-item node-menu-item-between${item.disabled ? ' node-menu-item-disabled' : ''}`}
+            className={`artifact-menu-item node-menu-item node-menu-item-between${
+              item.danger ? ' artifact-menu-item--danger' : ''
+            }${item.disabled ? ' node-menu-item-disabled' : ''}`}
           >
-            <span
-              className={`node-menu-item-label${item.danger ? ' node-menu-item-danger' : ''}`}
-              style={item.danger ? { color: NODE_CANVAS_COLORS.danger } : undefined}
-            >
-              {item.label}
-            </span>
-            {item.hint && <span className="node-menu-item-hint">{item.hint}</span>}
+            <span className="artifact-menu-item-label node-menu-item-label">{item.label}</span>
+            {item.hint && <span className="artifact-menu-item-hint node-menu-item-hint">{item.hint}</span>}
           </NoPan>
         </div>
       ))}

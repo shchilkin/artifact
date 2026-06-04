@@ -4,11 +4,19 @@ import type { EffectLayer, EffectPreset } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
 import { EFFECT_META } from '../../../utils/effectInfo';
 import { EffectInfoPopup } from '../../EffectInfoPopup';
+import { FIELD_RANGES } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
 import type { EffectSectionId } from '../types';
 import { EffectControlSections } from './EffectControlSections';
 import { EFFECT_CONTROL_PRESETS, effectSectionSummary, initialEffectSection } from './effectSectionModel';
-import { BlendModeNote, InspectorSection, InspectorSelect, InspectorTextInput, InspectorToggle } from './fields';
+import {
+  BlendModeNote,
+  InspectorSection,
+  InspectorSelect,
+  InspectorSlider,
+  InspectorTextInput,
+  InspectorToggle,
+} from './fields';
 
 export function EffectInspector({
   layer,
@@ -56,6 +64,12 @@ export function EffectInspector({
         onToggle={() => setOpenSection((current) => (current === 'node' ? null : 'node'))}
       >
         <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
+        <InspectorSlider
+          label="Seed"
+          value={Math.round(layer.seedOffset ?? 0)}
+          {...FIELD_RANGES.seedOffset}
+          onChange={(value) => onChange({ seedOffset: value })}
+        />
         <InspectorToggle
           label="Use source alpha"
           checked={layer.maskAlpha}

@@ -12,12 +12,29 @@ Read these docs before changing state ownership, rendering, node editor behavior
 - `docs/rendering.md` — render entry points, stack vs graph mode, primitive rendering, thumbnails, render options, and preview/export parity rules.
 - `docs/node-editor.md` — node editor architecture, interaction grammar, event isolation, context-menu edge cases, and QA checklist.
 - `docs/effect-development.md` — effect-control surfaces, renderer/docs metadata, and validation checklist.
+- `docs/style-guide.md` — project UI style guide. Read before implementing or
+  refactoring user-facing UI.
+- `docs/editor-design-system.md` — editor-specific design-system migration,
+  token, shared primitive, and style-guide route rules.
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+- `docs/version-planning.md` — version split rules: one release thesis, one primary blast radius, explicit non-goals, checkable acceptance criteria, and discovery boundaries.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
 - `docs/release-template.md` — mandatory release notes template and checklist. Do not tag or publish releases from free-form notes.
 
 Use these docs as the source of truth over older summaries in this file if they disagree.
+
+---
+
+## User-facing copy boundary
+
+Keep agent workflow, migration plans, QA/test strategy, release-plan notes, and
+implementation commentary out of app UI. Put internal plans under `docs/` by
+default. Public routes, editor panels, docs pages, and style-guide surfaces
+should contain only product/help copy that helps someone use the surface. Do
+not write UI copy like "baseline", "migrate carefully", "before broad
+adoption", or "focused Playwright checks" unless the user explicitly asks for
+an internal operations screen.
 
 ---
 

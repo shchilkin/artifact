@@ -14,6 +14,11 @@ primitive controls, read the current docs:
   isolation, graph areas, context-menu rules, and QA checklist.
 - `docs/effect-development.md` — effect-control surfaces, metadata, renderer,
   docs, and validation checklist.
+- `docs/style-guide.md` — project UI style guide: principles, tokens,
+  component rules, layout rules, content style, and implementation rules for
+  user-facing UI.
+- `docs/editor-design-system.md` — editor style-guide source of truth, design
+  tokens, shared primitives, Radix/shadcn boundaries, and migration order.
 - `docs/app-structure-guidelines.md` — feature-folder structure, component
   boundaries, variant rules, and preview/export invariants.
 - `docs/testing.md` — current unit, render, graph, browser, performance, and CI
@@ -24,6 +29,9 @@ primitive controls, read the current docs:
   criteria and validation.
 - `docs/roadmap.md` — codebase overview, current strengths/risks, and product
   roadmap.
+- `docs/version-planning.md` — criteria for splitting versions by release
+  thesis, blast radius, acceptance criteria, discovery boundary, and release
+  scope.
 - `docs/version-plans/v0.11.md` — v0.11 layer workflow and onboarding scope,
   acceptance criteria, validation, and QA.
 - `docs/version-plans/v0.12.md` — v0.12 examples, recipes, docs, and effect
@@ -68,8 +76,13 @@ unless the user explicitly asks to compare or invoke `frontend-design`.
 ## Version planning workflow
 
 For roadmap work, do not infer acceptance criteria only from the issue or from
-old roadmap headings. Read the active version plan first:
+old roadmap headings. Read `docs/version-planning.md` and the active version
+plan first:
 
+- v0.31 code quality and Fallow integration:
+  `docs/version-plans/v0.31.md`
+- v0.30 editor visual baseline and design-system foundation:
+  `docs/version-plans/v0.30.md`
 - v0.11 layer workflow/onboarding work: `docs/version-plans/v0.11.md`
 - v0.12 examples/recipes/effect-coverage work: `docs/version-plans/v0.12.md`
 
@@ -78,11 +91,28 @@ When implementing a version-plan item:
 1. Identify which acceptance criterion the change is closing.
 2. Keep the scope inside that version unless the user explicitly asks to pull
    work forward.
-3. Update the version plan and roadmap if scope, sequencing, or exit criteria
+3. Split work into a future version when it introduces a second release thesis,
+   major risk surface, or critique/prototype loop.
+4. Update the version plan and roadmap if scope, sequencing, or exit criteria
    changes.
-4. Add the lowest useful tests before broad browser coverage.
-5. Run the validation commands listed in the relevant version plan before
+5. Add the lowest useful tests before broad browser coverage.
+6. Run the validation commands listed in the relevant version plan before
    calling the item done.
+
+## User-facing copy boundary
+
+Do not put agent workflow, migration notes, implementation plans, QA strategy,
+test names, or internal roadmap language on user-facing app surfaces. This
+includes copy like "baseline", "migrate carefully", "before broad editor
+adoption", "focused Playwright checks", release-plan commentary, or links that
+explain the agent process instead of the product.
+
+By default, internal plans and implementation notes belong under `docs/`
+(`docs/version-plans/*`, `docs/editor-design-system.md`,
+`docs/testing.md`, release notes, or architecture docs). App routes and
+components should only contain product/help copy that a user or operator needs
+while using that surface. Internal routes such as `/docs/style-guide` may show
+component names and state labels, but should not narrate the migration plan.
 
 ## Project scope
 

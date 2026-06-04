@@ -5,5 +5,7 @@ export default [
   route('app', 'routes/generator.tsx'),
   route('examples', 'routes/examples.tsx'),
   route('showcase', 'routes/showcase.tsx'),
+  route('docs', 'routes/docs.tsx'),
   route('docs/nodes', 'routes/docs.nodes.tsx'),
+  route('docs/style-guide', 'routes/docs.style-guide.tsx'),
 ] satisfies RouteConfig;

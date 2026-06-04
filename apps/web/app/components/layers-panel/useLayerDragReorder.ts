@@ -58,7 +58,7 @@ export function useLayerDragReorder({
   const handleDrop = useCallback(
     (targetId: string, position: LayerDropPosition) => {
       const sourceId = dragLayerId.current;
-      const target = dropTargetRef.current ?? { id: targetId, position };
+      const target = { id: targetId, position };
       if (!sourceId || sourceId === target.id) {
         handleCancelDrag();
         return;

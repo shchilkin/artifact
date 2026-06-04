@@ -1,7 +1,7 @@
-import { Link } from 'react-router';
 import type { EffectPreset, LayerKind } from '../../types/config';
 import { LAYER_STARTER_DOCUMENTS } from '../../utils/starterDocuments';
 import type { TextPresetId } from '../../utils/textPresets';
+import { ActionButton, ActionLink } from '../ui/ActionButton';
 
 export function EmptyLayerPanelStart({
   onAddLayer,
@@ -27,50 +27,52 @@ export function EmptyLayerPanelStart({
       <span className="layer-empty-kicker">Fast starts</span>
       <p>Pick a source, recipe, or saved project.</p>
       <div className="layer-empty-actions layer-empty-actions-primary">
-        <button type="button" onClick={() => onAddLayer('image')}>
+        <ActionButton onClick={() => onAddLayer('image')} variant="secondary">
           Image
-        </button>
-        <button type="button" onClick={onStartAiImage} disabled={!onStartAiImage}>
+        </ActionButton>
+        <ActionButton onClick={onStartAiImage} disabled={!onStartAiImage} variant="secondary">
           AI
-        </button>
-        <button type="button" onClick={() => onAddTextPreset('title')}>
+        </ActionButton>
+        <ActionButton onClick={() => onAddTextPreset('title')} variant="secondary">
           Title
-        </button>
-        <button type="button" onClick={() => onAddLayer('text')}>
+        </ActionButton>
+        <ActionButton onClick={() => onAddLayer('text')} variant="secondary">
           Text
-        </button>
+        </ActionButton>
       </div>
       <div className="layer-empty-actions">
-        <button type="button" onClick={() => onAddLayer('fill')}>
+        <ActionButton onClick={() => onAddLayer('fill')} variant="quiet">
           Fill
-        </button>
-        <button type="button" onClick={() => onAddLayer('noise')}>
+        </ActionButton>
+        <ActionButton onClick={() => onAddLayer('noise')} variant="quiet">
           Noise
-        </button>
-        <button type="button" onClick={() => onAddEffectPreset('grain')}>
+        </ActionButton>
+        <ActionButton onClick={() => onAddEffectPreset('grain')} variant="quiet">
           Grain
-        </button>
-        <button type="button" onClick={() => onAddEffectPreset('pixelate')}>
+        </ActionButton>
+        <ActionButton onClick={() => onAddEffectPreset('pixelate')} variant="quiet">
           Pixelate
-        </button>
+        </ActionButton>
       </div>
       {onLoadStarter && (
         <div className="layer-empty-starters" aria-label="Layer starter recipes">
           {quickStarters.map((starter) => (
-            <button key={starter.id} type="button" onClick={() => onLoadStarter(starter.id)}>
+            <ActionButton key={starter.id} onClick={() => onLoadStarter(starter.id)} variant="quiet">
               {starter.shortName}
-            </button>
+            </ActionButton>
           ))}
         </div>
       )}
       <div className="layer-empty-actions layer-empty-actions-secondary">
-        <button type="button" onClick={onRandomize} disabled={!onRandomize} aria-label="Randomize empty canvas">
+        <ActionButton onClick={onRandomize} disabled={!onRandomize} aria-label="Randomize empty canvas" variant="quiet">
           Rand
-        </button>
-        <button type="button" onClick={onOpenProjects} disabled={!onOpenProjects} aria-label="Open saved work">
+        </ActionButton>
+        <ActionButton onClick={onOpenProjects} disabled={!onOpenProjects} aria-label="Open saved work" variant="quiet">
           Projects
-        </button>
-        <Link to="/showcase">Showcase</Link>
+        </ActionButton>
+        <ActionLink to="/showcase" variant="quiet">
+          Showcase
+        </ActionLink>
       </div>
     </div>
   );

@@ -64,6 +64,15 @@ export function useDocumentFileTransfer(
 
   const handleSaveProjectPackage = useCallback(
     (fontEmbeddingMode: ProjectPackageFontEmbeddingMode = 'license-aware') => {
+      if (
+        fontEmbeddingMode === 'explicit-font-files' &&
+        !window.confirm(
+          'PKG+FONTS embeds imported local font files in the project package. Continue only if you have the right to distribute those font files.',
+        )
+      ) {
+        return;
+      }
+
       prepareArtifactProjectPackage(docRef.current, { fontEmbeddingMode })
         .then((projectPackage) => {
           const blob = new Blob([serializeArtifactProjectPackage(projectPackage)], {

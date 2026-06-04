@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import { type ButtonHTMLAttributes, forwardRef } from 'react';
 import { Link, type LinkProps } from 'react-router';
 import { type ActionButtonVariant, actionButtonClassName } from './actionButtonClassName';
 import './action-button.css';
@@ -7,15 +7,18 @@ interface SharedActionProps {
   variant?: ActionButtonVariant;
 }
 
-export function ActionButton({
-  className,
-  type = 'button',
-  variant = 'secondary',
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & SharedActionProps) {
-  return <button type={type} className={actionButtonClassName({ className, variant })} {...props} />;
-}
+export const ActionButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & SharedActionProps>(
+  ({ className, type = 'button', variant = 'secondary', ...props }, ref) => (
+    <button ref={ref} type={type} className={actionButtonClassName({ className, variant })} {...props} />
+  ),
+);
 
-export function ActionLink({ className, variant = 'secondary', ...props }: LinkProps & SharedActionProps) {
-  return <Link className={actionButtonClassName({ className, variant })} {...props} />;
-}
+ActionButton.displayName = 'ActionButton';
+
+export const ActionLink = forwardRef<HTMLAnchorElement, LinkProps & SharedActionProps>(
+  ({ className, variant = 'secondary', ...props }, ref) => (
+    <Link ref={ref} className={actionButtonClassName({ className, variant })} {...props} />
+  ),
+);
+
+ActionLink.displayName = 'ActionLink';

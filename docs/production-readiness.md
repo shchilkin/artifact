@@ -31,6 +31,31 @@ CI should run:
 
 ## Manual QA
 
+### v0.30.0 Release Prep
+
+- Release prep passed locally on 2026-06-04.
+- `npm run check`, `npm run build`, `npm run test:browser`, and
+  `npm run perf:node-editor` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `276 passed, 19 skipped`.
+- Focused v0.30 visual coverage verifies blank editor, style-guide route,
+  Layers Add Library, layer selected/hidden/locked states, node output-path
+  state, graph area context, and readable shared primitives.
+- Focused export smoke verifies the default document still downloads from the
+  canonical browser export action.
+- Shared primitives read from Artifact tokens and remain source-owned under
+  `apps/web/app/components/ui/*`; Radix/shadcn mechanics do not import default
+  visual styling as the product shell.
+- `npm run perf:node-editor` confirmed drag and pan interaction scenarios with
+  zero long tasks and p95 frame times around `17ms`; the effect slider had one
+  `79ms` long task. Initial node-editor load remains a future performance risk.
+- Local perf runs without Clerk configuration still report missing publishable
+  key warnings, but the benchmark completes and editor interactions remain
+  usable.
+- No renderer, graph traversal, export, persistence, document schema, landing,
+  Showcase, or How-to behavior changed as intended release scope.
+- Release notes live in `docs/releases/v0.30.0.md`.
+
 ### v0.28.0 Release Prep
 
 - Released as the public Editor Guardrails v2 release after v0.27.

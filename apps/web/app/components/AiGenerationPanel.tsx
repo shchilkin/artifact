@@ -20,6 +20,7 @@ import {
   getAiGenerationUiState,
 } from '../utils/aiGenerationStatus';
 import { getAppBuildInfo } from '../utils/appBuildInfo';
+import { ActionButton } from './ui/ActionButton';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
@@ -808,14 +809,9 @@ export function AiGenerationPanel({
           ))}
         </select>
       </div>
-      <button
-        type="button"
-        className="btn btn-primary ai-generation-submit"
-        onClick={handleGenerate}
-        disabled={!canGenerate}
-      >
+      <ActionButton className="ai-generation-submit" onClick={handleGenerate} disabled={!canGenerate} variant="primary">
         {busy || jobIsActive(job) ? '...' : submitLabel}
-      </button>
+      </ActionButton>
       <div className="ai-generation-meta" id="ai-generation-status">
         <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
         <span>{status}</span>

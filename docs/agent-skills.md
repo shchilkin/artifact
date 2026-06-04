@@ -4,6 +4,21 @@ This project uses global Codex skills, but the repo has a preferred skill
 profile. Use this profile when choosing which global skills to invoke for
 Artifact work. Do not treat every globally installed skill as project-relevant.
 
+## User-Facing Copy Boundary
+
+Before implementing UI, read `docs/style-guide.md`. It defines project design
+principles, tokens, component rules, layout rules, content style, and
+implementation rules. Use `/docs/style-guide` as the live specimen catalog and
+`apps/web/app/styles/tokens.css` as the token source.
+
+Agent process text belongs in repo docs, not in app UI. When using design,
+React, browser, or release skills, keep migration notes, implementation plans,
+test strategy, release-plan commentary, and QA language in `docs/` by default.
+Do not put copy such as "baseline", "migrate carefully", "before broad
+adoption", or "focused Playwright checks" on user-facing routes, public pages,
+editor panels, docs pages, or style-guide surfaces unless it directly helps the
+person using that surface.
+
 ## Preferred Skills
 
 ### Must use when relevant

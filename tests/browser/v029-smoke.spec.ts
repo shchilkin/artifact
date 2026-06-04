@@ -103,6 +103,18 @@ test('showcase loads the project wall and opens a tile in the editor', async ({ 
     .toBeGreaterThan(0);
 });
 
+test('docs index links to the main docs paths', async ({ page }) => {
+  await page.goto('/docs');
+
+  await expect(page.getByRole('heading', { name: 'Docs.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a docs path.' })).toBeVisible();
+  const startPoints = page.locator('.docs-start-point');
+  await expect(startPoints).toHaveCount(3);
+  await expect(page.locator('.docs-start-point[href="/docs/nodes"]')).toBeVisible();
+  await expect(page.locator('.docs-start-point[href="/docs/style-guide"]')).toBeVisible();
+  await expect(page.locator('.docs-start-point[href="/app?new=blank"]')).toBeVisible();
+});
+
 test('docs research page supports search and type filtering', async ({ page }) => {
   await page.goto('/docs/nodes');
 
@@ -142,6 +154,7 @@ test('blank editor and shared primitive surfaces open and close', async ({ page 
   await page.getByRole('button', { name: 'Add node' }).click();
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expect(page.getByLabel('Search nodes and effects')).toBeVisible();
+  await expect(page.locator('.add-library-node-menu .artifact-search-field')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.add-library-node-menu')).toHaveCount(0);
 
@@ -192,7 +205,7 @@ async function expectBlankEditor(page: Page) {
 async function switchToNodeView(page: Page) {
   await expect(async () => {
     if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesTab = page.getByRole('tab', { name: 'nodes' });
+    const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
     await expect(nodesTab).toBeVisible({ timeout: 2_000 });
     await nodesTab.click();
     await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
@@ -201,7 +214,7 @@ async function switchToNodeView(page: Page) {
 
 async function switchToLayerView(page: Page) {
   await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'layers' });
+    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
     await expect(layersTab).toBeVisible({ timeout: 2_000 });
     await layersTab.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });

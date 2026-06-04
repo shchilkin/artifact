@@ -34,6 +34,7 @@ import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
+import { ActionButton } from './ui/ActionButton';
 
 interface Props {
   doc: CanvasDocument;
@@ -405,8 +406,8 @@ export function Sidebar({
                   event.currentTarget.value = '';
                 }}
               />
-              <button
-                className="btn h-9 text-[11px]"
+              <ActionButton
+                className="h-9 text-[11px]"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
@@ -414,9 +415,10 @@ export function Sidebar({
                   const file = event.dataTransfer.files?.[0];
                   if (file) handleImageFile(file);
                 }}
+                variant="quiet"
               >
                 Replace image
-              </button>
+              </ActionButton>
             </Section>
           )}
 

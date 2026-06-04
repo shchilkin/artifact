@@ -345,7 +345,7 @@ async function switchToNodeView(page) {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodeButtons = page.getByRole('button', { name: /^nodes$/i });
+    const nodeButtons = page.locator('[aria-label="Switch to nodes view"], [role="tab"]', { hasText: /^nodes$/i });
     const count = await nodeButtons.count();
     for (let index = 0; index < count; index += 1) {
       const button = nodeButtons.nth(index);

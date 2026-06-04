@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -14,6 +13,7 @@ import { renderEffectThumb } from '../../utils/effectInfo';
 import { makeNoisePresetLayer } from '../../utils/noisePresets';
 import { renderDocument } from '../../utils/renderer';
 import { makeTextPresetLayer } from '../../utils/textPresets';
+import { PreviewFrame } from '../ui/PreviewFrame';
 import type { AddLibraryItem } from './addLibraryModel';
 
 const PREVIEW_SIZE = 200;
@@ -39,7 +39,7 @@ export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
   }, [item]);
 
   return (
-    <div className="add-library-preview-frame" data-preview-kind={previewKind} data-preview-group={item.group}>
+    <PreviewFrame className="add-library-preview-frame" data-preview-kind={previewKind} data-preview-group={item.group}>
       <div className="add-library-rendered-preview">
         {thumbUrl ? (
           <img src={thumbUrl} alt={`${item.label} preview`} draggable={false} />
@@ -47,7 +47,7 @@ export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
           <div className="add-library-effect-preview-loading" aria-hidden="true" />
         )}
       </div>
-    </div>
+    </PreviewFrame>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { GraphArea } from '../../types/config';
 import { FloatingMenu } from '../ui/floating-menu';
+import { MenuItem } from '../ui/MenuItem';
 
 export interface LayerContextMenuState {
   x: number;
@@ -30,30 +31,28 @@ export function LayerContextMenu({
     <FloatingMenu
       x={contextMenu.x}
       y={contextMenu.y}
-      className="layer-context-menu"
+      className="artifact-menu layer-context-menu"
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       role="menu"
     >
-      <button type="button" role="menuitem" onClick={() => onCreateAreaFromSelection(contextMenu.ids)}>
-        Create area
-      </button>
+      <MenuItem role="menuitem" label="Create area" onClick={() => onCreateAreaFromSelection(contextMenu.ids)} />
       {graphAreas.map((area) => (
-        <button
+        <MenuItem
           key={area.id}
-          type="button"
           role="menuitem"
+          icon={<span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />}
+          label={`Add to ${area.name}`}
           onClick={() => onAddSelectionToArea(area.id, contextMenu.ids)}
-        >
-          <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
-          Add to {area.name}
-        </button>
+        />
       ))}
       {contextMenu.ids.some(hasAreaMembership) && (
-        <button type="button" role="menuitem" onClick={() => onRemoveSelectionFromAreas(contextMenu.ids)}>
-          Remove from area
-        </button>
+        <MenuItem
+          role="menuitem"
+          label="Remove from area"
+          onClick={() => onRemoveSelectionFromAreas(contextMenu.ids)}
+        />
       )}
     </FloatingMenu>
   );

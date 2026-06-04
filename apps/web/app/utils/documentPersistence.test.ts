@@ -119,6 +119,47 @@ describe('normalizeDocument', () => {
     expect(doc.graph?.repeatNodes?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
   });
 
+  it('adds seed defaults to older emoji layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'emoji-a',
+          name: 'Emoji',
+          kind: 'emoji',
+          emojis: ['📼'],
+          density: 12,
+          minSz: 20,
+          maxSz: 48,
+          blur: 0,
+          opacity: 100,
+          blendMode: 'normal',
+          visible: true,
+          locked: false,
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({ id: 'emoji-a', kind: 'emoji', seedOffset: 0 });
+  });
+
+  it('adds seed defaults to older effect layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'effect-a',
+          name: 'Effect',
+          kind: 'effect',
+          preset: 'grain',
+          grain: 12,
+          visible: true,
+          locked: false,
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({ id: 'effect-a', kind: 'effect', seedOffset: 0 });
+  });
+
   it('splits legacy combined effect presets into focused effect layers', () => {
     const doc = normalizeDocument({
       layers: [
@@ -156,6 +197,7 @@ describe('normalizeDocument', () => {
           scanlines: 12,
           tint: '#120020',
           tintOp: 40,
+          seedOffset: 77,
         },
       ],
     });
@@ -165,6 +207,7 @@ describe('normalizeDocument', () => {
       'grain',
       'tint',
     ]);
+    expect(doc.layers).toMatchObject([{ seedOffset: 77 }, { seedOffset: 77 }, { seedOffset: 77 }]);
   });
 
   it('fills newer effect defaults when loading older effect layers', () => {

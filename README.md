@@ -114,11 +114,13 @@ multiplies the base dimensions.
 
 ## Seeded randomness
 
-LCG RNG (`apps/web/app/utils/lcg.ts`). Each layer gets an independent sub-seed
-via XOR constants. The RAND button (`randomDocument`) generates a full document:
-random aspect ratio, a seeded emoji layer, and 2–8 randomized preset-based
-effect layers drawn from focused effect presets, all color-keyed to a shared
-base hue.
+LCG RNG (`apps/web/app/utils/lcg.ts`). The document seed is the global scene
+seed, while seeded node/layer types can vary locally with `seedOffset` so one
+emoji field, procedural source, effect node, or repeater can change without
+re-rolling the whole document. The RAND button (`randomDocument`) generates a
+full document: random aspect ratio, a seeded emoji layer, and 2–8 randomized
+preset-based effect layers drawn from focused effect presets, all color-keyed
+to a shared base hue.
 
 ## Image persistence
 
@@ -237,6 +239,7 @@ ignored.
 | [`docs/performance.md`](docs/performance.md) | Node-editor benchmark workflow and render performance notes |
 | [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
 | [`docs/roadmap.md`](docs/roadmap.md) | Product and architecture roadmap |
+| [`docs/version-planning.md`](docs/version-planning.md) | Criteria for splitting versions by thesis, scope, risks, and acceptance criteria |
 | [`docs/agent-skills.md`](docs/agent-skills.md) | Preferred Codex skills for Artifact work |
 | [`docs/version-plans/v0.11.md`](docs/version-plans/v0.11.md) | v0.11 layer workflow and onboarding acceptance plan |
 | [`docs/version-plans/v0.12.md`](docs/version-plans/v0.12.md) | v0.12 examples, recipes, docs, and effect coverage acceptance plan |

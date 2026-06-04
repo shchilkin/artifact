@@ -1,6 +1,7 @@
 import { type CSSProperties, useState } from 'react';
 
 import type { SavedProject } from '../utils/projectLibrary';
+import { ActionButton } from './ui/ActionButton';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
@@ -58,8 +59,10 @@ export function ProjectsPanel({
             <span className={`text-[9px] tracking-[0.5px] ${nearLimit ? 'text-accent' : 'text-dim'}`}>
               {projects.length} / {maxProjects}
             </span>
-            <SheetClose className="btn btn-icon" aria-label="Close projects">
-              x
+            <SheetClose asChild>
+              <ActionButton aria-label="Close projects" variant="quiet">
+                x
+              </ActionButton>
             </SheetClose>
           </div>
         </SheetHeader>
@@ -76,14 +79,14 @@ export function ProjectsPanel({
             onKeyDown={(event) => event.key === 'Enter' && handleSave()}
             className="flex-1 bg-sidebar-raised border border-border text-text font-mono text-[11px] px-2 h-11 rounded-sm outline-none focus:border-accent placeholder:text-dim"
           />
-          <button className="btn btn-primary" onClick={handleSave}>
+          <ActionButton onClick={handleSave} variant="primary">
             SAVE
-          </button>
+          </ActionButton>
         </div>
         <div className="px-4 py-2.5 border-b border-border shrink-0">
-          <button className="btn w-full" onClick={onNewBlank} aria-label="New blank canvas from projects">
+          <ActionButton className="w-full" onClick={onNewBlank} aria-label="New blank canvas from projects">
             NEW BLANK CANVAS
-          </button>
+          </ActionButton>
         </div>
         {storageError && (
           <div className="mx-4 mt-3 border border-accent/60 bg-accent/10 p-2.5 text-[10px] leading-relaxed text-accent">
@@ -115,20 +118,22 @@ export function ProjectsPanel({
                   </div>
                   <div className="text-[10px] text-dim tracking-[0.5px]">seed: {recoveryDraft.doc.global.seed}</div>
                   <div className="flex gap-1.5">
-                    <button
-                      className="btn btn-small"
+                    <ActionButton
+                      className="library-card-action"
                       aria-label={`Load ${recoveryDraft.name}`}
                       onClick={() => onLoad(recoveryDraft)}
+                      variant="danger"
                     >
                       LOAD
-                    </button>
-                    <button
-                      className="btn btn-small btn-danger"
+                    </ActionButton>
+                    <ActionButton
+                      className="library-card-action"
                       aria-label={`Delete ${recoveryDraft.name}`}
                       onClick={onDeleteRecoveryDraft}
+                      variant="danger"
                     >
                       DEL
-                    </button>
+                    </ActionButton>
                   </div>
                 </div>
               </div>
@@ -146,20 +151,22 @@ export function ProjectsPanel({
                   </div>
                   <div className="text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
                   <div className="flex gap-1.5">
-                    <button
-                      className="btn btn-small"
+                    <ActionButton
+                      className="library-card-action"
                       aria-label={`Load ${project.name}`}
                       onClick={() => onLoad(project)}
+                      variant="quiet"
                     >
                       LOAD
-                    </button>
-                    <button
-                      className="btn btn-small btn-danger"
+                    </ActionButton>
+                    <ActionButton
+                      className="library-card-action"
                       aria-label={`Delete ${project.name}`}
                       onClick={() => onDelete(project.id)}
+                      variant="quiet"
                     >
                       DEL
-                    </button>
+                    </ActionButton>
                   </div>
                 </div>
               </div>

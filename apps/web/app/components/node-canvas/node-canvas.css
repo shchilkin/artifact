@@ -1138,6 +1138,29 @@
   z-index: 0;
 }
 
+.node-alignment-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.node-alignment-guide {
+  position: absolute;
+  background: var(--node-accent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--workspace-bg) 40%, transparent),
+    0 0 16px color-mix(in srgb, var(--node-accent) 55%, transparent);
+}
+
+.node-alignment-guide-vertical {
+  width: 1px;
+}
+
+.node-alignment-guide-horizontal {
+  height: 1px;
+}
+
 .node-area {
   position: absolute;
   border: 1px solid color-mix(in srgb, var(--node-area-color) 68%, transparent);
@@ -1247,11 +1270,18 @@
 }
 
 .node-menu {
+  --node-menu-bg: oklch(10.5% 0.014 42);
+  --node-menu-bg-hover: oklch(18% 0.021 42);
+  --node-menu-border: oklch(34% 0.04 36);
+
   position: fixed;
   z-index: 10000;
-  background: var(--node-surface);
-  border: 1px solid var(--node-border);
+  background: var(--node-menu-bg);
+  border: 1px solid var(--node-menu-border);
   border-radius: 0;
+  box-shadow:
+    0 18px 42px color-mix(in oklch, black 74%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--accent) 18%, transparent);
   overflow: hidden;
 }
 
@@ -1325,7 +1355,7 @@
 
 .node-menu-divider {
   height: 1px;
-  background: var(--node-border);
+  background: var(--node-menu-border);
   margin: 4px 0;
 }
 
@@ -1348,7 +1378,7 @@
 }
 
 .node-menu-item:hover {
-  background: var(--node-surface-raised);
+  background: var(--node-menu-bg-hover);
 }
 
 .node-menu-item-disabled {
@@ -1410,7 +1440,21 @@
   flex-shrink: 0;
 }
 
+.nadd-search.artifact-search-field {
+  min-height: 36px;
+  border: 0;
+  border-bottom: 1px solid var(--node-border);
+  border-radius: 0;
+}
+
 .nadd-search-icon {
+  color: var(--node-text-dim);
+  font-size: 13px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.nadd-search .artifact-search-icon {
   color: var(--node-text-dim);
   font-size: 13px;
   flex-shrink: 0;
@@ -1473,6 +1517,12 @@
   text-transform: uppercase;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.nadd-recipe.artifact-toolbar-button {
+  border-width: 1px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
 }
 
 .nadd-recipe:hover,

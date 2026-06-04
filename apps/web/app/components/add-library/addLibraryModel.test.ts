@@ -4,6 +4,7 @@ import { EFFECT_PRESET_MENU_ORDER } from '../../types/config';
 import {
   ADD_LIBRARY_ITEMS,
   ADD_LIBRARY_RECIPES,
+  addLibraryBrowseItemsForSurface,
   addLibraryGroupsForSurface,
   addLibraryItemsForSurface,
   addLibraryRecipesForSurface,
@@ -64,12 +65,18 @@ describe('addLibraryModel', () => {
     expect(nodeGroups).toContain('source');
   });
 
-  it('marks common creative starts as popular', () => {
-    const popularIds = ADD_LIBRARY_ITEMS.filter((item) => item.popular).map((item) => item.id);
-
-    expect(popularIds).toEqual(
-      expect.arrayContaining(['layer:image', 'layer:text', 'textPreset:title', 'textPreset:poster', 'effect:grain']),
+  it('keeps preset variants searchable without showing them as top-level browse primitives', () => {
+    const layerBrowseIds = addLibraryBrowseItemsForSurface('layers').map((item) => item.id);
+    const nodeBrowseIds = addLibraryBrowseItemsForSurface('nodes').map((item) => item.id);
+    const visiblePopularIds = ADD_LIBRARY_ITEMS.filter((item) => item.popular && item.showInBrowse !== false).map(
+      (item) => item.id,
     );
+
+    expect(layerBrowseIds).toContain('layer:text');
+    expect(layerBrowseIds).not.toContain('textPreset:title');
+    expect(nodeBrowseIds).not.toContain('textPreset:poster');
+    expect(visiblePopularIds).toEqual(expect.arrayContaining(['layer:image', 'layer:text', 'effect:grain']));
+    expect(visiblePopularIds).not.toContain('textPreset:title');
   });
 
   it('uses creative metadata for search intent queries', () => {

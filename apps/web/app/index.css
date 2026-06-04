@@ -1312,7 +1312,21 @@ input[type="range"] {
   background: var(--panel-bg);
 }
 
+.add-library-search.artifact-search-field {
+  min-height: 38px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
 .add-library-search-icon {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.add-library-search .artifact-search-icon {
   flex-shrink: 0;
   color: var(--text-dim);
   font-size: 13px;
@@ -1379,6 +1393,13 @@ input[type="range"] {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.add-library-browse-item.artifact-toolbar-button,
+.add-library-recipe.artifact-toolbar-button {
+  border-width: 1px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
 }
 
 .add-library-browse-item:hover,
@@ -1602,6 +1623,34 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.add-library-empty.artifact-empty-state,
+.add-library-detail-empty.artifact-empty-state {
+  border: 0;
+  background: transparent;
+}
+
+.add-library-empty .artifact-empty-state-copy,
+.add-library-detail-empty .artifact-empty-state-copy {
+  gap: 4px;
+}
+
+.add-library-empty .artifact-empty-state-title,
+.add-library-detail-empty .artifact-empty-state-title {
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.add-library-detail-empty .artifact-empty-state-body {
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 .add-library-detail {
   display: none;
   width: 180px;
@@ -1627,6 +1676,19 @@ input[type="range"] {
   min-height: 132px;
   overflow: hidden;
   border: 1px solid var(--border);
+  background: var(--surface-bg);
+}
+
+.add-library-preview-frame.artifact-preview-frame {
+  display: block;
+  padding: 0;
+}
+
+.add-library-preview-frame .artifact-preview-frame-body {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  border: 0;
   background: var(--surface-bg);
 }
 
@@ -1746,6 +1808,16 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.add-library-tags .add-library-tag.artifact-badge {
+  min-height: 0;
+  padding: 2px 5px;
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 .add-library-favorite {
   align-self: flex-start;
   min-height: 30px;
@@ -1761,6 +1833,12 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.add-library-favorite.action-button {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 8px;
+}
+
 .add-library-favorite:hover,
 .add-library-favorite:focus-visible,
 .add-library-favorite-active {
@@ -1771,6 +1849,16 @@ input[type="range"] {
 
 .add-library-favorite-active {
   background: color-mix(in oklch, var(--accent) 9%, transparent);
+}
+
+.add-library-row-tag.artifact-badge {
+  min-height: 0;
+  padding: 1px 5px;
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
 }
 
 .add-library-mobile {
@@ -1837,64 +1925,21 @@ input[type="range"] {
   gap: 6px;
 }
 
-.layer-empty-actions button,
-.layer-empty-actions a,
-.layer-empty-starters button {
-  display: inline-flex;
+.layer-empty-actions .action-button,
+.layer-empty-starters .action-button {
   min-height: 34px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-decoration: none;
-  text-transform: uppercase;
-  transition:
-    border-color 120ms ease-out,
-    background 120ms ease-out,
-    color 120ms ease-out;
+  padding-inline: 10px;
 }
 
-.layer-empty-starters button {
+.layer-empty-starters .action-button {
   justify-content: space-between;
-  padding: 0 10px;
-  background: color-mix(in oklch, var(--surface-bg) 72%, transparent);
 }
 
-.layer-empty-starters button::after {
+.layer-empty-starters .action-button::after {
   content: "Recipe";
   color: var(--text-muted);
   font-size: 8px;
   letter-spacing: 0.12em;
-}
-
-.layer-empty-actions button:hover,
-.layer-empty-actions a:hover,
-.layer-empty-starters button:hover,
-.layer-empty-actions button:focus-visible,
-.layer-empty-actions a:focus-visible,
-.layer-empty-starters button:focus-visible {
-  border-color: var(--accent);
-  background: var(--accent-dim);
-  color: var(--text);
-  outline: none;
-}
-
-.layer-empty-actions button:disabled,
-.layer-empty-starters button:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.layer-empty-actions button:disabled:hover,
-.layer-empty-starters button:disabled:hover {
-  border-color: var(--border);
-  background: transparent;
-  color: var(--text-dim);
 }
 
 .layer-selection-actions {
@@ -1921,8 +1966,7 @@ input[type="range"] {
 }
 
 .layer-selection-actions button,
-.layer-area-action-menu button,
-.layer-context-menu button {
+.layer-area-action-menu button {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
@@ -1942,15 +1986,13 @@ input[type="range"] {
 }
 
 .layer-selection-actions button:hover,
-.layer-area-action-menu button:hover,
-.layer-context-menu button:hover {
+.layer-area-action-menu button:hover {
   border-color: var(--accent);
   background: var(--accent-dim);
   color: var(--text);
 }
 
-.layer-area-action-menu,
-.layer-context-menu {
+.layer-area-action-menu {
   display: flex;
   flex-direction: column;
   min-width: 150px;
@@ -1970,16 +2012,14 @@ input[type="range"] {
   z-index: 80;
 }
 
-.layer-area-action-menu button,
-.layer-context-menu button {
+.layer-area-action-menu button {
   justify-content: flex-start;
   border-width: 0 0 1px;
   padding: 7px 9px;
   text-align: left;
 }
 
-.layer-area-action-menu button:last-child,
-.layer-context-menu button:last-child {
+.layer-area-action-menu button:last-child {
   border-bottom: 0;
 }
 
@@ -3087,6 +3127,13 @@ input[type="range"] {
   height: 32px;
   padding: 0 8px;
   letter-spacing: 1px;
+}
+
+.library-card-action {
+  min-height: 32px;
+  height: 32px;
+  padding-inline: 8px;
+  font-size: var(--type-ui-xs);
 }
 
 /* ─── EXPORT MENU ────────────────────────────────── */

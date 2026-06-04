@@ -77,6 +77,7 @@ function copyPresetFields(source: Partial<EffectLayer>, rule: SplitRule): Partia
     }
   }
   if (source.maskAlpha !== undefined) patch.maskAlpha = source.maskAlpha;
+  if (source.seedOffset !== undefined) patch.seedOffset = source.seedOffset;
   return patch;
 }
 

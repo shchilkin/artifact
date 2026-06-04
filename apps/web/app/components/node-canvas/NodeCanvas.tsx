@@ -38,6 +38,7 @@ import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
 import { nodeCanvasMachine } from './machine';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
+import type { NodeAlignmentGuide } from './nodeAlignment';
 import {
   ColorNodeComponent,
   ExportNodeComponent,
@@ -215,6 +216,7 @@ export function NodeCanvas({
   const {
     dragNodes,
     dragEdges,
+    alignmentGuides,
     isDraggingRef,
     onEdgesChange,
     dragNodesRef,
@@ -510,6 +512,7 @@ export function NodeCanvas({
                   onSelectArea={handleSelectArea}
                   onRemoveArea={handleRemoveArea}
                 />
+                <NodeAlignmentGuideOverlay guides={alignmentGuides} />
               </ViewportPortal>
               <Controls showInteractive={false} />
             </ReactFlow>
@@ -666,6 +669,28 @@ export function NodeCanvas({
         </div>
       </NodeCanvasActionsContext.Provider>
     </NodeCanvasPreviewContext.Provider>
+  );
+}
+
+function NodeAlignmentGuideOverlay({ guides }: { guides: NodeAlignmentGuide[] }) {
+  if (!guides.length) return null;
+  return (
+    <div className="node-alignment-guides" aria-hidden="true">
+      {guides.map((guide, index) => {
+        const length = Math.max(1, guide.to - guide.from);
+        const style =
+          guide.orientation === 'vertical'
+            ? { left: guide.position - 0.5, top: guide.from, height: length }
+            : { top: guide.position - 0.5, left: guide.from, width: length };
+        return (
+          <div
+            key={`${guide.orientation}-${guide.position}-${index}`}
+            className={`node-alignment-guide node-alignment-guide-${guide.orientation}`}
+            style={style}
+          />
+        );
+      })}
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
+import { ActionButton } from './ui/ActionButton';
 
 interface Props {
   onNewBlank: () => void;
@@ -48,49 +49,54 @@ export function BottomBar({
     <div className="bottom-bar">
       {/* Row 1: Undo / Redo / Rand */}
       <div className="bottom-rand-group">
-        <button className="btn" onClick={onNewBlank} aria-label="New blank canvas" title="New blank canvas">
+        <ActionButton onClick={onNewBlank} aria-label="New blank canvas" title="New blank canvas" variant="quiet">
           NEW
-        </button>
-        <button className="btn" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)">
+        </ActionButton>
+        <ActionButton onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)" variant="quiet">
           ↩{canUndo && undoCount > 0 ? ` ${undoCount}` : ''}
-        </button>
-        <button className="btn" onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)">
+        </ActionButton>
+        <ActionButton onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)" variant="quiet">
           ↪
-        </button>
-        <button className="btn btn-primary rand-btn" onClick={onRandomize}>
+        </ActionButton>
+        <ActionButton className="rand-btn" onClick={onRandomize} variant="primary">
           RAND
-        </button>
+        </ActionButton>
       </div>
 
       <div className="bottom-link-group">
-        <button
-          className="btn"
+        <ActionButton
           onClick={onOpenDocument}
           aria-label="Open document file"
           title="Open .artifact or .artifact.json"
+          variant="quiet"
         >
           OPEN
-        </button>
-        <button className="btn" onClick={onSaveDocument} aria-label="Save document file" title="Save .artifact.json">
+        </ActionButton>
+        <ActionButton
+          onClick={onSaveDocument}
+          aria-label="Save document file"
+          title="Save .artifact.json"
+          variant="quiet"
+        >
           SAVE
-        </button>
-        <button
-          className="btn"
+        </ActionButton>
+        <ActionButton
           onClick={() => onSaveProjectPackage('license-aware')}
           aria-label="Save editable project package"
           title="Save editable .artifact project package. Open-license Google fonts are included; unknown local fonts stay metadata-only."
+          variant="quiet"
         >
           PACKAGE
-        </button>
-        <button
-          className="btn"
+        </ActionButton>
+        <ActionButton
           onClick={() => onSaveProjectPackage('explicit-font-files')}
           aria-label="Save project package with all imported font files"
           title="Save .artifact with all imported font files. Only use this when you have rights to distribute those files."
+          variant="quiet"
         >
           PKG+FONTS
-        </button>
-        <button className="btn" onClick={handleCopyLink} aria-label="Copy link to current state">
+        </ActionButton>
+        <ActionButton onClick={handleCopyLink} aria-label="Copy link to current state" variant="quiet">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
               key={copied ? 'check' : 'link'}
@@ -103,19 +109,19 @@ export function BottomBar({
               {copied ? '✓' : 'LINK'}
             </motion.span>
           </AnimatePresence>
-        </button>
+        </ActionButton>
       </div>
 
       <div className="bottom-right-group">
-        <button className="btn" onClick={onProjectsToggle}>
+        <ActionButton onClick={onProjectsToggle} variant="quiet">
           PROJECTS
-        </button>
-        <button className="btn" onClick={onPresetsToggle}>
+        </ActionButton>
+        <ActionButton onClick={onPresetsToggle} variant="quiet">
           PRESETS
-        </button>
-        <button className="btn btn-primary" onClick={onExport} disabled={exportBusy}>
+        </ActionButton>
+        <ActionButton onClick={onExport} disabled={exportBusy} variant="primary">
           {exportBusy ? '…' : 'EXPORT'}
-        </button>
+        </ActionButton>
       </div>
     </div>
   );
