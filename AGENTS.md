@@ -79,6 +79,8 @@ For roadmap work, do not infer acceptance criteria only from the issue or from
 old roadmap headings. Read `docs/version-planning.md` and the active version
 plan first:
 
+- v0.31 code quality and Fallow integration:
+  `docs/version-plans/v0.31.md`
 - v0.30 editor visual baseline and design-system foundation:
   `docs/version-plans/v0.30.md`
 - v0.11 layer workflow/onboarding work: `docs/version-plans/v0.11.md`

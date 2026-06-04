@@ -20,9 +20,10 @@ Related architecture docs:
 Current planning status:
 
 - v0.30 is complete as the Editor Visual Baseline and Design System release.
-  The next release thesis should be chosen as a dedicated product slice, with
-  Command Palette / Add Library command improvements, server-backed share
-  links, and Fallow codebase intelligence as the strongest current candidates.
+  The next release thesis is v0.31 Code Quality and Fallow Integration.
+- v0.31 is reserved entirely for code quality, codebase intelligence, and
+  Fallow adoption. It should not absorb product features, landing work,
+  Showcase / How-to work, command palette, or server-backed sharing.
 - New version scopes should be split using
   [`version-planning.md`](./version-planning.md): one release thesis, one
   primary blast radius, explicit non-goals, checkable acceptance criteria, and a
@@ -109,6 +110,13 @@ Recently shipped:
 
 Next strong candidates after v0.30:
 
+- **v0.31 Code Quality And Fallow Integration** — add Fallow as a local, CI,
+  and agent workflow tool. Start with a read-only local baseline for dead code,
+  unused exports/types/dependencies, duplication, health, complexity hotspots,
+  circular dependencies, and changed-code audit. Add a soft CI gate that reports
+  new risk without blocking releases until the baseline is understood. Document
+  agent commands, JSON-output rules, suppression policy, and cleanup workflow.
+  Release success is a reliable code-quality workflow, not a broad refactor.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -120,11 +128,6 @@ Next strong candidates after v0.30:
   states.
 - **How-To / Recipes** — split task-oriented learning from Showcase after the
   editor baseline is stable enough to support recipe screenshots and examples.
-- **Fallow Codebase Intelligence** — add Fallow as a local, CI, and agent
-  workflow tool after the v0.30 design-system baseline is stable. Start with
-  read-only local reports for dead code, duplication, health, dependency
-  placement, and changed-code audit; then add a soft CI gate for new PR risk
-  before considering stricter checks.
 
 ## Product summary
 
