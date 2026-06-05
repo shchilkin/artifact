@@ -322,6 +322,15 @@ The sticky-note ideas split into two tracks.
 - Font import and better font browsing.
 - Better text workflow and typography tooling.
 - Better drag/repositioning UX.
+- Asset library for uploaded images, generated images, cutouts, reusable
+  textures, and exported outputs.
+- Export presets/history for music targets, social formats, transparent PNGs,
+  posters, and print output.
+- Project versions and named creative snapshots with duplicate, restore, and
+  compare flows.
+- Autosave/recovery status, project-size visibility, storage cleanup, and
+  unused-asset deletion flows.
+- Browser capability warnings for unsupported WebGL, storage, or file APIs.
 - Physics/animation-style effects.
 - Voice/music visualizer node using Web Audio.
 - Better docs, examples, and tutorial presets.
@@ -339,7 +348,11 @@ The sticky-note ideas split into two tracks.
 - Case-study pages for portfolio/marketing.
 - Subscription/paywall experiments.
 - AI image generation node.
+- AI licensing, usage-rights, moderation, prompt privacy, abuse controls,
+  provider fallback, and generation cost visibility.
 - Server-side asset storage for large uploads.
+- Server-side asset library and local-to-cloud asset sync.
+- Read-only, remix/fork, export-only, and later collaboration share modes.
 - Team/project collaboration.
 
 ## Release Decision
