@@ -35,7 +35,6 @@ jobs:
 
   fallow:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -53,12 +52,14 @@ jobs:
         run: npm ci
 
       - name: Fallow baseline report
+        continue-on-error: true
         env:
           FALLOW_AGENT_SOURCE: github_actions
         run: npm run --silent fallow -- --summary
 
       - name: Fallow changed-code audit
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         env:
           FALLOW_AGENT_SOURCE: github_actions
         run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }}
