@@ -132,6 +132,13 @@ Next strong candidates after v0.31:
   states.
 - **How-To / Recipes** — split task-oriented learning from Showcase after the
   editor baseline is stable enough to support recipe screenshots and examples.
+- **Asset Library, Export History, And Versions** — design reusable local
+  sources, generated outputs, cutouts, exported artwork, named creative
+  snapshots, and restore/compare flows before cloud sync makes the local data
+  model harder to migrate.
+- **Storage UX And Capability Hardening** — make autosave, recovery, quota
+  pressure, project size, cleanup, and unsupported browser capability states
+  visible enough that local-first storage feels like a creative safety net.
 
 ## Product summary
 
@@ -186,12 +193,22 @@ These can mostly stay browser-only and fit the current architecture:
   support.
 - Better text workflow, including typography presets, multi-font work, and text
   effect chains.
+- Asset library for uploaded images, generated images, cutouts, reusable
+  textures, and exported outputs.
+- Export presets for music and social targets, including transparent PNG,
+  poster/print sizes, and export history.
+- Project versions and named creative snapshots for trying risky edits without
+  losing a direction.
 - Better drag/repositioning UX for canvas content.
 - Image background removal workflow for uploaded images, with a future research
   pass comparing browser-side models, server-side/VPS processing, external APIs,
   and hybrid approaches.
 - Dark/light theme mode.
 - Improved empty-canvas onboarding.
+- Autosave, recovery, quota-pressure, project-size, cleanup, and unused-asset
+  deletion UX for local projects and imported assets.
+- Browser capability warnings and recovery guidance for unsupported WebGL,
+  storage, or file APIs.
 - Downloadable project packages with a custom extension for local ownership,
   offline work, backup, and eventual PWA file handling.
 - Large-project/share flow that moves heavy imported image/font payloads out of
@@ -314,9 +331,16 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - Subscription/paywall experiments.
 - AI image generation node or workflow, including prompt presets, variants,
   generated asset storage, quota/cost tracking, and generation history.
+- AI safety and usage policy work for licensing, usage rights, moderation,
+  prompt privacy, abuse controls, cost/credit visibility before submission, and
+  provider fallback behavior.
 - Image background removal service if browser-side quality, bundle size, or
   performance tradeoffs are not acceptable.
 - Server-side asset storage for large uploads.
+- Server-side asset library for originals, generated assets, cutouts, exported
+  outputs, and future local-to-cloud sync.
+- Share modes beyond basic links: read-only share, remix/fork share,
+  export-only share, and later collaboration modes.
 - Team/project collaboration.
 - Portfolio/case-study publishing.
 
@@ -920,7 +944,10 @@ These ideas are promising but should not block editor reliability:
 - Animated noise/effects and possibly video export.
 - Background removal for imported images. Research candidates first, including
   local/browser execution, VPS-hosted open models, and commercial APIs, then pick
-  based on quality, latency, privacy, file-size, and cost.
+  based on quality, latency, privacy, file-size, and cost. The product model
+  also needs to decide whether removal is an image-node operation, a dedicated
+  graph node, or an asset-library action; how originals and cutouts are stored;
+  and whether cutouts preserve mask/edit history.
 - SVG + 3D hybrid primitives.
 - AI image/card generation nodes and variant workflows.
 - 3D layer visualization.
