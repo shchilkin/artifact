@@ -23,7 +23,7 @@ Current planning status:
   next release thesis should be chosen as a separate product or cleanup slice.
 - The v0.31 cleanup backlog is intentionally trace-gated future work. It should
   not be treated as hidden scope for landing work, Showcase / How-to work,
-  command palette, server-backed sharing, or strict CI gating.
+  command palette, server-backed sharing, or full-health complexity gating.
 - New version scopes should be split using
   [`version-planning.md`](./version-planning.md): one release thesis, one
   primary blast radius, explicit non-goals, checkable acceptance criteria, and a
@@ -39,12 +39,13 @@ Next deferred product tracks:
 Recently shipped:
 
 - [`version-plans/v0.31.md`](./version-plans/v0.31.md) — Code Quality and
-  Fallow Integration: read-only Fallow package scripts, report-only CI soft
-  gate, baseline/backlog documentation, agent-safe JSON command guidance,
-  release hygiene updates, and a trace-validated Fallow cleanup pass that
-  reduced duplicated lines and clone groups to zero. Released as `v0.31.0`;
-  release notes are in [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product
-  features, strict Fallow gating, renderer, graph traversal, export,
+  Fallow Integration: read-only Fallow package scripts, blocking PR
+  changed-code audit, baseline/backlog documentation, agent-safe JSON command
+  guidance, release hygiene updates, and a trace-validated Fallow cleanup pass
+  that reduced duplicated lines and clone groups to zero. Released as
+  `v0.31.0`; release notes are in
+  [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product features,
+  full-health complexity gating, renderer, graph traversal, export,
   persistence, document schema, package export, AI scope, and font-policy work
   were explicitly deferred out of v0.31.
 - [`version-plans/v0.30.md`](./version-plans/v0.30.md) — Editor Visual
@@ -119,10 +120,10 @@ Recently shipped:
 
 Next strong candidates after v0.31:
 
-- **Fallow Complexity Policy Pass** — decide how to handle changed-code
-  complexity findings after v0.31's zero-duplication cleanup, add focused tests
-  for any deeper refactors, suppress intentional public APIs or workspace
-  plumbing, and only then consider stricter Fallow gates.
+- **Fallow Complexity Policy Pass** — decide how to handle historical
+  full-health complexity hotspots after v0.31's zero-duplication cleanup, add
+  focused tests for any deeper refactors, suppress intentional public APIs or
+  workspace plumbing, and only then consider full-health complexity gates.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -328,15 +329,15 @@ stable.
 
 ### Codebase Quality And Agent Workflows
 
-Fallow is now available as a report-only codebase-intelligence layer. The v0.31
-baseline lives in [`fallow-v0.31-baseline.md`](./fallow-v0.31-baseline.md), and
-the first release keeps all findings visible while the team decides what to
-trace, suppress, or clean up. It supports three workflows:
+Fallow is now available as a codebase-intelligence layer. The v0.31 baseline
+lives in [`fallow-v0.31-baseline.md`](./fallow-v0.31-baseline.md), and the
+first release keeps historical full-health findings visible while blocking new
+changed-code debt in CI. It supports three workflows:
 
 - **Local**: scripts for dead-code, duplication, health, dependency, and
   changed-code audit reports. Initial usage should be read-only; auto-fix should
   require an explicit dry run and focused review.
-- **CI**: a soft `fallow audit --base main` style gate for changed files before
+- **CI**: a blocking `fallow audit --base <base>` gate for changed files before
   any strict whole-repo fail mode. The first CI goal is to prevent new debt, not
   block releases on existing legacy debt.
 - **Agents**: update agent guidance so Codex uses Fallow for cleanup
@@ -345,9 +346,9 @@ trace, suppress, or clean up. It supports three workflows:
   treated as unverified candidates that require downstream validation, not as a
   confirmed vulnerability verdict.
 
-Do not make Fallow a strict release gate until the first baseline report has
-been reviewed and noisy findings have been configured, suppressed, or turned
-into planned cleanup work.
+Do not make full-health Fallow complexity a strict release gate until the first
+baseline report has been reviewed and noisy findings have been configured,
+suppressed, or turned into planned cleanup work.
 
 ## Current architecture
 

@@ -37,16 +37,15 @@ CI should run:
 - `npm run check`, `npm run build`, and `npm run test:browser` passed.
 - Full browser coverage passed across Chromium, Firefox, WebKit, mobile
   Chromium, and mobile WebKit with `270 passed, 25 skipped`.
-- Fallow is integrated as a report-only local and CI workflow. The CI job is
-  intentionally non-blocking while the first baseline is reviewed.
+- Fallow is integrated as a local and CI workflow. The CI job now runs the
+  baseline report and blocks pull requests on the changed-code audit.
 - The v0.31 Fallow baseline is captured in `docs/fallow-v0.31-baseline.md` and
   records both the initial report and the final zero-duplication cleanup result.
 - The final Fallow report is clean: zero issues, zero duplicated lines, zero
   clone groups, zero clone instances, zero files with clones, and zero
   duplication percentage.
-- The final local changed-code audit fallback returned a report-only
-  `verdict: "fail"` because changed-code complexity findings remain. It reported
-  zero dead-code issues and zero duplication clone groups.
+- The final changed-code audit returned `verdict: "pass"` with zero dead-code
+  issues, zero complexity findings, and zero duplication clone groups.
 - `npm run perf:node-editor` passed after rerunning outside the filesystem
   sandbox because the benchmark needs to bind `127.0.0.1:4174`. Node drag and
   graph pan had zero long tasks with p95 frame times around `17.5ms`; the effect
