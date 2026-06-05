@@ -31,6 +31,29 @@ CI should run:
 
 ## Manual QA
 
+### v0.31.0 Release Prep
+
+- Release prep passed locally on 2026-06-05.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `270 passed, 25 skipped`.
+- Fallow is integrated as a report-only local and CI workflow. The CI job is
+  intentionally non-blocking while the first baseline is reviewed.
+- The v0.31 Fallow baseline is captured in `docs/fallow-v0.31-baseline.md` and
+  classifies dead-code/dependency findings, duplication, complexity hotspots,
+  and cleanup priorities without applying deletions or suppressions.
+- The local changed-code audit fallback returned a report-only
+  `verdict: "fail"` because existing dependency findings for
+  `@artifact/shared` and `isbot` are present in changed package manifests.
+- `npm run perf:node-editor` was not required because v0.31 changed Fallow
+  tooling, CI, package metadata, and internal documentation only. It did not
+  change React Flow wiring, node-editor rendering, high-frequency gestures,
+  thumbnail scheduling, or editor behavior.
+- No renderer, graph traversal, export, persistence, document schema, landing,
+  Showcase, How-to, AI scope, package export, or font-policy behavior changed
+  as intended release scope.
+- Release notes live in `docs/releases/v0.31.0.md`.
+
 ### v0.30.0 Release Prep
 
 - Release prep passed locally on 2026-06-04.

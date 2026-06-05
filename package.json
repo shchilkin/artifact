@@ -1,7 +1,7 @@
 {
   "name": "album-cover-utils",
   "private": true,
-  "version": "0.30.0",
+  "version": "0.31.0",
   "type": "module",
   "packageManager": "npm@11.12.1",
   "workspaces": [
@@ -11,6 +11,11 @@
   ],
   "scripts": {
     "favicon": "npm --workspace @artifact/web run favicon",
+    "fallow": "fallow --format json --quiet --explain",
+    "fallow:audit": "fallow audit --format json --quiet --explain",
+    "fallow:dead-code": "fallow dead-code --format json --quiet --explain",
+    "fallow:dupes": "fallow dupes --format json --quiet --explain",
+    "fallow:health": "fallow health --format json --quiet --explain --score --top 20",
     "dev": "npm --workspace @artifact/web run dev",
     "dev:api": "npm --workspace @artifact/api run dev",
     "dev:infra": "docker compose -f docker-compose.local.yml up -d postgres redis",
@@ -78,6 +83,7 @@
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "fallow": "^2.88.3",
     "globals": "^17.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.4",

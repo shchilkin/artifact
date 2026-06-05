@@ -45,6 +45,7 @@ person using that surface.
 | `github:gh-fix-ci` | Investigating and fixing failing GitHub Actions or PR checks. |
 | `github:gh-address-comments` | Addressing actionable GitHub PR review comments. |
 | `codex-security:security-scan` | Repository or scoped security scans before release or after auth/storage/import/export changes. |
+| `fallow` | Code-quality reports, changed-code audit, cleanup planning, duplication review, dependency placement, and complexity hotspots. |
 | `imagegen` | Generated raster assets, textures, hero experiments, or visual mock inputs when explicitly useful. |
 
 ## Excluded From The Project Profile
@@ -73,3 +74,35 @@ Use `-g` only for global installs:
 ```bash
 npx skills add owner/repo@skill-name -g -y
 ```
+
+## Fallow Workflow
+
+Use the `fallow` skill when reviewing changed code, preparing releases,
+planning cleanup, auditing dependency placement, checking duplicate code, or
+triaging complexity hotspots. Keep the initial v0.31 workflow report-only:
+
+```bash
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow -- > /private/tmp/artifact-fallow-baseline.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:audit -- --base origin/development > /private/tmp/artifact-fallow-audit.json 2>/dev/null || true
+```
+
+Rules for agents:
+
+- Use JSON output through the package scripts; they include `--format json`,
+  `--quiet`, and `--explain`.
+- Add `2>/dev/null || true` when running from a shell so findings do not abort
+  the session and stdout stays parseable JSON.
+- Treat unused files, exports, and dependencies as candidates only. Run
+  `fallow dead-code --trace-file`, `fallow dead-code --trace`, or
+  `fallow dead-code --trace-dependency` before deleting or changing metadata.
+- Run `fallow fix --dry-run --format json --quiet` before any auto-fix, then
+  review the actions and apply only when the user has approved the cleanup
+  scope.
+- Do not run `fallow watch` in Codex sessions.
+- Do not enable Fallow telemetry. `FALLOW_AGENT_SOURCE=codex` is allowed because
+  it does not enable telemetry or upload code by itself.
+- Prefer suppression only after confirming a finding is intentional public API,
+  workspace plumbing, or a known static-analysis false positive.
+
+The v0.31 baseline is documented in
+[`fallow-v0.31-baseline.md`](fallow-v0.31-baseline.md).
