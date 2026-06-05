@@ -46,15 +46,7 @@ export function useDocumentFileTransfer(
     preparePortableDocument(docRef.current)
       .then((portableDoc) => {
         const blob = new Blob([serializeArtifactDocument(portableDoc)], { type: ARTIFACT_FILE_MIME });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = createArtifactFileName(docRef.current);
-        anchor.rel = 'noopener';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
+        downloadBlob(blob, createArtifactFileName(docRef.current));
         setDocumentFileError(null);
       })
       .catch(() => {
@@ -78,15 +70,7 @@ export function useDocumentFileTransfer(
           const blob = new Blob([serializeArtifactProjectPackage(projectPackage)], {
             type: ARTIFACT_PROJECT_PACKAGE_MIME,
           });
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement('a');
-          anchor.href = url;
-          anchor.download = createArtifactProjectPackageFileName(docRef.current);
-          anchor.rel = 'noopener';
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-          URL.revokeObjectURL(url);
+          downloadBlob(blob, createArtifactProjectPackageFileName(docRef.current));
           setDocumentFileError(null);
         })
         .catch(() => {
@@ -150,4 +134,16 @@ export function useDocumentFileTransfer(
     handleSaveDocument,
     handleSaveProjectPackage,
   };
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

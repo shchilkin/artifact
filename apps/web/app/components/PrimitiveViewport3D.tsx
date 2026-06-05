@@ -317,14 +317,17 @@ export function PrimitiveViewport3D({
       onViewStateDraftRef.current?.(next);
       onViewStateChangeRef.current(next);
     };
+    const stopViewportEvent = (e: Event, preventDefault = false) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (preventDefault) e.preventDefault();
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
+      stopViewportEvent(e, true);
       const gestureMode = e.button === 1 || e.button === 2 || e.shiftKey ? 'pan' : 'rotate';
       dragStateRef.current = {
         pointerId: e.pointerId,
@@ -343,8 +346,7 @@ export function PrimitiveViewport3D({
       const drag = dragStateRef.current;
       if (!inside(e) && !drag) return;
       if (!drag && lockedRef.current) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+      stopViewportEvent(e);
       if (!drag || drag.pointerId !== e.pointerId) return;
       e.preventDefault();
       const dx = e.clientX - drag.startX;
@@ -369,8 +371,7 @@ export function PrimitiveViewport3D({
       if (!interactiveRef.current) return;
       const drag = dragStateRef.current;
       if (!inside(e) && !drag) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+      stopViewportEvent(e);
       if (!drag || drag.pointerId !== e.pointerId) return;
       dragStateRef.current = null;
       // Only release the pane if the cursor is no longer hovering
@@ -382,9 +383,7 @@ export function PrimitiveViewport3D({
       if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
+      stopViewportEvent(e, true);
       const next = {
         ...viewStateRef.current,
         zoom: clamp(viewStateRef.current.zoom - e.deltaY * 0.0016, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX),
@@ -397,17 +396,14 @@ export function PrimitiveViewport3D({
       if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e)) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
+      stopViewportEvent(e, true);
     };
 
     const stopIfInside = (e: Event) => {
       if (!interactiveRef.current) return;
       if (!inside(e)) return;
       if (fromControl(e) || lockedRef.current) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+      stopViewportEvent(e);
     };
 
     const controller = new AbortController();

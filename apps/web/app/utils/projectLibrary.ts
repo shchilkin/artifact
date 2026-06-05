@@ -11,7 +11,7 @@ export interface SavedProject {
 
 export const PROJECTS_STORAGE_KEY = 'artifact-projects-v1';
 export const MAX_PROJECTS = 30;
-export const PROJECT_STORAGE_FULL_MESSAGE =
+const PROJECT_STORAGE_FULL_MESSAGE =
   'Project storage is full. Kept the app running and compacted saved thumbnails where possible.';
 export const PROJECT_THUMBNAIL_FALLBACK =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';

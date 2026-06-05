@@ -6,6 +6,7 @@ import './index.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
 import { ALL_EMOJIS, GOOGLE_FONT_STYLESHEET_URL } from './types/config';
 import { logAppBuildInfo } from './utils/appBuildInfo';
+import { LOGO_RENDERER_OPTIONS } from './utils/logoRendererOptions';
 
 // Default title/description — route-level meta() overrides these via <Meta />
 export const meta: MetaFunction = () => [
@@ -18,34 +19,27 @@ export const meta: MetaFunction = () => [
 
 function useFaviconGlyph() {
   useEffect(() => {
-    Promise.all([import('pixi.js'), import('./utils/logoVariants')]).then(
-      ([{ Renderer, Container }, { RENDER, VARIANTS }]) => {
-        const emoji = ALL_EMOJIS[Math.floor(Math.random() * ALL_EMOJIS.length)];
-        const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
-        let renderer: InstanceType<typeof Renderer>;
-        try {
-          renderer = new Renderer({
-            width: RENDER,
-            height: RENDER,
-            backgroundAlpha: 0,
-            antialias: false,
-          });
-        } catch {
-          return;
-        }
-        const stage = new Container();
-        const cleanup = variant(stage, renderer, emoji, true);
-        const canvas = renderer.view as HTMLCanvasElement;
-        const url = canvas.toDataURL('image/png');
-        const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-        if (link) {
-          link.type = 'image/png';
-          link.href = url;
-        }
-        cleanup();
-        renderer.destroy(true);
-      },
-    );
+    Promise.all([import('pixi.js'), import('./utils/logoVariants')]).then(([{ Renderer, Container }, { VARIANTS }]) => {
+      const emoji = ALL_EMOJIS[Math.floor(Math.random() * ALL_EMOJIS.length)];
+      const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
+      let renderer: InstanceType<typeof Renderer>;
+      try {
+        renderer = new Renderer(LOGO_RENDERER_OPTIONS);
+      } catch {
+        return;
+      }
+      const stage = new Container();
+      const cleanup = variant(stage, renderer, emoji, true);
+      const canvas = renderer.view as HTMLCanvasElement;
+      const url = canvas.toDataURL('image/png');
+      const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (link) {
+        link.type = 'image/png';
+        link.href = url;
+      }
+      cleanup();
+      renderer.destroy(true);
+    });
   }, []);
 }
 

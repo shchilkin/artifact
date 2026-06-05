@@ -56,6 +56,7 @@ export class PostgresAssetRepository implements AssetRepository {
     return requireRow(result.rows, `Asset was not created: ${input.id}`);
   }
 
+  // fallow-ignore-next-line unused-class-member
   async findByIdForUser(id: string, userId: string): Promise<AssetRow | null> {
     const result = await this.client.query<AssetRow>(
       `

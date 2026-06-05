@@ -40,10 +40,11 @@ Recently shipped:
 
 - [`version-plans/v0.31.md`](./version-plans/v0.31.md) — Code Quality and
   Fallow Integration: read-only Fallow package scripts, report-only CI soft
-  gate, baseline/backlog documentation, agent-safe JSON command guidance, and
-  release hygiene updates. Released as `v0.31.0`; release notes are in
-  [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product features, cleanup
-  deletions, strict Fallow gating, renderer, graph traversal, export,
+  gate, baseline/backlog documentation, agent-safe JSON command guidance,
+  release hygiene updates, and a trace-validated Fallow cleanup pass that
+  reduced duplicated lines and clone groups to zero. Released as `v0.31.0`;
+  release notes are in [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product
+  features, strict Fallow gating, renderer, graph traversal, export,
   persistence, document schema, package export, AI scope, and font-policy work
   were explicitly deferred out of v0.31.
 - [`version-plans/v0.30.md`](./version-plans/v0.30.md) — Editor Visual
@@ -118,9 +119,10 @@ Recently shipped:
 
 Next strong candidates after v0.31:
 
-- **Fallow Cleanup Pass** — trace and classify the v0.31 baseline findings,
-  add focused tests for safe cleanup, suppress intentional public APIs or
-  workspace plumbing, and only then consider stricter Fallow gates.
+- **Fallow Complexity Policy Pass** — decide how to handle changed-code
+  complexity findings after v0.31's zero-duplication cleanup, add focused tests
+  for any deeper refactors, suppress intentional public APIs or workspace
+  plumbing, and only then consider stricter Fallow gates.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.

@@ -1,22 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type PostgresQueryClient, PostgresUsageRepository } from '../src/db/postgresUsage.js';
+import { PostgresUsageRepository } from '../src/db/postgresUsage.js';
 import type { AiUsageMonthlyRow } from '../src/db/types.js';
-
-interface QueryCall {
-  sql: string;
-  values?: readonly unknown[];
-}
-
-class FakeQueryClient implements PostgresQueryClient {
-  readonly calls: QueryCall[] = [];
-
-  constructor(private readonly results: unknown[][]) {}
-
-  async query<Row>(sql: string, values?: readonly unknown[]): Promise<{ rows: Row[] }> {
-    this.calls.push({ sql, values });
-    return { rows: (this.results.shift() ?? []) as Row[] };
-  }
-}
+import { createFakeQueryClient } from './helpers/fakeQueryClient.js';
 
 const usage: AiUsageMonthlyRow = {
   user_id: 'user-1',
@@ -29,7 +14,7 @@ const usage: AiUsageMonthlyRow = {
 
 describe('PostgresUsageRepository', () => {
   it('finds monthly usage by user and period', async () => {
-    const client = new FakeQueryClient([[usage], []]);
+    const client = createFakeQueryClient([[usage], []]);
     const repository = new PostgresUsageRepository(client);
 
     await expect(repository.findMonthlyUsage('user-1', '2026-05')).resolves.toEqual(usage);
@@ -44,7 +29,7 @@ describe('PostgresUsageRepository', () => {
   });
 
   it('upserts monthly usage with zero deltas by default', async () => {
-    const client = new FakeQueryClient([[{ ...usage, generation_count: 0, estimated_cost: '0' }]]);
+    const client = createFakeQueryClient([[{ ...usage, generation_count: 0, estimated_cost: '0' }]]);
     const repository = new PostgresUsageRepository(client);
 
     await expect(
@@ -63,7 +48,7 @@ describe('PostgresUsageRepository', () => {
   });
 
   it('upserts monthly usage with generation and cost deltas', async () => {
-    const client = new FakeQueryClient([[usage]]);
+    const client = createFakeQueryClient([[usage]]);
     const repository = new PostgresUsageRepository(client);
 
     await expect(
@@ -84,7 +69,7 @@ describe('PostgresUsageRepository', () => {
   });
 
   it('supports negative generation deltas for immediate queue-enqueue refunds', async () => {
-    const client = new FakeQueryClient([[{ ...usage, generation_count: 1 }]]);
+    const client = createFakeQueryClient([[{ ...usage, generation_count: 1 }]]);
     const repository = new PostgresUsageRepository(client);
 
     await expect(
@@ -100,7 +85,7 @@ describe('PostgresUsageRepository', () => {
   });
 
   it('counts monthly generations from the usage row', async () => {
-    const client = new FakeQueryClient([[usage], []]);
+    const client = createFakeQueryClient([[usage], []]);
     const repository = new PostgresUsageRepository(client);
 
     await expect(repository.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(2);

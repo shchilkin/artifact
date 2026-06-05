@@ -139,10 +139,6 @@ export type TextFontRef = FontName | ImportedFontRef | (string & {});
 
 export const FONT_NAMES = Object.keys(FONT_REGISTRY) as FontName[];
 
-export const FONT_LABELS: Record<FontName, string> = Object.fromEntries(
-  FONT_NAMES.map((font) => [font, FONT_REGISTRY[font].label]),
-) as Record<FontName, string>;
-
 export const FONT_STACKS: Record<FontName, string> = Object.fromEntries(
   FONT_NAMES.map((font) => [font, FONT_REGISTRY[font].stack]),
 ) as Record<FontName, string>;

@@ -1,22 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type PostgresQueryClient, PostgresUserRepository } from '../src/db/postgresUsers.js';
+import { PostgresUserRepository } from '../src/db/postgresUsers.js';
 import type { UserRow } from '../src/db/types.js';
-
-interface QueryCall {
-  sql: string;
-  values?: readonly unknown[];
-}
-
-class FakeQueryClient implements PostgresQueryClient {
-  readonly calls: QueryCall[] = [];
-
-  constructor(private readonly results: unknown[][]) {}
-
-  async query<Row>(sql: string, values?: readonly unknown[]): Promise<{ rows: Row[] }> {
-    this.calls.push({ sql, values });
-    return { rows: (this.results.shift() ?? []) as Row[] };
-  }
-}
+import { createFakeQueryClient } from './helpers/fakeQueryClient.js';
 
 const user: UserRow = {
   id: 'user-1',
@@ -31,7 +16,7 @@ const user: UserRow = {
 
 describe('PostgresUserRepository', () => {
   it('finds users by id and returns null when no row is returned', async () => {
-    const client = new FakeQueryClient([[user], []]);
+    const client = createFakeQueryClient([[user], []]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.findById('user-1')).resolves.toEqual(user);
@@ -43,7 +28,7 @@ describe('PostgresUserRepository', () => {
   });
 
   it('finds users by email', async () => {
-    const client = new FakeQueryClient([[user]]);
+    const client = createFakeQueryClient([[user]]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.findByEmail('me@example.com')).resolves.toEqual(user);
@@ -53,7 +38,7 @@ describe('PostgresUserRepository', () => {
   });
 
   it('creates users with repository defaults matching the contract', async () => {
-    const client = new FakeQueryClient([[user]]);
+    const client = createFakeQueryClient([[user]]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.create({ id: 'user-1', email: 'me@example.com' })).resolves.toEqual(user);
@@ -65,7 +50,7 @@ describe('PostgresUserRepository', () => {
 
   it('upserts authenticated users without changing entitlements', async () => {
     const existing = { ...user, email: 'new@example.com', ai_enabled: true, plus_status: 'active' };
-    const client = new FakeQueryClient([[existing]]);
+    const client = createFakeQueryClient([[existing]]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.upsertFromAuth({ id: 'user-1', email: 'new@example.com' })).resolves.toEqual(existing);
@@ -77,7 +62,7 @@ describe('PostgresUserRepository', () => {
   });
 
   it('can upsert authenticated users before email is known', async () => {
-    const client = new FakeQueryClient([[{ ...user, email: null, ai_enabled: false }]]);
+    const client = createFakeQueryClient([[{ ...user, email: null, ai_enabled: false }]]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.upsertFromAuth({ id: 'user-1' })).resolves.toMatchObject({
@@ -89,7 +74,7 @@ describe('PostgresUserRepository', () => {
   });
 
   it('updates ai access and throws when the user is missing', async () => {
-    const client = new FakeQueryClient([[{ ...user, ai_enabled: false }], []]);
+    const client = createFakeQueryClient([[{ ...user, ai_enabled: false }], []]);
     const repository = new PostgresUserRepository(client);
 
     await expect(repository.setAiEnabled('user-1', false)).resolves.toMatchObject({ ai_enabled: false });

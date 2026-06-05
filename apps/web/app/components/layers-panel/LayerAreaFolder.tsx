@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
 import { GraphHelperRow } from './GraphHelperRow';
-import type { LayerInsertAction } from './LayerQuickAddMenu';
 import type { LayerRowProps } from './LayerRow';
 import { LayerRow } from './LayerRow';
 import type { GraphHelperRowData } from './layerDisplayItems';
+import type { LayerInsertAction } from './layerInsertAction';
 import type { LayerDropPosition } from './useLayerDragReorder';
 
 interface LayerAreaFolderProps {

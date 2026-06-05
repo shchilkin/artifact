@@ -4,7 +4,7 @@ import { getLayerGuardrailState } from './editorGuardrails';
 import { EXPORT_NODE_ID, resolveOutputPath } from './nodeGraph';
 
 export type EditorTargetTone = 'accent' | 'muted' | 'warning' | 'success';
-export type EditorTargetSurface = 'layers' | 'nodes';
+type EditorTargetSurface = 'layers' | 'nodes';
 export type EditorTargetRole = 'source' | 'effect' | 'utility' | 'output';
 
 export interface EditorTargetBadge {

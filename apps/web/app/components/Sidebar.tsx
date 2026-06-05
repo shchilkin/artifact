@@ -4,13 +4,10 @@ import {
   type AspectRatio,
   type CanvasDocument,
   type EffectLayer,
-  type EffectPreset,
   type EmojiLayer,
   type ImageLayer,
   type Layer,
-  type LayerKind,
 } from '../types/config';
-import type { ArrayPresetId } from '../utils/arrayPresets';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
   addLayersToGraphAreaInDocument,
@@ -28,43 +25,38 @@ import {
   updateLayerInDocument,
 } from '../utils/documentCommands';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import type { NoisePresetId } from '../utils/noisePresets';
-import type { TextPresetId } from '../utils/textPresets';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
+import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { ActionButton } from './ui/ActionButton';
 
-interface Props {
+type SidebarLayerPanelProps = Pick<
+  LayerPanelProps,
+  | 'selectedLayerId'
+  | 'onSelectLayer'
+  | 'onAddLayer'
+  | 'onAddEffectPreset'
+  | 'onAddTextPreset'
+  | 'onAddNoisePreset'
+  | 'onAddArrayPreset'
+  | 'onStartAiImage'
+  | 'onLoadStarter'
+  | 'onOpenProjects'
+  | 'onRandomize'
+  | 'onInsertLayerAbove'
+  | 'onRemoveLayer'
+  | 'onDuplicateLayer'
+  | 'modeSwitcher'
+>;
+
+interface Props extends SidebarLayerPanelProps {
   doc: CanvasDocument;
   onDocChange: (doc: CanvasDocument) => void;
-  selectedLayerId: string | null;
-  onSelectLayer: (id: string | null) => void;
-  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
-  onAddEffectPreset: (preset: EffectPreset) => void;
-  onAddTextPreset: (preset: TextPresetId) => void;
-  onAddNoisePreset: (preset: NoisePresetId) => void;
-  onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onStartAiImage?: () => void;
-  onLoadStarter?: (id: string) => void;
-  onOpenProjects?: () => void;
-  onRandomize?: () => void;
-  onInsertLayerAbove: (
-    targetLayerId: string,
-    action:
-      | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-      | { kind: 'textPreset'; preset: TextPresetId }
-      | { kind: 'noisePreset'; preset: NoisePresetId }
-      | { kind: 'arrayPreset'; preset: ArrayPresetId }
-      | { kind: 'effect'; preset: EffectPreset },
-  ) => void;
-  onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
-  onDuplicateLayer: (id: string) => void;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
-  modeSwitcher?: React.ReactNode;
 }
 
 interface SectionProps {

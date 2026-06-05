@@ -392,13 +392,7 @@ function recentKey(surface: AddLibrarySurface) {
 }
 
 function readRecent(surface: AddLibrarySurface): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(recentKey(surface)) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readStoredIdList(recentKey(surface));
 }
 
 function writeRecent(surface: AddLibrarySurface, ids: string[]) {
@@ -414,13 +408,7 @@ function favoriteKey(surface: AddLibrarySurface) {
 }
 
 function readFavorites(surface: AddLibrarySurface): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(favoriteKey(surface)) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readStoredIdList(favoriteKey(surface));
 }
 
 function writeFavorites(surface: AddLibrarySurface, ids: string[]) {
@@ -428,5 +416,15 @@ function writeFavorites(surface: AddLibrarySurface, ids: string[]) {
     window.localStorage.setItem(favoriteKey(surface), JSON.stringify(ids));
   } catch {
     // Favorites are local menu convenience only; adding should not depend on storage.
+  }
+}
+
+function readStoredIdList(key: string): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+  } catch {
+    return [];
   }
 }

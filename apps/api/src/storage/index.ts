@@ -1,2 +1,2 @@
-export { LocalAssetStorage, mimeTypeFromStorageKey } from './local.js';
-export type { AssetStorage, StoredAssetFile } from './types.js';
+export { LocalAssetStorage } from './local.js';
+export type { AssetStorage } from './types.js';

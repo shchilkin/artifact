@@ -183,10 +183,15 @@ function decodeBearerTokenClaims(token: string | undefined) {
 }
 
 function debugClaim(value: unknown) {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(debugClaim).filter(Boolean).join(',');
-  return null;
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+      return String(value);
+    default:
+      return Array.isArray(value) ? value.flatMap((item) => debugClaim(item) ?? []).join(',') || null : null;
+  }
 }
 
 function logBearerTokenClaims(token: string | undefined) {

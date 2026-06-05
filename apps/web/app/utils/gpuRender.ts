@@ -8,11 +8,11 @@ interface GpuRenderOptions {
   filters: Filter[];
 }
 
-export const GPU_RENDER_MEASURE = 'artifact:gpu-render';
-export const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
-export const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
-export const GPU_BLIT_MEASURE = 'artifact:gpu-blit';
-export const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
+const GPU_RENDER_MEASURE = 'artifact:gpu-render';
+const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
+const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
+const GPU_BLIT_MEASURE = 'artifact:gpu-blit';
+const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
 
 /**
  * One renderer per browser tab. Creating a Renderer = creating a WebGL context;

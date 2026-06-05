@@ -11,13 +11,14 @@ import type {
 } from '../../../types/config';
 import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
+import { measurePerformancePhase } from '../../performanceMeasure';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
 import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
-export const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
+const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
 type GpuRenderToCanvas = typeof import('../../gpuRender').gpuRenderToCanvas;
 type BuildFiltersFromEffectLayer = typeof import('../../pixiFilters').buildFiltersFromEffectLayer;
@@ -69,28 +70,8 @@ function getLayerMeasureName(layer: Layer) {
 }
 
 async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
-  if (
-    typeof performance === 'undefined' ||
-    typeof performance.mark !== 'function' ||
-    typeof performance.measure !== 'function'
-  )
-    return task();
-
   const measureName = getLayerMeasureName(layer);
-  const markId = `${measureName}:${layer.id}:${Math.random().toString(36).slice(2)}`;
-  const startMark = `${markId}:start`;
-  const endMark = `${markId}:end`;
-
-  try {
-    performance.mark(startMark);
-    const result = await task();
-    performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
-    return result;
-  } finally {
-    performance.clearMarks?.(startMark);
-    performance.clearMarks?.(endMark);
-  }
+  return measurePerformancePhase(measureName, task, layer.id);
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -219,21 +200,18 @@ function drawImageLayer(
   const px = W * layer.x;
   const py = H * layer.y;
   const rad = (layer.rotation * Math.PI) / 180;
+  const drawFittedImage = (scale: number) => {
+    const sw = img.naturalWidth * scale * layer.scaleX;
+    const sh = img.naturalHeight * scale * layer.scaleY;
+    ctx.translate(px, py);
+    ctx.rotate(rad);
+    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+  };
 
   if (layer.fit === 'cover') {
-    const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-    const sw = img.naturalWidth * s * layer.scaleX;
-    const sh = img.naturalHeight * s * layer.scaleY;
-    ctx.translate(px, py);
-    ctx.rotate(rad);
-    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    drawFittedImage(Math.max(W / img.naturalWidth, H / img.naturalHeight));
   } else if (layer.fit === 'contain') {
-    const s = Math.min(W / img.naturalWidth, H / img.naturalHeight);
-    const sw = img.naturalWidth * s * layer.scaleX;
-    const sh = img.naturalHeight * s * layer.scaleY;
-    ctx.translate(px, py);
-    ctx.rotate(rad);
-    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    drawFittedImage(Math.min(W / img.naturalWidth, H / img.naturalHeight));
   } else if (layer.fit === 'tile') {
     const pat = ctx.createPattern(img, 'repeat');
     if (pat) {

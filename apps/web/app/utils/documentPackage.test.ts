@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { type CanvasDocument, makeFillLayer, makeImageLayer, makeTextLayer } from '../types/config';
+import { makePortableAssetLoaders } from './documentAssetTestHelpers';
 import {
   ARTIFACT_PROJECT_PACKAGE_EXTENSION,
   ARTIFACT_PROJECT_PACKAGE_KIND,
@@ -113,8 +114,12 @@ describe('documentPackage', () => {
   });
 
   it('prepares license-aware packages without embedding unknown local font files by default', async () => {
-    const loadAssetDataUrl = vi.fn(async (src: string) => (src === imageRef ? imageDataUrl : null));
-    const loadFontAsset = vi.fn(async (font: string) => (font === fontRef ? fontAsset : null));
+    const { loadAssetDataUrl, loadFontAsset } = makePortableAssetLoaders({
+      imageRef,
+      imageDataUrl,
+      fontRef,
+      fontAsset,
+    });
 
     const projectPackage = await prepareArtifactProjectPackage(
       doc({ layers: [makeImageLayer(imageRef), makeTextLayer({ id: 'title', content: 'POSTER', font: fontRef })] }),

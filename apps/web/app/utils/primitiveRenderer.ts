@@ -218,4 +218,5 @@ export async function renderPrimitiveToCanvas(
 }
 
 // Re-export so callers that used to import degToRad from here continue to work.
+// fallow-ignore-next-line unused-export
 export { degToRad };

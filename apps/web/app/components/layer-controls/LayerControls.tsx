@@ -5,7 +5,7 @@
  * this component. Field ranges and option lists are imported from fieldDefs
  * so that control behavior never drifts between surfaces.
  */
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import {
   type EmojiLayer,
@@ -59,6 +59,176 @@ function PlacementResetButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function PlacementPositionSliders({
+  x,
+  y,
+  onXChange,
+  onYChange,
+}: {
+  x: number;
+  y: number;
+  onXChange: (value: number) => void;
+  onYChange: (value: number) => void;
+}) {
+  return (
+    <>
+      <InspectorSlider label="Horizontal" value={Math.round(x * 100)} {...R.x} onChange={(v) => onXChange(v / 100)} />
+      <InspectorSlider label="Vertical" value={Math.round(y * 100)} {...R.y} onChange={(v) => onYChange(v / 100)} />
+    </>
+  );
+}
+
+function PlacementSection({
+  x,
+  y,
+  open,
+  children,
+  onToggle,
+  onReset,
+  onChange,
+}: {
+  x: number;
+  y: number;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+  onReset: () => void;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <InspectorSection
+      title="Placement"
+      summary={`${Math.round(x * 100)} / ${Math.round(y * 100)}`}
+      open={open}
+      onToggle={onToggle}
+    >
+      <PlacementResetButton onClick={onReset} />
+      <PlacementPositionSliders
+        x={x}
+        y={y}
+        onXChange={(v) => onChange({ x: v })}
+        onYChange={(v) => onChange({ y: v })}
+      />
+      {children}
+    </InspectorSection>
+  );
+}
+
+function LayerPlacementControls<T extends ImageLayer | TextLayer>({
+  layer,
+  open,
+  children,
+  onToggle,
+  onChange,
+}: {
+  layer: T;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <PlacementSection
+      x={layer.x}
+      y={layer.y}
+      open={open}
+      onToggle={onToggle}
+      onReset={() => onChange(DEFAULT_PLACEMENT as Partial<T>)}
+      onChange={(patch) => onChange(patch as Partial<T>)}
+    >
+      {children}
+    </PlacementSection>
+  );
+}
+
+function PlacementRotationSlider<T extends ImageLayer | TextLayer>({
+  layer,
+  onChange,
+}: {
+  layer: T;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <InspectorSlider
+      label="Rotation"
+      value={Math.round(layer.rotation)}
+      {...R.rotation}
+      onChange={(v) => onChange({ rotation: v } as Partial<T>)}
+    />
+  );
+}
+
+function PlacementScaleLockRow<T extends ImageLayer | TextLayer>({
+  layer,
+  locked,
+  onLockChange,
+  onChange,
+}: {
+  layer: T;
+  locked: boolean;
+  onLockChange: (locked: boolean) => void;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <ScaleLockRow
+      scaleX={layer.scaleX}
+      scaleY={layer.scaleY}
+      locked={locked}
+      onLockChange={onLockChange}
+      onChange={(patch) => onChange(patch as Partial<T>)}
+    />
+  );
+}
+
+function LayerBlendStyleSection({
+  opacity,
+  blendMode,
+  open,
+  onToggle,
+  onOpacityChange,
+  onBlendModeChange,
+  children,
+}: {
+  opacity: number;
+  blendMode: string;
+  open: boolean;
+  onToggle: () => void;
+  onOpacityChange: (value: number) => void;
+  onBlendModeChange: (value: string) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <InspectorSection title="Style" summary={`${opacity}% · ${blendMode}`} open={open} onToggle={onToggle}>
+      {children}
+      <InspectorSlider label="Opacity" value={opacity} {...R.opacity} onChange={onOpacityChange} />
+      <InspectorSelect label="Blend" value={blendMode} options={[...BLEND_OPTIONS]} onChange={onBlendModeChange} />
+      <BlendModeNote value={blendMode} />
+    </InspectorSection>
+  );
+}
+
+function LayerContentSection({
+  summary,
+  open,
+  children,
+  onToggle,
+}: {
+  summary: string;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <InspectorSection title="Content" summary={summary} open={open} onToggle={onToggle}>
+      {children}
+    </InspectorSection>
+  );
+}
+
+function LayerNameInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <InspectorTextInput value={value} onChange={onChange} />;
+}
+
 function parseEmojiInput(value: string): string[] {
   const trimmed = value.trim();
   if (!trimmed) return [];
@@ -103,6 +273,22 @@ export function LayerControls({
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<'content' | 'placement' | 'style' | 'structure'>('content');
   const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
+  const placementOpen = openSection === 'placement';
+  const togglePlacementSection = () => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'));
+  const contentOpen = openSection === 'content';
+  const toggleContentStyleSection = () => setOpenSection((s) => (s === 'content' ? 'style' : 'content'));
+  const renderBlendStyleSection = (children?: ReactNode) => (
+    <LayerBlendStyleSection
+      opacity={layer.opacity}
+      blendMode={layer.blendMode}
+      open={openSection === 'style'}
+      onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
+      onOpacityChange={(v) => onChange({ opacity: v })}
+      onBlendModeChange={(v) => onChange({ blendMode: v })}
+    >
+      {children}
+    </LayerBlendStyleSection>
+  );
 
   if (layer.kind === 'text') {
     const importedFont = isFontUri(layer.font) ? getCachedImportedFont(layer.font) : null;
@@ -137,64 +323,27 @@ export function LayerControls({
             onChange={(v) => onChange({ align: v as TextLayer['align'] } as Partial<TextLayer>)}
           />
         </InspectorSection>
-        <InspectorSection
-          title="Placement"
-          summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-          open={openSection === 'placement'}
-          onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
+        <LayerPlacementControls
+          layer={layer}
+          open={placementOpen}
+          onToggle={togglePlacementSection}
+          onChange={(patch) => onChange(patch as Partial<TextLayer>)}
         >
-          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<TextLayer>)} />
-          <InspectorSlider
-            label="Horizontal"
-            value={Math.round(layer.x * 100)}
-            {...R.x}
-            onChange={(v) => onChange({ x: v / 100 } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Vertical"
-            value={Math.round(layer.y * 100)}
-            {...R.y}
-            onChange={(v) => onChange({ y: v / 100 } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Rotation"
-            value={Math.round(layer.rotation)}
-            {...R.rotation}
-            onChange={(v) => onChange({ rotation: v } as Partial<TextLayer>)}
-          />
-          <ScaleLockRow
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
+          <PlacementRotationSlider layer={layer} onChange={(patch) => onChange(patch as Partial<TextLayer>)} />
+          <PlacementScaleLockRow
+            layer={layer}
             locked={scaleLocked}
             onLockChange={setScaleLocked}
             onChange={(patch) => onChange(patch as Partial<TextLayer>)}
           />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
+        </LayerPlacementControls>
+        {renderBlendStyleSection(
           <InspectorColorInput
             label="Color"
             value={layer.color}
             onChange={(v) => onChange({ color: v } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
+          />,
+        )}
       </div>
     );
   }
@@ -217,59 +366,21 @@ export function LayerControls({
             onChange={(v) => onChange({ fit: v } as Partial<ImageLayer>)}
           />
         </InspectorSection>
-        <InspectorSection
-          title="Placement"
-          summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-          open={openSection === 'placement'}
-          onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
+        <LayerPlacementControls
+          layer={layer}
+          open={placementOpen}
+          onToggle={togglePlacementSection}
+          onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
         >
-          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<ImageLayer>)} />
-          <InspectorSlider
-            label="Horizontal"
-            value={Math.round(layer.x * 100)}
-            {...R.x}
-            onChange={(v) => onChange({ x: v / 100 } as Partial<ImageLayer>)}
-          />
-          <InspectorSlider
-            label="Vertical"
-            value={Math.round(layer.y * 100)}
-            {...R.y}
-            onChange={(v) => onChange({ y: v / 100 } as Partial<ImageLayer>)}
-          />
-          <ScaleLockRow
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
+          <PlacementScaleLockRow
+            layer={layer}
             locked={scaleLocked}
             onLockChange={setScaleLocked}
             onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
           />
-          <InspectorSlider
-            label="Rotation"
-            value={Math.round(layer.rotation)}
-            {...R.rotation}
-            onChange={(v) => onChange({ rotation: v } as Partial<ImageLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
+          <PlacementRotationSlider layer={layer} onChange={(patch) => onChange(patch as Partial<ImageLayer>)} />
+        </LayerPlacementControls>
+        {renderBlendStyleSection()}
       </div>
     );
   }
@@ -277,39 +388,15 @@ export function LayerControls({
   if (layer.kind === 'fill') {
     return (
       <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary="Solid fill"
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'style' : 'content'))}
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        <LayerContentSection summary="Solid fill" open={contentOpen} onToggle={toggleContentStyleSection}>
+          <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
           <InspectorColorInput
             label="Color"
             value={layer.color}
             onChange={(v) => onChange({ color: v } as Partial<FillLayer>)}
           />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
+        </LayerContentSection>
+        {renderBlendStyleSection()}
       </div>
     );
   }
@@ -317,13 +404,12 @@ export function LayerControls({
   if (layer.kind === 'emoji') {
     return (
       <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
+        <LayerContentSection
           summary={`${layer.density} density`}
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'style' : 'content'))}
+          open={contentOpen}
+          onToggle={toggleContentStyleSection}
         >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+          <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
           <div className="node-inspector-control">
             <InspectorLabel>Emojis</InspectorLabel>
             <InspectorTextInput
@@ -358,7 +444,7 @@ export function LayerControls({
             {...R.maxSz}
             onChange={(v) => onChange({ maxSz: v, minSz: Math.min(layer.minSz, v) } as Partial<EmojiLayer>)}
           />
-        </InspectorSection>
+        </LayerContentSection>
         <InspectorSection
           title="Style"
           summary={`${layer.opacity}% opacity`}
@@ -615,26 +701,7 @@ export function LayerControls({
             </>
           )}
         </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v } as Partial<SourceLayer>)}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v } as Partial<SourceLayer>)}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
+        {renderBlendStyleSection()}
       </div>
     );
   }

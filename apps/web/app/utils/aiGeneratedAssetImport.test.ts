@@ -59,8 +59,7 @@ describe('storeAiGeneratedAssetSource', () => {
   });
 
   it('downloads remote assets with credentials and stores the image blob', async () => {
-    const saveBlobAsset = vi.fn(async () => 'artifact-asset://stored-blob');
-    const fetcher = vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }));
+    const { fetcher, saveBlobAsset } = createSuccessfulBlobImportMocks();
 
     await expect(storeAiGeneratedAssetSource(completeJob, { fetcher, saveBlobAsset })).resolves.toBe(
       'artifact-asset://stored-blob',
@@ -74,8 +73,7 @@ describe('storeAiGeneratedAssetSource', () => {
   });
 
   it('downloads remote assets with the local development bearer token', async () => {
-    const saveBlobAsset = vi.fn(async () => 'artifact-asset://stored-blob');
-    const fetcher = vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }));
+    const { fetcher, saveBlobAsset } = createSuccessfulBlobImportMocks();
 
     await expect(
       storeAiGeneratedAssetSource(completeJob, { devToken: 'dev-token', fetcher, saveBlobAsset }),
@@ -88,8 +86,7 @@ describe('storeAiGeneratedAssetSource', () => {
   });
 
   it('prefixes relative asset URLs with the configured API base URL', async () => {
-    const saveBlobAsset = vi.fn(async () => 'artifact-asset://stored-blob');
-    const fetcher = vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }));
+    const { fetcher, saveBlobAsset } = createSuccessfulBlobImportMocks();
 
     await expect(
       storeAiGeneratedAssetSource(
@@ -127,3 +124,10 @@ describe('storeAiGeneratedAssetSource', () => {
     );
   });
 });
+
+function createSuccessfulBlobImportMocks() {
+  return {
+    saveBlobAsset: vi.fn(async () => 'artifact-asset://stored-blob'),
+    fetcher: vi.fn(async () => new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 })),
+  };
+}

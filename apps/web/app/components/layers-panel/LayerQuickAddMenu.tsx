@@ -1,20 +1,9 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { EffectPreset, LayerKind } from '../../types/config';
-import type { ArrayPresetId } from '../../utils/arrayPresets';
-import type { NoisePresetId } from '../../utils/noisePresets';
-import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
 import { clampPopupPosition } from '../node-canvas/helpers';
-
-export type LayerInsertAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset };
+import type { LayerInsertAction } from './layerInsertAction';
 
 const LAYER_QUICK_MENU_W = 520;
 const LAYER_QUICK_MENU_H = 520;

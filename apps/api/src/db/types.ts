@@ -20,14 +20,6 @@ export interface UserRow {
   disabled_at: DbTimestamp | null;
 }
 
-export interface AiGenerationSettingsJson {
-  [key: string]: JsonValue | undefined;
-  aspect?: JsonValue;
-  quality?: JsonValue;
-  stylePreset?: JsonValue;
-  sourceAssetId?: JsonValue;
-}
-
 export interface AiGenerationJobRow {
   id: string;
   user_id: string;
@@ -53,19 +45,6 @@ export interface AiGenerationJobRow {
   expires_at: DbTimestamp | null;
 }
 
-export interface GeneratedAssetMetadata {
-  [key: string]: JsonValue | undefined;
-  provider?: JsonValue;
-  model?: JsonValue;
-  prompt?: JsonValue;
-  negativePrompt?: JsonValue;
-  settings?: JsonValue;
-  seed?: JsonValue;
-  sourceAssetIds?: JsonValue;
-  licenseNote?: JsonValue;
-  createdAt?: JsonValue;
-}
-
 export interface AssetRow {
   id: string;
   user_id: string;
@@ -88,15 +67,6 @@ export interface AiUsageMonthlyRow {
   generation_count: number;
   estimated_cost: DbNumeric;
   updated_at: DbTimestamp;
-}
-
-export interface AiRateLimitEventRow {
-  id: string;
-  user_id: string | null;
-  ip_hash: string | null;
-  event_type: string;
-  created_at: DbTimestamp;
-  metadata_json: JsonObject;
 }
 
 export interface CreateUserInput {
@@ -145,14 +115,6 @@ export interface UpsertAiUsageMonthlyInput {
   estimatedCostDelta?: DbNumeric;
 }
 
-export interface RecordAiRateLimitEventInput {
-  id: string;
-  userId?: string | null;
-  ipHash?: string | null;
-  eventType: string;
-  metadataJson: JsonObject;
-}
-
 export interface UserRepository {
   findById(id: string): Promise<UserRow | null>;
   findByEmail(email: string): Promise<UserRow | null>;
@@ -189,8 +151,4 @@ export interface AssetRepository {
 export interface AiUsageRepository {
   findMonthlyUsage(userId: string, period: string): Promise<AiUsageMonthlyRow | null>;
   upsertMonthlyUsage(input: UpsertAiUsageMonthlyInput): Promise<AiUsageMonthlyRow>;
-}
-
-export interface AiRateLimitEventRepository {
-  record(input: RecordAiRateLimitEventInput): Promise<AiRateLimitEventRow>;
 }

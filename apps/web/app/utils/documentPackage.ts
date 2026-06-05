@@ -20,7 +20,7 @@ import {
 } from './fontStore';
 
 export const ARTIFACT_PROJECT_PACKAGE_KIND = 'artifact-project-package';
-export const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
+const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
 export const ARTIFACT_PROJECT_PACKAGE_EXTENSION = '.artifact';
 export const ARTIFACT_PROJECT_PACKAGE_MIME = 'application/vnd.artifact.project+json';
 

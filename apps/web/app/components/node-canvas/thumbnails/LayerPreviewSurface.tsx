@@ -26,6 +26,13 @@ type LayerPreviewSurfaceProps = Pick<
   onTransformWheelDelta?: (deltaY: number) => void;
 };
 
+function pointerAngleFromElement(e: React.PointerEvent<HTMLDivElement>): number {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+}
+
 function AiGenerationPreviewOverlay({ generation }: { generation: ImageLayer['aiGeneration'] }) {
   const state = getAiGenerationUiState(generation);
   if (state === 'idle' || state === 'done') return null;
@@ -79,15 +86,20 @@ function DragTransformOverlay({
   const stopLocalGesture = (e: React.SyntheticEvent) => {
     stopNodeGestureEvent(e);
   };
+  const endDragGesture = (e: React.PointerEvent<HTMLDivElement>) => {
+    stopLocalGesture(e);
+    dragRef.current = null;
+    setDragging(false);
+    setRotating(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    onCommit();
+  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     stopLocalGesture(e);
     onStart();
     if (e.shiftKey) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+      const angle = pointerAngleFromElement(e);
       dragRef.current = {
         startClientX: e.clientX,
         startClientY: e.clientY,
@@ -127,10 +139,7 @@ function DragTransformOverlay({
       const newY = clampPosition(startLayerY + dy / frameHeight);
       onChange({ x: newX, y: newY });
     } else {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+      const angle = pointerAngleFromElement(e);
       let delta = angle - startAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
@@ -139,21 +148,11 @@ function DragTransformOverlay({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    stopLocalGesture(e);
-    dragRef.current = null;
-    setDragging(false);
-    setRotating(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    onCommit();
+    endDragGesture(e);
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    stopLocalGesture(e);
-    dragRef.current = null;
-    setDragging(false);
-    setRotating(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    onCommit();
+    endDragGesture(e);
   };
 
   let cursor = 'grab';

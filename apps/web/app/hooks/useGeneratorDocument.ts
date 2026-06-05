@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { AddAction, InsertConnectionConfig } from '../components/NodeCanvas';
+import type { InsertConnectionConfig } from '../components/NodeCanvas';
 import {
   type AspectRatio,
   type CanvasDocument,
@@ -12,6 +12,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import type { AddAction } from '../utils/addActions';
 import { type ArrayPresetId, makeArrayPresetLayer } from '../utils/arrayPresets';
 import {
   hasPortableDocumentPayloads,
@@ -181,23 +182,25 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const applyHistoryNavigation = useCallback(
+    (navigate: typeof undoHistory | typeof redoHistory) => {
+      clearPendingHistory();
+      const result = navigate({ past, future }, docRef.current);
+      if (!result) return;
+      setPast(result.past);
+      setFuture(result.future);
+      _setDoc(result.doc);
+    },
+    [clearPendingHistory, future, past],
+  );
+
   const undo = useCallback(() => {
-    clearPendingHistory();
-    const result = undoHistory({ past, future }, docRef.current);
-    if (!result) return;
-    setPast(result.past);
-    setFuture(result.future);
-    _setDoc(result.doc);
-  }, [clearPendingHistory, future, past]);
+    applyHistoryNavigation(undoHistory);
+  }, [applyHistoryNavigation]);
 
   const redo = useCallback(() => {
-    clearPendingHistory();
-    const result = redoHistory({ past, future }, docRef.current);
-    if (!result) return;
-    setPast(result.past);
-    setFuture(result.future);
-    _setDoc(result.doc);
-  }, [clearPendingHistory, future, past]);
+    applyHistoryNavigation(redoHistory);
+  }, [applyHistoryNavigation]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

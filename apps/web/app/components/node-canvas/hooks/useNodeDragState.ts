@@ -18,6 +18,7 @@ import {
 } from '../../../utils/nodeGraph';
 import { AREA_PADDING_BOTTOM, AREA_PADDING_TOP, AREA_PADDING_X } from '../areas/areaBounds';
 import { EDGE_INTERCEPT_THRESHOLD, NODE_H, NODE_W } from '../constants';
+import { resolveGraphInsertionNodeCenter } from '../graphInsertion';
 import { distancePointToSegment } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
 import { type AlignableNode, type NodeAlignmentGuide, snapNodeToAlignment } from '../nodeAlignment';
@@ -211,14 +212,6 @@ export function useNodeDragState({
   const findInterceptEdge = useCallback(
     (node: RFNode) => {
       const nodeLookup = new Map(dragNodesRef.current.map((item) => [item.id, item]));
-      const getCenter = (nodeId: string) => {
-        const rfNode = nodeLookup.get(nodeId);
-        const position = rfNode?.position ?? graphRef.current.positions[nodeId];
-        if (!position) return null;
-        const width = rfNode?.measured?.width ?? NODE_W;
-        const height = rfNode?.measured?.height ?? NODE_H;
-        return { x: position.x + width / 2, y: position.y + height / 2 };
-      };
       const point = {
         x: node.position.x + (node.measured?.width ?? NODE_W) / 2,
         y: node.position.y + (node.measured?.height ?? NODE_H) / 2,
@@ -226,8 +219,20 @@ export function useNodeDragState({
       let best: { edge: import('../../../types/config').GraphEdge; distance: number } | null = null;
       for (const edge of graphRef.current.edges) {
         if (edge.fromId === node.id || edge.toId === node.id) continue;
-        const start = getCenter(edge.fromId);
-        const end = getCenter(edge.toId);
+        const start = resolveGraphInsertionNodeCenter({
+          nodeId: edge.fromId,
+          graph: graphRef.current,
+          nodesById: nodeLookup,
+          fallbackWidth: NODE_W,
+          fallbackHeight: NODE_H,
+        });
+        const end = resolveGraphInsertionNodeCenter({
+          nodeId: edge.toId,
+          graph: graphRef.current,
+          nodesById: nodeLookup,
+          fallbackWidth: NODE_W,
+          fallbackHeight: NODE_H,
+        });
         if (!start || !end) continue;
         const distance = distancePointToSegment(point, start, end);
         if (distance > EDGE_INTERCEPT_THRESHOLD) continue;

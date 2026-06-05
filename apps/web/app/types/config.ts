@@ -2,7 +2,6 @@ import type { TextFontRef } from './typography';
 
 export {
   ALL_EMOJIS,
-  FONT_LABELS,
   FONT_NAMES,
   FONT_OPTIONS,
   FONT_REGISTRY,
@@ -11,23 +10,17 @@ export {
   GOOGLE_FONT_STYLESHEET_URL,
   getBundledFontRegistryItem,
   getBundledFontStack,
-  type ImportedFontRef,
   isBundledFontName,
   type TextFontRef,
 } from './typography';
 
-export const LAYER_KINDS = ['text', 'image', 'emoji', 'effect', 'fill', 'primitive', 'noise', 'array'] as const;
-export type LayerKind = (typeof LAYER_KINDS)[number];
+export type LayerKind = 'text' | 'image' | 'emoji' | 'effect' | 'fill' | 'primitive' | 'noise' | 'array';
 export const SOURCE_TYPES = ['primitive', 'noise', 'array'] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
-export const PRIMITIVE_SHAPES = ['sphere', 'cube', 'cylinder'] as const;
-export type PrimitiveShape = (typeof PRIMITIVE_SHAPES)[number];
-export const NOISE_TYPES = ['value', 'clouds', 'cells'] as const;
-export type NoiseType = (typeof NOISE_TYPES)[number];
-export const ARRAY_PATTERNS = ['line', 'grid', 'radial'] as const;
-export type ArrayPattern = (typeof ARRAY_PATTERNS)[number];
-export const ARRAY_SHAPES = ['disc', 'bar', 'diamond'] as const;
-export type ArrayShape = (typeof ARRAY_SHAPES)[number];
+type PrimitiveShape = 'sphere' | 'cube' | 'cylinder';
+export type NoiseType = 'value' | 'clouds' | 'cells';
+export type ArrayPattern = 'line' | 'grid' | 'radial';
+type ArrayShape = 'disc' | 'bar' | 'diamond';
 
 interface BaseLayer {
   id: string;
@@ -647,78 +640,16 @@ export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer
   };
 }
 
+function omitEffectKind(
+  props: typeof DEFAULT_EFFECT_LAYER_PROPS,
+): Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> {
+  const { kind, ...rest } = props;
+  void kind;
+  return rest;
+}
+
 // All-zero base for focused single-effect layers
-const ZERO_EFFECT: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> = {
-  maskAlpha: false,
-  grain: 0,
-  scanlines: 0,
-  scanlineWidth: 1,
-  rgbSplit: 0,
-  glitch: 0,
-  tint: '#350055',
-  tintOp: 0,
-  rays: 0,
-  rayInt: 0,
-  rayColor: '#bb00ff',
-  morphAmt: 0,
-  morphFreq: 5,
-  tearAmt: 0,
-  tearSize: 3,
-  noiseWarp: 0,
-  vortex: 0,
-  barrel: 0,
-  mirror: 0,
-  dataMosh: 0,
-  interlace: 0,
-  pixelate: 0,
-  hueShift: 0,
-  vignette: 0,
-  bloom: 0,
-  posterize: 0,
-  filmBurn: 0,
-  duotone: 0,
-  duoA: '#0a0020',
-  duoB: '#ff6ec7',
-  halftone: 0,
-  risoShift: 0,
-  risoAngle: 15,
-  blurAmt: 0,
-  threshold: 0,
-  edgeDetect: 0,
-  gradMix: 0,
-  gradA: '#0a0020',
-  gradB: '#ff6ec7',
-  gradAngle: 0,
-  sepia: 0,
-  neonGlow: 0,
-  neonColor: '#ff00ff',
-  zoomBlur: 0,
-  vhsTracking: 0,
-  dither: 0,
-  infrared: 0,
-  ca: 0,
-  waveAmt: 0,
-  waveFreq: 3,
-  matte: 0,
-  overprint: 0,
-  solarize: 0,
-  bleachBypass: 0,
-  cyanotype: 0,
-  splitToneAmt: 0,
-  splitShadow: '#001a4f',
-  splitHighlight: '#ff8040',
-  rippleAmt: 0,
-  rippleFreq: 3,
-  kaleidoscope: 0,
-  squeezeX: 0,
-  squeezeY: 0,
-  emboss: 0,
-  linocut: 0,
-  fog: 0,
-  fogColor: '#c8d8e8',
-  speedLines: 0,
-  seedOffset: 0,
-};
+export const ZERO_EFFECT = omitEffectKind(DEFAULT_EFFECT_LAYER_PROPS);
 
 export type EffectNumericField = {
   [K in keyof EffectLayer]: EffectLayer[K] extends number ? K : never;

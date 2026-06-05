@@ -1,5 +1,5 @@
 import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
-import { DEFAULT_EXPORT, makeEmojiLayer } from '../types/config';
+import { DEFAULT_EXPORT, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
 import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 import { renderDocument } from './renderer';
 
@@ -24,78 +24,15 @@ const BASE_EMOJI_LAYER = makeEmojiLayer({
 });
 
 const BASE_EFFECT: Partial<EffectLayer> = {
-  grain: 0,
-  scanlines: 0,
-  scanlineWidth: 1,
+  ...ZERO_EFFECT,
   rayInt: 50,
-  rayColor: '#bb00ff',
   rays: 10,
-  rgbSplit: 0,
-  glitch: 0,
-  tint: '#350055',
   tintOp: 20,
-  morphAmt: 0,
-  morphFreq: 5,
-  tearAmt: 0,
-  tearSize: 3,
-  noiseWarp: 0,
-  vortex: 0,
-  barrel: 0,
-  mirror: 0,
-  dataMosh: 0,
-  interlace: 0,
-  pixelate: 0,
-  hueShift: 0,
-  vignette: 0,
-  bloom: 0,
-  posterize: 0,
-  filmBurn: 0,
-  duotone: 0,
-  duoA: '#0a0020',
-  duoB: '#ff6ec7',
-  halftone: 0,
-  risoShift: 0,
-  risoAngle: 15,
-  blurAmt: 0,
-  threshold: 0,
-  edgeDetect: 0,
-  gradMix: 0,
-  gradA: '#0a0020',
-  gradB: '#ff6ec7',
-  gradAngle: 0,
-  sepia: 0,
-  neonGlow: 0,
-  neonColor: '#ff00ff',
-  zoomBlur: 0,
-  vhsTracking: 0,
-  dither: 0,
-  infrared: 0,
-  ca: 0,
-  waveAmt: 0,
-  waveFreq: 3,
-  matte: 0,
-  overprint: 0,
-  solarize: 0,
-  bleachBypass: 0,
-  cyanotype: 0,
-  splitToneAmt: 0,
-  splitShadow: '#001a4f',
-  splitHighlight: '#ff8040',
-  rippleAmt: 0,
-  rippleFreq: 3,
-  kaleidoscope: 0,
-  squeezeX: 0,
-  squeezeY: 0,
-  emboss: 0,
-  linocut: 0,
-  fog: 0,
-  fogColor: '#c8d8e8',
-  speedLines: 0,
 };
 
 export type EffectFamilyId = 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print';
 
-export const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: string }> = {
+const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: string }> = {
   light: { label: 'Light', goodFor: 'glow, atmosphere, stage energy' },
   signal: { label: 'Signal', goodFor: 'glitch, analog video, damaged media' },
   texture: { label: 'Texture', goodFor: 'grain, paper, tactile surface' },

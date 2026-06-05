@@ -172,11 +172,8 @@ export function addMergeNode(
 
 export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
   return {
-    ...graph,
+    ...removeGraphNodeReferences(graph, id),
     mergeNodes: graph.mergeNodes.filter((n) => n.id !== id),
-    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
-    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
-    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -194,11 +191,8 @@ export function addColorNode(
 
 export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
   return {
-    ...graph,
+    ...removeGraphNodeReferences(graph, id),
     colorNodes: (graph.colorNodes ?? []).filter((n) => n.id !== id),
-    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
-    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
-    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -223,11 +217,8 @@ export function addRepeatNode(
 
 export function removeRepeatNode(graph: CanvasGraph, id: string): CanvasGraph {
   return {
-    ...graph,
+    ...removeGraphNodeReferences(graph, id),
     repeatNodes: (graph.repeatNodes ?? []).filter((n) => n.id !== id),
-    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
-    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
-    areas: removeNodeFromGraphAreas(graph.areas, id),
   };
 }
 
@@ -240,6 +231,15 @@ export function updateRepeatNode(graph: CanvasGraph, id: string, patch: Partial<
 
 function uniqueNodeIds(ids: string[]): string[] {
   return [...new Set(ids.filter((id) => id.trim().length > 0))];
+}
+
+function removeGraphNodeReferences(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...graph,
+    edges: graph.edges.filter((e) => e.fromId !== id && e.toId !== id),
+    positions: Object.fromEntries(Object.entries(graph.positions).filter(([k]) => k !== id)),
+    areas: removeNodeFromGraphAreas(graph.areas, id),
+  };
 }
 
 function removeNodeFromGraphAreas(areas: GraphArea[] | undefined, nodeId: string): GraphArea[] {
@@ -332,8 +332,11 @@ export function removeNodesFromGraphArea(graph: CanvasGraph, areaId: string, nod
   };
 }
 
-/** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
-export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
+function collectConnectedNodeIds(
+  nodeId: string,
+  graph: CanvasGraph,
+  direction: 'upstream' | 'downstream',
+): Set<string> {
   const collected = new Set<string>();
   const queue = [nodeId];
   while (queue.length > 0) {
@@ -341,25 +344,26 @@ export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<
     if (collected.has(id)) continue;
     collected.add(id);
     for (const edge of graph.edges) {
-      if (edge.toId === id && !collected.has(edge.fromId)) queue.push(edge.fromId);
+      const nextId =
+        direction === 'upstream' && edge.toId === id
+          ? edge.fromId
+          : direction === 'downstream' && edge.fromId === id
+            ? edge.toId
+            : null;
+      if (nextId && !collected.has(nextId)) queue.push(nextId);
     }
   }
   return collected;
 }
 
+/** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
+export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
+  return collectConnectedNodeIds(nodeId, graph, 'upstream');
+}
+
 /** BFS forwards from nodeId, return every node id affected by it, including itself. */
 export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
-  const collected = new Set<string>();
-  const queue = [nodeId];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (collected.has(id)) continue;
-    collected.add(id);
-    for (const edge of graph.edges) {
-      if (edge.fromId === id && !collected.has(edge.toId)) queue.push(edge.toId);
-    }
-  }
-  return collected;
+  return collectConnectedNodeIds(nodeId, graph, 'downstream');
 }
 
 export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_NODE_ID) {
@@ -368,28 +372,6 @@ export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_
     graph.edges.filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId)).map((edge) => edge.id),
   );
   return { nodeIds, edgeIds };
-}
-
-/** BFS backwards from nodeId, collect all layer IDs that feed into it. */
-export function getUpstreamLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
-  const layerIds = new Set(layers.map((l) => l.id));
-  const collected = new Set<string>();
-  const visited = new Set<string>();
-  const queue = [nodeId];
-
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (visited.has(id)) continue;
-    visited.add(id);
-    if (layerIds.has(id)) collected.add(id);
-    for (const edge of graph.edges) {
-      if (edge.toId === id && !visited.has(edge.fromId)) {
-        queue.push(edge.fromId);
-      }
-    }
-  }
-
-  return layers.filter((l) => collected.has(l.id));
 }
 
 /** Resolve only the layers that feed into nodeId, in graph render order. */
@@ -439,14 +421,18 @@ export function nextDropPosition(graph: CanvasGraph): { x: number; y: number } {
   return { x: maxX + BASE_NODE_W + COL_GAP, y: avgY };
 }
 
-export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: AspectRatio = '1:1'): CanvasGraph {
-  const nodeIds = [
+export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] {
+  return [
     ...layers.map((layer) => layer.id),
     ...graph.mergeNodes.map((node) => node.id),
     ...(graph.colorNodes ?? []).map((node) => node.id),
     ...(graph.repeatNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
+}
+
+export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: AspectRatio = '1:1'): CanvasGraph {
+  const nodeIds = listGraphNodeIds(graph, layers);
   const outgoing = new Map<string, string[]>();
   const indegree = new Map<string, number>();
   const order = new Map<string, number>();

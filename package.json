@@ -56,17 +56,15 @@
   "dependencies": {
     "@clerk/react-router": "^3.2.7",
     "@react-router/node": "^7.14.2",
-    "@vercel/og": "^0.11.1",
+    "three": "^0.184.0",
     "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.10.2",
     "framer-motion": "^12.38.0",
-    "isbot": "^5",
+    "xstate": "^5.31.1",
     "pixi.js": "^7.4.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router": "^7.14.2",
-    "three": "^0.184.0",
-    "xstate": "^5.31.1"
+    "react-router": "^7.14.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",

@@ -13,8 +13,9 @@
 
 import type { CanvasDocument } from '../../types/config';
 import { makeEmojiLayer, makeFillLayer, makeImageLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
+import { measureAlphaBounds } from '../../utils/render/alphaBounds';
 
-export const TEST_IMAGE_SRC = 'test-cache://free-fit-source';
+const TEST_IMAGE_SRC = 'test-cache://free-fit-source';
 
 /** Solid fill with a fixed background colour. Used to verify baseline coverage. */
 export const fillOnly: CanvasDocument = {
@@ -148,4 +149,37 @@ export function createTestImageCache(): Map<string, HTMLImageElement> {
   });
 
   return new Map([[TEST_IMAGE_SRC, image as unknown as HTMLImageElement]]);
+}
+
+/** Sample a single pixel (x, y) from a rendered canvas. Returns [r, g, b, a]. */
+export function samplePixel(canvas: HTMLCanvasElement, x: number, y: number): [number, number, number, number] {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('getContext returned null');
+  const { data } = ctx.getImageData(x, y, 1, 1);
+  return [data[0], data[1], data[2], data[3]];
+}
+
+export function centerPixel(canvas: HTMLCanvasElement) {
+  return samplePixel(canvas, Math.floor(canvas.width / 2), Math.floor(canvas.height / 2));
+}
+
+/** Extract every pixel as a flat Uint8ClampedArray. */
+export function allPixels(canvas: HTMLCanvasElement): Uint8ClampedArray {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('getContext returned null');
+  return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+}
+
+/** Check that two Uint8ClampedArrays are identical. */
+export function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+export function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number } {
+  const bounds = measureAlphaBounds(canvas);
+  return bounds ? { width: bounds.width, height: bounds.height } : { width: 0, height: 0 };
 }

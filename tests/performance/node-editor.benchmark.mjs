@@ -61,26 +61,18 @@ try {
 
 async function startServer() {
   await runCommand('npm', ['--workspace', '@artifact/shared', 'run', 'build'], REPO_ROOT);
-  const child = spawn(REACT_ROUTER_BIN, ['dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
-    cwd: WEB_ROOT,
-    env: { ...process.env, BROWSER: 'none' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  child.stdout.on('data', (chunk) => process.stdout.write(`[perf-server] ${chunk}`));
-  child.stderr.on('data', (chunk) => process.stderr.write(`[perf-server] ${chunk}`));
-  return child;
+  return spawnLogged(
+    REACT_ROUTER_BIN,
+    ['dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
+    WEB_ROOT,
+    { ...process.env, BROWSER: 'none' },
+    'perf-server',
+  );
 }
 
 function runCommand(command, args, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    child.stdout.on('data', (chunk) => process.stdout.write(`[perf-setup] ${chunk}`));
-    child.stderr.on('data', (chunk) => process.stderr.write(`[perf-setup] ${chunk}`));
+    const child = spawnLogged(command, args, cwd, process.env, 'perf-setup');
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) {
@@ -90,6 +82,17 @@ function runCommand(command, args, cwd) {
       reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
     });
   });
+}
+
+function spawnLogged(command, args, cwd, env, label) {
+  const child = spawn(command, args, {
+    cwd,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  child.stdout.on('data', (chunk) => process.stdout.write(`[${label}] ${chunk}`));
+  child.stderr.on('data', (chunk) => process.stderr.write(`[${label}] ${chunk}`));
+  return child;
 }
 
 async function waitForServer(url) {

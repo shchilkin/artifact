@@ -1,32 +1,27 @@
-import type {
-  AspectRatio,
-  CanvasDocument,
-  CanvasGraph,
-  GraphColorNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  ImageLayer,
-  Layer,
-} from '../../../types/config';
+import type { CanvasGraph, ImageLayer } from '../../../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { AiGenerationPanel } from '../../AiGenerationPanel';
 import { EditorTargetHeader } from '../../editor-target/EditorTargetHeader';
 import { ColorInspector, ExportInspector, LayerInspector, MergeInspector, RepeatInspector } from '../inspector';
+import type { NodeCanvasProps } from '../types';
 
-interface NodePropertiesPanelProps {
+interface NodePropertiesPanelProps
+  extends Pick<
+    NodeCanvasProps,
+    | 'doc'
+    | 'exportBusy'
+    | 'onUpdateLayer'
+    | 'onUpdateMergeNode'
+    | 'onUpdateColorNode'
+    | 'onUpdateRepeatNode'
+    | 'onUpdateExportConfig'
+    | 'onUpdateAspectRatio'
+    | 'onExport'
+  > {
   open: boolean;
   selectedNodeId: string | null;
-  doc: CanvasDocument;
   graph: CanvasGraph;
-  exportBusy: boolean;
-  onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
-  onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
-  onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
-  onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
-  onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
-  onUpdateAspectRatio: (aspect: AspectRatio) => void;
-  onExport: () => void;
   onClose: () => void;
 }
 

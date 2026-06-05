@@ -6,8 +6,8 @@ import { NODE_H, NODE_W } from '../constants';
 export const AREA_PADDING_X = 32;
 export const AREA_PADDING_TOP = 52;
 export const AREA_PADDING_BOTTOM = 28;
-export const AREA_MIN_W = 260;
-export const AREA_MIN_H = 180;
+const AREA_MIN_W = 260;
+const AREA_MIN_H = 180;
 const AREA_CLUSTER_GAP = 240;
 
 export interface GraphAreaBounds {

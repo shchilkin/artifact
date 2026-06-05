@@ -6,53 +6,7 @@ import { reorderDocumentLayers } from '../../utils/documentCommands';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
-
-function samplePixel(canvas: HTMLCanvasElement, x: number, y: number): [number, number, number, number] {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('getContext returned null');
-  const { data } = ctx.getImageData(x, y, 1, 1);
-  return [data[0], data[1], data[2], data[3]];
-}
-
-function centerPixel(canvas: HTMLCanvasElement) {
-  return samplePixel(canvas, Math.floor(canvas.width / 2), Math.floor(canvas.height / 2));
-}
-
-function allPixels(canvas: HTMLCanvasElement): Uint8ClampedArray {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('getContext returned null');
-  return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-}
-
-function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number } {
-  const pixels = allPixels(canvas);
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      const alpha = pixels[(y * canvas.width + x) * 4 + 3] ?? 0;
-      if (alpha <= 8) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  return {
-    width: Math.max(0, maxX - minX + 1),
-    height: Math.max(0, maxY - minY + 1),
-  };
-}
+import { allPixels, alphaBounds, centerPixel, pixelsEqual, samplePixel } from './fixtures';
 
 function graphDocument(graph: CanvasGraph): CanvasDocument {
   return {
@@ -63,6 +17,19 @@ function graphDocument(graph: CanvasGraph): CanvasDocument {
     ],
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
+  };
+}
+
+function mergeGraph(): CanvasGraph {
+  return {
+    edges: [
+      { id: 'e-red-merge', fromId: 'red-fill', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
+      { id: 'e-blue-merge', fromId: 'blue-fill', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
+      { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ],
+    positions: {},
+    mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 }],
+    colorNodes: [],
   };
 }
 
@@ -96,16 +63,7 @@ describe('renderDocument graph mode', () => {
   });
 
   it('matches renderGraphTarget for the export node on a deterministic graph', async () => {
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-red-merge', fromId: 'red-fill', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-blue-merge', fromId: 'blue-fill', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-      positions: {},
-      mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 }],
-      colorNodes: [],
-    };
+    const graph = mergeGraph();
     const doc = graphDocument(graph);
     const options = { skipEffects: true as const };
 
@@ -231,16 +189,7 @@ describe('renderGraphTarget', () => {
   });
 
   it('composites merge node inputs with merge opacity', async () => {
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-red-merge', fromId: 'red-fill', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-blue-merge', fromId: 'blue-fill', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-      positions: {},
-      mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 }],
-      colorNodes: [],
-    };
+    const graph = mergeGraph();
     const doc = graphDocument(graph);
 
     const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), {

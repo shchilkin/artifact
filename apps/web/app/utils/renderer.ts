@@ -8,7 +8,7 @@ import type { RenderOptions } from './render/layers';
 
 export { renderGraphTarget } from './render/graph';
 
-export const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
+const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 
 async function measureDocumentRender<T>(task: () => Promise<T>): Promise<T> {
   if (

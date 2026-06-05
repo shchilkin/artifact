@@ -1,4 +1,5 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
+import { hashString } from './hashString';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
 const THUMB_LONG_EDGE = 360;
@@ -8,15 +9,6 @@ const THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT = 128;
 const thumbnailDataUrlCache = new Map<string, string>();
 const thumbnailDataUrlInflightCache = new Map<string, Promise<string>>();
 const thumbnailGraphRenderCache = new Map<string, Promise<HTMLCanvasElement>>();
-
-function hashString(value: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
 
 function imageCacheSignature(doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) {
   return doc.layers

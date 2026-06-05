@@ -1,26 +1,19 @@
-import type { Node as RFNode } from '@xyflow/react';
-import type { CSSProperties, MutableRefObject, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
+import type { MutableRefObject, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
 
 import type {
   AspectRatio,
   CanvasDocument,
   CanvasGraph,
-  EffectPreset,
   GraphColorNode,
   GraphEdge,
   GraphMergeNode,
   GraphRepeatNode,
   ImageLayer,
   Layer,
-  LayerKind,
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
-import type { ArrayPresetId } from '../../utils/arrayPresets';
-import type { NoisePresetId } from '../../utils/noisePresets';
-import type { RepeatPresetId } from '../../utils/repeatPresets';
-import type { TextPresetId } from '../../utils/textPresets';
-import type { MediaViewState } from '../NodeGalleryViewState';
+import type { AddAction } from '../../utils/addActions';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
 export type GalleryEligibleLayer =
@@ -28,18 +21,6 @@ export type GalleryEligibleLayer =
   | ImageLayer
   | TextLayer
   | Extract<Layer, { kind: 'noise' | 'array' }>;
-
-export type AddAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' }
-  | { kind: 'color' }
-  | { kind: 'repeat' }
-  | { kind: 'repeatPreset'; preset: RepeatPresetId };
 
 export interface InsertConnectionConfig {
   sourceId?: string;
@@ -219,21 +200,4 @@ export interface NodeMenuProps {
   deleteDisabled?: boolean;
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
-}
-
-export interface NodeEditorPanelProps {
-  kind: string;
-  title: string;
-  subtitle?: string;
-  onClose: () => void;
-  style?: CSSProperties;
-  children: ReactNode;
-}
-
-export type NodeCanvasRFNode = RFNode<LayerNodeData | MergeNodeData | ColorNodeData | RepeatNodeData | ExportNodeData>;
-
-export interface GalleryState {
-  primitiveViewStates: Record<string, PrimitiveViewportState>;
-  primitiveRenderModes: Record<string, PrimitiveRenderMode>;
-  mediaViewStates: Record<string, MediaViewState>;
 }

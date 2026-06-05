@@ -1,9 +1,10 @@
 import type { FinalConnectionState, ReactFlowInstance, Edge as RFEdge, Node as RFNode } from '@xyflow/react';
 import { useCallback, useEffect } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
+import type { AddAction } from '../../../utils/addActions';
 import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
-import type { AddAction, InsertConnectionConfig } from '../types';
+import type { InsertConnectionConfig } from '../types';
 
 export interface UseNodeContextMenusOptions {
   send: (event: NodeCanvasMachineEvent) => void;

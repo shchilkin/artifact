@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CanvasDocument } from '../types/config';
 import { createLayerPreviewRenderCache } from '../utils/layerPreviewRenderCache';
-import { renderDocument } from '../utils/renderer';
+import { type RenderOptions, renderDocument } from '../utils/renderer';
 
 const DRAFT_SETTLE_MS = 120;
 const DEFAULT_DEFERRED_FULL_RENDER_MS = 1800;
@@ -35,7 +35,7 @@ interface Options {
   deferredFullRenderTimeoutMs?: number;
 }
 
-export interface DocumentRenderState {
+interface DocumentRenderState {
   isRendering: boolean;
   hasFrame: boolean;
   showingStaleFrame: boolean;
@@ -275,7 +275,7 @@ export function useDocumentRenderer(
           draftMaxRenderDimensionRef.current,
         )
       : [renderWidthRef.current, renderHeightRef.current];
-    const renderOptions = {
+    const renderOptions: RenderOptions = {
       skipEffects: useDraftQuality,
       draft: useDraftQuality,
       graphMode: graphModeRef.current,
@@ -311,6 +311,35 @@ export function useDocumentRenderer(
         pendingRef.current = false;
       }
     };
+    const renderDraftFallback = (baseOptions: RenderOptions) => {
+      const fallbackOptions: RenderOptions = {
+        ...baseOptions,
+        skipEffects: true,
+        draft: true,
+      };
+      const [fallbackWidth, fallbackHeight] = getRenderDimensions(
+        pwRef.current,
+        phRef.current,
+        draftRenderScaleRef.current,
+        draftMaxRenderDimensionRef.current,
+      );
+      return withRenderTimeout(
+        renderDocument(
+          docRef.current,
+          fallbackWidth,
+          fallbackHeight,
+          imageCacheRef.current,
+          fallbackOptions,
+          fallbackOptions.graphMode === 'stack'
+            ? createLayerPreviewRenderCache(docRef.current, imageCacheRef.current, layerGraphCacheEntriesRef.current, {
+                width: fallbackWidth,
+                height: fallbackHeight,
+                renderOptions: fallbackOptions,
+              })
+            : undefined,
+        ),
+      );
+    };
 
     renderingRef.current = true;
     setRenderState((state) => ({
@@ -340,38 +369,7 @@ export function useDocumentRenderer(
         const hasNewerRenderPending = pendingRef.current;
         if (!hasNewerRenderPending && !renderOptions.skipEffects && isLikelyBlankRender(result, docRef.current)) {
           gpuFallbackUntilRef.current = performance.now() + 5000;
-          const fallbackOptions = {
-            ...renderOptions,
-            skipEffects: true,
-            draft: true,
-          };
-          const [fallbackWidth, fallbackHeight] = getRenderDimensions(
-            pwRef.current,
-            phRef.current,
-            draftRenderScaleRef.current,
-            draftMaxRenderDimensionRef.current,
-          );
-          withRenderTimeout(
-            renderDocument(
-              docRef.current,
-              fallbackWidth,
-              fallbackHeight,
-              imageCacheRef.current,
-              fallbackOptions,
-              fallbackOptions.graphMode === 'stack'
-                ? createLayerPreviewRenderCache(
-                    docRef.current,
-                    imageCacheRef.current,
-                    layerGraphCacheEntriesRef.current,
-                    {
-                      width: fallbackWidth,
-                      height: fallbackHeight,
-                      renderOptions: fallbackOptions,
-                    },
-                  )
-                : undefined,
-            ),
-          )
+          renderDraftFallback(renderOptions)
             .then((fallback) => {
               drawResult(isLikelyBlankRender(fallback, docRef.current) ? result : fallback);
               if (import.meta.env.DEV) console.warn('Canvas render produced a blank frame; used draft fallback.');
@@ -413,38 +411,7 @@ export function useDocumentRenderer(
         }
 
         gpuFallbackUntilRef.current = performance.now() + 5000;
-        const fallbackOptions = {
-          ...renderOptions,
-          skipEffects: true,
-          draft: true,
-        };
-        const [fallbackWidth, fallbackHeight] = getRenderDimensions(
-          pwRef.current,
-          phRef.current,
-          draftRenderScaleRef.current,
-          draftMaxRenderDimensionRef.current,
-        );
-        withRenderTimeout(
-          renderDocument(
-            docRef.current,
-            fallbackWidth,
-            fallbackHeight,
-            imageCacheRef.current,
-            fallbackOptions,
-            fallbackOptions.graphMode === 'stack'
-              ? createLayerPreviewRenderCache(
-                  docRef.current,
-                  imageCacheRef.current,
-                  layerGraphCacheEntriesRef.current,
-                  {
-                    width: fallbackWidth,
-                    height: fallbackHeight,
-                    renderOptions: fallbackOptions,
-                  },
-                )
-              : undefined,
-          ),
-        )
+        renderDraftFallback(renderOptions)
           .then((fallback) => {
             if (!pendingRef.current) drawResult(fallback);
             if (import.meta.env.DEV) console.warn('Canvas render fell back to draft mode.', error);

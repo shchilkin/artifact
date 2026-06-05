@@ -633,6 +633,17 @@ function nodeTypeLabel(node: NodeDef): string {
   return 'Content node';
 }
 
+function nodeSearchItem(node: NodeDef): SearchItem {
+  return {
+    id: `node-${node.id}`,
+    type: nodeSearchType(node),
+    title: node.name,
+    body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
+    href: `#node-${node.id}`,
+    meta: nodeTypeLabel(node),
+  };
+}
+
 function itemMatches(item: SearchItem, query: string, filter: DocFilter) {
   if (filter !== 'all' && item.type !== filter) return false;
   if (!query) return true;
@@ -989,14 +1000,7 @@ export default function DocsNodes() {
         href: starterHref(starter),
         meta: mode,
       })),
-      ...ALL_NODES.map((node) => ({
-        id: `node-${node.id}`,
-        type: nodeSearchType(node),
-        title: node.name,
-        body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
-        href: `#node-${node.id}`,
-        meta: nodeTypeLabel(node),
-      })),
+      ...ALL_NODES.map(nodeSearchItem),
       ...PRACTICAL_BLEND_GUIDE.map((mode) => ({
         id: `blend-${mode.name}`,
         type: 'effect' as const,
@@ -1033,21 +1037,7 @@ export default function DocsNodes() {
   const filteredItems = useMemo(() => matchingItems.slice(0, resultLimit), [matchingItems, resultLimit]);
   const catalogFilter = activeFilter === 'node' || activeFilter === 'effect' ? activeFilter : 'all';
   const catalogNodes = useMemo(
-    () =>
-      ALL_NODES.filter((node) =>
-        itemMatches(
-          {
-            id: `node-${node.id}`,
-            type: nodeSearchType(node),
-            title: node.name,
-            body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
-            href: `#node-${node.id}`,
-            meta: nodeTypeLabel(node),
-          },
-          normalizedQuery,
-          catalogFilter,
-        ),
-      ),
+    () => ALL_NODES.filter((node) => itemMatches(nodeSearchItem(node), normalizedQuery, catalogFilter)),
     [catalogFilter, normalizedQuery],
   );
   const visibleCatalogNodes = normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;

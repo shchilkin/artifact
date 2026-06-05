@@ -9,6 +9,7 @@ import type {
 } from '../../types/config';
 import { lcg } from '../lcg';
 import { EXPORT_NODE_ID } from '../nodeGraph';
+import { measureAlphaBounds } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
@@ -98,32 +99,14 @@ function hashString(value: string): number {
 }
 
 function cropAlphaBounds(source: HTMLCanvasElement): HTMLCanvasElement {
-  const ctx = source.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return source;
-  const pixels = ctx.getImageData(0, 0, source.width, source.height).data;
-  let minX = source.width;
-  let minY = source.height;
-  let maxX = -1;
-  let maxY = -1;
-
-  for (let y = 0; y < source.height; y += 1) {
-    for (let x = 0; x < source.width; x += 1) {
-      const alpha = pixels[(y * source.width + x) * 4 + 3] ?? 0;
-      if (alpha <= 8) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-
-  if (maxX < minX || maxY < minY) return source;
+  const bounds = measureAlphaBounds(source);
+  if (!bounds) return source;
 
   const padding = 4;
-  const sx = Math.max(0, minX - padding);
-  const sy = Math.max(0, minY - padding);
-  const sw = Math.min(source.width - sx, maxX - minX + 1 + padding * 2);
-  const sh = Math.min(source.height - sy, maxY - minY + 1 + padding * 2);
+  const sx = Math.max(0, bounds.minX - padding);
+  const sy = Math.max(0, bounds.minY - padding);
+  const sw = Math.min(source.width - sx, bounds.width + padding * 2);
+  const sh = Math.min(source.height - sy, bounds.height + padding * 2);
   const crop = createCanvas(sw, sh);
   crop.getContext('2d')?.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
   return crop;

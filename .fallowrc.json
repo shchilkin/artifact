@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignoreDependencies": ["@artifact/shared", "isbot"],
+  "ignoreExports": [
+    {
+      "file": "apps/api/src/db/postgres.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresAssets.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresJobs.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresUsage.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresUsers.ts",
+      "exports": ["*"]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CanvasDocument, CanvasGraph } from '../../../types/config';
-import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { EXPORT_NODE_ID, listGraphNodeIds } from '../../../utils/nodeGraph';
 import { isAdditiveSelectionEvent } from '../helpers';
 import type { NodeCanvasMachineEvent } from '../machine';
 
@@ -69,16 +69,10 @@ export function useNodeSelectionSync({
 
   // Keep machine free of stale node/edge IDs when layers are added or removed.
   useEffect(() => {
-    const validNodeIds = [
-      ...doc.layers.map((layer) => layer.id),
-      ...graph.mergeNodes.map((node) => node.id),
-      ...(graph.colorNodes ?? []).map((node) => node.id),
-      ...(graph.repeatNodes ?? []).map((node) => node.id),
-      EXPORT_NODE_ID,
-    ];
+    const validNodeIds = listGraphNodeIds(graph, doc.layers);
     const validEdgeIds = graph.edges.map((edge) => edge.id);
     send({ type: 'FILTER_INVALID_REFERENCES', validNodeIds, validEdgeIds });
-  }, [doc.layers, graph.edges, graph.mergeNodes, graph.colorNodes, graph.repeatNodes, send]);
+  }, [doc.layers, graph, send]);
 
   const activeEditorNodeId = useMemo(() => {
     if (!expandedNodeId) return null;

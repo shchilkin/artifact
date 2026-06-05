@@ -2,8 +2,9 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { memo } from 'react';
 import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
-import { type LayerInsertAction, LayerQuickAddMenu } from './LayerQuickAddMenu';
+import { LayerQuickAddMenu } from './LayerQuickAddMenu';
 import { getLayerIcon } from './layerDisplayItems';
+import type { LayerInsertAction } from './layerInsertAction';
 import type { LayerDropPosition } from './useLayerDragReorder';
 
 export interface LayerRowProps {

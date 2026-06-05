@@ -1,5 +1,6 @@
 import type { EffectPreset, LayerKind } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS, type ArrayPresetId } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS, type NoisePresetId } from '../../utils/noisePresets';
 import { REPEAT_PRESET_IDS, REPEAT_PRESETS, type RepeatPresetId } from '../../utils/repeatPresets';
@@ -7,17 +8,7 @@ import { TEXT_PRESET_IDS, TEXT_PRESETS, type TextPresetId } from '../../utils/te
 
 export type AddLibrarySurface = 'layers' | 'nodes';
 
-export type AddLibraryAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' }
-  | { kind: 'color' }
-  | { kind: 'repeat' }
-  | { kind: 'repeatPreset'; preset: RepeatPresetId };
+export type AddLibraryAction = AddAction;
 
 export type AddLibraryGroupId =
   | 'content'

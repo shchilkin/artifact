@@ -19,7 +19,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import type { ArrayPresetId } from './arrayPresets';
+import type { AddAction } from './addActions';
 import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
 import {
@@ -46,23 +46,11 @@ import {
   updateGraphArea,
   updateRepeatNode as updateRepeatNodeInGraph,
 } from './nodeGraph';
-import type { NoisePresetId } from './noisePresets';
 import { makeNoisePresetLayer } from './noisePresets';
-import type { RepeatPresetId } from './repeatPresets';
 import { makeRepeatPresetNode } from './repeatPresets';
 import { makeTextPresetLayer, type TextPresetId } from './textPresets';
 
-export type DocumentAddAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' }
-  | { kind: 'color' }
-  | { kind: 'repeat' }
-  | { kind: 'repeatPreset'; preset: RepeatPresetId };
+export type DocumentAddAction = AddAction;
 
 export interface DocumentInsertConnectionConfig {
   sourceId?: string;
@@ -78,7 +66,7 @@ export interface AddNodeAtDocumentResult {
 
 type CreateGraphEdgeId = (fromId: string, toId: string, index: number) => string;
 
-export function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
+function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
   return doc.graph ?? inferLinearGraph(doc.layers);
 }
 
@@ -285,11 +273,7 @@ export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, n
   };
 }
 
-export function removeLayersFromGraphAreaInDocument(
-  doc: CanvasDocument,
-  areaId: string,
-  layerIds: string[],
-): CanvasDocument {
+function removeLayersFromGraphAreaInDocument(doc: CanvasDocument, areaId: string, layerIds: string[]): CanvasDocument {
   return removeNodesFromGraphAreaInDocument(doc, areaId, layerIds);
 }
 

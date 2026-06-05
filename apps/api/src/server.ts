@@ -1,43 +1,15 @@
 import { createServer } from 'node:http';
 import { createClerkBearerVerifier, createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { createBullBoardHandler } from './bullBoard.js';
-import { loadConfig } from './config.js';
-import { InMemoryApiStore } from './db/memory.js';
-import { createPostgresPool } from './db/pool.js';
-import { createPostgresRepositories } from './db/postgres.js';
-import { loadApiEnv } from './env.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
 import { logError, logInfo } from './logger.js';
-import {
-  createMockImageProvider,
-  createOpenAiImageProvider,
-  createProviderRegistry,
-  createXAiImageProvider,
-} from './providers/index.js';
-import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
 import { handleHealthRequest } from './routes/health.js';
-import { LocalAssetStorage } from './storage/index.js';
+import { createApiRuntime } from './runtime.js';
 
-loadApiEnv();
-const config = loadConfig();
-const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
-const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
-const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
-if (!repositories) throw new Error('No API repository backend configured.');
-const queue =
-  config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
-const storage = new LocalAssetStorage(config.assetStorageDir);
-const providers = createProviderRegistry([
-  config.openAiApiKey
-    ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
-    : createMockImageProvider({ provider: 'openai' }),
-  config.xAiApiKey
-    ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
-    : createMockImageProvider({ provider: 'xai' }),
-]);
+const { config, store, pool, repositories, queue, storage, providers } = createApiRuntime();
 const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
 const verifyJwtBearerToken = createJwtBearerVerifier({

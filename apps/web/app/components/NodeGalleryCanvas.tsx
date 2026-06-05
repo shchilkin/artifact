@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CanvasDocument, CanvasGraph, ImageLayer, Layer, TextLayer } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
-import { resolveImageSource } from '../utils/assetStore';
+import { imageCacheSignature } from '../utils/imageCacheSignature';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../utils/nodeGraph';
+import { preloadImageSources } from '../utils/preloadImageSources';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
 import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
@@ -23,15 +24,6 @@ interface Props {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function imageCacheSignature(layers: ImageLayer[], imageCache: Map<string, HTMLImageElement>) {
-  return layers
-    .map((layer) => {
-      const image = imageCache.get(layer.src);
-      return `${layer.id}:${layer.src}:${image ? `${image.naturalWidth}x${image.naturalHeight}` : 'missing'}`;
-    })
-    .join(',');
 }
 
 export function NodeGalleryCanvas({
@@ -103,26 +95,7 @@ export function NodeGalleryCanvas({
         .filter((item): item is ImageLayer => item.kind === 'image' && upstream.has(item.id))
         .map((item) => item.src)
         .filter((src) => !effectiveImageCache.has(src));
-      await Promise.all(
-        missingImageSrcs.map(
-          (src) =>
-            new Promise<void>((resolve) => {
-              const image = new Image();
-              image.onload = () => {
-                imageCache.set(src, image);
-                effectiveImageCache.set(src, image);
-                resolve();
-              };
-              image.onerror = () => resolve();
-              resolveImageSource(src)
-                .then((resolvedSrc) => {
-                  if (resolvedSrc) image.src = resolvedSrc;
-                  else resolve();
-                })
-                .catch(() => resolve());
-            }),
-        ),
-      );
+      await preloadImageSources(missingImageSrcs, imageCache, effectiveImageCache);
       if (cancelled) return;
 
       const graphRenderSessionCache: GraphRenderCache = {

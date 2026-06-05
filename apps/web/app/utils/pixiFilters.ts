@@ -9,6 +9,14 @@ const NORM_UV = `
 const SAMPLE = (uv: string) =>
   `texture2D(uSampler, clamp(inputClamp.xy + ${uv} * extent, inputClamp.xy, inputClamp.zw))`;
 
+function hexToVec3(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+  ];
+}
+
 const HEADER = `
 precision mediump float;
 varying vec2 vTextureCoord;
@@ -363,7 +371,7 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
 
 type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>>;
 
-export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
+function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
   const filters: Filter[] = [];
 
   if (cfg.mirror > 0) filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
@@ -387,11 +395,6 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
   }
 
   if (cfg.duotone > 0) {
-    const hexToVec3 = (hex: string): [number, number, number] => [
-      parseInt(hex.slice(1, 3), 16) / 255,
-      parseInt(hex.slice(3, 5), 16) / 255,
-      parseInt(hex.slice(5, 7), 16) / 255,
-    ];
     filters.push(
       f(DUOTONE_FRAG, {
         uColorA: hexToVec3(cfg.duoA),
@@ -421,11 +424,6 @@ export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, can
     );
   }
   if (cfg.gradMix > 0) {
-    const hexToVec3 = (hex: string): [number, number, number] => [
-      parseInt(hex.slice(1, 3), 16) / 255,
-      parseInt(hex.slice(3, 5), 16) / 255,
-      parseInt(hex.slice(5, 7), 16) / 255,
-    ];
     filters.push(
       f(GRADIENT_FRAG, {
         uColorA: hexToVec3(cfg.gradA),

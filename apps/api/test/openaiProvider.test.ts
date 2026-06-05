@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createOpenAiImageProvider } from '../src/providers/index.js';
+import { jsonFetchResponse } from './helpers/providerFetch.js';
 
 describe('createOpenAiImageProvider', () => {
   it('calls the OpenAI Image API and returns normalized image bytes', async () => {
@@ -64,12 +65,7 @@ describe('createOpenAiImageProvider', () => {
   it('surfaces OpenAI error messages', async () => {
     const provider = createOpenAiImageProvider({
       apiKey: 'test-key',
-      fetch: async () => ({
-        ok: false,
-        status: 400,
-        headers: { get: () => null },
-        json: async () => ({ error: { message: 'prompt rejected' } }),
-      }),
+      fetch: async () => jsonFetchResponse({ error: { message: 'prompt rejected' } }, { ok: false, status: 400 }),
     });
 
     await expect(
@@ -87,12 +83,7 @@ describe('createOpenAiImageProvider', () => {
   it('rejects successful responses without image data', async () => {
     const provider = createOpenAiImageProvider({
       apiKey: 'test-key',
-      fetch: async () => ({
-        ok: true,
-        status: 200,
-        headers: { get: () => null },
-        json: async () => ({ data: [{}] }),
-      }),
+      fetch: async () => jsonFetchResponse({ data: [{}] }),
     });
 
     await expect(

@@ -1,4 +1,5 @@
 import type { CanvasDocument, ImageLayer, Layer } from '../types/config';
+import { hashString } from './hashString';
 import { EXPORT_NODE_ID } from './nodeGraph';
 import type { RenderOptions } from './render/layers';
 import type { GraphRenderCache } from './renderer';
@@ -11,15 +12,6 @@ interface LayerPreviewRenderCacheConfig {
   height: number;
   renderOptions: Pick<RenderOptions, 'draft' | 'skipEffects' | 'effectResolution' | 'primitiveViewStates'>;
   limit?: number;
-}
-
-function hashString(value: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
 }
 
 function imageLayerSignature(layer: ImageLayer, imageCache: Map<string, HTMLImageElement>): string {

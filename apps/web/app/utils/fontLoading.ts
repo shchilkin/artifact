@@ -50,7 +50,3 @@ export async function ensureCanvasFontLoaded(font: TextFontRef, sizePx = 64): Pr
     // not block export, but successful loads improve preview/export parity.
   }
 }
-
-export async function ensureCanvasFontsLoaded(fonts: readonly TextFontRef[], sizePx = 64): Promise<void> {
-  await Promise.all(Array.from(new Set(fonts)).map((font) => ensureCanvasFontLoaded(font, sizePx)));
-}

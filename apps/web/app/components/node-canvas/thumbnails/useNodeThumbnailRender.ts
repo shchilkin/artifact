@@ -1,9 +1,11 @@
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { CanvasDocument, ImageLayer } from '../../../types/config';
-import { resolveImageSource } from '../../../utils/assetStore';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
+import { imageCacheSignature } from '../../../utils/imageCacheSignature';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { measurePerformancePhase, measurePerformancePhaseSync } from '../../../utils/performanceMeasure';
+import { preloadImageSources } from '../../../utils/preloadImageSources';
 import { type GraphRenderCache, renderGraphTarget } from '../../../utils/renderer';
 import {
   colorNodeRenderSig,
@@ -44,57 +46,12 @@ function rememberThumbnail(key: string, canvas: HTMLCanvasElement) {
   if (oldestKey) thumbnailResultCache.delete(oldestKey);
 }
 
-function imageCacheSignature(layers: ImageLayer[], imageCache: Map<string, HTMLImageElement>) {
-  return layers
-    .map((layer) => {
-      const image = imageCache.get(layer.src);
-      return `${layer.id}:${layer.src}:${image ? `${image.naturalWidth}x${image.naturalHeight}` : 'missing'}`;
-    })
-    .join(',');
-}
-
 function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width: number, height: number) {
   const ctx = target.getContext('2d');
   if (!ctx) return false;
   ctx.clearRect(0, 0, width, height);
   ctx.drawImage(source, 0, 0, width, height);
   return true;
-}
-
-async function measureThumbnailPhase<T>(measureName: string, task: () => Promise<T>) {
-  if (typeof performance === 'undefined') return task();
-
-  const markId = `${measureName}:${Math.random().toString(36).slice(2)}`;
-  const startMark = `${markId}:start`;
-  const endMark = `${markId}:end`;
-  try {
-    performance.mark(startMark);
-    const result = await task();
-    performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
-    return result;
-  } finally {
-    performance.clearMarks(startMark);
-    performance.clearMarks(endMark);
-  }
-}
-
-function measureThumbnailPhaseSync<T>(measureName: string, task: () => T) {
-  if (typeof performance === 'undefined') return task();
-
-  const markId = `${measureName}:${Math.random().toString(36).slice(2)}`;
-  const startMark = `${markId}:start`;
-  const endMark = `${markId}:end`;
-  try {
-    performance.mark(startMark);
-    const result = task();
-    performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
-    return result;
-  } finally {
-    performance.clearMarks(startMark);
-    performance.clearMarks(endMark);
-  }
 }
 
 export function useNodeThumbnailRender(previewTargetId: string, options: { priority?: boolean } = {}) {
@@ -396,27 +353,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
               .map((layer) => layer.src)
               .filter((src) => !effectiveImageCache.has(src));
 
-            const preloads = missingImageSrcs.map(
-              (src) =>
-                new Promise<void>((resolve) => {
-                  const image = new Image();
-                  image.onload = () => {
-                    cachedImages.set(src, image);
-                    effectiveImageCache.set(src, image);
-                    resolve();
-                  };
-                  image.onerror = () => resolve();
-                  resolveImageSource(src)
-                    .then((resolvedSrc) => {
-                      if (resolvedSrc) image.src = resolvedSrc;
-                      else resolve();
-                    })
-                    .catch(() => resolve());
-                }),
-            );
-
-            await measureThumbnailPhase(THUMBNAIL_PRELOAD_MEASURE, async () => {
-              await Promise.all(preloads);
+            await measurePerformancePhase(THUMBNAIL_PRELOAD_MEASURE, async () => {
+              await preloadImageSources(missingImageSrcs, cachedImages, effectiveImageCache);
             });
             if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
 
@@ -429,7 +367,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
                   entries: thumbnailGraphRenderChainCache,
                   limit: GRAPH_RENDER_CHAIN_CACHE_LIMIT,
                 };
-                const result = await measureThumbnailPhase(THUMBNAIL_GRAPH_RENDER_MEASURE, () =>
+                const result = await measurePerformancePhase(THUMBNAIL_GRAPH_RENDER_MEASURE, () =>
                   renderGraphTarget(
                     previewDoc,
                     g,
@@ -458,7 +396,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
             const result = await renderPromise;
             if (rev !== revRef.current || !canvasRef.current || latestIsGraphDraggingRef.current) return;
-            const didDraw = measureThumbnailPhaseSync(THUMBNAIL_DRAW_MEASURE, () =>
+            const didDraw = measurePerformancePhaseSync(THUMBNAIL_DRAW_MEASURE, () =>
               drawCanvas(canvasRef.current!, result, latestPreviewSize.render.width, latestPreviewSize.render.height),
             );
             if (!didDraw) return;

@@ -27,13 +27,4 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
   );
 }
 
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
-};
+export { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger };

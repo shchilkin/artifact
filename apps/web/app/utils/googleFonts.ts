@@ -1,8 +1,8 @@
 import type { PortableFontAsset } from '../types/config';
 
-export const GOOGLE_FONTS_CSS2_URL = 'https://fonts.googleapis.com/css2';
-export const GOOGLE_FONTS_LICENSE_NAME = 'SIL Open Font License 1.1';
-export const GOOGLE_FONTS_LICENSE_URL = 'https://openfontlicense.org';
+const GOOGLE_FONTS_CSS2_URL = 'https://fonts.googleapis.com/css2';
+const GOOGLE_FONTS_LICENSE_NAME = 'SIL Open Font License 1.1';
+const GOOGLE_FONTS_LICENSE_URL = 'https://openfontlicense.org';
 
 export interface GoogleFontRequest {
   family: string;

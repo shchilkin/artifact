@@ -10,13 +10,13 @@ import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
-import type { LayerInsertAction } from './LayerQuickAddMenu';
 import { LayerRow } from './LayerRow';
 import { buildLayerDisplayItems } from './layerDisplayItems';
+import type { LayerInsertAction } from './layerInsertAction';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
 
-interface Props {
+export interface LayerPanelProps {
   doc: CanvasDocument;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
@@ -72,7 +72,7 @@ export function LayerPanel({
   onDuplicateLayer,
   onRenameLayer,
   modeSwitcher,
-}: Props) {
+}: LayerPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());

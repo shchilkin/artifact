@@ -9,7 +9,7 @@ import {
 
 import { callAll, stopNodeEvent } from '../helpers';
 
-export type NoPanProps<T extends ElementType = 'div'> = {
+type NoPanProps<T extends ElementType = 'div'> = {
   as?: T;
 } & Omit<ComponentPropsWithoutRef<T>, 'as'>;
 

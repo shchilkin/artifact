@@ -1,6 +1,5 @@
 import type { NoiseLayer, NoiseType } from '../../../types/config';
-
-type Rgb = { r: number; g: number; b: number };
+import { hexToRgb, lerp, mixRgb } from '../../colorMath';
 
 export type NoiseTextureLayerConfig = {
   color: string;
@@ -46,38 +45,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
-}
-
 function smoothstep(t: number) {
   return t * t * (3 - 2 * t);
-}
-
-function hexToRgb(hex: string): Rgb {
-  const normalized = hex.replace('#', '');
-  const value =
-    normalized.length === 3
-      ? normalized
-          .split('')
-          .map((char) => `${char}${char}`)
-          .join('')
-      : normalized;
-  const parsed = Number.parseInt(value, 16);
-  if (!Number.isFinite(parsed)) return { r: 255, g: 90, b: 54 };
-  return {
-    r: (parsed >> 16) & 255,
-    g: (parsed >> 8) & 255,
-    b: parsed & 255,
-  };
-}
-
-function mixRgb(a: Rgb, b: Rgb, amount: number): Rgb {
-  return {
-    r: Math.round(lerp(a.r, b.r, amount)),
-    g: Math.round(lerp(a.g, b.g, amount)),
-    b: Math.round(lerp(a.b, b.b, amount)),
-  };
 }
 
 function hash2d(x: number, y: number, seed: number) {

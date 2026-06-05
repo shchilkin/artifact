@@ -2,7 +2,7 @@ import type { CanvasGraph, EffectLayer, GraphArea, Layer, LayerKind } from '../.
 import { EFFECT_PRESETS } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 
-export const KIND_ICONS: Record<LayerKind, string> = {
+const KIND_ICONS: Record<LayerKind, string> = {
   text: 'T',
   image: '◻',
   emoji: '✦',

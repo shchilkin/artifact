@@ -1,7 +1,7 @@
 import { THUMB_DEBOUNCE_MS } from '../constants';
 import type { ThumbnailRenderTask } from '../types';
 
-export const THUMBNAIL_RENDER_MEASURE = 'artifact:thumbnail-render';
+const THUMBNAIL_RENDER_MEASURE = 'artifact:thumbnail-render';
 export const THUMBNAIL_PRELOAD_MEASURE = 'artifact:thumbnail-preload';
 export const THUMBNAIL_GRAPH_RENDER_MEASURE = 'artifact:thumbnail-graph-render';
 export const THUMBNAIL_DRAW_MEASURE = 'artifact:thumbnail-draw';
@@ -25,7 +25,7 @@ interface QueuedThumbnailRender {
   order: number;
 }
 
-export const thumbnailRenderQueue = new Map<string, QueuedThumbnailRender>();
+const thumbnailRenderQueue = new Map<string, QueuedThumbnailRender>();
 let thumbnailRenderActive = false;
 let thumbnailDrainScheduled = false;
 let thumbnailRenderOrder = 0;
@@ -118,7 +118,7 @@ function scheduleThumbnailQueueDrain(priority = false) {
   requestIdleDrain(run);
 }
 
-export function drainThumbnailRenderQueue() {
+function drainThumbnailRenderQueue() {
   if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
   thumbnailRenderActive = true;
   const nextEntry = pickNextTask();

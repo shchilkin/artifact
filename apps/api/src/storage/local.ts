@@ -37,6 +37,7 @@ export class LocalAssetStorage implements AssetStorage {
     }
   }
 
+  // fallow-ignore-next-line unused-class-member
   async deleteImage(storageKey: string): Promise<void> {
     await rm(join(this.rootDir, storageKey), { force: true });
   }
@@ -67,7 +68,7 @@ async function collectFiles(dir: string, keys: string[], rootDir: string): Promi
   }
 }
 
-export function mimeTypeFromStorageKey(storageKey: string) {
+function mimeTypeFromStorageKey(storageKey: string) {
   if (storageKey.endsWith('.jpg') || storageKey.endsWith('.jpeg')) return 'image/jpeg';
   if (storageKey.endsWith('.png')) return 'image/png';
   if (storageKey.endsWith('.svg')) return 'image/svg+xml';

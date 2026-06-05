@@ -47,6 +47,35 @@ function pixelIndex(width: number, x: number, y: number) {
   return (y * width + x) * 4;
 }
 
+function copyPixel(out: Uint8ClampedArray, outIndex: number, data: Uint8ClampedArray, sourceIndex: number) {
+  out[outIndex] = data[sourceIndex];
+  out[outIndex + 1] = data[sourceIndex + 1];
+  out[outIndex + 2] = data[sourceIndex + 2];
+  out[outIndex + 3] = data[sourceIndex + 3];
+}
+
+function remapPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  sourcePoint: (x: number, y: number) => { x: number; y: number },
+) {
+  const out = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const source = sourcePoint(x, y);
+      copyPixel(out, pixelIndex(width, x, y), data, pixelIndex(width, source.x, source.y));
+    }
+  }
+  return out;
+}
+
+function polarOffset(x: number, y: number, cx: number, cy: number) {
+  const dx = x - cx;
+  const dy = y - cy;
+  return { dx, dy, dist: Math.sqrt(dx * dx + dy * dy), angle: Math.atan2(dy, dx) };
+}
+
 export function transformEffectPixels({
   width,
   height,
@@ -225,10 +254,7 @@ function applyWave(
       const sx = Math.min(width - 1, Math.max(0, x + shift));
       const oi = pixelIndex(width, x, y);
       const si = pixelIndex(width, sx, y);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
+      copyPixel(out, oi, data, si);
     }
   }
   return out;
@@ -310,25 +336,14 @@ function applyRipple(
   const maxDist = Math.sqrt(cx * cx + cy * cy);
   const maxShift = amount * scale * 0.5;
   const freq = (frequency * Math.PI * 2) / maxDist;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
-      const shift = Math.sin(dist * freq) * maxShift;
-      const nx = Math.min(width - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
-      const ny = Math.min(height - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, nx, ny);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => {
+    const { dist, angle } = polarOffset(x, y, cx, cy);
+    const shift = Math.sin(dist * freq) * maxShift;
+    return {
+      x: Math.min(width - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle)))),
+      y: Math.min(height - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle)))),
+    };
+  });
 }
 
 function applyKaleidoscope(data: Uint8ClampedArray, width: number, height: number, amount: number) {
@@ -337,27 +352,17 @@ function applyKaleidoscope(data: Uint8ClampedArray, width: number, height: numbe
   const sectorAngle = (Math.PI * 2) / segments;
   const cx = width / 2;
   const cy = height / 2;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      let angle = Math.atan2(dy, dx);
-      if (angle < 0) angle += Math.PI * 2;
-      let a = angle % sectorAngle;
-      if (a > sectorAngle / 2) a = sectorAngle - a;
-      const nx = Math.min(width - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
-      const ny = Math.min(height - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, nx, ny);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => {
+    const offset = polarOffset(x, y, cx, cy);
+    let angle = offset.angle;
+    if (angle < 0) angle += Math.PI * 2;
+    let a = angle % sectorAngle;
+    if (a > sectorAngle / 2) a = sectorAngle - a;
+    return {
+      x: Math.min(width - 1, Math.max(0, Math.round(cx + offset.dist * Math.cos(a)))),
+      y: Math.min(height - 1, Math.max(0, Math.round(cy + offset.dist * Math.sin(a)))),
+    };
+  });
 }
 
 function applySqueeze(data: Uint8ClampedArray, width: number, height: number, xAmount: number, yAmount: number) {
@@ -366,20 +371,10 @@ function applySqueeze(data: Uint8ClampedArray, width: number, height: number, xA
   const yFactor = Math.max(0.01, 1 + yAmount / 100);
   const cx = width / 2;
   const cy = height / 2;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const sx = Math.min(width - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
-      const sy = Math.min(height - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, sx, sy);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => ({
+    x: Math.min(width - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor))),
+    y: Math.min(height - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor))),
+  }));
 }
 
 function applyFog(data: Uint8ClampedArray, amount: number, color: string) {

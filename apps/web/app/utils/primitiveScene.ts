@@ -20,8 +20,8 @@ import type { PrimitiveLayer } from '../types/config';
 
 export const CAMERA_DISTANCE = 3.2;
 export const CAMERA_FOV = 35;
-export const CAMERA_NEAR = 0.1;
-export const CAMERA_FAR = 100;
+const CAMERA_NEAR = 0.1;
+const CAMERA_FAR = 100;
 export const CAMERA_ZOOM_MIN = 0.08;
 export const CAMERA_ZOOM_MAX = 6;
 
