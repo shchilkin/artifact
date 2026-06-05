@@ -236,10 +236,20 @@ function addConnectionBadges(
 ) {
   const inputCount = graph.edges.filter((edge) => edge.toId === nodeId).length;
   const outputCount = graph.edges.filter((edge) => edge.fromId === nodeId).length;
+  addInputBadges(badges, notes, role, inputCount);
+  addOutputBadges(badges, role, outputCount);
+}
 
+function addInputBadges(
+  badges: EditorTargetBadge[],
+  notes: EditorTargetNote[],
+  role: EditorTargetRole,
+  inputCount: number,
+) {
   if (role === 'effect' && inputCount === 0) {
     badges.push({ label: 'No input', tone: 'warning' });
     notes.push({ text: 'Effects need an upstream source before they can change visible pixels.', tone: 'warning' });
+    return;
   }
 
   if (role === 'utility' && inputCount === 0) {
@@ -251,7 +261,9 @@ function addConnectionBadges(
   } else if (role === 'utility') {
     badges.push({ label: `${inputCount} input${inputCount === 1 ? '' : 's'}`, tone: 'muted' });
   }
+}
 
+function addOutputBadges(badges: EditorTargetBadge[], role: EditorTargetRole, outputCount: number) {
   if ((role === 'effect' || role === 'utility') && outputCount === 0) {
     badges.push({ label: 'No output', tone: 'warning' });
   }

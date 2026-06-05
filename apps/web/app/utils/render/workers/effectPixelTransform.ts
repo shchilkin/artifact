@@ -140,70 +140,97 @@ function applyColorPass(
 ) {
   const sepiaT = operation.sepia / 100;
   const infraredT = operation.infrared / 100;
+  applySepiaInfraredPass(data, sepiaT, infraredT);
+  applyChromaticAberration(data, width, height, operation.ca);
+  applyDitherPass(data, width, height, operation.dither);
+}
 
+function applySepiaInfraredPass(data: Uint8ClampedArray, sepiaT: number, infraredT: number) {
   if (sepiaT > 0 || infraredT > 0) {
     for (let i = 0; i < data.length; i += 4) {
       let r = data[i];
       let g = data[i + 1];
       let b = data[i + 2];
 
-      if (sepiaT > 0) {
-        const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-        const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-        const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-        r = Math.round(r + (sr - r) * sepiaT);
-        g = Math.round(g + (sg - g) * sepiaT);
-        b = Math.round(b + (sb - b) * sepiaT);
-      }
-
-      if (infraredT > 0) {
-        const ir = r;
-        const ig = g;
-        const ib = b;
-        r = Math.min(255, Math.round(ir + ig * infraredT * 0.8));
-        g = Math.min(255, Math.round(ig * (1 - infraredT * 0.65)));
-        b = Math.min(255, Math.round(ib * (1 - infraredT * 0.3) + infraredT * 22));
-      }
+      if (sepiaT > 0) ({ r, g, b } = sepiaPixel(r, g, b, sepiaT));
+      if (infraredT > 0) ({ r, g, b } = infraredPixel(r, g, b, infraredT));
 
       data[i] = r;
       data[i + 1] = g;
       data[i + 2] = b;
     }
   }
+}
 
-  if (operation.ca > 0) {
-    const amount = Math.round(operation.ca);
-    const cx = width / 2;
-    const cy = height / 2;
-    const copy = new Uint8ClampedArray(data);
-    const maxDist = Math.sqrt(cx * cx + cy * cy);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const i = pixelIndex(width, x, y);
-        const dx = (x - cx) / maxDist;
-        const dy = (y - cy) / maxDist;
-        const rx = Math.min(width - 1, Math.max(0, Math.round(x + dx * amount)));
-        const ry = Math.min(height - 1, Math.max(0, Math.round(y + dy * amount)));
-        const bx = Math.min(width - 1, Math.max(0, Math.round(x - dx * amount)));
-        const by = Math.min(height - 1, Math.max(0, Math.round(y - dy * amount)));
-        data[i] = copy[pixelIndex(width, rx, ry)];
-        data[i + 2] = copy[pixelIndex(width, bx, by) + 2];
-      }
+function sepiaPixel(r: number, g: number, b: number, amount: number) {
+  const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+  const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+  const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+  return {
+    r: Math.round(r + (sr - r) * amount),
+    g: Math.round(g + (sg - g) * amount),
+    b: Math.round(b + (sb - b) * amount),
+  };
+}
+
+function infraredPixel(r: number, g: number, b: number, amount: number) {
+  return {
+    r: Math.min(255, Math.round(r + g * amount * 0.8)),
+    g: Math.min(255, Math.round(g * (1 - amount * 0.65))),
+    b: Math.min(255, Math.round(b * (1 - amount * 0.3) + amount * 22)),
+  };
+}
+
+function applyChromaticAberration(data: Uint8ClampedArray, width: number, height: number, amountValue: number) {
+  if (amountValue <= 0) return;
+  const amount = Math.round(amountValue);
+  const cx = width / 2;
+  const cy = height / 2;
+  const copy = new Uint8ClampedArray(data);
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      applyChromaticAberrationPixel(data, copy, width, height, x, y, { amount, cx, cy, maxDist });
     }
   }
+}
 
-  if (operation.dither > 0) {
-    const levels = Math.max(2, Math.round(16 - operation.dither * 0.14));
-    const step = 255 / (levels - 1);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const i = pixelIndex(width, x, y);
-        const bayer = BAYER[y & 3][x & 3] / 16;
-        for (let c = 0; c < 3; c += 1) {
-          data[i + c] = Math.min(255, Math.max(0, Math.round(data[i + c] / step + bayer) * step));
-        }
-      }
+function applyChromaticAberrationPixel(
+  data: Uint8ClampedArray,
+  copy: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  params: { amount: number; cx: number; cy: number; maxDist: number },
+) {
+  const i = pixelIndex(width, x, y);
+  const dx = (x - params.cx) / params.maxDist;
+  const dy = (y - params.cy) / params.maxDist;
+  const rx = Math.min(width - 1, Math.max(0, Math.round(x + dx * params.amount)));
+  const ry = Math.min(height - 1, Math.max(0, Math.round(y + dy * params.amount)));
+  const bx = Math.min(width - 1, Math.max(0, Math.round(x - dx * params.amount)));
+  const by = Math.min(height - 1, Math.max(0, Math.round(y - dy * params.amount)));
+  data[i] = copy[pixelIndex(width, rx, ry)];
+  data[i + 2] = copy[pixelIndex(width, bx, by) + 2];
+}
+
+function applyDitherPass(data: Uint8ClampedArray, width: number, height: number, amount: number) {
+  if (amount <= 0) return;
+  const levels = Math.max(2, Math.round(16 - amount * 0.14));
+  const step = 255 / (levels - 1);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      applyDitherPixel(data, width, x, y, step);
     }
+  }
+}
+
+function applyDitherPixel(data: Uint8ClampedArray, width: number, x: number, y: number, step: number) {
+  const i = pixelIndex(width, x, y);
+  const bayer = BAYER[y & 3][x & 3] / 16;
+  for (let c = 0; c < 3; c += 1) {
+    data[i + c] = Math.min(255, Math.max(0, Math.round(data[i + c] / step + bayer) * step));
   }
 }
 

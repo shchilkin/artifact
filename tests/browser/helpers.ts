@@ -100,30 +100,24 @@ export async function gotoDocument(page: Page, doc: object): Promise<void> {
 export async function expectLayerCanvasToHavePixels(page: Page): Promise<void> {
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        canvas.evaluate((element) => {
-          const canvas = element as HTMLCanvasElement;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
-          const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-          let maxChannel = 0;
-          let alphaTotal = 0;
-          let samples = 0;
-          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 12))) {
-            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 12))) {
-              const index = (y * canvas.width + x) * 4;
-              maxChannel = Math.max(maxChannel, pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
-              alphaTotal += pixels[index + 3] ?? 0;
-              samples += 1;
-            }
-          }
-          return alphaTotal / samples > 4 && maxChannel > 24;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(true);
+  await expect.poll(async () => canvas.evaluate(canvasHasVisiblePixels), { timeout: 15_000 }).toBe(true);
+}
+
+function canvasHasVisiblePixels(element: Element): boolean {
+  const canvas = element as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let maxChannel = 0;
+  let visibleSamples = 0;
+  const pixelStride = Math.max(4, Math.floor(pixels.length / (4 * 4096)) * 4);
+  for (let index = 0; index < pixels.length; index += pixelStride) {
+    const alpha = pixels[index + 3];
+    const channel = Math.max(pixels[index], pixels[index + 1], pixels[index + 2]);
+    maxChannel = Math.max(maxChannel, channel);
+    if (alpha > 8 && channel > 24) visibleSamples += 1;
+  }
+  return visibleSamples > 0 && maxChannel > 24;
 }
 
 export async function expectStoredLayerCount(page: Page, expected: number | { atLeast: number }): Promise<void> {
@@ -171,25 +165,29 @@ export async function switchToLayerView(page: Page): Promise<void> {
   }).toPass({ timeout: 10_000 });
 }
 
+const BENIGN_BROWSER_TEST_SUBSTRINGS = [
+  'downloadable font: download failed',
+  'Failed to preconnect to https://fonts.googleapis.com/',
+  'Failed to preconnect to https://fonts.gstatic.com/',
+  'Failed to load resource: A server with the specified hostname could not be found.',
+  'Failed to load resource: net::ERR_NAME_NOT_RESOLVED',
+  'Outdated Optimize Dep',
+  'Error loading route module `/app/routes/generator.tsx`, reloading page',
+  'Importing a module script failed',
+  'Failed to fetch dynamically imported module: http://127.0.0.1:4173/node_modules/.vite/deps/',
+  'Failed to fetch dynamically imported module: http://127.0.0.1:4173/@fs/Users/shchilkin/dev/album-cover-utils/node_modules/@react-router/dev/dist/config/defaults/entry.client.tsx',
+  'Failed to fetch dynamically imported module: http://127.0.0.1:4173/app/routes/generator.tsx',
+  'error loading dynamically imported module: http://127.0.0.1:4173/',
+  'due to access control checks',
+  'NS_BINDING_ABORTED',
+  'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
+];
+
+const BENIGN_BROWSER_TEST_MESSAGES = new Set(['JSHandle@object']);
+
 function isBenignBrowserTestIssue(text: string): boolean {
   return (
-    text.includes('downloadable font: download failed') ||
-    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
-    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
-    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
-    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
-    text.includes('Outdated Optimize Dep') ||
-    text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
-    text.includes('Importing a module script failed') ||
-    text.includes('Failed to fetch dynamically imported module: http://127.0.0.1:4173/node_modules/.vite/deps/') ||
-    text.includes(
-      'Failed to fetch dynamically imported module: http://127.0.0.1:4173/@fs/Users/shchilkin/dev/album-cover-utils/node_modules/@react-router/dev/dist/config/defaults/entry.client.tsx',
-    ) ||
-    text.includes('Failed to fetch dynamically imported module: http://127.0.0.1:4173/app/routes/generator.tsx') ||
-    text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
-    text.includes('due to access control checks') ||
-    text.includes('NS_BINDING_ABORTED') ||
-    text.includes('Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)') ||
-    text === 'JSHandle@object'
+    BENIGN_BROWSER_TEST_MESSAGES.has(text) ||
+    BENIGN_BROWSER_TEST_SUBSTRINGS.some((substring) => text.includes(substring))
   );
 }

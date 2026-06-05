@@ -30,6 +30,130 @@ export interface UseNodeContextMenusResult {
   handleAddFromMenu: (action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
 }
 
+const EDITABLE_KEYBOARD_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return EDITABLE_KEYBOARD_TAGS.has(target.tagName) || target.isContentEditable;
+}
+
+function getDeletableNodeIds(ids: string[], canDeleteNode: ((id: string) => boolean) | undefined) {
+  return ids.filter((id) => id !== EXPORT_NODE_ID && (canDeleteNode?.(id) ?? true));
+}
+
+function isDeleteShortcutKey(key: string) {
+  return key === 'Delete' || key === 'Backspace';
+}
+
+function addNodeMenuAnchor(buttonRect: DOMRect | undefined, surfaceRect: DOMRect | undefined) {
+  if (buttonRect) return { x: buttonRect.left, y: buttonRect.bottom + 8 };
+  if (surfaceRect) return { x: surfaceRect.left, y: surfaceRect.top + 8 };
+  return { x: 0, y: 8 };
+}
+
+function addNodeMenuScreenPoint(buttonRect: DOMRect | undefined, surfaceRect: DOMRect | undefined) {
+  if (buttonRect) return { x: buttonRect.left + buttonRect.width / 2, y: buttonRect.bottom + 12 };
+  if (surfaceRect) return { x: surfaceRect.left + 96, y: surfaceRect.top + 96 };
+  return { x: 0, y: 0 };
+}
+
+function isGraphUtilityNode(graph: CanvasGraph, id: string) {
+  const utilityNodes = [...graph.mergeNodes, ...(graph.colorNodes ?? []), ...(graph.repeatNodes ?? [])];
+  return utilityNodes.some((node) => node.id === id);
+}
+
+function connectEndPointer(event: MouseEvent | TouchEvent) {
+  return 'changedTouches' in event ? event.changedTouches[0] : event;
+}
+
+function insertionFromConnection(
+  fromNodeId: string,
+  fromHandle: NonNullable<FinalConnectionState['fromHandle']>,
+): InsertConnectionConfig {
+  if (fromHandle.type === 'target') {
+    return {
+      targetId: fromNodeId,
+      targetPort: (fromHandle.id ?? 'in') as GraphEdge['toPort'],
+    };
+  }
+  return { sourceId: fromNodeId };
+}
+
+function deleteSelectedEdge(
+  edgeId: string | null,
+  graph: CanvasGraph,
+  onGraphChange: (graph: CanvasGraph) => void,
+  send: (event: NodeCanvasMachineEvent) => void,
+) {
+  if (!edgeId) return false;
+  onGraphChange(removeGraphEdge(graph, edgeId));
+  send({ type: 'EDGE_IDS_REMOVED', ids: [edgeId] });
+  return true;
+}
+
+function deleteSelectedNodes(
+  selectedNodeIds: string[],
+  canDeleteNode: ((id: string) => boolean) | undefined,
+  onDeleteNodes: (ids: string[]) => void,
+  send: (event: NodeCanvasMachineEvent) => void,
+) {
+  const deletableNodeIds = getDeletableNodeIds(selectedNodeIds, canDeleteNode);
+  if (deletableNodeIds.length === 0) return false;
+  onDeleteNodes(deletableNodeIds);
+  send({ type: 'NODE_IDS_REMOVED', ids: deletableNodeIds });
+  return true;
+}
+
+function deleteSelectedCanvasItems({
+  selectedEdgeId,
+  selectedNodeIds,
+  graph,
+  onGraphChange,
+  onDeleteNodes,
+  canDeleteNode,
+  send,
+}: {
+  selectedEdgeId: string | null;
+  selectedNodeIds: string[];
+  graph: CanvasGraph;
+  onGraphChange: (graph: CanvasGraph) => void;
+  onDeleteNodes: (ids: string[]) => void;
+  canDeleteNode: ((id: string) => boolean) | undefined;
+  send: (event: NodeCanvasMachineEvent) => void;
+}) {
+  return (
+    deleteSelectedEdge(selectedEdgeId, graph, onGraphChange, send) ||
+    deleteSelectedNodes(selectedNodeIds, canDeleteNode, onDeleteNodes, send)
+  );
+}
+
+function handleDeleteShortcut(
+  event: KeyboardEvent,
+  options: {
+    selectedEdgeId: string | null;
+    selectedNodeIds: string[];
+    graph: CanvasGraph;
+    onGraphChange: (graph: CanvasGraph) => void;
+    onDeleteNodes: (ids: string[]) => void;
+    canDeleteNode: ((id: string) => boolean) | undefined;
+    send: (event: NodeCanvasMachineEvent) => void;
+  },
+) {
+  if (!isDeleteShortcutKey(event.key)) return;
+  if (isEditableKeyboardTarget(event.target)) return;
+  if (deleteSelectedCanvasItems(options)) event.preventDefault();
+}
+
+function pendingConnectEnd(connectionState: FinalConnectionState) {
+  if (!connectionState.fromNode) return null;
+  if (!connectionState.fromHandle) return null;
+  if (connectionState.toHandle) return null;
+  return {
+    fromNodeId: connectionState.fromNode.id,
+    fromHandle: connectionState.fromHandle,
+  };
+}
+
 /**
  * Owns all context-menu and keyboard-delete logic for the node canvas.
  * Handles pane, node, and edge context menus plus Delete/Backspace keyboard shortcut.
@@ -51,27 +175,15 @@ export function useNodeContextMenus({
   // Delete/Backspace shortcut for selected nodes and edges.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      const target = e.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        (target instanceof HTMLElement && target.isContentEditable)
-      ) {
-        return;
-      }
-      if (selectedEdgeId) {
-        e.preventDefault();
-        onGraphChange(removeGraphEdge(graphRef.current, selectedEdgeId));
-        send({ type: 'EDGE_IDS_REMOVED', ids: [selectedEdgeId] });
-        return;
-      }
-      const deletableNodeIds = selectedNodeIds.filter((id) => id !== EXPORT_NODE_ID && (canDeleteNode?.(id) ?? true));
-      if (deletableNodeIds.length === 0) return;
-      e.preventDefault();
-      onDeleteNodes(deletableNodeIds);
-      send({ type: 'NODE_IDS_REMOVED', ids: deletableNodeIds });
+      handleDeleteShortcut(e, {
+        selectedEdgeId,
+        selectedNodeIds,
+        graph: graphRef.current,
+        onGraphChange,
+        onDeleteNodes,
+        canDeleteNode,
+        send,
+      });
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -80,24 +192,10 @@ export function useNodeContextMenus({
   const openAddNodeMenu = useCallback(() => {
     const buttonRect = addNodeButtonRef.current?.getBoundingClientRect();
     const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
-    const anchorX = buttonRect?.left ?? surfaceRect?.left ?? 0;
-    const anchorY = (buttonRect?.bottom ?? surfaceRect?.top ?? 0) + 8;
-    const screenPoint = buttonRect
-      ? {
-          x: buttonRect.left + buttonRect.width / 2,
-          y: buttonRect.bottom + 12,
-        }
-      : surfaceRect
-        ? {
-            x: surfaceRect.left + 96,
-            y: surfaceRect.top + 96,
-          }
-        : {
-            x: 0,
-            y: 0,
-          };
+    const anchor = addNodeMenuAnchor(buttonRect, surfaceRect);
+    const screenPoint = addNodeMenuScreenPoint(buttonRect, surfaceRect);
     const flowPos = rfInstanceRef.current?.screenToFlowPosition(screenPoint) ?? { x: 0, y: 0 };
-    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchorX, y: anchorY, flowPos } });
+    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchor.x, y: anchor.y, flowPos } });
   }, [send, addNodeButtonRef, canvasSurfaceRef, rfInstanceRef]);
 
   const onPaneContextMenu = useCallback(
@@ -113,10 +211,7 @@ export function useNodeContextMenus({
     (e: MouseEvent | React.MouseEvent, node: RFNode) => {
       e.preventDefault();
       e.stopPropagation();
-      const isMerge =
-        graph.mergeNodes.some((n) => n.id === node.id) ||
-        (graph.colorNodes ?? []).some((n) => n.id === node.id) ||
-        (graph.repeatNodes ?? []).some((n) => n.id === node.id);
+      const isMerge = isGraphUtilityNode(graph, node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
         type: 'CONTEXT_MENU_OPENED',
@@ -152,24 +247,15 @@ export function useNodeContextMenus({
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      if (!connectionState.fromNode || !connectionState.fromHandle) return;
-      if (connectionState.toHandle) return;
-      const pointer = 'changedTouches' in event ? event.changedTouches[0] : event;
+      const pendingConnection = pendingConnectEnd(connectionState);
+      if (!pendingConnection) return;
+      const pointer = connectEndPointer(event);
       if (!pointer) return;
-      const fromHandle = connectionState.fromHandle;
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY }) ?? {
         x: 0,
         y: 0,
       };
-      const insertion =
-        fromHandle.type === 'target'
-          ? {
-              targetId: connectionState.fromNode.id,
-              targetPort: (fromHandle.id ?? 'in') as GraphEdge['toPort'],
-            }
-          : {
-              sourceId: connectionState.fromNode.id,
-            };
+      const insertion = insertionFromConnection(pendingConnection.fromNodeId, pendingConnection.fromHandle);
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: {

@@ -9,9 +9,13 @@ export function loadEnvFiles(paths) {
 function loadEnvFile(path) {
   if (!existsSync(path)) return;
   for (const entry of readFileSync(path, 'utf8').split(/\r?\n/).map(parseEnvLine)) {
-    if (!entry || process.env[entry.key] !== undefined) continue;
+    if (!shouldApplyEnvEntry(entry)) continue;
     process.env[entry.key] = entry.value;
   }
+}
+
+function shouldApplyEnvEntry(entry) {
+  return Boolean(entry) && process.env[entry.key] === undefined;
 }
 
 function parseEnvLine(line) {
@@ -22,6 +26,13 @@ function parseEnvLine(line) {
 
 function stripQuotes(value) {
   const quote = value.at(0);
-  const quoted = value.length >= 2 && (quote === '"' || quote === "'") && value.endsWith(quote);
-  return quoted ? value.slice(1, -1) : value;
+  return isQuotedValue(value, quote) ? value.slice(1, -1) : value;
+}
+
+function isQuotedValue(value, quote) {
+  return value.length >= 2 && isSupportedQuote(quote) && value.endsWith(quote);
+}
+
+function isSupportedQuote(quote) {
+  return quote === '"' || quote === "'";
 }

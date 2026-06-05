@@ -1171,6 +1171,20 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
 
   await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
   const stateStyles = await page.evaluate(() => {
+    const styleValue = (styles: CSSStyleDeclaration | null, name: string) =>
+      styles?.getPropertyValue(name).trim() ?? '';
+    const parsedStyleNumber = (value: string, pattern: RegExp, fallback: number) => {
+      const match = value.match(pattern);
+      return match ? Number(match[1]) : fallback;
+    };
+    const readLightness = (styles: CSSStyleDeclaration | null, name: string) =>
+      parsedStyleNumber(styleValue(styles, name), /oklch\(([\d.]+)%/, Number.NaN);
+    const readAlpha = (styles: CSSStyleDeclaration | null, name: string) =>
+      parsedStyleNumber(styleValue(styles, name), /\/\s*([\d.]+)\)/, 1);
+    const backgroundColor = (element: Element | null) => (element ? getComputedStyle(element).backgroundColor : '');
+    const borderColor = (element: Element | null) => (element ? getComputedStyle(element).borderColor : '');
+    const boxShadow = (element: Element | null) => (element ? getComputedStyle(element).boxShadow : '');
+
     const node = document.querySelector('.node-shell-selected');
     const nodeHeader = node?.querySelector('.node-shell-header');
     const area = document.querySelector('.node-area-selected');
@@ -1178,30 +1192,20 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     const perf = document.querySelector('.node-canvas-toolbar button[aria-pressed="true"]');
     const root = document.querySelector('.node-canvas-root');
     const rootStyles = root ? getComputedStyle(root) : null;
-    const readLightness = (name: string) => {
-      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
-      const match = value.match(/oklch\(([\d.]+)%/);
-      return match ? Number(match[1]) : Number.NaN;
-    };
-    const readAlpha = (name: string) => {
-      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
-      const match = value.match(/\/\s*([\d.]+)\)/);
-      return match ? Number(match[1]) : 1;
-    };
     return {
-      canvasBg: root ? getComputedStyle(root).backgroundColor : '',
-      nodeBg: node ? getComputedStyle(node).backgroundColor : '',
-      nodeBorder: node ? getComputedStyle(node).borderColor : '',
-      canvasLightness: readLightness('--editor-canvas-bg'),
-      nodeCardLightness: readLightness('--node-card-bg'),
-      nodeBorderLightness: readLightness('--node-card-border'),
-      gridLightness: readLightness('--editor-grid-dot'),
-      gridAlpha: readAlpha('--editor-grid-dot'),
-      selectedNodeShadow: node ? getComputedStyle(node).boxShadow : '',
-      selectedNodeHeaderBg: nodeHeader ? getComputedStyle(nodeHeader).backgroundColor : '',
-      selectedAreaShadow: area ? getComputedStyle(area).boxShadow : '',
-      selectedAreaLabelBg: areaLabel ? getComputedStyle(areaLabel).backgroundColor : '',
-      perfActiveShadow: perf ? getComputedStyle(perf).boxShadow : '',
+      canvasBg: backgroundColor(root),
+      nodeBg: backgroundColor(node),
+      nodeBorder: borderColor(node),
+      canvasLightness: readLightness(rootStyles, '--editor-canvas-bg'),
+      nodeCardLightness: readLightness(rootStyles, '--node-card-bg'),
+      nodeBorderLightness: readLightness(rootStyles, '--node-card-border'),
+      gridLightness: readLightness(rootStyles, '--editor-grid-dot'),
+      gridAlpha: readAlpha(rootStyles, '--editor-grid-dot'),
+      selectedNodeShadow: boxShadow(node),
+      selectedNodeHeaderBg: backgroundColor(nodeHeader),
+      selectedAreaShadow: boxShadow(area),
+      selectedAreaLabelBg: backgroundColor(areaLabel),
+      perfActiveShadow: boxShadow(perf),
     };
   });
 
@@ -1570,7 +1574,34 @@ test('project packages save images with license-aware font policy by default', a
     page,
     'Save editable project package',
   );
-  const packagedImage = projectPackage.document?.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+  expectLicenseAwareProjectPackage(projectPackage);
+  await expectExplicitFontProjectPackage(page);
+
+  await openDocumentFileFromBuffer(page, {
+    name: 'portable-assets.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+
+  await expectPortableTypeReady(page);
+});
+
+interface DownloadedProjectPackage {
+  artifactPackage?: unknown;
+  manifest?: {
+    fontEmbeddingMode?: unknown;
+    rasterExportPolicy?: unknown;
+    editableTextPolicy?: unknown;
+    fonts?: unknown[];
+  };
+  document?: {
+    layers?: Array<{ id: string; src?: string }>;
+    fontAssets?: unknown[];
+  };
+}
+
+function expectLicenseAwareProjectPackage(projectPackage: DownloadedProjectPackage) {
+  const packagedImage = projectPackage.document?.layers?.find((layer) => layer.id === 'portable-image');
 
   expect(projectPackage.artifactPackage).toBe('project');
   expect(projectPackage.manifest?.fontEmbeddingMode).toBe('license-aware');
@@ -1584,7 +1615,9 @@ test('project packages save images with license-aware font policy by default', a
   });
   expect(packagedImage?.src).toContain('data:image/');
   expect(projectPackage.document?.fontAssets).toBeUndefined();
+}
 
+async function expectExplicitFontProjectPackage(page: Page) {
   const explicitDialogPromise = new Promise<string>((resolve) => {
     page.once('dialog', async (dialog) => {
       const message = dialog.message();
@@ -1598,24 +1631,15 @@ test('project packages save images with license-aware font policy by default', a
   await expect(explicitDialogPromise).resolves.toContain('PKG+FONTS embeds imported local font files');
   const explicitArtifactPath = await explicitDownload.path();
   expect(explicitArtifactPath).toBeTruthy();
-  if (explicitArtifactPath) {
-    const explicitPackage = JSON.parse(readFileSync(explicitArtifactPath, 'utf8'));
-    expect(explicitPackage.manifest?.fontEmbeddingMode).toBe('explicit-font-files');
-    expect(explicitPackage.manifest?.fonts?.[0]).toMatchObject({
-      kind: 'imported',
-      embedding: 'embedded-file',
-    });
-    expect(explicitPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
-  }
-
-  await openDocumentFileFromBuffer(page, {
-    name: 'portable-assets.artifact',
-    mimeType: 'application/vnd.artifact.project+json',
-    buffer: Buffer.from(packageJson),
+  if (!explicitArtifactPath) return;
+  const explicitPackage = JSON.parse(readFileSync(explicitArtifactPath, 'utf8'));
+  expect(explicitPackage.manifest?.fontEmbeddingMode).toBe('explicit-font-files');
+  expect(explicitPackage.manifest?.fonts?.[0]).toMatchObject({
+    kind: 'imported',
+    embedding: 'embedded-file',
   });
-
-  await expectPortableTypeReady(page);
-});
+  expect(explicitPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+}
 
 test('project packages keep missing-font text editable for replacement', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Missing-font package coverage runs once in Chromium.');
@@ -3344,67 +3368,73 @@ async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
   await page.route('**/api/ai/generations**', async (route) => {
     const request = route.request();
     if (request.method() === 'POST') {
-      const body = await readAiGenerationPost(route, expectedPrompt);
-      if (!body) return;
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'browser-ai-polled-job',
-          status: 'queued',
-          provider: body.provider ?? 'openai',
-          model: 'mock-image-model',
-          prompt: body.prompt,
-          settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-          quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
-          createdAt: '2026-05-21T00:00:00.000Z',
-        }),
-      });
+      await fulfillPolledGenerationPost(route, expectedPrompt);
       return;
     }
 
     if (request.method() === 'GET' && request.url().includes('/api/ai/generations/browser-ai-polled-job')) {
       pollCount += 1;
-      const succeeded = pollCount >= 2;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'browser-ai-polled-job',
-          status: succeeded ? 'succeeded' : 'running',
-          provider: 'openai',
-          model: 'mock-image-model',
-          prompt: expectedPrompt,
-          settings: { aspect: '1:1', quality: 'standard' },
-          ...(succeeded
-            ? {
-                asset: {
-                  id: 'browser-ai-polled-asset',
-                  uri: generatedImageDataUrl,
-                  mimeType: 'image/png',
-                  width: 1,
-                  height: 1,
-                  sizeBytes: 70,
-                  createdAt: '2026-05-21T00:00:02.000Z',
-                  metadata: {
-                    provider: 'openai',
-                    model: 'mock-image-model',
-                    prompt: expectedPrompt,
-                    settings: { aspect: '1:1', quality: 'standard' },
-                    createdAt: '2026-05-21T00:00:02.000Z',
-                  },
-                },
-                completedAt: '2026-05-21T00:00:02.000Z',
-              }
-            : {}),
-          createdAt: '2026-05-21T00:00:00.000Z',
-          startedAt: '2026-05-21T00:00:01.000Z',
-        }),
-      });
+      await fulfillPolledGenerationGet(route, expectedPrompt, pollCount >= 2);
       return;
     }
 
     await route.fallback();
+  });
+}
+
+async function fulfillPolledGenerationPost(route: Route, expectedPrompt: string) {
+  const body = await readAiGenerationPost(route, expectedPrompt);
+  if (!body) return;
+  await route.fulfill({
+    status: 201,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 'browser-ai-polled-job',
+      status: 'queued',
+      provider: body.provider ?? 'openai',
+      model: 'mock-image-model',
+      prompt: body.prompt,
+      settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+      quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
+      createdAt: '2026-05-21T00:00:00.000Z',
+    }),
+  });
+}
+
+function polledGenerationAsset(expectedPrompt: string) {
+  return {
+    id: 'browser-ai-polled-asset',
+    uri: generatedImageDataUrl,
+    mimeType: 'image/png',
+    width: 1,
+    height: 1,
+    sizeBytes: 70,
+    createdAt: '2026-05-21T00:00:02.000Z',
+    metadata: {
+      provider: 'openai',
+      model: 'mock-image-model',
+      prompt: expectedPrompt,
+      settings: { aspect: '1:1', quality: 'standard' },
+      createdAt: '2026-05-21T00:00:02.000Z',
+    },
+  };
+}
+
+async function fulfillPolledGenerationGet(route: Route, expectedPrompt: string, succeeded: boolean) {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 'browser-ai-polled-job',
+      status: succeeded ? 'succeeded' : 'running',
+      provider: 'openai',
+      model: 'mock-image-model',
+      prompt: expectedPrompt,
+      settings: { aspect: '1:1', quality: 'standard' },
+      ...(succeeded ? { asset: polledGenerationAsset(expectedPrompt), completedAt: '2026-05-21T00:00:02.000Z' } : {}),
+      createdAt: '2026-05-21T00:00:00.000Z',
+      startedAt: '2026-05-21T00:00:01.000Z',
+    }),
   });
 }
 
@@ -3609,20 +3639,34 @@ async function expectStoredAiImageLayerState(page: Page, layerId: string, expect
     .poll(
       async () =>
         page.evaluate((targetLayerId) => {
+          const layerList = (doc: { layers?: unknown }) => (Array.isArray(doc.layers) ? doc.layers : []);
+          const generationHistory = (image: { aiGenerationHistory?: unknown }) =>
+            Array.isArray(image.aiGenerationHistory) ? image.aiGenerationHistory : [];
+          const generationHistoryIndex = (image: { aiGenerationHistoryIndex?: unknown }) =>
+            typeof image.aiGenerationHistoryIndex === 'number' ? image.aiGenerationHistoryIndex : -1;
+          const variantPrompt = (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt;
+          const matchingJob = (
+            currentGeneration: { jobId?: string } | undefined,
+            selectedGeneration: { jobId?: string } | undefined,
+          ) => Boolean(selectedGeneration?.jobId && currentGeneration?.jobId === selectedGeneration.jobId);
+          const matchingSrc = (image: { src?: string }, selectedVariant: { src?: string } | undefined) =>
+            Boolean(selectedVariant?.src && image.src === selectedVariant.src);
+
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const image = doc.layers?.find((layer: { id: string }) => layer.id === targetLayerId);
-          const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
+          const image = layerList(doc).find((layer: { id: string }) => layer.id === targetLayerId);
+          if (!image) return {};
+          const history = generationHistory(image);
+          const index = generationHistoryIndex(image);
+          const selectedVariant = history[index];
+          const selectedGeneration = selectedVariant?.aiGeneration;
+          const currentGeneration = image.aiGeneration;
           return {
-            historyCount: image?.aiGenerationHistory?.length,
-            index: image?.aiGenerationHistoryIndex,
-            prompt: image?.aiGeneration?.prompt,
-            historyPrompts: image?.aiGenerationHistory?.map(
-              (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt,
-            ),
-            generationMatchesSelectedVariant: Boolean(
-              selectedVariant?.aiGeneration?.jobId && image?.aiGeneration?.jobId === selectedVariant.aiGeneration.jobId,
-            ),
-            srcMatchesSelectedVariant: Boolean(selectedVariant?.src && image?.src === selectedVariant.src),
+            historyCount: history.length,
+            index,
+            prompt: currentGeneration?.prompt,
+            historyPrompts: history.map(variantPrompt),
+            generationMatchesSelectedVariant: matchingJob(currentGeneration, selectedGeneration),
+            srcMatchesSelectedVariant: matchingSrc(image, selectedVariant),
           };
         }, layerId),
       { timeout: 15_000 },

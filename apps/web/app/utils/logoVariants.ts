@@ -308,6 +308,39 @@ const variantRiso: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
   });
 };
 
+type StaticPhase = 'noise' | 'tuning' | 'hold' | 'dissolving';
+interface StaticPhaseState {
+  phase: StaticPhase;
+  timer: number;
+}
+
+type StaticPhaseHandler = (state: StaticPhaseState, resolveUniform: { uResolve: number }) => StaticPhaseState;
+
+const STATIC_PHASE_HANDLERS: Record<StaticPhase, StaticPhaseHandler> = {
+  noise: (state) => (state.timer <= 0 ? { phase: 'tuning', timer: 0.4 } : state),
+  tuning: advanceStaticTuningPhase,
+  hold: (state) => (state.timer <= 0 ? { phase: 'dissolving', timer: 0.4 } : state),
+  dissolving: advanceStaticDissolvingPhase,
+};
+
+function advanceStaticPhase(state: StaticPhaseState, resolveUniform: { uResolve: number }): StaticPhaseState {
+  return STATIC_PHASE_HANDLERS[state.phase](state, resolveUniform);
+}
+
+function advanceStaticTuningPhase(state: StaticPhaseState, resolveUniform: { uResolve: number }): StaticPhaseState {
+  resolveUniform.uResolve = Math.min(1, 1 - state.timer / 0.4);
+  if (state.timer > 0) return state;
+  resolveUniform.uResolve = 1;
+  return { phase: 'hold', timer: 2.0 };
+}
+
+function advanceStaticDissolvingPhase(state: StaticPhaseState, resolveUniform: { uResolve: number }): StaticPhaseState {
+  resolveUniform.uResolve = Math.max(0, state.timer / 0.4);
+  if (state.timer > 0) return state;
+  resolveUniform.uResolve = 0;
+  return { phase: 'noise', timer: 3 + Math.random() * 5 };
+}
+
 // 3. Static-to-signal resolver
 const variantStatic: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
   const text = createCenteredEmojiText(emoji);
@@ -324,36 +357,13 @@ const variantStatic: VariantRunner = (stage, renderer, emoji, reducedMotion) => 
   }
   renderer.render(stage);
 
-  type Phase = 'noise' | 'tuning' | 'hold' | 'dissolving';
-  let phase: Phase = 'noise';
-  let phaseT = 2 + Math.random() * 4;
+  let phaseState: StaticPhaseState = { phase: 'noise', timer: 2 + Math.random() * 4 };
 
   return startTicker((delta) => {
     const dt = delta / 60;
     staticU.uT += delta * 0.012;
     grainU.uT += delta * 0.008;
-    phaseT -= dt;
-    if (phase === 'noise' && phaseT <= 0) {
-      phase = 'tuning';
-      phaseT = 0.4;
-    } else if (phase === 'tuning') {
-      staticU.uResolve = Math.min(1, 1 - phaseT / 0.4);
-      if (phaseT <= 0) {
-        phase = 'hold';
-        phaseT = 2.0;
-        staticU.uResolve = 1;
-      }
-    } else if (phase === 'hold' && phaseT <= 0) {
-      phase = 'dissolving';
-      phaseT = 0.4;
-    } else if (phase === 'dissolving') {
-      staticU.uResolve = Math.max(0, phaseT / 0.4);
-      if (phaseT <= 0) {
-        phase = 'noise';
-        phaseT = 3 + Math.random() * 5;
-        staticU.uResolve = 0;
-      }
-    }
+    phaseState = advanceStaticPhase({ ...phaseState, timer: phaseState.timer - dt }, staticU);
     renderer.render(stage);
   });
 };
@@ -389,6 +399,48 @@ const variantPhosphor: VariantRunner = (stage, renderer, emoji, reducedMotion) =
   });
 };
 
+type ScatterPhase = 'apart' | 'snapping' | 'hold';
+interface ScatterPhaseState {
+  phase: ScatterPhase;
+  timer: number;
+}
+
+type ScatterPhaseHandler = (
+  state: ScatterPhaseState,
+  scatterUniform: { uPhase: number; uSeed: number },
+) => ScatterPhaseState;
+
+const SCATTER_PHASE_HANDLERS: Record<ScatterPhase, ScatterPhaseHandler> = {
+  apart: advanceScatterApartPhase,
+  snapping: advanceScatterSnappingPhase,
+  hold: advanceScatterHoldPhase,
+};
+
+function advanceScatterPhase(
+  state: ScatterPhaseState,
+  scatterUniform: { uPhase: number; uSeed: number },
+): ScatterPhaseState {
+  return SCATTER_PHASE_HANDLERS[state.phase](state, scatterUniform);
+}
+
+function advanceScatterHoldPhase(state: ScatterPhaseState, scatterUniform: { uSeed: number }): ScatterPhaseState {
+  if (state.timer > 0) return state;
+  scatterUniform.uSeed = Math.random() * 9999;
+  return { phase: 'apart', timer: 0.5 + Math.random() * 0.4 };
+}
+
+function advanceScatterApartPhase(state: ScatterPhaseState, scatterUniform: { uPhase: number }): ScatterPhaseState {
+  scatterUniform.uPhase = Math.max(0, 1 - state.timer / 0.5);
+  return state.timer <= 0 ? { phase: 'snapping', timer: 0.18 } : state;
+}
+
+function advanceScatterSnappingPhase(state: ScatterPhaseState, scatterUniform: { uPhase: number }): ScatterPhaseState {
+  scatterUniform.uPhase = state.timer / 0.18;
+  if (state.timer > 0) return state;
+  scatterUniform.uPhase = 1;
+  return { phase: 'hold', timer: 3 + Math.random() * 5 };
+}
+
 // 5. Pixel disintegration
 const variantScatter: VariantRunner = (stage, renderer, emoji, reducedMotion) => {
   const text = createCenteredEmojiText(emoji);
@@ -404,32 +456,12 @@ const variantScatter: VariantRunner = (stage, renderer, emoji, reducedMotion) =>
   renderer.render(stage);
   if (reducedMotion) return () => {};
 
-  type SPhase = 'apart' | 'snapping' | 'hold';
-  let sPhase: SPhase = 'hold';
-  let sTimer = 2 + Math.random() * 3;
+  let phaseState: ScatterPhaseState = { phase: 'hold', timer: 2 + Math.random() * 3 };
 
   return startTicker((delta) => {
     const dt = delta / 60;
     grainU.uT += delta * 0.007;
-    sTimer -= dt;
-    if (sPhase === 'hold' && sTimer <= 0) {
-      sPhase = 'apart';
-      sTimer = 0.5 + Math.random() * 0.4;
-      scatterU.uSeed = Math.random() * 9999;
-    } else if (sPhase === 'apart') {
-      scatterU.uPhase = Math.max(0, 1 - sTimer / 0.5);
-      if (sTimer <= 0) {
-        sPhase = 'snapping';
-        sTimer = 0.18;
-      }
-    } else if (sPhase === 'snapping') {
-      scatterU.uPhase = sTimer / 0.18;
-      if (sTimer <= 0) {
-        sPhase = 'hold';
-        sTimer = 3 + Math.random() * 5;
-        scatterU.uPhase = 1;
-      }
-    }
+    phaseState = advanceScatterPhase({ ...phaseState, timer: phaseState.timer - dt }, scatterU);
     renderer.render(stage);
   });
 };

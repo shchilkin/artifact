@@ -128,14 +128,14 @@ function clearLegacyDraft() {
 function normalizeStoredDraft(value: unknown): PreBlankDraft | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<StoredDraft>;
-  if (
-    candidate.id !== PRE_BLANK_DRAFT_ID ||
-    candidate.reason !== 'before-blank' ||
-    typeof candidate.savedAt !== 'string'
-  ) {
-    return null;
-  }
+  if (!isStoredPreBlankDraft(candidate)) return null;
   return { reason: 'before-blank', savedAt: candidate.savedAt, doc: normalizeDocument(candidate.doc) };
+}
+
+function isStoredPreBlankDraft(candidate: Partial<StoredDraft>): candidate is StoredDraft {
+  return (
+    candidate.id === PRE_BLANK_DRAFT_ID && candidate.reason === 'before-blank' && typeof candidate.savedAt === 'string'
+  );
 }
 
 export async function loadStoredPreBlankDraft(): Promise<PreBlankDraft | null> {

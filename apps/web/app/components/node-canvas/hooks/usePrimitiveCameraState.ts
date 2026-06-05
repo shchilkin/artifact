@@ -5,6 +5,7 @@ import {
   defaultPrimitiveViewportState,
   type PrimitiveViewportState,
   primitiveViewStateMapsEqual,
+  primitiveViewStatesEqual,
 } from '../../PrimitiveViewportState';
 
 export interface UsePrimitiveCameraStateOptions {
@@ -38,6 +39,36 @@ export interface UsePrimitiveCameraStateResult {
   resetPrimitiveCamera: (id: string) => void;
 }
 
+function primitiveLayerById(layers: Layer[], id: string) {
+  return layers.find((layer) => layer.id === id && layer.kind === 'primitive') as
+    | Extract<Layer, { kind: 'primitive' }>
+    | undefined;
+}
+
+function primitiveViewStateForLayer(current: Record<string, PrimitiveViewportState>, layers: Layer[], id: string) {
+  const layer = primitiveLayerById(layers, id);
+  return current[id] ?? (layer ? defaultPrimitiveViewportState(layer) : null);
+}
+
+function resolvePrimitiveViewStateUpdate(
+  updater:
+    | Record<string, PrimitiveViewportState>
+    | ((current: Record<string, PrimitiveViewportState>) => Record<string, PrimitiveViewportState>),
+  current: Record<string, PrimitiveViewportState>,
+) {
+  return typeof updater === 'function' ? updater(current) : updater;
+}
+
+function commitPrimitiveViewStates(
+  next: Record<string, PrimitiveViewportState>,
+  isControlled: boolean,
+  setUncontrolled: (viewStates: Record<string, PrimitiveViewportState>) => void,
+  onChange: ((viewStates: Record<string, PrimitiveViewportState>) => void) | undefined,
+) {
+  if (!isControlled) setUncontrolled(next);
+  onChange?.(next);
+}
+
 export function usePrimitiveCameraState({
   initialPrimitiveViewStates,
   layers,
@@ -56,10 +87,14 @@ export function usePrimitiveCameraState({
         | ((current: Record<string, PrimitiveViewportState>) => Record<string, PrimitiveViewportState>),
     ) => {
       const current = initialPrimitiveViewStates ?? uncontrolledPrimitiveViewStates;
-      const next = typeof updater === 'function' ? updater(current) : updater;
+      const next = resolvePrimitiveViewStateUpdate(updater, current);
       if (primitiveViewStateMapsEqual(current, next)) return;
-      if (initialPrimitiveViewStates === undefined) setUncontrolledPrimitiveViewStates(next);
-      onPrimitiveViewStatesChange?.(next);
+      commitPrimitiveViewStates(
+        next,
+        initialPrimitiveViewStates !== undefined,
+        setUncontrolledPrimitiveViewStates,
+        onPrimitiveViewStatesChange,
+      );
     },
     [initialPrimitiveViewStates, onPrimitiveViewStatesChange, uncontrolledPrimitiveViewStates],
   );
@@ -72,17 +107,7 @@ export function usePrimitiveCameraState({
     (id: string, viewState: PrimitiveViewportState) => {
       setPrimitiveViewStates((current) => {
         const previous = current[id];
-        if (
-          previous &&
-          previous.rotationX === viewState.rotationX &&
-          previous.rotationY === viewState.rotationY &&
-          previous.zoom === viewState.zoom &&
-          previous.panX === viewState.panX &&
-          previous.panY === viewState.panY &&
-          (previous.locked ?? false) === (viewState.locked ?? false)
-        ) {
-          return current;
-        }
+        if (previous && primitiveViewStatesEqual(previous, viewState)) return current;
         return { ...current, [id]: viewState };
       });
     },
@@ -106,10 +131,7 @@ export function usePrimitiveCameraState({
   const setPrimitiveCameraLocked = useCallback(
     (id: string, locked: boolean) => {
       setPrimitiveViewStates((current) => {
-        const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as
-          | Extract<Layer, { kind: 'primitive' }>
-          | undefined;
-        const existing = current[id] ?? (layer ? defaultPrimitiveViewportState(layer) : null);
+        const existing = primitiveViewStateForLayer(current, layers, id);
         if (!existing) return current;
         if ((existing.locked ?? false) === locked) return current;
         return { ...current, [id]: { ...existing, locked } };
@@ -120,9 +142,7 @@ export function usePrimitiveCameraState({
 
   const resetPrimitiveCamera = useCallback(
     (id: string) => {
-      const layer = layers.find((l) => l.id === id && l.kind === 'primitive') as
-        | Extract<Layer, { kind: 'primitive' }>
-        | undefined;
+      const layer = primitiveLayerById(layers, id);
       if (!layer) return;
       setPrimitiveViewStates((current) => {
         const locked = current[id]?.locked ?? false;

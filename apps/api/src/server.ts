@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createClerkBearerVerifier, createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { createBullBoardHandler } from './bullBoard.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
@@ -33,66 +33,80 @@ if (config.devBearerToken && store) {
   });
 }
 
-const server = createServer(async (req, res) => {
+function logRequest(method: string | undefined, path: string | undefined, status: number, startedAt: number) {
+  logInfo('api.request', { method, path, status, durationMs: Date.now() - startedAt });
+}
+
+function handlePreflightRequest(req: IncomingMessage, res: ServerResponse, startedAt: number) {
+  if (req.method !== 'OPTIONS') return false;
+  res.writeHead(204);
+  res.end();
+  logRequest(req.method, req.url, 204, startedAt);
+  return true;
+}
+
+function handleBullBoardRequest(req: IncomingMessage, res: ServerResponse) {
+  if (!bullBoard?.handle(req, res)) return false;
+  logInfo('bull_board.request', { method: req.method, path: req.url, basePath: bullBoard.basePath });
+  return true;
+}
+
+async function verifyApiBearerToken(token: string) {
+  if (config.devBearerToken && token === config.devBearerToken) {
+    return { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' };
+  }
+  return (await verifyClerkBearerToken(token)) ?? verifyJwtBearerToken(token);
+}
+
+const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
+  resolveRequestUser(request, {
+    verifyBearerToken: verifyApiBearerToken,
+  });
+
+async function resolveApiResponse(req: IncomingMessage) {
+  return (
+    handleHealthRequest(req, {
+      databaseDriver: config.databaseDriver,
+      queueDriver: config.queueDriver,
+      storageDriver: config.assetStorageDriver,
+      providers: providers.list().map((provider) => provider.provider),
+      bullBoardEnabled: Boolean(bullBoard),
+    }) ??
+    (await handleAiRequest(req, {
+      repositories,
+      queue,
+      providers,
+      createRateLimiter,
+      monthlyGenerationLimit: config.monthlyGenerationLimit,
+      maxActiveJobsPerUser: config.maxActiveJobsPerUser,
+      resolveAuth,
+    })) ??
+    (await handleAssetRequest(req, {
+      repositories,
+      storage,
+      resolveAuth,
+    })) ??
+    errorJson(404, 'not_found', 'API route not found.')
+  );
+}
+
+async function handleApiRequest(req: IncomingMessage, res: ServerResponse) {
   const startedAt = Date.now();
   applyCorsHeaders(req, res, config.webOrigin);
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    logInfo('api.request', { method: req.method, path: req.url, status: 204, durationMs: Date.now() - startedAt });
-    return;
-  }
-
-  if (bullBoard?.handle(req, res)) {
-    logInfo('bull_board.request', { method: req.method, path: req.url, basePath: bullBoard.basePath });
-    return;
-  }
+  if (handlePreflightRequest(req, res, startedAt)) return;
+  if (handleBullBoardRequest(req, res)) return;
 
   try {
-    const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
-      resolveRequestUser(request, {
-        verifyBearerToken: async (token) => {
-          if (config.devBearerToken && token === config.devBearerToken) {
-            return { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' };
-          }
-          return (await verifyClerkBearerToken(token)) ?? verifyJwtBearerToken(token);
-        },
-      });
-    const response =
-      handleHealthRequest(req, {
-        databaseDriver: config.databaseDriver,
-        queueDriver: config.queueDriver,
-        storageDriver: config.assetStorageDriver,
-        providers: providers.list().map((provider) => provider.provider),
-        bullBoardEnabled: Boolean(bullBoard),
-      }) ??
-      (await handleAiRequest(req, {
-        repositories,
-        queue,
-        providers,
-        createRateLimiter,
-        monthlyGenerationLimit: config.monthlyGenerationLimit,
-        maxActiveJobsPerUser: config.maxActiveJobsPerUser,
-        resolveAuth,
-      })) ??
-      (await handleAssetRequest(req, {
-        repositories,
-        storage,
-        resolveAuth,
-      }));
-    const finalResponse = response ?? errorJson(404, 'not_found', 'API route not found.');
-    writeApiResponse(res, finalResponse);
-    logInfo('api.request', {
-      method: req.method,
-      path: req.url,
-      status: finalResponse.status,
-      durationMs: Date.now() - startedAt,
-    });
+    const response = await resolveApiResponse(req);
+    writeApiResponse(res, response);
+    logRequest(req.method, req.url, response.status, startedAt);
   } catch (error) {
     logError('api.request_failed', error, { method: req.method, path: req.url, durationMs: Date.now() - startedAt });
     writeApiResponse(res, errorJson(500, 'server_error', 'Unexpected API error.'));
   }
-});
+}
+
+const server = createServer(handleApiRequest);
 
 server.listen(config.port, () => {
   logInfo('api.started', {

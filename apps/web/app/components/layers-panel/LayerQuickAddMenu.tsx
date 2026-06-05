@@ -8,6 +8,29 @@ import type { LayerInsertAction } from './layerInsertAction';
 const LAYER_QUICK_MENU_W = 520;
 const LAYER_QUICK_MENU_H = 520;
 
+const LAYER_INSERT_ACTION_BUILDERS = {
+  layer: (action: Extract<AddLibraryAction, { kind: 'layer' }>) => ({ kind: 'layer', layerKind: action.layerKind }),
+  textPreset: (action: Extract<AddLibraryAction, { kind: 'textPreset' }>) => ({
+    kind: 'textPreset',
+    preset: action.preset,
+  }),
+  aiImage: () => ({ kind: 'aiImage' }),
+  noisePreset: (action: Extract<AddLibraryAction, { kind: 'noisePreset' }>) => ({
+    kind: 'noisePreset',
+    preset: action.preset,
+  }),
+  arrayPreset: (action: Extract<AddLibraryAction, { kind: 'arrayPreset' }>) => ({
+    kind: 'arrayPreset',
+    preset: action.preset,
+  }),
+  effect: (action: Extract<AddLibraryAction, { kind: 'effect' }>) => ({ kind: 'effect', preset: action.preset }),
+} satisfies Record<string, (action: never) => LayerInsertAction>;
+
+function layerInsertActionFromLibraryAction(action: AddLibraryAction): LayerInsertAction | null {
+  const build = LAYER_INSERT_ACTION_BUILDERS[action.kind as keyof typeof LAYER_INSERT_ACTION_BUILDERS];
+  return build ? build(action as never) : null;
+}
+
 export function LayerQuickAddMenu({
   layerName,
   onInsert,
@@ -50,12 +73,8 @@ export function LayerQuickAddMenu({
 
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
-      if (action.kind === 'layer') handleInsert({ kind: 'layer', layerKind: action.layerKind });
-      if (action.kind === 'textPreset') handleInsert({ kind: 'textPreset', preset: action.preset });
-      if (action.kind === 'aiImage') handleInsert({ kind: 'aiImage' });
-      if (action.kind === 'noisePreset') handleInsert({ kind: 'noisePreset', preset: action.preset });
-      if (action.kind === 'arrayPreset') handleInsert({ kind: 'arrayPreset', preset: action.preset });
-      if (action.kind === 'effect') handleInsert({ kind: 'effect', preset: action.preset });
+      const insertAction = layerInsertActionFromLibraryAction(action);
+      if (insertAction) handleInsert(insertAction);
     },
     [handleInsert],
   );

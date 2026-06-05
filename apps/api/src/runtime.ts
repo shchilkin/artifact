@@ -12,25 +12,47 @@ import {
 import { createBullMqGenerationQueue, createInMemoryGenerationQueue } from './queue.js';
 import { LocalAssetStorage } from './storage/index.js';
 
+function createApiStore(config: ReturnType<typeof loadConfig>) {
+  return config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
+}
+
+function createApiPool(config: ReturnType<typeof loadConfig>) {
+  return config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
+}
+
+function createApiRepositories(pool: ReturnType<typeof createPostgresPool> | null, store: InMemoryApiStore | null) {
+  const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
+  if (!repositories) throw new Error('No API repository backend configured.');
+  return repositories;
+}
+
+function createApiQueue(config: ReturnType<typeof loadConfig>) {
+  return config.queueDriver === 'bullmq'
+    ? createBullMqGenerationQueue(config.redisUrl)
+    : createInMemoryGenerationQueue();
+}
+
+function createOpenAiProvider(config: ReturnType<typeof loadConfig>) {
+  return config.openAiApiKey
+    ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
+    : createMockImageProvider({ provider: 'openai' });
+}
+
+function createXAiProvider(config: ReturnType<typeof loadConfig>) {
+  return config.xAiApiKey
+    ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
+    : createMockImageProvider({ provider: 'xai' });
+}
+
 export function createApiRuntime() {
   loadApiEnv();
   const config = loadConfig();
-  const store = config.databaseDriver === 'memory' ? new InMemoryApiStore() : null;
-  const pool = config.databaseDriver === 'postgres' ? createPostgresPool(config.databaseUrl) : null;
-  const repositories = pool ? createPostgresRepositories(pool) : store?.repositories();
-  if (!repositories) throw new Error('No API repository backend configured.');
-
-  const queue =
-    config.queueDriver === 'bullmq' ? createBullMqGenerationQueue(config.redisUrl) : createInMemoryGenerationQueue();
+  const store = createApiStore(config);
+  const pool = createApiPool(config);
+  const repositories = createApiRepositories(pool, store);
+  const queue = createApiQueue(config);
   const storage = new LocalAssetStorage(config.assetStorageDir);
-  const providers = createProviderRegistry([
-    config.openAiApiKey
-      ? createOpenAiImageProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiImageModel })
-      : createMockImageProvider({ provider: 'openai' }),
-    config.xAiApiKey
-      ? createXAiImageProvider({ apiKey: config.xAiApiKey, defaultModel: config.xAiImageModel })
-      : createMockImageProvider({ provider: 'xai' }),
-  ]);
+  const providers = createProviderRegistry([createOpenAiProvider(config), createXAiProvider(config)]);
 
   return { config, store, pool, repositories, queue, storage, providers };
 }

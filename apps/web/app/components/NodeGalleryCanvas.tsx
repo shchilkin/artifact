@@ -26,6 +26,170 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function galleryCanvasSize(doc: CanvasDocument) {
+  const [aspectWidth, aspectHeight] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
+  const maxEdge = 960;
+  const scale = maxEdge / Math.max(aspectWidth, aspectHeight);
+  return {
+    width: Math.max(1, Math.round(aspectWidth * scale)),
+    height: Math.max(1, Math.round(aspectHeight * scale)),
+  };
+}
+
+function galleryRenderSessionKey(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  imageCache: Map<string, HTMLImageElement>,
+  previewTargetId: string,
+  canvasSize: { width: number; height: number },
+) {
+  const imageLayers = doc.layers.filter((item): item is ImageLayer => item.kind === 'image');
+  return [
+    previewTargetId,
+    `${canvasSize.width}x${canvasSize.height}`,
+    doc.global.aspect,
+    doc.global.bg,
+    doc.global.seed,
+    JSON.stringify(doc.layers),
+    JSON.stringify(graph),
+    imageCacheSignature(imageLayers, imageCache),
+  ].join('::');
+}
+
+function upstreamGalleryNodeIds(doc: CanvasDocument, graph: CanvasGraph, previewTargetId: string) {
+  return previewTargetId === EXPORT_NODE_ID
+    ? new Set(doc.layers.map((item) => item.id))
+    : collectUpstreamNodeIds(previewTargetId, graph);
+}
+
+function missingGalleryImageSources(
+  doc: CanvasDocument,
+  upstream: Set<string>,
+  effectiveImageCache: Map<string, HTMLImageElement>,
+) {
+  return doc.layers
+    .filter((item): item is ImageLayer => item.kind === 'image' && upstream.has(item.id))
+    .map((item) => item.src)
+    .filter((src) => !effectiveImageCache.has(src));
+}
+
+async function renderGalleryCanvas({
+  doc,
+  graph,
+  imageCache,
+  previewTargetId,
+  renderSessionKey,
+  width,
+  height,
+}: {
+  doc: CanvasDocument;
+  graph: CanvasGraph;
+  imageCache: Map<string, HTMLImageElement>;
+  previewTargetId: string;
+  renderSessionKey: string;
+  width: number;
+  height: number;
+}) {
+  const effectiveImageCache = new Map(imageCache);
+  const upstream = upstreamGalleryNodeIds(doc, graph, previewTargetId);
+  const missingImageSrcs = missingGalleryImageSources(doc, upstream, effectiveImageCache);
+  await preloadImageSources(missingImageSrcs, imageCache, effectiveImageCache);
+
+  const graphRenderSessionCache: GraphRenderCache = {
+    namespace: renderSessionKey,
+    entries: galleryGraphRenderCache,
+    limit: GALLERY_GRAPH_RENDER_CACHE_LIMIT,
+  };
+  const graphDoc = { ...doc, graph };
+  return previewTargetId === EXPORT_NODE_ID
+    ? renderDocument(
+        graphDoc,
+        width,
+        height,
+        effectiveImageCache,
+        { effectResolution: { width, height }, graphMode: 'graph' },
+        graphRenderSessionCache,
+      )
+    : renderGraphTarget(
+        graphDoc,
+        graph,
+        previewTargetId,
+        width,
+        height,
+        effectiveImageCache,
+        { effectResolution: { width, height } },
+        graphRenderSessionCache,
+      );
+}
+
+const GALLERY_PAN_STEP = 28;
+const GALLERY_ZOOM_STEP = 0.14;
+const GALLERY_KEY_UPDATERS: Record<string, (current: MediaViewState) => MediaViewState> = {
+  ArrowUp: (current) => ({ ...current, offsetY: current.offsetY - GALLERY_PAN_STEP }),
+  ArrowDown: (current) => ({ ...current, offsetY: current.offsetY + GALLERY_PAN_STEP }),
+  ArrowLeft: (current) => ({ ...current, offsetX: current.offsetX - GALLERY_PAN_STEP }),
+  ArrowRight: (current) => ({ ...current, offsetX: current.offsetX + GALLERY_PAN_STEP }),
+  '+': (current) => ({ ...current, zoom: clamp(current.zoom + GALLERY_ZOOM_STEP, 0.75, 3) }),
+  '=': (current) => ({ ...current, zoom: clamp(current.zoom + GALLERY_ZOOM_STEP, 0.75, 3) }),
+  '-': (current) => ({ ...current, zoom: clamp(current.zoom - GALLERY_ZOOM_STEP, 0.75, 3) }),
+  _: (current) => ({ ...current, zoom: clamp(current.zoom - GALLERY_ZOOM_STEP, 0.75, 3) }),
+  Home: () => defaultMediaViewState(),
+};
+
+function nextGalleryViewForKey(key: string, current: MediaViewState): MediaViewState | null {
+  return GALLERY_KEY_UPDATERS[key]?.(current) ?? null;
+}
+
+function drawGalleryResult(canvas: HTMLCanvasElement, result: HTMLCanvasElement, width: number, height: number) {
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  context.clearRect(0, 0, width, height);
+  context.drawImage(result, 0, 0, width, height);
+}
+
+function hasPositiveGalleryCanvasSize(canvasSize: { width: number; height: number }) {
+  return canvasSize.width > 0 && canvasSize.height > 0;
+}
+
+function isGalleryHandleLayer(layer: Layer): layer is TextLayer | ImageLayer {
+  return layer.kind === 'text' || layer.kind === 'image';
+}
+
+function canRenderGalleryHandles(
+  layer: Layer,
+  onLayerUpdate: ((patch: Partial<TextLayer | ImageLayer>) => void) | undefined,
+  canvasSize: { width: number; height: number },
+): layer is TextLayer | ImageLayer {
+  if (!onLayerUpdate) return false;
+  if (!hasPositiveGalleryCanvasSize(canvasSize)) return false;
+  return isGalleryHandleLayer(layer);
+}
+
+function NodeGalleryCanvasHandles({
+  layer,
+  canvasSize,
+  imageCache,
+  onLayerUpdate,
+}: {
+  layer: Layer;
+  canvasSize: { width: number; height: number };
+  imageCache: Map<string, HTMLImageElement>;
+  onLayerUpdate?: (patch: Partial<TextLayer | ImageLayer>) => void;
+}) {
+  if (!canRenderGalleryHandles(layer, onLayerUpdate, canvasSize)) return null;
+  return (
+    <CanvasHandles
+      layer={layer}
+      canvasW={canvasSize.width}
+      canvasH={canvasSize.height}
+      imageCache={imageCache}
+      onChange={(updated) => onLayerUpdate(updated)}
+    />
+  );
+}
+
 export function NodeGalleryCanvas({
   doc,
   graph,
@@ -40,38 +204,11 @@ export function NodeGalleryCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; startView: MediaViewState } | null>(null);
   const viewStateRef = useRef(viewState);
-  const canvasSize = useMemo(() => {
-    const [aspectWidth, aspectHeight] = ASPECT_SIZES[doc.global.aspect ?? '1:1'];
-    const maxEdge = 960;
-    const scale = maxEdge / Math.max(aspectWidth, aspectHeight);
-    return {
-      width: Math.max(1, Math.round(aspectWidth * scale)),
-      height: Math.max(1, Math.round(aspectHeight * scale)),
-    };
-  }, [doc.global.aspect]);
-  const renderSessionKey = useMemo(() => {
-    const imageLayers = doc.layers.filter((item): item is ImageLayer => item.kind === 'image');
-    return [
-      previewTargetId,
-      `${canvasSize.width}x${canvasSize.height}`,
-      doc.global.aspect,
-      doc.global.bg,
-      doc.global.seed,
-      JSON.stringify(doc.layers),
-      JSON.stringify(graph),
-      imageCacheSignature(imageLayers, imageCache),
-    ].join('::');
-  }, [
-    canvasSize.height,
-    canvasSize.width,
-    doc.global.aspect,
-    doc.global.bg,
-    doc.global.seed,
-    doc.layers,
-    graph,
-    imageCache,
-    previewTargetId,
-  ]);
+  const canvasSize = useMemo(() => galleryCanvasSize(doc), [doc]);
+  const renderSessionKey = useMemo(
+    () => galleryRenderSessionKey(doc, graph, imageCache, previewTargetId, canvasSize),
+    [canvasSize, doc, graph, imageCache, previewTargetId],
+  );
 
   useLayoutEffect(() => {
     viewStateRef.current = viewState;
@@ -86,50 +223,18 @@ export function NodeGalleryCanvas({
     let cancelled = false;
 
     const render = async () => {
-      const effectiveImageCache = new Map(imageCache);
-      const upstream =
-        previewTargetId === EXPORT_NODE_ID
-          ? new Set(doc.layers.map((item) => item.id))
-          : collectUpstreamNodeIds(previewTargetId, graph);
-      const missingImageSrcs = doc.layers
-        .filter((item): item is ImageLayer => item.kind === 'image' && upstream.has(item.id))
-        .map((item) => item.src)
-        .filter((src) => !effectiveImageCache.has(src));
-      await preloadImageSources(missingImageSrcs, imageCache, effectiveImageCache);
+      const result = await renderGalleryCanvas({
+        doc,
+        graph,
+        imageCache,
+        previewTargetId,
+        renderSessionKey,
+        width,
+        height,
+      });
       if (cancelled) return;
-
-      const graphRenderSessionCache: GraphRenderCache = {
-        namespace: renderSessionKey,
-        entries: galleryGraphRenderCache,
-        limit: GALLERY_GRAPH_RENDER_CACHE_LIMIT,
-      };
-      const result =
-        previewTargetId === EXPORT_NODE_ID
-          ? await renderDocument(
-              { ...doc, graph },
-              width,
-              height,
-              effectiveImageCache,
-              { effectResolution: { width, height }, graphMode: 'graph' },
-              graphRenderSessionCache,
-            )
-          : await renderGraphTarget(
-              { ...doc, graph },
-              graph,
-              previewTargetId,
-              width,
-              height,
-              effectiveImageCache,
-              { effectResolution: { width, height } },
-              graphRenderSessionCache,
-            );
-      if (cancelled || !canvasRef.current) return;
-      canvasRef.current.width = width;
-      canvasRef.current.height = height;
-      const context = canvasRef.current.getContext('2d');
-      if (!context) return;
-      context.clearRect(0, 0, width, height);
-      context.drawImage(result, 0, 0, width, height);
+      if (!canvasRef.current) return;
+      drawGalleryResult(canvasRef.current, result, width, height);
     };
 
     void render();
@@ -184,8 +289,6 @@ export function NodeGalleryCanvas({
     event.stopPropagation();
   };
 
-  const interactiveLayer = layer.kind === 'text' || layer.kind === 'image' ? layer : null;
-
   return (
     <div
       className="node-gallery-canvas-shell node-interactive-viewport"
@@ -199,47 +302,8 @@ export function NodeGalleryCanvas({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onKeyDown={(event) => {
-        const next = { ...viewStateRef.current };
-        const panStep = 28;
-        const zoomStep = 0.14;
-        let changed = false;
-
-        switch (event.key) {
-          case 'ArrowUp':
-            next.offsetY -= panStep;
-            changed = true;
-            break;
-          case 'ArrowDown':
-            next.offsetY += panStep;
-            changed = true;
-            break;
-          case 'ArrowLeft':
-            next.offsetX -= panStep;
-            changed = true;
-            break;
-          case 'ArrowRight':
-            next.offsetX += panStep;
-            changed = true;
-            break;
-          case '+':
-          case '=':
-            next.zoom = clamp(next.zoom + zoomStep, 0.75, 3);
-            changed = true;
-            break;
-          case '-':
-          case '_':
-            next.zoom = clamp(next.zoom - zoomStep, 0.75, 3);
-            changed = true;
-            break;
-          case 'Home':
-            Object.assign(next, defaultMediaViewState());
-            changed = true;
-            break;
-          default:
-            break;
-        }
-
-        if (!changed) return;
+        const next = nextGalleryViewForKey(event.key, viewStateRef.current);
+        if (!next) return;
         event.preventDefault();
         event.stopPropagation();
         commitView(next);
@@ -255,15 +319,12 @@ export function NodeGalleryCanvas({
         }}
       >
         <canvas ref={canvasRef} className="node-gallery-canvas" />
-        {interactiveLayer && onLayerUpdate && canvasSize.width > 0 && canvasSize.height > 0 && (
-          <CanvasHandles
-            layer={interactiveLayer}
-            canvasW={canvasSize.width}
-            canvasH={canvasSize.height}
-            imageCache={imageCache}
-            onChange={(updated) => onLayerUpdate(updated)}
-          />
-        )}
+        <NodeGalleryCanvasHandles
+          layer={layer}
+          canvasSize={canvasSize}
+          imageCache={imageCache}
+          onLayerUpdate={onLayerUpdate}
+        />
       </div>
     </div>
   );

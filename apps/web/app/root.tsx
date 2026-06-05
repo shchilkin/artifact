@@ -100,18 +100,36 @@ export default function Root() {
   );
 }
 
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = 'Oops!';
-  let details = 'An unexpected error occurred.';
-  let stack: string | undefined;
+function routeErrorBoundaryView(error: unknown) {
+  const routeError = error as { status: number; statusText?: string };
+  return {
+    message: routeError.status === 404 ? '404' : 'Error',
+    details:
+      routeError.status === 404
+        ? 'The requested page could not be found.'
+        : routeError.statusText || 'An unexpected error occurred.',
+    stack: undefined,
+  };
+}
 
+function devErrorBoundaryView(error: Error) {
+  return { message: 'Oops!', details: error.message, stack: error.stack };
+}
+
+function defaultErrorBoundaryView() {
+  return { message: 'Oops!', details: 'An unexpected error occurred.', stack: undefined };
+}
+
+function getErrorBoundaryView(error: Route.ErrorBoundaryProps['error']) {
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? '404' : 'Error';
-    details = error.status === 404 ? 'The requested page could not be found.' : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
+    return routeErrorBoundaryView(error);
   }
+  if (import.meta.env.DEV && error instanceof Error) return devErrorBoundaryView(error);
+  return defaultErrorBoundaryView();
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const { message, details, stack } = getErrorBoundaryView(error);
 
   return (
     <main className="p-8 container mx-auto">

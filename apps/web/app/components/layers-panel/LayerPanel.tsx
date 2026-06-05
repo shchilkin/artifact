@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectPreset, Layer, LayerKind } from '../../types/config';
+import type { CanvasDocument, EffectPreset, GraphArea, Layer, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { canInsertLayerAbove } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
@@ -11,7 +11,7 @@ import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
 import { LayerRow } from './LayerRow';
-import { buildLayerDisplayItems } from './layerDisplayItems';
+import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import type { LayerInsertAction } from './layerInsertAction';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
@@ -43,6 +43,19 @@ export interface LayerPanelProps {
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
   modeSwitcher?: React.ReactNode;
+}
+
+function graphAreasForDocument(doc: CanvasDocument) {
+  return doc.graph?.areas ?? [];
+}
+
+function activeLayerPanelCollapsedAreaIds(collapsedAreaIds: Set<string>, graphAreas: GraphArea[]) {
+  const areaIds = new Set(graphAreas.map((area) => area.id));
+  return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
+}
+
+function quickAddLayerIdsForDocument(doc: CanvasDocument) {
+  return new Set(doc.layers.filter((layer) => canInsertLayerAbove(doc, layer.id)).map((layer) => layer.id));
 }
 
 export function LayerPanel({
@@ -97,15 +110,12 @@ export function LayerPanel({
     () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
     [areasByLayerId, displayLayers, doc.graph],
   );
-  const activeCollapsedAreaIds = useMemo(() => {
-    const areaIds = new Set((doc.graph?.areas ?? []).map((area) => area.id));
-    return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
-  }, [collapsedAreaIds, doc.graph?.areas]);
-  const graphAreas = doc.graph?.areas ?? [];
-  const quickAddLayerIds = useMemo(
-    () => new Set(doc.layers.filter((layer) => canInsertLayerAbove(doc, layer.id)).map((layer) => layer.id)),
-    [doc],
+  const graphAreas = useMemo(() => graphAreasForDocument(doc), [doc]);
+  const activeCollapsedAreaIds = useMemo(
+    () => activeLayerPanelCollapsedAreaIds(collapsedAreaIds, graphAreas),
+    [collapsedAreaIds, graphAreas],
   );
+  const quickAddLayerIds = useMemo(() => quickAddLayerIdsForDocument(doc), [doc]);
   const canQuickAddLayerAbove = useCallback((layerId: string) => quickAddLayerIds.has(layerId), [quickAddLayerIds]);
 
   const { selectedActionLayerIds, setSelectedLayerIds, handleSelectLayer } = useLayerSelection({
@@ -204,117 +214,66 @@ export function LayerPanel({
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      <div className="layer-panel-header">
-        {modeSwitcher ?? (
-          <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
-        )}
-        <LayerAddMenu
+      <LayerPanelHeader
+        modeSwitcher={modeSwitcher}
+        onAddLayer={onAddLayer}
+        onAddEffectPreset={onAddEffectPreset}
+        onAddTextPreset={onAddTextPreset}
+        onAddNoisePreset={onAddNoisePreset}
+        onAddArrayPreset={onAddArrayPreset}
+        onStartAiImage={onStartAiImage}
+      />
+
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        <LayerPanelEmptyState
+          visible={displayLayers.length === 0}
           onAddLayer={onAddLayer}
           onAddEffectPreset={onAddEffectPreset}
           onAddTextPreset={onAddTextPreset}
-          onAddNoisePreset={onAddNoisePreset}
-          onAddArrayPreset={onAddArrayPreset}
           onStartAiImage={onStartAiImage}
+          onLoadStarter={onLoadStarter}
+          onOpenProjects={onOpenProjects}
+          onRandomize={onRandomize}
         />
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        {displayLayers.length === 0 && (
-          <EmptyLayerPanelStart
-            onAddLayer={onAddLayer}
-            onAddEffectPreset={onAddEffectPreset}
-            onAddTextPreset={onAddTextPreset}
-            onStartAiImage={onStartAiImage}
-            onLoadStarter={onLoadStarter}
-            onOpenProjects={onOpenProjects}
-            onRandomize={onRandomize}
+        <LayerSelectionActions
+          selectedActionLayerIds={selectedActionLayerIds}
+          graphAreas={graphAreas}
+          showAreaMenu={showAreaMenu}
+          areaButtonRef={areaButtonRef}
+          onToggleAreaMenu={() => setShowAreaMenu((value) => !value)}
+          onCreateAreaFromSelection={handleCreateAreaFromSelection}
+          onAddSelectionToArea={handleAddSelectionToArea}
+        />
+        {displayItems.map((item) => (
+          <LayerDisplayEntry
+            key={item.type === 'area' ? item.area.id : item.layer.id}
+            item={item}
+            activeCollapsedAreaIds={activeCollapsedAreaIds}
+            editingAreaId={editingAreaId}
+            selectedActionLayerIds={selectedActionLayerIds}
+            dragOverTarget={dragOverTarget}
+            editingId={editingId}
+            onToggleAreaCollapsed={handleToggleAreaCollapsed}
+            onStartAreaEditing={setEditingAreaId}
+            onFinishAreaRename={handleFinishAreaRename}
+            onRemoveArea={onRemoveArea}
+            onToggleAreaVisible={handleToggleAreaVisible}
+            onSelectLayer={handleSelectLayer}
+            onOpenLayerContextMenu={handleOpenLayerContextMenu}
+            onStartEditing={setEditingId}
+            onFinishRename={handleFinishRename}
+            onDragStart={handleDragStart}
+            onDragOverLayer={handleDragOverLayer}
+            onDropLayer={handleDrop}
+            onDragEnd={handleCancelDrag}
+            onToggleVisible={onToggleVisible}
+            onDuplicateLayer={onDuplicateLayer}
+            onRemoveLayer={onRemoveLayer}
+            canQuickAddLayerAbove={canQuickAddLayerAbove}
+            onInsertLayerAbove={onInsertLayerAbove}
+            onRemoveNodesFromArea={onRemoveNodesFromArea}
           />
-        )}
-        {selectedActionLayerIds.length > 1 && (
-          <div className="layer-selection-actions">
-            <span>{selectedActionLayerIds.length} selected</span>
-            <button type="button" onClick={() => handleCreateAreaFromSelection(selectedActionLayerIds)}>
-              Area
-            </button>
-            {graphAreas.length > 0 && (
-              <div ref={areaButtonRef} className="relative">
-                <button type="button" onClick={() => setShowAreaMenu((value) => !value)}>
-                  Add
-                </button>
-                {showAreaMenu && (
-                  <div className="layer-area-action-menu">
-                    {graphAreas.map((area) => (
-                      <button
-                        key={area.id}
-                        type="button"
-                        onClick={() => handleAddSelectionToArea(area.id, selectedActionLayerIds)}
-                      >
-                        <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
-                        {area.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        {displayItems.map((item) =>
-          item.type === 'area' ? (
-            <LayerAreaFolder
-              key={item.area.id}
-              area={item.area}
-              layers={item.layers}
-              graphHelpers={item.graphHelpers}
-              collapsed={activeCollapsedAreaIds.has(item.area.id)}
-              editingArea={editingAreaId === item.area.id}
-              selectedActionLayerIds={selectedActionLayerIds}
-              dragOverTarget={dragOverTarget}
-              editingId={editingId}
-              onToggleCollapsed={handleToggleAreaCollapsed}
-              onStartAreaEditing={setEditingAreaId}
-              onFinishAreaRename={handleFinishAreaRename}
-              onRemoveArea={onRemoveArea}
-              onToggleAreaVisible={handleToggleAreaVisible}
-              onSelectLayer={handleSelectLayer}
-              onOpenLayerContextMenu={handleOpenLayerContextMenu}
-              onStartEditing={setEditingId}
-              onFinishRename={handleFinishRename}
-              onDragStart={handleDragStart}
-              onDragOverLayer={handleDragOverLayer}
-              onDropLayer={handleDrop}
-              onDragEnd={handleCancelDrag}
-              onToggleVisible={onToggleVisible}
-              onDuplicateLayer={onDuplicateLayer}
-              onRemoveLayer={onRemoveLayer}
-              canQuickAddLayerAbove={canQuickAddLayerAbove}
-              onInsertLayerAbove={onInsertLayerAbove}
-              onRemoveNodesFromArea={onRemoveNodesFromArea}
-            />
-          ) : (
-            <LayerRow
-              key={item.layer.id}
-              layer={item.layer}
-              areas={item.areas}
-              selected={selectedActionLayerIds.includes(item.layer.id)}
-              dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
-              editing={editingId === item.layer.id}
-              onSelect={handleSelectLayer}
-              onOpenContextMenu={handleOpenLayerContextMenu}
-              onStartEditing={setEditingId}
-              onFinishRename={handleFinishRename}
-              onDragStart={handleDragStart}
-              onDragOverLayer={handleDragOverLayer}
-              onDropLayer={handleDrop}
-              onDragEnd={handleCancelDrag}
-              onToggleVisible={onToggleVisible}
-              onDuplicateLayer={onDuplicateLayer}
-              onRemoveLayer={onRemoveLayer}
-              canQuickAdd={canQuickAddLayerAbove(item.layer.id)}
-              onInsertLayerAbove={onInsertLayerAbove}
-            />
-          ),
-        )}
+        ))}
       </div>
       <LayerContextMenu
         contextMenu={contextMenu}
@@ -326,5 +285,232 @@ export function LayerPanel({
         onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
       />
     </div>
+  );
+}
+
+function LayerPanelHeader({
+  modeSwitcher,
+  onAddLayer,
+  onAddEffectPreset,
+  onAddTextPreset,
+  onAddNoisePreset,
+  onAddArrayPreset,
+  onStartAiImage,
+}: {
+  modeSwitcher?: React.ReactNode;
+  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
+  onAddEffectPreset: (preset: EffectPreset) => void;
+  onAddTextPreset: (preset: TextPresetId) => void;
+  onAddNoisePreset: (preset: NoisePresetId) => void;
+  onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onStartAiImage?: () => void;
+}) {
+  return (
+    <div className="layer-panel-header">
+      {modeSwitcher ?? (
+        <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
+      )}
+      <LayerAddMenu
+        onAddLayer={onAddLayer}
+        onAddEffectPreset={onAddEffectPreset}
+        onAddTextPreset={onAddTextPreset}
+        onAddNoisePreset={onAddNoisePreset}
+        onAddArrayPreset={onAddArrayPreset}
+        onStartAiImage={onStartAiImage}
+      />
+    </div>
+  );
+}
+
+function LayerPanelEmptyState({
+  visible,
+  onAddLayer,
+  onAddEffectPreset,
+  onAddTextPreset,
+  onStartAiImage,
+  onLoadStarter,
+  onOpenProjects,
+  onRandomize,
+}: {
+  visible: boolean;
+  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
+  onAddEffectPreset: (preset: EffectPreset) => void;
+  onAddTextPreset: (preset: TextPresetId) => void;
+  onStartAiImage?: () => void;
+  onLoadStarter?: (id: string) => void;
+  onOpenProjects?: () => void;
+  onRandomize?: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <EmptyLayerPanelStart
+      onAddLayer={onAddLayer}
+      onAddEffectPreset={onAddEffectPreset}
+      onAddTextPreset={onAddTextPreset}
+      onStartAiImage={onStartAiImage}
+      onLoadStarter={onLoadStarter}
+      onOpenProjects={onOpenProjects}
+      onRandomize={onRandomize}
+    />
+  );
+}
+
+function LayerSelectionActions({
+  selectedActionLayerIds,
+  graphAreas,
+  showAreaMenu,
+  areaButtonRef,
+  onToggleAreaMenu,
+  onCreateAreaFromSelection,
+  onAddSelectionToArea,
+}: {
+  selectedActionLayerIds: string[];
+  graphAreas: GraphArea[];
+  showAreaMenu: boolean;
+  areaButtonRef: React.RefObject<HTMLDivElement | null>;
+  onToggleAreaMenu: () => void;
+  onCreateAreaFromSelection: (ids: string[]) => void;
+  onAddSelectionToArea: (areaId: string, ids: string[]) => void;
+}) {
+  if (selectedActionLayerIds.length <= 1) return null;
+  return (
+    <div className="layer-selection-actions">
+      <span>{selectedActionLayerIds.length} selected</span>
+      <button type="button" onClick={() => onCreateAreaFromSelection(selectedActionLayerIds)}>
+        Area
+      </button>
+      {graphAreas.length > 0 && (
+        <div ref={areaButtonRef} className="relative">
+          <button type="button" onClick={onToggleAreaMenu}>
+            Add
+          </button>
+          {showAreaMenu && (
+            <div className="layer-area-action-menu">
+              {graphAreas.map((area) => (
+                <button
+                  key={area.id}
+                  type="button"
+                  onClick={() => onAddSelectionToArea(area.id, selectedActionLayerIds)}
+                >
+                  <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+                  {area.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LayerDisplayEntry({
+  item,
+  activeCollapsedAreaIds,
+  editingAreaId,
+  selectedActionLayerIds,
+  dragOverTarget,
+  editingId,
+  onToggleAreaCollapsed,
+  onStartAreaEditing,
+  onFinishAreaRename,
+  onRemoveArea,
+  onToggleAreaVisible,
+  onSelectLayer,
+  onOpenLayerContextMenu,
+  onStartEditing,
+  onFinishRename,
+  onDragStart,
+  onDragOverLayer,
+  onDropLayer,
+  onDragEnd,
+  onToggleVisible,
+  onDuplicateLayer,
+  onRemoveLayer,
+  canQuickAddLayerAbove,
+  onInsertLayerAbove,
+  onRemoveNodesFromArea,
+}: {
+  item: LayerDisplayItem;
+  activeCollapsedAreaIds: Set<string>;
+  editingAreaId: string | null;
+  selectedActionLayerIds: string[];
+  dragOverTarget: { id: string; position: 'before' | 'after' } | null;
+  editingId: string | null;
+  onToggleAreaCollapsed: (areaId: string) => void;
+  onStartAreaEditing: (id: string | null) => void;
+  onFinishAreaRename: (id: string, name: string | null) => void;
+  onRemoveArea: (areaId: string) => void;
+  onToggleAreaVisible: (layers: Layer[], visible: boolean) => void;
+  onSelectLayer: (id: string, event?: ReactMouseEvent<HTMLDivElement>) => void;
+  onOpenLayerContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onStartEditing: (id: string | null) => void;
+  onFinishRename: (id: string, name: string | null) => void;
+  onDragStart: (layer: Layer) => void;
+  onDragOverLayer: (layer: Layer, event: React.DragEvent<HTMLDivElement>) => void;
+  onDropLayer: (layer: Layer, event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  onToggleVisible: (id: string) => void;
+  onDuplicateLayer: (id: string) => void;
+  onRemoveLayer: (id: string) => void;
+  canQuickAddLayerAbove: (layerId: string) => boolean;
+  onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
+  onRemoveNodesFromArea: (areaId: string, ids: string[]) => void;
+}) {
+  if (item.type === 'area') {
+    return (
+      <LayerAreaFolder
+        area={item.area}
+        layers={item.layers}
+        graphHelpers={item.graphHelpers}
+        collapsed={activeCollapsedAreaIds.has(item.area.id)}
+        editingArea={editingAreaId === item.area.id}
+        selectedActionLayerIds={selectedActionLayerIds}
+        dragOverTarget={dragOverTarget}
+        editingId={editingId}
+        onToggleCollapsed={onToggleAreaCollapsed}
+        onStartAreaEditing={onStartAreaEditing}
+        onFinishAreaRename={onFinishAreaRename}
+        onRemoveArea={onRemoveArea}
+        onToggleAreaVisible={onToggleAreaVisible}
+        onSelectLayer={onSelectLayer}
+        onOpenLayerContextMenu={onOpenLayerContextMenu}
+        onStartEditing={onStartEditing}
+        onFinishRename={onFinishRename}
+        onDragStart={onDragStart}
+        onDragOverLayer={onDragOverLayer}
+        onDropLayer={onDropLayer}
+        onDragEnd={onDragEnd}
+        onToggleVisible={onToggleVisible}
+        onDuplicateLayer={onDuplicateLayer}
+        onRemoveLayer={onRemoveLayer}
+        canQuickAddLayerAbove={canQuickAddLayerAbove}
+        onInsertLayerAbove={onInsertLayerAbove}
+        onRemoveNodesFromArea={onRemoveNodesFromArea}
+      />
+    );
+  }
+
+  return (
+    <LayerRow
+      layer={item.layer}
+      areas={item.areas}
+      selected={selectedActionLayerIds.includes(item.layer.id)}
+      dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
+      editing={editingId === item.layer.id}
+      onSelect={onSelectLayer}
+      onOpenContextMenu={onOpenLayerContextMenu}
+      onStartEditing={onStartEditing}
+      onFinishRename={onFinishRename}
+      onDragStart={onDragStart}
+      onDragOverLayer={onDragOverLayer}
+      onDropLayer={onDropLayer}
+      onDragEnd={onDragEnd}
+      onToggleVisible={onToggleVisible}
+      onDuplicateLayer={onDuplicateLayer}
+      onRemoveLayer={onRemoveLayer}
+      canQuickAdd={canQuickAddLayerAbove(item.layer.id)}
+      onInsertLayerAbove={onInsertLayerAbove}
+    />
   );
 }

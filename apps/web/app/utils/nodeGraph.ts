@@ -20,6 +20,12 @@ const TOP_PAD = 80;
 const NODE_CHROME_H = 118;
 const NODE_PREVIEW_MAX = 280;
 
+type GraphLayoutState = {
+  outgoing: Map<string, string[]>;
+  indegree: Map<string, number>;
+  order: Map<string, number>;
+};
+
 function estimateNodeWidth(id: string, layers: Layer[]): number {
   const layer = layers.find((item) => item.id === id);
   if (!layer) return BASE_NODE_W;
@@ -335,7 +341,7 @@ export function removeNodesFromGraphArea(graph: CanvasGraph, areaId: string, nod
 function collectConnectedNodeIds(
   nodeId: string,
   graph: CanvasGraph,
-  direction: 'upstream' | 'downstream',
+  nextNodeForEdge: (edge: GraphEdge, id: string) => string | null,
 ): Set<string> {
   const collected = new Set<string>();
   const queue = [nodeId];
@@ -344,26 +350,29 @@ function collectConnectedNodeIds(
     if (collected.has(id)) continue;
     collected.add(id);
     for (const edge of graph.edges) {
-      const nextId =
-        direction === 'upstream' && edge.toId === id
-          ? edge.fromId
-          : direction === 'downstream' && edge.fromId === id
-            ? edge.toId
-            : null;
+      const nextId = nextNodeForEdge(edge, id);
       if (nextId && !collected.has(nextId)) queue.push(nextId);
     }
   }
   return collected;
 }
 
+function upstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
+  return edge.toId === id ? edge.fromId : null;
+}
+
+function downstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
+  return edge.fromId === id ? edge.toId : null;
+}
+
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
 export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
-  return collectConnectedNodeIds(nodeId, graph, 'upstream');
+  return collectConnectedNodeIds(nodeId, graph, upstreamNodeForEdge);
 }
 
 /** BFS forwards from nodeId, return every node id affected by it, including itself. */
 export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
-  return collectConnectedNodeIds(nodeId, graph, 'downstream');
+  return collectConnectedNodeIds(nodeId, graph, downstreamNodeForEdge);
 }
 
 export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_NODE_ID) {
@@ -431,57 +440,108 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
   ];
 }
 
-export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: AspectRatio = '1:1'): CanvasGraph {
-  const nodeIds = listGraphNodeIds(graph, layers);
+function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {
   const outgoing = new Map<string, string[]>();
   const indegree = new Map<string, number>();
   const order = new Map<string, number>();
-
   nodeIds.forEach((id, index) => {
     outgoing.set(id, []);
     indegree.set(id, 0);
     order.set(id, index);
   });
+  return { outgoing, indegree, order };
+}
 
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.fromId) || !indegree.has(edge.toId)) continue;
-    outgoing.get(edge.fromId)?.push(edge.toId);
-    indegree.set(edge.toId, (indegree.get(edge.toId) ?? 0) + 1);
+function addEdgeToGraphLayoutState(state: GraphLayoutState, edge: GraphEdge) {
+  if (!state.outgoing.has(edge.fromId) || !state.indegree.has(edge.toId)) return;
+  state.outgoing.get(edge.fromId)?.push(edge.toId);
+  state.indegree.set(edge.toId, (state.indegree.get(edge.toId) ?? 0) + 1);
+}
+
+function createGraphLayoutState(nodeIds: string[], edges: GraphEdge[]): GraphLayoutState {
+  const state = createEmptyGraphLayoutState(nodeIds);
+  for (const edge of edges) addEdgeToGraphLayoutState(state, edge);
+  return state;
+}
+
+function compareNumbers(a: number, b: number): number | null {
+  return a === b ? null : a - b;
+}
+
+function graphNodeLayoutY(id: string, positions: CanvasGraph['positions']): number {
+  const position = positions[id];
+  return position ? position.y : TOP_PAD;
+}
+
+function graphNodeLayoutX(id: string, positions: CanvasGraph['positions']): number {
+  const position = positions[id];
+  return position ? position.x : 0;
+}
+
+function graphNodeOrder(id: string, order: Map<string, number>): number {
+  return order.get(id) ?? 0;
+}
+
+function compareGraphNodeIds(
+  a: string,
+  b: string,
+  positions: CanvasGraph['positions'],
+  order: Map<string, number>,
+): number {
+  return (
+    compareNumbers(graphNodeLayoutY(a, positions), graphNodeLayoutY(b, positions)) ??
+    compareNumbers(graphNodeLayoutX(a, positions), graphNodeLayoutX(b, positions)) ??
+    graphNodeOrder(a, order) - graphNodeOrder(b, order)
+  );
+}
+
+function createGraphLayoutQueue(
+  nodeIds: string[],
+  state: GraphLayoutState,
+  compareNodeIds: (a: string, b: string) => number,
+): string[] {
+  return nodeIds.filter((id) => (state.indegree.get(id) ?? 0) === 0).sort(compareNodeIds);
+}
+
+function updateGraphLayoutTargetDepth(
+  target: string,
+  source: string,
+  state: GraphLayoutState,
+  depth: Map<string, number>,
+  queue: string[],
+) {
+  depth.set(target, Math.max(depth.get(target) ?? 0, (depth.get(source) ?? 0) + 1));
+  state.indegree.set(target, (state.indegree.get(target) ?? 1) - 1);
+  if ((state.indegree.get(target) ?? 0) === 0) queue.push(target);
+}
+
+function preserveCycleFallbackDepths(nodeIds: string[], state: GraphLayoutState, depth: Map<string, number>) {
+  for (const id of nodeIds) {
+    if ((state.indegree.get(id) ?? 0) > 0) depth.set(id, depth.get(id) ?? 0);
   }
+}
 
-  const compareNodeIds = (a: string, b: string) => {
-    const ay = graph.positions[a]?.y ?? TOP_PAD;
-    const by = graph.positions[b]?.y ?? TOP_PAD;
-    if (ay !== by) return ay - by;
-    const ax = graph.positions[a]?.x ?? 0;
-    const bx = graph.positions[b]?.x ?? 0;
-    if (ax !== bx) return ax - bx;
-    return (order.get(a) ?? 0) - (order.get(b) ?? 0);
-  };
-
-  const queue = nodeIds.filter((id) => (indegree.get(id) ?? 0) === 0).sort(compareNodeIds);
+function resolveGraphLayoutDepths(
+  nodeIds: string[],
+  state: GraphLayoutState,
+  compareNodeIds: (a: string, b: string) => number,
+): Map<string, number> {
+  const queue = createGraphLayoutQueue(nodeIds, state, compareNodeIds);
   const depth = new Map<string, number>(nodeIds.map((id) => [id, 0]));
   let processed = 0;
 
   while (queue.length > 0) {
     const id = queue.shift()!;
     processed += 1;
-    for (const target of outgoing.get(id) ?? []) {
-      depth.set(target, Math.max(depth.get(target) ?? 0, (depth.get(id) ?? 0) + 1));
-      indegree.set(target, (indegree.get(target) ?? 1) - 1);
-      if ((indegree.get(target) ?? 0) === 0) {
-        queue.push(target);
-        queue.sort(compareNodeIds);
-      }
-    }
+    for (const target of state.outgoing.get(id) ?? []) updateGraphLayoutTargetDepth(target, id, state, depth, queue);
+    queue.sort(compareNodeIds);
   }
 
-  if (processed < nodeIds.length) {
-    for (const id of nodeIds) {
-      if ((indegree.get(id) ?? 0) > 0) depth.set(id, depth.get(id) ?? 0);
-    }
-  }
+  if (processed < nodeIds.length) preserveCycleFallbackDepths(nodeIds, state, depth);
+  return depth;
+}
 
+function groupGraphNodesByDepth(nodeIds: string[], depth: Map<string, number>): Map<number, string[]> {
   const columns = new Map<number, string[]>();
   for (const id of nodeIds) {
     const column = depth.get(id) ?? 0;
@@ -489,28 +549,63 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: Aspec
     list.push(id);
     columns.set(column, list);
   }
+  return columns;
+}
 
-  const positions = { ...graph.positions };
-  const orderedColumns = [...columns.entries()].sort(([a], [b]) => a - b);
+function widestGraphColumnWidth(ids: string[], layers: Layer[]): number {
+  return Math.max(...ids.map((id) => estimateNodeWidth(id, layers)), BASE_NODE_W);
+}
+
+function calculateGraphColumnOffsets(orderedColumns: [number, string[]][], layers: Layer[]): Map<number, number> {
   const columnX = new Map<number, number>();
   let nextX = 0;
   for (const [column, ids] of orderedColumns) {
     columnX.set(column, nextX);
-    const widest = Math.max(...ids.map((id) => estimateNodeWidth(id, layers)), BASE_NODE_W);
-    nextX += widest + COL_GAP;
+    nextX += widestGraphColumnWidth(ids, layers) + COL_GAP;
   }
+  return columnX;
+}
+
+function positionGraphColumn(
+  positions: CanvasGraph['positions'],
+  column: number,
+  ids: string[],
+  columnX: Map<number, number>,
+  aspect: AspectRatio,
+) {
+  let y = TOP_PAD;
+  for (const id of ids) {
+    positions[id] = { x: columnX.get(column) ?? 0, y };
+    y += estimateNodeHeight(aspect) + ROW_GAP;
+  }
+}
+
+function organizeGraphPositions(
+  graph: CanvasGraph,
+  layers: Layer[],
+  aspect: AspectRatio,
+  depth: Map<string, number>,
+  nodeIds: string[],
+  compareNodeIds: (a: string, b: string) => number,
+): CanvasGraph['positions'] {
+  const columns = groupGraphNodesByDepth(nodeIds, depth);
+  const positions = { ...graph.positions };
+  const orderedColumns = [...columns.entries()].sort(([a], [b]) => a - b);
+  const columnX = calculateGraphColumnOffsets(orderedColumns, layers);
 
   for (const [column, ids] of orderedColumns) {
     ids.sort(compareNodeIds);
-    let y = TOP_PAD;
-    ids.forEach((id) => {
-      positions[id] = {
-        x: columnX.get(column) ?? 0,
-        y,
-      };
-      y += estimateNodeHeight(aspect) + ROW_GAP;
-    });
+    positionGraphColumn(positions, column, ids, columnX, aspect);
   }
+  return positions;
+}
+
+export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: AspectRatio = '1:1'): CanvasGraph {
+  const nodeIds = listGraphNodeIds(graph, layers);
+  const state = createGraphLayoutState(nodeIds, graph.edges);
+  const compareNodeIds = (a: string, b: string) => compareGraphNodeIds(a, b, graph.positions, state.order);
+  const depth = resolveGraphLayoutDepths(nodeIds, state, compareNodeIds);
+  const positions = organizeGraphPositions(graph, layers, aspect, depth, nodeIds, compareNodeIds);
 
   return { ...graph, positions };
 }

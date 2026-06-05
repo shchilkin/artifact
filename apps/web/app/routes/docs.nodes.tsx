@@ -789,6 +789,65 @@ function scheduleRender(task: RenderTask) {
 
 // ─── NodePoster ───────────────────────────────────────────────────────────────
 
+function posterImagePreloads(doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) {
+  return doc.layers
+    .filter((layer): layer is ImageLayer => layer.kind === 'image')
+    .map((layer) => layer.src)
+    .filter((src) => !imageCache.has(src))
+    .map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            imageCache.set(src, img);
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = src;
+        }),
+    );
+}
+
+function drawPosterCanvas(canvas: HTMLCanvasElement, out: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  canvas.width = THUMB;
+  canvas.height = THUMB;
+  ctx.drawImage(out, 0, 0);
+}
+
+async function renderPosterPreview(
+  currentDoc: CanvasDocument,
+  preloads: Array<Promise<void>>,
+  imageCache: Map<string, HTMLImageElement>,
+  canvasRef: { current: HTMLCanvasElement | null },
+  revRef: { current: number },
+  rev: number,
+) {
+  await Promise.all(preloads);
+  if (isPosterRenderStale(revRef, rev)) return;
+  try {
+    const out = await renderDocument(currentDoc, THUMB, THUMB, imageCache);
+    drawCurrentPosterCanvas(out, canvasRef, revRef, rev);
+  } catch {
+    // silently skip failed renders
+  }
+}
+
+function isPosterRenderStale(revRef: { current: number }, rev: number) {
+  return rev !== revRef.current;
+}
+
+function drawCurrentPosterCanvas(
+  out: HTMLCanvasElement | null,
+  canvasRef: { current: HTMLCanvasElement | null },
+  revRef: { current: number },
+  rev: number,
+) {
+  if (!out || isPosterRenderStale(revRef, rev) || !canvasRef.current) return;
+  drawPosterCanvas(canvasRef.current, out);
+}
+
 function NodePoster({ node }: { node: NodeDef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, HTMLImageElement>());
@@ -803,42 +862,12 @@ function NodePoster({ node }: { node: NodeDef }) {
   useLayoutEffect(() => {
     docRef.current = doc;
   }, [doc]);
+
   const enqueueRender = useRef(() => {
     const rev = ++revRef.current;
     const currentDoc = docRef.current;
-    const imageSrcs = currentDoc.layers
-      .filter((l): l is ImageLayer => l.kind === 'image')
-      .map((l) => l.src)
-      .filter((src) => !imageCacheRef.current.has(src));
-
-    const preloads = imageSrcs.map(
-      (src) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            imageCacheRef.current.set(src, img);
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = src;
-        }),
-    );
-
-    scheduleRender(async () => {
-      await Promise.all(preloads);
-      if (rev !== revRef.current) return;
-      try {
-        const out = await renderDocument(currentDoc, THUMB, THUMB, imageCacheRef.current);
-        if (!out || rev !== revRef.current || !canvasRef.current) return;
-        const ctx = canvasRef.current.getContext('2d');
-        if (!ctx) return;
-        canvasRef.current.width = THUMB;
-        canvasRef.current.height = THUMB;
-        ctx.drawImage(out, 0, 0);
-      } catch {
-        // silently skip failed renders
-      }
-    });
+    const preloads = posterImagePreloads(currentDoc, imageCacheRef.current);
+    scheduleRender(() => renderPosterPreview(currentDoc, preloads, imageCacheRef.current, canvasRef, revRef, rev));
   });
 
   // Create the IntersectionObserver exactly once — no doc dependency.
@@ -871,65 +900,20 @@ function NodePoster({ node }: { node: NodeDef }) {
     <article className="docs-poster" id={`node-${node.id}`}>
       <div className="docs-poster__canvas-wrap">
         <canvas ref={canvasRef} width={THUMB} height={THUMB} className="docs-poster__canvas" aria-hidden="true" />
-        {node.params.length > 0 && (
-          <button
-            type="button"
-            className="docs-poster__tune"
-            aria-expanded={controlsOpen}
-            aria-controls={controlsId}
-            onClick={() => setControlsOpen((open) => !open)}
-          >
-            {controlsOpen ? 'Hide controls' : 'Tune preview'}
-          </button>
-        )}
-
-        {node.params.length > 0 && controlsOpen && (
-          <div className="docs-poster__sandbox" id={controlsId}>
-            <div className="docs-poster__controls">
-              {node.params.map((p) => {
-                const parsed = parseRange(p.range);
-                const val = getDocParam(doc, node.id, p.key);
-                if (!parsed) return null;
-
-                return (
-                  <label key={p.key} className="docs-poster__control">
-                    <span className="docs-poster__label">
-                      {humanizeParam(p.key)}
-                      <span className="docs-poster__val">
-                        {parsed.type === 'color' ? val : Number(val).toFixed(parsed.step < 1 ? 2 : 0)}
-                      </span>
-                    </span>
-                    {parsed.type === 'range' ? (
-                      <input
-                        type="range"
-                        min={parsed.min}
-                        max={parsed.max}
-                        step={parsed.step}
-                        value={val}
-                        onChange={(e) => setDoc(updateDocParam(doc, node.id, p.key, parseFloat(e.target.value)))}
-                        className="docs-poster__slider"
-                      />
-                    ) : (
-                      <input
-                        type="color"
-                        value={val}
-                        onChange={(e) => setDoc(updateDocParam(doc, node.id, p.key, e.target.value))}
-                        style={{
-                          height: '24px',
-                          width: '100%',
-                          cursor: 'pointer',
-                        }}
-                      />
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-            <DocsLink href={tryHref} className="docs-poster__try">
-              Open in editor →
-            </DocsLink>
-          </div>
-        )}
+        <NodePosterTuneButton
+          hasParams={node.params.length > 0}
+          controlsOpen={controlsOpen}
+          controlsId={controlsId}
+          onToggle={() => setControlsOpen((open) => !open)}
+        />
+        <NodePosterSandbox
+          node={node}
+          doc={doc}
+          controlsId={controlsId}
+          controlsOpen={controlsOpen}
+          tryHref={tryHref}
+          onDocChange={setDoc}
+        />
       </div>
 
       <div className="docs-poster__header">
@@ -943,6 +927,131 @@ function NodePoster({ node }: { node: NodeDef }) {
   );
 }
 
+function NodePosterTuneButton({
+  hasParams,
+  controlsOpen,
+  controlsId,
+  onToggle,
+}: {
+  hasParams: boolean;
+  controlsOpen: boolean;
+  controlsId: string;
+  onToggle: () => void;
+}) {
+  if (!hasParams) return null;
+  return (
+    <button
+      type="button"
+      className="docs-poster__tune"
+      aria-expanded={controlsOpen}
+      aria-controls={controlsId}
+      onClick={onToggle}
+    >
+      {controlsOpen ? 'Hide controls' : 'Tune preview'}
+    </button>
+  );
+}
+
+function NodePosterSandbox({
+  node,
+  doc,
+  controlsId,
+  controlsOpen,
+  tryHref,
+  onDocChange,
+}: {
+  node: NodeDef;
+  doc: CanvasDocument;
+  controlsId: string;
+  controlsOpen: boolean;
+  tryHref: string;
+  onDocChange: (doc: CanvasDocument) => void;
+}) {
+  if (!controlsOpen || node.params.length === 0) return null;
+  return (
+    <div className="docs-poster__sandbox" id={controlsId}>
+      <div className="docs-poster__controls">
+        {node.params.map((param) => (
+          <NodePosterControl key={param.key} param={param} node={node} doc={doc} onDocChange={onDocChange} />
+        ))}
+      </div>
+      <DocsLink href={tryHref} className="docs-poster__try">
+        Open in editor →
+      </DocsLink>
+    </div>
+  );
+}
+
+function NodePosterControl({
+  param,
+  node,
+  doc,
+  onDocChange,
+}: {
+  param: NodeDef['params'][number];
+  node: NodeDef;
+  doc: CanvasDocument;
+  onDocChange: (doc: CanvasDocument) => void;
+}) {
+  const parsed = parseRange(param.range);
+  const val = getDocParam(doc, node.id, param.key);
+  if (!parsed) return null;
+
+  return (
+    <label className="docs-poster__control">
+      <span className="docs-poster__label">
+        {humanizeParam(param.key)}
+        <span className="docs-poster__val">{posterParamValueLabel(parsed, val)}</span>
+      </span>
+      <NodePosterControlInput
+        parsed={parsed}
+        value={val}
+        onChange={(value) => onDocChange(updateDocParam(doc, node.id, param.key, value))}
+      />
+    </label>
+  );
+}
+
+function posterParamValueLabel(parsed: NonNullable<ReturnType<typeof parseRange>>, val: string | number) {
+  return parsed.type === 'color' ? val : Number(val).toFixed(parsed.step < 1 ? 2 : 0);
+}
+
+function NodePosterControlInput({
+  parsed,
+  value,
+  onChange,
+}: {
+  parsed: NonNullable<ReturnType<typeof parseRange>>;
+  value: string | number;
+  onChange: (value: string | number) => void;
+}) {
+  if (parsed.type === 'range') {
+    return (
+      <input
+        type="range"
+        min={parsed.min}
+        max={parsed.max}
+        step={parsed.step}
+        value={value}
+        onChange={(event) => onChange(parseFloat(event.target.value))}
+        className="docs-poster__slider"
+      />
+    );
+  }
+  return (
+    <input
+      type="color"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{
+        height: '24px',
+        width: '100%',
+        cursor: 'pointer',
+      }}
+    />
+  );
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const meta: MetaFunction = () => [
@@ -953,94 +1062,291 @@ export const meta: MetaFunction = () => [
   },
 ];
 
+function buildDocsSearchItems(): SearchItem[] {
+  return [
+    ...RESEARCH_MAP.map((item) => ({
+      id: `research-${item.name}`,
+      type: 'research' as const,
+      title: item.name,
+      body: `${item.desc} ${item.questions.join(' ')}`,
+      href: '#docs-workflow-guides',
+      meta: 'Guide',
+    })),
+    ...HOW_IT_WORKS_FLOW.map((item) => ({
+      id: `workflow-${item.name}`,
+      type: 'workflow' as const,
+      title: item.name,
+      body: `${item.desc} ${item.tags.join(' ')}`,
+      href: '#docs-how-it-works',
+      meta: 'How it works',
+    })),
+    ...COMPACT_WORKFLOW_GUIDES.map((item) => ({
+      id: `workflow-guide-${item.id}`,
+      type: 'workflow' as const,
+      title: item.name,
+      body: `${item.desc} ${item.cue} ${item.next}`,
+      href: `#${item.id}`,
+      meta: 'Workflow guide',
+    })),
+    ...APPLICATION_GUIDE.map((item) => ({
+      id: `application-${item.name}`,
+      type: 'application' as const,
+      title: item.name,
+      body: `${item.desc} ${item.start} ${item.type}`,
+      href: '#docs-applications',
+      meta: `Application / ${item.type}`,
+    })),
+    ...RECIPE_STARTERS.map(({ starter, mode, desc, steps }) => ({
+      id: `recipe-${starter.id}`,
+      type: 'recipe' as const,
+      title: starter.name,
+      body: `${desc} ${steps.join(' ')}`,
+      href: starterHref(starter),
+      meta: mode,
+    })),
+    ...ALL_NODES.map(nodeSearchItem),
+    ...PRACTICAL_BLEND_GUIDE.map((mode) => ({
+      id: `blend-${mode.name}`,
+      type: 'effect' as const,
+      title: mode.name,
+      body: mode.desc,
+      href: '#docs-blends',
+      meta: 'Blend mode',
+    })),
+    ...PROJECT_FILE_GUIDE.map((item) => ({
+      id: `file-${item.name}`,
+      type: 'file' as const,
+      title: item.name,
+      body: item.desc,
+      href: '#docs-project-files',
+      meta: 'Project file',
+    })),
+    ...TROUBLESHOOTING_GUIDE.map((item) => ({
+      id: `fix-${item.name}`,
+      type: 'fix' as const,
+      title: item.name,
+      body: item.desc,
+      href: '#docs-troubleshooting',
+      meta: 'Troubleshooting',
+    })),
+  ];
+}
+
+const DOC_SEARCH_ITEMS = buildDocsSearchItems();
+
+function docsCatalogFilter(activeFilter: DocFilter): 'node' | 'effect' | 'all' {
+  return activeFilter === 'node' || activeFilter === 'effect' ? activeFilter : 'all';
+}
+
+function visibleDocsCatalogNodes(
+  normalizedQuery: string,
+  catalogFilter: 'node' | 'effect' | 'all',
+  catalogNodes: NodeDef[],
+) {
+  return normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;
+}
+
+function docsSearchCount(hasActiveSearch: boolean, matchingCount: number, shownCount: number) {
+  if (!hasActiveSearch) return '3 start points';
+  return `${matchingCount} matches${matchingCount > shownCount ? `, showing ${shownCount}` : ''}`;
+}
+
+function DocsSearchPanel({
+  query,
+  activeFilter,
+  hasActiveSearch,
+  matchingItems,
+  filteredItems,
+  onQueryChange,
+  onFilterChange,
+}: {
+  query: string;
+  activeFilter: DocFilter;
+  hasActiveSearch: boolean;
+  matchingItems: SearchItem[];
+  filteredItems: SearchItem[];
+  onQueryChange: (query: string) => void;
+  onFilterChange: (filter: DocFilter) => void;
+}) {
+  return (
+    <section id="docs-search" className="docs-search-panel" aria-labelledby="docs-search-title">
+      <div className="docs-search-panel__header">
+        <div>
+          <span className="docs-guide-section__eyebrow">Docs</span>
+          <h2 id="docs-search-title">Find an answer or start here.</h2>
+        </div>
+        <span className="docs-search-count">
+          {docsSearchCount(hasActiveSearch, matchingItems.length, filteredItems.length)}
+        </span>
+      </div>
+      <label className="docs-search-box">
+        <span className="sr-only">Search docs</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Search effects, export, fonts, nodes..."
+        />
+      </label>
+      <DocsTypeFilter activeFilter={activeFilter} onFilterChange={onFilterChange} />
+      <DocsSearchContent
+        hasActiveSearch={hasActiveSearch}
+        filteredItems={filteredItems}
+        onQueryChange={onQueryChange}
+        onFilterChange={onFilterChange}
+      />
+    </section>
+  );
+}
+
+function DocsTypeFilter({
+  activeFilter,
+  onFilterChange,
+}: {
+  activeFilter: DocFilter;
+  onFilterChange: (filter: DocFilter) => void;
+}) {
+  return (
+    <details className="docs-filter-details">
+      <summary>
+        <span>Filter results by type</span>
+        <span className="docs-filter-details__mark" aria-hidden="true">
+          +
+        </span>
+      </summary>
+      <div className="docs-type-filter" aria-label="Filter docs by type">
+        {DOC_FILTERS.map((filter) => (
+          <button
+            type="button"
+            key={filter.id}
+            className={`docs-type-filter__item${activeFilter === filter.id ? ' docs-type-filter__item--active' : ''}`}
+            onClick={() => onFilterChange(filter.id)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function DocsSearchContent({
+  hasActiveSearch,
+  filteredItems,
+  onQueryChange,
+  onFilterChange,
+}: {
+  hasActiveSearch: boolean;
+  filteredItems: SearchItem[];
+  onQueryChange: (query: string) => void;
+  onFilterChange: (filter: DocFilter) => void;
+}) {
+  if (!hasActiveSearch) {
+    return <DocsStartPoints onQueryChange={onQueryChange} onFilterChange={onFilterChange} />;
+  }
+  return (
+    <>
+      <DocsSearchResults filteredItems={filteredItems} />
+      <button
+        type="button"
+        className="docs-search-reset"
+        onClick={() => {
+          onFilterChange('all');
+          onQueryChange('');
+        }}
+      >
+        Clear search
+      </button>
+    </>
+  );
+}
+
+function DocsSearchResults({ filteredItems }: { filteredItems: SearchItem[] }) {
+  return (
+    <div className="docs-search-results" aria-live="polite">
+      {filteredItems.length > 0 ? (
+        filteredItems.map((item) => (
+          <DocsLink key={item.id} href={item.href} className="docs-search-result">
+            <span className="docs-search-result__meta">{item.meta}</span>
+            <strong>{item.title}</strong>
+            <span>{item.body}</span>
+          </DocsLink>
+        ))
+      ) : (
+        <p className="docs-search-empty">No matches. Try `type`, `export`, `noise`, `font`, or `nodes`.</p>
+      )}
+    </div>
+  );
+}
+
+function DocsStartPoints({
+  onQueryChange,
+  onFilterChange,
+}: {
+  onQueryChange: (query: string) => void;
+  onFilterChange: (filter: DocFilter) => void;
+}) {
+  return (
+    <div className="docs-start-points" aria-label="Start with">
+      {DOCS_START_POINTS.map((point) => (
+        <DocsStartPoint key={point.id} point={point} onQueryChange={onQueryChange} onFilterChange={onFilterChange} />
+      ))}
+    </div>
+  );
+}
+
+function DocsStartPoint({
+  point,
+  onQueryChange,
+  onFilterChange,
+}: {
+  point: (typeof DOCS_START_POINTS)[number];
+  onQueryChange: (query: string) => void;
+  onFilterChange: (filter: DocFilter) => void;
+}) {
+  if ('href' in point) {
+    return (
+      <DocsLink href={point.href} className="docs-start-point">
+        <span className="docs-start-point__action">{point.action}</span>
+        <strong>{point.title}</strong>
+        <span>{point.desc}</span>
+      </DocsLink>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="docs-start-point"
+      onClick={() => {
+        onFilterChange('filter' in point ? point.filter : 'all');
+        onQueryChange('query' in point ? point.query : '');
+      }}
+    >
+      <span className="docs-start-point__action">{point.action}</span>
+      <strong>{point.title}</strong>
+      <span>{point.desc}</span>
+    </button>
+  );
+}
+
 export default function DocsNodes() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<DocFilter>('all');
 
   const normalizedQuery = query.trim().toLowerCase();
-  const searchItems = useMemo<SearchItem[]>(
-    () => [
-      ...RESEARCH_MAP.map((item) => ({
-        id: `research-${item.name}`,
-        type: 'research' as const,
-        title: item.name,
-        body: `${item.desc} ${item.questions.join(' ')}`,
-        href: '#docs-workflow-guides',
-        meta: 'Guide',
-      })),
-      ...HOW_IT_WORKS_FLOW.map((item) => ({
-        id: `workflow-${item.name}`,
-        type: 'workflow' as const,
-        title: item.name,
-        body: `${item.desc} ${item.tags.join(' ')}`,
-        href: '#docs-how-it-works',
-        meta: 'How it works',
-      })),
-      ...COMPACT_WORKFLOW_GUIDES.map((item) => ({
-        id: `workflow-guide-${item.id}`,
-        type: 'workflow' as const,
-        title: item.name,
-        body: `${item.desc} ${item.cue} ${item.next}`,
-        href: `#${item.id}`,
-        meta: 'Workflow guide',
-      })),
-      ...APPLICATION_GUIDE.map((item) => ({
-        id: `application-${item.name}`,
-        type: 'application' as const,
-        title: item.name,
-        body: `${item.desc} ${item.start} ${item.type}`,
-        href: '#docs-applications',
-        meta: `Application / ${item.type}`,
-      })),
-      ...RECIPE_STARTERS.map(({ starter, mode, desc, steps }) => ({
-        id: `recipe-${starter.id}`,
-        type: 'recipe' as const,
-        title: starter.name,
-        body: `${desc} ${steps.join(' ')}`,
-        href: starterHref(starter),
-        meta: mode,
-      })),
-      ...ALL_NODES.map(nodeSearchItem),
-      ...PRACTICAL_BLEND_GUIDE.map((mode) => ({
-        id: `blend-${mode.name}`,
-        type: 'effect' as const,
-        title: mode.name,
-        body: mode.desc,
-        href: '#docs-blends',
-        meta: 'Blend mode',
-      })),
-      ...PROJECT_FILE_GUIDE.map((item) => ({
-        id: `file-${item.name}`,
-        type: 'file' as const,
-        title: item.name,
-        body: item.desc,
-        href: '#docs-project-files',
-        meta: 'Project file',
-      })),
-      ...TROUBLESHOOTING_GUIDE.map((item) => ({
-        id: `fix-${item.name}`,
-        type: 'fix' as const,
-        title: item.name,
-        body: item.desc,
-        href: '#docs-troubleshooting',
-        meta: 'Troubleshooting',
-      })),
-    ],
-    [],
-  );
   const matchingItems = useMemo(
-    () => searchItems.filter((item) => itemMatches(item, normalizedQuery, activeFilter)),
-    [activeFilter, normalizedQuery, searchItems],
+    () => DOC_SEARCH_ITEMS.filter((item) => itemMatches(item, normalizedQuery, activeFilter)),
+    [activeFilter, normalizedQuery],
   );
   const hasActiveSearch = Boolean(normalizedQuery) || activeFilter !== 'all';
   const resultLimit = hasActiveSearch ? 12 : 0;
   const filteredItems = useMemo(() => matchingItems.slice(0, resultLimit), [matchingItems, resultLimit]);
-  const catalogFilter = activeFilter === 'node' || activeFilter === 'effect' ? activeFilter : 'all';
+  const catalogFilter = docsCatalogFilter(activeFilter);
   const catalogNodes = useMemo(
     () => ALL_NODES.filter((node) => itemMatches(nodeSearchItem(node), normalizedQuery, catalogFilter)),
     [catalogFilter, normalizedQuery],
   );
-  const visibleCatalogNodes = normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;
+  const visibleCatalogNodes = visibleDocsCatalogNodes(normalizedQuery, catalogFilter, catalogNodes);
 
   return (
     <PublicPageLayout className="docs-page">
@@ -1055,101 +1361,15 @@ export default function DocsNodes() {
           </p>
         </section>
 
-        <section id="docs-search" className="docs-search-panel" aria-labelledby="docs-search-title">
-          <div className="docs-search-panel__header">
-            <div>
-              <span className="docs-guide-section__eyebrow">Docs</span>
-              <h2 id="docs-search-title">Find an answer or start here.</h2>
-            </div>
-            <span className="docs-search-count">
-              {hasActiveSearch
-                ? `${matchingItems.length} matches${matchingItems.length > filteredItems.length ? `, showing ${filteredItems.length}` : ''}`
-                : '3 start points'}
-            </span>
-          </div>
-          <label className="docs-search-box">
-            <span className="sr-only">Search docs</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search effects, export, fonts, nodes..."
-            />
-          </label>
-          <details className="docs-filter-details">
-            <summary>
-              <span>Filter results by type</span>
-              <span className="docs-filter-details__mark" aria-hidden="true">
-                +
-              </span>
-            </summary>
-            <div className="docs-type-filter" aria-label="Filter docs by type">
-              {DOC_FILTERS.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.id}
-                  className={`docs-type-filter__item${activeFilter === filter.id ? ' docs-type-filter__item--active' : ''}`}
-                  onClick={() => setActiveFilter(filter.id)}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </details>
-          {hasActiveSearch ? (
-            <div className="docs-search-results" aria-live="polite">
-              {filteredItems.length > 0 ? (
-                filteredItems.map((item) => (
-                  <DocsLink key={item.id} href={item.href} className="docs-search-result">
-                    <span className="docs-search-result__meta">{item.meta}</span>
-                    <strong>{item.title}</strong>
-                    <span>{item.body}</span>
-                  </DocsLink>
-                ))
-              ) : (
-                <p className="docs-search-empty">No matches. Try `type`, `export`, `noise`, `font`, or `nodes`.</p>
-              )}
-            </div>
-          ) : (
-            <div className="docs-start-points" aria-label="Start with">
-              {DOCS_START_POINTS.map((point) =>
-                'href' in point ? (
-                  <DocsLink key={point.id} href={point.href} className="docs-start-point">
-                    <span className="docs-start-point__action">{point.action}</span>
-                    <strong>{point.title}</strong>
-                    <span>{point.desc}</span>
-                  </DocsLink>
-                ) : (
-                  <button
-                    key={point.id}
-                    type="button"
-                    className="docs-start-point"
-                    onClick={() => {
-                      setActiveFilter('filter' in point ? point.filter : 'all');
-                      setQuery('query' in point ? point.query : '');
-                    }}
-                  >
-                    <span className="docs-start-point__action">{point.action}</span>
-                    <strong>{point.title}</strong>
-                    <span>{point.desc}</span>
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-          {hasActiveSearch && (
-            <button
-              type="button"
-              className="docs-search-reset"
-              onClick={() => {
-                setActiveFilter('all');
-                setQuery('');
-              }}
-            >
-              Clear search
-            </button>
-          )}
-        </section>
+        <DocsSearchPanel
+          query={query}
+          activeFilter={activeFilter}
+          hasActiveSearch={hasActiveSearch}
+          matchingItems={matchingItems}
+          filteredItems={filteredItems}
+          onQueryChange={setQuery}
+          onFilterChange={setActiveFilter}
+        />
 
         <nav className="docs-jump-row" aria-label="Docs sections">
           {DOCS_JUMP_LINKS.map((link) => (

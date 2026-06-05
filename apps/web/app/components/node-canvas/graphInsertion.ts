@@ -32,11 +32,30 @@ export function resolveGraphInsertionNodeCenter({
   fallbackHeight?: number;
 }): { x: number; y: number } | null {
   const node = nodesById.get(nodeId);
-  const position = node?.position ?? graph.positions[nodeId];
+  const position = graphInsertionNodePosition(node, graph, nodeId);
   if (!position) return null;
-  const width = node?.measured?.width ?? node?.width ?? fallbackWidth;
-  const height = node?.measured?.height ?? node?.height ?? fallbackHeight;
+  const width = graphInsertionNodeWidth(node, fallbackWidth);
+  const height = graphInsertionNodeHeight(node, fallbackHeight);
   return { x: position.x + width / 2, y: position.y + height / 2 };
+}
+
+function graphInsertionNodePosition(node: GraphInsertionNodeLike | undefined, graph: CanvasGraph, nodeId: string) {
+  return node?.position ?? graph.positions[nodeId];
+}
+
+function graphInsertionNodeWidth(node: GraphInsertionNodeLike | undefined, fallbackWidth: number) {
+  return firstDefinedNumber(fallbackWidth, node?.measured?.width, node?.width);
+}
+
+function graphInsertionNodeHeight(node: GraphInsertionNodeLike | undefined, fallbackHeight: number) {
+  return firstDefinedNumber(fallbackHeight, node?.measured?.height, node?.height);
+}
+
+function firstDefinedNumber(fallback: number, ...values: Array<number | undefined>) {
+  for (const value of values) {
+    if (value !== undefined) return value;
+  }
+  return fallback;
 }
 
 export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] {

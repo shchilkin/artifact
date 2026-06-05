@@ -26,6 +26,26 @@ type LayerPreviewSurfaceProps = Pick<
   onTransformWheelDelta?: (deltaY: number) => void;
 };
 
+type GalleryLayerPreviewSurfaceProps = {
+  layer: LayerNodeData['layer'];
+  previewTargetId: string;
+  selected: boolean;
+  transformActive: boolean;
+  liveImageSource: string | null;
+  mediaBgPreviewTargetId: string | null;
+  stickyTransformLayerId: string | null;
+  previewSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  hovered: boolean;
+  activateTransformSurface: () => void;
+  setHovered: (hovered: boolean) => void;
+  openGallery: (layerId: string) => void;
+  onTransformDraft?: (patch: LayerTransformPatch) => void;
+  onTransformCommit?: () => void;
+};
+
+const noopTransformPatch = () => undefined;
+const noopTransformCommit = () => undefined;
+
 function pointerAngleFromElement(e: React.PointerEvent<HTMLDivElement>): number {
   const rect = e.currentTarget.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -33,29 +53,99 @@ function pointerAngleFromElement(e: React.PointerEvent<HTMLDivElement>): number 
   return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
 }
 
+function clampTransformPosition(value: number) {
+  return Math.max(-0.5, Math.min(1.5, value));
+}
+
+function translateTransformPatch(
+  e: React.PointerEvent<HTMLDivElement>,
+  drag: NonNullable<ReturnType<typeof createDragState>>,
+): LayerTransformPatch {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const frameWidth = Math.max(1, rect.width);
+  const frameHeight = Math.max(1, rect.height);
+  const dx = e.clientX - drag.startClientX;
+  const dy = e.clientY - drag.startClientY;
+  return {
+    x: clampTransformPosition(drag.startLayerX + dx / frameWidth),
+    y: clampTransformPosition(drag.startLayerY + dy / frameHeight),
+  };
+}
+
+function rotationTransformPatch(
+  e: React.PointerEvent<HTMLDivElement>,
+  drag: NonNullable<ReturnType<typeof createDragState>>,
+): LayerTransformPatch {
+  const angle = pointerAngleFromElement(e);
+  let delta = angle - drag.startAngle;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return { rotation: drag.startRotation + delta };
+}
+
+function createDragState(
+  e: React.PointerEvent<HTMLDivElement>,
+  layer: TransformableLayer,
+  mode: 'translate' | 'rotate',
+) {
+  return {
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    startLayerX: layer.x,
+    startLayerY: layer.y,
+    startRotation: layer.rotation,
+    startAngle: mode === 'rotate' ? pointerAngleFromElement(e) : 0,
+    mode,
+  };
+}
+
 function AiGenerationPreviewOverlay({ generation }: { generation: ImageLayer['aiGeneration'] }) {
-  const state = getAiGenerationUiState(generation);
-  if (state === 'idle' || state === 'done') return null;
-  const label = getAiGenerationStatusLabel(generation) ?? 'Generating';
-  const detail = getAiGenerationStatusDetail(generation);
+  const model = aiGenerationPreviewOverlayModel(generation);
+  if (!model) return null;
   return (
-    <div className={`node-ai-status-overlay node-ai-status-${state}`} role="status" aria-live="polite">
-      {state === 'loading' && <span className="node-ai-status-spinner" aria-hidden="true" />}
-      <span className="node-ai-status-label">{label}</span>
-      {detail && <span className="node-ai-status-detail">{detail}</span>}
+    <div className={`node-ai-status-overlay node-ai-status-${model.state}`} role="status" aria-live="polite">
+      {model.loading && <span className="node-ai-status-spinner" aria-hidden="true" />}
+      <span className="node-ai-status-label">{model.label}</span>
+      {model.detail && <span className="node-ai-status-detail">{model.detail}</span>}
     </div>
   );
 }
 
+function aiGenerationPreviewOverlayModel(generation: ImageLayer['aiGeneration']) {
+  const state = getAiGenerationUiState(generation);
+  if (state === 'idle' || state === 'done') return null;
+  return {
+    state,
+    loading: state === 'loading',
+    label: getAiGenerationStatusLabel(generation) ?? 'Generating',
+    detail: getAiGenerationStatusDetail(generation),
+  };
+}
+
 function AiGenerationHistoryBadge({ layer }: { layer: ImageLayer }) {
-  const count = layer.aiGenerationHistory?.length ?? 0;
-  if (count <= 1) return null;
-  const currentIndex = Math.min(Math.max(layer.aiGenerationHistoryIndex ?? count - 1, 0), count - 1);
+  const model = aiGenerationHistoryBadgeModel(layer);
+  if (!model) return null;
   return (
-    <div className="node-ai-history-badge" aria-label={`Generated image ${currentIndex + 1} of ${count}`}>
-      {currentIndex + 1}/{count}
+    <div className="node-ai-history-badge" aria-label={`Generated image ${model.current} of ${model.count}`}>
+      {model.current}/{model.count}
     </div>
   );
+}
+
+function aiGenerationHistoryBadgeModel(layer: ImageLayer) {
+  const count = aiGenerationHistoryCount(layer);
+  if (count <= 1) return null;
+  return { count, current: aiGenerationHistoryCurrent(layer, count) };
+}
+
+function aiGenerationHistoryCount(layer: ImageLayer) {
+  return layer.aiGenerationHistory?.length ?? 0;
+}
+
+function aiGenerationHistoryCurrent(layer: ImageLayer, count: number) {
+  const fallbackIndex = count - 1;
+  const currentIndex = Math.min(Math.max(layer.aiGenerationHistoryIndex ?? fallbackIndex, 0), fallbackIndex);
+  return currentIndex + 1;
 }
 
 function DragTransformOverlay({
@@ -69,19 +159,9 @@ function DragTransformOverlay({
   onCommit: () => void;
   onStart: () => void;
 }) {
-  const dragRef = useRef<{
-    startClientX: number;
-    startClientY: number;
-    startLayerX: number;
-    startLayerY: number;
-    startRotation: number;
-    startAngle: number;
-    mode: 'translate' | 'rotate';
-  } | null>(null);
+  const dragRef = useRef<ReturnType<typeof createDragState> | null>(null);
   const [dragging, setDragging] = useState(false);
   const [rotating, setRotating] = useState(false);
-
-  const clampPosition = (value: number) => Math.max(-0.5, Math.min(1.5, value));
 
   const stopLocalGesture = (e: React.SyntheticEvent) => {
     stopNodeGestureEvent(e);
@@ -99,27 +179,10 @@ function DragTransformOverlay({
     stopLocalGesture(e);
     onStart();
     if (e.shiftKey) {
-      const angle = pointerAngleFromElement(e);
-      dragRef.current = {
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        startLayerX: layer.x,
-        startLayerY: layer.y,
-        startRotation: layer.rotation,
-        startAngle: angle,
-        mode: 'rotate',
-      };
+      dragRef.current = createDragState(e, layer, 'rotate');
       setRotating(true);
     } else {
-      dragRef.current = {
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        startLayerX: layer.x,
-        startLayerY: layer.y,
-        startRotation: layer.rotation,
-        startAngle: 0,
-        mode: 'translate',
-      };
+      dragRef.current = createDragState(e, layer, 'translate');
     }
     setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -128,23 +191,11 @@ function DragTransformOverlay({
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     stopLocalGesture(e);
     if (!dragRef.current) return;
-    const { startClientX, startClientY, startLayerX, startLayerY, startRotation, startAngle, mode } = dragRef.current;
-    if (mode === 'translate') {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const frameWidth = Math.max(1, rect.width);
-      const frameHeight = Math.max(1, rect.height);
-      const dx = e.clientX - startClientX;
-      const dy = e.clientY - startClientY;
-      const newX = clampPosition(startLayerX + dx / frameWidth);
-      const newY = clampPosition(startLayerY + dy / frameHeight);
-      onChange({ x: newX, y: newY });
-    } else {
-      const angle = pointerAngleFromElement(e);
-      let delta = angle - startAngle;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
-      onChange({ rotation: startRotation + delta });
-    }
+    const patch =
+      dragRef.current.mode === 'translate'
+        ? translateTransformPatch(e, dragRef.current)
+        : rotationTransformPatch(e, dragRef.current);
+    onChange(patch);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -206,9 +257,9 @@ function useNativeTransformWheel(
 }
 
 function useLiveImageSource(layer: LayerNodeData['layer'], imageCache: Map<string, HTMLImageElement>) {
-  const cachedSource = layer.kind === 'image' ? getLiveImageSource(layer, imageCache) : null;
+  const cachedSource = cachedLiveImageSource(layer, imageCache);
   const [resolvedSource, setResolvedSource] = useState<{ key: string; source: string | null } | null>(null);
-  const sourceKey = layer.kind === 'image' ? layer.src : '';
+  const sourceKey = liveImageSourceKey(layer);
   const shouldResolve = shouldResolveLiveImageSource(layer, cachedSource);
 
   useEffect(() => {
@@ -226,7 +277,257 @@ function useLiveImageSource(layer: LayerNodeData['layer'], imageCache: Map<strin
     };
   }, [shouldResolve, sourceKey]);
 
-  return cachedSource ?? (resolvedSource?.key === sourceKey ? resolvedSource.source : null);
+  return cachedSource ?? resolvedLiveImageSource(resolvedSource, sourceKey);
+}
+
+function cachedLiveImageSource(layer: LayerNodeData['layer'], imageCache: Map<string, HTMLImageElement>) {
+  return layer.kind === 'image' ? getLiveImageSource(layer, imageCache) : null;
+}
+
+function liveImageSourceKey(layer: LayerNodeData['layer']) {
+  return layer.kind === 'image' ? layer.src : '';
+}
+
+function resolvedLiveImageSource(resolvedSource: { key: string; source: string | null } | null, sourceKey: string) {
+  if (resolvedSource?.key !== sourceKey) return null;
+  return resolvedSource.source;
+}
+
+function isTransformableLayer(layer: LayerNodeData['layer']) {
+  return layer.kind === 'text' || layer.kind === 'image';
+}
+
+function mediaBackgroundPreviewTargetId(
+  layer: LayerNodeData['layer'],
+  graph: ReturnType<typeof useNodeCanvasPreview>['graph'],
+) {
+  if (!isTransformableLayer(layer)) return null;
+  return graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null;
+}
+
+function layerHasEffectSource(layer: LayerNodeData['layer'], graph: ReturnType<typeof useNodeCanvasPreview>['graph']) {
+  return layer.kind !== 'effect' || graph.edges.some((edge) => edge.toId === layer.id && edge.toPort === 'in');
+}
+
+function LiveTransformPreviewFrame({
+  layer,
+  previewTargetId,
+  mediaBgPreviewTargetId,
+  selected,
+  showLiveTransformOverlay,
+  liveImageSource,
+  activateTransformSurface,
+  onTransformDraft,
+  onTransformCommit,
+}: {
+  layer: LayerNodeData['layer'];
+  previewTargetId: string;
+  mediaBgPreviewTargetId: string | null;
+  selected: boolean;
+  showLiveTransformOverlay: boolean;
+  liveImageSource: string | null;
+  activateTransformSurface: () => void;
+  onTransformDraft?: (patch: LayerTransformPatch) => void;
+  onTransformCommit?: () => void;
+}) {
+  return (
+    <div className="node-live-preview-frame">
+      <LiveTransformMedia
+        layer={layer}
+        previewTargetId={previewTargetId}
+        mediaBgPreviewTargetId={mediaBgPreviewTargetId}
+        selected={selected}
+        showLiveTransformOverlay={showLiveTransformOverlay}
+        liveImageSource={liveImageSource}
+      />
+      <ImageGenerationBadges layer={layer} />
+      <TransformDragOverlay
+        layer={layer}
+        selected={selected}
+        activateTransformSurface={activateTransformSurface}
+        onTransformDraft={onTransformDraft}
+        onTransformCommit={onTransformCommit}
+      />
+    </div>
+  );
+}
+
+function LiveTransformMedia({
+  layer,
+  previewTargetId,
+  mediaBgPreviewTargetId,
+  selected,
+  showLiveTransformOverlay,
+  liveImageSource,
+}: {
+  layer: LayerNodeData['layer'];
+  previewTargetId: string;
+  mediaBgPreviewTargetId: string | null;
+  selected: boolean;
+  showLiveTransformOverlay: boolean;
+  liveImageSource: string | null;
+}) {
+  if (!showLiveTransformOverlay) return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  return (
+    <>
+      {mediaBgPreviewTargetId ? <NodeThumbnail previewTargetId={mediaBgPreviewTargetId} /> : <EmptyThumbnailFrame />}
+      <LiveMediaOverlay layer={layer} imageSrc={liveImageSource} />
+    </>
+  );
+}
+
+function ImageGenerationBadges({ layer }: { layer: LayerNodeData['layer'] }) {
+  if (layer.kind !== 'image') return null;
+  return (
+    <>
+      <AiGenerationPreviewOverlay generation={layer.aiGeneration} />
+      <AiGenerationHistoryBadge layer={layer} />
+    </>
+  );
+}
+
+function TransformDragOverlay({
+  layer,
+  selected,
+  activateTransformSurface,
+  onTransformDraft,
+  onTransformCommit,
+}: {
+  layer: LayerNodeData['layer'];
+  selected: boolean;
+  activateTransformSurface: () => void;
+  onTransformDraft?: (patch: LayerTransformPatch) => void;
+  onTransformCommit?: () => void;
+}) {
+  if (!shouldShowTransformDragOverlay(layer, selected)) return null;
+  return (
+    <DragTransformOverlay
+      layer={layer}
+      onChange={onTransformDraft ?? noopTransformPatch}
+      onCommit={onTransformCommit ?? noopTransformCommit}
+      onStart={activateTransformSurface}
+    />
+  );
+}
+
+function shouldShowTransformDragOverlay(layer: LayerNodeData['layer'], selected: boolean) {
+  return selected && isTransformableLayer(layer);
+}
+
+function galleryPreviewClassName(isDraggable: boolean, selected: boolean) {
+  return `node-preview-surface nodrag nopan${isDraggable && selected ? ' nowheel' : ''}`;
+}
+
+function shouldShowLiveTransformOverlay({
+  layer,
+  selected,
+  transformActive,
+  stickyTransformLayerId,
+  liveImageSource,
+}: {
+  layer: LayerNodeData['layer'];
+  selected: boolean;
+  transformActive: boolean;
+  stickyTransformLayerId: string | null;
+  liveImageSource: string | null;
+}) {
+  if (!isTransformableLayer(layer)) return false;
+  return shouldUseLiveMediaOverlay({
+    layer,
+    selected,
+    transformActive: transformActive || stickyTransformLayerId === layer.id,
+    liveImageSource,
+  });
+}
+
+function primitiveLayerPreviewSurface({
+  layer,
+  selected,
+  primitiveViewState,
+  primitiveRenderMode,
+}: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected' | 'primitiveViewState' | 'primitiveRenderMode'>) {
+  if (layer.kind !== 'primitive') return null;
+  return (
+    <PrimitivePreviewSurface
+      layer={layer}
+      selected={selected}
+      primitiveViewState={primitiveViewState}
+      primitiveRenderMode={primitiveRenderMode}
+    />
+  );
+}
+
+function GalleryLayerPreviewSurface({
+  layer,
+  previewTargetId,
+  selected,
+  transformActive,
+  liveImageSource,
+  mediaBgPreviewTargetId,
+  stickyTransformLayerId,
+  previewSurfaceRef,
+  hovered,
+  activateTransformSurface,
+  setHovered,
+  openGallery,
+  onTransformDraft,
+  onTransformCommit,
+}: GalleryLayerPreviewSurfaceProps) {
+  const isDraggable = isTransformableLayer(layer);
+  const showLiveTransformOverlay = shouldShowLiveTransformOverlay({
+    layer,
+    selected,
+    transformActive,
+    stickyTransformLayerId,
+    liveImageSource,
+  });
+  return (
+    <div
+      ref={previewSurfaceRef}
+      className={galleryPreviewClassName(isDraggable, selected)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <LiveTransformPreviewFrame
+        layer={layer}
+        previewTargetId={previewTargetId}
+        mediaBgPreviewTargetId={mediaBgPreviewTargetId}
+        selected={selected}
+        showLiveTransformOverlay={showLiveTransformOverlay}
+        liveImageSource={liveImageSource}
+        activateTransformSurface={activateTransformSurface}
+        onTransformDraft={onTransformDraft}
+        onTransformCommit={onTransformCommit}
+      />
+      <button
+        type="button"
+        className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
+        onClick={(event) => {
+          stopNodeEvent(event);
+          openGallery(layer.id);
+        }}
+        aria-label="Open preview"
+      >
+        View
+      </button>
+    </div>
+  );
+}
+
+function defaultLayerPreviewSurface({
+  effectHasSource,
+  previewTargetId,
+  selected,
+}: {
+  effectHasSource: boolean;
+  previewTargetId: string;
+  selected: boolean;
+}) {
+  return effectHasSource ? (
+    <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+  ) : (
+    <EmptyThumbnailFrame label="Connect source" />
+  );
 }
 
 export const LayerPreviewSurface = memo(function LayerPreviewSurface({
@@ -244,7 +545,6 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const { openGallery } = useNodeCanvasActions();
   const [hovered, setHovered] = useState(false);
   const previewSurfaceRef = useRef<HTMLDivElement>(null);
-  const isDraggableLayer = layer.kind === 'text' || layer.kind === 'image';
   const [stickyTransformLayerId, setStickyTransformLayerId] = useState<string | null>(null);
   const liveImageSource = useLiveImageSource(layer, imageCache);
   const activateTransformSurface = useCallback(() => setStickyTransformLayerId(layer.id), [layer.id]);
@@ -255,89 +555,32 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
     },
     [activateTransformSurface, onTransformWheelDelta],
   );
-  useNativeTransformWheel(previewSurfaceRef, isDraggableLayer && selected, handleTransformWheelDelta);
+  useNativeTransformWheel(previewSurfaceRef, isTransformableLayer(layer) && selected, handleTransformWheelDelta);
 
-  const mediaBgPreviewTargetId = useMemo(
-    () =>
-      layer.kind === 'text' || layer.kind === 'image'
-        ? (graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null)
-        : null,
-    [graph.edges, layer.id, layer.kind],
-  );
-  const effectHasSource = useMemo(
-    () => layer.kind !== 'effect' || graph.edges.some((edge) => edge.toId === layer.id && edge.toPort === 'in'),
-    [graph.edges, layer.id, layer.kind],
-  );
+  const mediaBgPreviewTargetId = useMemo(() => mediaBackgroundPreviewTargetId(layer, graph), [graph, layer]);
+  const effectHasSource = useMemo(() => layerHasEffectSource(layer, graph), [graph, layer]);
 
-  if (layer.kind === 'primitive') {
+  const primitiveSurface = primitiveLayerPreviewSurface({ layer, selected, primitiveViewState, primitiveRenderMode });
+  if (primitiveSurface) return primitiveSurface;
+  if (isGalleryEligibleLayer(layer)) {
     return (
-      <PrimitivePreviewSurface
+      <GalleryLayerPreviewSurface
         layer={layer}
+        previewTargetId={previewTargetId}
         selected={selected}
-        primitiveViewState={primitiveViewState}
-        primitiveRenderMode={primitiveRenderMode}
+        transformActive={transformActive}
+        liveImageSource={liveImageSource}
+        mediaBgPreviewTargetId={mediaBgPreviewTargetId}
+        stickyTransformLayerId={stickyTransformLayerId}
+        previewSurfaceRef={previewSurfaceRef}
+        hovered={hovered}
+        activateTransformSurface={activateTransformSurface}
+        setHovered={setHovered}
+        openGallery={openGallery}
+        onTransformDraft={onTransformDraft}
+        onTransformCommit={onTransformCommit}
       />
     );
   }
-
-  if (isGalleryEligibleLayer(layer)) {
-    const isDraggable = layer.kind === 'text' || layer.kind === 'image';
-    const keepLiveTransformSurface = transformActive || stickyTransformLayerId === layer.id;
-    const showLiveTransformOverlay =
-      isDraggable &&
-      shouldUseLiveMediaOverlay({
-        layer,
-        selected,
-        transformActive: keepLiveTransformSurface,
-        liveImageSource,
-      });
-    return (
-      <div
-        ref={previewSurfaceRef}
-        className={`node-preview-surface nodrag nopan${isDraggable && selected ? ' nowheel' : ''}`}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        <div className="node-live-preview-frame">
-          {showLiveTransformOverlay ? (
-            <>
-              {mediaBgPreviewTargetId ? (
-                <NodeThumbnail previewTargetId={mediaBgPreviewTargetId} />
-              ) : (
-                <EmptyThumbnailFrame />
-              )}
-              <LiveMediaOverlay layer={layer} imageSrc={liveImageSource} />
-            </>
-          ) : (
-            <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
-          )}
-          {layer.kind === 'image' && <AiGenerationPreviewOverlay generation={layer.aiGeneration} />}
-          {layer.kind === 'image' && <AiGenerationHistoryBadge layer={layer} />}
-          {isDraggable && selected && (
-            <DragTransformOverlay
-              layer={layer}
-              onChange={onTransformDraft ?? (() => undefined)}
-              onCommit={onTransformCommit ?? (() => undefined)}
-              onStart={activateTransformSurface}
-            />
-          )}
-        </div>
-        <button
-          type="button"
-          className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
-          onClick={(event) => {
-            stopNodeEvent(event);
-            openGallery(layer.id);
-          }}
-          aria-label="Open preview"
-        >
-          View
-        </button>
-      </div>
-    );
-  }
-
-  if (!effectHasSource) return <EmptyThumbnailFrame label="Connect source" />;
-
-  return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  return defaultLayerPreviewSurface({ effectHasSource, previewTargetId, selected });
 });

@@ -205,9 +205,8 @@ async function measureScenario(page, name, action) {
 }
 
 async function readScenarioMetrics(page, name, durationOverride) {
-  return page.evaluate(
+  const raw = await page.evaluate(
     ({
-      scenarioName,
       durationMs,
       thumbnailMeasure,
       thumbnailPreloadMeasure,
@@ -222,62 +221,22 @@ async function readScenarioMetrics(page, name, durationOverride) {
       gpuFilterExtractMeasure,
     }) => {
       const perf = window.__artifactPerf;
-      perf?.stopFrames();
-      const frameDeltas = perf?.frameDeltas ?? [];
-      const longTasks = perf?.longTasks ?? [];
-      const thumbnailDurations = performance
-        .getEntriesByName(thumbnailMeasure)
-        .map((entry) => entry.duration)
-        .filter((duration) => duration > 0);
-      const thumbnailPreloadDurations = performance
-        .getEntriesByName(thumbnailPreloadMeasure)
-        .map((entry) => entry.duration)
-        .filter((duration) => duration > 0);
-      const thumbnailGraphRenderDurations = performance
-        .getEntriesByName(thumbnailGraphRenderMeasure)
-        .map((entry) => entry.duration)
-        .filter((duration) => duration > 0);
-      const thumbnailDrawDurations = performance
-        .getEntriesByName(thumbnailDrawMeasure)
-        .map((entry) => entry.duration)
-        .filter((duration) => duration > 0);
-      const documentRenderDurations = performance
-        .getEntriesByName(documentRenderMeasure)
-        .map((entry) => entry.duration)
-        .filter((duration) => duration > 0);
-      const layerRenderEntries = performance
-        .getEntriesByType('measure')
-        .filter((entry) => entry.name.startsWith(`${layerRenderMeasurePrefix}:`));
-      const gpuRenderDurations = measureDurations(gpuRenderMeasure);
-      const gpuQueueWaitDurations = measureDurations(gpuQueueWaitMeasure);
-      const gpuUploadDurations = measureDurations(gpuUploadMeasure);
-      const gpuBlitDurations = measureDurations(gpuBlitMeasure);
-      const gpuFilterExtractDurations = measureDurations(gpuFilterExtractMeasure);
+      if (perf) perf.stopFrames();
+      const perfValues = scenarioPerfValues(perf, durationMs);
 
       return {
-        name: scenarioName,
-        durationMs: round(durationMs ?? perf?.elapsedMs() ?? 0),
-        frames: summarize(frameDeltas),
-        longTasks: {
-          count: longTasks.length,
-          totalMs: round(longTasks.reduce((total, task) => total + task.duration, 0)),
-          maxMs: round(Math.max(0, ...longTasks.map((task) => task.duration))),
-        },
-        thumbnails: summarize(thumbnailDurations),
-        thumbnailPhases: {
-          preload: summarize(thumbnailPreloadDurations),
-          graphRender: summarize(thumbnailGraphRenderDurations),
-          draw: summarize(thumbnailDrawDurations),
-        },
-        documentRenders: summarize(documentRenderDurations),
-        layerRenders: summarizeLayerMeasures(layerRenderEntries),
-        gpuRenders: summarize(gpuRenderDurations),
-        gpuPhases: {
-          queueWait: summarize(gpuQueueWaitDurations),
-          upload: summarize(gpuUploadDurations),
-          blit: summarize(gpuBlitDurations),
-          filterExtract: summarize(gpuFilterExtractDurations),
-        },
+        ...perfValues,
+        thumbnails: measureDurations(thumbnailMeasure),
+        thumbnailPreload: measureDurations(thumbnailPreloadMeasure),
+        thumbnailGraphRender: measureDurations(thumbnailGraphRenderMeasure),
+        thumbnailDraw: measureDurations(thumbnailDrawMeasure),
+        documentRenders: measureDurations(documentRenderMeasure),
+        layerRenders: layerMeasureDurations(layerRenderMeasurePrefix),
+        gpuRenders: measureDurations(gpuRenderMeasure),
+        gpuQueueWait: measureDurations(gpuQueueWaitMeasure),
+        gpuUpload: measureDurations(gpuUploadMeasure),
+        gpuBlit: measureDurations(gpuBlitMeasure),
+        gpuFilterExtract: measureDurations(gpuFilterExtractMeasure),
       };
 
       function measureDurations(measureName) {
@@ -287,47 +246,28 @@ async function readScenarioMetrics(page, name, durationOverride) {
           .filter((duration) => duration > 0);
       }
 
-      function summarize(values) {
-        const sorted = [...values].sort((a, b) => a - b);
-        const total = sorted.reduce((sum, value) => sum + value, 0);
-        return {
-          count: sorted.length,
-          totalMs: round(total),
-          avgMs: round(sorted.length ? total / sorted.length : 0),
-          p95Ms: round(percentile(sorted, 0.95)),
-          maxMs: round(sorted.at(-1) ?? 0),
-        };
+      function layerMeasureDurations(measurePrefix) {
+        return performance
+          .getEntriesByType('measure')
+          .filter((entry) => entry.name.startsWith(`${measurePrefix}:`))
+          .map((entry) => ({
+            label: entry.name.slice(`${measurePrefix}:`.length),
+            duration: entry.duration,
+          }));
       }
 
-      function percentile(sorted, p) {
-        if (!sorted.length) return 0;
-        return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)];
-      }
-
-      function summarizeLayerMeasures(entries) {
-        const byName = new Map();
-        for (const entry of entries) {
-          const label = entry.name.slice(`${layerRenderMeasurePrefix}:`.length);
-          const bucket = byName.get(label) ?? [];
-          bucket.push(entry.duration);
-          byName.set(label, bucket);
+      function scenarioPerfValues(perfState, measuredDurationMs) {
+        if (!perfState) {
+          return { durationMs: measuredDurationMs ?? 0, frameDeltas: [], longTaskDurations: [] };
         }
-
-        return [...byName.entries()]
-          .map(([label, values]) => ({
-            label,
-            ...summarize(values),
-          }))
-          .sort((a, b) => b.totalMs - a.totalMs)
-          .slice(0, 8);
-      }
-
-      function round(value) {
-        return Math.round(value * 10) / 10;
+        return {
+          durationMs: measuredDurationMs ?? perfState.elapsedMs(),
+          frameDeltas: perfState.frameDeltas,
+          longTaskDurations: perfState.longTasks.map((task) => task.duration),
+        };
       }
     },
     {
-      scenarioName: name,
       durationMs: durationOverride,
       thumbnailMeasure: THUMBNAIL_MEASURE,
       thumbnailPreloadMeasure: THUMBNAIL_PRELOAD_MEASURE,
@@ -342,28 +282,109 @@ async function readScenarioMetrics(page, name, durationOverride) {
       gpuFilterExtractMeasure: GPU_FILTER_EXTRACT_MEASURE,
     },
   );
+  return buildScenarioMetrics(name, raw);
+}
+
+function buildScenarioMetrics(name, raw) {
+  return {
+    name,
+    durationMs: round(raw.durationMs),
+    frames: summarizeDurations(raw.frameDeltas),
+    longTasks: summarizeLongTasks(raw.longTaskDurations),
+    thumbnails: summarizeDurations(raw.thumbnails),
+    thumbnailPhases: {
+      preload: summarizeDurations(raw.thumbnailPreload),
+      graphRender: summarizeDurations(raw.thumbnailGraphRender),
+      draw: summarizeDurations(raw.thumbnailDraw),
+    },
+    documentRenders: summarizeDurations(raw.documentRenders),
+    layerRenders: summarizeLayerMeasures(raw.layerRenders),
+    gpuRenders: summarizeDurations(raw.gpuRenders),
+    gpuPhases: {
+      queueWait: summarizeDurations(raw.gpuQueueWait),
+      upload: summarizeDurations(raw.gpuUpload),
+      blit: summarizeDurations(raw.gpuBlit),
+      filterExtract: summarizeDurations(raw.gpuFilterExtract),
+    },
+  };
+}
+
+function summarizeLongTasks(durations) {
+  return {
+    count: durations.length,
+    totalMs: round(durations.reduce((total, duration) => total + duration, 0)),
+    maxMs: round(Math.max(0, ...durations)),
+  };
+}
+
+function summarizeDurations(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const total = sorted.reduce((sum, value) => sum + value, 0);
+  return {
+    count: sorted.length,
+    totalMs: round(total),
+    avgMs: round(sorted.length ? total / sorted.length : 0),
+    p95Ms: round(percentile(sorted, 0.95)),
+    maxMs: round(sorted.at(-1) ?? 0),
+  };
+}
+
+function percentile(sorted, p) {
+  if (!sorted.length) return 0;
+  return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)];
+}
+
+function summarizeLayerMeasures(entries) {
+  const byName = new Map();
+  for (const entry of entries) {
+    const bucket = byName.get(entry.label) ?? [];
+    bucket.push(entry.duration);
+    byName.set(entry.label, bucket);
+  }
+
+  return [...byName.entries()]
+    .map(([label, values]) => ({
+      label,
+      ...summarizeDurations(values),
+    }))
+    .sort((a, b) => b.totalMs - a.totalMs)
+    .slice(0, 8);
+}
+
+function round(value) {
+  return Math.round(value * 10) / 10;
 }
 
 async function switchToNodeView(page) {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodeButtons = page.locator('[aria-label="Switch to nodes view"], [role="tab"]', { hasText: /^nodes$/i });
-    const count = await nodeButtons.count();
-    for (let index = 0; index < count; index += 1) {
-      const button = nodeButtons.nth(index);
-      if (!(await button.isVisible())) continue;
-      await button.click();
-      try {
-        await page.locator('.node-canvas-root').waitFor({ timeout: 2_000 });
-        return;
-      } catch {
-        // Vite can reload once after dependency optimization; retry against the fresh page.
-      }
-    }
+    if (await clickVisibleNodeToggle(page)) return;
     await page.waitForTimeout(250);
   }
   throw new Error('Could not find a visible nodes view toggle');
+}
+
+async function clickVisibleNodeToggle(page) {
+  const nodeButtons = page.locator('[aria-label="Switch to nodes view"], [role="tab"]', { hasText: /^nodes$/i });
+  const count = await nodeButtons.count();
+  for (let index = 0; index < count; index += 1) {
+    const button = nodeButtons.nth(index);
+    if (!(await button.isVisible())) continue;
+    await button.click();
+    if (await waitForNodeCanvasAfterToggle(page)) return true;
+  }
+  return false;
+}
+
+async function waitForNodeCanvasAfterToggle(page) {
+  try {
+    await page.locator('.node-canvas-root').waitFor({ timeout: 2_000 });
+    return true;
+  } catch {
+    // Vite can reload once after dependency optimization; retry against the fresh page.
+    return false;
+  }
 }
 
 async function dragNodeHeader(page, nodeId, deltaX, deltaY) {

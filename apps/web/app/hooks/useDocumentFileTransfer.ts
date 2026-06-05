@@ -31,6 +31,53 @@ export function isArtifactDocumentFile(file: File) {
   );
 }
 
+function isProjectPackageDocumentFile(file: File) {
+  return file.name.endsWith(ARTIFACT_PROJECT_PACKAGE_EXTENSION) || file.type === ARTIFACT_PROJECT_PACKAGE_MIME;
+}
+
+function documentFileSizeLimit(file: File) {
+  return isProjectPackageDocumentFile(file) ? MAX_PROJECT_PACKAGE_BYTES : MAX_DOCUMENT_BYTES;
+}
+
+async function loadProjectPackageDocument(fileText: string): Promise<CanvasDocument | null> {
+  const projectPackage = parseArtifactProjectPackage(fileText);
+  return projectPackage ? importArtifactProjectPackage(projectPackage) : null;
+}
+
+async function loadArtifactJsonDocument(fileText: string): Promise<CanvasDocument | null> {
+  const importedDoc = parseArtifactDocument(fileText);
+  return importedDoc ? storePortableDocumentAssets(importedDoc) : null;
+}
+
+function validateDocumentFile(file: File): string | null {
+  if (!isArtifactDocumentFile(file)) {
+    return `Choose an ${ARTIFACT_FILE_EXTENSION} or ${ARTIFACT_PROJECT_PACKAGE_EXTENSION} file.`;
+  }
+  const maxBytes = documentFileSizeLimit(file);
+  return file.size > maxBytes ? `Document too large - max ${maxBytes / 1024 / 1024}MB` : null;
+}
+
+async function loadDocumentFromFile(file: File): Promise<{ doc: CanvasDocument | null; error: string | null }> {
+  const isProjectPackage = isProjectPackageDocumentFile(file);
+  const fileText = await file.text();
+  const doc = isProjectPackage ? await loadProjectPackageDocument(fileText) : await loadArtifactJsonDocument(fileText);
+  if (doc) return { doc, error: null };
+  return {
+    doc: null,
+    error: isProjectPackage ? 'Could not read project package.' : 'Could not read document JSON.',
+  };
+}
+
+async function readDocumentFileResult(file: File): Promise<{ doc: CanvasDocument | null; error: string | null }> {
+  const validationError = validateDocumentFile(file);
+  if (validationError) return { doc: null, error: validationError };
+  try {
+    return await loadDocumentFromFile(file);
+  } catch {
+    return { doc: null, error: 'Could not read document file.' };
+  }
+}
+
 export function useDocumentFileTransfer(
   docRef: MutableRefObject<CanvasDocument>,
   onLoadDocument: (doc: CanvasDocument) => void,
@@ -87,41 +134,13 @@ export function useDocumentFileTransfer(
   const handleOpenDocument = useCallback(
     async (file: File | null | undefined) => {
       if (!file) return;
-      if (!isArtifactDocumentFile(file)) {
-        showDocumentFileError(`Choose an ${ARTIFACT_FILE_EXTENSION} or ${ARTIFACT_PROJECT_PACKAGE_EXTENSION} file.`);
+      const result = await readDocumentFileResult(file);
+      if (!result.doc) {
+        showDocumentFileError(result.error ?? 'Could not read document file.');
         return;
       }
-      const isProjectPackage =
-        file.name.endsWith(ARTIFACT_PROJECT_PACKAGE_EXTENSION) || file.type === ARTIFACT_PROJECT_PACKAGE_MIME;
-      const maxBytes = isProjectPackage ? MAX_PROJECT_PACKAGE_BYTES : MAX_DOCUMENT_BYTES;
-      if (file.size > maxBytes) {
-        showDocumentFileError(`Document too large - max ${maxBytes / 1024 / 1024}MB`);
-        return;
-      }
-
-      try {
-        const fileText = await file.text();
-        if (isProjectPackage) {
-          const projectPackage = parseArtifactProjectPackage(fileText);
-          if (!projectPackage) {
-            showDocumentFileError('Could not read project package.');
-            return;
-          }
-          onLoadDocument(await importArtifactProjectPackage(projectPackage));
-          setDocumentFileError(null);
-          return;
-        }
-
-        const importedDoc = parseArtifactDocument(fileText);
-        if (!importedDoc) {
-          showDocumentFileError('Could not read document JSON.');
-          return;
-        }
-        onLoadDocument(await storePortableDocumentAssets(importedDoc));
-        setDocumentFileError(null);
-      } catch {
-        showDocumentFileError('Could not read document file.');
-      }
+      onLoadDocument(result.doc);
+      setDocumentFileError(null);
     },
     [onLoadDocument, showDocumentFileError],
   );

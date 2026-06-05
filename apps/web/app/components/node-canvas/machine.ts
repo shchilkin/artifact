@@ -28,6 +28,17 @@ function computeNextNodeIds(current: string[], id: string | null, additive: bool
   return current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
 }
 
+function expandedNodeIdAfterSelection(
+  currentExpandedId: string | null,
+  selectedNodeIds: string[],
+  id: string,
+  additive: boolean,
+) {
+  if (!currentExpandedId) return null;
+  const next = additive ? computeNextNodeIds(selectedNodeIds, id, true) : [id];
+  return next.includes(currentExpandedId) ? currentExpandedId : null;
+}
+
 // ---------------------------------------------------------------------------
 // Machine
 // ---------------------------------------------------------------------------
@@ -72,11 +83,7 @@ export const nodeCanvasMachine = setup({
       selectedEdgeId: null,
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'NODE_SELECTED') return context.expandedNodeId;
-        if (event.additive) {
-          const next = computeNextNodeIds(context.selectedNodeIds, event.id, true);
-          return context.expandedNodeId && next.includes(context.expandedNodeId) ? context.expandedNodeId : null;
-        }
-        return context.expandedNodeId === event.id ? context.expandedNodeId : null;
+        return expandedNodeIdAfterSelection(context.expandedNodeId, context.selectedNodeIds, event.id, event.additive);
       },
     }),
 

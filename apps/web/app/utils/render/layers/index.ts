@@ -253,6 +253,234 @@ async function applyImageDataTransforms(
   ctx.putImageData(output, 0, 0);
 }
 
+function applyRayEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, rng: () => number) {
+  if (layer.rayInt <= 0 || layer.rays <= 0) return;
+  const cx = W / 2;
+  const cy = H / 2;
+  const diagonal = Math.sqrt(W * W + H * H);
+  const r = parseInt(layer.rayColor.slice(1, 3), 16);
+  const g = parseInt(layer.rayColor.slice(3, 5), 16);
+  const b = parseInt(layer.rayColor.slice(5, 7), 16);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < layer.rays; i++) {
+    const baseAngle = (i / layer.rays) * Math.PI * 2;
+    const spread = (rng() - 0.5) * 0.6;
+    const angle = baseAngle + spread;
+    const width = (0.01 + rng() * 0.08) * diagonal;
+    const alpha = (layer.rayInt / 100) * (0.2 + rng() * 0.55);
+    const ex = cx + Math.cos(angle) * diagonal;
+    const ey = cy + Math.sin(angle) * diagonal;
+    const grad = ctx.createLinearGradient(cx, cy, ex, ey);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    const perpAngle = angle + Math.PI / 2;
+    const halfW = width / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(ex + Math.cos(perpAngle) * halfW, ey + Math.sin(perpAngle) * halfW);
+    ctx.lineTo(ex - Math.cos(perpAngle) * halfW, ey - Math.sin(perpAngle) * halfW);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function glitchFillStyle(index: number, opacity: number): string {
+  return index % 2 === 0 ? `rgba(0,210,255,${opacity})` : `rgba(255,0,200,${opacity})`;
+}
+
+function applyGlitchEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  scale: number,
+  rng: () => number,
+) {
+  if (layer.glitch <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < layer.glitch; i++) {
+    const y = rng() * H;
+    const h = (1 + rng() * 3) * scale;
+    const x = rng() * W * 0.3;
+    const w = W * (0.3 + rng() * 0.7);
+    const opacity = 0.12 + rng() * 0.25;
+    ctx.fillStyle = glitchFillStyle(i, opacity);
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.restore();
+}
+
+function applyTintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
+  if (layer.tintOp <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = layer.tintOp / 100;
+  ctx.fillStyle = layer.tint;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+async function applyColorPassEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  scale: number,
+) {
+  const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
+  if (!needsPixelPass) return;
+  await applyImageDataTransforms(ctx, W, H, [
+    {
+      type: 'colorPass',
+      sepia: layer.sepia,
+      infrared: layer.infrared,
+      ca: Math.round(layer.ca * scale),
+      dither: layer.dither,
+    },
+  ]);
+}
+
+async function applySingleImageDataTransform(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  enabled: boolean,
+  operation: EffectPixelTransformOp,
+) {
+  if (!enabled) return;
+  await applyImageDataTransforms(ctx, W, H, [operation]);
+}
+
+function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
+  if (layer.zoomBlur <= 0) return;
+  const snapshot = createCanvas(W, H);
+  const sctx = snapshot.getContext('2d')!;
+  sctx.drawImage(ctx.canvas, 0, 0);
+  const steps = 8;
+  const maxScale = 1 + (layer.zoomBlur / 100) * 0.18;
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    const s = 1 + (maxScale - 1) * t;
+    ctx.globalAlpha = 1 / steps;
+    ctx.drawImage(snapshot, ((1 - s) * W) / 2, ((1 - s) * H) / 2, W * s, H * s);
+  }
+  ctx.restore();
+}
+
+function applyNeonGlowEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
+  if (layer.neonGlow <= 0) return;
+  const r6 = parseInt(layer.neonColor.slice(1, 3), 16);
+  const g6 = parseInt(layer.neonColor.slice(3, 5), 16);
+  const b6 = parseInt(layer.neonColor.slice(5, 7), 16);
+  const srcData = ctx.getImageData(0, 0, W, H);
+  const sd = srcData.data;
+  const bright = createCanvas(W, H);
+  const bctx = bright.getContext('2d')!;
+  const bid = bctx.createImageData(W, H);
+  const bd = bid.data;
+  for (let i = 0; i < sd.length; i += 4) {
+    const lum = 0.299 * sd[i] + 0.587 * sd[i + 1] + 0.114 * sd[i + 2];
+    const t = Math.max(0, (lum - 120) / 135);
+    bd[i] = Math.round(r6 * t);
+    bd[i + 1] = Math.round(g6 * t);
+    bd[i + 2] = Math.round(b6 * t);
+    bd[i + 3] = Math.round(255 * t);
+  }
+  bctx.putImageData(bid, 0, 0);
+  const glow = createCanvas(W, H);
+  const gctx = glow.getContext('2d')!;
+  const blurPx = Math.round((layer.neonGlow / 100) * 18 * scale);
+  gctx.filter = `blur(${blurPx}px)`;
+  gctx.drawImage(bright, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(1, (layer.neonGlow / 100) * 1.4);
+  ctx.drawImage(glow, 0, 0);
+  ctx.restore();
+}
+
+function createOverprintPlate(
+  W: number,
+  H: number,
+  sourceData: Uint8ClampedArray,
+  shiftX: number,
+  shiftY: number,
+  color: [number, number, number],
+): HTMLCanvasElement {
+  const c = createCanvas(W, H);
+  const pctx = c.getContext('2d')!;
+  const pid = pctx.createImageData(W, H);
+  const pd = pid.data;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const oi = (y * W + x) * 4;
+      const sx = Math.min(W - 1, Math.max(0, x + shiftX));
+      const sy = Math.min(H - 1, Math.max(0, y + shiftY));
+      const si = (sy * W + sx) * 4;
+      const lum = 0.299 * sourceData[si] + 0.587 * sourceData[si + 1] + 0.114 * sourceData[si + 2];
+      pd[oi] = color[0];
+      pd[oi + 1] = color[1];
+      pd[oi + 2] = color[2];
+      pd[oi + 3] = Math.round(255 - lum);
+    }
+  }
+  pctx.putImageData(pid, 0, 0);
+  return c;
+}
+
+function applyOverprintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
+  if (layer.overprint <= 0) return;
+  const shift = Math.round(layer.overprint * scale * 0.12);
+  const sourceData = ctx.getImageData(0, 0, W, H).data;
+  const cyan = createOverprintPlate(W, H, sourceData, shift, 0, [0, 255, 255]);
+  const magenta = createOverprintPlate(W, H, sourceData, -shift, shift, [255, 0, 255]);
+  const yellow = createOverprintPlate(W, H, sourceData, 0, -shift, [255, 255, 0]);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = (layer.overprint / 100) * 0.7;
+  ctx.drawImage(cyan, 0, 0);
+  ctx.drawImage(magenta, 0, 0);
+  ctx.drawImage(yellow, 0, 0);
+  ctx.restore();
+}
+
+function applySpeedLinesEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  seed: number,
+  scale: number,
+) {
+  if (layer.speedLines <= 0) return;
+  const cx = W / 2;
+  const cy = H / 2;
+  const diagonal = Math.sqrt(W * W + H * H);
+  const count = Math.round(layer.speedLines * 0.8 + 20);
+  const slRng = lcg(seed * 5523);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < count; i++) {
+    const angle = slRng() * Math.PI * 2;
+    const length = diagonal * (0.4 + slRng() * 0.6);
+    const alpha = (layer.speedLines / 100) * (0.05 + slRng() * 0.2);
+    ctx.lineWidth = (0.5 + slRng() * 1.5) * scale;
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -262,250 +490,70 @@ async function applyCanvas2DEffects(
   scale: number,
   rng: () => number,
 ) {
-  if (layer.rayInt > 0 && layer.rays > 0) {
-    const cx = W / 2;
-    const cy = H / 2;
-    const diagonal = Math.sqrt(W * W + H * H);
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < layer.rays; i++) {
-      const baseAngle = (i / layer.rays) * Math.PI * 2;
-      const spread = (rng() - 0.5) * 0.6;
-      const angle = baseAngle + spread;
-      const width = (0.01 + rng() * 0.08) * diagonal;
-      const alpha = (layer.rayInt / 100) * (0.2 + rng() * 0.55);
-      const ex = cx + Math.cos(angle) * diagonal;
-      const ey = cy + Math.sin(angle) * diagonal;
-      const r = parseInt(layer.rayColor.slice(1, 3), 16);
-      const g = parseInt(layer.rayColor.slice(3, 5), 16);
-      const b = parseInt(layer.rayColor.slice(5, 7), 16);
-      const grad = ctx.createLinearGradient(cx, cy, ex, ey);
-      grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
-      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-      const perpAngle = angle + Math.PI / 2;
-      const halfW = width / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(ex + Math.cos(perpAngle) * halfW, ey + Math.sin(perpAngle) * halfW);
-      ctx.lineTo(ex - Math.cos(perpAngle) * halfW, ey - Math.sin(perpAngle) * halfW);
-      ctx.closePath();
-      ctx.fillStyle = grad;
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  if (layer.glitch > 0) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < layer.glitch; i++) {
-      const y = rng() * H;
-      const h = (1 + rng() * 3) * scale;
-      const x = rng() * W * 0.3;
-      const w = W * (0.3 + rng() * 0.7);
-      const opacity = 0.12 + rng() * 0.25;
-      ctx.fillStyle = i % 2 === 0 ? `rgba(0,210,255,${opacity})` : `rgba(255,0,200,${opacity})`;
-      ctx.fillRect(x, y, w, h);
-    }
-    ctx.restore();
-  }
-
-  if (layer.rgbSplit > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'rgbSplit', amount: Math.round(layer.rgbSplit * scale) }]);
-  }
+  applyRayEffect(ctx, W, H, layer, rng);
+  applyGlitchEffect(ctx, W, H, layer, scale, rng);
+  await applySingleImageDataTransform(ctx, W, H, layer.rgbSplit > 0, {
+    type: 'rgbSplit',
+    amount: Math.round(layer.rgbSplit * scale),
+  });
 
   applyScanlines(ctx, W, H, layer, scale);
   applyGrain(ctx, W, H, layer, seed);
-
-  if (layer.tintOp > 0) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = layer.tintOp / 100;
-    ctx.fillStyle = layer.tint;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  }
-
-  const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
-  if (needsPixelPass) {
-    await applyImageDataTransforms(ctx, W, H, [
-      {
-        type: 'colorPass',
-        sepia: layer.sepia,
-        infrared: layer.infrared,
-        ca: Math.round(layer.ca * scale),
-        dither: layer.dither,
-      },
-    ]);
-  }
-
-  if (layer.vhsTracking > 0) {
-    await applyImageDataTransforms(ctx, W, H, [
-      { type: 'vhsTracking', amount: layer.vhsTracking, seed: seed ^ 0x1a2b3c },
-    ]);
-  }
+  applyTintEffect(ctx, W, H, layer);
+  await applyColorPassEffect(ctx, W, H, layer, scale);
+  await applySingleImageDataTransform(ctx, W, H, layer.vhsTracking > 0, {
+    type: 'vhsTracking',
+    amount: layer.vhsTracking,
+    seed: seed ^ 0x1a2b3c,
+  });
 
   applyMatte(ctx, W, H, layer, seed);
+  await applySingleImageDataTransform(ctx, W, H, layer.waveAmt > 0, {
+    type: 'wave',
+    amount: layer.waveAmt,
+    frequency: layer.waveFreq,
+    scale,
+  });
+  applyZoomBlurEffect(ctx, W, H, layer);
+  applyNeonGlowEffect(ctx, W, H, layer, scale);
+  applyOverprintEffect(ctx, W, H, layer, scale);
 
-  if (layer.waveAmt > 0) {
-    await applyImageDataTransforms(ctx, W, H, [
-      { type: 'wave', amount: layer.waveAmt, frequency: layer.waveFreq, scale },
-    ]);
-  }
-
-  if (layer.zoomBlur > 0) {
-    const snapshot = createCanvas(W, H);
-    const sctx = snapshot.getContext('2d')!;
-    sctx.drawImage(ctx.canvas, 0, 0);
-    const steps = 8;
-    const maxScale = 1 + (layer.zoomBlur / 100) * 0.18;
-    ctx.save();
-    ctx.clearRect(0, 0, W, H);
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const s = 1 + (maxScale - 1) * t;
-      ctx.globalAlpha = 1 / steps;
-      ctx.drawImage(snapshot, ((1 - s) * W) / 2, ((1 - s) * H) / 2, W * s, H * s);
-    }
-    ctx.restore();
-  }
-
-  if (layer.neonGlow > 0) {
-    const r6 = parseInt(layer.neonColor.slice(1, 3), 16);
-    const g6 = parseInt(layer.neonColor.slice(3, 5), 16);
-    const b6 = parseInt(layer.neonColor.slice(5, 7), 16);
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const sd = srcData.data;
-    const bright = createCanvas(W, H);
-    const bctx = bright.getContext('2d')!;
-    const bid = bctx.createImageData(W, H);
-    const bd = bid.data;
-    for (let i = 0; i < sd.length; i += 4) {
-      const lum = 0.299 * sd[i] + 0.587 * sd[i + 1] + 0.114 * sd[i + 2];
-      const t = Math.max(0, (lum - 120) / 135);
-      bd[i] = Math.round(r6 * t);
-      bd[i + 1] = Math.round(g6 * t);
-      bd[i + 2] = Math.round(b6 * t);
-      bd[i + 3] = Math.round(255 * t);
-    }
-    bctx.putImageData(bid, 0, 0);
-    const glow = createCanvas(W, H);
-    const gctx = glow.getContext('2d')!;
-    const blurPx = Math.round((layer.neonGlow / 100) * 18 * scale);
-    gctx.filter = `blur(${blurPx}px)`;
-    gctx.drawImage(bright, 0, 0);
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = Math.min(1, (layer.neonGlow / 100) * 1.4);
-    ctx.drawImage(glow, 0, 0);
-    ctx.restore();
-  }
-
-  if (layer.overprint > 0) {
-    const shift = Math.round(layer.overprint * scale * 0.12);
-    const srcData = ctx.getImageData(0, 0, W, H);
-    const sd = srcData.data;
-
-    function makePlate(shiftX: number, shiftY: number, pr: number, pg: number, pb: number): HTMLCanvasElement {
-      const c = createCanvas(W, H);
-      const pctx = c.getContext('2d')!;
-      const pid = pctx.createImageData(W, H);
-      const pd = pid.data;
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const oi = (y * W + x) * 4;
-          const sx = Math.min(W - 1, Math.max(0, x + shiftX));
-          const sy = Math.min(H - 1, Math.max(0, y + shiftY));
-          const si = (sy * W + sx) * 4;
-          const lum = 0.299 * sd[si] + 0.587 * sd[si + 1] + 0.114 * sd[si + 2];
-          pd[oi] = pr;
-          pd[oi + 1] = pg;
-          pd[oi + 2] = pb;
-          pd[oi + 3] = Math.round(255 - lum);
-        }
-      }
-      pctx.putImageData(pid, 0, 0);
-      return c;
-    }
-
-    const cyan = makePlate(shift, 0, 0, 255, 255);
-    const magenta = makePlate(-shift, shift, 255, 0, 255);
-    const yellow = makePlate(0, -shift, 255, 255, 0);
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = (layer.overprint / 100) * 0.7;
-    ctx.drawImage(cyan, 0, 0);
-    ctx.drawImage(magenta, 0, 0);
-    ctx.drawImage(yellow, 0, 0);
-    ctx.restore();
-  }
-
-  if (layer.solarize > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'solarize', amount: layer.solarize }]);
-  }
-
-  if (layer.bleachBypass > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'bleachBypass', amount: layer.bleachBypass }]);
-  }
-
-  if (layer.cyanotype > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'cyanotype', amount: layer.cyanotype }]);
-  }
-
-  if (layer.splitToneAmt > 0) {
-    await applyImageDataTransforms(ctx, W, H, [
-      {
-        type: 'splitTone',
-        amount: layer.splitToneAmt,
-        shadow: layer.splitShadow,
-        highlight: layer.splitHighlight,
-      },
-    ]);
-  }
-
-  if (layer.rippleAmt > 0) {
-    await applyImageDataTransforms(ctx, W, H, [
-      { type: 'ripple', amount: layer.rippleAmt, frequency: layer.rippleFreq, scale },
-    ]);
-  }
-
-  if (layer.kaleidoscope > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'kaleidoscope', amount: layer.kaleidoscope }]);
-  }
-
-  if (layer.squeezeX !== 0 || layer.squeezeY !== 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'squeeze', x: layer.squeezeX, y: layer.squeezeY }]);
-  }
+  await applySingleImageDataTransform(ctx, W, H, layer.solarize > 0, { type: 'solarize', amount: layer.solarize });
+  await applySingleImageDataTransform(ctx, W, H, layer.bleachBypass > 0, {
+    type: 'bleachBypass',
+    amount: layer.bleachBypass,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.cyanotype > 0, { type: 'cyanotype', amount: layer.cyanotype });
+  await applySingleImageDataTransform(ctx, W, H, layer.splitToneAmt > 0, {
+    type: 'splitTone',
+    amount: layer.splitToneAmt,
+    shadow: layer.splitShadow,
+    highlight: layer.splitHighlight,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.rippleAmt > 0, {
+    type: 'ripple',
+    amount: layer.rippleAmt,
+    frequency: layer.rippleFreq,
+    scale,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.kaleidoscope > 0, {
+    type: 'kaleidoscope',
+    amount: layer.kaleidoscope,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.squeezeX !== 0 || layer.squeezeY !== 0, {
+    type: 'squeeze',
+    x: layer.squeezeX,
+    y: layer.squeezeY,
+  });
 
   applyEmboss(ctx, W, H, layer);
   applyLinocut(ctx, W, H, layer);
-
-  if (layer.fog > 0) {
-    await applyImageDataTransforms(ctx, W, H, [{ type: 'fog', amount: layer.fog, color: layer.fogColor }]);
-  }
-
-  if (layer.speedLines > 0) {
-    const cx = W / 2,
-      cy = H / 2;
-    const diagonal = Math.sqrt(W * W + H * H);
-    const count = Math.round(layer.speedLines * 0.8 + 20);
-    const slRng = lcg(seed * 5523);
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < count; i++) {
-      const angle = slRng() * Math.PI * 2;
-      const length = diagonal * (0.4 + slRng() * 0.6);
-      const alpha = (layer.speedLines / 100) * (0.05 + slRng() * 0.2);
-      ctx.lineWidth = (0.5 + slRng() * 1.5) * scale;
-      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
+  await applySingleImageDataTransform(ctx, W, H, layer.fog > 0, {
+    type: 'fog',
+    amount: layer.fog,
+    color: layer.fogColor,
+  });
+  applySpeedLinesEffect(ctx, W, H, layer, seed, scale);
 }
 
 async function runGpuPass(
@@ -518,63 +566,84 @@ async function runGpuPass(
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
 }
 
+const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
+  'glitch',
+  'rgbSplit',
+  'scanlines',
+  'grain',
+  'tintOp',
+  'sepia',
+  'infrared',
+  'ca',
+  'dither',
+  'vhsTracking',
+  'matte',
+  'waveAmt',
+  'zoomBlur',
+  'neonGlow',
+  'overprint',
+  'solarize',
+  'bleachBypass',
+  'cyanotype',
+  'splitToneAmt',
+  'rippleAmt',
+  'kaleidoscope',
+  'emboss',
+  'linocut',
+  'fog',
+  'speedLines',
+];
+const CANVAS_NONZERO_EFFECT_KEYS: Array<keyof EffectLayer> = ['squeezeX', 'squeezeY'];
+const GPU_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
+  'mirror',
+  'dataMosh',
+  'interlace',
+  'noiseWarp',
+  'morphAmt',
+  'vortex',
+  'barrel',
+  'tearAmt',
+  'pixelate',
+  'posterize',
+  'hueShift',
+  'duotone',
+  'halftone',
+  'risoShift',
+  'bloom',
+  'blurAmt',
+  'threshold',
+  'edgeDetect',
+  'gradMix',
+  'vignette',
+  'filmBurn',
+];
+
+function numericEffectValue(layer: EffectLayer, key: keyof EffectLayer) {
+  return Number(layer[key] ?? 0);
+}
+
+function hasAnyPositiveEffectValue(layer: EffectLayer, keys: Array<keyof EffectLayer>) {
+  return keys.some((key) => numericEffectValue(layer, key) > 0);
+}
+
+function hasAnyNonZeroEffectValue(layer: EffectLayer, keys: Array<keyof EffectLayer>) {
+  return keys.some((key) => numericEffectValue(layer, key) !== 0);
+}
+
+function hasRayEffect(layer: EffectLayer) {
+  return layer.rayInt > 0 && layer.rays > 0;
+}
+
 function hasCanvas2DEffect(layer: EffectLayer): boolean {
   return (
-    (layer.rayInt > 0 && layer.rays > 0) ||
-    layer.glitch > 0 ||
-    layer.rgbSplit > 0 ||
-    layer.scanlines > 0 ||
-    layer.grain > 0 ||
-    layer.tintOp > 0 ||
-    layer.sepia > 0 ||
-    layer.infrared > 0 ||
-    layer.ca > 0 ||
-    layer.dither > 0 ||
-    layer.vhsTracking > 0 ||
-    layer.matte > 0 ||
-    layer.waveAmt > 0 ||
-    layer.zoomBlur > 0 ||
-    layer.neonGlow > 0 ||
-    layer.overprint > 0 ||
-    layer.solarize > 0 ||
-    layer.bleachBypass > 0 ||
-    layer.cyanotype > 0 ||
-    layer.splitToneAmt > 0 ||
-    layer.rippleAmt > 0 ||
-    layer.kaleidoscope > 0 ||
-    layer.squeezeX !== 0 ||
-    layer.squeezeY !== 0 ||
-    layer.emboss > 0 ||
-    layer.linocut > 0 ||
-    layer.fog > 0 ||
-    layer.speedLines > 0
+    hasRayEffect(layer) ||
+    hasAnyPositiveEffectValue(layer, CANVAS_POSITIVE_EFFECT_KEYS) ||
+    hasAnyNonZeroEffectValue(layer, CANVAS_NONZERO_EFFECT_KEYS)
   );
 }
 
 function hasGpuEffect(layer: EffectLayer): boolean {
-  return (
-    layer.mirror > 0 ||
-    layer.dataMosh > 0 ||
-    layer.interlace > 0 ||
-    layer.noiseWarp > 0 ||
-    layer.morphAmt > 0 ||
-    layer.vortex > 0 ||
-    layer.barrel > 0 ||
-    layer.tearAmt > 0 ||
-    layer.pixelate > 0 ||
-    layer.posterize > 0 ||
-    layer.hueShift > 0 ||
-    layer.duotone > 0 ||
-    layer.halftone > 0 ||
-    layer.risoShift > 0 ||
-    layer.bloom > 0 ||
-    layer.blurAmt > 0 ||
-    layer.threshold > 0 ||
-    layer.edgeDetect > 0 ||
-    layer.gradMix > 0 ||
-    layer.vignette > 0 ||
-    layer.filmBurn > 0
-  );
+  return hasAnyPositiveEffectValue(layer, GPU_POSITIVE_EFFECT_KEYS);
 }
 
 export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
@@ -614,6 +683,198 @@ export async function applyLayerToCanvas(
   return applyLayerToCanvasProfiled(base, layer, doc, W, H, imageCache, options, true);
 }
 
+type LayerRenderContext<T extends Layer = Layer> = {
+  base: HTMLCanvasElement;
+  current: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  layer: T;
+  doc: CanvasDocument;
+  W: number;
+  H: number;
+  imageCache: Map<string, HTMLImageElement>;
+  options: RenderOptions;
+  seed: number;
+  scale: number;
+};
+
+type EffectRenderDimensions = {
+  width: number;
+  height: number;
+};
+
+function createLayerRenderContext(
+  base: HTMLCanvasElement,
+  layer: Layer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  options: RenderOptions,
+): LayerRenderContext {
+  const current = cloneCanvas(base, W, H);
+  const ctx = current.getContext('2d', { willReadFrequently: true })!;
+  return {
+    base,
+    current,
+    ctx,
+    layer,
+    doc,
+    W,
+    H,
+    imageCache,
+    options,
+    seed: doc.global.seed,
+    scale: W / REF,
+  };
+}
+
+async function renderEmojiLayerToCanvas(context: LayerRenderContext<EmojiLayer>) {
+  const { ctx, W, H, layer, seed, scale, current } = context;
+  drawEmojiLayer(ctx, W, H, layer, lcg((seed + (layer.seedOffset ?? 0)) ^ 0x7a8b9c), scale);
+  return current;
+}
+
+async function renderTextLayerToCanvas(context: LayerRenderContext<TextLayer>) {
+  const { ctx, W, H, layer, scale, current } = context;
+  await ensureCanvasFontLoaded(layer.font, layer.size * scale);
+  drawTextLayer(ctx, W, H, layer, scale);
+  return current;
+}
+
+function renderImageLayerToCanvas(context: LayerRenderContext<ImageLayer>) {
+  const { ctx, W, H, layer, imageCache, current } = context;
+  drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
+  return current;
+}
+
+function renderFillLayerToCanvas(context: LayerRenderContext<FillLayer>) {
+  const { ctx, W, H, layer, current } = context;
+  drawFillLayer(ctx, W, H, layer);
+  return current;
+}
+
+function sourceLayerLayout(layer: Layer, options: RenderOptions) {
+  return layer.kind === 'primitive' ? 'full-frame' : (options.sourceLayout ?? 'document');
+}
+
+async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
+  const { ctx, W, H, layer, seed, scale, options, current } = context;
+  await drawSourceLayer(
+    ctx,
+    W,
+    H,
+    layer,
+    seed,
+    scale,
+    options.draft ?? false,
+    layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
+    sourceLayerLayout(layer, options),
+  );
+  return current;
+}
+
+function effectRenderDimensions(
+  W: number,
+  H: number,
+  effectResolution: RenderOptions['effectResolution'],
+): EffectRenderDimensions | null {
+  if (!effectResolution) return null;
+  const width = Math.min(W, Math.max(1, Math.round(effectResolution.width)));
+  const height = Math.min(H, Math.max(1, Math.round(effectResolution.height)));
+  return width === W && height === H ? null : { width, height };
+}
+
+async function renderEffectAtResolution(
+  context: LayerRenderContext<EffectLayer>,
+  dimensions: EffectRenderDimensions,
+): Promise<HTMLCanvasElement> {
+  const { base, layer, doc, imageCache, options, W, H } = context;
+  const effectBase = createCanvas(dimensions.width, dimensions.height);
+  const effectCtx = effectBase.getContext('2d', { willReadFrequently: true })!;
+  effectCtx.drawImage(base, 0, 0, dimensions.width, dimensions.height);
+  const renderedEffect = await applyLayerToCanvasProfiled(
+    effectBase,
+    layer,
+    doc,
+    dimensions.width,
+    dimensions.height,
+    imageCache,
+    { ...options, effectResolution: undefined },
+    false,
+  );
+  throwIfRenderAborted(options);
+  const scaled = createCanvas(W, H);
+  const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;
+  scaledCtx.imageSmoothingEnabled = false;
+  scaledCtx.drawImage(renderedEffect, 0, 0, W, H);
+  return scaled;
+}
+
+async function maybeRenderEffectAtResolution(context: LayerRenderContext<EffectLayer>) {
+  const dimensions = effectRenderDimensions(context.W, context.H, context.options.effectResolution);
+  return dimensions ? renderEffectAtResolution(context, dimensions) : null;
+}
+
+async function applyGpuFiltersForEffect(
+  current: HTMLCanvasElement,
+  context: LayerRenderContext<EffectLayer>,
+  effectSeed: number,
+) {
+  const { layer, W, H, options } = context;
+  if (options.skipEffects) return current;
+  const { buildFiltersFromEffectLayer } = await loadGpuModules();
+  const filters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
+  if (!filters?.length) return current;
+  const next = await runGpuPass(current, W, H, filters);
+  throwIfRenderAborted(options);
+  return next;
+}
+
+async function renderEffectLayerToCanvas(context: LayerRenderContext<EffectLayer>) {
+  const { base, ctx, W, H, layer, seed, scale, options } = context;
+  throwIfRenderAborted(options);
+  if (options.skipEffects) return base;
+  const scaledEffect = await maybeRenderEffectAtResolution(context);
+  if (scaledEffect) return scaledEffect;
+
+  const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
+  const effectSeed = seed + (layer.seedOffset ?? 0);
+  await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
+  throwIfRenderAborted(options);
+  let current = await applyGpuFiltersForEffect(context.current, context, effectSeed);
+  if (alphaMask) current = maskCanvasToAlpha(current, alphaMask, W, H);
+  return current;
+}
+
+const LAYER_RENDERERS = {
+  emoji: renderEmojiLayerToCanvas,
+  text: renderTextLayerToCanvas,
+  image: renderImageLayerToCanvas,
+  fill: renderFillLayerToCanvas,
+  primitive: renderSourceLayerToCanvas,
+  noise: renderSourceLayerToCanvas,
+  array: renderSourceLayerToCanvas,
+};
+
+function layerRenderer(kind: Layer['kind']) {
+  return LAYER_RENDERERS[kind as keyof typeof LAYER_RENDERERS] ?? null;
+}
+
+async function renderVisibleLayerToCanvas(
+  base: HTMLCanvasElement,
+  layer: Layer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  options: RenderOptions,
+) {
+  const context = createLayerRenderContext(base, layer, doc, W, H, imageCache, options);
+  const renderLayer = layerRenderer(layer.kind);
+  if (renderLayer) return renderLayer(context as never);
+  return renderEffectLayerToCanvas({ ...context, layer: layer as EffectLayer });
+}
+
 async function applyLayerToCanvasProfiled(
   base: HTMLCanvasElement,
   layer: Layer,
@@ -632,82 +893,7 @@ async function applyLayerToCanvasProfiled(
     );
   }
 
-  const scale = W / REF;
-  const seed = doc.global.seed;
-  let current = cloneCanvas(base, W, H);
-  const ctx = current.getContext('2d', { willReadFrequently: true })!;
-
-  if (layer.kind === 'emoji') {
-    drawEmojiLayer(ctx, W, H, layer, lcg((seed + (layer.seedOffset ?? 0)) ^ 0x7a8b9c), scale);
-  } else if (layer.kind === 'text') {
-    await ensureCanvasFontLoaded(layer.font, layer.size * scale);
-    drawTextLayer(ctx, W, H, layer, scale);
-  } else if (layer.kind === 'image') {
-    drawImageLayer(ctx, W, H, layer, imageCache.get(layer.src) ?? null);
-  } else if (layer.kind === 'fill') {
-    drawFillLayer(ctx, W, H, layer);
-  } else if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
-    const sourceLayout = layer.kind === 'primitive' ? 'full-frame' : (options.sourceLayout ?? 'document');
-    await drawSourceLayer(
-      ctx,
-      W,
-      H,
-      layer,
-      seed,
-      scale,
-      options.draft ?? false,
-      layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
-      sourceLayout,
-    );
-  } else if (layer.kind === 'effect') {
-    throwIfRenderAborted(options);
-    if (options.skipEffects) return base;
-    const effectResolution = options.effectResolution;
-    if (effectResolution) {
-      const effectW = Math.min(W, Math.max(1, Math.round(effectResolution.width)));
-      const effectH = Math.min(H, Math.max(1, Math.round(effectResolution.height)));
-      if (effectW !== W || effectH !== H) {
-        const effectBase = createCanvas(effectW, effectH);
-        const effectCtx = effectBase.getContext('2d', { willReadFrequently: true })!;
-        effectCtx.drawImage(base, 0, 0, effectW, effectH);
-        const renderedEffect = await applyLayerToCanvasProfiled(
-          effectBase,
-          layer,
-          doc,
-          effectW,
-          effectH,
-          imageCache,
-          {
-            ...options,
-            effectResolution: undefined,
-          },
-          false,
-        );
-        throwIfRenderAborted(options);
-        const scaled = createCanvas(W, H);
-        const scaledCtx = scaled.getContext('2d', { willReadFrequently: true })!;
-        scaledCtx.imageSmoothingEnabled = false;
-        scaledCtx.drawImage(renderedEffect, 0, 0, W, H);
-        return scaled;
-      }
-    }
-    const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-    const effectSeed = seed + (layer.seedOffset ?? 0);
-    await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
-    throwIfRenderAborted(options);
-    if (!options.skipEffects) {
-      const { buildFiltersFromEffectLayer } = await loadGpuModules();
-      const filters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
-      if (filters?.length) {
-        current = await runGpuPass(current, W, H, filters);
-        throwIfRenderAborted(options);
-      }
-    }
-    if (alphaMask) {
-      current = maskCanvasToAlpha(current, alphaMask, W, H);
-    }
-  }
-
+  const current = await renderVisibleLayerToCanvas(base, layer, doc, W, H, imageCache, options);
   throwIfRenderAborted(options);
   return current;
 }

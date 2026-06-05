@@ -1,10 +1,10 @@
 import type { EffectPreset, LayerKind } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
-import { ARRAY_PRESET_IDS, ARRAY_PRESETS, type ArrayPresetId } from '../../utils/arrayPresets';
-import { NOISE_PRESET_IDS, NOISE_PRESETS, type NoisePresetId } from '../../utils/noisePresets';
-import { REPEAT_PRESET_IDS, REPEAT_PRESETS, type RepeatPresetId } from '../../utils/repeatPresets';
-import { TEXT_PRESET_IDS, TEXT_PRESETS, type TextPresetId } from '../../utils/textPresets';
+import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
+import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
+import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
+import { TEXT_PRESET_IDS, TEXT_PRESETS } from '../../utils/textPresets';
 
 export type AddLibrarySurface = 'layers' | 'nodes';
 
@@ -37,6 +37,8 @@ export type AddLibraryItem = {
 };
 
 export const ADD_LIBRARY_ACTION_MIME = 'application/x-artifact-add-library-action';
+const SIMPLE_ADD_ACTION_KINDS = new Set(['aiImage', 'merge', 'color', 'repeat']);
+const LAYER_ADD_KINDS = new Set(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array']);
 
 export type AddLibraryRecipe = {
   id: string;
@@ -549,51 +551,34 @@ export function parseAddLibraryAction(value: string): AddLibraryAction | null {
 }
 
 function isAddLibraryAction(value: unknown): value is AddLibraryAction {
-  if (!value || typeof value !== 'object' || !('kind' in value) || typeof value.kind !== 'string') return false;
-  if (value.kind === 'aiImage' || value.kind === 'merge' || value.kind === 'color' || value.kind === 'repeat') {
-    return true;
-  }
-  if (value.kind === 'layer') {
-    return 'layerKind' in value && isLayerAddKind(value.layerKind);
-  }
-  if (value.kind === 'textPreset') {
-    return (
-      'preset' in value && typeof value.preset === 'string' && TEXT_PRESET_IDS.includes(value.preset as TextPresetId)
-    );
-  }
-  if (value.kind === 'effect') {
-    return 'preset' in value && isEffectPreset(value.preset);
-  }
-  if (value.kind === 'noisePreset') {
-    return (
-      'preset' in value && typeof value.preset === 'string' && NOISE_PRESET_IDS.includes(value.preset as NoisePresetId)
-    );
-  }
-  if (value.kind === 'arrayPreset') {
-    return (
-      'preset' in value && typeof value.preset === 'string' && ARRAY_PRESET_IDS.includes(value.preset as ArrayPresetId)
-    );
-  }
-  if (value.kind === 'repeatPreset') {
-    return (
-      'preset' in value &&
-      typeof value.preset === 'string' &&
-      REPEAT_PRESET_IDS.includes(value.preset as RepeatPresetId)
-    );
-  }
-  return false;
+  if (!isActionRecord(value)) return false;
+  if (SIMPLE_ADD_ACTION_KINDS.has(value.kind)) return true;
+  return validateAddLibraryActionPayload(value);
+}
+
+function isActionRecord(value: unknown): value is { kind: string; layerKind?: unknown; preset?: unknown } {
+  if (!value || typeof value !== 'object') return false;
+  return 'kind' in value && typeof value.kind === 'string';
+}
+
+function validateAddLibraryActionPayload(value: { kind: string; layerKind?: unknown; preset?: unknown }) {
+  const validators: Record<string, () => boolean> = {
+    layer: () => isLayerAddKind(value.layerKind),
+    textPreset: () => isPresetId(value.preset, TEXT_PRESET_IDS),
+    effect: () => isEffectPreset(value.preset),
+    noisePreset: () => isPresetId(value.preset, NOISE_PRESET_IDS),
+    arrayPreset: () => isPresetId(value.preset, ARRAY_PRESET_IDS),
+    repeatPreset: () => isPresetId(value.preset, REPEAT_PRESET_IDS),
+  };
+  return validators[value.kind]?.() ?? false;
+}
+
+function isPresetId<T extends string>(value: unknown, ids: readonly T[]): value is T {
+  return typeof value === 'string' && ids.includes(value as T);
 }
 
 function isLayerAddKind(value: unknown): value is Exclude<LayerKind, 'effect'> {
-  return (
-    value === 'text' ||
-    value === 'image' ||
-    value === 'emoji' ||
-    value === 'fill' ||
-    value === 'primitive' ||
-    value === 'noise' ||
-    value === 'array'
-  );
+  return typeof value === 'string' && LAYER_ADD_KINDS.has(value);
 }
 
 function isEffectPreset(value: unknown): value is EffectPreset {

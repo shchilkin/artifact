@@ -69,6 +69,74 @@ function drawArrayShape(
   ctx.restore();
 }
 
+type DrawArrayItem = (
+  x: number,
+  y: number,
+  angle: number,
+  index: number,
+  dimensions?: { width: number; height: number },
+) => void;
+
+function barArrayDimensions(layer: SourceLayer, size: number) {
+  if (layer.arrayShape !== 'bar') return undefined;
+  return { width: Math.max(2, layer.arrayRadius), height: Math.max(6, size) };
+}
+
+function lineArrayRowGap(layer: SourceLayer, size: number) {
+  const minimumGap = 8;
+  return layer.arrayShape === 'bar'
+    ? Math.max(size * 1.18, layer.arrayGap, minimumGap)
+    : Math.max(size * 0.75, layer.arrayGap, minimumGap);
+}
+
+function drawLineArray(layer: SourceLayer, size: number, drawItem: DrawArrayItem) {
+  const count = Math.max(2, Math.round(layer.arrayCount));
+  const gap = Math.max(12, layer.arrayGap);
+  const rows = Math.max(1, Math.round(layer.arrayRows));
+  const rowGap = lineArrayRowGap(layer, size);
+  const barDimensions = barArrayDimensions(layer, size);
+  const width = (count - 1) * gap;
+  const height = (rows - 1) * rowGap;
+  let index = 0;
+  for (let row = 0; row < rows; row += 1) {
+    for (let i = 0; i < count; i += 1) {
+      drawItem(-width / 2 + i * gap, -height / 2 + row * rowGap, 0, index, barDimensions);
+      index += 1;
+    }
+  }
+}
+
+function drawRadialArray(layer: SourceLayer, drawItem: DrawArrayItem) {
+  const count = Math.max(3, Math.round(layer.arrayCount));
+  const rings = Math.max(1, Math.round(layer.arrayRows));
+  const baseRadius = Math.max(16, layer.arrayRadius);
+  const gap = Math.max(0, layer.arrayGap);
+  let index = 0;
+  for (let ring = 0; ring < rings; ring += 1) {
+    const radius = baseRadius + ring * gap;
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2;
+      drawItem(Math.cos(angle) * radius, Math.sin(angle) * radius, angle, index);
+      index += 1;
+    }
+  }
+}
+
+function drawGridArray(layer: SourceLayer, drawItem: DrawArrayItem) {
+  const columns = Math.max(2, Math.round(layer.arrayCount));
+  const rows = Math.max(2, Math.round(layer.arrayRows));
+  const gap = Math.max(12, layer.arrayGap);
+  const width = (columns - 1) * gap;
+  const height = (rows - 1) * gap;
+  let index = 0;
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < columns; col += 1) {
+      drawItem(-width / 2 + col * gap, -height / 2 + row * gap, 0, index);
+      index += 1;
+    }
+  }
+}
+
 function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed: number) {
   const base = hexToRgb(layer.color);
   const accent = hexToRgb(layer.accentColor);
@@ -98,56 +166,16 @@ function drawArrayLayer(ctx: CanvasRenderingContext2D, layer: SourceLayer, seed:
   };
 
   if (layer.arrayPattern === 'line') {
-    const count = Math.max(2, Math.round(layer.arrayCount));
-    const gap = Math.max(12, layer.arrayGap);
-    const rows = Math.max(1, Math.round(layer.arrayRows));
-    const rowGap =
-      layer.arrayShape === 'bar' ? Math.max(size * 1.18, layer.arrayGap, 8) : Math.max(size * 0.75, layer.arrayGap, 8);
-    const barDimensions =
-      layer.arrayShape === 'bar'
-        ? { width: Math.max(2, layer.arrayRadius), height: Math.max(6, layer.arraySize) }
-        : undefined;
-    const width = (count - 1) * gap;
-    const height = (rows - 1) * rowGap;
-    let index = 0;
-    for (let row = 0; row < rows; row += 1) {
-      for (let i = 0; i < count; i += 1) {
-        drawItem(-width / 2 + i * gap, -height / 2 + row * rowGap, 0, index, barDimensions);
-        index += 1;
-      }
-    }
+    drawLineArray(layer, size, drawItem);
     return;
   }
 
   if (layer.arrayPattern === 'radial') {
-    const count = Math.max(3, Math.round(layer.arrayCount));
-    const rings = Math.max(1, Math.round(layer.arrayRows));
-    const baseRadius = Math.max(16, layer.arrayRadius);
-    const gap = Math.max(0, layer.arrayGap);
-    let index = 0;
-    for (let ring = 0; ring < rings; ring += 1) {
-      const radius = baseRadius + ring * gap;
-      for (let i = 0; i < count; i += 1) {
-        const angle = (i / count) * Math.PI * 2;
-        drawItem(Math.cos(angle) * radius, Math.sin(angle) * radius, angle, index);
-        index += 1;
-      }
-    }
+    drawRadialArray(layer, drawItem);
     return;
   }
 
-  const columns = Math.max(2, Math.round(layer.arrayCount));
-  const rows = Math.max(2, Math.round(layer.arrayRows));
-  const gap = Math.max(12, layer.arrayGap);
-  const width = (columns - 1) * gap;
-  const height = (rows - 1) * gap;
-  let index = 0;
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < columns; col += 1) {
-      drawItem(-width / 2 + col * gap, -height / 2 + row * gap, 0, index);
-      index += 1;
-    }
-  }
+  drawGridArray(layer, drawItem);
 }
 
 export async function drawSourceLayer(

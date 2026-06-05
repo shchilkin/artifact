@@ -182,25 +182,70 @@ export async function saveGoogleFontFamily(input: string): Promise<ImportedFontA
   return asset;
 }
 
-async function saveImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): Promise<ImportedFontAsset> {
-  const stored: ImportedFontAsset = {
+function importedFontLabelSource(asset: ImportedFontAsset | PortableFontAsset) {
+  if (asset.source === 'google-fonts') return asset.label;
+  return asset.sourceName || asset.label || 'Imported Font';
+}
+
+function importedFontFamily(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.family || familyForId(asset.id);
+}
+
+function importedFontBytes(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.bytes || estimateDataUrlBytes(asset.dataUrl);
+}
+
+function importedFontMime(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.mime || 'application/octet-stream';
+}
+
+function importedFontCreatedAt(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.createdAt || new Date().toISOString();
+}
+
+function normalizeImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): ImportedFontAsset {
+  return {
     sourceName: asset.label,
     ...asset,
-    family: asset.family || familyForId(asset.id),
-    label: normalizeImportedFontLabel(
-      asset.source === 'google-fonts' ? asset.label : asset.sourceName || asset.label || 'Imported Font',
-    ),
-    bytes: asset.bytes || estimateDataUrlBytes(asset.dataUrl),
-    mime: asset.mime || 'application/octet-stream',
-    createdAt: asset.createdAt || new Date().toISOString(),
+    family: importedFontFamily(asset),
+    label: normalizeImportedFontLabel(importedFontLabelSource(asset)),
+    bytes: importedFontBytes(asset),
+    mime: importedFontMime(asset),
+    createdAt: importedFontCreatedAt(asset),
     source: asset.source || 'local-file',
     embeddingPolicy: asset.embeddingPolicy || 'user-confirmed-required',
   };
+}
+
+async function saveImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): Promise<ImportedFontAsset> {
+  const stored = normalizeImportedFontAsset(asset);
   await withFontStore('readwrite', (store) => {
     store.put(stored);
   });
   metadataCache.set(stored.id, stored);
   return stored;
+}
+
+function portableFontAsset(asset: ImportedFontAsset): PortableFontAsset {
+  const stored: ImportedFontAsset = {
+    ...asset,
+  };
+  const { id, dataUrl, mime, bytes, label, family, createdAt } = stored;
+  const { source, sourceName, sourceUrl, license, embeddingPolicy } = stored;
+  return {
+    id,
+    dataUrl,
+    mime,
+    bytes,
+    label,
+    family,
+    createdAt,
+    ...(source ? { source } : {}),
+    ...(sourceName ? { sourceName } : {}),
+    ...(sourceUrl ? { sourceUrl } : {}),
+    ...(license ? { license } : {}),
+    ...(embeddingPolicy ? { embeddingPolicy } : {}),
+  };
 }
 
 export async function loadImportedFontAsset(font: string): Promise<ImportedFontAsset | null> {
@@ -263,24 +308,7 @@ export async function hydrateDocumentFontAssets(
   for (const font of collectDocumentFontRefs(doc)) {
     if (!isFontUri(font)) continue;
     const asset = await loadFontAsset(font);
-    if (asset) {
-      const { id, dataUrl, mime, bytes, label, family, createdAt } = asset;
-      const { source, sourceName, sourceUrl, license, embeddingPolicy } = asset;
-      fontAssets.push({
-        id,
-        dataUrl,
-        mime,
-        bytes,
-        label,
-        family,
-        createdAt,
-        ...(source ? { source } : {}),
-        ...(sourceName ? { sourceName } : {}),
-        ...(sourceUrl ? { sourceUrl } : {}),
-        ...(license ? { license } : {}),
-        ...(embeddingPolicy ? { embeddingPolicy } : {}),
-      });
-    }
+    if (asset) fontAssets.push(portableFontAsset(asset));
   }
   if (fontAssets.length === 0) return doc.fontAssets ? stripDocumentFontAssets(doc) : doc;
   return { ...doc, fontAssets };

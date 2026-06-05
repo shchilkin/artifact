@@ -26,6 +26,19 @@ export type NoiseTextureResult = {
   data: Uint8ClampedArray;
 };
 
+type NoiseTextureParams = {
+  size: number;
+  base: ReturnType<typeof hexToRgb>;
+  accent: ReturnType<typeof hexToRgb>;
+  scale: number;
+  octaves: number;
+  contrast: number;
+  balance: number;
+  warpAmount: number;
+  turbulence: number;
+  threshold: number;
+};
+
 export function toNoiseTextureLayerConfig(layer: NoiseLayer): NoiseTextureLayerConfig {
   return {
     color: layer.color,
@@ -94,51 +107,89 @@ function worleyNoise(x: number, y: number, seed: number) {
   return clamp(nearest / 1.25, 0, 1);
 }
 
-export function generateNoiseTextureData({ layer, seed, textureSize }: NoiseTextureRequest): NoiseTextureResult {
+function noiseTextureParams(layer: NoiseTextureLayerConfig, textureSize: number): NoiseTextureParams {
   const size = Math.max(1, Math.round(textureSize));
-  const data = new Uint8ClampedArray(size * size * 4);
-  const base = hexToRgb(layer.color);
-  const accent = hexToRgb(layer.accentColor);
-  const scale = Math.max(1, layer.noiseScale);
-  const octaves = Math.max(1, Math.round(layer.noiseDetail));
-  const contrast = 0.6 + layer.noiseContrast / 45;
-  const balance = clamp(layer.noiseBalance / 100, 0.05, 0.95);
-  const warpAmount = clamp((layer.noiseWarp ?? 0) / 100, 0, 1) * 3.2;
-  const turbulence = clamp((layer.noiseTurbulence ?? 0) / 100, 0, 1);
-  const threshold = clamp((layer.noiseThreshold ?? 0) / 100, 0, 1);
+  return {
+    size,
+    base: hexToRgb(layer.color),
+    accent: hexToRgb(layer.accentColor),
+    scale: Math.max(1, layer.noiseScale),
+    octaves: Math.max(1, Math.round(layer.noiseDetail)),
+    contrast: 0.6 + layer.noiseContrast / 45,
+    balance: clamp(layer.noiseBalance / 100, 0.05, 0.95),
+    warpAmount: clamp((layer.noiseWarp ?? 0) / 100, 0, 1) * 3.2,
+    turbulence: clamp((layer.noiseTurbulence ?? 0) / 100, 0, 1),
+    threshold: clamp((layer.noiseThreshold ?? 0) / 100, 0, 1),
+  };
+}
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      let nx = x / scale;
-      let ny = y / scale;
-      if (warpAmount > 0) {
-        const warpX = fbm(nx * 0.42 + 17.3, ny * 0.42 - 4.1, seed + 101, Math.max(2, octaves));
-        const warpY = fbm(nx * 0.42 - 8.7, ny * 0.42 + 21.6, seed + 211, Math.max(2, octaves));
-        nx += (warpX - 0.5) * warpAmount;
-        ny += (warpY - 0.5) * warpAmount;
-      }
-      let raw =
-        layer.noiseType === 'cells'
-          ? 1 - worleyNoise(nx * 0.8, ny * 0.8, seed)
-          : layer.noiseType === 'value'
-            ? octaves > 1
-              ? fbm(nx, ny, seed, octaves)
-              : valueNoise(nx, ny, seed)
-            : fbm(nx, ny, seed, octaves);
-      if (turbulence > 0) {
-        raw = lerp(raw, Math.abs(raw - 0.5) * 2, turbulence);
-      }
-      const contrasted = clamp((raw - 0.5) * contrast + 0.5, 0, 1);
-      const shaped = threshold === 0 ? contrasted : lerp(contrasted, contrasted >= balance ? 1 : 0, threshold);
-      const alpha = clamp((shaped - balance) / (1 - balance), 0, 1);
-      const color = mixRgb(base, accent, clamp(raw * 1.1, 0, 1));
-      const index = (y * size + x) * 4;
-      data[index] = color.r;
-      data[index + 1] = color.g;
-      data[index + 2] = color.b;
-      data[index + 3] = Math.round(alpha * 255);
-    }
+function warpedNoisePoint(x: number, y: number, seed: number, params: NoiseTextureParams) {
+  const nx = x / params.scale;
+  const ny = y / params.scale;
+  if (params.warpAmount <= 0) return { nx, ny };
+  const warpOctaves = Math.max(2, params.octaves);
+  const warpX = fbm(nx * 0.42 + 17.3, ny * 0.42 - 4.1, seed + 101, warpOctaves);
+  const warpY = fbm(nx * 0.42 - 8.7, ny * 0.42 + 21.6, seed + 211, warpOctaves);
+  return {
+    nx: nx + (warpX - 0.5) * params.warpAmount,
+    ny: ny + (warpY - 0.5) * params.warpAmount,
+  };
+}
+
+function rawNoiseValue(type: NoiseType, nx: number, ny: number, seed: number, octaves: number) {
+  if (type === 'cells') return 1 - worleyNoise(nx * 0.8, ny * 0.8, seed);
+  if (type === 'value') return octaves > 1 ? fbm(nx, ny, seed, octaves) : valueNoise(nx, ny, seed);
+  return fbm(nx, ny, seed, octaves);
+}
+
+function turbulentNoiseValue(raw: number, turbulence: number) {
+  return turbulence > 0 ? lerp(raw, Math.abs(raw - 0.5) * 2, turbulence) : raw;
+}
+
+function noiseAlpha(raw: number, params: NoiseTextureParams) {
+  const contrasted = clamp((raw - 0.5) * params.contrast + 0.5, 0, 1);
+  const shaped =
+    params.threshold === 0 ? contrasted : lerp(contrasted, contrasted >= params.balance ? 1 : 0, params.threshold);
+  return clamp((shaped - params.balance) / (1 - params.balance), 0, 1);
+}
+
+function writeNoisePixel(
+  data: Uint8ClampedArray,
+  x: number,
+  y: number,
+  raw: number,
+  alpha: number,
+  params: NoiseTextureParams,
+) {
+  const color = mixRgb(params.base, params.accent, clamp(raw * 1.1, 0, 1));
+  const index = (y * params.size + x) * 4;
+  data[index] = color.r;
+  data[index + 1] = color.g;
+  data[index + 2] = color.b;
+  data[index + 3] = Math.round(alpha * 255);
+}
+
+function writeNoiseTextureRow(
+  data: Uint8ClampedArray,
+  y: number,
+  layer: NoiseTextureLayerConfig,
+  seed: number,
+  params: NoiseTextureParams,
+) {
+  for (let x = 0; x < params.size; x += 1) {
+    const { nx, ny } = warpedNoisePoint(x, y, seed, params);
+    const raw = turbulentNoiseValue(rawNoiseValue(layer.noiseType, nx, ny, seed, params.octaves), params.turbulence);
+    writeNoisePixel(data, x, y, raw, noiseAlpha(raw, params), params);
+  }
+}
+
+export function generateNoiseTextureData({ layer, seed, textureSize }: NoiseTextureRequest): NoiseTextureResult {
+  const params = noiseTextureParams(layer, textureSize);
+  const data = new Uint8ClampedArray(params.size * params.size * 4);
+
+  for (let y = 0; y < params.size; y += 1) {
+    writeNoiseTextureRow(data, y, layer, seed, params);
   }
 
-  return { width: size, height: size, data };
+  return { width: params.size, height: params.size, data };
 }
