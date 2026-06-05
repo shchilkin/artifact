@@ -60,6 +60,10 @@ skills. In short:
 - Use `react-flow` for node editor graph behavior and React Flow patterns.
 - Use browser verification skills for local visual QA after meaningful frontend
   changes.
+- Use Fallow for v0.31 code-quality reports, changed-code audit, cleanup
+  planning, duplication review, dependency placement, and complexity hotspots.
+  Keep it report-only unless the user explicitly approves a trace-backed
+  cleanup pass.
 - Use `vercel:shadcn`, `vercel-composition-patterns`, and
   `vercel:react-best-practices` for shared UI primitives, component APIs, and
   React review.
@@ -98,6 +102,18 @@ When implementing a version-plan item:
 5. Add the lowest useful tests before broad browser coverage.
 6. Run the validation commands listed in the relevant version plan before
    calling the item done.
+
+For v0.31 Fallow work, use JSON/quiet package scripts and keep findings
+non-blocking while the initial baseline is being reviewed:
+
+```bash
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow -- > /private/tmp/artifact-fallow-baseline.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:audit -- --base origin/development > /private/tmp/artifact-fallow-audit.json 2>/dev/null || true
+```
+
+Do not run `fallow watch`, do not enable telemetry for the user, and do not
+delete unused-file/export/dependency findings without Fallow trace validation,
+focused tests, and the normal release gate.
 
 ## User-facing copy boundary
 

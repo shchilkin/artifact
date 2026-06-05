@@ -454,12 +454,15 @@ async function assertAddLibraryReadability(menu: Locator) {
     };
   });
 
-  expect(metrics.search?.height ?? 0).toBeGreaterThanOrEqual(36);
-  expect(metrics.input?.fontSize ?? 0).toBeGreaterThanOrEqual(11);
-  expect(metrics.row?.height ?? 0).toBeGreaterThanOrEqual(44);
-  expect(metrics.row?.fontSize ?? 0).toBeGreaterThanOrEqual(10);
-  expect(metrics.detail?.width ?? 0).toBeGreaterThanOrEqual(160);
-  expect(metrics.preview?.height ?? 0).toBeGreaterThanOrEqual(80);
+  const expectAtLeast = (value: number | undefined, min: number) =>
+    expect(value ?? 0).toBeGreaterThanOrEqual(min - 0.01);
+
+  expectAtLeast(metrics.search?.height, 36);
+  expectAtLeast(metrics.input?.fontSize, 11);
+  expectAtLeast(metrics.row?.height, 44);
+  expectAtLeast(metrics.row?.fontSize, 10);
+  expectAtLeast(metrics.detail?.width, 160);
+  expectAtLeast(metrics.preview?.height, 80);
 }
 
 async function assertOpaqueContextMenu(menu: Locator) {

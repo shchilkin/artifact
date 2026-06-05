@@ -19,11 +19,11 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.30 is complete as the Editor Visual Baseline and Design System release.
-  The next release thesis is v0.31 Code Quality and Fallow Integration.
-- v0.31 is reserved entirely for code quality, codebase intelligence, and
-  Fallow adoption. It should not absorb product features, landing work,
-  Showcase / How-to work, command palette, or server-backed sharing.
+- v0.31 is complete as the Code Quality and Fallow Integration release. The
+  next release thesis should be chosen as a separate product or cleanup slice.
+- The v0.31 cleanup backlog is intentionally trace-gated future work. It should
+  not be treated as hidden scope for landing work, Showcase / How-to work,
+  command palette, server-backed sharing, or strict CI gating.
 - New version scopes should be split using
   [`version-planning.md`](./version-planning.md): one release thesis, one
   primary blast radius, explicit non-goals, checkable acceptance criteria, and a
@@ -38,6 +38,14 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.31.md`](./version-plans/v0.31.md) — Code Quality and
+  Fallow Integration: read-only Fallow package scripts, report-only CI soft
+  gate, baseline/backlog documentation, agent-safe JSON command guidance, and
+  release hygiene updates. Released as `v0.31.0`; release notes are in
+  [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product features, cleanup
+  deletions, strict Fallow gating, renderer, graph traversal, export,
+  persistence, document schema, package export, AI scope, and font-policy work
+  were explicitly deferred out of v0.31.
 - [`version-plans/v0.30.md`](./version-plans/v0.30.md) — Editor Visual
   Baseline and Design System: curated browser visual baseline, internal
   `/docs/style-guide`, editor design-system docs, source-owned shared
@@ -108,15 +116,11 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.30:
+Next strong candidates after v0.31:
 
-- **v0.31 Code Quality And Fallow Integration** — add Fallow as a local, CI,
-  and agent workflow tool. Start with a read-only local baseline for dead code,
-  unused exports/types/dependencies, duplication, health, complexity hotspots,
-  circular dependencies, and changed-code audit. Add a soft CI gate that reports
-  new risk without blocking releases until the baseline is understood. Document
-  agent commands, JSON-output rules, suppression policy, and cleanup workflow.
-  Release success is a reliable code-quality workflow, not a broad refactor.
+- **Fallow Cleanup Pass** — trace and classify the v0.31 baseline findings,
+  add focused tests for safe cleanup, suppress intentional public APIs or
+  workspace plumbing, and only then consider stricter Fallow gates.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -322,9 +326,10 @@ stable.
 
 ### Codebase Quality And Agent Workflows
 
-Fallow should be added as a codebase-intelligence layer once the v0.30
-style-guide/design-system batch is stable enough to produce a useful baseline.
-It should support three workflows:
+Fallow is now available as a report-only codebase-intelligence layer. The v0.31
+baseline lives in [`fallow-v0.31-baseline.md`](./fallow-v0.31-baseline.md), and
+the first release keeps all findings visible while the team decides what to
+trace, suppress, or clean up. It supports three workflows:
 
 - **Local**: scripts for dead-code, duplication, health, dependency, and
   changed-code audit reports. Initial usage should be read-only; auto-fix should
@@ -338,7 +343,7 @@ It should support three workflows:
   treated as unverified candidates that require downstream validation, not as a
   confirmed vulnerability verdict.
 
-Do not make Fallow part of the release gate until the first baseline report has
+Do not make Fallow a strict release gate until the first baseline report has
 been reviewed and noisy findings have been configured, suppressed, or turned
 into planned cleanup work.
 

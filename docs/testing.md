@@ -16,6 +16,8 @@ npm run test:browser:webkit            # focused WebKit/Safari-family browser te
 npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
+npm run --silent fallow                # report-only code-quality baseline in JSON
+npm run --silent fallow:audit -- --base origin/development  # changed-code Fallow audit in JSON
 npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web test file
 ```
 
@@ -29,6 +31,27 @@ commands use Vitest's V8 provider and emit a console summary plus
 numbers to find untested risk areas, but keep release confidence tied to the
 test categories below: pure logic, render fixtures, browser regressions, and
 manual visual QA where snapshots would be brittle.
+
+Fallow is also a diagnostic baseline in v0.31, not a strict release threshold.
+Use it for code-quality reports, changed-code review, cleanup planning,
+duplication checks, and complexity triage. Agent and CI usage should keep output
+machine-readable and report-only:
+
+```bash
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow -- > /private/tmp/artifact-fallow-baseline.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:audit -- --base origin/development > /private/tmp/artifact-fallow-audit.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:dead-code -- --unused-exports > /private/tmp/artifact-fallow-unused-exports.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:dupes -- --mode mild --top 20 > /private/tmp/artifact-fallow-dupes.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npm run --silent fallow:health -- --top 20 > /private/tmp/artifact-fallow-health.json 2>/dev/null || true
+```
+
+Fallow exit code 1 means findings were reported. It is not a command failure.
+Do not run `fallow watch` in agent sessions. Do not enable Fallow telemetry on
+behalf of the user; setting `FALLOW_AGENT_SOURCE` only labels a run if telemetry
+was already enabled by the user. Run `fallow fix --dry-run --format json --quiet`
+and trace affected files, exports, or dependencies before any cleanup edit.
+The first v0.31 baseline and cleanup backlog live in
+[`fallow-v0.31-baseline.md`](fallow-v0.31-baseline.md).
 
 Current baseline, captured during the v0.27 planning slice:
 
