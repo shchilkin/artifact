@@ -81,7 +81,7 @@ export function useNodeSelectionSync({
   const activeEditorNodeId = useMemo(() => {
     if (!expandedNodeId) return null;
     return graphNodeExists(expandedNodeId, doc, graph) ? expandedNodeId : null;
-  }, [doc.layers, graph.colorNodes, graph.mergeNodes, graph.repeatNodes, expandedNodeId]);
+  }, [doc, graph, expandedNodeId]);
 
   const handleSelectNode = useCallback(
     (id: string, event?: React.MouseEvent) => {

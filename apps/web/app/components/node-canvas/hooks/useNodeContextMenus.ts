@@ -160,7 +160,6 @@ function pendingConnectEnd(connectionState: FinalConnectionState) {
  */
 export function useNodeContextMenus({
   send,
-  graph,
   rfInstanceRef,
   addNodeButtonRef,
   canvasSurfaceRef,
@@ -211,14 +210,14 @@ export function useNodeContextMenus({
     (e: MouseEvent | React.MouseEvent, node: RFNode) => {
       e.preventDefault();
       e.stopPropagation();
-      const isMerge = isGraphUtilityNode(graph, node.id);
+      const isMerge = isGraphUtilityNode(graphRef.current, node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: { type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport },
       });
     },
-    [graph.colorNodes, graph.mergeNodes, graph.repeatNodes, send],
+    [graphRef, send],
   );
 
   const onEdgeContextMenu = useCallback(

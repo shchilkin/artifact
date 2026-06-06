@@ -19,15 +19,14 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.31 is complete as the Code Quality and Fallow Integration release, with
-  `v0.31.1` as the final patch for the Fallow cleanup, blocking changed-code
-  audit, and release-notes cleanup. The next release thesis should be planned as
-  v0.32.
-- [`version-plans/v0.32.md`](./version-plans/v0.32.md) is the active planning
-  draft for the Code Health And Debt Reduction release. It pulls in the
-  seven-part debt pass: Fallow complexity policy, `editor.tsx` orchestration,
-  React hook warnings, canvas gesture update boundaries, `node-canvas.css` and
-  Tailwind/CSS strategy, roadmap/docs cleanup, and storage/render risk triage.
+- v0.32 is in release prep on PR #74 as the Code Health And Debt Reduction
+  release. It keeps the v0.31 changed-code Fallow gate clean, classifies the
+  historical full-health complexity hotspots, fixes hook-dependency warnings,
+  documents the `node-canvas.css` / Tailwind boundary, and records
+  storage/render risks without pulling product work into the release.
+- [`version-plans/v0.32.md`](./version-plans/v0.32.md) is the active release
+  plan for v0.32. Do not merge, tag, or publish the release until the final
+  release gate is green and the maintainer explicitly confirms the release.
 - The v0.31 cleanup backlog is intentionally trace-gated future work. It should
   not be treated as hidden scope for landing work, Showcase / How-to work,
   command palette, server-backed sharing, or full-health complexity gating.
