@@ -88,7 +88,7 @@ the detailed source of truth.
 
 ### Highest leverage next
 
-- [x] Extract history/update behavior from `useGeneratorDocument.ts` into named
+- [x] Extract history/update behavior from `useEditorDocument.ts` into named
   update modes: `snapshot`, `debounce`, and `silent`.
 - [x] Add pure document-sync tests for undo/redo, graph creation, document
   import, and serialization-safe round trips.
@@ -237,7 +237,7 @@ Goal: make document updates deliberate and testable.
 
 Exit criteria:
 
-- `useGeneratorDocument.ts` orchestrates smaller helpers instead of owning every
+- `useEditorDocument.ts` orchestrates smaller helpers instead of owning every
   document concern directly.
 - History behavior is named at call sites rather than hidden behind timing.
 - Persistence and normalization can be tested without mounting the generator UI.

@@ -88,92 +88,164 @@ export function ProjectsPanel({
             NEW BLANK CANVAS
           </ActionButton>
         </div>
-        {storageError && (
-          <div className="mx-4 mt-3 border border-accent/60 bg-accent/10 p-2.5 text-[10px] leading-relaxed text-accent">
-            {storageError}
-          </div>
-        )}
-        {!hasSavedItems ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
-            <div className="text-[32px] text-accent opacity-30 mb-2">▣</div>
-            <p>No projects saved yet.</p>
-            <p>Save a snapshot to come back to this document later.</p>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-            {recoveryDraft && (
-              <div className="library-card library-card-accent flex gap-2.5 p-2.5 border border-accent/50 rounded bg-accent/10 transition-colors hover:border-accent">
-                <img
-                  src={recoveryDraft.thumbnail}
-                  alt={recoveryDraft.name}
-                  className="w-20 h-20 rounded object-cover shrink-0"
-                />
-                <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div>
-                    <div className="text-[10px] text-accent tracking-[2px]">RECOVERABLE DRAFT</div>
-                    <div className="text-[12px] text-text truncate">{recoveryDraft.name}</div>
-                    <div className="text-[10px] text-dim tracking-[0.5px]">
-                      {formatUpdatedAt(recoveryDraft.updatedAt)}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-dim tracking-[0.5px]">seed: {recoveryDraft.doc.global.seed}</div>
-                  <div className="flex gap-1.5">
-                    <ActionButton
-                      className="library-card-action"
-                      aria-label={`Load ${recoveryDraft.name}`}
-                      onClick={() => onLoad(recoveryDraft)}
-                      variant="danger"
-                    >
-                      LOAD
-                    </ActionButton>
-                    <ActionButton
-                      className="library-card-action"
-                      aria-label={`Delete ${recoveryDraft.name}`}
-                      onClick={onDeleteRecoveryDraft}
-                      variant="danger"
-                    >
-                      DEL
-                    </ActionButton>
-                  </div>
-                </div>
-              </div>
-            )}
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="library-card flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30"
-              >
-                <img src={project.thumbnail} alt={project.name} className="w-20 h-20 rounded object-cover shrink-0" />
-                <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div>
-                    <div className="text-[12px] text-text truncate">{project.name}</div>
-                    <div className="text-[10px] text-dim tracking-[0.5px]">{formatUpdatedAt(project.updatedAt)}</div>
-                  </div>
-                  <div className="text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
-                  <div className="flex gap-1.5">
-                    <ActionButton
-                      className="library-card-action"
-                      aria-label={`Load ${project.name}`}
-                      onClick={() => onLoad(project)}
-                      variant="quiet"
-                    >
-                      LOAD
-                    </ActionButton>
-                    <ActionButton
-                      className="library-card-action"
-                      aria-label={`Delete ${project.name}`}
-                      onClick={() => onDelete(project.id)}
-                      variant="quiet"
-                    >
-                      DEL
-                    </ActionButton>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <StorageErrorMessage storageError={storageError} />
+        <ProjectsList
+          hasSavedItems={hasSavedItems}
+          projects={projects}
+          recoveryDraft={recoveryDraft}
+          onDelete={onDelete}
+          onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+          onLoad={onLoad}
+        />
       </SheetContent>
     </Sheet>
+  );
+}
+
+function StorageErrorMessage({ storageError }: { storageError: string | null }) {
+  if (!storageError) return null;
+  return (
+    <div className="mx-4 mt-3 border border-accent/60 bg-accent/10 p-2.5 text-[10px] leading-relaxed text-accent">
+      {storageError}
+    </div>
+  );
+}
+
+function ProjectsList({
+  hasSavedItems,
+  projects,
+  recoveryDraft,
+  onDelete,
+  onDeleteRecoveryDraft,
+  onLoad,
+}: {
+  hasSavedItems: boolean;
+  projects: SavedProject[];
+  recoveryDraft: SavedProject | null;
+  onDelete: (id: string) => void;
+  onDeleteRecoveryDraft: () => void;
+  onLoad: (project: SavedProject) => void;
+}) {
+  if (!hasSavedItems) return <ProjectsEmptyState />;
+  return (
+    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+      <RecoveryDraftCard recoveryDraft={recoveryDraft} onDeleteRecoveryDraft={onDeleteRecoveryDraft} onLoad={onLoad} />
+      {projects.map((project) => (
+        <ProjectCard key={project.id} project={project} onDelete={onDelete} onLoad={onLoad} />
+      ))}
+    </div>
+  );
+}
+
+function ProjectsEmptyState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
+      <div className="text-[32px] text-accent opacity-30 mb-2">▣</div>
+      <p>No projects saved yet.</p>
+      <p>Save a snapshot to come back to this document later.</p>
+    </div>
+  );
+}
+
+function RecoveryDraftCard({
+  recoveryDraft,
+  onDeleteRecoveryDraft,
+  onLoad,
+}: {
+  recoveryDraft: SavedProject | null;
+  onDeleteRecoveryDraft: () => void;
+  onLoad: (project: SavedProject) => void;
+}) {
+  if (!recoveryDraft) return null;
+  return (
+    <div className="library-card library-card-accent flex gap-2.5 p-2.5 border border-accent/50 rounded bg-accent/10 transition-colors hover:border-accent">
+      <ProjectCardImage project={recoveryDraft} />
+      <div className="flex-1 flex flex-col justify-between min-w-0">
+        <ProjectCardMeta project={recoveryDraft} eyebrow="RECOVERABLE DRAFT" />
+        <ProjectCardActions
+          project={recoveryDraft}
+          deleteVariant="danger"
+          loadVariant="danger"
+          onDelete={onDeleteRecoveryDraft}
+          onLoad={() => onLoad(recoveryDraft)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ProjectCard({
+  project,
+  onDelete,
+  onLoad,
+}: {
+  project: SavedProject;
+  onDelete: (id: string) => void;
+  onLoad: (project: SavedProject) => void;
+}) {
+  return (
+    <div className="library-card flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30">
+      <ProjectCardImage project={project} />
+      <div className="flex-1 flex flex-col justify-between min-w-0">
+        <ProjectCardMeta project={project} />
+        <ProjectCardActions
+          project={project}
+          deleteVariant="quiet"
+          loadVariant="quiet"
+          onDelete={() => onDelete(project.id)}
+          onLoad={() => onLoad(project)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ProjectCardImage({ project }: { project: SavedProject }) {
+  return <img src={project.thumbnail} alt={project.name} className="w-20 h-20 rounded object-cover shrink-0" />;
+}
+
+function ProjectCardMeta({ project, eyebrow }: { project: SavedProject; eyebrow?: string }) {
+  return (
+    <div>
+      {eyebrow && <div className="text-[10px] text-accent tracking-[2px]">{eyebrow}</div>}
+      <div className="text-[12px] text-text truncate">{project.name}</div>
+      <div className="text-[10px] text-dim tracking-[0.5px]">{formatUpdatedAt(project.updatedAt)}</div>
+      <div className="text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
+    </div>
+  );
+}
+
+function ProjectCardActions({
+  deleteVariant,
+  loadVariant,
+  onDelete,
+  onLoad,
+  project,
+}: {
+  deleteVariant: 'danger' | 'quiet';
+  loadVariant: 'danger' | 'quiet';
+  onDelete: () => void;
+  onLoad: () => void;
+  project: SavedProject;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      <ActionButton
+        className="library-card-action"
+        aria-label={`Load ${project.name}`}
+        onClick={onLoad}
+        variant={loadVariant}
+      >
+        LOAD
+      </ActionButton>
+      <ActionButton
+        className="library-card-action"
+        aria-label={`Delete ${project.name}`}
+        onClick={onDelete}
+        variant={deleteVariant}
+      >
+        DEL
+      </ActionButton>
+    </div>
   );
 }

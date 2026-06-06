@@ -19,13 +19,19 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.31 is complete as the Code Quality and Fallow Integration release, with
-  `v0.31.1` as the final patch for the Fallow cleanup, blocking changed-code
-  audit, and release-notes cleanup. The next release thesis should be planned as
-  v0.32.
-- The v0.31 cleanup backlog is intentionally trace-gated future work. It should
-  not be treated as hidden scope for landing work, Showcase / How-to work,
-  command palette, server-backed sharing, or full-health complexity gating.
+- v0.32 has completed the Code Health And Debt Reduction release scope: the
+  v0.31 changed-code Fallow gate remains clean, full-health complexity is
+  reduced to zero functions above threshold, hook-dependency warnings are
+  fixed, the `node-canvas.css` / Tailwind boundary is documented, and
+  storage/render risks are recorded without pulling product work into the
+  release.
+- The next version scope should start from the deferred product tracks below
+  or from a dedicated CI-policy pass if full-health complexity should become a
+  permanent strict release gate.
+- The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
+  should not be treated as hidden scope for landing work, Showcase / How-to
+  work, command palette, server-backed sharing, or renderer/persistence
+  behavior changes.
 - New version scopes should be split using
   [`version-planning.md`](./version-planning.md): one release thesis, one
   primary blast radius, explicit non-goals, checkable acceptance criteria, and a
@@ -40,6 +46,15 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.32.md`](./version-plans/v0.32.md) — Code Health And Debt
+  Reduction: v0.32 package metadata, generator-to-editor route-shell rename
+  while keeping `/app` stable, Fallow duplication and full-health complexity
+  reduced to zero without suppressions or CI threshold weakening, React hook
+  warning cleanup, Tailwind/CSS boundary documentation, roadmap/release hygiene,
+  and storage/render risk triage. Product features, renderer, graph traversal,
+  export, persistence schema, package export, AI scope, and font-policy work
+  were explicitly deferred out of v0.32. Release notes are in
+  [`releases/v0.32.0.md`](./releases/v0.32.0.md).
 - [`version-plans/v0.31.md`](./version-plans/v0.31.md) — Code Quality and
   Fallow Integration: read-only Fallow package scripts, blocking PR
   changed-code audit, baseline/backlog documentation, agent-safe JSON command
@@ -122,12 +137,8 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates for v0.32:
+Next strong candidates after v0.32:
 
-- **Fallow Complexity Policy Pass** — decide how to handle historical
-  full-health complexity hotspots after v0.31's zero-duplication cleanup, add
-  focused tests for any deeper refactors, suppress intentional public APIs or
-  workspace plumbing, and only then consider full-health complexity gates.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -143,9 +154,10 @@ Next strong candidates for v0.32:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Storage UX And Capability Hardening** — make autosave, recovery, quota
-  pressure, project size, cleanup, and unsupported browser capability states
-  visible enough that local-first storage feels like a creative safety net.
+- **Deeper Storage UX And Capability Hardening** — after v0.32 classifies the
+  known storage/render risks, make autosave, recovery, quota pressure, project
+  size, cleanup, and unsupported browser capability states visible enough that
+  local-first storage feels like a creative safety net.
 
 ## Product summary
 
@@ -359,24 +371,25 @@ stable.
 
 Fallow is now available as a codebase-intelligence layer. The v0.31 baseline
 lives in [`fallow-v0.31-baseline.md`](./fallow-v0.31-baseline.md), and the
-first release keeps historical full-health findings visible while blocking new
-changed-code debt in CI. It supports three workflows:
+v0.32 health review lives in
+[`fallow-v0.32-health.md`](./fallow-v0.32-health.md). Changed-code debt is
+blocked in CI, while v0.32 reduced the full-health complexity report to zero
+functions above threshold. Fallow supports three workflows:
 
 - **Local**: scripts for dead-code, duplication, health, dependency, and
   changed-code audit reports. Initial usage should be read-only; auto-fix should
   require an explicit dry run and focused review.
-- **CI**: a blocking `fallow audit --base <base>` gate for changed files before
-  any strict whole-repo fail mode. The first CI goal is to prevent new debt, not
-  block releases on existing legacy debt.
+- **CI**: a blocking `fallow audit --base <base>` gate for changed files. Any
+  stricter whole-repo fail mode should have an explicit threshold and
+  suppression policy before becoming a standing release gate.
 - **Agents**: update agent guidance so Codex uses Fallow for cleanup
   opportunities, duplicated UI/component code, complexity hotspots, dependency
   placement, and architecture-boundary checks. Fallow security output should be
   treated as unverified candidates that require downstream validation, not as a
   confirmed vulnerability verdict.
 
-Do not make full-health Fallow complexity a strict release gate until the first
-baseline report has been reviewed and noisy findings have been configured,
-suppressed, or turned into planned cleanup work.
+Do not make full-health Fallow complexity a permanent strict release gate until
+threshold ownership, suppression rules, and CI behavior are documented.
 
 ## Current architecture
 
@@ -385,10 +398,10 @@ suppressed, or turned into planned cleanup work.
 | Area | Main files | Notes |
 | --- | --- | --- |
 | Routing | `apps/web/app/routes.ts`, `apps/web/app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
-| Main editor | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
-| Document state | `apps/web/app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
-| Asset state | `apps/web/app/hooks/useGeneratorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
-| Export | `apps/web/app/hooks/useGeneratorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
+| Main editor | `apps/web/app/routes/editor.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
+| Document state | `apps/web/app/hooks/useEditorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
+| Asset state | `apps/web/app/hooks/useEditorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
+| Export | `apps/web/app/hooks/useEditorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
 | Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
 | Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
 
@@ -506,7 +519,7 @@ thumbnails, showcase output, and export. That is the right architecture for
 
 ### Layer factories and migration helpers
 
-Factory functions in `config.ts` reduce malformed layer creation. `normalizeDocument` and compatibility handling in `useGeneratorDocument.ts` keep old documents usable.
+Factory functions in `config.ts` reduce malformed layer creation. `normalizeDocument` and compatibility handling in `useEditorDocument.ts` keep old documents usable.
 
 ### Good low-level testing coverage for data and rendering logic
 
@@ -528,9 +541,9 @@ Using React Flow for graph mechanics and XState for selection/overlay state is a
 
 ## What is bad or risky
 
-### `generator.tsx` is still broad
+### `editor.tsx` is still broad
 
-`generator.tsx` wires document state, asset state, projects, export, presets,
+`editor.tsx` wires document state, asset state, projects, export, presets,
 layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
 into focused hooks for selection sync, context menus, graph events, drag state,
 gallery state, and primitive camera state, but the route-level composition is
@@ -629,9 +642,10 @@ Current shipped baseline:
 
 Current near-term focus:
 
-- `v0.17`: editor creative controls and shared Add Library. Keep render/export
-  semantics stable while making effect controls, menu search, and add flows feel
-  like creative tooling instead of engineering configuration.
+- `v0.32`: code health and debt reduction. Keep product semantics stable while
+  reducing historical complexity hotspots, route/controller density, hook
+  warnings, gesture update churn, CSS ownership debt, stale roadmap structure,
+  and unclassified storage/render risks.
 
 ### v0.11: Layer Workflow And Onboarding
 

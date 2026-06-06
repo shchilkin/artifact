@@ -8,6 +8,29 @@ export interface LayerSelectionModifiers {
   ctrlKey: boolean;
 }
 
+function currentLayerSelection(currentSelectedIds: Set<string>, selectedLayerId: string | null) {
+  return currentSelectedIds.size > 0 ? currentSelectedIds : new Set(selectedLayerId ? [selectedLayerId] : []);
+}
+
+function rangeLayerSelection(orderedLayerIds: string[], anchorId: string, id: string) {
+  const anchorIndex = orderedLayerIds.indexOf(anchorId);
+  const targetIndex = orderedLayerIds.indexOf(id);
+  if (anchorIndex < 0 || targetIndex < 0) return new Set([id]);
+  const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+  return new Set(orderedLayerIds.slice(start, end + 1));
+}
+
+function toggledLayerSelection(current: Set<string>, id: string) {
+  const next = new Set(current);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+function activeLayerIdForSelection(selectedIds: Set<string>, id: string) {
+  return selectedIds.has(id) ? id : ([...selectedIds].at(-1) ?? null);
+}
+
 export function computeNextLayerSelection({
   id,
   orderedLayerIds,
@@ -23,33 +46,16 @@ export function computeNextLayerSelection({
   anchorId: string | null;
   modifiers: LayerSelectionModifiers;
 }): { selectedIds: Set<string>; anchorId: string | null; activeLayerId: string | null } {
-  const current = currentSelectedIds.size > 0 ? currentSelectedIds : new Set(selectedLayerId ? [selectedLayerId] : []);
-  let next: Set<string>;
-  let nextAnchorId = anchorId;
-
-  if (modifiers.shiftKey && anchorId) {
-    const anchorIndex = orderedLayerIds.indexOf(anchorId);
-    const targetIndex = orderedLayerIds.indexOf(id);
-    if (anchorIndex >= 0 && targetIndex >= 0) {
-      const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
-      next = new Set(orderedLayerIds.slice(start, end + 1));
-    } else {
-      next = new Set([id]);
-    }
-  } else if (modifiers.metaKey || modifiers.ctrlKey) {
-    next = new Set(current);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    nextAnchorId = id;
-  } else {
-    next = new Set([id]);
-    nextAnchorId = id;
-  }
-
-  return { selectedIds: next, anchorId: nextAnchorId, activeLayerId: next.has(id) ? id : ([...next].at(-1) ?? null) };
+  const current = currentLayerSelection(currentSelectedIds, selectedLayerId);
+  const useRange = modifiers.shiftKey && anchorId;
+  const useToggle = modifiers.metaKey || modifiers.ctrlKey;
+  const next = useRange
+    ? rangeLayerSelection(orderedLayerIds, anchorId, id)
+    : useToggle
+      ? toggledLayerSelection(current, id)
+      : new Set([id]);
+  const nextAnchorId = useRange ? anchorId : id;
+  return { selectedIds: next, anchorId: nextAnchorId, activeLayerId: activeLayerIdForSelection(next, id) };
 }
 
 export function useLayerSelection({

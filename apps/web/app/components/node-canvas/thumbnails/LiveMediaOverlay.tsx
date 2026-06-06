@@ -39,57 +39,72 @@ export function EmptyThumbnailFrame({ label }: { label?: string }) {
 export function LiveMediaOverlay({ layer, imageSrc }: { layer: LiveMediaLayer; imageSrc?: string | null }) {
   const { doc } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
-  const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
   const referenceScale = getLiveMediaReferenceScale(previewSize.display.width);
   if (layer.kind === 'text') {
-    const fontFamily = getCanvasFontStack(layer.font);
-    const fontSize = Math.max(6, layer.size * referenceScale);
-    return (
-      <LiveMediaOverlayFrame previewSize={previewSize}>
-        <div
-          style={{
-            position: 'absolute',
-            left: `${layer.x * 100}%`,
-            top: `${layer.y * 100}%`,
-            width: '92%',
-            color: layer.color,
-            opacity: layer.opacity / 100,
-            fontFamily,
-            fontSize,
-            lineHeight: 1.25,
-            textAlign: layer.align,
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'break-word',
-            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scaleX}, ${layer.scaleY})`,
-            transformOrigin: 'center center',
-          }}
-        >
-          {layer.content}
-        </div>
-      </LiveMediaOverlayFrame>
-    );
+    return <TextLiveMediaOverlay layer={layer} previewSize={previewSize} referenceScale={referenceScale} />;
   }
 
   if (!imageSrc) return null;
+  return (
+    <ImageLiveMediaOverlay
+      imageSrc={imageSrc}
+      layer={layer}
+      previewSize={previewSize}
+      referenceScale={referenceScale}
+    />
+  );
+}
 
+function TextLiveMediaOverlay({
+  layer,
+  previewSize,
+  referenceScale,
+}: {
+  layer: Extract<LiveMediaLayer, { kind: 'text' }>;
+  previewSize: PreviewSize;
+  referenceScale: number;
+}) {
+  const fontFamily = getCanvasFontStack(layer.font);
+  const fontSize = Math.max(6, layer.size * referenceScale);
+  return (
+    <LiveMediaOverlayFrame previewSize={previewSize}>
+      <div
+        style={{
+          position: 'absolute',
+          left: `${layer.x * 100}%`,
+          top: `${layer.y * 100}%`,
+          width: '92%',
+          color: layer.color,
+          opacity: layer.opacity / 100,
+          fontFamily,
+          fontSize,
+          lineHeight: 1.25,
+          textAlign: layer.align,
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'break-word',
+          transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scaleX}, ${layer.scaleY})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        {layer.content}
+      </div>
+    </LiveMediaOverlayFrame>
+  );
+}
+
+function ImageLiveMediaOverlay({
+  imageSrc,
+  layer,
+  previewSize,
+  referenceScale,
+}: {
+  imageSrc: string;
+  layer: Extract<LiveMediaLayer, { kind: 'image' }>;
+  previewSize: PreviewSize;
+  referenceScale: number;
+}) {
   if (layer.fit === 'tile') {
-    return (
-      <LiveMediaOverlayFrame previewSize={previewSize}>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: layer.opacity / 100,
-            backgroundImage: `url(${imageSrc})`,
-            backgroundRepeat: 'repeat',
-            backgroundPosition: 'center',
-            backgroundSize: `${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleX)}px ${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleY)}px`,
-            transform: `rotate(${layer.rotation}deg) translate(${(layer.x - 0.5) * 100}%, ${(layer.y - 0.5) * 100}%)`,
-            transformOrigin: 'center center',
-          }}
-        />
-      </LiveMediaOverlayFrame>
-    );
+    return <TileImageLiveMediaOverlay imageSrc={imageSrc} layer={layer} previewSize={previewSize} />;
   }
 
   if (layer.fit === 'free') {
@@ -135,6 +150,35 @@ export function LiveMediaOverlay({ layer, imageSrc }: { layer: LiveMediaLayer; i
           transformOrigin: 'center center',
           userSelect: 'none',
           pointerEvents: 'none',
+        }}
+      />
+    </LiveMediaOverlayFrame>
+  );
+}
+
+function TileImageLiveMediaOverlay({
+  imageSrc,
+  layer,
+  previewSize,
+}: {
+  imageSrc: string;
+  layer: Extract<LiveMediaLayer, { kind: 'image' }>;
+  previewSize: PreviewSize;
+}) {
+  const maxDisplayDimension = Math.max(previewSize.display.width, previewSize.display.height);
+  return (
+    <LiveMediaOverlayFrame previewSize={previewSize}>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: layer.opacity / 100,
+          backgroundImage: `url(${imageSrc})`,
+          backgroundRepeat: 'repeat',
+          backgroundPosition: 'center',
+          backgroundSize: `${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleX)}px ${Math.max(6, maxDisplayDimension * 0.35 * layer.scaleY)}px`,
+          transform: `rotate(${layer.rotation}deg) translate(${(layer.x - 0.5) * 100}%, ${(layer.y - 0.5) * 100}%)`,
+          transformOrigin: 'center center',
         }}
       />
     </LiveMediaOverlayFrame>

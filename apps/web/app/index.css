@@ -108,17 +108,17 @@ body {
   overflow: hidden;
 }
 
-.generator-layout > .app {
+.editor-layout > .app {
   flex: 1;
   height: auto;
   min-height: 0;
 }
 
-.generator-layout-nodes {
+.editor-layout-nodes {
   position: relative;
 }
 
-.generator-layout-nodes .site-nav-compact {
+.editor-layout-nodes .site-nav-compact {
   position: absolute;
   top: 14px;
   left: 16px;

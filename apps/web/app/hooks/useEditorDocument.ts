@@ -67,7 +67,7 @@ import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import type { TextPresetId } from '../utils/textPresets';
 
-type GeneratorLayerInsertAction =
+type EditorLayerInsertAction =
   | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
   | { kind: 'textPreset'; preset: TextPresetId }
   | { kind: 'aiImage' }
@@ -84,22 +84,22 @@ function isUndoShortcut(event: KeyboardEvent) {
 }
 
 const INSERT_LAYER_BUILDERS = {
-  layer: (action: Extract<GeneratorLayerInsertAction, { kind: 'layer' }>) => createLayerOfKind(action.layerKind),
-  textPreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'textPreset' }>) =>
+  layer: (action: Extract<EditorLayerInsertAction, { kind: 'layer' }>) => createLayerOfKind(action.layerKind),
+  textPreset: (action: Extract<EditorLayerInsertAction, { kind: 'textPreset' }>) =>
     createTextPresetLayer(action.preset),
   aiImage: () => createAiImageLayer(),
-  noisePreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'noisePreset' }>) =>
+  noisePreset: (action: Extract<EditorLayerInsertAction, { kind: 'noisePreset' }>) =>
     makeNoisePresetLayer(action.preset),
-  arrayPreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'arrayPreset' }>) =>
+  arrayPreset: (action: Extract<EditorLayerInsertAction, { kind: 'arrayPreset' }>) =>
     makeArrayPresetLayer(action.preset),
-  effect: (action: Extract<GeneratorLayerInsertAction, { kind: 'effect' }>) => createEffectPresetLayer(action.preset),
+  effect: (action: Extract<EditorLayerInsertAction, { kind: 'effect' }>) => createEffectPresetLayer(action.preset),
 } satisfies Record<string, (action: never) => Layer>;
 
-function createLayerForInsertAction(action: GeneratorLayerInsertAction): Layer {
+function createLayerForInsertAction(action: EditorLayerInsertAction): Layer {
   return INSERT_LAYER_BUILDERS[action.kind](action as never);
 }
 
-export function useGeneratorDocument(nodeModeEnabled: boolean) {
+export function useEditorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
@@ -318,7 +318,7 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const insertLayerAbove = useCallback(
-    (targetLayerId: string, action: GeneratorLayerInsertAction) => {
+    (targetLayerId: string, action: EditorLayerInsertAction) => {
       const layer = createLayerForInsertAction(action);
       updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);

@@ -417,17 +417,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       repeatSignatures,
       edgeSignatures,
     };
-  }, [
-    renderDoc.global.aspect,
-    renderDoc.global.bg,
-    renderDoc.global.seed,
-    renderDoc.layers,
-    renderGraph,
-    previewSize,
-    previewTargetId,
-    renderPrimitiveViewStates,
-    imageCache,
-  ]);
+  }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
   const { graphRenderSessionKey, previewKey } = signatureData;
 
   useEffect(() => {
@@ -549,16 +539,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     );
 
     return () => clearTimeout(debounceRef.current);
-  }, [
-    isFrameVisible,
-    isExportPreview,
-    isGraphDraggingRef,
-    priority,
-    previewKey,
-    previewSize.render.height,
-    previewSize.render.width,
-    previewTargetId,
-  ]);
+  }, [isFrameVisible, isExportPreview, isGraphDraggingRef, priority, previewKey, previewSize, previewTargetId]);
 
   return {
     frameRef,

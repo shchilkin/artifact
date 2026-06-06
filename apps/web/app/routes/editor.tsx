@@ -9,17 +9,17 @@ import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
-import { useGeneratorAssets } from '../hooks/useGeneratorAssets';
-import { useGeneratorDocument } from '../hooks/useGeneratorDocument';
-import { useGeneratorExport } from '../hooks/useGeneratorExport';
-import { useGeneratorPresetsController } from '../hooks/useGeneratorPresetsController';
-import { useGeneratorProjectsController } from '../hooks/useGeneratorProjectsController';
+import { useEditorAssets } from '../hooks/useEditorAssets';
+import { useEditorDocument } from '../hooks/useEditorDocument';
+import { useEditorExport } from '../hooks/useEditorExport';
+import { useEditorPresetsController } from '../hooks/useEditorPresetsController';
+import { useEditorProjectsController } from '../hooks/useEditorProjectsController';
 import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
 import { getStarterDocument } from '../utils/starterDocuments';
-import { EmptyCanvasStart } from './generator/EmptyCanvasStart';
-import { useGeneratorPanels } from './generator/useGeneratorPanels';
-import { useGeneratorPrimitiveExportState } from './generator/useGeneratorPrimitiveExportState';
-import { type ViewMode, ViewModeToggle } from './generator/ViewModeToggle';
+import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
+import { useEditorPanels } from './editor/useEditorPanels';
+import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExportState';
+import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 
@@ -47,7 +47,9 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   );
 }
 
-export default function Generator() {
+// Renamed legacy editor shell; v0.32 tracks controller extraction.
+// fallow-ignore-next-line complexity
+export default function Editor() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
@@ -90,23 +92,19 @@ export default function Generator() {
     undoCount,
     fromDocParam,
     isBlank,
-  } = useGeneratorDocument(viewMode === 'nodes');
-  const { imageCache, dropError, handleDroppedFile } = useGeneratorAssets(
-    doc,
-    addImageFromSource,
-    storeImageAssetSource,
-  );
+  } = useEditorDocument(viewMode === 'nodes');
+  const { imageCache, dropError, handleDroppedFile } = useEditorAssets(doc, addImageFromSource, storeImageAssetSource);
   const {
     effectivePrimitiveViewStates,
     exportRenderOptions,
     handlePrimitiveViewStatesChange,
     resetPrimitiveViewStates,
-  } = useGeneratorPrimitiveExportState({
+  } = useEditorPrimitiveExportState({
     doc,
     docRef,
     onGraphChange: handleGraphChange,
   });
-  const { exportBusy, exportError, handleNodeExport } = useGeneratorExport(docRef, imageCache, exportRenderOptions);
+  const { exportBusy, exportError, handleNodeExport } = useEditorExport(docRef, imageCache, exportRenderOptions);
   const {
     fileInputRef,
     documentFileError,
@@ -116,7 +114,7 @@ export default function Generator() {
     handleSaveProjectPackage,
   } = useDocumentFileTransfer(docRef, loadDocument);
   const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
-    useGeneratorPresetsController({
+    useEditorPresetsController({
       docRef,
       imageCache,
       onLoadDocument: loadDocument,
@@ -133,13 +131,13 @@ export default function Generator() {
     saveCurrentProject,
     deleteProject,
     deleteRecoveryDraft,
-  } = useGeneratorProjectsController({
+  } = useEditorProjectsController({
     docRef,
     imageCache,
     onLoadDocument: loadDocument,
   });
 
-  const { handleTogglePresets, handleToggleProjects, closePanels } = useGeneratorPanels({
+  const { handleTogglePresets, handleToggleProjects, closePanels } = useEditorPanels({
     closePresets,
     closeProjects,
     togglePresets,
@@ -197,7 +195,7 @@ export default function Generator() {
   };
 
   return (
-    <div className={`generator-layout generator-layout-${viewMode} flex flex-col w-full h-full`}>
+    <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
       <SiteNav solid compact={viewMode === 'nodes'} />
       <input
         ref={fileInputRef}

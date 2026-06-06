@@ -449,13 +449,7 @@ describe('document serialization helpers', () => {
     const parsed = normalizeDocument(JSON.parse(serializeDocument(graphDoc)));
 
     expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
-    expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
-    expect(parsed.graph?.mergeNodes).toEqual(graphDoc.graph?.mergeNodes);
-    expect(parsed.graph?.colorNodes).toEqual(graphDoc.graph?.colorNodes);
-    expect(parsed.graph?.repeatNodes).toEqual(graphDoc.graph?.repeatNodes);
-    expect(parsed.graph?.areas).toEqual(graphDoc.graph?.areas);
-    expect(parsed.graph?.primitiveViewStates).toEqual(graphDoc.graph?.primitiveViewStates);
-    expect(parsed.graph?.positions.__export__).toEqual({ x: 216, y: 80 });
+    expect(parsed.graph).toEqual(graphDoc.graph);
   });
 
   it('rejects invalid artifact document JSON without throwing', () => {

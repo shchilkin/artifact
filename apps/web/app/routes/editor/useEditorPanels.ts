@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-export function useGeneratorPanels({
+export function useEditorPanels({
   closePresets,
   closeProjects,
   togglePresets,

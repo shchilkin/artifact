@@ -130,7 +130,7 @@ visual component.
 
 | State kind | Examples | Where it belongs |
 | --- | --- | --- |
-| Document state | Layers, graph nodes, edges, export config | `CanvasDocument`, updated by generator document hooks |
+| Document state | Layers, graph nodes, edges, export config | `CanvasDocument`, updated by editor document hooks |
 | Render options | Primitive camera overrides, graph target | Passed as render options, not saved into layer fields |
 | Editor state | Selection, expanded node, menus, gallery | Node canvas machine/hooks/context |
 | Gesture draft | Drag position, wheel scale draft, active pointer | Component-local refs/state until commit |

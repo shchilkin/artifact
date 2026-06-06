@@ -31,6 +31,33 @@ CI should run:
 
 ## Manual QA
 
+### v0.32.0 Release Prep
+
+- Release prep was approved by the maintainer on 2026-06-06 after local review
+  confirmed the app works.
+- Package metadata is bumped to `0.32.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.32.0.md` is prepared from the release template without a
+  visible internal checklist.
+- `docs/fallow-v0.32-health.md` records the v0.32 complexity review:
+  health score `91.4`, zero functions above threshold, zero critical findings,
+  zero high findings, and zero moderate findings.
+- Fallow changed-code audit passed with `verdict: "pass"` and zero dead-code
+  issues, zero complexity findings, and zero duplication clone groups.
+- `npm run check` passed on 2026-06-06 with 54 web test files passing
+  (`389 passed`) and 21 API test files passing (`93 passed`, `1 skipped`).
+- `npm run build` passed on 2026-06-06.
+- `npm run test:browser` passed on 2026-06-06 with `270 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. An earlier full browser run produced two timeout failures, but both
+  failed scenarios passed when rerun directly before the final clean full gate.
+- `npm run perf:node-editor` is not required for the current release-prep diff
+  because no React Flow interaction, node-editor gesture, thumbnail scheduling,
+  CSS behavior, graph traversal, renderer/export behavior, persistence format,
+  document schema, AI scope, package export, or font-policy behavior changed.
+- Full-health complexity is clean for v0.32. Making it a permanent strict
+  release gate remains a future CI policy decision.
+
 ### v0.31.1 Release Prep
 
 - Patch release prep passed locally on 2026-06-06.

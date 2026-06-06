@@ -22,11 +22,15 @@ export function useNodePerfDebug() {
 
 function isPerfDebugEnabledByDefault() {
   if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('debug') === 'perf' || params.get('perf') === '1') return true;
+  if (perfDebugEnabledInSearch(window.location.search)) return true;
   try {
     return localStorage.getItem(PERF_DEBUG_STORAGE_KEY) === '1';
   } catch {
     return false;
   }
+}
+
+function perfDebugEnabledInSearch(search: string) {
+  const params = new URLSearchParams(search);
+  return params.get('debug') === 'perf' || params.get('perf') === '1';
 }

@@ -10,7 +10,7 @@ export interface UseNodeSelectionSyncOptions {
   selectedNodeIds: string[];
   selectedEdgeId: string | null;
   expandedNodeId: string | null;
-  /** Externally controlled selected layer (from generator). */
+  /** Externally controlled selected layer (from the editor shell). */
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   doc: CanvasDocument;
@@ -81,7 +81,7 @@ export function useNodeSelectionSync({
   const activeEditorNodeId = useMemo(() => {
     if (!expandedNodeId) return null;
     return graphNodeExists(expandedNodeId, doc, graph) ? expandedNodeId : null;
-  }, [doc.layers, graph.colorNodes, graph.mergeNodes, graph.repeatNodes, expandedNodeId]);
+  }, [doc, graph, expandedNodeId]);
 
   const handleSelectNode = useCallback(
     (id: string, event?: React.MouseEvent) => {

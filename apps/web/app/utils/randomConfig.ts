@@ -53,6 +53,14 @@ function spark(rng: Rng = Math.random): boolean {
   return rng() < 0.4;
 }
 
+function chance(probability: number, rng: Rng = Math.random): boolean {
+  return rng() < probability;
+}
+
+function optionalRand(probability: number, min: number, max: number, rng: Rng = Math.random): number {
+  return chance(probability, rng) ? rand(min, max, rng) : 0;
+}
+
 function pick<T>(items: readonly T[], rng: Rng = Math.random): T {
   return items[rand(0, items.length - 1, rng)];
 }
@@ -187,14 +195,20 @@ export function randomEffectLayer(baseHue?: number): EffectLayer {
   return randomEffectPresetLayer(preset, baseHueValue);
 }
 
+const TEXT_ROLE_MARKERS: { role: TextRandomRole; markers: readonly string[] }[] = [
+  { role: 'poster', markers: ['poster'] },
+  { role: 'credit', markers: ['credit', 'artist', 'track'] },
+  { role: 'subtitle', markers: ['subtitle'] },
+  { role: 'label', markers: ['label'] },
+  { role: 'title', markers: ['title'] },
+];
+
 function inferTextRandomRole(layer?: TextLayer): TextRandomRole {
   const marker = `${layer?.name ?? ''} ${layer?.content ?? ''}`.toLowerCase();
-  if (marker.includes('poster')) return 'poster';
-  if (marker.includes('credit') || marker.includes('artist') || marker.includes('track')) return 'credit';
-  if (marker.includes('subtitle')) return 'subtitle';
-  if (marker.includes('label')) return 'label';
-  if (marker.includes('title')) return 'title';
-  return pick(TEXT_RANDOM_ROLES);
+  return (
+    TEXT_ROLE_MARKERS.find((config) => config.markers.some((term) => marker.includes(term)))?.role ??
+    pick(TEXT_RANDOM_ROLES)
+  );
 }
 
 function randomTextPatch(
@@ -458,169 +472,76 @@ export function randomDocumentFromSeed(seed: number): CanvasDocument {
   return randomDocumentForFormula(formula, seed);
 }
 
+type EffectPresetRandomizer = (baseHue: number, accentHue: number) => Partial<EffectLayer>;
+
+const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandomizer>> = {
+  rays: (_baseHue, ah) => ({
+    rays: rand(4, 48),
+    rayInt: rand(20, 90),
+    rayColor: randomHsl(ah, [70, 100], [55, 80]),
+  }),
+  bloom: () => ({ bloom: rand(15, 80) }),
+  filmBurn: () => ({ filmBurn: rand(20, 90) }),
+  glitch: () => ({ glitch: rand(0, 18) }),
+  rgbSplit: () => ({ rgbSplit: rand(0, 12) }),
+  interlace: () => ({ interlace: rand(10, 70) }),
+  dataMosh: () => ({ dataMosh: rand(10, 70) }),
+  grain: () => ({ grain: rand(8, 42) }),
+  scanlines: () => ({ scanlines: rand(5, 80), scanlineWidth: rand(1, 4) }),
+  tint: () => ({ tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) }),
+  noiseWarp: () => ({ noiseWarp: rand(10, 70) }),
+  morph: () => ({ morphAmt: rand(10, 80), morphFreq: rand(1, 15) }),
+  vortex: () => ({ vortex: rand(5, 60) }),
+  barrel: () => ({ barrel: rand(5, 70) }),
+  tear: () => ({ tearAmt: rand(1, 15), tearSize: rand(1, 12) }),
+  mirror: () => ({ mirror: rand(1, 3) }),
+  hueShift: () => ({ hueShift: rand(10, 350) }),
+  vignette: () => ({ vignette: rand(0, 80) }),
+  pixelate: () => ({ pixelate: rand(2, 10) }),
+  posterize: () => ({ posterize: rand(3, 12) }),
+  duotone: (baseHue, ah) => ({
+    duotone: rand(40, 90),
+    duoA: randomHsl(baseHue, [30, 60], [3, 12]),
+    duoB: randomHsl(ah, [60, 100], [55, 85]),
+  }),
+  halftone: () => ({ halftone: rand(5, 20) }),
+  risoShift: () => ({ risoShift: rand(4, 18), risoAngle: rand(0, 360) }),
+  blur: () => ({ blurAmt: rand(10, 70) }),
+  threshold: () => ({ threshold: rand(30, 70) }),
+  edgeDetect: () => ({ edgeDetect: rand(40, 90) }),
+  gradientOverlay: (baseHue, ah) => ({
+    gradMix: rand(30, 80),
+    gradA: randomHsl(baseHue, [40, 80], [10, 30]),
+    gradB: randomHsl(ah, [60, 100], [55, 85]),
+    gradAngle: rand(0, 360),
+  }),
+  sepia: () => ({ sepia: rand(40, 90) }),
+  neonGlow: (_baseHue, ah) => ({ neonGlow: rand(25, 80), neonColor: randomHsl(ah, [80, 100], [50, 80]) }),
+  zoomBlur: () => ({ zoomBlur: rand(15, 65) }),
+  vhsTracking: () => ({ vhsTracking: rand(10, 60) }),
+  dither: () => ({ dither: rand(18, 54) }),
+  infrared: () => ({ infrared: rand(40, 90) }),
+  ca: () => ({ ca: rand(5, 25) }),
+  wave: () => ({ waveAmt: rand(8, 45), waveFreq: rand(1, 8) }),
+  matte: () => ({ matte: rand(15, 65) }),
+  overprint: () => ({ overprint: rand(10, 55) }),
+  solarize: () => ({ solarize: rand(30, 80) }),
+  bleachBypass: () => ({ bleachBypass: rand(20, 70) }),
+  cyanotype: () => ({ cyanotype: rand(20, 80) }),
+  splitTone: () => ({ splitToneAmt: rand(20, 70) }),
+  ripple: () => ({ rippleAmt: rand(10, 60), rippleFreq: rand(1, 8) }),
+  kaleidoscope: () => ({ kaleidoscope: rand(20, 80) }),
+  squeeze: () => ({ squeezeX: spark() ? rand(-60, 60) : 0, squeezeY: spark() ? rand(-60, 60) : 0 }),
+  emboss: () => ({ emboss: rand(20, 80) }),
+  linocut: () => ({ linocut: rand(20, 80) }),
+  fog: () => ({ fog: rand(20, 70) }),
+  speedLines: () => ({ speedLines: rand(10, 80) }),
+};
+
 function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
   const base = makeEffectPresetLayer(preset);
   const ah = (baseHue + rand(120, 240)) % 360;
-  let overrides: Partial<EffectLayer> = {};
-  switch (preset) {
-    case 'rays':
-      overrides = {
-        rays: rand(4, 48),
-        rayInt: rand(20, 90),
-        rayColor: randomHsl(ah, [70, 100], [55, 80]),
-      };
-      break;
-    case 'bloom':
-      overrides = { bloom: rand(15, 80) };
-      break;
-    case 'filmBurn':
-      overrides = { filmBurn: rand(20, 90) };
-      break;
-    case 'glitch':
-      overrides = { glitch: rand(0, 18) };
-      break;
-    case 'rgbSplit':
-      overrides = { rgbSplit: rand(0, 12) };
-      break;
-    case 'interlace':
-      overrides = { interlace: rand(10, 70) };
-      break;
-    case 'dataMosh':
-      overrides = { dataMosh: rand(10, 70) };
-      break;
-    case 'grain':
-      overrides = { grain: rand(8, 42) };
-      break;
-    case 'scanlines':
-      overrides = { scanlines: rand(5, 80), scanlineWidth: rand(1, 4) };
-      break;
-    case 'tint':
-      overrides = { tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) };
-      break;
-    case 'noiseWarp':
-      overrides = { noiseWarp: rand(10, 70) };
-      break;
-    case 'morph':
-      overrides = { morphAmt: rand(10, 80), morphFreq: rand(1, 15) };
-      break;
-    case 'vortex':
-      overrides = { vortex: rand(5, 60) };
-      break;
-    case 'barrel':
-      overrides = { barrel: rand(5, 70) };
-      break;
-    case 'tear':
-      overrides = { tearAmt: rand(1, 15), tearSize: rand(1, 12) };
-      break;
-    case 'mirror':
-      overrides = { mirror: rand(1, 3) };
-      break;
-    case 'hueShift':
-      overrides = { hueShift: rand(10, 350) };
-      break;
-    case 'vignette':
-      overrides = { vignette: rand(0, 80) };
-      break;
-    case 'pixelate':
-      overrides = { pixelate: rand(2, 10) };
-      break;
-    case 'posterize':
-      overrides = { posterize: rand(3, 12) };
-      break;
-    case 'duotone':
-      overrides = {
-        duotone: rand(40, 90),
-        duoA: randomHsl(baseHue, [30, 60], [3, 12]),
-        duoB: randomHsl(ah, [60, 100], [55, 85]),
-      };
-      break;
-    case 'halftone':
-      overrides = { halftone: rand(5, 20) };
-      break;
-    case 'risoShift':
-      overrides = { risoShift: rand(4, 18), risoAngle: rand(0, 360) };
-      break;
-    case 'blur':
-      overrides = { blurAmt: rand(10, 70) };
-      break;
-    case 'threshold':
-      overrides = { threshold: rand(30, 70) };
-      break;
-    case 'edgeDetect':
-      overrides = { edgeDetect: rand(40, 90) };
-      break;
-    case 'gradientOverlay':
-      overrides = {
-        gradMix: rand(30, 80),
-        gradA: randomHsl(baseHue, [40, 80], [10, 30]),
-        gradB: randomHsl(ah, [60, 100], [55, 85]),
-        gradAngle: rand(0, 360),
-      };
-      break;
-    case 'sepia':
-      overrides = { sepia: rand(40, 90) };
-      break;
-    case 'neonGlow':
-      overrides = { neonGlow: rand(25, 80), neonColor: randomHsl(ah, [80, 100], [50, 80]) };
-      break;
-    case 'zoomBlur':
-      overrides = { zoomBlur: rand(15, 65) };
-      break;
-    case 'vhsTracking':
-      overrides = { vhsTracking: rand(10, 60) };
-      break;
-    case 'dither':
-      overrides = { dither: rand(18, 54) };
-      break;
-    case 'infrared':
-      overrides = { infrared: rand(40, 90) };
-      break;
-    case 'ca':
-      overrides = { ca: rand(5, 25) };
-      break;
-    case 'wave':
-      overrides = { waveAmt: rand(8, 45), waveFreq: rand(1, 8) };
-      break;
-    case 'matte':
-      overrides = { matte: rand(15, 65) };
-      break;
-    case 'overprint':
-      overrides = { overprint: rand(10, 55) };
-      break;
-    case 'solarize':
-      overrides = { solarize: rand(30, 80) };
-      break;
-    case 'bleachBypass':
-      overrides = { bleachBypass: rand(20, 70) };
-      break;
-    case 'cyanotype':
-      overrides = { cyanotype: rand(20, 80) };
-      break;
-    case 'splitTone':
-      overrides = { splitToneAmt: rand(20, 70) };
-      break;
-    case 'ripple':
-      overrides = { rippleAmt: rand(10, 60), rippleFreq: rand(1, 8) };
-      break;
-    case 'kaleidoscope':
-      overrides = { kaleidoscope: rand(20, 80) };
-      break;
-    case 'squeeze':
-      overrides = { squeezeX: spark() ? rand(-60, 60) : 0, squeezeY: spark() ? rand(-60, 60) : 0 };
-      break;
-    case 'emboss':
-      overrides = { emboss: rand(20, 80) };
-      break;
-    case 'linocut':
-      overrides = { linocut: rand(20, 80) };
-      break;
-    case 'fog':
-      overrides = { fog: rand(20, 70) };
-      break;
-    case 'speedLines':
-      overrides = { speedLines: rand(10, 80) };
-      break;
-  }
+  const overrides = EFFECT_PRESET_RANDOMIZERS[preset]?.(baseHue, ah) ?? {};
   return { ...base, ...overrides };
 }
 
@@ -633,107 +554,102 @@ export function randomDocument(): CanvasDocument {
 export function randomLayerSection(layer: EmojiLayer, section: 'EMOJIS'): Partial<EmojiLayer>;
 export function randomLayerSection(layer: EffectLayer, section: string): Partial<EffectLayer>;
 export function randomLayerSection(layer: TextLayer, section: 'TEXT'): Partial<TextLayer>;
+type RandomLayerSectionFactory = (layer: unknown, h: number, accentHue: number) => Partial<unknown>;
+
+function randomEmojiSection(): Partial<EmojiLayer> {
+  const pool = [...ALL_EMOJIS].sort(() => Math.random() - 0.5);
+  const minSz = rand(10, 50);
+  return {
+    emojis: pool.slice(0, rand(2, 6)),
+    density: rand(15, 70),
+    minSz,
+    maxSz: rand(Math.max(minSz + 10, 40), 130),
+    blur: 0,
+  };
+}
+
+const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> = {
+  EMOJIS: () => randomEmojiSection(),
+  RAYS: (_layer, _h, ah) => ({
+    rays: rand(4, 48),
+    rayInt: rand(20, 90),
+    rayColor: randomHsl(ah, [70, 100], [55, 80]),
+    bloom: optionalRand(0.4, 15, 80),
+    filmBurn: optionalRand(0.4, 20, 90),
+    neonGlow: optionalRand(0.3, 20, 70),
+    neonColor: randomHsl(ah, [80, 100], [50, 80]),
+    fog: optionalRand(0.2, 20, 70),
+    speedLines: optionalRand(0.15, 10, 80),
+  }),
+  GLITCH: () => ({
+    glitch: rand(0, 18),
+    rgbSplit: rand(0, 12),
+    ca: optionalRand(0.4, 3, 20),
+    interlace: optionalRand(0.4, 10, 70),
+    dataMosh: optionalRand(0.4, 10, 70),
+    vhsTracking: optionalRand(0.4, 10, 55),
+  }),
+  TEXTURE: () => ({
+    grain: rand(0, 42),
+    scanlines: rand(0, 80),
+    scanlineWidth: rand(1, 4),
+    blurAmt: optionalRand(0.4, 0, 60),
+    matte: optionalRand(0.35, 10, 60),
+    dither: optionalRand(0.25, 15, 50),
+    emboss: optionalRand(0.2, 20, 80),
+    linocut: optionalRand(0.2, 20, 80),
+  }),
+  TINT: () => ({ tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(0, 60) }),
+  WARP: () => ({
+    morphAmt: optionalRand(0.4, 10, 80),
+    morphFreq: rand(1, 15),
+    tearAmt: optionalRand(0.4, 1, 15),
+    tearSize: rand(1, 12),
+    noiseWarp: optionalRand(0.4, 10, 70),
+    vortex: optionalRand(0.4, 5, 60),
+    barrel: optionalRand(0.4, 5, 70),
+    mirror: optionalRand(0.4, 1, 3),
+    waveAmt: optionalRand(0.3, 5, 40),
+    waveFreq: rand(1, 8),
+    zoomBlur: optionalRand(0.2, 10, 55),
+    rippleAmt: optionalRand(0.2, 10, 60),
+    rippleFreq: rand(1, 8),
+    kaleidoscope: optionalRand(0.15, 20, 80),
+    squeezeX: optionalRand(0.4, -60, 60),
+    squeezeY: optionalRand(0.4, -60, 60),
+  }),
+  COLORFX: () => ({
+    hueShift: optionalRand(0.4, 10, 350),
+    rgbSplit: optionalRand(0.4, 3, 25),
+    vignette: rand(0, 80),
+    pixelate: optionalRand(0.4, 2, 10),
+    posterize: optionalRand(0.4, 3, 12),
+    threshold: optionalRand(0.2, 30, 70),
+    edgeDetect: optionalRand(0.2, 30, 80),
+    gradMix: optionalRand(0.25, 30, 70),
+    sepia: optionalRand(0.2, 20, 80),
+    infrared: optionalRand(0.15, 30, 80),
+    solarize: optionalRand(0.15, 30, 80),
+    bleachBypass: optionalRand(0.15, 20, 70),
+    cyanotype: optionalRand(0.15, 20, 80),
+    splitToneAmt: optionalRand(0.15, 20, 70),
+  }),
+  RISO: (_layer, h, ah) => ({
+    duotone: optionalRand(0.5, 40, 90),
+    duoA: randomHsl(h, [30, 60], [3, 12]),
+    duoB: randomHsl(ah, [60, 100], [55, 85]),
+    halftone: optionalRand(0.5, 5, 20),
+    risoShift: optionalRand(0.5, 4, 18),
+    risoAngle: rand(0, 360),
+    overprint: optionalRand(0.3, 10, 55),
+  }),
+  TEXT: (layer, h) => randomTextPatch(inferTextRandomRole(layer as TextLayer), h, layer as TextLayer),
+};
+
 export function randomLayerSection(layer: unknown, section: string): Partial<unknown> {
   const h = rand(0, 359);
   const ah = (h + rand(120, 240)) % 360;
-
-  switch (section) {
-    case 'EMOJIS': {
-      const pool = [...ALL_EMOJIS].sort(() => Math.random() - 0.5);
-      const minSz = rand(10, 50);
-      return {
-        emojis: pool.slice(0, rand(2, 6)),
-        density: rand(15, 70),
-        minSz,
-        maxSz: rand(Math.max(minSz + 10, 40), 130),
-        blur: 0,
-      };
-    }
-    case 'RAYS':
-      return {
-        rays: rand(4, 48),
-        rayInt: rand(20, 90),
-        rayColor: randomHsl(ah, [70, 100], [55, 80]),
-        bloom: spark() ? rand(15, 80) : 0,
-        filmBurn: spark() ? rand(20, 90) : 0,
-        neonGlow: Math.random() < 0.3 ? rand(20, 70) : 0,
-        neonColor: randomHsl(ah, [80, 100], [50, 80]),
-        fog: Math.random() < 0.2 ? rand(20, 70) : 0,
-        speedLines: Math.random() < 0.15 ? rand(10, 80) : 0,
-      };
-    case 'GLITCH':
-      return {
-        glitch: rand(0, 18),
-        rgbSplit: rand(0, 12),
-        ca: spark() ? rand(3, 20) : 0,
-        interlace: spark() ? rand(10, 70) : 0,
-        dataMosh: spark() ? rand(10, 70) : 0,
-        vhsTracking: spark() ? rand(10, 55) : 0,
-      };
-    case 'TEXTURE':
-      return {
-        grain: rand(0, 42),
-        scanlines: rand(0, 80),
-        scanlineWidth: rand(1, 4),
-        blurAmt: Math.random() < 0.4 ? rand(0, 60) : 0,
-        matte: Math.random() < 0.35 ? rand(10, 60) : 0,
-        dither: Math.random() < 0.25 ? rand(15, 50) : 0,
-        emboss: Math.random() < 0.2 ? rand(20, 80) : 0,
-        linocut: Math.random() < 0.2 ? rand(20, 80) : 0,
-      };
-    case 'TINT':
-      return { tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(0, 60) };
-    case 'WARP':
-      return {
-        morphAmt: spark() ? rand(10, 80) : 0,
-        morphFreq: rand(1, 15),
-        tearAmt: spark() ? rand(1, 15) : 0,
-        tearSize: rand(1, 12),
-        noiseWarp: spark() ? rand(10, 70) : 0,
-        vortex: spark() ? rand(5, 60) : 0,
-        barrel: spark() ? rand(5, 70) : 0,
-        mirror: spark() ? rand(1, 3) : 0,
-        waveAmt: Math.random() < 0.3 ? rand(5, 40) : 0,
-        waveFreq: rand(1, 8),
-        zoomBlur: Math.random() < 0.2 ? rand(10, 55) : 0,
-        rippleAmt: Math.random() < 0.2 ? rand(10, 60) : 0,
-        rippleFreq: rand(1, 8),
-        kaleidoscope: Math.random() < 0.15 ? rand(20, 80) : 0,
-        squeezeX: spark() ? rand(-60, 60) : 0,
-        squeezeY: spark() ? rand(-60, 60) : 0,
-      };
-    case 'COLORFX':
-      return {
-        hueShift: spark() ? rand(10, 350) : 0,
-        rgbSplit: spark() ? rand(3, 25) : 0,
-        vignette: rand(0, 80),
-        pixelate: spark() ? rand(2, 10) : 0,
-        posterize: spark() ? rand(3, 12) : 0,
-        threshold: Math.random() < 0.2 ? rand(30, 70) : 0,
-        edgeDetect: Math.random() < 0.2 ? rand(30, 80) : 0,
-        gradMix: Math.random() < 0.25 ? rand(30, 70) : 0,
-        sepia: Math.random() < 0.2 ? rand(20, 80) : 0,
-        infrared: Math.random() < 0.15 ? rand(30, 80) : 0,
-        solarize: Math.random() < 0.15 ? rand(30, 80) : 0,
-        bleachBypass: Math.random() < 0.15 ? rand(20, 70) : 0,
-        cyanotype: Math.random() < 0.15 ? rand(20, 80) : 0,
-        splitToneAmt: Math.random() < 0.15 ? rand(20, 70) : 0,
-      };
-    case 'RISO':
-      return {
-        duotone: Math.random() < 0.5 ? rand(40, 90) : 0,
-        duoA: randomHsl(h, [30, 60], [3, 12]),
-        duoB: randomHsl(ah, [60, 100], [55, 85]),
-        halftone: Math.random() < 0.5 ? rand(5, 20) : 0,
-        risoShift: Math.random() < 0.5 ? rand(4, 18) : 0,
-        risoAngle: rand(0, 360),
-        overprint: Math.random() < 0.3 ? rand(10, 55) : 0,
-      };
-    case 'TEXT':
-      return randomTextPatch(inferTextRandomRole(layer as TextLayer), h, layer as TextLayer);
-    default:
-      return layer ?? {};
-  }
+  return RANDOM_LAYER_SECTION_FACTORIES[section]?.(layer, h, ah) ?? ((layer ?? {}) as Partial<unknown>);
 }
 
 export function zeroLayerSection(section: string): Partial<EffectLayer> | Partial<EmojiLayer> | Partial<TextLayer> {

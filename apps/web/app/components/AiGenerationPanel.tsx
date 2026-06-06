@@ -1530,7 +1530,7 @@ export function AiGenerationPanel({
         setMessage,
       });
     },
-    [access?.enabled, aspect, baseUrl, getBearerToken, onGenerationStateChange, provider, quality],
+    [access, aspect, baseUrl, getBearerToken, onGenerationStateChange, provider, quality],
   );
 
   const handleGenerate = useCallback(() => submitGeneration(prompt), [prompt, submitGeneration]);

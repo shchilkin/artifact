@@ -59,9 +59,7 @@ export function useNodeGallery({
     setMediaViewStates((current) => ({ ...current, [id]: next }));
   }, []);
 
-  const galleryDisplayLayer = galleryNodeId
-    ? (doc.layers.find((layer) => layer.id === galleryNodeId && isGalleryEligibleLayer(layer)) ?? null)
-    : null;
+  const galleryDisplayLayer = findGalleryDisplayLayer(doc.layers, galleryNodeId);
 
   const galleryDisplayDoc = useMemo(() => {
     if (!galleryDisplayLayer) return null;
@@ -74,20 +72,11 @@ export function useNodeGallery({
     } satisfies CanvasDocument;
   }, [doc, galleryDisplayLayer, graph]);
 
-  const galleryPrimitiveViewState =
-    galleryDisplayLayer?.kind === 'primitive'
-      ? (primitiveViewStates[galleryDisplayLayer.id] ?? defaultPrimitiveViewportState(galleryDisplayLayer))
-      : null;
+  const galleryPrimitiveViewState = galleryPrimitiveState(galleryDisplayLayer, primitiveViewStates);
 
-  const galleryMediaViewState = galleryDisplayLayer
-    ? (mediaViewStates[galleryDisplayLayer.id] ?? defaultMediaViewState())
-    : defaultMediaViewState();
+  const galleryMediaViewState = galleryMediaState(galleryDisplayLayer, mediaViewStates);
 
-  const galleryHint = galleryDisplayLayer
-    ? galleryDisplayLayer.kind === 'primitive'
-      ? 'Drag rotates, wheel or trackpad zooms, lock freezes camera. Export uses this camera.'
-      : 'Drag to pan, scroll to zoom, Home resets.'
-    : '';
+  const galleryHint = galleryHintForLayer(galleryDisplayLayer);
 
   return {
     mediaViewStates,
@@ -100,4 +89,29 @@ export function useNodeGallery({
     galleryMediaViewState,
     galleryHint,
   };
+}
+
+function findGalleryDisplayLayer(layers: readonly Layer[], galleryNodeId: string | null) {
+  return galleryNodeId
+    ? (layers.find((layer) => layer.id === galleryNodeId && isGalleryEligibleLayer(layer)) ?? null)
+    : null;
+}
+
+function galleryPrimitiveState(
+  layer: Layer | null,
+  primitiveViewStates: Record<string, PrimitiveViewportState>,
+): PrimitiveViewportState | null {
+  if (layer?.kind !== 'primitive') return null;
+  return primitiveViewStates[layer.id] ?? defaultPrimitiveViewportState(layer);
+}
+
+function galleryMediaState(layer: Layer | null, mediaViewStates: Record<string, MediaViewState>) {
+  return layer ? (mediaViewStates[layer.id] ?? defaultMediaViewState()) : defaultMediaViewState();
+}
+
+function galleryHintForLayer(layer: Layer | null) {
+  if (!layer) return '';
+  return layer.kind === 'primitive'
+    ? 'Drag rotates, wheel or trackpad zooms, lock freezes camera. Export uses this camera.'
+    : 'Drag to pan, scroll to zoom, Home resets.';
 }

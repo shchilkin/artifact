@@ -24,7 +24,7 @@ The node editor should not become a second document model.
 
 ## Architecture overview
 
-`NodeCanvas` receives the canonical document and callbacks from `generator.tsx`.
+`NodeCanvas` receives the canonical document and callbacks from `editor.tsx`.
 
 It derives:
 
@@ -41,7 +41,7 @@ Then it provides:
 - `NodeCanvasPreviewContext`: read-only render inputs for thumbnails/previews
 - `NodeCanvasActionsContext`: actions for selection, updates, deletion, gallery, primitive camera
 
-The generator route treats node mode as a full-canvas workspace: navigation,
+The editor route treats node mode as a full-canvas workspace: navigation,
 mode switching, graph actions, and export/preset actions float over the canvas.
 Node properties dock in a dedicated right rail on desktop and collapse to a
 bottom drawer on smaller screens.
@@ -60,7 +60,7 @@ Rules:
 
 - Selection and overlays are editor state, not document state.
 - The machine should not own render data.
-- Document mutations should happen through `useGeneratorDocument` callbacks.
+- Document mutations should happen through `useEditorDocument` callbacks.
 - High-frequency drag state stays in React Flow shadow nodes until drag stop.
   React Flow measurement changes are accepted when they are real, duplicate
   dimension changes are ignored, and identical selection events are skipped to

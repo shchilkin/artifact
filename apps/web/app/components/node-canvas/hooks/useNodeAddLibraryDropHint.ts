@@ -11,21 +11,17 @@ interface UseNodeAddLibraryDropHintOptions {
   onEdgeHoverChange?: (edgeId: string | null) => void;
 }
 
+interface AddLibraryDropState {
+  active: boolean;
+  ready: boolean;
+  edgeId: string | null;
+}
+
 export function useNodeAddLibraryDropHint(
   canvasSurfaceRef: RefObject<HTMLDivElement | null>,
   { resolveEdgeId, onEdgeHoverChange }: UseNodeAddLibraryDropHintOptions = {},
 ) {
   useEffect(() => {
-    const hasAddLibraryPayload = (event: DragEvent) =>
-      Array.from(event.dataTransfer?.types ?? []).includes(ADD_LIBRARY_ACTION_MIME);
-
-    const readAction = (event: DragEvent) => {
-      const payload =
-        event.dataTransfer?.getData(ADD_LIBRARY_ACTION_MIME) ||
-        document.documentElement.dataset.artifactAddLibraryAction;
-      return payload ? parseAddLibraryAction(payload) : null;
-    };
-
     const setDropState = (active: boolean, ready: boolean, edgeReady: boolean) => {
       const surface = canvasSurfaceRef.current;
       if (!surface) return;
@@ -35,23 +31,9 @@ export function useNodeAddLibraryDropHint(
     };
 
     const updateFromPointer = (event: DragEvent) => {
-      if (!hasAddLibraryPayload(event)) {
-        setDropState(false, false, false);
-        onEdgeHoverChange?.(null);
-        return;
-      }
-      const rect = canvasSurfaceRef.current?.getBoundingClientRect();
-      const insideCanvas = Boolean(
-        rect &&
-          event.clientX >= rect.left &&
-          event.clientX <= rect.right &&
-          event.clientY >= rect.top &&
-          event.clientY <= rect.bottom,
-      );
-      const action = insideCanvas ? readAction(event) : null;
-      const edgeId = action && resolveEdgeId ? resolveEdgeId(action, { x: event.clientX, y: event.clientY }) : null;
-      onEdgeHoverChange?.(edgeId);
-      setDropState(true, insideCanvas, Boolean(edgeId));
+      const state = resolveAddLibraryDropState(event, canvasSurfaceRef.current, resolveEdgeId);
+      onEdgeHoverChange?.(state.edgeId);
+      setDropState(state.active, state.ready, Boolean(state.edgeId));
     };
 
     const clear = () => {
@@ -72,4 +54,55 @@ export function useNodeAddLibraryDropHint(
       clear();
     };
   }, [canvasSurfaceRef, onEdgeHoverChange, resolveEdgeId]);
+}
+
+function resolveAddLibraryDropState(
+  event: DragEvent,
+  surface: HTMLDivElement | null,
+  resolveEdgeId: UseNodeAddLibraryDropHintOptions['resolveEdgeId'],
+): AddLibraryDropState {
+  if (!hasAddLibraryPayload(event)) return inactiveDropState();
+  const ready = pointerInsideElement(event, surface);
+  const action = ready ? readAddLibraryAction(event) : null;
+  return {
+    active: true,
+    ready,
+    edgeId: resolveDropEdgeId(action, resolveEdgeId, event),
+  };
+}
+
+function inactiveDropState(): AddLibraryDropState {
+  return { active: false, ready: false, edgeId: null };
+}
+
+function resolveDropEdgeId(
+  action: AddLibraryAction | null,
+  resolveEdgeId: UseNodeAddLibraryDropHintOptions['resolveEdgeId'],
+  event: DragEvent,
+) {
+  if (!action) return null;
+  if (!resolveEdgeId) return null;
+  return resolveEdgeId(action, { x: event.clientX, y: event.clientY });
+}
+
+function hasAddLibraryPayload(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes(ADD_LIBRARY_ACTION_MIME);
+}
+
+function readAddLibraryAction(event: DragEvent) {
+  const payload =
+    event.dataTransfer?.getData(ADD_LIBRARY_ACTION_MIME) || document.documentElement.dataset.artifactAddLibraryAction;
+  return payload ? parseAddLibraryAction(payload) : null;
+}
+
+function pointerInsideElement(event: DragEvent, surface: HTMLDivElement | null) {
+  const rect = surface?.getBoundingClientRect();
+  if (!rect) return false;
+  return (
+    coordinateInRange(event.clientX, rect.left, rect.right) && coordinateInRange(event.clientY, rect.top, rect.bottom)
+  );
+}
+
+function coordinateInRange(value: number, min: number, max: number) {
+  return value >= min && value <= max;
 }

@@ -13,12 +13,12 @@ function hasSameDimensions(node: RFNode | undefined, change: Extract<NodeChange,
 }
 
 function hasSameMeasured(a: RFNode | undefined, b: RFNode | undefined) {
-  return (
-    a?.measured?.width === b?.measured?.width &&
-    a?.measured?.height === b?.measured?.height &&
-    a?.width === b?.width &&
-    a?.height === b?.height
-  );
+  return [
+    [a?.measured?.width, b?.measured?.width],
+    [a?.measured?.height, b?.measured?.height],
+    [a?.width, b?.width],
+    [a?.height, b?.height],
+  ].every(([left, right]) => left === right);
 }
 
 function hasSameData(a: RFNode['data'], b: RFNode['data']) {
@@ -29,18 +29,37 @@ function hasSameData(a: RFNode['data'], b: RFNode['data']) {
 }
 
 function hasSameNodeShape(a: RFNode, b: RFNode) {
-  return (
-    a.id === b.id &&
-    a.type === b.type &&
-    a.parentId === b.parentId &&
-    a.selected === b.selected &&
-    a.dragging === b.dragging &&
-    a.resizing === b.resizing &&
-    a.hidden === b.hidden &&
-    hasSamePosition(a.position, b.position) &&
-    hasSameMeasured(a, b) &&
-    hasSameData(a.data, b.data)
+  const sameScalarFields = (['id', 'type', 'parentId', 'selected', 'dragging', 'resizing', 'hidden'] as const).every(
+    (field) => a[field] === b[field],
   );
+  return (
+    sameScalarFields && hasSamePosition(a.position, b.position) && hasSameMeasured(a, b) && hasSameData(a.data, b.data)
+  );
+}
+
+function hasCompleteMeasurement(node: RFNode) {
+  return node.measured?.width !== undefined && node.measured.height !== undefined;
+}
+
+function firstDefined<T>(...values: (T | undefined)[]) {
+  return values.find((value) => value !== undefined);
+}
+
+function retainNodeMeasurement(
+  node: RFNode,
+  previous: RFNode | undefined,
+  fallback: { width: number; height: number },
+) {
+  if (hasCompleteMeasurement(node)) return node;
+  return {
+    ...node,
+    width: firstDefined(node.width, previous?.width),
+    height: firstDefined(node.height, previous?.height),
+    measured: {
+      width: firstDefined(node.measured?.width, previous?.measured?.width, fallback.width),
+      height: firstDefined(node.measured?.height, previous?.measured?.height, fallback.height),
+    },
+  };
 }
 
 export function sameNodeList(a: RFNode[], b: RFNode[]) {
@@ -71,18 +90,5 @@ export function retainNodeMeasurements(
   fallback: { width: number; height: number },
 ): RFNode[] {
   const previousById = new Map(previousNodes.map((node) => [node.id, node]));
-
-  return nextNodes.map((node) => {
-    if (node.measured?.width !== undefined && node.measured.height !== undefined) return node;
-    const previous = previousById.get(node.id);
-    return {
-      ...node,
-      width: node.width ?? previous?.width,
-      height: node.height ?? previous?.height,
-      measured: {
-        width: node.measured?.width ?? previous?.measured?.width ?? fallback.width,
-        height: node.measured?.height ?? previous?.measured?.height ?? fallback.height,
-      },
-    };
-  });
+  return nextNodes.map((node) => retainNodeMeasurement(node, previousById.get(node.id), fallback));
 }

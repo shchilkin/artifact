@@ -4,7 +4,7 @@ import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import type { RenderOptions } from '../utils/renderer';
 
-export function useGeneratorExport(
+export function useEditorExport(
   docRef: MutableRefObject<CanvasDocument>,
   imageCache: Map<string, HTMLImageElement>,
   renderOptions: RenderOptions = {},

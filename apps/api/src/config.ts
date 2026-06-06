@@ -56,27 +56,34 @@ function listEnv(env: NodeJS.ProcessEnv, name: string, fallback: string[]) {
     .filter(Boolean);
 }
 
+function enumEnv<T extends string>(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: T,
+  allowed: readonly T[],
+  label: string,
+) {
+  const value = env[name] ?? fallback;
+  if (allowed.includes(value as T)) return value as T;
+  throw new Error(`Environment variable ${name} must be ${label}`);
+}
+
+function driverUrl(env: NodeJS.ProcessEnv, enabled: boolean, name: string) {
+  return enabled ? requiredEnv(env, name) : (env[name] ?? '');
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
-  const driver = env.ASSET_STORAGE_DRIVER ?? 'local';
-  if (driver !== 'local' && driver !== 's3') {
-    throw new Error('ASSET_STORAGE_DRIVER must be local or s3');
-  }
-  const databaseDriver = env.API_DATABASE_DRIVER ?? 'memory';
-  if (databaseDriver !== 'memory' && databaseDriver !== 'postgres') {
-    throw new Error('API_DATABASE_DRIVER must be memory or postgres');
-  }
-  const queueDriver = env.API_QUEUE_DRIVER ?? 'memory';
-  if (queueDriver !== 'memory' && queueDriver !== 'bullmq') {
-    throw new Error('API_QUEUE_DRIVER must be memory or bullmq');
-  }
+  const assetStorageDriver = enumEnv(env, 'ASSET_STORAGE_DRIVER', 'local', ['local', 's3'], 'local or s3');
+  const databaseDriver = enumEnv(env, 'API_DATABASE_DRIVER', 'memory', ['memory', 'postgres'], 'memory or postgres');
+  const queueDriver = enumEnv(env, 'API_QUEUE_DRIVER', 'memory', ['memory', 'bullmq'], 'memory or bullmq');
 
   return {
     port: numberEnv(env, 'PORT', 4000),
     webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
     databaseDriver,
-    databaseUrl: databaseDriver === 'postgres' ? requiredEnv(env, 'DATABASE_URL') : (env.DATABASE_URL ?? ''),
+    databaseUrl: driverUrl(env, databaseDriver === 'postgres', 'DATABASE_URL'),
     queueDriver,
-    redisUrl: queueDriver === 'bullmq' ? requiredEnv(env, 'REDIS_URL') : (env.REDIS_URL ?? ''),
+    redisUrl: driverUrl(env, queueDriver === 'bullmq', 'REDIS_URL'),
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
     authJwtIssuer: env.AUTH_JWT_ISSUER,
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
@@ -89,7 +96,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     openAiImageModel: env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2',
     xAiApiKey: env.XAI_API_KEY,
     xAiImageModel: env.XAI_IMAGE_MODEL ?? 'grok-imagine-image-quality',
-    assetStorageDriver: driver,
+    assetStorageDriver,
     assetStorageDir: env.ASSET_STORAGE_DIR ?? './storage',
     monthlyGenerationLimit: numberEnv(env, 'AI_MONTHLY_GENERATION_LIMIT', 10),
     maxActiveJobsPerUser: numberEnv(env, 'AI_MAX_ACTIVE_JOBS_PER_USER', 1),

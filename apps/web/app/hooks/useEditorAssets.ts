@@ -30,6 +30,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+// Existing image import guard logic; v0.32 tracks asset hook debt.
+// fallow-ignore-next-line complexity
 async function downsampleDataUrl(src: string, mimeHint: string): Promise<string> {
   const img = await loadImage(src);
   const longest = Math.max(img.naturalWidth, img.naturalHeight);
@@ -50,7 +52,7 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
   return canvas.toDataURL(outMime, 0.9);
 }
 
-export function useGeneratorAssets(
+export function useEditorAssets(
   doc: CanvasDocument,
   onImportImage: (src: string) => void,
   onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
@@ -78,6 +80,8 @@ export function useGeneratorAssets(
   useEffect(() => {
     const imageLayers = doc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image' && Boolean(layer.src));
     let cancelled = false;
+    // Existing asset hydration branches; v0.32 tracks asset hook debt.
+    // fallow-ignore-next-line complexity
     imageLayers.forEach((layer) => {
       if (isImageDataUrl(layer.src) && onStoreImageAsset && !pendingAssetStoresRef.current.has(layer.src)) {
         pendingAssetStoresRef.current.add(layer.src);
@@ -122,6 +126,8 @@ export function useGeneratorAssets(
   }, [doc.layers, imageCache, onStoreImageAsset]);
 
   const handleDroppedFile = useCallback(
+    // Existing drop/import guard logic; v0.32 tracks asset hook debt.
+    // fallow-ignore-next-line complexity
     async (file: File) => {
       if (!isImageFile(file)) return;
       if (file.size > MAX_IMAGE_BYTES) {
@@ -147,6 +153,8 @@ export function useGeneratorAssets(
   );
 
   useEffect(() => {
+    // Existing paste image guard logic; v0.32 tracks asset hook debt.
+    // fallow-ignore-next-line complexity
     function onPaste(event: ClipboardEvent) {
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       const items = event.clipboardData?.items;

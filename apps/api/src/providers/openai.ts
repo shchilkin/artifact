@@ -38,6 +38,8 @@ export function createOpenAiImageProvider(options: OpenAiImageProviderOptions): 
     provider: 'openai',
     defaultModel: options.defaultModel ?? 'gpt-image-2',
     async generateImage(request: ImageGenerationRequest): Promise<ImageGenerationResult> {
+      const model = request.model || options.defaultModel || 'gpt-image-2';
+      const size = sizeForAspect(request.settings.aspect);
       const response = await fetcher(endpoint, {
         method: 'POST',
         headers: {
@@ -45,34 +47,22 @@ export function createOpenAiImageProvider(options: OpenAiImageProviderOptions): 
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: request.model || options.defaultModel || 'gpt-image-2',
+          model,
           prompt: request.prompt,
           n: 1,
-          size: sizeForAspect(request.settings.aspect),
+          size,
           quality: qualityForSetting(request.settings.quality),
           output_format: 'png',
         }),
       });
       const body = (await response.json()) as OpenAiImageResponse;
-
-      if (!response.ok) {
-        throw new Error(readOpenAiError(body, response.status));
-      }
-
-      const encoded = body.data?.[0]?.b64_json;
-      if (typeof encoded !== 'string' || encoded.length === 0) {
-        throw new Error('OpenAI image response did not include image data.');
-      }
-
-      const bytes = Buffer.from(encoded, 'base64');
-      if (bytes.byteLength === 0) throw new Error('OpenAI image response decoded to an empty file.');
-
-      const dimensions = dimensionsForSize(sizeForAspect(request.settings.aspect));
+      assertOpenAiResponseOk(response, body);
+      const dimensions = dimensionsForSize(size);
       return {
         provider: 'openai',
-        model: request.model || options.defaultModel || 'gpt-image-2',
+        model,
         mimeType: 'image/png',
-        bytes,
+        bytes: openAiImageBytes(body),
         width: dimensions.width,
         height: dimensions.height,
         usage: {
@@ -88,6 +78,21 @@ export function createOpenAiImageProvider(options: OpenAiImageProviderOptions): 
       };
     },
   };
+}
+
+function assertOpenAiResponseOk(response: FetchResponseLike, body: OpenAiImageResponse) {
+  if (!response.ok) throw new Error(readOpenAiError(body, response.status));
+}
+
+function openAiImageBytes(body: OpenAiImageResponse) {
+  const encoded = body.data?.[0]?.b64_json;
+  if (typeof encoded !== 'string' || encoded.length === 0) {
+    throw new Error('OpenAI image response did not include image data.');
+  }
+
+  const bytes = Buffer.from(encoded, 'base64');
+  if (bytes.byteLength === 0) throw new Error('OpenAI image response decoded to an empty file.');
+  return bytes;
 }
 
 function sizeForAspect(aspect: AiGenerationSettings['aspect']) {

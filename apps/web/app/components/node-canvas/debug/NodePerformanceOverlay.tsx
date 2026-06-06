@@ -58,35 +58,80 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
     return queue.active ? `Preparing previews ${pending} remaining` : `Queued previews ${pending}`;
   }, [pending, queue.active]);
 
-  if (!debugEnabled && !status) return null;
+  if (nodePerformanceOverlayHidden(debugEnabled, status)) return null;
 
   return (
     <div className={`node-perf-overlay${debugEnabled ? ' node-perf-overlay-debug' : ''}`} aria-live="polite">
-      {status && (
-        <div className="node-perf-status">
-          <span className="node-perf-dot" aria-hidden="true" />
-          {status}
-        </div>
-      )}
-      {debugEnabled && (
-        <dl className="node-perf-grid" aria-label="Node editor performance">
-          <PerfMetric label="fps" value={metrics.fps.toFixed(0)} />
-          <PerfMetric label="p95 frame" value={`${metrics.p95FrameMs.toFixed(1)}ms`} />
-          <PerfMetric label="max frame" value={`${metrics.maxFrameMs.toFixed(1)}ms`} />
-          <PerfMetric label="nodes" value={String(nodeCount)} />
-          <PerfMetric label="queue" value={`${queue.queued}${queue.active ? ' + active' : ''}`} />
-          <PerfMetric label="thumb avg" value={`${queue.averageDurationMs.toFixed(1)}ms`} />
-          <PerfMetric label="thumb last" value={`${queue.lastDurationMs.toFixed(1)}ms`} />
-          <PerfMetric label="worker active" value={String(worker.active)} />
-          <PerfMetric label="worker avg" value={`${worker.averageDurationMs.toFixed(1)}ms`} />
-          <PerfMetric label="worker last" value={`${worker.lastDurationMs.toFixed(1)}ms`} />
-          <PerfMetric label="worker fallback" value={`${worker.fallbacks} / ${worker.failures}`} />
-          <PerfMetric label="long tasks" value={`${metrics.longTaskCount} / ${metrics.longTaskTotalMs.toFixed(0)}ms`} />
-          {metrics.heapMb !== null && <PerfMetric label="heap" value={`${metrics.heapMb.toFixed(0)}mb`} />}
-        </dl>
-      )}
+      <NodePerfStatus status={status} />
+      <NodePerfDebugGrid
+        debugEnabled={debugEnabled}
+        metrics={metrics}
+        nodeCount={nodeCount}
+        queue={queue}
+        worker={worker}
+      />
     </div>
   );
+}
+
+function nodePerformanceOverlayHidden(debugEnabled: boolean, status: string | null) {
+  return !debugEnabled && !status;
+}
+
+function NodePerfStatus({ status }: { status: string | null }) {
+  if (!status) return null;
+  return (
+    <div className="node-perf-status">
+      <span className="node-perf-dot" aria-hidden="true" />
+      {status}
+    </div>
+  );
+}
+
+function NodePerfDebugGrid({
+  debugEnabled,
+  metrics,
+  nodeCount,
+  queue,
+  worker,
+}: {
+  debugEnabled: boolean;
+  metrics: FrameMetrics;
+  nodeCount: number;
+  queue: ThumbnailQueueSnapshot;
+  worker: RenderWorkerDiagnosticsSnapshot;
+}) {
+  if (!debugEnabled) return null;
+  return (
+    <dl className="node-perf-grid" aria-label="Node editor performance">
+      {nodePerfMetricRows(metrics, nodeCount, queue, worker).map(({ label, value }) => (
+        <PerfMetric key={label} label={label} value={value} />
+      ))}
+    </dl>
+  );
+}
+
+function nodePerfMetricRows(
+  metrics: FrameMetrics,
+  nodeCount: number,
+  queue: ThumbnailQueueSnapshot,
+  worker: RenderWorkerDiagnosticsSnapshot,
+) {
+  return [
+    { label: 'fps', value: metrics.fps.toFixed(0) },
+    { label: 'p95 frame', value: `${metrics.p95FrameMs.toFixed(1)}ms` },
+    { label: 'max frame', value: `${metrics.maxFrameMs.toFixed(1)}ms` },
+    { label: 'nodes', value: String(nodeCount) },
+    { label: 'queue', value: `${queue.queued}${queue.active ? ' + active' : ''}` },
+    { label: 'thumb avg', value: `${queue.averageDurationMs.toFixed(1)}ms` },
+    { label: 'thumb last', value: `${queue.lastDurationMs.toFixed(1)}ms` },
+    { label: 'worker active', value: String(worker.active) },
+    { label: 'worker avg', value: `${worker.averageDurationMs.toFixed(1)}ms` },
+    { label: 'worker last', value: `${worker.lastDurationMs.toFixed(1)}ms` },
+    { label: 'worker fallback', value: `${worker.fallbacks} / ${worker.failures}` },
+    { label: 'long tasks', value: `${metrics.longTaskCount} / ${metrics.longTaskTotalMs.toFixed(0)}ms` },
+    ...(metrics.heapMb !== null ? [{ label: 'heap', value: `${metrics.heapMb.toFixed(0)}mb` }] : []),
+  ];
 }
 
 function PerfMetric({ label, value }: { label: string; value: string }) {
@@ -135,18 +180,7 @@ function useFrameMetrics(enabled: boolean): FrameMetrics {
       lastFrame = now;
 
       if (now - lastPublish >= 750) {
-        const sorted = [...frames].sort((a, b) => a - b);
-        const total = sorted.reduce((sum, value) => sum + value, 0);
-        const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)] : 0;
-        const max = sorted.at(-1) ?? 0;
-        setMetrics({
-          fps: total > 0 ? (frames.length * 1000) / total : 0,
-          p95FrameMs: p95,
-          maxFrameMs: max,
-          longTaskCount: longTasksRef.current.count,
-          longTaskTotalMs: longTasksRef.current.totalMs,
-          heapMb: getHeapMb(),
-        });
+        setMetrics(frameMetricsSnapshot(frames, longTasksRef.current));
         frames = [];
         lastPublish = now;
       }
@@ -163,6 +197,24 @@ function useFrameMetrics(enabled: boolean): FrameMetrics {
   }, [enabled]);
 
   return metrics;
+}
+
+function frameMetricsSnapshot(frames: number[], longTasks: { count: number; totalMs: number }): FrameMetrics {
+  const sorted = [...frames].sort((a, b) => a - b);
+  const total = sorted.reduce((sum, value) => sum + value, 0);
+  return {
+    fps: total > 0 ? (frames.length * 1000) / total : 0,
+    p95FrameMs: percentileFrameMs(sorted, 0.95),
+    maxFrameMs: sorted.at(-1) ?? 0,
+    longTaskCount: longTasks.count,
+    longTaskTotalMs: longTasks.totalMs,
+    heapMb: getHeapMb(),
+  };
+}
+
+function percentileFrameMs(sortedFrames: number[], percentile: number) {
+  if (!sortedFrames.length) return 0;
+  return sortedFrames[Math.min(sortedFrames.length - 1, Math.ceil(sortedFrames.length * percentile) - 1)];
 }
 
 function getHeapMb() {

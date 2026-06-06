@@ -50,7 +50,7 @@ export function useProjects() {
       const draft = await loadStoredPreBlankDraft();
       if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
     } catch (error) {
-      if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to load recovery draft');
+      setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery draft');
     }
   }, []);
 
@@ -61,15 +61,14 @@ export function useProjects() {
         if (mountedRef.current) setProjects(items);
       })
       .catch((error) => {
-        if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to load projects');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load projects');
       });
     loadStoredPreBlankDraft()
       .then((draft) => {
         if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
       })
       .catch((error) => {
-        if (mountedRef.current)
-          setStorageError(error instanceof Error ? error.message : 'Unable to load recovery draft');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery draft');
       });
     return () => {
       mountedRef.current = false;
@@ -100,7 +99,7 @@ export function useProjects() {
         setStorageError(null);
         if (mountedRef.current) setProjects(next);
       } catch (error) {
-        if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to save project');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to save project');
       }
     },
     [],
@@ -112,7 +111,7 @@ export function useProjects() {
       setStorageError(null);
       if (mountedRef.current) setProjects(next);
     } catch (error) {
-      if (mountedRef.current) setStorageError(error instanceof Error ? error.message : 'Unable to delete project');
+      setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to delete project');
     }
   }, []);
 
@@ -124,8 +123,7 @@ export function useProjects() {
         if (mountedRef.current) setRecoveryDraft(null);
       })
       .catch((error) => {
-        if (mountedRef.current)
-          setStorageError(error instanceof Error ? error.message : 'Unable to delete recovery draft');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to delete recovery draft');
       });
   }, []);
 
@@ -140,4 +138,17 @@ export function useProjects() {
     refreshRecoveryDraft,
     maxProjects: MAX_PROJECTS,
   };
+}
+
+function setMountedStorageError(
+  mounted: boolean,
+  setStorageError: (value: string | null) => void,
+  error: unknown,
+  fallback: string,
+) {
+  if (mounted) setStorageError(errorMessage(error, fallback));
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }

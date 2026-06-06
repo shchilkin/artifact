@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -50,6 +51,11 @@ interface DocumentRenderState {
   showingStaleFrame: boolean;
   error: Error | null;
 }
+
+type RenderCanvasMountOptions = Pick<
+  Options,
+  'cacheKey' | 'deferFullRender' | 'renderScale' | 'maxRenderDimension' | 'deferredFullRenderTimeoutMs'
+>;
 
 const lastGoodRenderCache = new Map<string, HTMLCanvasElement>();
 
@@ -369,7 +375,7 @@ function restoreCachedFrame(
   setRenderState({ isRendering: true, hasFrame: true, showingStaleFrame: true, error: null });
 }
 
-function mountedDraftWindowUntil(cachedFrame: HTMLCanvasElement | undefined, options: Options) {
+function mountedDraftWindowUntil(cachedFrame: HTMLCanvasElement | undefined, options: RenderCanvasMountOptions) {
   if (cachedFrame && !options.deferFullRender) return 0;
   return performance.now() + nextDraftWindowMs(options, Boolean(options.deferFullRender));
 }
@@ -379,7 +385,7 @@ function mountRenderCanvas(
   refs: DocumentRendererRefs,
   pw: number,
   ph: number,
-  options: Options,
+  options: RenderCanvasMountOptions,
   setRenderState: RenderStateSetter,
 ) {
   replaceMountedCanvas(container, refs);
@@ -608,6 +614,30 @@ export function useDocumentRenderer(
     };
   }
   const rendererRefs = rendererRefsRef.current;
+  const mountOptions: RenderCanvasMountOptions = useMemo(
+    () => ({
+      cacheKey: options.cacheKey,
+      deferFullRender: options.deferFullRender,
+      renderScale: options.renderScale,
+      maxRenderDimension: options.maxRenderDimension,
+      deferredFullRenderTimeoutMs: options.deferredFullRenderTimeoutMs,
+    }),
+    [
+      options.cacheKey,
+      options.deferFullRender,
+      options.renderScale,
+      options.maxRenderDimension,
+      options.deferredFullRenderTimeoutMs,
+    ],
+  );
+  const renderSchedulingOptions = useMemo(
+    () => ({
+      fast: options.fast,
+      deferFullRender: options.deferFullRender,
+      deferredFullRenderTimeoutMs: options.deferredFullRenderTimeoutMs,
+    }),
+    [options.fast, options.deferFullRender, options.deferredFullRenderTimeoutMs],
+  );
 
   useEffect(() => {
     docRef.current = doc;
@@ -727,7 +757,7 @@ export function useDocumentRenderer(
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const canvas = mountRenderCanvas(container, rendererRefs, pw, ph, options, setRenderState);
+    const canvas = mountRenderCanvas(container, rendererRefs, pw, ph, mountOptions, setRenderState);
     scheduleRender();
     return () =>
       cleanupMountedRenderCanvas({ container, canvas, refs: rendererRefs, rafRef, cancelDeferredFullRender });
@@ -737,21 +767,18 @@ export function useDocumentRenderer(
     options.cacheKey,
     options.renderScale,
     options.maxRenderDimension,
-    options.draftRenderScale,
-    options.draftMaxRenderDimension,
     options.deferFullRender,
-    options.deferredPreviewQuality,
-    options.deferredFullRenderMs,
     options.deferredFullRenderTimeoutMs,
+    mountOptions,
     rendererRefs,
     scheduleRender,
     cancelDeferredFullRender,
   ]);
 
   useEffect(() => {
-    const deferFullRender = shouldDeferFullRender(options);
-    if (shouldRefreshDraftWindow(lastGoodCanvasRef.current, options, deferFullRender)) {
-      draftUntilRef.current = performance.now() + nextDraftWindowMs(options, deferFullRender);
+    const deferFullRender = shouldDeferFullRender(renderSchedulingOptions);
+    if (shouldRefreshDraftWindow(lastGoodCanvasRef.current, renderSchedulingOptions, deferFullRender)) {
+      draftUntilRef.current = performance.now() + nextDraftWindowMs(renderSchedulingOptions, deferFullRender);
     }
     clearRenderTimer(settleTimerRef);
     cancelDeferredFullRender();
@@ -777,6 +804,7 @@ export function useDocumentRenderer(
     options.deferredFullRenderTimeoutMs,
     options.draftRenderScale,
     options.draftMaxRenderDimension,
+    renderSchedulingOptions,
     scheduleRender,
     cancelDeferredFullRender,
     scheduleDeferredFullRender,
