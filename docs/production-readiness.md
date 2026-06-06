@@ -31,6 +31,29 @@ CI should run:
 
 ## Manual QA
 
+### v0.31.1 Release Prep
+
+- Patch release prep passed locally on 2026-06-06.
+- `npm run check`, `npm run build`, and `npm run test:browser` passed.
+- Full browser coverage passed across Chromium, Firefox, WebKit, mobile
+  Chromium, and mobile WebKit with `270 passed, 25 skipped`.
+- Fallow changed-code audit passed with `verdict: "pass"` and zero dead-code
+  issues, zero complexity findings, and zero duplication clone groups.
+- PR #72 merged into `development` with all GitHub checks passing: `quality`,
+  `fallow`, `browser`, container builds, Vercel, GitGuardian, and CodeRabbit.
+- `v0.31.1` is the patch release for the final v0.31 Fallow cleanup, blocking
+  Fallow CI state, static-OG decision, and release-notes cleanup.
+- Public GitHub Release bodies should use `docs/releases/v0.31.1.md` without
+  visible internal checklists. Operational checklist state stays in this
+  production-readiness document and release-prep notes.
+- `npm run perf:node-editor` was not rerun for the patch-only release commit
+  because the patch release changes package metadata and documentation after the
+  already-validated v0.31 cleanup merge.
+- No renderer, graph traversal, export, persistence, document schema, landing,
+  Showcase, How-to, AI scope, package export, or font-policy behavior changed
+  as intended patch scope.
+- Release notes live in `docs/releases/v0.31.1.md`.
+
 ### v0.31.0 Release Prep
 
 - Release prep passed locally on 2026-06-05.

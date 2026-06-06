@@ -1,11 +1,13 @@
 # Artifact Release Template
 
 Use this template for every public Artifact release. Do not publish a tag or
-GitHub release until every required section is filled in the versioned release
-notes file.
+GitHub release until every required public section is filled in the versioned
+release notes file.
 
 Copy this file to `docs/releases/vX.Y.Z.md`, then replace every bracketed
-placeholder.
+placeholder. The versioned release notes file is the public GitHub Release body:
+do not include visible internal checklists, agent process notes, or tag/publish
+instructions in it.
 
 ```markdown
 # vX.Y.Z Release Notes
@@ -59,7 +61,10 @@ Performance notes:
 - [Known risk or deferred follow-up.]
 - [Known risk or deferred follow-up.]
 
-## Release Checklist
+<!--
+Internal release checklist. Keep this checklist in the working release-prep
+notes or `docs/production-readiness.md`; do not publish it as visible GitHub
+Release body.
 
 - [ ] Version plan status updated.
 - [ ] Roadmap updated.
@@ -71,14 +76,17 @@ Performance notes:
 - [ ] Tag created as `vX.Y.Z`.
 - [ ] Tag pushed to GitHub.
 - [ ] GitHub Release published from these release notes.
+-->
 
-## Release Notes
+<!--
+Internal maintenance notes. Keep these out of the public GitHub Release body.
 
 - Package metadata is bumped to `X.Y.Z` in `package.json`,
   `apps/web/package.json`, and `package-lock.json`.
 - Tag the release as `vX.Y.Z`.
 - Start the next planning pass from [next likely planning area], but do not
   treat deferred work as hidden release scope.
+-->
 ```
 
 ## Agent Rules
@@ -87,6 +95,8 @@ Performance notes:
 - If any validation result is missing, do not tag or publish the release.
 - If any accepted risk is known but not listed, do not tag or publish the
   release.
+- Do not publish visible internal checklists, tag instructions, or agent process
+  notes in a GitHub Release body.
 - If the release changes editor state, render/export behavior, graph traversal,
   persistence, packages, fonts, AI, or performance-sensitive node-editor paths,
   include the relevant targeted validation and docs updates before tagging.
