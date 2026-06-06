@@ -10,7 +10,7 @@ export interface UseNodeSelectionSyncOptions {
   selectedNodeIds: string[];
   selectedEdgeId: string | null;
   expandedNodeId: string | null;
-  /** Externally controlled selected layer (from generator). */
+  /** Externally controlled selected layer (from the editor shell). */
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   doc: CanvasDocument;

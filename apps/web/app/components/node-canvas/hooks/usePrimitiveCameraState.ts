@@ -9,11 +9,11 @@ import {
 } from '../../PrimitiveViewportState';
 
 export interface UsePrimitiveCameraStateOptions {
-  /** Starting camera states, typically lifted from generator.tsx for export parity. */
+  /** Starting camera states, typically lifted from editor.tsx for export parity. */
   initialPrimitiveViewStates?: Record<string, PrimitiveViewportState>;
   /** Current document layers — used for lock/reset helpers that need the layer's defaults. */
   layers: Layer[];
-  /** Called whenever the camera states map changes. Used to lift state to generator for export. */
+  /** Called whenever the camera states map changes. Used to lift state to the editor shell for export. */
   onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>) => void;
 }
 

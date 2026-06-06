@@ -8,7 +8,7 @@ interface UseGeneratorPresetsControllerOptions {
   onLoadDocument: (doc: CanvasDocument) => void;
 }
 
-export function useGeneratorPresetsController({
+export function useEditorPresetsController({
   docRef,
   imageCache,
   onLoadDocument,

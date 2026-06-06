@@ -3,7 +3,7 @@ import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import { inferLinearGraph } from '../../utils/nodeGraph';
 
-export function useGeneratorPrimitiveExportState({
+export function useEditorPrimitiveExportState({
   doc,
   docRef,
   onGraphChange,

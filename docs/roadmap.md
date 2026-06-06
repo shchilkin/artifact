@@ -23,6 +23,11 @@ Current planning status:
   `v0.31.1` as the final patch for the Fallow cleanup, blocking changed-code
   audit, and release-notes cleanup. The next release thesis should be planned as
   v0.32.
+- [`version-plans/v0.32.md`](./version-plans/v0.32.md) is the active planning
+  draft for the Code Health And Debt Reduction release. It pulls in the
+  seven-part debt pass: Fallow complexity policy, `editor.tsx` orchestration,
+  React hook warnings, canvas gesture update boundaries, `node-canvas.css` and
+  Tailwind/CSS strategy, roadmap/docs cleanup, and storage/render risk triage.
 - The v0.31 cleanup backlog is intentionally trace-gated future work. It should
   not be treated as hidden scope for landing work, Showcase / How-to work,
   command palette, server-backed sharing, or full-health complexity gating.
@@ -122,12 +127,8 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates for v0.32:
+Next strong candidates after v0.32:
 
-- **Fallow Complexity Policy Pass** — decide how to handle historical
-  full-health complexity hotspots after v0.31's zero-duplication cleanup, add
-  focused tests for any deeper refactors, suppress intentional public APIs or
-  workspace plumbing, and only then consider full-health complexity gates.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -143,9 +144,10 @@ Next strong candidates for v0.32:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Storage UX And Capability Hardening** — make autosave, recovery, quota
-  pressure, project size, cleanup, and unsupported browser capability states
-  visible enough that local-first storage feels like a creative safety net.
+- **Deeper Storage UX And Capability Hardening** — after v0.32 classifies the
+  known storage/render risks, make autosave, recovery, quota pressure, project
+  size, cleanup, and unsupported browser capability states visible enough that
+  local-first storage feels like a creative safety net.
 
 ## Product summary
 
@@ -385,10 +387,10 @@ suppressed, or turned into planned cleanup work.
 | Area | Main files | Notes |
 | --- | --- | --- |
 | Routing | `apps/web/app/routes.ts`, `apps/web/app/routes/*.tsx` | React Router v7 in SPA mode, `ssr: false`. |
-| Main editor | `apps/web/app/routes/generator.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
-| Document state | `apps/web/app/hooks/useGeneratorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
-| Asset state | `apps/web/app/hooks/useGeneratorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
-| Export | `apps/web/app/hooks/useGeneratorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
+| Main editor | `apps/web/app/routes/editor.tsx` | Switches between layer view and node view. Owns high-level UI composition. |
+| Document state | `apps/web/app/hooks/useEditorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
+| Asset state | `apps/web/app/hooks/useEditorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
+| Export | `apps/web/app/hooks/useEditorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
 | Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
 | Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
 
@@ -506,7 +508,7 @@ thumbnails, showcase output, and export. That is the right architecture for
 
 ### Layer factories and migration helpers
 
-Factory functions in `config.ts` reduce malformed layer creation. `normalizeDocument` and compatibility handling in `useGeneratorDocument.ts` keep old documents usable.
+Factory functions in `config.ts` reduce malformed layer creation. `normalizeDocument` and compatibility handling in `useEditorDocument.ts` keep old documents usable.
 
 ### Good low-level testing coverage for data and rendering logic
 
@@ -528,9 +530,9 @@ Using React Flow for graph mechanics and XState for selection/overlay state is a
 
 ## What is bad or risky
 
-### `generator.tsx` is still broad
+### `editor.tsx` is still broad
 
-`generator.tsx` wires document state, asset state, projects, export, presets,
+`editor.tsx` wires document state, asset state, projects, export, presets,
 layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
 into focused hooks for selection sync, context menus, graph events, drag state,
 gallery state, and primitive camera state, but the route-level composition is
@@ -629,9 +631,10 @@ Current shipped baseline:
 
 Current near-term focus:
 
-- `v0.17`: editor creative controls and shared Add Library. Keep render/export
-  semantics stable while making effect controls, menu search, and add flows feel
-  like creative tooling instead of engineering configuration.
+- `v0.32`: code health and debt reduction. Keep product semantics stable while
+  reducing historical complexity hotspots, route/controller density, hook
+  warnings, gesture update churn, CSS ownership debt, stale roadmap structure,
+  and unclassified storage/render risks.
 
 ### v0.11: Layer Workflow And Onboarding
 

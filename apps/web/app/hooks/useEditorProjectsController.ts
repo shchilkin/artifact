@@ -11,7 +11,7 @@ interface UseGeneratorProjectsControllerOptions {
   onLoadDocument: (doc: CanvasDocument) => void;
 }
 
-export function useGeneratorProjectsController({
+export function useEditorProjectsController({
   docRef,
   imageCache,
   onLoadDocument,

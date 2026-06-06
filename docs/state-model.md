@@ -12,14 +12,14 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 
 | Category | Owner | Persisted | Undo history | Export impact | Thumbnail impact |
 | --- | --- | --- | --- | --- | --- |
-| Document state | `useGeneratorDocument` | Yes, localStorage | Yes | Yes | Yes |
+| Document state | `useEditorDocument` | Yes, localStorage | Yes | Yes | Yes |
 | Graph state | `CanvasDocument.graph`, graph helpers | Yes, inside document | Yes | Yes | Yes |
 | Export config | `CanvasDocument.export` | Yes | Yes | Yes | No, except export thumbnail |
 | Selection and overlays | `nodeCanvasMachine`, route/component state | No | No | No | No |
 | Text/image transform draft | `useLayerTransformDraft` | No, until commit | Commit only | After commit | After commit |
 | Primitive camera state | `CanvasDocument.graph.primitiveViewStates` plus local draft state | Yes, inside graph metadata | Commit only | Yes | Yes for primitive/upstream thumbnails |
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
-| Image assets/cache | `assetStore`, `useGeneratorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
+| Image assets/cache | `assetStore`, `useEditorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
 | Imported font assets/cache | `fontStore`, shared Font Library picker, renderer font loading | Font payloads in IndexedDB; `FontFace` cache is not | No | Yes, as render input for text | Yes for text thumbnails/output |
 | AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
 | Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
@@ -30,7 +30,7 @@ Durable document state is the creative artifact. It is serialized, persisted, sh
 
 Current owner:
 
-- `apps/web/app/hooks/useGeneratorDocument.ts`
+- `apps/web/app/hooks/useEditorDocument.ts`
 - `apps/web/app/utils/documentCommands.ts` for pure document mutations
 - `apps/web/app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
