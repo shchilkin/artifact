@@ -98,13 +98,11 @@ function readAddLibraryAction(event: DragEvent) {
 function pointerInsideElement(event: DragEvent, surface: HTMLDivElement | null) {
   const rect = surface?.getBoundingClientRect();
   if (!rect) return false;
-  return pointInsideHorizontalBounds(event.clientX, rect) && pointInsideVerticalBounds(event.clientY, rect);
+  return (
+    coordinateInRange(event.clientX, rect.left, rect.right) && coordinateInRange(event.clientY, rect.top, rect.bottom)
+  );
 }
 
-function pointInsideHorizontalBounds(x: number, rect: DOMRect) {
-  return x >= rect.left && x <= rect.right;
-}
-
-function pointInsideVerticalBounds(y: number, rect: DOMRect) {
-  return y >= rect.top && y <= rect.bottom;
+function coordinateInRange(value: number, min: number, max: number) {
+  return value >= min && value <= max;
 }

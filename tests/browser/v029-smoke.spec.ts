@@ -39,7 +39,8 @@ test('showcase loads the project wall and opens a tile in the editor', async ({ 
   await expect.poll(async () => tiles.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(4);
 
   await tiles.first().scrollIntoViewIfNeeded();
-  await Promise.all([page.waitForURL(/\/app(?:\?|$)/, { timeout: 10_000 }), tiles.first().click()]);
+  await tiles.first().click();
+  await expect(page).toHaveURL(/\/app(?:\?|$)/, { timeout: 10_000 });
 
   await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
   await expectStoredLayerCount(page, { atLeast: 1 });

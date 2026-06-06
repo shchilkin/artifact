@@ -666,6 +666,18 @@ function pointInsideVerticalBounds(y: number, rect: DOMRect) {
   return y >= rect.top && y <= rect.bottom;
 }
 
+type NodeContextMenuCommonProps = {
+  areaByNodeId: Map<string, string>;
+  contextMenuRef: RefObject<HTMLDivElement | null>;
+  graph: CanvasGraph;
+  layers: Layer[];
+  onClose: () => void;
+  onDeleteNodes: (ids: string[]) => void;
+  onDuplicateLayer: NodeCanvasProps['onDuplicateLayer'];
+  onRemoveNodeFromArea: (areaId: string, nodeId: string) => void;
+  onUpdateLayer: NodeCanvasProps['onUpdateLayer'];
+};
+
 function NodeContextMenuPortal({
   contextMenu,
   areaByNodeId,
@@ -677,17 +689,8 @@ function NodeContextMenuPortal({
   onDuplicateLayer,
   onRemoveNodeFromArea,
   onUpdateLayer,
-}: {
+}: NodeContextMenuCommonProps & {
   contextMenu: ContextMenuState;
-  areaByNodeId: Map<string, string>;
-  contextMenuRef: RefObject<HTMLDivElement | null>;
-  graph: CanvasGraph;
-  layers: Layer[];
-  onClose: () => void;
-  onDeleteNodes: (ids: string[]) => void;
-  onDuplicateLayer: NodeCanvasProps['onDuplicateLayer'];
-  onRemoveNodeFromArea: (areaId: string, nodeId: string) => void;
-  onUpdateLayer: NodeCanvasProps['onUpdateLayer'];
 }) {
   if (contextMenu?.type !== 'node' || typeof document === 'undefined') return null;
   return createPortal(
@@ -725,17 +728,8 @@ function nodeContextMenuProps({
   onDuplicateLayer,
   onRemoveNodeFromArea,
   onUpdateLayer,
-}: {
+}: NodeContextMenuCommonProps & {
   contextMenu: Extract<ContextMenuState, { type: 'node' }>;
-  areaByNodeId: Map<string, string>;
-  contextMenuRef: RefObject<HTMLDivElement | null>;
-  graph: CanvasGraph;
-  layers: Layer[];
-  onClose: () => void;
-  onDeleteNodes: (ids: string[]) => void;
-  onDuplicateLayer: NodeCanvasProps['onDuplicateLayer'];
-  onRemoveNodeFromArea: (areaId: string, nodeId: string) => void;
-  onUpdateLayer: NodeCanvasProps['onUpdateLayer'];
 }) {
   const menuLayer = layers.find((layer) => layer.id === contextMenu.nodeId);
   const menuArea = nodeMenuArea(contextMenu.nodeId, areaByNodeId, graph);

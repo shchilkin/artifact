@@ -19,17 +19,19 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.32 is in release prep on PR #74 as the Code Health And Debt Reduction
-  release. It keeps the v0.31 changed-code Fallow gate clean, classifies the
-  historical full-health complexity hotspots, fixes hook-dependency warnings,
-  documents the `node-canvas.css` / Tailwind boundary, and records
-  storage/render risks without pulling product work into the release.
-- [`version-plans/v0.32.md`](./version-plans/v0.32.md) is the active release
-  plan for v0.32. Do not merge, tag, or publish the release until the final
-  release gate is green and the maintainer explicitly confirms the release.
-- The v0.31 cleanup backlog is intentionally trace-gated future work. It should
-  not be treated as hidden scope for landing work, Showcase / How-to work,
-  command palette, server-backed sharing, or full-health complexity gating.
+- v0.32 has completed the Code Health And Debt Reduction release scope: the
+  v0.31 changed-code Fallow gate remains clean, full-health complexity is
+  reduced to zero functions above threshold, hook-dependency warnings are
+  fixed, the `node-canvas.css` / Tailwind boundary is documented, and
+  storage/render risks are recorded without pulling product work into the
+  release.
+- The next version scope should start from the deferred product tracks below
+  or from a dedicated CI-policy pass if full-health complexity should become a
+  permanent strict release gate.
+- The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
+  should not be treated as hidden scope for landing work, Showcase / How-to
+  work, command palette, server-backed sharing, or renderer/persistence
+  behavior changes.
 - New version scopes should be split using
   [`version-planning.md`](./version-planning.md): one release thesis, one
   primary blast radius, explicit non-goals, checkable acceptance criteria, and a
@@ -44,6 +46,15 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.32.md`](./version-plans/v0.32.md) — Code Health And Debt
+  Reduction: v0.32 package metadata, generator-to-editor route-shell rename
+  while keeping `/app` stable, Fallow duplication and full-health complexity
+  reduced to zero without suppressions or CI threshold weakening, React hook
+  warning cleanup, Tailwind/CSS boundary documentation, roadmap/release hygiene,
+  and storage/render risk triage. Product features, renderer, graph traversal,
+  export, persistence schema, package export, AI scope, and font-policy work
+  were explicitly deferred out of v0.32. Release notes are in
+  [`releases/v0.32.0.md`](./releases/v0.32.0.md).
 - [`version-plans/v0.31.md`](./version-plans/v0.31.md) — Code Quality and
   Fallow Integration: read-only Fallow package scripts, blocking PR
   changed-code audit, baseline/backlog documentation, agent-safe JSON command
@@ -360,24 +371,25 @@ stable.
 
 Fallow is now available as a codebase-intelligence layer. The v0.31 baseline
 lives in [`fallow-v0.31-baseline.md`](./fallow-v0.31-baseline.md), and the
-first release keeps historical full-health findings visible while blocking new
-changed-code debt in CI. It supports three workflows:
+v0.32 health review lives in
+[`fallow-v0.32-health.md`](./fallow-v0.32-health.md). Changed-code debt is
+blocked in CI, while v0.32 reduced the full-health complexity report to zero
+functions above threshold. Fallow supports three workflows:
 
 - **Local**: scripts for dead-code, duplication, health, dependency, and
   changed-code audit reports. Initial usage should be read-only; auto-fix should
   require an explicit dry run and focused review.
-- **CI**: a blocking `fallow audit --base <base>` gate for changed files before
-  any strict whole-repo fail mode. The first CI goal is to prevent new debt, not
-  block releases on existing legacy debt.
+- **CI**: a blocking `fallow audit --base <base>` gate for changed files. Any
+  stricter whole-repo fail mode should have an explicit threshold and
+  suppression policy before becoming a standing release gate.
 - **Agents**: update agent guidance so Codex uses Fallow for cleanup
   opportunities, duplicated UI/component code, complexity hotspots, dependency
   placement, and architecture-boundary checks. Fallow security output should be
   treated as unverified candidates that require downstream validation, not as a
   confirmed vulnerability verdict.
 
-Do not make full-health Fallow complexity a strict release gate until the first
-baseline report has been reviewed and noisy findings have been configured,
-suppressed, or turned into planned cleanup work.
+Do not make full-health Fallow complexity a permanent strict release gate until
+threshold ownership, suppression rules, and CI behavior are documented.
 
 ## Current architecture
 

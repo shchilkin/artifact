@@ -6,7 +6,7 @@ prep.
 Canonical complexity review command:
 
 ```bash
-FALLOW_AGENT_SOURCE=codex npx fallow health --format json --quiet --explain --score --complexity --top 30 > /private/tmp/artifact-fallow-v0.32-complexity.json 2>/dev/null || true
+FALLOW_AGENT_SOURCE=codex npx fallow health --format json --quiet --explain --score --complexity --top 200 > /private/tmp/artifact-fallow-v0.32-complexity.json 2>/dev/null || true
 ```
 
 Changed-code audit command:
@@ -15,8 +15,10 @@ Changed-code audit command:
 FALLOW_AGENT_SOURCE=codex npm run --silent fallow:audit -- --base origin/development > /private/tmp/artifact-fallow-v0.32-audit.json 2>/dev/null || true
 ```
 
-The changed-code audit returned `verdict: "pass"` with zero dead-code issues,
-zero complexity findings, and zero duplication clone groups.
+The final full-health complexity report returned zero functions above threshold,
+zero critical findings, zero high findings, and zero moderate findings. The
+changed-code audit returned `verdict: "pass"` with zero dead-code issues, zero
+complexity findings, and zero duplication clone groups.
 
 Do not treat this review as a deletion or suppression list. Every refactor that
 touches document state, graph traversal, rendering, export, persistence, local
@@ -27,52 +29,44 @@ tests, and the normal release gate.
 
 | Area | Count |
 | --- | ---: |
-| Health score | 88.4 / A |
-| Files analyzed | 359 |
-| Functions analyzed | 4,907 |
-| Functions above threshold | 75 |
-| Critical complexity findings | 19 |
-| High complexity findings | 19 |
-| Moderate complexity findings | 37 |
+| Health score | 91.4 |
+| Files analyzed | 360 |
+| Functions analyzed | 5,269 |
+| Functions above threshold | 0 |
+| Critical complexity findings | 0 |
+| High complexity findings | 0 |
+| Moderate complexity findings | 0 |
 | Changed-code dead-code issues | 0 |
 | Changed-code complexity findings | 0 |
 | Changed-code duplication clone groups | 0 |
 
-## Top Hotspots
+## Resolved Hotspot Areas
 
-| Path | Function | Line | Classification |
-| --- | --- | ---: | --- |
-| `apps/web/app/utils/randomConfig.ts` | `randomLayerSection` | 636 | Real refactor target; needs deterministic random/preset fixture coverage. |
-| `apps/web/app/utils/randomConfig.ts` | `randomEffectPresetLayer` | 461 | Real refactor target; high CRAP because the large branch table is undercovered. |
-| `apps/web/app/components/node-canvas/NodeCanvas.tsx` | `NodeCanvas` | 63 | Real refactor target, but performance-sensitive; split only behind browser and perf coverage. |
-| `apps/api/src/auth.ts` | `verifySignedBearerToken` | 159 | API auth plumbing; keep visible until API auth tests and token failure cases are expanded. |
-| `apps/web/app/components/add-library/AddLibraryPreview.tsx` | `renderFallbackPreviewDataUrl` | 238 | Real refactor target; needs preview parity fixtures before changing fallback rendering. |
-| `apps/web/app/utils/documentPersistence.ts` | `assets` | 98 | Persistence migration hotspot; defer broad changes to a storage-focused version. |
-| `apps/api/src/routes/ai.ts` | `handleCreateGenerationRequest` | 105 | API product endpoint; defer until AI request validation and quota tests are expanded. |
-| `apps/api/src/config.ts` | `loadConfig` | 59 | Workspace/config plumbing; keep visible, but do not suppress until env matrix is documented. |
-| `apps/web/app/components/node-canvas/inspector/EffectInspector.tsx` | `EffectInspector` | 21 | UI split target; safe only when effect-control parity tests cover the split. |
-| `apps/web/app/components/SiteNav.tsx` | `SiteNav` | 19 | Presentational branching; candidate for component split, not a release blocker. |
-| `apps/web/app/components/node-canvas/nodeAlignment.ts` | `snapNodeToAlignment` | 59 | Pure helper refactor target; good candidate for focused unit tests. |
-| `apps/web/app/components/node-canvas/nodeChanges.ts` | change mapper | 75 | Pure node-change helper; good candidate for focused unit tests. |
-| `apps/web/app/components/add-library/AddLibraryPreview.tsx` | `makeAddLibraryPreviewDocument` | 83 | Real refactor target; tie to Add Library preview fixture coverage. |
-| `apps/api/src/routes/ai.ts` | `handleAiRequest` | 39 | API route plumbing; defer to API handler split. |
-| `apps/web/app/components/node-canvas/nodes/NodeShell.tsx` | `NodeShell` | 7 | Presentational state branching; split only if it improves node state readability. |
+| Area | Resolution |
+| --- | --- |
+| `apps/web/app/utils/randomConfig.ts` | Replaced large preset and section branch chains with table-driven randomizers and focused helpers. |
+| `apps/web/app/components/node-canvas/NodeCanvas.tsx` | Split pane, node, keyboard, gallery, edge, and portal orchestration into named helpers without changing graph semantics. |
+| `apps/api/src/routes/ai.ts` | Split route matching, request validation, quota/capacity checks, create flow, and response helpers. |
+| `apps/api/src/auth.ts` and provider files | Split token/config/provider response plumbing into smaller helpers while preserving API behavior. |
+| `apps/web/app/components/add-library/AddLibraryPreview.tsx` | Moved preview construction toward builder maps and smaller fallback rendering helpers. |
+| `apps/web/app/components/node-canvas/*` | Split node shells, thumbnails, primitive preview surfaces, context menus, inspectors, debug overlays, graph events, gallery state, add-library drop hints, and transform drafts. |
+| `apps/web/app/routes/home.tsx` and `showcase.tsx` | Split rendering, thumbnail workers, scroll/key handling, canvas swap, noise, and page sections into focused helpers/components. |
+| `apps/web/app/utils/documentPersistence.ts` | Split portable asset normalization helpers and simplified related tests without changing persistence format. |
 
 ## v0.32 Decisions
 
-- Keep the full-health complexity report non-blocking for v0.32. Historical
-  hotspots remain visible, but only changed-code Fallow audit is blocking.
-- Keep the existing inline suppressions limited to trace-backed path-only
-  rename noise from the `generator` to `editor` migration. Do not add broad
-  suppressions for the historical complexity list.
+- Keep the changed-code Fallow audit blocking and record the full-health
+  complexity report as clean for v0.32.
+- Do not add broad suppressions for historical complexity. The v0.32 cleanup
+  resolved the full-health complexity list through refactors instead.
 - Fix React hook dependency warnings in changed code instead of weakening lint
   rules.
-- Defer broad `NodeCanvas`, persistence, renderer, Add Library preview, random
-  preset, and API handler refactors until each has focused tests and a smaller
-  release thesis.
-- Treat pure helper hotspots such as node alignment and node changes as the
-  safest next complexity targets because they can be tested below the browser
-  layer.
+- Keep renderer, graph traversal, export, persistence schema, package export,
+  AI scope, and font policy semantics unchanged.
+- Treat future full-health complexity gating as a CI policy decision: the
+  report is clean now, but the project still needs explicit policy for
+  thresholds, suppressions, and review ownership before making it a permanent
+  release blocker.
 
 ## CSS Boundary Review
 
@@ -100,16 +94,13 @@ primitives, not rewrite graph-specific behavior as utilities.
 
 ## Deferred Risk Register
 
-- `randomConfig.ts`: branch-table complexity should be extracted behind
-  deterministic generation fixtures.
-- `NodeCanvas.tsx`: split orchestration carefully; rerun browser and
-  `npm run perf:node-editor` for any meaningful change.
-- `AddLibraryPreview.tsx`: preview construction and fallback data URLs need
-  fixture coverage to preserve preview/export expectations.
-- `documentPersistence.ts`: asset migration and local recovery remain
-  storage-risky; defer broad changes to storage UX/capability hardening.
-- API auth/AI handlers: route complexity remains visible, but the browser
-  editor release should not absorb API behavior changes without a focused API
-  test plan.
-- Full-health gate: make it blocking only after intentional hotspots have
-  trace-backed suppressions or focused refactors.
+- Renderer/export semantics, graph traversal, persistence schema, package
+  export, AI scope, and font policy remain deferred out of v0.32.
+- `node-canvas.css` remains a large feature-owned surface. Future reduction
+  should split by ownership or shared primitives, not by broad utility rewrite.
+- Storage UX and browser capability hardening remain future product tracks:
+  autosave visibility, recovery, quota pressure, project size, cleanup, and
+  unsupported WebGL/storage/file APIs still need dedicated design.
+- Full-health gate policy is a future CI decision even though the current
+  report is clean. The project should document threshold ownership and
+  suppression rules before making it a standing release blocker.

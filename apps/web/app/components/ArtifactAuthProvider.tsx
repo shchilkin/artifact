@@ -105,8 +105,7 @@ function cleanupPendingClerkScript(
 ) {
   if (settled) return true;
   window.clearTimeout(options.timeout);
-  options.script.removeEventListener('load', options.handleLoad);
-  options.script.removeEventListener('error', options.handleError);
+  removeClerkScriptListeners(options.script, options.handleLoad, options.handleError);
   if (options.createdScript) options.script.remove();
   return true;
 }
@@ -126,10 +125,14 @@ function settleClerkScript(
 ) {
   if (settled) return true;
   window.clearTimeout(options.timeout);
-  options.script.removeEventListener('load', options.handleLoad);
-  options.script.removeEventListener('error', options.handleError);
+  removeClerkScriptListeners(options.script, options.handleLoad, options.handleError);
   notifyClerkScriptStatus(status, options.createdScript, options.script, options.onAvailable, options.onUnavailable);
   return true;
+}
+
+function removeClerkScriptListeners(script: HTMLScriptElement, handleLoad: () => void, handleError: () => void) {
+  script.removeEventListener('load', handleLoad);
+  script.removeEventListener('error', handleError);
 }
 
 function notifyClerkScriptStatus(
