@@ -23,30 +23,51 @@ async function readJson(response) {
 async function requestJson(path, init = {}) {
   const response = await fetch(new URL(path, baseUrl), {
     ...init,
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(init.body ? { 'content-type': 'application/json' } : {}),
-      ...init.headers,
-    },
+    headers: requestHeaders(init),
   });
   const body = await readJson(response);
-  if (!response.ok) {
-    if (path === '/api/health' && response.status === 404 && body?.code === 'not_found') {
-      throw new Error(
-        [
-          `GET ${path} failed with 404 from ${baseUrl}.`,
-          'The smoke script reached an Artifact API-shaped server, but it does not expose /api/health.',
-          'Restart npm run dev:api from the current checkout, or set API_SMOKE_BASE_URL to the API server URL.',
-          'Do not point API_SMOKE_BASE_URL at the React Router/Vercel web server.',
-        ].join(' '),
-      );
-    }
-    throw new Error(`${init.method ?? 'GET'} ${path} failed with ${response.status}: ${JSON.stringify(body)}`);
-  }
+  if (!response.ok) throw smokeRequestError(path, init, response, body);
   return body;
 }
 
+function requestHeaders(init) {
+  return {
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...(init.body ? { 'content-type': 'application/json' } : {}),
+    ...init.headers,
+  };
+}
+
+function smokeRequestError(path, init, response, body) {
+  if (apiHealthNotFound(path, response, body)) return apiHealthNotFoundError(path);
+  return new Error(`${init.method ?? 'GET'} ${path} failed with ${response.status}: ${JSON.stringify(body)}`);
+}
+
+function apiHealthNotFound(path, response, body) {
+  return path === '/api/health' && response.status === 404 && body?.code === 'not_found';
+}
+
+function apiHealthNotFoundError(path) {
+  return new Error(
+    [
+      `GET ${path} failed with 404 from ${baseUrl}.`,
+      'The smoke script reached an Artifact API-shaped server, but it does not expose /api/health.',
+      'Restart npm run dev:api from the current checkout, or set API_SMOKE_BASE_URL to the API server URL.',
+      'Do not point API_SMOKE_BASE_URL at the React Router/Vercel web server.',
+    ].join(' '),
+  );
+}
+
 async function main() {
+  await checkHealth();
+  await checkAccess();
+  const job = await createGeneration();
+  const current = await pollGeneration(job);
+  await downloadAsset(current);
+  log('smoke.ok', { jobId: current.id });
+}
+
+async function checkHealth() {
   log('health.start', { baseUrl });
   const health = await requestJson('/api/health');
   assert(health.ok === true, 'Health response did not include ok=true');
@@ -56,12 +77,16 @@ async function main() {
     storageDriver: health.storageDriver,
     providers: health.providers,
   });
+}
 
+async function checkAccess() {
   const access = await requestJson('/api/ai/access');
   assert(access.authenticated === true, 'Smoke token did not authenticate');
   assert(access.enabled === true, `AI access is disabled: ${access.disabledReason ?? 'unknown'}`);
   log('access.ok', { quota: access.quota, providers: access.providers });
+}
 
+async function createGeneration() {
   const idempotencyKey = `smoke-${Date.now()}`;
   const job = await requestJson('/api/ai/generations', {
     method: 'POST',
@@ -74,7 +99,10 @@ async function main() {
   });
   assert(typeof job.id === 'string' && job.id.length > 0, 'Generation response did not include a job id');
   log('generation.created', { id: job.id, status: job.status, provider: job.provider });
+  return job;
+}
 
+async function pollGeneration(job) {
   const deadline = Date.now() + timeoutMs;
   let current = job;
   while (Date.now() < deadline) {
@@ -86,7 +114,10 @@ async function main() {
 
   assert(current.status === 'succeeded', `Generation did not succeed, final status: ${current.status}`);
   assert(current.asset?.uri, 'Succeeded generation did not include an asset URI');
+  return current;
+}
 
+async function downloadAsset(current) {
   const assetResponse = await fetch(new URL(current.asset.uri, baseUrl), {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
@@ -98,8 +129,6 @@ async function main() {
     mimeType: assetResponse.headers.get('content-type'),
     bytes: bytes.byteLength,
   });
-
-  log('smoke.ok', { jobId: current.id });
 }
 
 main().catch((error) => {

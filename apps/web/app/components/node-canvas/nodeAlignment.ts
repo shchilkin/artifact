@@ -56,6 +56,32 @@ function guideSpan(aStart: number, aEnd: number, bStart: number, bEnd: number) {
   return { from: Math.min(aStart, bStart), to: Math.max(aEnd, bEnd) };
 }
 
+interface AlignmentCandidate {
+  delta: number;
+  distance: number;
+  position: number;
+  peer: NodeRect;
+}
+
+function findBestAlignment(
+  moving: NodeRect,
+  peers: NodeRect[],
+  threshold: number,
+  anchorsFor: (rect: NodeRect) => { value: number; offset: number }[],
+): AlignmentCandidate | null {
+  const candidates = peers.flatMap((peer) =>
+    anchorsFor(moving).flatMap((source) =>
+      anchorsFor(peer).map((target) => {
+        const delta = target.value - source.value;
+        return { delta, distance: Math.abs(delta), position: target.value, peer };
+      }),
+    ),
+  );
+  return (
+    candidates.filter((candidate) => candidate.distance <= threshold).sort((a, b) => a.distance - b.distance)[0] ?? null
+  );
+}
+
 export function snapNodeToAlignment(
   movingNode: AlignableNode,
   peerNodes: AlignableNode[],
@@ -67,19 +93,7 @@ export function snapNodeToAlignment(
   const result = { ...movingNode.position };
   const guides: NodeAlignmentGuide[] = [];
 
-  let bestX: { delta: number; distance: number; position: number; peer: NodeRect } | null = null;
-  for (const peer of peers) {
-    for (const source of anchorsX(moving)) {
-      for (const target of anchorsX(peer)) {
-        const delta = target.value - source.value;
-        const distance = Math.abs(delta);
-        if (distance > threshold) continue;
-        if (!bestX || distance < bestX.distance) {
-          bestX = { delta, distance, position: target.value, peer };
-        }
-      }
-    }
-  }
+  const bestX = findBestAlignment(moving, peers, threshold, anchorsX);
 
   if (bestX) {
     result.x += bestX.delta;
@@ -87,19 +101,7 @@ export function snapNodeToAlignment(
     guides.push({ orientation: 'vertical', position: bestX.position, ...span });
   }
 
-  let bestY: { delta: number; distance: number; position: number; peer: NodeRect } | null = null;
-  for (const peer of peers) {
-    for (const source of anchorsY(moving)) {
-      for (const target of anchorsY(peer)) {
-        const delta = target.value - source.value;
-        const distance = Math.abs(delta);
-        if (distance > threshold) continue;
-        if (!bestY || distance < bestY.distance) {
-          bestY = { delta, distance, position: target.value, peer };
-        }
-      }
-    }
-  }
+  const bestY = findBestAlignment(moving, peers, threshold, anchorsY);
 
   if (bestY) {
     result.y += bestY.delta;

@@ -34,24 +34,8 @@ export function ExportInspector({
         options={['1:1', '4:5', '9:16', '16:9']}
         onChange={(value) => onAspectChange(value as AspectRatio)}
       />
-      {exportConfig.target === 'cover' && (
-        <>
-          <InspectorSelect
-            label="Format"
-            value={exportConfig.format}
-            options={['png', 'jpeg']}
-            onChange={(value) => onChange({ format: value as CanvasDocument['export']['format'] })}
-          />
-          <InspectorSelect
-            label="Scale"
-            value={String(exportConfig.scale)}
-            options={['1', '2', '3']}
-            onChange={(value) => onChange({ scale: Number(value) as CanvasDocument['export']['scale'] })}
-          />
-          <InspectorLabel>{`${width * exportConfig.scale} × ${height * exportConfig.scale}`}</InspectorLabel>
-        </>
-      )}
-      {exportConfig.target === 'envmap' && <InspectorLabel>4096 × 2048 png</InspectorLabel>}
+      <CoverExportControls exportConfig={exportConfig} height={height} width={width} onChange={onChange} />
+      <EnvmapExportLabel target={exportConfig.target} />
       <NoPan
         as="button"
         type="button"
@@ -63,4 +47,39 @@ export function ExportInspector({
       </NoPan>
     </div>
   );
+}
+
+function CoverExportControls({
+  exportConfig,
+  height,
+  onChange,
+  width,
+}: {
+  exportConfig: CanvasDocument['export'];
+  height: number;
+  onChange: (patch: Partial<CanvasDocument['export']>) => void;
+  width: number;
+}) {
+  if (exportConfig.target !== 'cover') return null;
+  return (
+    <>
+      <InspectorSelect
+        label="Format"
+        value={exportConfig.format}
+        options={['png', 'jpeg']}
+        onChange={(value) => onChange({ format: value as CanvasDocument['export']['format'] })}
+      />
+      <InspectorSelect
+        label="Scale"
+        value={String(exportConfig.scale)}
+        options={['1', '2', '3']}
+        onChange={(value) => onChange({ scale: Number(value) as CanvasDocument['export']['scale'] })}
+      />
+      <InspectorLabel>{`${width * exportConfig.scale} × ${height * exportConfig.scale}`}</InspectorLabel>
+    </>
+  );
+}
+
+function EnvmapExportLabel({ target }: { target: CanvasDocument['export']['target'] }) {
+  return target === 'envmap' ? <InspectorLabel>4096 × 2048 png</InspectorLabel> : null;
 }

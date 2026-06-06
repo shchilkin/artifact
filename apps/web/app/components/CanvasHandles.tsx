@@ -59,38 +59,16 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
       function onMove(me: PointerEvent) {
         const dx = (me.clientX - startX) / canvasW;
         const dy = (me.clientY - startY) / canvasH;
-
-        if (mode === 'move') {
-          onChange({
-            ...orig,
-            x: orig.x + dx,
-            y: orig.y + dy,
-          } as typeof layer);
-          return;
-        }
-
-        if (mode === 'rotate') {
-          const rect = svgRef.current?.getBoundingClientRect();
-          if (!rect) return;
-          const angle = Math.atan2(me.clientY - (rect.top + cy), me.clientX - (rect.left + cx));
-          onChange({ ...orig, rotation: (angle * 180) / Math.PI + 90 } as typeof layer);
-          return;
-        }
-
-        // Scale — linked (proportional) by default; hold Shift for independent X/Y
-        const xSign = mode.includes('e') ? 1 : -1;
-        const ySign = mode.includes('s') ? 1 : -1;
-        if (me.shiftKey) {
-          onChange({
-            ...orig,
-            scaleX: Math.max(0.05, orig.scaleX + dx * 2 * xSign),
-            scaleY: Math.max(0.05, orig.scaleY + dy * 2 * ySign),
-          } as typeof layer);
-        } else {
-          const delta = (dx * xSign + dy * ySign) / Math.SQRT2;
-          const newScale = Math.max(0.05, orig.scaleX + delta * 2);
-          onChange({ ...orig, scaleX: newScale, scaleY: newScale } as typeof layer);
-        }
+        const next = nextDraggedLayer({
+          event: me,
+          mode,
+          orig,
+          dx,
+          dy,
+          center: { x: cx, y: cy },
+          rect: svgRef.current?.getBoundingClientRect(),
+        });
+        if (next) onChange(next as typeof layer);
       }
 
       function onUp() {
@@ -167,4 +145,58 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
       />
     </svg>
   );
+}
+
+function nextDraggedLayer({
+  event,
+  mode,
+  orig,
+  dx,
+  dy,
+  center,
+  rect,
+}: {
+  event: PointerEvent;
+  mode: DragMode;
+  orig: TextLayer | ImageLayer;
+  dx: number;
+  dy: number;
+  center: { x: number; y: number };
+  rect?: DOMRect;
+}): TextLayer | ImageLayer | null {
+  if (mode === 'move') return { ...orig, x: orig.x + dx, y: orig.y + dy };
+  if (mode === 'rotate') return rect ? rotatedLayer(event, orig, center, rect) : null;
+  return scaledLayer(orig, mode, dx, dy, event.shiftKey);
+}
+
+function rotatedLayer(
+  event: PointerEvent,
+  orig: TextLayer | ImageLayer,
+  center: { x: number; y: number },
+  rect: DOMRect,
+) {
+  const angle = Math.atan2(event.clientY - (rect.top + center.y), event.clientX - (rect.left + center.x));
+  return { ...orig, rotation: (angle * 180) / Math.PI + 90 };
+}
+
+function scaledLayer(orig: TextLayer | ImageLayer, mode: DragMode, dx: number, dy: number, independent: boolean) {
+  const xSign = mode.includes('e') ? 1 : -1;
+  const ySign = mode.includes('s') ? 1 : -1;
+  return independent
+    ? independentlyScaledLayer(orig, dx, dy, xSign, ySign)
+    : proportionallyScaledLayer(orig, dx, dy, xSign, ySign);
+}
+
+function independentlyScaledLayer(orig: TextLayer | ImageLayer, dx: number, dy: number, xSign: number, ySign: number) {
+  return {
+    ...orig,
+    scaleX: Math.max(0.05, orig.scaleX + dx * 2 * xSign),
+    scaleY: Math.max(0.05, orig.scaleY + dy * 2 * ySign),
+  };
+}
+
+function proportionallyScaledLayer(orig: TextLayer | ImageLayer, dx: number, dy: number, xSign: number, ySign: number) {
+  const delta = (dx * xSign + dy * ySign) / Math.SQRT2;
+  const newScale = Math.max(0.05, orig.scaleX + delta * 2);
+  return { ...orig, scaleX: newScale, scaleY: newScale };
 }

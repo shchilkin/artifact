@@ -46,19 +46,7 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
       role="tooltip"
       aria-label={`${meta.title}: ${meta.description}`}
     >
-      <div className="effect-popup__image-wrap">
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt={`${meta.title} effect preview`}
-            className="effect-popup__image"
-            width={POPUP_WIDTH}
-            height={POPUP_WIDTH}
-          />
-        ) : (
-          <div className="effect-popup__image-placeholder" aria-hidden="true" />
-        )}
-      </div>
+      <EffectPopupImage thumbUrl={thumbUrl} title={meta.title} />
       <div className="effect-popup__body">
         <span className="effect-popup__title">{meta.title}</span>
         <p className="effect-popup__desc">{meta.description}</p>
@@ -70,5 +58,23 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
         <span className="effect-popup__value">{meta.valueLabel}</span>
       </div>
     </FloatingMenu>
+  );
+}
+
+function EffectPopupImage({ thumbUrl, title }: { thumbUrl: string | null; title: string }) {
+  return (
+    <div className="effect-popup__image-wrap">
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt={`${title} effect preview`}
+          className="effect-popup__image"
+          width={POPUP_WIDTH}
+          height={POPUP_WIDTH}
+        />
+      ) : (
+        <div className="effect-popup__image-placeholder" aria-hidden="true" />
+      )}
+    </div>
   );
 }

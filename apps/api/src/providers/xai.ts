@@ -58,25 +58,13 @@ export function createXAiImageProvider(options: XAiImageProviderOptions): ImageG
         }),
       });
       const body = (await response.json()) as XAiImageResponse;
-
-      if (!response.ok) {
-        throw new Error(readXAiError(body, response.status));
-      }
-
-      const encoded = body.data?.[0]?.b64_json;
-      if (typeof encoded !== 'string' || encoded.length === 0) {
-        throw new Error('xAI image response did not include image data.');
-      }
-
-      const bytes = Buffer.from(encoded, 'base64');
-      if (bytes.byteLength === 0) throw new Error('xAI image response decoded to an empty file.');
-
+      assertXAiResponseOk(response, body);
       const dimensions = dimensionsForAspect(aspectRatio, resolution);
       return {
         provider: 'xai',
         model,
         mimeType: mimeType(body.data?.[0]?.mime_type),
-        bytes,
+        bytes: xAiImageBytes(body),
         width: dimensions.width,
         height: dimensions.height,
         usage: {
@@ -95,6 +83,21 @@ export function createXAiImageProvider(options: XAiImageProviderOptions): ImageG
       };
     },
   };
+}
+
+function assertXAiResponseOk(response: FetchResponseLike, body: XAiImageResponse) {
+  if (!response.ok) throw new Error(readXAiError(body, response.status));
+}
+
+function xAiImageBytes(body: XAiImageResponse) {
+  const encoded = body.data?.[0]?.b64_json;
+  if (typeof encoded !== 'string' || encoded.length === 0) {
+    throw new Error('xAI image response did not include image data.');
+  }
+
+  const bytes = Buffer.from(encoded, 'base64');
+  if (bytes.byteLength === 0) throw new Error('xAI image response decoded to an empty file.');
+  return bytes;
 }
 
 function aspectRatioForSetting(aspect: AiGenerationSettings['aspect']) {

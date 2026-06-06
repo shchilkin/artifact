@@ -53,7 +53,7 @@ export function BottomBar({
           NEW
         </ActionButton>
         <ActionButton onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)" variant="quiet">
-          ↩{canUndo && undoCount > 0 ? ` ${undoCount}` : ''}
+          {undoButtonLabel(canUndo, undoCount)}
         </ActionButton>
         <ActionButton onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)" variant="quiet">
           ↪
@@ -96,20 +96,7 @@ export function BottomBar({
         >
           PKG+FONTS
         </ActionButton>
-        <ActionButton onClick={handleCopyLink} aria-label="Copy link to current state" variant="quiet">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={copied ? 'check' : 'link'}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.15 }}
-              style={{ display: 'inline-block' }}
-            >
-              {copied ? '✓' : 'LINK'}
-            </motion.span>
-          </AnimatePresence>
-        </ActionButton>
+        <CopyLinkButton copied={copied} onCopyLink={handleCopyLink} />
       </div>
 
       <div className="bottom-right-group">
@@ -124,5 +111,28 @@ export function BottomBar({
         </ActionButton>
       </div>
     </div>
+  );
+}
+
+function undoButtonLabel(canUndo: boolean, undoCount: number) {
+  return canUndo && undoCount > 0 ? `↩ ${undoCount}` : '↩';
+}
+
+function CopyLinkButton({ copied, onCopyLink }: { copied: boolean; onCopyLink: () => void }) {
+  return (
+    <ActionButton onClick={onCopyLink} aria-label="Copy link to current state" variant="quiet">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={copied ? 'check' : 'link'}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.15 }}
+          style={{ display: 'inline-block' }}
+        >
+          {copied ? '✓' : 'LINK'}
+        </motion.span>
+      </AnimatePresence>
+    </ActionButton>
   );
 }

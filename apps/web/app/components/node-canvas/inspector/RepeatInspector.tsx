@@ -12,8 +12,7 @@ export function RepeatInspector({
   onChange: (patch: Partial<GraphRepeatNode>) => void;
   detached?: boolean;
 }) {
-  const isRadial = repeatNode.pattern === 'radial';
-  const isGrid = repeatNode.pattern === 'grid';
+  const copy = repeatInspectorCopy(repeatNode.pattern);
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
@@ -25,7 +24,7 @@ export function RepeatInspector({
         onChange={(value) => onChange({ pattern: value as GraphRepeatNode['pattern'] })}
       />
       <InspectorSlider
-        label={isGrid ? 'Columns' : isRadial ? 'Per Ring' : 'Items'}
+        label={copy.countLabel}
         value={repeatNode.count}
         min={1}
         max={24}
@@ -33,7 +32,7 @@ export function RepeatInspector({
         onChange={(value) => onChange({ count: value })}
       />
       <InspectorSlider
-        label={isRadial ? 'Rings' : 'Rows'}
+        label={copy.rowsLabel}
         value={repeatNode.rows}
         min={1}
         max={12}
@@ -41,23 +40,14 @@ export function RepeatInspector({
         onChange={(value) => onChange({ rows: value })}
       />
       <InspectorSlider
-        label={isRadial ? 'Ring Gap' : 'Gap'}
+        label={copy.gapLabel}
         value={repeatNode.gap}
         min={12}
         max={220}
         overrideMax={480}
         onChange={(value) => onChange({ gap: value })}
       />
-      {isRadial && (
-        <InspectorSlider
-          label="Start Radius"
-          value={repeatNode.radius}
-          min={0}
-          max={220}
-          overrideMax={480}
-          onChange={(value) => onChange({ radius: value })}
-        />
-      )}
+      <RepeatRadiusSlider repeatNode={repeatNode} onChange={onChange} />
       <InspectorSlider
         label="Scale"
         value={repeatNode.scale}
@@ -105,5 +95,31 @@ export function RepeatInspector({
       />
       <p className="node-inspector-note">Repeats the source input over the optional backdrop input.</p>
     </div>
+  );
+}
+
+function repeatInspectorCopy(pattern: GraphRepeatNode['pattern']) {
+  if (pattern === 'radial') return { countLabel: 'Per Ring', rowsLabel: 'Rings', gapLabel: 'Ring Gap' };
+  if (pattern === 'grid') return { countLabel: 'Columns', rowsLabel: 'Rows', gapLabel: 'Gap' };
+  return { countLabel: 'Items', rowsLabel: 'Rows', gapLabel: 'Gap' };
+}
+
+function RepeatRadiusSlider({
+  repeatNode,
+  onChange,
+}: {
+  repeatNode: GraphRepeatNode;
+  onChange: (patch: Partial<GraphRepeatNode>) => void;
+}) {
+  if (repeatNode.pattern !== 'radial') return null;
+  return (
+    <InspectorSlider
+      label="Start Radius"
+      value={repeatNode.radius}
+      min={0}
+      max={220}
+      overrideMax={480}
+      onChange={(value) => onChange({ radius: value })}
+    />
   );
 }

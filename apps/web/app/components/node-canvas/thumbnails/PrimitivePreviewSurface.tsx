@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
 import type { PrimitiveLayer } from '../../../types/config';
 import { PrimitiveViewport3D } from '../../PrimitiveViewport3D';
@@ -25,9 +25,24 @@ export function PrimitivePreviewSurface({
   primitiveViewState,
   primitiveRenderMode,
 }: PrimitivePreviewSurfaceProps) {
+  return selected ? (
+    <SelectedPrimitivePreviewSurface
+      layer={layer}
+      primitiveViewState={primitiveViewState}
+      primitiveRenderMode={primitiveRenderMode}
+    />
+  ) : (
+    <PrimitiveThumbnailPreviewSurface layerId={layer.id} />
+  );
+}
+
+function SelectedPrimitivePreviewSurface({
+  layer,
+  primitiveViewState,
+  primitiveRenderMode,
+}: Omit<PrimitivePreviewSurfaceProps, 'selected'>) {
   const { graph } = useNodeCanvasPreview();
   const { openGallery, updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
-  const [hovered, setHovered] = useState(false);
   const [draftViewState, setDraftViewState] = useState<{
     baseKey: string;
     value: PrimitiveViewportState;
@@ -37,26 +52,23 @@ export function PrimitivePreviewSurface({
     [layer, primitiveViewState],
   );
   const committedViewStateKey = primitiveViewStateKey(committedViewState);
-  const activeDraftViewState =
-    selected && draftViewState && draftViewState.baseKey === committedViewStateKey ? draftViewState.value : null;
-  const effectiveViewState = activeDraftViewState ?? committedViewState;
-  const effectiveRenderMode = primitiveRenderMode ?? 'shaded';
+  const effectiveViewState = activePrimitiveViewState(draftViewState, committedViewStateKey, committedViewState);
+  const effectiveRenderMode = primitiveRenderModeOrDefault(primitiveRenderMode);
   const primitiveLocked = !!effectiveViewState.locked;
   const primitiveBgPreviewTargetId = useMemo(
-    () => graph.edges.find((edge) => edge.toId === layer.id && edge.toPort === 'bg')?.fromId ?? null,
+    () => primitiveBackgroundPreviewTargetId(graph.edges, layer.id),
     [graph.edges, layer.id],
   );
 
   useEffect(() => {
-    if (!selected) setPrimitiveViewportActive(layer.id, false);
     return () => setPrimitiveViewportActive(layer.id, false);
-  }, [layer.id, selected, setPrimitiveViewportActive]);
+  }, [layer.id, setPrimitiveViewportActive]);
 
   const setPrimitiveLocked = (locked: boolean) => {
     const next = { ...effectiveViewState, locked };
     setDraftViewState(null);
     updatePrimitiveView(layer.id, next);
-    if (selected) setPrimitiveViewportActive(layer.id, !locked);
+    setPrimitiveViewportActive(layer.id, !locked);
   };
 
   const resetPrimitiveCamera = () => {
@@ -67,97 +79,232 @@ export function PrimitivePreviewSurface({
     });
   };
 
-  if (!selected) {
-    return (
-      <div
-        className="node-preview-surface nodrag nopan"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        <NodeThumbnail previewTargetId={layer.id} />
-        <button
-          type="button"
-          className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
-          onClick={(event) => {
-            stopNodeEvent(event);
-            openGallery(layer.id);
-          }}
-          aria-label="Open preview"
-        >
-          View
-        </button>
-      </div>
-    );
-  }
+  return (
+    <SelectedPrimitiveSurface
+      layer={layer}
+      bgPreviewTargetId={primitiveBgPreviewTargetId}
+      renderMode={effectiveRenderMode}
+      viewState={effectiveViewState}
+      locked={primitiveLocked}
+      committedViewStateKey={committedViewStateKey}
+      onDraftViewState={setDraftViewState}
+      onOpenGallery={openGallery}
+      onResetCamera={resetPrimitiveCamera}
+      onToggleLocked={setPrimitiveLocked}
+      onUpdatePrimitiveView={updatePrimitiveView}
+      onViewportActive={setPrimitiveViewportActive}
+    />
+  );
+}
 
+function PrimitiveThumbnailPreviewSurface({ layerId }: { layerId: string }) {
+  const { openGallery } = useNodeCanvasActions();
+  const [hovered, setHovered] = useState(false);
+  return (
+    <PrimitiveThumbnailSurface
+      layerId={layerId}
+      hovered={hovered}
+      onHoverChange={setHovered}
+      onOpenGallery={openGallery}
+    />
+  );
+}
+
+function activePrimitiveViewState(
+  draft: { baseKey: string; value: PrimitiveViewportState } | null,
+  committedKey: string,
+  committed: PrimitiveViewportState,
+) {
+  if (!draft) return committed;
+  return draft.baseKey === committedKey ? draft.value : committed;
+}
+
+function primitiveRenderModeOrDefault(renderMode: PrimitiveRenderMode | undefined) {
+  return renderMode ?? 'shaded';
+}
+
+function primitiveBackgroundPreviewTargetId(
+  edges: { toId: string; toPort: string; fromId: string }[],
+  layerId: string,
+) {
+  return edges.find((edge) => edge.toId === layerId && edge.toPort === 'bg')?.fromId ?? null;
+}
+
+function PrimitiveThumbnailSurface({
+  layerId,
+  hovered,
+  onHoverChange,
+  onOpenGallery,
+}: {
+  layerId: string;
+  hovered: boolean;
+  onHoverChange: (hovered: boolean) => void;
+  onOpenGallery: (targetId: string) => void;
+}) {
   return (
     <div
-      className={`node-preview-surface primitive-preview-surface${primitiveLocked ? ' primitive-preview-surface-locked' : ' nodrag nopan nowheel'}`}
+      className="node-preview-surface nodrag nopan"
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+    >
+      <NodeThumbnail previewTargetId={layerId} />
+      <button
+        type="button"
+        className={`node-preview-open${hovered ? ' node-preview-open-visible' : ''}`}
+        onClick={(event) => {
+          stopNodeEvent(event);
+          onOpenGallery(layerId);
+        }}
+        aria-label="Open preview"
+      >
+        View
+      </button>
+    </div>
+  );
+}
+
+function SelectedPrimitiveSurface({
+  layer,
+  bgPreviewTargetId,
+  renderMode,
+  viewState,
+  locked,
+  committedViewStateKey,
+  onDraftViewState,
+  onOpenGallery,
+  onResetCamera,
+  onToggleLocked,
+  onUpdatePrimitiveView,
+  onViewportActive,
+}: {
+  layer: PrimitiveLayer;
+  bgPreviewTargetId: string | null;
+  renderMode: PrimitiveRenderMode;
+  viewState: PrimitiveViewportState;
+  locked: boolean;
+  committedViewStateKey: string;
+  onDraftViewState: (draft: { baseKey: string; value: PrimitiveViewportState } | null) => void;
+  onOpenGallery: (targetId: string) => void;
+  onResetCamera: () => void;
+  onToggleLocked: (locked: boolean) => void;
+  onUpdatePrimitiveView: (layerId: string, viewState: PrimitiveViewportState) => void;
+  onViewportActive: (layerId: string, active: boolean) => void;
+}) {
+  return (
+    <div
+      className={primitivePreviewSurfaceClassName(locked)}
       onMouseEnter={() => {
-        setHovered(true);
-        if (!primitiveLocked) setPrimitiveViewportActive(layer.id, true);
+        if (!locked) onViewportActive(layer.id, true);
       }}
       onMouseLeave={() => {
-        setHovered(false);
-        setPrimitiveViewportActive(layer.id, false);
+        onViewportActive(layer.id, false);
       }}
     >
       <PrimitiveViewportFrame
         layer={layer}
-        bgPreviewTargetId={primitiveBgPreviewTargetId}
-        renderMode={effectiveRenderMode}
-        viewState={effectiveViewState}
+        bgPreviewTargetId={bgPreviewTargetId}
+        renderMode={renderMode}
+        viewState={viewState}
         interactive
-        onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
+        onViewStateDraft={(next) => onDraftViewState({ baseKey: committedViewStateKey, value: next })}
         onViewStateChange={(next) => {
-          setDraftViewState(null);
-          updatePrimitiveView(layer.id, next);
+          onDraftViewState(null);
+          onUpdatePrimitiveView(layer.id, next);
         }}
       />
-      <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
-        <span className="primitive-node-camera-hint">
-          {primitiveLocked ? 'camera locked' : `camera ${Math.round(effectiveViewState.zoom * 100)}%`}
-        </span>
-        <div className="primitive-node-camera-actions">
-          <button
-            type="button"
-            className={`nodrag nopan nowheel primitive-camera-button${primitiveLocked ? ' primitive-camera-button-active' : ''}`}
-            aria-label={primitiveLocked ? 'Unlock camera' : 'Lock camera'}
-            aria-pressed={primitiveLocked}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setPrimitiveLocked(!primitiveLocked);
-            }}
-          >
-            {primitiveLocked ? 'LOCK' : 'FREE'}
-          </button>
-          <button
-            type="button"
-            className="nodrag nopan nowheel primitive-camera-button"
-            aria-label="Open preview"
-            onClick={(event) => {
-              stopNodeEvent(event);
-              openGallery(layer.id);
-            }}
-          >
-            VIEW
-          </button>
-          <button
-            type="button"
-            className="nodrag nopan nowheel primitive-camera-button"
-            aria-label="Reset camera"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              resetPrimitiveCamera();
-            }}
-          >
-            RESET
-          </button>
-        </div>
+      <PrimitiveCameraStrip
+        layerId={layer.id}
+        locked={locked}
+        viewState={viewState}
+        onOpenGallery={onOpenGallery}
+        onResetCamera={onResetCamera}
+        onToggleLocked={onToggleLocked}
+      />
+    </div>
+  );
+}
+
+function primitivePreviewSurfaceClassName(locked: boolean) {
+  return locked
+    ? 'node-preview-surface primitive-preview-surface primitive-preview-surface-locked'
+    : 'node-preview-surface primitive-preview-surface nodrag nopan nowheel';
+}
+
+function PrimitiveCameraStrip({
+  layerId,
+  locked,
+  viewState,
+  onOpenGallery,
+  onResetCamera,
+  onToggleLocked,
+}: {
+  layerId: string;
+  locked: boolean;
+  viewState: PrimitiveViewportState;
+  onOpenGallery: (targetId: string) => void;
+  onResetCamera: () => void;
+  onToggleLocked: (locked: boolean) => void;
+}) {
+  return (
+    <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
+      <span className="primitive-node-camera-hint">{primitiveCameraHint(locked, viewState)}</span>
+      <div className="primitive-node-camera-actions">
+        <PrimitiveCameraButton
+          active={locked}
+          ariaLabel={locked ? 'Unlock camera' : 'Lock camera'}
+          ariaPressed={locked}
+          onClick={() => onToggleLocked(!locked)}
+        >
+          {locked ? 'LOCK' : 'FREE'}
+        </PrimitiveCameraButton>
+        <PrimitiveCameraButton
+          ariaLabel="Open preview"
+          onClick={(event) => {
+            stopNodeEvent(event);
+            onOpenGallery(layerId);
+          }}
+        >
+          VIEW
+        </PrimitiveCameraButton>
+        <PrimitiveCameraButton ariaLabel="Reset camera" onClick={onResetCamera}>
+          RESET
+        </PrimitiveCameraButton>
       </div>
     </div>
+  );
+}
+
+function primitiveCameraHint(locked: boolean, viewState: PrimitiveViewportState) {
+  return locked ? 'camera locked' : `camera ${Math.round(viewState.zoom * 100)}%`;
+}
+
+function PrimitiveCameraButton({
+  active,
+  ariaLabel,
+  ariaPressed,
+  children,
+  onClick,
+}: {
+  active?: boolean;
+  ariaLabel: string;
+  ariaPressed?: boolean;
+  children: string;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`nodrag nopan nowheel primitive-camera-button${active ? ' primitive-camera-button-active' : ''}`}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick(event);
+      }}
+    >
+      {children}
+    </button>
   );
 }
 

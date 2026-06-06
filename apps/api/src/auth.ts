@@ -157,30 +157,64 @@ async function verifyClerkToken(token: string, options: ClerkBearerVerifierOptio
 }
 
 export function verifySignedBearerToken(token: string, options: JwtVerifierOptions): RequestUser | null {
+  const decoded = decodeSignedJwt(token);
+  if (!decoded) return null;
+  if (!jwtSignatureValid(decoded, options.secret)) return null;
+  if (!jwtClaimsValid(decoded.claims, options)) return null;
+
+  const id = requestUserIdFromClaims(decoded.claims);
+  if (!id) return null;
+  return {
+    id,
+    email: stringClaim(decoded.claims.email),
+    role: stringClaim(decoded.claims.role),
+  };
+}
+
+function decodeSignedJwt(token: string) {
   const [encodedHeader, encodedPayload, signature] = token.split('.');
   if (!encodedHeader || !encodedPayload || !signature) return null;
 
   const header = parseJwtPart<{ alg?: unknown; typ?: unknown }>(encodedHeader);
   const claims = parseJwtPart<JwtClaims>(encodedPayload);
   if (!header || !claims || header.alg !== 'HS256') return null;
+  return { encodedHeader, encodedPayload, signature, claims };
+}
 
-  const expectedSignature = signJwtParts(`${encodedHeader}.${encodedPayload}`, options.secret);
-  if (!safeEqual(signature, expectedSignature)) return null;
+function jwtSignatureValid(decoded: NonNullable<ReturnType<typeof decodeSignedJwt>>, secret: string) {
+  const expectedSignature = signJwtParts(`${decoded.encodedHeader}.${decoded.encodedPayload}`, secret);
+  return safeEqual(decoded.signature, expectedSignature);
+}
 
-  const nowSeconds = Math.floor((options.now?.() ?? new Date()).getTime() / 1000);
-  if (typeof claims.exp === 'number' && claims.exp <= nowSeconds) return null;
-  if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds) return null;
-  if (options.issuer && claims.iss !== options.issuer) return null;
-  if (options.audience && !audienceMatches(claims.aud, options.audience)) return null;
+function jwtClaimsValid(claims: JwtClaims, options: JwtVerifierOptions) {
+  return (
+    jwtTimeClaimsValid(claims, options.now?.() ?? new Date()) &&
+    jwtIssuerValid(claims, options.issuer) &&
+    jwtAudienceValid(claims, options.audience)
+  );
+}
 
-  const id = typeof claims.sub === 'string' ? claims.sub : typeof claims.id === 'string' ? claims.id : undefined;
-  if (!id) return null;
+function jwtTimeClaimsValid(claims: JwtClaims, now: Date) {
+  const nowSeconds = Math.floor(now.getTime() / 1000);
+  if (typeof claims.exp === 'number' && claims.exp <= nowSeconds) return false;
+  if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds) return false;
+  return true;
+}
 
-  return {
-    id,
-    email: typeof claims.email === 'string' ? claims.email : undefined,
-    role: typeof claims.role === 'string' ? claims.role : undefined,
-  };
+function jwtIssuerValid(claims: JwtClaims, issuer: string | undefined) {
+  return !issuer || claims.iss === issuer;
+}
+
+function jwtAudienceValid(claims: JwtClaims, audience: string | undefined) {
+  return !audience || audienceMatches(claims.aud, audience);
+}
+
+function requestUserIdFromClaims(claims: JwtClaims) {
+  return stringClaim(claims.sub) ?? stringClaim(claims.id);
+}
+
+function stringClaim(value: unknown) {
+  return typeof value === 'string' ? value : undefined;
 }
 
 export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAccessResponse {

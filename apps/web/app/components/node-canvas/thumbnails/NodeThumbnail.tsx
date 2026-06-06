@@ -32,10 +32,30 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, prio
           className="node-thumbnail-canvas"
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />
-        {showSkeleton && <div className="node-thumbnail-skeleton" />}
-        {showPreparing && <div className="node-thumbnail-preparing">Preparing</div>}
-        {missingRequiredSource && <div className="node-thumbnail-empty-label">Connect source</div>}
+        <NodeThumbnailOverlays
+          missingRequiredSource={missingRequiredSource}
+          showPreparing={showPreparing}
+          showSkeleton={showSkeleton}
+        />
       </div>
     </div>
   );
 });
+
+function NodeThumbnailOverlays({
+  missingRequiredSource,
+  showPreparing,
+  showSkeleton,
+}: {
+  missingRequiredSource: boolean;
+  showPreparing: boolean;
+  showSkeleton: boolean;
+}) {
+  return (
+    <>
+      {showSkeleton && <div className="node-thumbnail-skeleton" />}
+      {showPreparing && <div className="node-thumbnail-preparing">Preparing</div>}
+      {missingRequiredSource && <div className="node-thumbnail-empty-label">Connect source</div>}
+    </>
+  );
+}

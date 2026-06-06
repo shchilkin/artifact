@@ -3,6 +3,7 @@ import type { GraphArea, Layer } from '../../types/config';
 
 export type LayerDropPosition = 'before' | 'after';
 type LayerDropTarget = { id: string; position: LayerDropPosition };
+type LayerDropResult = { newOrder: Layer[]; areaSeparation?: { areaId: string; ids: string[] } };
 
 export function reorderDisplayLayersForDrop(
   displayLayers: Layer[],
@@ -57,27 +58,11 @@ export function useLayerDragReorder({
 
   const handleDrop = useCallback(
     (targetId: string, position: LayerDropPosition) => {
-      const sourceId = dragLayerId.current;
-      const target = { id: targetId, position };
-      if (!sourceId || sourceId === target.id) {
-        handleCancelDrag();
-        return;
-      }
-
-      const sourceLayer = displayLayers.find((layer) => layer.id === sourceId);
-      const targetLayer = displayLayers.find((layer) => layer.id === target.id);
-      if (!sourceLayer || !targetLayer) {
-        handleCancelDrag();
-        return;
-      }
-
-      const sourceArea = areasByLayerId.get(sourceId)?.[0];
-      const targetArea = areasByLayerId.get(target.id)?.[0];
-      const newDisplayLayers = reorderDisplayLayersForDrop(displayLayers, sourceId, target.id, target.position);
-      onReorderLayers(
-        [...newDisplayLayers].reverse(),
-        sourceArea && sourceArea.id !== targetArea?.id ? { areaId: sourceArea.id, ids: [sourceId] } : undefined,
-      );
+      const result = resolveLayerDropResult(displayLayers, areasByLayerId, dragLayerId.current, {
+        id: targetId,
+        position,
+      });
+      if (result) onReorderLayers(result.newOrder, result.areaSeparation);
       handleCancelDrag();
     },
     [areasByLayerId, displayLayers, handleCancelDrag, onReorderLayers],
@@ -90,4 +75,34 @@ export function useLayerDragReorder({
     handleDrop,
     handleCancelDrag,
   };
+}
+
+function resolveLayerDropResult(
+  displayLayers: Layer[],
+  areasByLayerId: Map<string, GraphArea[]>,
+  sourceId: string | null,
+  target: LayerDropTarget,
+): LayerDropResult | null {
+  if (!sourceId || sourceId === target.id) return null;
+  if (!dropLayersExist(displayLayers, sourceId, target.id)) return null;
+
+  const newDisplayLayers = reorderDisplayLayersForDrop(displayLayers, sourceId, target.id, target.position);
+  return {
+    newOrder: [...newDisplayLayers].reverse(),
+    areaSeparation: layerDropAreaSeparation(areasByLayerId, sourceId, target.id),
+  };
+}
+
+function dropLayersExist(displayLayers: Layer[], sourceId: string, targetId: string) {
+  return displayLayers.some((layer) => layer.id === sourceId) && displayLayers.some((layer) => layer.id === targetId);
+}
+
+function layerDropAreaSeparation(
+  areasByLayerId: Map<string, GraphArea[]>,
+  sourceId: string,
+  targetId: string,
+): LayerDropResult['areaSeparation'] {
+  const sourceArea = areasByLayerId.get(sourceId)?.[0];
+  const targetArea = areasByLayerId.get(targetId)?.[0];
+  return sourceArea && sourceArea.id !== targetArea?.id ? { areaId: sourceArea.id, ids: [sourceId] } : undefined;
 }

@@ -96,40 +96,65 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
 function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const assets = value.flatMap((item) => {
-    if (!isRecord(item)) return [];
-    const id = typeof item.id === 'string' ? item.id : '';
-    const dataUrl = typeof item.dataUrl === 'string' ? item.dataUrl : '';
-    if (!id || !dataUrl.startsWith('data:')) return [];
-    return [
-      {
-        id,
-        dataUrl,
-        mime: typeof item.mime === 'string' ? item.mime : 'application/octet-stream',
-        bytes: Number.isFinite(Number(item.bytes)) ? Number(item.bytes) : 0,
-        label: typeof item.label === 'string' ? item.label : 'Imported Font',
-        family: typeof item.family === 'string' ? item.family : `Artifact Imported ${id}`,
-        createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date(0).toISOString(),
-        ...(item.source === 'local-file' || item.source === 'google-fonts' ? { source: item.source } : {}),
-        ...(typeof item.sourceName === 'string' ? { sourceName: item.sourceName } : {}),
-        ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
-        ...(isRecord(item.license) && typeof item.license.name === 'string'
-          ? {
-              license: {
-                name: item.license.name,
-                ...(typeof item.license.url === 'string' ? { url: item.license.url } : {}),
-                ...(typeof item.license.allowsEmbedding === 'boolean'
-                  ? { allowsEmbedding: item.license.allowsEmbedding }
-                  : {}),
-              },
-            }
-          : {}),
-        ...(item.embeddingPolicy === 'user-confirmed-required' || item.embeddingPolicy === 'open-license-embeddable'
-          ? { embeddingPolicy: item.embeddingPolicy }
-          : {}),
-      },
-    ];
+    const asset = normalizePortableFontAsset(item);
+    return asset ? [asset] : [];
   });
   return assets.length > 0 ? assets : undefined;
+}
+
+function normalizePortableFontAsset(item: unknown): PortableFontAsset | null {
+  if (!isRecord(item)) return null;
+  const id = stringField(item.id);
+  const dataUrl = stringField(item.dataUrl);
+  if (!id || !dataUrl?.startsWith('data:')) return null;
+  return {
+    id,
+    dataUrl,
+    mime: stringField(item.mime) ?? 'application/octet-stream',
+    bytes: finiteNumberField(item.bytes),
+    label: stringField(item.label) ?? 'Imported Font',
+    family: stringField(item.family) ?? `Artifact Imported ${id}`,
+    createdAt: stringField(item.createdAt) ?? new Date(0).toISOString(),
+    ...fontAssetSourceFields(item),
+    ...fontAssetLicenseField(item.license),
+    ...fontAssetEmbeddingPolicyField(item.embeddingPolicy),
+  };
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function finiteNumberField(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function fontAssetSourceFields(item: Record<string, unknown>): Partial<PortableFontAsset> {
+  return {
+    ...(item.source === 'local-file' || item.source === 'google-fonts' ? { source: item.source } : {}),
+    ...(typeof item.sourceName === 'string' ? { sourceName: item.sourceName } : {}),
+    ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
+  };
+}
+
+function fontAssetLicenseField(license: unknown): Pick<PortableFontAsset, 'license'> | Record<string, never> {
+  if (!isRecord(license) || typeof license.name !== 'string') return {};
+  return {
+    license: {
+      name: license.name,
+      ...(typeof license.url === 'string' ? { url: license.url } : {}),
+      ...(typeof license.allowsEmbedding === 'boolean' ? { allowsEmbedding: license.allowsEmbedding } : {}),
+    },
+  };
+}
+
+function fontAssetEmbeddingPolicyField(
+  embeddingPolicy: unknown,
+): Pick<PortableFontAsset, 'embeddingPolicy'> | Record<string, never> {
+  return embeddingPolicy === 'user-confirmed-required' || embeddingPolicy === 'open-license-embeddable'
+    ? { embeddingPolicy }
+    : {};
 }
 
 export function normalizeDocument(raw: unknown): CanvasDocument {

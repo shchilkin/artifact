@@ -23,10 +23,9 @@ export function NodeShell({
   void expandable;
   void onToggleExpanded;
   const accent = KIND_COLOR[kind] ?? 'var(--accent)';
-  const showName = name.trim().toLowerCase() !== label.trim().toLowerCase();
   return (
     <div
-      className={`node-shell node-shell-kind-${kind}${outputPath ? ' node-shell-output-path' : ''}${selected ? ' node-shell-selected' : ''}${muted ? ' node-shell-muted' : ''}`}
+      className={nodeShellClassName(kind, { outputPath, selected, muted })}
       style={{ '--node-accent': accent, '--node-default-width': `${NODE_W}px` } as CSSProperties}
     >
       <div className="node-shell-accent" aria-hidden="true" />
@@ -34,40 +33,78 @@ export function NodeShell({
         <div className="node-drag-handle node-shell-drag">
           <span className="node-shell-symbol">{KIND_SYMBOL[kind] ?? '○'}</span>
           <span className="node-shell-label">{label}</span>
-          {showName && <span className="node-shell-name">{name}</span>}
+          <NodeDisplayName label={label} name={name} />
         </div>
-        {onToggleMuted && (
-          <NoPan
-            as="button"
-            type="button"
-            className="nodrag node-shell-action node-shell-mute"
-            aria-label={muted ? 'Unmute node' : 'Mute node'}
-            title={muted ? 'Unmute (M)' : 'Mute (M)'}
-            aria-keyshortcuts="M"
-            aria-pressed={muted}
-            onClick={onToggleMuted}
-          >
-            <span className="node-shell-mute-dot" aria-hidden="true">
-              {muted ? '○' : '●'}
-            </span>
-            <span className="node-shell-mute-label">{muted ? 'Muted' : 'Mute'}</span>
-          </NoPan>
-        )}
-        {onDelete && (
-          <NoPan
-            as="button"
-            type="button"
-            className="nodrag node-shell-action node-shell-delete"
-            aria-label="Delete node"
-            disabled={deleteDisabled}
-            title={deleteDisabled ? 'Locked layer-backed node' : 'Delete node'}
-            onClick={onDelete}
-          >
-            ×
-          </NoPan>
-        )}
+        <NodeMuteAction muted={muted} onToggleMuted={onToggleMuted} />
+        <NodeDeleteAction deleteDisabled={deleteDisabled} onDelete={onDelete} />
       </div>
       <div className="node-shell-body">{children}</div>
     </div>
+  );
+}
+
+function nodeShellClassName(
+  kind: NodeShellProps['kind'],
+  flags: Pick<NodeShellProps, 'outputPath' | 'selected' | 'muted'>,
+) {
+  return [
+    'node-shell',
+    `node-shell-kind-${kind}`,
+    flags.outputPath && 'node-shell-output-path',
+    flags.selected && 'node-shell-selected',
+    flags.muted && 'node-shell-muted',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function NodeDisplayName({ label, name }: Pick<NodeShellProps, 'label' | 'name'>) {
+  return name.trim().toLowerCase() === label.trim().toLowerCase() ? null : (
+    <span className="node-shell-name">{name}</span>
+  );
+}
+
+function NodeMuteAction({ muted, onToggleMuted }: Pick<NodeShellProps, 'muted' | 'onToggleMuted'>) {
+  if (!onToggleMuted) return null;
+  const copy = nodeMuteActionCopy(muted);
+  return (
+    <NoPan
+      as="button"
+      type="button"
+      className="nodrag node-shell-action node-shell-mute"
+      aria-label={copy.ariaLabel}
+      title={copy.title}
+      aria-keyshortcuts="M"
+      aria-pressed={muted}
+      onClick={onToggleMuted}
+    >
+      <span className="node-shell-mute-dot" aria-hidden="true">
+        {copy.dot}
+      </span>
+      <span className="node-shell-mute-label">{copy.label}</span>
+    </NoPan>
+  );
+}
+
+function nodeMuteActionCopy(muted: boolean | undefined) {
+  return muted
+    ? { ariaLabel: 'Unmute node', title: 'Unmute (M)', dot: '○', label: 'Muted' }
+    : { ariaLabel: 'Mute node', title: 'Mute (M)', dot: '●', label: 'Mute' };
+}
+
+function NodeDeleteAction({ deleteDisabled, onDelete }: Pick<NodeShellProps, 'deleteDisabled' | 'onDelete'>) {
+  if (!onDelete) return null;
+  return (
+    <NoPan
+      as="button"
+      type="button"
+      className="nodrag node-shell-action node-shell-delete"
+      aria-label="Delete node"
+      disabled={deleteDisabled}
+      title={deleteDisabled ? 'Locked layer-backed node' : 'Delete node'}
+      onClick={onDelete}
+    >
+      ×
+    </NoPan>
   );
 }

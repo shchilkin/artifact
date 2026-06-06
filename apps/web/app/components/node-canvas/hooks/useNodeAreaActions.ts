@@ -48,21 +48,9 @@ export function useNodeAreaActions({
 
   const handleCreateAreaFromSelection = useCallback(() => {
     if (areaActionDisabled) return;
-    if (areaActionTargetId) {
-      onGraphChange(addNodesToGraphArea(graphRef.current, areaActionTargetId, areaActionNodeIds));
-      setSelectedAreaId(areaActionTargetId);
-      return;
-    }
-    const areaNumber = (graphRef.current.areas?.length ?? 0) + 1;
-    const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
-    onGraphChange(
-      addGraphArea(graphRef.current, {
-        id: `area-${Date.now().toString(36)}`,
-        name: `Area ${areaNumber}`,
-        color,
-        nodeIds: areaActionNodeIds,
-      }),
-    );
+    const result = createAreaSelectionAction(graphRef.current, areaActionNodeIds, areaActionTargetId);
+    onGraphChange(result.graph);
+    setSelectedAreaId(result.selectedAreaId);
   }, [areaActionDisabled, areaActionNodeIds, areaActionTargetId, graphRef, onGraphChange]);
 
   const handleRemoveArea = useCallback(
@@ -91,4 +79,31 @@ export function useNodeAreaActions({
     handleRemoveNodeFromArea,
     handleSelectArea: setSelectedAreaId,
   };
+}
+
+function createAreaSelectionAction(graph: CanvasGraph, nodeIds: string[], targetAreaId: string | undefined | null) {
+  if (targetAreaId) {
+    return {
+      graph: addNodesToGraphArea(graph, targetAreaId, nodeIds),
+      selectedAreaId: targetAreaId,
+    };
+  }
+  const areaNumber = nextGraphAreaNumber(graph);
+  return {
+    graph: addGraphArea(graph, {
+      id: `area-${Date.now().toString(36)}`,
+      name: `Area ${areaNumber}`,
+      color: graphAreaColor(areaNumber),
+      nodeIds,
+    }),
+    selectedAreaId: null,
+  };
+}
+
+function nextGraphAreaNumber(graph: CanvasGraph) {
+  return (graph.areas?.length ?? 0) + 1;
+}
+
+function graphAreaColor(areaNumber: number) {
+  return GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
 }

@@ -16,7 +16,13 @@ import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
 import { logInfo, logWarn } from '../logger.js';
 import type { ProviderRegistry } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
-import { checkMonthlyQuota, checkOneActiveJob, createQuotaSnapshot, getMonthlyQuotaPeriod } from '../quota.js';
+import {
+  checkMonthlyQuota,
+  checkOneActiveJob,
+  createQuotaSnapshot,
+  getMonthlyQuotaPeriod,
+  type MonthlyQuotaCheck,
+} from '../quota.js';
 import type { InMemoryRateLimiter } from '../rateLimit.js';
 
 export interface AiRouteRequest extends RequestLike, AsyncIterable<Buffer> {
@@ -36,38 +42,72 @@ export interface AiRouteDeps {
   createId?: () => string;
 }
 
+type AiRouteHandler = (
+  request: AiRouteRequest,
+  deps: AiRouteDeps,
+  pathname: string,
+) => Promise<JsonResponse<AiAccessResponse | AiGenerationJobResponse | { code: string; message: string }> | null>;
+
+const AI_ROUTE_HANDLERS: Array<{
+  match: (method: string, pathname: string) => boolean;
+  handle: AiRouteHandler;
+}> = [
+  {
+    match: (method, pathname) => method === 'GET' && pathname === '/api/ai/access',
+    handle: (request, deps) => handleAccessRequest(request, deps),
+  },
+  {
+    match: (method, pathname) => method === 'POST' && pathname === '/api/ai/generations',
+    handle: handleCreateGenerationRoute,
+  },
+  {
+    match: (method, pathname) => method === 'GET' && generationIdFromPath(pathname) !== null,
+    handle: (request, deps, pathname) =>
+      handleGetGenerationRequest(request, generationIdFromPath(pathname) ?? '', deps),
+  },
+  {
+    match: (method, pathname) => method === 'POST' && cancelGenerationIdFromPath(pathname) !== null,
+    handle: (request, deps, pathname) =>
+      handleCancelGenerationRequest(request, cancelGenerationIdFromPath(pathname) ?? '', deps),
+  },
+];
+
 export async function handleAiRequest(
   request: AiRouteRequest,
   deps: AiRouteDeps,
 ): Promise<JsonResponse<AiAccessResponse | AiGenerationJobResponse | { code: string; message: string }> | null> {
   const method = request.method ?? 'GET';
   const pathname = new URL(request.url ?? '/', 'http://artifact.local').pathname;
+  const route = AI_ROUTE_HANDLERS.find((candidate) => candidate.match(method, pathname));
+  return route ? route.handle(request, deps, pathname) : null;
+}
 
-  if (method === 'GET' && pathname === '/api/ai/access') {
-    return handleAccessRequest(request, deps);
+async function handleCreateGenerationRoute(request: AiRouteRequest, deps: AiRouteDeps) {
+  const body = await readCreateGenerationBody(request);
+  return body.ok ? handleCreateGenerationRequest(request, body.value, deps) : body.response;
+}
+
+async function readCreateGenerationBody(
+  request: AiRouteRequest,
+): Promise<
+  | { ok: true; value: CreateGenerationRequest }
+  | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  try {
+    return { ok: true, value: await readJsonBody<CreateGenerationRequest>(request) };
+  } catch {
+    return { ok: false, response: errorJson(400, 'invalid_json', 'Request body must be valid JSON.') };
   }
+}
 
-  if (method === 'POST' && pathname === '/api/ai/generations') {
-    let body: CreateGenerationRequest;
-    try {
-      body = await readJsonBody<CreateGenerationRequest>(request);
-    } catch {
-      return errorJson(400, 'invalid_json', 'Request body must be valid JSON.');
-    }
-    return handleCreateGenerationRequest(request, body, deps);
-  }
+function generationIdFromPath(pathname: string) {
+  const match = /^\/api\/ai\/generations\/([^/]+)$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
 
-  const generationMatch = /^\/api\/ai\/generations\/([^/]+)$/.exec(pathname);
-  if (generationMatch?.[1] && method === 'GET') {
-    return handleGetGenerationRequest(request, decodeURIComponent(generationMatch[1]), deps);
-  }
-
-  const cancelMatch = /^\/api\/ai\/generations\/([^/]+)\/cancel$/.exec(pathname);
-  if (cancelMatch?.[1] && method === 'POST') {
-    return handleCancelGenerationRequest(request, decodeURIComponent(cancelMatch[1]), deps);
-  }
-
-  return null;
+function cancelGenerationIdFromPath(pathname: string) {
+  const match = /^\/api\/ai\/generations\/([^/]+)\/cancel$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
 export async function handleAccessRequest(
@@ -107,113 +147,18 @@ export async function handleCreateGenerationRequest(
   body: CreateGenerationRequest,
   deps: AiRouteDeps,
 ): Promise<JsonResponse<AiGenerationJobResponse | { code: string; message: string }>> {
-  const auth = await deps.resolveAuth(request);
-  if (!auth.authenticated) {
-    logWarn('ai_generation.create_denied', { reason: 'unauthenticated' });
-    return errorJson(401, 'unauthenticated', 'Sign in before generating images.');
-  }
+  const prepared = await prepareCreateGeneration(request, body, deps);
+  if (!prepared.ok) return prepared.response;
 
-  const user = await ensureAuthenticatedUser(auth, deps);
-  if (!user?.ai_enabled || user.disabled_at) {
-    logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
-    return errorJson(403, 'not_enabled', 'AI generation is not enabled for this user.');
-  }
+  const { provider, model, quotaCheck, user } = prepared;
+  const created = await createGenerationJob(body, prepared, deps);
+  if (!created.ok) return created.response;
 
-  const requestCheck = validateCreateGenerationRequest(body);
-  if (!requestCheck.ok) return errorJson(400, requestCheck.code, requestCheck.message);
+  const job = created.job;
+  await recordGenerationUsage(user.id, quotaCheck.quota.period, 1, deps);
+  const enqueued = await enqueueGenerationJob(job, user.id, quotaCheck.quota.period, deps);
+  if (!enqueued.ok) return enqueued.response;
 
-  const provider = requestCheck.provider;
-  const providerAdapter = deps.providers.get(provider);
-  const model = body.model?.trim() || providerAdapter.defaultModel;
-  const existing = await deps.repositories.jobs.findByIdempotencyKey(user.id, body.idempotencyKey);
-  if (existing) {
-    logInfo('ai_generation.idempotency_hit', { jobId: existing.id, userId: user.id, status: existing.status });
-    const period = getMonthlyQuotaPeriod(deps.now?.());
-    const quota = createQuotaSnapshot(
-      period,
-      deps.monthlyGenerationLimit,
-      await deps.repositories.usage.countMonthlyGenerations(user.id, period),
-    );
-    return json(200, await toJobResponseForUser(existing, user.id, deps.repositories, quota));
-  }
-
-  const rate = deps.createRateLimiter?.check(`generation:create:user:${user.id}`);
-  if (rate && !rate.allowed) {
-    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'rate_limited' });
-    return json(
-      429,
-      { code: 'rate_limited', message: 'Too many generation requests.' },
-      { 'retry-after': String(Math.ceil(rate.retryAfterMs / 1000)) },
-    );
-  }
-
-  const quotaCheck = await checkMonthlyQuota({
-    limit: deps.monthlyGenerationLimit,
-    usageReader: deps.repositories.usage,
-    userId: user.id,
-    now: deps.now?.(),
-  });
-  if (!quotaCheck.allowed) {
-    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'quota_exceeded' });
-    return errorJson(429, 'quota_exceeded', 'Monthly generation quota used.');
-  }
-
-  const activeCheck = await checkOneActiveJob({
-    activeJobReader: deps.repositories.jobs,
-    maxActiveJobs: deps.maxActiveJobsPerUser,
-    userId: user.id,
-  });
-  if (!activeCheck.allowed) {
-    logWarn('ai_generation.create_denied', { userId: user.id, reason: 'active_job_exists' });
-    return errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.');
-  }
-
-  let job: AiGenerationJobRow;
-  try {
-    job = await deps.repositories.jobs.create({
-      id: deps.createId?.() ?? randomUUID(),
-      userId: user.id,
-      provider,
-      model,
-      prompt: body.prompt.trim(),
-      negativePrompt: body.settings.negativePrompt,
-      settingsJson: settingsToJson(body.settings),
-      idempotencyKey: body.idempotencyKey,
-    });
-  } catch (error) {
-    if (isActiveGenerationJobExistsError(error)) {
-      logWarn('ai_generation.create_denied', { userId: user.id, reason: 'active_job_exists' });
-      return errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.');
-    }
-    throw error;
-  }
-  await deps.repositories.usage.upsertMonthlyUsage({
-    userId: user.id,
-    period: quotaCheck.quota.period,
-    generationLimit: deps.monthlyGenerationLimit,
-    generationCountDelta: 1,
-  });
-  try {
-    await deps.queue.enqueue({ jobId: job.id, userId: user.id }, { jobId: job.id });
-  } catch (error) {
-    logWarn('ai_generation.enqueue_failed', {
-      jobId: job.id,
-      userId: user.id,
-      reason: error instanceof Error ? error.message : 'unknown_error',
-    });
-    await deps.repositories.jobs.markFailed(job.id, {
-      code: 'queue_enqueue_failed',
-      message: 'Generation queue is unavailable. Try again later.',
-      retryable: true,
-    });
-    await deps.repositories.usage.upsertMonthlyUsage({
-      userId: user.id,
-      period: quotaCheck.quota.period,
-      generationLimit: deps.monthlyGenerationLimit,
-      generationCountDelta: -1,
-    });
-    return errorJson(503, 'queue_unavailable', 'Generation queue is unavailable. Try again later.');
-  }
   logInfo('ai_generation.queued', {
     jobId: job.id,
     userId: user.id,
@@ -231,6 +176,207 @@ export async function handleCreateGenerationRequest(
       createQuotaSnapshot(quotaCheck.quota.period, deps.monthlyGenerationLimit, quotaCheck.quota.used + 1),
     ),
   );
+}
+
+type AuthenticatedUserRow = NonNullable<Awaited<ReturnType<typeof ensureAuthenticatedUser>>>;
+type CreateGenerationPrepared = {
+  provider: AiProvider;
+  model: string;
+  quotaCheck: MonthlyQuotaCheck;
+  user: AuthenticatedUserRow;
+};
+
+async function prepareCreateGeneration(
+  request: RequestLike,
+  body: CreateGenerationRequest,
+  deps: AiRouteDeps,
+): Promise<
+  | ({ ok: true } & CreateGenerationPrepared)
+  | { ok: false; response: JsonResponse<AiGenerationJobResponse | { code: string; message: string }> }
+> {
+  const authResult = await authenticateCreateGeneration(request, deps);
+  if (!authResult.ok) return authResult;
+
+  const requestResult = createGenerationRequestInfo(body, deps);
+  if (!requestResult.ok) return requestResult;
+
+  const existing = await existingGenerationResponse(authResult.user.id, body.idempotencyKey, deps);
+  if (existing) return { ok: false, response: existing };
+
+  const capacityResult = await ensureCreateGenerationCapacity(authResult.user.id, deps);
+  if (!capacityResult.ok) return capacityResult;
+
+  return {
+    ok: true,
+    model: requestResult.model,
+    provider: requestResult.provider,
+    quotaCheck: capacityResult.quotaCheck,
+    user: authResult.user,
+  };
+}
+
+async function authenticateCreateGeneration(
+  request: RequestLike,
+  deps: AiRouteDeps,
+): Promise<
+  { ok: true; user: AuthenticatedUserRow } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  const auth = await deps.resolveAuth(request);
+  if (!auth.authenticated) {
+    logWarn('ai_generation.create_denied', { reason: 'unauthenticated' });
+    return { ok: false, response: errorJson(401, 'unauthenticated', 'Sign in before generating images.') };
+  }
+
+  const user = await ensureAuthenticatedUser(auth, deps);
+  if (!user?.ai_enabled || user.disabled_at) {
+    logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
+    return { ok: false, response: errorJson(403, 'not_enabled', 'AI generation is not enabled for this user.') };
+  }
+  return { ok: true, user };
+}
+
+function createGenerationRequestInfo(
+  body: CreateGenerationRequest,
+  deps: AiRouteDeps,
+):
+  | { ok: true; provider: AiProvider; model: string }
+  | { ok: false; response: JsonResponse<{ code: string; message: string }> } {
+  const requestCheck = validateCreateGenerationRequest(body);
+  if (!requestCheck.ok) return { ok: false, response: errorJson(400, requestCheck.code, requestCheck.message) };
+
+  const provider = requestCheck.provider;
+  const providerAdapter = deps.providers.get(provider);
+  const model = body.model?.trim() || providerAdapter.defaultModel;
+  return { ok: true, provider, model };
+}
+
+async function ensureCreateGenerationCapacity(
+  userId: string,
+  deps: AiRouteDeps,
+): Promise<
+  { ok: true; quotaCheck: MonthlyQuotaCheck } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  const rateLimitResponse = createGenerationRateLimitResponse(userId, deps);
+  if (rateLimitResponse) return { ok: false, response: rateLimitResponse };
+  const quotaCheck = await checkMonthlyQuota({
+    limit: deps.monthlyGenerationLimit,
+    usageReader: deps.repositories.usage,
+    userId,
+    now: deps.now?.(),
+  });
+  if (!quotaCheck.allowed) {
+    logWarn('ai_generation.create_denied', { userId, reason: 'quota_exceeded' });
+    return { ok: false, response: errorJson(429, 'quota_exceeded', 'Monthly generation quota used.') };
+  }
+
+  const activeCheck = await checkOneActiveJob({
+    activeJobReader: deps.repositories.jobs,
+    maxActiveJobs: deps.maxActiveJobsPerUser,
+    userId,
+  });
+  if (!activeCheck.allowed) {
+    logWarn('ai_generation.create_denied', { userId, reason: 'active_job_exists' });
+    return {
+      ok: false,
+      response: errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.'),
+    };
+  }
+
+  return { ok: true, quotaCheck };
+}
+
+async function existingGenerationResponse(userId: string, idempotencyKey: string, deps: AiRouteDeps) {
+  const existing = await deps.repositories.jobs.findByIdempotencyKey(userId, idempotencyKey);
+  if (!existing) return null;
+  logInfo('ai_generation.idempotency_hit', { jobId: existing.id, userId, status: existing.status });
+  const period = getMonthlyQuotaPeriod(deps.now?.());
+  const quota = createQuotaSnapshot(
+    period,
+    deps.monthlyGenerationLimit,
+    await deps.repositories.usage.countMonthlyGenerations(userId, period),
+  );
+  return json(200, await toJobResponseForUser(existing, userId, deps.repositories, quota));
+}
+
+function createGenerationRateLimitResponse(userId: string, deps: AiRouteDeps) {
+  const rate = deps.createRateLimiter?.check(`generation:create:user:${userId}`);
+  if (!rate || rate.allowed) return null;
+  logWarn('ai_generation.create_denied', { userId, reason: 'rate_limited' });
+  return json(
+    429,
+    { code: 'rate_limited', message: 'Too many generation requests.' },
+    { 'retry-after': String(Math.ceil(rate.retryAfterMs / 1000)) },
+  );
+}
+
+async function createGenerationJob(
+  body: CreateGenerationRequest,
+  prepared: CreateGenerationPrepared,
+  deps: AiRouteDeps,
+): Promise<
+  { ok: true; job: AiGenerationJobRow } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  try {
+    return {
+      ok: true,
+      job: await deps.repositories.jobs.create({
+        id: deps.createId?.() ?? randomUUID(),
+        userId: prepared.user.id,
+        provider: prepared.provider,
+        model: prepared.model,
+        prompt: body.prompt.trim(),
+        negativePrompt: body.settings.negativePrompt,
+        settingsJson: settingsToJson(body.settings),
+        idempotencyKey: body.idempotencyKey,
+      }),
+    };
+  } catch (error) {
+    if (isActiveGenerationJobExistsError(error)) {
+      logWarn('ai_generation.create_denied', { userId: prepared.user.id, reason: 'active_job_exists' });
+      return {
+        ok: false,
+        response: errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.'),
+      };
+    }
+    throw error;
+  }
+}
+
+async function recordGenerationUsage(userId: string, period: string, generationCountDelta: number, deps: AiRouteDeps) {
+  await deps.repositories.usage.upsertMonthlyUsage({
+    userId,
+    period,
+    generationLimit: deps.monthlyGenerationLimit,
+    generationCountDelta,
+  });
+}
+
+async function enqueueGenerationJob(
+  job: AiGenerationJobRow,
+  userId: string,
+  period: string,
+  deps: AiRouteDeps,
+): Promise<{ ok: true } | { ok: false; response: JsonResponse<{ code: string; message: string }> }> {
+  try {
+    await deps.queue.enqueue({ jobId: job.id, userId }, { jobId: job.id });
+    return { ok: true };
+  } catch (error) {
+    logWarn('ai_generation.enqueue_failed', {
+      jobId: job.id,
+      userId,
+      reason: error instanceof Error ? error.message : 'unknown_error',
+    });
+    await deps.repositories.jobs.markFailed(job.id, {
+      code: 'queue_enqueue_failed',
+      message: 'Generation queue is unavailable. Try again later.',
+      retryable: true,
+    });
+    await recordGenerationUsage(userId, period, -1, deps);
+    return {
+      ok: false,
+      response: errorJson(503, 'queue_unavailable', 'Generation queue is unavailable. Try again later.'),
+    };
+  }
 }
 
 async function ensureAuthenticatedUser(
@@ -284,23 +430,36 @@ export async function handleCancelGenerationRequest(
 function validateCreateGenerationRequest(
   body: CreateGenerationRequest,
 ): { ok: true; provider: AiProvider } | { ok: false; code: string; message: string } {
-  if (!body || typeof body !== 'object')
-    return { ok: false, code: 'invalid_settings', message: 'Request body is required.' };
-  if (typeof body.prompt !== 'string' || body.prompt.trim().length === 0) {
-    return { ok: false, code: 'invalid_prompt', message: 'Prompt is required.' };
-  }
-  if (typeof body.idempotencyKey !== 'string' || body.idempotencyKey.trim().length === 0) {
-    return { ok: false, code: 'invalid_settings', message: 'Idempotency key is required.' };
-  }
-  if (!isGenerationSettings(body.settings)) {
-    return { ok: false, code: 'invalid_settings', message: 'Generation settings are invalid.' };
-  }
+  const invalid = CREATE_GENERATION_VALIDATORS.find((validator) => validator.invalid(body))?.error;
+  if (invalid) return { ok: false, ...invalid };
   const provider = body.provider ?? 'openai';
   if (!AI_PROVIDERS.includes(provider)) {
     return { ok: false, code: 'unsupported_provider', message: 'Generation provider is not supported.' };
   }
   return { ok: true, provider };
 }
+
+const CREATE_GENERATION_VALIDATORS: Array<{
+  invalid: (body: CreateGenerationRequest) => boolean;
+  error: { code: string; message: string };
+}> = [
+  {
+    invalid: (body) => !body || typeof body !== 'object',
+    error: { code: 'invalid_settings', message: 'Request body is required.' },
+  },
+  {
+    invalid: (body) => typeof body.prompt !== 'string' || body.prompt.trim().length === 0,
+    error: { code: 'invalid_prompt', message: 'Prompt is required.' },
+  },
+  {
+    invalid: (body) => typeof body.idempotencyKey !== 'string' || body.idempotencyKey.trim().length === 0,
+    error: { code: 'invalid_settings', message: 'Idempotency key is required.' },
+  },
+  {
+    invalid: (body) => !isGenerationSettings(body.settings),
+    error: { code: 'invalid_settings', message: 'Generation settings are invalid.' },
+  },
+];
 
 function isGenerationSettings(value: unknown): value is AiGenerationSettings {
   if (!value || typeof value !== 'object') return false;

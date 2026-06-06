@@ -10,6 +10,7 @@ import { clampPopupPosition } from '../node-canvas/helpers';
 
 const LAYER_ADD_MENU_W = 540;
 const LAYER_ADD_MENU_H = 560;
+type LayerAddActionHandler = (action: AddLibraryAction) => void;
 
 export function LayerAddMenu({
   onAddLayer,
@@ -98,12 +99,17 @@ export function LayerAddMenu({
 
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
-      if (action.kind === 'layer') handleAddLayer(action.layerKind);
-      if (action.kind === 'textPreset') handleAddTextPreset(action.preset);
-      if (action.kind === 'noisePreset') handleAddNoisePreset(action.preset);
-      if (action.kind === 'arrayPreset') handleAddArrayPreset(action.preset);
-      if (action.kind === 'aiImage') handleStartAiImage();
-      if (action.kind === 'effect') handleAddEffectPreset(action.preset);
+      const handlers: Partial<Record<AddLibraryAction['kind'], LayerAddActionHandler>> = {
+        layer: (item) => handleAddLayer((item as Extract<AddLibraryAction, { kind: 'layer' }>).layerKind),
+        textPreset: (item) => handleAddTextPreset((item as Extract<AddLibraryAction, { kind: 'textPreset' }>).preset),
+        noisePreset: (item) =>
+          handleAddNoisePreset((item as Extract<AddLibraryAction, { kind: 'noisePreset' }>).preset),
+        arrayPreset: (item) =>
+          handleAddArrayPreset((item as Extract<AddLibraryAction, { kind: 'arrayPreset' }>).preset),
+        aiImage: () => handleStartAiImage(),
+        effect: (item) => handleAddEffectPreset((item as Extract<AddLibraryAction, { kind: 'effect' }>).preset),
+      };
+      handlers[action.kind]?.(action);
     },
     [
       handleAddArrayPreset,

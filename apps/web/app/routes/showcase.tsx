@@ -118,22 +118,44 @@ async function renderThumbnailBatch(
   isCancelled: () => boolean = () => false,
 ) {
   let cursor = 0;
-  const workers = Array.from({ length: Math.min(THUMBNAIL_RENDER_CONCURRENCY, batch.length) }, async () => {
-    while (!isCancelled()) {
-      const item = batch[cursor];
-      cursor += 1;
-      if (!item) return;
-      try {
-        const thumbnail = await renderShowcaseThumbnail(item);
-        if (!isCancelled()) {
-          onThumbnail(item.id, thumbnail);
-        }
-      } catch {
-        // ignore single-item failures
-      }
-    }
-  });
+  const nextItem = () => {
+    const item = batch[cursor];
+    cursor += 1;
+    return item;
+  };
+  const workers = Array.from({ length: thumbnailWorkerCount(batch) }, () =>
+    renderThumbnailWorker(nextItem, onThumbnail, isCancelled),
+  );
   await Promise.all(workers);
+}
+
+function thumbnailWorkerCount(batch: ShowcaseItem[]) {
+  return Math.min(THUMBNAIL_RENDER_CONCURRENCY, batch.length);
+}
+
+async function renderThumbnailWorker(
+  nextItem: () => ShowcaseItem | undefined,
+  onThumbnail: (id: string, thumbnail: string) => void,
+  isCancelled: () => boolean,
+) {
+  while (!isCancelled()) {
+    const item = nextItem();
+    if (!item) return;
+    await renderThumbnailItem(item, onThumbnail, isCancelled);
+  }
+}
+
+async function renderThumbnailItem(
+  item: ShowcaseItem,
+  onThumbnail: (id: string, thumbnail: string) => void,
+  isCancelled: () => boolean,
+) {
+  try {
+    const thumbnail = await renderShowcaseThumbnail(item);
+    if (!isCancelled()) onThumbnail(item.id, thumbnail);
+  } catch {
+    // ignore single-item failures
+  }
 }
 
 function getColumnCount(width: number): number {

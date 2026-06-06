@@ -25,10 +25,13 @@ export async function exportCanvas(
       effectResolution: { width: bw, height: bh },
     });
 
-    const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = format === 'jpeg' ? 0.92 : 1.0;
+    const { mimeType, quality } = exportFormatOptions(format);
     triggerDownload(finalCanvas.toDataURL(mimeType, quality), doc.global.seed, W, H, format);
   } catch (err) {
     throw new Error(`Canvas export failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
+}
+
+function exportFormatOptions(format: 'png' | 'jpeg') {
+  return format === 'jpeg' ? { mimeType: 'image/jpeg', quality: 0.92 } : { mimeType: 'image/png', quality: 1.0 };
 }

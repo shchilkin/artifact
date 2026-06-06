@@ -36,11 +36,10 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
     deferredFullRenderTimeoutMs: PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
-  const showHandles = selectedLayer && (selectedLayer.kind === 'text' || selectedLayer.kind === 'image');
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
-      if (!selectedLayer || (selectedLayer.kind !== 'image' && selectedLayer.kind !== 'text')) return;
+      if (!isTransformablePreviewLayer(selectedLayer)) return;
       e.preventDefault();
       const delta = -e.deltaY * SCROLL_SCALE_SENSITIVITY;
       const newScale = Math.max(0.05, selectedLayer.scaleX + delta);
@@ -59,25 +58,64 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
         <div
           ref={containerRef}
           className="pixi-container checkerboard-surface flex items-center justify-center w-full h-full"
-          onClick={(e) => {
-            if (e.target === e.currentTarget || e.target instanceof HTMLCanvasElement) onSelectLayer(null);
-          }}
+          onClick={(event) => handleCanvasPreviewSurfaceClick(event, onSelectLayer)}
         />
-        {showHandles && (
-          <CanvasHandles
-            layer={selectedLayer as TextLayer | ImageLayer}
-            canvasW={pw}
-            canvasH={ph}
-            imageCache={imageCache}
-            onChange={(updated) => onLayerUpdate(updated.id, updated)}
-          />
-        )}
-        {dragOver && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 border-2 border-dashed border-accent pointer-events-none z-10">
-            <span className="font-mono text-accent text-xs tracking-[4px] uppercase">Drop Image</span>
-          </div>
-        )}
+        <CanvasPreviewHandles
+          selectedLayer={selectedLayer}
+          canvasW={pw}
+          canvasH={ph}
+          imageCache={imageCache}
+          onLayerUpdate={onLayerUpdate}
+        />
+        <CanvasPreviewDropOverlay dragOver={dragOver} />
       </div>
+    </div>
+  );
+}
+
+function isTransformablePreviewLayer(
+  layer: CanvasDocument['layers'][number] | undefined,
+): layer is TextLayer | ImageLayer {
+  return layer?.kind === 'text' || layer?.kind === 'image';
+}
+
+function handleCanvasPreviewSurfaceClick(
+  event: React.MouseEvent<HTMLDivElement>,
+  onSelectLayer: (id: string | null) => void,
+) {
+  if (event.target === event.currentTarget || event.target instanceof HTMLCanvasElement) onSelectLayer(null);
+}
+
+function CanvasPreviewHandles({
+  selectedLayer,
+  canvasW,
+  canvasH,
+  imageCache,
+  onLayerUpdate,
+}: {
+  selectedLayer: CanvasDocument['layers'][number] | undefined;
+  canvasW: number;
+  canvasH: number;
+  imageCache: Map<string, HTMLImageElement>;
+  onLayerUpdate: Props['onLayerUpdate'];
+}) {
+  if (!isTransformablePreviewLayer(selectedLayer)) return null;
+  return (
+    <CanvasHandles
+      layer={selectedLayer}
+      canvasW={canvasW}
+      canvasH={canvasH}
+      imageCache={imageCache}
+      onChange={(updated) => onLayerUpdate(updated.id, updated)}
+    />
+  );
+}
+
+function CanvasPreviewDropOverlay({ dragOver }: { dragOver?: boolean }) {
+  if (!dragOver) return null;
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/70 border-2 border-dashed border-accent pointer-events-none z-10">
+      <span className="font-mono text-accent text-xs tracking-[4px] uppercase">Drop Image</span>
     </div>
   );
 }

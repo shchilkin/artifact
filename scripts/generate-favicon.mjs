@@ -75,13 +75,18 @@ try {
       },
       set(value) {
         origSet.call(this, value);
-        if (typeof value === 'string' && value.startsWith('data:') && this.rel === 'icon') {
-          const resolved = origGet ? origGet.call(this) : value;
-          window.__faviconReady?.(resolved);
-        }
+        if (faviconHrefReady(this, value)) window.__faviconReady?.(resolvedFaviconHref(this, value, origGet));
       },
       configurable: true,
     });
+
+    function faviconHrefReady(link, value) {
+      return typeof value === 'string' && value.startsWith('data:') && link.rel === 'icon';
+    }
+
+    function resolvedFaviconHref(link, value, getHref) {
+      return getHref ? getHref.call(link) : value;
+    }
   });
 
   process.stdout.write('favicon: loading app... ');

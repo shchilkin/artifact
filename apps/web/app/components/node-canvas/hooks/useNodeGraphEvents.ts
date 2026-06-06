@@ -39,12 +39,7 @@ export function useNodeGraphEvents({
   onGraphChange,
 }: UseNodeGraphEventsOptions): UseNodeGraphEventsResult {
   const isValidConnection = useCallback(
-    (connection: Connection) => {
-      if (!connection.source || !connection.target) return false;
-      if (connection.source === connection.target) return false;
-      if (connection.source === EXPORT_NODE_ID) return false;
-      return !wouldCreateCycle(graphRef.current, connection.source, connection.target);
-    },
+    (connection: Connection) => isGraphConnectionAllowed(connection, graphRef.current),
     [graphRef],
   );
 
@@ -99,4 +94,18 @@ export function useNodeGraphEvents({
     onEdgeClick,
     handleOrganizeNodes,
   };
+}
+
+function isGraphConnectionAllowed(connection: Connection, graph: CanvasGraph) {
+  const endpoints = graphConnectionEndpoints(connection);
+  if (!endpoints) return false;
+  if (endpoints.source === endpoints.target) return false;
+  if (endpoints.source === EXPORT_NODE_ID) return false;
+  return !wouldCreateCycle(graph, endpoints.source, endpoints.target);
+}
+
+function graphConnectionEndpoints(connection: Connection) {
+  if (!connection.source) return null;
+  if (!connection.target) return null;
+  return { source: connection.source, target: connection.target };
 }
