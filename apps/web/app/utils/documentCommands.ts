@@ -19,7 +19,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import type { ArrayPresetId } from './arrayPresets';
+import type { AddAction } from './addActions';
 import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
 import {
@@ -46,23 +46,11 @@ import {
   updateGraphArea,
   updateRepeatNode as updateRepeatNodeInGraph,
 } from './nodeGraph';
-import type { NoisePresetId } from './noisePresets';
 import { makeNoisePresetLayer } from './noisePresets';
-import type { RepeatPresetId } from './repeatPresets';
 import { makeRepeatPresetNode } from './repeatPresets';
 import { makeTextPresetLayer, type TextPresetId } from './textPresets';
 
-export type DocumentAddAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' }
-  | { kind: 'color' }
-  | { kind: 'repeat' }
-  | { kind: 'repeatPreset'; preset: RepeatPresetId };
+export type DocumentAddAction = AddAction;
 
 export interface DocumentInsertConnectionConfig {
   sourceId?: string;
@@ -78,7 +66,7 @@ export interface AddNodeAtDocumentResult {
 
 type CreateGraphEdgeId = (fromId: string, toId: string, index: number) => string;
 
-export function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
+function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
   return doc.graph ?? inferLinearGraph(doc.layers);
 }
 
@@ -176,22 +164,39 @@ function expectedLinearGraphEdge(fromId: string, toLayerOrExport: Layer | string
 function isLinearLayerGraph(doc: CanvasDocument): boolean {
   const graph = doc.graph;
   if (!graph) return true;
-  if (graph.mergeNodes.length > 0 || (graph.colorNodes?.length ?? 0) > 0 || (graph.repeatNodes?.length ?? 0) > 0)
-    return false;
-  if (graph.edges.length !== doc.layers.length) return false;
-  if (doc.layers.length === 0) return graph.edges.length === 0;
+  return (
+    graphHasOnlyLayerNodes(graph) &&
+    graphHasLinearEdgeCount(graph, doc.layers) &&
+    hasExpectedLinearEdges(graph, doc.layers)
+  );
+}
 
-  return doc.layers.every((layer, index) => {
-    const next = doc.layers[index + 1] ?? EXPORT_NODE_ID;
-    const expected = expectedLinearGraphEdge(layer.id, next);
-    return graph.edges.some(
-      (edge) =>
-        edge.fromId === expected.fromId &&
-        edge.fromPort === 'out' &&
-        edge.toId === expected.toId &&
-        edge.toPort === expected.toPort,
-    );
-  });
+function graphHasOnlyLayerNodes(graph: CanvasGraph) {
+  return (
+    graph.mergeNodes.length === 0 && (graph.colorNodes?.length ?? 0) === 0 && (graph.repeatNodes?.length ?? 0) === 0
+  );
+}
+
+function graphHasLinearEdgeCount(graph: CanvasGraph, layers: Layer[]) {
+  return graph.edges.length === layers.length;
+}
+
+function hasExpectedLinearEdges(graph: CanvasGraph, layers: Layer[]) {
+  return layers.every((layer, index) => graphHasExpectedLinearEdge(graph, layer, layers[index + 1] ?? EXPORT_NODE_ID));
+}
+
+function graphHasExpectedLinearEdge(graph: CanvasGraph, layer: Layer, next: Layer | string) {
+  const expected = expectedLinearGraphEdge(layer.id, next);
+  return graph.edges.some((edge) => isExpectedLinearEdge(edge, expected));
+}
+
+function isExpectedLinearEdge(edge: GraphEdge, expected: ReturnType<typeof expectedLinearGraphEdge>) {
+  return (
+    edge.fromId === expected.fromId &&
+    edge.fromPort === 'out' &&
+    edge.toId === expected.toId &&
+    edge.toPort === expected.toPort
+  );
 }
 
 export function canInsertLayerAbove(doc: CanvasDocument, targetLayerId: string): boolean {
@@ -202,32 +207,41 @@ function insertLayerIntoLinearGraph(doc: CanvasDocument, targetLayerId: string, 
   const graph = doc.graph ?? inferLinearGraph(doc.layers);
   const targetIndex = doc.layers.findIndex((item) => item.id === targetLayerId);
   const nextLayer = doc.layers[targetIndex + 1];
-  const existingEdge = graph.edges.find(
-    (edge) => edge.fromId === targetLayerId && edge.toId === (nextLayer?.id ?? EXPORT_NODE_ID),
-  );
+  const nextNodeId = nextLayer?.id ?? EXPORT_NODE_ID;
+  const existingEdge = graph.edges.find((edge) => edge.fromId === targetLayerId && edge.toId === nextNodeId);
   const targetPosition = graph.positions[targetLayerId] ?? nextDropPosition(graph);
   const nextPosition = nextLayer ? graph.positions[nextLayer.id] : graph.positions[EXPORT_NODE_ID];
-  const position = nextPosition
-    ? { x: Math.round((targetPosition.x + nextPosition.x) / 2), y: Math.round((targetPosition.y + nextPosition.y) / 2) }
-    : { x: targetPosition.x + 360, y: targetPosition.y };
+  const position = insertedLinearLayerPosition(targetPosition, nextPosition);
   let nextGraph = addLayerToGraph(graph, layer.id, position);
 
   if (existingEdge) nextGraph = removeGraphEdge(nextGraph, existingEdge.id);
-  nextGraph = addGraphEdge(nextGraph, {
-    id: `e-${targetLayerId}-${layer.id}`,
-    fromId: targetLayerId,
-    fromPort: 'out',
-    toId: layer.id,
-    toPort: layerInputPort(layer),
-  });
-  nextGraph = addGraphEdge(nextGraph, {
-    id: `e-${layer.id}-${nextLayer?.id ?? EXPORT_NODE_ID}`,
-    fromId: layer.id,
-    fromPort: 'out',
-    toId: nextLayer?.id ?? EXPORT_NODE_ID,
-    toPort: nextLayer ? layerInputPort(nextLayer) : 'in',
-  });
+  nextGraph = addGraphEdge(nextGraph, linearGraphEdge(targetLayerId, layer.id, layerInputPort(layer)));
+  nextGraph = addGraphEdge(
+    nextGraph,
+    linearGraphEdge(layer.id, nextNodeId, nextLayer ? layerInputPort(nextLayer) : 'in'),
+  );
   return nextGraph;
+}
+
+function linearGraphEdge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
+  return {
+    id: `e-${fromId}-${toId}`,
+    fromId,
+    fromPort: 'out',
+    toId,
+    toPort,
+  };
+}
+
+function insertedLinearLayerPosition(
+  targetPosition: { x: number; y: number },
+  nextPosition: { x: number; y: number } | undefined,
+) {
+  if (!nextPosition) return { x: targetPosition.x + 360, y: targetPosition.y };
+  return {
+    x: Math.round((targetPosition.x + nextPosition.x) / 2),
+    y: Math.round((targetPosition.y + nextPosition.y) / 2),
+  };
 }
 
 export function insertLayerAboveInDocument(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasDocument {
@@ -285,11 +299,7 @@ export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, n
   };
 }
 
-export function removeLayersFromGraphAreaInDocument(
-  doc: CanvasDocument,
-  areaId: string,
-  layerIds: string[],
-): CanvasDocument {
+function removeLayersFromGraphAreaInDocument(doc: CanvasDocument, areaId: string, layerIds: string[]): CanvasDocument {
   return removeNodesFromGraphAreaInDocument(doc, areaId, layerIds);
 }
 
@@ -365,16 +375,35 @@ function connectInsertedNode(
 
 function insertionLayerIndex(layers: Layer[], graph: CanvasGraph, insertion?: DocumentInsertConnectionConfig): number {
   const layerIndex = new Map(layers.map((layer, index) => [layer.id, index]));
-  const edge = insertion?.replaceEdgeId ? graph.edges.find((item) => item.id === insertion.replaceEdgeId) : undefined;
-  const sourceIndex = layerIndex.get(insertion?.sourceId ?? edge?.fromId ?? '');
-  const targetIndex = layerIndex.get(insertion?.targetId ?? edge?.toId ?? '');
+  const edge = insertionReplacementEdge(graph, insertion);
+  const sourceIndex = layerIndex.get(insertionEndpointId(insertion?.sourceId, edge?.fromId));
+  const targetIndex = layerIndex.get(insertionEndpointId(insertion?.targetId, edge?.toId));
+  return insertionIndexFromEndpoints(sourceIndex, targetIndex, layers.length);
+}
 
-  if (sourceIndex !== undefined && targetIndex !== undefined) {
-    return sourceIndex < targetIndex ? Math.min(sourceIndex + 1, targetIndex) : sourceIndex + 1;
-  }
+function insertionReplacementEdge(graph: CanvasGraph, insertion?: DocumentInsertConnectionConfig) {
+  if (!insertion?.replaceEdgeId) return undefined;
+  return graph.edges.find((item) => item.id === insertion.replaceEdgeId);
+}
+
+function insertionEndpointId(configuredId: string | undefined, edgeId: string | undefined) {
+  return configuredId ?? edgeId ?? '';
+}
+
+function insertionIndexFromEndpoints(
+  sourceIndex: number | undefined,
+  targetIndex: number | undefined,
+  fallback: number,
+) {
+  if (sourceIndex !== undefined && targetIndex !== undefined)
+    return insertionIndexBetweenEndpoints(sourceIndex, targetIndex);
   if (sourceIndex !== undefined) return sourceIndex + 1;
   if (targetIndex !== undefined) return targetIndex;
-  return layers.length;
+  return fallback;
+}
+
+function insertionIndexBetweenEndpoints(sourceIndex: number, targetIndex: number) {
+  return sourceIndex < targetIndex ? Math.min(sourceIndex + 1, targetIndex) : sourceIndex + 1;
 }
 
 function insertLayerForGraphConnection(
@@ -388,6 +417,77 @@ function insertLayerForGraphConnection(
   return next;
 }
 
+function addGraphOnlyNodeAtDocument(
+  doc: CanvasDocument,
+  action: Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+  position: { x: number; y: number },
+  insertion?: DocumentInsertConnectionConfig,
+  createEdgeId?: CreateGraphEdgeId,
+): AddNodeAtDocumentResult {
+  const graph = connectInsertedGraphOnlyNode(doc, action, position, insertion, createEdgeId);
+  return { doc: { ...doc, graph }, selectedLayerId: null };
+}
+
+function connectInsertedGraphOnlyNode(
+  doc: CanvasDocument,
+  action: Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+  position: { x: number; y: number },
+  insertion?: DocumentInsertConnectionConfig,
+  createEdgeId?: CreateGraphEdgeId,
+) {
+  if (action.kind === 'merge') {
+    const node = makeGraphMergeNode();
+    return connectInsertedNode(
+      addMergeNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'a',
+      insertion,
+      createEdgeId,
+    );
+  }
+  if (action.kind === 'color') {
+    const node = makeGraphColorNode();
+    return connectInsertedNode(
+      addColorNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+  }
+  const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
+  return connectInsertedNode(
+    addRepeatNode(ensureDocumentGraph(doc), node, position),
+    node.id,
+    'in',
+    insertion,
+    createEdgeId,
+  );
+}
+
+function isGraphOnlyAddAction(
+  action: DocumentAddAction,
+): action is Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }> {
+  return (
+    action.kind === 'merge' || action.kind === 'color' || action.kind === 'repeat' || action.kind === 'repeatPreset'
+  );
+}
+
+function layerForAddAction(
+  action: Exclude<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+) {
+  if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
+  if (action.kind === 'noisePreset') return withGeneratedNodeSeed(makeNoisePresetLayer(action.preset));
+  if (action.kind === 'arrayPreset') return makeArrayPresetLayer(action.preset);
+  if (action.kind === 'textPreset') return createTextPresetLayer(action.preset);
+  if (action.kind === 'aiImage') return createAiImageLayer();
+  return withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
+}
+
+function insertedLayerInputPort(action: DocumentAddAction): GraphEdge['toPort'] {
+  return action.kind === 'effect' ? 'in' : 'bg';
+}
+
 export function addNodeAtDocument(
   doc: CanvasDocument,
   action: DocumentAddAction,
@@ -395,59 +495,14 @@ export function addNodeAtDocument(
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
 ): AddNodeAtDocumentResult {
-  if (action.kind === 'merge') {
-    const node = makeGraphMergeNode();
-    const graph = connectInsertedNode(
-      addMergeNode(ensureDocumentGraph(doc), node, position),
-      node.id,
-      'a',
-      insertion,
-      createEdgeId,
-    );
-    return { doc: { ...doc, graph }, selectedLayerId: null };
-  }
+  if (isGraphOnlyAddAction(action)) return addGraphOnlyNodeAtDocument(doc, action, position, insertion, createEdgeId);
 
-  if (action.kind === 'color') {
-    const node = makeGraphColorNode();
-    const graph = connectInsertedNode(
-      addColorNode(ensureDocumentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
-    return { doc: { ...doc, graph }, selectedLayerId: null };
-  }
-
-  if (action.kind === 'repeat' || action.kind === 'repeatPreset') {
-    const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
-    const graph = connectInsertedNode(
-      addRepeatNode(ensureDocumentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
-    return { doc: { ...doc, graph }, selectedLayerId: null };
-  }
-
-  const layer =
-    action.kind === 'effect'
-      ? createEffectPresetLayer(action.preset)
-      : action.kind === 'noisePreset'
-        ? withGeneratedNodeSeed(makeNoisePresetLayer(action.preset))
-        : action.kind === 'arrayPreset'
-          ? makeArrayPresetLayer(action.preset)
-          : action.kind === 'textPreset'
-            ? createTextPresetLayer(action.preset)
-            : action.kind === 'aiImage'
-              ? createAiImageLayer()
-              : withGeneratedNodeSeed(createLayerOfKind(action.layerKind));
+  const layer = layerForAddAction(action);
   const baseGraph = ensureDocumentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),
     layer.id,
-    action.kind === 'effect' ? 'in' : 'bg',
+    insertedLayerInputPort(action),
     insertion,
     createEdgeId,
   );
@@ -472,6 +527,34 @@ export function removeLayerFromDocument(doc: CanvasDocument, id: string): Canvas
   };
 }
 
+function removeMatchingGraphNodes<T extends { id: string }>(
+  graph: CanvasGraph,
+  nodes: T[] | undefined,
+  idSet: Set<string>,
+  removeNode: (next: CanvasGraph, id: string) => CanvasGraph,
+) {
+  let next = graph;
+  for (const node of nodes ?? []) {
+    if (idSet.has(node.id)) next = removeNode(next, node.id);
+  }
+  return next;
+}
+
+function removeDeletedGraphOnlyNodes(graph: CanvasGraph, idSet: Set<string>) {
+  const withoutMerge = removeMatchingGraphNodes(graph, graph.mergeNodes, idSet, removeMergeNode);
+  const withoutColor = removeMatchingGraphNodes(withoutMerge, withoutMerge.colorNodes, idSet, removeColorNode);
+  return removeMatchingGraphNodes(withoutColor, withoutColor.repeatNodes, idSet, removeRepeatNode);
+}
+
+function removeDeletedLayerNodes(graph: CanvasGraph, layers: Layer[], idSet: Set<string>) {
+  let next = graph;
+  const layerIds = new Set(layers.map((layer) => layer.id));
+  for (const id of idSet) {
+    if (layerIds.has(id)) next = removeLayerFromGraph(next, id);
+  }
+  return next;
+}
+
 export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): CanvasDocument {
   const idSet = new Set(ids.filter((id) => canDeleteNodeFromDocument(doc, id)));
   if (idSet.size === 0) return doc;
@@ -479,18 +562,8 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
   let nextGraph = doc.graph;
 
   if (nextGraph) {
-    for (const mergeNode of nextGraph.mergeNodes) {
-      if (idSet.has(mergeNode.id)) nextGraph = removeMergeNode(nextGraph, mergeNode.id);
-    }
-    for (const colorNode of nextGraph?.colorNodes ?? []) {
-      if (idSet.has(colorNode.id)) nextGraph = removeColorNode(nextGraph!, colorNode.id);
-    }
-    for (const repeatNode of nextGraph?.repeatNodes ?? []) {
-      if (idSet.has(repeatNode.id)) nextGraph = removeRepeatNode(nextGraph!, repeatNode.id);
-    }
-    for (const id of idSet) {
-      if (doc.layers.some((layer) => layer.id === id)) nextGraph = removeLayerFromGraph(nextGraph!, id);
-    }
+    nextGraph = removeDeletedGraphOnlyNodes(nextGraph, idSet);
+    nextGraph = removeDeletedLayerNodes(nextGraph, doc.layers, idSet);
   }
 
   return { ...doc, layers: nextLayers, graph: nextGraph };

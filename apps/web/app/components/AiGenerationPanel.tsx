@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import type {
   AiGenerationAccessState,
@@ -25,6 +25,28 @@ import { ActionButton } from './ui/ActionButton';
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
 const AI_DEBUG_STORAGE_KEY = 'artifact-debug-ai';
+const AI_DEBUG_ENABLED_VALUES = new Set(['1', 'true', 'ai', 'all']);
+const DISABLED_REASON_MESSAGES: Partial<Record<string, string>> = {
+  anonymous: 'Account required.',
+  invalid_session: 'Account session could not be verified.',
+  not_enabled: 'AI access is not enabled for this account.',
+  quota_exhausted: 'Monthly AI quota used.',
+  maintenance: 'AI generation is temporarily unavailable.',
+};
+const DISABLED_REASON_TITLES: Record<string, string> = {
+  anonymous: 'Account required for AI',
+  invalid_session: 'Account verification failed',
+  not_enabled: 'AI access is not enabled',
+  quota_exhausted: 'Monthly AI quota used',
+  maintenance: 'AI generation is paused',
+};
+const DISABLED_REASON_BODIES: Record<string, string> = {
+  anonymous: 'This feature uses AI. To use AI features, create an account.',
+  invalid_session: 'The API could not verify this browser session. Sign out, sign in, and try again.',
+  not_enabled: 'Your account needs AI access before it can create images.',
+  quota_exhausted: 'Your monthly generation limit is used for this account.',
+  maintenance: 'Generation is temporarily unavailable while the service is being maintained.',
+};
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
@@ -56,39 +78,35 @@ function jobIsActive(job: AiGenerationJob | null) {
 
 function errorMessage(error: unknown) {
   if (error instanceof AiGenerationApiError) return error.message;
-  if (error instanceof TypeError && error.message === 'Failed to fetch') {
-    return 'AI API is not reachable. Start the local API server and try again.';
-  }
+  if (isFetchFailure(error)) return 'AI API is not reachable. Start the local API server and try again.';
   if (error instanceof Error) return error.message;
   return 'Generation failed.';
 }
 
+function isFetchFailure(error: unknown) {
+  return error instanceof TypeError ? error.message === 'Failed to fetch' : false;
+}
+
 function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  if (reason === 'anonymous') return 'Account required.';
-  if (reason === 'invalid_session') return 'Account session could not be verified.';
-  if (reason === 'not_enabled') return 'AI access is not enabled for this account.';
-  if (reason === 'quota_exhausted') return 'Monthly AI quota used.';
-  if (reason === 'maintenance') return 'AI generation is temporarily unavailable.';
+  if (!reason) return null;
+  if (DISABLED_REASON_MESSAGES[reason]) return DISABLED_REASON_MESSAGES[reason];
   return reason ?? null;
 }
 
 function disabledReasonTitle(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  if (reason === 'anonymous') return 'Account required for AI';
-  if (reason === 'invalid_session') return 'Account verification failed';
-  if (reason === 'not_enabled') return 'AI access is not enabled';
-  if (reason === 'quota_exhausted') return 'Monthly AI quota used';
-  if (reason === 'maintenance') return 'AI generation is paused';
-  return 'AI generation unavailable';
+  return (reason && DISABLED_REASON_TITLES[reason]) || 'AI generation unavailable';
 }
 
 function disabledReasonBody(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  if (reason === 'anonymous') return 'This feature uses AI. To use AI features, create an account.';
-  if (reason === 'invalid_session')
-    return 'The API could not verify this browser session. Sign out, sign in, and try again.';
-  if (reason === 'not_enabled') return 'Your account needs AI access before it can create images.';
-  if (reason === 'quota_exhausted') return 'Your monthly generation limit is used for this account.';
-  if (reason === 'maintenance') return 'Generation is temporarily unavailable while the service is being maintained.';
-  return disabledReasonMessage(reason) ?? 'Generation is not available right now.';
+  return (
+    (reason && DISABLED_REASON_BODIES[reason]) ||
+    disabledReasonMessage(reason) ||
+    'Generation is not available right now.'
+  );
+}
+
+function firstDefined<T>(...values: Array<T | undefined>) {
+  return values.find((value): value is T => value !== undefined);
 }
 
 function generationMetadataFromJob(
@@ -103,12 +121,24 @@ function generationMetadataFromJob(
     quality: job.settings.quality,
     status,
     jobId: job.id,
-    assetId: job.asset?.id,
-    createdAt: job.completedAt ?? job.asset?.createdAt ?? job.createdAt,
-    updatedAt: job.completedAt ?? new Date().toISOString(),
-    errorCode: job.error?.code,
+    assetId: jobAssetId(job),
+    createdAt: jobCreatedAt(job),
+    updatedAt: firstDefined(job.completedAt, new Date().toISOString()),
+    errorCode: jobErrorCode(job),
     errorMessage,
   };
+}
+
+function jobAssetId(job: AiGenerationJob) {
+  return job.asset?.id;
+}
+
+function jobCreatedAt(job: AiGenerationJob) {
+  return firstDefined(job.completedAt, job.asset?.createdAt, job.createdAt);
+}
+
+function jobErrorCode(job: AiGenerationJob) {
+  return job.error?.code;
 }
 
 function tokenTimeoutError() {
@@ -130,7 +160,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, createError: () 
 }
 
 function aiDebugValueIsEnabled(value: string | boolean | undefined | null) {
-  return value === true || value === '1' || value === 'true' || value === 'ai' || value === 'all';
+  if (value === true) return true;
+  return typeof value === 'string' ? AI_DEBUG_ENABLED_VALUES.has(value) : false;
 }
 
 function aiDebugStorageValue() {
@@ -151,7 +182,11 @@ function aiDebugQueryValue() {
 }
 
 function aiGenerationDebugEnabled() {
-  const env = (import.meta as unknown as { env?: Record<string, string | boolean | undefined> }).env;
+  const env = (
+    import.meta as unknown as {
+      env?: Record<string, string | boolean | undefined>;
+    }
+  ).env;
   return (
     aiDebugValueIsEnabled(env?.VITE_AI_DEBUG) ||
     aiDebugValueIsEnabled(aiDebugQueryValue()) ||
@@ -168,10 +203,19 @@ function logAiPanelDebug(event: string, fields: Record<string, boolean | number 
 }
 
 function decodeBearerTokenClaims(token: string | undefined) {
-  if (!token || token.split('.').length < 3) return null;
+  const encodedPayload = encodedBearerPayload(token);
+  if (!encodedPayload) return null;
+  return decodeBearerPayload(encodedPayload);
+}
+
+function encodedBearerPayload(token: string | undefined) {
+  if (!token) return null;
+  const parts = token.split('.');
+  return parts.length >= 3 ? parts[1] : null;
+}
+
+function decodeBearerPayload(encodedPayload: string) {
   try {
-    const encodedPayload = token.split('.')[1];
-    if (!encodedPayload) return null;
     const normalized = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
     const binary = window.atob(padded);
@@ -184,9 +228,14 @@ function decodeBearerTokenClaims(token: string | undefined) {
 
 function debugClaim(value: unknown) {
   if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(debugClaim).filter(Boolean).join(',');
-  return null;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  return debugArrayClaim(value);
+}
+
+function debugArrayClaim(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  return value.flatMap((item) => debugClaim(item) ?? []).join(',') || null;
 }
 
 function logBearerTokenClaims(token: string | undefined) {
@@ -225,18 +274,119 @@ function formatGenerationDate(value: string | undefined) {
   });
 }
 
+function hasGenerationPrompt(
+  generation: ImageLayer['aiGeneration'],
+): generation is NonNullable<ImageLayer['aiGeneration']> & { prompt: string } {
+  return Boolean(generation?.prompt);
+}
+
+function provenanceLabel(label: string | null, state: ReturnType<typeof getAiGenerationUiState>) {
+  if (!label) return 'Current image prompt';
+  return state === 'done' ? 'Current image prompt' : label;
+}
+
+function GenerationFailedDetail({
+  state,
+  detail,
+}: {
+  state: ReturnType<typeof getAiGenerationUiState>;
+  detail: string | null;
+}) {
+  if (state !== 'failed') return null;
+  return detail ? <p>{detail}</p> : null;
+}
+
 function GenerationProvenance({ generation }: { generation: ImageLayer['aiGeneration'] }) {
-  if (!generation?.prompt) return null;
+  if (!hasGenerationPrompt(generation)) return null;
   const state = getAiGenerationUiState(generation);
   const label = getAiGenerationStatusLabel(generation);
   const detail = getAiGenerationStatusDetail(generation);
   return (
     <div className={`ai-generation-provenance ai-generation-provenance-${state}`}>
-      <span>{label && state !== 'done' ? label : 'Current image prompt'}</span>
+      <span>{provenanceLabel(label, state)}</span>
       <p>{generation.prompt}</p>
-      {state === 'failed' && detail && <p>{detail}</p>}
+      <GenerationFailedDetail state={state} detail={detail} />
     </div>
   );
+}
+
+type DiagnosticRow = [string, string];
+
+function diagnosticRow(label: string, value: string | null | undefined): DiagnosticRow | null {
+  return value ? [label, value] : null;
+}
+
+function compactDiagnosticRows(rows: Array<DiagnosticRow | null>) {
+  return rows.filter((row): row is DiagnosticRow => Boolean(row));
+}
+
+function formatProviderModel(provider: string | undefined, model: string | undefined) {
+  if (!provider) return model;
+  return model ? `${provider} / ${model}` : provider;
+}
+
+function generationDiagnosticRows(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return compactDiagnosticRows([
+    diagnosticRow('status', generationStatus(generation, job)),
+    diagnosticRow('job', shortId(generationJobId(generation, job))),
+    diagnosticRow('asset', shortId(generationAssetId(generation, job))),
+    diagnosticRow('error', generationErrorCode(generation, job)),
+    diagnosticRow('provider', generationProviderModel(generation, job)),
+    diagnosticRow('updated', formatGenerationDate(generationUpdatedAt(generation, job))),
+  ]);
+}
+
+function generationStatus(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.status, job?.status);
+}
+
+function generationJobId(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.jobId, job?.id);
+}
+
+function generationAssetId(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.assetId, job?.asset?.id);
+}
+
+function generationErrorCode(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.errorCode, job?.error?.code);
+}
+
+function generationProviderModel(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return formatProviderModel(generationProvider(generation, job), generationModel(generation, job));
+}
+
+function generationProvider(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.provider, job?.provider);
+}
+
+function generationModel(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.model, job?.model);
+}
+
+function generationUpdatedAt(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(
+    generationUpdatedAtValue(generation),
+    jobCompletedAt(job),
+    jobStartedAt(job),
+    jobCreatedAtValue(job),
+  );
+}
+
+function generationUpdatedAtValue(generation: ImageLayer['aiGeneration']) {
+  return generation?.updatedAt;
+}
+
+function jobCompletedAt(job: AiGenerationJob | null) {
+  return job?.completedAt;
+}
+
+function jobStartedAt(job: AiGenerationJob | null) {
+  return job?.startedAt;
+}
+
+function jobCreatedAtValue(job: AiGenerationJob | null) {
+  return job?.createdAt;
 }
 
 function GenerationDiagnostics({
@@ -246,21 +396,7 @@ function GenerationDiagnostics({
   generation: ImageLayer['aiGeneration'];
   job: AiGenerationJob | null;
 }) {
-  const status = generation?.status ?? job?.status;
-  const jobId = generation?.jobId ?? job?.id;
-  const assetId = generation?.assetId ?? job?.asset?.id;
-  const provider = generation?.provider ?? job?.provider;
-  const model = generation?.model ?? job?.model;
-  const errorCode = generation?.errorCode ?? job?.error?.code;
-  const updatedAt = generation?.updatedAt ?? job?.completedAt ?? job?.startedAt ?? job?.createdAt;
-  const rows = [
-    ['status', status],
-    ['job', shortId(jobId)],
-    ['asset', shortId(assetId)],
-    ['error', errorCode],
-    ['provider', provider && model ? `${provider} / ${model}` : provider || model],
-    ['updated', formatGenerationDate(updatedAt)],
-  ].filter((row): row is [string, string] => Boolean(row[1]));
+  const rows = generationDiagnosticRows(generation, job);
 
   if (!rows.length) return null;
 
@@ -282,6 +418,47 @@ type AccessCheckState = {
   message?: string;
   hasBearerToken?: boolean;
 };
+
+function accessSummaryText(
+  access: AiGenerationAccessState | null,
+  accessError: string | null,
+  accessCheck: AccessCheckState,
+) {
+  if (accessCheck.state === 'checking') return 'checking';
+  if (!access) return accessFallbackSummary(accessError, accessCheck);
+  return `${accessEnabledSummary(access)}${accessDisabledReasonSummary(access)}`;
+}
+
+function accessFallbackSummary(accessError: string | null, accessCheck: AccessCheckState) {
+  return firstDefined(accessError, accessCheck.message, accessCheck.state);
+}
+
+function accessEnabledSummary(access: AiGenerationAccessState) {
+  return `enabled=${yesNo(access.enabled)} authenticated=${yesNo(access.authenticated)}`;
+}
+
+function accessDisabledReasonSummary(access: AiGenerationAccessState) {
+  return access.disabledReason ? ` reason=${access.disabledReason}` : '';
+}
+
+function authSummaryText({
+  authConfigured,
+  authLoaded,
+  authSignedIn,
+  authUserId,
+}: {
+  authConfigured: boolean;
+  authLoaded: boolean;
+  authSignedIn: boolean;
+  authUserId: string | null;
+}) {
+  const user = authUserId ? ` user=${shortId(authUserId)}` : '';
+  return `configured=${yesNo(authConfigured)} loaded=${yesNo(authLoaded)} signedIn=${yesNo(authSignedIn)}${user}`;
+}
+
+function quotaSummary(access: AiGenerationAccessState | null) {
+  return access?.quota ? `${access.quota.remaining}/${access.quota.limit} ${access.quota.period}` : null;
+}
 
 function AiDeveloperDiagnostics({
   access,
@@ -308,29 +485,15 @@ function AiDeveloperDiagnostics({
 }) {
   const build = getAppBuildInfo();
   const providers = access?.providers?.join(', ');
-  const quota = access?.quota ? `${access.quota.remaining}/${access.quota.limit} ${access.quota.period}` : null;
-  const accessSummary =
-    accessCheck.state === 'checking'
-      ? 'checking'
-      : access
-        ? `enabled=${yesNo(access.enabled)} authenticated=${yesNo(access.authenticated)}${
-            access.disabledReason ? ` reason=${access.disabledReason}` : ''
-          }`
-        : (accessError ?? accessCheck.message ?? accessCheck.state);
-  const rows = [
-    ['version', `${build.version} sha:${build.shortCommitHash}`],
-    ['api', baseUrl ?? 'same-origin'],
-    [
-      'auth',
-      `configured=${yesNo(authConfigured)} loaded=${yesNo(authLoaded)} signedIn=${yesNo(authSignedIn)}${
-        authUserId ? ` user=${shortId(authUserId)}` : ''
-      }`,
-    ],
-    ['token', `dev=${yesNo(Boolean(devToken))} bearer=${yesNo(accessCheck.hasBearerToken)}`],
-    ['access', accessSummary],
-    ['providers', providers],
-    ['quota', quota],
-  ].filter((row): row is [string, string] => Boolean(row[1]));
+  const rows = compactDiagnosticRows([
+    diagnosticRow('version', `${build.version} sha:${build.shortCommitHash}`),
+    diagnosticRow('api', baseUrl ?? 'same-origin'),
+    diagnosticRow('auth', authSummaryText({ authConfigured, authLoaded, authSignedIn, authUserId })),
+    diagnosticRow('token', `dev=${yesNo(Boolean(devToken))} bearer=${yesNo(accessCheck.hasBearerToken)}`),
+    diagnosticRow('access', accessSummaryText(access, accessError, accessCheck)),
+    diagnosticRow('providers', providers),
+    diagnosticRow('quota', quotaSummary(access)),
+  ]);
 
   return (
     <div className="ai-generation-dev-diagnostics" aria-label="AI developer diagnostics">
@@ -361,38 +524,888 @@ function GenerationHistoryNavigator({
   index?: number;
   onSelect?: (index: number) => void;
 }) {
-  const count = history?.length ?? 0;
-  if (count <= 1) return null;
-  const currentIndex = Math.min(Math.max(index ?? count - 1, 0), count - 1);
-  const current = history?.[currentIndex];
-  const title = current?.aiGeneration.prompt
-    ? `Image prompt: ${current.aiGeneration.prompt}`
-    : 'Generated image history';
+  const state = generationHistoryNavigatorState(history, index);
+  if (!state) return null;
   return (
     <div className="ai-generation-history-nav" aria-label="Generated image history">
-      <button
-        type="button"
-        className="ai-generation-history-button"
-        onClick={() => onSelect?.(currentIndex - 1)}
-        disabled={!onSelect || currentIndex <= 0}
-        aria-label="Previous generated image"
-      >
-        ‹
-      </button>
-      <span className="ai-generation-history-count" title={title}>
-        {currentIndex + 1}/{count}
+      <GenerationHistoryButton
+        direction="previous"
+        nextIndex={state.currentIndex - 1}
+        disabled={!onSelect || state.currentIndex <= 0}
+        onSelect={onSelect}
+      />
+      <span className="ai-generation-history-count" title={state.title}>
+        {state.currentIndex + 1}/{state.count}
       </span>
-      <button
-        type="button"
-        className="ai-generation-history-button"
-        onClick={() => onSelect?.(currentIndex + 1)}
-        disabled={!onSelect || currentIndex >= count - 1}
-        aria-label="Next generated image"
-      >
-        ›
-      </button>
+      <GenerationHistoryButton
+        direction="next"
+        nextIndex={state.currentIndex + 1}
+        disabled={!onSelect || state.currentIndex >= state.count - 1}
+        onSelect={onSelect}
+      />
     </div>
   );
+}
+
+function generationHistoryNavigatorState(history: ImageLayer['aiGenerationHistory'], index: number | undefined) {
+  const count = generationHistoryCount(history);
+  if (count <= 1) return null;
+  const currentIndex = generationHistoryCurrentIndex(index, count);
+  return {
+    count,
+    currentIndex,
+    title: generationHistoryTitle(historyEntryAt(history, currentIndex)),
+  };
+}
+
+function generationHistoryCount(history: ImageLayer['aiGenerationHistory']) {
+  return history?.length ?? 0;
+}
+
+function generationHistoryCurrentIndex(index: number | undefined, count: number) {
+  return Math.min(Math.max(index ?? count - 1, 0), count - 1);
+}
+
+function historyEntryAt(history: ImageLayer['aiGenerationHistory'], index: number) {
+  return history?.[index];
+}
+
+function generationHistoryTitle(item: NonNullable<ImageLayer['aiGenerationHistory']>[number] | undefined) {
+  return item?.aiGeneration.prompt ? `Image prompt: ${item.aiGeneration.prompt}` : 'Generated image history';
+}
+
+function GenerationHistoryButton({
+  direction,
+  nextIndex,
+  disabled,
+  onSelect,
+}: {
+  direction: 'previous' | 'next';
+  nextIndex: number;
+  disabled: boolean;
+  onSelect?: (index: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="ai-generation-history-button"
+      onClick={() => onSelect?.(nextIndex)}
+      disabled={disabled}
+      aria-label={`${direction === 'previous' ? 'Previous' : 'Next'} generated image`}
+    >
+      {direction === 'previous' ? '‹' : '›'}
+    </button>
+  );
+}
+
+function DeveloperDiagnosticsPanel({
+  enabled,
+  access,
+  accessError,
+  accessCheck,
+  authConfigured,
+  authLoaded,
+  authSignedIn,
+  authUserId,
+  baseUrl,
+  devToken,
+  onRetryAccess,
+}: {
+  enabled: boolean;
+  access: AiGenerationAccessState | null;
+  accessError: string | null;
+  accessCheck: AccessCheckState;
+  authConfigured: boolean;
+  authLoaded: boolean;
+  authSignedIn: boolean;
+  authUserId: string | null;
+  baseUrl?: string;
+  devToken?: string;
+  onRetryAccess: () => void;
+}) {
+  if (!enabled) return null;
+  return (
+    <AiDeveloperDiagnostics
+      access={access}
+      accessError={accessError}
+      accessCheck={accessCheck}
+      authConfigured={authConfigured}
+      authLoaded={authLoaded}
+      authSignedIn={authSignedIn}
+      authUserId={authUserId}
+      baseUrl={baseUrl}
+      devToken={devToken}
+      onRetryAccess={onRetryAccess}
+    />
+  );
+}
+
+function GenerationContextPanels({
+  generationHistory,
+  generationHistoryIndex,
+  onGenerationHistorySelect,
+  generation,
+  job,
+}: Pick<
+  AiGenerationPanelProps,
+  'generationHistory' | 'generationHistoryIndex' | 'onGenerationHistorySelect' | 'generation'
+> & {
+  job: AiGenerationJob | null;
+}) {
+  return (
+    <>
+      <GenerationHistoryNavigator
+        history={generationHistory}
+        index={generationHistoryIndex}
+        onSelect={onGenerationHistorySelect}
+      />
+      <GenerationProvenance generation={generation} />
+      <GenerationDiagnostics generation={generation} job={job} />
+    </>
+  );
+}
+
+function AccessBanner({
+  access,
+  accessBlockReason,
+  authSignedIn,
+}: {
+  access: AiGenerationAccessState | null;
+  accessBlockReason: string | null | undefined;
+  authSignedIn: boolean;
+}) {
+  return (
+    <div className="ai-generation-access-banner" role="status" id="ai-generation-status">
+      <span>{access ? disabledReasonTitle(accessBlockReason) : 'Checking AI access'}</span>
+      <p>{access ? disabledReasonBody(accessBlockReason) : checkingAccessMessage(authSignedIn)}</p>
+    </div>
+  );
+}
+
+function checkingAccessMessage(authSignedIn: boolean) {
+  return authSignedIn
+    ? 'Signed in. Checking the AI API and account access.'
+    : 'Generation controls will appear when this browser has AI access.';
+}
+
+function AccessActionButton({
+  accessBlockReason,
+  authConfigured,
+  openSignIn,
+}: {
+  accessBlockReason: string | null | undefined;
+  authConfigured: boolean;
+  openSignIn: () => void;
+}) {
+  if (accessBlockReason !== 'anonymous') return null;
+  if (!authConfigured) return null;
+  return (
+    <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
+      Create Account
+    </button>
+  );
+}
+
+function GenerationRecoveryActions({
+  canRetryGeneration,
+  canRecoverGeneration,
+  onRetryGeneration,
+  onRecoverGeneration,
+}: {
+  canRetryGeneration: boolean;
+  canRecoverGeneration: boolean;
+  onRetryGeneration: () => void;
+  onRecoverGeneration: () => void;
+}) {
+  if (!hasGenerationRecoveryAction(canRetryGeneration, canRecoverGeneration)) return null;
+  return (
+    <div className="ai-generation-actions">
+      <RetryGenerationButton enabled={canRetryGeneration} onRetryGeneration={onRetryGeneration} />
+      <RecoverGenerationButton enabled={canRecoverGeneration} onRecoverGeneration={onRecoverGeneration} />
+    </div>
+  );
+}
+
+function hasGenerationRecoveryAction(canRetryGeneration: boolean, canRecoverGeneration: boolean) {
+  return canRetryGeneration || canRecoverGeneration;
+}
+
+function RetryGenerationButton({ enabled, onRetryGeneration }: { enabled: boolean; onRetryGeneration: () => void }) {
+  if (!enabled) return null;
+  return (
+    <button type="button" className="ai-generation-action" onClick={onRetryGeneration}>
+      Retry Prompt
+    </button>
+  );
+}
+
+function RecoverGenerationButton({
+  enabled,
+  onRecoverGeneration,
+}: {
+  enabled: boolean;
+  onRecoverGeneration: () => void;
+}) {
+  if (!enabled) return null;
+  return (
+    <button type="button" className="ai-generation-action" onClick={onRecoverGeneration}>
+      Recover Asset
+    </button>
+  );
+}
+
+function GenerationControls({
+  prompt,
+  setPrompt,
+  provider,
+  setProvider,
+  providers,
+  quality,
+  setQuality,
+  accessEnabled,
+  busy,
+}: {
+  prompt: string;
+  setPrompt: (value: string) => void;
+  provider: AiGenerationProvider;
+  setProvider: (value: AiGenerationProvider) => void;
+  providers: AiGenerationProvider[];
+  quality: AiGenerationQuality;
+  setQuality: (value: AiGenerationQuality) => void;
+  accessEnabled: boolean;
+  busy: boolean;
+}) {
+  return (
+    <>
+      <textarea
+        data-ai-generation-prompt
+        value={prompt}
+        onChange={(event) => setPrompt(event.target.value)}
+        placeholder="Prompt"
+        rows={3}
+        disabled={!accessEnabled || busy}
+        aria-describedby={!accessEnabled ? 'ai-generation-status' : undefined}
+      />
+      <div className="ai-generation-grid">
+        <select value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
+          {providers.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+        <select value={quality} onChange={(event) => setQuality(event.target.value as AiGenerationQuality)}>
+          {QUALITY_OPTIONS.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
+
+function GenerationSubmitButton({
+  busy,
+  job,
+  submitLabel,
+  canGenerate,
+  onGenerate,
+}: {
+  busy: boolean;
+  job: AiGenerationJob | null;
+  submitLabel: string;
+  canGenerate: boolean;
+  onGenerate: () => void;
+}) {
+  return (
+    <ActionButton className="ai-generation-submit" onClick={onGenerate} disabled={!canGenerate} variant="primary">
+      {busy || jobIsActive(job) ? '...' : submitLabel}
+    </ActionButton>
+  );
+}
+
+function GenerationMeta({ access, status }: { access: AiGenerationAccessState | null; status: string | null }) {
+  return (
+    <div className="ai-generation-meta" id="ai-generation-status">
+      <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
+      <span>{status}</span>
+    </div>
+  );
+}
+
+function availableAiProviders(access: AiGenerationAccessState | null): AiGenerationProvider[] {
+  if (access?.providers?.length) return access.providers;
+  return ['openai'];
+}
+
+function canSubmitGeneration(
+  access: AiGenerationAccessState | null,
+  prompt: string,
+  busy: boolean,
+  job: AiGenerationJob | null,
+) {
+  return aiAccessEnabled(access) && promptIsReady(prompt) && generationIsIdle(busy, job);
+}
+
+function aiAccessEnabled(access: AiGenerationAccessState | null) {
+  return Boolean(access?.enabled);
+}
+
+function promptIsReady(prompt: string) {
+  return Boolean(prompt.trim());
+}
+
+function generationIsIdle(busy: boolean, job: AiGenerationJob | null) {
+  return !busy && !jobIsActive(job);
+}
+
+function activeJobState(job: AiGenerationJob | null) {
+  if (!jobIsActive(job)) return { id: null, status: null };
+  return { id: job.id, status: job.status };
+}
+
+function latestGenerationState(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return {
+    prompt: latestGenerationPrompt(generation, job),
+    jobId: latestGenerationJobId(generation, job),
+    errorCode: latestGenerationErrorCode(generation, job),
+    failed: hasFailedGeneration(generation, job),
+  };
+}
+
+function latestGenerationPrompt(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.prompt, job?.prompt);
+}
+
+function latestGenerationJobId(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.jobId, job?.id);
+}
+
+function latestGenerationErrorCode(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return firstDefined(generation?.errorCode, job?.error?.code);
+}
+
+function hasFailedGeneration(generation: ImageLayer['aiGeneration'], job: AiGenerationJob | null) {
+  return generationFailed(generation) || jobFailed(job) || Boolean(latestGenerationErrorCode(generation, job));
+}
+
+function generationFailed(generation: ImageLayer['aiGeneration']) {
+  return generation?.status === 'failed';
+}
+
+function jobFailed(job: AiGenerationJob | null) {
+  return job?.status === 'failed';
+}
+
+function canRetryGenerationState(
+  access: AiGenerationAccessState | null,
+  latest: ReturnType<typeof latestGenerationState>,
+  busy: boolean,
+  job: AiGenerationJob | null,
+) {
+  if (!aiAccessEnabled(access)) return false;
+  return latestCanRetry(latest) && generationIsIdle(busy, job);
+}
+
+function latestCanRetry(latest: ReturnType<typeof latestGenerationState>) {
+  return Boolean(latest.failed && latest.prompt);
+}
+
+function canRecoverGenerationState(
+  access: AiGenerationAccessState | null,
+  latest: ReturnType<typeof latestGenerationState>,
+  busy: boolean,
+  job: AiGenerationJob | null,
+) {
+  if (!aiAccessEnabled(access)) return false;
+  return latestCanRecover(latest) && generationIsIdle(busy, job);
+}
+
+function latestCanRecover(latest: ReturnType<typeof latestGenerationState>) {
+  return latest.errorCode === 'asset_import_failed' && Boolean(latest.jobId);
+}
+
+type AccessCheckRunnerArgs = {
+  authConfigured: boolean;
+  authLoaded: boolean;
+  authSignedIn: boolean;
+  authUserId: string | null;
+  baseUrl?: string;
+  devToken?: string;
+  getBearerToken: () => Promise<string | undefined>;
+  setAccess: Dispatch<SetStateAction<AiGenerationAccessState | null>>;
+  setAccessError: Dispatch<SetStateAction<string | null>>;
+  setAccessCheck: Dispatch<SetStateAction<AccessCheckState>>;
+  setProvider: Dispatch<SetStateAction<AiGenerationProvider>>;
+};
+
+function runAccessCheck(args: AccessCheckRunnerArgs) {
+  if (shouldWaitForAuthLoad(args)) return undefined;
+  const controller = new AbortController();
+  logAccessCheckStart(args);
+  args
+    .getBearerToken()
+    .then((bearerToken) => handleAccessBearerToken(bearerToken, controller, args))
+    .then((next) => handleAccessCheckSuccess(next, controller, args))
+    .catch((error) => handleAccessCheckFailure(error, controller, args));
+  return () => controller.abort();
+}
+
+function shouldWaitForAuthLoad({ authConfigured, authLoaded, devToken }: AccessCheckRunnerArgs) {
+  return authConfigured && !authLoaded && !devToken;
+}
+
+function logAccessCheckStart({
+  authConfigured,
+  authLoaded,
+  authSignedIn,
+  authUserId,
+  devToken,
+  baseUrl,
+}: AccessCheckRunnerArgs) {
+  logAiPanelDebug('access_check.start', {
+    authConfigured,
+    authLoaded,
+    authSignedIn,
+    authUserId,
+    hasDevToken: Boolean(devToken),
+    baseUrl: baseUrl ?? null,
+  });
+}
+
+function handleAccessBearerToken(
+  bearerToken: string | undefined,
+  controller: AbortController,
+  args: AccessCheckRunnerArgs,
+) {
+  markAccessChecking(bearerToken, controller, args);
+  logAiPanelDebug('access_check.token', {
+    authSignedIn: args.authSignedIn,
+    authUserId: args.authUserId,
+    hasBearerToken: Boolean(bearerToken),
+  });
+  logBearerTokenClaims(bearerToken);
+  return getAiGenerationAccess({
+    baseUrl: args.baseUrl,
+    bearerToken,
+    signal: controller.signal,
+  });
+}
+
+function markAccessChecking(
+  bearerToken: string | undefined,
+  controller: AbortController,
+  { setAccessCheck }: AccessCheckRunnerArgs,
+) {
+  if (controller.signal.aborted) return;
+  setAccessCheck({
+    state: 'checking',
+    checkedAt: new Date().toISOString(),
+    message: 'Checking AI access.',
+    hasBearerToken: Boolean(bearerToken),
+  });
+}
+
+function handleAccessCheckSuccess(
+  next: AiGenerationAccessState,
+  controller: AbortController,
+  { setAccess, setAccessError, setAccessCheck, setProvider }: AccessCheckRunnerArgs,
+) {
+  if (controller.signal.aborted) return;
+  logAiPanelDebug('access_check.success', {
+    authenticated: next.authenticated,
+    enabled: next.enabled,
+    disabledReason: next.disabledReason ?? null,
+  });
+  setAccess(next);
+  setAccessError(null);
+  setAccessCheck((current) => ({
+    ...current,
+    state: 'success',
+    checkedAt: new Date().toISOString(),
+    message: accessEnabledMessage(next),
+  }));
+  applyPreferredProvider(next, setProvider);
+}
+
+function accessEnabledMessage(next: AiGenerationAccessState) {
+  return next.enabled ? 'AI access enabled.' : disabledReasonMessage(next.disabledReason);
+}
+
+function applyPreferredProvider(
+  next: AiGenerationAccessState,
+  setProvider: Dispatch<SetStateAction<AiGenerationProvider>>,
+) {
+  const provider = next.providers?.[0];
+  if (provider) setProvider(provider);
+}
+
+function handleAccessCheckFailure(
+  error: unknown,
+  controller: AbortController,
+  { setAccessError, setAccessCheck }: AccessCheckRunnerArgs,
+) {
+  if (controller.signal.aborted) return;
+  const message = errorMessage(error);
+  logAiPanelDebug('access_check.failed', { message });
+  setAccessError(message);
+  setAccessCheck((current) => ({
+    ...current,
+    state: 'failed',
+    checkedAt: new Date().toISOString(),
+    message,
+  }));
+}
+
+type JobPollingRunnerArgs = {
+  activeJobId: string | null;
+  activeJobStatus: AiGenerationJob['status'] | null;
+  baseUrl?: string;
+  getBearerTokenRef: { current: () => Promise<string | undefined> };
+  onGenerationStateChangeRef: {
+    current: AiGenerationPanelProps['onGenerationStateChange'];
+  };
+  setJob: Dispatch<SetStateAction<AiGenerationJob | null>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+};
+
+type JobPollingState = {
+  stopped: boolean;
+  timeout: number | undefined;
+  controller: AbortController | null;
+};
+
+function runJobPolling(args: JobPollingRunnerArgs) {
+  if (!args.activeJobId || !args.activeJobStatus) return undefined;
+  const state: JobPollingState = {
+    stopped: false,
+    timeout: undefined,
+    controller: null,
+  };
+  logAiPanelDebug('job_poll.start', {
+    jobId: args.activeJobId,
+    status: args.activeJobStatus,
+  });
+  scheduleJobPoll(state, args);
+  return () => stopJobPolling(state);
+}
+
+function scheduleJobPoll(state: JobPollingState, args: JobPollingRunnerArgs) {
+  state.timeout = window.setTimeout(() => pollActiveJob(state, args), 1500);
+}
+
+function pollActiveJob(state: JobPollingState, args: JobPollingRunnerArgs) {
+  state.controller = new AbortController();
+  args.getBearerTokenRef
+    .current()
+    .then((bearerToken) => fetchPolledJob(bearerToken, state, args))
+    .then((nextJob) => handlePolledJob(nextJob, state, args))
+    .catch((error) => handleJobPollError(error, state, args));
+}
+
+function fetchPolledJob(
+  bearerToken: string | undefined,
+  state: JobPollingState,
+  { activeJobId, baseUrl }: JobPollingRunnerArgs,
+) {
+  return getAiGenerationJob(activeJobId as string, {
+    baseUrl,
+    bearerToken,
+    signal: state.controller?.signal,
+  });
+}
+
+function handlePolledJob(nextJob: AiGenerationJob, state: JobPollingState, args: JobPollingRunnerArgs) {
+  if (state.stopped) return;
+  logAiPanelDebug('job_poll.result', {
+    jobId: nextJob.id,
+    status: nextJob.status,
+    hasAsset: jobHasAssetUri(nextJob),
+  });
+  args.onGenerationStateChangeRef.current?.(generationMetadataFromJob(nextJob));
+  args.setJob(nextJob);
+  scheduleNextPollIfActive(nextJob, state, args);
+}
+
+function jobHasAssetUri(job: AiGenerationJob) {
+  return Boolean(job.asset?.uri);
+}
+
+function scheduleNextPollIfActive(nextJob: AiGenerationJob, state: JobPollingState, args: JobPollingRunnerArgs) {
+  if (jobIsActive(nextJob)) scheduleJobPoll(state, args);
+}
+
+function handleJobPollError(error: unknown, state: JobPollingState, { setMessage }: JobPollingRunnerArgs) {
+  if (state.stopped) return;
+  if (state.controller?.signal.aborted) return;
+  setMessage(errorMessage(error));
+}
+
+function stopJobPolling(state: JobPollingState) {
+  state.stopped = true;
+  if (state.timeout !== undefined) window.clearTimeout(state.timeout);
+  state.controller?.abort();
+}
+
+type AssetImportRunnerArgs = {
+  baseUrl?: string;
+  getBearerToken: () => Promise<string | undefined>;
+  importedJobIds: { current: Set<string> };
+  job: AiGenerationJob | null;
+  onGeneratedImageSourceRef: {
+    current: AiGenerationPanelProps['onGeneratedImageSource'];
+  };
+  onGenerationStateChangeRef: {
+    current: AiGenerationPanelProps['onGenerationStateChange'];
+  };
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setJob: Dispatch<SetStateAction<AiGenerationJob | null>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+  successMessage: string;
+};
+
+function runAssetImport(args: AssetImportRunnerArgs) {
+  const job = args.job;
+  if (!shouldImportGeneratedAsset(job, args.importedJobIds)) return undefined;
+  markAssetImportStarted(job, args);
+  const controller = new AbortController();
+  args
+    .getBearerToken()
+    .then((bearerToken) => storeGeneratedAsset(job, bearerToken, controller, args))
+    .then((src) => handleAssetImportSuccess(src, job, args))
+    .catch((error) => handleAssetImportFailure(error, job, args))
+    .finally(() => finishAssetImport(controller, args));
+  return () => controller.abort();
+}
+
+function shouldImportGeneratedAsset(
+  job: AiGenerationJob | null,
+  importedJobIds: { current: Set<string> },
+): job is AiGenerationJob {
+  if (job?.status !== 'succeeded') return false;
+  return !importedJobIds.current.has(job.id);
+}
+
+function markAssetImportStarted(job: AiGenerationJob, args: AssetImportRunnerArgs) {
+  args.importedJobIds.current.add(job.id);
+  args.setBusy(true);
+  args.onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'importing'));
+  logAiPanelDebug('asset_import.start', {
+    jobId: job.id,
+    assetId: job.asset?.id ?? null,
+    hasAssetUri: jobHasAssetUri(job),
+  });
+}
+
+function storeGeneratedAsset(
+  job: AiGenerationJob,
+  bearerToken: string | undefined,
+  controller: AbortController,
+  { baseUrl }: AssetImportRunnerArgs,
+) {
+  return withTimeout(
+    storeAiGeneratedAssetSource(job, {
+      baseUrl,
+      devToken: bearerToken,
+      signal: controller.signal,
+    }),
+    ASSET_IMPORT_TIMEOUT_MS,
+    () => new Error('Generated image import timed out.'),
+  );
+}
+
+function handleAssetImportSuccess(src: string, job: AiGenerationJob, args: AssetImportRunnerArgs) {
+  logAiPanelDebug('asset_import.success', { jobId: job.id });
+  args.onGeneratedImageSourceRef.current(src, generationMetadataFromJob(job));
+  args.setMessage(args.successMessage);
+}
+
+function handleAssetImportFailure(error: unknown, job: AiGenerationJob, args: AssetImportRunnerArgs) {
+  args.importedJobIds.current.delete(job.id);
+  const message = errorMessage(error);
+  logAiPanelDebug('asset_import.failed', { jobId: job.id, message });
+  args.onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'failed', message));
+  args.setJob(failedAssetImportJob(job, message));
+  args.setMessage(message);
+}
+
+function failedAssetImportJob(job: AiGenerationJob, message: string): AiGenerationJob {
+  return {
+    ...job,
+    status: 'failed',
+    error: { code: 'asset_import_failed', message, retryable: true },
+    completedAt: job.completedAt ?? new Date().toISOString(),
+  };
+}
+
+function finishAssetImport(controller: AbortController, { setBusy }: AssetImportRunnerArgs) {
+  controller.abort();
+  setBusy(false);
+}
+
+type SubmitGenerationArgs = {
+  access: AiGenerationAccessState | null;
+  aspect: AspectRatio;
+  baseUrl?: string;
+  getBearerToken: () => Promise<string | undefined>;
+  onGenerationStateChange?: AiGenerationPanelProps['onGenerationStateChange'];
+  provider: AiGenerationProvider;
+  quality: AiGenerationQuality;
+  rawPrompt: string;
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setJob: Dispatch<SetStateAction<AiGenerationJob | null>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+};
+
+function submitAiGeneration(args: SubmitGenerationArgs) {
+  const trimmed = args.rawPrompt.trim();
+  if (!canStartGenerationSubmission(trimmed, args.access)) return;
+  args.setBusy(true);
+  args.setMessage(null);
+  args
+    .getBearerToken()
+    .then((bearerToken) => createSubmittedGenerationJob(trimmed, bearerToken, args))
+    .then((nextJob) => handleSubmitGenerationSuccess(nextJob, args))
+    .catch((error) => handleSubmitGenerationFailure(error, trimmed, args))
+    .finally(() => args.setBusy(false));
+}
+
+function canStartGenerationSubmission(prompt: string, access: AiGenerationAccessState | null) {
+  return Boolean(prompt && access?.enabled);
+}
+
+function createSubmittedGenerationJob(
+  prompt: string,
+  bearerToken: string | undefined,
+  { aspect, baseUrl, provider, quality }: SubmitGenerationArgs,
+) {
+  return createAiGenerationJob(
+    {
+      prompt,
+      provider,
+      settings: { aspect, quality },
+      idempotencyKey: createIdempotencyKey(),
+    },
+    { baseUrl, bearerToken },
+  );
+}
+
+function handleSubmitGenerationSuccess(
+  nextJob: AiGenerationJob,
+  { onGenerationStateChange, setJob }: SubmitGenerationArgs,
+) {
+  onGenerationStateChange?.(generationMetadataFromJob(nextJob));
+  setJob(nextJob);
+}
+
+function handleSubmitGenerationFailure(error: unknown, prompt: string, args: SubmitGenerationArgs) {
+  const message = errorMessage(error);
+  args.onGenerationStateChange?.({
+    prompt,
+    provider: args.provider,
+    quality: args.quality,
+    status: 'failed',
+    updatedAt: new Date().toISOString(),
+    errorMessage: message,
+  });
+  args.setMessage(message);
+}
+
+type RecoverGenerationArgs = {
+  access: AiGenerationAccessState | null;
+  baseUrl?: string;
+  getBearerToken: () => Promise<string | undefined>;
+  importedJobIds: { current: Set<string> };
+  jobId: string | undefined;
+  onGenerationStateChange?: AiGenerationPanelProps['onGenerationStateChange'];
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setJob: Dispatch<SetStateAction<AiGenerationJob | null>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+};
+
+function recoverAiGeneration(args: RecoverGenerationArgs) {
+  const jobId = recoverableJobId(args);
+  if (!jobId) return;
+  let handedToImport = false;
+  markRecoverGenerationStarted(jobId, args);
+  args
+    .getBearerToken()
+    .then((bearerToken) => getAiGenerationJob(jobId, { baseUrl: args.baseUrl, bearerToken }))
+    .then((nextJob) => {
+      handedToImport = handleRecoverGenerationJob(nextJob, args);
+    })
+    .catch((error) => args.setMessage(errorMessage(error)))
+    .finally(() => {
+      if (!handedToImport) args.setBusy(false);
+    });
+}
+
+function recoverableJobId({ access, jobId }: RecoverGenerationArgs) {
+  if (!jobId) return null;
+  return access?.enabled ? jobId : null;
+}
+
+function markRecoverGenerationStarted(jobId: string, { importedJobIds, setBusy, setMessage }: RecoverGenerationArgs) {
+  setBusy(true);
+  setMessage('Checking generated asset.');
+  importedJobIds.current.delete(jobId);
+}
+
+function handleRecoverGenerationJob(nextJob: AiGenerationJob, args: RecoverGenerationArgs) {
+  args.onGenerationStateChange?.(generationMetadataFromJob(nextJob));
+  args.setJob(nextJob);
+  if (nextJob.status !== 'succeeded') {
+    args.setMessage(recoverGenerationStatusMessage(nextJob));
+    return false;
+  }
+  args.setMessage('Recovering generated asset.');
+  return true;
+}
+
+function recoverGenerationStatusMessage(nextJob: AiGenerationJob) {
+  return nextJob.error?.message ?? `Generation job is ${nextJob.status}.`;
+}
+
+function panelDisabledReason(access: AiGenerationAccessState | null, accessError: string | null) {
+  return accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
+}
+
+function panelStatus(job: AiGenerationJob | null, message: string | null, disabledReason: string | null) {
+  return firstDefined(jobErrorMessage(job), message, jobStatusFallback(job, disabledReason));
+}
+
+function jobErrorMessage(job: AiGenerationJob | null) {
+  return job?.error?.message;
+}
+
+function jobStatusFallback(job: AiGenerationJob | null, disabledReason: string | null) {
+  return job ? job.status : disabledReason;
+}
+
+function panelAccessBlockReason(
+  access: AiGenerationAccessState | null,
+  accessError: string | null,
+  authSignedIn: boolean,
+) {
+  const explicitReason = explicitAccessBlockReason(access, accessError);
+  if (explicitReason !== undefined) return explicitReason;
+  return fallbackAccessBlockReason(access, authSignedIn);
+}
+
+function explicitAccessBlockReason(access: AiGenerationAccessState | null, accessError: string | null) {
+  if (accessError) return accessError;
+  return aiAccessEnabled(access) ? null : undefined;
+}
+
+function fallbackAccessBlockReason(access: AiGenerationAccessState | null, authSignedIn: boolean) {
+  return invalidSessionBlockReason(access, authSignedIn) ?? access?.disabledReason;
+}
+
+function invalidSessionBlockReason(access: AiGenerationAccessState | null, authSignedIn: boolean) {
+  if (!authSignedIn) return null;
+  return access?.authenticated === false ? 'invalid_session' : null;
 }
 
 export function AiGenerationPanel({
@@ -415,7 +1428,9 @@ export function AiGenerationPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [accessCheckNonce, setAccessCheckNonce] = useState(0);
-  const [accessCheck, setAccessCheck] = useState<AccessCheckState>({ state: 'checking' });
+  const [accessCheck, setAccessCheck] = useState<AccessCheckState>({
+    state: 'checking',
+  });
   const importedJobIds = useRef(new Set<string>());
   const getBearerTokenRef = useRef<() => Promise<string | undefined>>(async () => undefined);
   const onGeneratedImageSourceRef = useRef<AiGenerationPanelProps['onGeneratedImageSource']>(onGeneratedImageSource);
@@ -432,25 +1447,12 @@ export function AiGenerationPanel({
   const baseUrl = useMemo(() => getAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
   const diagnosticsEnabled = useMemo(() => aiGenerationDebugEnabled(), []);
-  const providers = access?.providers?.length ? access.providers : (['openai'] as AiGenerationProvider[]);
-  const canGenerate = Boolean(access?.enabled && prompt.trim() && !busy && !jobIsActive(job));
-  const activeJobId = jobIsActive(job) ? job.id : null;
-  const activeJobStatus = jobIsActive(job) ? job.status : null;
-  const latestGenerationPrompt = generation?.prompt ?? job?.prompt;
-  const latestGenerationJobId = generation?.jobId ?? job?.id;
-  const latestGenerationErrorCode = generation?.errorCode ?? job?.error?.code;
-  const hasFailedGeneration =
-    generation?.status === 'failed' || job?.status === 'failed' || Boolean(latestGenerationErrorCode);
-  const canRetryGeneration = Boolean(
-    access?.enabled && hasFailedGeneration && latestGenerationPrompt && !busy && !jobIsActive(job),
-  );
-  const canRecoverGeneration = Boolean(
-    access?.enabled &&
-      latestGenerationErrorCode === 'asset_import_failed' &&
-      latestGenerationJobId &&
-      !busy &&
-      !jobIsActive(job),
-  );
+  const providers = availableAiProviders(access);
+  const canGenerate = canSubmitGeneration(access, prompt, busy, job);
+  const activeJob = activeJobState(job);
+  const latestGeneration = latestGenerationState(generation, job);
+  const canRetryGeneration = canRetryGenerationState(access, latestGeneration, busy, job);
+  const canRecoverGeneration = canRecoverGenerationState(access, latestGeneration, busy, job);
   const getBearerToken = useCallback(async () => {
     if (devToken) return devToken;
     if (!authSignedIn) return undefined;
@@ -470,185 +1472,63 @@ export function AiGenerationPanel({
   }, [onGenerationStateChange]);
 
   useEffect(() => {
-    if (authConfigured && !authLoaded && !devToken) return;
-    const controller = new AbortController();
-    logAiPanelDebug('access_check.start', {
+    return runAccessCheck({
       authConfigured,
       authLoaded,
       authSignedIn,
       authUserId,
-      hasDevToken: Boolean(devToken),
-      baseUrl: baseUrl ?? null,
+      baseUrl,
+      devToken,
+      getBearerToken,
+      setAccess,
+      setAccessError,
+      setAccessCheck,
+      setProvider,
     });
-    getBearerToken()
-      .then((bearerToken) => {
-        if (!controller.signal.aborted) {
-          setAccessCheck({
-            state: 'checking',
-            checkedAt: new Date().toISOString(),
-            message: 'Checking AI access.',
-            hasBearerToken: Boolean(bearerToken),
-          });
-        }
-        logAiPanelDebug('access_check.token', {
-          authSignedIn,
-          authUserId,
-          hasBearerToken: Boolean(bearerToken),
-        });
-        logBearerTokenClaims(bearerToken);
-        return getAiGenerationAccess({ baseUrl, bearerToken, signal: controller.signal });
-      })
-      .then((next) => {
-        if (!controller.signal.aborted) {
-          logAiPanelDebug('access_check.success', {
-            authenticated: next.authenticated,
-            enabled: next.enabled,
-            disabledReason: next.disabledReason ?? null,
-          });
-          setAccess(next);
-          setAccessError(null);
-          setAccessCheck((current) => ({
-            ...current,
-            state: 'success',
-            checkedAt: new Date().toISOString(),
-            message: next.enabled ? 'AI access enabled.' : disabledReasonMessage(next.disabledReason),
-          }));
-          if (next.providers?.[0]) setProvider(next.providers[0]);
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          const message = errorMessage(error);
-          logAiPanelDebug('access_check.failed', { message });
-          setAccessError(message);
-          setAccessCheck((current) => ({
-            ...current,
-            state: 'failed',
-            checkedAt: new Date().toISOString(),
-            message,
-          }));
-        }
-      });
-    return () => controller.abort();
   }, [accessCheckNonce, authConfigured, authLoaded, authSignedIn, authUserId, baseUrl, devToken, getBearerToken]);
 
   useEffect(() => {
-    if (!activeJobId || !activeJobStatus) return;
-    let stopped = false;
-    let timeout: number | undefined;
-    let controller: AbortController | null = null;
-
-    const schedulePoll = () => {
-      timeout = window.setTimeout(() => {
-        controller = new AbortController();
-        getBearerTokenRef
-          .current()
-          .then((bearerToken) => getAiGenerationJob(activeJobId, { baseUrl, bearerToken, signal: controller?.signal }))
-          .then((nextJob) => {
-            if (stopped) return;
-            logAiPanelDebug('job_poll.result', {
-              jobId: nextJob.id,
-              status: nextJob.status,
-              hasAsset: Boolean(nextJob.asset?.uri),
-            });
-            onGenerationStateChangeRef.current?.(generationMetadataFromJob(nextJob));
-            setJob(nextJob);
-            if (jobIsActive(nextJob)) schedulePoll();
-          })
-          .catch((error) => {
-            if (!stopped && !controller?.signal.aborted) setMessage(errorMessage(error));
-          });
-      }, 1500);
-    };
-
-    logAiPanelDebug('job_poll.start', { jobId: activeJobId, status: activeJobStatus });
-    schedulePoll();
-
-    return () => {
-      stopped = true;
-      if (timeout !== undefined) window.clearTimeout(timeout);
-      controller?.abort();
-    };
-  }, [activeJobId, activeJobStatus, baseUrl]);
+    return runJobPolling({
+      activeJobId: activeJob.id,
+      activeJobStatus: activeJob.status,
+      baseUrl,
+      getBearerTokenRef,
+      onGenerationStateChangeRef,
+      setJob,
+      setMessage,
+    });
+  }, [activeJob.id, activeJob.status, baseUrl]);
 
   useEffect(() => {
-    if (job?.status !== 'succeeded' || importedJobIds.current.has(job.id)) return;
-    importedJobIds.current.add(job.id);
-    setBusy(true);
-    onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'importing'));
-    logAiPanelDebug('asset_import.start', {
-      jobId: job.id,
-      assetId: job.asset?.id ?? null,
-      hasAssetUri: Boolean(job.asset?.uri),
+    return runAssetImport({
+      baseUrl,
+      getBearerToken,
+      importedJobIds,
+      job,
+      onGeneratedImageSourceRef,
+      onGenerationStateChangeRef,
+      setBusy,
+      setJob,
+      setMessage,
+      successMessage,
     });
-    const controller = new AbortController();
-    getBearerToken()
-      .then((bearerToken) =>
-        withTimeout(
-          storeAiGeneratedAssetSource(job, { baseUrl, devToken: bearerToken, signal: controller.signal }),
-          ASSET_IMPORT_TIMEOUT_MS,
-          () => new Error('Generated image import timed out.'),
-        ),
-      )
-      .then((src) => {
-        logAiPanelDebug('asset_import.success', { jobId: job.id });
-        onGeneratedImageSourceRef.current(src, generationMetadataFromJob(job));
-        setMessage(successMessage);
-      })
-      .catch((error) => {
-        importedJobIds.current.delete(job.id);
-        const message = errorMessage(error);
-        logAiPanelDebug('asset_import.failed', { jobId: job.id, message });
-        onGenerationStateChangeRef.current?.(generationMetadataFromJob(job, 'failed', message));
-        setJob({
-          ...job,
-          status: 'failed',
-          error: { code: 'asset_import_failed', message, retryable: true },
-          completedAt: job.completedAt ?? new Date().toISOString(),
-        });
-        setMessage(message);
-      })
-      .finally(() => {
-        controller.abort();
-        setBusy(false);
-      });
   }, [baseUrl, getBearerToken, job, successMessage]);
 
   const submitGeneration = useCallback(
     (rawPrompt: string) => {
-      const trimmed = rawPrompt.trim();
-      if (!trimmed || !access?.enabled) return;
-      setBusy(true);
-      setMessage(null);
-      getBearerToken()
-        .then((bearerToken) =>
-          createAiGenerationJob(
-            {
-              prompt: trimmed,
-              provider,
-              settings: { aspect, quality },
-              idempotencyKey: createIdempotencyKey(),
-            },
-            { baseUrl, bearerToken },
-          ),
-        )
-        .then((nextJob) => {
-          onGenerationStateChange?.(generationMetadataFromJob(nextJob));
-          setJob(nextJob);
-        })
-        .catch((error) => {
-          const message = errorMessage(error);
-          onGenerationStateChange?.({
-            prompt: trimmed,
-            provider,
-            quality,
-            status: 'failed',
-            updatedAt: new Date().toISOString(),
-            errorMessage: message,
-          });
-          setMessage(message);
-        })
-        .finally(() => setBusy(false));
+      submitAiGeneration({
+        access,
+        aspect,
+        baseUrl,
+        getBearerToken,
+        onGenerationStateChange,
+        provider,
+        quality,
+        rawPrompt,
+        setBusy,
+        setJob,
+        setMessage,
+      });
     },
     [access?.enabled, aspect, baseUrl, getBearerToken, onGenerationStateChange, provider, quality],
   );
@@ -664,99 +1544,40 @@ export function AiGenerationPanel({
   }, []);
 
   const handleRetryGeneration = useCallback(() => {
-    if (!latestGenerationPrompt) return;
-    setPrompt(latestGenerationPrompt);
-    submitGeneration(latestGenerationPrompt);
-  }, [latestGenerationPrompt, submitGeneration]);
+    if (!latestGeneration.prompt) return;
+    setPrompt(latestGeneration.prompt);
+    submitGeneration(latestGeneration.prompt);
+  }, [latestGeneration.prompt, submitGeneration]);
 
   const handleRecoverGeneration = useCallback(() => {
-    const jobId = latestGenerationJobId;
-    if (!jobId || !access?.enabled) return;
-    let handedToImport = false;
-    setBusy(true);
-    setMessage('Checking generated asset.');
-    importedJobIds.current.delete(jobId);
-    getBearerToken()
-      .then((bearerToken) => getAiGenerationJob(jobId, { baseUrl, bearerToken }))
-      .then((nextJob) => {
-        onGenerationStateChange?.(generationMetadataFromJob(nextJob));
-        setJob(nextJob);
-        if (nextJob.status === 'succeeded') {
-          handedToImport = true;
-          setMessage('Recovering generated asset.');
-          return;
-        }
-        setMessage(nextJob.error?.message ?? `Generation job is ${nextJob.status}.`);
-      })
-      .catch((error) => setMessage(errorMessage(error)))
-      .finally(() => {
-        if (!handedToImport) setBusy(false);
-      });
-  }, [access?.enabled, baseUrl, getBearerToken, latestGenerationJobId, onGenerationStateChange]);
+    recoverAiGeneration({
+      access,
+      baseUrl,
+      getBearerToken,
+      importedJobIds,
+      jobId: latestGeneration.jobId,
+      onGenerationStateChange,
+      setBusy,
+      setJob,
+      setMessage,
+    });
+  }, [access, baseUrl, getBearerToken, importedJobIds, latestGeneration.jobId, onGenerationStateChange]);
 
-  const disabledReason = accessError ?? disabledReasonMessage(access && !access.enabled ? access.disabledReason : null);
-  const status = job?.error?.message ?? message ?? (job ? job.status : disabledReason);
-  const accessBlockReason = accessError
-    ? accessError
-    : access?.enabled
-      ? null
-      : authSignedIn && access?.authenticated === false
-        ? 'invalid_session'
-        : access?.disabledReason;
+  const disabledReason = panelDisabledReason(access, accessError);
+  const status = panelStatus(job, message, disabledReason);
+  const accessBlockReason = panelAccessBlockReason(access, accessError, authSignedIn);
 
-  if (!access?.enabled) {
+  if (!aiAccessEnabled(access)) {
     return (
       <div className="ai-generation-panel">
-        <div className="ai-generation-access-banner" role="status" id="ai-generation-status">
-          <span>{access ? disabledReasonTitle(accessBlockReason) : 'Checking AI access'}</span>
-          <p>
-            {access
-              ? disabledReasonBody(accessBlockReason)
-              : authSignedIn
-                ? 'Signed in. Checking the AI API and account access.'
-                : 'Generation controls will appear when this browser has AI access.'}
-          </p>
-        </div>
-        {accessBlockReason === 'anonymous' && authConfigured && (
-          <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
-            Create Account
-          </button>
-        )}
-        {diagnosticsEnabled && (
-          <AiDeveloperDiagnostics
-            access={access}
-            accessError={accessError}
-            accessCheck={accessCheck}
-            authConfigured={authConfigured}
-            authLoaded={authLoaded}
-            authSignedIn={authSignedIn}
-            authUserId={authUserId}
-            baseUrl={baseUrl}
-            devToken={devToken}
-            onRetryAccess={handleRetryAccessCheck}
-          />
-        )}
-        <GenerationHistoryNavigator
-          history={generationHistory}
-          index={generationHistoryIndex}
-          onSelect={onGenerationHistorySelect}
+        <AccessBanner access={access} accessBlockReason={accessBlockReason} authSignedIn={authSignedIn} />
+        <AccessActionButton
+          accessBlockReason={accessBlockReason}
+          authConfigured={authConfigured}
+          openSignIn={openSignIn}
         />
-        <GenerationProvenance generation={generation} />
-        <GenerationDiagnostics generation={generation} job={job} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="ai-generation-panel">
-      <GenerationHistoryNavigator
-        history={generationHistory}
-        index={generationHistoryIndex}
-        onSelect={onGenerationHistorySelect}
-      />
-      <GenerationProvenance generation={generation} />
-      {diagnosticsEnabled && (
-        <AiDeveloperDiagnostics
+        <DeveloperDiagnosticsPanel
+          enabled={diagnosticsEnabled}
           access={access}
           accessError={accessError}
           accessCheck={accessCheck}
@@ -768,54 +1589,64 @@ export function AiGenerationPanel({
           devToken={devToken}
           onRetryAccess={handleRetryAccessCheck}
         />
-      )}
-      {(canRetryGeneration || canRecoverGeneration) && (
-        <div className="ai-generation-actions">
-          {canRetryGeneration && (
-            <button type="button" className="ai-generation-action" onClick={handleRetryGeneration}>
-              Retry Prompt
-            </button>
-          )}
-          {canRecoverGeneration && (
-            <button type="button" className="ai-generation-action" onClick={handleRecoverGeneration}>
-              Recover Asset
-            </button>
-          )}
-        </div>
-      )}
-      <GenerationDiagnostics generation={generation} job={job} />
-      <textarea
-        data-ai-generation-prompt
-        value={prompt}
-        onChange={(event) => setPrompt(event.target.value)}
-        placeholder="Prompt"
-        rows={3}
-        disabled={!access?.enabled || busy}
-        aria-describedby={!access?.enabled ? 'ai-generation-status' : undefined}
+        <GenerationContextPanels
+          generationHistory={generationHistory}
+          generationHistoryIndex={generationHistoryIndex}
+          onGenerationHistorySelect={onGenerationHistorySelect}
+          generation={generation}
+          job={job}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="ai-generation-panel">
+      <GenerationContextPanels
+        generationHistory={generationHistory}
+        generationHistoryIndex={generationHistoryIndex}
+        onGenerationHistorySelect={onGenerationHistorySelect}
+        generation={generation}
+        job={job}
       />
-      <div className="ai-generation-grid">
-        <select value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
-          {providers.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <select value={quality} onChange={(event) => setQuality(event.target.value as AiGenerationQuality)}>
-          {QUALITY_OPTIONS.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ActionButton className="ai-generation-submit" onClick={handleGenerate} disabled={!canGenerate} variant="primary">
-        {busy || jobIsActive(job) ? '...' : submitLabel}
-      </ActionButton>
-      <div className="ai-generation-meta" id="ai-generation-status">
-        <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
-        <span>{status}</span>
-      </div>
+      <DeveloperDiagnosticsPanel
+        enabled={diagnosticsEnabled}
+        access={access}
+        accessError={accessError}
+        accessCheck={accessCheck}
+        authConfigured={authConfigured}
+        authLoaded={authLoaded}
+        authSignedIn={authSignedIn}
+        authUserId={authUserId}
+        baseUrl={baseUrl}
+        devToken={devToken}
+        onRetryAccess={handleRetryAccessCheck}
+      />
+      <GenerationRecoveryActions
+        canRetryGeneration={canRetryGeneration}
+        canRecoverGeneration={canRecoverGeneration}
+        onRetryGeneration={handleRetryGeneration}
+        onRecoverGeneration={handleRecoverGeneration}
+      />
+      <GenerationControls
+        prompt={prompt}
+        setPrompt={setPrompt}
+        provider={provider}
+        setProvider={setProvider}
+        providers={providers}
+        quality={quality}
+        setQuality={setQuality}
+        accessEnabled={Boolean(access?.enabled)}
+        busy={busy}
+      />
+      <GenerationSubmitButton
+        busy={busy}
+        job={job}
+        submitLabel={submitLabel}
+        canGenerate={canGenerate}
+        onGenerate={handleGenerate}
+      />
+      <GenerationMeta access={access} status={status} />
     </div>
   );
 }

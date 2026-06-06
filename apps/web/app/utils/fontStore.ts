@@ -5,6 +5,8 @@ import {
   parseGoogleFontFaces,
   pickGoogleFontFace,
 } from './googleFonts';
+import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-fonts';
 const DB_VERSION = 1;
@@ -32,63 +34,19 @@ export interface ImportedFontAsset extends PortableFontAsset {
 const metadataCache = new Map<string, ImportedFontAsset>();
 const loadedFontFaces = new Set<string>();
 
-function hasIndexedDb() {
-  return typeof indexedDB !== 'undefined';
-}
-
-function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
-  });
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
-    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
-  });
-}
-
 function openDatabase(): Promise<IDBDatabase> {
-  if (!hasIndexedDb()) return Promise.reject(new Error('IndexedDB is unavailable'));
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
+  return openIndexedDatabase({
+    name: DB_NAME,
+    version: DB_VERSION,
+    openErrorMessage: 'Unable to open font database',
+    upgrade: (db) => {
       if (!db.objectStoreNames.contains(FONT_STORE)) db.createObjectStore(FONT_STORE, { keyPath: 'id' });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('Unable to open font database'));
+    },
   });
 }
 
 async function withFontStore<T>(mode: IDBTransactionMode, read: (store: IDBObjectStore) => Promise<T> | T): Promise<T> {
-  const db = await openDatabase();
-  try {
-    const transaction = db.transaction(FONT_STORE, mode);
-    const done = transactionDone(transaction);
-    const store = transaction.objectStore(FONT_STORE);
-    const result = await read(store);
-    await done;
-    return result;
-  } finally {
-    db.close();
-  }
-}
-
-function randomId() {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function estimateDataUrlBytes(dataUrl: string) {
-  const comma = dataUrl.indexOf(',');
-  if (comma === -1) return dataUrl.length;
-  return Math.round((dataUrl.length - comma - 1) * 0.75);
+  return withIndexedDbStore(openDatabase, FONT_STORE, mode, read);
 }
 
 function extensionMime(name: string) {
@@ -171,13 +129,13 @@ export function fontUriFromId(id: string) {
   return `${FONT_URI_PREFIX}${id}` as const;
 }
 
-export function isSupportedFontFile(file: File) {
+function isSupportedFontFile(file: File) {
   return FONT_FILE_RE.test(file.name) || SUPPORTED_FONT_MIME.has(file.type);
 }
 
 export async function saveImportedFontFile(file: File): Promise<ImportedFontAsset> {
   if (!isSupportedFontFile(file)) throw new Error('Unsupported font file');
-  const id = randomId();
+  const id = randomStorageId();
   const dataUrl = await fileToDataUrl(file);
   const asset: ImportedFontAsset = {
     id,
@@ -210,7 +168,7 @@ export async function saveGoogleFontFamily(input: string): Promise<ImportedFontA
   const id = `google-${request.family
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')}-${randomId()}`;
+    .replace(/^-|-$/g, '')}-${randomStorageId()}`;
   const asset = createGoogleFontAssetMetadata({
     id,
     family: request.family,
@@ -224,25 +182,70 @@ export async function saveGoogleFontFamily(input: string): Promise<ImportedFontA
   return asset;
 }
 
-export async function saveImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): Promise<ImportedFontAsset> {
-  const stored: ImportedFontAsset = {
+function importedFontLabelSource(asset: ImportedFontAsset | PortableFontAsset) {
+  if (asset.source === 'google-fonts') return asset.label;
+  return asset.sourceName || asset.label || 'Imported Font';
+}
+
+function importedFontFamily(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.family || familyForId(asset.id);
+}
+
+function importedFontBytes(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.bytes || estimateDataUrlBytes(asset.dataUrl);
+}
+
+function importedFontMime(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.mime || 'application/octet-stream';
+}
+
+function importedFontCreatedAt(asset: ImportedFontAsset | PortableFontAsset) {
+  return asset.createdAt || new Date().toISOString();
+}
+
+function normalizeImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): ImportedFontAsset {
+  return {
     sourceName: asset.label,
     ...asset,
-    family: asset.family || familyForId(asset.id),
-    label: normalizeImportedFontLabel(
-      asset.source === 'google-fonts' ? asset.label : asset.sourceName || asset.label || 'Imported Font',
-    ),
-    bytes: asset.bytes || estimateDataUrlBytes(asset.dataUrl),
-    mime: asset.mime || 'application/octet-stream',
-    createdAt: asset.createdAt || new Date().toISOString(),
+    family: importedFontFamily(asset),
+    label: normalizeImportedFontLabel(importedFontLabelSource(asset)),
+    bytes: importedFontBytes(asset),
+    mime: importedFontMime(asset),
+    createdAt: importedFontCreatedAt(asset),
     source: asset.source || 'local-file',
     embeddingPolicy: asset.embeddingPolicy || 'user-confirmed-required',
   };
+}
+
+async function saveImportedFontAsset(asset: ImportedFontAsset | PortableFontAsset): Promise<ImportedFontAsset> {
+  const stored = normalizeImportedFontAsset(asset);
   await withFontStore('readwrite', (store) => {
     store.put(stored);
   });
   metadataCache.set(stored.id, stored);
   return stored;
+}
+
+function portableFontAsset(asset: ImportedFontAsset): PortableFontAsset {
+  const stored: ImportedFontAsset = {
+    ...asset,
+  };
+  const { id, dataUrl, mime, bytes, label, family, createdAt } = stored;
+  const { source, sourceName, sourceUrl, license, embeddingPolicy } = stored;
+  return {
+    id,
+    dataUrl,
+    mime,
+    bytes,
+    label,
+    family,
+    createdAt,
+    ...(source ? { source } : {}),
+    ...(sourceName ? { sourceName } : {}),
+    ...(sourceUrl ? { sourceUrl } : {}),
+    ...(license ? { license } : {}),
+    ...(embeddingPolicy ? { embeddingPolicy } : {}),
+  };
 }
 
 export async function loadImportedFontAsset(font: string): Promise<ImportedFontAsset | null> {
@@ -305,24 +308,7 @@ export async function hydrateDocumentFontAssets(
   for (const font of collectDocumentFontRefs(doc)) {
     if (!isFontUri(font)) continue;
     const asset = await loadFontAsset(font);
-    if (asset) {
-      const { id, dataUrl, mime, bytes, label, family, createdAt } = asset;
-      const { source, sourceName, sourceUrl, license, embeddingPolicy } = asset;
-      fontAssets.push({
-        id,
-        dataUrl,
-        mime,
-        bytes,
-        label,
-        family,
-        createdAt,
-        ...(source ? { source } : {}),
-        ...(sourceName ? { sourceName } : {}),
-        ...(sourceUrl ? { sourceUrl } : {}),
-        ...(license ? { license } : {}),
-        ...(embeddingPolicy ? { embeddingPolicy } : {}),
-      });
-    }
+    if (asset) fontAssets.push(portableFontAsset(asset));
   }
   if (fontAssets.length === 0) return doc.fontAssets ? stripDocumentFontAssets(doc) : doc;
   return { ...doc, fontAssets };

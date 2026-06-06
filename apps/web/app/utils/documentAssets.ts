@@ -34,7 +34,7 @@ function imageSourcesForLayer(layer: ImageLayer) {
   return [layer.src, ...(layer.aiGenerationHistory?.map((variant) => variant.src) ?? [])].filter(Boolean);
 }
 
-export function collectDocumentImageSources(doc: CanvasDocument): string[] {
+function collectDocumentImageSources(doc: CanvasDocument): string[] {
   return doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : []));
 }
 

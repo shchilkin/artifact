@@ -37,7 +37,7 @@ export function writeApiResponse(res: ServerResponse, response: ApiResponse<unkn
   writeJsonResponse(res, response);
 }
 
-export function writeJsonResponse(res: ServerResponse, response: JsonResponse<unknown>) {
+function writeJsonResponse(res: ServerResponse, response: JsonResponse<unknown>) {
   res.writeHead(response.status, {
     'content-type': 'application/json',
     ...response.headers,

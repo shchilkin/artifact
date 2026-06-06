@@ -11,6 +11,20 @@ function alphaValues(data: Uint8ClampedArray) {
   return values;
 }
 
+function transformFixturePixels(operations: EffectPixelTransformRequest['operations']) {
+  return transformEffectPixels({
+    width: 2,
+    height: 2,
+    data: makePixels(),
+    operations,
+  });
+}
+
+function expectVisibleAlphaPreservingTransform(result: ReturnType<typeof transformEffectPixels>) {
+  expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
+  expect(result.data).not.toEqual(makePixels());
+}
+
 describe('transformEffectPixels', () => {
   it('applies deterministic pixel operations', () => {
     const request: EffectPixelTransformRequest = {
@@ -32,12 +46,7 @@ describe('transformEffectPixels', () => {
   });
 
   it('preserves dimensions while returning transformed pixels', () => {
-    const result = transformEffectPixels({
-      width: 2,
-      height: 2,
-      data: makePixels(),
-      operations: [{ type: 'kaleidoscope', amount: 70 }],
-    });
+    const result = transformFixturePixels([{ type: 'kaleidoscope', amount: 70 }]);
 
     expect(result.width).toBe(2);
     expect(result.height).toBe(2);
@@ -45,38 +54,14 @@ describe('transformEffectPixels', () => {
   });
 
   it('keeps solarize output visible and alpha-preserving', () => {
-    const result = transformEffectPixels({
-      width: 2,
-      height: 2,
-      data: makePixels(),
-      operations: [{ type: 'solarize', amount: 80 }],
-    });
-
-    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
-    expect(result.data).not.toEqual(makePixels());
+    expectVisibleAlphaPreservingTransform(transformFixturePixels([{ type: 'solarize', amount: 80 }]));
   });
 
   it('keeps bleach bypass output visible and alpha-preserving', () => {
-    const result = transformEffectPixels({
-      width: 2,
-      height: 2,
-      data: makePixels(),
-      operations: [{ type: 'bleachBypass', amount: 80 }],
-    });
-
-    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
-    expect(result.data).not.toEqual(makePixels());
+    expectVisibleAlphaPreservingTransform(transformFixturePixels([{ type: 'bleachBypass', amount: 80 }]));
   });
 
   it('keeps fog output visible and alpha-preserving', () => {
-    const result = transformEffectPixels({
-      width: 2,
-      height: 2,
-      data: makePixels(),
-      operations: [{ type: 'fog', amount: 80, color: '#ddeeff' }],
-    });
-
-    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255]);
-    expect(result.data).not.toEqual(makePixels());
+    expectVisibleAlphaPreservingTransform(transformFixturePixels([{ type: 'fog', amount: 80, color: '#ddeeff' }]));
   });
 });

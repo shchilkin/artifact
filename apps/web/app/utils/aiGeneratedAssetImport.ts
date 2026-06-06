@@ -16,7 +16,7 @@ function assetEndpoint(baseUrl: string | undefined, uri: string) {
   return `${baseUrl.replace(/\/$/, '')}${uri.startsWith('/') ? uri : `/${uri}`}`;
 }
 
-export function getAiGeneratedAssetUri(job: AiGenerationJob): string {
+function getAiGeneratedAssetUri(job: AiGenerationJob): string {
   if (job.status !== 'succeeded' || !job.asset?.uri) {
     throw new Error('Generation job has no completed image asset.');
   }

@@ -34,29 +34,6 @@ export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, 
   ctx.restore();
 }
 
-export function applyDitherToImageData(imageData: ImageData, W: number, H: number, layer: EffectLayer) {
-  if (layer.dither <= 0) return;
-
-  const BAYER = [
-    [0, 8, 2, 10],
-    [12, 4, 14, 6],
-    [3, 11, 1, 9],
-    [15, 7, 13, 5],
-  ];
-  const d = imageData.data;
-  const levels = Math.max(2, Math.round(16 - layer.dither * 0.14));
-  const step = 255 / (levels - 1);
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = (y * W + x) * 4;
-      const bayer = BAYER[y & 3][x & 3] / 16;
-      for (let c = 0; c < 3; c++) {
-        d[i + c] = Math.min(255, Math.max(0, Math.round(d[i + c] / step + bayer) * step));
-      }
-    }
-  }
-}
-
 export function applyMatte(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
   if (layer.matte <= 0) return;
 

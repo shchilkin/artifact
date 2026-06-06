@@ -21,13 +21,20 @@ use the local report-only fallback:
 FALLOW_AGENT_SOURCE=codex npm run --silent fallow:audit -- --base origin/development --gate all > /private/tmp/artifact-fallow-audit.json 2>/dev/null || true
 ```
 
-During v0.31 release prep, that fallback returned `verdict: "fail"` because it
-includes inherited package-manifest dependency findings for `@artifact/shared`
-and `isbot`. CI keeps the Fallow job report-only while those findings are
-triaged.
+During final v0.31 release prep, that fallback returned `verdict: "fail"`
+because changed-code complexity findings remain report-only. It reported zero
+dead-code issues and zero duplication clone groups. CI keeps the Fallow job
+report-only while stricter thresholds and suppressions are decided.
 
 Do not treat this baseline as a deletion list. Every removal needs a focused
 trace command, the lowest useful test, and normal release validation.
+
+Final release-prep cleanup note: after trace validation and normal release-gate
+coverage, v0.31 removed the duplicated-code baseline instead of leaving it as a
+future backlog item. The final local Fallow report lives at
+`/private/tmp/artifact-fallow-zero-final-report.json` during release prep and
+reported zero issues, duplicated lines, clone groups, clone instances, files
+with clones, and duplication percentage.
 
 ## Baseline Summary
 
@@ -51,6 +58,21 @@ trace command, the lowest useful test, and normal release validation.
 | Re-export cycles | 0 |
 | Unresolved imports | 0 |
 | Boundary violations | 0 |
+
+## Final Cleanup Result
+
+| Area | Count |
+| --- | ---: |
+| Issues | 0 |
+| Duplicate clone groups | 0 |
+| Clone instances | 0 |
+| Files with clones | 0 |
+| Duplicated lines | 0 |
+| Duplication percentage | 0% |
+
+The final changed-code audit fallback still returned `verdict: "fail"` because
+changed-code complexity findings remain report-only. It reported zero
+dead-code issues and zero duplication clone groups.
 
 ## First Findings
 

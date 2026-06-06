@@ -37,18 +37,20 @@ CI should run:
 - `npm run check`, `npm run build`, and `npm run test:browser` passed.
 - Full browser coverage passed across Chromium, Firefox, WebKit, mobile
   Chromium, and mobile WebKit with `270 passed, 25 skipped`.
-- Fallow is integrated as a report-only local and CI workflow. The CI job is
-  intentionally non-blocking while the first baseline is reviewed.
+- Fallow is integrated as a local and CI workflow. The CI job now runs the
+  baseline report and blocks pull requests on the changed-code audit.
 - The v0.31 Fallow baseline is captured in `docs/fallow-v0.31-baseline.md` and
-  classifies dead-code/dependency findings, duplication, complexity hotspots,
-  and cleanup priorities without applying deletions or suppressions.
-- The local changed-code audit fallback returned a report-only
-  `verdict: "fail"` because existing dependency findings for
-  `@artifact/shared` and `isbot` are present in changed package manifests.
-- `npm run perf:node-editor` was not required because v0.31 changed Fallow
-  tooling, CI, package metadata, and internal documentation only. It did not
-  change React Flow wiring, node-editor rendering, high-frequency gestures,
-  thumbnail scheduling, or editor behavior.
+  records both the initial report and the final zero-duplication cleanup result.
+- The final Fallow report is clean: zero issues, zero duplicated lines, zero
+  clone groups, zero clone instances, zero files with clones, and zero
+  duplication percentage.
+- The final changed-code audit returned `verdict: "pass"` with zero dead-code
+  issues, zero complexity findings, and zero duplication clone groups.
+- `npm run perf:node-editor` passed after rerunning outside the filesystem
+  sandbox because the benchmark needs to bind `127.0.0.1:4174`. Node drag and
+  graph pan had zero long tasks with p95 frame times around `17.5ms`; the effect
+  slider had zero long tasks with p95 around `17.4ms`. Initial node-editor load
+  still has startup long tasks and remains a future performance follow-up.
 - No renderer, graph traversal, export, persistence, document schema, landing,
   Showcase, How-to, AI scope, package export, or font-policy behavior changed
   as intended release scope.

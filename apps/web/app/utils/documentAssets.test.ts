@@ -6,6 +6,7 @@ import {
   preparePortableDocument,
   storePortableDocumentAssets,
 } from './documentAssets';
+import { makePortableAssetLoaders } from './documentAssetTestHelpers';
 import { fontUriFromId } from './fontStore';
 import { EXPORT_NODE_ID } from './nodeGraph';
 
@@ -73,8 +74,12 @@ describe('documentAssets', () => {
   });
 
   it('prepares portable documents by hydrating imported images and fonts', async () => {
-    const loadAssetDataUrl = vi.fn(async (src: string) => (src === imageRef ? imageDataUrl : null));
-    const loadFontAsset = vi.fn(async (font: string) => (font === fontRef ? fontAsset : null));
+    const { loadAssetDataUrl, loadFontAsset } = makePortableAssetLoaders({
+      imageRef,
+      imageDataUrl,
+      fontRef,
+      fontAsset,
+    });
 
     const portable = await preparePortableDocument(
       doc({ layers: [makeImageLayer(imageRef), makeTextLayer({ font: fontRef })] }),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { AddAction, InsertConnectionConfig } from '../components/NodeCanvas';
+import type { InsertConnectionConfig } from '../components/NodeCanvas';
 import {
   type AspectRatio,
   type CanvasDocument,
@@ -12,6 +12,7 @@ import {
   type Layer,
   type LayerKind,
 } from '../types/config';
+import type { AddAction } from '../utils/addActions';
 import { type ArrayPresetId, makeArrayPresetLayer } from '../utils/arrayPresets';
 import {
   hasPortableDocumentPayloads,
@@ -65,6 +66,38 @@ import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets'
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import type { TextPresetId } from '../utils/textPresets';
+
+type GeneratorLayerInsertAction =
+  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
+  | { kind: 'textPreset'; preset: TextPresetId }
+  | { kind: 'aiImage' }
+  | { kind: 'noisePreset'; preset: NoisePresetId }
+  | { kind: 'arrayPreset'; preset: ArrayPresetId }
+  | { kind: 'effect'; preset: EffectPreset };
+
+function isEditableUndoTarget(target: EventTarget | null) {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+}
+
+function isUndoShortcut(event: KeyboardEvent) {
+  return (event.metaKey || event.ctrlKey) && event.key === 'z' && !isEditableUndoTarget(event.target);
+}
+
+const INSERT_LAYER_BUILDERS = {
+  layer: (action: Extract<GeneratorLayerInsertAction, { kind: 'layer' }>) => createLayerOfKind(action.layerKind),
+  textPreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'textPreset' }>) =>
+    createTextPresetLayer(action.preset),
+  aiImage: () => createAiImageLayer(),
+  noisePreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'noisePreset' }>) =>
+    makeNoisePresetLayer(action.preset),
+  arrayPreset: (action: Extract<GeneratorLayerInsertAction, { kind: 'arrayPreset' }>) =>
+    makeArrayPresetLayer(action.preset),
+  effect: (action: Extract<GeneratorLayerInsertAction, { kind: 'effect' }>) => createEffectPresetLayer(action.preset),
+} satisfies Record<string, (action: never) => Layer>;
+
+function createLayerForInsertAction(action: GeneratorLayerInsertAction): Layer {
+  return INSERT_LAYER_BUILDERS[action.kind](action as never);
+}
 
 export function useGeneratorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
@@ -181,28 +214,29 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const applyHistoryNavigation = useCallback(
+    (navigate: typeof undoHistory | typeof redoHistory) => {
+      clearPendingHistory();
+      const result = navigate({ past, future }, docRef.current);
+      if (!result) return;
+      setPast(result.past);
+      setFuture(result.future);
+      _setDoc(result.doc);
+    },
+    [clearPendingHistory, future, past],
+  );
+
   const undo = useCallback(() => {
-    clearPendingHistory();
-    const result = undoHistory({ past, future }, docRef.current);
-    if (!result) return;
-    setPast(result.past);
-    setFuture(result.future);
-    _setDoc(result.doc);
-  }, [clearPendingHistory, future, past]);
+    applyHistoryNavigation(undoHistory);
+  }, [applyHistoryNavigation]);
 
   const redo = useCallback(() => {
-    clearPendingHistory();
-    const result = redoHistory({ past, future }, docRef.current);
-    if (!result) return;
-    setPast(result.past);
-    setFuture(result.future);
-    _setDoc(result.doc);
-  }, [clearPendingHistory, future, past]);
+    applyHistoryNavigation(redoHistory);
+  }, [applyHistoryNavigation]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== 'z') return;
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (!isUndoShortcut(event)) return;
       event.preventDefault();
       if (event.shiftKey) redo();
       else undo();
@@ -284,28 +318,8 @@ export function useGeneratorDocument(nodeModeEnabled: boolean) {
   );
 
   const insertLayerAbove = useCallback(
-    (
-      targetLayerId: string,
-      action:
-        | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-        | { kind: 'textPreset'; preset: TextPresetId }
-        | { kind: 'aiImage' }
-        | { kind: 'noisePreset'; preset: NoisePresetId }
-        | { kind: 'arrayPreset'; preset: ArrayPresetId }
-        | { kind: 'effect'; preset: EffectPreset },
-    ) => {
-      const layer =
-        action.kind === 'effect'
-          ? createEffectPresetLayer(action.preset)
-          : action.kind === 'textPreset'
-            ? createTextPresetLayer(action.preset)
-            : action.kind === 'aiImage'
-              ? createAiImageLayer()
-              : action.kind === 'noisePreset'
-                ? makeNoisePresetLayer(action.preset)
-                : action.kind === 'arrayPreset'
-                  ? makeArrayPresetLayer(action.preset)
-                  : createLayerOfKind(action.layerKind);
+    (targetLayerId: string, action: GeneratorLayerInsertAction) => {
+      const layer = createLayerForInsertAction(action);
       updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },

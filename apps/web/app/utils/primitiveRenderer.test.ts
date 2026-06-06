@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { makeSourceLayer } from '../types/config';
 import { primitiveRendererTestInternals, renderPrimitiveToCanvas } from './primitiveRenderer';
+import { measureAlphaBounds } from './render/alphaBounds';
 
 function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -13,25 +14,7 @@ function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
 }
 
 function visibleBounds(canvas: HTMLCanvasElement): { width: number; height: number } | null {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      const index = (y * canvas.width + x) * 4;
-      const alpha = data[index + 3] ?? 0;
-      if (alpha <= 8) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  if (maxX < minX || maxY < minY) return null;
-  return { width: maxX - minX + 1, height: maxY - minY + 1 };
+  return measureAlphaBounds(canvas);
 }
 
 describe('renderPrimitiveToCanvas', () => {

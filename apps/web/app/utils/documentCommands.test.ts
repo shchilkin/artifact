@@ -75,6 +75,67 @@ function makeGraph(): CanvasGraph {
   };
 }
 
+function makeEdgeId(fromId: string, toId: string, index: number) {
+  return `edge-${index}-${fromId}-${toId}`;
+}
+
+function addNodeToFillSource(
+  action: Parameters<typeof addNodeAtDocument>[1],
+  connection: Parameters<typeof addNodeAtDocument>[3] = { sourceId: 'fill-a' },
+) {
+  return addNodeAtDocument(makeDoc(makeGraph()), action, { x: 460, y: 320 }, connection, makeEdgeId);
+}
+
+function expectInsertedLayerBackedNode(
+  result: ReturnType<typeof addNodeAtDocument>,
+  layer: Record<string, unknown>,
+  makeEdge: (layerId: string) => Record<string, unknown>,
+) {
+  const layerId = result.selectedLayerId;
+  expect(layerId).toBeTruthy();
+  expect(result.doc.layers[1]).toMatchObject({ id: layerId, ...layer });
+  expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
+  expect(result.doc.graph?.edges).toContainEqual(makeEdge(layerId!));
+  return layerId;
+}
+
+function expectFillBInsertedAboveFillA(doc: CanvasDocument, next: CanvasDocument) {
+  expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
+  expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+}
+
+function expectInsertedRepeatNode(result: ReturnType<typeof addNodeAtDocument>, position: { x: number; y: number }) {
+  const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
+  expect(result.selectedLayerId).toBeNull();
+  expect(repeatNode).toBeDefined();
+  expect(result.doc.graph?.positions[repeatNode!.id]).toEqual(position);
+  return repeatNode!;
+}
+
+function expectSelectedLayerInsertedAtMiddle(result: ReturnType<typeof addNodeAtDocument>) {
+  const layerId = result.selectedLayerId;
+  expect(layerId).toBeTruthy();
+  expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
+  return layerId!;
+}
+
+function expectReorderedTextBeforeFill(next: CanvasDocument) {
+  expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
+  expect(next.graph?.edges).toEqual([
+    { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
+    { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+  ]);
+  expect(next.graph?.positions['text-a']?.x).toBeLessThan(next.graph?.positions['fill-a']?.x ?? 0);
+}
+
+function makeLockedFillDoc(): CanvasDocument {
+  const base = makeDoc(makeGraph());
+  return {
+    ...base,
+    layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
+  };
+}
+
 describe('documentCommands', () => {
   it('bootstraps a graph without mutating the layer list', () => {
     const doc = makeDoc();
@@ -120,8 +181,7 @@ describe('documentCommands', () => {
     const layer = makeFillLayer({ id: 'fill-b', name: 'Fill B' });
     const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
 
-    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
-    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expectFillBInsertedAboveFillA(doc, next);
     expect(next.graph).toBeUndefined();
     expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
   });
@@ -145,8 +205,7 @@ describe('documentCommands', () => {
     const doc = makeDoc(graph);
     const next = insertLayerAboveInDocument(doc, 'fill-a', makeFillLayer({ id: 'fill-b' }));
 
-    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
-    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expectFillBInsertedAboveFillA(doc, next);
     expect(next.graph?.edges).not.toContainEqual(expect.objectContaining({ id: 'e-fill-a-text-a' }));
     expect(next.graph?.edges).toContainEqual({
       id: 'e-fill-a-fill-b',
@@ -170,8 +229,7 @@ describe('documentCommands', () => {
     const layer = makeFillLayer({ id: 'fill-b' });
     const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
 
-    expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
-    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
+    expectFillBInsertedAboveFillA(doc, next);
     expect(next.graph?.edges).toEqual([
       { id: 'e-fill-a-fill-b', fromId: 'fill-a', fromPort: 'out', toId: 'fill-b', toPort: 'bg' },
       { id: 'e-fill-b-text-a', fromId: 'fill-b', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
@@ -250,21 +308,18 @@ describe('documentCommands', () => {
       { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
       (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
     );
-    const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
+    const repeatNode = expectInsertedRepeatNode(result, { x: 380, y: 240 });
 
-    expect(result.selectedLayerId).toBeNull();
-    expect(repeatNode).toBeDefined();
-    expect(result.doc.graph?.positions[repeatNode!.id]).toEqual({ x: 380, y: 240 });
     expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-0-fill-a-${repeatNode!.id}`,
+      id: `edge-0-fill-a-${repeatNode.id}`,
       fromId: 'fill-a',
       fromPort: 'out',
-      toId: repeatNode!.id,
+      toId: repeatNode.id,
       toPort: 'in',
     });
     expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-1-${repeatNode!.id}-${EXPORT_NODE_ID}`,
-      fromId: repeatNode!.id,
+      id: `edge-1-${repeatNode.id}-${EXPORT_NODE_ID}`,
+      fromId: repeatNode.id,
       fromPort: 'out',
       toId: EXPORT_NODE_ID,
       toPort: 'in',
@@ -274,12 +329,9 @@ describe('documentCommands', () => {
   it('inserts repeater presets as configured graph utility nodes', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(doc, { kind: 'repeatPreset', preset: 'orbitRings' }, { x: 420, y: 280 });
-    const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
+    const repeatNode = expectInsertedRepeatNode(result, { x: 420, y: 280 });
 
-    expect(result.selectedLayerId).toBeNull();
-    expect(repeatNode).toBeDefined();
     expect(repeatNode).toMatchObject(REPEAT_PRESETS.orbitRings.patch);
-    expect(result.doc.graph?.positions[repeatNode!.id]).toEqual({ x: 420, y: 280 });
   });
 
   it('inserts layer and effect nodes with the correct input ports', () => {
@@ -327,56 +379,31 @@ describe('documentCommands', () => {
   });
 
   it('inserts text preset nodes as normal text layers', () => {
-    const doc = makeDoc(makeGraph());
-    const result = addNodeAtDocument(
-      doc,
-      { kind: 'textPreset', preset: 'poster' },
-      { x: 460, y: 320 },
-      { sourceId: 'fill-a' },
-      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    const result = addNodeToFillSource({ kind: 'textPreset', preset: 'poster' });
+    expectInsertedLayerBackedNode(
+      result,
+      { kind: 'text', name: 'Poster Type', content: 'POSTER', font: 'BUNGEE' },
+      (layerId) => ({
+        id: `edge-0-fill-a-${layerId}`,
+        fromId: 'fill-a',
+        fromPort: 'out',
+        toId: layerId,
+        toPort: 'bg',
+      }),
     );
-    const layerId = result.selectedLayerId;
-
-    expect(layerId).toBeTruthy();
-    expect(result.doc.layers[1]).toMatchObject({
-      id: layerId,
-      kind: 'text',
-      name: 'Poster Type',
-      content: 'POSTER',
-      font: 'BUNGEE',
-    });
-    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
-    expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-0-fill-a-${layerId}`,
-      fromId: 'fill-a',
-      fromPort: 'out',
-      toId: layerId,
-      toPort: 'bg',
-    });
   });
 
   it('inserts an AI image as a normal image layer node', () => {
-    const doc = makeDoc(makeGraph());
-    const result = addNodeAtDocument(
-      doc,
-      { kind: 'aiImage' },
-      { x: 460, y: 320 },
-      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
-      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
-    );
-    const layerId = result.selectedLayerId;
-
-    expect(layerId).toBeTruthy();
-    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
-    expect(result.doc.layers[1]).toMatchObject({ id: layerId, kind: 'image', name: 'AI Image', src: '' });
-    expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 460, y: 320 });
-    expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-0-fill-a-${layerId}`,
+    const result = addNodeToFillSource({ kind: 'aiImage' }, { sourceId: 'fill-a', targetId: EXPORT_NODE_ID });
+    const layerId = expectInsertedLayerBackedNode(result, { kind: 'image', name: 'AI Image', src: '' }, (id) => ({
+      id: `edge-0-fill-a-${id}`,
       fromId: 'fill-a',
       fromPort: 'out',
-      toId: layerId,
+      toId: id,
       toPort: 'bg',
-    });
+    }));
+
+    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
     expect(result.doc.graph?.edges).toContainEqual({
       id: `edge-1-${layerId}-${EXPORT_NODE_ID}`,
       fromId: layerId,
@@ -387,18 +414,15 @@ describe('documentCommands', () => {
   });
 
   it('connects a dropped source node into the dragged target port', () => {
-    const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(
-      doc,
+      makeDoc(makeGraph()),
       { kind: 'layer', layerKind: 'noise' },
       { x: -360, y: 240 },
       { targetId: 'text-a', targetPort: 'bg' },
-      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+      makeEdgeId,
     );
-    const layerId = result.selectedLayerId;
+    const layerId = expectSelectedLayerInsertedAtMiddle(result);
 
-    expect(layerId).toBeTruthy();
-    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
     expect(result.doc.layers[1]).toMatchObject({ id: layerId, kind: 'noise' });
     expect(result.doc.layers[1]?.kind === 'noise' ? result.doc.layers[1].seedOffset : 0).toBeGreaterThan(0);
     expect(result.doc.graph?.edges).toContainEqual({
@@ -479,10 +503,8 @@ describe('documentCommands', () => {
         replaceEdgeId: 'e-fill-text',
       },
     );
-    const layerId = result.selectedLayerId;
+    const layerId = expectSelectedLayerInsertedAtMiddle(result);
 
-    expect(layerId).toBeTruthy();
-    expect(result.doc.layers.map((layer) => layer.id)).toEqual(['fill-a', layerId, 'text-a']);
     expect(result.doc.graph?.edges).toContainEqual({
       id: 'e-fill-text__before',
       fromId: 'fill-a',
@@ -582,12 +604,7 @@ describe('documentCommands', () => {
     const reordered = [doc.layers[1]!, doc.layers[0]!];
     const next = reorderDocumentLayers(doc, reordered);
 
-    expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
-    expect(next.graph?.edges).toEqual([
-      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
-      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-    expect(next.graph?.positions['text-a']?.x).toBeLessThan(next.graph?.positions['fill-a']?.x ?? 0);
+    expectReorderedTextBeforeFill(next);
     expect(next.graph).not.toBe(doc.graph);
   });
 
@@ -607,12 +624,7 @@ describe('documentCommands', () => {
     const reordered = [doc.layers[1]!, doc.layers[0]!];
     const next = reorderDocumentLayers(doc, reordered);
 
-    expect(next.layers.map((layer) => layer.id)).toEqual(['text-a', 'fill-a']);
-    expect(next.graph?.edges).toEqual([
-      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
-      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-    expect(next.graph?.positions['text-a']?.x).toBeLessThan(next.graph?.positions['fill-a']?.x ?? 0);
+    expectReorderedTextBeforeFill(next);
     expect(next.graph?.positions[EXPORT_NODE_ID]?.x).toBeGreaterThan(next.graph?.positions['fill-a']?.x ?? 0);
     expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
     expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
@@ -644,22 +656,14 @@ describe('documentCommands', () => {
   });
 
   it('does not remove a locked layer', () => {
-    const base = makeDoc(makeGraph());
-    const doc = {
-      ...base,
-      layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
-    };
+    const doc = makeLockedFillDoc();
     const next = removeLayerFromDocument(doc, 'fill-a');
 
     expect(next).toBe(doc);
   });
 
   it('skips locked layer-backed nodes when deleting a mixed node selection', () => {
-    const base = makeDoc(makeGraph());
-    const doc = {
-      ...base,
-      layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
-    };
+    const doc = makeLockedFillDoc();
     const next = deleteNodesFromDocument(doc, ['fill-a', 'text-a']);
 
     expect(next.layers.map((layer) => layer.id)).toEqual(['fill-a']);

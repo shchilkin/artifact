@@ -40,15 +40,6 @@ export class InMemoryApiStore {
     return this.users.get(id) ?? null;
   }
 
-  async findByEmail(email: string): Promise<UserRow | null> {
-    return Array.from(this.users.values()).find((user) => user.email === email) ?? null;
-  }
-
-  async createUser(input: CreateUserInput): Promise<UserRow> {
-    if (this.users.has(input.id)) throw new Error(`User already exists: ${input.id}`);
-    return this.seedUser(input);
-  }
-
   async upsertUserFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow> {
     const existing = this.users.get(input.id);
     const now = new Date();
@@ -74,13 +65,6 @@ export class InMemoryApiStore {
     };
     this.users.set(row.id, row);
     return row;
-  }
-
-  async setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow> {
-    const user = await this.requireUser(id);
-    const updated = { ...user, ai_enabled: aiEnabled, updated_at: new Date() };
-    this.users.set(id, updated);
-    return updated;
   }
 
   async findGenerationJobByIdForUser(id: string, userId: string): Promise<AiGenerationJobRow | null> {
@@ -183,14 +167,6 @@ export class InMemoryApiStore {
     return row;
   }
 
-  async softDelete(id: string, userId: string, deletedAt: Date): Promise<AssetRow> {
-    const asset = this.assets.get(id);
-    if (!asset || asset.user_id !== userId) throw new Error(`Asset not found: ${id}`);
-    const updated = { ...asset, deleted_at: deletedAt };
-    this.assets.set(id, updated);
-    return updated;
-  }
-
   async findMonthlyUsage(userId: string, period: string): Promise<AiUsageMonthlyRow | null> {
     return this.monthlyUsage.get(monthlyUsageKey(userId, period)) ?? null;
   }
@@ -287,12 +263,6 @@ export class InMemoryApiStore {
     };
     this.jobs.set(row.id, row);
     return row;
-  }
-
-  private async requireUser(id: string): Promise<UserRow> {
-    const user = this.users.get(id);
-    if (!user) throw new Error(`User not found: ${id}`);
-    return user;
   }
 
   private async requireJob(id: string): Promise<AiGenerationJobRow> {

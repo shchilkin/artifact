@@ -20,7 +20,7 @@ import {
 } from './fontStore';
 
 export const ARTIFACT_PROJECT_PACKAGE_KIND = 'artifact-project-package';
-export const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
+const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
 export const ARTIFACT_PROJECT_PACKAGE_EXTENSION = '.artifact';
 export const ARTIFACT_PROJECT_PACKAGE_MIME = 'application/vnd.artifact.project+json';
 
@@ -170,53 +170,105 @@ function buildFontInventory(
   metadataById: Map<string, ProjectPackageFontMetadata>,
   mode: ProjectPackageFontEmbeddingMode,
 ): ProjectPackageFontInventoryItem[] {
-  return Array.from(textLayersByFont(doc).entries()).map(([font, layers]) => {
-    const layerIds = layers.map((layer) => layer.id);
-    const textContents = unique(layers.map((layer) => layer.content));
+  return Array.from(textLayersByFont(doc).entries()).map(([font, layers]) =>
+    fontInventoryItem(font, layers, metadataById, mode),
+  );
+}
 
-    if (isBundledFontName(font)) {
-      const item = getBundledFontRegistryItem(font);
-      return {
-        ref: font,
-        kind: 'bundled',
-        layerIds,
-        textContents,
-        label: item.label,
-        family: item.family,
-        embedding: 'bundled-registry',
-        recovery: 'registry-font',
-      };
-    }
+function fontInventoryItem(
+  font: string,
+  layers: TextLayer[],
+  metadataById: Map<string, ProjectPackageFontMetadata>,
+  mode: ProjectPackageFontEmbeddingMode,
+): ProjectPackageFontInventoryItem {
+  const layerIds = layers.map((layer) => layer.id);
+  const textContents = unique(layers.map((layer) => layer.content));
+  if (isBundledFontName(font)) return bundledFontInventoryItem(font, layerIds, textContents);
+  if (isFontUri(font)) return importedFontInventoryItem(font, layerIds, textContents, metadataById, mode);
+  return unknownFontInventoryItem(font, layerIds, textContents);
+}
 
-    if (isFontUri(font)) {
-      const id = fontIdFromUri(font);
-      const asset = id ? metadataById.get(id) : undefined;
-      const embedsOpenFont = mode === 'license-aware' && asset?.embeddingPolicy === 'open-license-embeddable';
-      const embedsFontFile = mode === 'explicit-font-files' || embedsOpenFont;
-      return {
-        ref: font,
-        kind: 'imported',
-        layerIds,
-        textContents,
-        label: asset?.label ?? 'Missing imported font',
-        family: asset?.family ?? font,
-        asset,
-        embedding: asset ? (embedsFontFile ? 'embedded-file' : 'metadata-only') : 'missing-metadata',
-        recovery: 'editable-text-replace-font',
-      };
-    }
+function bundledFontInventoryItem(
+  font: string,
+  layerIds: string[],
+  textContents: string[],
+): ProjectPackageFontInventoryItem {
+  const item = getBundledFontRegistryItem(font);
+  return {
+    ref: font,
+    kind: 'bundled',
+    layerIds,
+    textContents,
+    label: item.label,
+    family: item.family,
+    embedding: 'bundled-registry',
+    recovery: 'registry-font',
+  };
+}
 
-    return {
-      ref: font,
-      kind: 'unknown',
-      layerIds,
-      textContents,
-      label: font,
-      family: font,
-      embedding: 'missing-metadata',
-      recovery: 'editable-text-replace-font',
-    };
-  });
+function importedFontInventoryItem(
+  font: string,
+  layerIds: string[],
+  textContents: string[],
+  metadataById: Map<string, ProjectPackageFontMetadata>,
+  mode: ProjectPackageFontEmbeddingMode,
+): ProjectPackageFontInventoryItem {
+  const asset = importedFontMetadata(font, metadataById);
+  return {
+    ref: font,
+    kind: 'imported',
+    layerIds,
+    textContents,
+    label: importedFontLabel(asset),
+    family: importedFontFamily(asset, font),
+    asset,
+    embedding: importedFontEmbedding(asset, mode),
+    recovery: 'editable-text-replace-font',
+  };
+}
+
+function importedFontMetadata(font: string, metadataById: Map<string, ProjectPackageFontMetadata>) {
+  const id = fontIdFromUri(font);
+  return id ? metadataById.get(id) : undefined;
+}
+
+function importedFontLabel(asset: ProjectPackageFontMetadata | undefined) {
+  return asset?.label ?? 'Missing imported font';
+}
+
+function importedFontFamily(asset: ProjectPackageFontMetadata | undefined, font: string) {
+  return asset?.family ?? font;
+}
+
+function importedFontEmbedding(
+  asset: ProjectPackageFontMetadata | undefined,
+  mode: ProjectPackageFontEmbeddingMode,
+): ProjectPackageFontInventoryItem['embedding'] {
+  if (!asset) return 'missing-metadata';
+  return importedFontEmbedsFile(asset, mode) ? 'embedded-file' : 'metadata-only';
+}
+
+function importedFontEmbedsFile(asset: ProjectPackageFontMetadata, mode: ProjectPackageFontEmbeddingMode) {
+  return (
+    mode === 'explicit-font-files' || (mode === 'license-aware' && asset.embeddingPolicy === 'open-license-embeddable')
+  );
+}
+
+function unknownFontInventoryItem(
+  font: string,
+  layerIds: string[],
+  textContents: string[],
+): ProjectPackageFontInventoryItem {
+  return {
+    ref: font,
+    kind: 'unknown',
+    layerIds,
+    textContents,
+    label: font,
+    family: font,
+    embedding: 'missing-metadata',
+    recovery: 'editable-text-replace-font',
+  };
 }
 
 export function buildArtifactProjectPackageManifest(

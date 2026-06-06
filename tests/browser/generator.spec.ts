@@ -1,7 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
+import {
+  expectLayerCanvasToHavePixels,
+  expectNoBrowserIssues,
+  expectStoredImageLayerAssetUri,
+  expectStoredLayerCount,
+  gotoDocument,
+  setupBrowserTestPage,
+  switchToLayerView,
+  switchToNodeView,
+} from './helpers';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const browserFontFixture = [
@@ -12,7 +22,6 @@ const browserFontFixture = [
   '/Library/Fonts/Arial.ttf',
 ].find((file) => existsSync(file));
 
-const consoleIssues = new WeakMap<Page, string[]>();
 const lightDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 1, aspect: '1:1' },
@@ -862,55 +871,12 @@ const emptyTransparentDocument = {
 };
 
 test.beforeEach(async ({ page }) => {
-  const issues: string[] = [];
-  consoleIssues.set(page, issues);
-  await page.route('**/api/ai/access', async (route) => {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        authenticated: false,
-        enabled: false,
-        disabledReason: 'anonymous',
-      }),
-    });
-  });
-  page.on('console', (message) => {
-    const text = message.text();
-    if (isBenignBrowserTestIssue(text)) return;
-    if (message.type() === 'error' && /clerk\.accounts\.dev/.test(text) && /Failed to fetch/.test(text)) {
-      return;
-    }
-    if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
-    if (message.type() === 'warning' && text.includes('trying to drag a node that is not initialized')) {
-      issues.push(`${message.type()}: ${text}`);
-    }
-  });
-  page.on('pageerror', (error) => {
-    if (isBenignBrowserTestIssue(error.message)) return;
-    issues.push(`pageerror: ${error.message}`);
-  });
+  await setupBrowserTestPage(page, { captureNodeDragWarnings: true });
 });
 
 test.afterEach(async ({ page }) => {
-  expect(consoleIssues.get(page) ?? []).toEqual([]);
+  expectNoBrowserIssues(page);
 });
-
-function isBenignBrowserTestIssue(text: string) {
-  return (
-    text.includes('downloadable font: download failed') ||
-    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
-    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
-    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
-    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
-    text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
-    text.includes('Importing a module script failed') ||
-    text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
-    text.includes('due to access control checks') ||
-    text.includes('NS_BINDING_ABORTED') ||
-    text.includes('Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)') ||
-    text === 'JSHandle@object'
-  );
-}
 
 function readBrowserFontFixture() {
   if (!browserFontFixture) throw new Error('No local browser font fixture found');
@@ -969,12 +935,121 @@ async function captureCopiedShareLink(page: Page) {
   });
 }
 
-test('layer canvas survives switching to nodes and back', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
-  await expectLayerCanvasToHavePixels(page);
-
+async function expectNodeViewHasNodes(page: Page) {
   await switchToNodeView(page);
   await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+}
+
+async function choosePixelFont(page: Page) {
+  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.getByLabel('Search fonts').fill('pixel');
+  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
+  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+}
+
+async function expectPortableTypeReady(page: Page, options: { refs?: boolean; outputNode?: boolean } = {}) {
+  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
+  await expectLayerCanvasToHavePixels(page);
+  if (options.refs) await expectPortableRefsStored(page);
+  if (options.outputNode) {
+    await switchToNodeView(page);
+    await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  }
+}
+
+async function expectMissingFontLayerVisible(page: Page) {
+  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
+  await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
+}
+
+async function startBlankEditor(page: Page) {
+  await page.goto('/app?new=blank');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+}
+
+async function openPixelateNodeAddMenu(page: Page) {
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
+  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+  await expect(pixelateMenuRow).toContainText('Drag');
+  return pixelateMenuRow;
+}
+
+async function selectUnconnectedTopFillNode(page: Page) {
+  await gotoDocument(page, graphPreviewDocument);
+  await switchToNodeView(page);
+  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
+  await expect(orphanNode).toBeVisible({ timeout: 15_000 });
+  await orphanNode.click();
+  return orphanNode;
+}
+
+async function selectFirstNodeByKind(page: Page, kind: string) {
+  const node = page.locator(`.node-shell-kind-${kind}`).first();
+  await expect(node).toBeVisible({ timeout: 15_000 });
+  await node.click();
+  return node;
+}
+
+async function dragMouseFromBoxCenter(
+  page: Page,
+  box: { x: number; y: number; width: number; height: number },
+  delta: { x: number; y: number },
+  steps: number,
+) {
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await dragMouseFromPoint(page, { x: startX, y: startY }, delta, steps);
+}
+
+async function dragMouseFromPoint(
+  page: Page,
+  start: { x: number; y: number },
+  delta: { x: number; y: number },
+  steps: number,
+  options: { release?: boolean } = {},
+) {
+  const startX = start.x;
+  const startY = start.y;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + delta.x, startY + delta.y, { steps });
+  if (options.release !== false) await page.mouse.up();
+}
+
+async function visibleBoundingBox(locator: Locator) {
+  await expect(locator).toBeVisible({ timeout: 15_000 });
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) throw new Error('Expected visible bounding box');
+  return box;
+}
+
+async function expectStarterRows(page: Page, count: number, canvas = true) {
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
+  if (canvas) await expectLayerCanvasToHavePixels(page);
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(count, { timeout: 15_000 });
+}
+
+async function expectGeneratedImageLayer(
+  page: Page,
+  prompt: string,
+  options: { canvas?: boolean; currentPrompt?: boolean; exportDownload?: boolean } = {},
+) {
+  await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
+  if (options.canvas) await expectLayerCanvasToHavePixels(page);
+  if (options.currentPrompt) await expect(page.getByText('Current image prompt')).toBeVisible();
+  await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+  if (options.exportDownload) await expectImageExportDownload(page);
+}
+
+test('layer canvas survives switching to nodes and back', async ({ page }) => {
+  await gotoDocument(page, lightDocument);
+  await expectLayerCanvasToHavePixels(page);
+
+  await expectNodeViewHasNodes(page);
 
   await switchToLayerView(page);
   await expect(page.locator('.sidebar')).toBeVisible();
@@ -982,7 +1057,7 @@ test('layer canvas survives switching to nodes and back', async ({ page }) => {
 });
 
 test('editor visual hierarchy separates panels canvas and selected rows', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
   await expectLayerCanvasToHavePixels(page);
 
   await page.getByText('Top fill', { exact: true }).click();
@@ -1035,7 +1110,7 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
 });
 
 test('rand creates cover-ready text layers with curated fonts', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await gotoDocument(page, lightDocument);
   await page.evaluate(() => {
     let calls = 0;
     Math.random = () => {
@@ -1081,7 +1156,7 @@ test('rand creates cover-ready text layers with curated fonts', async ({ page })
 });
 
 test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await gotoDocument(page, areaMergeDocument);
   await switchToNodeView(page);
   await expect(page.locator('.node-shell-kind-fill')).toBeVisible({ timeout: 15_000 });
 
@@ -1096,6 +1171,20 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
 
   await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
   const stateStyles = await page.evaluate(() => {
+    const styleValue = (styles: CSSStyleDeclaration | null, name: string) =>
+      styles?.getPropertyValue(name).trim() ?? '';
+    const parsedStyleNumber = (value: string, pattern: RegExp, fallback: number) => {
+      const match = value.match(pattern);
+      return match ? Number(match[1]) : fallback;
+    };
+    const readLightness = (styles: CSSStyleDeclaration | null, name: string) =>
+      parsedStyleNumber(styleValue(styles, name), /oklch\(([\d.]+)%/, Number.NaN);
+    const readAlpha = (styles: CSSStyleDeclaration | null, name: string) =>
+      parsedStyleNumber(styleValue(styles, name), /\/\s*([\d.]+)\)/, 1);
+    const backgroundColor = (element: Element | null) => (element ? getComputedStyle(element).backgroundColor : '');
+    const borderColor = (element: Element | null) => (element ? getComputedStyle(element).borderColor : '');
+    const boxShadow = (element: Element | null) => (element ? getComputedStyle(element).boxShadow : '');
+
     const node = document.querySelector('.node-shell-selected');
     const nodeHeader = node?.querySelector('.node-shell-header');
     const area = document.querySelector('.node-area-selected');
@@ -1103,30 +1192,20 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     const perf = document.querySelector('.node-canvas-toolbar button[aria-pressed="true"]');
     const root = document.querySelector('.node-canvas-root');
     const rootStyles = root ? getComputedStyle(root) : null;
-    const readLightness = (name: string) => {
-      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
-      const match = value.match(/oklch\(([\d.]+)%/);
-      return match ? Number(match[1]) : Number.NaN;
-    };
-    const readAlpha = (name: string) => {
-      const value = rootStyles?.getPropertyValue(name).trim() ?? '';
-      const match = value.match(/\/\s*([\d.]+)\)/);
-      return match ? Number(match[1]) : 1;
-    };
     return {
-      canvasBg: root ? getComputedStyle(root).backgroundColor : '',
-      nodeBg: node ? getComputedStyle(node).backgroundColor : '',
-      nodeBorder: node ? getComputedStyle(node).borderColor : '',
-      canvasLightness: readLightness('--editor-canvas-bg'),
-      nodeCardLightness: readLightness('--node-card-bg'),
-      nodeBorderLightness: readLightness('--node-card-border'),
-      gridLightness: readLightness('--editor-grid-dot'),
-      gridAlpha: readAlpha('--editor-grid-dot'),
-      selectedNodeShadow: node ? getComputedStyle(node).boxShadow : '',
-      selectedNodeHeaderBg: nodeHeader ? getComputedStyle(nodeHeader).backgroundColor : '',
-      selectedAreaShadow: area ? getComputedStyle(area).boxShadow : '',
-      selectedAreaLabelBg: areaLabel ? getComputedStyle(areaLabel).backgroundColor : '',
-      perfActiveShadow: perf ? getComputedStyle(perf).boxShadow : '',
+      canvasBg: backgroundColor(root),
+      nodeBg: backgroundColor(node),
+      nodeBorder: borderColor(node),
+      canvasLightness: readLightness(rootStyles, '--editor-canvas-bg'),
+      nodeCardLightness: readLightness(rootStyles, '--node-card-bg'),
+      nodeBorderLightness: readLightness(rootStyles, '--node-card-border'),
+      gridLightness: readLightness(rootStyles, '--editor-grid-dot'),
+      gridAlpha: readAlpha(rootStyles, '--editor-grid-dot'),
+      selectedNodeShadow: boxShadow(node),
+      selectedNodeHeaderBg: backgroundColor(nodeHeader),
+      selectedAreaShadow: boxShadow(area),
+      selectedAreaLabelBg: backgroundColor(areaLabel),
+      perfActiveShadow: boxShadow(perf),
     };
   });
 
@@ -1143,7 +1222,7 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
 });
 
 test('node graph highlights the active output path and exposes output navigation', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+  await gotoDocument(page, graphPreviewDocument);
   await switchToNodeView(page);
 
   const connectedNode = page.locator('.react-flow__node').filter({ hasText: 'Connected fill' });
@@ -1172,7 +1251,7 @@ test('node graph highlights the active output path and exposes output navigation
 });
 
 test('layer visibility updates the rendered canvas', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 221, g: 51, b: 34 });
 
@@ -1182,10 +1261,9 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
 });
 
 test('layer properties show the active editing target and hidden state', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
-  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
   await topFillRow.click();
   await topFillRow.getByRole('button', { name: /Hide layer Top fill/ }).click();
 
@@ -1197,10 +1275,9 @@ test('layer properties show the active editing target and hidden state', async (
 });
 
 test('locked layer surfaces status and blocks row deletion', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
-  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
   await topFillRow.click();
 
   const lockToggle = page.getByLabel('Toggle layer delete and reorder lock');
@@ -1219,13 +1296,10 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect
     .poll(
       async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.map((layer: { id: string; locked?: boolean }) => ({
-            id: layer.id,
-            locked: !!layer.locked,
-          }));
-        }),
+        (await getStoredLayers(page)).map((layer: { id: string; locked?: boolean }) => ({
+          id: layer.id,
+          locked: !!layer.locked,
+        })),
       { timeout: 15_000 },
     )
     .toEqual([
@@ -1235,10 +1309,9 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
 });
 
 test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
-  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
 
   await topFillRow.getByRole('button', { name: /Rename layer Top fill/ }).click();
   const renameInput = page.getByRole('textbox', { name: /Rename layer Top fill/ });
@@ -1254,16 +1327,7 @@ test('layer rows expose rename duplicate visibility and delete actions', async (
   await expect(page.locator('.layer-row')).toHaveCount(3);
 
   await duplicateRow.getByRole('button', { name: /Hide layer Cover Type copy/ }).click();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { name: string }) => layer.name === 'Cover Type copy')?.visible;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(false);
+  await expectStoredLayerField(page, { key: 'name', value: 'Cover Type copy' }, 'visible', false);
 
   await duplicateRow.getByRole('button', { name: /Delete layer Cover Type copy/ }).click();
   await expect(page.locator('.layer-row').filter({ hasText: 'Cover Type copy' })).toHaveCount(0);
@@ -1271,86 +1335,41 @@ test('layer rows expose rename duplicate visibility and delete actions', async (
 });
 
 test('layer rows can quick-add a layer above the current row', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
-  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
-  await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
-  await page
-    .locator('.add-library-row')
-    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Grain$/ }) })
-    .click();
+  await insertLayerAbove(page, 'Top fill', /^Grain$/);
 
   await expect(page.locator('.layer-row').filter({ hasText: 'Grain' })).toHaveCount(1, { timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual([
-      { name: 'Bottom fill', kind: 'fill' },
-      { name: 'Top fill', kind: 'fill' },
-      { name: 'Grain', kind: 'effect' },
-    ]);
+  await expectStoredLayerSummaries(page, [
+    { name: 'Bottom fill', kind: 'fill' },
+    { name: 'Top fill', kind: 'fill' },
+    { name: 'Grain', kind: 'effect' },
+  ]);
 
-  const bottomFillRow = page.locator('.layer-row').filter({ hasText: 'Bottom fill' }).first();
-  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
-  const quickMenu = page.locator('.add-library-layer-quick-menu');
-  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
-  await quickMenu
-    .locator('.add-library-row')
-    .filter({ has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }) })
-    .click();
+  await insertSourceLayerAbove(page, 'Bottom fill', /^AI Image$/);
 
   await expect(page.locator('.layer-row').filter({ hasText: 'AI Image' })).toHaveCount(1, { timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual([
-      { name: 'Bottom fill', kind: 'fill' },
-      { name: 'AI Image', kind: 'image' },
-      { name: 'Top fill', kind: 'fill' },
-      { name: 'Grain', kind: 'effect' },
-    ]);
+  await expectStoredLayerSummaries(page, [
+    { name: 'Bottom fill', kind: 'fill' },
+    { name: 'AI Image', kind: 'image' },
+    { name: 'Top fill', kind: 'fill' },
+    { name: 'Grain', kind: 'effect' },
+  ]);
 
-  await bottomFillRow.getByRole('button', { name: /Insert layer above Bottom fill/ }).click();
-  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
-  await quickMenu
-    .locator('.add-library-row')
-    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Array$/ }) })
-    .click();
+  await insertSourceLayerAbove(page, 'Bottom fill', /^Array$/);
 
   await expect(page.locator('.layer-row').filter({ hasText: 'Array' })).toHaveCount(1, { timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.map((layer: { name: string; kind: string }) => ({ name: layer.name, kind: layer.kind }));
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual([
-      { name: 'Bottom fill', kind: 'fill' },
-      { name: 'Array', kind: 'array' },
-      { name: 'AI Image', kind: 'image' },
-      { name: 'Top fill', kind: 'fill' },
-      { name: 'Grain', kind: 'effect' },
-    ]);
+  await expectStoredLayerSummaries(page, [
+    { name: 'Bottom fill', kind: 'fill' },
+    { name: 'Array', kind: 'array' },
+    { name: 'AI Image', kind: 'image' },
+    { name: 'Top fill', kind: 'fill' },
+    { name: 'Grain', kind: 'effect' },
+  ]);
 });
 
 test('layer add library supports search keyboard add and recent items', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
   const header = page.locator('.layer-panel-header');
   await header.getByRole('button', { name: 'Add layer' }).click();
@@ -1378,7 +1397,7 @@ test('layer add library supports search keyboard add and recent items', async ({
 });
 
 test('layer add library shows source previews and can add source presets', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
   const header = page.locator('.layer-panel-header');
   await header.getByRole('button', { name: 'Add layer' }).click();
@@ -1422,12 +1441,9 @@ test('layer add library shows source previews and can add source presets', async
 });
 
 test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const topFillRow = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
-  await expect(topFillRow).toBeVisible({ timeout: 15_000 });
-  await topFillRow.getByRole('button', { name: /Insert layer above Top fill/ }).click();
-  await page.getByRole('button', { name: /Pixelate/i }).click();
+  await insertLayerAbove(page, 'Top fill', /^Pixelate$/);
 
   const pixelateRow = page.locator('.layer-row').filter({ hasText: 'Pixelate' }).first();
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
@@ -1438,44 +1454,22 @@ test('layers can quick-add Pixelate with formatted creative controls', async ({ 
 });
 
 test('layers can add title text starts with readable font controls', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const header = page.locator('.layer-panel-header');
-  await header.getByRole('button', { name: 'Add layer' }).click();
-  const search = page.getByLabel('Search layers and effects');
-  await expect(search).toBeVisible({ timeout: 15_000 });
-  await search.fill('headline');
-  await page.getByRole('button', { name: /^T Title Type/ }).click();
-
-  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
-  await expect(titleRow).toBeVisible({ timeout: 15_000 });
-  await titleRow.click();
+  await addTitleTypeLayer(page);
   await expect(page.locator('.sidebar')).toContainText('Archivo Black / dense cover');
   await expect(page.locator('.sidebar')).toContainText('TITLE');
-  await page.locator('.sidebar .font-picker-trigger').click();
-  await page.getByLabel('Search fonts').fill('pixel');
-  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
-  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+  await choosePixelFont(page);
   await expectLayerCanvasToHavePixels(page);
 
-  const textLayer = await page.evaluate(() => {
-    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
-  });
+  const textLayer = await getStoredLayerBy(page, 'name', 'Title Type');
   expect(textLayer).toMatchObject({ kind: 'text', content: 'TITLE', font: 'PRESS_START' });
 });
 
 test('layers can import a local font through the shared font picker', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
 
-  const header = page.locator('.layer-panel-header');
-  await header.getByRole('button', { name: 'Add layer' }).click();
-  await page.getByLabel('Search layers and effects').fill('headline');
-  await page.getByRole('button', { name: /^T Title Type/ }).click();
-
-  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
-  await expect(titleRow).toBeVisible({ timeout: 15_000 });
-  await titleRow.click();
+  await addTitleTypeLayer(page);
   await page.locator('.sidebar .font-picker-trigger').click();
   await page.getByLabel('Import font').setInputFiles({
     name: 'Local Poster.ttf',
@@ -1487,10 +1481,7 @@ test('layers can import a local font through the shared font picker', async ({ p
   await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Imported');
   await expectLayerCanvasToHavePixels(page);
 
-  const importedLayer = await page.evaluate(() => {
-    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    return doc.layers?.find((layer: { name: string }) => layer.name === 'Title Type');
-  });
+  const importedLayer = await getStoredLayerBy(page, 'name', 'Title Type');
   expect(importedLayer.font).toMatch(/^artifact-font:\/\//);
 
   await page.reload();
@@ -1522,15 +1513,8 @@ test('layers can import a Google font with license-aware package metadata', asyn
     }),
   );
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
-  const header = page.locator('.layer-panel-header');
-  await header.getByRole('button', { name: 'Add layer' }).click();
-  await page.getByLabel('Search layers and effects').fill('headline');
-  await page.getByRole('button', { name: /^T Title Type/ }).click();
-
-  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
-  await expect(titleRow).toBeVisible({ timeout: 15_000 });
-  await titleRow.click();
+  await gotoDocument(page, layeredFillDocument);
+  await addTitleTypeLayer(page);
   await page.locator('.sidebar .font-picker-trigger').click();
   await page.getByLabel('Import Google font').fill('Mock Google');
   await page.locator('.sidebar .font-picker-google-action').click();
@@ -1539,13 +1523,7 @@ test('layers can import a Google font with license-aware package metadata', asyn
   await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Google');
   await expectLayerCanvasToHavePixels(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save editable project package' }).click();
-  const download = await downloadPromise;
-  const artifactPath = await download.path();
-  expect(artifactPath).toBeTruthy();
-  if (!artifactPath) return;
-  const projectPackage = JSON.parse(readFileSync(artifactPath, 'utf8'));
+  const { json: projectPackage } = await downloadJsonFromButton(page, 'Save editable project package');
 
   expect(projectPackage.manifest?.fontEmbeddingMode).toBe('license-aware');
   expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
@@ -1563,57 +1541,67 @@ test('layers can import a Google font with license-aware package metadata', asyn
 test('portable documents save and reopen imported image and font payloads', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable payload download/import coverage runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await gotoDocument(page, portableAssetDocument);
   await expectLayerCanvasToHavePixels(page);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save document file' }).click();
-  const download = await downloadPromise;
-  const artifactPath = await download.path();
-  expect(artifactPath).toBeTruthy();
-  if (!artifactPath) return;
-  const artifactJson = readFileSync(artifactPath, 'utf8');
-  const artifactDoc = JSON.parse(artifactJson);
+  const { raw: artifactJson, json: artifactDoc } = await downloadJsonFromButton(page, 'Save document file');
   const portableImage = artifactDoc.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
 
   expect(portableImage?.src).toContain('data:image/');
   expect(artifactDoc.fontAssets?.[0]?.dataUrl).toContain('data:font/');
 
-  await page.goto('/app?new=blank');
-  const chooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Open document file' }).click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles({
+  await openDocumentFileFromBuffer(page, {
     name: 'portable-assets.artifact.json',
     mimeType: 'application/json',
     buffer: Buffer.from(artifactJson),
   });
 
-  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
-  await expectPortableRefsStored(page);
+  await expectPortableTypeReady(page, { refs: true });
 });
 
 test('project packages save images with license-aware font policy by default', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Project package download/import coverage runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await gotoDocument(page, portableAssetDocument);
   await expectLayerCanvasToHavePixels(page);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save editable project package' }).click();
-  const download = await downloadPromise;
-  const artifactPath = await download.path();
-  expect(artifactPath).toBeTruthy();
-  if (!artifactPath) return;
-  const packageJson = readFileSync(artifactPath, 'utf8');
-  const projectPackage = JSON.parse(packageJson);
-  const packagedImage = projectPackage.document?.layers?.find((layer: { id: string }) => layer.id === 'portable-image');
+  const { raw: packageJson, json: projectPackage } = await downloadJsonFromButton(
+    page,
+    'Save editable project package',
+  );
+  expectLicenseAwareProjectPackage(projectPackage);
+  await expectExplicitFontProjectPackage(page);
+
+  await openDocumentFileFromBuffer(page, {
+    name: 'portable-assets.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+
+  await expectPortableTypeReady(page);
+});
+
+interface DownloadedProjectPackage {
+  artifactPackage?: unknown;
+  manifest?: {
+    fontEmbeddingMode?: unknown;
+    rasterExportPolicy?: unknown;
+    editableTextPolicy?: unknown;
+    fonts?: unknown[];
+  };
+  document?: {
+    layers?: Array<{ id: string; src?: string }>;
+    fontAssets?: unknown[];
+  };
+}
+
+function expectLicenseAwareProjectPackage(projectPackage: DownloadedProjectPackage) {
+  const packagedImage = projectPackage.document?.layers?.find((layer) => layer.id === 'portable-image');
 
   expect(projectPackage.artifactPackage).toBe('project');
   expect(projectPackage.manifest?.fontEmbeddingMode).toBe('license-aware');
@@ -1627,7 +1615,9 @@ test('project packages save images with license-aware font policy by default', a
   });
   expect(packagedImage?.src).toContain('data:image/');
   expect(projectPackage.document?.fontAssets).toBeUndefined();
+}
 
+async function expectExplicitFontProjectPackage(page: Page) {
   const explicitDialogPromise = new Promise<string>((resolve) => {
     page.once('dialog', async (dialog) => {
       const message = dialog.message();
@@ -1641,45 +1631,27 @@ test('project packages save images with license-aware font policy by default', a
   await expect(explicitDialogPromise).resolves.toContain('PKG+FONTS embeds imported local font files');
   const explicitArtifactPath = await explicitDownload.path();
   expect(explicitArtifactPath).toBeTruthy();
-  if (explicitArtifactPath) {
-    const explicitPackage = JSON.parse(readFileSync(explicitArtifactPath, 'utf8'));
-    expect(explicitPackage.manifest?.fontEmbeddingMode).toBe('explicit-font-files');
-    expect(explicitPackage.manifest?.fonts?.[0]).toMatchObject({
-      kind: 'imported',
-      embedding: 'embedded-file',
-    });
-    expect(explicitPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
-  }
-
-  await page.goto('/app?new=blank');
-  const chooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Open document file' }).click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles({
-    name: 'portable-assets.artifact',
-    mimeType: 'application/vnd.artifact.project+json',
-    buffer: Buffer.from(packageJson),
+  if (!explicitArtifactPath) return;
+  const explicitPackage = JSON.parse(readFileSync(explicitArtifactPath, 'utf8'));
+  expect(explicitPackage.manifest?.fontEmbeddingMode).toBe('explicit-font-files');
+  expect(explicitPackage.manifest?.fonts?.[0]).toMatchObject({
+    kind: 'imported',
+    embedding: 'embedded-file',
   });
-
-  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
-});
+  expect(explicitPackage.document?.fontAssets?.[0]?.dataUrl).toContain('data:font/');
+}
 
 test('project packages keep missing-font text editable for replacement', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Missing-font package coverage runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingFontDocument))}`);
+  await gotoDocument(page, missingFontDocument);
   await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
   await expectLayerCanvasToHavePixels(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save editable project package' }).click();
-  const download = await downloadPromise;
-  const artifactPath = await download.path();
-  expect(artifactPath).toBeTruthy();
-  if (!artifactPath) return;
-  const packageJson = readFileSync(artifactPath, 'utf8');
-  const projectPackage = JSON.parse(packageJson);
+  const { raw: packageJson, json: projectPackage } = await downloadJsonFromButton(
+    page,
+    'Save editable project package',
+  );
 
   expect(projectPackage.document?.fontAssets).toBeUndefined();
   expect(projectPackage.manifest?.fonts?.[0]).toMatchObject({
@@ -1690,46 +1662,30 @@ test('project packages keep missing-font text editable for replacement', async (
     textContents: ['FONT FALLBACK'],
   });
 
-  await page.goto('/app?new=blank');
-  const chooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Open document file' }).click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles({
+  await openDocumentFileFromBuffer(page, {
     name: 'missing-font.artifact',
     mimeType: 'application/vnd.artifact.project+json',
     buffer: Buffer.from(packageJson),
   });
 
-  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
-  await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
-  await page.locator('.sidebar .font-picker-trigger').click();
-  await page.getByLabel('Search fonts').fill('pixel');
-  await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
-  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+  await expectMissingFontLayerVisible(page);
+  await choosePixelFont(page);
 
-  const textLayer = await page.evaluate(() => {
-    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    return doc.layers?.find((layer: { id: string }) => layer.id === 'missing-font-text');
-  });
+  const textLayer = await getStoredLayerBy(page, 'id', 'missing-font-text');
   expect(textLayer).toMatchObject({ kind: 'text', content: 'FONT FALLBACK', font: 'PRESS_START' });
 });
 
 test('project packages reopen graph documents with output previews', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Graph package coverage runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetGraphDocument))}`);
+  await gotoDocument(page, portableAssetGraphDocument);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save editable project package' }).click();
-  const download = await downloadPromise;
-  const artifactPath = await download.path();
-  expect(artifactPath).toBeTruthy();
-  if (!artifactPath) return;
-  const packageJson = readFileSync(artifactPath, 'utf8');
-  const projectPackage = JSON.parse(packageJson);
+  const { raw: packageJson, json: projectPackage } = await downloadJsonFromButton(
+    page,
+    'Save editable project package',
+  );
 
   expect(projectPackage.manifest?.hasGraphExportTarget).toBe(true);
   expect(projectPackage.manifest?.missingGraphExportTarget).toBe(false);
@@ -1737,59 +1693,44 @@ test('project packages reopen graph documents with output previews', async ({ pa
     expect.arrayContaining([expect.objectContaining({ fromId: 'portable-type', toId: '__export__', toPort: 'in' })]),
   );
 
-  await page.goto('/app?new=blank');
-  const chooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Open document file' }).click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles({
+  await openDocumentFileFromBuffer(page, {
     name: 'portable-graph.artifact',
     mimeType: 'application/vnd.artifact.project+json',
     buffer: Buffer.from(packageJson),
   });
 
-  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
-  await switchToNodeView(page);
-  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  await expectPortableTypeReady(page, { outputNode: true });
 });
 
 test('portable stack documents with imported image and font export', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable asset export smoke runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await gotoDocument(page, portableAssetDocument);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'EXPORT' }).click();
-  const download = await downloadPromise;
-
-  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expectImageExportDownload(page);
 });
 
 test('portable graph documents export imported assets through the output node', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable graph export smoke runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetGraphDocument))}`);
+  await gotoDocument(page, portableAssetGraphDocument);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
   await switchToNodeView(page);
   await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'EXPORT' }).click();
-  const download = await downloadPromise;
-
-  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expectImageExportDownload(page);
 });
 
 test('portable share links include imported image and font payloads', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable share-link coverage runs once in Chromium.');
 
   await captureCopiedShareLink(page);
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableShareLinkDocument))}`);
+  await gotoDocument(page, portableShareLinkDocument);
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
 
@@ -1810,17 +1751,15 @@ test('portable share links include imported image and font payloads', async ({ p
   expect(portableImage?.src).toContain('data:image/');
   expect(shareDoc.fontAssets?.[0]?.dataUrl).toContain('data:font/');
 
-  await page.goto('/app?new=blank');
+  await startBlankEditor(page);
   await page.goto(shareUrl);
-  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
-  await expectPortableRefsStored(page);
+  await expectPortableTypeReady(page, { refs: true });
 });
 
 test('local projects preserve imported image and font assets across save and load', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Portable local-project coverage runs once in Chromium.');
 
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(portableAssetDocument))}`);
+  await gotoDocument(page, portableAssetDocument);
   await importPortableFontForLayer(page);
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
@@ -1830,18 +1769,15 @@ test('local projects preserve imported image and font assets across save and loa
   await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
 
-  await page.goto('/app?new=blank');
-  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await startBlankEditor(page);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByRole('button', { name: 'Load Portable Project' }).click();
 
-  await expect(page.locator('.layer-row').filter({ hasText: 'Portable Type' })).toBeVisible({ timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
-  await expectPortableRefsStored(page);
+  await expectPortableTypeReady(page, { refs: true });
 });
 
 test('missing imported image shows a clear replacement state', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingImageDocument))}`);
+  await gotoDocument(page, missingImageDocument);
   await page.locator('.layer-row').filter({ hasText: 'Missing Image' }).click();
 
   await expect(page.getByText('Image unavailable')).toBeVisible({ timeout: 15_000 });
@@ -1850,15 +1786,12 @@ test('missing imported image shows a clear replacement state', async ({ page }) 
 });
 
 test('missing imported font keeps fallback text visible', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(missingFontDocument))}`);
-  await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
-
-  await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
+  await gotoDocument(page, missingFontDocument);
+  await expectMissingFontLayerVisible(page);
 });
 
 test('effect node inspector exposes and persists local seed offsets', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(effectSeedDocument))}`);
+  await gotoDocument(page, effectSeedDocument);
   await switchToNodeView(page);
 
   const effectNode = page.locator('[data-node-id="effect-seed-grain"]');
@@ -1877,20 +1810,11 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
     slider.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { id: string }) => layer.id === 'effect-seed-grain')?.seedOffset;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(42);
+  await expectStoredLayerField(page, { key: 'id', value: 'effect-seed-grain' }, 'seedOffset', 42);
 });
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerTextEffectDragDocument))}`);
+  await gotoDocument(page, layerTextEffectDragDocument);
   await page.getByText('Drag text', { exact: true }).click();
   await expectLayerCanvasToHavePixels(page);
 
@@ -1911,7 +1835,7 @@ test('layer text drag keeps effect stack active during movement', async ({ page 
 });
 
 test('layer preview follows graph output when unconnected layers exist', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
+  await gotoDocument(page, graphPreviewDocument);
 
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 46, g: 107, b: 217 });
   await switchToNodeView(page);
@@ -1921,13 +1845,7 @@ test('layer preview follows graph output when unconnected layers exist', async (
 });
 
 test('node properties show whether the selected target feeds output', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
-  await switchToNodeView(page);
-
-  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
-  await expect(orphanNode).toBeVisible({ timeout: 15_000 });
-  await orphanNode.click();
-
+  await selectUnconnectedTopFillNode(page);
   const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
@@ -1937,12 +1855,7 @@ test('node properties show whether the selected target feeds output', async ({ p
 });
 
 test('locked node target stays in the graph when delete is pressed', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(graphPreviewDocument))}`);
-  await switchToNodeView(page);
-
-  const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
-  await expect(orphanNode).toBeVisible({ timeout: 15_000 });
-  await orphanNode.click();
+  const orphanNode = await selectUnconnectedTopFillNode(page);
   const nodePropsPanel = page.locator('.node-props-panel-open');
   await expect(nodePropsPanel).toBeVisible();
   await nodePropsPanel.getByLabel('Toggle node delete lock').check();
@@ -1954,20 +1867,11 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
   await page.keyboard.press('Delete');
 
   await expect(orphanNode).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { id: string }) => layer.id === 'graph-unconnected-fill')?.locked;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(true);
+  await expectStoredLayerField(page, { key: 'id', value: 'graph-unconnected-fill' }, 'locked', true);
 });
 
 test('output properties explain missing graph input', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(outputNoInputDocument))}`);
+  await gotoDocument(page, outputNoInputDocument);
   await switchToNodeView(page);
 
   const outputNode = page.locator('.react-flow__node').filter({ hasText: 'OUTPUT' });
@@ -1982,7 +1886,7 @@ test('output properties explain missing graph input', async ({ page }) => {
 });
 
 test('graph-only utility properties show area and output context without lock controls', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await gotoDocument(page, areaMergeDocument);
   await switchToNodeView(page);
 
   const mergeNode = page.locator('.react-flow__node').filter({ hasText: 'MERGE' });
@@ -2001,7 +1905,7 @@ test('graph-only utility properties show area and output context without lock co
 });
 
 test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
   await switchToLayerView(page);
 
@@ -2013,16 +1917,7 @@ test('layers added after graph bootstrap connect into the export path', async ({
     .first()
     .click();
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.length ?? 0;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(2);
+  await expectStoredLayerCount(page, 2);
 
   const graphState = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
@@ -2104,7 +1999,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
 });
 
 test('node performance debug toggle persists', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
 
   await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
@@ -2120,6 +2015,7 @@ test('node performance debug toggle persists', async ({ page }) => {
 });
 
 test('default document can export from the browser', async ({ page, browserName }) => {
+  test.setTimeout(60_000);
   test.skip(
     browserName === 'firefox',
     'Firefox download events are unreliable in GitHub Actions; export download smoke runs in Chromium/WebKit.',
@@ -2128,15 +2024,11 @@ test('default document can export from the browser', async ({ page, browserName 
   await page.goto('/app');
   await expectLayerCanvasToHavePixels(page);
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'EXPORT' }).click();
-  const download = await downloadPromise;
-
-  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+  await expectImageExportDownload(page);
 });
 
 test('current document can be saved into local projects', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await gotoDocument(page, lightDocument);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByLabel('Project name').fill('Browser Project');
   await page.getByRole('button', { name: 'SAVE', exact: true }).click();
@@ -2160,16 +2052,7 @@ test('uploaded images are stored as asset references and survive reload', async 
 
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
-        }),
-      { timeout: 15_000 },
-    )
-    .toMatch(/^artifact-asset:\/\//);
+  await expectStoredImageLayerAssetUri(page);
 
   await page.reload();
   await expectLayerCanvasToHavePixels(page);
@@ -2222,10 +2105,9 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
 });
 
 test('layer drag reorder shows a readable insertion target and syncs the linear graph', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layeredFillDocument))}`);
+  await gotoDocument(page, layeredFillDocument);
   await expectLayerCanvasToHavePixels(page);
-  await switchToNodeView(page);
-  await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+  await expectNodeViewHasNodes(page);
   await switchToLayerView(page);
 
   const source = page.locator('.layer-row').filter({ hasText: 'Top fill' }).first();
@@ -2233,86 +2115,26 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
   await expect(source).toBeVisible({ timeout: 15_000 });
   await expect(target).toBeVisible({ timeout: 15_000 });
 
-  await page.evaluate(() => {
-    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
-      row.textContent?.includes('Top fill'),
-    );
-    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
-      row.textContent?.includes('Bottom fill'),
-    );
-    if (!source || !target) throw new Error('Layer rows were not found');
-    const dataTransfer = new DataTransfer();
-    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
-    const rect = target.getBoundingClientRect();
-    target.dispatchEvent(
-      new DragEvent('dragover', {
-        bubbles: true,
-        cancelable: true,
-        clientY: rect.top + rect.height * 0.75,
-        dataTransfer,
-      }),
-    );
-  });
+  await dragLayerRowOverText(page, 'Top fill', 'Bottom fill');
 
   await expect(target).toHaveClass(/layer-row-drop-after/);
 
-  await page.evaluate(() => {
-    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
-      row.textContent?.includes('Bottom fill'),
-    );
-    if (!target) throw new Error('Target layer row was not found');
-    const dataTransfer = new DataTransfer();
-    const rect = target.getBoundingClientRect();
-    target.dispatchEvent(
-      new DragEvent('drop', {
-        bubbles: true,
-        cancelable: true,
-        clientY: rect.top + rect.height * 0.75,
-        dataTransfer,
-      }),
-    );
-    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
-  });
+  await dropLayerRowOnText(page, 'Bottom fill');
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const layerIds = doc.layers?.map((layer: { id: string }) => layer.id);
-          const graphEdges = doc.graph?.edges?.map(
-            (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
-          );
-          const positions = doc.graph?.positions ?? {};
-          return {
-            layerIds,
-            graphEdges,
-            topBeforeBottom: positions['top-fill']?.x < positions['bottom-fill']?.x,
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      layerIds: ['top-fill', 'bottom-fill'],
-      graphEdges: ['top-fill->bottom-fill', 'bottom-fill->__export__'],
-      topBeforeBottom: true,
-    });
+  await expectStoredGraphLayerOrder(page, {
+    layerIds: ['top-fill', 'bottom-fill'],
+    graphEdges: ['top-fill->bottom-fill', 'bottom-fill->__export__'],
+    leftNodeId: 'top-fill',
+    rightNodeId: 'bottom-fill',
+  });
   await expectLayerCanvasToHavePixels(page);
 });
 
 test('layer drag reorder uses the final drop row even after stale dragover state', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(threeLayerReorderDocument))}`);
+  await gotoDocument(page, threeLayerReorderDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await expect
-    .poll(
-      async () =>
-        page
-          .locator('.sidebar .layer-row')
-          .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId)),
-      { timeout: 15_000 },
-    )
-    .toEqual(['reorder-top', 'reorder-middle', 'reorder-bottom']);
+  await expectVisibleLayerRowIds(page, ['reorder-top', 'reorder-middle', 'reorder-bottom']);
 
   await page.evaluate(() => {
     const row = (id: string) => document.querySelector<HTMLElement>(`.layer-row[data-layer-id="${id}"]`);
@@ -2368,93 +2190,34 @@ test('layer drag reorder uses the final drop row even after stale dragover state
   await switchToNodeView(page);
   await expect(page.locator('.node-canvas-root')).toBeVisible();
   await switchToLayerView(page);
-  await expect
-    .poll(
-      async () =>
-        page
-          .locator('.sidebar .layer-row')
-          .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId)),
-      { timeout: 15_000 },
-    )
-    .toEqual(['reorder-middle', 'reorder-top', 'reorder-bottom']);
+  await expectVisibleLayerRowIds(page, ['reorder-middle', 'reorder-top', 'reorder-bottom']);
 });
 
 test('layer drag reorder makes a custom graph follow the layer stack', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(customGraphLayerReorderDocument))}`);
+  await gotoDocument(page, customGraphLayerReorderDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.graph?.edges?.map((edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`);
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual(['custom-bottom-fill->__export__']);
+  await expectStoredGraphEdges(page, ['custom-bottom-fill->__export__']);
 
   const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
   const target = page.locator('.layer-row').filter({ hasText: 'Custom bottom' }).first();
   await expect(source).toBeVisible({ timeout: 15_000 });
   await expect(target).toBeVisible({ timeout: 15_000 });
 
-  await page.evaluate(() => {
-    const source = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
-      row.textContent?.includes('Custom top'),
-    );
-    const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
-      row.textContent?.includes('Custom bottom'),
-    );
-    if (!source || !target) throw new Error('Custom graph layer rows were not found');
-    const dataTransfer = new DataTransfer();
-    source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
-    const rect = target.getBoundingClientRect();
-    target.dispatchEvent(
-      new DragEvent('dragover', {
-        bubbles: true,
-        cancelable: true,
-        clientY: rect.top + rect.height * 0.75,
-        dataTransfer,
-      }),
-    );
-    target.dispatchEvent(
-      new DragEvent('drop', {
-        bubbles: true,
-        cancelable: true,
-        clientY: rect.top + rect.height * 0.75,
-        dataTransfer,
-      }),
-    );
-    target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
-  });
+  await dragLayerRowOverText(page, 'Custom top', 'Custom bottom');
+  await dropLayerRowOnText(page, 'Custom bottom');
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return {
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id),
-            graphEdges: doc.graph?.edges?.map(
-              (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
-            ),
-            topBeforeBottom:
-              doc.graph?.positions?.['custom-top-fill']?.x < doc.graph?.positions?.['custom-bottom-fill']?.x,
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      layerIds: ['custom-top-fill', 'custom-bottom-fill'],
-      graphEdges: ['custom-top-fill->custom-bottom-fill', 'custom-bottom-fill->__export__'],
-      topBeforeBottom: true,
-    });
+  await expectStoredGraphLayerOrder(page, {
+    layerIds: ['custom-top-fill', 'custom-bottom-fill'],
+    graphEdges: ['custom-top-fill->custom-bottom-fill', 'custom-bottom-fill->__export__'],
+    leftNodeId: 'custom-top-fill',
+    rightNodeId: 'custom-bottom-fill',
+  });
   await expectLayerCanvasToHavePixels(page);
 });
 
 test('new blank canvas action confirms before replacing current work', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(lightDocument))}`);
+  await gotoDocument(page, lightDocument);
   await expectLayerCanvasToHavePixels(page);
 
   page.once('dialog', async (dialog) => {
@@ -2468,8 +2231,7 @@ test('new blank canvas action confirms before replacing current work', async ({ 
 });
 
 test('empty canvas can start from the layer-first texture recipe', async ({ page }) => {
-  await page.goto('/app?new=blank');
-  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await startBlankEditor(page);
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' })).toBeVisible();
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' })).toBeVisible();
 
@@ -2478,121 +2240,69 @@ test('empty canvas can start from the layer-first texture recipe', async ({ page
     .getByRole('button', { name: /Texture Type/i })
     .click();
 
-  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
+  await expectStarterRows(page, 6);
   await expect(page.getByText('paper clouds')).toBeVisible();
   await expect(page.getByText('paper tooth')).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return {
-            aspect: doc.global?.aspect,
-            hasGraph: Boolean(doc.graph),
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      aspect: '1:1',
-      hasGraph: false,
-      layerIds: [
-        'starter-plate',
-        'starter-clouds',
-        'starter-title',
-        'starter-registration',
-        'starter-scanlines',
-        'starter-grain',
-      ],
-    });
+  await expectStoredStarterDocument(page, {
+    aspect: '1:1',
+    layerIds: [
+      'starter-plate',
+      'starter-clouds',
+      'starter-title',
+      'starter-registration',
+      'starter-scanlines',
+      'starter-grain',
+    ],
+  });
 });
 
 test('empty canvas can start from the multi-font type recipe', async ({ page }) => {
-  await page.goto('/app?new=blank');
-  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await startBlankEditor(page);
 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Multi Font' }).click();
 
-  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expect(page.locator('.sidebar .layer-row')).toHaveCount(10, { timeout: 15_000 });
-  await expectLayerCanvasToHavePixels(page);
+  await expectStarterRows(page, 10);
   await expect(page.getByText('poster title')).toBeVisible();
   await expect(page.getByText('mono subtitle')).toBeVisible();
   await expect(page.getByText('pixel label')).toBeVisible();
   await expect(page.getByText('type credits')).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
-          return {
-            aspect: doc.global?.aspect,
-            hasGraph: Boolean(doc.graph),
-            textFonts: textLayers.map((layer: { font: string }) => layer.font),
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      aspect: '4:5',
-      hasGraph: false,
-      textFonts: ['BUNGEE', 'SPACE_MONO', 'PRESS_START', 'SPECIAL'],
-      layerIds: [
-        'multi-font-plate',
-        'multi-font-image',
-        'multi-font-duotone',
-        'multi-font-paper',
-        'multi-font-title',
-        'multi-font-subtitle',
-        'multi-font-label',
-        'multi-font-credit',
-        'multi-font-registration',
-        'multi-font-grain',
-      ],
-    });
+  await expectStoredStarterDocument(page, {
+    aspect: '4:5',
+    textFonts: ['BUNGEE', 'SPACE_MONO', 'PRESS_START', 'SPECIAL'],
+    layerIds: [
+      'multi-font-plate',
+      'multi-font-image',
+      'multi-font-duotone',
+      'multi-font-paper',
+      'multi-font-title',
+      'multi-font-subtitle',
+      'multi-font-label',
+      'multi-font-credit',
+      'multi-font-registration',
+      'multi-font-grain',
+    ],
+  });
 });
 
 test('empty canvas can start from the layer-first photo stack recipe', async ({ page }) => {
-  await page.goto('/app?new=blank');
-  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
+  await startBlankEditor(page);
 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Photo Stack' }).click();
 
-  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
-  await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar .layer-row')).toHaveCount(6, { timeout: 15_000 });
+  await expectStarterRows(page, 6);
   await expect(page.getByText('cover photo')).toBeVisible();
   await expect(page.getByText('headline type')).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return {
-            aspect: doc.global?.aspect,
-            hasGraph: Boolean(doc.graph),
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      aspect: '4:5',
-      hasGraph: false,
-      layerIds: [
-        'photo-stack-plate',
-        'photo-stack-image',
-        'photo-stack-duotone',
-        'photo-stack-title',
-        'photo-stack-registration',
-        'photo-stack-grain',
-      ],
-    });
+  await expectStoredStarterDocument(page, {
+    aspect: '4:5',
+    layerIds: [
+      'photo-stack-plate',
+      'photo-stack-image',
+      'photo-stack-duotone',
+      'photo-stack-title',
+      'photo-stack-registration',
+      'photo-stack-grain',
+    ],
+  });
 });
 
 test('docs recipe try-this link opens an editable starter document', async ({ page }) => {
@@ -2644,11 +2354,8 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 });
 
 test('node add menu can add Pixelate with the shared formatted controls', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
-  await switchToNodeView(page);
-  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('pixelate');
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: /^▦ Pixelate/ }).click();
 
@@ -2661,10 +2368,8 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
 });
 
 test('node add menu can add poster text starts', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
-  await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('poster type');
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'poster type');
   await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: /^T Poster Type/ }).click();
 
@@ -2683,14 +2388,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
 });
 
 test('node add menu can drag an effect onto the canvas', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
-  await switchToNodeView(page);
-  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('pixelate');
-
-  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
-  await expect(pixelateMenuRow).toContainText('Drag');
+  const pixelateMenuRow = await openPixelateNodeAddMenu(page);
   await page.locator('.react-flow__pane').evaluate((pane) => {
     const rect = pane.getBoundingClientRect();
     const dataTransfer = new DataTransfer();
@@ -2725,13 +2423,7 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
 });
 
 test('node add menu can drag an effect onto an edge and split it', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
-  await switchToNodeView(page);
-  await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('pixelate');
-  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
-  await expect(pixelateMenuRow).toContainText('Drag');
+  const pixelateMenuRow = await openPixelateNodeAddMenu(page);
   const targetPosition = await page.locator('.react-flow__pane').evaluate((pane) => {
     const source = document.querySelector<HTMLElement>('.react-flow__node[data-id="wide-fill"]');
     const target = document.querySelector<HTMLElement>('.react-flow__node[data-id="__export__"]');
@@ -2792,9 +2484,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
 
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
   await page.goto('/app?new=blank');
-  await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('ai image');
+  await openNodeAddMenuWithSearch(page, 'ai image');
   await page.getByRole('button', { name: /^◧ AI Image/ }).click();
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
@@ -2819,9 +2509,7 @@ test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
   });
 
   await page.goto('/app?new=blank&debug=ai');
-  await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
-  await page.getByLabel('Search nodes and effects').fill('ai image');
+  await openNodeAddMenuWithSearch(page, 'ai image');
   await page.getByRole('button', { name: /^◧ AI Image/ }).click();
 
   const panel = page.locator('.node-props-panel');
@@ -2842,7 +2530,7 @@ test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
 });
 
 test('AI image node shows generation progress on the node surface', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+  await gotoDocument(page, aiRunningLayerDocument);
   await switchToNodeView(page);
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
@@ -2850,7 +2538,7 @@ test('AI image node shows generation progress on the node surface', async ({ pag
 });
 
 test('AI image node keeps generation progress visible while selected', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiReplacingLayerDocument))}`);
+  await gotoDocument(page, aiReplacingLayerDocument);
   await switchToNodeView(page);
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
@@ -2870,14 +2558,14 @@ test('AI image node keeps generation progress visible while selected', async ({ 
 });
 
 test('AI generation state is visible in the layer list', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiRunningLayerDocument))}`);
+  await gotoDocument(page, aiRunningLayerDocument);
 
   const row = page.locator('.layer-row').filter({ hasText: 'AI Image' }).first();
   await expect(row.locator('.layer-ai-status')).toContainText('Generating', { timeout: 15_000 });
 });
 
 test('AI image node keeps generated image history and can switch variants', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiImageHistoryDocument))}`);
+  await gotoDocument(page, aiImageHistoryDocument);
 
   const row = page.locator('.layer-row').filter({ hasText: 'AI Image' }).first();
   await expect(row.locator('.layer-ai-history-count')).toHaveText('1/2', { timeout: 15_000 });
@@ -2892,30 +2580,12 @@ test('AI image node keeps generated image history and can switch variants', asyn
   await panel.getByRole('button', { name: 'Next generated image' }).click();
   await expect(panel.locator('.ai-generation-history-count')).toHaveText('2/2');
   await expect(aiNode.locator('.node-ai-history-badge')).toHaveText('2/2');
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-history-layer');
-          const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
-          return {
-            historyCount: image?.aiGenerationHistory?.length,
-            index: image?.aiGenerationHistoryIndex,
-            prompt: image?.aiGeneration?.prompt,
-            generationMatchesSelectedVariant: Boolean(
-              selectedVariant?.aiGeneration?.jobId && image?.aiGeneration?.jobId === selectedVariant.aiGeneration.jobId,
-            ),
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toEqual({
-      historyCount: 2,
-      index: 1,
-      prompt: 'second generated cover',
-      generationMatchesSelectedVariant: true,
-    });
+  await expectStoredAiImageLayerState(page, 'ai-history-layer', {
+    historyCount: 2,
+    index: 1,
+    prompt: 'second generated cover',
+    generationMatchesSelectedVariant: true,
+  });
 
   await panel.getByRole('button', { name: 'Previous generated image' }).click();
   await expect(panel.locator('.ai-generation-history-count')).toHaveText('1/2');
@@ -2924,65 +2594,29 @@ test('AI image node keeps generated image history and can switch variants', asyn
 
 test('AI image node appends history when replacing an existing generated image', async ({ page }) => {
   const prompt = 'replacement generated cover';
-  await mockAiAccess(page, {
-    authenticated: true,
-    enabled: true,
-    providers: ['openai'],
-    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
-    user: { id: 'dev-user', role: 'admin' },
-  });
+  await mockEnabledAiAccess(page);
   await mockSuccessfulAiGeneration(page, prompt);
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
-  await switchToNodeView(page);
 
-  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
-  await aiNode.click();
-  const panel = page.locator('.node-props-panel');
-  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  const { panel } = await openExistingAiImageNodePanel(page);
   await panel.locator('[data-ai-generation-prompt]').fill(prompt);
   await panel.getByRole('button', { name: 'Replace Image' }).click();
 
   await expect(panel.locator('.ai-generation-history-count')).toHaveText('2/2', { timeout: 15_000 });
   await panel.getByRole('button', { name: 'Previous generated image' }).click();
   await expect(panel.locator('.ai-generation-history-count')).toHaveText('1/2');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
-        return {
-          index: image?.aiGenerationHistoryIndex,
-          prompt: image?.aiGeneration?.prompt,
-          historyPrompts: image?.aiGenerationHistory?.map(
-            (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt,
-          ),
-        };
-      }),
-    )
-    .toEqual({
-      index: 0,
-      prompt: 'first generated cover',
-      historyPrompts: ['first generated cover', prompt],
-    });
+  await expectStoredAiImageLayerState(page, 'ai-existing-layer', {
+    index: 0,
+    prompt: 'first generated cover',
+    historyPrompts: ['first generated cover', prompt],
+  });
 });
 
 test('AI image node supports multiple generations in the same node across reload', async ({ page }) => {
   const prompts = ['second generated cover', 'third generated cover'];
-  await mockAiAccess(page, {
-    authenticated: true,
-    enabled: true,
-    providers: ['openai'],
-    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
-    user: { id: 'dev-user', role: 'admin' },
-  });
+  await mockEnabledAiAccess(page);
   await mockSequentialSuccessfulAiGenerations(page, prompts);
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
-  await switchToNodeView(page);
 
-  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
-  await aiNode.click();
-  const panel = page.locator('.node-props-panel');
-  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  const { aiNode, panel } = await openExistingAiImageNodePanel(page);
 
   for (let index = 0; index < prompts.length; index += 1) {
     await panel.locator('[data-ai-generation-prompt]').fill(prompts[index]);
@@ -2994,27 +2628,12 @@ test('AI image node supports multiple generations in the same node across reload
     await expect(aiNode.locator('.node-ai-status-overlay')).toHaveCount(0);
   }
 
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
-        return {
-          historyCount: image?.aiGenerationHistory?.length,
-          index: image?.aiGenerationHistoryIndex,
-          prompt: image?.aiGeneration?.prompt,
-          historyPrompts: image?.aiGenerationHistory?.map(
-            (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt,
-          ),
-        };
-      }),
-    )
-    .toEqual({
-      historyCount: 3,
-      index: 2,
-      prompt: 'third generated cover',
-      historyPrompts: ['first generated cover', 'second generated cover', 'third generated cover'],
-    });
+  await expectStoredAiImageLayerState(page, 'ai-existing-layer', {
+    historyCount: 3,
+    index: 2,
+    prompt: 'third generated cover',
+    historyPrompts: ['first generated cover', 'second generated cover', 'third generated cover'],
+  });
 
   await page.reload();
   await switchToNodeView(page);
@@ -3028,69 +2647,28 @@ test('AI image node supports multiple generations in the same node across reload
   await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('1/3');
   await reloadedPanel.getByRole('button', { name: 'Next generated image' }).click();
   await expect(reloadedPanel.locator('.ai-generation-history-count')).toHaveText('2/3');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        const image = doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer');
-        const selectedVariant = image?.aiGenerationHistory?.[image?.aiGenerationHistoryIndex ?? -1];
-        return {
-          index: image?.aiGenerationHistoryIndex,
-          prompt: image?.aiGeneration?.prompt,
-          srcMatchesSelectedVariant: Boolean(selectedVariant?.src && image?.src === selectedVariant.src),
-        };
-      }),
-    )
-    .toEqual({
-      index: 1,
-      prompt: 'second generated cover',
-      srcMatchesSelectedVariant: true,
-    });
+  await expectStoredAiImageLayerState(page, 'ai-existing-layer', {
+    index: 1,
+    prompt: 'second generated cover',
+    srcMatchesSelectedVariant: true,
+  });
 });
 
 test('AI image node leaves loading state when completed asset import fails', async ({ page }) => {
   const prompt = 'replacement missing asset cover';
-  await mockAiAccess(page, {
-    authenticated: true,
-    enabled: true,
-    providers: ['openai'],
-    quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
-    user: { id: 'dev-user', role: 'admin' },
-  });
+  await mockEnabledAiAccess(page);
   await page.route('**/api/ai/generations', async (route) => {
-    const request = route.request();
-    if (request.method() !== 'POST') return route.fallback();
-    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
-    expect(body.prompt).toBe(prompt);
+    const body = await readAiGenerationPost(route, prompt);
+    if (!body) return;
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
       body: JSON.stringify({
-        id: 'browser-ai-import-failed-job',
-        status: 'succeeded',
-        provider: body.provider ?? 'openai',
-        model: 'mock-image-model',
-        prompt: body.prompt,
-        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-        asset: {
-          id: 'browser-ai-import-failed-asset',
+        ...mockSucceededAiGenerationPayload(body, {
+          jobId: 'browser-ai-import-failed-job',
+          assetId: 'browser-ai-import-failed-asset',
           uri: '/api/generated/missing.png',
-          mimeType: 'image/png',
-          width: 1,
-          height: 1,
-          sizeBytes: 70,
-          createdAt: '2026-05-21T00:00:00.000Z',
-          metadata: {
-            provider: body.provider ?? 'openai',
-            model: 'mock-image-model',
-            prompt: body.prompt,
-            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-            createdAt: '2026-05-21T00:00:00.000Z',
-          },
-        },
-        quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
-        createdAt: '2026-05-21T00:00:00.000Z',
-        completedAt: '2026-05-21T00:00:01.000Z',
+        }),
       }),
     });
   });
@@ -3101,24 +2679,14 @@ test('AI image node leaves loading state when completed asset import fails', asy
       body: JSON.stringify({ code: 'invalid_asset', message: 'Generated asset was not an image.' }),
     });
   });
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiExistingImageDocument))}`);
-  await switchToNodeView(page);
-
-  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
-  await aiNode.click();
-  const panel = page.locator('.node-props-panel');
+  const { aiNode, panel } = await openExistingAiImageNodePanel(page);
   await panel.locator('[data-ai-generation-prompt]').fill(prompt);
   await panel.getByRole('button', { name: 'Replace Image' }).click();
 
   await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Failed', { timeout: 15_000 });
   await expect(panel).toContainText('Only image blobs can be stored as image assets');
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers?.find((layer: { id: string }) => layer.id === 'ai-existing-layer')?.aiGeneration?.status;
-      }),
-    )
+    .poll(async () => (await getStoredLayerBy(page, 'id', 'ai-existing-layer'))?.aiGeneration?.status)
     .toBe('failed');
 });
 
@@ -3132,30 +2700,12 @@ test.describe('AI generated image export and polling flows', () => {
     test.setTimeout(60_000);
 
     const prompt = 'red square cassette cover';
-    await mockAiAccess(page, {
-      authenticated: true,
-      enabled: true,
-      providers: ['openai'],
-      quota: { period: '2026-05', limit: 10, used: 3, remaining: 7 },
-      user: { id: 'dev-user', role: 'admin' },
-    });
+    await mockEnabledAiAccess(page);
     await mockSuccessfulAiGeneration(page, prompt);
 
-    await page.goto('/app?new=blank');
-    const panel = page.locator('.sidebar .ai-generation-panel').first();
-    await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
-    await panel.locator('[data-ai-generation-prompt]').fill(prompt);
-    await panel.getByRole('button', { name: 'Generate' }).click();
+    await generateAiImageFromSidebar(page, prompt);
 
-    await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
-    await expectLayerCanvasToHavePixels(page);
-    await expect(page.getByText('Current image prompt')).toBeVisible();
-    await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'EXPORT' }).click();
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+    await expectGeneratedImageLayer(page, prompt, { canvas: true, currentPrompt: true, exportDownload: true });
     await expect
       .poll(
         async () =>
@@ -3182,24 +2732,12 @@ test.describe('AI generated image export and polling flows', () => {
 
   test('AI generation keeps polling until a queued job succeeds', async ({ page }) => {
     const prompt = 'late arriving neon portrait';
-    await mockAiAccess(page, {
-      authenticated: true,
-      enabled: true,
-      providers: ['openai'],
-      quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
-      user: { id: 'dev-user', role: 'admin' },
-    });
+    await mockEnabledAiAccess(page, { used: 4, remaining: 6 });
     await mockPolledAiGeneration(page, prompt);
 
-    await page.goto('/app?new=blank');
-    const panel = page.locator('.sidebar .ai-generation-panel').first();
-    await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
-    await panel.locator('[data-ai-generation-prompt]').fill(prompt);
-    await panel.getByRole('button', { name: 'Generate' }).click();
+    await generateAiImageFromSidebar(page, prompt);
 
-    await expect(page.getByText('Added image layer.')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('.sidebar .layer-row')).toHaveCount(1, { timeout: 15_000 });
-    await expect(page.locator('.ai-generation-provenance p').filter({ hasText: prompt })).toBeVisible();
+    await expectGeneratedImageLayer(page, prompt);
   });
 });
 
@@ -3236,13 +2774,7 @@ test.describe('AI provider failure flow', () => {
   );
 
   test('AI provider failure leaves the editor usable and shows the API error', async ({ page }) => {
-    await mockAiAccess(page, {
-      authenticated: true,
-      enabled: true,
-      providers: ['openai'],
-      quota: { period: '2026-05', limit: 10, used: 1, remaining: 9 },
-      user: { id: 'dev-user', role: 'admin' },
-    });
+    await mockEnabledAiAccess(page, { used: 1, remaining: 9 });
     await page.route('**/api/ai/generations', async (route) => {
       await route.fulfill({
         status: 201,
@@ -3261,11 +2793,7 @@ test.describe('AI provider failure flow', () => {
       });
     });
 
-    await page.goto('/app?new=blank');
-    const panel = page.locator('.sidebar .ai-generation-panel').first();
-    await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
-    await panel.locator('[data-ai-generation-prompt]').fill('failed noisy cover');
-    await panel.getByRole('button', { name: 'Generate' }).click();
+    const panel = await generateAiImageFromSidebar(page, 'failed noisy cover');
 
     await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
     await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
@@ -3283,7 +2811,7 @@ test.describe('AI failed image export flow', () => {
   );
 
   test('export does not destabilize React Flow when an AI image node is failed', async ({ page }) => {
-    await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(aiFailedImageDocument))}`);
+    await gotoDocument(page, aiFailedImageDocument);
     await switchToNodeView(page);
 
     const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
@@ -3291,11 +2819,7 @@ test.describe('AI failed image export flow', () => {
     await expect(aiNode.locator('.node-ai-status-overlay')).toContainText('Failed');
     await expect(page.locator('.node-props-panel .ai-generation-provenance')).toHaveCount(1);
 
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'EXPORT' }).click();
-    const download = await downloadPromise;
-
-    expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+    await expectImageExportDownload(page);
     await expect(page.getByText('Oops!')).toHaveCount(0);
   });
 });
@@ -3307,14 +2831,14 @@ test.describe('node preview aspect ratio flow', () => {
   );
 
   test('node previews respect document aspect ratio', async ({ page }) => {
-    await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+    await gotoDocument(page, wideNodeDocument);
     await switchToNodeView(page);
 
     const wideFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
     await expect(wideFrame).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => frameRatio(wideFrame), { timeout: 15_000 }).toBeGreaterThan(1.5);
 
-    await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(tallNodeDocument))}`);
+    await gotoDocument(page, tallNodeDocument);
     await switchToNodeView(page);
 
     const tallFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
@@ -3324,12 +2848,10 @@ test.describe('node preview aspect ratio flow', () => {
 });
 
 test('selected layer nodes can be muted with keyboard shortcut', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
 
-  const fillNode = page.locator('.node-shell-kind-fill').first();
-  await expect(fillNode).toBeVisible({ timeout: 15_000 });
-  await fillNode.click();
+  const fillNode = await selectFirstNodeByKind(page, 'fill');
   await page.keyboard.press('m');
 
   await expect(fillNode).toHaveClass(/node-shell-muted/);
@@ -3360,12 +2882,10 @@ test('selected layer nodes can be muted with keyboard shortcut', async ({ page }
 });
 
 test('selected nodes can be marked as graph areas and reflected in layers', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
 
-  const fillNode = page.locator('.node-shell-kind-fill').first();
-  await expect(fillNode).toBeVisible({ timeout: 15_000 });
-  await fillNode.click();
+  await selectFirstNodeByKind(page, 'fill');
 
   await page.getByRole('button', { name: 'Create area from selected nodes' }).click();
   await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
@@ -3376,7 +2896,7 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
 });
 
 test('layer area folders collapse and summarize graph-only nodes', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await gotoDocument(page, areaMergeDocument);
 
   const folder = page.locator('.layer-area-folder').first();
   await expect(folder).toContainText('Area 1');
@@ -3399,14 +2919,14 @@ test('layer area folders collapse and summarize graph-only nodes', async ({ page
 });
 
 test('noise layer explains unavailable placement controls in layers', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await gotoDocument(page, areaExtendDocument);
 
   await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click();
   await expect(page.getByText('Noise fills the canvas')).toBeVisible({ timeout: 15_000 });
 });
 
 test('layers can create areas from multi-selected rows', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(layerAreaCreationDocument))}`);
+  await gotoDocument(page, layerAreaCreationDocument);
 
   await page.locator('.layer-row').filter({ hasText: 'Backdrop' }).click();
   await page
@@ -3419,19 +2939,11 @@ test('layers can create areas from multi-selected rows', async ({ page }) => {
 
   await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
   await expect(page.locator('.layer-area-folder')).toContainText('2');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        const area = doc.graph?.areas?.[0];
-        return area?.nodeIds ?? [];
-      }),
-    )
-    .toEqual(expect.arrayContaining(['layer-area-backdrop', 'layer-area-type']));
+  await expectStoredAreaNodeIds(page, ['layer-area-backdrop', 'layer-area-type'], { containing: true });
 });
 
 test('layer area folders can be renamed', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await gotoDocument(page, areaMergeDocument);
 
   const folder = page.locator('.layer-area-folder').first();
   await folder.getByRole('button', { name: /Rename Area 1/ }).click();
@@ -3440,47 +2952,26 @@ test('layer area folders can be renamed', async ({ page }) => {
   await input.press('Enter');
 
   await expect(folder).toContainText('Print Stack');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.graph?.areas?.[0]?.name;
-      }),
-    )
-    .toBe('Print Stack');
+  await expect.poll(async () => (await getStoredGraphArea(page))?.name).toBe('Print Stack');
 });
 
 test('layers can add rows to an existing area from the context menu', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await gotoDocument(page, areaExtendDocument);
 
-  await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click({ button: 'right' });
-  await expect(page.locator('.layer-context-menu')).toBeVisible();
-  await page
-    .locator('.layer-context-menu')
-    .getByRole('menuitem', { name: /Add to Area 1/ })
-    .click();
+  await addAreaNoiseToAreaFromLayerContext(page);
 
   await expect(page.locator('.layer-area-folder')).toHaveCount(1);
   await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.graph?.areas?.[0]?.nodeIds ?? [];
-      }),
-    )
+    .poll(async () => (await getStoredGraphArea(page))?.nodeIds ?? [])
     .toEqual(expect.arrayContaining(['area-fill', 'area-noise']));
 });
 
 test('selected area can be extended without stacking memberships', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
-  await switchToNodeView(page);
+  await gotoDocument(page, areaExtendDocument);
 
-  await page.getByRole('button', { name: 'Select Area 1' }).click();
-  const noiseNode = page.locator('.node-shell-kind-noise').first();
-  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
-  await noiseNode.click();
-  await page.getByRole('button', { name: 'Add selected nodes to area' }).click();
+  await addAreaNoiseToAreaFromLayerContext(page);
+  await switchToNodeView(page);
 
   await expect(page.locator('.node-area')).toHaveCount(1);
   await expect(page.locator('.node-area-label')).toContainText('2');
@@ -3491,60 +2982,25 @@ test('selected area can be extended without stacking memberships', async ({ page
   await expect(page.locator('.layer-area-more')).toHaveCount(0);
 
   await page.getByRole('button', { name: /Hide Area 1/ }).click();
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers
-          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
-          .every((layer: { visible: boolean }) => layer.visible === false);
-      }),
-    )
-    .toBe(true);
+  await expectStoredAreaLayerVisibility(page, ['area-fill', 'area-noise'], false);
 
   await page.getByRole('button', { name: /Show Area 1/ }).click();
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers
-          ?.filter((layer: { id: string }) => ['area-fill', 'area-noise'].includes(layer.id))
-          .every((layer: { visible: boolean }) => layer.visible === true);
-      }),
-    )
-    .toBe(true);
+  await expectStoredAreaLayerVisibility(page, ['area-fill', 'area-noise'], true);
 });
 
 test('dragging a node away from its area separates the node', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+  await gotoDocument(page, areaSeparationDocument);
   await switchToNodeView(page);
 
-  const noiseNode = page
-    .locator('.react-flow__node')
-    .filter({ has: page.locator('.node-shell-kind-noise') })
-    .first();
-  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
-  const nodeBox = await noiseNode.boundingBox();
-  expect(nodeBox).not.toBeNull();
-  if (!nodeBox) return;
+  const { nodeBox } = await getVisibleNoiseNodeBox(page);
 
-  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
-  await page.mouse.down();
-  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 520, { steps: 10 });
-  await page.mouse.up();
+  await dragMouseFromPoint(page, { x: nodeBox.x + 48, y: nodeBox.y + 22 }, { x: 0, y: 498 }, 10);
 
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.graph?.areas?.[0]?.nodeIds ?? [];
-      }),
-    )
-    .toEqual(['area-fill']);
+  await expectStoredAreaNodeIds(page, ['area-fill']);
 });
 
 test('dragging a layer row out of an area separates the layer', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaSeparationDocument))}`);
+  await gotoDocument(page, areaSeparationDocument);
 
   const source = page.locator('.layer-area-folder .layer-row-nested').filter({ hasText: 'Area noise' }).first();
   const target = page.locator('.layer-row').filter({ hasText: 'Outside fill' }).first();
@@ -3554,32 +3010,18 @@ test('dragging a layer row out of an area separates the layer', async ({ page })
   await source.dragTo(target);
 
   await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.graph?.areas?.[0]?.nodeIds ?? [];
-      }),
-    )
-    .toEqual(['area-fill']);
+  await expectStoredAreaNodeIds(page, ['area-fill']);
 });
 
 test('nodes stay visible while dragging inside an area', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaExtendDocument))}`);
+  await gotoDocument(page, areaExtendDocument);
   await switchToNodeView(page);
 
-  const noiseNode = page
-    .locator('.react-flow__node')
-    .filter({ has: page.locator('.node-shell-kind-noise') })
-    .first();
-  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
-  const nodeBox = await noiseNode.boundingBox();
-  expect(nodeBox).not.toBeNull();
-  if (!nodeBox) return;
+  const { noiseNode, nodeBox } = await getVisibleNoiseNodeBox(page);
 
-  await page.mouse.move(nodeBox.x + 48, nodeBox.y + 22);
-  await page.mouse.down();
-  await page.mouse.move(nodeBox.x + 180, nodeBox.y + 70, { steps: 8 });
+  await dragMouseFromPoint(page, { x: nodeBox.x + 48, y: nodeBox.y + 22 }, { x: 132, y: 48 }, 8, {
+    release: false,
+  });
 
   await expect(noiseNode).toBeVisible();
   await expect
@@ -3596,7 +3038,7 @@ test('nodes stay visible while dragging inside an area', async ({ page }) => {
 });
 
 test('dropping a connection on empty canvas can add and connect a node', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(wideNodeDocument))}`);
+  await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
 
   const fillNode = page.locator('.react-flow__node').filter({ has: page.locator('.node-shell-kind-fill') });
@@ -3607,12 +3049,7 @@ test('dropping a connection on empty canvas can add and connect a node', async (
   expect(box).not.toBeNull();
   if (!box) return;
 
-  const startX = box.x + box.width / 2;
-  const startY = box.y + box.height / 2;
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX + 280, startY - 120, { steps: 8 });
-  await page.mouse.up();
+  await dragMouseFromBoxCenter(page, box, { x: 280, y: -120 }, 8);
 
   const menu = page.locator('.nadd-surface');
   await expect(menu).toBeVisible({ timeout: 15_000 });
@@ -3623,7 +3060,7 @@ test('dropping a connection on empty canvas can add and connect a node', async (
 });
 
 test('connecting to a merge node inside an area does not recurse node updates', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(areaMergeDocument))}`);
+  await gotoDocument(page, areaMergeDocument);
   await switchToNodeView(page);
 
   await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
@@ -3642,17 +3079,22 @@ test('connecting to a merge node inside an area does not recurse node updates', 
   expect(targetBox).not.toBeNull();
   if (!sourceBox || !targetBox) return;
 
-  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
-  await page.mouse.up();
+  await dragMouseFromPoint(
+    page,
+    { x: sourceBox.x + sourceBox.width / 2, y: sourceBox.y + sourceBox.height / 2 },
+    {
+      x: targetBox.x + targetBox.width / 2 - (sourceBox.x + sourceBox.width / 2),
+      y: targetBox.y + targetBox.height / 2 - (sourceBox.y + sourceBox.height / 2),
+    },
+    10,
+  );
 
   await expect(page.getByText('Oops!')).toHaveCount(0);
   await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);
 });
 
 test('text node can be dragged repeatedly without crashing', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(textDragDocument))}`);
+  await gotoDocument(page, textDragDocument);
   await switchToNodeView(page);
 
   const textNode = page.locator('.node-shell-kind-text').first();
@@ -3660,17 +3102,15 @@ test('text node can be dragged repeatedly without crashing', async ({ page }) =>
   await textNode.click();
 
   const overlay = textNode.locator('.node-drag-overlay');
-  await expect(overlay).toBeVisible({ timeout: 15_000 });
-  const box = await overlay.boundingBox();
-  expect(box).not.toBeNull();
-  if (!box) return;
+  const box = await visibleBoundingBox(overlay);
 
-  const startX = box.x + box.width / 2;
-  const startY = box.y + box.height / 2;
-  await page.mouse.move(startX, startY);
+  const dragStart = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(dragStart.x, dragStart.y);
   await page.mouse.down();
-  for (let i = 0; i < 12; i += 1) {
-    await page.mouse.move(startX + 18 * i, startY + (i % 2 === 0 ? 64 : -64));
+  let dragStep = 0;
+  while (dragStep < 12) {
+    await page.mouse.move(dragStart.x + 18 * dragStep, dragStart.y + (dragStep % 2 === 0 ? 64 : -64));
+    dragStep += 1;
   }
   await page.mouse.up();
 
@@ -3679,7 +3119,7 @@ test('text node can be dragged repeatedly without crashing', async ({ page }) =>
 });
 
 test('image transform gestures stay local to the selected node', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await gotoDocument(page, imageDragDocument);
   await switchToNodeView(page);
 
   const imageNode = page.locator('.node-shell-kind-image').first();
@@ -3690,10 +3130,7 @@ test('image transform gestures stay local to the selected node', async ({ page }
   await expect(imageNode.locator('.node-thumbnail-canvas')).toBeVisible({ timeout: 15_000 });
 
   const overlay = imageNode.locator('.node-drag-overlay');
-  await expect(overlay).toBeVisible({ timeout: 15_000 });
-  const box = await overlay.boundingBox();
-  expect(box).not.toBeNull();
-  if (!box) return;
+  const box = await visibleBoundingBox(overlay);
 
   const viewport = page.locator('.react-flow__viewport').first();
   const beforeWheelTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
@@ -3740,19 +3177,10 @@ test('image transform gestures stay local to the selected node', async ({ page }
 });
 
 test('inline image payloads migrate to browser asset storage', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(imageDragDocument))}`);
+  await gotoDocument(page, imageDragDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { kind: string }) => layer.kind === 'image')?.src ?? '';
-        }),
-      { timeout: 15_000 },
-    )
-    .toMatch(/^artifact-asset:\/\//);
+  await expectStoredImageLayerAssetUri(page);
 
   const storedDoc = await page.evaluate(() => localStorage.getItem('doc') ?? '');
   expect(storedDoc).not.toContain('data:image/');
@@ -3762,7 +3190,7 @@ test('inline image payloads migrate to browser asset storage', async ({ page }) 
 });
 
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(emptyTransparentDocument))}`);
+  await gotoDocument(page, emptyTransparentDocument);
 
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
@@ -3774,13 +3202,12 @@ test('empty transparent documents render transparent pixels over checkerboard ch
 });
 
 async function expectCanvasCenterAlpha(page: Page, alpha: number) {
-  const canvas = page.locator('.pixi-container canvas').first();
-  await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect
     .poll(
       async () =>
-        canvas.evaluate((element) => {
-          const canvas = element as HTMLCanvasElement;
+        page.evaluate(() => {
+          const canvas = document.querySelector<HTMLCanvasElement>('.pixi-container canvas');
+          if (!canvas) return 255;
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           if (!ctx || canvas.width <= 0 || canvas.height <= 0) return 255;
           return ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3] ?? 255;
@@ -3788,54 +3215,6 @@ async function expectCanvasCenterAlpha(page: Page, alpha: number) {
       { timeout: 15_000 },
     )
     .toBe(alpha);
-}
-
-async function expectLayerCanvasToHavePixels(page: Page) {
-  const canvas = page.locator('.pixi-container canvas').first();
-  await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        canvas.evaluate((element) => {
-          const canvas = element as HTMLCanvasElement;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
-          const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-          let maxChannel = 0;
-          let alphaTotal = 0;
-          let samples = 0;
-          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 32))) {
-            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 32))) {
-              const index = (y * canvas.width + x) * 4;
-              maxChannel = Math.max(maxChannel, pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
-              alphaTotal += pixels[index + 3] ?? 0;
-              samples += 1;
-            }
-          }
-          return alphaTotal / samples > 4 && maxChannel > 24;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(true);
-}
-
-async function switchToNodeView(page: Page) {
-  await expect(async () => {
-    if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
-    await expect(nodesTab).toBeVisible({ timeout: 2_000 });
-    await nodesTab.click();
-    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
-}
-
-async function switchToLayerView(page: Page) {
-  await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
-    await expect(layersTab).toBeVisible({ timeout: 2_000 });
-    await layersTab.click();
-    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
 }
 
 async function mockAiAccess(page: Page, access: Record<string, unknown>) {
@@ -3848,42 +3227,69 @@ async function mockAiAccess(page: Page, access: Record<string, unknown>) {
   });
 }
 
+async function mockEnabledAiAccess(page: Page, quota: { used: number; remaining: number } = { used: 3, remaining: 7 }) {
+  await mockAiAccess(page, {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+    quota: { period: '2026-05', limit: 10, used: quota.used, remaining: quota.remaining },
+    user: { id: 'dev-user', role: 'admin' },
+  });
+}
+
+async function openExistingAiImageNodePanel(page: Page) {
+  await gotoDocument(page, aiExistingImageDocument);
+  await switchToNodeView(page);
+  const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
+  await aiNode.click();
+  const panel = page.locator('.node-props-panel');
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  return { aiNode, panel };
+}
+
+async function generateAiImageFromSidebar(page: Page, prompt: string) {
+  await page.goto('/app?new=blank');
+  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
+  await panel.locator('[data-ai-generation-prompt]').fill(prompt);
+  await panel.getByRole('button', { name: 'Generate' }).click();
+  return panel;
+}
+
+async function openNodeAddMenuWithSearch(page: Page, query: string, options: { waitForExportNode?: boolean } = {}) {
+  await switchToNodeView(page);
+  if (options.waitForExportNode) {
+    await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
+  }
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await page.getByLabel('Search nodes and effects').fill(query);
+}
+
+async function readAiGenerationPost(route: Route, expectedPrompt: string) {
+  const request = route.request();
+  if (request.method() !== 'POST') {
+    await route.fallback();
+    return null;
+  }
+  const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
+  expect(body.prompt).toBe(expectedPrompt);
+  return body;
+}
+
 async function mockSuccessfulAiGeneration(page: Page, expectedPrompt: string) {
   await page.route('**/api/ai/generations', async (route) => {
-    const request = route.request();
-    if (request.method() !== 'POST') return route.fallback();
-    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
-    expect(body.prompt).toBe(expectedPrompt);
+    const body = await readAiGenerationPost(route, expectedPrompt);
+    if (!body) return;
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
-      body: JSON.stringify({
-        id: 'browser-ai-job-1',
-        status: 'succeeded',
-        provider: body.provider ?? 'openai',
-        model: 'mock-image-model',
-        prompt: body.prompt,
-        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-        asset: {
-          id: 'browser-ai-asset-1',
+      body: JSON.stringify(
+        mockSucceededAiGenerationPayload(body, {
+          jobId: 'browser-ai-job-1',
+          assetId: 'browser-ai-asset-1',
           uri: generatedImageDataUrl,
-          mimeType: 'image/png',
-          width: 1,
-          height: 1,
-          sizeBytes: 70,
-          createdAt: '2026-05-21T00:00:00.000Z',
-          metadata: {
-            provider: body.provider ?? 'openai',
-            model: 'mock-image-model',
-            prompt: body.prompt,
-            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-            createdAt: '2026-05-21T00:00:00.000Z',
-          },
-        },
-        quota: { period: '2026-05', limit: 10, used: 4, remaining: 6 },
-        createdAt: '2026-05-21T00:00:00.000Z',
-        completedAt: '2026-05-21T00:00:01.000Z',
-      }),
+        }),
+      ),
     });
   });
 }
@@ -3891,44 +3297,70 @@ async function mockSuccessfulAiGeneration(page: Page, expectedPrompt: string) {
 async function mockSequentialSuccessfulAiGenerations(page: Page, expectedPrompts: string[]) {
   let requestIndex = 0;
   await page.route('**/api/ai/generations', async (route) => {
-    const request = route.request();
-    if (request.method() !== 'POST') return route.fallback();
-    const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
     const expectedPrompt = expectedPrompts[requestIndex];
-    expect(body.prompt).toBe(expectedPrompt);
+    const body = await readAiGenerationPost(route, expectedPrompt ?? '');
+    if (!body) return;
     requestIndex += 1;
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
-      body: JSON.stringify({
-        id: `browser-ai-sequence-job-${requestIndex}`,
-        status: 'succeeded',
-        provider: body.provider ?? 'openai',
-        model: 'mock-image-model',
-        prompt: body.prompt,
-        settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-        asset: {
-          id: `browser-ai-sequence-asset-${requestIndex}`,
+      body: JSON.stringify(
+        mockSucceededAiGenerationPayload(body, {
+          jobId: `browser-ai-sequence-job-${requestIndex}`,
+          assetId: `browser-ai-sequence-asset-${requestIndex}`,
           uri: requestIndex % 2 === 0 ? testImageSrc : generatedImageDataUrl,
           mimeType: requestIndex % 2 === 0 ? 'image/svg+xml' : 'image/png',
-          width: 1,
-          height: 1,
-          sizeBytes: 70,
           createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
-          metadata: {
-            provider: body.provider ?? 'openai',
-            model: 'mock-image-model',
-            prompt: body.prompt,
-            settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-            createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
-          },
-        },
-        quota: { period: '2026-05', limit: 10, used: 4 + requestIndex, remaining: 6 - requestIndex },
-        createdAt: `2026-05-21T00:00:0${requestIndex}.000Z`,
-        completedAt: `2026-05-21T00:00:0${requestIndex}.500Z`,
-      }),
+          completedAt: `2026-05-21T00:00:0${requestIndex}.500Z`,
+          quota: { period: '2026-05', limit: 10, used: 4 + requestIndex, remaining: 6 - requestIndex },
+        }),
+      ),
     });
   });
+}
+
+function mockSucceededAiGenerationPayload(
+  body: { prompt?: string; provider?: string; settings?: { quality?: string } },
+  options: {
+    jobId: string;
+    assetId: string;
+    uri: string;
+    mimeType?: string;
+    createdAt?: string;
+    completedAt?: string;
+    quota?: { period: string; limit: number; used: number; remaining: number };
+  },
+) {
+  const provider = body.provider ?? 'openai';
+  const settings = { aspect: '1:1', quality: body.settings?.quality ?? 'standard' };
+  const createdAt = options.createdAt ?? '2026-05-21T00:00:00.000Z';
+  return {
+    id: options.jobId,
+    status: 'succeeded',
+    provider,
+    model: 'mock-image-model',
+    prompt: body.prompt,
+    settings,
+    asset: {
+      id: options.assetId,
+      uri: options.uri,
+      mimeType: options.mimeType ?? 'image/png',
+      width: 1,
+      height: 1,
+      sizeBytes: 70,
+      createdAt,
+      metadata: {
+        provider,
+        model: 'mock-image-model',
+        prompt: body.prompt,
+        settings,
+        createdAt,
+      },
+    },
+    quota: options.quota ?? { period: '2026-05', limit: 10, used: 4, remaining: 6 },
+    createdAt,
+    completedAt: options.completedAt ?? '2026-05-21T00:00:01.000Z',
+  };
 }
 
 async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
@@ -3936,63 +3368,13 @@ async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
   await page.route('**/api/ai/generations**', async (route) => {
     const request = route.request();
     if (request.method() === 'POST') {
-      const body = request.postDataJSON() as { prompt?: string; provider?: string; settings?: { quality?: string } };
-      expect(body.prompt).toBe(expectedPrompt);
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'browser-ai-polled-job',
-          status: 'queued',
-          provider: body.provider ?? 'openai',
-          model: 'mock-image-model',
-          prompt: body.prompt,
-          settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
-          quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
-          createdAt: '2026-05-21T00:00:00.000Z',
-        }),
-      });
+      await fulfillPolledGenerationPost(route, expectedPrompt);
       return;
     }
 
     if (request.method() === 'GET' && request.url().includes('/api/ai/generations/browser-ai-polled-job')) {
       pollCount += 1;
-      const succeeded = pollCount >= 2;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'browser-ai-polled-job',
-          status: succeeded ? 'succeeded' : 'running',
-          provider: 'openai',
-          model: 'mock-image-model',
-          prompt: expectedPrompt,
-          settings: { aspect: '1:1', quality: 'standard' },
-          ...(succeeded
-            ? {
-                asset: {
-                  id: 'browser-ai-polled-asset',
-                  uri: generatedImageDataUrl,
-                  mimeType: 'image/png',
-                  width: 1,
-                  height: 1,
-                  sizeBytes: 70,
-                  createdAt: '2026-05-21T00:00:02.000Z',
-                  metadata: {
-                    provider: 'openai',
-                    model: 'mock-image-model',
-                    prompt: expectedPrompt,
-                    settings: { aspect: '1:1', quality: 'standard' },
-                    createdAt: '2026-05-21T00:00:02.000Z',
-                  },
-                },
-                completedAt: '2026-05-21T00:00:02.000Z',
-              }
-            : {}),
-          createdAt: '2026-05-21T00:00:00.000Z',
-          startedAt: '2026-05-21T00:00:01.000Z',
-        }),
-      });
+      await fulfillPolledGenerationGet(route, expectedPrompt, pollCount >= 2);
       return;
     }
 
@@ -4000,8 +3382,398 @@ async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
   });
 }
 
+async function fulfillPolledGenerationPost(route: Route, expectedPrompt: string) {
+  const body = await readAiGenerationPost(route, expectedPrompt);
+  if (!body) return;
+  await route.fulfill({
+    status: 201,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 'browser-ai-polled-job',
+      status: 'queued',
+      provider: body.provider ?? 'openai',
+      model: 'mock-image-model',
+      prompt: body.prompt,
+      settings: { aspect: '1:1', quality: body.settings?.quality ?? 'standard' },
+      quota: { period: '2026-05', limit: 10, used: 5, remaining: 5 },
+      createdAt: '2026-05-21T00:00:00.000Z',
+    }),
+  });
+}
+
+function polledGenerationAsset(expectedPrompt: string) {
+  return {
+    id: 'browser-ai-polled-asset',
+    uri: generatedImageDataUrl,
+    mimeType: 'image/png',
+    width: 1,
+    height: 1,
+    sizeBytes: 70,
+    createdAt: '2026-05-21T00:00:02.000Z',
+    metadata: {
+      provider: 'openai',
+      model: 'mock-image-model',
+      prompt: expectedPrompt,
+      settings: { aspect: '1:1', quality: 'standard' },
+      createdAt: '2026-05-21T00:00:02.000Z',
+    },
+  };
+}
+
+async function fulfillPolledGenerationGet(route: Route, expectedPrompt: string, succeeded: boolean) {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 'browser-ai-polled-job',
+      status: succeeded ? 'succeeded' : 'running',
+      provider: 'openai',
+      model: 'mock-image-model',
+      prompt: expectedPrompt,
+      settings: { aspect: '1:1', quality: 'standard' },
+      ...(succeeded ? { asset: polledGenerationAsset(expectedPrompt), completedAt: '2026-05-21T00:00:02.000Z' } : {}),
+      createdAt: '2026-05-21T00:00:00.000Z',
+      startedAt: '2026-05-21T00:00:01.000Z',
+    }),
+  });
+}
+
 async function getCanvasCenterRgb(page: Page) {
   return getCanvasRgbAt(page, 0.5, 0.5);
+}
+
+async function getStoredLayers(page: Page) {
+  return page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers ?? [];
+  });
+}
+
+async function expectStoredLayerSummaries(page: Page, expected: Array<{ name: string; kind: string }>) {
+  await expect
+    .poll(
+      async () =>
+        (await getStoredLayers(page)).map((layer: { name: string; kind: string }) => ({
+          name: layer.name,
+          kind: layer.kind,
+        })),
+      { timeout: 15_000 },
+    )
+    .toEqual(expected);
+}
+
+async function getStoredLayerBy(page: Page, key: 'id' | 'name', value: string) {
+  return (await getStoredLayers(page)).find((layer: Record<string, unknown>) => layer[key] === value);
+}
+
+async function getStoredGraphArea(page: Page) {
+  return page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.graph?.areas?.[0] ?? null;
+  });
+}
+
+async function expectStoredLayerField(
+  page: Page,
+  lookup: { key: 'id' | 'name'; value: string },
+  field: string,
+  expected: unknown,
+) {
+  await expect
+    .poll(
+      async () => {
+        const layer = await getStoredLayerBy(page, lookup.key, lookup.value);
+        return layer?.[field];
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(expected);
+}
+
+async function getVisibleLayerRow(page: Page, text: string) {
+  const row = page.locator('.layer-row').filter({ hasText: text }).first();
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  return row;
+}
+
+async function expectVisibleLayerRowIds(page: Page, expected: string[]) {
+  await expect
+    .poll(
+      async () =>
+        page
+          .locator('.sidebar .layer-row')
+          .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId)),
+      { timeout: 15_000 },
+    )
+    .toEqual(expected);
+}
+
+async function expectStoredGraphEdges(page: Page, expected: string[]) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return doc.graph?.edges?.map((edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`);
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(expected);
+}
+
+async function expectStoredGraphLayerOrder(
+  page: Page,
+  expected: { layerIds: string[]; graphEdges: string[]; leftNodeId: string; rightNodeId: string },
+) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(({ leftNodeId, rightNodeId }) => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const positions = doc.graph?.positions ?? {};
+          return {
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id),
+            graphEdges: doc.graph?.edges?.map(
+              (edge: { fromId: string; toId: string }) => `${edge.fromId}->${edge.toId}`,
+            ),
+            leftBeforeRight: positions[leftNodeId]?.x < positions[rightNodeId]?.x,
+          };
+        }, expected),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      layerIds: expected.layerIds,
+      graphEdges: expected.graphEdges,
+      leftBeforeRight: true,
+    });
+}
+
+async function expectStoredStarterDocument(
+  page: Page,
+  expected: { aspect: string; layerIds: string[]; textFonts?: string[] },
+) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate((includeTextFonts) => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const state: { aspect?: string; hasGraph: boolean; layerIds: string[]; textFonts?: string[] } = {
+            aspect: doc.global?.aspect,
+            hasGraph: Boolean(doc.graph),
+            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+          };
+          if (includeTextFonts) {
+            const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
+            state.textFonts = textLayers.map((layer: { font: string }) => layer.font);
+          }
+          return state;
+        }, Boolean(expected.textFonts)),
+      { timeout: 15_000 },
+    )
+    .toEqual({ ...expected, hasGraph: false });
+}
+
+async function addTitleTypeLayer(page: Page) {
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeVisible({ timeout: 15_000 });
+  await search.fill('headline');
+  await page.getByRole('button', { name: /^T Title Type/ }).click();
+  const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
+  await expect(titleRow).toBeVisible({ timeout: 15_000 });
+  await titleRow.click();
+  return titleRow;
+}
+
+async function insertLayerAbove(page: Page, targetLayerText: string, addLibraryLabel: RegExp) {
+  const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
+  await expect(targetRow).toBeVisible({ timeout: 15_000 });
+  await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
+  await page
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: addLibraryLabel }) })
+    .click();
+}
+
+async function insertSourceLayerAbove(page: Page, targetLayerText: string, label: RegExp) {
+  const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
+  await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
+  const quickMenu = page.locator('.add-library-layer-quick-menu');
+  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
+  await quickMenu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: label }) })
+    .click();
+}
+
+async function expectImageExportDownload(page: Page) {
+  const exportButton = page.getByRole('button', { name: 'EXPORT' });
+  await expect(exportButton).toBeEnabled({ timeout: 15_000 });
+  const downloadPromise = page.waitForEvent('download');
+  await exportButton.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
+}
+
+async function downloadJsonFromButton(page: Page, buttonName: string) {
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: buttonName }).click();
+  const download = await downloadPromise;
+  const artifactPath = await download.path();
+  expect(artifactPath).toBeTruthy();
+  if (!artifactPath) throw new Error('Downloaded artifact path is unavailable');
+  const raw = readFileSync(artifactPath, 'utf8');
+  return { raw, json: JSON.parse(raw) };
+}
+
+async function openDocumentFileFromBuffer(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+  await page.goto('/app?new=blank');
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(file);
+}
+
+async function expectStoredAiImageLayerState(page: Page, layerId: string, expected: Record<string, unknown>) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate((targetLayerId) => {
+          const layerList = (doc: { layers?: unknown }) => (Array.isArray(doc.layers) ? doc.layers : []);
+          const generationHistory = (image: { aiGenerationHistory?: unknown }) =>
+            Array.isArray(image.aiGenerationHistory) ? image.aiGenerationHistory : [];
+          const generationHistoryIndex = (image: { aiGenerationHistoryIndex?: unknown }) =>
+            typeof image.aiGenerationHistoryIndex === 'number' ? image.aiGenerationHistoryIndex : -1;
+          const variantPrompt = (variant: { aiGeneration?: { prompt?: string } }) => variant.aiGeneration?.prompt;
+          const matchingJob = (
+            currentGeneration: { jobId?: string } | undefined,
+            selectedGeneration: { jobId?: string } | undefined,
+          ) => Boolean(selectedGeneration?.jobId && currentGeneration?.jobId === selectedGeneration.jobId);
+          const matchingSrc = (image: { src?: string }, selectedVariant: { src?: string } | undefined) =>
+            Boolean(selectedVariant?.src && image.src === selectedVariant.src);
+
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          const image = layerList(doc).find((layer: { id: string }) => layer.id === targetLayerId);
+          if (!image) return {};
+          const history = generationHistory(image);
+          const index = generationHistoryIndex(image);
+          const selectedVariant = history[index];
+          const selectedGeneration = selectedVariant?.aiGeneration;
+          const currentGeneration = image.aiGeneration;
+          return {
+            historyCount: history.length,
+            index,
+            prompt: currentGeneration?.prompt,
+            historyPrompts: history.map(variantPrompt),
+            generationMatchesSelectedVariant: matchingJob(currentGeneration, selectedGeneration),
+            srcMatchesSelectedVariant: matchingSrc(image, selectedVariant),
+          };
+        }, layerId),
+      { timeout: 15_000 },
+    )
+    .toMatchObject(expected);
+}
+
+async function expectStoredAreaNodeIds(page: Page, expected: string[], options: { containing?: boolean } = {}) {
+  const matcher = expect.poll(async () => (await getStoredGraphArea(page))?.nodeIds ?? [], { timeout: 15_000 });
+  if (options.containing) {
+    await matcher.toEqual(expect.arrayContaining(expected));
+    return;
+  }
+  await matcher.toEqual(expected);
+}
+
+async function addAreaNoiseToAreaFromLayerContext(page: Page) {
+  await page.locator('.layer-row').filter({ hasText: 'Area noise' }).click({ button: 'right' });
+  await expect(page.locator('.layer-context-menu')).toBeVisible();
+  await page
+    .locator('.layer-context-menu')
+    .getByRole('menuitem', { name: /Add to Area 1/ })
+    .click();
+}
+
+async function expectStoredAreaLayerVisibility(page: Page, layerIds: string[], visible: boolean) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(
+          ({ targetIds, visible }) => {
+            const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+            return doc.layers
+              ?.filter((layer: { id: string }) => targetIds.includes(layer.id))
+              .every((layer: { visible: boolean }) => layer.visible === visible);
+          },
+          { targetIds: layerIds, visible },
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+async function getVisibleNoiseNodeBox(page: Page) {
+  const noiseNode = page
+    .locator('.react-flow__node')
+    .filter({ has: page.locator('.node-shell-kind-noise') })
+    .first();
+  await expect(noiseNode).toBeVisible({ timeout: 15_000 });
+  const nodeBox = await noiseNode.boundingBox();
+  expect(nodeBox).not.toBeNull();
+  if (!nodeBox) throw new Error('Expected a visible noise node bounding box');
+  return { noiseNode, nodeBox };
+}
+
+async function dragLayerRowOverText(page: Page, sourceText: string, targetText: string, targetYRatio = 0.75) {
+  await page.evaluate(
+    ({ sourceText, targetText, targetYRatio }) => {
+      const findLayerRowByText = (text: string) =>
+        [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) => row.textContent?.includes(text));
+      const dispatchLayerRowDragEvent = (
+        target: HTMLElement,
+        type: 'dragover' | 'drop',
+        dataTransfer: DataTransfer,
+      ) => {
+        const rect = target.getBoundingClientRect();
+        target.dispatchEvent(
+          new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            clientY: rect.top + rect.height * targetYRatio,
+            dataTransfer,
+          }),
+        );
+      };
+      const source = findLayerRowByText(sourceText);
+      const target = findLayerRowByText(targetText);
+      if (!source || !target) throw new Error(`Layer rows were not found: ${sourceText} -> ${targetText}`);
+      const dataTransfer = new DataTransfer();
+      source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+      dispatchLayerRowDragEvent(target, 'dragover', dataTransfer, targetYRatio);
+    },
+    { sourceText, targetText, targetYRatio },
+  );
+}
+
+async function dropLayerRowOnText(page: Page, targetText: string, targetYRatio = 0.75) {
+  await page.evaluate(
+    ({ targetText, targetYRatio }) => {
+      const target = [...document.querySelectorAll<HTMLElement>('.layer-row')].find((row) =>
+        row.textContent?.includes(targetText),
+      );
+      if (!target) throw new Error(`Target layer row was not found: ${targetText}`);
+      const dataTransfer = new DataTransfer();
+      const rect = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          clientY: rect.top + rect.height * targetYRatio,
+          dataTransfer,
+        }),
+      );
+      target.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+    },
+    { targetText, targetYRatio },
+  );
 }
 
 async function getCanvasRgbAt(page: Page, xRatio: number, yRatio: number) {

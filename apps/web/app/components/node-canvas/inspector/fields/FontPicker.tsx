@@ -32,6 +32,7 @@ const FONT_CATEGORIES = [
   'Typewriter',
   'Utility',
 ] as const;
+type FontCategory = (typeof FONT_CATEGORIES)[number];
 
 interface FontOptionItem {
   value: TextFontRef;
@@ -63,7 +64,7 @@ export function FontPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<(typeof FONT_CATEGORIES)[number]>('All');
+  const [category, setCategory] = useState<FontCategory>('All');
   const [importedFonts, setImportedFonts] = useState<ImportedFontAsset[]>([]);
   const [fontError, setFontError] = useState<string | null>(null);
   const [googleFontInput, setGoogleFontInput] = useState('');
@@ -157,15 +158,20 @@ export function FontPicker({
     });
   }, [allFonts, category, query]);
 
+  async function applyImportedFont(imported: ImportedFontAsset, nextCategory: FontCategory) {
+    const uri = fontUriFromId(imported.id);
+    await ensureImportedFontLoaded(uri);
+    setImportedFonts((current) => [imported, ...current.filter((font) => font.id !== imported.id)]);
+    onChange(uri);
+    setCategory(nextCategory);
+    setFontError(null);
+  }
+
   async function handleImportFont(file: File | null | undefined) {
     if (!file) return;
     try {
       const imported = await saveImportedFontFile(file);
-      await ensureImportedFontLoaded(fontUriFromId(imported.id));
-      setImportedFonts((current) => [imported, ...current.filter((font) => font.id !== imported.id)]);
-      onChange(fontUriFromId(imported.id));
-      setCategory('Imported');
-      setFontError(null);
+      await applyImportedFont(imported, 'Imported');
     } catch {
       setFontError('Could not import font');
     } finally {
@@ -178,12 +184,8 @@ export function FontPicker({
     setGoogleFontBusy(true);
     try {
       const imported = await saveGoogleFontFamily(googleFontInput);
-      await ensureImportedFontLoaded(fontUriFromId(imported.id));
-      setImportedFonts((current) => [imported, ...current.filter((font) => font.id !== imported.id)]);
-      onChange(fontUriFromId(imported.id));
-      setCategory('Google');
+      await applyImportedFont(imported, 'Google');
       setGoogleFontInput('');
-      setFontError(null);
     } catch {
       setFontError('Could not import Google font');
     } finally {

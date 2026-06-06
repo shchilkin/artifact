@@ -1,29 +1,18 @@
 import { assign, setup } from 'xstate';
 
-import type { ContextMenuState } from './types';
+import type { ContextMenuState, NodeCanvasUiAction, NodeCanvasUiState } from './types';
 
 // ---------------------------------------------------------------------------
 // Context + Events
 // ---------------------------------------------------------------------------
 
-export interface NodeCanvasMachineContext {
-  selectedNodeIds: string[];
-  selectedEdgeId: string | null;
-  expandedNodeId: string | null;
+interface NodeCanvasMachineContext extends NodeCanvasUiState {
   contextMenu: ContextMenuState;
   galleryNodeId: string | null;
 }
 
 export type NodeCanvasMachineEvent =
-  | { type: 'PANE_CLICKED' }
-  | { type: 'NODE_SELECTED'; id: string | null; additive: boolean }
-  | { type: 'NODE_EDITOR_TOGGLED'; id: string }
-  | { type: 'EDGE_SELECTED'; id: string }
-  | { type: 'SELECTION_CHANGED'; nodeIds: string[]; edgeIds: string[] }
-  | { type: 'EDGE_IDS_REMOVED'; ids: string[] }
-  | { type: 'NODE_IDS_REMOVED'; ids: string[] }
-  | { type: 'SYNC_EXTERNAL_NODE'; id: string }
-  | { type: 'FILTER_INVALID_REFERENCES'; validNodeIds: string[]; validEdgeIds: string[] }
+  | NodeCanvasUiAction
   | { type: 'CONTEXT_MENU_OPENED'; menu: ContextMenuState }
   | { type: 'CONTEXT_MENU_CLOSED' }
   | { type: 'GALLERY_OPENED'; nodeId: string }
@@ -33,10 +22,21 @@ export type NodeCanvasMachineEvent =
 // Pure helpers (also exported for tests)
 // ---------------------------------------------------------------------------
 
-export function computeNextNodeIds(current: string[], id: string | null, additive: boolean): string[] {
+function computeNextNodeIds(current: string[], id: string | null, additive: boolean): string[] {
   if (!id) return [];
   if (!additive) return [id];
   return current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+}
+
+function expandedNodeIdAfterSelection(
+  currentExpandedId: string | null,
+  selectedNodeIds: string[],
+  id: string,
+  additive: boolean,
+) {
+  if (!currentExpandedId) return null;
+  const next = additive ? computeNextNodeIds(selectedNodeIds, id, true) : [id];
+  return next.includes(currentExpandedId) ? currentExpandedId : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,11 +83,7 @@ export const nodeCanvasMachine = setup({
       selectedEdgeId: null,
       expandedNodeId: ({ context, event }) => {
         if (event.type !== 'NODE_SELECTED') return context.expandedNodeId;
-        if (event.additive) {
-          const next = computeNextNodeIds(context.selectedNodeIds, event.id, true);
-          return context.expandedNodeId && next.includes(context.expandedNodeId) ? context.expandedNodeId : null;
-        }
-        return context.expandedNodeId === event.id ? context.expandedNodeId : null;
+        return expandedNodeIdAfterSelection(context.expandedNodeId, context.selectedNodeIds, event.id, event.additive);
       },
     }),
 

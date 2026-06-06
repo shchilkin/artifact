@@ -1,8 +1,6 @@
 export const ACTIVE_GENERATION_JOB_INDEX = 'ai_generation_jobs_one_active_per_user_idx';
 
 export class ActiveGenerationJobExistsError extends Error {
-  readonly code = 'active_generation_job_exists';
-
   constructor(readonly userId: string) {
     super(`Active generation job already exists for user: ${userId}`);
     this.name = 'ActiveGenerationJobExistsError';

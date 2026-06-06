@@ -47,6 +47,35 @@ function pixelIndex(width: number, x: number, y: number) {
   return (y * width + x) * 4;
 }
 
+function copyPixel(out: Uint8ClampedArray, outIndex: number, data: Uint8ClampedArray, sourceIndex: number) {
+  out[outIndex] = data[sourceIndex];
+  out[outIndex + 1] = data[sourceIndex + 1];
+  out[outIndex + 2] = data[sourceIndex + 2];
+  out[outIndex + 3] = data[sourceIndex + 3];
+}
+
+function remapPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  sourcePoint: (x: number, y: number) => { x: number; y: number },
+) {
+  const out = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const source = sourcePoint(x, y);
+      copyPixel(out, pixelIndex(width, x, y), data, pixelIndex(width, source.x, source.y));
+    }
+  }
+  return out;
+}
+
+function polarOffset(x: number, y: number, cx: number, cy: number) {
+  const dx = x - cx;
+  const dy = y - cy;
+  return { dx, dy, dist: Math.sqrt(dx * dx + dy * dy), angle: Math.atan2(dy, dx) };
+}
+
 export function transformEffectPixels({
   width,
   height,
@@ -111,70 +140,97 @@ function applyColorPass(
 ) {
   const sepiaT = operation.sepia / 100;
   const infraredT = operation.infrared / 100;
+  applySepiaInfraredPass(data, sepiaT, infraredT);
+  applyChromaticAberration(data, width, height, operation.ca);
+  applyDitherPass(data, width, height, operation.dither);
+}
 
+function applySepiaInfraredPass(data: Uint8ClampedArray, sepiaT: number, infraredT: number) {
   if (sepiaT > 0 || infraredT > 0) {
     for (let i = 0; i < data.length; i += 4) {
       let r = data[i];
       let g = data[i + 1];
       let b = data[i + 2];
 
-      if (sepiaT > 0) {
-        const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-        const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-        const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-        r = Math.round(r + (sr - r) * sepiaT);
-        g = Math.round(g + (sg - g) * sepiaT);
-        b = Math.round(b + (sb - b) * sepiaT);
-      }
-
-      if (infraredT > 0) {
-        const ir = r;
-        const ig = g;
-        const ib = b;
-        r = Math.min(255, Math.round(ir + ig * infraredT * 0.8));
-        g = Math.min(255, Math.round(ig * (1 - infraredT * 0.65)));
-        b = Math.min(255, Math.round(ib * (1 - infraredT * 0.3) + infraredT * 22));
-      }
+      if (sepiaT > 0) ({ r, g, b } = sepiaPixel(r, g, b, sepiaT));
+      if (infraredT > 0) ({ r, g, b } = infraredPixel(r, g, b, infraredT));
 
       data[i] = r;
       data[i + 1] = g;
       data[i + 2] = b;
     }
   }
+}
 
-  if (operation.ca > 0) {
-    const amount = Math.round(operation.ca);
-    const cx = width / 2;
-    const cy = height / 2;
-    const copy = new Uint8ClampedArray(data);
-    const maxDist = Math.sqrt(cx * cx + cy * cy);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const i = pixelIndex(width, x, y);
-        const dx = (x - cx) / maxDist;
-        const dy = (y - cy) / maxDist;
-        const rx = Math.min(width - 1, Math.max(0, Math.round(x + dx * amount)));
-        const ry = Math.min(height - 1, Math.max(0, Math.round(y + dy * amount)));
-        const bx = Math.min(width - 1, Math.max(0, Math.round(x - dx * amount)));
-        const by = Math.min(height - 1, Math.max(0, Math.round(y - dy * amount)));
-        data[i] = copy[pixelIndex(width, rx, ry)];
-        data[i + 2] = copy[pixelIndex(width, bx, by) + 2];
-      }
+function sepiaPixel(r: number, g: number, b: number, amount: number) {
+  const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+  const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+  const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+  return {
+    r: Math.round(r + (sr - r) * amount),
+    g: Math.round(g + (sg - g) * amount),
+    b: Math.round(b + (sb - b) * amount),
+  };
+}
+
+function infraredPixel(r: number, g: number, b: number, amount: number) {
+  return {
+    r: Math.min(255, Math.round(r + g * amount * 0.8)),
+    g: Math.min(255, Math.round(g * (1 - amount * 0.65))),
+    b: Math.min(255, Math.round(b * (1 - amount * 0.3) + amount * 22)),
+  };
+}
+
+function applyChromaticAberration(data: Uint8ClampedArray, width: number, height: number, amountValue: number) {
+  if (amountValue <= 0) return;
+  const amount = Math.round(amountValue);
+  const cx = width / 2;
+  const cy = height / 2;
+  const copy = new Uint8ClampedArray(data);
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      applyChromaticAberrationPixel(data, copy, width, height, x, y, { amount, cx, cy, maxDist });
     }
   }
+}
 
-  if (operation.dither > 0) {
-    const levels = Math.max(2, Math.round(16 - operation.dither * 0.14));
-    const step = 255 / (levels - 1);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const i = pixelIndex(width, x, y);
-        const bayer = BAYER[y & 3][x & 3] / 16;
-        for (let c = 0; c < 3; c += 1) {
-          data[i + c] = Math.min(255, Math.max(0, Math.round(data[i + c] / step + bayer) * step));
-        }
-      }
+function applyChromaticAberrationPixel(
+  data: Uint8ClampedArray,
+  copy: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  params: { amount: number; cx: number; cy: number; maxDist: number },
+) {
+  const i = pixelIndex(width, x, y);
+  const dx = (x - params.cx) / params.maxDist;
+  const dy = (y - params.cy) / params.maxDist;
+  const rx = Math.min(width - 1, Math.max(0, Math.round(x + dx * params.amount)));
+  const ry = Math.min(height - 1, Math.max(0, Math.round(y + dy * params.amount)));
+  const bx = Math.min(width - 1, Math.max(0, Math.round(x - dx * params.amount)));
+  const by = Math.min(height - 1, Math.max(0, Math.round(y - dy * params.amount)));
+  data[i] = copy[pixelIndex(width, rx, ry)];
+  data[i + 2] = copy[pixelIndex(width, bx, by) + 2];
+}
+
+function applyDitherPass(data: Uint8ClampedArray, width: number, height: number, amount: number) {
+  if (amount <= 0) return;
+  const levels = Math.max(2, Math.round(16 - amount * 0.14));
+  const step = 255 / (levels - 1);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      applyDitherPixel(data, width, x, y, step);
     }
+  }
+}
+
+function applyDitherPixel(data: Uint8ClampedArray, width: number, x: number, y: number, step: number) {
+  const i = pixelIndex(width, x, y);
+  const bayer = BAYER[y & 3][x & 3] / 16;
+  for (let c = 0; c < 3; c += 1) {
+    data[i + c] = Math.min(255, Math.max(0, Math.round(data[i + c] / step + bayer) * step));
   }
 }
 
@@ -225,10 +281,7 @@ function applyWave(
       const sx = Math.min(width - 1, Math.max(0, x + shift));
       const oi = pixelIndex(width, x, y);
       const si = pixelIndex(width, sx, y);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
+      copyPixel(out, oi, data, si);
     }
   }
   return out;
@@ -310,25 +363,14 @@ function applyRipple(
   const maxDist = Math.sqrt(cx * cx + cy * cy);
   const maxShift = amount * scale * 0.5;
   const freq = (frequency * Math.PI * 2) / maxDist;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
-      const shift = Math.sin(dist * freq) * maxShift;
-      const nx = Math.min(width - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle))));
-      const ny = Math.min(height - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle))));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, nx, ny);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => {
+    const { dist, angle } = polarOffset(x, y, cx, cy);
+    const shift = Math.sin(dist * freq) * maxShift;
+    return {
+      x: Math.min(width - 1, Math.max(0, Math.round(cx + (dist + shift) * Math.cos(angle)))),
+      y: Math.min(height - 1, Math.max(0, Math.round(cy + (dist + shift) * Math.sin(angle)))),
+    };
+  });
 }
 
 function applyKaleidoscope(data: Uint8ClampedArray, width: number, height: number, amount: number) {
@@ -337,27 +379,17 @@ function applyKaleidoscope(data: Uint8ClampedArray, width: number, height: numbe
   const sectorAngle = (Math.PI * 2) / segments;
   const cx = width / 2;
   const cy = height / 2;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      let angle = Math.atan2(dy, dx);
-      if (angle < 0) angle += Math.PI * 2;
-      let a = angle % sectorAngle;
-      if (a > sectorAngle / 2) a = sectorAngle - a;
-      const nx = Math.min(width - 1, Math.max(0, Math.round(cx + dist * Math.cos(a))));
-      const ny = Math.min(height - 1, Math.max(0, Math.round(cy + dist * Math.sin(a))));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, nx, ny);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => {
+    const offset = polarOffset(x, y, cx, cy);
+    let angle = offset.angle;
+    if (angle < 0) angle += Math.PI * 2;
+    let a = angle % sectorAngle;
+    if (a > sectorAngle / 2) a = sectorAngle - a;
+    return {
+      x: Math.min(width - 1, Math.max(0, Math.round(cx + offset.dist * Math.cos(a)))),
+      y: Math.min(height - 1, Math.max(0, Math.round(cy + offset.dist * Math.sin(a)))),
+    };
+  });
 }
 
 function applySqueeze(data: Uint8ClampedArray, width: number, height: number, xAmount: number, yAmount: number) {
@@ -366,20 +398,10 @@ function applySqueeze(data: Uint8ClampedArray, width: number, height: number, xA
   const yFactor = Math.max(0.01, 1 + yAmount / 100);
   const cx = width / 2;
   const cy = height / 2;
-  const out = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const sx = Math.min(width - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor)));
-      const sy = Math.min(height - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor)));
-      const oi = pixelIndex(width, x, y);
-      const si = pixelIndex(width, sx, sy);
-      out[oi] = data[si];
-      out[oi + 1] = data[si + 1];
-      out[oi + 2] = data[si + 2];
-      out[oi + 3] = data[si + 3];
-    }
-  }
-  return out;
+  return remapPixels(data, width, height, (x, y) => ({
+    x: Math.min(width - 1, Math.max(0, Math.round(cx + (x - cx) / xFactor))),
+    y: Math.min(height - 1, Math.max(0, Math.round(cy + (y - cy) / yFactor))),
+  }));
 }
 
 function applyFog(data: Uint8ClampedArray, amount: number, color: string) {

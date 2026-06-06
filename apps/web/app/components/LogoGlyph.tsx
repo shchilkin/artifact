@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { ALL_EMOJIS } from '../types/config';
+import { LOGO_RENDERER_OPTIONS } from '../utils/logoRendererOptions';
 
 const DISPLAY = 32;
 
@@ -18,19 +19,14 @@ export function LogoGlyph() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     Promise.all([import('pixi.js'), import('../utils/logoVariants')]).then(
-      ([{ Renderer, Container }, { RENDER, VARIANTS }]) => {
+      ([{ Renderer, Container }, { VARIANTS }]) => {
         if (cancelled) return;
 
         const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
 
         let renderer: import('pixi.js').Renderer;
         try {
-          renderer = new Renderer({
-            width: RENDER,
-            height: RENDER,
-            backgroundAlpha: 0,
-            antialias: false,
-          });
+          renderer = new Renderer(LOGO_RENDERER_OPTIONS);
         } catch {
           return;
         }

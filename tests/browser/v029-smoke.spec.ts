@@ -1,72 +1,23 @@
 import { expect, type Page, test } from '@playwright/test';
+import {
+  documentUrl,
+  editorDocumentFixture,
+  expectNoBrowserIssues,
+  expectStoredLayerCount,
+  fillLayerFixture,
+  setupBrowserTestPage,
+  switchToLayerView,
+  switchToNodeView,
+  textLayerFixture,
+} from './helpers';
 
-const consoleIssues = new WeakMap<Page, string[]>();
-const galleryDocument = {
-  schemaVersion: 1,
-  global: { bg: '#101018', seed: 1, aspect: '1:1' },
-  layers: [
-    {
-      id: 'gallery-fill',
-      name: 'Gallery fill',
-      visible: true,
-      locked: false,
-      kind: 'fill',
-      color: '#4466aa',
-      opacity: 100,
-      blendMode: 'normal',
-    },
-    {
-      id: 'gallery-text',
-      name: 'Gallery title',
-      visible: true,
-      locked: false,
-      kind: 'text',
-      content: 'TYPE',
-      font: 'DISPLAY',
-      size: 120,
-      color: '#f4eadc',
-      x: 0.5,
-      y: 0.5,
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-      opacity: 100,
-      blendMode: 'normal',
-    },
-  ],
-  export: { format: 'png', scale: 1, target: 'cover' },
-};
+const galleryDocument = editorDocumentFixture([
+  fillLayerFixture({ id: 'gallery-fill', name: 'Gallery fill', color: '#4466aa' }),
+  textLayerFixture({ id: 'gallery-text', name: 'Gallery title', content: 'TYPE' }),
+]);
 
-test.beforeEach(async ({ page }) => {
-  const issues: string[] = [];
-  consoleIssues.set(page, issues);
-
-  await page.route('**/api/ai/access', async (route) => {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        authenticated: false,
-        enabled: false,
-        disabledReason: 'anonymous',
-      }),
-    });
-  });
-
-  page.on('console', (message) => {
-    const text = message.text();
-    if (isBenignBrowserTestIssue(text)) return;
-    if (message.type() === 'error' && /clerk\.accounts\.dev/.test(text) && /Failed to fetch/.test(text)) return;
-    if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
-  });
-  page.on('pageerror', (error) => {
-    if (isBenignBrowserTestIssue(error.message)) return;
-    issues.push(`pageerror: ${error.message}`);
-  });
-});
-
-test.afterEach(async ({ page }) => {
-  expect(consoleIssues.get(page) ?? []).toEqual([]);
-});
+test.beforeEach(async ({ page }) => setupBrowserTestPage(page));
+test.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 
 test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
   await page.goto('/showcase');
@@ -91,16 +42,7 @@ test('showcase loads the project wall and opens a tile in the editor', async ({ 
   await Promise.all([page.waitForURL(/\/app(?:\?|$)/, { timeout: 10_000 }), tiles.first().click()]);
 
   await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.length ?? 0;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBeGreaterThan(0);
+  await expectStoredLayerCount(page, { atLeast: 1 });
 });
 
 test('docs index links to the main docs paths', async ({ page }) => {
@@ -163,7 +105,7 @@ test('blank editor and shared primitive surfaces open and close', async ({ page 
 });
 
 test('node gallery dialog opens with an accessible title', async ({ page }) => {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(galleryDocument))}`);
+  await page.goto(documentUrl(galleryDocument));
 
   await switchToNodeView(page);
   await expect(page.locator('.node-preview-open')).toHaveCount(1, { timeout: 15_000 });
@@ -178,45 +120,8 @@ test('node gallery dialog opens with an accessible title', async ({ page }) => {
   await expect(dialog).toHaveCount(0);
 });
 
-function isBenignBrowserTestIssue(text: string) {
-  return (
-    text.includes('downloadable font: download failed') ||
-    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
-    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
-    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
-    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
-    text.includes('Outdated Optimize Dep') ||
-    text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
-    text.includes('Importing a module script failed') ||
-    text.includes('Failed to fetch dynamically imported module: http://127.0.0.1:4173/app/routes/generator.tsx') ||
-    text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
-    text.includes('due to access control checks') ||
-    text.includes('NS_BINDING_ABORTED') ||
-    text === 'JSHandle@object'
-  );
-}
-
 async function expectBlankEditor(page: Page) {
   await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
-}
-
-async function switchToNodeView(page: Page) {
-  await expect(async () => {
-    if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
-    await expect(nodesTab).toBeVisible({ timeout: 2_000 });
-    await nodesTab.click();
-    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
-}
-
-async function switchToLayerView(page: Page) {
-  await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
-    await expect(layersTab).toBeVisible({ timeout: 2_000 });
-    await layersTab.click();
-    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
 }

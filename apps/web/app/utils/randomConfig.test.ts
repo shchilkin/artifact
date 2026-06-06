@@ -13,6 +13,15 @@ import {
   zeroLayerSection,
 } from './randomConfig';
 
+function expectValidTextAndEffectLayers(doc: ReturnType<typeof randomDocument>) {
+  const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
+  const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
+  expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
+  expect(effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS)).toBe(
+    true,
+  );
+}
+
 describe('randomGlobal', () => {
   it('returns a valid GlobalConfig with hex bg and numeric seed in [0, 999999]', () => {
     const config = randomGlobal();
@@ -187,26 +196,16 @@ describe('randomDocument', () => {
 
   it('adds valid text layers when a formula includes type and focused effect preset layers', () => {
     const doc = randomDocument();
-    const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
-    const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
-
-    expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
-
-    expect(
-      effectLayers.every((layer) => layer.kind === 'effect' && layer.preset && layer.preset in EFFECT_PRESETS),
-    ).toBe(true);
+    expectValidTextAndEffectLayers(doc);
   });
 
   it('can build each v2 random formula as a valid document', () => {
     for (const formula of RANDOM_FORMULA_IDS) {
       const doc = randomDocumentForFormula(formula, 12000 + RANDOM_FORMULA_IDS.indexOf(formula));
-      const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
-      const effectLayers = doc.layers.filter((layer) => layer.kind === 'effect');
 
       expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
       expect(doc.layers.length).toBeGreaterThanOrEqual(4);
-      expect(textLayers.every((layer) => layer.content.trim().length > 0)).toBe(true);
-      expect(effectLayers.every((layer) => layer.preset && layer.preset in EFFECT_PRESETS)).toBe(true);
+      expectValidTextAndEffectLayers(doc);
     }
   });
 

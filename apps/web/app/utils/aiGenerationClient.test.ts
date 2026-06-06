@@ -30,6 +30,23 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
   });
 }
 
+function captureJsonFetch(body: unknown) {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init: init ?? {} });
+    return jsonResponse(body);
+  };
+  return { calls, fetcher };
+}
+
+function accessResponse() {
+  return {
+    authenticated: true,
+    enabled: true,
+    providers: ['openai'],
+  };
+}
+
 describe('parseAiGenerationJob', () => {
   it('accepts a known provider and status', () => {
     expect(parseAiGenerationJob(job)).toMatchObject({
@@ -73,11 +90,7 @@ describe('parseAiGenerationAccessState', () => {
 
 describe('ai generation client', () => {
   it('creates jobs with credentials and an idempotent request body', async () => {
-    const calls: Array<{ url: string; init: RequestInit }> = [];
-    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(url), init: init ?? {} });
-      return jsonResponse(job);
-    };
+    const { calls, fetcher } = captureJsonFetch(job);
 
     const result = await createAiGenerationJob(
       {
@@ -97,15 +110,7 @@ describe('ai generation client', () => {
   });
 
   it('can attach a local development bearer token', async () => {
-    const calls: Array<{ url: string; init: RequestInit }> = [];
-    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(url), init: init ?? {} });
-      return jsonResponse({
-        authenticated: true,
-        enabled: true,
-        providers: ['openai'],
-      });
-    };
+    const { calls, fetcher } = captureJsonFetch(accessResponse());
 
     await getAiGenerationAccess({ baseUrl: 'http://localhost:4000', devToken: 'dev-token', fetcher });
 
@@ -114,15 +119,7 @@ describe('ai generation client', () => {
   });
 
   it('can attach a Clerk bearer token', async () => {
-    const calls: Array<{ url: string; init: RequestInit }> = [];
-    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(url), init: init ?? {} });
-      return jsonResponse({
-        authenticated: true,
-        enabled: true,
-        providers: ['openai'],
-      });
-    };
+    const { calls, fetcher } = captureJsonFetch(accessResponse());
 
     await getAiGenerationAccess({ baseUrl: 'http://localhost:4000', bearerToken: 'clerk-token', fetcher });
 

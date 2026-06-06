@@ -43,6 +43,18 @@ function emptyGraph(partial: Partial<CanvasGraph> = {}): CanvasGraph {
   };
 }
 
+function mergeColorExportGraph(extraEdges: CanvasGraph['edges'] = []) {
+  return emptyGraph({
+    edges: [
+      { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
+      { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
+      { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
+      { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ...extraEdges,
+    ],
+  });
+}
+
 describe('graph mutations', () => {
   it('adds an edge while replacing any existing edge for the same target port', () => {
     const graph = emptyGraph({
@@ -312,14 +324,7 @@ describe('resolveUpstreamRenderLayers', () => {
 
 describe('collectUpstreamNodeIds', () => {
   it('returns a target and all upstream nodes, including graph-only nodes', () => {
-    const graph = emptyGraph({
-      edges: [
-        { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
-        { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-    });
+    const graph = mergeColorExportGraph();
 
     expect([...collectUpstreamNodeIds(EXPORT_NODE_ID, graph)].sort()).toEqual(
       [EXPORT_NODE_ID, 'color-1', 'fill-1', 'merge-1', 'text-1'].sort(),
@@ -329,14 +334,7 @@ describe('collectUpstreamNodeIds', () => {
 
 describe('collectDownstreamNodeIds', () => {
   it('returns a source and all downstream nodes, including graph-only nodes', () => {
-    const graph = emptyGraph({
-      edges: [
-        { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
-        { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-    });
+    const graph = mergeColorExportGraph();
 
     expect([...collectDownstreamNodeIds('text-1', graph)].sort()).toEqual(
       [EXPORT_NODE_ID, 'color-1', 'merge-1', 'text-1'].sort(),
@@ -378,15 +376,9 @@ describe('collectDownstreamNodeIds', () => {
 
 describe('resolveOutputPath', () => {
   it('returns only nodes and edges that feed the output target', () => {
-    const graph = emptyGraph({
-      edges: [
-        { id: 'e-fill-merge', fromId: 'fill-1', fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-text-color', fromId: 'text-1', fromPort: 'out', toId: 'color-1', toPort: 'in' },
-        { id: 'e-color-merge', fromId: 'color-1', fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-        { id: 'e-orphan-child', fromId: 'orphan', fromPort: 'out', toId: 'orphan-child', toPort: 'bg' },
-      ],
-    });
+    const graph = mergeColorExportGraph([
+      { id: 'e-orphan-child', fromId: 'orphan', fromPort: 'out', toId: 'orphan-child', toPort: 'bg' },
+    ]);
 
     const outputPath = resolveOutputPath(graph);
 

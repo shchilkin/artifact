@@ -27,66 +27,18 @@ import {
 } from '../../types/config';
 import { renderDocument } from '../../utils/renderer';
 import {
+  allPixels,
+  alphaBounds,
   createTestImageCache,
   emojiSeeded,
   fillOnly,
   imageFreeFit,
+  pixelsEqual,
   proceduralArray,
   proceduralNoise,
+  samplePixel,
   textOverFill,
 } from './fixtures';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Sample a single pixel (x, y) from a rendered canvas. Returns [r, g, b, a]. */
-function samplePixel(canvas: HTMLCanvasElement, x: number, y: number): [number, number, number, number] {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('getContext returned null');
-  const { data } = ctx.getImageData(x, y, 1, 1);
-  return [data[0], data[1], data[2], data[3]];
-}
-
-/** Extract every pixel as a flat Uint8ClampedArray. */
-function allPixels(canvas: HTMLCanvasElement): Uint8ClampedArray {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('getContext returned null');
-  return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-}
-
-/** Check that two Uint8ClampedArrays are identical. */
-function pixelsEqual(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-function alphaBounds(canvas: HTMLCanvasElement): { width: number; height: number } {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('getContext returned null');
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      const alpha = pixels[(y * canvas.width + x) * 4 + 3] ?? 0;
-      if (alpha <= 8) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  return {
-    width: Math.max(0, maxX - minX + 1),
-    height: Math.max(0, maxY - minY + 1),
-  };
-}
 
 function visiblePixelCount(canvas: HTMLCanvasElement): number {
   const pixels = allPixels(canvas);
@@ -95,6 +47,32 @@ function visiblePixelCount(canvas: HTMLCanvasElement): number {
     if ((pixels[i] ?? 0) > 8) count += 1;
   }
   return count;
+}
+
+async function renderStackDocument(doc: CanvasDocument, size: number, skipEffects = true) {
+  return renderDocument(doc, size, size, new Map(), {
+    skipEffects,
+    graphMode: 'stack',
+  });
+}
+
+function expectBoundsScale(preview: HTMLCanvasElement, exported: HTMLCanvasElement) {
+  const previewBounds = alphaBounds(preview);
+  const exportedBounds = alphaBounds(exported);
+  expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
+  expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
+}
+
+async function expectSeedOffsetChangesPixels(
+  makeDoc: (seedOffset: number) => CanvasDocument,
+  size: number,
+  skipEffects: boolean,
+) {
+  const first = await renderStackDocument(makeDoc(0), size, skipEffects);
+  const firstAgain = await renderStackDocument(makeDoc(0), size, skipEffects);
+  const varied = await renderStackDocument(makeDoc(17), size, skipEffects);
+  expect(pixelsEqual(allPixels(first), allPixels(firstAgain))).toBe(true);
+  expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
 }
 
 /**
@@ -107,6 +85,13 @@ async function renderCentre(doc: Parameters<typeof renderDocument>[0], size: num
     graphMode: 'stack',
   });
   return samplePixel(canvas, Math.floor(size / 2), Math.floor(size / 2));
+}
+
+function expectFullyOpaqueCanvas(canvas: HTMLCanvasElement) {
+  const pixels = allPixels(canvas);
+  for (let i = 3; i < pixels.length; i += 4) {
+    expect(pixels[i]).toBe(255);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -143,11 +128,7 @@ describe('renderDocument — fill-only document', () => {
       skipEffects: true,
       graphMode: 'stack',
     });
-    const pixels = allPixels(canvas);
-    // Sample every alpha channel byte (index 3, 7, 11, …)
-    for (let i = 3; i < pixels.length; i += 4) {
-      expect(pixels[i]).toBe(255);
-    }
+    expectFullyOpaqueCanvas(canvas);
   });
 
   it('the center pixel has red as the dominant channel (fill colour #e94560)', async () => {
@@ -184,10 +165,7 @@ describe('renderDocument — text over fill', () => {
       skipEffects: true,
       graphMode: 'stack',
     });
-    const pixels = allPixels(canvas);
-    for (let i = 3; i < pixels.length; i += 4) {
-      expect(pixels[i]).toBe(255);
-    }
+    expectFullyOpaqueCanvas(canvas);
   });
 
   it('is deterministic across renders', async () => {
@@ -332,13 +310,9 @@ describe('renderDocument — preview/export size parity', () => {
     const previewB = await renderDocument(proceduralArray, 540, 540, new Map(), opts);
     const exported = await renderDocument(proceduralArray, 1080, 1080, new Map(), opts);
 
-    const previewBounds = alphaBounds(previewA);
-    const exportedBounds = alphaBounds(exported);
-
     expect(pixelsEqual(allPixels(previewA), allPixels(previewB))).toBe(true);
     expect(visiblePixelCount(previewA)).toBeGreaterThan(1000);
-    expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
-    expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
+    expectBoundsScale(previewA, exported);
   });
 
   it('radial array gap expands rings instead of only changing inspector state', async () => {
@@ -424,21 +398,7 @@ describe('renderDocument — preview/export size parity', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     });
 
-    const first = await renderDocument(makeNoiseDoc(0), 160, 160, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
-    const firstAgain = await renderDocument(makeNoiseDoc(0), 160, 160, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
-    const varied = await renderDocument(makeNoiseDoc(17), 160, 160, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
-
-    expect(pixelsEqual(allPixels(first), allPixels(firstAgain))).toBe(true);
-    expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
+    await expectSeedOffsetChangesPixels(makeNoiseDoc, 160, true);
   });
 
   it('effect seed offsets vary one effect node without changing the document seed', async () => {
@@ -454,21 +414,7 @@ describe('renderDocument — preview/export size parity', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     });
 
-    const first = await renderDocument(makeEffectDoc(0), 120, 120, new Map(), {
-      skipEffects: false,
-      graphMode: 'stack',
-    });
-    const firstAgain = await renderDocument(makeEffectDoc(0), 120, 120, new Map(), {
-      skipEffects: false,
-      graphMode: 'stack',
-    });
-    const varied = await renderDocument(makeEffectDoc(17), 120, 120, new Map(), {
-      skipEffects: false,
-      graphMode: 'stack',
-    });
-
-    expect(pixelsEqual(allPixels(first), allPixels(firstAgain))).toBe(true);
-    expect(pixelsEqual(allPixels(first), allPixels(varied))).toBe(false);
+    await expectSeedOffsetChangesPixels(makeEffectDoc, 120, false);
   });
 
   it('noise shaping controls alter procedural texture pixels deterministically', async () => {
@@ -534,13 +480,10 @@ describe('renderDocument — preview/export size parity', () => {
       skipEffects: true,
       graphMode: 'stack',
     });
-    const previewBounds = alphaBounds(preview);
     const exportedBounds = alphaBounds(exported);
-
     expect(exportedBounds.width).toBeGreaterThan(0);
     expect(exportedBounds.height).toBeGreaterThan(0);
-    expect(exportedBounds.width).toBeCloseTo(previewBounds.width * 2, -1);
-    expect(exportedBounds.height).toBeCloseTo(previewBounds.height * 2, -1);
+    expectBoundsScale(preview, exported);
   });
 
   it('effect resolution locking preserves scale-one scanline texture in larger exports', async () => {

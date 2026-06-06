@@ -665,7 +665,7 @@ export const GRAPH_RECIPE_STARTER_DOCUMENTS: StarterDocument[] = [
   PRIMITIVE_IMAGE_GRAPH_RECIPE,
   PRINT_DAMAGE_GRAPH_RECIPE,
 ];
-export const STARTER_DOCUMENTS: StarterDocument[] = [...LAYER_STARTER_DOCUMENTS, ...GRAPH_RECIPE_STARTER_DOCUMENTS];
+const STARTER_DOCUMENTS: StarterDocument[] = [...LAYER_STARTER_DOCUMENTS, ...GRAPH_RECIPE_STARTER_DOCUMENTS];
 
 export function getStarterDocument(id: string): StarterDocument | undefined {
   return STARTER_DOCUMENTS.find((starter) => starter.id === id);

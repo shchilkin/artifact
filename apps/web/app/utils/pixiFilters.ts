@@ -9,6 +9,14 @@ const NORM_UV = `
 const SAMPLE = (uv: string) =>
   `texture2D(uSampler, clamp(inputClamp.xy + ${uv} * extent, inputClamp.xy, inputClamp.zw))`;
 
+function hexToVec3(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+  ];
+}
+
 const HEADER = `
 precision mediump float;
 varying vec2 vTextureCoord;
@@ -363,80 +371,96 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
 
 type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>>;
 
-export function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
+function addFilter(filters: Filter[], amount: number, create: () => Filter) {
+  if (amount <= 0) return;
+  filters.push(create());
+}
+
+function createBlurFilter(amount: number) {
+  const blur = new BlurFilter(amount * 0.5, 4);
+  blur.padding = Math.ceil(amount * 0.5) + 4;
+  return blur;
+}
+
+function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 540): Filter[] | null {
   const filters: Filter[] = [];
 
-  if (cfg.mirror > 0) filters.push(f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
-  if (cfg.dataMosh > 0) filters.push(f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
-  if (cfg.interlace > 0)
-    filters.push(f(INTERLACE_FRAG, { uIntensity: cfg.interlace * 0.003, uSeed: seed, uResY: canvasH }));
-  if (cfg.noiseWarp > 0) filters.push(f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
-  if (cfg.morphAmt > 0)
-    filters.push(f(MORPH_FRAG, { uIntensity: cfg.morphAmt * 0.05, uFreq: cfg.morphFreq, uSeed: seed }));
-  if (cfg.vortex > 0) filters.push(f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
-  if (cfg.barrel > 0) filters.push(f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
-  if (cfg.tearAmt > 0)
-    filters.push(f(TEAR_FRAG, { uIntensity: cfg.tearAmt * 0.007, uChunkH: cfg.tearSize / 1000, uSeed: seed }));
-
-  if (cfg.pixelate > 0) filters.push(f(PIXELATE_FRAG, { uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)) }));
-  if (cfg.posterize > 0) filters.push(f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
-  if (cfg.hueShift > 0) filters.push(f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
-  if (cfg.rgbSplit > 0) {
+  addFilter(filters, cfg.mirror, () => f(MIRROR_FRAG, { uMode: Math.round(cfg.mirror) }));
+  addFilter(filters, cfg.dataMosh, () => f(DATAMOSH_FRAG, { uIntensity: cfg.dataMosh * 0.007, uSeed: seed }));
+  addFilter(filters, cfg.interlace, () =>
+    f(INTERLACE_FRAG, {
+      uIntensity: cfg.interlace * 0.003,
+      uSeed: seed,
+      uResY: canvasH,
+    }),
+  );
+  addFilter(filters, cfg.noiseWarp, () => f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
+  addFilter(filters, cfg.morphAmt, () =>
+    f(MORPH_FRAG, {
+      uIntensity: cfg.morphAmt * 0.05,
+      uFreq: cfg.morphFreq,
+      uSeed: seed,
+    }),
+  );
+  addFilter(filters, cfg.vortex, () => f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
+  addFilter(filters, cfg.barrel, () => f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
+  addFilter(filters, cfg.tearAmt, () =>
+    f(TEAR_FRAG, {
+      uIntensity: cfg.tearAmt * 0.007,
+      uChunkH: cfg.tearSize / 1000,
+      uSeed: seed,
+    }),
+  );
+  addFilter(filters, cfg.pixelate, () =>
+    f(PIXELATE_FRAG, {
+      uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)),
+    }),
+  );
+  addFilter(filters, cfg.posterize, () => f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
+  addFilter(filters, cfg.hueShift, () => f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
+  addFilter(filters, cfg.rgbSplit, () => {
     const mag = cfg.rgbSplit * 0.0006;
-    filters.push(f(RGB_FRAG, { uDir: [mag, mag] }));
-  }
-
-  if (cfg.duotone > 0) {
-    const hexToVec3 = (hex: string): [number, number, number] => [
-      parseInt(hex.slice(1, 3), 16) / 255,
-      parseInt(hex.slice(3, 5), 16) / 255,
-      parseInt(hex.slice(5, 7), 16) / 255,
-    ];
-    filters.push(
-      f(DUOTONE_FRAG, {
-        uColorA: hexToVec3(cfg.duoA),
-        uColorB: hexToVec3(cfg.duoB),
-        uStrength: cfg.duotone / 100,
-      }),
-    );
-  }
-
-  if (cfg.halftone > 0)
-    filters.push(f(HALFTONE_FRAG, { uGrid: cfg.halftone * 3 + 4, uStrength: 0.85, uResolution: [refSize, canvasH] }));
-  if (cfg.risoShift > 0)
-    filters.push(f(RISO_FRAG, { uMag: cfg.risoShift * 0.0012, uAngle: (cfg.risoAngle * Math.PI) / 180 }));
-  if (cfg.bloom > 0) filters.push(f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
-  if (cfg.blurAmt > 0) {
-    const blur = new BlurFilter(cfg.blurAmt * 0.5, 4);
-    blur.padding = Math.ceil(cfg.blurAmt * 0.5) + 4;
-    filters.push(blur);
-  }
-  if (cfg.threshold > 0) filters.push(f(THRESHOLD_FRAG, { uCut: cfg.threshold / 100 }));
-  if (cfg.edgeDetect > 0) {
-    filters.push(
-      f(EDGE_FRAG, {
-        uIntensity: cfg.edgeDetect / 100,
-        uPx: [1 / refSize, 1 / canvasH],
-      }),
-    );
-  }
-  if (cfg.gradMix > 0) {
-    const hexToVec3 = (hex: string): [number, number, number] => [
-      parseInt(hex.slice(1, 3), 16) / 255,
-      parseInt(hex.slice(3, 5), 16) / 255,
-      parseInt(hex.slice(5, 7), 16) / 255,
-    ];
-    filters.push(
-      f(GRADIENT_FRAG, {
-        uColorA: hexToVec3(cfg.gradA),
-        uColorB: hexToVec3(cfg.gradB),
-        uAngle: (cfg.gradAngle * Math.PI) / 180,
-        uMix: cfg.gradMix / 100,
-      }),
-    );
-  }
-  if (cfg.vignette > 0) filters.push(f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
-  if (cfg.filmBurn > 0) filters.push(f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
+    return f(RGB_FRAG, { uDir: [mag, mag] });
+  });
+  addFilter(filters, cfg.duotone, () =>
+    f(DUOTONE_FRAG, {
+      uColorA: hexToVec3(cfg.duoA),
+      uColorB: hexToVec3(cfg.duoB),
+      uStrength: cfg.duotone / 100,
+    }),
+  );
+  addFilter(filters, cfg.halftone, () =>
+    f(HALFTONE_FRAG, {
+      uGrid: cfg.halftone * 3 + 4,
+      uStrength: 0.85,
+      uResolution: [refSize, canvasH],
+    }),
+  );
+  addFilter(filters, cfg.risoShift, () =>
+    f(RISO_FRAG, {
+      uMag: cfg.risoShift * 0.0012,
+      uAngle: (cfg.risoAngle * Math.PI) / 180,
+    }),
+  );
+  addFilter(filters, cfg.bloom, () => f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
+  addFilter(filters, cfg.blurAmt, () => createBlurFilter(cfg.blurAmt));
+  addFilter(filters, cfg.threshold, () => f(THRESHOLD_FRAG, { uCut: cfg.threshold / 100 }));
+  addFilter(filters, cfg.edgeDetect, () =>
+    f(EDGE_FRAG, {
+      uIntensity: cfg.edgeDetect / 100,
+      uPx: [1 / refSize, 1 / canvasH],
+    }),
+  );
+  addFilter(filters, cfg.gradMix, () =>
+    f(GRADIENT_FRAG, {
+      uColorA: hexToVec3(cfg.gradA),
+      uColorB: hexToVec3(cfg.gradB),
+      uAngle: (cfg.gradAngle * Math.PI) / 180,
+      uMix: cfg.gradMix / 100,
+    }),
+  );
+  addFilter(filters, cfg.vignette, () => f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
+  addFilter(filters, cfg.filmBurn, () => f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
 
   return filters.length > 0 ? filters : null;
 }

@@ -1,5 +1,5 @@
 import { type RefObject, useCallback, useMemo, useState } from 'react';
-import type { PrimitiveViewportState } from '../../components/PrimitiveViewportState';
+import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../components/PrimitiveViewportState';
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import { inferLinearGraph } from '../../utils/nodeGraph';
 
@@ -46,28 +46,6 @@ export function useGeneratorPrimitiveExportState({
     handlePrimitiveViewStatesChange,
     resetPrimitiveViewStates,
   };
-}
-
-function primitiveViewStateMapsEqual(
-  a: Record<string, PrimitiveViewportState>,
-  b: Record<string, PrimitiveViewportState>,
-) {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => {
-    const left = a[key];
-    const right = b[key];
-    return (
-      right !== undefined &&
-      left.rotationX === right.rotationX &&
-      left.rotationY === right.rotationY &&
-      left.zoom === right.zoom &&
-      left.panX === right.panX &&
-      left.panY === right.panY &&
-      (left.locked ?? false) === (right.locked ?? false)
-    );
-  });
 }
 
 function prunePrimitiveViewStates(

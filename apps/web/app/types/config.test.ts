@@ -18,6 +18,15 @@ import {
   makeTextLayer,
 } from './config';
 
+function cloneableDocument(): CanvasDocument {
+  return {
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    global: { bg: '#120020', seed: 42, aspect: '1:1' },
+    layers: [makeEmojiLayer({ id: 'test-emoji' })],
+    export: { format: 'png', scale: 1, target: 'cover' },
+  };
+}
+
 describe('makeTextLayer', () => {
   it('returns a layer with kind: text', () => {
     const layer = makeTextLayer();
@@ -278,23 +287,13 @@ describe('makeGraphRepeatNode', () => {
 
 describe('cloneDocument', () => {
   it('returns an object deeply equal to the original', () => {
-    const original: CanvasDocument = {
-      schemaVersion: DOCUMENT_SCHEMA_VERSION,
-      global: { bg: '#120020', seed: 42, aspect: '1:1' },
-      layers: [makeEmojiLayer({ id: 'test-emoji' })],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    const original = cloneableDocument();
     const cloned = cloneDocument(original);
     expect(cloned).toEqual(original);
   });
 
   it('does not return the same reference as the original', () => {
-    const original: CanvasDocument = {
-      schemaVersion: DOCUMENT_SCHEMA_VERSION,
-      global: { bg: '#120020', seed: 42, aspect: '1:1' },
-      layers: [makeEmojiLayer({ id: 'test-emoji' })],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    const original = cloneableDocument();
     const cloned = cloneDocument(original);
     expect(cloned).not.toBe(original);
     expect(cloned.global).not.toBe(original.global);

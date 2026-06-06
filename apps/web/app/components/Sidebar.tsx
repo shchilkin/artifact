@@ -4,13 +4,10 @@ import {
   type AspectRatio,
   type CanvasDocument,
   type EffectLayer,
-  type EffectPreset,
   type EmojiLayer,
   type ImageLayer,
   type Layer,
-  type LayerKind,
 } from '../types/config';
-import type { ArrayPresetId } from '../utils/arrayPresets';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
   addLayersToGraphAreaInDocument,
@@ -28,43 +25,38 @@ import {
   updateLayerInDocument,
 } from '../utils/documentCommands';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import type { NoisePresetId } from '../utils/noisePresets';
-import type { TextPresetId } from '../utils/textPresets';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
+import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { ActionButton } from './ui/ActionButton';
 
-interface Props {
+type SidebarLayerPanelProps = Pick<
+  LayerPanelProps,
+  | 'selectedLayerId'
+  | 'onSelectLayer'
+  | 'onAddLayer'
+  | 'onAddEffectPreset'
+  | 'onAddTextPreset'
+  | 'onAddNoisePreset'
+  | 'onAddArrayPreset'
+  | 'onStartAiImage'
+  | 'onLoadStarter'
+  | 'onOpenProjects'
+  | 'onRandomize'
+  | 'onInsertLayerAbove'
+  | 'onRemoveLayer'
+  | 'onDuplicateLayer'
+  | 'modeSwitcher'
+>;
+
+interface Props extends SidebarLayerPanelProps {
   doc: CanvasDocument;
   onDocChange: (doc: CanvasDocument) => void;
-  selectedLayerId: string | null;
-  onSelectLayer: (id: string | null) => void;
-  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
-  onAddEffectPreset: (preset: EffectPreset) => void;
-  onAddTextPreset: (preset: TextPresetId) => void;
-  onAddNoisePreset: (preset: NoisePresetId) => void;
-  onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onStartAiImage?: () => void;
-  onLoadStarter?: (id: string) => void;
-  onOpenProjects?: () => void;
-  onRandomize?: () => void;
-  onInsertLayerAbove: (
-    targetLayerId: string,
-    action:
-      | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-      | { kind: 'textPreset'; preset: TextPresetId }
-      | { kind: 'noisePreset'; preset: NoisePresetId }
-      | { kind: 'arrayPreset'; preset: ArrayPresetId }
-      | { kind: 'effect'; preset: EffectPreset },
-  ) => void;
-  onRemoveLayer: (id: string) => void;
   onReorderLayers: (layers: Layer[]) => void;
-  onDuplicateLayer: (id: string) => void;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
-  modeSwitcher?: React.ReactNode;
 }
 
 interface SectionProps {
@@ -123,6 +115,372 @@ function AssetImagePreview({ src }: { src: string }) {
   return <img src={resolvedSrc} alt="" className="w-full aspect-square object-cover border border-border" />;
 }
 
+function useDocumentRef(doc: CanvasDocument) {
+  const docRef = useRef(doc);
+  useLayoutEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
+  return docRef;
+}
+
+function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | null) {
+  if (!selectedLayer) return null;
+  return buildLayerTargetSummary(selectedLayer, {
+    surface: 'layers',
+    graph: doc.graph,
+    layers: doc.layers,
+  });
+}
+
+function useLayerPanelHandlers({
+  docRef,
+  onDocChange,
+  onReorderLayers,
+}: {
+  docRef: React.MutableRefObject<CanvasDocument>;
+  onDocChange: (doc: CanvasDocument) => void;
+  onReorderLayers: (layers: Layer[]) => void;
+}) {
+  const handleToggleVisible = useCallback(
+    (id: string) => onDocChange(toggleLayerVisibilityInDocument(docRef.current, id)),
+    [docRef, onDocChange],
+  );
+  const handleSetLayersVisible = useCallback(
+    (ids: string[], visible: boolean) => onDocChange(setLayersVisibilityInDocument(docRef.current, ids, visible)),
+    [docRef, onDocChange],
+  );
+  const handleCreateAreaFromLayers = useCallback(
+    (ids: string[]) => {
+      if (ids.length > 0) onDocChange(createGraphAreaInDocument(docRef.current, ids));
+    },
+    [docRef, onDocChange],
+  );
+  const handleAddLayersToArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length > 0) onDocChange(addLayersToGraphAreaInDocument(docRef.current, areaId, ids));
+    },
+    [docRef, onDocChange],
+  );
+  const handleRemoveLayersFromAreas = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const next = removeNodesFromAllGraphAreasInDocument(docRef.current, ids);
+      if (next !== docRef.current) onDocChange(next);
+    },
+    [docRef, onDocChange],
+  );
+  const handleRemoveNodesFromArea = useCallback(
+    (areaId: string, ids: string[]) => {
+      if (ids.length > 0) onDocChange(removeNodesFromGraphAreaInDocument(docRef.current, areaId, ids));
+    },
+    [docRef, onDocChange],
+  );
+  const handleReorderLayers = useCallback(
+    (layers: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => {
+      if (!areaSeparation) {
+        onReorderLayers(layers);
+        return;
+      }
+      onDocChange(
+        reorderDocumentLayersAndRemoveFromGraphArea(docRef.current, layers, areaSeparation.areaId, areaSeparation.ids),
+      );
+    },
+    [docRef, onDocChange, onReorderLayers],
+  );
+
+  return {
+    handleToggleVisible,
+    handleSetLayersVisible,
+    handleCreateAreaFromLayers,
+    handleAddLayersToArea,
+    handleRemoveLayersFromAreas,
+    handleRemoveNodesFromArea,
+    handleRemoveArea: (areaId: string) => onDocChange(removeGraphAreaInDocument(docRef.current, areaId)),
+    handleRenameArea: (areaId: string, name: string) =>
+      onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name)),
+    handleReorderLayers,
+    handleRenameLayer: (id: string, name: string) => onDocChange(renameLayerInDocument(docRef.current, id, name)),
+  };
+}
+
+function CanvasAspectControls({ aspect, onChange }: { aspect: AspectRatio; onChange: (aspect: AspectRatio) => void }) {
+  return (
+    <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
+      <span className="text-dim text-[9px] tracking-widest font-mono mr-1">CANVAS</span>
+      {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((ratio) => (
+        <button
+          key={ratio}
+          className={`text-[9px] font-mono px-1.5 py-0.5 border rounded-sm tracking-wide transition-colors ${
+            aspect === ratio ? 'border-accent text-accent bg-accent-dim' : 'border-border text-dim hover:text-text'
+          }`}
+          onClick={() => onChange(ratio)}
+        >
+          {ratio}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function applySelectedLayerPatch<T extends Layer>(
+  doc: CanvasDocument,
+  selectedLayer: Layer,
+  patch: Partial<T>,
+  onDocChange: (doc: CanvasDocument) => void,
+) {
+  onDocChange(updateLayerInDocument(doc, selectedLayer.id, patch as Partial<Layer>));
+}
+
+function nextEmojiSet(layer: EmojiLayer, emoji: string) {
+  if (layer.emojis.includes(emoji) && layer.emojis.length === 1) return layer.emojis;
+  return layer.emojis.includes(emoji) ? layer.emojis.filter((item) => item !== emoji) : [...layer.emojis, emoji];
+}
+
+function saveSelectedImageSource(
+  docRef: React.MutableRefObject<CanvasDocument>,
+  targetLayerId: string,
+  src: string,
+  onDocChange: (doc: CanvasDocument) => void,
+) {
+  void saveImageAsset(src)
+    .then((assetSrc) => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, assetSrc)))
+    .catch(() => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, src)));
+}
+
+function readImageFileForLayer(
+  file: File,
+  layer: ImageLayer,
+  docRef: React.MutableRefObject<CanvasDocument>,
+  onDocChange: (doc: CanvasDocument) => void,
+) {
+  const targetLayerId = layer.id;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const src = event.target?.result;
+    if (typeof src === 'string') saveSelectedImageSource(docRef, targetLayerId, src, onDocChange);
+  };
+  reader.readAsDataURL(file);
+}
+
+function imageLayerFromSelection(layer: Layer): ImageLayer | null {
+  return layer.kind === 'image' ? layer : null;
+}
+
+function emojiLayerFromSelection(layer: Layer): EmojiLayer | null {
+  return layer.kind === 'emoji' ? layer : null;
+}
+
+function SelectedLayerSections({
+  doc,
+  docRef,
+  selectedLayer,
+  selectedTargetSummary,
+  onDocChange,
+}: {
+  doc: CanvasDocument;
+  docRef: React.MutableRefObject<CanvasDocument>;
+  selectedLayer: Layer | null;
+  selectedTargetSummary: ReturnType<typeof buildLayerTargetSummary> | null;
+  onDocChange: (doc: CanvasDocument) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  if (!selectedLayer) return null;
+
+  const applyPatch = <T extends Layer>(patch: Partial<T>) => {
+    applySelectedLayerPatch(doc, selectedLayer, patch, onDocChange);
+  };
+  const handleImageFile = (file: File) => {
+    const imageLayer = imageLayerFromSelection(selectedLayer);
+    if (imageLayer) readImageFileForLayer(file, imageLayer, docRef, onDocChange);
+  };
+  const toggleEmoji = (layer: EmojiLayer, emoji: string) => {
+    applyPatch<EmojiLayer>({ emojis: nextEmojiSet(layer, emoji) });
+  };
+
+  return (
+    <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
+      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
+      <SelectedLayerBasics selectedLayer={selectedLayer} onPatch={applyPatch} />
+      <SelectedImageSourceSection layer={selectedLayer} inputRef={fileInputRef} onImageFile={handleImageFile} />
+      <SelectedEmojiSetSection layer={selectedLayer} onToggleEmoji={toggleEmoji} />
+      <LayerControls
+        layer={selectedLayer}
+        detached
+        surface="layers"
+        onChange={(patch) => applyPatch(patch as Partial<Layer>)}
+      />
+    </div>
+  );
+}
+
+function SelectedImageSourceSection({
+  layer,
+  inputRef,
+  onImageFile,
+}: {
+  layer: Layer;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onImageFile: (file: File) => void;
+}) {
+  const imageLayer = imageLayerFromSelection(layer);
+  return imageLayer ? <ImageSourceSection layer={imageLayer} inputRef={inputRef} onImageFile={onImageFile} /> : null;
+}
+
+function SelectedEmojiSetSection({
+  layer,
+  onToggleEmoji,
+}: {
+  layer: Layer;
+  onToggleEmoji: (layer: EmojiLayer, emoji: string) => void;
+}) {
+  const emojiLayer = emojiLayerFromSelection(layer);
+  return emojiLayer ? <EmojiSetSection layer={emojiLayer} onToggleEmoji={onToggleEmoji} /> : null;
+}
+
+function SelectedLayerBasics({
+  selectedLayer,
+  onPatch,
+}: {
+  selectedLayer: Layer;
+  onPatch: <T extends Layer>(patch: Partial<T>) => void;
+}) {
+  return (
+    <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
+      <div className="flex justify-between items-center text-dim text-[10px]">
+        <span>Visible</span>
+        <label className="toggle-switch" aria-label="Toggle layer visibility">
+          <input
+            type="checkbox"
+            checked={selectedLayer.visible}
+            onChange={(event) => onPatch({ visible: event.target.checked } as Partial<Layer>)}
+          />
+          <span className="toggle-switch__track" />
+        </label>
+      </div>
+      {selectedLayer.kind === 'effect' && (
+        <div className="flex justify-between items-center text-dim text-[10px]">
+          <span>Use source alpha</span>
+          <label className="toggle-switch" aria-label="Toggle effect alpha masking">
+            <input
+              type="checkbox"
+              checked={selectedLayer.maskAlpha}
+              onChange={(event) => onPatch<EffectLayer>({ maskAlpha: event.target.checked })}
+            />
+            <span className="toggle-switch__track" />
+          </label>
+        </div>
+      )}
+      <div className="flex justify-between items-center text-dim text-[10px]">
+        <span>Locked</span>
+        <label
+          className="toggle-switch"
+          aria-label="Toggle layer delete and reorder lock"
+          title="Protect from delete and layer reorder"
+        >
+          <input
+            type="checkbox"
+            checked={selectedLayer.locked}
+            onChange={(event) => onPatch({ locked: event.target.checked } as Partial<Layer>)}
+          />
+          <span className="toggle-switch__track" />
+        </label>
+      </div>
+    </Section>
+  );
+}
+
+function ImageSourceSection({
+  layer,
+  inputRef,
+  onImageFile,
+}: {
+  layer: ImageLayer;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onImageFile: (file: File) => void;
+}) {
+  return (
+    <Section title="Image Source" defaultOpen hidden={layer.kind !== 'image'}>
+      {layer.src ? (
+        <AssetImagePreview src={layer.src} />
+      ) : (
+        <button
+          className="border border-border text-dim h-24 text-[11px] font-mono hover:text-text"
+          onClick={() => inputRef.current?.click()}
+        >
+          + Add image
+        </button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onImageFile(file);
+          event.currentTarget.value = '';
+        }}
+      />
+      <ActionButton
+        className="h-9 text-[11px]"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          const file = event.dataTransfer.files?.[0];
+          if (file) onImageFile(file);
+        }}
+        variant="quiet"
+      >
+        Replace image
+      </ActionButton>
+    </Section>
+  );
+}
+
+function EmojiSetSection({
+  layer,
+  onToggleEmoji,
+}: {
+  layer: EmojiLayer;
+  onToggleEmoji: (layer: EmojiLayer, emoji: string) => void;
+}) {
+  return (
+    <Section title="Emoji Set">
+      <div className="grid grid-cols-8 gap-1">
+        {ALL_EMOJIS.map((emoji) => (
+          <button
+            key={emoji}
+            className={`emoji-btn ${layer.emojis.includes(emoji) ? 'active' : ''}`}
+            onClick={() => onToggleEmoji(layer, emoji)}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function MobileActionBar({ content }: { content?: React.ReactNode }) {
+  return content ? <div className="sidebar-mobile-bar">{content}</div> : null;
+}
+
+function AiImageSection({
+  aspect,
+  onGeneratedImageSource,
+}: {
+  aspect: AspectRatio;
+  onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
+}) {
+  if (!onGeneratedImageSource) return null;
+  return (
+    <Section title="AI Image" defaultOpen>
+      <AiGenerationPanel aspect={aspect} onGeneratedImageSource={onGeneratedImageSource} />
+    </Section>
+  );
+}
+
 export function Sidebar({
   doc,
   onDocChange,
@@ -146,166 +504,20 @@ export function Sidebar({
   modeSwitcher,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
-  const selectedTargetSummary = useMemo(
-    () =>
-      selectedLayer
-        ? buildLayerTargetSummary(selectedLayer, {
-            surface: 'layers',
-            graph: doc.graph,
-            layers: doc.layers,
-          })
-        : null,
-    [doc.graph, doc.layers, selectedLayer],
-  );
-  const docRef = useRef(doc);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useLayoutEffect(() => {
-    docRef.current = doc;
-  }, [doc]);
+  const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
+  const docRef = useDocumentRef(doc);
+  const layerPanelHandlers = useLayerPanelHandlers({ docRef, onDocChange, onReorderLayers });
 
   const setGlobal = <K extends keyof CanvasDocument['global']>(key: K, value: CanvasDocument['global'][K]) => {
     onDocChange(updateGlobalInDocument(doc, { [key]: value }));
   };
 
-  const applySelectedPatch = <T extends Layer>(patch: Partial<T>) => {
-    if (!selectedLayer) return;
-    onDocChange(updateLayerInDocument(doc, selectedLayer.id, patch as Partial<Layer>));
-  };
-
-  const handleToggleVisible = useCallback(
-    (id: string) => {
-      const current = docRef.current;
-      onDocChange(toggleLayerVisibilityInDocument(current, id));
-    },
-    [onDocChange],
-  );
-
-  const handleSetLayersVisible = useCallback(
-    (ids: string[], visible: boolean) => {
-      const current = docRef.current;
-      onDocChange(setLayersVisibilityInDocument(current, ids, visible));
-    },
-    [onDocChange],
-  );
-
-  const handleCreateAreaFromLayers = useCallback(
-    (ids: string[]) => {
-      if (ids.length === 0) return;
-      onDocChange(createGraphAreaInDocument(docRef.current, ids));
-    },
-    [onDocChange],
-  );
-
-  const handleAddLayersToArea = useCallback(
-    (areaId: string, ids: string[]) => {
-      if (ids.length === 0) return;
-      onDocChange(addLayersToGraphAreaInDocument(docRef.current, areaId, ids));
-    },
-    [onDocChange],
-  );
-
-  const handleRemoveLayersFromAreas = useCallback(
-    (ids: string[]) => {
-      if (ids.length === 0) return;
-      const next = removeNodesFromAllGraphAreasInDocument(docRef.current, ids);
-      if (next !== docRef.current) onDocChange(next);
-    },
-    [onDocChange],
-  );
-
-  const handleRemoveNodesFromArea = useCallback(
-    (areaId: string, ids: string[]) => {
-      if (ids.length === 0) return;
-      onDocChange(removeNodesFromGraphAreaInDocument(docRef.current, areaId, ids));
-    },
-    [onDocChange],
-  );
-
-  const handleRemoveArea = useCallback(
-    (areaId: string) => {
-      onDocChange(removeGraphAreaInDocument(docRef.current, areaId));
-    },
-    [onDocChange],
-  );
-
-  const handleRenameArea = useCallback(
-    (areaId: string, name: string) => {
-      onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name));
-    },
-    [onDocChange],
-  );
-
-  const handleReorderLayers = useCallback(
-    (layers: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => {
-      if (!areaSeparation) {
-        onReorderLayers(layers);
-        return;
-      }
-      onDocChange(
-        reorderDocumentLayersAndRemoveFromGraphArea(docRef.current, layers, areaSeparation.areaId, areaSeparation.ids),
-      );
-    },
-    [onDocChange, onReorderLayers],
-  );
-
-  const handleRenameLayer = useCallback(
-    (id: string, name: string) => {
-      onDocChange(renameLayerInDocument(docRef.current, id, name));
-    },
-    [onDocChange],
-  );
-
-  const handleImageFile = (file: File) => {
-    if (!selectedLayer || selectedLayer.kind !== 'image') return;
-    const targetLayerId = selectedLayer.id;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const src = event.target?.result;
-      if (typeof src === 'string') {
-        void saveImageAsset(src)
-          .then((assetSrc) =>
-            onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, assetSrc)),
-          )
-          .catch(() => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, src)));
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const toggleEmoji = (layer: EmojiLayer, emoji: string) => {
-    if (layer.emojis.includes(emoji) && layer.emojis.length === 1) return;
-    const emojis = layer.emojis.includes(emoji)
-      ? layer.emojis.filter((item) => item !== emoji)
-      : [...layer.emojis, emoji];
-    applySelectedPatch<EmojiLayer>({ emojis });
-  };
-
   return (
     <aside className="sidebar">
-      {mobileActionBar && <div className="sidebar-mobile-bar">{mobileActionBar}</div>}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
-        <span className="text-dim text-[9px] tracking-widest font-mono mr-1">CANVAS</span>
-        {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((ratio) => (
-          <button
-            key={ratio}
-            className={`text-[9px] font-mono px-1.5 py-0.5 border rounded-sm tracking-wide transition-colors ${
-              (doc.global.aspect ?? '1:1') === ratio
-                ? 'border-accent text-accent bg-accent-dim'
-                : 'border-border text-dim hover:text-text'
-            }`}
-            onClick={() => setGlobal('aspect', ratio)}
-          >
-            {ratio}
-          </button>
-        ))}
-      </div>
+      <MobileActionBar content={mobileActionBar} />
+      <CanvasAspectControls aspect={doc.global.aspect ?? '1:1'} onChange={(ratio) => setGlobal('aspect', ratio)} />
 
-      {onGeneratedImageSource && (
-        <Section title="AI Image" defaultOpen>
-          <AiGenerationPanel aspect={doc.global.aspect ?? '1:1'} onGeneratedImageSource={onGeneratedImageSource} />
-        </Section>
-      )}
+      <AiImageSection aspect={doc.global.aspect ?? '1:1'} onGeneratedImageSource={onGeneratedImageSource} />
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <LayerPanel
@@ -323,129 +535,28 @@ export function Sidebar({
           onRandomize={onRandomize}
           onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
-          onReorderLayers={handleReorderLayers}
-          onToggleVisible={handleToggleVisible}
-          onSetLayersVisible={handleSetLayersVisible}
-          onCreateAreaFromLayers={handleCreateAreaFromLayers}
-          onAddLayersToArea={handleAddLayersToArea}
-          onRemoveLayersFromAreas={handleRemoveLayersFromAreas}
-          onRemoveNodesFromArea={handleRemoveNodesFromArea}
-          onRemoveArea={handleRemoveArea}
-          onRenameArea={handleRenameArea}
+          onReorderLayers={layerPanelHandlers.handleReorderLayers}
+          onToggleVisible={layerPanelHandlers.handleToggleVisible}
+          onSetLayersVisible={layerPanelHandlers.handleSetLayersVisible}
+          onCreateAreaFromLayers={layerPanelHandlers.handleCreateAreaFromLayers}
+          onAddLayersToArea={layerPanelHandlers.handleAddLayersToArea}
+          onRemoveLayersFromAreas={layerPanelHandlers.handleRemoveLayersFromAreas}
+          onRemoveNodesFromArea={layerPanelHandlers.handleRemoveNodesFromArea}
+          onRemoveArea={layerPanelHandlers.handleRemoveArea}
+          onRenameArea={layerPanelHandlers.handleRenameArea}
           onDuplicateLayer={onDuplicateLayer}
-          onRenameLayer={handleRenameLayer}
+          onRenameLayer={layerPanelHandlers.handleRenameLayer}
           modeSwitcher={modeSwitcher}
         />
       </div>
 
-      {selectedLayer && (
-        <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
-          {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
-          <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
-            <div className="flex justify-between items-center text-dim text-[10px]">
-              <span>Visible</span>
-              <label className="toggle-switch" aria-label="Toggle layer visibility">
-                <input
-                  type="checkbox"
-                  checked={selectedLayer.visible}
-                  onChange={(event) => applySelectedPatch({ visible: event.target.checked } as Partial<Layer>)}
-                />
-                <span className="toggle-switch__track" />
-              </label>
-            </div>
-            {selectedLayer.kind === 'effect' && (
-              <div className="flex justify-between items-center text-dim text-[10px]">
-                <span>Use source alpha</span>
-                <label className="toggle-switch" aria-label="Toggle effect alpha masking">
-                  <input
-                    type="checkbox"
-                    checked={selectedLayer.maskAlpha}
-                    onChange={(event) => applySelectedPatch<EffectLayer>({ maskAlpha: event.target.checked })}
-                  />
-                  <span className="toggle-switch__track" />
-                </label>
-              </div>
-            )}
-            <div className="flex justify-between items-center text-dim text-[10px]">
-              <span>Locked</span>
-              <label
-                className="toggle-switch"
-                aria-label="Toggle layer delete and reorder lock"
-                title="Protect from delete and layer reorder"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedLayer.locked}
-                  onChange={(event) => applySelectedPatch({ locked: event.target.checked } as Partial<Layer>)}
-                />
-                <span className="toggle-switch__track" />
-              </label>
-            </div>
-          </Section>
-
-          {selectedLayer.kind === 'image' && (
-            <Section title="Image Source" defaultOpen hidden={selectedLayer.kind !== 'image'}>
-              {selectedLayer.src ? (
-                <AssetImagePreview src={selectedLayer.src} />
-              ) : (
-                <button
-                  className="border border-border text-dim h-24 text-[11px] font-mono hover:text-text"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  + Add image
-                </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) handleImageFile(file);
-                  event.currentTarget.value = '';
-                }}
-              />
-              <ActionButton
-                className="h-9 text-[11px]"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const file = event.dataTransfer.files?.[0];
-                  if (file) handleImageFile(file);
-                }}
-                variant="quiet"
-              >
-                Replace image
-              </ActionButton>
-            </Section>
-          )}
-
-          {selectedLayer.kind === 'emoji' && (
-            <Section title="Emoji Set">
-              <div className="grid grid-cols-8 gap-1">
-                {ALL_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    className={`emoji-btn ${selectedLayer.emojis.includes(emoji) ? 'active' : ''}`}
-                    onClick={() => toggleEmoji(selectedLayer, emoji)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          <LayerControls
-            layer={selectedLayer}
-            detached
-            surface="layers"
-            onChange={(patch) => applySelectedPatch(patch as Partial<Layer>)}
-          />
-        </div>
-      )}
+      <SelectedLayerSections
+        doc={doc}
+        docRef={docRef}
+        selectedLayer={selectedLayer}
+        selectedTargetSummary={selectedTargetSummary}
+        onDocChange={onDocChange}
+      />
     </aside>
   );
 }

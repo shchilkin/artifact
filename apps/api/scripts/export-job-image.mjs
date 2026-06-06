@@ -1,11 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, resolve } from 'node:path';
 import pg from 'pg';
+import { loadEnvFiles } from './env-file.mjs';
 
-loadEnvFile(resolve(process.cwd(), '.env'));
-loadEnvFile(resolve(process.cwd(), '.env.local'));
-loadEnvFile(resolve(process.cwd(), 'apps/api/.env'));
-loadEnvFile(resolve(process.cwd(), 'apps/api/.env.local'));
+loadEnvFiles([
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), '.env.local'),
+  resolve(process.cwd(), 'apps/api/.env'),
+  resolve(process.cwd(), 'apps/api/.env.local'),
+]);
 
 const [jobId, outputPathArg] = process.argv.slice(2);
 if (!jobId) {
@@ -109,31 +112,4 @@ function extensionForMime(mimeType) {
 function fail(message) {
   console.error(message);
   process.exit(1);
-}
-
-function loadEnvFile(path) {
-  if (!existsSync(path)) return;
-  const text = readFileSync(path, 'utf8');
-  for (const line of text.split(/\r?\n/)) {
-    const entry = parseEnvLine(line);
-    if (!entry || process.env[entry.key] !== undefined) continue;
-    process.env[entry.key] = entry.value;
-  }
-}
-
-function parseEnvLine(line) {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) return null;
-  const separator = trimmed.indexOf('=');
-  if (separator <= 0) return null;
-  const key = trimmed.slice(0, separator).trim();
-  if (!/^[A-Z_][A-Z0-9_]*$/i.test(key)) return null;
-  return { key, value: stripQuotes(trimmed.slice(separator + 1).trim()) };
-}
-
-function stripQuotes(value) {
-  if (value.length < 2) return value;
-  const quote = value[0];
-  if ((quote !== '"' && quote !== "'") || value[value.length - 1] !== quote) return value;
-  return value.slice(1, -1);
 }

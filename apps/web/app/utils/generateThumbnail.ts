@@ -1,4 +1,5 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
+import { hashString } from './hashString';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
 const THUMB_LONG_EDGE = 360;
@@ -8,15 +9,6 @@ const THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT = 128;
 const thumbnailDataUrlCache = new Map<string, string>();
 const thumbnailDataUrlInflightCache = new Map<string, Promise<string>>();
 const thumbnailGraphRenderCache = new Map<string, Promise<HTMLCanvasElement>>();
-
-function hashString(value: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
 
 function imageCacheSignature(doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) {
   return doc.layers
@@ -38,48 +30,70 @@ function rememberThumbnailDataUrl(key: string, value: string) {
   }
 }
 
-export async function generateThumbnail(
-  doc: CanvasDocument,
-  imageCache: Map<string, HTMLImageElement>,
-): Promise<string> {
+function thumbnailDimensions(doc: CanvasDocument) {
   const aspect = doc.global?.aspect ?? '1:1';
   const [aw, ah] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
-  const longest = Math.max(aw, ah);
-  const scale = THUMB_LONG_EDGE / longest;
-  const W = Math.max(1, Math.round(aw * scale));
-  const H = Math.max(1, Math.round(ah * scale));
-  const cacheKey = hashString(
+  const scale = THUMB_LONG_EDGE / Math.max(aw, ah);
+  return {
+    aspect,
+    width: Math.max(1, Math.round(aw * scale)),
+    height: Math.max(1, Math.round(ah * scale)),
+  };
+}
+
+function thumbnailCacheKey(
+  doc: CanvasDocument,
+  imageCache: Map<string, HTMLImageElement>,
+  dimensions: ReturnType<typeof thumbnailDimensions>,
+) {
+  return hashString(
     JSON.stringify({
-      aspect,
-      W,
-      H,
+      aspect: dimensions.aspect,
+      W: dimensions.width,
+      H: dimensions.height,
       doc,
       images: imageCacheSignature(doc, imageCache),
     }),
   );
+}
+
+async function renderThumbnailDataUrl(
+  doc: CanvasDocument,
+  imageCache: Map<string, HTMLImageElement>,
+  cacheKey: string,
+  width: number,
+  height: number,
+) {
+  const graphRenderCache: GraphRenderCache = {
+    namespace: cacheKey,
+    entries: thumbnailGraphRenderCache,
+    limit: THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT,
+  };
+  const out = await renderDocument(
+    doc,
+    width,
+    height,
+    imageCache,
+    { effectResolution: { width, height } },
+    graphRenderCache,
+  );
+  const result = out.toDataURL('image/jpeg', THUMB_QUALITY);
+  rememberThumbnailDataUrl(cacheKey, result);
+  return result;
+}
+
+export async function generateThumbnail(
+  doc: CanvasDocument,
+  imageCache: Map<string, HTMLImageElement>,
+): Promise<string> {
+  const dimensions = thumbnailDimensions(doc);
+  const cacheKey = thumbnailCacheKey(doc, imageCache, dimensions);
   const cached = thumbnailDataUrlCache.get(cacheKey);
   if (cached) return cached;
 
   let inflight = thumbnailDataUrlInflightCache.get(cacheKey);
   if (!inflight) {
-    inflight = (async () => {
-      const graphRenderCache: GraphRenderCache = {
-        namespace: cacheKey,
-        entries: thumbnailGraphRenderCache,
-        limit: THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT,
-      };
-      const out = await renderDocument(
-        doc,
-        W,
-        H,
-        imageCache,
-        { effectResolution: { width: W, height: H } },
-        graphRenderCache,
-      );
-      const result = out.toDataURL('image/jpeg', THUMB_QUALITY);
-      rememberThumbnailDataUrl(cacheKey, result);
-      return result;
-    })();
+    inflight = renderThumbnailDataUrl(doc, imageCache, cacheKey, dimensions.width, dimensions.height);
     thumbnailDataUrlInflightCache.set(cacheKey, inflight);
     inflight.finally(() => {
       if (thumbnailDataUrlInflightCache.get(cacheKey) === inflight) thumbnailDataUrlInflightCache.delete(cacheKey);

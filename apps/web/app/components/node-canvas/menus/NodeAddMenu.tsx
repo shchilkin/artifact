@@ -1,5 +1,5 @@
 import { type CSSProperties, useEffect, useMemo } from 'react';
-
+import type { AddAction } from '../../../utils/addActions';
 import { AddLibraryPanel } from '../../add-library/AddLibraryPanel';
 import {
   ADD_LIBRARY_ACTION_MIME,
@@ -9,7 +9,7 @@ import {
 import { FloatingMenu } from '../../ui/floating-menu';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../ui/sheet';
 import { clampPopupPosition } from '../helpers';
-import type { AddAction, PaneMenuProps } from '../types';
+import type { PaneMenuProps } from '../types';
 
 const MENU_W = 540;
 

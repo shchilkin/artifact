@@ -18,15 +18,17 @@ class FakeQueryClient implements CleanupQueryClient {
 }
 
 const now = new Date('2026-05-22T09:00:00.000Z');
+const cleanupRows = () => [
+  [{ id: 'job-expired' }],
+  [{ id: 'asset-orphan', storage_key: 'generated/orphan.png' }],
+  [{ id: 'asset-deleted', storage_key: 'generated/deleted.png' }],
+  [{ storage_key: 'generated/known.png' }],
+];
+const listLocalStorageKeys = async () => ['generated/known.png', 'generated/missing.png'];
 
 describe('cleanupAiGenerationData', () => {
   it('reports stale jobs, orphan assets, and orphan local files in dry-run mode', async () => {
-    const client = new FakeQueryClient([
-      [{ id: 'job-expired' }],
-      [{ id: 'asset-orphan', storage_key: 'generated/orphan.png' }],
-      [{ id: 'asset-deleted', storage_key: 'generated/deleted.png' }],
-      [{ storage_key: 'generated/known.png' }],
-    ]);
+    const client = new FakeQueryClient(cleanupRows());
     const storage = { deleteImage: vi.fn() };
 
     await expect(
@@ -34,7 +36,7 @@ describe('cleanupAiGenerationData', () => {
         now,
         dryRun: true,
         assetStorage: storage,
-        listLocalStorageKeys: async () => ['generated/known.png', 'generated/missing.png'],
+        listLocalStorageKeys,
       }),
     ).resolves.toEqual({
       dryRun: true,
@@ -50,12 +52,7 @@ describe('cleanupAiGenerationData', () => {
   });
 
   it('expires stale jobs, soft-deletes orphan assets, and deletes local files when applied', async () => {
-    const client = new FakeQueryClient([
-      [{ id: 'job-expired' }],
-      [{ id: 'asset-orphan', storage_key: 'generated/orphan.png' }],
-      [{ id: 'asset-deleted', storage_key: 'generated/deleted.png' }],
-      [{ storage_key: 'generated/known.png' }],
-    ]);
+    const client = new FakeQueryClient(cleanupRows());
     const storage = { deleteImage: vi.fn(async () => undefined) };
 
     await expect(
@@ -63,7 +60,7 @@ describe('cleanupAiGenerationData', () => {
         now,
         dryRun: false,
         assetStorage: storage,
-        listLocalStorageKeys: async () => ['generated/known.png', 'generated/missing.png'],
+        listLocalStorageKeys,
       }),
     ).resolves.toEqual({
       dryRun: false,

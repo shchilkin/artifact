@@ -21,3 +21,28 @@ export function defaultPrimitiveViewportState(layer: PrimitiveLayer): PrimitiveV
     locked: false,
   };
 }
+
+export function primitiveViewStatesEqual(left: PrimitiveViewportState, right: PrimitiveViewportState) {
+  return (
+    left.rotationX === right.rotationX &&
+    left.rotationY === right.rotationY &&
+    left.zoom === right.zoom &&
+    left.panX === right.panX &&
+    left.panY === right.panY &&
+    (left.locked ?? false) === (right.locked ?? false)
+  );
+}
+
+export function primitiveViewStateMapsEqual(
+  a: Record<string, PrimitiveViewportState>,
+  b: Record<string, PrimitiveViewportState>,
+) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => {
+    const left = a[key];
+    const right = b[key];
+    return right !== undefined && primitiveViewStatesEqual(left, right);
+  });
+}

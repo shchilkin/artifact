@@ -1,6 +1,12 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
-
-const consoleIssues = new WeakMap<Page, string[]>();
+import {
+  expectLayerCanvasToHavePixels,
+  expectNoBrowserIssues,
+  gotoDocument,
+  setupBrowserTestPage,
+  switchToLayerView,
+  switchToNodeView,
+} from './helpers';
 
 const blankEditorDocument = {
   schemaVersion: 1,
@@ -95,33 +101,11 @@ const graphStateDocument = {
 };
 
 test.beforeEach(async ({ page }) => {
-  const issues: string[] = [];
-  consoleIssues.set(page, issues);
-
-  await page.route('**/api/ai/access', async (route) => {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        authenticated: false,
-        enabled: false,
-        disabledReason: 'anonymous',
-      }),
-    });
-  });
-
-  page.on('console', (message) => {
-    const text = message.text();
-    if (isBenignBrowserTestIssue(text)) return;
-    if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
-  });
-  page.on('pageerror', (error) => {
-    if (isBenignBrowserTestIssue(error.message)) return;
-    issues.push(`pageerror: ${error.message}`);
-  });
+  await setupBrowserTestPage(page);
 });
 
 test.afterEach(async ({ page }) => {
-  expect(consoleIssues.get(page) ?? []).toEqual([]);
+  expectNoBrowserIssues(page);
 });
 
 test('v0.30 blank editor keeps the empty start and layer shell visually readable', async ({ page }) => {
@@ -342,51 +326,6 @@ test('v0.30 nodes baseline preserves output path area context and previews', asy
   await expectLayerCanvasToHavePixels(page);
 });
 
-function isBenignBrowserTestIssue(text: string) {
-  return (
-    text.includes('downloadable font: download failed') ||
-    text.includes('Failed to preconnect to https://fonts.googleapis.com/') ||
-    text.includes('Failed to preconnect to https://fonts.gstatic.com/') ||
-    text.includes('Failed to load resource: A server with the specified hostname could not be found.') ||
-    text.includes('Failed to load resource: net::ERR_NAME_NOT_RESOLVED') ||
-    text.includes('Outdated Optimize Dep') ||
-    text.includes('Error loading route module `/app/routes/generator.tsx`, reloading page') ||
-    text.includes('Importing a module script failed') ||
-    text.includes('Failed to fetch dynamically imported module: http://127.0.0.1:4173/node_modules/.vite/deps/') ||
-    text.includes(
-      'Failed to fetch dynamically imported module: http://127.0.0.1:4173/@fs/Users/shchilkin/dev/album-cover-utils/node_modules/@react-router/dev/dist/config/defaults/entry.client.tsx',
-    ) ||
-    text.includes('Failed to fetch dynamically imported module: http://127.0.0.1:4173/app/routes/generator.tsx') ||
-    text.includes('error loading dynamically imported module: http://127.0.0.1:4173/') ||
-    text.includes('due to access control checks') ||
-    text.includes('NS_BINDING_ABORTED') ||
-    text === 'JSHandle@object'
-  );
-}
-
-async function gotoDocument(page: Page, doc: object) {
-  await page.goto(`/app?doc=${encodeURIComponent(JSON.stringify(doc))}`);
-}
-
-async function switchToNodeView(page: Page) {
-  await expect(async () => {
-    if (await page.locator('.node-canvas-root').isVisible()) return;
-    const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
-    await expect(nodesTab).toBeVisible({ timeout: 2_000 });
-    await nodesTab.click();
-    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
-}
-
-async function switchToLayerView(page: Page) {
-  await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
-    await expect(layersTab).toBeVisible({ timeout: 2_000 });
-    await layersTab.click();
-    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
-}
-
 async function assertReadableBox(locator: Locator, options: { minWidth: number; minHeight: number }) {
   await expect(locator).toBeVisible({ timeout: 15_000 });
   const box = await locator.boundingBox();
@@ -485,35 +424,6 @@ async function assertOpaqueContextMenu(menu: Locator) {
   expect(metrics.background).not.toMatch(/rgba\([^)]*,\s*0(?:\.0+)?\)$/);
   expect(metrics.borderColor).not.toBe('rgba(0, 0, 0, 0)');
   expect(metrics.shadow).not.toBe('none');
-}
-
-async function expectLayerCanvasToHavePixels(page: Page) {
-  const canvas = page.locator('.pixi-container canvas').first();
-  await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        canvas.evaluate((element) => {
-          const canvas = element as HTMLCanvasElement;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
-          const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-          let maxChannel = 0;
-          let alphaTotal = 0;
-          let samples = 0;
-          for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 32))) {
-            for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 32))) {
-              const index = (y * canvas.width + x) * 4;
-              maxChannel = Math.max(maxChannel, pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
-              alphaTotal += pixels[index + 3] ?? 0;
-              samples += 1;
-            }
-          }
-          return alphaTotal / samples > 4 && maxChannel > 24;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(true);
 }
 
 async function getCanvasCenterRgb(page: Page) {

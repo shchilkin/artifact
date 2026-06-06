@@ -2,7 +2,7 @@ import { type Job as BullJob, Queue as BullQueue, Worker as BullWorker } from 'b
 import { Redis } from 'ioredis';
 import type { GenerationQueuePayload } from './contracts.js';
 
-export const GENERATION_QUEUE_NAME = 'ai-generation';
+const GENERATION_QUEUE_NAME = 'ai-generation';
 
 export type QueueJobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
 
@@ -39,7 +39,7 @@ interface MutableQueueJob<TPayload> {
   status: QueueJobStatus;
 }
 
-export class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
+class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
   private readonly pending: MutableQueueJob<TPayload>[] = [];
   private processor?: (job: QueueJob<TPayload>) => Promise<void>;
   private closed = false;

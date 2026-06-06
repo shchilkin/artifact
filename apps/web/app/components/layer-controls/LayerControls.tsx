@@ -5,7 +5,7 @@
  * this component. Field ranges and option lists are imported from fieldDefs
  * so that control behavior never drifts between surfaces.
  */
-import { useState } from 'react';
+import { type Dispatch, type ReactNode, type SetStateAction, useState } from 'react';
 
 import {
   type EmojiLayer,
@@ -50,6 +50,45 @@ import {
 
 const R = FIELD_RANGES;
 const DEFAULT_PLACEMENT = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0 };
+const ARRAY_DEFAULT_LABELS = {
+  count: 'Columns',
+  rows: 'Rows',
+  gap: 'Cell Gap',
+  size: 'Size',
+  jitter: 'Jitter',
+};
+const ARRAY_LINE_LABELS = {
+  count: 'Items',
+  rows: 'Rows',
+  gap: 'Spacing',
+  size: 'Size',
+  jitter: 'Jitter',
+};
+const ARRAY_RADIAL_LABELS = {
+  count: 'Per Ring',
+  rows: 'Rings',
+  gap: 'Ring Gap',
+  size: 'Size',
+  radius: 'Start Radius',
+  jitter: 'Scatter',
+};
+const ARRAY_BAR_LABELS = {
+  count: 'Bars',
+  rows: 'Rows',
+  gap: 'Spacing',
+  size: 'Height',
+  radius: 'Width',
+  jitter: 'Unevenness',
+  note: 'Width and height control each bar; rows adds stacked barcode bands.',
+};
+
+type LayerControlSection = 'content' | 'placement' | 'style' | 'structure';
+type LayerControlsSurface = 'layers' | 'nodes';
+type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
+type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
+type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
+
+const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array']);
 
 function PlacementResetButton({ onClick }: { onClick: () => void }) {
   return (
@@ -57,6 +96,184 @@ function PlacementResetButton({ onClick }: { onClick: () => void }) {
       Reset placement
     </button>
   );
+}
+
+function PlacementPositionSliders({
+  x,
+  y,
+  onXChange,
+  onYChange,
+}: {
+  x: number;
+  y: number;
+  onXChange: (value: number) => void;
+  onYChange: (value: number) => void;
+}) {
+  return (
+    <>
+      <InspectorSlider label="Horizontal" value={Math.round(x * 100)} {...R.x} onChange={(v) => onXChange(v / 100)} />
+      <InspectorSlider label="Vertical" value={Math.round(y * 100)} {...R.y} onChange={(v) => onYChange(v / 100)} />
+    </>
+  );
+}
+
+function PlacementSection({
+  x,
+  y,
+  open,
+  children,
+  onToggle,
+  onReset,
+  onChange,
+}: {
+  x: number;
+  y: number;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+  onReset: () => void;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <InspectorSection
+      title="Placement"
+      summary={`${Math.round(x * 100)} / ${Math.round(y * 100)}`}
+      open={open}
+      onToggle={onToggle}
+    >
+      <PlacementResetButton onClick={onReset} />
+      <PlacementPositionSliders
+        x={x}
+        y={y}
+        onXChange={(v) => onChange({ x: v })}
+        onYChange={(v) => onChange({ y: v })}
+      />
+      {children}
+    </InspectorSection>
+  );
+}
+
+function LayerPlacementControls<T extends ImageLayer | TextLayer>({
+  layer,
+  open,
+  children,
+  onToggle,
+  onChange,
+}: {
+  layer: T;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <PlacementSection
+      x={layer.x}
+      y={layer.y}
+      open={open}
+      onToggle={onToggle}
+      onReset={() => onChange(DEFAULT_PLACEMENT as Partial<T>)}
+      onChange={(patch) => onChange(patch as Partial<T>)}
+    >
+      {children}
+    </PlacementSection>
+  );
+}
+
+function PlacementRotationSlider<T extends ImageLayer | TextLayer>({
+  layer,
+  onChange,
+}: {
+  layer: T;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <InspectorSlider
+      label="Rotation"
+      value={Math.round(layer.rotation)}
+      {...R.rotation}
+      onChange={(v) => onChange({ rotation: v } as Partial<T>)}
+    />
+  );
+}
+
+function PlacementScaleLockRow<T extends ImageLayer | TextLayer>({
+  layer,
+  locked,
+  onLockChange,
+  onChange,
+}: {
+  layer: T;
+  locked: boolean;
+  onLockChange: (locked: boolean) => void;
+  onChange: (patch: Partial<T>) => void;
+}) {
+  return (
+    <ScaleLockRow
+      scaleX={layer.scaleX}
+      scaleY={layer.scaleY}
+      locked={locked}
+      onLockChange={onLockChange}
+      onChange={(patch) => onChange(patch as Partial<T>)}
+    />
+  );
+}
+
+function LayerBlendStyleSection({
+  opacity,
+  blendMode,
+  open,
+  onToggle,
+  onOpacityChange,
+  onBlendModeChange,
+  children,
+}: {
+  opacity: number;
+  blendMode: string;
+  open: boolean;
+  onToggle: () => void;
+  onOpacityChange: (value: number) => void;
+  onBlendModeChange: (value: string) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <InspectorSection title="Style" summary={`${opacity}% · ${blendMode}`} open={open} onToggle={onToggle}>
+      {children}
+      <InspectorSlider label="Opacity" value={opacity} {...R.opacity} onChange={onOpacityChange} />
+      <InspectorSelect label="Blend" value={blendMode} options={[...BLEND_OPTIONS]} onChange={onBlendModeChange} />
+      <BlendModeNote value={blendMode} />
+    </InspectorSection>
+  );
+}
+
+function LayerContentSection({
+  summary,
+  open,
+  children,
+  onToggle,
+}: {
+  summary: string;
+  open: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <InspectorSection title="Content" summary={summary} open={open} onToggle={onToggle}>
+      {children}
+    </InspectorSection>
+  );
+}
+
+function LayerNameInput({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  return <InspectorTextInput value={value} placeholder={placeholder} onChange={onChange} />;
 }
 
 function parseEmojiInput(value: string): string[] {
@@ -67,24 +284,689 @@ function parseEmojiInput(value: string): string[] {
   return Array.from(trimmed);
 }
 
-function sourceColorLabels(layer: SourceLayer): { primary: string; secondary: string } {
+function sourceColorLabels(layer: SourceLayer): {
+  primary: string;
+  secondary: string;
+} {
   if (layer.kind === 'primitive') return { primary: 'Material', secondary: 'Light' };
   if (layer.kind === 'noise') return { primary: 'Shadow', secondary: 'Main' };
   return { primary: 'Base', secondary: 'Accent' };
 }
 
 function ImageGenerationProvenance({ layer }: { layer: ImageLayer }) {
-  if (!layer.aiGeneration?.prompt) return null;
-  const state = getAiGenerationUiState(layer.aiGeneration);
-  const label = getAiGenerationStatusLabel(layer.aiGeneration);
-  const detail = getAiGenerationStatusDetail(layer.aiGeneration);
+  const generation = layer.aiGeneration;
+  if (!generation?.prompt) return null;
+  const state = getAiGenerationUiState(generation);
+  const label = getAiGenerationStatusLabel(generation);
+  const detail = getAiGenerationStatusDetail(generation);
   return (
     <div className={`ai-generation-provenance ai-generation-provenance-${state}`}>
-      <span>{label && state !== 'done' ? label : 'Current image prompt'}</span>
-      <p>{layer.aiGeneration.prompt}</p>
-      {state === 'failed' && detail && <p>{detail}</p>}
+      <span>{imageGenerationProvenanceLabel(label, state)}</span>
+      <p>{generation.prompt}</p>
+      <ImageGenerationFailureDetail state={state} detail={detail} />
     </div>
   );
+}
+
+function imageGenerationProvenanceLabel(label: string | null, state: ReturnType<typeof getAiGenerationUiState>) {
+  if (!label) return 'Current image prompt';
+  return state === 'done' ? 'Current image prompt' : label;
+}
+
+function ImageGenerationFailureDetail({
+  state,
+  detail,
+}: {
+  state: ReturnType<typeof getAiGenerationUiState>;
+  detail: string | null;
+}) {
+  if (state !== 'failed') return null;
+  return detail ? <p>{detail}</p> : null;
+}
+
+function toggleOpenSection(
+  setOpenSection: SetOpenSection,
+  section: LayerControlSection,
+  fallback: LayerControlSection,
+) {
+  setOpenSection((current) => (current === section ? fallback : section));
+}
+
+function LayerStyleForLayer({
+  layer,
+  openSection,
+  setOpenSection,
+  children,
+  onChange,
+}: {
+  layer: Layer;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  children?: ReactNode;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <LayerBlendStyleSection
+      opacity={layer.opacity}
+      blendMode={layer.blendMode}
+      open={openSection === 'style'}
+      onToggle={() => toggleOpenSection(setOpenSection, 'style', 'content')}
+      onOpacityChange={(v) => onChange({ opacity: v })}
+      onBlendModeChange={(v) => onChange({ blendMode: v })}
+    >
+      {children}
+    </LayerBlendStyleSection>
+  );
+}
+
+function textFontSummary(layer: TextLayer): string {
+  return isFontUri(layer.font) ? importedTextFontSummary(layer.font) : getBundledFontRegistryItem(layer.font).label;
+}
+
+function importedTextFontSummary(font: string): string {
+  const importedFont = getCachedImportedFont(font);
+  return normalizeImportedFontLabel(importedFontDisplayName(importedFont));
+}
+
+function importedFontDisplayName(importedFont: ReturnType<typeof getCachedImportedFont>): string {
+  if (!importedFont) return 'Imported font';
+  return importedFont.sourceName || importedFont.label || 'Imported font';
+}
+
+function TextLayerControls({
+  layer,
+  sectionClassName,
+  openSection,
+  setOpenSection,
+  scaleLocked,
+  setScaleLocked,
+  onChange,
+}: {
+  layer: TextLayer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  scaleLocked: boolean;
+  setScaleLocked: SetScaleLocked;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <div className={sectionClassName}>
+      <InspectorSection
+        title="Content"
+        summary={`${textFontSummary(layer)} · ${layer.size}px`}
+        open={openSection === 'content'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'content', 'placement')}
+      >
+        <LayerNameInput value={layer.name} placeholder="Layer name" onChange={(v) => onChange({ name: v })} />
+        <InspectorTextArea value={layer.content} onChange={(v) => onChange({ content: v } as Partial<TextLayer>)} />
+        <FontPicker
+          label="Font"
+          value={layer.font}
+          onChange={(v) => onChange({ font: v as TextLayer['font'] } as Partial<TextLayer>)}
+        />
+        <InspectorSlider
+          label="Size"
+          value={layer.size}
+          {...R.size}
+          onChange={(v) => onChange({ size: v } as Partial<TextLayer>)}
+        />
+        <InspectorSelect
+          label="Align"
+          value={layer.align}
+          options={[...TEXT_ALIGN_OPTIONS]}
+          onChange={(v) => onChange({ align: v as TextLayer['align'] } as Partial<TextLayer>)}
+        />
+      </InspectorSection>
+      <LayerPlacementControls
+        layer={layer}
+        open={openSection === 'placement'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'placement', 'style')}
+        onChange={(patch) => onChange(patch as Partial<TextLayer>)}
+      >
+        <PlacementRotationSlider layer={layer} onChange={(patch) => onChange(patch as Partial<TextLayer>)} />
+        <PlacementScaleLockRow
+          layer={layer}
+          locked={scaleLocked}
+          onLockChange={setScaleLocked}
+          onChange={(patch) => onChange(patch as Partial<TextLayer>)}
+        />
+      </LayerPlacementControls>
+      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange}>
+        <InspectorColorInput
+          label="Color"
+          value={layer.color}
+          onChange={(v) => onChange({ color: v } as Partial<TextLayer>)}
+        />
+      </LayerStyleForLayer>
+    </div>
+  );
+}
+
+function ImageLayerControls({
+  layer,
+  sectionClassName,
+  openSection,
+  setOpenSection,
+  scaleLocked,
+  setScaleLocked,
+  showAiGenerationProvenance,
+  onChange,
+}: {
+  layer: ImageLayer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  scaleLocked: boolean;
+  setScaleLocked: SetScaleLocked;
+  showAiGenerationProvenance: boolean;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <div className={sectionClassName}>
+      <InspectorSection
+        title="Content"
+        summary={`${layer.fit} fit`}
+        open={openSection === 'content'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'content', 'placement')}
+      >
+        <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        {showAiGenerationProvenance && <ImageGenerationProvenance layer={layer} />}
+        <InspectorSelect
+          label="Fit"
+          value={layer.fit}
+          options={[...IMAGE_FIT_OPTIONS]}
+          onChange={(v) => onChange({ fit: v } as Partial<ImageLayer>)}
+        />
+      </InspectorSection>
+      <LayerPlacementControls
+        layer={layer}
+        open={openSection === 'placement'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'placement', 'style')}
+        onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
+      >
+        <PlacementScaleLockRow
+          layer={layer}
+          locked={scaleLocked}
+          onLockChange={setScaleLocked}
+          onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
+        />
+        <PlacementRotationSlider layer={layer} onChange={(patch) => onChange(patch as Partial<ImageLayer>)} />
+      </LayerPlacementControls>
+      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
+    </div>
+  );
+}
+
+function FillLayerControls({
+  layer,
+  sectionClassName,
+  openSection,
+  setOpenSection,
+  onChange,
+}: {
+  layer: FillLayer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <div className={sectionClassName}>
+      <LayerContentSection
+        summary="Solid fill"
+        open={openSection === 'content'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'content', 'style')}
+      >
+        <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        <InspectorColorInput
+          label="Color"
+          value={layer.color}
+          onChange={(v) => onChange({ color: v } as Partial<FillLayer>)}
+        />
+      </LayerContentSection>
+      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
+    </div>
+  );
+}
+
+function EmojiLayerControls({
+  layer,
+  sectionClassName,
+  openSection,
+  setOpenSection,
+  onChange,
+}: {
+  layer: EmojiLayer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <div className={sectionClassName}>
+      <LayerContentSection
+        summary={`${layer.density} density`}
+        open={openSection === 'content'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'content', 'style')}
+      >
+        <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        <div className="node-inspector-control">
+          <InspectorLabel>Emojis</InspectorLabel>
+          <InspectorTextInput
+            value={layer.emojis.join(' ')}
+            onChange={(v) => onChange({ emojis: parseEmojiInput(v) } as Partial<EmojiLayer>)}
+            placeholder="😂 😭 💔"
+          />
+          <p className="node-inspector-note">Separate emojis with spaces or commas.</p>
+        </div>
+        <InspectorSlider
+          label="Density"
+          value={layer.density}
+          {...R.density}
+          onChange={(v) => onChange({ density: v } as Partial<EmojiLayer>)}
+        />
+        <InspectorSlider
+          label="Seed"
+          value={Math.round(layer.seedOffset ?? 0)}
+          {...R.seedOffset}
+          overrideMax={9999}
+          onChange={(v) => onChange({ seedOffset: v } as Partial<EmojiLayer>)}
+        />
+        <InspectorSlider
+          label="Smallest"
+          value={layer.minSz}
+          {...R.minSz}
+          onChange={(v) => onChange({ minSz: v, maxSz: Math.max(layer.maxSz, v) } as Partial<EmojiLayer>)}
+        />
+        <InspectorSlider
+          label="Biggest"
+          value={layer.maxSz}
+          {...R.maxSz}
+          onChange={(v) => onChange({ maxSz: v, minSz: Math.min(layer.minSz, v) } as Partial<EmojiLayer>)}
+        />
+      </LayerContentSection>
+      <InspectorSection
+        title="Style"
+        summary={`${layer.opacity}% opacity`}
+        open={openSection === 'style'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'style', 'content')}
+      >
+        <InspectorSlider
+          label="Opacity"
+          value={layer.opacity}
+          {...R.opacity}
+          onChange={(v) => onChange({ opacity: v })}
+        />
+      </InspectorSection>
+    </div>
+  );
+}
+
+function sourceSurfaceNote(surface: LayerControlsSurface, layer: SourceLayer): string | null {
+  if (surface !== 'layers') return null;
+  if (layer.kind === 'primitive')
+    return 'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.';
+  if (layer.kind === 'noise')
+    return 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.';
+  return null;
+}
+
+function sourceContentFallback(layer: SourceLayer): LayerControlSection {
+  return layerHasPlacementControls(layer) ? 'placement' : 'structure';
+}
+
+function SourceContentSection({
+  layer,
+  surface,
+  openSection,
+  setOpenSection,
+  onChange,
+}: {
+  layer: SourceLayer;
+  surface: LayerControlsSurface;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  const colorLabels = sourceColorLabels(layer);
+  const note = sourceSurfaceNote(surface, layer);
+  return (
+    <InspectorSection
+      title="Content"
+      summary={sourceSummary(layer)}
+      open={openSection === 'content'}
+      onToggle={() => toggleOpenSection(setOpenSection, 'content', sourceContentFallback(layer))}
+    >
+      <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+      <InspectorColorInput
+        label={colorLabels.primary}
+        value={layer.color}
+        onChange={(v) => onChange({ color: v } as Partial<SourceLayer>)}
+      />
+      <InspectorColorInput
+        label={colorLabels.secondary}
+        value={layer.accentColor}
+        onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
+      />
+      {note && <p className="node-inspector-note">{note}</p>}
+      {layer.kind !== 'primitive' && (
+        <>
+          <InspectorSlider
+            label="Node Seed"
+            value={Math.round(layer.seedOffset ?? 0)}
+            {...R.seedOffset}
+            overrideMax={9999}
+            onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
+          />
+          <p className="node-inspector-note">
+            Changes this node's generated pattern without changing the document seed.
+          </p>
+        </>
+      )}
+    </InspectorSection>
+  );
+}
+
+function SourcePlacementSection({
+  layer,
+  openSection,
+  setOpenSection,
+  scaleLocked,
+  setScaleLocked,
+  onChange,
+}: {
+  layer: SourceLayer;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  scaleLocked: boolean;
+  setScaleLocked: SetScaleLocked;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  if (!layerHasPlacementControls(layer)) return null;
+  return (
+    <PlacementSection
+      x={layer.x}
+      y={layer.y}
+      open={openSection === 'placement'}
+      onToggle={() => toggleOpenSection(setOpenSection, 'placement', 'structure')}
+      onReset={() => onChange(DEFAULT_PLACEMENT as Partial<SourceLayer>)}
+      onChange={(patch) => onChange(patch as Partial<SourceLayer>)}
+    >
+      <ScaleLockRow
+        scaleX={layer.scaleX}
+        scaleY={layer.scaleY}
+        locked={scaleLocked}
+        onLockChange={setScaleLocked}
+        onChange={(patch) => onChange(patch as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Rotation"
+        value={Math.round(layer.rotation)}
+        {...R.rotation}
+        onChange={(v) => onChange({ rotation: v } as Partial<SourceLayer>)}
+      />
+    </PlacementSection>
+  );
+}
+
+function PrimitiveStructureControls({
+  layer,
+  surface,
+  onChange,
+}: {
+  layer: SourceLayer;
+  surface: LayerControlsSurface;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <>
+      <InspectorSelect
+        label="Shape"
+        value={layer.primitiveShape}
+        options={[...PRIMITIVE_SHAPE_OPTIONS]}
+        onChange={(v) => onChange({ primitiveShape: v as SourceLayer['primitiveShape'] } as Partial<SourceLayer>)}
+      />
+      {surface === 'nodes' && (
+        <p className="node-inspector-note">Camera angle is controlled in the preview: drag rotates, wheel zooms.</p>
+      )}
+      <InspectorSlider
+        label="Spin"
+        value={Math.round(layer.tiltZ)}
+        {...R.tiltZ}
+        onChange={(v) => onChange({ tiltZ: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Depth"
+        value={Math.round(layer.primitiveDepth)}
+        {...R.primitiveDepth}
+        onChange={(v) => onChange({ primitiveDepth: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSelect
+        label="Shading"
+        value={layer.primitiveShading ?? 'smooth'}
+        options={[...PRIMITIVE_SHADING_OPTIONS]}
+        onChange={(v) => onChange({ primitiveShading: v as 'smooth' | 'flat' } as Partial<SourceLayer>)}
+      />
+    </>
+  );
+}
+
+function NoiseStructureControls({
+  layer,
+  onChange,
+}: {
+  layer: SourceLayer;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <>
+      <InspectorSelect
+        label="Noise"
+        value={layer.noiseType}
+        options={[...NOISE_TYPE_OPTIONS]}
+        onChange={(v) => onChange({ noiseType: v as SourceLayer['noiseType'] } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Scale"
+        value={Math.round(layer.noiseScale)}
+        {...R.noiseScale}
+        onChange={(v) => onChange({ noiseScale: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Detail"
+        value={Math.round(layer.noiseDetail)}
+        {...R.noiseDetail}
+        onChange={(v) => onChange({ noiseDetail: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Contrast"
+        value={Math.round(layer.noiseContrast)}
+        {...R.noiseContrast}
+        onChange={(v) => onChange({ noiseContrast: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Balance"
+        value={Math.round(layer.noiseBalance)}
+        {...R.noiseBalance}
+        onChange={(v) => onChange({ noiseBalance: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Domain Warp"
+        value={Math.round(layer.noiseWarp ?? 0)}
+        {...R.noiseWarp}
+        onChange={(v) => onChange({ noiseWarp: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Turbulence"
+        value={Math.round(layer.noiseTurbulence ?? 0)}
+        {...R.noiseTurbulence}
+        onChange={(v) => onChange({ noiseTurbulence: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Threshold"
+        value={Math.round(layer.noiseThreshold ?? 0)}
+        {...R.noiseThreshold}
+        onChange={(v) => onChange({ noiseThreshold: v } as Partial<SourceLayer>)}
+      />
+    </>
+  );
+}
+
+function ArrayStructureControls({
+  layer,
+  onChange,
+}: {
+  layer: SourceLayer;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  const arrayLabels = getArrayControlLabels(layer);
+  return (
+    <>
+      <InspectorSelect
+        label="Pattern"
+        value={layer.arrayPattern}
+        options={[...ARRAY_PATTERN_OPTIONS]}
+        onChange={(v) => onChange({ arrayPattern: v as SourceLayer['arrayPattern'] } as Partial<SourceLayer>)}
+      />
+      <InspectorSelect
+        label="Shape"
+        value={layer.arrayShape}
+        options={[...ARRAY_SHAPE_OPTIONS]}
+        onChange={(v) => onChange({ arrayShape: v as SourceLayer['arrayShape'] } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label={arrayLabels.count}
+        value={Math.round(layer.arrayCount)}
+        {...R.arrayCount}
+        overrideMax={64}
+        onChange={(v) => onChange({ arrayCount: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label={arrayLabels.rows}
+        value={Math.round(layer.arrayRows)}
+        {...R.arrayRows}
+        overrideMax={48}
+        onChange={(v) => onChange({ arrayRows: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label={arrayLabels.gap}
+        value={Math.round(layer.arrayGap)}
+        {...R.arrayGap}
+        overrideMax={240}
+        onChange={(v) => onChange({ arrayGap: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label={arrayLabels.size}
+        value={Math.round(layer.arraySize)}
+        {...R.arraySize}
+        onChange={(v) => onChange({ arraySize: v } as Partial<SourceLayer>)}
+      />
+      {arrayLabels.radius && (
+        <InspectorSlider
+          label={arrayLabels.radius}
+          value={Math.round(layer.arrayRadius)}
+          {...R.arrayRadius}
+          overrideMax={420}
+          onChange={(v) => onChange({ arrayRadius: v } as Partial<SourceLayer>)}
+        />
+      )}
+      <InspectorSlider
+        label={arrayLabels.jitter}
+        value={Math.round(layer.arrayJitter)}
+        {...R.arrayJitter}
+        overrideMax={180}
+        onChange={(v) => onChange({ arrayJitter: v } as Partial<SourceLayer>)}
+      />
+      {arrayLabels.note && <p className="node-inspector-note">{arrayLabels.note}</p>}
+    </>
+  );
+}
+
+function SourceStructureControls({
+  layer,
+  surface,
+  onChange,
+}: {
+  layer: SourceLayer;
+  surface: LayerControlsSurface;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  if (layer.kind === 'primitive')
+    return <PrimitiveStructureControls layer={layer} surface={surface} onChange={onChange} />;
+  if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
+  return <ArrayStructureControls layer={layer} onChange={onChange} />;
+}
+
+function SourceLayerControls({
+  layer,
+  sectionClassName,
+  openSection,
+  setOpenSection,
+  scaleLocked,
+  setScaleLocked,
+  surface,
+  onChange,
+}: {
+  layer: SourceLayer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  scaleLocked: boolean;
+  setScaleLocked: SetScaleLocked;
+  surface: LayerControlsSurface;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <div className={sectionClassName}>
+      <SourceContentSection
+        layer={layer}
+        surface={surface}
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+        onChange={onChange}
+      />
+      <SourcePlacementSection
+        layer={layer}
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+        scaleLocked={scaleLocked}
+        setScaleLocked={setScaleLocked}
+        onChange={onChange}
+      />
+      <InspectorSection
+        title={layer.kind === 'primitive' ? 'Structure' : 'Pattern'}
+        summary={structureSummary(layer)}
+        open={openSection === 'structure'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'structure', 'style')}
+      >
+        <SourceStructureControls layer={layer} surface={surface} onChange={onChange} />
+      </InspectorSection>
+      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
+    </div>
+  );
+}
+
+type LayerControlRenderProps = {
+  layer: Layer;
+  sectionClassName: string;
+  openSection: LayerControlSection;
+  setOpenSection: SetOpenSection;
+  scaleLocked: boolean;
+  setScaleLocked: SetScaleLocked;
+  showAiGenerationProvenance: boolean;
+  onChange: (patch: Partial<Layer>) => void;
+};
+
+const BASIC_LAYER_CONTROLS: Record<BasicLayerKind, (props: LayerControlRenderProps) => ReactNode> = {
+  text: ({ layer, ...props }) => <TextLayerControls {...props} layer={layer as TextLayer} />,
+  image: ({ layer, ...props }) => <ImageLayerControls {...props} layer={layer as ImageLayer} />,
+  fill: ({ layer, ...props }) => <FillLayerControls {...props} layer={layer as FillLayer} />,
+  emoji: ({ layer, ...props }) => <EmojiLayerControls {...props} layer={layer as EmojiLayer} />,
+};
+
+function basicLayerControlRenderer(kind: Layer['kind']) {
+  return BASIC_LAYER_CONTROLS[kind as BasicLayerKind] ?? null;
 }
 
 export function LayerControls({
@@ -98,547 +980,26 @@ export function LayerControls({
   onChange: (patch: Partial<Layer>) => void;
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
-  surface?: 'layers' | 'nodes';
+  surface?: LayerControlsSurface;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
-  const [openSection, setOpenSection] = useState<'content' | 'placement' | 'style' | 'structure'>('content');
+  const [openSection, setOpenSection] = useState<LayerControlSection>('content');
   const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
+  const renderProps = {
+    layer,
+    sectionClassName,
+    openSection,
+    setOpenSection,
+    scaleLocked,
+    setScaleLocked,
+    showAiGenerationProvenance,
+    onChange,
+  };
+  const renderBasicLayerControls = basicLayerControlRenderer(layer.kind);
 
-  if (layer.kind === 'text') {
-    const importedFont = isFontUri(layer.font) ? getCachedImportedFont(layer.font) : null;
-    const fontSummary = isFontUri(layer.font)
-      ? normalizeImportedFontLabel(importedFont?.sourceName ?? importedFont?.label ?? 'Imported font')
-      : getBundledFontRegistryItem(layer.font).label;
-    return (
-      <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary={`${fontSummary} · ${layer.size}px`}
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} placeholder="Layer name" />
-          <InspectorTextArea value={layer.content} onChange={(v) => onChange({ content: v } as Partial<TextLayer>)} />
-          <FontPicker
-            label="Font"
-            value={layer.font}
-            onChange={(v) => onChange({ font: v as TextLayer['font'] } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Size"
-            value={layer.size}
-            {...R.size}
-            onChange={(v) => onChange({ size: v } as Partial<TextLayer>)}
-          />
-          <InspectorSelect
-            label="Align"
-            value={layer.align}
-            options={[...TEXT_ALIGN_OPTIONS]}
-            onChange={(v) => onChange({ align: v as TextLayer['align'] } as Partial<TextLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Placement"
-          summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-          open={openSection === 'placement'}
-          onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
-        >
-          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<TextLayer>)} />
-          <InspectorSlider
-            label="Horizontal"
-            value={Math.round(layer.x * 100)}
-            {...R.x}
-            onChange={(v) => onChange({ x: v / 100 } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Vertical"
-            value={Math.round(layer.y * 100)}
-            {...R.y}
-            onChange={(v) => onChange({ y: v / 100 } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Rotation"
-            value={Math.round(layer.rotation)}
-            {...R.rotation}
-            onChange={(v) => onChange({ rotation: v } as Partial<TextLayer>)}
-          />
-          <ScaleLockRow
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
-            locked={scaleLocked}
-            onLockChange={setScaleLocked}
-            onChange={(patch) => onChange(patch as Partial<TextLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorColorInput
-            label="Color"
-            value={layer.color}
-            onChange={(v) => onChange({ color: v } as Partial<TextLayer>)}
-          />
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
-      </div>
-    );
-  }
-
-  if (layer.kind === 'image') {
-    return (
-      <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary={`${layer.fit} fit`}
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'placement' : 'content'))}
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-          {showAiGenerationProvenance && <ImageGenerationProvenance layer={layer} />}
-          <InspectorSelect
-            label="Fit"
-            value={layer.fit}
-            options={[...IMAGE_FIT_OPTIONS]}
-            onChange={(v) => onChange({ fit: v } as Partial<ImageLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Placement"
-          summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-          open={openSection === 'placement'}
-          onToggle={() => setOpenSection((s) => (s === 'placement' ? 'style' : 'placement'))}
-        >
-          <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<ImageLayer>)} />
-          <InspectorSlider
-            label="Horizontal"
-            value={Math.round(layer.x * 100)}
-            {...R.x}
-            onChange={(v) => onChange({ x: v / 100 } as Partial<ImageLayer>)}
-          />
-          <InspectorSlider
-            label="Vertical"
-            value={Math.round(layer.y * 100)}
-            {...R.y}
-            onChange={(v) => onChange({ y: v / 100 } as Partial<ImageLayer>)}
-          />
-          <ScaleLockRow
-            scaleX={layer.scaleX}
-            scaleY={layer.scaleY}
-            locked={scaleLocked}
-            onLockChange={setScaleLocked}
-            onChange={(patch) => onChange(patch as Partial<ImageLayer>)}
-          />
-          <InspectorSlider
-            label="Rotation"
-            value={Math.round(layer.rotation)}
-            {...R.rotation}
-            onChange={(v) => onChange({ rotation: v } as Partial<ImageLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
-      </div>
-    );
-  }
-
-  if (layer.kind === 'fill') {
-    return (
-      <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary="Solid fill"
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'style' : 'content'))}
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-          <InspectorColorInput
-            label="Color"
-            value={layer.color}
-            onChange={(v) => onChange({ color: v } as Partial<FillLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v })}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
-      </div>
-    );
-  }
-
-  if (layer.kind === 'emoji') {
-    return (
-      <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary={`${layer.density} density`}
-          open={openSection === 'content'}
-          onToggle={() => setOpenSection((s) => (s === 'content' ? 'style' : 'content'))}
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-          <div className="node-inspector-control">
-            <InspectorLabel>Emojis</InspectorLabel>
-            <InspectorTextInput
-              value={layer.emojis.join(' ')}
-              onChange={(v) => onChange({ emojis: parseEmojiInput(v) } as Partial<EmojiLayer>)}
-              placeholder="😂 😭 💔"
-            />
-            <p className="node-inspector-note">Separate emojis with spaces or commas.</p>
-          </div>
-          <InspectorSlider
-            label="Density"
-            value={layer.density}
-            {...R.density}
-            onChange={(v) => onChange({ density: v } as Partial<EmojiLayer>)}
-          />
-          <InspectorSlider
-            label="Seed"
-            value={Math.round(layer.seedOffset ?? 0)}
-            {...R.seedOffset}
-            overrideMax={9999}
-            onChange={(v) => onChange({ seedOffset: v } as Partial<EmojiLayer>)}
-          />
-          <InspectorSlider
-            label="Smallest"
-            value={layer.minSz}
-            {...R.minSz}
-            onChange={(v) => onChange({ minSz: v, maxSz: Math.max(layer.maxSz, v) } as Partial<EmojiLayer>)}
-          />
-          <InspectorSlider
-            label="Biggest"
-            value={layer.maxSz}
-            {...R.maxSz}
-            onChange={(v) => onChange({ maxSz: v, minSz: Math.min(layer.minSz, v) } as Partial<EmojiLayer>)}
-          />
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% opacity`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v })}
-          />
-        </InspectorSection>
-      </div>
-    );
-  }
-
-  if (layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array') {
-    const hasPlacementSection = layerHasPlacementControls(layer);
-    const arrayLabels = layer.kind === 'array' ? getArrayControlLabels(layer) : undefined;
-    const colorLabels = sourceColorLabels(layer);
-    const layerSurfaceNote =
-      surface === 'layers'
-        ? layer.kind === 'primitive'
-          ? 'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.'
-          : layer.kind === 'noise'
-            ? 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.'
-            : null
-        : null;
-
-    return (
-      <div className={sectionClassName}>
-        <InspectorSection
-          title="Content"
-          summary={sourceSummary(layer)}
-          open={openSection === 'content'}
-          onToggle={() =>
-            setOpenSection((s) => (s === 'content' ? (hasPlacementSection ? 'placement' : 'structure') : 'content'))
-          }
-        >
-          <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-          <InspectorColorInput
-            label={colorLabels.primary}
-            value={layer.color}
-            onChange={(v) => onChange({ color: v } as Partial<SourceLayer>)}
-          />
-          <InspectorColorInput
-            label={colorLabels.secondary}
-            value={layer.accentColor}
-            onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
-          />
-          {layerSurfaceNote && <p className="node-inspector-note">{layerSurfaceNote}</p>}
-          {layer.kind !== 'primitive' && (
-            <>
-              <InspectorSlider
-                label="Node Seed"
-                value={Math.round(layer.seedOffset ?? 0)}
-                {...R.seedOffset}
-                overrideMax={9999}
-                onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
-              />
-              <p className="node-inspector-note">
-                Changes this node's generated pattern without changing the document seed.
-              </p>
-            </>
-          )}
-        </InspectorSection>
-        {hasPlacementSection && (
-          <InspectorSection
-            title="Placement"
-            summary={`${Math.round(layer.x * 100)} / ${Math.round(layer.y * 100)}`}
-            open={openSection === 'placement'}
-            onToggle={() => setOpenSection((s) => (s === 'placement' ? 'structure' : 'placement'))}
-          >
-            <PlacementResetButton onClick={() => onChange(DEFAULT_PLACEMENT as Partial<SourceLayer>)} />
-            <InspectorSlider
-              label="Horizontal"
-              value={Math.round(layer.x * 100)}
-              {...R.x}
-              onChange={(v) => onChange({ x: v / 100 } as Partial<SourceLayer>)}
-            />
-            <InspectorSlider
-              label="Vertical"
-              value={Math.round(layer.y * 100)}
-              {...R.y}
-              onChange={(v) => onChange({ y: v / 100 } as Partial<SourceLayer>)}
-            />
-            <ScaleLockRow
-              scaleX={layer.scaleX}
-              scaleY={layer.scaleY}
-              locked={scaleLocked}
-              onLockChange={setScaleLocked}
-              onChange={(patch) => onChange(patch as Partial<SourceLayer>)}
-            />
-            <InspectorSlider
-              label="Rotation"
-              value={Math.round(layer.rotation)}
-              {...R.rotation}
-              onChange={(v) => onChange({ rotation: v } as Partial<SourceLayer>)}
-            />
-          </InspectorSection>
-        )}
-        <InspectorSection
-          title={layer.kind === 'primitive' ? 'Structure' : 'Pattern'}
-          summary={structureSummary(layer)}
-          open={openSection === 'structure'}
-          onToggle={() => setOpenSection((s) => (s === 'structure' ? 'style' : 'structure'))}
-        >
-          {layer.kind === 'primitive' && (
-            <>
-              <InspectorSelect
-                label="Shape"
-                value={layer.primitiveShape}
-                options={[...PRIMITIVE_SHAPE_OPTIONS]}
-                onChange={(v) =>
-                  onChange({ primitiveShape: v as SourceLayer['primitiveShape'] } as Partial<SourceLayer>)
-                }
-              />
-              {surface === 'nodes' && (
-                <p className="node-inspector-note">
-                  Camera angle is controlled in the preview: drag rotates, wheel zooms.
-                </p>
-              )}
-              <InspectorSlider
-                label="Spin"
-                value={Math.round(layer.tiltZ)}
-                {...R.tiltZ}
-                onChange={(v) => onChange({ tiltZ: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Depth"
-                value={Math.round(layer.primitiveDepth)}
-                {...R.primitiveDepth}
-                onChange={(v) => onChange({ primitiveDepth: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSelect
-                label="Shading"
-                value={layer.primitiveShading ?? 'smooth'}
-                options={[...PRIMITIVE_SHADING_OPTIONS]}
-                onChange={(v) => onChange({ primitiveShading: v as 'smooth' | 'flat' } as Partial<SourceLayer>)}
-              />
-            </>
-          )}
-          {layer.kind === 'noise' && (
-            <>
-              <InspectorSelect
-                label="Noise"
-                value={layer.noiseType}
-                options={[...NOISE_TYPE_OPTIONS]}
-                onChange={(v) => onChange({ noiseType: v as SourceLayer['noiseType'] } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Scale"
-                value={Math.round(layer.noiseScale)}
-                {...R.noiseScale}
-                onChange={(v) => onChange({ noiseScale: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Detail"
-                value={Math.round(layer.noiseDetail)}
-                {...R.noiseDetail}
-                onChange={(v) => onChange({ noiseDetail: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Contrast"
-                value={Math.round(layer.noiseContrast)}
-                {...R.noiseContrast}
-                onChange={(v) => onChange({ noiseContrast: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Balance"
-                value={Math.round(layer.noiseBalance)}
-                {...R.noiseBalance}
-                onChange={(v) => onChange({ noiseBalance: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Domain Warp"
-                value={Math.round(layer.noiseWarp ?? 0)}
-                {...R.noiseWarp}
-                onChange={(v) => onChange({ noiseWarp: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Turbulence"
-                value={Math.round(layer.noiseTurbulence ?? 0)}
-                {...R.noiseTurbulence}
-                onChange={(v) => onChange({ noiseTurbulence: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label="Threshold"
-                value={Math.round(layer.noiseThreshold ?? 0)}
-                {...R.noiseThreshold}
-                onChange={(v) => onChange({ noiseThreshold: v } as Partial<SourceLayer>)}
-              />
-            </>
-          )}
-          {layer.kind === 'array' && (
-            <>
-              <InspectorSelect
-                label="Pattern"
-                value={layer.arrayPattern}
-                options={[...ARRAY_PATTERN_OPTIONS]}
-                onChange={(v) => onChange({ arrayPattern: v as SourceLayer['arrayPattern'] } as Partial<SourceLayer>)}
-              />
-              <InspectorSelect
-                label="Shape"
-                value={layer.arrayShape}
-                options={[...ARRAY_SHAPE_OPTIONS]}
-                onChange={(v) => onChange({ arrayShape: v as SourceLayer['arrayShape'] } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label={arrayLabels?.count ?? 'Count'}
-                value={Math.round(layer.arrayCount)}
-                {...R.arrayCount}
-                overrideMax={64}
-                onChange={(v) => onChange({ arrayCount: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label={arrayLabels?.rows ?? 'Rows'}
-                value={Math.round(layer.arrayRows)}
-                {...R.arrayRows}
-                overrideMax={48}
-                onChange={(v) => onChange({ arrayRows: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label={arrayLabels?.gap ?? 'Gap'}
-                value={Math.round(layer.arrayGap)}
-                {...R.arrayGap}
-                overrideMax={240}
-                onChange={(v) => onChange({ arrayGap: v } as Partial<SourceLayer>)}
-              />
-              <InspectorSlider
-                label={arrayLabels?.size ?? 'Size'}
-                value={Math.round(layer.arraySize)}
-                {...R.arraySize}
-                onChange={(v) => onChange({ arraySize: v } as Partial<SourceLayer>)}
-              />
-              {arrayLabels?.radius && (
-                <InspectorSlider
-                  label={arrayLabels.radius}
-                  value={Math.round(layer.arrayRadius)}
-                  {...R.arrayRadius}
-                  overrideMax={420}
-                  onChange={(v) => onChange({ arrayRadius: v } as Partial<SourceLayer>)}
-                />
-              )}
-              <InspectorSlider
-                label={arrayLabels?.jitter ?? 'Jitter'}
-                value={Math.round(layer.arrayJitter)}
-                {...R.arrayJitter}
-                overrideMax={180}
-                onChange={(v) => onChange({ arrayJitter: v } as Partial<SourceLayer>)}
-              />
-              {arrayLabels?.note && <p className="node-inspector-note">{arrayLabels.note}</p>}
-            </>
-          )}
-        </InspectorSection>
-        <InspectorSection
-          title="Style"
-          summary={`${layer.opacity}% · ${layer.blendMode}`}
-          open={openSection === 'style'}
-          onToggle={() => setOpenSection((s) => (s === 'style' ? 'content' : 'style'))}
-        >
-          <InspectorSlider
-            label="Opacity"
-            value={layer.opacity}
-            {...R.opacity}
-            onChange={(v) => onChange({ opacity: v } as Partial<SourceLayer>)}
-          />
-          <InspectorSelect
-            label="Blend"
-            value={layer.blendMode}
-            options={[...BLEND_OPTIONS]}
-            onChange={(v) => onChange({ blendMode: v } as Partial<SourceLayer>)}
-          />
-          <BlendModeNote value={layer.blendMode} />
-        </InspectorSection>
-      </div>
-    );
-  }
-
+  if (renderBasicLayerControls) return renderBasicLayerControls(renderProps);
+  if (SOURCE_LAYER_KINDS.has(layer.kind))
+    return <SourceLayerControls {...renderProps} layer={layer as SourceLayer} surface={surface} />;
   return <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />;
 }
 
@@ -663,44 +1024,7 @@ function getArrayControlLabels(layer: SourceLayer): {
   jitter: string;
   note?: string;
 } {
-  if (layer.arrayPattern === 'line' && layer.arrayShape === 'bar') {
-    return {
-      count: 'Bars',
-      rows: 'Rows',
-      gap: 'Spacing',
-      size: 'Height',
-      radius: 'Width',
-      jitter: 'Unevenness',
-      note: 'Width and height control each bar; rows adds stacked barcode bands.',
-    };
-  }
-
-  if (layer.arrayPattern === 'radial') {
-    return {
-      count: 'Per Ring',
-      rows: 'Rings',
-      gap: 'Ring Gap',
-      size: 'Size',
-      radius: 'Start Radius',
-      jitter: 'Scatter',
-    };
-  }
-
-  if (layer.arrayPattern === 'line') {
-    return {
-      count: 'Items',
-      rows: 'Rows',
-      gap: 'Spacing',
-      size: 'Size',
-      jitter: 'Jitter',
-    };
-  }
-
-  return {
-    count: 'Columns',
-    rows: 'Rows',
-    gap: 'Cell Gap',
-    size: 'Size',
-    jitter: 'Jitter',
-  };
+  if (layer.arrayPattern === 'radial') return ARRAY_RADIAL_LABELS;
+  if (layer.arrayPattern !== 'line') return ARRAY_DEFAULT_LABELS;
+  return layer.arrayShape === 'bar' ? ARRAY_BAR_LABELS : ARRAY_LINE_LABELS;
 }

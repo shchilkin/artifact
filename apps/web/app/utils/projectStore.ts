@@ -1,5 +1,6 @@
 import type { CanvasDocument } from '../types/config';
 import { loadPreBlankDraft, normalizeDocument, PRE_BLANK_DRAFT_KEY, type PreBlankDraft } from './documentPersistence';
+import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
 import {
   deleteProjectSnapshot,
   MAX_PROJECTS,
@@ -22,32 +23,12 @@ interface StoredDraft {
   reason: PreBlankDraft['reason'];
 }
 
-function hasIndexedDb() {
-  return typeof indexedDB !== 'undefined';
-}
-
-function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
-  });
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
-    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
-  });
-}
-
 function openDatabase(): Promise<IDBDatabase> {
-  if (!hasIndexedDb()) return Promise.reject(new Error('IndexedDB is unavailable'));
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
+  return openIndexedDatabase({
+    name: DB_NAME,
+    version: DB_VERSION,
+    openErrorMessage: 'Unable to open project database',
+    upgrade: (db) => {
       if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
         const projects = db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
         projects.createIndex('updatedAt', 'updatedAt');
@@ -55,9 +36,7 @@ function openDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(DRAFTS_STORE)) {
         db.createObjectStore(DRAFTS_STORE, { keyPath: 'id' });
       }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('Unable to open project database'));
+    },
   });
 }
 
@@ -66,17 +45,7 @@ async function withStore<T>(
   mode: IDBTransactionMode,
   read: (store: IDBObjectStore, transaction: IDBTransaction) => Promise<T>,
 ): Promise<T> {
-  const db = await openDatabase();
-  try {
-    const transaction = db.transaction(storeName, mode);
-    const done = transactionDone(transaction);
-    const store = transaction.objectStore(storeName);
-    const result = await read(store, transaction);
-    await done;
-    return result;
-  } finally {
-    db.close();
-  }
+  return withIndexedDbStore(openDatabase, storeName, mode, read);
 }
 
 function loadLegacyProjects(): SavedProject[] {
@@ -112,7 +81,7 @@ export async function listStoredProjects(): Promise<SavedProject[]> {
   return legacy;
 }
 
-export async function replaceStoredProjects(projects: SavedProject[]): Promise<SavedProject[]> {
+async function replaceStoredProjects(projects: SavedProject[]): Promise<SavedProject[]> {
   const normalized = normalizeSavedProjects(projects);
   await withStore(PROJECTS_STORE, 'readwrite', async (store) => {
     await requestToPromise(store.clear());
@@ -159,14 +128,14 @@ function clearLegacyDraft() {
 function normalizeStoredDraft(value: unknown): PreBlankDraft | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<StoredDraft>;
-  if (
-    candidate.id !== PRE_BLANK_DRAFT_ID ||
-    candidate.reason !== 'before-blank' ||
-    typeof candidate.savedAt !== 'string'
-  ) {
-    return null;
-  }
+  if (!isStoredPreBlankDraft(candidate)) return null;
   return { reason: 'before-blank', savedAt: candidate.savedAt, doc: normalizeDocument(candidate.doc) };
+}
+
+function isStoredPreBlankDraft(candidate: Partial<StoredDraft>): candidate is StoredDraft {
+  return (
+    candidate.id === PRE_BLANK_DRAFT_ID && candidate.reason === 'before-blank' && typeof candidate.savedAt === 'string'
+  );
 }
 
 export async function loadStoredPreBlankDraft(): Promise<PreBlankDraft | null> {
