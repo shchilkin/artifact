@@ -2012,6 +2012,11 @@ test('node performance debug toggle persists', async ({ page }) => {
   await switchToNodeView(page);
   await expect(page.getByRole('button', { name: 'Hide performance debug overlay' })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-perf-grid')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide performance debug overlay' }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('artifact-debug-perf')), { timeout: 15_000 })
+    .toBe('0');
+  await page.close();
 });
 
 test('default document can export from the browser', async ({ page, browserName }) => {

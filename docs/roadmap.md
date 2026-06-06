@@ -19,8 +19,10 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.31 is complete as the Code Quality and Fallow Integration release. The
-  next release thesis should be chosen as a separate product or cleanup slice.
+- v0.31 is complete as the Code Quality and Fallow Integration release, with
+  `v0.31.1` as the final patch for the Fallow cleanup, blocking changed-code
+  audit, and release-notes cleanup. The next release thesis should be planned as
+  v0.32.
 - The v0.31 cleanup backlog is intentionally trace-gated future work. It should
   not be treated as hidden scope for landing work, Showcase / How-to work,
   command palette, server-backed sharing, or full-health complexity gating.
@@ -43,9 +45,11 @@ Recently shipped:
   changed-code audit, baseline/backlog documentation, agent-safe JSON command
   guidance, release hygiene updates, and a trace-validated Fallow cleanup pass
   that reduced duplicated lines and clone groups to zero. Released as
-  `v0.31.0`; release notes are in
-  [`releases/v0.31.0.md`](./releases/v0.31.0.md). Product features,
-  full-health complexity gating, renderer, graph traversal, export,
+  `v0.31.0` with final cleanup patch `v0.31.1`; release notes are in
+  [`releases/v0.31.0.md`](./releases/v0.31.0.md) and
+  [`releases/v0.31.1.md`](./releases/v0.31.1.md). Product features,
+  dynamic OG generation, full-health complexity gating, renderer, graph
+  traversal, export,
   persistence, document schema, package export, AI scope, and font-policy work
   were explicitly deferred out of v0.31.
 - [`version-plans/v0.30.md`](./version-plans/v0.30.md) — Editor Visual
@@ -118,7 +122,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.31:
+Next strong candidates for v0.32:
 
 - **Fallow Complexity Policy Pass** — decide how to handle historical
   full-health complexity hotspots after v0.31's zero-duplication cleanup, add
