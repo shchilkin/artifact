@@ -101,6 +101,10 @@ function createLayerForInsertAction(action: EditorLayerInsertAction): Layer {
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
+  const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
+    ok: true,
+    savedAt: null,
+  });
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
@@ -246,7 +250,14 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   }, [redo, undo]);
 
   useEffect(() => {
-    saveDocumentToStorage(doc);
+    const ok = saveDocumentToStorage(doc);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setDocumentSaveStatus({ ok, savedAt: ok ? new Date().toISOString() : null });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [doc]);
 
   useEffect(() => {
@@ -512,5 +523,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     undoCount: past.length,
     fromDocParam,
     isBlank: isBlankDocument(doc),
+    documentSaveStatus,
   };
 }

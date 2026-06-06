@@ -31,6 +31,34 @@ CI should run:
 
 ## Manual QA
 
+### v0.33.0 Release Prep
+
+- Package metadata is bumped to `0.33.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.33.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.33 adds a Projects workspace status marker plus a Local Workspace summary
+  for active snapshot state, browser storage estimate, recovery copy availability,
+  offline-shell state, and browser capability warnings.
+- v0.33 adds a conservative PWA slice: manifest, production-only service worker
+  registration, static app-shell caching, and an offline navigation fallback.
+- `npm run test:browser:release` is available for release prep and starts a
+  fresh local browser-test server so stale dev servers do not masquerade as
+  product failures.
+- `npm run check` passed on 2026-06-06.
+- `npm run build` passed on 2026-06-06.
+- `npm run test:browser:release` passed on 2026-06-06 with `279 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Fallow changed-file audit passed with zero dead-code findings, zero
+  complexity findings, and zero duplicated lines.
+- `npm run perf:node-editor` was not required because the final release-prep
+  diff does not change React Flow interaction, node-editor gesture paths,
+  thumbnail scheduling, graph traversal, document schema, package export, AI
+  scope, font-policy behavior, or performance-sensitive canvas interaction
+  code. The performance instrumentation helper was hardened so measurement
+  failures cannot interrupt render or export flows.
+
 ### v0.32.0 Release Prep
 
 - Release prep was approved by the maintainer on 2026-06-06 after local review
@@ -354,9 +382,11 @@ CI should run:
   files; unknown local font files are not bundled by default. Missing fonts rely
   on fallback rendering until the user replaces the font.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
-- Presets are localStorage-backed only.
-- Projects and the pre-blank recovery draft are IndexedDB-backed convenience
-  snapshots until account-backed persistence lands.
+- Projects and the pre-blank recovery copy are IndexedDB-backed convenience
+  snapshots until the active project save model or account-backed persistence
+  lands. The current editor does not keep a durable active project id, so
+  project save creates a snapshot instead of overwriting the loaded project
+  record.
 
 ## Sticky-Note Feature Intake
 
@@ -378,7 +408,7 @@ The sticky-note ideas split into two tracks.
   textures, and exported outputs.
 - Export presets/history for music targets, social formats, transparent PNGs,
   posters, and print output.
-- Project versions and named creative snapshots with duplicate, restore, and
+- Active project save/overwrite behavior plus project versions and named creative snapshots with duplicate, restore, and
   compare flows.
 - Autosave/recovery status, project-size visibility, storage cleanup, and
   unused-asset deletion flows.

@@ -31,7 +31,7 @@ function draftToProject(draft: Awaited<ReturnType<typeof loadStoredPreBlankDraft
   if (!draft) return null;
   return {
     id: 'pre-blank-draft',
-    name: 'Previous draft',
+    name: 'Previous work',
     doc: draft.doc,
     thumbnail: PROJECT_THUMBNAIL_FALLBACK,
     createdAt: draft.savedAt,
@@ -50,7 +50,7 @@ export function useProjects() {
       const draft = await loadStoredPreBlankDraft();
       if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
     } catch (error) {
-      setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery draft');
+      setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery copy');
     }
   }, []);
 
@@ -68,7 +68,7 @@ export function useProjects() {
         if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
       })
       .catch((error) => {
-        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery draft');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery copy');
       });
     return () => {
       mountedRef.current = false;
@@ -98,8 +98,10 @@ export function useProjects() {
         const next = await saveStoredProject(project);
         setStorageError(null);
         if (mountedRef.current) setProjects(next);
+        return project;
       } catch (error) {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to save project');
+        return null;
       }
     },
     [],
@@ -123,7 +125,7 @@ export function useProjects() {
         if (mountedRef.current) setRecoveryDraft(null);
       })
       .catch((error) => {
-        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to delete recovery draft');
+        setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to delete recovery copy');
       });
   }, []);
 

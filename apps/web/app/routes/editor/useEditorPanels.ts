@@ -1,30 +1,19 @@
 import { useCallback } from 'react';
 
 export function useEditorPanels({
-  closePresets,
   closeProjects,
-  togglePresets,
   toggleProjects,
 }: {
-  closePresets: () => void;
   closeProjects: () => void;
-  togglePresets: () => void;
   toggleProjects: () => void;
 }) {
-  const handleTogglePresets = useCallback(() => {
-    closeProjects();
-    togglePresets();
-  }, [closeProjects, togglePresets]);
-
   const handleToggleProjects = useCallback(() => {
-    closePresets();
     toggleProjects();
-  }, [closePresets, toggleProjects]);
+  }, [toggleProjects]);
 
   const closePanels = useCallback(() => {
-    closePresets();
     closeProjects();
-  }, [closePresets, closeProjects]);
+  }, [closeProjects]);
 
-  return { handleTogglePresets, handleToggleProjects, closePanels };
+  return { handleToggleProjects, closePanels };
 }

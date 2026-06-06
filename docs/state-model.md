@@ -22,7 +22,8 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Image assets/cache | `assetStore`, `useEditorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
 | Imported font assets/cache | `fontStore`, shared Font Library picker, renderer font loading | Font payloads in IndexedDB; `FontFace` cache is not | No | Yes, as render input for text | Yes for text thumbnails/output |
 | AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
-| Local projects and recovery draft | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
+| Local projects and recovery copy | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
+| Storage/capability status | `useBrowserStorageStatus`, browser capability helpers | No | No | No | No |
 
 ## Durable document state
 
@@ -237,12 +238,25 @@ Tradeoff:
   image and font payload handling does not drift between UI surfaces.
 - Very large images can still make exported `.artifact.json` files or share URLs
   heavy after hydration.
-- Local project snapshots and the pre-blank recovery draft are stored in
+- Local project snapshots and the pre-blank recovery copy are stored in
   IndexedDB via `apps/web/app/utils/projectStore.ts` so large document snapshots do not
   exhaust the small localStorage quota.
+- Projects are currently snapshot records, not durable open-project bindings.
+  Loading or saving a project does not write an `activeProjectId` into the
+  document or editor persistence, and recovery copies stay independent until the
+  user dismisses them. A future save-model pass should add an active project id,
+  overwrite semantics for `Save`, and explicit `Save as` / duplicate behavior.
 - Active quick-reload document state still uses localStorage through
   `documentPersistence`; it should contain asset references, not imported image
   payloads.
+- v0.33 adds a user-facing local status surface for active snapshot state,
+  project storage pressure, recovery copies, app-shell state, and browser capability
+  support. This status is derived from existing storage APIs and must not write
+  new render-affecting fields into `CanvasDocument`.
+- The first PWA slice caches the app shell and static assets only. User
+  documents, project records, imported assets, AI requests, and share payloads
+  remain owned by the existing local stores or network paths instead of being
+  hidden inside service-worker cache state.
 - Backend blob storage should be introduced only when there is a dedicated
   persistence layer and migration plan; decoded `HTMLImageElement` caches must
   still stay outside `CanvasDocument`.

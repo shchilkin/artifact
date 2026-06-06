@@ -1,12 +1,16 @@
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, useState } from 'react';
 
+import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import type { SavedProject } from '../utils/projectLibrary';
+import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
+import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
   projects: SavedProject[];
   recoveryDraft: SavedProject | null;
+  storageStatus: BrowserStorageStatus;
   storageError: string | null;
   maxProjects: number;
   onSave: (name: string) => void;
@@ -17,6 +21,20 @@ interface Props {
   onClose: () => void;
 }
 
+const FALLBACK_ACTIVE_WORK_ROW = {
+  id: 'active-work',
+  tone: 'muted',
+  label: 'Active work',
+  value: 'Unavailable',
+} satisfies WorkspaceStatusRow;
+
+const FALLBACK_RECOVERY_ROW = {
+  id: 'recovery',
+  tone: 'muted',
+  label: 'Recovery copy',
+  value: 'None',
+} satisfies WorkspaceStatusRow;
+
 function formatUpdatedAt(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'saved locally';
@@ -26,6 +44,7 @@ function formatUpdatedAt(value: string) {
 export function ProjectsPanel({
   projects,
   recoveryDraft,
+  storageStatus,
   storageError,
   maxProjects,
   onSave,
@@ -35,18 +54,15 @@ export function ProjectsPanel({
   onNewBlank,
   onClose,
 }: Props) {
-  const [name, setName] = useState('');
-  const nearLimit = projects.length >= maxProjects - 2;
-  const hasSavedItems = projects.length > 0 || Boolean(recoveryDraft);
+  const hasSavedItems = projects.length > 0 || recoveryDraft !== null;
+  const countClassName = projectCountClassName(projects.length, maxProjects);
 
-  const handleSave = () => {
-    const trimmed = name.trim() || `Project ${projects.length + 1}`;
-    onSave(trimmed);
-    setName('');
+  const handleOpenChange = (open: boolean) => {
+    if (!open) onClose();
   };
 
   return (
-    <Sheet open onOpenChange={(open) => !open && onClose()}>
+    <Sheet open onOpenChange={handleOpenChange}>
       <SheetContent className="library-panel" style={{ '--artifact-sheet-width': '360px' } as CSSProperties}>
         <SheetHeader className="flex items-center justify-between px-4 min-h-11 border-b border-border shrink-0">
           <div>
@@ -56,7 +72,7 @@ export function ProjectsPanel({
             </SheetDescription>
           </div>
           <div className="flex items-center gap-2.5">
-            <span className={`text-[9px] tracking-[0.5px] ${nearLimit ? 'text-accent' : 'text-dim'}`}>
+            <span className={countClassName}>
               {projects.length} / {maxProjects}
             </span>
             <SheetClose asChild>
@@ -66,29 +82,14 @@ export function ProjectsPanel({
             </SheetClose>
           </div>
         </SheetHeader>
-        <div className="flex gap-2 px-4 py-2.5 border-b border-border shrink-0">
-          <label htmlFor="project-name-input" className="sr-only">
-            Project name
-          </label>
-          <input
-            id="project-name-input"
-            type="text"
-            placeholder="Project name..."
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && handleSave()}
-            className="flex-1 bg-sidebar-raised border border-border text-text font-mono text-[11px] px-2 h-11 rounded-sm outline-none focus:border-accent placeholder:text-dim"
-          />
-          <ActionButton onClick={handleSave} variant="primary">
-            SAVE
-          </ActionButton>
-        </div>
-        <div className="px-4 py-2.5 border-b border-border shrink-0">
-          <ActionButton className="w-full" onClick={onNewBlank} aria-label="New blank canvas from projects">
-            NEW BLANK CANVAS
-          </ActionButton>
-        </div>
-        <StorageErrorMessage storageError={storageError} />
+        <ProjectSaveForm projectCount={projects.length} onSave={onSave} />
+        <ProjectWorkspaceSummary
+          projects={projects}
+          storageStatus={storageStatus}
+          storageError={storageError}
+          maxProjects={maxProjects}
+          onNewBlank={onNewBlank}
+        />
         <ProjectsList
           hasSavedItems={hasSavedItems}
           projects={projects}
@@ -102,11 +103,157 @@ export function ProjectsPanel({
   );
 }
 
-function StorageErrorMessage({ storageError }: { storageError: string | null }) {
-  if (!storageError) return null;
+function ProjectSaveForm({ projectCount, onSave }: { projectCount: number; onSave: (name: string) => void }) {
+  const [name, setName] = useState('');
+
+  const handleSave = () => {
+    onSave(projectSaveName(name, projectCount));
+    setName('');
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') handleSave();
+  };
+
   return (
-    <div className="mx-4 mt-3 border border-accent/60 bg-accent/10 p-2.5 text-[10px] leading-relaxed text-accent">
-      {storageError}
+    <div className="library-save-form">
+      <label htmlFor="project-name-input" className="sr-only">
+        Snapshot name
+      </label>
+      <input
+        id="project-name-input"
+        type="text"
+        placeholder="Snapshot name..."
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onKeyDown={handleKeyDown}
+        className="library-save-input"
+      />
+      <ActionButton className="library-save-button" onClick={handleSave} variant="primary">
+        SAVE SNAPSHOT
+      </ActionButton>
+    </div>
+  );
+}
+
+function ProjectWorkspaceSummary({
+  projects,
+  storageStatus,
+  storageError,
+  maxProjects,
+  onNewBlank,
+}: {
+  projects: SavedProject[];
+  storageStatus: BrowserStorageStatus;
+  storageError: string | null;
+  maxProjects: number;
+  onNewBlank: () => void;
+}) {
+  const totalProjectBytes = projects.reduce((total, project) => total + projectSizeBytes(project), 0);
+  const statusRows = workspaceStatusRows(storageStatus, storageError);
+  const activeWorkRow = getStatusRow(statusRows, 'active-work', FALLBACK_ACTIVE_WORK_ROW);
+  const recoveryRow = getStatusRow(statusRows, 'recovery', FALLBACK_RECOVERY_ROW);
+  const detailRows = statusRows.filter(isWorkspaceDetailRow);
+
+  return (
+    <div className="project-workspace-summary px-4 py-3 border-b border-border shrink-0">
+      <div className="project-status-stack">
+        <ProjectStatusLine row={activeWorkRow} />
+        <RecoveryStatusLine row={recoveryRow} />
+      </div>
+      <WorkspaceWarnings storageStatus={storageStatus} storageError={storageError} />
+      <details className="project-storage-details">
+        <summary>Storage details</summary>
+        <div className="project-workspace-summary__rows">
+          {detailRows.map((row) => (
+            <ProjectDetailRow key={row.id} row={row} />
+          ))}
+          <ProjectDetailRow row={recoveryRow} />
+          <ProjectPlainDetailRow label="Saved snapshots" value={`${projects.length} / ${maxProjects}`} />
+          <ProjectPlainDetailRow label="Project data" value={formatBytes(totalProjectBytes)} />
+        </div>
+      </details>
+      <ActionButton
+        className="project-new-blank-action w-full mt-2"
+        onClick={onNewBlank}
+        aria-label="Create new project from projects"
+        variant="quiet"
+      >
+        CREATE NEW PROJECT
+      </ActionButton>
+    </div>
+  );
+}
+
+function projectCountClassName(projectCount: number, maxProjects: number) {
+  const toneClassName = projectCount >= maxProjects - 2 ? 'text-accent' : 'text-dim';
+  return `text-[9px] tracking-[0.5px] ${toneClassName}`;
+}
+
+function projectSaveName(name: string, projectCount: number) {
+  const trimmed = name.trim();
+  if (trimmed.length > 0) return trimmed;
+  return `Snapshot ${projectCount + 1}`;
+}
+
+function getStatusRow(rows: WorkspaceStatusRow[], id: string, fallback: WorkspaceStatusRow) {
+  const row = rows.find((candidate) => candidate.id === id);
+  if (row) return row;
+  return fallback;
+}
+
+function isWorkspaceDetailRow(row: WorkspaceStatusRow) {
+  return row.id !== 'active-work' && row.id !== 'recovery';
+}
+
+function ProjectStatusLine({ row }: { row: Pick<WorkspaceStatusRow, 'tone' | 'label' | 'value'> }) {
+  return (
+    <div className={`project-status-line project-status-line-${row.tone}`}>
+      <span className="project-status-line__label">{row.label}</span>
+      <span className="project-status-line__value">{row.value}</span>
+    </div>
+  );
+}
+
+function RecoveryStatusLine({ row }: { row: WorkspaceStatusRow }) {
+  if (row.tone !== 'warning') return null;
+  return <ProjectStatusLine row={{ ...row, value: 'Available' }} />;
+}
+
+function ProjectDetailRow({ row }: { row: WorkspaceStatusRow }) {
+  return (
+    <div className="project-workspace-summary__row">
+      <span>{row.label}</span>
+      <span className={`project-workspace-summary__value project-workspace-summary__value-${row.tone}`}>
+        {row.value}
+      </span>
+    </div>
+  );
+}
+
+function ProjectPlainDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="project-workspace-summary__row">
+      <span>{label}</span>
+      <span className="project-workspace-summary__value">{value}</span>
+    </div>
+  );
+}
+
+function WorkspaceWarnings({
+  storageStatus,
+  storageError,
+}: {
+  storageStatus: BrowserStorageStatus;
+  storageError: string | null;
+}) {
+  const warnings = workspaceWarnings(storageStatus, storageError);
+  if (warnings.length === 0) return null;
+  return (
+    <div className="project-workspace-summary__warnings" role="status">
+      {warnings.map((warning) => (
+        <span key={warning}>{warning}</span>
+      ))}
     </div>
   );
 }
@@ -158,14 +305,14 @@ function RecoveryDraftCard({
 }) {
   if (!recoveryDraft) return null;
   return (
-    <div className="library-card library-card-accent flex gap-2.5 p-2.5 border border-accent/50 rounded bg-accent/10 transition-colors hover:border-accent">
+    <div className="library-card library-card-draft flex gap-2.5 p-2.5 border rounded transition-colors">
       <ProjectCardImage project={recoveryDraft} />
       <div className="flex-1 flex flex-col justify-between min-w-0">
-        <ProjectCardMeta project={recoveryDraft} eyebrow="RECOVERABLE DRAFT" />
+        <ProjectCardMeta project={recoveryDraft} eyebrow="RECOVERY COPY" />
         <ProjectCardActions
           project={recoveryDraft}
-          deleteVariant="danger"
-          loadVariant="danger"
+          deleteVariant="quiet"
+          loadVariant="quiet"
           onDelete={onDeleteRecoveryDraft}
           onLoad={() => onLoad(recoveryDraft)}
         />
@@ -211,6 +358,7 @@ function ProjectCardMeta({ project, eyebrow }: { project: SavedProject; eyebrow?
       <div className="text-[12px] text-text truncate">{project.name}</div>
       <div className="text-[10px] text-dim tracking-[0.5px]">{formatUpdatedAt(project.updatedAt)}</div>
       <div className="text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
+      <div className="text-[10px] text-dim tracking-[0.5px]">size: {formatBytes(projectSizeBytes(project))}</div>
     </div>
   );
 }
@@ -231,7 +379,7 @@ function ProjectCardActions({
   return (
     <div className="flex gap-1.5">
       <ActionButton
-        className="library-card-action"
+        className="library-card-action library-card-action-load"
         aria-label={`Load ${project.name}`}
         onClick={onLoad}
         variant={loadVariant}
@@ -239,7 +387,7 @@ function ProjectCardActions({
         LOAD
       </ActionButton>
       <ActionButton
-        className="library-card-action"
+        className="library-card-action library-card-action-delete"
         aria-label={`Delete ${project.name}`}
         onClick={onDelete}
         variant={deleteVariant}

@@ -7,6 +7,7 @@ import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
 import { ALL_EMOJIS, GOOGLE_FONT_STYLESHEET_URL } from './types/config';
 import { logAppBuildInfo } from './utils/appBuildInfo';
 import { LOGO_RENDERER_OPTIONS } from './utils/logoRendererOptions';
+import { registerArtifactServiceWorker } from './utils/pwaRegistration';
 
 // Default title/description — route-level meta() overrides these via <Meta />
 export const meta: MetaFunction = () => [
@@ -50,7 +51,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#ff6a5f" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Artifact" />
         {/* OG */}
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="en" />
@@ -91,6 +96,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function Root() {
   useEffect(() => {
     logAppBuildInfo();
+    void registerArtifactServiceWorker({ enabled: !import.meta.env.DEV }).catch((error) => {
+      console.warn('[pwa] service worker registration failed', error);
+    });
   }, []);
 
   return (

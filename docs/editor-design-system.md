@@ -79,8 +79,8 @@ Current v0.30 status:
   `EmptyState`, `PreviewFrame`, and `Tabs` are the current source-owned base
   primitive set.
 - Adoption is still partial across the full app. Public CTAs, docs specimens,
-  sheets, dialogs, floating menus, the view-mode tabs, `BottomBar`, project and
-  preset sheet commands, layer/node context menus, Add Library search, Add
+  sheets, dialogs, floating menus, the view-mode tabs, `BottomBar`, project
+  sheet commands, layer/node context menus, Add Library search, Add
   Library preview/detail actions, empty layer start actions, AI submit, and the
   image replace command use shared primitives. Editor-heavy surfaces such as
   `LayerPanel`, `NodeCanvas`, Add Library row geometry, and inspector matrices
@@ -208,11 +208,11 @@ After v0.30 closes the baseline, extract the rest of the app in this order:
    inputs, selects, toggles, sliders, color fields, and section labels into
    product-shaped inspector primitives instead of one-off CSS blocks.
 4. **Menus and overlays**: migrate layer/node context menus, quick-add menus,
-   Add Library menus, projects, presets, and info popups onto the shared
+   Add Library menus, projects, and info popups onto the shared
    `FloatingMenu`, `Dialog`, and `Sheet` mechanics with Artifact tokens.
-5. **Rows and panels**: make `LayerRow`, area rows, project rows, preset rows,
-   Add Library result rows, and node property rows share explicit row tokens
-   and state variants.
+5. **Rows and panels**: make `LayerRow`, area rows, project rows, Add Library
+   result rows, and node property rows share explicit row tokens and state
+   variants.
 6. **Preview frames**: extract preview-frame chrome for canvas preview,
    thumbnails, gallery, primitive viewports, and Add Library preview surfaces
    without touching renderer semantics.
@@ -251,7 +251,7 @@ High-priority follow-up specimens:
   and reduced full layer panel states
 - graph area overlay, node add/context/pane menus, node canvas, node gallery,
   node editor panel, and node thumbnail states
-- projects and presets list, empty, selected, and import states
+- projects list, empty, selected, and import states
 - sidebar collapsed, expanded, and active-section states
 
 Medium-priority follow-up specimens:

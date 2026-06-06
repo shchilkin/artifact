@@ -79,7 +79,7 @@ test('docs research page supports search and type filtering', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Tune preview' }).first()).toBeVisible();
 });
 
-test('blank editor and shared primitive surfaces open and close', async ({ page }) => {
+test('blank editor and shared primitive project surfaces open and close', async ({ page }) => {
   await page.goto('/app?new=blank');
   await expectBlankEditor(page);
 
@@ -87,11 +87,7 @@ test('blank editor and shared primitive surfaces open and close', async ({ page 
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toBeVisible();
   await page.getByRole('button', { name: 'Close projects' }).click();
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'PRESETS' }).click();
-  await expect(page.getByRole('dialog', { name: 'PRESETS' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close presets' }).click();
-  await expect(page.getByRole('dialog', { name: 'PRESETS' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'PRESETS' })).toHaveCount(0);
 
   await switchToNodeView(page);
   await page.getByRole('button', { name: 'Add node' }).click();

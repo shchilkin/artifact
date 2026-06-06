@@ -1765,8 +1765,8 @@ test('local projects preserve imported image and font assets across save and loa
   await expectPortableRefsStored(page);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await page.getByLabel('Project name').fill('Portable Project');
-  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
+  await page.getByLabel('Snapshot name').fill('Portable Project');
+  await page.getByRole('button', { name: 'SAVE SNAPSHOT', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
 
   await startBlankEditor(page);
@@ -2035,8 +2035,8 @@ test('default document can export from the browser', async ({ page, browserName 
 test('current document can be saved into local projects', async ({ page }) => {
   await gotoDocument(page, lightDocument);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await page.getByLabel('Project name').fill('Browser Project');
-  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
+  await page.getByLabel('Snapshot name').fill('Browser Project');
+  await page.getByRole('button', { name: 'SAVE SNAPSHOT', exact: true }).click();
 
   await expect(page.getByText('Browser Project')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
@@ -2074,8 +2074,8 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expectCanvasCenterAlpha(page, 0);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await expect(page.getByText('RECOVERABLE DRAFT')).toBeVisible();
-  await page.getByRole('button', { name: 'Load Previous draft' }).click();
+  await expect(page.locator('.library-card-draft').getByText('RECOVERY COPY', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Load Previous work' }).click();
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -2226,10 +2226,10 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await expectLayerCanvasToHavePixels(page);
 
   page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain('recoverable draft');
+    expect(dialog.message()).toContain('recovery copy');
     await dialog.accept();
   });
-  await page.getByRole('button', { name: 'New blank canvas' }).click();
+  await page.getByRole('button', { name: 'Create new project' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expectCanvasCenterAlpha(page, 0);

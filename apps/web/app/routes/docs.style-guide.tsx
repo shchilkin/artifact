@@ -639,7 +639,7 @@ function OverlayPrimitiveSpecimens() {
             <SheetHeader className="style-guide-sheet-header">
               <SheetTitle className="style-guide-overlay-title">Sheet specimen</SheetTitle>
               <SheetDescription className="style-guide-overlay-copy">
-                A side panel primitive for projects, presets, and mobile creation surfaces.
+                A side panel primitive for projects, import flows, and mobile creation surfaces.
               </SheetDescription>
             </SheetHeader>
             <SheetBody className="style-guide-sheet-body">

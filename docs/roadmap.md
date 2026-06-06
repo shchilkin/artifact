@@ -19,6 +19,11 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.33 is the selected next release direction: Storage UX And Capability
+  Hardening. It should make local-first persistence understandable through
+  autosave, recovery, quota pressure, project-size, cleanup, and browser
+  capability states before larger Asset Library, Export History, Versions, or
+  server-backed sharing work depends on the same storage model.
 - v0.32 has completed the Code Health And Debt Reduction release scope: the
   v0.31 changed-code Fallow gate remains clean, full-health complexity is
   reduced to zero functions above threshold, hook-dependency warnings are
@@ -39,6 +44,10 @@ Current planning status:
 
 Next deferred product tracks:
 
+- Asset Library / Export History / Versions remains deferred until v0.33 makes
+  the local storage and recovery states visible enough to build on safely.
+- Server-backed Share Links remains deferred until local asset/project cleanup,
+  quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
   critique/prototype gate.
 - Showcase / How-to split remains deferred until the showcase wall and docs
@@ -137,7 +146,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.32:
+Next strong candidates after v0.33:
 
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
@@ -154,10 +163,12 @@ Next strong candidates after v0.32:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Deeper Storage UX And Capability Hardening** — after v0.32 classifies the
-  known storage/render risks, make autosave, recovery, quota pressure, project
-  size, cleanup, and unsupported browser capability states visible enough that
-  local-first storage feels like a creative safety net.
+- **Active Project Save Model** — replace the current snapshot-only Projects
+  behavior with an explicit active project binding. When a user loads or creates
+  a project, the editor should remember the project id; `Save` should update
+  that same record, while `Save as` or `Duplicate` should create a new record.
+  Until this lands, Projects remain a local snapshot library, and recovery
+  copies remain independent safety backups.
 
 ## Product summary
 
@@ -216,8 +227,8 @@ These can mostly stay browser-only and fit the current architecture:
   textures, and exported outputs.
 - Export presets for music and social targets, including transparent PNG,
   poster/print sizes, and export history.
-- Project versions and named creative snapshots for trying risky edits without
-  losing a direction.
+- Project versions, named creative snapshots, and active project save/overwrite
+  behavior for trying risky edits without losing a direction.
 - Better drag/repositioning UX for canvas content.
 - Image background removal workflow for uploaded images, with a future research
   pass comparing browser-side models, server-side/VPS processing, external APIs,
@@ -273,8 +284,8 @@ Best shadcn candidates and current adoption:
   improvements. The current Add Library already behaves like a creative command
   surface, so a command primitive could help with keyboard navigation and
   search ergonomics if the product keeps expanding the catalog.
-- **Dialog / Sheet** now backs Projects, Presets, Add Library mobile behavior,
-  and the node gallery; keep using it for future import/export flows where
+- **Dialog / Sheet** now backs Projects, Add Library mobile behavior, and the
+  node gallery; keep using it for future import/export flows where
   focus trapping and close behavior matter.
 - **Floating menu / Popover** now backs effect info, layer context menus, node
   context menus, and desktop Add Library placement. Use this pattern for short
@@ -402,8 +413,7 @@ threshold ownership, suppression rules, and CI behavior are documented.
 | Document state | `apps/web/app/hooks/useEditorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
 | Asset state | `apps/web/app/hooks/useEditorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
 | Export | `apps/web/app/hooks/useEditorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
-| Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
-| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
+| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery copies. There is no durable active-project binding yet; save creates a snapshot instead of overwriting a loaded project id. |
 
 ### Data model
 
@@ -543,8 +553,8 @@ Using React Flow for graph mechanics and XState for selection/overlay state is a
 
 ### `editor.tsx` is still broad
 
-`editor.tsx` wires document state, asset state, projects, export, presets,
-layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
+`editor.tsx` wires document state, asset state, projects, export, layout mode,
+preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
 into focused hooks for selection sync, context menus, graph events, drag state,
 gallery state, and primitive camera state, but the route-level composition is
 still dense.
@@ -571,7 +581,7 @@ tolerance strategy before visual snapshots become useful.
 
 ### Persistence is local-first
 
-Imported images, local projects, and recovery drafts now use IndexedDB, and
+Imported images, local projects, and recovery copies now use IndexedDB, and
 `.artifact.json` files/share links hydrate local image assets when possible.
 This is enough for the local editor, but there should be a stronger data
 ownership path: a downloadable project package with a custom extension that can
@@ -628,7 +638,7 @@ Current shipped baseline:
 - Focused effect presets, procedural noise/array sources, repeater presets, and
   per-node seed offsets for seeded emoji, sources, effects, and repeaters.
 - Blank-canvas entry points and first starter paths.
-- Local project snapshots, imported image assets, and recovery drafts in
+- Local project snapshots, imported image assets, and recovery copies in
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
@@ -642,10 +652,10 @@ Current shipped baseline:
 
 Current near-term focus:
 
-- `v0.32`: code health and debt reduction. Keep product semantics stable while
-  reducing historical complexity hotspots, route/controller density, hook
-  warnings, gesture update churn, CSS ownership debt, stale roadmap structure,
-  and unclassified storage/render risks.
+- [`v0.33`](./version-plans/v0.33.md): storage UX and capability hardening.
+  Keep Artifact local-first while making autosave, recovery, quota pressure,
+  project size, cleanup, and unsupported browser capabilities visible and
+  recoverable before larger asset-library or server-backed sharing work.
 
 ### v0.11: Layer Workflow And Onboarding
 
@@ -670,7 +680,7 @@ keeping node workflows truthful.
   effects, repeaters, export, projects, and showcase starts.
 - [x] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
-- [x] Keep destructive starts guarded by confirmation and recovery drafts.
+- [x] Keep destructive starts guarded by confirmation and recovery copies.
 
 Exit criteria:
 

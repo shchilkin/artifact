@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
+import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
 
 interface Props {
@@ -10,7 +11,6 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   undoCount: number;
-  onPresetsToggle: () => void;
   onProjectsToggle: () => void;
   onCopyLink: () => void;
   onOpenDocument: () => void;
@@ -18,6 +18,7 @@ interface Props {
   onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
   onExport: () => void;
   exportBusy: boolean;
+  projectWorkspaceStatus: ProjectWorkspaceStatus;
 }
 
 export function BottomBar({
@@ -32,10 +33,10 @@ export function BottomBar({
   onOpenDocument,
   onSaveDocument,
   onSaveProjectPackage,
-  onPresetsToggle,
   onProjectsToggle,
   onExport,
   exportBusy,
+  projectWorkspaceStatus,
 }: Props) {
   const [copied, setCopied] = useState(false);
 
@@ -49,7 +50,7 @@ export function BottomBar({
     <div className="bottom-bar">
       {/* Row 1: Undo / Redo / Rand */}
       <div className="bottom-rand-group">
-        <ActionButton onClick={onNewBlank} aria-label="New blank canvas" title="New blank canvas" variant="quiet">
+        <ActionButton onClick={onNewBlank} aria-label="Create new project" title="Create new project" variant="quiet">
           NEW
         </ActionButton>
         <ActionButton onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)" variant="quiet">
@@ -100,17 +101,27 @@ export function BottomBar({
       </div>
 
       <div className="bottom-right-group">
-        <ActionButton onClick={onProjectsToggle} variant="quiet">
-          PROJECTS
-        </ActionButton>
-        <ActionButton onClick={onPresetsToggle} variant="quiet">
-          PRESETS
-        </ActionButton>
+        <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
         <ActionButton onClick={onExport} disabled={exportBusy} variant="primary">
           {exportBusy ? '…' : 'EXPORT'}
         </ActionButton>
       </div>
     </div>
+  );
+}
+
+function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceStatus; onClick: () => void }) {
+  return (
+    <ActionButton
+      onClick={onClick}
+      variant="quiet"
+      className={`project-workspace-button project-workspace-button-${status.tone}`}
+      title={status.title}
+    >
+      <span>PROJECTS</span>
+      <span className="project-workspace-dot" aria-hidden="true" />
+      {status.badge && <span className="project-workspace-badge">{status.badge}</span>}
+    </ActionButton>
   );
 }
 
