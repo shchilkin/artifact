@@ -9,11 +9,13 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTi
 
 interface Props {
   projects: SavedProject[];
+  activeProject: SavedProject | null;
   recoveryDraft: SavedProject | null;
   storageStatus: BrowserStorageStatus;
   storageError: string | null;
   maxProjects: number;
-  onSave: (name: string) => void;
+  onSaveCopy: (name: string) => void;
+  onSaveActive: (name: string) => void;
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
@@ -43,22 +45,23 @@ function formatUpdatedAt(value: string) {
 
 export function ProjectsPanel({
   projects,
+  activeProject,
   recoveryDraft,
   storageStatus,
   storageError,
   maxProjects,
-  onSave,
+  onSaveCopy,
+  onSaveActive,
   onLoad,
   onDelete,
   onDeleteRecoveryDraft,
   onNewBlank,
   onClose,
 }: Props) {
-  const hasSavedItems = projects.length > 0 || recoveryDraft !== null;
-  const countClassName = projectCountClassName(projects.length, maxProjects);
+  const viewModel = projectsPanelViewModel(projects, activeProject, recoveryDraft, maxProjects);
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) onClose();
+    closeProjectsOnSheetClose(open, onClose);
   };
 
   return (
@@ -72,7 +75,7 @@ export function ProjectsPanel({
             </SheetDescription>
           </div>
           <div className="flex items-center gap-2.5">
-            <span className={countClassName}>
+            <span className={viewModel.countClassName}>
               {projects.length} / {maxProjects}
             </span>
             <SheetClose asChild>
@@ -82,20 +85,30 @@ export function ProjectsPanel({
             </SheetClose>
           </div>
         </SheetHeader>
-        <ProjectSaveForm projectCount={projects.length} onSave={onSave} />
+        <ProjectSaveForm
+          key={activeProject?.id ?? 'new-project'}
+          activeProject={activeProject}
+          activeWorkState={storageStatus.summary.activeWorkState}
+          projectCount={projects.length}
+          onSaveActive={onSaveActive}
+          onSaveCopy={onSaveCopy}
+        />
         <ProjectWorkspaceSummary
           projects={projects}
+          activeProject={activeProject}
           storageStatus={storageStatus}
           storageError={storageError}
           maxProjects={maxProjects}
           onNewBlank={onNewBlank}
         />
         <ProjectsList
-          hasSavedItems={hasSavedItems}
+          hasSavedItems={viewModel.hasSavedItems}
           projects={projects}
+          activeProjectId={viewModel.activeProjectId}
           recoveryDraft={recoveryDraft}
           onDelete={onDelete}
           onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+          onSaveCopy={onSaveCopy}
           onLoad={onLoad}
         />
       </SheetContent>
@@ -103,12 +116,31 @@ export function ProjectsPanel({
   );
 }
 
-function ProjectSaveForm({ projectCount, onSave }: { projectCount: number; onSave: (name: string) => void }) {
-  const [name, setName] = useState('');
+function ProjectSaveForm({
+  activeProject,
+  activeWorkState,
+  projectCount,
+  onSaveActive,
+  onSaveCopy,
+}: {
+  activeProject: SavedProject | null;
+  activeWorkState: BrowserStorageStatus['summary']['activeWorkState'];
+  projectCount: number;
+  onSaveActive: (name: string) => void;
+  onSaveCopy: (name: string) => void;
+}) {
+  const [name, setName] = useState(activeProject?.name ?? '');
+  const formState = projectSaveFormState(activeProject, activeWorkState, name);
 
   const handleSave = () => {
-    onSave(projectSaveName(name, projectCount));
-    setName('');
+    if (formState.saveDisabled) return;
+    submitProjectSave(formState, {
+      name,
+      onSaveActive,
+      onSaveCopy,
+      projectCount,
+      resetName: () => setName(''),
+    });
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -116,34 +148,43 @@ function ProjectSaveForm({ projectCount, onSave }: { projectCount: number; onSav
   };
 
   return (
-    <div className="library-save-form">
-      <label htmlFor="project-name-input" className="sr-only">
-        Snapshot name
-      </label>
-      <input
-        id="project-name-input"
-        type="text"
-        placeholder="Snapshot name..."
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={handleKeyDown}
-        className="library-save-input"
-      />
-      <ActionButton className="library-save-button" onClick={handleSave} variant="primary">
-        SAVE SNAPSHOT
-      </ActionButton>
+    <div className="project-save-panel">
+      <div className="project-primary-save">
+        <label htmlFor="project-name-input" className="project-name-field">
+          <span>PROJECT NAME</span>
+          <input
+            id="project-name-input"
+            type="text"
+            placeholder="Project name..."
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+        </label>
+        <ActionButton
+          className="library-save-button"
+          disabled={formState.saveDisabled}
+          onClick={handleSave}
+          variant="primary"
+          aria-label={formState.ariaLabel}
+        >
+          {formState.buttonLabel}
+        </ActionButton>
+      </div>
     </div>
   );
 }
 
 function ProjectWorkspaceSummary({
   projects,
+  activeProject,
   storageStatus,
   storageError,
   maxProjects,
   onNewBlank,
 }: {
   projects: SavedProject[];
+  activeProject: SavedProject | null;
   storageStatus: BrowserStorageStatus;
   storageError: string | null;
   maxProjects: number;
@@ -169,7 +210,8 @@ function ProjectWorkspaceSummary({
             <ProjectDetailRow key={row.id} row={row} />
           ))}
           <ProjectDetailRow row={recoveryRow} />
-          <ProjectPlainDetailRow label="Saved snapshots" value={`${projects.length} / ${maxProjects}`} />
+          <ProjectPlainDetailRow label="Active project" value={activeProject?.name ?? 'None'} />
+          <ProjectPlainDetailRow label="Saved projects" value={`${projects.length} / ${maxProjects}`} />
           <ProjectPlainDetailRow label="Project data" value={formatBytes(totalProjectBytes)} />
         </div>
       </details>
@@ -190,10 +232,93 @@ function projectCountClassName(projectCount: number, maxProjects: number) {
   return `text-[9px] tracking-[0.5px] ${toneClassName}`;
 }
 
-function projectSaveName(name: string, projectCount: number) {
+function projectsPanelViewModel(
+  projects: SavedProject[],
+  activeProject: SavedProject | null,
+  recoveryDraft: SavedProject | null,
+  maxProjects: number,
+) {
+  return {
+    activeProjectId: activeProject?.id ?? null,
+    countClassName: projectCountClassName(projects.length, maxProjects),
+    hasSavedItems: hasProjectListItems(projects, recoveryDraft),
+  };
+}
+
+function hasProjectListItems(projects: SavedProject[], recoveryDraft: SavedProject | null) {
+  return projects.length > 0 || recoveryDraft !== null;
+}
+
+function closeProjectsOnSheetClose(open: boolean, onClose: () => void) {
+  if (!open) onClose();
+}
+
+function projectSaveFormState(
+  activeProject: SavedProject | null,
+  activeWorkState: BrowserStorageStatus['summary']['activeWorkState'],
+  name: string,
+) {
+  const hasActiveProject = activeProject !== null;
+  const nameChanged = projectNameChanged(activeProject, name);
+  return {
+    activeProjectName: activeProject?.name ?? null,
+    ariaLabel: projectSaveAriaLabel(activeProject, name),
+    buttonLabel: projectSaveButtonLabel(hasActiveProject),
+    hasActiveProject,
+    saveDisabled: projectSaveDisabled(hasActiveProject, nameChanged, activeWorkState),
+  };
+}
+
+function projectNameChanged(activeProject: SavedProject | null, name: string) {
+  return activeProject !== null && name.trim() !== activeProject.name;
+}
+
+function projectSaveButtonLabel(hasActiveProject: boolean) {
+  return hasActiveProject ? 'SAVE PROJECT' : 'CREATE PROJECT';
+}
+
+function projectSaveDisabled(
+  hasActiveProject: boolean,
+  nameChanged: boolean,
+  activeWorkState: BrowserStorageStatus['summary']['activeWorkState'],
+) {
+  return hasActiveProject && !nameChanged && activeWorkState !== 'unsaved';
+}
+
+function projectSaveAriaLabel(activeProject: SavedProject | null, name: string) {
+  if (!activeProject) return undefined;
+  return `Save active project ${name.trim() || activeProject.name}`;
+}
+
+function submitProjectSave(
+  formState: ReturnType<typeof projectSaveFormState>,
+  {
+    name,
+    onSaveActive,
+    onSaveCopy,
+    projectCount,
+    resetName,
+  }: {
+    name: string;
+    onSaveActive: (name: string) => void;
+    onSaveCopy: (name: string) => void;
+    projectCount: number;
+    resetName: () => void;
+  },
+) {
+  const savedName = projectSaveName(name, projectCount, formState.activeProjectName);
+  if (formState.hasActiveProject) onSaveActive(savedName);
+  else {
+    onSaveCopy(savedName);
+    resetName();
+  }
+}
+
+function projectSaveName(name: string, projectCount: number, activeName: string | null = null) {
   const trimmed = name.trim();
   if (trimmed.length > 0) return trimmed;
-  return `Snapshot ${projectCount + 1}`;
+  if (activeName) return `${activeName} copy`;
+  return `Project ${projectCount + 1}`;
 }
 
 function getStatusRow(rows: WorkspaceStatusRow[], id: string, fallback: WorkspaceStatusRow) {
@@ -261,16 +386,20 @@ function WorkspaceWarnings({
 function ProjectsList({
   hasSavedItems,
   projects,
+  activeProjectId,
   recoveryDraft,
   onDelete,
   onDeleteRecoveryDraft,
+  onSaveCopy,
   onLoad,
 }: {
   hasSavedItems: boolean;
   projects: SavedProject[];
+  activeProjectId: string | null;
   recoveryDraft: SavedProject | null;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
+  onSaveCopy: (name: string) => void;
   onLoad: (project: SavedProject) => void;
 }) {
   if (!hasSavedItems) return <ProjectsEmptyState />;
@@ -278,7 +407,14 @@ function ProjectsList({
     <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
       <RecoveryDraftCard recoveryDraft={recoveryDraft} onDeleteRecoveryDraft={onDeleteRecoveryDraft} onLoad={onLoad} />
       {projects.map((project) => (
-        <ProjectCard key={project.id} project={project} onDelete={onDelete} onLoad={onLoad} />
+        <ProjectCard
+          key={project.id}
+          project={project}
+          active={project.id === activeProjectId}
+          onDelete={onDelete}
+          onSaveCopy={project.id === activeProjectId ? () => onSaveCopy(`${project.name} copy`) : undefined}
+          onLoad={onLoad}
+        />
       ))}
     </div>
   );
@@ -289,7 +425,7 @@ function ProjectsEmptyState() {
     <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
       <div className="text-[32px] text-accent opacity-30 mb-2">▣</div>
       <p>No projects saved yet.</p>
-      <p>Save a snapshot to come back to this document later.</p>
+      <p>Create a project to keep editing this document later.</p>
     </div>
   );
 }
@@ -323,22 +459,30 @@ function RecoveryDraftCard({
 
 function ProjectCard({
   project,
+  active,
   onDelete,
+  onSaveCopy,
   onLoad,
 }: {
   project: SavedProject;
+  active: boolean;
   onDelete: (id: string) => void;
+  onSaveCopy?: () => void;
   onLoad: (project: SavedProject) => void;
 }) {
   return (
-    <div className="library-card flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30">
+    <div
+      className={`library-card ${active ? 'library-card-active' : ''} flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30`}
+      aria-current={active ? 'true' : undefined}
+    >
       <ProjectCardImage project={project} />
       <div className="flex-1 flex flex-col justify-between min-w-0">
-        <ProjectCardMeta project={project} />
+        <ProjectCardMeta project={project} eyebrow={active ? 'ACTIVE PROJECT' : undefined} />
         <ProjectCardActions
           project={project}
           deleteVariant="quiet"
           loadVariant="quiet"
+          onCopy={onSaveCopy}
           onDelete={() => onDelete(project.id)}
           onLoad={() => onLoad(project)}
         />
@@ -366,12 +510,14 @@ function ProjectCardMeta({ project, eyebrow }: { project: SavedProject; eyebrow?
 function ProjectCardActions({
   deleteVariant,
   loadVariant,
+  onCopy,
   onDelete,
   onLoad,
   project,
 }: {
   deleteVariant: 'danger' | 'quiet';
   loadVariant: 'danger' | 'quiet';
+  onCopy?: () => void;
   onDelete: () => void;
   onLoad: () => void;
   project: SavedProject;
@@ -394,6 +540,16 @@ function ProjectCardActions({
       >
         DEL
       </ActionButton>
+      {onCopy && (
+        <ActionButton
+          className="library-card-action library-card-action-copy"
+          aria-label={`Save copy of ${project.name}`}
+          onClick={onCopy}
+          variant="quiet"
+        >
+          COPY
+        </ActionButton>
+      )}
     </div>
   );
 }

@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
 });
 
-test('v0.33 Projects shows work state first and keeps storage diagnostics collapsed', async ({ page }) => {
+test('v0.34 Projects shows work state first and keeps storage diagnostics collapsed', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
@@ -15,7 +15,7 @@ test('v0.33 Projects shows work state first and keeps storage diagnostics collap
   const projects = page.getByRole('dialog', { name: 'PROJECTS' });
   await expect(projects).toBeVisible();
   await expectSaveFormToAlign(projects);
-  await expect(projects).toContainText('Unsaved changes');
+  await expect(projects).toContainText('Not saved as project');
   await expect(projects.getByText('Browser storage')).toBeHidden();
   await expect(projects.getByText('Offline app')).toBeHidden();
   await projects.getByText('Storage details').click();
@@ -27,25 +27,40 @@ test('v0.33 Projects shows work state first and keeps storage diagnostics collap
   await expectNoBrowserIssues(page);
 });
 
-test('v0.33 project snapshot state switches from saved snapshot back to unsaved changes after edits', async ({
-  page,
-}) => {
+test('v0.34 active project save updates the current project after edits', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   const projects = page.getByRole('dialog', { name: 'PROJECTS' });
-  await projects.getByLabel('Snapshot name').fill('Saved State Smoke');
-  await projects.getByRole('button', { name: 'SAVE SNAPSHOT' }).click();
-  await expect(projects).toContainText('Snapshot saved');
+  await projects.getByLabel('Project name').fill('Saved State Smoke');
+  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  await expect(projects).toContainText('Saved in project');
+  await expect(projects.getByRole('button', { name: 'Load Saved State Smoke' })).toHaveCount(1);
+  await expect(projects.getByRole('button', { name: 'Save active project Saved State Smoke' })).toBeDisabled();
+
+  await projects.getByLabel('Project name').fill('Saved State Renamed');
+  await expect(projects.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
+  await projects.getByRole('button', { name: 'Save active project Saved State Renamed' }).click();
+  await expect(projects.getByRole('button', { name: 'Load Saved State Renamed' })).toHaveCount(1);
+  await expect(projects.getByRole('button', { name: 'Load Saved State Smoke' })).toHaveCount(0);
+  await expect(projects.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeDisabled();
 
   await projects.getByRole('button', { name: 'Close projects' }).click();
   await page.locator('main .bottom-bar .rand-btn').click();
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved changes');
+  await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Save active project Saved State Renamed' }).click();
+  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
+  await expect(page.getByRole('button', { name: 'Load Saved State Renamed' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Save copy of Saved State Renamed' }).click();
+  await expect(page.getByRole('button', { name: 'Load Saved State Renamed copy' })).toHaveCount(1);
   await expectNoBrowserIssues(page);
 });
 
-test('v0.33 local workspace warning stays out of node mode when healthy', async ({ page }) => {
+test('v0.34 local workspace warning stays out of node mode when healthy', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
@@ -69,8 +84,8 @@ test('v0.33 pwa assets are served for install and app shell support', async ({ p
 });
 
 async function expectSaveFormToAlign(projects: Locator) {
-  const inputBox = await projects.getByLabel('Snapshot name').boundingBox();
-  const saveBox = await projects.getByRole('button', { name: 'SAVE SNAPSHOT' }).boundingBox();
+  const inputBox = await projects.locator('.project-name-field').boundingBox();
+  const saveBox = await projects.getByRole('button', { name: 'CREATE PROJECT' }).boundingBox();
 
   expect(inputBox).not.toBeNull();
   expect(saveBox).not.toBeNull();

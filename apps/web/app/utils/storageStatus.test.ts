@@ -46,11 +46,23 @@ describe('storageStatus', () => {
 
     expect(projectSizeBytes(project)).toBeGreaterThan(0);
     expect(summary.activeWorkState).toBe('saved');
-    expect(summary.saveLabel).toBe('Snapshot saved');
+    expect(summary.saveLabel).toBe('Saved in project');
     expect(summary.projectLabel).toContain('1 project');
     expect(summary.recoveryLabel).toContain('Available');
     expect(summary.pressure).toBe('ok');
     expect(summary.usageLabel).toBe('1.0 MB / 4.0 MB');
+  });
+
+  it('marks active work as untracked before it is saved as a project', () => {
+    const summary = summarizeEditorStorage({
+      doc,
+      projects: [],
+      recoveryDraft: null,
+      saveStatus: { ok: true, savedAt: '2026-06-06T00:00:00.000Z' },
+    });
+
+    expect(summary.activeWorkState).toBe('untracked');
+    expect(summary.saveLabel).toBe('Not saved as project');
   });
 
   it('marks active work as unsaved until the current document matches a saved project', () => {

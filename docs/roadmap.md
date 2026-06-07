@@ -19,11 +19,17 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.33 is the selected next release direction: Storage UX And Capability
-  Hardening. It should make local-first persistence understandable through
-  autosave, recovery, quota pressure, project-size, cleanup, and browser
-  capability states before larger Asset Library, Export History, Versions, or
-  server-backed sharing work depends on the same storage model.
+- v0.34 is in release-candidate prep as the Active Project Save Model release.
+  It turns Projects from a snapshot-only local library into an explicit active
+  project workflow where first save creates a project, loading a project binds
+  the editor to that project id, `Save Project` overwrites the same record, and
+  contextual `Copy` creates a branch without writing service metadata into
+  `CanvasDocument`.
+- v0.33 has completed the Storage UX And Capability Hardening release scope:
+  local workspace state is visible, recovery and storage details are
+  discoverable, Presets was folded into Projects, and the conservative PWA
+  shell is available without changing document schema, renderer/export
+  semantics, graph traversal, AI scope, server sharing, or account model.
 - v0.32 has completed the Code Health And Debt Reduction release scope: the
   v0.31 changed-code Fallow gate remains clean, full-health complexity is
   reduced to zero functions above threshold, hook-dependency warnings are
@@ -46,6 +52,14 @@ Next deferred product tracks:
 
 - Asset Library / Export History / Versions remains deferred until v0.33 makes
   the local storage and recovery states visible enough to build on safely.
+- Dedicated Projects tab remains deferred until v0.34 proves the active project
+  save model inside the current Projects sheet. The future version should move
+  projects into a fuller workspace surface instead of continuing to overload a
+  compact side panel.
+- Autosave history remains deferred until the dedicated Projects surface exists.
+  The future autosave pass should distinguish active project saves, automatic
+  recovery points, and user-created copies without making recovery cards compete
+  with saved projects.
 - Server-backed Share Links remains deferred until local asset/project cleanup,
   quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
@@ -55,6 +69,14 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.33.md`](./version-plans/v0.33.md) — Storage UX And
+  Capability Hardening: Projects became the single local workspace surface,
+  storage diagnostics moved behind details, recovery and browser capability
+  states became visible, the first conservative PWA app shell shipped, and the
+  release gate gained a fresh-server browser command. Active project binding
+  remained deferred out of v0.33 and is now tracked in
+  [`version-plans/v0.34.md`](./version-plans/v0.34.md). Release notes are in
+  [`releases/v0.33.0.md`](./releases/v0.33.0.md).
 - [`version-plans/v0.32.md`](./version-plans/v0.32.md) — Code Health And Debt
   Reduction: v0.32 package metadata, generator-to-editor route-shell rename
   while keeping `/app` stable, Fallow duplication and full-health complexity
@@ -146,8 +168,14 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.33:
+Next strong candidates after v0.34:
 
+- **Dedicated Projects Tab** — move local projects out of the compact sheet
+  into a first-class workspace tab with better room for rename, duplicate,
+  cleanup, project size, and recovery actions.
+- **Project Autosave History** — after the Projects tab lands, add visible
+  automatic save points for the active project so recovery, autosave, explicit
+  save, and copy/branch behavior are clearly separated.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -163,13 +191,6 @@ Next strong candidates after v0.33:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Active Project Save Model** — replace the current snapshot-only Projects
-  behavior with an explicit active project binding. When a user loads or creates
-  a project, the editor should remember the project id; `Save` should update
-  that same record, while `Save as` or `Duplicate` should create a new record.
-  Until this lands, Projects remain a local snapshot library, and recovery
-  copies remain independent safety backups.
-
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and
@@ -413,7 +434,7 @@ threshold ownership, suppression rules, and CI behavior are documented.
 | Document state | `apps/web/app/hooks/useEditorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
 | Asset state | `apps/web/app/hooks/useEditorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
 | Export | `apps/web/app/hooks/useEditorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
-| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery copies. There is no durable active-project binding yet; save creates a snapshot instead of overwriting a loaded project id. |
+| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/hooks/useEditorProjectsController.ts`, `apps/web/app/utils/projectStore.ts`, `apps/web/app/utils/activeProjectBinding.ts` | IndexedDB-backed local project records, active project binding outside `CanvasDocument`, save-overwrite behavior for active projects, copy-as-new-project behavior, and independent pre-blank recovery copies. |
 
 ### Data model
 

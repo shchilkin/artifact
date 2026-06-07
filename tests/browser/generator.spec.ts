@@ -1765,8 +1765,8 @@ test('local projects preserve imported image and font assets across save and loa
   await expectPortableRefsStored(page);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await page.getByLabel('Snapshot name').fill('Portable Project');
-  await page.getByRole('button', { name: 'SAVE SNAPSHOT', exact: true }).click();
+  await page.getByLabel('Project name').fill('Portable Project');
+  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
 
   await startBlankEditor(page);
@@ -2035,10 +2035,12 @@ test('default document can export from the browser', async ({ page, browserName 
 test('current document can be saved into local projects', async ({ page }) => {
   await gotoDocument(page, lightDocument);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await page.getByLabel('Snapshot name').fill('Browser Project');
-  await page.getByRole('button', { name: 'SAVE SNAPSHOT', exact: true }).click();
+  await page.getByLabel('Project name').fill('Browser Project');
+  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
 
-  await expect(page.getByText('Browser Project')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Save active project Browser Project' })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByRole('button', { name: 'Load Browser Project' })).toBeVisible();
 });
 

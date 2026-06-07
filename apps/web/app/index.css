@@ -3408,46 +3408,69 @@ input[type="range"] {
   background: var(--surface-input);
 }
 
-.library-save-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px;
-  align-items: stretch;
-  gap: 8px;
+.project-save-panel {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
+  gap: 8px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-strong);
   background: color-mix(in oklch, var(--panel-raised) 82%, transparent);
 }
 
-.library-save-input {
+.project-primary-save {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.project-name-field {
   box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  height: 52px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-input);
+  padding: 7px 10px 8px;
+}
+
+.project-name-field span {
+  color: var(--success);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.project-name-field input {
   width: 100%;
   min-width: 0;
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 0;
-  outline: none;
-  background: var(--surface-input);
+  border: 0;
+  outline: 0;
+  background: transparent;
   color: var(--text);
   font-family: var(--mono);
   font-size: 11px;
-  line-height: 1;
-  padding: 0 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
 }
 
-.library-save-input:focus {
+.project-name-field:focus-within {
   border-color: var(--accent);
 }
 
-.library-save-input::placeholder {
+.project-name-field input::placeholder {
   color: var(--text-dim);
 }
 
-.library-save-button {
+.library-save-button.action-button {
+  box-sizing: border-box;
   width: 128px;
   min-width: 128px;
-  height: 44px;
-  min-height: 44px;
+  height: 52px;
+  min-height: 52px;
   padding-inline: 0;
 }
 
@@ -3620,6 +3643,18 @@ input[type="range"] {
 .library-card:hover {
   background: var(--surface-hover);
   box-shadow: inset 1px 0 0 color-mix(in oklch, var(--accent) 72%, transparent);
+}
+
+.library-card-active {
+  border-color: color-mix(in oklch, var(--success) 44%, var(--border));
+  background: color-mix(in oklch, var(--success) 6%, var(--surface-bg));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--success) 70%, transparent);
+}
+
+.library-card-active:hover {
+  border-color: color-mix(in oklch, var(--success) 58%, var(--border));
+  background: color-mix(in oklch, var(--success) 9%, var(--surface-bg));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--success) 78%, transparent);
 }
 
 .library-card-draft {

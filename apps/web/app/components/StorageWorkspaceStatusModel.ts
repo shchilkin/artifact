@@ -115,7 +115,8 @@ function offlineShellRow(status: BrowserStorageStatus): WorkspaceStatusRow {
 
 function activeWorkTone(status: BrowserStorageStatus, storageError: string | null): StatusTone {
   if (storageError || status.summary.activeWorkState === 'blocked') return 'danger';
-  return status.summary.activeWorkState === 'saved' ? 'ok' : 'warning';
+  if (status.summary.activeWorkState === 'saved') return 'ok';
+  return status.summary.activeWorkState === 'unsaved' ? 'warning' : 'muted';
 }
 
 function saveWarningPill(status: BrowserStorageStatus, storageError: string | null): StatusPillModel | null {

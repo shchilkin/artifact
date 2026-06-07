@@ -76,25 +76,22 @@ export function useProjects() {
   }, []);
 
   const saveProject = useCallback(
-    async (name: string, doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) => {
-      let thumbnail = PROJECT_THUMBNAIL_FALLBACK;
-      try {
-        thumbnail = await generateThumbnail(doc, imageCache);
-      } catch (err) {
-        console.error('[projects] thumbnail generation failed, using placeholder', err);
-      }
+    async (
+      name: string,
+      doc: CanvasDocument,
+      imageCache: Map<string, HTMLImageElement>,
+      options: { projectId?: string } = {},
+    ) => {
+      const thumbnail = await projectThumbnail(doc, imageCache);
 
-      const now = new Date().toISOString();
       try {
         const storedDoc = await storePortableDocumentAssets(doc);
-        const project: SavedProject = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        const project = buildSavedProject({
+          existingProject: findProject(projects, options.projectId),
           name,
-          doc: storedDoc,
+          storedDoc,
           thumbnail,
-          createdAt: now,
-          updatedAt: now,
-        };
+        });
         const next = await saveStoredProject(project);
         setStorageError(null);
         if (mountedRef.current) setProjects(next);
@@ -104,7 +101,7 @@ export function useProjects() {
         return null;
       }
     },
-    [],
+    [projects],
   );
 
   const deleteProject = useCallback(async (id: string) => {
@@ -153,4 +150,54 @@ function setMountedStorageError(
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+async function projectThumbnail(doc: CanvasDocument, imageCache: Map<string, HTMLImageElement>) {
+  try {
+    return await generateThumbnail(doc, imageCache);
+  } catch (err) {
+    console.error('[projects] thumbnail generation failed, using placeholder', err);
+    return PROJECT_THUMBNAIL_FALLBACK;
+  }
+}
+
+function findProject(projects: SavedProject[], projectId?: string) {
+  if (!projectId) return null;
+  return projects.find((project) => project.id === projectId) ?? null;
+}
+
+function buildSavedProject({
+  existingProject,
+  name,
+  storedDoc,
+  thumbnail,
+}: {
+  existingProject: SavedProject | null;
+  name: string;
+  storedDoc: CanvasDocument;
+  thumbnail: string;
+}): SavedProject {
+  const updatedAt = new Date().toISOString();
+  return {
+    id: savedProjectId(existingProject),
+    name,
+    doc: storedDoc,
+    thumbnail,
+    createdAt: savedProjectCreatedAt(existingProject, updatedAt),
+    updatedAt,
+  };
+}
+
+function savedProjectId(existingProject: SavedProject | null) {
+  if (existingProject) return existingProject.id;
+  return createProjectId();
+}
+
+function savedProjectCreatedAt(existingProject: SavedProject | null, fallback: string) {
+  if (existingProject) return existingProject.createdAt;
+  return fallback;
+}
+
+function createProjectId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

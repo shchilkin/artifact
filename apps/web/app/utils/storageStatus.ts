@@ -8,7 +8,7 @@ export interface DocumentSaveStatus {
   savedAt: string | null;
 }
 
-export type ProjectSaveState = 'saved' | 'unsaved';
+export type ProjectSaveState = 'saved' | 'unsaved' | 'untracked';
 
 export interface StorageEstimateSnapshot {
   usage?: number;
@@ -64,7 +64,7 @@ export function summarizeEditorStorage({
   recoveryDraft,
   estimate,
   saveStatus,
-  projectSaveState = 'unsaved',
+  projectSaveState = 'untracked',
 }: {
   doc: CanvasDocument;
   projects: SavedProject[];
@@ -103,7 +103,9 @@ export function summarizeEditorStorage({
 
 function activeWorkLabel(saveStatus: DocumentSaveStatus, projectSaveState: ProjectSaveState) {
   if (!saveStatus.ok) return 'Autosave blocked';
-  return projectSaveState === 'saved' ? 'Snapshot saved' : 'Unsaved changes';
+  if (projectSaveState === 'saved') return 'Saved in project';
+  if (projectSaveState === 'unsaved') return 'Unsaved changes';
+  return 'Not saved as project';
 }
 
 function estimateDataUrlLikeBytes(value: string): number {

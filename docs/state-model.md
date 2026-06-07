@@ -241,11 +241,13 @@ Tradeoff:
 - Local project snapshots and the pre-blank recovery copy are stored in
   IndexedDB via `apps/web/app/utils/projectStore.ts` so large document snapshots do not
   exhaust the small localStorage quota.
-- Projects are currently snapshot records, not durable open-project bindings.
-  Loading or saving a project does not write an `activeProjectId` into the
-  document or editor persistence, and recovery copies stay independent until the
-  user dismisses them. A future save-model pass should add an active project id,
-  overwrite semantics for `Save`, and explicit `Save as` / duplicate behavior.
+- v0.34 adds an active project binding outside `CanvasDocument`. Creating,
+  loading, or copying a project stores the active project id plus the saved
+  document fingerprint as editor-session state; `Save Project` overwrites that
+  same IndexedDB record, and contextual `Copy` creates and binds a new record.
+  Recovery copies stay independent safety backups and do not become active
+  projects when loaded. External document loads, starter documents, docs/share
+  imports, and new blank starts clear the active project binding.
 - Active quick-reload document state still uses localStorage through
   `documentPersistence`; it should contain asset references, not imported image
   payloads.

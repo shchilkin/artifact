@@ -31,6 +31,38 @@ CI should run:
 
 ## Manual QA
 
+### v0.34.0 Release Prep
+
+- Release prep was approved by the maintainer on 2026-06-07 after local review
+  confirmed the active project save workflow.
+- v0.34 changes local Projects semantics from snapshot-only saving to active
+  project binding outside `CanvasDocument`.
+- Package metadata is bumped to `0.34.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.34.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Manual QA confirmed: project save flow, active project state, disabled clean
+  save state, copy behavior, and Projects panel layout are usable after the
+  v0.34 polish pass.
+- `npm run check` passed on 2026-06-07.
+- `npm run build` passed on 2026-06-07.
+- `npm run test:browser:release` passed on 2026-06-07 with `282 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Fallow changed-file audit passed with zero dead-code findings, zero
+  complexity findings, and zero duplicated lines.
+- Focused post-release-file validation passed on 2026-06-07:
+  `npm run format:check`, `npx tsc --noEmit --pretty false --project apps/web/tsconfig.json`,
+  `npm --workspace @artifact/web run test -- app/utils/activeProjectBinding.test.ts app/utils/storageStatus.test.ts app/components/StorageWorkspaceStatus.test.ts`,
+  and `npm run test:browser:chromium -- tests/browser/v033-storage.spec.ts`.
+- Do not tag or publish v0.34 until the maintainer explicitly confirms the
+  final release action.
+- `npm run perf:node-editor` is not required for the current release-prep diff
+  because v0.34 changes local project persistence semantics and Projects panel
+  UI, not React Flow interaction, node-editor gesture paths, thumbnail
+  scheduling, graph traversal, renderer/export behavior, document schema,
+  package export, AI scope, or font-policy behavior.
+
 ### v0.33.0 Release Prep
 
 - Package metadata is bumped to `0.33.0` in `package.json`,
@@ -382,11 +414,11 @@ CI should run:
   files; unknown local font files are not bundled by default. Missing fonts rely
   on fallback rendering until the user replaces the font.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
-- Projects and the pre-blank recovery copy are IndexedDB-backed convenience
-  snapshots until the active project save model or account-backed persistence
-  lands. The current editor does not keep a durable active project id, so
-  project save creates a snapshot instead of overwriting the loaded project
-  record.
+- Projects and the pre-blank recovery copy are IndexedDB-backed local records.
+  v0.34 keeps active project binding outside `CanvasDocument` so local
+  `Save Project` can overwrite the active record while recovery remains an
+  independent safety copy. Account-backed persistence, cross-device sync,
+  project versions, and server-backed share records remain future work.
 
 ## Sticky-Note Feature Intake
 

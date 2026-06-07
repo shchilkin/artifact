@@ -92,6 +92,7 @@ export default function Editor() {
     canRedo,
     undoCount,
     fromDocParam,
+    fromBlankParam,
     isBlank,
     documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
@@ -108,23 +109,18 @@ export default function Editor() {
   });
   const { exportBusy, exportError, handleNodeExport } = useEditorExport(docRef, imageCache, exportRenderOptions);
   const {
-    fileInputRef,
-    documentFileError,
-    handleOpenDocument,
-    handleOpenDocumentPicker,
-    handleSaveDocument,
-    handleSaveProjectPackage,
-  } = useDocumentFileTransfer(docRef, loadDocument);
-  const {
     showProjects,
     projects,
+    activeProject,
     recoveryDraft,
     storageError,
     maxProjects,
     toggleProjects,
     closeProjects,
     handleLoadProject,
+    clearActiveProject,
     saveCurrentProject,
+    saveActiveProject,
     deleteProject,
     deleteRecoveryDraft,
     projectSaveState,
@@ -133,7 +129,23 @@ export default function Editor() {
     docRef,
     imageCache,
     onLoadDocument: loadDocument,
+    initialDocumentClearsProject: fromDocParam || fromBlankParam,
   });
+  const handleLoadExternalDocument = useCallback(
+    (nextDoc: typeof doc) => {
+      clearActiveProject();
+      loadDocument(nextDoc);
+    },
+    [clearActiveProject, loadDocument],
+  );
+  const {
+    fileInputRef,
+    documentFileError,
+    handleOpenDocument,
+    handleOpenDocumentPicker,
+    handleSaveDocument,
+    handleSaveProjectPackage,
+  } = useDocumentFileTransfer(docRef, handleLoadExternalDocument);
 
   const { handleToggleProjects, closePanels } = useEditorPanels({
     closeProjects,
@@ -163,21 +175,23 @@ export default function Editor() {
       return;
     }
     closePanels();
+    clearActiveProject();
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
-  }, [closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
+  }, [clearActiveProject, closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
 
   const handleLoadStarter = useCallback(
     (id: string) => {
       const starter = getStarterDocument(id);
       if (!starter) return;
       closePanels();
+      clearActiveProject();
       loadDocument(cloneDocument(starter.doc));
       resetPrimitiveViewStates();
       setViewMode('layers');
     },
-    [closePanels, loadDocument, resetPrimitiveViewStates],
+    [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
 
   const bottomBarProps = {
@@ -379,11 +393,13 @@ export default function Editor() {
           {showProjects && (
             <ProjectsPanel
               projects={projects}
+              activeProject={activeProject}
               recoveryDraft={recoveryDraft}
               storageStatus={storageStatus}
               storageError={storageError}
               maxProjects={maxProjects}
-              onSave={saveCurrentProject}
+              onSaveCopy={saveCurrentProject}
+              onSaveActive={saveActiveProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
               onDeleteRecoveryDraft={deleteRecoveryDraft}

@@ -27,7 +27,7 @@ const BASE_STATUS: BrowserStorageStatus = {
     pressure: 'ok',
     activeWorkState: 'saved',
     usageLabel: '2 KB / 1 MB',
-    saveLabel: 'Snapshot saved',
+    saveLabel: 'Saved in project',
     projectLabel: '0 saved',
     recoveryLabel: null,
   },
@@ -63,11 +63,21 @@ describe('StorageWorkspaceStatus helpers', () => {
 
   it('builds workspace summary rows', () => {
     expect(workspaceStatusRows(withSummary({ recoveryLabel: 'Available / 4 KB' }), null)).toMatchObject([
-      { id: 'active-work', tone: 'ok', label: 'Active work', value: 'Snapshot saved' },
+      { id: 'active-work', tone: 'ok', label: 'Active work', value: 'Saved in project' },
       { id: 'browser-storage', tone: 'ok', label: 'Browser storage', value: '2 KB / 1 MB' },
       { id: 'recovery', tone: 'warning', label: 'Recovery copy', value: 'Available / 4 KB' },
       { id: 'app-shell', tone: 'ok', label: 'Offline app', value: 'Cached' },
     ]);
+  });
+
+  it('keeps untracked documents out of warning state', () => {
+    expect(
+      workspaceStatusRows(withSummary({ activeWorkState: 'untracked', saveLabel: 'Not saved as project' }), null)[0],
+    ).toMatchObject({ id: 'active-work', tone: 'muted', label: 'Active work', value: 'Not saved as project' });
+    expect(getProjectWorkspaceStatus(withSummary({ activeWorkState: 'untracked' }), null)).toMatchObject({
+      tone: 'ok',
+      badge: null,
+    });
   });
 
   it('reports storage and capability warnings for the panel and warning strip', () => {

@@ -522,6 +522,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     canRedo: future.length > 0,
     undoCount: past.length,
     fromDocParam,
+    fromBlankParam,
     isBlank: isBlankDocument(doc),
     documentSaveStatus,
   };
