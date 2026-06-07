@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import {
+  clickEditorControl,
   documentUrl,
   editorDocumentFixture,
   expectNoBrowserIssues,
@@ -90,7 +91,7 @@ test('blank editor and shared primitive project surfaces open and close', async 
   await expect(page.getByRole('button', { name: 'PRESETS' })).toHaveCount(0);
 
   await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expect(page.getByLabel('Search nodes and effects')).toBeVisible();
   await expect(page.locator('.add-library-node-menu .artifact-search-field')).toBeVisible();

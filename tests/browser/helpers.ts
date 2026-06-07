@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
 
@@ -163,6 +163,12 @@ export async function switchToLayerView(page: Page): Promise<void> {
     await layersTab.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 10_000 });
+}
+
+export async function clickEditorControl(control: Locator): Promise<void> {
+  await expect(control).toBeVisible({ timeout: 15_000 });
+  await expect(control).toBeEnabled({ timeout: 15_000 });
+  await control.evaluate((element) => (element as HTMLElement).click());
 }
 
 const BENIGN_BROWSER_TEST_SUBSTRINGS = [

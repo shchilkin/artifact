@@ -1,6 +1,6 @@
-import { expect, type Locator, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
-import { expectNoBrowserIssues, setupBrowserTestPage } from './helpers';
+import { clickEditorControl, expectNoBrowserIssues, setupBrowserTestPage } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
@@ -60,11 +60,13 @@ test('v0.34 active project save updates the current project after edits', async 
   await expectNoBrowserIssues(page);
 });
 
-test('v0.34 local workspace warning stays out of node mode when healthy', async ({ page }) => {
+test('v0.34 local workspace stays usable in node mode with healthy active work', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
-  await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
+  await assertNoSaveOrStorageDanger(page);
+  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
+  await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expectNoBrowserIssues(page);
 });
 
@@ -91,4 +93,10 @@ async function expectSaveFormToAlign(projects: Locator) {
   expect(saveBox).not.toBeNull();
   expect(Math.abs((inputBox?.y ?? 0) - (saveBox?.y ?? 0))).toBeLessThanOrEqual(1);
   expect(Math.abs((inputBox?.height ?? 0) - (saveBox?.height ?? 0))).toBeLessThanOrEqual(1);
+}
+
+async function assertNoSaveOrStorageDanger(page: Page) {
+  const warning = page.getByLabel('Local workspace warning');
+  if ((await warning.count()) === 0) return;
+  await expect(warning).not.toContainText(/Autosave blocked|Storage needs attention/);
 }

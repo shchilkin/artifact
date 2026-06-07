@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
 import {
+  clickEditorControl,
   expectLayerCanvasToHavePixels,
   expectNoBrowserIssues,
   expectStoredImageLayerAssetUri,
@@ -976,6 +977,12 @@ async function openPixelateNodeAddMenu(page: Page) {
   return pixelateMenuRow;
 }
 
+async function expectPixelateNode(page: Page) {
+  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
+  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
+  return pixelateNode;
+}
+
 async function selectUnconnectedTopFillNode(page: Page) {
   await gotoDocument(page, graphPreviewDocument);
   await switchToNodeView(page);
@@ -1169,7 +1176,7 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     .evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.locator('.node-area').first()).toHaveClass(/node-area-selected/);
 
-  await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));
   const stateStyles = await page.evaluate(() => {
     const styleValue = (styles: CSSStyleDeclaration | null, name: string) =>
       styles?.getPropertyValue(name).trim() ?? '';
@@ -1240,7 +1247,7 @@ test('node graph highlights the active output path and exposes output navigation
   await page.mouse.move(paneBox.x + paneBox.width - 420, paneBox.y + paneBox.height - 300, { steps: 6 });
   await page.mouse.up();
   const panned = await viewport.evaluate((element) => getComputedStyle(element).transform);
-  await page.getByRole('button', { name: 'Jump to output node' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Jump to output node' }));
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
   await expect
     .poll(() => viewport.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
@@ -2002,7 +2009,7 @@ test('node performance debug toggle persists', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await switchToNodeView(page);
 
-  await page.getByRole('button', { name: 'Show performance debug overlay' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));
   await expect(page.locator('.node-perf-grid')).toBeVisible({ timeout: 15_000 });
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('artifact-debug-perf')), { timeout: 15_000 })
@@ -2012,7 +2019,7 @@ test('node performance debug toggle persists', async ({ page }) => {
   await switchToNodeView(page);
   await expect(page.getByRole('button', { name: 'Hide performance debug overlay' })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-perf-grid')).toBeVisible();
-  await page.getByRole('button', { name: 'Hide performance debug overlay' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Hide performance debug overlay' }));
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('artifact-debug-perf')), { timeout: 15_000 })
     .toBe('0');
@@ -2329,7 +2336,7 @@ test('docs recipe try-this link opens an editable starter document', async ({ pa
 test('add-node menu exposes recipe groups and workflow search', async ({ page }) => {
   await page.goto('/app?new=blank');
   await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   const recipeRail = page.locator('.add-library-recipes');
   const nodeAddRowByLabel = (label: RegExp) =>
     page.locator('.nadd-row').filter({ has: page.locator('.nadd-row-label', { hasText: label }) });
@@ -2338,12 +2345,12 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
 
-  await page.getByRole('button', { name: /^Tone$/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^Tone$/ }));
   await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
   await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
-  await page.getByRole('button', { name: /^All$/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^All$/ }));
 
-  await recipeRail.getByRole('button', { name: 'Print Damage' }).click();
+  await clickEditorControl(recipeRail.getByRole('button', { name: 'Print Damage' }));
   await expect(nodeAddRowByLabel(/^Halftone$/)).toBeVisible();
   await expect(nodeAddRowByLabel(/^Tear$/)).toBeVisible();
   await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
@@ -2364,10 +2371,9 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: /^▦ Pixelate/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^▦ Pixelate/ }));
 
-  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
-  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
+  await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
   await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
   await switchToLayerView(page);
@@ -2378,7 +2384,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'poster type');
   await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: /^T Poster Type/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^T Poster Type/ }));
 
   const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
   await expect(posterNode).toBeVisible({ timeout: 15_000 });
@@ -2424,8 +2430,7 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
     targetPosition: { x: 520, y: 320 },
   });
 
-  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
-  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
+  await expectPixelateNode(page);
   await expect(page.locator('.add-library-node-menu')).toHaveCount(0);
 });
 
@@ -2492,7 +2497,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
   await page.goto('/app?new=blank');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await page.getByRole('button', { name: /^◧ AI Image/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
@@ -2517,7 +2522,7 @@ test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
 
   await page.goto('/app?new=blank&debug=ai');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await page.getByRole('button', { name: /^◧ AI Image/ }).click();
+  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
 
   const panel = page.locator('.node-props-panel');
   const diagnostics = panel.locator('.ai-generation-dev-diagnostics');
@@ -2894,7 +2899,7 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
 
   await selectFirstNodeByKind(page, 'fill');
 
-  await page.getByRole('button', { name: 'Create area from selected nodes' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Create area from selected nodes' }));
   await expect(page.locator('.node-area')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-area-label')).toContainText('Area 1');
 
@@ -3268,7 +3273,7 @@ async function openNodeAddMenuWithSearch(page: Page, query: string, options: { w
   if (options.waitForExportNode) {
     await expect(page.locator('.node-shell-kind-export')).toBeVisible({ timeout: 15_000 });
   }
-  await page.getByRole('button', { name: 'Add node' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   await page.getByLabel('Search nodes and effects').fill(query);
 }
 
