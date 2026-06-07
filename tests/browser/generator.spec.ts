@@ -1253,7 +1253,7 @@ test('node graph highlights the active output path and exposes output navigation
     .poll(() => viewport.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
     .not.toBe(panned);
 
-  await page.getByRole('button', { name: 'Fit output path' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Fit output path' }));
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
 });
 
