@@ -36,14 +36,15 @@ CI should run:
 - Release prep was approved by the maintainer on 2026-06-07 after local review
   confirmed the active project save workflow.
 - v0.34 changes local Projects semantics from snapshot-only saving to active
-  project binding outside `CanvasDocument`.
+  project binding outside `CanvasDocument` and adds `/projects` as a dedicated
+  local workspace page.
 - Package metadata is bumped to `0.34.0` in `package.json`,
   `apps/web/package.json`, and `package-lock.json`.
 - `docs/releases/v0.34.0.md` is prepared from the release template without a
   visible internal checklist.
 - Manual QA confirmed: project save flow, active project state, disabled clean
-  save state, copy behavior, and Projects panel layout are usable after the
-  v0.34 polish pass.
+  save state, copy behavior, Projects panel layout, and the dedicated Projects
+  page are usable after the v0.34 polish pass.
 - `npm run check` passed on 2026-06-07.
 - `npm run build` passed on 2026-06-07.
 - `npm run test:browser:release` passed on 2026-06-07 with `282 passed` and

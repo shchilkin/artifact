@@ -28,12 +28,7 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
 });
 
 test('v0.34 active project save updates the current project after edits', async ({ page }) => {
-  await page.goto('/app?new=blank');
-
-  await page.getByRole('button', { name: 'PROJECTS' }).click();
-  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
-  await projects.getByLabel('Project name').fill('Saved State Smoke');
-  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  const projects = await createNamedProject(page, 'Saved State Smoke');
   await expect(projects).toContainText('Saved in project');
   await expect(projects.getByRole('button', { name: 'Load Saved State Smoke' })).toHaveCount(1);
   await expect(projects.getByRole('button', { name: 'Save active project Saved State Smoke' })).toBeDisabled();
@@ -57,6 +52,28 @@ test('v0.34 active project save updates the current project after edits', async 
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeDisabled();
   await page.getByRole('button', { name: 'Save copy of Saved State Renamed' }).click();
   await expect(page.getByRole('button', { name: 'Load Saved State Renamed copy' })).toHaveCount(1);
+  await expectNoBrowserIssues(page);
+});
+
+test('v0.34 dedicated Projects page opens local projects back in the editor', async ({ page }) => {
+  const projects = await createNamedProject(page, 'Projects Page Smoke');
+  await expect(projects).toContainText('Saved in project');
+
+  await page.goto('/projects');
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Projects' }),
+  ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Local projects' })).toContainText('Projects Page Smoke', {
+    timeout: 15_000,
+  });
+  await expect(page.getByText('ACTIVE PROJECT')).toBeVisible();
+  await page.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
+
+  await expect(page).toHaveURL(/\/app$/);
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
+  await expect(page.getByRole('button', { name: 'Save active project Projects Page Smoke' })).toBeDisabled();
   await expectNoBrowserIssues(page);
 });
 
@@ -99,4 +116,13 @@ async function assertNoSaveOrStorageDanger(page: Page) {
   const warning = page.getByLabel('Local workspace warning');
   if ((await warning.count()) === 0) return;
   await expect(warning).not.toContainText(/Autosave blocked|Storage needs attention/);
+}
+
+async function createNamedProject(page: Page, name: string) {
+  await page.goto('/app?new=blank');
+  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
+  await projects.getByLabel('Project name').fill(name);
+  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  return projects;
 }

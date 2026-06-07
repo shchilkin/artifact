@@ -383,7 +383,7 @@ function WorkspaceWarnings({
   );
 }
 
-function ProjectsList({
+export function ProjectsList({
   hasSavedItems,
   projects,
   activeProjectId,
@@ -399,7 +399,7 @@ function ProjectsList({
   recoveryDraft: SavedProject | null;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
-  onSaveCopy: (name: string) => void;
+  onSaveCopy?: (name: string) => void;
   onLoad: (project: SavedProject) => void;
 }) {
   if (!hasSavedItems) return <ProjectsEmptyState />;
@@ -412,7 +412,9 @@ function ProjectsList({
           project={project}
           active={project.id === activeProjectId}
           onDelete={onDelete}
-          onSaveCopy={project.id === activeProjectId ? () => onSaveCopy(`${project.name} copy`) : undefined}
+          onSaveCopy={
+            project.id === activeProjectId && onSaveCopy ? () => onSaveCopy(`${project.name} copy`) : undefined
+          }
           onLoad={onLoad}
         />
       ))}

@@ -24,7 +24,9 @@ Current planning status:
   project workflow where first save creates a project, loading a project binds
   the editor to that project id, `Save Project` overwrites the same record, and
   contextual `Copy` creates a branch without writing service metadata into
-  `CanvasDocument`.
+  `CanvasDocument`. It also adds `/projects` as a first-class local workspace
+  page for browsing saved browser projects and recovery copies before opening
+  them in the editor.
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
@@ -52,14 +54,13 @@ Next deferred product tracks:
 
 - Asset Library / Export History / Versions remains deferred until v0.33 makes
   the local storage and recovery states visible enough to build on safely.
-- Dedicated Projects tab remains deferred until v0.34 proves the active project
-  save model inside the current Projects sheet. The future version should move
-  projects into a fuller workspace surface instead of continuing to overload a
-  compact side panel.
-- Autosave history remains deferred until the dedicated Projects surface exists.
-  The future autosave pass should distinguish active project saves, automatic
-  recovery points, and user-created copies without making recovery cards compete
-  with saved projects.
+- Project Autosave History remains deferred until the v0.34 Projects page and
+  active save model settle. The future autosave pass should distinguish active
+  project saves, automatic recovery points, and user-created copies without
+  making recovery cards compete with saved projects.
+- Project Versions / Restore / Compare remains deferred until explicit project
+  editing and the local Projects page have enough usage signal to design the
+  history model.
 - Server-backed Share Links remains deferred until local asset/project cleanup,
   quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
@@ -170,12 +171,9 @@ Recently shipped:
 
 Next strong candidates after v0.34:
 
-- **Dedicated Projects Tab** — move local projects out of the compact sheet
-  into a first-class workspace tab with better room for rename, duplicate,
-  cleanup, project size, and recovery actions.
-- **Project Autosave History** — after the Projects tab lands, add visible
-  automatic save points for the active project so recovery, autosave, explicit
-  save, and copy/branch behavior are clearly separated.
+- **Project Autosave History** — add visible automatic save points for the
+  active project so recovery, autosave, explicit save, and copy/branch behavior
+  are clearly separated.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
