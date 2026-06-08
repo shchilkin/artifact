@@ -219,6 +219,13 @@ The one place state pushes a surface forward is the showcase tile on hover: a 2p
 
 ### Cards / Panels
 - The system avoids cards as a default. Editor panels are flat surfaces with hairline borders; landing copy sits in flow with no container. Where a panel is needed (sidebar, mobile action bar), it is a flat Ink Sidebar surface separated by a 1px Ink Border, no rounding, no shadow.
+- Nested cards are wrong for Artifact. Do not put a framed card, list, or panel
+  around repeated project/showcase cards; make the parent surface a flat band or
+  unframed grid. Repeated artwork items may be framed individually when the
+  frame helps scanning.
+- Project and library surfaces are artwork-first. The cover, texture, or output
+  preview leads the tile; metadata and actions support the image instead of
+  competing with it.
 
 ### Sliders
 - Square track 3px tall, Ink Border background, accent fill on the active portion, 9–14px square thumb. Used throughout the editor for effect parameters. The slider is the chrome the user touches most; it reads as analog-mixing-desk, not iOS.
