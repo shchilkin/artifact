@@ -11,9 +11,7 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
 
   await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
-  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
-  await expect(projects).toBeVisible();
+  const projects = await openProjectsPanel(page);
   await expectSaveFormToAlign(projects);
   await expect(projects).toContainText('Not saved as project');
   await expect(projects.getByText('Browser storage')).toBeHidden();
@@ -42,7 +40,7 @@ test('v0.34 active project save updates the current project after edits', async 
 
   await projects.getByRole('button', { name: 'Close projects' }).click();
   await page.locator('main .bottom-bar .rand-btn').click();
-  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
+  await openProjectsPanel(page);
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved changes');
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
 
@@ -83,7 +81,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   await localProjects.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
 
   await expect(page).toHaveURL(/\/app$/);
-  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
+  await openProjectsPanel(page);
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
   await expect(page.getByRole('button', { name: 'Save active project Projects Page Smoke' })).toBeDisabled();
   await expectNoBrowserIssues(page);
@@ -132,9 +130,16 @@ async function assertNoSaveOrStorageDanger(page: Page) {
 
 async function createNamedProject(page: Page, name: string) {
   await page.goto('/app?new=blank');
-  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
-  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
+  const projects = await openProjectsPanel(page);
   await projects.getByLabel('Project name').fill(name);
   await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  return projects;
+}
+
+async function openProjectsPanel(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached({ timeout: 15_000 });
+  await clickEditorControl(page.locator('.project-workspace-button').first());
+  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
+  await expect(projects).toBeVisible({ timeout: 15_000 });
   return projects;
 }

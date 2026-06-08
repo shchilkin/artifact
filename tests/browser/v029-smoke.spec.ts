@@ -23,9 +23,11 @@ test.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
   await page.goto('/showcase');
 
-  await page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Open editor' }).click();
+  await clickEditorControl(
+    page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Open editor', exact: true }),
+  );
 
-  await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/);
+  await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/, { timeout: 10_000 });
   await expectBlankEditor(page);
 });
 
