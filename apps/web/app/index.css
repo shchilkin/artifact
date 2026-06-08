@@ -3364,6 +3364,112 @@ button.library-card-open:focus-visible {
   outline-offset: 2px;
 }
 
+.library-card-open-cue {
+  align-self: flex-start;
+  margin-top: 10px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+
+.library-card-secondary-actions {
+  position: relative;
+  align-items: center;
+  min-height: 44px;
+}
+
+.library-card-more-action {
+  display: inline-flex;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklch, var(--border-strong) 76%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.library-card-more-action:hover,
+.library-card-more-action[aria-expanded="true"] {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.library-card-more-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.library-card-action-menu,
+.library-card-delete-confirm {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  display: flex;
+  min-width: 150px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-raised);
+}
+
+.library-card-action-menu button,
+.library-card-delete-confirm button {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.library-card-action-menu button {
+  width: 100%;
+  padding: 0 12px;
+  color: var(--danger);
+  text-align: left;
+}
+
+.library-card-delete-confirm {
+  align-items: stretch;
+}
+
+.library-card-delete-confirm span {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 10px;
+  color: var(--danger);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.library-card-delete-confirm button {
+  padding: 0 10px;
+  border-left: 1px solid var(--border-strong);
+}
+
+.library-card-action-menu button:hover,
+.library-card-delete-confirm button:hover {
+  background: color-mix(in oklch, var(--danger) 8%, transparent);
+  color: var(--text);
+}
+
 /* ─── EXPORT MENU ────────────────────────────────── */
 
 .export-wrap {
@@ -3808,6 +3914,7 @@ button.library-card-open:focus-visible {
 }
 
 .projects-page-library .library-card {
+  position: relative;
   flex-direction: column;
   gap: 0;
   min-height: 0;
@@ -3828,6 +3935,10 @@ button.library-card-open:focus-visible {
   transform: translateY(-2px);
 }
 
+.projects-page-library .library-card:focus-within {
+  border-color: var(--accent);
+}
+
 .projects-page-library .library-card img {
   display: block;
   width: 100%;
@@ -3842,12 +3953,22 @@ button.library-card-open:focus-visible {
   gap: 0;
 }
 
+.projects-page-library button.library-card-open:hover .library-card-open-cue,
+.projects-page-library button.library-card-open:focus-visible .library-card-open-cue {
+  opacity: 1;
+}
+
 .projects-page-library .library-card-copy {
   gap: 12px;
   padding: 12px 12px 0;
 }
 
+.projects-page-library .library-card-size {
+  display: none;
+}
+
 .projects-page-library .library-card-actions {
+  width: 100%;
   justify-content: flex-end;
   padding: 12px;
 }
@@ -3859,6 +3980,10 @@ button.library-card-open:focus-visible {
 
 .projects-page-library .library-card-action-delete {
   min-width: 72px;
+}
+
+.projects-page-library .library-card-secondary-actions {
+  margin-top: auto;
 }
 
 .projects-page-library .library-card-action-copy {

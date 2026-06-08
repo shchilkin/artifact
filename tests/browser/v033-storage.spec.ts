@@ -11,7 +11,7 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
 
   await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
   const projects = page.getByRole('dialog', { name: 'PROJECTS' });
   await expect(projects).toBeVisible();
   await expectSaveFormToAlign(projects);
@@ -42,7 +42,7 @@ test('v0.34 active project save updates the current project after edits', async 
 
   await projects.getByRole('button', { name: 'Close projects' }).click();
   await page.locator('main .bottom-bar .rand-btn').click();
-  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved changes');
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
 
@@ -72,11 +72,18 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
     timeout: 15_000,
   });
   await expect(localProjects.getByText('LOAD')).toHaveCount(0);
+  await expect(localProjects.getByText('DEL')).toHaveCount(0);
+  await expect(localProjects.getByText('OPEN')).toBeVisible();
   await expect(page.getByText('ACTIVE PROJECT')).toBeVisible();
+  await localProjects.getByRole('button', { name: 'Project actions for Projects Page Smoke' }).click();
+  await expect(localProjects.getByRole('button', { name: 'Delete project' })).toBeVisible();
+  await localProjects.getByRole('button', { name: 'Delete project' }).click();
+  await expect(localProjects.getByRole('group', { name: 'Delete Projects Page Smoke' })).toBeVisible();
+  await localProjects.getByRole('button', { name: 'No' }).click();
   await localProjects.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
 
   await expect(page).toHaveURL(/\/app$/);
-  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
   await expect(page.getByRole('button', { name: 'Save active project Projects Page Smoke' })).toBeDisabled();
   await expectNoBrowserIssues(page);
@@ -125,7 +132,7 @@ async function assertNoSaveOrStorageDanger(page: Page) {
 
 async function createNamedProject(page: Page, name: string) {
   await page.goto('/app?new=blank');
-  await page.getByRole('button', { name: 'PROJECTS' }).click();
+  await page.getByRole('button', { name: 'PROJECTS', exact: true }).click();
   const projects = page.getByRole('dialog', { name: 'PROJECTS' });
   await projects.getByLabel('Project name').fill(name);
   await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
