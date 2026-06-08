@@ -134,6 +134,7 @@ function ProjectsPageLibrary({
         projects={projects}
         activeProjectId={activeProjectId}
         recoveryDraft={recoveryDraft}
+        loadMode="card"
         onDelete={onDelete}
         onDeleteRecoveryDraft={onDeleteRecoveryDraft}
         onLoad={onLoad}

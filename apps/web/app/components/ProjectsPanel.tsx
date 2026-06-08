@@ -1,4 +1,4 @@
-import { type CSSProperties, type KeyboardEvent, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useState } from 'react';
 
 import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import type { SavedProject } from '../utils/projectLibrary';
@@ -387,6 +387,7 @@ export function ProjectsList({
   hasSavedItems,
   projects,
   activeProjectId,
+  loadMode = 'button',
   recoveryDraft,
   onDelete,
   onDeleteRecoveryDraft,
@@ -396,6 +397,7 @@ export function ProjectsList({
   hasSavedItems: boolean;
   projects: SavedProject[];
   activeProjectId: string | null;
+  loadMode?: 'button' | 'card';
   recoveryDraft: SavedProject | null;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
@@ -405,12 +407,18 @@ export function ProjectsList({
   if (!hasSavedItems) return <ProjectsEmptyState />;
   return (
     <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-      <RecoveryDraftCard recoveryDraft={recoveryDraft} onDeleteRecoveryDraft={onDeleteRecoveryDraft} onLoad={onLoad} />
+      <RecoveryDraftCard
+        loadMode={loadMode}
+        recoveryDraft={recoveryDraft}
+        onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+        onLoad={onLoad}
+      />
       {projects.map((project) => (
         <ProjectCard
           key={project.id}
           project={project}
           active={project.id === activeProjectId}
+          loadMode={loadMode}
           onDelete={onDelete}
           onSaveCopy={
             project.id === activeProjectId && onSaveCopy ? () => onSaveCopy(`${project.name} copy`) : undefined
@@ -433,64 +441,111 @@ function ProjectsEmptyState() {
 }
 
 function RecoveryDraftCard({
+  loadMode,
   recoveryDraft,
   onDeleteRecoveryDraft,
   onLoad,
 }: {
+  loadMode: 'button' | 'card';
   recoveryDraft: SavedProject | null;
   onDeleteRecoveryDraft: () => void;
   onLoad: (project: SavedProject) => void;
 }) {
   if (!recoveryDraft) return null;
+  const loadProject = () => onLoad(recoveryDraft);
   return (
-    <div className="library-card library-card-draft flex gap-2.5 p-2.5 border rounded transition-colors">
-      <ProjectCardImage project={recoveryDraft} />
-      <div className="flex-1 flex flex-col justify-between min-w-0">
-        <ProjectCardMeta project={recoveryDraft} eyebrow="RECOVERY COPY" />
-        <ProjectCardActions
-          project={recoveryDraft}
-          deleteVariant="quiet"
-          loadVariant="quiet"
-          onDelete={onDeleteRecoveryDraft}
-          onLoad={() => onLoad(recoveryDraft)}
-        />
-      </div>
-    </div>
+    <ProjectCardFrame active={false} draft>
+      <ProjectCardPrimary project={recoveryDraft} eyebrow="RECOVERY COPY" loadMode={loadMode} onLoad={loadProject} />
+      <ProjectCardActions
+        project={recoveryDraft}
+        deleteVariant="quiet"
+        loadVariant="quiet"
+        showLoad={loadMode === 'button'}
+        onDelete={onDeleteRecoveryDraft}
+        onLoad={loadProject}
+      />
+    </ProjectCardFrame>
   );
 }
 
 function ProjectCard({
   project,
   active,
+  loadMode,
   onDelete,
   onSaveCopy,
   onLoad,
 }: {
   project: SavedProject;
   active: boolean;
+  loadMode: 'button' | 'card';
   onDelete: (id: string) => void;
   onSaveCopy?: () => void;
   onLoad: (project: SavedProject) => void;
 }) {
+  const loadProject = () => onLoad(project);
+  return (
+    <ProjectCardFrame active={active}>
+      <ProjectCardPrimary
+        project={project}
+        eyebrow={active ? 'ACTIVE PROJECT' : undefined}
+        loadMode={loadMode}
+        onLoad={loadProject}
+      />
+      <ProjectCardActions
+        project={project}
+        deleteVariant="quiet"
+        loadVariant="quiet"
+        showLoad={loadMode === 'button'}
+        onCopy={onSaveCopy}
+        onDelete={() => onDelete(project.id)}
+        onLoad={loadProject}
+      />
+    </ProjectCardFrame>
+  );
+}
+
+function ProjectCardFrame({ active, children, draft }: { active: boolean; children: ReactNode; draft?: boolean }) {
+  const stateClass = draft ? 'library-card-draft' : active ? 'library-card-active' : '';
   return (
     <div
-      className={`library-card ${active ? 'library-card-active' : ''} flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30`}
+      className={`library-card ${stateClass} flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30`}
       aria-current={active ? 'true' : undefined}
     >
-      <ProjectCardImage project={project} />
-      <div className="flex-1 flex flex-col justify-between min-w-0">
-        <ProjectCardMeta project={project} eyebrow={active ? 'ACTIVE PROJECT' : undefined} />
-        <ProjectCardActions
-          project={project}
-          deleteVariant="quiet"
-          loadVariant="quiet"
-          onCopy={onSaveCopy}
-          onDelete={() => onDelete(project.id)}
-          onLoad={() => onLoad(project)}
-        />
-      </div>
+      {children}
     </div>
   );
+}
+
+function ProjectCardPrimary({
+  eyebrow,
+  loadMode,
+  onLoad,
+  project,
+}: {
+  eyebrow?: string;
+  loadMode: 'button' | 'card';
+  onLoad: () => void;
+  project: SavedProject;
+}) {
+  const content = (
+    <>
+      <ProjectCardImage project={project} />
+      <div className="library-card-copy flex-1 flex flex-col justify-between min-w-0">
+        <ProjectCardMeta project={project} eyebrow={eyebrow} />
+      </div>
+    </>
+  );
+
+  if (loadMode === 'card') {
+    return (
+      <button type="button" className="library-card-open" aria-label={`Load ${project.name}`} onClick={onLoad}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className="library-card-open">{content}</div>;
 }
 
 function ProjectCardImage({ project }: { project: SavedProject }) {
@@ -516,6 +571,7 @@ function ProjectCardActions({
   onDelete,
   onLoad,
   project,
+  showLoad = true,
 }: {
   deleteVariant: 'danger' | 'quiet';
   loadVariant: 'danger' | 'quiet';
@@ -523,17 +579,20 @@ function ProjectCardActions({
   onDelete: () => void;
   onLoad: () => void;
   project: SavedProject;
+  showLoad?: boolean;
 }) {
   return (
-    <div className="flex gap-1.5">
-      <ActionButton
-        className="library-card-action library-card-action-load"
-        aria-label={`Load ${project.name}`}
-        onClick={onLoad}
-        variant={loadVariant}
-      >
-        LOAD
-      </ActionButton>
+    <div className="library-card-actions flex gap-1.5">
+      {showLoad && (
+        <ActionButton
+          className="library-card-action library-card-action-load"
+          aria-label={`Load ${project.name}`}
+          onClick={onLoad}
+          variant={loadVariant}
+        >
+          LOAD
+        </ActionButton>
+      )}
       <ActionButton
         className="library-card-action library-card-action-delete"
         aria-label={`Delete ${project.name}`}

@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-import { clickEditorControl, expectNoBrowserIssues, setupBrowserTestPage } from './helpers';
+import { clickEditorControl, expectNoBrowserIssues, setupBrowserTestPage, switchToNodeView } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
@@ -67,11 +67,13 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   await expect(page.getByLabel('Projects summary')).toContainText('1 saved project');
   await expect(page.getByLabel('Projects summary')).not.toContainText('/ 30');
   await expect(page.getByText('Data')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Local projects' })).toContainText('Projects Page Smoke', {
+  const localProjects = page.getByRole('region', { name: 'Local projects' });
+  await expect(localProjects).toContainText('Projects Page Smoke', {
     timeout: 15_000,
   });
+  await expect(localProjects.getByText('LOAD')).toHaveCount(0);
   await expect(page.getByText('ACTIVE PROJECT')).toBeVisible();
-  await page.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
+  await localProjects.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
 
   await expect(page).toHaveURL(/\/app$/);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
@@ -83,7 +85,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
 test('v0.34 local workspace stays usable in node mode with healthy active work', async ({ page }) => {
   await page.goto('/app?new=blank');
 
-  await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
+  await switchToNodeView(page);
   await assertNoSaveOrStorageDanger(page);
   await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
