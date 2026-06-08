@@ -14,8 +14,7 @@ import {
 } from '../utils/activeProjectBinding';
 import { storePortableDocumentAssets } from '../utils/documentAssets';
 import { normalizeDocument, saveDocumentToStorage } from '../utils/documentPersistence';
-import { MAX_PROJECTS, type SavedProject } from '../utils/projectLibrary';
-import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
+import type { SavedProject } from '../utils/projectLibrary';
 
 export const meta: MetaFunction = () => [
   { title: 'artifact | Projects' },
@@ -59,7 +58,7 @@ export default function ProjectsRoute() {
       <SiteNav solid />
       <section className="projects-page-shell">
         <ProjectsPageHeader />
-        <ProjectsPageStatus viewModel={viewModel} />
+        <ProjectsPageContext viewModel={viewModel} />
         <ProjectsPageWarning message={viewModel.warning} />
         <ProjectsPageLibrary
           activeProjectId={viewModel.activeProjectId}
@@ -82,7 +81,7 @@ function ProjectsPageHeader() {
       <div className="projects-page-title-row">
         <div>
           <h1 id="projects-page-title">Projects</h1>
-          <p>Open saved work, recover a draft, or clean up this browser library.</p>
+          <p>Open saved work from this browser or recover a previous draft.</p>
         </div>
         <ActionLink to="/app?new=blank" variant="primary">
           New project
@@ -92,22 +91,12 @@ function ProjectsPageHeader() {
   );
 }
 
-function ProjectsPageStatus({ viewModel }: { viewModel: ReturnType<typeof projectsRouteViewModel> }) {
+function ProjectsPageContext({ viewModel }: { viewModel: ReturnType<typeof projectsRouteViewModel> }) {
   return (
-    <section className="projects-page-status" aria-label="Projects summary">
-      <ProjectPageStat label="Saved" value={viewModel.savedLabel} />
-      <ProjectPageStat label="Active" value={viewModel.activeLabel} />
-      <ProjectPageStat label="Recovery" value={viewModel.recoveryLabel} />
-      <ProjectPageStat label="Data" value={viewModel.dataLabel} />
-    </section>
-  );
-}
-
-function ProjectPageStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="projects-page-stat">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="projects-page-context" aria-label="Projects summary">
+      <span>{viewModel.savedLabel}</span>
+      {viewModel.recoveryLabel && <span>{viewModel.recoveryLabel}</span>}
+      {viewModel.limitLabel && <span className="projects-page-context-warning">{viewModel.limitLabel}</span>}
     </div>
   );
 }
@@ -165,20 +154,14 @@ function projectsRouteViewModel(
   storageError: string | null,
   openError: string | null,
 ) {
-  const totalProjectBytes = projects.reduce((total, project) => total + projectSizeBytes(project), 0);
   return {
-    activeLabel: activeProjectLabel(activeProject),
     activeProjectId: activeProjectId(activeProject),
-    dataLabel: formatBytes(totalProjectBytes),
     hasSavedItems: hasProjectListItems(projects, recoveryDraft),
-    recoveryLabel: recoveryCopyLabel(recoveryDraft),
-    savedLabel: savedProjectsLabel(projects, maxProjects),
+    limitLabel: projectLimitLabel(projects.length, maxProjects),
+    recoveryLabel: recoveryDraft ? 'Recovery copy available' : null,
+    savedLabel: savedProjectsLabel(projects.length),
     warning: projectWarningMessage(storageError, openError),
   };
-}
-
-function activeProjectLabel(project: SavedProject | null) {
-  return project ? project.name : 'None';
 }
 
 function activeProjectId(project: SavedProject | null) {
@@ -189,16 +172,17 @@ function hasProjectListItems(projects: SavedProject[], recoveryDraft: SavedProje
   return projects.length > 0 || recoveryDraft !== null;
 }
 
-function recoveryCopyLabel(recoveryDraft: SavedProject | null) {
-  return recoveryDraft ? 'Available' : 'None';
+function savedProjectsLabel(count: number) {
+  if (count === 0) return 'No saved projects yet';
+  if (count === 1) return '1 saved project';
+  return `${count} saved projects`;
 }
 
-function savedProjectsLabel(projects: SavedProject[], maxProjects: number) {
-  return `${projects.length} / ${projectLimit(maxProjects)}`;
-}
-
-function projectLimit(maxProjects: number) {
-  return maxProjects > 0 ? maxProjects : MAX_PROJECTS;
+function projectLimitLabel(count: number, maxProjects: number) {
+  if (maxProjects <= 0) return null;
+  if (count >= maxProjects) return 'Library full';
+  if (count >= maxProjects - 3) return 'Library almost full';
+  return null;
 }
 
 function projectWarningMessage(storageError: string | null, openError: string | null) {

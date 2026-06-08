@@ -64,6 +64,9 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   await expect(
     page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Projects' }),
   ).toBeVisible();
+  await expect(page.getByLabel('Projects summary')).toContainText('1 saved project');
+  await expect(page.getByLabel('Projects summary')).not.toContainText('/ 30');
+  await expect(page.getByText('Data')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Local projects' })).toContainText('Projects Page Smoke', {
     timeout: 15_000,
   });
