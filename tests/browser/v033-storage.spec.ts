@@ -71,13 +71,12 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   });
   await expect(localProjects.getByText('LOAD')).toHaveCount(0);
   await expect(localProjects.getByText('DEL')).toHaveCount(0);
-  await expect(localProjects.getByText('OPEN')).toBeVisible();
-  await expect(page.getByText('ACTIVE PROJECT')).toBeVisible();
+  await expect(localProjects.getByText('ACTIVE', { exact: true })).toBeVisible();
   await localProjects.getByRole('button', { name: 'Project actions for Projects Page Smoke' }).click();
-  await expect(localProjects.getByRole('button', { name: 'Delete project' })).toBeVisible();
-  await localProjects.getByRole('button', { name: 'Delete project' }).click();
-  await expect(localProjects.getByRole('group', { name: 'Delete Projects Page Smoke' })).toBeVisible();
-  await localProjects.getByRole('button', { name: 'No' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Delete project' })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Delete project' }).click();
+  await expect(page.getByRole('dialog', { name: 'Delete project?' })).toBeVisible();
+  await page.getByRole('button', { name: 'CANCEL' }).click();
   await localProjects.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
 
   await expect(page).toHaveURL(/\/app$/);

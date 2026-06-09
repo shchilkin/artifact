@@ -3364,35 +3364,66 @@ button.library-card-open:focus-visible {
   outline-offset: 2px;
 }
 
-.library-card-open-cue {
-  align-self: flex-start;
-  margin-top: 10px;
-  color: var(--accent);
+.library-card-artwork {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.library-card-badge,
+.library-card-hover-cue {
+  position: absolute;
+  z-index: 1;
   font-family: var(--mono);
-  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.18em;
-  line-height: 1;
-  opacity: 0.72;
   text-transform: uppercase;
 }
 
-.library-card-secondary-actions {
-  position: relative;
+.library-card-badge {
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  min-height: 24px;
   align-items: center;
-  min-height: 44px;
+  border: 1px solid color-mix(in oklch, var(--accent) 54%, var(--border));
+  background: color-mix(in oklch, var(--surface-bg) 78%, transparent);
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  padding: 0 8px;
+}
+
+.library-card-hover-cue {
+  right: 10px;
+  bottom: 10px;
+  color: var(--text);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.library-card-secondary-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  align-items: center;
+  min-height: 0;
 }
 
 .library-card-more-action {
   display: inline-flex;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in oklch, var(--border-strong) 76%, transparent);
-  background: transparent;
-  color: var(--text-muted);
+  border: 1px solid color-mix(in oklch, var(--border-strong) 78%, transparent);
+  background: color-mix(in oklch, var(--surface-bg) 74%, transparent);
+  color: var(--text-dim);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 15px;
@@ -3401,7 +3432,8 @@ button.library-card-open:focus-visible {
 
 .library-card-more-action:hover,
 .library-card-more-action[aria-expanded="true"] {
-  border-color: var(--text-dim);
+  background: color-mix(in oklch, var(--surface-bg) 92%, var(--accent));
+  border-color: var(--accent);
   color: var(--text);
 }
 
@@ -3410,64 +3442,39 @@ button.library-card-open:focus-visible {
   outline-offset: 2px;
 }
 
-.library-card-action-menu,
-.library-card-delete-confirm {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 6px);
-  z-index: 2;
-  display: flex;
-  min-width: 150px;
-  border: 1px solid var(--border-strong);
-  background: var(--panel-raised);
-}
-
-.library-card-action-menu button,
-.library-card-delete-confirm button {
-  min-height: 40px;
-  border: 0;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.library-card-action-menu button {
-  width: 100%;
-  padding: 0 12px;
-  color: var(--danger);
-  text-align: left;
-}
-
-.library-card-delete-confirm {
-  align-items: stretch;
-}
-
-.library-card-delete-confirm span {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  padding: 0 10px;
-  color: var(--danger);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.library-card-delete-confirm button {
-  padding: 0 10px;
-  border-left: 1px solid var(--border-strong);
-}
-
-.library-card-action-menu button:hover,
-.library-card-delete-confirm button:hover {
-  background: color-mix(in oklch, var(--danger) 8%, transparent);
+.project-delete-dialog {
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid color-mix(in oklch, var(--danger) 42%, var(--border));
+  background: color-mix(in oklch, var(--surface-bg) 90%, var(--panel-bg));
   color: var(--text);
+  padding: 22px;
+  transform: translate(-50%, -50%);
+}
+
+.project-delete-dialog__title {
+  margin: 0;
+  color: var(--danger);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.project-delete-dialog__copy {
+  margin: 14px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.project-delete-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
 }
 
 /* ─── EXPORT MENU ────────────────────────────────── */
@@ -3948,29 +3955,35 @@ button.library-card-open:focus-visible {
   object-fit: cover;
 }
 
+.projects-page-library .library-card-artwork {
+  width: 100%;
+}
+
 .projects-page-library .library-card-open {
   flex-direction: column;
   gap: 0;
 }
 
-.projects-page-library button.library-card-open:hover .library-card-open-cue,
-.projects-page-library button.library-card-open:focus-visible .library-card-open-cue {
+.projects-page-library button.library-card-open:hover .library-card-hover-cue,
+.projects-page-library button.library-card-open:focus-visible .library-card-hover-cue {
   opacity: 1;
 }
 
 .projects-page-library .library-card-copy {
-  gap: 12px;
-  padding: 12px 12px 0;
+  gap: 0;
+  min-height: 82px;
+  padding: 14px 14px 16px;
 }
 
+.projects-page-library .library-card-seed,
 .projects-page-library .library-card-size {
   display: none;
 }
 
 .projects-page-library .library-card-actions {
-  width: 100%;
+  width: auto;
   justify-content: flex-end;
-  padding: 12px;
+  padding: 0;
 }
 
 .projects-page-library .library-card-action {
@@ -3983,7 +3996,7 @@ button.library-card-open:focus-visible {
 }
 
 .projects-page-library .library-card-secondary-actions {
-  margin-top: auto;
+  margin-top: 0;
 }
 
 .projects-page-library .library-card-action-copy {
@@ -4007,6 +4020,12 @@ button.library-card-open:focus-visible {
 .projects-page-library .library-card-draft .library-card-open {
   flex-direction: row;
   gap: 10px;
+}
+
+.projects-page-library .library-card-draft .library-card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 
 .projects-page-library .library-card-draft img {
@@ -4041,27 +4060,26 @@ button.library-card-open:focus-visible {
   }
 
   .projects-page-library .library-card {
-    flex-direction: row;
-    padding: 10px;
-  }
-
-  .projects-page-library .library-card img {
-    width: 104px;
-    height: 104px;
-    border: 0;
-  }
-
-  .projects-page-library .library-card-open {
-    flex-direction: row;
-    gap: 10px;
-  }
-
-  .projects-page-library .library-card-copy {
+    flex-direction: column;
     padding: 0;
   }
 
+  .projects-page-library .library-card img {
+    width: 100%;
+    height: auto;
+    border-bottom: 1px solid color-mix(in oklch, var(--border-strong) 76%, transparent);
+  }
+
+  .projects-page-library .library-card-open {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .projects-page-library .library-card-copy {
+    padding: 14px 14px 16px;
+  }
+
   .projects-page-library .library-card-actions {
-    align-self: flex-end;
     padding: 0;
   }
 

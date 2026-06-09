@@ -5,6 +5,8 @@ import type { SavedProject } from '../utils/projectLibrary';
 import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
 import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
@@ -455,7 +457,7 @@ function RecoveryDraftCard({
   const loadProject = () => onLoad(recoveryDraft);
   return (
     <ProjectCardFrame active={false} draft>
-      <ProjectCardPrimary project={recoveryDraft} eyebrow="RECOVERY COPY" loadMode={loadMode} onLoad={loadProject} />
+      <ProjectCardPrimary project={recoveryDraft} badge="RECOVERY" loadMode={loadMode} onLoad={loadProject} />
       <ProjectCardActions
         project={recoveryDraft}
         deleteVariant="quiet"
@@ -488,7 +490,7 @@ function ProjectCard({
     <ProjectCardFrame active={active}>
       <ProjectCardPrimary
         project={project}
-        eyebrow={active ? 'ACTIVE PROJECT' : undefined}
+        badge={active ? 'ACTIVE' : undefined}
         loadMode={loadMode}
         onLoad={loadProject}
       />
@@ -518,26 +520,21 @@ function ProjectCardFrame({ active, children, draft }: { active: boolean; childr
 }
 
 function ProjectCardPrimary({
-  eyebrow,
+  badge,
   loadMode,
   onLoad,
   project,
 }: {
-  eyebrow?: string;
+  badge?: string;
   loadMode: 'button' | 'card';
   onLoad: () => void;
   project: SavedProject;
 }) {
   const content = (
     <>
-      <ProjectCardImage project={project} />
+      <ProjectCardImage project={project} badge={badge} loadMode={loadMode} />
       <div className="library-card-copy flex-1 flex flex-col justify-between min-w-0">
-        <ProjectCardMeta project={project} eyebrow={eyebrow} />
-        {loadMode === 'card' && (
-          <span className="library-card-open-cue" aria-hidden="true">
-            OPEN
-          </span>
-        )}
+        <ProjectCardMeta project={project} />
       </div>
     </>
   );
@@ -553,17 +550,34 @@ function ProjectCardPrimary({
   return <div className="library-card-open">{content}</div>;
 }
 
-function ProjectCardImage({ project }: { project: SavedProject }) {
-  return <img src={project.thumbnail} alt={project.name} className="w-20 h-20 rounded object-cover shrink-0" />;
+function ProjectCardImage({
+  badge,
+  loadMode,
+  project,
+}: {
+  badge?: string;
+  loadMode: 'button' | 'card';
+  project: SavedProject;
+}) {
+  return (
+    <div className="library-card-artwork">
+      <img src={project.thumbnail} alt={project.name} className="w-20 h-20 rounded object-cover shrink-0" />
+      {badge && <span className="library-card-badge">{badge}</span>}
+      {loadMode === 'card' && (
+        <span className="library-card-hover-cue" aria-hidden="true">
+          OPEN PROJECT
+        </span>
+      )}
+    </div>
+  );
 }
 
-function ProjectCardMeta({ project, eyebrow }: { project: SavedProject; eyebrow?: string }) {
+function ProjectCardMeta({ project }: { project: SavedProject }) {
   return (
     <div>
-      {eyebrow && <div className="text-[10px] text-accent tracking-[2px]">{eyebrow}</div>}
       <div className="text-[12px] text-text truncate">{project.name}</div>
       <div className="text-[10px] text-dim tracking-[0.5px]">{formatUpdatedAt(project.updatedAt)}</div>
-      <div className="text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
+      <div className="library-card-seed text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
       <div className="library-card-size text-[10px] text-dim tracking-[0.5px]">
         size: {formatBytes(projectSizeBytes(project))}
       </div>
@@ -590,6 +604,10 @@ function ProjectCardActions({
 }) {
   if (!showLoad && !onCopy) {
     return <ProjectCardSecondaryActions project={project} onConfirmDelete={onDelete} />;
+  }
+
+  if (!showLoad) {
+    return <ProjectCardSecondaryActions project={project} onConfirmDelete={onDelete} onCopy={onCopy} />;
   }
 
   return (
@@ -664,29 +682,94 @@ function ProjectDeleteButtonAction({
   onDelete: () => void;
   project: SavedProject;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <>
       <ActionButton
         className="library-card-action library-card-action-delete"
         aria-label={`Delete ${project.name}`}
-        onClick={confirming ? onDelete : () => setConfirming(true)}
+        onClick={() => setConfirmOpen(true)}
         variant={deleteVariant}
       >
-        {confirming ? 'DELETE?' : 'DEL'}
+        DEL
       </ActionButton>
-      {confirming && (
-        <ActionButton
-          className="library-card-action library-card-action-cancel"
-          aria-label={`Cancel deleting ${project.name}`}
-          onClick={() => setConfirming(false)}
-          variant="quiet"
-        >
-          NO
-        </ActionButton>
-      )}
+      <ProjectDeleteDialog
+        open={confirmOpen}
+        project={project}
+        onConfirmDelete={onDelete}
+        onOpenChange={setConfirmOpen}
+      />
     </>
+  );
+}
+
+function ProjectDeleteDialog({
+  onConfirmDelete,
+  onOpenChange,
+  open,
+  project,
+}: {
+  onConfirmDelete: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  project: SavedProject;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="project-delete-dialog">
+        <DialogTitle className="project-delete-dialog__title">Delete project?</DialogTitle>
+        <DialogDescription className="project-delete-dialog__copy">
+          {project.name} will be removed from this browser.
+        </DialogDescription>
+        <div className="project-delete-dialog__actions">
+          <DialogClose asChild>
+            <ActionButton variant="quiet">CANCEL</ActionButton>
+          </DialogClose>
+          <DialogClose asChild>
+            <ActionButton variant="danger" onClick={onConfirmDelete}>
+              DELETE
+            </ActionButton>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProjectCardSecondaryActions({
+  onConfirmDelete,
+  onCopy,
+  project,
+}: {
+  onConfirmDelete: () => void;
+  onCopy?: () => void;
+  project: SavedProject;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  return (
+    <div className="library-card-actions library-card-secondary-actions">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="library-card-more-action" aria-label={`Project actions for ${project.name}`}>
+            ...
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="bottom" onClick={(event) => event.stopPropagation()}>
+          {onCopy && <DropdownMenuItem onSelect={onCopy}>Save copy</DropdownMenuItem>}
+          <DropdownMenuItem destructive onSelect={() => setConfirmOpen(true)}>
+            Delete project
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ProjectDeleteDialog
+        open={confirmOpen}
+        project={project}
+        onConfirmDelete={onConfirmDelete}
+        onOpenChange={setConfirmOpen}
+      />
+    </div>
   );
 }
 
@@ -701,49 +784,5 @@ function ProjectCopyAction({ onCopy, project }: { onCopy?: () => void; project: 
     >
       COPY
     </ActionButton>
-  );
-}
-
-function ProjectCardSecondaryActions({
-  onConfirmDelete,
-  project,
-}: {
-  onConfirmDelete: () => void;
-  project: SavedProject;
-}) {
-  const [deleteState, setDeleteState] = useState<'idle' | 'menu' | 'confirm'>('idle');
-
-  return (
-    <div className="library-card-actions library-card-secondary-actions">
-      {deleteState === 'confirm' && (
-        <div className="library-card-delete-confirm" role="group" aria-label={`Delete ${project.name}`}>
-          <span>Delete?</span>
-          <button type="button" onClick={() => setDeleteState('idle')}>
-            No
-          </button>
-          <button type="button" onClick={onConfirmDelete}>
-            Yes
-          </button>
-        </div>
-      )}
-      {deleteState === 'menu' && (
-        <div className="library-card-action-menu" role="group" aria-label={`Project actions for ${project.name}`}>
-          <button type="button" onClick={() => setDeleteState('confirm')}>
-            Delete project
-          </button>
-        </div>
-      )}
-      {deleteState !== 'confirm' && (
-        <button
-          type="button"
-          className="library-card-more-action"
-          aria-label={`Project actions for ${project.name}`}
-          aria-expanded={deleteState === 'menu'}
-          onClick={() => setDeleteState((state) => (state === 'idle' ? 'menu' : 'idle'))}
-        >
-          ...
-        </button>
-      )}
-    </div>
   );
 }
