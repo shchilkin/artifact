@@ -3912,22 +3912,22 @@ button.library-card-open:focus-visible {
 }
 
 .projects-page-library > .flex-1 {
-  display: block;
-  columns: 3 300px;
-  column-gap: 28px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 34px 28px;
+  align-content: start;
   overflow: visible;
   padding: 0;
 }
 
 .projects-page-library .library-card {
   position: relative;
-  display: inline-flex;
+  display: flex;
   width: 100%;
   flex-direction: column;
   gap: 10px;
   min-height: 0;
-  margin: 0 0 30px;
-  break-inside: avoid;
+  margin: 0;
   overflow: visible;
   border-color: transparent;
   padding: 0;
@@ -3958,17 +3958,27 @@ button.library-card-open:focus-visible {
 }
 
 .projects-page-library .library-card img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: block;
-  width: 100%;
+  width: auto;
   height: auto;
+  max-width: 100%;
+  max-height: 100%;
   border: 1px solid color-mix(in oklch, var(--border-strong) 72%, transparent);
   object-fit: contain;
+  transform: translate(-50%, -50%);
 }
 
 .projects-page-library .library-card-artwork {
   position: relative;
+  display: flex;
+  aspect-ratio: 1;
   width: 100%;
-  background: color-mix(in oklch, var(--surface-bg) 84%, var(--panel-bg));
+  align-items: center;
+  justify-content: center;
+  background: transparent;
   transition:
     border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
     background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -4030,14 +4040,12 @@ button.library-card-open:focus-visible {
 
 .projects-page-library .library-card-draft {
   grid-column: 1 / -1;
-  column-span: all;
   display: flex;
   width: 100%;
   flex-direction: row;
   min-height: 128px;
   margin-bottom: 20px;
   padding: 12px;
-  break-inside: avoid;
   overflow: visible;
   background: color-mix(in oklch, var(--warning) 6%, var(--surface-bg));
 }
@@ -4052,6 +4060,12 @@ button.library-card-open:focus-visible {
   gap: 10px;
 }
 
+.projects-page-library .library-card-draft .library-card-artwork {
+  width: 104px;
+  height: 104px;
+  aspect-ratio: auto;
+}
+
 .projects-page-library .library-card-draft .library-card-actions {
   position: absolute;
   top: 12px;
@@ -4059,9 +4073,12 @@ button.library-card-open:focus-visible {
 }
 
 .projects-page-library .library-card-draft img {
+  position: static;
   width: 104px;
   height: 104px;
   border: 1px solid color-mix(in oklch, var(--warning) 26%, var(--border));
+  object-fit: cover;
+  transform: none;
 }
 
 .projects-page-library .library-card-draft .library-card-copy {
@@ -4085,17 +4102,13 @@ button.library-card-open:focus-visible {
   }
 
   .projects-page-library > .flex-1 {
-    columns: 1;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
   }
 
   .projects-page-library .library-card {
     flex-direction: column;
     padding: 0;
-  }
-
-  .projects-page-library .library-card img {
-    width: 100%;
-    height: auto;
   }
 
   .projects-page-library .library-card-open {
