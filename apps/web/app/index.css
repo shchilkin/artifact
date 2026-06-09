@@ -3959,16 +3959,13 @@ button.library-card-open:focus-visible {
 
 .projects-page-library .library-card img {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  border: 1px solid color-mix(in oklch, var(--border-strong) 72%, transparent);
+  width: 100%;
+  height: 100%;
+  border: 0;
   object-fit: contain;
-  transform: translate(-50%, -50%);
+  transform: none;
 }
 
 .projects-page-library .library-card-artwork {
@@ -3978,20 +3975,22 @@ button.library-card-open:focus-visible {
   width: 100%;
   align-items: center;
   justify-content: center;
+  outline: 1px solid transparent;
+  outline-offset: 0;
   background: transparent;
   transition:
-    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    outline-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
     background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.projects-page-library .library-card:hover .library-card-artwork img,
-.projects-page-library .library-card:focus-within .library-card-artwork img {
-  border-color: color-mix(in oklch, var(--accent) 44%, var(--border));
+.projects-page-library .library-card:hover .library-card-artwork,
+.projects-page-library .library-card:focus-within .library-card-artwork {
+  outline-color: color-mix(in oklch, var(--accent) 32%, transparent);
 }
 
-.projects-page-library .library-card-active .library-card-artwork img,
-.projects-page-library .library-card-active:hover .library-card-artwork img {
-  border-color: color-mix(in oklch, var(--accent) 58%, var(--border));
+.projects-page-library .library-card-active .library-card-artwork,
+.projects-page-library .library-card-active:hover .library-card-artwork {
+  outline-color: color-mix(in oklch, var(--accent) 54%, transparent);
 }
 
 .projects-page-library .library-card-open {
@@ -4001,7 +4000,11 @@ button.library-card-open:focus-visible {
 
 .projects-page-library button.library-card-open:hover .library-card-hover-cue,
 .projects-page-library button.library-card-open:focus-visible .library-card-hover-cue {
-  opacity: 1;
+  opacity: 0;
+}
+
+.projects-page-library .library-card-hover-cue {
+  display: none;
 }
 
 .projects-page-library .library-card-copy {
@@ -4032,6 +4035,30 @@ button.library-card-open:focus-visible {
 
 .projects-page-library .library-card-secondary-actions {
   margin-top: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.projects-page-library .library-card:hover .library-card-secondary-actions,
+.projects-page-library .library-card:focus-within .library-card-secondary-actions,
+.projects-page-library .library-card-active .library-card-secondary-actions,
+.projects-page-library .library-card-draft .library-card-secondary-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.projects-page-library .library-card-more-action {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--surface-bg) 58%, transparent);
+  color: color-mix(in oklch, var(--text-dim) 84%, transparent);
+}
+
+.projects-page-library .library-card-more-action:hover,
+.projects-page-library .library-card-more-action[aria-expanded="true"] {
+  border-color: color-mix(in oklch, var(--accent) 44%, transparent);
+  background: color-mix(in oklch, var(--surface-bg) 76%, transparent);
+  color: var(--text);
 }
 
 .projects-page-library .library-card-action-copy {
@@ -4122,6 +4149,11 @@ button.library-card-open:focus-visible {
 
   .projects-page-library .library-card-actions {
     padding: 0;
+  }
+
+  .projects-page-library .library-card-secondary-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .projects-page-library .library-card-action {
