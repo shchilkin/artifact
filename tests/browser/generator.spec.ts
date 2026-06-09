@@ -2083,7 +2083,7 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expectCanvasCenterAlpha(page, 0);
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
-  await expect(page.locator('.library-card-draft').getByText('RECOVERY COPY', { exact: true })).toBeVisible();
+  await expect(page.locator('.library-card-draft').getByRole('button', { name: 'Load Previous work' })).toBeVisible();
   await page.getByRole('button', { name: 'Load Previous work' }).click();
   await expectLayerCanvasToHavePixels(page);
 });
