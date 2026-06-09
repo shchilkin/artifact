@@ -2,8 +2,8 @@ import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
 import { hashString } from './hashString';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
-const THUMB_LONG_EDGE = 360;
-const THUMB_QUALITY = 0.86;
+export const PROJECT_THUMBNAIL_MIN_EDGE = 720;
+const THUMB_QUALITY = 0.88;
 const THUMBNAIL_DATA_URL_CACHE_LIMIT = 64;
 const THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT = 128;
 const thumbnailDataUrlCache = new Map<string, string>();
@@ -30,10 +30,10 @@ function rememberThumbnailDataUrl(key: string, value: string) {
   }
 }
 
-function thumbnailDimensions(doc: CanvasDocument) {
+export function projectThumbnailDimensions(doc: CanvasDocument) {
   const aspect = doc.global?.aspect ?? '1:1';
   const [aw, ah] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
-  const scale = THUMB_LONG_EDGE / Math.max(aw, ah);
+  const scale = PROJECT_THUMBNAIL_MIN_EDGE / Math.min(aw, ah);
   return {
     aspect,
     width: Math.max(1, Math.round(aw * scale)),
@@ -44,7 +44,7 @@ function thumbnailDimensions(doc: CanvasDocument) {
 function thumbnailCacheKey(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
-  dimensions: ReturnType<typeof thumbnailDimensions>,
+  dimensions: ReturnType<typeof projectThumbnailDimensions>,
 ) {
   return hashString(
     JSON.stringify({
@@ -86,7 +86,7 @@ export async function generateThumbnail(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
 ): Promise<string> {
-  const dimensions = thumbnailDimensions(doc);
+  const dimensions = projectThumbnailDimensions(doc);
   const cacheKey = thumbnailCacheKey(doc, imageCache, dimensions);
   const cached = thumbnailDataUrlCache.get(cacheKey);
   if (cached) return cached;
