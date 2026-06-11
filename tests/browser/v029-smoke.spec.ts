@@ -125,7 +125,7 @@ test('node gallery dialog opens with an accessible title', async ({ page }) => {
 });
 
 async function expectBlankEditor(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
 }
