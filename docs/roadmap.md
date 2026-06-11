@@ -19,16 +19,6 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.34 is in release-candidate prep as the Active Project Save Model release.
-  It turns Projects from a snapshot-only local library into an explicit active
-  project workflow where first save creates a project, loading a project binds
-  the editor to that project id, `Save Project` overwrites the same record, and
-  contextual `Copy` creates a branch without writing service metadata into
-  `CanvasDocument`. It also adds `/projects` as a first-class local workspace
-  page for browsing saved browser projects and recovery copies before opening
-  them in the editor. Release metadata verification and the manual production
-  release workflow now treat `main` as the future production release branch
-  while keeping tags and GitHub Releases explicit.
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
@@ -77,6 +67,14 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.34.md`](./version-plans/v0.34.md) — Active Project Save
+  Model: Projects became explicit local editable projects instead of
+  snapshot-only saves, `Save Project` now overwrites the bound local project,
+  contextual `Copy` creates a separate active branch, `/projects` became a
+  first-class local workspace page, project thumbnails were improved, and the
+  release flow gained machine-checked metadata plus a manual production
+  workflow for the future `main` branch. Release notes are in
+  [`releases/v0.34.0.md`](./releases/v0.34.0.md).
 - [`version-plans/v0.33.md`](./version-plans/v0.33.md) — Storage UX And
   Capability Hardening: Projects became the single local workspace surface,
   storage diagnostics moved behind details, recovery and browser capability

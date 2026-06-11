@@ -77,8 +77,7 @@ CI should run:
   `npm run format:check`, `npx tsc --noEmit --pretty false --project apps/web/tsconfig.json`,
   `npm --workspace @artifact/web run test -- app/utils/activeProjectBinding.test.ts app/utils/storageStatus.test.ts app/components/StorageWorkspaceStatus.test.ts`,
   and `npm run test:browser:chromium -- tests/browser/v033-storage.spec.ts`.
-- Do not tag or publish v0.34 until the maintainer explicitly confirms the
-  final release action.
+- Final v0.34 release action was confirmed by the maintainer on 2026-06-11.
 - `npm run perf:node-editor` is not required for the current release-prep diff
   because v0.34 changes local project persistence semantics and Projects panel
   UI, not React Flow interaction, node-editor gesture paths, thumbnail
