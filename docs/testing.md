@@ -14,6 +14,7 @@ npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
 npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
+npm run test:browser:release           # full browser gate with a fresh local dev server
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm run --silent fallow                # report-only code-quality baseline in JSON
@@ -171,6 +172,8 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
   event reliably there.
 - Mobile smoke keeps the starter actions, layer list, canvas, and primary
   action bar visible without horizontal overflow.
+- v0.33 storage/PWA smoke verifies the local status strip, Projects storage
+  entry point, manifest, and service-worker shell asset.
 - The v0.30 visual baseline in `tests/browser/v030-visual.spec.ts` covers a
   curated set of editor states with deterministic fixtures: blank editor,
   selected/hidden/locked layer rows, Layers Add Library, Nodes output-path
@@ -184,6 +187,12 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
+
+Local release prep should use `npm run test:browser:release`. It sets
+`PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
+server instead of accidentally reusing a stale server from a previous failed
+run. Regular focused development commands may still reuse an existing local
+server when that is intentional.
 
 The v0.30 visual baseline deliberately does not start with broad golden
 screenshots. UI surfaces use layout, computed-style, readable-control, and

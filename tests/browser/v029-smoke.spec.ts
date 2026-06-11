@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import {
+  clickEditorControl,
   documentUrl,
   editorDocumentFixture,
   expectNoBrowserIssues,
@@ -21,10 +22,16 @@ test.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 
 test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
   await page.goto('/showcase');
+  await expect(page.getByRole('heading', { name: 'Made in Artifact.' })).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Open editor' }).click();
+  const openEditorLink = page
+    .getByRole('navigation', { name: 'Site navigation' })
+    .getByRole('link', { name: 'Open editor', exact: true });
+  await expect(openEditorLink).toBeVisible({ timeout: 15_000 });
+  await expect(openEditorLink).toHaveAttribute('href', '/app?new=blank');
+  await openEditorLink.click();
 
-  await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/);
+  await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/, { timeout: 10_000 });
   await expectBlankEditor(page);
 });
 
@@ -42,7 +49,7 @@ test('showcase loads the project wall and opens a tile in the editor', async ({ 
   await tiles.first().click();
   await expect(page).toHaveURL(/\/app(?:\?|$)/, { timeout: 10_000 });
 
-  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached({ timeout: 15_000 });
   await expectStoredLayerCount(page, { atLeast: 1 });
 });
 
@@ -79,7 +86,7 @@ test('docs research page supports search and type filtering', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Tune preview' }).first()).toBeVisible();
 });
 
-test('blank editor and shared primitive surfaces open and close', async ({ page }) => {
+test('blank editor and shared primitive project surfaces open and close', async ({ page }) => {
   await page.goto('/app?new=blank');
   await expectBlankEditor(page);
 
@@ -87,14 +94,10 @@ test('blank editor and shared primitive surfaces open and close', async ({ page 
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toBeVisible();
   await page.getByRole('button', { name: 'Close projects' }).click();
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'PRESETS' }).click();
-  await expect(page.getByRole('dialog', { name: 'PRESETS' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close presets' }).click();
-  await expect(page.getByRole('dialog', { name: 'PRESETS' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'PRESETS' })).toHaveCount(0);
 
   await switchToNodeView(page);
-  await page.getByRole('button', { name: 'Add node' }).click();
+  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expect(page.getByLabel('Search nodes and effects')).toBeVisible();
   await expect(page.locator('.add-library-node-menu .artifact-search-field')).toBeVisible();
@@ -122,7 +125,7 @@ test('node gallery dialog opens with an accessible title', async ({ page }) => {
 });
 
 async function expectBlankEditor(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached();
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
 }

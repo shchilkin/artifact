@@ -7,6 +7,7 @@ import { ActionButton } from './ui/ActionButton';
 import { actionButtonClassName } from './ui/actionButtonClassName';
 
 const LINKS = [
+  { to: '/projects', label: 'Projects' },
   { to: '/docs', label: 'Docs' },
   { to: '/showcase', label: 'Showcase' },
 ] as const;

@@ -9,6 +9,7 @@ belong in the next production release.
 Run these before cutting a public release:
 
 ```bash
+npm run release:verify
 npm run check
 npm run build
 npm run test:browser
@@ -20,6 +21,8 @@ section. Do not create a tag or GitHub Release from free-form notes.
 
 CI should run:
 
+- `npm run release:verify` when package metadata, release notes, version plans,
+  production readiness notes, or release workflow files change.
 - `npm run check`
 - `npm run build:ci`
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
@@ -29,7 +32,85 @@ CI should run:
   (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) so release checks do not carry
   the Node.js 20 action-runtime deprecation warning.
 
+## Branch And Release Flow
+
+- `development` is the integration and release-candidate branch.
+- `main` is reserved as the future production release branch. Production tags
+  and GitHub Releases should be created from `main` after the release candidate
+  has passed review and has been promoted there.
+- `.github/workflows/release.yml` is the manual production release workflow. It
+  runs the release gate, verifies release metadata, and then can create a tag,
+  create a draft GitHub Release, or publish an existing draft depending on the
+  selected action.
+- The `production-release` GitHub Environment should require maintainer
+  approval before any workflow action that creates tags or publishes releases.
+- Pull requests remain the normal place to validate release candidates. Do not
+  tag or publish a release from a dirty local worktree or from free-form notes.
+
 ## Manual QA
+
+### v0.34.0 Release Prep
+
+- Release prep was approved by the maintainer on 2026-06-07 after local review
+  confirmed the active project save workflow.
+- v0.34 changes local Projects semantics from snapshot-only saving to active
+  project binding outside `CanvasDocument` and adds `/projects` as a dedicated
+  local workspace page.
+- Package metadata is bumped to `0.34.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.34.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Release metadata is now machine-checked by `npm run release:verify`, the
+  release-metadata CI job, and the manual production release workflow.
+- `npm run release:verify` passed on 2026-06-11.
+- Manual QA confirmed: project save flow, active project state, disabled clean
+  save state, copy behavior, Projects panel layout, and the dedicated Projects
+  page are usable after the v0.34 polish pass.
+- `npm run check` passed on 2026-06-07.
+- `npm run build` passed on 2026-06-07.
+- `npm run test:browser:release` passed on 2026-06-07 with `282 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Fallow changed-file audit passed with zero dead-code findings, zero
+  complexity findings, and zero duplicated lines.
+- Focused post-release-file validation passed on 2026-06-07:
+  `npm run format:check`, `npx tsc --noEmit --pretty false --project apps/web/tsconfig.json`,
+  `npm --workspace @artifact/web run test -- app/utils/activeProjectBinding.test.ts app/utils/storageStatus.test.ts app/components/StorageWorkspaceStatus.test.ts`,
+  and `npm run test:browser:chromium -- tests/browser/v033-storage.spec.ts`.
+- Final v0.34 release action was confirmed by the maintainer on 2026-06-11.
+- `npm run perf:node-editor` is not required for the current release-prep diff
+  because v0.34 changes local project persistence semantics and Projects panel
+  UI, not React Flow interaction, node-editor gesture paths, thumbnail
+  scheduling, graph traversal, renderer/export behavior, document schema,
+  package export, AI scope, or font-policy behavior.
+
+### v0.33.0 Release Prep
+
+- Package metadata is bumped to `0.33.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.33.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.33 adds a Projects workspace status marker plus a Local Workspace summary
+  for active snapshot state, browser storage estimate, recovery copy availability,
+  offline-shell state, and browser capability warnings.
+- v0.33 adds a conservative PWA slice: manifest, production-only service worker
+  registration, static app-shell caching, and an offline navigation fallback.
+- `npm run test:browser:release` is available for release prep and starts a
+  fresh local browser-test server so stale dev servers do not masquerade as
+  product failures.
+- `npm run check` passed on 2026-06-06.
+- `npm run build` passed on 2026-06-06.
+- `npm run test:browser:release` passed on 2026-06-06 with `279 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Fallow changed-file audit passed with zero dead-code findings, zero
+  complexity findings, and zero duplicated lines.
+- `npm run perf:node-editor` was not required because the final release-prep
+  diff does not change React Flow interaction, node-editor gesture paths,
+  thumbnail scheduling, graph traversal, document schema, package export, AI
+  scope, font-policy behavior, or performance-sensitive canvas interaction
+  code. The performance instrumentation helper was hardened so measurement
+  failures cannot interrupt render or export flows.
 
 ### v0.32.0 Release Prep
 
@@ -354,9 +435,11 @@ CI should run:
   files; unknown local font files are not bundled by default. Missing fonts rely
   on fallback rendering until the user replaces the font.
 - `CanvasHandles` still commits text/image transform movement through document updates during pointer moves.
-- Presets are localStorage-backed only.
-- Projects and the pre-blank recovery draft are IndexedDB-backed convenience
-  snapshots until account-backed persistence lands.
+- Projects and the pre-blank recovery copy are IndexedDB-backed local records.
+  v0.34 keeps active project binding outside `CanvasDocument` so local
+  `Save Project` can overwrite the active record while recovery remains an
+  independent safety copy. Account-backed persistence, cross-device sync,
+  project versions, and server-backed share records remain future work.
 
 ## Sticky-Note Feature Intake
 
@@ -378,7 +461,7 @@ The sticky-note ideas split into two tracks.
   textures, and exported outputs.
 - Export presets/history for music targets, social formats, transparent PNGs,
   posters, and print output.
-- Project versions and named creative snapshots with duplicate, restore, and
+- Active project save/overwrite behavior plus project versions and named creative snapshots with duplicate, restore, and
   compare flows.
 - Autosave/recovery status, project-size visibility, storage cleanup, and
   unused-asset deletion flows.

@@ -38,6 +38,17 @@ describe('projectLibrary', () => {
     expect(result.map((item) => item.id)).toEqual(['new', 'old']);
   });
 
+  it('normalizes the legacy green thumbnail fallback', () => {
+    const legacyGreenFallback =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+    const [result] = normalizeSavedProjects([
+      { ...project('old-fallback', '2024-01-01T00:00:00.000Z'), thumbnail: legacyGreenFallback },
+    ]);
+
+    expect(result?.thumbnail).toBe(PROJECT_THUMBNAIL_FALLBACK);
+  });
+
   it('keeps the newest snapshots within the storage limit', () => {
     const projects = Array.from({ length: MAX_PROJECTS }, (_, index) =>
       project(`p-${index}`, new Date(2024, 0, index + 1).toISOString()),

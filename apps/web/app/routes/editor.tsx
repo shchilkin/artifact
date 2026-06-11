@@ -4,15 +4,16 @@ import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { PresetsPanel } from '../components/PresetsPanel';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
+import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
+import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
+import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
 import { useEditorAssets } from '../hooks/useEditorAssets';
 import { useEditorDocument } from '../hooks/useEditorDocument';
 import { useEditorExport } from '../hooks/useEditorExport';
-import { useEditorPresetsController } from '../hooks/useEditorPresetsController';
 import { useEditorProjectsController } from '../hooks/useEditorProjectsController';
 import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
 import { getStarterDocument } from '../utils/starterDocuments';
@@ -91,7 +92,9 @@ export default function Editor() {
     canRedo,
     undoCount,
     fromDocParam,
+    fromBlankParam,
     isBlank,
+    documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useEditorAssets(doc, addImageFromSource, storeImageAssetSource);
   const {
@@ -106,43 +109,56 @@ export default function Editor() {
   });
   const { exportBusy, exportError, handleNodeExport } = useEditorExport(docRef, imageCache, exportRenderOptions);
   const {
-    fileInputRef,
-    documentFileError,
-    handleOpenDocument,
-    handleOpenDocumentPicker,
-    handleSaveDocument,
-    handleSaveProjectPackage,
-  } = useDocumentFileTransfer(docRef, loadDocument);
-  const { showPresets, presets, togglePresets, closePresets, handleLoadPreset, saveCurrentPreset, deletePreset } =
-    useEditorPresetsController({
-      docRef,
-      imageCache,
-      onLoadDocument: loadDocument,
-    });
-  const {
     showProjects,
     projects,
+    activeProject,
     recoveryDraft,
     storageError,
     maxProjects,
     toggleProjects,
     closeProjects,
     handleLoadProject,
+    clearActiveProject,
     saveCurrentProject,
+    saveActiveProject,
     deleteProject,
     deleteRecoveryDraft,
+    projectSaveState,
   } = useEditorProjectsController({
+    doc,
     docRef,
     imageCache,
     onLoadDocument: loadDocument,
+    initialDocumentClearsProject: fromDocParam || fromBlankParam,
   });
+  const handleLoadExternalDocument = useCallback(
+    (nextDoc: typeof doc) => {
+      clearActiveProject();
+      loadDocument(nextDoc);
+    },
+    [clearActiveProject, loadDocument],
+  );
+  const {
+    fileInputRef,
+    documentFileError,
+    handleOpenDocument,
+    handleOpenDocumentPicker,
+    handleSaveDocument,
+    handleSaveProjectPackage,
+  } = useDocumentFileTransfer(docRef, handleLoadExternalDocument);
 
-  const { handleTogglePresets, handleToggleProjects, closePanels } = useEditorPanels({
-    closePresets,
+  const { handleToggleProjects, closePanels } = useEditorPanels({
     closeProjects,
-    togglePresets,
     toggleProjects,
   });
+  const storageStatus = useBrowserStorageStatus({
+    doc,
+    projects,
+    recoveryDraft,
+    saveStatus: documentSaveStatus,
+    projectSaveState,
+  });
+  const projectWorkspaceStatus = getProjectWorkspaceStatus(storageStatus, storageError);
 
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
@@ -154,26 +170,28 @@ export default function Editor() {
   const handleNewBlankRequest = useCallback(() => {
     if (
       !isBlank &&
-      !window.confirm('Start a blank canvas? Current work will be saved as a recoverable draft before replacing it.')
+      !window.confirm('Create a new project? Current work will be kept as a recovery copy before replacing it.')
     ) {
       return;
     }
     closePanels();
+    clearActiveProject();
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
-  }, [closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
+  }, [clearActiveProject, closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
 
   const handleLoadStarter = useCallback(
     (id: string) => {
       const starter = getStarterDocument(id);
       if (!starter) return;
       closePanels();
+      clearActiveProject();
       loadDocument(cloneDocument(starter.doc));
       resetPrimitiveViewStates();
       setViewMode('layers');
     },
-    [closePanels, loadDocument, resetPrimitiveViewStates],
+    [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
 
   const bottomBarProps = {
@@ -184,7 +202,6 @@ export default function Editor() {
     canUndo,
     canRedo,
     undoCount,
-    onPresetsToggle: handleTogglePresets,
     onProjectsToggle: handleToggleProjects,
     onCopyLink: handleCopyLink,
     onOpenDocument: handleOpenDocumentPicker,
@@ -192,6 +209,7 @@ export default function Editor() {
     onSaveProjectPackage: handleSaveProjectPackage,
     onExport: handleNodeExport,
     exportBusy,
+    projectWorkspaceStatus,
   };
 
   return (
@@ -284,6 +302,7 @@ export default function Editor() {
           }}
         >
           <h1 className="sr-only">Artifact Cover Editor</h1>
+          <StorageWarningStrip status={storageStatus} storageError={storageError} />
           {viewMode === 'nodes' && (
             <div className="floating-view-toggle">
               <ViewModeToggle value={viewMode} onChange={setViewMode} />
@@ -371,22 +390,16 @@ export default function Editor() {
         )}
 
         <AnimatePresence>
-          {showPresets && (
-            <PresetsPanel
-              presets={presets}
-              onSave={saveCurrentPreset}
-              onLoad={handleLoadPreset}
-              onDelete={deletePreset}
-              onClose={closePresets}
-            />
-          )}
           {showProjects && (
             <ProjectsPanel
               projects={projects}
+              activeProject={activeProject}
               recoveryDraft={recoveryDraft}
+              storageStatus={storageStatus}
               storageError={storageError}
               maxProjects={maxProjects}
-              onSave={saveCurrentProject}
+              onSaveCopy={saveCurrentProject}
+              onSaveActive={saveActiveProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
               onDeleteRecoveryDraft={deleteRecoveryDraft}

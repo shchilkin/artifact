@@ -39,6 +39,7 @@ export interface PreBlankDraft {
   doc: CanvasDocument;
   savedAt: string;
   reason: 'before-blank';
+  thumbnail?: string;
 }
 
 let pendingPreBlankDraft: PreBlankDraft | null = null;
@@ -259,7 +260,12 @@ function parsePreBlankDraft(value: string | null | undefined): PreBlankDraft | n
   try {
     const parsed = JSON.parse(value) as Partial<PreBlankDraft>;
     if (parsed.reason !== 'before-blank' || typeof parsed.savedAt !== 'string') return null;
-    return { reason: 'before-blank', savedAt: parsed.savedAt, doc: normalizeDocument(parsed.doc) };
+    return {
+      reason: 'before-blank',
+      savedAt: parsed.savedAt,
+      doc: normalizeDocument(parsed.doc),
+      ...(typeof parsed.thumbnail === 'string' ? { thumbnail: parsed.thumbnail } : {}),
+    };
   } catch {
     return null;
   }
@@ -277,10 +283,19 @@ export function savePreBlankDraft(
   doc: CanvasDocument,
   storage: Pick<DocumentStorage, 'setItem'> = localStorage,
   date = new Date(),
+  thumbnail?: string,
 ) {
   if (isBlankDocument(doc)) return true;
   try {
-    storage.setItem(PRE_BLANK_DRAFT_KEY, JSON.stringify({ reason: 'before-blank', savedAt: date.toISOString(), doc }));
+    storage.setItem(
+      PRE_BLANK_DRAFT_KEY,
+      JSON.stringify({
+        reason: 'before-blank',
+        savedAt: date.toISOString(),
+        doc,
+        ...(thumbnail ? { thumbnail } : {}),
+      }),
+    );
     return true;
   } catch {
     return false;

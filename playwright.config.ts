@@ -49,7 +49,7 @@ export default defineConfig({
       VITE_CLERK_PUBLISHABLE_KEY: '',
     },
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_REUSE_SERVER !== '0',
     timeout: 120_000,
   },
 });

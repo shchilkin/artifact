@@ -19,6 +19,11 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.33 has completed the Storage UX And Capability Hardening release scope:
+  local workspace state is visible, recovery and storage details are
+  discoverable, Presets was folded into Projects, and the conservative PWA
+  shell is available without changing document schema, renderer/export
+  semantics, graph traversal, AI scope, server sharing, or account model.
 - v0.32 has completed the Code Health And Debt Reduction release scope: the
   v0.31 changed-code Fallow gate remains clean, full-health complexity is
   reduced to zero functions above threshold, hook-dependency warnings are
@@ -39,13 +44,45 @@ Current planning status:
 
 Next deferred product tracks:
 
+- Asset Library / Export History / Versions remains deferred until v0.33 makes
+  the local storage and recovery states visible enough to build on safely.
+- Project Autosave History remains deferred until the v0.34 Projects page and
+  active save model settle. The future autosave pass should distinguish active
+  project saves, automatic recovery points, and user-created copies without
+  making recovery cards compete with saved projects.
+- Project Versions / Restore / Compare remains deferred until explicit project
+  editing and the local Projects page have enough usage signal to design the
+  history model.
+- Server-backed Share Links remains deferred until local asset/project cleanup,
+  quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
   critique/prototype gate.
+- Whole-app design polish remains deferred until v0.34 settles. A future pass
+  should critique the full product surface end to end, align public pages,
+  editor chrome, Projects, docs, and shared primitives around the same
+  artwork-first visual system, and avoid card-in-card or technical dashboard
+  patterns where they weaken the creative workspace.
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
 Recently shipped:
 
+- [`version-plans/v0.34.md`](./version-plans/v0.34.md) — Active Project Save
+  Model: Projects became explicit local editable projects instead of
+  snapshot-only saves, `Save Project` now overwrites the bound local project,
+  contextual `Copy` creates a separate active branch, `/projects` became a
+  first-class local workspace page, project thumbnails were improved, and the
+  release flow gained machine-checked metadata plus a manual production
+  workflow for the future `main` branch. Release notes are in
+  [`releases/v0.34.0.md`](./releases/v0.34.0.md).
+- [`version-plans/v0.33.md`](./version-plans/v0.33.md) — Storage UX And
+  Capability Hardening: Projects became the single local workspace surface,
+  storage diagnostics moved behind details, recovery and browser capability
+  states became visible, the first conservative PWA app shell shipped, and the
+  release gate gained a fresh-server browser command. Active project binding
+  remained deferred out of v0.33 and is now tracked in
+  [`version-plans/v0.34.md`](./version-plans/v0.34.md). Release notes are in
+  [`releases/v0.33.0.md`](./releases/v0.33.0.md).
 - [`version-plans/v0.32.md`](./version-plans/v0.32.md) — Code Health And Debt
   Reduction: v0.32 package metadata, generator-to-editor route-shell rename
   while keeping `/app` stable, Fallow duplication and full-health complexity
@@ -137,8 +174,11 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.32:
+Next strong candidates after v0.34:
 
+- **Project Autosave History** — add visible automatic save points for the
+  active project so recovery, autosave, explicit save, and copy/branch behavior
+  are clearly separated.
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
@@ -154,11 +194,10 @@ Next strong candidates after v0.32:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Deeper Storage UX And Capability Hardening** — after v0.32 classifies the
-  known storage/render risks, make autosave, recovery, quota pressure, project
-  size, cleanup, and unsupported browser capability states visible enough that
-  local-first storage feels like a creative safety net.
-
+- **Whole-App Design Polish** — run a dedicated critique/prototype pass across
+  public routes, the editor, Projects, docs, and shared primitives so the app
+  feels consistently artwork-first instead of accumulating isolated surface
+  fixes.
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and
@@ -216,8 +255,8 @@ These can mostly stay browser-only and fit the current architecture:
   textures, and exported outputs.
 - Export presets for music and social targets, including transparent PNG,
   poster/print sizes, and export history.
-- Project versions and named creative snapshots for trying risky edits without
-  losing a direction.
+- Project versions, named creative snapshots, and active project save/overwrite
+  behavior for trying risky edits without losing a direction.
 - Better drag/repositioning UX for canvas content.
 - Image background removal workflow for uploaded images, with a future research
   pass comparing browser-side models, server-side/VPS processing, external APIs,
@@ -273,8 +312,8 @@ Best shadcn candidates and current adoption:
   improvements. The current Add Library already behaves like a creative command
   surface, so a command primitive could help with keyboard navigation and
   search ergonomics if the product keeps expanding the catalog.
-- **Dialog / Sheet** now backs Projects, Presets, Add Library mobile behavior,
-  and the node gallery; keep using it for future import/export flows where
+- **Dialog / Sheet** now backs Projects, Add Library mobile behavior, and the
+  node gallery; keep using it for future import/export flows where
   focus trapping and close behavior matter.
 - **Floating menu / Popover** now backs effect info, layer context menus, node
   context menus, and desktop Add Library placement. Use this pattern for short
@@ -402,8 +441,7 @@ threshold ownership, suppression rules, and CI behavior are documented.
 | Document state | `apps/web/app/hooks/useEditorDocument.ts` | Canonical `CanvasDocument`, selection, undo/redo, localStorage persistence, graph mutations, document import/export. |
 | Asset state | `apps/web/app/hooks/useEditorAssets.ts`, `apps/web/app/utils/assetStore.ts` | Image upload/drop handling, IndexedDB asset payloads, and decoded `imageCache`. |
 | Export | `apps/web/app/hooks/useEditorExport.ts`, `apps/web/app/utils/exportCanvas.ts` | Uses `renderDocument` with live primitive camera overrides. |
-| Presets | `apps/web/app/hooks/usePresets.ts`, `apps/web/app/components/PresetsPanel.tsx` | localStorage-backed presets with thumbnails. |
-| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/utils/projectStore.ts` | IndexedDB-backed local project snapshots and pre-blank recovery drafts. |
+| Projects | `apps/web/app/hooks/useProjects.ts`, `apps/web/app/hooks/useEditorProjectsController.ts`, `apps/web/app/utils/projectStore.ts`, `apps/web/app/utils/activeProjectBinding.ts` | IndexedDB-backed local project records, active project binding outside `CanvasDocument`, save-overwrite behavior for active projects, copy-as-new-project behavior, and independent pre-blank recovery copies. |
 
 ### Data model
 
@@ -543,8 +581,8 @@ Using React Flow for graph mechanics and XState for selection/overlay state is a
 
 ### `editor.tsx` is still broad
 
-`editor.tsx` wires document state, asset state, projects, export, presets,
-layout mode, preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
+`editor.tsx` wires document state, asset state, projects, export, layout mode,
+preview, sidebar, and node mode. `NodeCanvas.tsx` has been split
 into focused hooks for selection sync, context menus, graph events, drag state,
 gallery state, and primitive camera state, but the route-level composition is
 still dense.
@@ -571,7 +609,7 @@ tolerance strategy before visual snapshots become useful.
 
 ### Persistence is local-first
 
-Imported images, local projects, and recovery drafts now use IndexedDB, and
+Imported images, local projects, and recovery copies now use IndexedDB, and
 `.artifact.json` files/share links hydrate local image assets when possible.
 This is enough for the local editor, but there should be a stronger data
 ownership path: a downloadable project package with a custom extension that can
@@ -628,7 +666,7 @@ Current shipped baseline:
 - Focused effect presets, procedural noise/array sources, repeater presets, and
   per-node seed offsets for seeded emoji, sources, effects, and repeaters.
 - Blank-canvas entry points and first starter paths.
-- Local project snapshots, imported image assets, and recovery drafts in
+- Local project snapshots, imported image assets, and recovery copies in
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
@@ -642,10 +680,10 @@ Current shipped baseline:
 
 Current near-term focus:
 
-- `v0.32`: code health and debt reduction. Keep product semantics stable while
-  reducing historical complexity hotspots, route/controller density, hook
-  warnings, gesture update churn, CSS ownership debt, stale roadmap structure,
-  and unclassified storage/render risks.
+- [`v0.33`](./version-plans/v0.33.md): storage UX and capability hardening.
+  Keep Artifact local-first while making autosave, recovery, quota pressure,
+  project size, cleanup, and unsupported browser capabilities visible and
+  recoverable before larger asset-library or server-backed sharing work.
 
 ### v0.11: Layer Workflow And Onboarding
 
@@ -670,7 +708,7 @@ keeping node workflows truthful.
   effects, repeaters, export, projects, and showcase starts.
 - [x] Add a "what changed" or "open guide" path for first visits after a new
   beta release.
-- [x] Keep destructive starts guarded by confirmation and recovery drafts.
+- [x] Keep destructive starts guarded by confirmation and recovery copies.
 
 Exit criteria:
 

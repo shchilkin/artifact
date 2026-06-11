@@ -6,7 +6,7 @@ export async function measurePerformancePhase<T>(measureName: string, task: () =
     performance.mark(startMark);
     const result = await task();
     performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
+    safeMeasure(measureName, startMark, endMark);
     return result;
   } finally {
     clearMeasureMarks(startMark, endMark);
@@ -21,7 +21,7 @@ export function measurePerformancePhaseSync<T>(measureName: string, task: () => 
     performance.mark(startMark);
     const result = task();
     performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
+    safeMeasure(measureName, startMark, endMark);
     return result;
   } finally {
     clearMeasureMarks(startMark, endMark);
@@ -37,11 +37,19 @@ function canMeasurePerformance() {
 }
 
 function createMeasureMarks(measureName: string, markScope?: string) {
-  const markId = `${measureName}:${markScope ?? Math.random().toString(36).slice(2)}`;
+  const markId = `${measureName}:${markScope ?? 'scope'}:${Math.random().toString(36).slice(2)}`;
   return {
     startMark: `${markId}:start`,
     endMark: `${markId}:end`,
   };
+}
+
+function safeMeasure(measureName: string, startMark: string, endMark: string) {
+  try {
+    performance.measure(measureName, startMark, endMark);
+  } catch {
+    // Instrumentation must never break rendering or export.
+  }
 }
 
 function clearMeasureMarks(startMark: string, endMark: string) {

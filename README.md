@@ -13,7 +13,7 @@ aspect ratio support, and equirectangular environment map export.
 - React Flow — node-graph composition canvas
 - XState v5 — node canvas interaction state machine
 - localStorage — active document state and preset system
-- IndexedDB — imported image assets, local project snapshots, and recovery drafts
+- IndexedDB — imported image assets, local project snapshots, and recovery copies
 
 ## Routes
 
@@ -132,7 +132,7 @@ to a shared base hue.
 | Active document | localStorage | No |
 | Presets | localStorage | No |
 | Imported image payloads | IndexedDB asset records | Hydrated into `.artifact.json` or share links when possible |
-| Local projects and recovery drafts | IndexedDB project records | No |
+| Local projects and recovery copies | IndexedDB project records | No |
 | `.artifact.json` | User's disk | Yes, via file sharing |
 | `?doc=` share links | URL query string | Yes, but large hydrated images can make links heavy |
 
@@ -183,8 +183,9 @@ covers (
 - Preset system: save/load/delete, renderer-backed thumbnails, localStorage (max 20)
 - Local project library with IndexedDB snapshots and thumbnails
 - Showcase wall with curated work, seeded starters, and future reviewed
-  agent-generated work. Public **Open editor** and **New blank canvas** CTAs
-  both start from a blank canvas; showcase tiles open their editable projects.
+  agent-generated work. Public **Open editor** and **Create new project** CTAs
+  both start from an empty local project; showcase tiles open their editable
+  projects.
 - Future how-to / recipes pages are the separate surface for learning specific
   workflows. The showcase should stay a made-in-Artifact gallery, not a manual.
 - `prefers-reduced-motion` respected throughout

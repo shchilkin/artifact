@@ -204,6 +204,9 @@ until the migration is complete.
   from framing.
 - **Anti-patterns**: generic card grids, nested cards, card wrappers around
   full page sections, resting shadows.
+- **Project libraries**: use artwork-first tiles. The preview carries the
+  surface; metadata, status, and actions sit below or beside it with lower
+  visual weight. Do not wrap a project grid in another card-like frame.
 
 ### Modal
 

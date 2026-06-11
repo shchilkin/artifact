@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ff6a5f" />
+    <title>Artifact offline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, Consolas, "Courier New", monospace;
+        background: #050000;
+        color: #f1d7c5;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(460px, 100%);
+        border: 1px solid #51342f;
+        background: #140d0c;
+        padding: 18px;
+        box-shadow: inset 2px 0 0 #ff6a5f;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-family: "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+        font-size: 32px;
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+
+      p {
+        margin: 0;
+        color: #b69a8b;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      a {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        margin-top: 16px;
+        color: #ff6a5f;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Artifact is offline</h1>
+      <p>
+        The editor shell can reopen after the app has cached it. Local projects
+        and browser storage stay on this device.
+      </p>
+      <a href="/app">Try editor</a>
+    </main>
+  </body>
+</html>

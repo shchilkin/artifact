@@ -349,12 +349,15 @@ describe('document serialization helpers', () => {
       removeItem: (key: string) => writes.delete(key),
     };
 
-    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'))).toBe(true);
+    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'), 'data:image/webp;base64,thumb')).toBe(
+      true,
+    );
     expect(writes.has(PRE_BLANK_DRAFT_KEY)).toBe(true);
 
     const draft = loadPreBlankDraft(storage);
     expect(draft?.savedAt).toBe('2026-05-15T12:00:00.000Z');
     expect(draft?.doc.layers[0]?.id).toBe('share-text');
+    expect(draft?.thumbnail).toBe('data:image/webp;base64,thumb');
 
     expect(deletePreBlankDraft(storage)).toBe(true);
     expect(loadPreBlankDraft(storage)).toBeNull();
