@@ -65,6 +65,11 @@ Next deferred product tracks:
   quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
   critique/prototype gate.
+- Whole-app design polish remains deferred until v0.34 settles. A future pass
+  should critique the full product surface end to end, align public pages,
+  editor chrome, Projects, docs, and shared primitives around the same
+  artwork-first visual system, and avoid card-in-card or technical dashboard
+  patterns where they weaken the creative workspace.
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
@@ -189,6 +194,10 @@ Next strong candidates after v0.34:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
+- **Whole-App Design Polish** — run a dedicated critique/prototype pass across
+  public routes, the editor, Projects, docs, and shared primitives so the app
+  feels consistently artwork-first instead of accumulating isolated surface
+  fixes.
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and
