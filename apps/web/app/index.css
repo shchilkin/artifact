@@ -3830,8 +3830,7 @@ button.library-card-open:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 0;
 }
 
 .projects-page-kicker {

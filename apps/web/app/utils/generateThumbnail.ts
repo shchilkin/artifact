@@ -2,8 +2,9 @@ import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
 import { hashString } from './hashString';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
-export const PROJECT_THUMBNAIL_MIN_EDGE = 720;
-const THUMB_QUALITY = 0.88;
+export const PROJECT_THUMBNAIL_MIN_EDGE = 1080;
+const THUMB_MIME = 'image/webp';
+const THUMB_QUALITY = 0.94;
 const THUMBNAIL_DATA_URL_CACHE_LIMIT = 64;
 const THUMBNAIL_GRAPH_RENDER_CACHE_LIMIT = 128;
 const thumbnailDataUrlCache = new Map<string, string>();
@@ -77,7 +78,7 @@ async function renderThumbnailDataUrl(
     { effectResolution: { width, height } },
     graphRenderCache,
   );
-  const result = out.toDataURL('image/jpeg', THUMB_QUALITY);
+  const result = out.toDataURL(THUMB_MIME, THUMB_QUALITY);
   rememberThumbnailDataUrl(cacheKey, result);
   return result;
 }

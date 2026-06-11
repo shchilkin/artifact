@@ -14,7 +14,10 @@ export const MAX_PROJECTS = 30;
 const PROJECT_STORAGE_FULL_MESSAGE =
   'Project storage is full. Kept the app running and compacted saved thumbnails where possible.';
 export const PROJECT_THUMBNAIL_FALLBACK =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1' viewBox='0 0 1 1'%3E%3Crect width='1' height='1' fill='%23080706'/%3E%3C/svg%3E";
+const LEGACY_PROJECT_THUMBNAIL_FALLBACKS = new Set([
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+]);
 
 export interface ProjectStorage {
   setItem(key: string, value: string): void;
@@ -34,10 +37,15 @@ function isSavedProject(value: unknown): value is SavedProject {
   );
 }
 
+function normalizeProjectThumbnail(thumbnail: string) {
+  return LEGACY_PROJECT_THUMBNAIL_FALLBACKS.has(thumbnail) ? PROJECT_THUMBNAIL_FALLBACK : thumbnail;
+}
+
 export function normalizeSavedProjects(value: unknown): SavedProject[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter(isSavedProject)
+    .map((project) => ({ ...project, thumbnail: normalizeProjectThumbnail(project.thumbnail) }))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, MAX_PROJECTS);
 }

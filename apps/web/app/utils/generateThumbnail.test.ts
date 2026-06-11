@@ -23,7 +23,7 @@ describe('project thumbnail dimensions', () => {
 
     expect(projectThumbnailDimensions(wide)).toMatchObject({
       aspect: '16:9',
-      width: 1280,
+      width: 1920,
       height: PROJECT_THUMBNAIL_MIN_EDGE,
     });
   });
@@ -40,7 +40,7 @@ describe('project thumbnail dimensions', () => {
     expect(projectThumbnailDimensions(tall)).toMatchObject({
       aspect: '9:16',
       width: PROJECT_THUMBNAIL_MIN_EDGE,
-      height: 1280,
+      height: 1920,
     });
   });
 });

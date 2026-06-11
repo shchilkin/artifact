@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 
-import type { CanvasDocument } from '../types/config';
+import type { CanvasDocument, ImageLayer } from '../types/config';
 import { storePortableDocumentAssets } from '../utils/documentAssets';
-import { generateThumbnail } from '../utils/generateThumbnail';
+import { generateThumbnail, projectThumbnailDimensions } from '../utils/generateThumbnail';
+import { preloadImageSources } from '../utils/preloadImageSources';
 import {
   MAX_PROJECTS,
   normalizeSavedProjects,
@@ -15,6 +16,7 @@ import {
   deleteStoredProject,
   listStoredProjects,
   loadStoredPreBlankDraft,
+  saveStoredPreBlankDraft,
   saveStoredProject,
 } from '../utils/projectStore';
 
@@ -27,13 +29,15 @@ function loadFromStorage(): SavedProject[] {
   }
 }
 
-function draftToProject(draft: Awaited<ReturnType<typeof loadStoredPreBlankDraft>>): SavedProject | null {
+type LoadedPreBlankDraft = Awaited<ReturnType<typeof loadStoredPreBlankDraft>>;
+
+export function draftToProject(draft: LoadedPreBlankDraft, thumbnail?: string): SavedProject | null {
   if (!draft) return null;
   return {
     id: 'pre-blank-draft',
     name: 'Previous work',
     doc: draft.doc,
-    thumbnail: PROJECT_THUMBNAIL_FALLBACK,
+    thumbnail: thumbnail ?? draft.thumbnail ?? PROJECT_THUMBNAIL_FALLBACK,
     createdAt: draft.savedAt,
     updatedAt: draft.savedAt,
   };
@@ -48,7 +52,8 @@ export function useProjects() {
   const refreshRecoveryDraft = useCallback(async () => {
     try {
       const draft = await loadStoredPreBlankDraft();
-      if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
+      const project = await recoveryDraftProject(draft);
+      if (mountedRef.current) setRecoveryDraft(project);
     } catch (error) {
       setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery copy');
     }
@@ -59,13 +64,17 @@ export function useProjects() {
     listStoredProjects()
       .then((items) => {
         if (mountedRef.current) setProjects(items);
+        void refreshOutdatedProjectThumbnails(items, mountedRef, setProjects, setStorageError);
       })
       .catch((error) => {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load projects');
       });
     loadStoredPreBlankDraft()
       .then((draft) => {
-        if (mountedRef.current) setRecoveryDraft(draftToProject(draft));
+        return recoveryDraftProject(draft);
+      })
+      .then((project) => {
+        if (mountedRef.current) setRecoveryDraft(project);
       })
       .catch((error) => {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery copy');
@@ -159,6 +168,80 @@ async function projectThumbnail(doc: CanvasDocument, imageCache: Map<string, HTM
     console.error('[projects] thumbnail generation failed, using placeholder', err);
     return PROJECT_THUMBNAIL_FALLBACK;
   }
+}
+
+async function recoveryDraftProject(draft: LoadedPreBlankDraft): Promise<SavedProject | null> {
+  if (!draft) return null;
+  const thumbnail = await recoveryDraftThumbnail(draft);
+  return draftToProject(draft, thumbnail);
+}
+
+async function recoveryDraftThumbnail(draft: NonNullable<LoadedPreBlankDraft>) {
+  if (draft.thumbnail && !(await thumbnailNeedsUpgrade(draft.thumbnail, draft.doc))) return draft.thumbnail;
+  const thumbnail = await projectThumbnail(draft.doc, await projectImageCache(draft.doc));
+  if (thumbnail !== PROJECT_THUMBNAIL_FALLBACK) {
+    void saveStoredPreBlankDraft(draft.doc, new Date(draft.savedAt), { thumbnail }).catch(() => {
+      // Recovery thumbnails are an optimization; loading the draft should still work.
+    });
+  }
+  return thumbnail;
+}
+
+async function refreshOutdatedProjectThumbnails(
+  projects: SavedProject[],
+  mountedRef: MutableRefObject<boolean>,
+  setProjects: (projects: SavedProject[]) => void,
+  setStorageError: (value: string | null) => void,
+) {
+  for (const project of projects) {
+    if (!mountedRef.current) return;
+    if (!(await thumbnailNeedsUpgrade(project.thumbnail, project.doc))) continue;
+    const thumbnail = await projectThumbnail(project.doc, await projectImageCache(project.doc));
+    if (!mountedRef.current || thumbnail === project.thumbnail) continue;
+    try {
+      const next = await saveStoredProject({ ...project, thumbnail });
+      setStorageError(null);
+      if (mountedRef.current) setProjects(next);
+    } catch (error) {
+      setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to update project preview');
+    }
+  }
+}
+
+async function projectImageCache(doc: CanvasDocument) {
+  const imageCache = new Map<string, HTMLImageElement>();
+  await preloadImageSources(projectImageSources(doc), imageCache);
+  return imageCache;
+}
+
+function projectImageSources(doc: CanvasDocument) {
+  return Array.from(
+    new Set(
+      doc.layers
+        .filter((layer): layer is ImageLayer => layer.kind === 'image' && Boolean(layer.src))
+        .map((layer) => layer.src),
+    ),
+  );
+}
+
+async function thumbnailNeedsUpgrade(thumbnail: string, doc: CanvasDocument) {
+  if (thumbnail === PROJECT_THUMBNAIL_FALLBACK) return true;
+  const size = await imageDimensions(thumbnail);
+  if (!size) return true;
+  const expected = projectThumbnailDimensions(doc);
+  const currentShortEdge = Math.min(size.width, size.height);
+  const expectedShortEdge = Math.min(expected.width, expected.height);
+  return currentShortEdge < expectedShortEdge * 0.95;
+}
+
+function imageDimensions(src: string): Promise<{ width: number; height: number } | null> {
+  if (typeof Image === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
 }
 
 function findProject(projects: SavedProject[], projectId?: string) {

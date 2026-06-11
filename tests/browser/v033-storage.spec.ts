@@ -59,6 +59,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
 
   await page.goto('/projects');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(page.locator('.projects-page-header')).toHaveCSS('border-bottom-width', '0px');
   await expect(
     page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Projects' }),
   ).toBeVisible();
@@ -69,7 +70,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   await expect(localProjects).toContainText('Projects Page Smoke', {
     timeout: 15_000,
   });
-  await expect(localProjects.getByRole('img', { name: 'Projects Page Smoke' })).toHaveJSProperty('naturalWidth', 720);
+  await expect(localProjects.getByRole('img', { name: 'Projects Page Smoke' })).toHaveJSProperty('naturalWidth', 1080);
   await expect(localProjects.getByText('LOAD')).toHaveCount(0);
   await expect(localProjects.getByText('DEL')).toHaveCount(0);
   await expect(localProjects.getByText('ACTIVE', { exact: true })).toBeVisible();

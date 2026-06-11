@@ -21,6 +21,7 @@ interface StoredDraft {
   doc: CanvasDocument;
   savedAt: string;
   reason: PreBlankDraft['reason'];
+  thumbnail?: string;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -129,7 +130,12 @@ function normalizeStoredDraft(value: unknown): PreBlankDraft | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<StoredDraft>;
   if (!isStoredPreBlankDraft(candidate)) return null;
-  return { reason: 'before-blank', savedAt: candidate.savedAt, doc: normalizeDocument(candidate.doc) };
+  return {
+    reason: 'before-blank',
+    savedAt: candidate.savedAt,
+    doc: normalizeDocument(candidate.doc),
+    ...(typeof candidate.thumbnail === 'string' ? { thumbnail: candidate.thumbnail } : {}),
+  };
 }
 
 function isStoredPreBlankDraft(candidate: Partial<StoredDraft>): candidate is StoredDraft {
@@ -153,12 +159,17 @@ export async function loadStoredPreBlankDraft(): Promise<PreBlankDraft | null> {
   return legacy;
 }
 
-export async function saveStoredPreBlankDraft(doc: CanvasDocument, date = new Date()): Promise<void> {
+export async function saveStoredPreBlankDraft(
+  doc: CanvasDocument,
+  date = new Date(),
+  options: { thumbnail?: string } = {},
+): Promise<void> {
   const draft: StoredDraft = {
     id: PRE_BLANK_DRAFT_ID,
     reason: 'before-blank',
     savedAt: date.toISOString(),
     doc,
+    ...(options.thumbnail ? { thumbnail: options.thumbnail } : {}),
   };
 
   await withStore(DRAFTS_STORE, 'readwrite', async (store) => {
