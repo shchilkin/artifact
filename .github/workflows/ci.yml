@@ -62,6 +62,58 @@ jobs:
           FALLOW_AGENT_SOURCE: github_actions
         run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }}
 
+  release-metadata:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release metadata changes
+        id: release_files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base="HEAD^"
+            fi
+          fi
+
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+
+          changed="$(git diff --name-only "$base" HEAD || true)"
+          echo "$changed"
+
+          if echo "$changed" | grep -Eq '^(package\.json|package-lock\.json|apps/web/package\.json|docs/releases/.*|docs/version-plans/.*|docs/production-readiness\.md|docs/release-template\.md|scripts/verify-release\.mjs|\.github/workflows/release\.yml)$'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.release_files.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.release_files.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Verify release metadata
+        if: steps.release_files.outputs.should_run == 'true'
+        run: npm run release:verify -- --skip-tag-check
+
   browser:
     runs-on: ubuntu-latest
 

@@ -9,6 +9,7 @@ belong in the next production release.
 Run these before cutting a public release:
 
 ```bash
+npm run release:verify
 npm run check
 npm run build
 npm run test:browser
@@ -20,6 +21,8 @@ section. Do not create a tag or GitHub Release from free-form notes.
 
 CI should run:
 
+- `npm run release:verify` when package metadata, release notes, version plans,
+  production readiness notes, or release workflow files change.
 - `npm run check`
 - `npm run build:ci`
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
@@ -28,6 +31,21 @@ CI should run:
 - GitHub JavaScript actions should run with the Node 24 action runtime opt-in
   (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) so release checks do not carry
   the Node.js 20 action-runtime deprecation warning.
+
+## Branch And Release Flow
+
+- `development` is the integration and release-candidate branch.
+- `main` is reserved as the future production release branch. Production tags
+  and GitHub Releases should be created from `main` after the release candidate
+  has passed review and has been promoted there.
+- `.github/workflows/release.yml` is the manual production release workflow. It
+  runs the release gate, verifies release metadata, and then can create a tag,
+  create a draft GitHub Release, or publish an existing draft depending on the
+  selected action.
+- The `production-release` GitHub Environment should require maintainer
+  approval before any workflow action that creates tags or publishes releases.
+- Pull requests remain the normal place to validate release candidates. Do not
+  tag or publish a release from a dirty local worktree or from free-form notes.
 
 ## Manual QA
 
@@ -42,6 +60,9 @@ CI should run:
   `apps/web/package.json`, and `package-lock.json`.
 - `docs/releases/v0.34.0.md` is prepared from the release template without a
   visible internal checklist.
+- Release metadata is now machine-checked by `npm run release:verify`, the
+  release-metadata CI job, and the manual production release workflow.
+- `npm run release:verify` passed on 2026-06-11.
 - Manual QA confirmed: project save flow, active project state, disabled clean
   save state, copy behavior, Projects panel layout, and the dedicated Projects
   page are usable after the v0.34 polish pass.

@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix, for example 0.34.0"
+        required: true
+        type: string
+      action:
+        description: "Release action"
+        required: true
+        type: choice
+        default: verify
+        options:
+          - verify
+          - tag-and-create-draft
+          - create-draft
+          - publish-draft
+      fallow-base:
+        description: "Base branch for the changed-code Fallow release audit"
+        required: false
+        type: string
+        default: development
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  gate:
+    name: Release gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${{ inputs.action }}" in
+            verify|tag-and-create-draft)
+              tag_policy=()
+              ;;
+            create-draft|publish-draft)
+              tag_policy=(--require-existing-tag)
+              ;;
+            *)
+              echo "Unknown release action: ${{ inputs.action }}" >&2
+              exit 1
+              ;;
+          esac
+
+          npm run release:verify -- --version "${{ inputs.version }}" "${tag_policy[@]}"
+
+      - name: Quality gate
+        run: npm run check
+
+      - name: Production build
+        run: npm run build:ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Full release browser gate
+        run: npm run test:browser:release
+
+      - name: Fallow release audit
+        env:
+          FALLOW_AGENT_SOURCE: github_actions
+        run: npm run --silent fallow:audit -- --base origin/${{ inputs.fallow-base }} --gate all
+
+  release:
+    name: Production release action
+    needs: gate
+    if: inputs.action != 'verify'
+    runs-on: ubuntu-latest
+    environment: production-release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Production releases must run from main. Current ref: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Configure Git
+        if: inputs.action == 'tag-and-create-draft'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push release tag
+        if: inputs.action == 'tag-and-create-draft'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.version }}"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
+
+      - name: Create draft GitHub Release
+        if: inputs.action == 'tag-and-create-draft' || inputs.action == 'create-draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.version }}"
+          notes="docs/releases/${tag}.md"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub Release already exists for $tag" >&2
+            exit 1
+          fi
+
+          gh release create "$tag" \
+            --draft \
+            --verify-tag \
+            --title "$tag" \
+            --notes-file "$notes"
+
+      - name: Publish existing draft GitHub Release
+        if: inputs.action == 'publish-draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ inputs.version }}" --draft=false --latest

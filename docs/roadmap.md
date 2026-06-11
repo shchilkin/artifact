@@ -26,7 +26,9 @@ Current planning status:
   contextual `Copy` creates a branch without writing service metadata into
   `CanvasDocument`. It also adds `/projects` as a first-class local workspace
   page for browsing saved browser projects and recovery copies before opening
-  them in the editor.
+  them in the editor. Release metadata verification and the manual production
+  release workflow now treat `main` as the future production release branch
+  while keeping tags and GitHub Releases explicit.
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
