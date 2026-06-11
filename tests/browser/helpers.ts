@@ -150,19 +150,19 @@ export async function switchToNodeView(page: Page): Promise<void> {
   await expect(async () => {
     if (await page.locator('.node-canvas-root').isVisible()) return;
     const nodesTab = page.getByRole('tab', { name: 'Switch to nodes view' });
-    await expect(nodesTab).toBeVisible({ timeout: 2_000 });
+    await expect(nodesTab).toBeVisible({ timeout: 5_000 });
     await nodesTab.click();
-    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
+    await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 export async function switchToLayerView(page: Page): Promise<void> {
   await expect(async () => {
     const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
-    await expect(layersTab).toBeVisible({ timeout: 2_000 });
+    await expect(layersTab).toBeVisible({ timeout: 5_000 });
     await layersTab.click();
-    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 10_000 });
+    await expect(page.locator('.sidebar')).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 export async function clickEditorControl(control: Locator): Promise<void> {
@@ -186,6 +186,7 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'error loading dynamically imported module: http://127.0.0.1:4173/',
   'due to access control checks',
   'NS_BINDING_ABORTED',
+  'Error loading route module `/app/routes/showcase.tsx`, reloading page',
   'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
 ];
 

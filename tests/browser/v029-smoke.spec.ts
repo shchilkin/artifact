@@ -22,10 +22,14 @@ test.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 
 test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
   await page.goto('/showcase');
+  await expect(page.getByRole('heading', { name: 'Made in Artifact.' })).toBeVisible({ timeout: 15_000 });
 
-  await clickEditorControl(
-    page.getByRole('navigation', { name: 'Site navigation' }).getByRole('link', { name: 'Open editor', exact: true }),
-  );
+  const openEditorLink = page
+    .getByRole('navigation', { name: 'Site navigation' })
+    .getByRole('link', { name: 'Open editor', exact: true });
+  await expect(openEditorLink).toBeVisible({ timeout: 15_000 });
+  await expect(openEditorLink).toHaveAttribute('href', '/app?new=blank');
+  await openEditorLink.click();
 
   await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/, { timeout: 10_000 });
   await expectBlankEditor(page);
