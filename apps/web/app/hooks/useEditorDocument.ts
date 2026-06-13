@@ -6,14 +6,17 @@ import {
   type CanvasGraph,
   type EffectPreset,
   type GraphColorNode,
+  type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphScene3DNode,
   type GraphTransformNode,
   type ImageLayer,
   type Layer,
   type LayerKind,
+  type ModelLayer,
 } from '../types/config';
 import type { AddAction } from '../utils/addActions';
 import { type ArrayPresetId, makeArrayPresetLayer } from '../utils/arrayPresets';
@@ -24,6 +27,7 @@ import {
   stripPortableDocumentAssets,
 } from '../utils/documentAssets';
 import {
+  addEnvironmentMapToDocument,
   addLayerToDocument,
   addLooseLayerNodeToDocument,
   addNodeAtDocument,
@@ -32,6 +36,7 @@ import {
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
+  createModelLayerFromAsset,
   createTextPresetLayer,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
@@ -43,11 +48,13 @@ import {
   setDocumentSeed,
   updateColorNodeInDocument,
   updateDocumentExportConfig,
+  updateEnvironmentNodeInDocument,
   updateGrimeShadowNodeInDocument,
   updateLayerInDocument,
   updateMaskNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
+  updateScene3DNodeInDocument,
   updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
@@ -363,6 +370,30 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [nodeModeEnabled, updateDocument],
   );
 
+  const addModelFromAsset = useCallback(
+    (asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>) => {
+      const layer = createModelLayerFromAsset({
+        src: asset.modelSrc,
+        name: asset.modelName,
+        mime: asset.modelMime,
+        bytes: asset.modelBytes,
+      });
+      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      setSelectedLayerId(layer.id);
+    },
+    [updateDocument],
+  );
+
+  const addEnvironmentFromAsset = useCallback(
+    (
+      asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
+      nodePosition?: { x: number; y: number },
+    ) => {
+      updateDocument((current) => addEnvironmentMapToDocument(current, asset, nodePosition).doc, 'snapshot');
+    },
+    [updateDocument],
+  );
+
   const removeLayer = useCallback(
     (id: string) => {
       updateDocument((current) => removeLayerFromDocument(current, id), 'snapshot');
@@ -439,6 +470,20 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const updateGrimeShadowNode = useCallback(
     (id: string, patch: Partial<GraphGrimeShadowNode>) => {
       updateDocument((current) => updateGrimeShadowNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
+  const updateScene3DNode = useCallback(
+    (id: string, patch: Partial<GraphScene3DNode>) => {
+      updateDocument((current) => updateScene3DNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
+  const updateEnvironmentNode = useCallback(
+    (id: string, patch: Partial<GraphEnvironmentNode>) => {
+      updateDocument((current) => updateEnvironmentNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
@@ -531,6 +576,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     addArrayPreset,
     insertLayerAbove,
     addImageFromSource,
+    addModelFromAsset,
+    addEnvironmentFromAsset,
     removeLayer,
     deleteNodeSelection,
     updateLayer,
@@ -541,6 +588,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     updateMaskNode,
     updateTransformNode,
     updateGrimeShadowNode,
+    updateScene3DNode,
+    updateEnvironmentNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,

@@ -13,6 +13,7 @@ import type { LayerTransformPatch, TransformableLayer } from '../nodes/useLayerT
 import type { LayerNodeData } from '../types';
 import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
 import { getLiveImageSource, shouldResolveLiveImageSource, shouldUseLiveMediaOverlay } from './liveMediaOverlayMode';
+import { ModelPreviewSurface } from './ModelPreviewSurface';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
 import { useNativeTransformWheel } from './useNativeTransformWheel';
@@ -428,6 +429,15 @@ function primitiveLayerPreviewSurface({
   );
 }
 
+function modelLayerPreviewSurface({
+  layer,
+  selected,
+  primitiveViewState,
+}: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected' | 'primitiveViewState'>) {
+  if (layer.kind !== 'model') return null;
+  return <ModelPreviewSurface layer={layer} selected={selected} modelViewState={primitiveViewState} />;
+}
+
 function GalleryLayerPreviewSurface({
   layer,
   previewTargetId,
@@ -538,6 +548,12 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
     primitiveRenderMode,
   });
   if (primitiveSurface) return primitiveSurface;
+  const modelSurface = modelLayerPreviewSurface({
+    layer,
+    selected,
+    primitiveViewState,
+  });
+  if (modelSurface) return modelSurface;
   if (isGalleryEligibleLayer(layer)) {
     return (
       <GalleryLayerPreviewSurface

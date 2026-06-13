@@ -31,8 +31,8 @@ export interface UsePrimitiveCameraStateResult {
   updatePrimitiveView: (id: string, viewState: PrimitiveViewportState) => void;
   /** Mark a primitive viewport as the active gesture target (or release it). */
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
-  /** Return the effective view state for a layer, falling back to its default. */
-  getPrimitiveViewState: (layer: Extract<Layer, { kind: 'primitive' }>) => PrimitiveViewportState;
+  /** Return the effective 3D view state for a primitive or model layer, falling back to its default. */
+  getPrimitiveViewState: (layer: Extract<Layer, { kind: 'primitive' | 'model' }>) => PrimitiveViewportState;
   /** Toggle the locked flag for a single layer's camera. */
   setPrimitiveCameraLocked: (id: string, locked: boolean) => void;
   /** Reset a layer's camera to its tiltX/tiltY default while preserving the locked flag. */
@@ -99,9 +99,7 @@ export function usePrimitiveCameraState({
     [initialPrimitiveViewStates, onPrimitiveViewStatesChange, uncontrolledPrimitiveViewStates],
   );
 
-  const primitiveViewportLockActive =
-    activePrimitiveViewportId !== null &&
-    layers.some((layer) => layer.id === activePrimitiveViewportId && layer.kind === 'primitive');
+  const primitiveViewportLockActive = activePrimitiveViewportId !== null;
 
   const updatePrimitiveView = useCallback(
     (id: string, viewState: PrimitiveViewportState) => {
@@ -122,7 +120,7 @@ export function usePrimitiveCameraState({
   }, []);
 
   const getPrimitiveViewState = useCallback(
-    (layer: Extract<Layer, { kind: 'primitive' }>): PrimitiveViewportState => {
+    (layer: Extract<Layer, { kind: 'primitive' | 'model' }>): PrimitiveViewportState => {
       return primitiveViewStates[layer.id] ?? defaultPrimitiveViewportState(layer);
     },
     [primitiveViewStates],

@@ -10,6 +10,7 @@ import {
   TINT_PRESETS,
   WARP_PRESETS,
 } from '../constants';
+import { NoPan } from '../nodes/NoPan';
 import type { EffectSectionId } from '../types';
 import { effectSectionSummary } from './effectSectionModel';
 import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields';
@@ -17,6 +18,14 @@ import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields
 type EffectStringField = {
   [K in keyof EffectLayer]: EffectLayer[K] extends string ? K : never;
 }[keyof EffectLayer];
+
+type IndexedColorField =
+  | 'indexedColorA'
+  | 'indexedColorB'
+  | 'indexedColorC'
+  | 'indexedColorD'
+  | 'indexedColorE'
+  | 'indexedColorF';
 
 export type EffectSliderValueFormat = 'number' | 'percent' | 'px' | 'deg' | 'bands' | 'steps';
 
@@ -65,6 +74,37 @@ export function formatEffectSliderValue(value: number, format: EffectSliderValue
     default:
       return rounded;
   }
+}
+
+const INDEXED_COLOR_FIELDS = [
+  'indexedColorA',
+  'indexedColorB',
+  'indexedColorC',
+  'indexedColorD',
+  'indexedColorE',
+  'indexedColorF',
+] as const satisfies readonly IndexedColorField[];
+
+const INDEXED_PALETTE_BANK: readonly (readonly string[])[] = [
+  ['#09001f', '#341052', '#852158', '#df3b33', '#ffd65a', '#fff1df'],
+  ['#070611', '#392044', '#80515e', '#d58b62', '#f1d17d', '#f6f0cf'],
+  ['#031d2d', '#07646d', '#37a77a', '#c8db64', '#fff07a', '#fff7db'],
+  ['#150033', '#4b128b', '#b62280', '#ff3c4f', '#ffb531', '#fff0c7'],
+  ['#03020b', '#20264a', '#5f3b78', '#b15d72', '#f2a45f', '#f8e7ca'],
+  ['#100019', '#372457', '#6e4e82', '#ad7fa4', '#e4c5d9', '#f7efe8'],
+  ['#061015', '#243b32', '#687348', '#b7a64b', '#f0d767', '#fff6d7'],
+  ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'],
+];
+
+export function activeIndexedPaletteCount(layer: Pick<EffectLayer, 'indexedPaletteCount'>): number {
+  return Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
+}
+
+export function randomIndexedPalettePatch(random: () => number = Math.random): Partial<EffectLayer> {
+  const palette = INDEXED_PALETTE_BANK[Math.floor(random() * INDEXED_PALETTE_BANK.length)] ?? INDEXED_PALETTE_BANK[0];
+  return Object.fromEntries(
+    INDEXED_COLOR_FIELDS.map((field, index) => [field, palette[index] ?? '#000000']),
+  ) as Partial<EffectLayer>;
 }
 
 export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
@@ -183,6 +223,43 @@ export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
         min: 0,
         max: 50,
         overrideMax: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['dotGrain'],
+        label: 'Dot Grain',
+        field: 'dotGrain',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['dotGrain'],
+        label: 'Dot Size',
+        field: 'dotGrainSize',
+        min: 1,
+        max: 9,
+        overrideMax: 18,
+        valueFormat: 'px',
+      },
+      {
+        type: 'slider',
+        presets: ['dotGrain'],
+        label: 'Density',
+        field: 'dotGrainDensity',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['dotGrain'],
+        label: 'Jitter',
+        field: 'dotGrainJitter',
+        min: 0,
+        max: 100,
         valueFormat: 'percent',
       },
       {
@@ -372,6 +449,16 @@ export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
       },
       {
         type: 'slider',
+        presets: ['retroResolution'],
+        label: 'Longest Edge',
+        field: 'retroResolution',
+        min: 64,
+        max: 512,
+        overrideMax: 1024,
+        valueFormat: 'px',
+      },
+      {
+        type: 'slider',
         presets: ['pixelate'],
         label: 'Block Size',
         field: 'pixelate',
@@ -389,6 +476,30 @@ export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
         max: 16,
         valueFormat: 'bands',
       },
+      {
+        type: 'slider',
+        presets: ['indexedPalette'],
+        label: 'Palette Mix',
+        field: 'indexedPalette',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['indexedPalette'],
+        label: 'Color Count',
+        field: 'indexedPaletteCount',
+        min: 2,
+        max: 6,
+        valueFormat: 'steps',
+      },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 1', field: 'indexedColorA' },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 2', field: 'indexedColorB' },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 3', field: 'indexedColorC' },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 4', field: 'indexedColorD' },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 5', field: 'indexedColorE' },
+      { type: 'color', presets: ['indexedPalette'], label: 'Color 6', field: 'indexedColorF' },
       { type: 'slider', presets: ['sepia'], label: 'Sepia', field: 'sepia', min: 0, max: 100, valueFormat: 'percent' },
       {
         type: 'slider',
@@ -520,6 +631,15 @@ export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
       },
       {
         type: 'slider',
+        presets: ['edgeCrush'],
+        label: 'Edge Crush',
+        field: 'edgeCrush',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
         presets: ['edgeDetect'],
         label: 'Linework',
         field: 'edgeDetect',
@@ -596,6 +716,82 @@ function renderControl(control: EffectControl, props: Props) {
   );
 }
 
+function isIndexedPaletteControl(control: EffectControl): boolean {
+  return control.presets.includes('indexedPalette');
+}
+
+function isIndexedPaletteColorControl(
+  control: EffectControl,
+): control is EffectColorControl & { field: IndexedColorField } {
+  return control.type === 'color' && (INDEXED_COLOR_FIELDS as readonly string[]).includes(control.field);
+}
+
+function renderIndexedPaletteControls(section: EffectSectionDefinition, props: Props) {
+  const { layer, onChange } = props;
+  const activeCount = activeIndexedPaletteCount(layer);
+  const sliders = section.controls.filter((control) => control.type === 'slider' && isIndexedPaletteControl(control));
+  const colors = section.controls.filter(isIndexedPaletteColorControl);
+  return (
+    <>
+      {sliders.map((control) => renderControl(control, props))}
+      <div className="indexed-palette-panel">
+        <div className="indexed-palette-panel-head">
+          <div className="indexed-palette-panel-copy">
+            <span className="node-inspector-label">Active swatches</span>
+            <span className="indexed-palette-panel-note">
+              {activeCount} of 6 map pixels; parked colors are ignored.
+            </span>
+          </div>
+          <NoPan
+            as="button"
+            type="button"
+            className="node-inspector-action indexed-palette-random"
+            onClick={() => onChange(randomIndexedPalettePatch())}
+          >
+            Rand colors
+          </NoPan>
+        </div>
+        <div className="indexed-palette-strip" aria-label={`${activeCount} active indexed palette colors`}>
+          {INDEXED_COLOR_FIELDS.map((field, index) => {
+            const active = index < activeCount;
+            return (
+              <span
+                key={field}
+                className={`indexed-palette-strip-swatch${active ? ' indexed-palette-strip-swatch-active' : ''}`}
+                style={{ backgroundColor: String(layer[field]) }}
+                title={`${active ? 'Active' : 'Parked'} color ${index + 1}`}
+              />
+            );
+          })}
+        </div>
+      </div>
+      {colors.map((control, index) => (
+        <InspectorColorInput
+          key={control.field}
+          label={`${control.label} ${index < activeCount ? 'active' : 'parked'}`}
+          value={String(layer[control.field])}
+          inactive={index >= activeCount}
+          onChange={(value) => onChange({ [control.field]: value } as Partial<EffectLayer>)}
+        />
+      ))}
+    </>
+  );
+}
+
+function renderSectionControls(section: EffectSectionDefinition, props: Props) {
+  if (section.id === 'color' && props.layer.preset === 'indexedPalette') {
+    return (
+      <>
+        {section.controls
+          .filter((control) => !isIndexedPaletteControl(control))
+          .map((control) => renderControl(control, props))}
+        {renderIndexedPaletteControls(section, props)}
+      </>
+    );
+  }
+  return section.controls.map((control) => renderControl(control, props));
+}
+
 export function EffectControlSections(props: Props) {
   const { layer, openSection, setOpenSection, showSection } = props;
 
@@ -612,7 +808,7 @@ export function EffectControlSections(props: Props) {
             open={openSection === section.id}
             onToggle={() => setOpenSection((current) => (current === section.id ? null : section.id))}
           >
-            {section.controls.map((control) => renderControl(control, props))}
+            {renderSectionControls(section, props)}
           </InspectorSection>
         );
       })}

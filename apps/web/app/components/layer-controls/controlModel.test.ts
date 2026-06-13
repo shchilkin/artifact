@@ -30,6 +30,16 @@ describe('layer control model', () => {
     expect(layerHasPlacementControls(makeSourceLayer('array'))).toBe(true);
   });
 
+  it('keeps imported model framing out of durable placement controls', () => {
+    expect(getLayerControlSections(makeSourceLayer('model')).map((section) => section.id)).toEqual([
+      'content',
+      'structure',
+      'style',
+    ]);
+    expect(getLayerControlSections(makeSourceLayer('model')).map((section) => section.title)).toContain('Model');
+    expect(layerHasPlacementControls(makeSourceLayer('model'))).toBe(false);
+  });
+
   it('models effect controls as their own inspector surface', () => {
     expect(getLayerControlSections(makeEffectPresetLayer('grain'))).toEqual([{ id: 'effect', title: 'Effect' }]);
   });

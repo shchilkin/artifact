@@ -33,7 +33,7 @@ export function useEditorPrimitiveExportState({
       const graph = currentDoc.graph ?? inferLinearGraph(currentDoc.layers);
       const currentPersisted = graph.primitiveViewStates ?? {};
       if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
-      onGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers) });
+      onGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) });
     },
     [docRef, onGraphChange],
   );
@@ -48,11 +48,15 @@ export function useEditorPrimitiveExportState({
   };
 }
 
-function prunePrimitiveViewStates(
+export function prunePrimitiveViewStates(
   viewStates: Record<string, PrimitiveViewportState>,
   layers: Array<{ id: string; kind: string }>,
+  graph: Pick<CanvasGraph, 'scene3dNodes'>,
 ) {
-  const primitiveIds = new Set(layers.filter((layer) => layer.kind === 'primitive').map((layer) => layer.id));
-  const entries = Object.entries(viewStates).filter(([id]) => primitiveIds.has(id));
+  const viewportIds = new Set([
+    ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
+    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+  ]);
+  const entries = Object.entries(viewStates).filter(([id]) => viewportIds.has(id));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

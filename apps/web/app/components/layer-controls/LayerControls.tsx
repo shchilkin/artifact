@@ -91,7 +91,7 @@ type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
 type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
 type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
 
-const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array', 'lineField']);
+const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array', 'lineField', 'model']);
 
 function PlacementResetButton({ onClick }: { onClick: () => void }) {
   return (
@@ -292,6 +292,7 @@ function sourceColorLabels(layer: SourceLayer): {
   secondary: string;
 } {
   if (layer.kind === 'primitive') return { primary: 'Material', secondary: 'Light' };
+  if (layer.kind === 'model') return { primary: 'Material', secondary: 'Light' };
   if (layer.kind === 'noise') return { primary: 'Shadow', secondary: 'Main' };
   return { primary: 'Base', secondary: 'Accent' };
 }
@@ -627,6 +628,7 @@ const SOURCE_SURFACE_NOTES: Partial<
     'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.',
   noise: 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.',
   lineField: 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.',
+  model: 'Model framing is node-owned. GLB rendering will use the source viewport path as this node matures.',
 };
 
 function sourceContentFallback(layer: SourceLayer): LayerControlSection {
@@ -995,6 +997,26 @@ function LineFieldStructureControls({
   );
 }
 
+function ModelStructureControls({ layer }: { layer: SourceLayer }) {
+  if (layer.kind !== 'model') return null;
+  return (
+    <>
+      <div className="node-inspector-control">
+        <InspectorLabel>Asset</InspectorLabel>
+        <p className="node-inspector-note">{layer.modelName || 'Imported model'}</p>
+      </div>
+      <div className="node-inspector-control">
+        <InspectorLabel>Format</InspectorLabel>
+        <p className="node-inspector-note">{layer.modelMime || 'model/gltf-binary'}</p>
+      </div>
+      <div className="node-inspector-control">
+        <InspectorLabel>Size</InspectorLabel>
+        <p className="node-inspector-note">{Math.max(0, Math.round(layer.modelBytes / 1024))} KB</p>
+      </div>
+    </>
+  );
+}
+
 function SourceStructureControls({
   layer,
   surface,
@@ -1008,6 +1030,7 @@ function SourceStructureControls({
     return <PrimitiveStructureControls layer={layer} surface={surface} onChange={onChange} />;
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
+  if (layer.kind === 'model') return <ModelStructureControls layer={layer} />;
   return <ArrayStructureControls layer={layer} onChange={onChange} />;
 }
 
@@ -1048,7 +1071,7 @@ function SourceLayerControls({
         onChange={onChange}
       />
       <InspectorSection
-        title={layer.kind === 'primitive' ? 'Structure' : 'Pattern'}
+        title={layer.kind === 'primitive' ? 'Structure' : layer.kind === 'model' ? 'Model' : 'Pattern'}
         summary={structureSummary(layer)}
         open={openSection === 'structure'}
         onToggle={() => toggleOpenSection(setOpenSection, 'structure', 'style')}
@@ -1120,6 +1143,7 @@ function sourceSummary(layer: SourceLayer) {
   if (layer.kind === 'primitive') return `${layer.primitiveShape} form`;
   if (layer.kind === 'noise') return `${layer.noiseType} texture`;
   if (layer.kind === 'lineField') return `${layer.lineFieldOrientation} lines`;
+  if (layer.kind === 'model') return layer.modelName || '3D model';
   return `${layer.arrayPattern} repeat`;
 }
 
@@ -1131,6 +1155,7 @@ const SOURCE_STRUCTURE_SUMMARY = {
   primitive: (layer: Extract<SourceLayer, { kind: 'primitive' }>) => `${layer.primitiveShading ?? 'smooth'} shading`,
   noise: (layer: Extract<SourceLayer, { kind: 'noise' }>) => `${Math.round(layer.noiseScale)} scale`,
   lineField: (layer: Extract<SourceLayer, { kind: 'lineField' }>) => `${Math.round(layer.lineFieldCount)} lines`,
+  model: (layer: Extract<SourceLayer, { kind: 'model' }>) => `${Math.max(0, Math.round(layer.modelBytes / 1024))} KB`,
   array: (layer: Extract<SourceLayer, { kind: 'array' }>) => `${Math.round(layer.arrayCount)} items`,
 };
 

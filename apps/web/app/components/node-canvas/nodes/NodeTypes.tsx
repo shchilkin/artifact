@@ -4,17 +4,21 @@ import { memo } from 'react';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
+import { EnvironmentPreviewSurface } from '../thumbnails/EnvironmentPreviewSurface';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
+import { Scene3DPreviewSurface } from '../thumbnails/Scene3DPreviewSurface';
 import { TransformPreviewSurface } from '../thumbnails/TransformPreviewSurface';
 import type {
   ColorNodeData,
+  EnvironmentNodeData,
   ExportNodeData,
   GrimeShadowNodeData,
   LayerNodeData,
   MaskNodeData,
   MergeNodeData,
   RepeatNodeData,
+  Scene3DNodeData,
   TransformNodeData,
 } from '../types';
 import { NodeFrame } from './NodeFrame';
@@ -44,7 +48,9 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
       onDragHandlePointerDown={
-        layer.kind === 'primitive' ? () => setPrimitiveViewportActive(layer.id, false) : undefined
+        layer.kind === 'primitive' || layer.kind === 'model'
+          ? () => setPrimitiveViewportActive(layer.id, false)
+          : undefined
       }
       deleteDisabled={layer.locked}
     >
@@ -254,6 +260,92 @@ export const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
       <PortRow
         inputs={[{ label: 'source', portId: 'in', nodeId: grimeShadowNode.id }]}
         outputs={[{ label: 'result', portId: 'out', nodeId: grimeShadowNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }: NodeProps<Scene3DNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const {
+    scene3dNode,
+    previewTargetId,
+    modelPreviewTargetId,
+    modelLayer,
+    backdropPreviewTargetId,
+    environmentPreviewTargetId,
+    environmentSource,
+    sceneViewState,
+    selected,
+    outputPath,
+    editing,
+    connected,
+  } = data;
+
+  return (
+    <NodeFrame
+      id={scene3dNode.id}
+      kind="scene3d"
+      label="3d scene"
+      name={scene3dNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[
+        { id: 'model', top: '30%' },
+        { id: 'env', top: '50%' },
+        { id: 'bg', top: '70%' },
+      ]}
+      onSelect={(event) => selectNode(scene3dNode.id, event)}
+      onDelete={() => deleteNode(scene3dNode.id)}
+    >
+      <Scene3DPreviewSurface
+        scene3dNode={scene3dNode}
+        selected={selected}
+        previewTargetId={previewTargetId}
+        modelLayer={modelLayer}
+        sceneViewState={sceneViewState}
+        backdropPreviewTargetId={backdropPreviewTargetId}
+        environmentPreviewTargetId={environmentPreviewTargetId}
+        environmentSource={environmentSource}
+      />
+      <PortRow
+        inputs={[
+          { label: modelPreviewTargetId ? 'model' : 'model required', portId: 'model', nodeId: scene3dNode.id },
+          { label: 'environment', portId: 'env', nodeId: scene3dNode.id },
+          { label: 'backdrop', portId: 'bg', nodeId: scene3dNode.id },
+        ]}
+        outputs={[{ label: 'render', portId: 'out', nodeId: scene3dNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
+  data,
+}: NodeProps<EnvironmentNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { environmentNode, selected, outputPath, editing, connected } = data;
+
+  return (
+    <NodeFrame
+      id={environmentNode.id}
+      kind="environment"
+      label="env map"
+      name={environmentNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[]}
+      onSelect={(event) => selectNode(environmentNode.id, event)}
+      onDelete={() => deleteNode(environmentNode.id)}
+    >
+      <EnvironmentPreviewSurface environmentNode={environmentNode} />
+      <PortRow
+        inputs={[]}
+        outputs={[{ label: 'environment', portId: 'out', nodeId: environmentNode.id }]}
         connected={connected}
       />
     </NodeFrame>

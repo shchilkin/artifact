@@ -1,8 +1,10 @@
 export { ColorInspector } from './ColorInspector';
+export { EnvironmentInspector } from './EnvironmentInspector';
 export { ExportInspector } from './ExportInspector';
 export { GrimeShadowInspector } from './GrimeShadowInspector';
 export { LayerInspector } from './LayerInspector';
 export { MaskInspector } from './MaskInspector';
 export { MergeInspector } from './MergeInspector';
 export { RepeatInspector } from './RepeatInspector';
+export { Scene3DInspector } from './Scene3DInspector';
 export { TransformInspector } from './TransformInspector';

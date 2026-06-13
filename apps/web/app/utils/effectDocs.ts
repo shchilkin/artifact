@@ -13,7 +13,7 @@ export interface EffectDocInfo {
 export const EFFECT_FAMILY_GUIDE = [
   {
     name: 'Texture',
-    desc: 'Grain, scanlines, matte, dither, emboss, and linocut add physical surface before or after image sources.',
+    desc: 'Grain, dot grain, scanlines, matte, dither, emboss, and linocut add physical surface before or after image sources.',
   },
   {
     name: 'Distortion',
@@ -21,15 +21,15 @@ export const EFFECT_FAMILY_GUIDE = [
   },
   {
     name: 'Color',
-    desc: 'Tint, hue shift, duotone, infrared, sepia, cyanotype, split tone, and gradient overlay reshape palette.',
+    desc: 'Tint, hue shift, indexed palette, duotone, infrared, sepia, cyanotype, split tone, and gradient overlay reshape palette.',
   },
   {
     name: 'Print',
-    desc: 'Halftone, riso shift, overprint, posterize, threshold, and linocut push artwork toward poster production.',
+    desc: 'Halftone, riso shift, overprint, posterize, threshold, edge crush, and linocut push artwork toward poster production.',
   },
   {
     name: 'Signal Damage',
-    desc: 'Glitch, interlace, data mosh, RGB split, chromatic aberration, VHS tracking, and pixelate create media failure.',
+    desc: 'Glitch, interlace, data mosh, RGB split, chromatic aberration, VHS tracking, retro resolution, and pixelate create media failure.',
   },
 ] as const;
 
@@ -66,6 +66,15 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     description:
       'Photographic overlay grain across the full frame. For editable texture branches, use a Noise source set to Film Grain.',
     params: [{ key: 'grain', range: '0-50 slider, 0-100 manual amount' }],
+  },
+  dotGrain: {
+    description: 'Round tone-aware stipple dots for old-render shadows and PS-era texture.',
+    params: [
+      { key: 'dotGrain', range: '0-100 amount' },
+      { key: 'dotGrainSize', range: '1-18px manual dot size' },
+      { key: 'dotGrainDensity', range: '0-100' },
+      { key: 'dotGrainJitter', range: '0-100' },
+    ],
   },
   scanlines: {
     description: 'CRT phosphor bands with adjustable opacity and thickness.',
@@ -117,6 +126,11 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     description: 'Corner darkening that pulls the eye to center.',
     params: [{ key: 'vignette', range: '0-100' }],
   },
+  retroResolution: {
+    description:
+      'Renders the upstream branch at a fixed low internal resolution in base cover pixels, then nearest-upscales it. Unlike Pixelate, export scale does not change the apparent pixel grid.',
+    params: [{ key: 'retroResolution', range: '64-512px slider, 0 disables, 1024px manual base longest edge' }],
+  },
   pixelate: {
     description: 'Downscale then upscale the whole image for a deliberate low-resolution block treatment.',
     params: [{ key: 'pixelate', range: '0-20px slider, 0-80px manual block size' }],
@@ -124,6 +138,14 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   posterize: {
     description: 'Quantize color values to a fixed step count.',
     params: [{ key: 'posterize', range: '0-20' }],
+  },
+  indexedPalette: {
+    description: 'Map visible pixels to the nearest color in a small editable palette while preserving transparency.',
+    params: [
+      { key: 'indexedPalette', range: '0-100 palette mix' },
+      { key: 'indexedPaletteCount', range: '2-6 active colors' },
+      { key: 'indexedColorA-F', range: 'hex swatches' },
+    ],
   },
   duotone: {
     description: 'Map luminance to two chosen colors.',
@@ -153,6 +175,10 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   edgeDetect: {
     description: 'Find contrast boundaries and blend them back as grayscale contour linework.',
     params: [{ key: 'edgeDetect', range: '0-100 linework mix' }],
+  },
+  edgeCrush: {
+    description: 'Crush semi-transparent antialiasing into hard alpha edges for jagged sprite-like silhouettes.',
+    params: [{ key: 'edgeCrush', range: '0-100 alpha edge hardening' }],
   },
   gradientOverlay: {
     description: 'Directional two-color ramp blended over the source while preserving source alpha.',

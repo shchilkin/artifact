@@ -3,14 +3,18 @@ import type {
   CanvasGraph,
   EffectLayer,
   GraphColorNode,
+  GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphScene3DNode,
   GraphTransformNode,
   Layer,
+  ModelLayer,
 } from '../../types/config';
 import { lcg } from '../lcg';
+import { renderModelSceneToCanvas } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
@@ -25,7 +29,11 @@ export interface GraphRenderCache {
   limit?: number;
 }
 
-function findIncomingSource(graph: CanvasGraph, toId: string, toPort: 'in' | 'bg' | 'a' | 'b' | 'mask'): string | null {
+function findIncomingSource(
+  graph: CanvasGraph,
+  toId: string,
+  toPort: CanvasGraph['edges'][number]['toPort'],
+): string | null {
   const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
   return edge?.fromId ?? null;
 }
@@ -54,8 +62,22 @@ function findGrimeShadowNode(graph: CanvasGraph, nodeId: string): GraphGrimeShad
   return (graph.grimeShadowNodes ?? []).find((node) => node.id === nodeId);
 }
 
+function findScene3DNode(graph: CanvasGraph, nodeId: string): GraphScene3DNode | undefined {
+  return (graph.scene3dNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function findEnvironmentNode(graph: CanvasGraph, nodeId: string): GraphEnvironmentNode | undefined {
+  return (graph.environmentNodes ?? []).find((node) => node.id === nodeId);
+}
+
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
+}
+
+function findModelLayer(doc: CanvasDocument, nodeId: string | null): ModelLayer | null {
+  if (!nodeId) return null;
+  const layer = findLayer(doc, nodeId);
+  return layer?.kind === 'model' ? layer : null;
 }
 
 interface GpuEffectChain {
@@ -636,6 +658,40 @@ async function renderGrimeShadowGraphNode(nodeId: string, context: GraphNodeRend
   return applyGrimeShadowNode(source, grimeShadowNode, context.doc.global.seed, context.W, context.H);
 }
 
+async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const sceneNode = findScene3DNode(context.graph, nodeId);
+  if (!sceneNode) return null;
+  const { doc, graph, W, H, options, renderDependency } = context;
+  const modelLayer = findModelLayer(doc, findIncomingSource(graph, nodeId, 'model'));
+  const environmentId = findIncomingSource(graph, nodeId, 'env');
+  const backdropId = findIncomingSource(graph, nodeId, 'bg');
+  const environmentNode = environmentId ? findEnvironmentNode(graph, environmentId) : undefined;
+  const environmentCanvas = environmentId && !environmentNode ? await renderDependency(environmentId) : null;
+  const backdropCanvas = backdropId ? await renderDependency(backdropId) : null;
+  throwIfRenderAborted(options);
+  if (!modelLayer) {
+    const fallback = backdropCanvas ? cloneCanvas(backdropCanvas, W, H) : createCanvas(W, H);
+    return fallback;
+  }
+  return renderModelSceneToCanvas(
+    modelLayer,
+    sceneNode,
+    { width: W, height: H },
+    options.primitiveViewStates?.[sceneNode.id],
+    {
+      forceFallback: options.draft,
+      environmentCanvas,
+      environmentSource: environmentNode?.environmentSrc ?? null,
+      backdropCanvas,
+    },
+  );
+}
+
+async function renderEnvironmentGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  if (!findEnvironmentNode(context.graph, nodeId)) return null;
+  return createCanvas(context.W, context.H);
+}
+
 async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderContext) {
   const sourceId = findIncomingSource(context.graph, nodeId, 'in');
   const source = sourceId ? await context.renderDependency(sourceId) : createCanvas(context.W, context.H);
@@ -662,7 +718,11 @@ function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
 }
 
 function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOptions {
-  return layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array' || layer.kind === 'lineField'
+  return layer.kind === 'primitive' ||
+    layer.kind === 'noise' ||
+    layer.kind === 'array' ||
+    layer.kind === 'lineField' ||
+    layer.kind === 'model'
     ? { ...options, sourceLayout: 'full-frame' as const }
     : options;
 }
@@ -687,6 +747,8 @@ const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [
   renderMaskGraphNode,
   renderTransformGraphNode,
   renderGrimeShadowGraphNode,
+  renderEnvironmentGraphNode,
+  renderScene3DGraphNode,
 ];
 
 async function renderGraphNodeUncached(nodeId: string, context: GraphNodeRenderContext) {

@@ -64,4 +64,27 @@ describe('transformEffectPixels', () => {
   it('keeps fog output visible and alpha-preserving', () => {
     expectVisibleAlphaPreservingTransform(transformFixturePixels([{ type: 'fog', amount: 80, color: '#ddeeff' }]));
   });
+
+  it('maps visible pixels to the nearest indexed palette color', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray([250, 20, 20, 255, 20, 20, 240, 255]),
+      operations: [{ type: 'indexedPalette', amount: 100, colors: ['#ff0000', '#0000ff'] }],
+    });
+
+    expect(Array.from(result.data)).toEqual([255, 0, 0, 255, 0, 0, 255, 255]);
+  });
+
+  it('hardens partial alpha for edge crush while preserving opaque pixels', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray([10, 20, 30, 60, 80, 90, 100, 255]),
+      operations: [{ type: 'edgeCrush', amount: 100 }],
+    });
+
+    expect(result.data[3]).toBe(0);
+    expect(result.data[7]).toBe(255);
+  });
 });

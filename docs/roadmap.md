@@ -19,6 +19,11 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.36 planning has started as a post-v0.35 follow-up for 3D model source
+  nodes and retro-game finishing effects. The plan is intentionally dependency
+  aware because the in-progress v0.35 worktree changes the same document,
+  renderer, Add Library, node canvas, docs, examples, and browser-test surfaces.
+  See [`version-plans/v0.36.md`](./version-plans/v0.36.md).
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
@@ -182,6 +187,11 @@ Recently shipped:
 
 Next strong candidates after v0.34:
 
+- **3D Model Sources And Retro Game Effects** — add a supported browser model
+  import path, model source nodes, local model asset persistence, and the
+  missing PS1/old-console finishing effects: internal low-resolution upscale,
+  indexed palette mapping, stronger dither variants, and hard pixel-edge
+  treatment.
 - **Project Autosave History** — add visible automatic save points for the
   active project so recovery, autosave, explicit save, and copy/branch behavior
   are clearly separated.

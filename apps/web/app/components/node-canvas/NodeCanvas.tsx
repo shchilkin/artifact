@@ -25,6 +25,7 @@ import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
+import { ModelViewport3D } from '../ModelViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
@@ -51,12 +52,14 @@ import { PaneContextMenu } from './menus/PaneContextMenu';
 import type { NodeAlignmentGuide } from './nodeAlignment';
 import {
   ColorNodeComponent,
+  EnvironmentNodeComponent,
   ExportNodeComponent,
   GrimeShadowNodeComponent,
   LayerNodeComponent,
   MaskNodeComponent,
   MergeNodeComponent,
   RepeatNodeComponent,
+  Scene3DNodeComponent,
   TransformNodeComponent,
 } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
@@ -77,6 +80,8 @@ const nodeTypes = {
   maskNode: MaskNodeComponent,
   transformNode: TransformNodeComponent,
   grimeShadowNode: GrimeShadowNodeComponent,
+  scene3dNode: Scene3DNodeComponent,
+  environmentNode: EnvironmentNodeComponent,
   exportNode: ExportNodeComponent,
 };
 
@@ -113,6 +118,8 @@ export function NodeCanvas({
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
+  onUpdateScene3DNode,
+  onUpdateEnvironmentNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -353,7 +360,7 @@ export function NodeCanvas({
   const onNodeFileDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
       if (!onImageFileDrop || !hasFileTransfer(event.dataTransfer)) return;
-      const file = imageFileFromTransfer(event.dataTransfer);
+      const file = imageFileFromTransfer(event.dataTransfer) ?? Array.from(event.dataTransfer.files)[0];
       if (!file) return;
       event.preventDefault();
       event.stopPropagation();
@@ -421,6 +428,8 @@ export function NodeCanvas({
       updateMaskNode: onUpdateMaskNode,
       updateTransformNode: onUpdateTransformNode,
       updateGrimeShadowNode: onUpdateGrimeShadowNode,
+      updateScene3DNode: onUpdateScene3DNode,
+      updateEnvironmentNode: onUpdateEnvironmentNode,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
@@ -443,6 +452,8 @@ export function NodeCanvas({
       onUpdateMaskNode,
       onUpdateTransformNode,
       onUpdateGrimeShadowNode,
+      onUpdateScene3DNode,
+      onUpdateEnvironmentNode,
       openGallery,
       setPrimitiveViewportActive,
       updatePrimitiveView,
@@ -543,6 +554,8 @@ export function NodeCanvas({
             onUpdateMaskNode={onUpdateMaskNode}
             onUpdateTransformNode={onUpdateTransformNode}
             onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
+            onUpdateScene3DNode={onUpdateScene3DNode}
+            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
             onExport={onExport}
@@ -913,7 +926,9 @@ function NodeGalleryHeader({ displayLayer, hint }: { displayLayer: Layer; hint: 
 }
 
 function gallerySubtitle(layer: Layer) {
-  return layer.kind === 'primitive' ? 'Interactive primitive viewport' : `${layer.kind} preview`;
+  if (layer.kind === 'primitive') return 'Interactive primitive viewport';
+  if (layer.kind === 'model') return 'Interactive model viewport';
+  return `${layer.kind} preview`;
 }
 
 function NodeGalleryViewport({
@@ -939,14 +954,26 @@ function NodeGalleryViewport({
   onMediaViewChange: (id: string, next: MediaViewState) => void;
   onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
-  return displayLayer.kind === 'primitive' ? (
-    <PrimitiveGalleryViewport
-      displayLayer={displayLayer}
-      primitiveRenderModes={primitiveRenderModes}
-      primitiveViewState={primitiveViewState}
-      onPrimitiveViewChange={onPrimitiveViewChange}
-    />
-  ) : (
+  if (displayLayer.kind === 'primitive') {
+    return (
+      <PrimitiveGalleryViewport
+        displayLayer={displayLayer}
+        primitiveRenderModes={primitiveRenderModes}
+        primitiveViewState={primitiveViewState}
+        onPrimitiveViewChange={onPrimitiveViewChange}
+      />
+    );
+  }
+  if (displayLayer.kind === 'model') {
+    return (
+      <ModelGalleryViewport
+        displayLayer={displayLayer}
+        primitiveViewState={primitiveViewState}
+        onPrimitiveViewChange={onPrimitiveViewChange}
+      />
+    );
+  }
+  return (
     <CanvasGalleryViewport
       displayDoc={displayDoc}
       displayLayer={displayLayer}
@@ -965,17 +992,37 @@ function PrimitiveGalleryViewport({
   primitiveViewState,
   onPrimitiveViewChange,
 }: {
-  displayLayer: Layer;
+  displayLayer: Extract<Layer, { kind: 'primitive' }>;
   primitiveRenderModes: Record<string, PrimitiveRenderMode>;
   primitiveViewState: PrimitiveViewportState | null;
   onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
-  if (displayLayer.kind !== 'primitive' || !primitiveViewState) return null;
+  if (!primitiveViewState) return null;
   return (
     <PrimitiveViewport3D
       layer={displayLayer}
       mode="modal"
       renderMode={primitiveRenderModes[displayLayer.id] ?? 'shaded'}
+      viewState={primitiveViewState}
+      onViewStateChange={(next) => onPrimitiveViewChange(displayLayer.id, next)}
+      className="node-primitive-preview"
+    />
+  );
+}
+
+function ModelGalleryViewport({
+  displayLayer,
+  primitiveViewState,
+  onPrimitiveViewChange,
+}: {
+  displayLayer: Extract<Layer, { kind: 'model' }>;
+  primitiveViewState: PrimitiveViewportState | null;
+  onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
+}) {
+  if (!primitiveViewState) return null;
+  return (
+    <ModelViewport3D
+      layer={displayLayer}
       viewState={primitiveViewState}
       onViewStateChange={(next) => onPrimitiveViewChange(displayLayer.id, next)}
       className="node-primitive-preview"

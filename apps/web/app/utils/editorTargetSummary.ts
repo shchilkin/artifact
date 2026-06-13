@@ -2,10 +2,12 @@ import type {
   CanvasGraph,
   EffectLayer,
   GraphColorNode,
+  GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphScene3DNode,
   GraphTransformNode,
   Layer,
 } from '../types/config';
@@ -55,6 +57,7 @@ const SOURCE_KINDS = new Set<Layer['kind']>([
   'text',
   'emoji',
   'primitive',
+  'model',
   'noise',
   'array',
   'lineField',
@@ -111,6 +114,8 @@ export function buildGraphTargetSummary(
     | { kind: 'mask'; node: GraphMaskNode }
     | { kind: 'transform'; node: GraphTransformNode }
     | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
+    | { kind: 'scene3d'; node: GraphScene3DNode }
+    | { kind: 'environment'; node: GraphEnvironmentNode }
     | { kind: 'output' },
   options: GraphTargetOptions,
 ): EditorTargetSummary {
@@ -149,6 +154,8 @@ export function buildGraphTargetSummary(
     mask: ['Mask', 'Cuts one upstream branch by alpha or brightness from another branch.'],
     transform: ['Transform', 'Moves, scales, rotates, or fades a completed upstream branch.'],
     grimeShadow: ['Grime Shadow', 'Builds a layered dirty shadow from the visible alpha of an upstream branch.'],
+    scene3d: ['3D Scene', 'Renders imported models through camera, light, material, and environment settings.'],
+    environment: ['Environment Map', 'Provides an EXR or HDR lighting environment to a 3D Scene.'],
   } as const;
   const [kindLabel, description] = labels[target.kind];
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
@@ -188,6 +195,7 @@ const LAYER_DESCRIPTIONS: Record<Layer['kind'], string> = {
   fill: 'Creates a flat color plate for the stack or graph branch.',
   emoji: 'Creates a seeded glyph scatter source.',
   primitive: 'Creates a rendered 3D source using the primitive camera state.',
+  model: 'References an imported GLB model for 3D scene rendering and graph composition.',
   noise: 'Creates a procedural texture source from the document seed.',
   array: 'Creates a procedural motif source from the document seed.',
   lineField: 'Creates procedural line fields for optical, contour, and warped poster graphics.',

@@ -11,6 +11,7 @@ import {
 import {
   colorNodeRenderSig,
   edgeRenderSig,
+  environmentNodeRenderSig,
   grimeShadowNodeRenderSig,
   layerRenderSig,
   maskNodeRenderSig,
@@ -245,6 +246,22 @@ describe('graph node render signatures', () => {
 
     expect(grimeShadowNodeRenderSig(renamed)).toBe(grimeShadowNodeRenderSig(base));
     expect(grimeShadowNodeRenderSig(edited)).not.toBe(grimeShadowNodeRenderSig(base));
+  });
+
+  it('ignores environment node identity and changes for render fields', () => {
+    const base = {
+      id: 'env-1',
+      name: 'Environment Map',
+      environmentSrc: 'artifact-env://env-a',
+      environmentName: 'studio.exr',
+      environmentMime: 'image/x-exr',
+      environmentBytes: 1024,
+    };
+    const renamed = { ...base, id: 'env-2', name: 'Renamed environment' };
+    const edited = { ...base, environmentSrc: 'artifact-env://env-b', environmentBytes: 2048 };
+
+    expect(environmentNodeRenderSig(renamed)).toBe(environmentNodeRenderSig(base));
+    expect(environmentNodeRenderSig(edited)).not.toBe(environmentNodeRenderSig(base));
   });
 });
 

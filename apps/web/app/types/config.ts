@@ -14,8 +14,18 @@ export {
   type TextFontRef,
 } from './typography';
 
-export type LayerKind = 'text' | 'image' | 'emoji' | 'effect' | 'fill' | 'primitive' | 'noise' | 'array' | 'lineField';
-export const SOURCE_TYPES = ['primitive', 'noise', 'array', 'lineField'] as const;
+export type LayerKind =
+  | 'text'
+  | 'image'
+  | 'emoji'
+  | 'effect'
+  | 'fill'
+  | 'primitive'
+  | 'noise'
+  | 'array'
+  | 'lineField'
+  | 'model';
+export const SOURCE_TYPES = ['primitive', 'noise', 'array', 'lineField', 'model'] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 type PrimitiveShape = 'sphere' | 'cube' | 'cylinder';
 export type NoiseType = 'value' | 'clouds' | 'cells';
@@ -170,7 +180,15 @@ export interface LineFieldLayer extends ProceduralLayerBase {
   kind: 'lineField';
 }
 
-export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer;
+export interface ModelLayer extends ProceduralLayerBase {
+  kind: 'model';
+  modelSrc: string;
+  modelName: string;
+  modelMime: string;
+  modelBytes: number;
+}
+
+export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer | ModelLayer;
 
 export type EffectPreset =
   | 'rays'
@@ -181,6 +199,7 @@ export type EffectPreset =
   | 'interlace'
   | 'dataMosh'
   | 'grain'
+  | 'dotGrain'
   | 'scanlines'
   | 'tint'
   | 'noiseWarp'
@@ -191,13 +210,16 @@ export type EffectPreset =
   | 'mirror'
   | 'hueShift'
   | 'vignette'
+  | 'retroResolution'
   | 'pixelate'
   | 'posterize'
+  | 'indexedPalette'
   | 'duotone'
   | 'halftone'
   | 'risoShift'
   | 'blur'
   | 'threshold'
+  | 'edgeCrush'
   | 'edgeDetect'
   | 'gradientOverlay'
   | 'sepia'
@@ -227,6 +249,10 @@ export interface EffectLayer extends BaseLayer {
   preset?: EffectPreset; // which preset created this layer (drives panel icon)
   maskAlpha: boolean;
   grain: number;
+  dotGrain: number;
+  dotGrainSize: number;
+  dotGrainDensity: number;
+  dotGrainJitter: number;
   scanlines: number;
   scanlineWidth: number;
   rgbSplit: number;
@@ -246,11 +272,20 @@ export interface EffectLayer extends BaseLayer {
   mirror: number;
   dataMosh: number;
   interlace: number;
+  retroResolution: number;
   pixelate: number;
   hueShift: number;
   vignette: number;
   bloom: number;
   posterize: number;
+  indexedPalette: number;
+  indexedPaletteCount: number;
+  indexedColorA: string;
+  indexedColorB: string;
+  indexedColorC: string;
+  indexedColorD: string;
+  indexedColorE: string;
+  indexedColorF: string;
   filmBurn: number;
   duotone: number;
   duoA: string;
@@ -260,6 +295,7 @@ export interface EffectLayer extends BaseLayer {
   risoAngle: number;
   blurAmt: number;
   threshold: number;
+  edgeCrush: number;
   edgeDetect: number;
   gradMix: number;
   gradA: string;
@@ -306,7 +342,9 @@ export type Layer =
   | FillLayer
   | PrimitiveLayer
   | NoiseLayer
-  | ArrayLayer;
+  | ArrayLayer
+  | LineFieldLayer
+  | ModelLayer;
 
 export type AspectRatio = '1:1' | '4:5' | '9:16' | '16:9';
 
@@ -335,7 +373,7 @@ export interface GraphEdge {
   fromId: string;
   fromPort: 'out';
   toId: string;
-  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask';
+  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env';
 }
 
 export interface GraphMergeNode {
@@ -413,6 +451,35 @@ export interface GraphGrimeShadowNode {
   shadowOnly: boolean;
 }
 
+export interface GraphScene3DNode {
+  id: string;
+  name: string;
+  /** Legacy direct environment reference. Prefer GraphEnvironmentNode connected to the env port. */
+  environmentSrc: string;
+  environmentName: string;
+  environmentMime: string;
+  environmentBytes: number;
+  materialMode: 'original' | 'clay' | 'unlit';
+  transparent: boolean;
+  exposure: number;
+  environmentStrength: number;
+  ambientIntensity: number;
+  keyAzimuth: number;
+  keyElevation: number;
+  keyIntensity: number;
+  fillIntensity: number;
+  rimIntensity: number;
+}
+
+export interface GraphEnvironmentNode {
+  id: string;
+  name: string;
+  environmentSrc: string;
+  environmentName: string;
+  environmentMime: string;
+  environmentBytes: number;
+}
+
 export interface GraphArea {
   id: string;
   name: string;
@@ -439,6 +506,8 @@ export interface CanvasGraph {
   maskNodes?: GraphMaskNode[];
   transformNodes?: GraphTransformNode[];
   grimeShadowNodes?: GraphGrimeShadowNode[];
+  scene3dNodes?: GraphScene3DNode[];
+  environmentNodes?: GraphEnvironmentNode[];
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
@@ -468,6 +537,24 @@ export interface PortableFontAsset {
   embeddingPolicy?: 'user-confirmed-required' | 'open-license-embeddable';
 }
 
+export interface PortableModelAsset {
+  id: string;
+  dataUrl: string;
+  mime: string;
+  bytes: number;
+  label: string;
+  createdAt: string;
+}
+
+export interface PortableEnvironmentAsset {
+  id: string;
+  dataUrl: string;
+  mime: string;
+  bytes: number;
+  label: string;
+  createdAt: string;
+}
+
 export interface CanvasDocument {
   schemaVersion?: number;
   global: GlobalConfig;
@@ -475,6 +562,8 @@ export interface CanvasDocument {
   graph?: CanvasGraph;
   export: ExportConfig;
   fontAssets?: PortableFontAsset[];
+  modelAssets?: PortableModelAsset[];
+  envAssets?: PortableEnvironmentAsset[];
 }
 
 export const DOCUMENT_SCHEMA_VERSION = 1;
@@ -495,6 +584,10 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   kind: 'effect',
   maskAlpha: false,
   grain: 0,
+  dotGrain: 0,
+  dotGrainSize: 4,
+  dotGrainDensity: 62,
+  dotGrainJitter: 35,
   scanlines: 0,
   scanlineWidth: 1,
   rgbSplit: 0,
@@ -514,11 +607,20 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   mirror: 0,
   dataMosh: 0,
   interlace: 0,
+  retroResolution: 0,
   pixelate: 0,
   hueShift: 0,
   vignette: 0,
   bloom: 0,
   posterize: 0,
+  indexedPalette: 0,
+  indexedPaletteCount: 6,
+  indexedColorA: '#12002b',
+  indexedColorB: '#3b1590',
+  indexedColorC: '#d400b8',
+  indexedColorD: '#ff1d1d',
+  indexedColorE: '#f6c400',
+  indexedColorF: '#fff1df',
   filmBurn: 0,
   duotone: 0,
   duoA: '#0a0020',
@@ -528,6 +630,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   risoAngle: 15,
   blurAmt: 0,
   threshold: 0,
+  edgeCrush: 0,
   edgeDetect: 0,
   gradMix: 0,
   gradA: '#0a0020',
@@ -645,7 +748,9 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
   };
 }
 
-type SourceLayerPartial = Partial<Omit<ProceduralLayerBase, 'kind'>>;
+type SourceLayerPartial = Partial<
+  Omit<ProceduralLayerBase, 'kind'> & Omit<ModelLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>
+>;
 
 export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: SourceLayerPartial = {}): SourceLayer {
   const defaultName =
@@ -655,7 +760,9 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
         ? 'Noise'
         : sourceType === 'lineField'
           ? 'Line Field'
-          : 'Array';
+          : sourceType === 'model'
+            ? '3D Model'
+            : 'Array';
   return {
     id: genId(),
     name: defaultName,
@@ -703,6 +810,10 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     lineFieldFrequency: 3,
     lineFieldBackground: '#000000',
     lineFieldTransparent: true,
+    modelSrc: '',
+    modelName: 'Imported model',
+    modelMime: 'model/gltf-binary',
+    modelBytes: 0,
     ...partial,
   } as SourceLayer;
 }
@@ -783,6 +894,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     primary: 'grain',
     partial: { ...ZERO_EFFECT, grain: 26 },
   },
+  dotGrain: {
+    name: 'Dot Grain',
+    icon: '◌',
+    primary: 'dotGrain',
+    partial: { ...ZERO_EFFECT, dotGrain: 68, dotGrainSize: 4, dotGrainDensity: 66, dotGrainJitter: 42 },
+  },
   scanlines: {
     name: 'Scanlines',
     icon: '☰',
@@ -849,6 +966,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     primary: 'vignette',
     partial: { ...ZERO_EFFECT, vignette: 40 },
   },
+  retroResolution: {
+    name: 'Retro Resolution',
+    icon: '▣',
+    primary: 'retroResolution',
+    partial: { ...ZERO_EFFECT, retroResolution: 320 },
+  },
   pixelate: {
     name: 'Pixelate',
     icon: '▦',
@@ -860,6 +983,22 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◨',
     primary: 'posterize',
     partial: { ...ZERO_EFFECT, posterize: 6 },
+  },
+  indexedPalette: {
+    name: 'Indexed Palette',
+    icon: '▥',
+    primary: 'indexedPalette',
+    partial: {
+      ...ZERO_EFFECT,
+      indexedPalette: 100,
+      indexedPaletteCount: 6,
+      indexedColorA: '#12002b',
+      indexedColorB: '#3b1590',
+      indexedColorC: '#d400b8',
+      indexedColorD: '#ff1d1d',
+      indexedColorE: '#f6c400',
+      indexedColorF: '#fff1df',
+    },
   },
   duotone: {
     name: 'Duotone',
@@ -890,6 +1029,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◐',
     primary: 'threshold',
     partial: { ...ZERO_EFFECT, threshold: 50 },
+  },
+  edgeCrush: {
+    name: 'Edge Crush',
+    icon: '◈',
+    primary: 'edgeCrush',
+    partial: { ...ZERO_EFFECT, edgeCrush: 55 },
   },
   edgeDetect: {
     name: 'Edge Detect',
@@ -1056,6 +1201,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'dataMosh',
   'vhsTracking',
   'grain',
+  'dotGrain',
   'scanlines',
   'matte',
   'dither',
@@ -1075,8 +1221,10 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'squeeze',
   'hueShift',
   'vignette',
+  'retroResolution',
   'pixelate',
   'posterize',
+  'indexedPalette',
   'sepia',
   'infrared',
   'solarize',
@@ -1089,6 +1237,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'overprint',
   'blur',
   'threshold',
+  'edgeCrush',
   'edgeDetect',
   'gradientOverlay',
 ];
@@ -1231,12 +1380,48 @@ export function makeGraphGrimeShadowNode(partial: Partial<GraphGrimeShadowNode> 
   };
 }
 
+export function makeGraphScene3DNode(partial: Partial<GraphScene3DNode> = {}): GraphScene3DNode {
+  return {
+    id: `scene3d-${Date.now()}-${_idCounter++}`,
+    name: '3D Scene',
+    environmentSrc: '',
+    environmentName: '',
+    environmentMime: '',
+    environmentBytes: 0,
+    materialMode: 'original',
+    transparent: true,
+    exposure: 100,
+    environmentStrength: 0,
+    ambientIntensity: 115,
+    keyAzimuth: 38,
+    keyElevation: 42,
+    keyIntensity: 145,
+    fillIntensity: 65,
+    rimIntensity: 55,
+    ...partial,
+  };
+}
+
+export function makeGraphEnvironmentNode(partial: Partial<GraphEnvironmentNode> = {}): GraphEnvironmentNode {
+  return {
+    id: `environment-${Date.now()}-${_idCounter++}`,
+    name: 'Environment Map',
+    environmentSrc: '',
+    environmentName: '',
+    environmentMime: '',
+    environmentBytes: 0,
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     schemaVersion: doc.schemaVersion,
     global: { ...doc.global },
     export: { ...doc.export },
     fontAssets: doc.fontAssets?.map((asset) => ({ ...asset })),
+    modelAssets: doc.modelAssets?.map((asset) => ({ ...asset })),
+    envAssets: doc.envAssets?.map((asset) => ({ ...asset })),
     layers: doc.layers.map((layer) => ({
       ...layer,
       ...(layer.kind === 'emoji' ? { emojis: [...layer.emojis] } : {}),
@@ -1253,6 +1438,12 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
             ...n,
           })),
           grimeShadowNodes: (doc.graph.grimeShadowNodes ?? []).map((n) => ({
+            ...n,
+          })),
+          scene3dNodes: (doc.graph.scene3dNodes ?? []).map((n) => ({
+            ...n,
+          })),
+          environmentNodes: (doc.graph.environmentNodes ?? []).map((n) => ({
             ...n,
           })),
           areas: (doc.graph.areas ?? []).map((area) => ({

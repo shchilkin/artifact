@@ -70,6 +70,8 @@ export default function Editor() {
     addArrayPreset,
     insertLayerAbove,
     addImageFromSource,
+    addModelFromAsset,
+    addEnvironmentFromAsset,
     removeLayer,
     deleteNodeSelection,
     updateLayer,
@@ -80,6 +82,8 @@ export default function Editor() {
     updateMaskNode,
     updateTransformNode,
     updateGrimeShadowNode,
+    updateScene3DNode,
+    updateEnvironmentNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -104,6 +108,8 @@ export default function Editor() {
   const { imageCache, dropError, handleDroppedFile } = useEditorAssets(
     doc,
     (src, position) => addImageFromSource(src, undefined, position),
+    addModelFromAsset,
+    addEnvironmentFromAsset,
     storeImageAssetSource,
   );
   const {
@@ -356,6 +362,8 @@ export default function Editor() {
                   onUpdateMaskNode={updateMaskNode}
                   onUpdateTransformNode={updateTransformNode}
                   onUpdateGrimeShadowNode={updateGrimeShadowNode}
+                  onUpdateScene3DNode={updateScene3DNode}
+                  onUpdateEnvironmentNode={updateEnvironmentNode}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}

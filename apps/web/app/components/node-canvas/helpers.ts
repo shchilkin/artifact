@@ -6,6 +6,7 @@ import type { GalleryEligibleLayer } from './types';
 export function isGalleryEligibleLayer(layer: Layer): layer is GalleryEligibleLayer {
   return (
     layer.kind === 'primitive' ||
+    layer.kind === 'model' ||
     layer.kind === 'noise' ||
     layer.kind === 'array' ||
     layer.kind === 'text' ||

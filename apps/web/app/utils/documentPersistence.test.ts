@@ -4,6 +4,7 @@ import {
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
   makeFillLayer,
+  makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 import {
@@ -72,6 +73,58 @@ describe('normalizeDocument', () => {
     expect(doc.fontAssets?.[0]).toMatchObject({ id: 'poster-local', label: 'Poster Local' });
   });
 
+  it('normalizes portable imported model assets without keeping invalid payloads', () => {
+    const doc = normalizeDocument({
+      layers: [makeSourceLayer('model', { modelSrc: 'artifact-model://model-a' })],
+      modelAssets: [
+        {
+          id: 'model-a',
+          dataUrl: 'data:model/gltf-binary;base64,AAAA',
+          mime: 'model/gltf-binary',
+          bytes: 512,
+          label: 'skull.glb',
+          createdAt: '2026-06-13T00:00:00.000Z',
+        },
+        { id: 'broken', dataUrl: 'not-a-data-url' },
+      ],
+    });
+
+    expect(doc.modelAssets).toHaveLength(1);
+    expect(doc.modelAssets?.[0]).toMatchObject({ id: 'model-a', label: 'skull.glb' });
+  });
+
+  it('normalizes portable environment assets without keeping invalid payloads', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        environmentNodes: [{ id: 'env-node-a', name: 'Environment Map', environmentSrc: 'artifact-env://env-a' }],
+      },
+      envAssets: [
+        {
+          id: 'env-a',
+          dataUrl: 'data:image/x-exr;base64,AAAA',
+          mime: 'image/x-exr',
+          bytes: 1024,
+          label: 'studio.exr',
+          createdAt: '2026-06-13T00:00:00.000Z',
+        },
+        { id: 'broken', dataUrl: 'not-a-data-url' },
+      ],
+    });
+
+    expect(doc.envAssets).toHaveLength(1);
+    expect(doc.envAssets?.[0]).toMatchObject({ id: 'env-a', label: 'studio.exr' });
+    expect(doc.graph?.environmentNodes?.[0]).toMatchObject({
+      id: 'env-node-a',
+      environmentSrc: 'artifact-env://env-a',
+      environmentName: '',
+      environmentBytes: 0,
+    });
+  });
+
   it('falls back to the default aspect when stored aspect is invalid', () => {
     const doc = normalizeDocument({
       global: { bg: '#ffffff', seed: 7, aspect: 'poster' },
@@ -102,6 +155,31 @@ describe('normalizeDocument', () => {
       noiseWarp: 0,
       noiseTurbulence: 0,
       noiseThreshold: 0,
+    });
+  });
+
+  it('adds model source defaults when loading older model layers', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'model-a',
+          name: 'Model',
+          kind: 'model',
+          visible: true,
+          locked: false,
+          modelSrc: 'artifact-model://asset-a',
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({
+      id: 'model-a',
+      kind: 'model',
+      modelSrc: 'artifact-model://asset-a',
+      modelName: 'Imported model',
+      modelMime: 'model/gltf-binary',
+      modelBytes: 0,
+      opacity: 100,
     });
   });
 
@@ -294,6 +372,8 @@ describe('normalizeDocument', () => {
       maskNodes: [],
       transformNodes: [],
       grimeShadowNodes: [],
+      scene3dNodes: [],
+      environmentNodes: [],
       areas: [],
       primitiveViewStates: undefined,
     });
@@ -487,6 +567,8 @@ describe('document serialization helpers', () => {
         maskNodes: [],
         transformNodes: [],
         grimeShadowNodes: [],
+        scene3dNodes: [],
+        environmentNodes: [],
         areas: [
           {
             id: 'area-main',

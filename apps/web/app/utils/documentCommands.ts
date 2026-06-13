@@ -5,21 +5,26 @@ import {
   type EffectPreset,
   type GraphColorNode,
   type GraphEdge,
+  type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphScene3DNode,
   type GraphTransformNode,
   type Layer,
   type LayerKind,
+  type ModelLayer,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
   makeGraphColorNode,
+  makeGraphEnvironmentNode,
   makeGraphGrimeShadowNode,
   makeGraphMaskNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
+  makeGraphScene3DNode,
   makeGraphTransformNode,
   makeImageLayer,
   makeSourceLayer,
@@ -30,6 +35,7 @@ import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
 import {
   addColorNode,
+  addEnvironmentNode,
   addGraphArea,
   addGraphEdge,
   addGrimeShadowNode,
@@ -38,6 +44,7 @@ import {
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
+  addScene3DNode,
   addTransformNode,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
@@ -45,6 +52,7 @@ import {
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
+  removeEnvironmentNode,
   removeGraphArea,
   removeGraphEdge,
   removeGrimeShadowNode,
@@ -53,13 +61,16 @@ import {
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
+  removeScene3DNode,
   removeTransformNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
+  updateEnvironmentNode as updateEnvironmentNodeInGraph,
   updateGraphArea,
   updateGrimeShadowNode as updateGrimeShadowNodeInGraph,
   updateMaskNode as updateMaskNodeInGraph,
   updateRepeatNode as updateRepeatNodeInGraph,
+  updateScene3DNode as updateScene3DNodeInGraph,
   updateTransformNode as updateTransformNodeInGraph,
 } from './nodeGraph';
 import { makeNoisePresetLayer } from './noisePresets';
@@ -116,6 +127,71 @@ export function createImageLayerFromSource(src: string): Layer {
   return makeImageLayer(src);
 }
 
+export function createModelLayerFromAsset({
+  src,
+  name,
+  mime,
+  bytes,
+}: {
+  src: string;
+  name: string;
+  mime: string;
+  bytes: number;
+}): Layer {
+  return makeSourceLayer('model', {
+    modelSrc: src,
+    modelName: name || 'Imported model',
+    modelMime: mime || 'model/gltf-binary',
+    modelBytes: bytes,
+  }) as ModelLayer;
+}
+
+export function addEnvironmentSceneToDocument(
+  doc: CanvasDocument,
+  asset: Pick<GraphScene3DNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
+  position?: { x: number; y: number },
+): { doc: CanvasDocument; nodeId: string } {
+  const node = makeGraphScene3DNode({
+    name: asset.environmentName ? `3D Scene · ${asset.environmentName}` : '3D Scene',
+    environmentSrc: asset.environmentSrc,
+    environmentName: asset.environmentName,
+    environmentMime: asset.environmentMime,
+    environmentBytes: asset.environmentBytes,
+    environmentStrength: 100,
+    transparent: false,
+  });
+  const graph = ensureDocumentGraph(doc);
+  return {
+    doc: {
+      ...doc,
+      graph: addScene3DNode(graph, node, position ?? nextDropPosition(graph)),
+    },
+    nodeId: node.id,
+  };
+}
+
+export function addEnvironmentMapToDocument(
+  doc: CanvasDocument,
+  asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
+  position?: { x: number; y: number },
+): { doc: CanvasDocument; nodeId: string } {
+  const node = makeGraphEnvironmentNode({
+    name: asset.environmentName ? `Environment · ${asset.environmentName}` : 'Environment Map',
+    environmentSrc: asset.environmentSrc,
+    environmentName: asset.environmentName,
+    environmentMime: asset.environmentMime,
+    environmentBytes: asset.environmentBytes,
+  });
+  const graph = ensureDocumentGraph(doc);
+  return {
+    doc: {
+      ...doc,
+      graph: addEnvironmentNode(graph, node, position ?? nextDropPosition(graph)),
+    },
+    nodeId: node.id,
+  };
+}
+
 export function createAiImageLayer(): Layer {
   return makeImageLayer('', {
     name: 'AI Image',
@@ -154,6 +230,8 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
     maskNodes: graph.maskNodes ?? [],
     transformNodes: graph.transformNodes ?? [],
     grimeShadowNodes: graph.grimeShadowNodes ?? [],
+    scene3dNodes: graph.scene3dNodes ?? [],
+    environmentNodes: graph.environmentNodes ?? [],
   };
 }
 
@@ -451,7 +529,18 @@ function addGraphOnlyNodeAtDocument(
   doc: CanvasDocument,
   action: Extract<
     DocumentAddAction,
-    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+    {
+      kind:
+        | 'merge'
+        | 'color'
+        | 'repeat'
+        | 'repeatPreset'
+        | 'mask'
+        | 'transform'
+        | 'grimeShadow'
+        | 'scene3d'
+        | 'environment';
+    }
   >,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
@@ -465,7 +554,18 @@ function connectInsertedGraphOnlyNode(
   doc: CanvasDocument,
   action: Extract<
     DocumentAddAction,
-    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+    {
+      kind:
+        | 'merge'
+        | 'color'
+        | 'repeat'
+        | 'repeatPreset'
+        | 'mask'
+        | 'transform'
+        | 'grimeShadow'
+        | 'scene3d'
+        | 'environment';
+    }
   >,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
@@ -521,6 +621,26 @@ function connectInsertedGraphOnlyNode(
       createEdgeId,
     );
   }
+  if (action.kind === 'scene3d') {
+    const node = makeGraphScene3DNode();
+    return connectInsertedNode(
+      addScene3DNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'model',
+      insertion,
+      createEdgeId,
+    );
+  }
+  if (action.kind === 'environment') {
+    const node = makeGraphEnvironmentNode();
+    return connectInsertedNode(
+      addEnvironmentNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'env',
+      insertion,
+      createEdgeId,
+    );
+  }
   const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
   return connectInsertedNode(
     addRepeatNode(ensureDocumentGraph(doc), node, position),
@@ -531,11 +651,20 @@ function connectInsertedGraphOnlyNode(
   );
 }
 
-function isGraphOnlyAddAction(
-  action: DocumentAddAction,
-): action is Extract<
+function isGraphOnlyAddAction(action: DocumentAddAction): action is Extract<
   DocumentAddAction,
-  { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+  {
+    kind:
+      | 'merge'
+      | 'color'
+      | 'repeat'
+      | 'repeatPreset'
+      | 'mask'
+      | 'transform'
+      | 'grimeShadow'
+      | 'scene3d'
+      | 'environment';
+  }
 > {
   return (
     action.kind === 'merge' ||
@@ -544,14 +673,27 @@ function isGraphOnlyAddAction(
     action.kind === 'repeatPreset' ||
     action.kind === 'mask' ||
     action.kind === 'transform' ||
-    action.kind === 'grimeShadow'
+    action.kind === 'grimeShadow' ||
+    action.kind === 'scene3d' ||
+    action.kind === 'environment'
   );
 }
 
 function layerForAddAction(
   action: Exclude<
     DocumentAddAction,
-    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+    {
+      kind:
+        | 'merge'
+        | 'color'
+        | 'repeat'
+        | 'repeatPreset'
+        | 'mask'
+        | 'transform'
+        | 'grimeShadow'
+        | 'scene3d'
+        | 'environment';
+    }
   >,
 ) {
   if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
@@ -629,7 +771,19 @@ function removeDeletedGraphOnlyNodes(graph: CanvasGraph, idSet: Set<string>) {
     idSet,
     removeTransformNode,
   );
-  return removeMatchingGraphNodes(withoutTransform, withoutTransform.grimeShadowNodes, idSet, removeGrimeShadowNode);
+  const withoutGrimeShadow = removeMatchingGraphNodes(
+    withoutTransform,
+    withoutTransform.grimeShadowNodes,
+    idSet,
+    removeGrimeShadowNode,
+  );
+  const withoutScene3D = removeMatchingGraphNodes(
+    withoutGrimeShadow,
+    withoutGrimeShadow.scene3dNodes,
+    idSet,
+    removeScene3DNode,
+  );
+  return removeMatchingGraphNodes(withoutScene3D, withoutScene3D.environmentNodes, idSet, removeEnvironmentNode);
 }
 
 function removeDeletedLayerNodes(graph: CanvasGraph, layers: Layer[], idSet: Set<string>) {
@@ -752,6 +906,24 @@ export function updateGrimeShadowNodeInDocument(
 ): CanvasDocument {
   if (!doc.graph) return doc;
   return { ...doc, graph: updateGrimeShadowNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateScene3DNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphScene3DNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateScene3DNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateEnvironmentNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphEnvironmentNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateEnvironmentNodeInGraph(doc.graph, id, patch) };
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {

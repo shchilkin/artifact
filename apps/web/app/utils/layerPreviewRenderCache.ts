@@ -20,7 +20,7 @@ function imageLayerSignature(layer: ImageLayer, imageCache: Map<string, HTMLImag
 }
 
 function primitiveViewSignature(layer: Layer, renderOptions: LayerPreviewRenderCacheConfig['renderOptions']): string {
-  if (layer.kind !== 'primitive') return '';
+  if (layer.kind !== 'primitive' && layer.kind !== 'model') return '';
   const view = renderOptions.primitiveViewStates?.[layer.id];
   return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
 }

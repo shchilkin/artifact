@@ -49,6 +49,18 @@ function visiblePixelCount(canvas: HTMLCanvasElement): number {
   return count;
 }
 
+function darkerThan(canvas: HTMLCanvasElement, threshold: number): number {
+  const pixels = allPixels(canvas);
+  let count = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i] ?? 0;
+    const g = pixels[i + 1] ?? 0;
+    const b = pixels[i + 2] ?? 0;
+    if ((r + g + b) / 3 < threshold) count += 1;
+  }
+  return count;
+}
+
 async function renderStackDocument(doc: CanvasDocument, size: number, skipEffects = true) {
   return renderDocument(doc, size, size, new Map(), {
     skipEffects,
@@ -481,6 +493,41 @@ describe('renderDocument — preview/export size parity', () => {
     });
 
     await expectSeedOffsetChangesPixels(makeEffectDoc, 120, false);
+  });
+
+  it('round dot grain darkens tones with deterministic stipple dots', async () => {
+    const source = makeFillLayer({ color: '#777777', opacity: 100 });
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+      layers: [
+        source,
+        makeEffectPresetLayer('dotGrain', {
+          dotGrain: 100,
+          dotGrainSize: 5,
+          dotGrainDensity: 80,
+          dotGrainJitter: 20,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const base = await renderDocument({ ...doc, layers: [source] }, 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const dotted = await renderDocument(doc, 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const dottedAgain = await renderDocument(doc, 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+
+    expect(darkerThan(base, 90)).toBe(0);
+    expect(darkerThan(dotted, 90)).toBeGreaterThan(100);
+    expect(pixelsEqual(allPixels(dotted), allPixels(dottedAgain))).toBe(true);
+    expectFullyOpaqueCanvas(dotted);
   });
 
   it('noise shaping controls alter procedural texture pixels deterministically', async () => {

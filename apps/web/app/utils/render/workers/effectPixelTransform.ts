@@ -3,6 +3,8 @@ import { lcg } from '../../lcg';
 export type EffectPixelTransformOp =
   | { type: 'rgbSplit'; amount: number }
   | { type: 'colorPass'; sepia: number; infrared: number; ca: number; dither: number }
+  | { type: 'indexedPalette'; amount: number; colors: string[] }
+  | { type: 'edgeCrush'; amount: number }
   | { type: 'vhsTracking'; amount: number; seed: number }
   | { type: 'wave'; amount: number; frequency: number; scale: number }
   | { type: 'solarize'; amount: number }
@@ -89,6 +91,10 @@ export function transformEffectPixels({
       applyRgbSplit(current, width, height, operation.amount);
     } else if (operation.type === 'colorPass') {
       applyColorPass(current, width, height, operation);
+    } else if (operation.type === 'indexedPalette') {
+      applyIndexedPalette(current, operation.amount, operation.colors);
+    } else if (operation.type === 'edgeCrush') {
+      applyEdgeCrush(current, operation.amount);
     } else if (operation.type === 'vhsTracking') {
       current = applyVhsTracking(current, width, height, operation.amount, operation.seed);
     } else if (operation.type === 'wave') {
@@ -231,6 +237,60 @@ function applyDitherPixel(data: Uint8ClampedArray, width: number, x: number, y: 
   const bayer = BAYER[y & 3][x & 3] / 16;
   for (let c = 0; c < 3; c += 1) {
     data[i + c] = Math.min(255, Math.max(0, Math.round(data[i + c] / step + bayer) * step));
+  }
+}
+
+function parsePaletteColor(hex: string): [number, number, number] {
+  return [hexByte(hex, 1), hexByte(hex, 3), hexByte(hex, 5)];
+}
+
+function applyIndexedPalette(data: Uint8ClampedArray, amount: number, colorValues: string[]) {
+  if (amount <= 0) return;
+  const palette = colorValues.map(parsePaletteColor).filter(([r, g, b]) => r + g + b > 0 || colorValues.length > 0);
+  if (palette.length < 2) return;
+  const t = Math.min(1, amount / 100);
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] <= 0) continue;
+    const target = nearestPaletteColor(data[i], data[i + 1], data[i + 2], palette);
+    data[i] = clampByte(data[i] + (target[0] - data[i]) * t);
+    data[i + 1] = clampByte(data[i + 1] + (target[1] - data[i + 1]) * t);
+    data[i + 2] = clampByte(data[i + 2] + (target[2] - data[i + 2]) * t);
+  }
+}
+
+function nearestPaletteColor(
+  r: number,
+  g: number,
+  b: number,
+  palette: Array<[number, number, number]>,
+): [number, number, number] {
+  let best = palette[0] ?? [0, 0, 0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const color of palette) {
+    const dr = r - color[0];
+    const dg = g - color[1];
+    const db = b - color[2];
+    const lumDelta = 0.299 * dr + 0.587 * dg + 0.114 * db;
+    const distance = dr * dr * 0.7 + dg * dg + db * db * 0.8 + lumDelta * lumDelta * 0.6;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = color;
+    }
+  }
+  return best;
+}
+
+function applyEdgeCrush(data: Uint8ClampedArray, amount: number) {
+  if (amount <= 0) return;
+  const threshold = 24 + (amount / 100) * 180;
+  const feather = Math.max(1, 40 - amount * 0.32);
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3];
+    if (alpha <= 0 || alpha >= 255) continue;
+    const hardAlpha = alpha >= threshold ? 255 : 0;
+    const t = Math.min(1, amount / 100 + Math.abs(alpha - threshold) / feather);
+    data[i + 3] = clampByte(alpha + (hardAlpha - alpha) * t);
   }
 }
 
