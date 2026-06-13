@@ -87,7 +87,43 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     mergeNodes: Array.isArray(value.mergeNodes) ? (value.mergeNodes as CanvasGraph['mergeNodes']) : [],
     colorNodes: Array.isArray(value.colorNodes) ? (value.colorNodes as CanvasGraph['colorNodes']) : [],
     repeatNodes: Array.isArray(value.repeatNodes)
-      ? (value.repeatNodes as CanvasGraph['repeatNodes']).map((node) => ({ seedOffset: 0, ...node }))
+      ? (value.repeatNodes as CanvasGraph['repeatNodes']).map((node) => ({
+          rotationMode: 'fixed',
+          rotationStep: 0,
+          rotationJitter: 0,
+          seedOffset: 0,
+          ...node,
+        }))
+      : [],
+    maskNodes: Array.isArray(value.maskNodes) ? (value.maskNodes as CanvasGraph['maskNodes']) : [],
+    transformNodes: Array.isArray(value.transformNodes)
+      ? (value.transformNodes as CanvasGraph['transformNodes']).map((node) => ({
+          x: 0,
+          y: 0,
+          scaleX: 100,
+          scaleY: 100,
+          uniformScale: true,
+          rotation: 0,
+          pivotMode: 'canvas',
+          opacity: 100,
+          ...node,
+        }))
+      : [],
+    grimeShadowNodes: Array.isArray(value.grimeShadowNodes)
+      ? (value.grimeShadowNodes as CanvasGraph['grimeShadowNodes']).map((node) => ({
+          x: 8,
+          y: 10,
+          layers: 5,
+          blur: 10,
+          spread: 14,
+          grime: 45,
+          jitter: 10,
+          opacity: 58,
+          color: '#090606',
+          seedOffset: 0,
+          shadowOnly: false,
+          ...node,
+        }))
       : [],
     areas: Array.isArray(value.areas) ? (value.areas as CanvasGraph['areas']) : [],
     primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
@@ -239,6 +275,9 @@ export function isBlankDocument(doc: CanvasDocument) {
       graph.mergeNodes.length === 0 &&
       (graph.colorNodes ?? []).length === 0 &&
       (graph.repeatNodes ?? []).length === 0 &&
+      (graph.maskNodes ?? []).length === 0 &&
+      (graph.transformNodes ?? []).length === 0 &&
+      (graph.grimeShadowNodes ?? []).length === 0 &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 

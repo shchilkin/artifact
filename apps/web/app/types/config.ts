@@ -14,13 +14,15 @@ export {
   type TextFontRef,
 } from './typography';
 
-export type LayerKind = 'text' | 'image' | 'emoji' | 'effect' | 'fill' | 'primitive' | 'noise' | 'array';
-export const SOURCE_TYPES = ['primitive', 'noise', 'array'] as const;
+export type LayerKind = 'text' | 'image' | 'emoji' | 'effect' | 'fill' | 'primitive' | 'noise' | 'array' | 'lineField';
+export const SOURCE_TYPES = ['primitive', 'noise', 'array', 'lineField'] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 type PrimitiveShape = 'sphere' | 'cube' | 'cylinder';
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
+export type LineFieldOrientation = 'horizontal' | 'vertical' | 'diagonal' | 'radial';
+export type LineFieldDistortion = 'none' | 'noise' | 'bulge' | 'wave';
 
 interface BaseLayer {
   id: string;
@@ -141,6 +143,15 @@ interface ProceduralLayerBase extends BaseLayer {
   arrayRadius: number;
   arraySize: number;
   arrayJitter: number;
+  lineFieldOrientation: LineFieldOrientation;
+  lineFieldDistortion: LineFieldDistortion;
+  lineFieldCount: number;
+  lineFieldSpacing: number;
+  lineFieldStroke: number;
+  lineFieldStrength: number;
+  lineFieldFrequency: number;
+  lineFieldBackground: string;
+  lineFieldTransparent: boolean;
 }
 
 export interface PrimitiveLayer extends ProceduralLayerBase {
@@ -155,7 +166,11 @@ export interface ArrayLayer extends ProceduralLayerBase {
   kind: 'array';
 }
 
-export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer;
+export interface LineFieldLayer extends ProceduralLayerBase {
+  kind: 'lineField';
+}
+
+export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer;
 
 export type EffectPreset =
   | 'rays'
@@ -320,7 +335,7 @@ export interface GraphEdge {
   fromId: string;
   fromPort: 'out';
   toId: string;
-  toPort: 'in' | 'bg' | 'a' | 'b';
+  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask';
 }
 
 export interface GraphMergeNode {
@@ -350,9 +365,52 @@ export interface GraphRepeatNode {
   scale: number;
   jitter: number;
   rotation: number;
+  rotationMode?: 'fixed' | 'radial' | 'step' | 'random';
+  rotationStep?: number;
+  rotationJitter?: number;
   seedOffset: number;
   opacity: number;
   blendMode: string;
+}
+
+export interface GraphMaskNode {
+  id: string;
+  name: string;
+  mode: 'alpha' | 'luma' | 'threshold';
+  invert: boolean;
+  threshold: number;
+  feather: number;
+  expand: number;
+  opacity: number;
+}
+
+export interface GraphTransformNode {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  uniformScale: boolean;
+  rotation: number;
+  pivotMode?: 'canvas' | 'visible';
+  opacity: number;
+}
+
+export interface GraphGrimeShadowNode {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  layers: number;
+  blur: number;
+  spread: number;
+  grime: number;
+  jitter: number;
+  opacity: number;
+  color: string;
+  seedOffset: number;
+  shadowOnly: boolean;
 }
 
 export interface GraphArea {
@@ -378,6 +436,9 @@ export interface CanvasGraph {
   mergeNodes: GraphMergeNode[];
   colorNodes: GraphColorNode[];
   repeatNodes?: GraphRepeatNode[];
+  maskNodes?: GraphMaskNode[];
+  transformNodes?: GraphTransformNode[];
+  grimeShadowNodes?: GraphGrimeShadowNode[];
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
@@ -587,9 +648,17 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
 type SourceLayerPartial = Partial<Omit<ProceduralLayerBase, 'kind'>>;
 
 export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: SourceLayerPartial = {}): SourceLayer {
+  const defaultName =
+    sourceType === 'primitive'
+      ? 'Primitive'
+      : sourceType === 'noise'
+        ? 'Noise'
+        : sourceType === 'lineField'
+          ? 'Line Field'
+          : 'Array';
   return {
     id: genId(),
-    name: sourceType === 'primitive' ? 'Primitive' : sourceType === 'noise' ? 'Noise' : 'Array',
+    name: defaultName,
     visible: true,
     locked: false,
     kind: sourceType,
@@ -625,6 +694,15 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     arrayRadius: 120,
     arraySize: 36,
     arrayJitter: 0,
+    lineFieldOrientation: 'horizontal',
+    lineFieldDistortion: 'none',
+    lineFieldCount: 28,
+    lineFieldSpacing: 18,
+    lineFieldStroke: 3,
+    lineFieldStrength: 0,
+    lineFieldFrequency: 3,
+    lineFieldBackground: '#000000',
+    lineFieldTransparent: true,
     ...partial,
   } as SourceLayer;
 }
@@ -881,9 +959,61 @@ export function makeGraphRepeatNode(partial: Partial<GraphRepeatNode> = {}): Gra
     scale: 28,
     jitter: 0,
     rotation: 0,
+    rotationMode: 'fixed',
+    rotationStep: 0,
+    rotationJitter: 0,
     seedOffset: 0,
     opacity: 100,
     blendMode: 'source-over',
+    ...partial,
+  };
+}
+
+export function makeGraphMaskNode(partial: Partial<GraphMaskNode> = {}): GraphMaskNode {
+  return {
+    id: `mask-${Date.now()}-${_idCounter++}`,
+    name: 'Mask',
+    mode: 'alpha',
+    invert: false,
+    threshold: 50,
+    feather: 0,
+    expand: 0,
+    opacity: 100,
+    ...partial,
+  };
+}
+
+export function makeGraphTransformNode(partial: Partial<GraphTransformNode> = {}): GraphTransformNode {
+  return {
+    id: `transform-${Date.now()}-${_idCounter++}`,
+    name: 'Transform',
+    x: 0,
+    y: 0,
+    scaleX: 100,
+    scaleY: 100,
+    uniformScale: true,
+    rotation: 0,
+    pivotMode: 'canvas',
+    opacity: 100,
+    ...partial,
+  };
+}
+
+export function makeGraphGrimeShadowNode(partial: Partial<GraphGrimeShadowNode> = {}): GraphGrimeShadowNode {
+  return {
+    id: `grime-shadow-${Date.now()}-${_idCounter++}`,
+    name: 'Grime Shadow',
+    x: 8,
+    y: 10,
+    layers: 5,
+    blur: 10,
+    spread: 14,
+    grime: 45,
+    jitter: 10,
+    opacity: 58,
+    color: '#090606',
+    seedOffset: 0,
+    shadowOnly: false,
     ...partial,
   };
 }
@@ -905,6 +1035,9 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
           colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
           repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
+          maskNodes: (doc.graph.maskNodes ?? []).map((n) => ({ ...n })),
+          transformNodes: (doc.graph.transformNodes ?? []).map((n) => ({ ...n })),
+          grimeShadowNodes: (doc.graph.grimeShadowNodes ?? []).map((n) => ({ ...n })),
           areas: (doc.graph.areas ?? []).map((area) => ({ ...area, nodeIds: [...area.nodeIds] })),
           primitiveViewStates: doc.graph.primitiveViewStates
             ? Object.fromEntries(Object.entries(doc.graph.primitiveViewStates).map(([id, state]) => [id, { ...state }]))

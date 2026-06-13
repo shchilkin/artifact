@@ -13,6 +13,7 @@ export function RepeatInspector({
   detached?: boolean;
 }) {
   const copy = repeatInspectorCopy(repeatNode.pattern);
+  const rotationMode = repeatNode.rotationMode ?? 'fixed';
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
@@ -71,6 +72,33 @@ export function RepeatInspector({
         max={180}
         onChange={(value) => onChange({ rotation: value })}
       />
+      <InspectorSelect
+        label="Rotation Mode"
+        value={rotationMode}
+        options={['fixed', 'radial', 'step', 'random']}
+        onChange={(value) => onChange({ rotationMode: value as GraphRepeatNode['rotationMode'] })}
+      />
+      {rotationMode === 'step' && (
+        <InspectorSlider
+          label="Rotation Step"
+          value={repeatNode.rotationStep ?? 0}
+          min={-180}
+          max={180}
+          onChange={(value) => onChange({ rotationStep: value })}
+        />
+      )}
+      {(rotationMode === 'fixed' ||
+        rotationMode === 'radial' ||
+        rotationMode === 'step' ||
+        rotationMode === 'random') && (
+        <InspectorSlider
+          label="Rotation Jitter"
+          value={repeatNode.rotationJitter ?? 0}
+          min={0}
+          max={180}
+          onChange={(value) => onChange({ rotationJitter: value })}
+        />
+      )}
       <InspectorSlider
         label="Seed Offset"
         value={Math.round(repeatNode.seedOffset ?? 0)}

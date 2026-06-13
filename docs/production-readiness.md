@@ -49,6 +49,38 @@ CI should run:
 
 ## Manual QA
 
+### v0.35.0 Release Prep
+
+- Package metadata is bumped to `0.35.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.35.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.35 adds Mask, Transform, and Grime Shadow graph utility nodes, Line Field
+  source layers, and deterministic per-copy Repeat rotation while keeping cloud
+  sharing, project history, asset-library work, and broad effect-batch work out
+  of scope.
+- v0.35 updates Add Library search, node docs, starter recipes, graph
+  traversal, render signatures, thumbnails, gallery, and export behavior for
+  the new graph/source nodes.
+- Manual QA confirmed masked branch composition, post-mask movement and
+  rotation, dirty alpha shadow layering, Line Field source search and controls,
+  and repeated rotated motif workflows.
+- `npm run check` passed on 2026-06-13.
+- `npm run build` passed on 2026-06-13.
+- `npm run test:browser:release` passed on 2026-06-13 with `288 passed` and
+  `25 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Focused browser validation passed on 2026-06-13:
+  `npm run test:browser:release -- --grep "v0.35 graph nodes"` and
+  `npm run test:browser:release -- --project=webkit --grep "docs research page supports search and type filtering"`.
+- `npm run release:verify` passed on 2026-06-13.
+- `npm run perf:node-editor` passed on 2026-06-13 because v0.35 changes graph
+  nodes, React Flow node behavior, graph traversal, thumbnails, and
+  render/export paths.
+- Accepted release risk: Line Field is a procedural source with distortion
+  controls, not an arbitrary vector-field editor or hand-painted displacement
+  system.
+
 ### v0.34.0 Release Prep
 
 - Release prep was approved by the maintainer on 2026-06-07 after local review

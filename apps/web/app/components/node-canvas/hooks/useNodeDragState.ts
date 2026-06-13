@@ -214,7 +214,13 @@ function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['
 }
 
 function hasSingleInputGraphNode(graph: CanvasGraph, nodeId: string) {
-  return nodeIdInGraphNodes(graph.colorNodes, nodeId) || nodeIdInGraphNodes(graph.repeatNodes, nodeId);
+  return (
+    nodeIdInGraphNodes(graph.colorNodes, nodeId) ||
+    nodeIdInGraphNodes(graph.repeatNodes, nodeId) ||
+    nodeIdInGraphNodes(graph.maskNodes, nodeId) ||
+    nodeIdInGraphNodes(graph.transformNodes, nodeId) ||
+    nodeIdInGraphNodes(graph.grimeShadowNodes, nodeId)
+  );
 }
 
 function nodeIdInGraphNodes(nodes: Array<{ id: string }> | undefined, nodeId: string) {

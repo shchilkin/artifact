@@ -870,6 +870,156 @@ const emptyTransparentDocument = {
   layers: [],
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const v035NodeSmokeDocument = {
+  schemaVersion: 1,
+  global: { bg: 'transparent', seed: 35, aspect: '1:1' },
+  layers: [
+    {
+      id: 'v035-lines',
+      name: 'Line Field Smoke',
+      visible: true,
+      locked: false,
+      kind: 'lineField',
+      opacity: 100,
+      blendMode: 'normal',
+      seedOffset: 0,
+      x: 0.5,
+      y: 0.5,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      color: '#ff6a3d',
+      accentColor: '#d9499b',
+      primitiveShape: 'sphere',
+      primitiveShading: 'smooth',
+      tiltX: -18,
+      tiltY: 28,
+      tiltZ: 0,
+      primitiveDepth: 48,
+      noiseType: 'clouds',
+      noiseScale: 28,
+      noiseDetail: 4,
+      noiseContrast: 52,
+      noiseBalance: 50,
+      noiseWarp: 0,
+      noiseTurbulence: 0,
+      noiseThreshold: 0,
+      arrayPattern: 'grid',
+      arrayShape: 'disc',
+      arrayCount: 6,
+      arrayRows: 4,
+      arrayGap: 30,
+      arrayRadius: 120,
+      arraySize: 36,
+      arrayJitter: 0,
+      lineFieldOrientation: 'horizontal',
+      lineFieldDistortion: 'wave',
+      lineFieldCount: 32,
+      lineFieldSpacing: 16,
+      lineFieldStroke: 4,
+      lineFieldStrength: 22,
+      lineFieldFrequency: 4,
+      lineFieldBackground: '#000000',
+      lineFieldTransparent: true,
+    },
+    {
+      id: 'v035-mask-fill',
+      name: 'Mask Matte Smoke',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#ffffff',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      { id: 'e-lines-mask', fromId: 'v035-lines', fromPort: 'out', toId: 'v035-mask', toPort: 'in' },
+      { id: 'e-fill-mask', fromId: 'v035-mask-fill', fromPort: 'out', toId: 'v035-mask', toPort: 'mask' },
+      { id: 'e-mask-transform', fromId: 'v035-mask', fromPort: 'out', toId: 'v035-transform', toPort: 'in' },
+      { id: 'e-transform-shadow', fromId: 'v035-transform', fromPort: 'out', toId: 'v035-shadow', toPort: 'in' },
+      { id: 'e-shadow-repeat', fromId: 'v035-shadow', fromPort: 'out', toId: 'v035-repeat', toPort: 'in' },
+      { id: 'e-repeat-export', fromId: 'v035-repeat', fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {
+      'v035-lines': { x: 0, y: 80 },
+      'v035-mask-fill': { x: 0, y: 520 },
+      'v035-mask': { x: 520, y: 80 },
+      'v035-transform': { x: 520, y: 520 },
+      'v035-shadow': { x: 1040, y: 80 },
+      'v035-repeat': { x: 1040, y: 520 },
+      __export__: { x: 1560, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+    repeatNodes: [
+      {
+        id: 'v035-repeat',
+        name: 'Repeat Smoke',
+        pattern: 'line',
+        count: 3,
+        rows: 2,
+        gap: 86,
+        radius: 90,
+        scale: 42,
+        jitter: 0,
+        rotation: 0,
+        rotationMode: 'step',
+        rotationStep: 18,
+        rotationJitter: 0,
+        seedOffset: 2,
+        opacity: 100,
+        blendMode: 'source-over',
+      },
+    ],
+    maskNodes: [
+      {
+        id: 'v035-mask',
+        name: 'Mask Smoke',
+        mode: 'alpha',
+        invert: false,
+        threshold: 50,
+        feather: 0,
+        expand: 0,
+        opacity: 100,
+      },
+    ],
+    transformNodes: [
+      {
+        id: 'v035-transform',
+        name: 'Transform Smoke',
+        x: 0,
+        y: 0,
+        scaleX: 100,
+        scaleY: 100,
+        uniformScale: true,
+        rotation: 12,
+        pivotMode: 'visible',
+        opacity: 100,
+      },
+    ],
+    grimeShadowNodes: [
+      {
+        id: 'v035-shadow',
+        name: 'Grime Shadow Smoke',
+        x: 8,
+        y: 10,
+        layers: 4,
+        blur: 8,
+        spread: 10,
+        grime: 35,
+        jitter: 8,
+        opacity: 54,
+        color: '#090606',
+        seedOffset: 1,
+        shadowOnly: false,
+      },
+    ],
+    areas: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page, { captureNodeDragWarnings: true });
@@ -921,6 +1071,12 @@ async function expectPortableRefsStored(page: Page) {
       hasImagePayload: false,
       hasFontAssetsField: false,
     });
+}
+
+async function selectGraphNodeById(page: Page, nodeId: string) {
+  await page.locator(`.react-flow__node[data-id="${nodeId}"]`).evaluate((node) => {
+    node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  });
 }
 
 async function captureCopiedShareLink(page: Page) {
@@ -1242,9 +1398,9 @@ test('node graph highlights the active output path and exposes output navigation
   expect(paneBox).toBeTruthy();
   if (!paneBox) return;
   const viewport = page.locator('.react-flow__viewport').first();
-  await page.mouse.move(paneBox.x + paneBox.width - 120, paneBox.y + paneBox.height - 120);
+  await page.mouse.move(paneBox.x + paneBox.width / 2, paneBox.y + paneBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(paneBox.x + paneBox.width - 420, paneBox.y + paneBox.height - 300, { steps: 6 });
+  await page.mouse.move(paneBox.x + paneBox.width / 2 - 300, paneBox.y + paneBox.height / 2 - 180, { steps: 6 });
   await page.mouse.up();
   const panned = await viewport.evaluate((element) => getComputedStyle(element).transform);
   await clickEditorControl(page.getByRole('button', { name: 'Jump to output node' }));
@@ -2320,12 +2476,12 @@ test('empty canvas can start from the layer-first photo stack recipe', async ({ 
 });
 
 test('docs recipe try-this link opens an editable starter document', async ({ page }) => {
-  await page.goto('/docs/nodes');
-  await expect(page.getByRole('heading', { name: 'Artifact Docs.' })).toBeVisible();
+  await page.goto('/docs/recipes');
+  await expect(page.getByRole('heading', { name: 'Recipes.' })).toBeVisible();
 
-  const recipe = page.locator('.docs-recipe').filter({ hasText: 'Photo Plus Type Recipe' });
+  const recipe = page.locator('.docs-recipe-row').filter({ hasText: 'Photo Plus Type Recipe' });
   await expect(recipe).toBeVisible();
-  await recipe.getByRole('link', { name: 'Try this' }).click();
+  await recipe.getByRole('link', { name: 'Open' }).click();
 
   await expect(page).toHaveURL(/\/app(?:\?|$)/);
   await expectLayerCanvasToHavePixels(page);
@@ -2396,6 +2552,36 @@ test('node add menu can add poster text starts', async ({ page }) => {
     return doc.layers?.find((layer: { name: string }) => layer.name === 'Poster Type');
   });
   expect(textLayer).toMatchObject({ kind: 'text', content: 'POSTER', font: 'BUNGEE' });
+  await switchToLayerView(page);
+  await expectLayerCanvasToHavePixels(page);
+});
+
+test('v0.35 graph nodes mount and select without recursive React updates', async ({ page }) => {
+  await gotoDocument(page, v035NodeSmokeDocument);
+  await switchToNodeView(page);
+
+  const lineFieldNode = page.getByRole('group', { name: /Line Field Smoke, lineField node/ });
+  const maskNode = page.getByRole('group', { name: /Mask Smoke, mask node/ });
+  const transformNode = page.getByRole('group', { name: /Transform Smoke, transform node/ });
+  const shadowNode = page.getByRole('group', { name: /Grime Shadow Smoke, shadow node/ });
+  const repeatNode = page.getByRole('group', { name: /Repeat Smoke, repeat node/ });
+
+  await expect(lineFieldNode).toBeVisible({ timeout: 15_000 });
+  await expect(maskNode).toBeVisible();
+  await expect(transformNode).toBeVisible();
+  await expect(shadowNode).toBeVisible();
+  await expect(repeatNode).toBeVisible();
+
+  await selectGraphNodeById(page, 'v035-mask');
+  await expect(page.locator('.node-props-panel')).toContainText('Mask Smoke');
+  await selectGraphNodeById(page, 'v035-transform');
+  await expect(page.locator('.node-props-panel')).toContainText('Transform Smoke');
+  await page.waitForTimeout(700);
+  await selectGraphNodeById(page, 'v035-shadow');
+  await expect(page.locator('.node-props-panel')).toContainText('Grime Shadow Smoke');
+  await selectGraphNodeById(page, 'v035-repeat');
+  await expect(page.locator('.node-props-panel')).toContainText('Repeat Smoke');
+
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

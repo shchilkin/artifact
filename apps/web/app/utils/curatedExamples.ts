@@ -14,15 +14,19 @@ import {
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
 import {
+  MASKED_TYPE_LINES_GRAPH_RECIPE,
   MULTI_FONT_TYPE_STACK_STARTER,
+  NOISE_MATTE_MERGE_GRAPH_RECIPE,
   NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
   PHOTO_TYPE_STACK_STARTER,
   PRIMITIVE_IMAGE_GRAPH_RECIPE,
   PRINT_DAMAGE_GRAPH_RECIPE,
+  ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE,
   STICKER_GRID_GRAPH_RECIPE,
   type StarterDocument,
   TEXTURE_TYPE_STACK_STARTER,
+  WARPED_LINE_POSTER_GRAPH_RECIPE,
 } from './starterDocuments';
 
 export type CuratedExampleCategory = 'Layer recipe' | 'Graph recipe' | 'Texture study' | 'Effect stack';
@@ -134,6 +138,30 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
     summary: 'A poster workflow that pushes type through paper fiber, halftone, tears, and dust.',
     usedNodes: ['Fill', 'Noise', 'Text', 'Halftone', 'Tear', 'Grain'],
     startCopy: 'Open this for distressed posters where every damage pass remains editable.',
+  }),
+  starterExample(MASKED_TYPE_LINES_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'Diagonal line material is clipped by editable type before it is merged over a dark plate.',
+    usedNodes: ['Fill', 'Line Field', 'Text', 'Mask', 'Merge', 'Grain'],
+    startCopy: 'Open this to learn the Mask node with type as the matte and line work as the source.',
+  }),
+  starterExample(ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A circular mask creates a token, then Repeat rotates each copy into a radial mark system.',
+    usedNodes: ['Fill', 'Line Field', 'Array', 'Mask', 'Repeat', 'Text'],
+    startCopy: 'Use this when each repeated copy should keep the same shape but get its own internal angle.',
+  }),
+  starterExample(WARPED_LINE_POSTER_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A bulged procedural line source becomes the main poster material behind editable type.',
+    usedNodes: ['Fill', 'Line Field', 'Text', 'Scanlines', 'Output'],
+    startCopy: 'Open this to tune line count, stroke, distortion strength, and frequency in one source node.',
+  }),
+  starterExample(NOISE_MATTE_MERGE_GRAPH_RECIPE, {
+    category: 'Graph recipe',
+    summary: 'A noisy matte controls where a line texture branch appears before type is added.',
+    usedNodes: ['Fill', 'Line Field', 'Noise', 'Mask', 'Merge', 'Text'],
+    startCopy: 'Use this for smart masked merges where the matte remains editable instead of flattened.',
   }),
   {
     id: 'static-orbit',

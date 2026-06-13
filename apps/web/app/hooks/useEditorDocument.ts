@@ -6,8 +6,11 @@ import {
   type CanvasGraph,
   type EffectPreset,
   type GraphColorNode,
+  type GraphGrimeShadowNode,
+  type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphTransformNode,
   type ImageLayer,
   type Layer,
   type LayerKind,
@@ -22,6 +25,7 @@ import {
 } from '../utils/documentAssets';
 import {
   addLayerToDocument,
+  addLooseLayerNodeToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
   createAiImageLayer,
@@ -39,9 +43,12 @@ import {
   setDocumentSeed,
   updateColorNodeInDocument,
   updateDocumentExportConfig,
+  updateGrimeShadowNodeInDocument,
   updateLayerInDocument,
+  updateMaskNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
+  updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
   createPendingHistoryEntry,
@@ -338,16 +345,22 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   );
 
   const addImageFromSource = useCallback(
-    (src: string, aiGeneration?: ImageLayer['aiGeneration']) => {
+    (src: string, aiGeneration?: ImageLayer['aiGeneration'], nodePosition?: { x: number; y: number }) => {
       const layer = {
         ...createImageLayerFromSource(src),
         aiGeneration,
         ...(aiGeneration ? { aiGenerationHistory: [{ src, aiGeneration }], aiGenerationHistoryIndex: 0 } : {}),
       };
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument(
+        (current) =>
+          nodeModeEnabled
+            ? addLooseLayerNodeToDocument(current, layer, nodePosition)
+            : addLayerToDocument(current, layer),
+        'snapshot',
+      );
       setSelectedLayerId(layer.id);
     },
-    [updateDocument],
+    [nodeModeEnabled, updateDocument],
   );
 
   const removeLayer = useCallback(
@@ -405,6 +418,27 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const updateRepeatNode = useCallback(
     (id: string, patch: Partial<GraphRepeatNode>) => {
       updateDocument((current) => updateRepeatNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
+  const updateMaskNode = useCallback(
+    (id: string, patch: Partial<GraphMaskNode>) => {
+      updateDocument((current) => updateMaskNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
+  const updateTransformNode = useCallback(
+    (id: string, patch: Partial<GraphTransformNode>) => {
+      updateDocument((current) => updateTransformNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
+  const updateGrimeShadowNode = useCallback(
+    (id: string, patch: Partial<GraphGrimeShadowNode>) => {
+      updateDocument((current) => updateGrimeShadowNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
@@ -504,6 +538,9 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
+    updateMaskNode,
+    updateTransformNode,
+    updateGrimeShadowNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,

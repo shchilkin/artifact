@@ -41,6 +41,7 @@ describe('addLibraryModel', () => {
     expect(layerItems.map((item) => item.id)).toContain('aiImage');
     expect(layerItems.map((item) => item.id)).toContain('noisePreset:paper');
     expect(layerItems.map((item) => item.id)).toContain('arrayPreset:stickerGrid');
+    expect(layerItems.map((item) => item.id)).toContain('layer:lineField');
     expect(layerItems.map((item) => item.id)).not.toContain('merge');
   });
 
@@ -57,12 +58,14 @@ describe('addLibraryModel', () => {
   it('exposes only groups that are available on each surface', () => {
     const layerGroups = addLibraryGroupsForSurface('layers').map((group) => group.id);
     const nodeGroups = addLibraryGroupsForSurface('nodes').map((group) => group.id);
+    const nodeIds = addLibraryItemsForSurface('nodes').map((item) => item.id);
 
     expect(layerGroups).toContain('content');
     expect(layerGroups).toContain('tone');
     expect(layerGroups).not.toContain('utility');
     expect(nodeGroups).toContain('utility');
     expect(nodeGroups).toContain('source');
+    expect(nodeIds).toEqual(expect.arrayContaining(['merge', 'color', 'mask', 'transform', 'grimeShadow', 'repeat']));
   });
 
   it('keeps preset variants searchable without showing them as top-level browse primitives', () => {
@@ -93,6 +96,18 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('old photo')).toEqual(expect.arrayContaining(['effect:grain', 'effect:duotone']));
     expect(firstIdsFor('crt')).toEqual(expect.arrayContaining(['effect:scanlines', 'effect:vhsTracking']));
     expect(firstIdsFor('paper')).toContain('effect:grain');
+    expect(firstIdsFor('line')).toContain('layer:lineField');
+    expect(firstIdsFor('linefield')).toContain('layer:lineField');
+    expect(firstIdsFor('contour')).toContain('layer:lineField');
+    expect(firstIdsFor('mask')).toContain('mask');
+    expect(firstIdsFor('matte')).toContain('mask');
+    expect(firstIdsFor('alpha')).toContain('mask');
+    expect(firstIdsFor('transform')).toContain('transform');
+    expect(firstIdsFor('rotate')).toContain('transform');
+    expect(firstIdsFor('scale')).toContain('transform');
+    expect(firstIdsFor('grime shadow')).toContain('grimeShadow');
+    expect(firstIdsFor('drop shadow')).toContain('grimeShadow');
+    expect(firstIdsFor('dirty')).toContain('grimeShadow');
   });
 
   it('gives key effect items individual descriptions and use-case tags', () => {
@@ -116,6 +131,13 @@ describe('addLibraryModel', () => {
       kind: 'noisePreset',
       preset: 'paper',
     });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'layer', layerKind: 'lineField' }))).toEqual({
+      kind: 'layer',
+      layerKind: 'lineField',
+    });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'mask' }))).toEqual({ kind: 'mask' });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'grimeShadow' }))).toEqual({ kind: 'grimeShadow' });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction('not json')).toBeNull();

@@ -11,9 +11,10 @@ const KIND_ICONS: Record<LayerKind, string> = {
   primitive: '◍',
   noise: '░',
   array: '▦',
+  lineField: '≋',
 };
 
-export type GraphHelperKind = 'merge' | 'color' | 'repeat' | 'export';
+export type GraphHelperKind = 'merge' | 'color' | 'repeat' | 'mask' | 'transform' | 'grimeShadow' | 'export';
 
 export interface GraphHelperRowData {
   id: string;
@@ -36,6 +37,9 @@ const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }
   merge: { icon: '◇', label: 'merge' },
   color: { icon: '◐', label: 'grade' },
   repeat: { icon: '▦', label: 'repeat' },
+  mask: { icon: '◒', label: 'mask' },
+  transform: { icon: '↻', label: 'transform' },
+  grimeShadow: { icon: '◖', label: 'shadow' },
   export: { icon: '↗', label: 'output' },
 };
 
@@ -56,6 +60,18 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   (graph.repeatNodes ?? []).forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
+  });
+  (graph.maskNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'mask', ...GRAPH_HELPER_META.mask });
+  });
+  (graph.transformNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'transform', ...GRAPH_HELPER_META.transform });
+  });
+  (graph.grimeShadowNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'grimeShadow', ...GRAPH_HELPER_META.grimeShadow });
   });
   if (areaNodeIds.has(EXPORT_NODE_ID)) {
     helpersById.set(EXPORT_NODE_ID, {

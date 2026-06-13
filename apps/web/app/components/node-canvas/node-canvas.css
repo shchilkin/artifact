@@ -1690,6 +1690,62 @@
   overscroll-behavior: contain;
 }
 
+.node-transform-preview-surface {
+  background: var(--node-bg);
+}
+
+.node-transform-live-frame {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.node-transform-live-branch {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.node-transform-live-branch .node-thumbnail {
+  position: absolute;
+  inset: 0;
+  min-height: 100% !important;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.node-transform-live-branch .node-thumbnail-frame {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+}
+
+.node-transform-gesture-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.node-transform-scale-handle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--node-accent);
+  background:
+    linear-gradient(135deg, transparent 0 42%, var(--node-accent) 44% 56%, transparent 58%),
+    color-mix(in oklch, var(--node-bg) 78%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--node-bg) 84%, transparent);
+  cursor: nwse-resize;
+}
+
 .node-ai-status-overlay {
   position: absolute;
   inset: 0;

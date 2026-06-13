@@ -33,6 +33,7 @@ import {
   InspectorSlider,
   InspectorTextArea,
   InspectorTextInput,
+  InspectorToggle,
   ScaleLockRow,
 } from '../node-canvas/inspector/fields';
 import { layerHasPlacementControls } from './controlModel';
@@ -42,6 +43,8 @@ import {
   BLEND_OPTIONS,
   FIELD_RANGES,
   IMAGE_FIT_OPTIONS,
+  LINE_FIELD_DISTORTION_OPTIONS,
+  LINE_FIELD_ORIENTATION_OPTIONS,
   NOISE_TYPE_OPTIONS,
   PRIMITIVE_SHADING_OPTIONS,
   PRIMITIVE_SHAPE_OPTIONS,
@@ -88,7 +91,7 @@ type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
 type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
 type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
 
-const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array']);
+const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array', 'lineField']);
 
 function PlacementResetButton({ onClick }: { onClick: () => void }) {
   return (
@@ -604,11 +607,12 @@ function EmojiLayerControls({
 }
 
 function sourceSurfaceNote(surface: LayerControlsSurface, layer: SourceLayer): string | null {
-  if (surface !== 'layers') return null;
-  if (layer.kind === 'primitive')
+  if (layer.kind === 'primitive' && surface === 'layers')
     return 'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.';
   if (layer.kind === 'noise')
     return 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.';
+  if (layer.kind === 'lineField')
+    return 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.';
   return null;
 }
 
@@ -883,6 +887,77 @@ function ArrayStructureControls({
   );
 }
 
+function LineFieldStructureControls({
+  layer,
+  onChange,
+}: {
+  layer: SourceLayer;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <>
+      <InspectorSelect
+        label="Direction"
+        value={layer.lineFieldOrientation}
+        options={[...LINE_FIELD_ORIENTATION_OPTIONS]}
+        onChange={(v) =>
+          onChange({ lineFieldOrientation: v as SourceLayer['lineFieldOrientation'] } as Partial<SourceLayer>)
+        }
+      />
+      <InspectorSelect
+        label="Distortion"
+        value={layer.lineFieldDistortion}
+        options={[...LINE_FIELD_DISTORTION_OPTIONS]}
+        onChange={(v) =>
+          onChange({ lineFieldDistortion: v as SourceLayer['lineFieldDistortion'] } as Partial<SourceLayer>)
+        }
+      />
+      <InspectorSlider
+        label="Lines"
+        value={Math.round(layer.lineFieldCount)}
+        {...R.lineFieldCount}
+        onChange={(v) => onChange({ lineFieldCount: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Spacing"
+        value={Math.round(layer.lineFieldSpacing)}
+        {...R.lineFieldSpacing}
+        onChange={(v) => onChange({ lineFieldSpacing: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Stroke"
+        value={Math.round(layer.lineFieldStroke)}
+        {...R.lineFieldStroke}
+        onChange={(v) => onChange({ lineFieldStroke: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Distort"
+        value={Math.round(layer.lineFieldStrength)}
+        {...R.lineFieldStrength}
+        onChange={(v) => onChange({ lineFieldStrength: v } as Partial<SourceLayer>)}
+      />
+      <InspectorSlider
+        label="Frequency"
+        value={Math.round(layer.lineFieldFrequency)}
+        {...R.lineFieldFrequency}
+        onChange={(v) => onChange({ lineFieldFrequency: v } as Partial<SourceLayer>)}
+      />
+      <InspectorToggle
+        label="Transparent"
+        checked={layer.lineFieldTransparent}
+        onChange={(v) => onChange({ lineFieldTransparent: v } as Partial<SourceLayer>)}
+      />
+      {!layer.lineFieldTransparent && (
+        <InspectorColorInput
+          label="Background"
+          value={layer.lineFieldBackground}
+          onChange={(v) => onChange({ lineFieldBackground: v } as Partial<SourceLayer>)}
+        />
+      )}
+    </>
+  );
+}
+
 function SourceStructureControls({
   layer,
   surface,
@@ -895,6 +970,7 @@ function SourceStructureControls({
   if (layer.kind === 'primitive')
     return <PrimitiveStructureControls layer={layer} surface={surface} onChange={onChange} />;
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
+  if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
   return <ArrayStructureControls layer={layer} onChange={onChange} />;
 }
 
@@ -1006,12 +1082,14 @@ export function LayerControls({
 function sourceSummary(layer: SourceLayer) {
   if (layer.kind === 'primitive') return `${layer.primitiveShape} form`;
   if (layer.kind === 'noise') return `${layer.noiseType} texture`;
+  if (layer.kind === 'lineField') return `${layer.lineFieldOrientation} lines`;
   return `${layer.arrayPattern} repeat`;
 }
 
 function structureSummary(layer: SourceLayer) {
   if (layer.kind === 'primitive') return `${layer.primitiveShading ?? 'smooth'} shading`;
   if (layer.kind === 'noise') return `${Math.round(layer.noiseScale)} scale`;
+  if (layer.kind === 'lineField') return `${Math.round(layer.lineFieldCount)} lines`;
   return `${Math.round(layer.arrayCount)} items`;
 }
 

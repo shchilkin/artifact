@@ -17,6 +17,7 @@ export function NodeShell({
   children,
   onToggleMuted,
   onDelete,
+  onDragHandlePointerDown,
   deleteDisabled,
 }: NodeShellProps) {
   void expanded;
@@ -30,7 +31,7 @@ export function NodeShell({
     >
       <div className="node-shell-accent" aria-hidden="true" />
       <div className="node-shell-header">
-        <div className="node-drag-handle node-shell-drag">
+        <div className="node-drag-handle node-shell-drag" onPointerDown={onDragHandlePointerDown}>
           <span className="node-shell-symbol">{KIND_SYMBOL[kind] ?? '○'}</span>
           <span className="node-shell-label">{label}</span>
           <NodeDisplayName label={label} name={name} />

@@ -380,6 +380,72 @@ describe('renderDocument — preview/export size parity', () => {
     expect(visiblePixelCount(wideBars)).toBeGreaterThan(visiblePixelCount(singleRow) * 2.5);
   });
 
+  it('line field renders nonblank output across common aspect ratios', async () => {
+    const makeLineDoc = (aspect: CanvasDocument['global']['aspect']): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 33, aspect },
+      layers: [
+        makeSourceLayer('lineField', {
+          lineFieldOrientation: 'diagonal',
+          lineFieldDistortion: 'wave',
+          lineFieldCount: 24,
+          lineFieldSpacing: 18,
+          lineFieldStroke: 3,
+          lineFieldStrength: 32,
+          lineFieldFrequency: 4,
+          color: '#ffffff',
+          accentColor: '#ffffff',
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    for (const [aspect, width, height] of [
+      ['1:1', 120, 120],
+      ['4:5', 120, 150],
+      ['9:16', 90, 160],
+      ['16:9', 160, 90],
+    ] as const) {
+      const canvas = await renderDocument(makeLineDoc(aspect), width, height, new Map(), {
+        skipEffects: true,
+        graphMode: 'stack',
+      });
+
+      expect(visiblePixelCount(canvas)).toBeGreaterThan(width * height * 0.05);
+    }
+  });
+
+  it('line field ignores placement scale and still covers the frame', async () => {
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 34, aspect: '1:1' },
+      layers: [
+        makeSourceLayer('lineField', {
+          x: 0.25,
+          y: 0.25,
+          scaleX: 0.25,
+          scaleY: 0.25,
+          rotation: 28,
+          lineFieldOrientation: 'horizontal',
+          lineFieldDistortion: 'none',
+          lineFieldCount: 80,
+          lineFieldSpacing: 12,
+          lineFieldStroke: 4,
+          color: '#ffffff',
+          accentColor: '#ffffff',
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderDocument(doc, 160, 160, new Map(), {
+      skipEffects: true,
+      graphMode: 'stack',
+    });
+    const bounds = alphaBounds(canvas);
+
+    expect(bounds.width).toBeGreaterThan(150);
+    expect(bounds.height).toBeGreaterThan(150);
+  });
+
   it('procedural source seed offsets vary one node without changing the document seed', async () => {
     const makeNoiseDoc = (seedOffset: number): CanvasDocument => ({
       global: { bg: 'transparent', seed: 42, aspect: '1:1' },

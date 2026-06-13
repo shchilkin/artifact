@@ -754,7 +754,7 @@ function renderFillLayerToCanvas(context: LayerRenderContext<FillLayer>) {
 }
 
 function sourceLayerLayout(layer: Layer, options: RenderOptions) {
-  return layer.kind === 'primitive' ? 'full-frame' : (options.sourceLayout ?? 'document');
+  return layer.kind === 'primitive' || layer.kind === 'lineField' ? 'full-frame' : (options.sourceLayout ?? 'document');
 }
 
 async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
@@ -854,6 +854,7 @@ const LAYER_RENDERERS = {
   primitive: renderSourceLayerToCanvas,
   noise: renderSourceLayerToCanvas,
   array: renderSourceLayerToCanvas,
+  lineField: renderSourceLayerToCanvas,
 };
 
 function layerRenderer(kind: Layer['kind']) {

@@ -188,6 +188,7 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'NS_BINDING_ABORTED',
   'Error loading route module `/app/routes/showcase.tsx`, reloading page',
   'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
+  'ResizeObserver loop completed with undelivered notifications',
 ];
 
 const BENIGN_BROWSER_TEST_MESSAGES = new Set(['JSHandle@object']);

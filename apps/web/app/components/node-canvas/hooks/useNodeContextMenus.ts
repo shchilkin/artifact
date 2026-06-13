@@ -58,7 +58,14 @@ function addNodeMenuScreenPoint(buttonRect: DOMRect | undefined, surfaceRect: DO
 }
 
 function isGraphUtilityNode(graph: CanvasGraph, id: string) {
-  const utilityNodes = [...graph.mergeNodes, ...(graph.colorNodes ?? []), ...(graph.repeatNodes ?? [])];
+  const utilityNodes = [
+    ...graph.mergeNodes,
+    ...(graph.colorNodes ?? []),
+    ...(graph.repeatNodes ?? []),
+    ...(graph.maskNodes ?? []),
+    ...(graph.transformNodes ?? []),
+    ...(graph.grimeShadowNodes ?? []),
+  ];
   return utilityNodes.some((node) => node.id === id);
 }
 

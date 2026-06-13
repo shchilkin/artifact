@@ -19,9 +19,13 @@ export const KIND_COLOR: Record<string, string> = {
   primitive: 'var(--node-kind-primitive)',
   noise: 'var(--node-kind-noise)',
   array: 'var(--node-kind-array)',
+  lineField: 'var(--node-kind-array)',
   merge: 'var(--node-kind-merge)',
   color: 'var(--node-kind-color)',
   repeat: 'var(--node-kind-array)',
+  mask: 'var(--node-kind-effect)',
+  transform: 'var(--node-kind-color)',
+  grimeShadow: 'var(--node-kind-effect)',
   export: 'var(--node-kind-export)',
 };
 
@@ -34,9 +38,13 @@ export const KIND_SYMBOL: Record<string, string> = {
   primitive: '◍',
   noise: '░',
   array: '▦',
+  lineField: '≋',
   merge: '⊕',
   color: '◐',
   repeat: '⧉',
+  mask: '◒',
+  transform: '↻',
+  grimeShadow: '◖',
   export: '↗',
 };
 
@@ -120,6 +128,13 @@ export const ADD_NODE_ITEMS: Array<{
     action: { kind: 'arrayPreset', preset } as AddAction,
   })),
   {
+    label: 'Line Field',
+    symbol: '≋',
+    description: 'Draw editable optical, contour, and warped line fields.',
+    group: 'generators',
+    action: { kind: 'layer', layerKind: 'lineField' },
+  },
+  {
     label: 'Merge',
     symbol: '⊕',
     description: 'Blend two branches into one result.',
@@ -132,6 +147,27 @@ export const ADD_NODE_ITEMS: Array<{
     description: 'Grade hue, contrast, and tonal balance.',
     group: 'utilities',
     action: { kind: 'color' },
+  },
+  {
+    label: 'Mask',
+    symbol: '◒',
+    description: 'Cut a source branch by alpha or brightness from another branch.',
+    group: 'utilities',
+    action: { kind: 'mask' },
+  },
+  {
+    label: 'Transform',
+    symbol: '↻',
+    description: 'Move, scale, rotate, and fade a completed upstream branch.',
+    group: 'utilities',
+    action: { kind: 'transform' },
+  },
+  {
+    label: 'Grime Shadow',
+    symbol: '◖',
+    description: 'Build a layered dirty shadow from an upstream alpha shape.',
+    group: 'utilities',
+    action: { kind: 'grimeShadow' },
   },
   {
     label: 'Repeater',

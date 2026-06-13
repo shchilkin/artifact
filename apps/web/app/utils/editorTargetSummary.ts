@@ -1,4 +1,14 @@
-import type { CanvasGraph, EffectLayer, GraphColorNode, GraphMergeNode, GraphRepeatNode, Layer } from '../types/config';
+import type {
+  CanvasGraph,
+  EffectLayer,
+  GraphColorNode,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
+  GraphMergeNode,
+  GraphRepeatNode,
+  GraphTransformNode,
+  Layer,
+} from '../types/config';
 import { EFFECT_PRESETS } from '../types/config';
 import { getLayerGuardrailState } from './editorGuardrails';
 import { EXPORT_NODE_ID, resolveOutputPath } from './nodeGraph';
@@ -39,7 +49,16 @@ interface GraphTargetOptions {
   surface: EditorTargetSurface;
 }
 
-const SOURCE_KINDS = new Set<Layer['kind']>(['fill', 'image', 'text', 'emoji', 'primitive', 'noise', 'array']);
+const SOURCE_KINDS = new Set<Layer['kind']>([
+  'fill',
+  'image',
+  'text',
+  'emoji',
+  'primitive',
+  'noise',
+  'array',
+  'lineField',
+]);
 const ROLE_BADGES: Record<EditorTargetRole, EditorTargetBadge> = {
   source: { label: 'Source', tone: 'success' },
   effect: { label: 'Effect', tone: 'accent' },
@@ -89,6 +108,9 @@ export function buildGraphTargetSummary(
     | { kind: 'merge'; node: GraphMergeNode }
     | { kind: 'color'; node: GraphColorNode }
     | { kind: 'repeat'; node: GraphRepeatNode }
+    | { kind: 'mask'; node: GraphMaskNode }
+    | { kind: 'transform'; node: GraphTransformNode }
+    | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
     | { kind: 'output' },
   options: GraphTargetOptions,
 ): EditorTargetSummary {
@@ -119,6 +141,9 @@ export function buildGraphTargetSummary(
     merge: ['Merge', 'Combines two upstream branches before sending pixels downstream.'],
     color: ['Color', 'Adjusts tone and color on its upstream branch.'],
     repeat: ['Repeat', 'Repeats an upstream source over an optional backdrop.'],
+    mask: ['Mask', 'Cuts one upstream branch by alpha or brightness from another branch.'],
+    transform: ['Transform', 'Moves, scales, rotates, or fades a completed upstream branch.'],
+    grimeShadow: ['Grime Shadow', 'Builds a layered dirty shadow from the visible alpha of an upstream branch.'],
   } as const;
   const [kindLabel, description] = labels[target.kind];
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
@@ -165,6 +190,8 @@ function getLayerDescription(layer: Layer): string {
       return 'Creates a procedural texture source from the document seed.';
     case 'array':
       return 'Creates a procedural motif source from the document seed.';
+    case 'lineField':
+      return 'Creates procedural line fields for optical, contour, and warped poster graphics.';
   }
 }
 
