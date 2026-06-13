@@ -261,6 +261,7 @@ export function ModelViewport3D({
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [environmentFailed, setEnvironmentFailed] = useState(false);
   const modelSignature = [layer.modelSrc, layer.color, layer.accentColor].join(':');
   const sceneMaterialSignature = materialSignature(sceneNode);
   const sceneEnvironmentSignature = environmentSignature(sceneNode, environmentSource);
@@ -387,8 +388,10 @@ export function ModelViewport3D({
     let cancelled = false;
     setWebglUnavailable(false);
     setLoadFailed(false);
+    setEnvironmentFailed(false);
     setHasRenderedFrame(false);
-    loadSceneEnvironmentMap(renderer, environmentSourceRef.current ?? sceneNodeRef.current?.environmentSrc)
+    const nextEnvironmentSource = environmentSourceRef.current ?? sceneNodeRef.current?.environmentSrc;
+    loadSceneEnvironmentMap(renderer, nextEnvironmentSource)
       .then((environmentMap) => {
         if (cancelled) {
           disposeSceneEnvironment(environmentMap);
@@ -399,7 +402,10 @@ export function ModelViewport3D({
         renderScene();
       })
       .catch(() => {
-        if (!cancelled) renderScene();
+        if (!cancelled) {
+          if (nextEnvironmentSource) setEnvironmentFailed(true);
+          renderScene();
+        }
       });
     resolveModelSource(currentLayer.modelSrc)
       .then((source) => {
@@ -520,6 +526,15 @@ export function ModelViewport3D({
   }, [applyViewState, commit, flushPendingWheelCommit, interactive, lockRFPane, scheduleWheelCommit, unlockRFPane]);
 
   const locked = !!viewState.locked;
+  const viewportStatus = webglUnavailable
+    ? 'WebGL unavailable'
+    : loadFailed
+      ? layer.modelSrc
+        ? 'Model load failed'
+        : 'Missing model'
+      : !hasRenderedFrame
+        ? 'Loading 3D model'
+        : null;
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive || locked) return;
     const next = nextKeyboardState(viewStateRef.current, event.key, event.shiftKey, layer);
@@ -558,6 +573,12 @@ export function ModelViewport3D({
           transition: 'opacity 80ms ease-out',
         }}
       />
+      {(viewportStatus || environmentFailed) && (
+        <div className="model-viewport-status" aria-live="polite">
+          {viewportStatus && <span className="model-viewport-status-badge">{viewportStatus}</span>}
+          {environmentFailed && <span className="model-viewport-status-badge">Env map unavailable</span>}
+        </div>
+      )}
       {(webglUnavailable || loadFailed) && (
         <div className="node-primitive-webgl-fallback" aria-live="polite">
           {webglUnavailable ? '3D preview unavailable' : 'Model preview unavailable'}

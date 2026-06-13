@@ -84,9 +84,9 @@ function environmentPreviewKey(node: GraphEnvironmentNode) {
 }
 
 function statusLabel(status: PreviewStatus) {
-  if (status === 'loading') return 'Loading environment';
-  if (status === 'failed') return 'Preview unavailable';
-  return 'No environment loaded';
+  if (status === 'loading') return 'Loading EXR / HDR';
+  if (status === 'failed') return 'Environment preview unavailable';
+  return 'Drop EXR / HDR';
 }
 
 function clearPreviewCanvas(canvas: HTMLCanvasElement) {

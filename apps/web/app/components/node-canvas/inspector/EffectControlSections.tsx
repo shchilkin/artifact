@@ -85,26 +85,36 @@ const INDEXED_COLOR_FIELDS = [
   'indexedColorF',
 ] as const satisfies readonly IndexedColorField[];
 
-const INDEXED_PALETTE_BANK: readonly (readonly string[])[] = [
-  ['#09001f', '#341052', '#852158', '#df3b33', '#ffd65a', '#fff1df'],
-  ['#070611', '#392044', '#80515e', '#d58b62', '#f1d17d', '#f6f0cf'],
-  ['#031d2d', '#07646d', '#37a77a', '#c8db64', '#fff07a', '#fff7db'],
-  ['#150033', '#4b128b', '#b62280', '#ff3c4f', '#ffb531', '#fff0c7'],
-  ['#03020b', '#20264a', '#5f3b78', '#b15d72', '#f2a45f', '#f8e7ca'],
-  ['#100019', '#372457', '#6e4e82', '#ad7fa4', '#e4c5d9', '#f7efe8'],
-  ['#061015', '#243b32', '#687348', '#b7a64b', '#f0d767', '#fff6d7'],
-  ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'],
+export type IndexedPalettePreset = {
+  name: string;
+  colors: readonly string[];
+};
+
+export const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
+  { name: 'Doom dusk', colors: ['#09001f', '#341052', '#852158', '#df3b33', '#ffd65a', '#fff1df'] },
+  { name: 'Sepia print', colors: ['#070611', '#392044', '#80515e', '#d58b62', '#f1d17d', '#f6f0cf'] },
+  { name: 'Acid swamp', colors: ['#031d2d', '#07646d', '#37a77a', '#c8db64', '#fff07a', '#fff7db'] },
+  { name: 'Neon pit', colors: ['#150033', '#4b128b', '#b62280', '#ff3c4f', '#ffb531', '#fff0c7'] },
+  { name: 'Bruised gold', colors: ['#03020b', '#20264a', '#5f3b78', '#b15d72', '#f2a45f', '#f8e7ca'] },
+  { name: 'Dust violet', colors: ['#100019', '#372457', '#6e4e82', '#ad7fa4', '#e4c5d9', '#f7efe8'] },
+  { name: 'Toxic olive', colors: ['#061015', '#243b32', '#687348', '#b7a64b', '#f0d767', '#fff6d7'] },
+  { name: 'PS fire', colors: ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'] },
 ];
 
 export function activeIndexedPaletteCount(layer: Pick<EffectLayer, 'indexedPaletteCount'>): number {
   return Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
 }
 
-export function randomIndexedPalettePatch(random: () => number = Math.random): Partial<EffectLayer> {
-  const palette = INDEXED_PALETTE_BANK[Math.floor(random() * INDEXED_PALETTE_BANK.length)] ?? INDEXED_PALETTE_BANK[0];
+export function indexedPalettePresetPatch(preset: IndexedPalettePreset): Partial<EffectLayer> {
   return Object.fromEntries(
-    INDEXED_COLOR_FIELDS.map((field, index) => [field, palette[index] ?? '#000000']),
+    INDEXED_COLOR_FIELDS.map((field, index) => [field, preset.colors[index] ?? '#000000']),
   ) as Partial<EffectLayer>;
+}
+
+export function randomIndexedPalettePatch(random: () => number = Math.random): Partial<EffectLayer> {
+  const preset =
+    INDEXED_PALETTE_PRESETS[Math.floor(random() * INDEXED_PALETTE_PRESETS.length)] ?? INDEXED_PALETTE_PRESETS[0];
+  return indexedPalettePresetPatch(preset);
 }
 
 export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
@@ -763,6 +773,24 @@ function renderIndexedPaletteControls(section: EffectSectionDefinition, props: P
               />
             );
           })}
+        </div>
+        <div className="indexed-palette-presets" aria-label="Indexed palette presets">
+          {INDEXED_PALETTE_PRESETS.slice(0, 4).map((preset) => (
+            <NoPan
+              as="button"
+              type="button"
+              key={preset.name}
+              className="indexed-palette-preset"
+              onClick={() => onChange(indexedPalettePresetPatch(preset))}
+            >
+              <span>{preset.name}</span>
+              <span className="indexed-palette-mini-strip" aria-hidden="true">
+                {preset.colors.slice(0, activeCount).map((color) => (
+                  <span key={color} style={{ backgroundColor: color }} />
+                ))}
+              </span>
+            </NoPan>
+          ))}
         </div>
       </div>
       {colors.map((control, index) => (
