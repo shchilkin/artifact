@@ -1,6 +1,16 @@
 import type { Node as RFNode } from '@xyflow/react';
 
-import type { CanvasDocument, CanvasGraph } from '../../types/config';
+import type {
+  CanvasDocument,
+  CanvasGraph,
+  GraphColorNode,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
+  GraphMergeNode,
+  GraphRepeatNode,
+  GraphTransformNode,
+  Layer,
+} from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { NODE_W } from './constants';
@@ -25,158 +35,186 @@ export function buildRFNodes(
   primitiveViewStates: Record<string, PrimitiveViewportState>,
   primitiveRenderModes: Record<string, PrimitiveRenderMode>,
 ): RFNode[] {
-  const nodes: RFNode[] = [];
   const incomingNodeId = (toId: string, toPort: string) =>
     graph.edges.find((edge) => edge.toId === toId && edge.toPort === toPort)?.fromId ?? null;
+  const context: BuildRFNodeContext = {
+    graph,
+    doc,
+    selectedNodeIds,
+    editorNodeId,
+    outputPathNodeIds,
+    connected,
+    primitiveViewStates,
+    primitiveRenderModes,
+    incomingNodeId,
+  };
 
-  doc.layers.forEach((layer, i) => {
-    const pos = graph.positions[layer.id] ?? { x: i * (NODE_W + 56), y: 80 };
-    nodes.push({
-      id: layer.id,
-      type: 'layerNode',
-      position: pos,
-      selected: selectedNodeIds.has(layer.id),
-      data: {
-        layer,
-        previewTargetId: layer.id,
-        selected: selectedNodeIds.has(layer.id),
-        outputPath: outputPathNodeIds.has(layer.id),
-        editing: editorNodeId === layer.id,
-        connected,
-        primitiveViewState: layer.kind === 'primitive' ? primitiveViewStates[layer.id] : undefined,
-        primitiveRenderMode: layer.kind === 'primitive' ? primitiveRenderModes[layer.id] : undefined,
-      } satisfies LayerNodeData,
-    });
-  });
+  return [
+    ...doc.layers.map((layer, i) => buildLayerRFNode(layer, i, context)),
+    ...buildUtilityRFNodes(context),
+    buildExportRFNode(context),
+  ];
+}
 
-  graph.mergeNodes.forEach((mn) => {
-    const pos = graph.positions[mn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: mn.id,
-      type: 'mergeNode',
-      position: pos,
-      selected: selectedNodeIds.has(mn.id),
-      data: {
-        mergeNode: mn,
-        previewTargetId: mn.id,
-        selected: selectedNodeIds.has(mn.id),
-        outputPath: outputPathNodeIds.has(mn.id),
-        editing: editorNodeId === mn.id,
-        connected,
-      } satisfies MergeNodeData,
-    });
-  });
+type BuildRFNodeContext = {
+  doc: CanvasDocument;
+  graph: CanvasGraph;
+  selectedNodeIds: Set<string>;
+  editorNodeId: string | null;
+  outputPathNodeIds: Set<string>;
+  connected: { sources: Set<string>; targets: Set<string> };
+  primitiveViewStates: Record<string, PrimitiveViewportState>;
+  primitiveRenderModes: Record<string, PrimitiveRenderMode>;
+  incomingNodeId: (toId: string, toPort: string) => string | null;
+};
 
-  (graph.colorNodes ?? []).forEach((cn) => {
-    const pos = graph.positions[cn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: cn.id,
-      type: 'colorNode',
-      position: pos,
-      selected: selectedNodeIds.has(cn.id),
-      data: {
-        colorNode: cn,
-        previewTargetId: cn.id,
-        selected: selectedNodeIds.has(cn.id),
-        outputPath: outputPathNodeIds.has(cn.id),
-        editing: editorNodeId === cn.id,
-        connected,
-      } satisfies ColorNodeData,
-    });
-  });
+function commonNodeData(id: string, context: BuildRFNodeContext) {
+  return {
+    previewTargetId: id,
+    selected: context.selectedNodeIds.has(id),
+    outputPath: context.outputPathNodeIds.has(id),
+    editing: context.editorNodeId === id,
+    connected: context.connected,
+  };
+}
 
-  (graph.repeatNodes ?? []).forEach((rn) => {
-    const pos = graph.positions[rn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: rn.id,
-      type: 'repeatNode',
-      position: pos,
-      selected: selectedNodeIds.has(rn.id),
-      data: {
-        repeatNode: rn,
-        previewTargetId: rn.id,
-        selected: selectedNodeIds.has(rn.id),
-        outputPath: outputPathNodeIds.has(rn.id),
-        editing: editorNodeId === rn.id,
-        connected,
-      } satisfies RepeatNodeData,
-    });
-  });
+function buildLayerRFNode(layer: Layer, index: number, context: BuildRFNodeContext): RFNode {
+  const primitiveData = layer.kind === 'primitive' ? layerPrimitiveData(layer.id, context) : {};
+  return {
+    id: layer.id,
+    type: 'layerNode',
+    position: context.graph.positions[layer.id] ?? {
+      x: index * (NODE_W + 56),
+      y: 80,
+    },
+    selected: context.selectedNodeIds.has(layer.id),
+    data: {
+      layer,
+      ...commonNodeData(layer.id, context),
+      ...primitiveData,
+    } satisfies LayerNodeData,
+  };
+}
 
-  (graph.maskNodes ?? []).forEach((mn) => {
-    const pos = graph.positions[mn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: mn.id,
-      type: 'maskNode',
-      position: pos,
-      selected: selectedNodeIds.has(mn.id),
-      data: {
-        maskNode: mn,
-        previewTargetId: mn.id,
-        selected: selectedNodeIds.has(mn.id),
-        outputPath: outputPathNodeIds.has(mn.id),
-        editing: editorNodeId === mn.id,
-        connected,
-      } satisfies MaskNodeData,
-    });
-  });
+function layerPrimitiveData(layerId: string, context: BuildRFNodeContext) {
+  return {
+    primitiveViewState: context.primitiveViewStates[layerId],
+    primitiveRenderMode: context.primitiveRenderModes[layerId],
+  };
+}
 
-  (graph.transformNodes ?? []).forEach((tn) => {
-    const pos = graph.positions[tn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: tn.id,
-      type: 'transformNode',
-      position: pos,
-      selected: selectedNodeIds.has(tn.id),
-      data: {
-        transformNode: tn,
-        previewTargetId: tn.id,
-        sourcePreviewTargetId: incomingNodeId(tn.id, 'in'),
-        selected: selectedNodeIds.has(tn.id),
-        outputPath: outputPathNodeIds.has(tn.id),
-        editing: editorNodeId === tn.id,
-        connected,
-      } satisfies TransformNodeData,
-    });
-  });
+function utilityPosition(id: string, context: BuildRFNodeContext) {
+  return context.graph.positions[id] ?? { x: 400, y: 300 };
+}
 
-  (graph.grimeShadowNodes ?? []).forEach((sn) => {
-    const pos = graph.positions[sn.id] ?? { x: 400, y: 300 };
-    nodes.push({
-      id: sn.id,
-      type: 'grimeShadowNode',
-      position: pos,
-      selected: selectedNodeIds.has(sn.id),
-      data: {
-        grimeShadowNode: sn,
-        previewTargetId: sn.id,
-        selected: selectedNodeIds.has(sn.id),
-        outputPath: outputPathNodeIds.has(sn.id),
-        editing: editorNodeId === sn.id,
-        connected,
-      } satisfies GrimeShadowNodeData,
-    });
-  });
+function buildUtilityRFNodes(context: BuildRFNodeContext): RFNode[] {
+  return RF_UTILITY_NODE_BUILDERS.flatMap(({ nodes, build }) =>
+    nodes(context.graph).map((node) => build(node as never, context)),
+  );
+}
 
-  const exportPos = graph.positions[EXPORT_NODE_ID] ?? {
-    x: doc.layers.length * (NODE_W + 56),
+const RF_UTILITY_NODE_BUILDERS = [
+  { nodes: (graph: CanvasGraph) => graph.mergeNodes, build: buildMergeRFNode },
+  { nodes: (graph: CanvasGraph) => graph.colorNodes, build: buildColorRFNode },
+  { nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [], build: buildRepeatRFNode },
+  { nodes: (graph: CanvasGraph) => graph.maskNodes ?? [], build: buildMaskRFNode },
+  { nodes: (graph: CanvasGraph) => graph.transformNodes ?? [], build: buildTransformRFNode },
+  { nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [], build: buildGrimeShadowRFNode },
+];
+
+function buildMergeRFNode(mn: GraphMergeNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: mn.id,
+    type: 'mergeNode',
+    position: utilityPosition(mn.id, context),
+    selected: context.selectedNodeIds.has(mn.id),
+    data: {
+      mergeNode: mn,
+      ...commonNodeData(mn.id, context),
+    } satisfies MergeNodeData,
+  };
+}
+
+function buildColorRFNode(cn: GraphColorNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: cn.id,
+    type: 'colorNode',
+    position: utilityPosition(cn.id, context),
+    selected: context.selectedNodeIds.has(cn.id),
+    data: {
+      colorNode: cn,
+      ...commonNodeData(cn.id, context),
+    } satisfies ColorNodeData,
+  };
+}
+
+function buildRepeatRFNode(rn: GraphRepeatNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: rn.id,
+    type: 'repeatNode',
+    position: utilityPosition(rn.id, context),
+    selected: context.selectedNodeIds.has(rn.id),
+    data: {
+      repeatNode: rn,
+      ...commonNodeData(rn.id, context),
+    } satisfies RepeatNodeData,
+  };
+}
+
+function buildMaskRFNode(mn: GraphMaskNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: mn.id,
+    type: 'maskNode',
+    position: utilityPosition(mn.id, context),
+    selected: context.selectedNodeIds.has(mn.id),
+    data: {
+      maskNode: mn,
+      ...commonNodeData(mn.id, context),
+    } satisfies MaskNodeData,
+  };
+}
+
+function buildTransformRFNode(tn: GraphTransformNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: tn.id,
+    type: 'transformNode',
+    position: utilityPosition(tn.id, context),
+    selected: context.selectedNodeIds.has(tn.id),
+    data: {
+      transformNode: tn,
+      sourcePreviewTargetId: context.incomingNodeId(tn.id, 'in'),
+      ...commonNodeData(tn.id, context),
+    } satisfies TransformNodeData,
+  };
+}
+
+function buildGrimeShadowRFNode(sn: GraphGrimeShadowNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: sn.id,
+    type: 'grimeShadowNode',
+    position: utilityPosition(sn.id, context),
+    selected: context.selectedNodeIds.has(sn.id),
+    data: {
+      grimeShadowNode: sn,
+      ...commonNodeData(sn.id, context),
+    } satisfies GrimeShadowNodeData,
+  };
+}
+
+function buildExportRFNode(context: BuildRFNodeContext): RFNode {
+  const exportPos = context.graph.positions[EXPORT_NODE_ID] ?? {
+    x: context.doc.layers.length * (NODE_W + 56),
     y: 80,
   };
-  nodes.push({
+  return {
     id: EXPORT_NODE_ID,
     type: 'exportNode',
     position: exportPos,
-    selected: selectedNodeIds.has(EXPORT_NODE_ID),
+    selected: context.selectedNodeIds.has(EXPORT_NODE_ID),
     data: {
-      exportConfig: doc.export,
-      aspect: doc.global.aspect,
-      previewTargetId: EXPORT_NODE_ID,
-      selected: selectedNodeIds.has(EXPORT_NODE_ID),
-      outputPath: outputPathNodeIds.has(EXPORT_NODE_ID),
-      editing: editorNodeId === EXPORT_NODE_ID,
-      connected,
+      exportConfig: context.doc.export,
+      aspect: context.doc.global.aspect,
+      ...commonNodeData(EXPORT_NODE_ID, context),
     } satisfies ExportNodeData,
-  });
-
-  return nodes;
+  };
 }

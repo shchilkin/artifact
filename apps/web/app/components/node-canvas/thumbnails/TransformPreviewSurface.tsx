@@ -1,12 +1,14 @@
 import { memo, useEffect, useRef, useState } from 'react';
 
 import type { GraphTransformNode } from '../../../types/config';
+import { alphaBoundsCenter, measureVisibleAlphaBounds } from '../../../utils/render/alphaBounds';
 import { useNodeCanvasPreview } from '../context';
 import { stopNodeGestureEvent } from '../helpers';
 import type { TransformNodePatch } from '../nodes/useTransformNodeDraft';
 import { EmptyThumbnailFrame } from './LiveMediaOverlay';
 import { NodeThumbnail } from './NodeThumbnail';
 import { getNodePreviewSize } from './previewSizing';
+import { useNativeTransformWheel } from './useNativeTransformWheel';
 
 type TransformDragMode = 'translate' | 'rotate' | 'scale';
 
@@ -39,6 +41,11 @@ interface TransformPivot {
   x: number;
   y: number;
 }
+
+type TransformPreviewModel =
+  | { kind: 'thumbnail' }
+  | { kind: 'empty' }
+  | { kind: 'live'; sourcePreviewTargetId: string; canInteract: boolean };
 
 const CENTER_PIVOT: TransformPivot = { x: 50, y: 50 };
 
@@ -222,73 +229,31 @@ function samePivot(a: TransformPivot, b: TransformPivot) {
 
 function canvasVisibleAlphaPivot(canvas: HTMLCanvasElement): TransformPivot {
   if (canvas.width <= 0 || canvas.height <= 0) return CENTER_PIVOT;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return CENTER_PIVOT;
-  let pixels: Uint8ClampedArray;
-  try {
-    pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  } catch {
-    return CENTER_PIVOT;
-  }
-  const threshold = livePivotAlphaThreshold(pixels);
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      if (pixels[(y * canvas.width + x) * 4 + 3] <= threshold) continue;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-  if (maxX < minX || maxY < minY) return CENTER_PIVOT;
+  const bounds = measureVisibleAlphaBounds(canvas);
+  if (!bounds) return CENTER_PIVOT;
+  const center = alphaBoundsCenter(bounds);
   return {
-    x: ((minX + maxX + 1) / 2 / canvas.width) * 100,
-    y: ((minY + maxY + 1) / 2 / canvas.height) * 100,
+    x: (center.x / canvas.width) * 100,
+    y: (center.y / canvas.height) * 100,
   };
 }
 
-function livePivotAlphaThreshold(pixels: Uint8ClampedArray) {
-  let maxAlpha = 0;
-  for (let i = 3; i < pixels.length; i += 4) {
-    if (pixels[i] > maxAlpha) maxAlpha = pixels[i];
-  }
-  return Math.min(24, Math.max(8, maxAlpha * 0.08));
+function transformPreviewModel(
+  selected: boolean,
+  transformActive: boolean,
+  sourcePreviewTargetId: string | null,
+): TransformPreviewModel {
+  const showLivePreview = selected || transformActive;
+  if (!showLivePreview) return { kind: 'thumbnail' };
+  return sourcePreviewTargetId ? { kind: 'live', sourcePreviewTargetId, canInteract: selected } : { kind: 'empty' };
 }
 
-function useNativeTransformWheel(
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  enabled: boolean,
-  onWheelDelta: ((deltaY: number) => void) | undefined,
-) {
-  const enabledRef = useRef(enabled);
-  const onWheelDeltaRef = useRef(onWheelDelta);
+function transformPreviewIsLive(model: TransformPreviewModel) {
+  return model.kind !== 'thumbnail';
+}
 
-  useEffect(() => {
-    enabledRef.current = enabled;
-    onWheelDeltaRef.current = onWheelDelta;
-  }, [enabled, onWheelDelta]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return undefined;
-
-    const handleWheel = (event: WheelEvent) => {
-      if (!enabledRef.current || !onWheelDeltaRef.current) return;
-      if (!root.contains(event.target as Node)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      onWheelDeltaRef.current(event.deltaY);
-    };
-
-    const controller = new AbortController();
-    root.addEventListener('wheel', handleWheel, { capture: true, passive: false, signal: controller.signal });
-    return () => controller.abort();
-  }, [rootRef]);
+function transformPreviewCanInteract(model: TransformPreviewModel) {
+  return model.kind === 'live' && model.canInteract;
 }
 
 export const TransformPreviewSurface = memo(function TransformPreviewSurface({
@@ -304,13 +269,12 @@ export const TransformPreviewSurface = memo(function TransformPreviewSurface({
   const { doc } = useNodeCanvasPreview();
   const previewSize = getNodePreviewSize(doc.global.aspect);
   const rootRef = useRef<HTMLDivElement>(null);
-  const showLivePreview = selected || transformActive;
-  const canInteract = selected && Boolean(sourcePreviewTargetId);
-  const pivot = useTransformLivePivot(rootRef, transformNode.pivotMode, showLivePreview);
-  useNativeTransformWheel(rootRef, canInteract, onTransformWheelDelta);
+  const model = transformPreviewModel(selected, transformActive, sourcePreviewTargetId);
+  const pivot = useTransformLivePivot(rootRef, transformNode.pivotMode, transformPreviewIsLive(model));
+  useNativeTransformWheel(rootRef, transformPreviewCanInteract(model), onTransformWheelDelta);
 
-  if (!showLivePreview) return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
-  if (!sourcePreviewTargetId) return <EmptyThumbnailFrame label="Connect source" />;
+  if (model.kind === 'thumbnail') return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  if (model.kind === 'empty') return <EmptyThumbnailFrame label="Connect source" />;
 
   return (
     <div
@@ -320,20 +284,46 @@ export const TransformPreviewSurface = memo(function TransformPreviewSurface({
     >
       <div
         className="node-thumbnail-frame node-transform-live-frame checkerboard-surface"
-        style={{ width: previewSize.display.width, height: previewSize.display.height }}
+        style={{
+          width: previewSize.display.width,
+          height: previewSize.display.height,
+        }}
       >
         <div className="node-transform-live-branch" style={transformBranchStyle(transformNode, pivot)}>
-          <NodeThumbnail previewTargetId={sourcePreviewTargetId} priority={selected} />
+          <NodeThumbnail previewTargetId={model.sourcePreviewTargetId} priority={selected} />
         </div>
-        {canInteract && onTransformDraft && onTransformCommit && (
-          <TransformGestureOverlay
-            transformNode={transformNode}
-            pivot={pivot}
-            onChange={onTransformDraft}
-            onCommit={onTransformCommit}
-          />
-        )}
+        <TransformGestureControl
+          active={model.canInteract}
+          transformNode={transformNode}
+          pivot={pivot}
+          onTransformDraft={onTransformDraft}
+          onTransformCommit={onTransformCommit}
+        />
       </div>
     </div>
   );
 });
+
+function TransformGestureControl({
+  active,
+  transformNode,
+  pivot,
+  onTransformDraft,
+  onTransformCommit,
+}: {
+  active: boolean;
+  transformNode: GraphTransformNode;
+  pivot: TransformPivot;
+  onTransformDraft?: (patch: TransformNodePatch) => void;
+  onTransformCommit?: () => void;
+}) {
+  if (!active || !onTransformDraft || !onTransformCommit) return null;
+  return (
+    <TransformGestureOverlay
+      transformNode={transformNode}
+      pivot={pivot}
+      onChange={onTransformDraft}
+      onCommit={onTransformCommit}
+    />
+  );
+}

@@ -234,7 +234,10 @@ function lineFieldBasePoint(
   if (orientation === 'radial') {
     const angle = (lineOffset / Math.max(1, drawWidth)) * Math.PI * 2;
     const radius = t * long * 0.55;
-    return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+    return {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+    };
   }
   return { x: centerX - long / 2 + t * long, y: lineOffset };
 }
@@ -313,18 +316,42 @@ export async function drawSourceLayer(
   ctx.globalCompositeOperation = (
     layer.blendMode === 'normal' ? 'source-over' : layer.blendMode
   ) as GlobalCompositeOperation;
+  applySourceLayerTransform(ctx, width, height, layer, scale, layout);
+  await drawSourceLayerContent(ctx, width, height, layer, seed, scale, draft, primitiveViewState, layout);
+  ctx.restore();
+}
+
+function applySourceLayerTransform(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  layer: SourceLayer,
+  scale: number,
+  layout: 'document' | 'full-frame',
+) {
   if (layout === 'full-frame') {
     ctx.translate(width / 2, height / 2);
     ctx.scale(scale, scale);
-  } else {
-    ctx.translate(width * layer.x, height * layer.y);
-    ctx.rotate(degToRad(layer.rotation));
-    ctx.scale(scale * layer.scaleX, scale * layer.scaleY);
+    return;
   }
+  ctx.translate(width * layer.x, height * layer.y);
+  ctx.rotate(degToRad(layer.rotation));
+  ctx.scale(scale * layer.scaleX, scale * layer.scaleY);
+}
 
+async function drawSourceLayerContent(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  layer: SourceLayer,
+  seed: number,
+  scale: number,
+  draft: boolean,
+  primitiveViewState: PrimitiveViewportState | undefined,
+  layout: 'document' | 'full-frame',
+) {
+  const { drawWidth, drawHeight } = sourceDrawSize(width, height, scale, layout);
   if (layer.kind === 'primitive') {
-    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
-    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
     const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
     const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
     const threeCanvas = await renderPrimitiveToCanvas(
@@ -334,17 +361,22 @@ export async function drawSourceLayer(
       { forceFallback: draft },
     );
     ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-  } else if (layer.kind === 'noise') {
-    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
-    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
-    await drawNoiseLayer(ctx, layer, seed + (layer.seedOffset ?? 0), draft, drawWidth, drawHeight);
-  } else if (layer.kind === 'lineField') {
-    const drawWidth = layout === 'full-frame' ? width / scale : SOURCE_SIZE;
-    const drawHeight = layout === 'full-frame' ? height / scale : SOURCE_SIZE;
-    drawLineFieldLayer(ctx, layer, seed, drawWidth, drawHeight);
-  } else {
-    drawArrayLayer(ctx, layer, seed);
+    return;
   }
+  if (layer.kind === 'noise') {
+    await drawNoiseLayer(ctx, layer, seed + (layer.seedOffset ?? 0), draft, drawWidth, drawHeight);
+    return;
+  }
+  if (layer.kind === 'lineField') {
+    drawLineFieldLayer(ctx, layer, seed, drawWidth, drawHeight);
+    return;
+  }
+  drawArrayLayer(ctx, layer, seed);
+}
 
-  ctx.restore();
+function sourceDrawSize(width: number, height: number, scale: number, layout: 'document' | 'full-frame') {
+  return {
+    drawWidth: layout === 'full-frame' ? width / scale : SOURCE_SIZE,
+    drawHeight: layout === 'full-frame' ? height / scale : SOURCE_SIZE,
+  };
 }

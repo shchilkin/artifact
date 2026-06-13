@@ -132,7 +132,12 @@ export function buildGraphTargetSummary(
       ],
       notes: connected
         ? []
-        : [{ text: 'Connect a source, effect, or utility branch to the output before export.', tone: 'warning' }],
+        : [
+            {
+              text: 'Connect a source, effect, or utility branch to the output before export.',
+              tone: 'warning',
+            },
+          ],
     };
   }
 
@@ -173,27 +178,20 @@ function getLayerKindLabel(layer: Layer): string {
 }
 
 function getLayerDescription(layer: Layer): string {
-  switch (layer.kind) {
-    case 'effect':
-      return 'Transforms the pixels below it. Move it in the stack or graph to change what it affects.';
-    case 'image':
-      return 'Creates image pixels from an uploaded, generated, or packaged source.';
-    case 'text':
-      return 'Creates editable type pixels with font, placement, and transform controls.';
-    case 'fill':
-      return 'Creates a flat color plate for the stack or graph branch.';
-    case 'emoji':
-      return 'Creates a seeded glyph scatter source.';
-    case 'primitive':
-      return 'Creates a rendered 3D source using the primitive camera state.';
-    case 'noise':
-      return 'Creates a procedural texture source from the document seed.';
-    case 'array':
-      return 'Creates a procedural motif source from the document seed.';
-    case 'lineField':
-      return 'Creates procedural line fields for optical, contour, and warped poster graphics.';
-  }
+  return LAYER_DESCRIPTIONS[layer.kind];
 }
+
+const LAYER_DESCRIPTIONS: Record<Layer['kind'], string> = {
+  effect: 'Transforms the pixels below it. Move it in the stack or graph to change what it affects.',
+  image: 'Creates image pixels from an uploaded, generated, or packaged source.',
+  text: 'Creates editable type pixels with font, placement, and transform controls.',
+  fill: 'Creates a flat color plate for the stack or graph branch.',
+  emoji: 'Creates a seeded glyph scatter source.',
+  primitive: 'Creates a rendered 3D source using the primitive camera state.',
+  noise: 'Creates a procedural texture source from the document seed.',
+  array: 'Creates a procedural motif source from the document seed.',
+  lineField: 'Creates procedural line fields for optical, contour, and warped poster graphics.',
+};
 
 function addGraphStatus(
   badges: EditorTargetBadge[],
@@ -275,7 +273,10 @@ function addInputBadges(
 ) {
   if (role === 'effect' && inputCount === 0) {
     badges.push({ label: 'No input', tone: 'warning' });
-    notes.push({ text: 'Effects need an upstream source before they can change visible pixels.', tone: 'warning' });
+    notes.push({
+      text: 'Effects need an upstream source before they can change visible pixels.',
+      tone: 'warning',
+    });
     return;
   }
 
@@ -286,7 +287,10 @@ function addInputBadges(
       tone: 'warning',
     });
   } else if (role === 'utility') {
-    badges.push({ label: `${inputCount} input${inputCount === 1 ? '' : 's'}`, tone: 'muted' });
+    badges.push({
+      label: `${inputCount} input${inputCount === 1 ? '' : 's'}`,
+      tone: 'muted',
+    });
   }
 }
 

@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router';
 
 import { PublicPageLayout } from '../components/PublicPageLayout';
 
-export const DOCS_NAV_ITEMS = [
+const DOCS_NAV_ITEMS = [
   {
     label: 'Overview',
     href: '/docs',

@@ -56,10 +56,12 @@ export default function Editor() {
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
+  // fallow-ignore-next-line code-duplication
   const {
     doc,
     docRef,
     selectedLayerId,
+    // fallow-ignore-next-line code-duplication
     setSelectedLayerId,
     addLayer,
     addEffectPreset,

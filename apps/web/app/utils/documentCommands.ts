@@ -41,6 +41,7 @@ import {
   addTransformNode,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
+  graphUtilityNodeCollections,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
@@ -203,14 +204,7 @@ function isLinearLayerGraph(doc: CanvasDocument): boolean {
 }
 
 function graphHasOnlyLayerNodes(graph: CanvasGraph) {
-  return (
-    graph.mergeNodes.length === 0 &&
-    (graph.colorNodes?.length ?? 0) === 0 &&
-    (graph.repeatNodes?.length ?? 0) === 0 &&
-    (graph.maskNodes?.length ?? 0) === 0 &&
-    (graph.transformNodes?.length ?? 0) === 0 &&
-    (graph.grimeShadowNodes?.length ?? 0) === 0
-  );
+  return graphUtilityNodeCollections(graph).every((nodes) => nodes.length === 0);
 }
 
 function graphHasLinearEdgeCount(graph: CanvasGraph, layers: Layer[]) {

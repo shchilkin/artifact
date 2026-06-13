@@ -72,7 +72,7 @@ interface NodeDef {
   doc: CanvasDocument;
 }
 
-export const CONTENT_NODES: NodeDef[] = [
+const CONTENT_NODES: NodeDef[] = [
   {
     id: 'fill',
     symbol: '◼',
@@ -164,7 +164,7 @@ export const CONTENT_NODES: NodeDef[] = [
   },
 ];
 
-export const SOURCE_NODES: NodeDef[] = [
+const SOURCE_NODES: NodeDef[] = [
   {
     id: 'primitive',
     symbol: '◍',
@@ -261,7 +261,10 @@ export const SOURCE_NODES: NodeDef[] = [
     name: 'Line Field',
     desc: 'A full-frame procedural line source for optical fields, contour posters, masks, and warped graphic material.',
     params: [
-      { key: 'orientation', range: 'horizontal / vertical / diagonal / radial' },
+      {
+        key: 'orientation',
+        range: 'horizontal / vertical / diagonal / radial',
+      },
       { key: 'line count', range: '2–96' },
       { key: 'spacing', range: '2–96' },
       { key: 'stroke', range: '1–24' },
@@ -290,7 +293,7 @@ export const SOURCE_NODES: NodeDef[] = [
   },
 ];
 
-export const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
+const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
   id: preset,
   symbol: EFFECT_PRESETS[preset].icon,
   name: EFFECT_PRESETS[preset].name,
@@ -371,14 +374,17 @@ export const MOTIF_RECIPE_GUIDE = [
   },
 ];
 
-export const COMPACT_WORKFLOW_GUIDES = [
+const COMPACT_WORKFLOW_GUIDES = [
   {
     id: 'docs-start-with-layers',
     name: 'Start with Layers',
     desc: 'Use the layer stack when the piece is one readable path: base, image or type, texture, finish, export.',
     cue: 'Use when the order is bottom to top.',
     next: 'Set the base, place image or type, add one texture pass, then export or save.',
-    action: { label: 'Open layer starter', href: starterHref(PHOTO_TYPE_STACK_STARTER) },
+    action: {
+      label: 'Open layer starter',
+      href: starterHref(PHOTO_TYPE_STACK_STARTER),
+    },
     secondary: { label: 'Browse showcase projects', href: '/showcase' },
   },
   {
@@ -387,7 +393,10 @@ export const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Use nodes when parts of the artwork need separate paths before they become one output.',
     cue: 'Use when one source feeds several paths.',
     next: 'Start from a source, route the branches, merge them, then check the Export node.',
-    action: { label: 'Open node starter', href: starterHref(PHOTO_TYPE_GRAPH_RECIPE) },
+    action: {
+      label: 'Open node starter',
+      href: starterHref(PHOTO_TYPE_GRAPH_RECIPE),
+    },
     secondary: { label: 'See node types', href: '/docs/reference' },
   },
   {
@@ -396,8 +405,14 @@ export const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Build type while the text remains editable: title, subtitle, label, credits, font choice, print finish.',
     cue: 'Use when words carry the identity.',
     next: 'Pick the type role, choose a font source, tune contrast, and package fonts only when licensed.',
-    action: { label: 'Open type starter', href: starterHref(MULTI_FONT_TYPE_STACK_STARTER) },
-    secondary: { label: 'Read file policy', href: '/docs/reference#project-files' },
+    action: {
+      label: 'Open type starter',
+      href: starterHref(MULTI_FONT_TYPE_STACK_STARTER),
+    },
+    secondary: {
+      label: 'Read file policy',
+      href: '/docs/reference#project-files',
+    },
   },
   {
     id: 'docs-export-packages',
@@ -405,8 +420,14 @@ export const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Choose the file by what must survive after the session: pixels, editable structure, image payloads, or font files.',
     cue: 'Use when the project must travel.',
     next: 'Export PNG for pixels, save documents for small work, package assets for handoff.',
-    action: { label: 'Project file guide', href: '/docs/reference#project-files' },
-    secondary: { label: 'Fix export issues', href: '/docs/reference#troubleshooting' },
+    action: {
+      label: 'Project file guide',
+      href: '/docs/reference#project-files',
+    },
+    secondary: {
+      label: 'Fix export issues',
+      href: '/docs/reference#troubleshooting',
+    },
   },
 ] as const;
 
@@ -566,7 +587,7 @@ export const PROJECT_FILE_GUIDE = [
   },
 ];
 
-export const RESEARCH_MAP = [
+const RESEARCH_MAP = [
   {
     name: 'Choose source material',
     desc: 'Start by choosing what carries the piece: a photo, fill, procedural texture, repeated motif, primitive, or type.',
@@ -589,7 +610,7 @@ export const RESEARCH_MAP = [
   },
 ];
 
-export const HOW_IT_WORKS_FLOW = [
+const HOW_IT_WORKS_FLOW = [
   {
     name: 'Document',
     desc: 'One serializable Artifact document stores global settings, layers, optional graph data, and export settings.',
@@ -617,7 +638,7 @@ export const HOW_IT_WORKS_FLOW = [
   },
 ];
 
-export const APPLICATION_GUIDE = [
+const APPLICATION_GUIDE = [
   {
     name: 'Album cover',
     desc: 'Image or fill base, readable title, one texture bed, one finishing family, export at the target aspect.',

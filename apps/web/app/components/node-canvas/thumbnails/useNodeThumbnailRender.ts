@@ -89,36 +89,25 @@ function layerSignatures(layers: Layer[]) {
 
 function graphSignatureParts(graph: CanvasGraph) {
   return {
-    mergeSignatures: graph.mergeNodes.map((node) => ({ id: node.id, sig: mergeNodeRenderSig(node) })),
-    colorSignatures: (graph.colorNodes ?? []).map((node) => ({ id: node.id, sig: colorNodeRenderSig(node) })),
-    repeatSignatures: (graph.repeatNodes ?? []).map((node) => ({ id: node.id, sig: repeatNodeRenderSig(node) })),
-    maskSignatures: (graph.maskNodes ?? []).map((node) => ({ id: node.id, sig: maskNodeRenderSig(node) })),
-    transformSignatures: (graph.transformNodes ?? []).map((node) => ({
-      id: node.id,
-      sig: transformNodeRenderSig(node),
-    })),
-    grimeShadowSignatures: (graph.grimeShadowNodes ?? []).map((node) => ({
-      id: node.id,
-      sig: grimeShadowNodeRenderSig(node),
-    })),
-    edgeSignatures: graph.edges.map((edge) => ({ id: edge.id, sig: edgeRenderSig(edge) })),
+    mergeSignatures: renderSignatures(graph.mergeNodes, mergeNodeRenderSig),
+    colorSignatures: renderSignatures(graph.colorNodes, colorNodeRenderSig),
+    repeatSignatures: renderSignatures(graph.repeatNodes, repeatNodeRenderSig),
+    maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
+    transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
+    grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
+    edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
   };
+}
+
+function renderSignatures<T extends { id: string }>(items: T[] | undefined, signature: (item: T) => string) {
+  return (items ?? []).map((item) => ({ id: item.id, sig: signature(item) }));
 }
 
 function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: CanvasDocument, renderGraph: CanvasGraph) {
   const upstream = collectUpstreamNodeIds(previewTargetId, renderGraph);
   const upstreamHas = (id: string) => upstream.has(id);
   const layers = renderDoc.layers.filter((layer) => upstreamHas(layer.id));
-  const graph = {
-    edges: renderGraph.edges.filter((edge) => upstreamHas(edge.toId) && upstreamHas(edge.fromId)),
-    mergeNodes: renderGraph.mergeNodes.filter((node) => upstreamHas(node.id)),
-    colorNodes: (renderGraph.colorNodes ?? []).filter((node) => upstreamHas(node.id)),
-    repeatNodes: (renderGraph.repeatNodes ?? []).filter((node) => upstreamHas(node.id)),
-    maskNodes: (renderGraph.maskNodes ?? []).filter((node) => upstreamHas(node.id)),
-    transformNodes: (renderGraph.transformNodes ?? []).filter((node) => upstreamHas(node.id)),
-    grimeShadowNodes: (renderGraph.grimeShadowNodes ?? []).filter((node) => upstreamHas(node.id)),
-    positions: {},
-  };
+  const graph = upstreamSignatureGraph(renderGraph, upstreamHas);
 
   return {
     layers,
@@ -130,6 +119,23 @@ function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: Canv
     ...graphSignatureParts(graph),
     allGraphSignatures: graphSignatureParts(renderGraph),
   };
+}
+
+function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: string) => boolean): CanvasGraph {
+  return {
+    edges: renderGraph.edges.filter((edge) => upstreamHas(edge.toId) && upstreamHas(edge.fromId)),
+    mergeNodes: filterGraphNodes(renderGraph.mergeNodes, upstreamHas),
+    colorNodes: filterGraphNodes(renderGraph.colorNodes, upstreamHas),
+    repeatNodes: filterGraphNodes(renderGraph.repeatNodes, upstreamHas),
+    maskNodes: filterGraphNodes(renderGraph.maskNodes, upstreamHas),
+    transformNodes: filterGraphNodes(renderGraph.transformNodes, upstreamHas),
+    grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
+    positions: {},
+  };
+}
+
+function filterGraphNodes<T extends { id: string }>(nodes: T[] | undefined, upstreamHas: (id: string) => boolean) {
+  return (nodes ?? []).filter((node) => upstreamHas(node.id));
 }
 
 type PreviewSize = ReturnType<typeof getNodePreviewSize>;

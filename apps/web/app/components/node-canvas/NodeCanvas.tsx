@@ -93,6 +93,11 @@ function imageFileFromTransfer(dataTransfer: DataTransfer) {
   );
 }
 
+function nodeDropPosition(event: ReactDragEvent<HTMLDivElement>, instance: ReactFlowInstance | null) {
+  const screenPoint = { x: event.clientX, y: event.clientY };
+  return instance?.screenToFlowPosition(screenPoint) ?? screenPoint;
+}
+
 export function NodeCanvas({
   doc,
   imageCache,
@@ -352,11 +357,7 @@ export function NodeCanvas({
       if (!file) return;
       event.preventDefault();
       event.stopPropagation();
-      const position = rfInstanceRef.current?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? {
-        x: event.clientX,
-        y: event.clientY,
-      };
-      onImageFileDrop(file, position);
+      onImageFileDrop(file, nodeDropPosition(event, rfInstanceRef.current));
     },
     [onImageFileDrop, rfInstanceRef],
   );

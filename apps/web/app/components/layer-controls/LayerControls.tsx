@@ -580,13 +580,23 @@ function EmojiLayerControls({
           label="Smallest"
           value={layer.minSz}
           {...R.minSz}
-          onChange={(v) => onChange({ minSz: v, maxSz: Math.max(layer.maxSz, v) } as Partial<EmojiLayer>)}
+          onChange={(v) =>
+            onChange({
+              minSz: v,
+              maxSz: Math.max(layer.maxSz, v),
+            } as Partial<EmojiLayer>)
+          }
         />
         <InspectorSlider
           label="Biggest"
           value={layer.maxSz}
           {...R.maxSz}
-          onChange={(v) => onChange({ maxSz: v, minSz: Math.min(layer.minSz, v) } as Partial<EmojiLayer>)}
+          onChange={(v) =>
+            onChange({
+              maxSz: v,
+              minSz: Math.min(layer.minSz, v),
+            } as Partial<EmojiLayer>)
+          }
         />
       </LayerContentSection>
       <InspectorSection
@@ -607,14 +617,17 @@ function EmojiLayerControls({
 }
 
 function sourceSurfaceNote(surface: LayerControlsSurface, layer: SourceLayer): string | null {
-  if (layer.kind === 'primitive' && surface === 'layers')
-    return 'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.';
-  if (layer.kind === 'noise')
-    return 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.';
-  if (layer.kind === 'lineField')
-    return 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.';
-  return null;
+  return SOURCE_SURFACE_NOTES[`${surface}:${layer.kind}`] ?? SOURCE_SURFACE_NOTES[layer.kind] ?? null;
 }
+
+const SOURCE_SURFACE_NOTES: Partial<
+  Record<SourceLayer['kind'] | `${LayerControlsSurface}:${SourceLayer['kind']}`, string>
+> = {
+  'layers:primitive':
+    'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.',
+  noise: 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.',
+  lineField: 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.',
+};
 
 function sourceContentFallback(layer: SourceLayer): LayerControlSection {
   return layerHasPlacementControls(layer) ? 'placement' : 'structure';
@@ -729,7 +742,11 @@ function PrimitiveStructureControls({
         label="Shape"
         value={layer.primitiveShape}
         options={[...PRIMITIVE_SHAPE_OPTIONS]}
-        onChange={(v) => onChange({ primitiveShape: v as SourceLayer['primitiveShape'] } as Partial<SourceLayer>)}
+        onChange={(v) =>
+          onChange({
+            primitiveShape: v as SourceLayer['primitiveShape'],
+          } as Partial<SourceLayer>)
+        }
       />
       {surface === 'nodes' && (
         <p className="node-inspector-note">Camera angle is controlled in the preview: drag rotates, wheel zooms.</p>
@@ -750,7 +767,11 @@ function PrimitiveStructureControls({
         label="Shading"
         value={layer.primitiveShading ?? 'smooth'}
         options={[...PRIMITIVE_SHADING_OPTIONS]}
-        onChange={(v) => onChange({ primitiveShading: v as 'smooth' | 'flat' } as Partial<SourceLayer>)}
+        onChange={(v) =>
+          onChange({
+            primitiveShading: v as 'smooth' | 'flat',
+          } as Partial<SourceLayer>)
+        }
       />
     </>
   );
@@ -769,7 +790,11 @@ function NoiseStructureControls({
         label="Noise"
         value={layer.noiseType}
         options={[...NOISE_TYPE_OPTIONS]}
-        onChange={(v) => onChange({ noiseType: v as SourceLayer['noiseType'] } as Partial<SourceLayer>)}
+        onChange={(v) =>
+          onChange({
+            noiseType: v as SourceLayer['noiseType'],
+          } as Partial<SourceLayer>)
+        }
       />
       <InspectorSlider
         label="Scale"
@@ -831,13 +856,21 @@ function ArrayStructureControls({
         label="Pattern"
         value={layer.arrayPattern}
         options={[...ARRAY_PATTERN_OPTIONS]}
-        onChange={(v) => onChange({ arrayPattern: v as SourceLayer['arrayPattern'] } as Partial<SourceLayer>)}
+        onChange={(v) =>
+          onChange({
+            arrayPattern: v as SourceLayer['arrayPattern'],
+          } as Partial<SourceLayer>)
+        }
       />
       <InspectorSelect
         label="Shape"
         value={layer.arrayShape}
         options={[...ARRAY_SHAPE_OPTIONS]}
-        onChange={(v) => onChange({ arrayShape: v as SourceLayer['arrayShape'] } as Partial<SourceLayer>)}
+        onChange={(v) =>
+          onChange({
+            arrayShape: v as SourceLayer['arrayShape'],
+          } as Partial<SourceLayer>)
+        }
       />
       <InspectorSlider
         label={arrayLabels.count}
@@ -901,7 +934,9 @@ function LineFieldStructureControls({
         value={layer.lineFieldOrientation}
         options={[...LINE_FIELD_ORIENTATION_OPTIONS]}
         onChange={(v) =>
-          onChange({ lineFieldOrientation: v as SourceLayer['lineFieldOrientation'] } as Partial<SourceLayer>)
+          onChange({
+            lineFieldOrientation: v as SourceLayer['lineFieldOrientation'],
+          } as Partial<SourceLayer>)
         }
       />
       <InspectorSelect
@@ -909,7 +944,9 @@ function LineFieldStructureControls({
         value={layer.lineFieldDistortion}
         options={[...LINE_FIELD_DISTORTION_OPTIONS]}
         onChange={(v) =>
-          onChange({ lineFieldDistortion: v as SourceLayer['lineFieldDistortion'] } as Partial<SourceLayer>)
+          onChange({
+            lineFieldDistortion: v as SourceLayer['lineFieldDistortion'],
+          } as Partial<SourceLayer>)
         }
       />
       <InspectorSlider
@@ -1087,11 +1124,15 @@ function sourceSummary(layer: SourceLayer) {
 }
 
 function structureSummary(layer: SourceLayer) {
-  if (layer.kind === 'primitive') return `${layer.primitiveShading ?? 'smooth'} shading`;
-  if (layer.kind === 'noise') return `${Math.round(layer.noiseScale)} scale`;
-  if (layer.kind === 'lineField') return `${Math.round(layer.lineFieldCount)} lines`;
-  return `${Math.round(layer.arrayCount)} items`;
+  return SOURCE_STRUCTURE_SUMMARY[layer.kind](layer as never);
 }
+
+const SOURCE_STRUCTURE_SUMMARY = {
+  primitive: (layer: Extract<SourceLayer, { kind: 'primitive' }>) => `${layer.primitiveShading ?? 'smooth'} shading`,
+  noise: (layer: Extract<SourceLayer, { kind: 'noise' }>) => `${Math.round(layer.noiseScale)} scale`,
+  lineField: (layer: Extract<SourceLayer, { kind: 'lineField' }>) => `${Math.round(layer.lineFieldCount)} lines`,
+  array: (layer: Extract<SourceLayer, { kind: 'array' }>) => `${Math.round(layer.arrayCount)} items`,
+};
 
 function getArrayControlLabels(layer: SourceLayer): {
   count: string;

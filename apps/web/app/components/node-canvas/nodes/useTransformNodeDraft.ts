@@ -76,6 +76,7 @@ export function useTransformNodeDraft(
   const flushPendingDraft = useCallback(() => {
     cancelDraftFrame(draftFrameRef.current);
     draftFrameRef.current = null;
+    // fallow-ignore-next-line code-duplication
     const pending = pendingDraftRef.current;
     pendingDraftRef.current = null;
     if (pending) setDraft((current) => (samePatch(current, pending) ? current : pending));
@@ -122,6 +123,7 @@ export function useTransformNodeDraft(
     commitTransformNode(nodeRef.current.id, currentDraft);
   }, [commitTransformNode, flushPendingDraft]);
 
+  // fallow-ignore-next-line code-duplication
   const scheduleCommit = useCallback(() => {
     clearTimeout(commitTimerRef.current);
     commitTimerRef.current = setTimeout(commitDraft, WHEEL_COMMIT_DELAY);

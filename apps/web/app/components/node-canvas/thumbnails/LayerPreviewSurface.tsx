@@ -15,6 +15,7 @@ import { EmptyThumbnailFrame, LiveMediaOverlay } from './LiveMediaOverlay';
 import { getLiveImageSource, shouldResolveLiveImageSource, shouldUseLiveMediaOverlay } from './liveMediaOverlayMode';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
+import { useNativeTransformWheel } from './useNativeTransformWheel';
 
 type LayerPreviewSurfaceProps = Pick<
   LayerNodeData,
@@ -223,42 +224,12 @@ function DragTransformOverlay({
   );
 }
 
-function useNativeTransformWheel(
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  enabled: boolean,
-  onWheelDelta: ((deltaY: number) => void) | undefined,
-) {
-  const enabledRef = useRef(enabled);
-  const onWheelDeltaRef = useRef(onWheelDelta);
-
-  useEffect(() => {
-    enabledRef.current = enabled;
-    onWheelDeltaRef.current = onWheelDelta;
-  }, [enabled, onWheelDelta]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return undefined;
-
-    const handleWheel = (event: WheelEvent) => {
-      if (!enabledRef.current || !onWheelDeltaRef.current) return;
-      if (!root.contains(event.target as Node)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      onWheelDeltaRef.current(event.deltaY);
-    };
-
-    const controller = new AbortController();
-    const options: AddEventListenerOptions = { capture: true, passive: false, signal: controller.signal };
-    root.addEventListener('wheel', handleWheel, options);
-    return () => controller.abort();
-  }, [rootRef]);
-}
-
 function useLiveImageSource(layer: LayerNodeData['layer'], imageCache: Map<string, HTMLImageElement>) {
   const cachedSource = cachedLiveImageSource(layer, imageCache);
-  const [resolvedSource, setResolvedSource] = useState<{ key: string; source: string | null } | null>(null);
+  const [resolvedSource, setResolvedSource] = useState<{
+    key: string;
+    source: string | null;
+  } | null>(null);
   const sourceKey = liveImageSourceKey(layer);
   const shouldResolve = shouldResolveLiveImageSource(layer, cachedSource);
 
@@ -560,7 +531,12 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const mediaBgPreviewTargetId = useMemo(() => mediaBackgroundPreviewTargetId(layer, graph), [graph, layer]);
   const effectHasSource = useMemo(() => layerHasEffectSource(layer, graph), [graph, layer]);
 
-  const primitiveSurface = primitiveLayerPreviewSurface({ layer, selected, primitiveViewState, primitiveRenderMode });
+  const primitiveSurface = primitiveLayerPreviewSurface({
+    layer,
+    selected,
+    primitiveViewState,
+    primitiveRenderMode,
+  });
   if (primitiveSurface) return primitiveSurface;
   if (isGalleryEligibleLayer(layer)) {
     return (
@@ -582,5 +558,9 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
       />
     );
   }
-  return defaultLayerPreviewSurface({ effectHasSource, previewTargetId, selected });
+  return defaultLayerPreviewSurface({
+    effectHasSource,
+    previewTargetId,
+    selected,
+  });
 });

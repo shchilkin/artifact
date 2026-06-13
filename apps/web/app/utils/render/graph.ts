@@ -12,7 +12,7 @@ import type {
 } from '../../types/config';
 import { lcg } from '../lcg';
 import { EXPORT_NODE_ID } from '../nodeGraph';
-import { measureAlphaBounds } from './alphaBounds';
+import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
@@ -321,37 +321,8 @@ function parseCanvasColor(color: string) {
 
 function transformNodePivot(source: HTMLCanvasElement, node: GraphTransformNode, W: number, H: number) {
   if ((node.pivotMode ?? 'canvas') !== 'visible') return { x: W / 2, y: H / 2 };
-  return visibleAlphaBoundsCenter(source, W, H) ?? { x: W / 2, y: H / 2 };
-}
-
-function visibleAlphaBoundsCenter(source: HTMLCanvasElement, W: number, H: number) {
-  const ctx = source.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-  const data = ctx.getImageData(0, 0, W, H).data;
-  const threshold = visibleAlphaThreshold(data);
-  let minX = W;
-  let minY = H;
-  let maxX = -1;
-  let maxY = -1;
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      if (data[(y * W + x) * 4 + 3] <= threshold) continue;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    }
-  }
-  if (maxX < minX || maxY < minY) return null;
-  return { x: (minX + maxX + 1) / 2, y: (minY + maxY + 1) / 2 };
-}
-
-function visibleAlphaThreshold(data: Uint8ClampedArray) {
-  let maxAlpha = 0;
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] > maxAlpha) maxAlpha = data[i];
-  }
-  return Math.min(24, Math.max(8, maxAlpha * 0.08));
+  const bounds = measureVisibleAlphaBounds(source);
+  return bounds ? alphaBoundsCenter(bounds) : { x: W / 2, y: H / 2 };
 }
 
 function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: number, H: number): HTMLCanvasElement {
@@ -448,70 +419,128 @@ function applyRepeatNode(
   if (!ctx) return canvas;
 
   const item = cropAlphaBounds(source);
-  const itemScale = Math.max(0.01, node.scale / 100);
-  const drawW = Math.max(1, item.width * itemScale);
-  const drawH = Math.max(1, item.height * itemScale);
-  const unit = W / 540;
-  const gap = Math.max(1, node.gap * unit);
-  const radius = Math.max(0, node.radius * unit);
-  const jitter = Math.max(0, node.jitter * unit);
-  const rotation = (node.rotation * Math.PI) / 180;
+  const params = repeatRenderParams(item, node, W);
   const rng = lcg((seed + (node.seedOffset ?? 0)) ^ hashString(node.id));
-  const rotationStep = ((node.rotationStep ?? 0) * Math.PI) / 180 || 0;
-  const rotationJitter = ((node.rotationJitter ?? 0) * Math.PI) / 180 || 0;
+  const drawItem = (x: number, y: number, index: number, radialAngle = params.rotation) =>
+    drawRepeatItem(ctx, item, node, params, rng, x, y, index, radialAngle);
+  if (node.pattern === 'radial') drawRadialRepeat(node, params, W, H, drawItem);
+  else drawGridRepeat(node, params, W, H, drawItem);
+  return canvas;
+}
 
-  const itemAngle = (index: number, radialAngle = rotation) => {
-    const mode = node.rotationMode ?? 'fixed';
-    const jitterAngle = rotationJitter === 0 ? 0 : (rng() - 0.5) * rotationJitter * 2;
-    if (mode === 'radial') return radialAngle + jitterAngle;
-    if (mode === 'step') return rotation + index * rotationStep + jitterAngle;
-    if (mode === 'random') return rotation + (rng() - 0.5) * Math.PI * 2 + jitterAngle;
-    return rotation + jitterAngle;
+type RepeatRng = ReturnType<typeof lcg>;
+
+interface RepeatRenderParams {
+  drawW: number;
+  drawH: number;
+  gap: number;
+  radius: number;
+  jitter: number;
+  rotation: number;
+  rotationStep: number;
+  rotationJitter: number;
+}
+
+function repeatRenderParams(item: HTMLCanvasElement, node: GraphRepeatNode, W: number): RepeatRenderParams {
+  const itemScale = Math.max(0.01, node.scale / 100);
+  const unit = W / 540;
+  return {
+    drawW: Math.max(1, item.width * itemScale),
+    drawH: Math.max(1, item.height * itemScale),
+    gap: Math.max(1, node.gap * unit),
+    radius: Math.max(0, node.radius * unit),
+    jitter: Math.max(0, node.jitter * unit),
+    rotation: (node.rotation * Math.PI) / 180,
+    rotationStep: ((node.rotationStep ?? 0) * Math.PI) / 180 || 0,
+    rotationJitter: ((node.rotationJitter ?? 0) * Math.PI) / 180 || 0,
   };
+}
 
-  const drawItem = (x: number, y: number, index: number, radialAngle = rotation) => {
-    const offsetX = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
-    const offsetY = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
-    ctx.save();
-    ctx.translate(x + offsetX, y + offsetY);
-    ctx.rotate(itemAngle(index, radialAngle));
-    ctx.globalAlpha = node.opacity / 100;
-    ctx.globalCompositeOperation = toCompositeOperation(node.blendMode);
-    ctx.drawImage(item, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
-  };
+function drawRepeatItem(
+  ctx: CanvasRenderingContext2D,
+  item: HTMLCanvasElement,
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  x: number,
+  y: number,
+  index: number,
+  radialAngle: number,
+) {
+  const offsetX = params.jitter === 0 ? 0 : (rng() - 0.5) * params.jitter * 2;
+  const offsetY = params.jitter === 0 ? 0 : (rng() - 0.5) * params.jitter * 2;
+  ctx.save();
+  ctx.translate(x + offsetX, y + offsetY);
+  ctx.rotate(repeatItemAngle(node, params, rng, index, radialAngle));
+  ctx.globalAlpha = node.opacity / 100;
+  ctx.globalCompositeOperation = toCompositeOperation(node.blendMode);
+  ctx.drawImage(item, -params.drawW / 2, -params.drawH / 2, params.drawW, params.drawH);
+  ctx.restore();
+}
 
-  if (node.pattern === 'radial') {
-    const count = Math.max(1, Math.round(node.count));
-    const rings = Math.max(1, Math.round(node.rows));
-    let index = 0;
-    for (let ring = 0; ring < rings; ring += 1) {
-      const r = radius + ring * gap;
-      for (let i = 0; i < count; i += 1) {
-        const angle = rotation + (i / count) * Math.PI * 2;
-        drawItem(W / 2 + Math.cos(angle) * r, H / 2 + Math.sin(angle) * r, index, angle);
-        index += 1;
-      }
+function repeatItemAngle(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  index: number,
+  radialAngle: number,
+) {
+  const jitterAngle = params.rotationJitter === 0 ? 0 : (rng() - 0.5) * params.rotationJitter * 2;
+  const modeAngle = repeatModeAngle(node.rotationMode ?? 'fixed', params, rng, index, radialAngle);
+  return modeAngle + jitterAngle;
+}
+
+function repeatModeAngle(
+  mode: GraphRepeatNode['rotationMode'],
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  index: number,
+  radialAngle: number,
+) {
+  if (mode === 'radial') return radialAngle;
+  if (mode === 'step') return params.rotation + index * params.rotationStep;
+  if (mode === 'random') return params.rotation + (rng() - 0.5) * Math.PI * 2;
+  return params.rotation;
+}
+
+function drawRadialRepeat(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  W: number,
+  H: number,
+  drawItem: (x: number, y: number, index: number, radialAngle: number) => void,
+) {
+  const count = Math.max(1, Math.round(node.count));
+  const rings = Math.max(1, Math.round(node.rows));
+  let index = 0;
+  for (let ring = 0; ring < rings; ring += 1) {
+    const r = params.radius + ring * params.gap;
+    for (let i = 0; i < count; i += 1) {
+      const angle = params.rotation + (i / count) * Math.PI * 2;
+      drawItem(W / 2 + Math.cos(angle) * r, H / 2 + Math.sin(angle) * r, index, angle);
+      index += 1;
     }
-    return canvas;
   }
+}
 
+function drawGridRepeat(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  W: number,
+  H: number,
+  drawItem: (x: number, y: number, index: number) => void,
+) {
   const columns = Math.max(1, Math.round(node.count));
   const rows = Math.max(1, Math.round(node.rows));
-  const stepX = Math.max(gap, drawW * 0.25);
-  const stepY = Math.max(gap, drawH * 0.25);
+  const stepX = Math.max(params.gap, params.drawW * 0.25);
+  const stepY = Math.max(params.gap, params.drawH * 0.25);
   const totalW = (columns - 1) * stepX;
   const totalH = (rows - 1) * stepY;
-
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < columns; col += 1) {
-      const x = W / 2 - totalW / 2 + col * stepX;
-      const y = H / 2 - totalH / 2 + row * stepY;
-      drawItem(x, y, row * columns + col);
+      drawItem(W / 2 - totalW / 2 + col * stepX, H / 2 - totalH / 2 + row * stepY, row * columns + col);
     }
   }
-
-  return canvas;
 }
 
 type RenderDependency = (dependencyId: string) => Promise<HTMLCanvasElement>;
@@ -564,11 +593,8 @@ async function renderMergeGraphNode(nodeId: string, context: GraphNodeRenderCont
 async function renderColorGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const colorNode = findColorNode(context.graph, nodeId);
   if (!colorNode) return null;
-  const { graph, W, H, options, renderDependency } = context;
-  const sourceId = findIncomingSource(graph, nodeId, 'in');
-  const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
-  throwIfRenderAborted(options);
-  return applyColorNode(source, colorNode, W, H);
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyColorNode(source, colorNode, context.W, context.H);
 }
 
 async function renderRepeatGraphNode(nodeId: string, context: GraphNodeRenderContext) {
@@ -586,34 +612,35 @@ async function renderRepeatGraphNode(nodeId: string, context: GraphNodeRenderCon
 async function renderMaskGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const maskNode = findMaskNode(context.graph, nodeId);
   if (!maskNode) return null;
-  const { graph, W, H, options, renderDependency } = context;
+  const { graph, W, H, renderDependency } = context;
   const sourceId = findIncomingSource(graph, nodeId, 'in');
   const maskId = findIncomingSource(graph, nodeId, 'mask');
   const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
   if (!maskId) return source;
   const mask = await renderDependency(maskId);
-  throwIfRenderAborted(options);
+  throwIfRenderAborted(context.options);
   return applyMaskNode(source, mask, maskNode, W, H);
 }
 
 async function renderTransformGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const transformNode = findTransformNode(context.graph, nodeId);
   if (!transformNode) return null;
-  const { graph, W, H, options, renderDependency } = context;
-  const sourceId = findIncomingSource(graph, nodeId, 'in');
-  const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
-  throwIfRenderAborted(options);
-  return applyTransformNode(source, transformNode, W, H);
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyTransformNode(source, transformNode, context.W, context.H);
 }
 
 async function renderGrimeShadowGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const grimeShadowNode = findGrimeShadowNode(context.graph, nodeId);
   if (!grimeShadowNode) return null;
-  const { doc, graph, W, H, options, renderDependency } = context;
-  const sourceId = findIncomingSource(graph, nodeId, 'in');
-  const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
-  throwIfRenderAborted(options);
-  return applyGrimeShadowNode(source, grimeShadowNode, doc.global.seed, W, H);
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyGrimeShadowNode(source, grimeShadowNode, context.doc.global.seed, context.W, context.H);
+}
+
+async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderContext) {
+  const sourceId = findIncomingSource(context.graph, nodeId, 'in');
+  const source = sourceId ? await context.renderDependency(sourceId) : createCanvas(context.W, context.H);
+  throwIfRenderAborted(context.options);
+  return source;
 }
 
 async function renderGpuOnlyLayerChain(

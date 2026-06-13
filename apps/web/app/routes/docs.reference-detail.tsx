@@ -11,15 +11,17 @@ export const meta: MetaFunction = () => [
   },
 ];
 
+const NODE_DETAIL_CHAINS: Partial<Record<string, string[]>> = {
+  lineField: ['Line Field -> Mask -> Merge -> Output', 'Line Field -> Repeat -> Text -> Output'],
+  noise: ['Noise -> Mask -> Merge -> Output', 'Noise -> Threshold -> Grain -> Output'],
+  array: ['Array -> Mask -> Repeat -> Output', 'Array -> Riso Shift -> Text -> Output'],
+  text: ['Text -> Mask matte', 'Text -> Color -> Merge -> Output'],
+  primitive: ['Primitive -> Merge over image -> Output'],
+  fill: ['Fill -> Merge base -> Output'],
+};
+
 function nodeDetailChains(nodeId: string) {
-  if (nodeId === 'lineField')
-    return ['Line Field -> Mask -> Merge -> Output', 'Line Field -> Repeat -> Text -> Output'];
-  if (nodeId === 'noise') return ['Noise -> Mask -> Merge -> Output', 'Noise -> Threshold -> Grain -> Output'];
-  if (nodeId === 'array') return ['Array -> Mask -> Repeat -> Output', 'Array -> Riso Shift -> Text -> Output'];
-  if (nodeId === 'text') return ['Text -> Mask matte', 'Text -> Color -> Merge -> Output'];
-  if (nodeId === 'primitive') return ['Primitive -> Merge over image -> Output'];
-  if (nodeId === 'fill') return ['Fill -> Merge base -> Output'];
-  return ['Source -> Effect -> Merge -> Output'];
+  return NODE_DETAIL_CHAINS[nodeId] ?? ['Source -> Effect -> Merge -> Output'];
 }
 
 function nodeEditorHref(node: (typeof ALL_NODES)[number]) {

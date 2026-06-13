@@ -57,6 +57,11 @@ type SelectedNodeTarget =
   | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
   | { kind: 'output' };
 
+type GraphUtilityInspectorTarget = Exclude<
+  SelectedNodeTarget,
+  { kind: 'layer' } | { kind: 'color' } | { kind: 'output' }
+>;
+
 function appendAiGenerationVariant(
   layer: ImageLayer,
   src: string,
@@ -142,13 +147,21 @@ function getGraphNodeSearchId(selectedNodeId: string | null) {
 
 function findFirstGraphNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
   return (
-    findColorNodeTarget(graph, selectedNodeId) ??
-    findMergeNodeTarget(graph, selectedNodeId) ??
-    findRepeatNodeTarget(graph, selectedNodeId) ??
-    findMaskNodeTarget(graph, selectedNodeId) ??
-    findTransformNodeTarget(graph, selectedNodeId) ??
-    findGrimeShadowNodeTarget(graph, selectedNodeId)
+    GRAPH_NODE_TARGET_FINDERS.map((findTarget) => findTarget(graph, selectedNodeId)).find(isSelectedNodeTarget) ?? null
   );
+}
+
+const GRAPH_NODE_TARGET_FINDERS = [
+  findColorNodeTarget,
+  findMergeNodeTarget,
+  findRepeatNodeTarget,
+  findMaskNodeTarget,
+  findTransformNodeTarget,
+  findGrimeShadowNodeTarget,
+];
+
+function isSelectedNodeTarget(target: SelectedNodeTarget | null): target is SelectedNodeTarget {
+  return target !== null;
 }
 
 function findColorNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
@@ -469,21 +482,17 @@ function GraphOrExportNodeInspector({
 > & {
   target: Exclude<SelectedNodeTarget, { kind: 'layer' } | { kind: 'color' }>;
 }) {
-  if (target.kind === 'merge') {
-    return <MergeNodeInspector node={target.node} onUpdateMergeNode={onUpdateMergeNode} />;
-  }
-  if (target.kind === 'repeat') {
-    return <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />;
-  }
-  if (target.kind === 'mask') {
-    return <MaskNodeInspector node={target.node} onUpdateMaskNode={onUpdateMaskNode} />;
-  }
-  if (target.kind === 'transform') {
-    return <TransformNodeInspector node={target.node} onUpdateTransformNode={onUpdateTransformNode} />;
-  }
-  if (target.kind === 'grimeShadow') {
-    return <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />;
-  }
+  if (target.kind !== 'output')
+    return (
+      <GraphUtilityNodeInspector
+        target={target}
+        onUpdateMergeNode={onUpdateMergeNode}
+        onUpdateRepeatNode={onUpdateRepeatNode}
+        onUpdateMaskNode={onUpdateMaskNode}
+        onUpdateTransformNode={onUpdateTransformNode}
+        onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
+      />
+    );
   return (
     <ExportNodeInspector
       doc={doc}
@@ -494,6 +503,54 @@ function GraphOrExportNodeInspector({
     />
   );
 }
+
+function GraphUtilityNodeInspector({
+  target,
+  onUpdateMergeNode,
+  onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
+}: Pick<
+  NodePropertiesPanelProps,
+  'onUpdateMergeNode' | 'onUpdateRepeatNode' | 'onUpdateMaskNode' | 'onUpdateTransformNode' | 'onUpdateGrimeShadowNode'
+> & {
+  target: GraphUtilityInspectorTarget;
+}) {
+  return GRAPH_UTILITY_INSPECTORS[target.kind]({
+    target: target as never,
+    onUpdateMergeNode,
+    onUpdateRepeatNode,
+    onUpdateMaskNode,
+    onUpdateTransformNode,
+    onUpdateGrimeShadowNode,
+  });
+}
+
+const GRAPH_UTILITY_INSPECTORS = {
+  merge: ({ target, onUpdateMergeNode }: GraphUtilityInspectorProps<'merge'>) => (
+    <MergeNodeInspector node={target.node} onUpdateMergeNode={onUpdateMergeNode} />
+  ),
+  repeat: ({ target, onUpdateRepeatNode }: GraphUtilityInspectorProps<'repeat'>) => (
+    <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />
+  ),
+  mask: ({ target, onUpdateMaskNode }: GraphUtilityInspectorProps<'mask'>) => (
+    <MaskNodeInspector node={target.node} onUpdateMaskNode={onUpdateMaskNode} />
+  ),
+  transform: ({ target, onUpdateTransformNode }: GraphUtilityInspectorProps<'transform'>) => (
+    <TransformNodeInspector node={target.node} onUpdateTransformNode={onUpdateTransformNode} />
+  ),
+  grimeShadow: ({ target, onUpdateGrimeShadowNode }: GraphUtilityInspectorProps<'grimeShadow'>) => (
+    <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />
+  ),
+};
+
+type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> = Pick<
+  NodePropertiesPanelProps,
+  'onUpdateMergeNode' | 'onUpdateRepeatNode' | 'onUpdateMaskNode' | 'onUpdateTransformNode' | 'onUpdateGrimeShadowNode'
+> & {
+  target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
+};
 
 function NodePropertiesPanelContent({
   target,

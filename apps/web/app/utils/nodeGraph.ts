@@ -23,6 +23,26 @@ const TOP_PAD = 80;
 const NODE_CHROME_H = 118;
 const NODE_PREVIEW_MAX = 280;
 
+export type GraphUtilityNodeKind = 'merge' | 'color' | 'repeat' | 'mask' | 'transform' | 'grimeShadow';
+
+const GRAPH_UTILITY_NODE_SELECTORS = [
+  { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
+  { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
+  { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
+  { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
+  {
+    kind: 'transform',
+    nodes: (graph: CanvasGraph) => graph.transformNodes ?? [],
+  },
+  {
+    kind: 'grimeShadow',
+    nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [],
+  },
+] satisfies Array<{
+  kind: GraphUtilityNodeKind;
+  nodes: (graph: CanvasGraph) => Array<{ id: string }>;
+}>;
+
 type GraphLayoutState = {
   outgoing: Map<string, string[]>;
   indegree: Map<string, number>;
@@ -534,6 +554,17 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
   ];
 }
 
+export function graphUtilityNodeCollections(graph: CanvasGraph) {
+  return GRAPH_UTILITY_NODE_SELECTORS.map((selector) => selector.nodes(graph));
+}
+
+export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphUtilityNodeKind | null {
+  return (
+    GRAPH_UTILITY_NODE_SELECTORS.find((selector) => selector.nodes(graph).some((node) => node.id === nodeId))?.kind ??
+    null
+  );
+}
+
 function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {
   const outgoing = new Map<string, string[]>();
   const indegree = new Map<string, number>();
@@ -759,7 +790,10 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: Aspec
 }
 
 /** Get set of node IDs that have at least one outgoing or incoming edge. */
-export function connectedPortIds(graph: CanvasGraph): { sources: Set<string>; targets: Set<string> } {
+export function connectedPortIds(graph: CanvasGraph): {
+  sources: Set<string>;
+  targets: Set<string>;
+} {
   const sources = new Set<string>();
   const targets = new Set<string>();
   for (const e of graph.edges) {
