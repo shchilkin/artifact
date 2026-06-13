@@ -16,9 +16,12 @@ import { type GraphRenderCache, renderGraphTarget } from '../../../utils/rendere
 import {
   colorNodeRenderSig,
   edgeRenderSig,
+  grimeShadowNodeRenderSig,
   layerRenderSig,
+  maskNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
+  transformNodeRenderSig,
 } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
@@ -86,24 +89,25 @@ function layerSignatures(layers: Layer[]) {
 
 function graphSignatureParts(graph: CanvasGraph) {
   return {
-    mergeSignatures: graph.mergeNodes.map((node) => ({ id: node.id, sig: mergeNodeRenderSig(node) })),
-    colorSignatures: (graph.colorNodes ?? []).map((node) => ({ id: node.id, sig: colorNodeRenderSig(node) })),
-    repeatSignatures: (graph.repeatNodes ?? []).map((node) => ({ id: node.id, sig: repeatNodeRenderSig(node) })),
-    edgeSignatures: graph.edges.map((edge) => ({ id: edge.id, sig: edgeRenderSig(edge) })),
+    mergeSignatures: renderSignatures(graph.mergeNodes, mergeNodeRenderSig),
+    colorSignatures: renderSignatures(graph.colorNodes, colorNodeRenderSig),
+    repeatSignatures: renderSignatures(graph.repeatNodes, repeatNodeRenderSig),
+    maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
+    transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
+    grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
+    edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
   };
+}
+
+function renderSignatures<T extends { id: string }>(items: T[] | undefined, signature: (item: T) => string) {
+  return (items ?? []).map((item) => ({ id: item.id, sig: signature(item) }));
 }
 
 function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: CanvasDocument, renderGraph: CanvasGraph) {
   const upstream = collectUpstreamNodeIds(previewTargetId, renderGraph);
   const upstreamHas = (id: string) => upstream.has(id);
   const layers = renderDoc.layers.filter((layer) => upstreamHas(layer.id));
-  const graph = {
-    edges: renderGraph.edges.filter((edge) => upstreamHas(edge.toId) && upstreamHas(edge.fromId)),
-    mergeNodes: renderGraph.mergeNodes.filter((node) => upstreamHas(node.id)),
-    colorNodes: (renderGraph.colorNodes ?? []).filter((node) => upstreamHas(node.id)),
-    repeatNodes: (renderGraph.repeatNodes ?? []).filter((node) => upstreamHas(node.id)),
-    positions: {},
-  };
+  const graph = upstreamSignatureGraph(renderGraph, upstreamHas);
 
   return {
     layers,
@@ -115,6 +119,23 @@ function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: Canv
     ...graphSignatureParts(graph),
     allGraphSignatures: graphSignatureParts(renderGraph),
   };
+}
+
+function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: string) => boolean): CanvasGraph {
+  return {
+    edges: renderGraph.edges.filter((edge) => upstreamHas(edge.toId) && upstreamHas(edge.fromId)),
+    mergeNodes: filterGraphNodes(renderGraph.mergeNodes, upstreamHas),
+    colorNodes: filterGraphNodes(renderGraph.colorNodes, upstreamHas),
+    repeatNodes: filterGraphNodes(renderGraph.repeatNodes, upstreamHas),
+    maskNodes: filterGraphNodes(renderGraph.maskNodes, upstreamHas),
+    transformNodes: filterGraphNodes(renderGraph.transformNodes, upstreamHas),
+    grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
+    positions: {},
+  };
+}
+
+function filterGraphNodes<T extends { id: string }>(nodes: T[] | undefined, upstreamHas: (id: string) => boolean) {
+  return (nodes ?? []).filter((node) => upstreamHas(node.id));
 }
 
 type PreviewSize = ReturnType<typeof getNodePreviewSize>;
@@ -347,6 +368,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const prevMergeSigsRef = useRef<Map<string, string>>(new Map());
   const prevColorSigsRef = useRef<Map<string, string>>(new Map());
   const prevRepeatSigsRef = useRef<Map<string, string>>(new Map());
+  const prevMaskSigsRef = useRef<Map<string, string>>(new Map());
+  const prevTransformSigsRef = useRef<Map<string, string>>(new Map());
+  const prevGrimeShadowSigsRef = useRef<Map<string, string>>(new Map());
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
@@ -373,6 +397,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       mergeSignatures,
       colorSignatures,
       repeatSignatures,
+      maskSignatures,
+      transformSignatures,
+      grimeShadowSignatures,
       edgeSignatures,
       allGraphSignatures,
     } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
@@ -388,6 +415,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(mergeSignatures),
       signatureList(colorSignatures),
       signatureList(repeatSignatures),
+      signatureList(maskSignatures),
+      signatureList(transformSignatures),
+      signatureList(grimeShadowSignatures),
       signatureList(edgeSignatures),
       primitiveViewSignature(layers, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
@@ -403,6 +433,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(allGraphSignatures.mergeSignatures),
       signatureList(allGraphSignatures.colorSignatures),
       signatureList(allGraphSignatures.repeatSignatures),
+      signatureList(allGraphSignatures.maskSignatures),
+      signatureList(allGraphSignatures.transformSignatures),
+      signatureList(allGraphSignatures.grimeShadowSignatures),
       signatureList(allGraphSignatures.edgeSignatures),
       primitiveViewSignature(allLayers, renderPrimitiveViewStates),
       imageCacheSignature(allImageLayers, imageCache),
@@ -415,6 +448,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       mergeSignatures,
       colorSignatures,
       repeatSignatures,
+      maskSignatures,
+      transformSignatures,
+      grimeShadowSignatures,
       edgeSignatures,
     };
   }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
@@ -453,6 +489,30 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
         logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'repeat' });
       }
       prevRepeatSigsRef.current.set(id, sig);
+    });
+
+    signatureData.maskSignatures.forEach(({ id, sig }) => {
+      const prev = prevMaskSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'mask' });
+      }
+      prevMaskSigsRef.current.set(id, sig);
+    });
+
+    signatureData.transformSignatures.forEach(({ id, sig }) => {
+      const prev = prevTransformSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'transform' });
+      }
+      prevTransformSigsRef.current.set(id, sig);
+    });
+
+    signatureData.grimeShadowSignatures.forEach(({ id, sig }) => {
+      const prev = prevGrimeShadowSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'grimeShadow' });
+      }
+      prevGrimeShadowSigsRef.current.set(id, sig);
     });
 
     signatureData.edgeSignatures.forEach(({ id, sig }) => {

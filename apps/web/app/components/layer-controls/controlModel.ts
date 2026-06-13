@@ -35,7 +35,7 @@ export function getLayerControlSections(layer: Layer): LayerControlSection[] {
     ];
   }
 
-  if (layer.kind === 'noise') {
+  if (layer.kind === 'noise' || layer.kind === 'lineField') {
     return [
       { id: 'content', title: 'Content' },
       { id: 'structure', title: 'Pattern' },
@@ -52,6 +52,6 @@ export function getLayerControlSections(layer: Layer): LayerControlSection[] {
 }
 
 export function layerHasPlacementControls(layer: Layer): boolean {
-  if (layer.kind === 'noise') return false;
+  if (layer.kind === 'noise' || layer.kind === 'lineField') return false;
   return getLayerControlSections(layer).some((section) => section.id === 'placement');
 }

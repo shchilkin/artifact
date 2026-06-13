@@ -2,7 +2,7 @@ import type { FinalConnectionState, ReactFlowInstance, Edge as RFEdge, Node as R
 import { useCallback, useEffect } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import type { AddAction } from '../../../utils/addActions';
-import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphUtilityNodeKind, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { InsertConnectionConfig } from '../types';
 
@@ -52,14 +52,17 @@ function addNodeMenuAnchor(buttonRect: DOMRect | undefined, surfaceRect: DOMRect
 }
 
 function addNodeMenuScreenPoint(buttonRect: DOMRect | undefined, surfaceRect: DOMRect | undefined) {
-  if (buttonRect) return { x: buttonRect.left + buttonRect.width / 2, y: buttonRect.bottom + 12 };
+  if (buttonRect)
+    return {
+      x: buttonRect.left + buttonRect.width / 2,
+      y: buttonRect.bottom + 12,
+    };
   if (surfaceRect) return { x: surfaceRect.left + 96, y: surfaceRect.top + 96 };
   return { x: 0, y: 0 };
 }
 
 function isGraphUtilityNode(graph: CanvasGraph, id: string) {
-  const utilityNodes = [...graph.mergeNodes, ...(graph.colorNodes ?? []), ...(graph.repeatNodes ?? [])];
-  return utilityNodes.some((node) => node.id === id);
+  return graphUtilityNodeKind(graph, id) !== null;
 }
 
 function connectEndPointer(event: MouseEvent | TouchEvent) {
@@ -194,14 +197,23 @@ export function useNodeContextMenus({
     const anchor = addNodeMenuAnchor(buttonRect, surfaceRect);
     const screenPoint = addNodeMenuScreenPoint(buttonRect, surfaceRect);
     const flowPos = rfInstanceRef.current?.screenToFlowPosition(screenPoint) ?? { x: 0, y: 0 };
-    send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: anchor.x, y: anchor.y, flowPos } });
+    send({
+      type: 'CONTEXT_MENU_OPENED',
+      menu: { type: 'pane-add', x: anchor.x, y: anchor.y, flowPos },
+    });
   }, [send, addNodeButtonRef, canvasSurfaceRef, rfInstanceRef]);
 
   const onPaneContextMenu = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
       e.preventDefault();
-      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY }) ?? { x: 0, y: 0 };
-      send({ type: 'CONTEXT_MENU_OPENED', menu: { type: 'pane-add', x: e.clientX, y: e.clientY, flowPos } });
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({
+        x: e.clientX,
+        y: e.clientY,
+      }) ?? { x: 0, y: 0 };
+      send({
+        type: 'CONTEXT_MENU_OPENED',
+        menu: { type: 'pane-add', x: e.clientX, y: e.clientY, flowPos },
+      });
     },
     [send, rfInstanceRef],
   );
@@ -214,7 +226,14 @@ export function useNodeContextMenus({
       const isExport = node.id === EXPORT_NODE_ID;
       send({
         type: 'CONTEXT_MENU_OPENED',
-        menu: { type: 'node', x: e.clientX, y: e.clientY, nodeId: node.id, isMerge, isExport },
+        menu: {
+          type: 'node',
+          x: e.clientX,
+          y: e.clientY,
+          nodeId: node.id,
+          isMerge,
+          isExport,
+        },
       });
     },
     [graphRef, send],
@@ -224,7 +243,10 @@ export function useNodeContextMenus({
     (e: React.MouseEvent, edge: RFEdge) => {
       e.preventDefault();
       e.stopPropagation();
-      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY }) ?? { x: 0, y: 0 };
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({
+        x: e.clientX,
+        y: e.clientY,
+      }) ?? { x: 0, y: 0 };
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: {
@@ -250,7 +272,10 @@ export function useNodeContextMenus({
       if (!pendingConnection) return;
       const pointer = connectEndPointer(event);
       if (!pointer) return;
-      const flowPos = rfInstanceRef.current?.screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY }) ?? {
+      const flowPos = rfInstanceRef.current?.screenToFlowPosition({
+        x: pointer.clientX,
+        y: pointer.clientY,
+      }) ?? {
         x: 0,
         y: 0,
       };

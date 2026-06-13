@@ -5,16 +5,22 @@ import {
   type EffectPreset,
   type GraphColorNode,
   type GraphEdge,
+  type GraphGrimeShadowNode,
+  type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphTransformNode,
   type Layer,
   type LayerKind,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
   makeGraphColorNode,
+  makeGraphGrimeShadowNode,
+  makeGraphMaskNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
+  makeGraphTransformNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -26,25 +32,35 @@ import {
   addColorNode,
   addGraphArea,
   addGraphEdge,
+  addGrimeShadowNode,
   addLayerToGraph,
+  addMaskNode,
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
+  addTransformNode,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
+  graphUtilityNodeCollections,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeGraphArea,
   removeGraphEdge,
+  removeGrimeShadowNode,
   removeLayerFromGraph,
+  removeMaskNode,
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
+  removeTransformNode,
   splitEdgeWithNode,
   updateColorNode as updateColorNodeInGraph,
   updateGraphArea,
+  updateGrimeShadowNode as updateGrimeShadowNodeInGraph,
+  updateMaskNode as updateMaskNodeInGraph,
   updateRepeatNode as updateRepeatNodeInGraph,
+  updateTransformNode as updateTransformNodeInGraph,
 } from './nodeGraph';
 import { makeNoisePresetLayer } from './noisePresets';
 import { makeRepeatPresetNode } from './repeatPresets';
@@ -117,7 +133,7 @@ function nodeSeedOffsetFromId(id: string): number {
 }
 
 function withGeneratedNodeSeed(layer: Layer): Layer {
-  if (layer.kind !== 'noise') return layer;
+  if (layer.kind !== 'noise' && layer.kind !== 'lineField') return layer;
   if (layer.seedOffset !== 0) return layer;
   return { ...layer, seedOffset: nodeSeedOffsetFromId(layer.id) };
 }
@@ -135,6 +151,9 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
     mergeNodes: graph.mergeNodes ?? [],
     colorNodes: graph.colorNodes ?? [],
     repeatNodes: graph.repeatNodes ?? [],
+    maskNodes: graph.maskNodes ?? [],
+    transformNodes: graph.transformNodes ?? [],
+    grimeShadowNodes: graph.grimeShadowNodes ?? [],
   };
 }
 
@@ -145,6 +164,19 @@ export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDoc
     ...doc,
     layers,
     graph: syncGraphToLayerStackOrder(addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)), layers),
+  };
+}
+
+export function addLooseLayerNodeToDocument(
+  doc: CanvasDocument,
+  layer: Layer,
+  position?: { x: number; y: number },
+): CanvasDocument {
+  const graph = ensureDocumentGraph(doc);
+  return {
+    ...doc,
+    layers: [...doc.layers, layer],
+    graph: addLayerToGraph(graph, layer.id, position ?? nextDropPosition(graph)),
   };
 }
 
@@ -172,9 +204,7 @@ function isLinearLayerGraph(doc: CanvasDocument): boolean {
 }
 
 function graphHasOnlyLayerNodes(graph: CanvasGraph) {
-  return (
-    graph.mergeNodes.length === 0 && (graph.colorNodes?.length ?? 0) === 0 && (graph.repeatNodes?.length ?? 0) === 0
-  );
+  return graphUtilityNodeCollections(graph).every((nodes) => nodes.length === 0);
 }
 
 function graphHasLinearEdgeCount(graph: CanvasGraph, layers: Layer[]) {
@@ -419,7 +449,10 @@ function insertLayerForGraphConnection(
 
 function addGraphOnlyNodeAtDocument(
   doc: CanvasDocument,
-  action: Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+  action: Extract<
+    DocumentAddAction,
+    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+  >,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
@@ -430,7 +463,10 @@ function addGraphOnlyNodeAtDocument(
 
 function connectInsertedGraphOnlyNode(
   doc: CanvasDocument,
-  action: Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+  action: Extract<
+    DocumentAddAction,
+    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+  >,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
@@ -455,6 +491,36 @@ function connectInsertedGraphOnlyNode(
       createEdgeId,
     );
   }
+  if (action.kind === 'mask') {
+    const node = makeGraphMaskNode();
+    return connectInsertedNode(
+      addMaskNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+  }
+  if (action.kind === 'transform') {
+    const node = makeGraphTransformNode();
+    return connectInsertedNode(
+      addTransformNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+  }
+  if (action.kind === 'grimeShadow') {
+    const node = makeGraphGrimeShadowNode();
+    return connectInsertedNode(
+      addGrimeShadowNode(ensureDocumentGraph(doc), node, position),
+      node.id,
+      'in',
+      insertion,
+      createEdgeId,
+    );
+  }
   const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
   return connectInsertedNode(
     addRepeatNode(ensureDocumentGraph(doc), node, position),
@@ -467,14 +533,26 @@ function connectInsertedGraphOnlyNode(
 
 function isGraphOnlyAddAction(
   action: DocumentAddAction,
-): action is Extract<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }> {
+): action is Extract<
+  DocumentAddAction,
+  { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+> {
   return (
-    action.kind === 'merge' || action.kind === 'color' || action.kind === 'repeat' || action.kind === 'repeatPreset'
+    action.kind === 'merge' ||
+    action.kind === 'color' ||
+    action.kind === 'repeat' ||
+    action.kind === 'repeatPreset' ||
+    action.kind === 'mask' ||
+    action.kind === 'transform' ||
+    action.kind === 'grimeShadow'
   );
 }
 
 function layerForAddAction(
-  action: Exclude<DocumentAddAction, { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' }>,
+  action: Exclude<
+    DocumentAddAction,
+    { kind: 'merge' | 'color' | 'repeat' | 'repeatPreset' | 'mask' | 'transform' | 'grimeShadow' }
+  >,
 ) {
   if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
   if (action.kind === 'noisePreset') return withGeneratedNodeSeed(makeNoisePresetLayer(action.preset));
@@ -543,7 +621,15 @@ function removeMatchingGraphNodes<T extends { id: string }>(
 function removeDeletedGraphOnlyNodes(graph: CanvasGraph, idSet: Set<string>) {
   const withoutMerge = removeMatchingGraphNodes(graph, graph.mergeNodes, idSet, removeMergeNode);
   const withoutColor = removeMatchingGraphNodes(withoutMerge, withoutMerge.colorNodes, idSet, removeColorNode);
-  return removeMatchingGraphNodes(withoutColor, withoutColor.repeatNodes, idSet, removeRepeatNode);
+  const withoutRepeat = removeMatchingGraphNodes(withoutColor, withoutColor.repeatNodes, idSet, removeRepeatNode);
+  const withoutMask = removeMatchingGraphNodes(withoutRepeat, withoutRepeat.maskNodes, idSet, removeMaskNode);
+  const withoutTransform = removeMatchingGraphNodes(
+    withoutMask,
+    withoutMask.transformNodes,
+    idSet,
+    removeTransformNode,
+  );
+  return removeMatchingGraphNodes(withoutTransform, withoutTransform.grimeShadowNodes, idSet, removeGrimeShadowNode);
 }
 
 function removeDeletedLayerNodes(graph: CanvasGraph, layers: Layer[], idSet: Set<string>) {
@@ -639,6 +725,33 @@ export function updateRepeatNodeInDocument(
 ): CanvasDocument {
   if (!doc.graph) return doc;
   return { ...doc, graph: updateRepeatNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateMaskNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphMaskNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateMaskNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateTransformNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphTransformNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateTransformNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateGrimeShadowNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphGrimeShadowNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateGrimeShadowNodeInGraph(doc.graph, id, patch) };
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {

@@ -3,13 +3,16 @@ import type {
   CanvasGraph,
   EffectLayer,
   GraphColorNode,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphTransformNode,
   Layer,
 } from '../../types/config';
 import { lcg } from '../lcg';
 import { EXPORT_NODE_ID } from '../nodeGraph';
-import { measureAlphaBounds } from './alphaBounds';
+import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
@@ -22,7 +25,7 @@ export interface GraphRenderCache {
   limit?: number;
 }
 
-function findIncomingSource(graph: CanvasGraph, toId: string, toPort: 'in' | 'bg' | 'a' | 'b'): string | null {
+function findIncomingSource(graph: CanvasGraph, toId: string, toPort: 'in' | 'bg' | 'a' | 'b' | 'mask'): string | null {
   const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
   return edge?.fromId ?? null;
 }
@@ -37,6 +40,18 @@ function findColorNode(graph: CanvasGraph, nodeId: string): GraphColorNode | und
 
 function findRepeatNode(graph: CanvasGraph, nodeId: string): GraphRepeatNode | undefined {
   return (graph.repeatNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function findMaskNode(graph: CanvasGraph, nodeId: string): GraphMaskNode | undefined {
+  return (graph.maskNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function findTransformNode(graph: CanvasGraph, nodeId: string): GraphTransformNode | undefined {
+  return (graph.transformNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function findGrimeShadowNode(graph: CanvasGraph, nodeId: string): GraphGrimeShadowNode | undefined {
+  return (graph.grimeShadowNodes ?? []).find((node) => node.id === nodeId);
 }
 
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
@@ -110,6 +125,204 @@ function cropAlphaBounds(source: HTMLCanvasElement): HTMLCanvasElement {
   const crop = createCanvas(sw, sh);
   crop.getContext('2d')?.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
   return crop;
+}
+
+function preparedMaskCanvas(mask: HTMLCanvasElement, node: GraphMaskNode, W: number, H: number): HTMLCanvasElement {
+  const prepared = createCanvas(W, H);
+  const ctx = prepared.getContext('2d', { willReadFrequently: true })!;
+  const expand = Math.max(0, Math.round(node.expand));
+  const feather = Math.max(0, node.feather);
+  ctx.save();
+  if (feather > 0) ctx.filter = `blur(${feather}px)`;
+  if (expand > 0) {
+    for (let y = -expand; y <= expand; y += expand) {
+      for (let x = -expand; x <= expand; x += expand) {
+        ctx.drawImage(mask, x, y, W, H);
+      }
+    }
+  }
+  ctx.drawImage(mask, 0, 0, W, H);
+  ctx.restore();
+  return prepared;
+}
+
+function maskAlphaForPixel(data: Uint8ClampedArray, index: number, node: GraphMaskNode) {
+  const alpha = data[index + 3] / 255;
+  const luma = (data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722) / 255;
+  let value = node.mode === 'alpha' ? alpha : luma;
+  if (node.mode === 'threshold') value = luma >= node.threshold / 100 ? 1 : 0;
+  if (node.invert) value = 1 - value;
+  return Math.max(0, Math.min(1, value * (node.opacity / 100)));
+}
+
+function applyMaskNode(source: HTMLCanvasElement, mask: HTMLCanvasElement, node: GraphMaskNode, W: number, H: number) {
+  const canvas = cloneCanvas(source, W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const prepared = preparedMaskCanvas(mask, node, W, H);
+  const maskData = prepared.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data;
+  const image = ctx.getImageData(0, 0, W, H);
+  for (let i = 0; i < image.data.length; i += 4) {
+    image.data[i + 3] = Math.round(image.data[i + 3] * maskAlphaForPixel(maskData, i, node));
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+function applyTransformNode(source: HTMLCanvasElement, node: GraphTransformNode, W: number, H: number) {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return canvas;
+  const pivot = transformNodePivot(source, node, W, H);
+  const offsetX = (node.x / 100) * W;
+  const offsetY = (node.y / 100) * H;
+  const scaleX = Math.max(0.01, node.scaleX / 100);
+  const scaleY = Math.max(0.01, node.scaleY / 100);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, node.opacity / 100));
+  ctx.translate(pivot.x + offsetX, pivot.y + offsetY);
+  ctx.rotate((node.rotation * Math.PI) / 180);
+  ctx.scale(scaleX, scaleY);
+  ctx.drawImage(source, -pivot.x, -pivot.y, W, H);
+  ctx.restore();
+  return canvas;
+}
+
+function applyGrimeShadowNode(
+  source: HTMLCanvasElement,
+  node: GraphGrimeShadowNode,
+  seed: number,
+  W: number,
+  H: number,
+) {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return canvas;
+  const silhouette = sourceAlphaSilhouette(source, node.color, W, H);
+  const shadow = renderGrimeShadow(silhouette, node, seed, W, H);
+  ctx.drawImage(shadow, 0, 0);
+  if (!node.shadowOnly) ctx.drawImage(source, 0, 0);
+  return canvas;
+}
+
+function sourceAlphaSilhouette(source: HTMLCanvasElement, color: string, W: number, H: number) {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const sourceCtx = source.getContext('2d', { willReadFrequently: true });
+  if (!ctx || !sourceCtx) return canvas;
+  const image = sourceCtx.getImageData(0, 0, W, H);
+  const threshold = visibleAlphaThreshold(image.data);
+  const rgb = parseCanvasColor(color);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const alpha = image.data[i + 3];
+    image.data[i] = rgb.r;
+    image.data[i + 1] = rgb.g;
+    image.data[i + 2] = rgb.b;
+    image.data[i + 3] = alpha > threshold ? alpha : 0;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+function renderGrimeShadow(
+  silhouette: HTMLCanvasElement,
+  node: GraphGrimeShadowNode,
+  seed: number,
+  W: number,
+  H: number,
+) {
+  const shadow = createCanvas(W, H);
+  const ctx = shadow.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return shadow;
+  const unit = W / 540;
+  const layers = Math.max(1, Math.round(node.layers));
+  const spread = Math.max(0, node.spread * unit);
+  const jitter = Math.max(0, node.jitter * unit);
+  const rng = lcg((seed + (node.seedOffset ?? 0)) ^ hashString(node.id));
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < layers; i += 1) {
+    const t = (i + 1) / layers;
+    const x = node.x * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
+    const y = node.y * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
+    ctx.globalAlpha = (node.opacity / 100) * (1.15 - t * 0.55);
+    ctx.filter = node.blur > 0 ? `blur(${node.blur * unit * t}px)` : 'none';
+    drawSpreadSilhouette(ctx, silhouette, x, y, spread * t);
+  }
+  ctx.restore();
+
+  if (node.grime > 0) applyShadowGrime(shadow, node, seed, W, H);
+  return shadow;
+}
+
+function drawSpreadSilhouette(
+  ctx: CanvasRenderingContext2D,
+  silhouette: HTMLCanvasElement,
+  x: number,
+  y: number,
+  spread: number,
+) {
+  if (spread <= 0) {
+    ctx.drawImage(silhouette, x, y);
+    return;
+  }
+  const steps = Math.max(4, Math.min(12, Math.round(spread / 3)));
+  for (let i = 0; i < steps; i += 1) {
+    const angle = (i / steps) * Math.PI * 2;
+    ctx.drawImage(silhouette, x + Math.cos(angle) * spread, y + Math.sin(angle) * spread);
+  }
+  ctx.drawImage(silhouette, x, y);
+}
+
+function applyShadowGrime(canvas: HTMLCanvasElement, node: GraphGrimeShadowNode, seed: number, W: number, H: number) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+  const image = ctx.getImageData(0, 0, W, H);
+  const amount = Math.max(0, Math.min(1, node.grime / 100));
+  const baseSeed = (seed + (node.seedOffset ?? 0)) ^ hashString(node.id);
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      const i = (y * W + x) * 4 + 3;
+      if (image.data[i] === 0) continue;
+      const fine = coordinateNoise(x >> 2, y >> 2, baseSeed);
+      const coarse = coordinateNoise(x >> 5, y >> 5, baseSeed ^ 0x9e3779b9);
+      const dirt = fine * 0.55 + coarse * 0.45;
+      image.data[i] = Math.round(image.data[i] * (1 - amount * dirt * 0.82));
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+function coordinateNoise(x: number, y: number, seed: number) {
+  let value = Math.imul(x ^ seed, 374761393) + Math.imul(y ^ (seed >>> 1), 668265263);
+  value = (value ^ (value >>> 13)) >>> 0;
+  value = Math.imul(value, 1274126177) >>> 0;
+  return ((value ^ (value >>> 16)) >>> 0) / 4294967295;
+}
+
+function parseCanvasColor(color: string) {
+  const hex = color.trim();
+  if (/^#[0-9a-f]{6}$/i.test(hex)) {
+    return {
+      r: Number.parseInt(hex.slice(1, 3), 16),
+      g: Number.parseInt(hex.slice(3, 5), 16),
+      b: Number.parseInt(hex.slice(5, 7), 16),
+    };
+  }
+  if (/^#[0-9a-f]{3}$/i.test(hex)) {
+    return {
+      r: Number.parseInt(hex[1] + hex[1], 16),
+      g: Number.parseInt(hex[2] + hex[2], 16),
+      b: Number.parseInt(hex[3] + hex[3], 16),
+    };
+  }
+  return { r: 9, g: 6, b: 6 };
+}
+
+function transformNodePivot(source: HTMLCanvasElement, node: GraphTransformNode, W: number, H: number) {
+  if ((node.pivotMode ?? 'canvas') !== 'visible') return { x: W / 2, y: H / 2 };
+  const bounds = measureVisibleAlphaBounds(source);
+  return bounds ? alphaBoundsCenter(bounds) : { x: W / 2, y: H / 2 };
 }
 
 function applyColorNode(source: HTMLCanvasElement, node: GraphColorNode, W: number, H: number): HTMLCanvasElement {
@@ -206,57 +419,128 @@ function applyRepeatNode(
   if (!ctx) return canvas;
 
   const item = cropAlphaBounds(source);
-  const itemScale = Math.max(0.01, node.scale / 100);
-  const drawW = Math.max(1, item.width * itemScale);
-  const drawH = Math.max(1, item.height * itemScale);
-  const unit = W / 540;
-  const gap = Math.max(1, node.gap * unit);
-  const radius = Math.max(0, node.radius * unit);
-  const jitter = Math.max(0, node.jitter * unit);
-  const rotation = (node.rotation * Math.PI) / 180;
+  const params = repeatRenderParams(item, node, W);
   const rng = lcg((seed + (node.seedOffset ?? 0)) ^ hashString(node.id));
+  const drawItem = (x: number, y: number, index: number, radialAngle = params.rotation) =>
+    drawRepeatItem(ctx, item, node, params, rng, x, y, index, radialAngle);
+  if (node.pattern === 'radial') drawRadialRepeat(node, params, W, H, drawItem);
+  else drawGridRepeat(node, params, W, H, drawItem);
+  return canvas;
+}
 
-  const drawItem = (x: number, y: number, angle = rotation) => {
-    const offsetX = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
-    const offsetY = jitter === 0 ? 0 : (rng() - 0.5) * jitter * 2;
-    ctx.save();
-    ctx.translate(x + offsetX, y + offsetY);
-    ctx.rotate(angle);
-    ctx.globalAlpha = node.opacity / 100;
-    ctx.globalCompositeOperation = toCompositeOperation(node.blendMode);
-    ctx.drawImage(item, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
+type RepeatRng = ReturnType<typeof lcg>;
+
+interface RepeatRenderParams {
+  drawW: number;
+  drawH: number;
+  gap: number;
+  radius: number;
+  jitter: number;
+  rotation: number;
+  rotationStep: number;
+  rotationJitter: number;
+}
+
+function repeatRenderParams(item: HTMLCanvasElement, node: GraphRepeatNode, W: number): RepeatRenderParams {
+  const itemScale = Math.max(0.01, node.scale / 100);
+  const unit = W / 540;
+  return {
+    drawW: Math.max(1, item.width * itemScale),
+    drawH: Math.max(1, item.height * itemScale),
+    gap: Math.max(1, node.gap * unit),
+    radius: Math.max(0, node.radius * unit),
+    jitter: Math.max(0, node.jitter * unit),
+    rotation: (node.rotation * Math.PI) / 180,
+    rotationStep: ((node.rotationStep ?? 0) * Math.PI) / 180 || 0,
+    rotationJitter: ((node.rotationJitter ?? 0) * Math.PI) / 180 || 0,
   };
+}
 
-  if (node.pattern === 'radial') {
-    const count = Math.max(1, Math.round(node.count));
-    const rings = Math.max(1, Math.round(node.rows));
-    for (let ring = 0; ring < rings; ring += 1) {
-      const r = radius + ring * gap;
-      for (let i = 0; i < count; i += 1) {
-        const angle = rotation + (i / count) * Math.PI * 2;
-        drawItem(W / 2 + Math.cos(angle) * r, H / 2 + Math.sin(angle) * r, angle);
-      }
+function drawRepeatItem(
+  ctx: CanvasRenderingContext2D,
+  item: HTMLCanvasElement,
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  x: number,
+  y: number,
+  index: number,
+  radialAngle: number,
+) {
+  const offsetX = params.jitter === 0 ? 0 : (rng() - 0.5) * params.jitter * 2;
+  const offsetY = params.jitter === 0 ? 0 : (rng() - 0.5) * params.jitter * 2;
+  ctx.save();
+  ctx.translate(x + offsetX, y + offsetY);
+  ctx.rotate(repeatItemAngle(node, params, rng, index, radialAngle));
+  ctx.globalAlpha = node.opacity / 100;
+  ctx.globalCompositeOperation = toCompositeOperation(node.blendMode);
+  ctx.drawImage(item, -params.drawW / 2, -params.drawH / 2, params.drawW, params.drawH);
+  ctx.restore();
+}
+
+function repeatItemAngle(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  index: number,
+  radialAngle: number,
+) {
+  const jitterAngle = params.rotationJitter === 0 ? 0 : (rng() - 0.5) * params.rotationJitter * 2;
+  const modeAngle = repeatModeAngle(node.rotationMode ?? 'fixed', params, rng, index, radialAngle);
+  return modeAngle + jitterAngle;
+}
+
+function repeatModeAngle(
+  mode: GraphRepeatNode['rotationMode'],
+  params: RepeatRenderParams,
+  rng: RepeatRng,
+  index: number,
+  radialAngle: number,
+) {
+  if (mode === 'radial') return radialAngle;
+  if (mode === 'step') return params.rotation + index * params.rotationStep;
+  if (mode === 'random') return params.rotation + (rng() - 0.5) * Math.PI * 2;
+  return params.rotation;
+}
+
+function drawRadialRepeat(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  W: number,
+  H: number,
+  drawItem: (x: number, y: number, index: number, radialAngle: number) => void,
+) {
+  const count = Math.max(1, Math.round(node.count));
+  const rings = Math.max(1, Math.round(node.rows));
+  let index = 0;
+  for (let ring = 0; ring < rings; ring += 1) {
+    const r = params.radius + ring * params.gap;
+    for (let i = 0; i < count; i += 1) {
+      const angle = params.rotation + (i / count) * Math.PI * 2;
+      drawItem(W / 2 + Math.cos(angle) * r, H / 2 + Math.sin(angle) * r, index, angle);
+      index += 1;
     }
-    return canvas;
   }
+}
 
+function drawGridRepeat(
+  node: GraphRepeatNode,
+  params: RepeatRenderParams,
+  W: number,
+  H: number,
+  drawItem: (x: number, y: number, index: number) => void,
+) {
   const columns = Math.max(1, Math.round(node.count));
   const rows = Math.max(1, Math.round(node.rows));
-  const stepX = Math.max(gap, drawW * 0.25);
-  const stepY = Math.max(gap, drawH * 0.25);
+  const stepX = Math.max(params.gap, params.drawW * 0.25);
+  const stepY = Math.max(params.gap, params.drawH * 0.25);
   const totalW = (columns - 1) * stepX;
   const totalH = (rows - 1) * stepY;
-
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < columns; col += 1) {
-      const x = W / 2 - totalW / 2 + col * stepX;
-      const y = H / 2 - totalH / 2 + row * stepY;
-      drawItem(x, y);
+      drawItem(W / 2 - totalW / 2 + col * stepX, H / 2 - totalH / 2 + row * stepY, row * columns + col);
     }
   }
-
-  return canvas;
 }
 
 type RenderDependency = (dependencyId: string) => Promise<HTMLCanvasElement>;
@@ -309,11 +593,8 @@ async function renderMergeGraphNode(nodeId: string, context: GraphNodeRenderCont
 async function renderColorGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const colorNode = findColorNode(context.graph, nodeId);
   if (!colorNode) return null;
-  const { graph, W, H, options, renderDependency } = context;
-  const sourceId = findIncomingSource(graph, nodeId, 'in');
-  const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
-  throwIfRenderAborted(options);
-  return applyColorNode(source, colorNode, W, H);
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyColorNode(source, colorNode, context.W, context.H);
 }
 
 async function renderRepeatGraphNode(nodeId: string, context: GraphNodeRenderContext) {
@@ -326,6 +607,40 @@ async function renderRepeatGraphNode(nodeId: string, context: GraphNodeRenderCon
   const backdrop = backdropId ? await renderDependency(backdropId) : null;
   throwIfRenderAborted(options);
   return applyRepeatNode(source, backdrop, repeatNode, doc.global.seed, W, H);
+}
+
+async function renderMaskGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const maskNode = findMaskNode(context.graph, nodeId);
+  if (!maskNode) return null;
+  const { graph, W, H, renderDependency } = context;
+  const sourceId = findIncomingSource(graph, nodeId, 'in');
+  const maskId = findIncomingSource(graph, nodeId, 'mask');
+  const source = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
+  if (!maskId) return source;
+  const mask = await renderDependency(maskId);
+  throwIfRenderAborted(context.options);
+  return applyMaskNode(source, mask, maskNode, W, H);
+}
+
+async function renderTransformGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const transformNode = findTransformNode(context.graph, nodeId);
+  if (!transformNode) return null;
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyTransformNode(source, transformNode, context.W, context.H);
+}
+
+async function renderGrimeShadowGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const grimeShadowNode = findGrimeShadowNode(context.graph, nodeId);
+  if (!grimeShadowNode) return null;
+  const source = await renderSingleInputSource(nodeId, context);
+  return applyGrimeShadowNode(source, grimeShadowNode, context.doc.global.seed, context.W, context.H);
+}
+
+async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderContext) {
+  const sourceId = findIncomingSource(context.graph, nodeId, 'in');
+  const source = sourceId ? await context.renderDependency(sourceId) : createCanvas(context.W, context.H);
+  throwIfRenderAborted(context.options);
+  return source;
 }
 
 async function renderGpuOnlyLayerChain(
@@ -347,7 +662,7 @@ function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
 }
 
 function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOptions {
-  return layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array'
+  return layer.kind === 'primitive' || layer.kind === 'noise' || layer.kind === 'array' || layer.kind === 'lineField'
     ? { ...options, sourceLayout: 'full-frame' as const }
     : options;
 }
@@ -369,6 +684,9 @@ const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [
   renderMergeGraphNode,
   renderColorGraphNode,
   renderRepeatGraphNode,
+  renderMaskGraphNode,
+  renderTransformGraphNode,
+  renderGrimeShadowGraphNode,
 ];
 
 async function renderGraphNodeUncached(nodeId: string, context: GraphNodeRenderContext) {

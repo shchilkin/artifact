@@ -81,17 +81,61 @@ function normalizePrimitiveViewStates(value: unknown): CanvasGraph['primitiveVie
 
 function normalizeGraph(value: unknown): CanvasGraph | undefined {
   if (!isRecord(value)) return undefined;
+  const arrayField = <K extends keyof CanvasGraph>(key: K) =>
+    Array.isArray(value[key]) ? (value[key] as CanvasGraph[K]) : ([] as CanvasGraph[K]);
   return {
-    edges: Array.isArray(value.edges) ? (value.edges as CanvasGraph['edges']) : [],
+    edges: arrayField('edges'),
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
-    mergeNodes: Array.isArray(value.mergeNodes) ? (value.mergeNodes as CanvasGraph['mergeNodes']) : [],
-    colorNodes: Array.isArray(value.colorNodes) ? (value.colorNodes as CanvasGraph['colorNodes']) : [],
-    repeatNodes: Array.isArray(value.repeatNodes)
-      ? (value.repeatNodes as CanvasGraph['repeatNodes']).map((node) => ({ seedOffset: 0, ...node }))
-      : [],
-    areas: Array.isArray(value.areas) ? (value.areas as CanvasGraph['areas']) : [],
+    mergeNodes: arrayField('mergeNodes'),
+    colorNodes: arrayField('colorNodes'),
+    repeatNodes: normalizeRepeatNodes(arrayField('repeatNodes')),
+    maskNodes: arrayField('maskNodes'),
+    transformNodes: normalizeTransformNodes(arrayField('transformNodes')),
+    grimeShadowNodes: normalizeGrimeShadowNodes(arrayField('grimeShadowNodes')),
+    areas: arrayField('areas'),
     primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
   };
+}
+
+function normalizeRepeatNodes(nodes: CanvasGraph['repeatNodes']) {
+  return nodes.map((node) => ({
+    rotationMode: 'fixed',
+    rotationStep: 0,
+    rotationJitter: 0,
+    seedOffset: 0,
+    ...node,
+  }));
+}
+
+function normalizeTransformNodes(nodes: CanvasGraph['transformNodes']) {
+  return nodes.map((node) => ({
+    x: 0,
+    y: 0,
+    scaleX: 100,
+    scaleY: 100,
+    uniformScale: true,
+    rotation: 0,
+    pivotMode: 'canvas',
+    opacity: 100,
+    ...node,
+  }));
+}
+
+function normalizeGrimeShadowNodes(nodes: CanvasGraph['grimeShadowNodes']) {
+  return nodes.map((node) => ({
+    x: 8,
+    y: 10,
+    layers: 5,
+    blur: 10,
+    spread: 14,
+    grime: 45,
+    jitter: 10,
+    opacity: 58,
+    color: '#090606',
+    seedOffset: 0,
+    shadowOnly: false,
+    ...node,
+  }));
 }
 
 function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {
@@ -171,9 +215,15 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
             : layer;
         const layerWithDefaults =
           normalizedLayer.kind === 'effect'
-            ? ({ ...DEFAULT_EFFECT_LAYER_PROPS, ...normalizedLayer } as Partial<EffectLayer>)
+            ? ({
+                ...DEFAULT_EFFECT_LAYER_PROPS,
+                ...normalizedLayer,
+              } as Partial<EffectLayer>)
             : SOURCE_TYPES.includes(normalizedLayer.kind as SourceType)
-              ? { ...makeSourceLayer(normalizedLayer.kind as SourceType), ...normalizedLayer }
+              ? {
+                  ...makeSourceLayer(normalizedLayer.kind as SourceType),
+                  ...normalizedLayer,
+                }
               : normalizedLayer.kind === 'emoji'
                 ? { ...makeEmojiLayer(), ...normalizedLayer }
                 : normalizedLayer;
@@ -239,6 +289,9 @@ export function isBlankDocument(doc: CanvasDocument) {
       graph.mergeNodes.length === 0 &&
       (graph.colorNodes ?? []).length === 0 &&
       (graph.repeatNodes ?? []).length === 0 &&
+      (graph.maskNodes ?? []).length === 0 &&
+      (graph.transformNodes ?? []).length === 0 &&
+      (graph.grimeShadowNodes ?? []).length === 0 &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 
@@ -339,7 +392,11 @@ export function getInitialDocument(): CanvasDocument {
   if (startsBlank) {
     const storedDoc = parseArtifactDocument(storageValue);
     if (storedDoc && !isBlankDocument(storedDoc)) {
-      pendingPreBlankDraft = { reason: 'before-blank', savedAt: new Date().toISOString(), doc: storedDoc };
+      pendingPreBlankDraft = {
+        reason: 'before-blank',
+        savedAt: new Date().toISOString(),
+        doc: storedDoc,
+      };
     }
   }
 

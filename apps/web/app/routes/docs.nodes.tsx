@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
-import { PublicPageLayout } from '../components/PublicPageLayout';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -16,19 +15,24 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import { EFFECT_DOCS, EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
+import { EFFECT_DOCS } from '../utils/effectDocs';
 import { renderDocument } from '../utils/renderer';
 import {
+  MASKED_TYPE_LINES_GRAPH_RECIPE,
   MULTI_FONT_TYPE_STACK_STARTER,
+  NOISE_MATTE_MERGE_GRAPH_RECIPE,
   NOISE_POSTER_STACK_STARTER,
   PHOTO_TYPE_GRAPH_RECIPE,
   PHOTO_TYPE_STACK_STARTER,
   PRIMITIVE_IMAGE_GRAPH_RECIPE,
   PRINT_DAMAGE_GRAPH_RECIPE,
+  ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE,
   STICKER_GRID_GRAPH_RECIPE,
   type StarterDocument,
   TEXTURE_TYPE_STACK_STARTER,
+  WARPED_LINE_POSTER_GRAPH_RECIPE,
 } from '../utils/starterDocuments';
+import { DocsSection, DocsShell } from './docs.shared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -251,6 +255,42 @@ const SOURCE_NODES: NodeDef[] = [
       ],
     },
   },
+  {
+    id: 'lineField',
+    symbol: '≋',
+    name: 'Line Field',
+    desc: 'A full-frame procedural line source for optical fields, contour posters, masks, and warped graphic material.',
+    params: [
+      {
+        key: 'orientation',
+        range: 'horizontal / vertical / diagonal / radial',
+      },
+      { key: 'line count', range: '2–96' },
+      { key: 'spacing', range: '2–96' },
+      { key: 'stroke', range: '1–24' },
+      { key: 'distortion', range: 'none / noise / bulge / wave' },
+      { key: 'strength', range: '0–100' },
+      { key: 'frequency', range: '1–16' },
+    ],
+    doc: {
+      global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
+      export: DEFAULT_EXPORT,
+      layers: [
+        makeFillLayer({ color: '#07070a' }),
+        makeSourceLayer('lineField', {
+          lineFieldOrientation: 'diagonal',
+          lineFieldDistortion: 'wave',
+          lineFieldCount: 34,
+          lineFieldSpacing: 16,
+          lineFieldStroke: 4,
+          lineFieldStrength: 34,
+          lineFieldFrequency: 4,
+          color: '#f8eed9',
+          accentColor: '#ff6a3a',
+        }),
+      ],
+    },
+  },
 ];
 
 const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
@@ -262,9 +302,9 @@ const EFFECT_NODES: NodeDef[] = EFFECT_PRESET_MENU_ORDER.map((preset) => ({
   doc: buildEffectDoc(preset),
 }));
 
-const ALL_NODES = [...CONTENT_NODES, ...SOURCE_NODES, ...EFFECT_NODES];
+export const ALL_NODES = [...CONTENT_NODES, ...SOURCE_NODES, ...EFFECT_NODES];
 
-const GRAPH_UTILITY_GUIDE = [
+export const GRAPH_UTILITY_GUIDE = [
   {
     name: 'Merge',
     desc: 'Combines two upstream branches with blend and opacity controls.',
@@ -275,16 +315,28 @@ const GRAPH_UTILITY_GUIDE = [
   },
   {
     name: 'Repeater',
-    desc: 'Repeats any source branch into line, grid, or radial patterns over an optional backdrop.',
+    desc: 'Repeats any source branch into line, grid, or radial patterns over an optional backdrop. Per-copy rotation can stay fixed, follow radial angle, step per copy, or jitter deterministically.',
+  },
+  {
+    name: 'Mask',
+    desc: 'Cuts a source branch by an alpha, luma, or threshold matte from another upstream branch.',
+  },
+  {
+    name: 'Transform',
+    desc: 'Moves, scales, rotates, and fades a completed upstream branch after masks, effects, and other graph utilities. Pivot can use the canvas center or the visible alpha center for masked objects.',
+  },
+  {
+    name: 'Grime Shadow',
+    desc: 'Builds a layered dirty shadow from the visible alpha of an upstream branch. Use Shadow only when the shadow should be merged separately.',
   },
 ];
 
-const BLEND_GUIDE = BLEND_OPTIONS.map((mode) => ({
+export const BLEND_GUIDE = BLEND_OPTIONS.map((mode) => ({
   name: mode,
   desc: BLEND_MODE_HELP[mode],
 }));
 
-const SOURCE_RECIPE_GUIDE = [
+export const SOURCE_RECIPE_GUIDE = [
   {
     name: 'Analog Texture Bed',
     desc: 'Start with Film Grain or Paper noise. For finer speckles, lower Noise Scale toward 1–3, then merge under artwork with overlay or screen.',
@@ -297,9 +349,13 @@ const SOURCE_RECIPE_GUIDE = [
     name: 'Procedural Shape Field',
     desc: 'Use Array presets such as Sticker Grid, Orbit Rings, or Shard Field when the texture should be visible graphic content.',
   },
+  {
+    name: 'Line Field Material',
+    desc: 'Use Line Field when the artwork needs editable optical lines, contour surfaces, or a maskable stripe source instead of a flattened image.',
+  },
 ];
 
-const MOTIF_RECIPE_GUIDE = [
+export const MOTIF_RECIPE_GUIDE = [
   {
     name: 'Sticker Wall',
     desc: 'Feed a logo, emoji, image cutout, or text node into the Sticker Grid repeater to build a tiled poster surface.',
@@ -312,6 +368,10 @@ const MOTIF_RECIPE_GUIDE = [
     name: 'Center Burst',
     desc: 'Feed a small source into Orbit Rings or Burst Field for halos, confetti clusters, constellation marks, and radial energy.',
   },
+  {
+    name: 'Masked Line Type',
+    desc: 'Feed Line Field into Mask as the source and Text into Mask as the matte, then merge the cut line texture over a plate.',
+  },
 ];
 
 const COMPACT_WORKFLOW_GUIDES = [
@@ -321,7 +381,10 @@ const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Use the layer stack when the piece is one readable path: base, image or type, texture, finish, export.',
     cue: 'Use when the order is bottom to top.',
     next: 'Set the base, place image or type, add one texture pass, then export or save.',
-    action: { label: 'Open layer starter', href: starterHref(PHOTO_TYPE_STACK_STARTER) },
+    action: {
+      label: 'Open layer starter',
+      href: starterHref(PHOTO_TYPE_STACK_STARTER),
+    },
     secondary: { label: 'Browse showcase projects', href: '/showcase' },
   },
   {
@@ -330,8 +393,11 @@ const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Use nodes when parts of the artwork need separate paths before they become one output.',
     cue: 'Use when one source feeds several paths.',
     next: 'Start from a source, route the branches, merge them, then check the Export node.',
-    action: { label: 'Open node starter', href: starterHref(PHOTO_TYPE_GRAPH_RECIPE) },
-    secondary: { label: 'See node types', href: '#docs-node-catalog' },
+    action: {
+      label: 'Open node starter',
+      href: starterHref(PHOTO_TYPE_GRAPH_RECIPE),
+    },
+    secondary: { label: 'See node types', href: '/docs/reference' },
   },
   {
     id: 'docs-typography-fonts',
@@ -339,8 +405,14 @@ const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Build type while the text remains editable: title, subtitle, label, credits, font choice, print finish.',
     cue: 'Use when words carry the identity.',
     next: 'Pick the type role, choose a font source, tune contrast, and package fonts only when licensed.',
-    action: { label: 'Open type starter', href: starterHref(MULTI_FONT_TYPE_STACK_STARTER) },
-    secondary: { label: 'Read file policy', href: '#docs-project-files' },
+    action: {
+      label: 'Open type starter',
+      href: starterHref(MULTI_FONT_TYPE_STACK_STARTER),
+    },
+    secondary: {
+      label: 'Read file policy',
+      href: '/docs/reference#project-files',
+    },
   },
   {
     id: 'docs-export-packages',
@@ -348,19 +420,25 @@ const COMPACT_WORKFLOW_GUIDES = [
     desc: 'Choose the file by what must survive after the session: pixels, editable structure, image payloads, or font files.',
     cue: 'Use when the project must travel.',
     next: 'Export PNG for pixels, save documents for small work, package assets for handoff.',
-    action: { label: 'Project file guide', href: '#docs-project-files' },
-    secondary: { label: 'Fix export issues', href: '#docs-troubleshooting' },
+    action: {
+      label: 'Project file guide',
+      href: '/docs/reference#project-files',
+    },
+    secondary: {
+      label: 'Fix export issues',
+      href: '/docs/reference#troubleshooting',
+    },
   },
 ] as const;
 
 const DOCS_JUMP_LINKS = [
-  { label: 'Workflows', href: '#docs-workflow-guides' },
-  { label: 'Starters', href: '#docs-recipes' },
-  { label: 'Reference', href: '#docs-reference-start' },
-  { label: 'Node types', href: '#docs-node-catalog' },
+  { label: 'Paths', href: '#docs-workflow-guides' },
+  { label: 'Model', href: '#docs-how-it-works' },
+  { label: 'Jobs', href: '#docs-applications' },
+  { label: 'Next', href: '#docs-recipes' },
 ] as const;
 
-const RECIPE_STARTERS: Array<{
+export const RECIPE_STARTERS: Array<{
   starter: StarterDocument;
   mode: string;
   desc: string;
@@ -414,9 +492,33 @@ const RECIPE_STARTERS: Array<{
     desc: 'A distressed poster recipe that keeps halftone, tear, and dust as individual choices.',
     steps: ['Paper fiber', 'Poster type', 'Halftone', 'Tear', 'Dust pass'],
   },
+  {
+    starter: MASKED_TYPE_LINES_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A mask recipe that clips procedural line material through editable type.',
+    steps: ['Line field', 'Type matte', 'Mask', 'Merge', 'Print grain'],
+  },
+  {
+    starter: ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A repeat recipe where circular tokens rotate their internal line texture per copy.',
+    steps: ['Line field', 'Circle matte', 'Mask', 'Repeat step rotation', 'Type'],
+  },
+  {
+    starter: WARPED_LINE_POSTER_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A poster recipe built around a warped procedural line source.',
+    steps: ['Dark plate', 'Bulged lines', 'Poster type', 'Scan finish'],
+  },
+  {
+    starter: NOISE_MATTE_MERGE_GRAPH_RECIPE,
+    mode: 'Graph recipe',
+    desc: 'A merge recipe where noise controls where a texture branch appears.',
+    steps: ['Line texture', 'Noise matte', 'Threshold mask', 'Merge', 'Title'],
+  },
 ];
 
-const PRACTICAL_BLEND_GUIDE = [
+export const PRACTICAL_BLEND_GUIDE = [
   {
     name: 'Screen',
     desc: 'Use for light leaks, glow, dust, static, and pale texture over a dark plate.',
@@ -435,7 +537,7 @@ const PRACTICAL_BLEND_GUIDE = [
   },
 ];
 
-const TROUBLESHOOTING_GUIDE = [
+export const TROUBLESHOOTING_GUIDE = [
   {
     name: 'Blank preview',
     desc: 'Check layer visibility, confirm the graph Export node has an input, and try stack mode if the document is meant to be layer-only.',
@@ -462,7 +564,7 @@ const TROUBLESHOOTING_GUIDE = [
   },
 ];
 
-const PROJECT_FILE_GUIDE = [
+export const PROJECT_FILE_GUIDE = [
   {
     name: 'Raster export',
     desc: 'EXPORT downloads pixels. It does not include font files, project metadata, or editable layer data.',
@@ -627,7 +729,7 @@ function nodeSearchType(node: NodeDef): DocFilter {
   return 'node';
 }
 
-function nodeTypeLabel(node: NodeDef): string {
+export function nodeTypeLabel(node: NodeDef): string {
   if (node.id in EFFECT_PRESETS) return 'Effect node';
   if (SOURCE_NODES.some((item) => item.id === node.id)) return 'Source node';
   return 'Content node';
@@ -639,7 +741,7 @@ function nodeSearchItem(node: NodeDef): SearchItem {
     type: nodeSearchType(node),
     title: node.name,
     body: `${node.desc} ${node.params.map((param) => `${param.key} ${param.range}`).join(' ')}`,
-    href: `#node-${node.id}`,
+    href: `/docs/reference/${node.id}`,
     meta: nodeTypeLabel(node),
   };
 }
@@ -651,11 +753,11 @@ function itemMatches(item: SearchItem, query: string, filter: DocFilter) {
   return haystack.includes(query);
 }
 
-function starterHref(starter: StarterDocument) {
+export function starterHref(starter: StarterDocument) {
   return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}`;
 }
 
-function DocsLink({ children, className, href }: { children: ReactNode; className?: string; href: string }) {
+export function DocsLink({ children, className, href }: { children: ReactNode; className?: string; href: string }) {
   return href.startsWith('/') ? (
     <Link to={href} className={className}>
       {children}
@@ -664,31 +766,6 @@ function DocsLink({ children, className, href }: { children: ReactNode; classNam
     <a href={href} className={className}>
       {children}
     </a>
-  );
-}
-
-function GuideSection({
-  id,
-  eyebrow,
-  title,
-  children,
-}: {
-  id?: string;
-  eyebrow: string;
-  title: string;
-  children: ReactNode;
-}) {
-  const titleId = `${id ?? `docs-${eyebrow.toLowerCase().replace(/\s+/g, '-')}`}-title`;
-  return (
-    <section id={id} className="docs-guide-section" aria-labelledby={titleId}>
-      <div className="docs-guide-section__header">
-        <span className="docs-guide-section__eyebrow">{eyebrow}</span>
-        <h2 id={titleId} className="docs-guide-section__title">
-          {title}
-        </h2>
-      </div>
-      <div className="docs-guide-section__body">{children}</div>
-    </section>
   );
 }
 
@@ -848,7 +925,7 @@ function drawCurrentPosterCanvas(
   drawPosterCanvas(canvasRef.current, out);
 }
 
-function NodePoster({ node }: { node: NodeDef }) {
+export function NodePoster({ node }: { node: NodeDef }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, HTMLImageElement>());
   const [doc, setDoc] = useState<CanvasDocument>(node.doc);
@@ -1101,7 +1178,7 @@ function buildDocsSearchItems(): SearchItem[] {
       type: 'recipe' as const,
       title: starter.name,
       body: `${desc} ${steps.join(' ')}`,
-      href: starterHref(starter),
+      href: '/docs/recipes',
       meta: mode,
     })),
     ...ALL_NODES.map(nodeSearchItem),
@@ -1110,7 +1187,7 @@ function buildDocsSearchItems(): SearchItem[] {
       type: 'effect' as const,
       title: mode.name,
       body: mode.desc,
-      href: '#docs-blends',
+      href: `/docs/reference#blend-${mode.name.toLowerCase()}`,
       meta: 'Blend mode',
     })),
     ...PROJECT_FILE_GUIDE.map((item) => ({
@@ -1118,7 +1195,7 @@ function buildDocsSearchItems(): SearchItem[] {
       type: 'file' as const,
       title: item.name,
       body: item.desc,
-      href: '#docs-project-files',
+      href: '/docs/reference#project-files',
       meta: 'Project file',
     })),
     ...TROUBLESHOOTING_GUIDE.map((item) => ({
@@ -1126,7 +1203,7 @@ function buildDocsSearchItems(): SearchItem[] {
       type: 'fix' as const,
       title: item.name,
       body: item.desc,
-      href: '#docs-troubleshooting',
+      href: '/docs/reference#troubleshooting',
       meta: 'Troubleshooting',
     })),
   ];
@@ -1134,20 +1211,8 @@ function buildDocsSearchItems(): SearchItem[] {
 
 const DOC_SEARCH_ITEMS = buildDocsSearchItems();
 
-function docsCatalogFilter(activeFilter: DocFilter): 'node' | 'effect' | 'all' {
-  return activeFilter === 'node' || activeFilter === 'effect' ? activeFilter : 'all';
-}
-
-function visibleDocsCatalogNodes(
-  normalizedQuery: string,
-  catalogFilter: 'node' | 'effect' | 'all',
-  catalogNodes: NodeDef[],
-) {
-  return normalizedQuery || catalogFilter !== 'all' ? catalogNodes : ALL_NODES;
-}
-
 function docsSearchCount(hasActiveSearch: boolean, matchingCount: number, shownCount: number) {
-  if (!hasActiveSearch) return '3 start points';
+  if (!hasActiveSearch) return '3 useful starts';
   return `${matchingCount} matches${matchingCount > shownCount ? `, showing ${shownCount}` : ''}`;
 }
 
@@ -1208,7 +1273,13 @@ function DocsTypeFilter({
 }) {
   return (
     <details className="docs-filter-details">
-      <summary>
+      <summary
+        onClick={(event) => {
+          event.preventDefault();
+          const details = event.currentTarget.parentElement;
+          if (details instanceof HTMLDetailsElement) details.open = !details.open;
+        }}
+      >
         <span>Filter results by type</span>
         <span className="docs-filter-details__mark" aria-hidden="true">
           +
@@ -1341,219 +1412,102 @@ export default function DocsNodes() {
   const hasActiveSearch = Boolean(normalizedQuery) || activeFilter !== 'all';
   const resultLimit = hasActiveSearch ? 12 : 0;
   const filteredItems = useMemo(() => matchingItems.slice(0, resultLimit), [matchingItems, resultLimit]);
-  const catalogFilter = docsCatalogFilter(activeFilter);
-  const catalogNodes = useMemo(
-    () => ALL_NODES.filter((node) => itemMatches(nodeSearchItem(node), normalizedQuery, catalogFilter)),
-    [catalogFilter, normalizedQuery],
-  );
-  const visibleCatalogNodes = visibleDocsCatalogNodes(normalizedQuery, catalogFilter, catalogNodes);
 
   return (
-    <PublicPageLayout className="docs-page">
-      <main className="docs-feed">
-        <section className="docs-intro" aria-labelledby="docs-title">
-          <h1 id="docs-title" className="docs-intro__headline">
-            Artifact Docs.
-          </h1>
-          <p className="docs-intro__deck">
-            Learn the editor, choose layers or nodes, find effects, open recipes, and export covers, posters, textures,
-            and type studies with confidence.
-          </p>
-        </section>
+    <DocsShell
+      active="Learn"
+      title="Learn Artifact."
+      deck="Start with the job, then choose the shortest path: layers for a direct stack, nodes for branches, recipes when you want a working document first."
+    >
+      <DocsSearchPanel
+        query={query}
+        activeFilter={activeFilter}
+        hasActiveSearch={hasActiveSearch}
+        matchingItems={matchingItems}
+        filteredItems={filteredItems}
+        onQueryChange={setQuery}
+        onFilterChange={setActiveFilter}
+      />
 
-        <DocsSearchPanel
-          query={query}
-          activeFilter={activeFilter}
-          hasActiveSearch={hasActiveSearch}
-          matchingItems={matchingItems}
-          filteredItems={filteredItems}
-          onQueryChange={setQuery}
-          onFilterChange={setActiveFilter}
-        />
+      <nav className="docs-jump-row docs-jump-row--inline" aria-label="Learn page sections">
+        {DOCS_JUMP_LINKS.map((link) => (
+          <a key={link.href} href={link.href}>
+            {link.label}
+          </a>
+        ))}
+      </nav>
 
-        <nav className="docs-jump-row" aria-label="Docs sections">
-          {DOCS_JUMP_LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
-              {link.label}
-            </a>
-          ))}
-        </nav>
-
-        <GuideSection id="docs-workflow-guides" eyebrow="Start Here" title="Four paths.">
-          <div className="docs-workflow-guide-grid">
-            {COMPACT_WORKFLOW_GUIDES.map((guide, index) => (
-              <article key={guide.id} id={guide.id} className="docs-workflow-guide">
-                <span className="docs-workflow-guide__num">{String(index + 1).padStart(2, '0')}</span>
-                <h3>{guide.name}</h3>
-                <p>{guide.desc}</p>
-                <div className="docs-workflow-guide__next">
-                  <span>{guide.cue}</span>
-                  <strong>{guide.next}</strong>
-                </div>
-                <div className="docs-workflow-guide__links">
-                  <DocsLink href={guide.action.href}>{guide.action.label}</DocsLink>
-                  <DocsLink href={guide.secondary.href} className="docs-workflow-guide__secondary">
-                    {guide.secondary.label}
-                  </DocsLink>
-                </div>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection id="docs-how-it-works" eyebrow="How It Works" title="One document, two ways to build.">
-          <div className="docs-flow-map">
-            {HOW_IT_WORKS_FLOW.map((item, index) => (
-              <article key={item.name} className="docs-flow-step">
-                <span className="docs-flow-step__num">{String(index + 1).padStart(2, '0')}</span>
-                <h3>{item.name}</h3>
-                <p>{item.desc}</p>
-                <div className="docs-flow-step__tags">
-                  {item.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection
-          id="docs-applications"
-          eyebrow="Applications"
-          title="Start from the job, then choose layers or nodes."
-        >
-          <div className="docs-application-grid">
-            {APPLICATION_GUIDE.map((item) => (
-              <article key={item.name} className="docs-application">
-                <span className="docs-recipe__mode">{item.type}</span>
-                <h3>{item.name}</h3>
-                <p>{item.desc}</p>
-                <span>{item.start}</span>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection id="docs-recipes" eyebrow="Recipes" title="Open a working document, then change one decision.">
-          <div className="docs-recipe-list">
-            {RECIPE_STARTERS.map(({ starter, mode, desc, steps }) => (
-              <article key={starter.id} className="docs-recipe">
-                <div>
-                  <span className="docs-recipe__mode">{mode}</span>
-                  <h3>{starter.name}</h3>
-                  <p>{desc}</p>
-                  <div className="docs-recipe__steps">{steps.join(' / ')}</div>
-                </div>
-                <DocsLink href={starterHref(starter)} className="docs-recipe__link">
-                  Try this
+      <DocsSection id="docs-workflow-guides" eyebrow="Start here" title="Four paths.">
+        <div className="docs-workflow-guide-grid">
+          {COMPACT_WORKFLOW_GUIDES.map((guide, index) => (
+            <article key={guide.id} id={guide.id} className="docs-workflow-guide">
+              <span className="docs-workflow-guide__num">{String(index + 1).padStart(2, '0')}</span>
+              <h3>{guide.name}</h3>
+              <p>{guide.desc}</p>
+              <div className="docs-workflow-guide__next">
+                <span>{guide.cue}</span>
+                <strong>{guide.next}</strong>
+              </div>
+              <div className="docs-workflow-guide__links">
+                <DocsLink href={guide.action.href}>{guide.action.label}</DocsLink>
+                <DocsLink href={guide.secondary.href} className="docs-workflow-guide__secondary">
+                  {guide.secondary.label}
                 </DocsLink>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
+              </div>
+            </article>
+          ))}
+        </div>
+      </DocsSection>
 
-        <section id="docs-reference-start" className="docs-reference-break" aria-labelledby="docs-reference-title">
-          <span className="docs-guide-section__eyebrow">Reference</span>
-          <h2 id="docs-reference-title">Use these when you need a specific answer.</h2>
-        </section>
+      <DocsSection id="docs-how-it-works" eyebrow="Model" title="One document, two ways to build.">
+        <div className="docs-flow-map">
+          {HOW_IT_WORKS_FLOW.map((item, index) => (
+            <article key={item.name} className="docs-flow-step">
+              <span className="docs-flow-step__num">{String(index + 1).padStart(2, '0')}</span>
+              <h3>{item.name}</h3>
+              <p>{item.desc}</p>
+              <div className="docs-flow-step__tags">
+                {item.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </DocsSection>
 
-        <GuideSection id="docs-blends" eyebrow="Blend Modes" title="Think in cover-making jobs, not math.">
-          <div className="docs-reference-grid">
-            {PRACTICAL_BLEND_GUIDE.map((mode) => (
-              <article key={mode.name} className="docs-reference-item">
-                <h3>{mode.name}</h3>
-                <p>{mode.desc}</p>
-              </article>
-            ))}
-          </div>
-          <details className="docs-details">
-            <summary>Full blend mode notes</summary>
-            <div className="docs-compact-grid">
-              {BLEND_GUIDE.map((mode) => (
-                <div key={mode.name}>
-                  <span>{mode.name}</span>
-                  <p>{mode.desc}</p>
-                </div>
-              ))}
-            </div>
-          </details>
-        </GuideSection>
+      <DocsSection id="docs-applications" eyebrow="Jobs" title="Pick the page by what you are making.">
+        <div className="docs-application-grid">
+          {APPLICATION_GUIDE.map((item) => (
+            <article key={item.name} className="docs-application">
+              <span className="docs-recipe__mode">{item.type}</span>
+              <h3>{item.name}</h3>
+              <p>{item.desc}</p>
+              <span>{item.start}</span>
+            </article>
+          ))}
+        </div>
+      </DocsSection>
 
-        <GuideSection eyebrow="Sources And Motifs" title="Use procedural nodes when the material should stay editable.">
-          <div className="docs-reference-grid">
-            {[...SOURCE_RECIPE_GUIDE, ...MOTIF_RECIPE_GUIDE].map((recipe) => (
-              <article key={recipe.name} className="docs-reference-item">
-                <h3>{recipe.name}</h3>
-                <p>{recipe.desc}</p>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection eyebrow="Effects" title="Pick one family first, then tune the exact node.">
-          <div className="docs-reference-grid docs-reference-grid--dense">
-            {EFFECT_FAMILY_GUIDE.map((family) => (
-              <article key={family.name} className="docs-reference-item">
-                <h3>{family.name}</h3>
-                <p>{family.desc}</p>
-              </article>
-            ))}
-            {GRAPH_UTILITY_GUIDE.map((utility) => (
-              <article key={utility.name} className="docs-reference-item">
-                <h3>{utility.name}</h3>
-                <p>{utility.desc}</p>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection id="docs-project-files" eyebrow="Project Files" title="Choose the file by what needs to survive.">
-          <div className="docs-reference-grid">
-            {PROJECT_FILE_GUIDE.map((item) => (
-              <article key={item.name} className="docs-reference-item">
-                <h3>{item.name}</h3>
-                <p>{item.desc}</p>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection
-          id="docs-troubleshooting"
-          eyebrow="Troubleshooting"
-          title="Fast checks when the result does not look right."
-        >
-          <div className="docs-trouble-list">
-            {TROUBLESHOOTING_GUIDE.map((item) => (
-              <article key={item.name} className="docs-trouble">
-                <h3>{item.name}</h3>
-                <p>{item.desc}</p>
-              </article>
-            ))}
-          </div>
-        </GuideSection>
-
-        <GuideSection
-          id="docs-node-catalog"
-          eyebrow="Node Types"
-          title="Live previews for content, source, and effect types."
-        >
-          <p className="docs-catalog-note">
-            Search above to narrow the list. Use preview controls to tune a node, or open a poster in the editor when a
-            visual starts to feel usable.
-          </p>
-          <div className="docs-catalog-actions" aria-label="Node catalog actions">
-            <a href="#docs-search">Search node types</a>
-            <span>Tune preview controls appear on each poster.</span>
-          </div>
-          <div className="docs-node-feed">
-            {visibleCatalogNodes.map((node) => (
-              <NodePoster key={node.id} node={node} />
-            ))}
-          </div>
-        </GuideSection>
-      </main>
-    </PublicPageLayout>
+      <DocsSection id="docs-recipes" eyebrow="Next" title="Open a recipe or jump to reference.">
+        <div className="docs-start-points docs-start-points--learn">
+          <DocsLink href="/docs/recipes" className="docs-start-point">
+            <span className="docs-start-point__action">Recipes</span>
+            <strong>Start from a working graph</strong>
+            <span>Masked type, rotated tokens, warped lines, texture stacks, photo type, and print damage.</span>
+          </DocsLink>
+          <DocsLink href="/docs/reference" className="docs-start-point">
+            <span className="docs-start-point__action">Reference</span>
+            <strong>Look up a node</strong>
+            <span>Inputs, outputs, controls, utility nodes, blend modes, project files, and troubleshooting.</span>
+          </DocsLink>
+          <DocsLink href="/app?new=blank" className="docs-start-point">
+            <span className="docs-start-point__action">Editor</span>
+            <strong>Start blank</strong>
+            <span>Open the editor with an empty canvas and add only the nodes or layers you need.</span>
+          </DocsLink>
+        </div>
+      </DocsSection>
+    </DocsShell>
   );
 }

@@ -5,13 +5,16 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeGraphColorNode,
+  makeGraphGrimeShadowNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
+  makeGraphTransformNode,
   makeImageLayer,
   makeTextLayer,
 } from '../types/config';
 import {
   addLayerToDocument,
+  addLooseLayerNodeToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
   canInsertLayerAbove,
@@ -33,9 +36,11 @@ import {
   updateColorNodeInDocument,
   updateDocumentExportConfig,
   updateGlobalInDocument,
+  updateGrimeShadowNodeInDocument,
   updateLayerInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
+  updateTransformNodeInDocument,
 } from './documentCommands';
 import { EXPORT_NODE_ID } from './nodeGraph';
 import { REPEAT_PRESETS } from './repeatPresets';
@@ -60,6 +65,8 @@ function makeGraph(): CanvasGraph {
       { id: 'e-merge-text', fromId: 'merge-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
       { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       { id: 'e-repeat-export', fromId: 'repeat-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      { id: 'e-transform-export', fromId: 'transform-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      { id: 'e-shadow-export', fromId: 'shadow-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ],
     positions: {
       'fill-a': { x: 0, y: 80 },
@@ -67,11 +74,15 @@ function makeGraph(): CanvasGraph {
       'merge-a': { x: 432, y: 80 },
       'color-a': { x: 648, y: 80 },
       'repeat-a': { x: 756, y: 80 },
+      'transform-a': { x: 810, y: 80 },
+      'shadow-a': { x: 830, y: 80 },
       [EXPORT_NODE_ID]: { x: 864, y: 80 },
     },
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a', opacity: 80 })],
     colorNodes: [makeGraphColorNode({ id: 'color-a', brightness: 90 })],
     repeatNodes: [makeGraphRepeatNode({ id: 'repeat-a', count: 3 })],
+    transformNodes: [makeGraphTransformNode({ id: 'transform-a', rotation: 12 })],
+    grimeShadowNodes: [makeGraphGrimeShadowNode({ id: 'shadow-a', grime: 24 })],
   };
 }
 
@@ -174,6 +185,16 @@ describe('documentCommands', () => {
     expect(next.graph?.edges).toEqual([
       { id: `e-fill-b-${EXPORT_NODE_ID}`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
+  });
+
+  it('adds a loose image node in graph mode without rewiring the current output path', () => {
+    const doc = makeDoc(makeGraph());
+    const layer = makeImageLayer('artifact-asset://drop-a', { id: 'image-drop' });
+    const next = addLooseLayerNodeToDocument(doc, layer, { x: 123, y: 456 });
+
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'image-drop']);
+    expect(next.graph?.positions['image-drop']).toEqual({ x: 123, y: 456 });
+    expect(next.graph?.edges).toEqual(doc.graph?.edges);
   });
 
   it('inserts a layer above a stack row without requiring a graph', () => {
@@ -320,6 +341,36 @@ describe('documentCommands', () => {
     expect(result.doc.graph?.edges).toContainEqual({
       id: `edge-1-${repeatNode.id}-${EXPORT_NODE_ID}`,
       fromId: repeatNode.id,
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+  });
+
+  it('inserts a grime shadow node with source and target edges', () => {
+    const doc = makeDoc(makeGraph());
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'grimeShadow' },
+      { x: 390, y: 250 },
+      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
+      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
+    );
+    const shadowNode = result.doc.graph?.grimeShadowNodes?.find((node) => node.id !== 'shadow-a');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(shadowNode).toBeDefined();
+    expect(result.doc.graph?.positions[shadowNode!.id]).toEqual({ x: 390, y: 250 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-fill-a-${shadowNode!.id}`,
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: shadowNode!.id,
+      toPort: 'in',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-1-${shadowNode!.id}-${EXPORT_NODE_ID}`,
+      fromId: shadowNode!.id,
       fromPort: 'out',
       toId: EXPORT_NODE_ID,
       toPort: 'in',
@@ -530,18 +581,19 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => edge.fromId === 'text-a' || edge.toId === 'text-a')).toBe(false);
   });
 
-  it('deletes selected layer, merge, color, and repeat nodes from one document operation', () => {
+  it('deletes selected layer, merge, color, repeat, and shadow nodes from one document operation', () => {
     const doc = makeDoc(makeGraph());
-    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a', 'repeat-a']);
+    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a', 'repeat-a', 'shadow-a']);
 
     expect(next.layers.map((layer) => layer.id)).toEqual(['text-a']);
     expect(next.graph?.mergeNodes).toEqual([]);
     expect(next.graph?.colorNodes).toEqual([]);
     expect(next.graph?.repeatNodes).toEqual([]);
+    expect(next.graph?.grimeShadowNodes).toEqual([]);
     expect(Object.keys(next.graph?.positions ?? {})).not.toContain('fill-a');
-    expect(next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a'].includes(edge.fromId))).toBe(
-      false,
-    );
+    expect(
+      next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a', 'shadow-a'].includes(edge.fromId)),
+    ).toBe(false);
   });
 
   it('removes graph areas and graph-only area members without touching render graph nodes', () => {
@@ -671,7 +723,7 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => edge.fromId === 'text-a' || edge.toId === 'text-a')).toBe(false);
   });
 
-  it('updates layer, merge node, color node, repeat node, global, export, and graph immutably', () => {
+  it('updates layer, merge node, color node, repeat node, transform node, global, export, and graph immutably', () => {
     const doc = makeDoc(makeGraph());
     const graph: CanvasGraph = { edges: [], positions: {}, mergeNodes: [], colorNodes: [] };
 
@@ -679,6 +731,12 @@ describe('documentCommands', () => {
     expect(updateMergeNodeInDocument(doc, 'merge-a', { opacity: 25 }).graph?.mergeNodes[0]?.opacity).toBe(25);
     expect(updateColorNodeInDocument(doc, 'color-a', { saturation: 140 }).graph?.colorNodes[0]?.saturation).toBe(140);
     expect(updateRepeatNodeInDocument(doc, 'repeat-a', { count: 8 }).graph?.repeatNodes?.[0]?.count).toBe(8);
+    expect(
+      updateTransformNodeInDocument(doc, 'transform-a', { rotation: 45 }).graph?.transformNodes?.[0]?.rotation,
+    ).toBe(45);
+    expect(updateGrimeShadowNodeInDocument(doc, 'shadow-a', { grime: 66 }).graph?.grimeShadowNodes?.[0]?.grime).toBe(
+      66,
+    );
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');
     expect(updateGlobalInDocument(doc, { bg: '#ffffff' }).global.bg).toBe('#ffffff');

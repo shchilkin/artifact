@@ -25,6 +25,8 @@ export const PRIMITIVE_SHADING_OPTIONS = ['smooth', 'flat'] as const;
 export const NOISE_TYPE_OPTIONS = ['value', 'clouds', 'cells'] as const;
 export const ARRAY_PATTERN_OPTIONS = ['line', 'grid', 'radial'] as const;
 export const ARRAY_SHAPE_OPTIONS = ['disc', 'bar', 'diamond'] as const;
+export const LINE_FIELD_ORIENTATION_OPTIONS = ['horizontal', 'vertical', 'diagonal', 'radial'] as const;
+export const LINE_FIELD_DISTORTION_OPTIONS = ['none', 'noise', 'bulge', 'wave'] as const;
 
 // Numeric field ranges.
 //
@@ -75,4 +77,11 @@ export const FIELD_RANGES = {
   arraySize: { min: 8, max: 64, step: 1 },
   arrayRadius: { min: 16, max: 180, step: 1 },
   arrayJitter: { min: 0, max: 36, step: 1 },
+
+  // Line field
+  lineFieldCount: { min: 2, max: 96, step: 1 },
+  lineFieldSpacing: { min: 2, max: 96, step: 1 },
+  lineFieldStroke: { min: 1, max: 24, step: 1 },
+  lineFieldStrength: { min: 0, max: 100, step: 1 },
+  lineFieldFrequency: { min: 1, max: 16, step: 1 },
 } as const;

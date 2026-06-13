@@ -37,8 +37,8 @@ export type AddLibraryItem = {
 };
 
 export const ADD_LIBRARY_ACTION_MIME = 'application/x-artifact-add-library-action';
-const SIMPLE_ADD_ACTION_KINDS = new Set(['aiImage', 'merge', 'color', 'repeat']);
-const LAYER_ADD_KINDS = new Set(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array']);
+const SIMPLE_ADD_ACTION_KINDS = new Set(['aiImage', 'merge', 'color', 'repeat', 'mask', 'transform', 'grimeShadow']);
+const LAYER_ADD_KINDS = new Set(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array', 'lineField']);
 
 export type AddLibraryRecipe = {
   id: string;
@@ -219,6 +219,7 @@ const KIND_SYMBOL: Record<Exclude<LayerKind, 'effect'>, string> = {
   primitive: '◍',
   noise: '░',
   array: '▦',
+  lineField: '≋',
 };
 
 const layerItems: AddLibraryItem[] = [
@@ -326,6 +327,17 @@ const layerItems: AddLibraryItem[] = [
     tags: ['source', 'pattern'],
     keywords: 'motif sticker grid pattern repeated marks',
   },
+  {
+    id: 'layer:lineField',
+    label: 'Line Field',
+    symbol: KIND_SYMBOL.lineField,
+    description: 'Draw editable optical, contour, and warped line fields.',
+    group: 'source',
+    action: { kind: 'layer', layerKind: 'lineField' },
+    surfaces: ['layers', 'nodes'],
+    tags: ['source', 'lines', 'pattern'],
+    keywords: 'line field linefield optical contour warped wave stripe stripes mesh grid source pattern',
+  },
 ];
 
 const sourcePresetItems: AddLibraryItem[] = [
@@ -392,6 +404,39 @@ const utilityItems: AddLibraryItem[] = [
     surfaces: ['nodes'],
     tags: ['utility', 'tone'],
     keywords: 'grade tone contrast saturation hue',
+  },
+  {
+    id: 'mask',
+    label: 'Mask',
+    symbol: '◒',
+    description: 'Cut a source branch by alpha, luma, or threshold from another branch.',
+    group: 'utility',
+    action: { kind: 'mask' },
+    surfaces: ['nodes'],
+    tags: ['utility', 'mask'],
+    keywords: 'mask matte alpha luma threshold clip cut stencil reveal branch',
+  },
+  {
+    id: 'transform',
+    label: 'Transform',
+    symbol: '↻',
+    description: 'Move, scale, rotate, and fade a completed upstream branch.',
+    group: 'utility',
+    action: { kind: 'transform' },
+    surfaces: ['nodes'],
+    tags: ['utility', 'transform'],
+    keywords: 'transform rotate rotation move offset position scale resize opacity branch token',
+  },
+  {
+    id: 'grimeShadow',
+    label: 'Grime Shadow',
+    symbol: '◖',
+    description: 'Create layered dirty shadow from the alpha of a source branch.',
+    group: 'utility',
+    action: { kind: 'grimeShadow' },
+    surfaces: ['nodes'],
+    tags: ['utility', 'shadow', 'texture'],
+    keywords: 'shadow drop shadow grime dirty dirt layered volume depth alpha blur spread noise dust',
   },
   {
     id: 'repeat',

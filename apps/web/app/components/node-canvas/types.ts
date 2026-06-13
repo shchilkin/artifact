@@ -6,8 +6,11 @@ import type {
   CanvasGraph,
   GraphColorNode,
   GraphEdge,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphTransformNode,
   ImageLayer,
   Layer,
   PrimitiveLayer,
@@ -41,11 +44,15 @@ export interface NodeCanvasProps {
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
+  onUpdateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
+  onUpdateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
+  onUpdateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
   onExport: () => void;
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
+  onImageFileDrop?: (file: File, position: { x: number; y: number }) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
 }
@@ -63,6 +70,7 @@ export interface NodeShellProps {
   children: ReactNode;
   onToggleMuted?: () => void;
   onDelete?: () => void;
+  onDragHandlePointerDown?: () => void;
   deleteDisabled?: boolean;
 }
 
@@ -104,6 +112,34 @@ export type RepeatNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type MaskNodeData = {
+  maskNode: GraphMaskNode;
+  previewTargetId: string;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
+export type TransformNodeData = {
+  transformNode: GraphTransformNode;
+  previewTargetId: string;
+  sourcePreviewTargetId: string | null;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
+export type GrimeShadowNodeData = {
+  grimeShadowNode: GraphGrimeShadowNode;
+  previewTargetId: string;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
 export type ExportNodeData = {
   exportConfig: CanvasDocument['export'];
   aspect: AspectRatio;
@@ -129,6 +165,9 @@ export interface NodeCanvasActionsContextValue {
   updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   updateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
+  updateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
+  updateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
+  updateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;

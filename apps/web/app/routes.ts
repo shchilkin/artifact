@@ -8,5 +8,8 @@ export default [
   route('showcase', 'routes/showcase.tsx'),
   route('docs', 'routes/docs.tsx'),
   route('docs/nodes', 'routes/docs.nodes.tsx'),
+  route('docs/recipes', 'routes/docs.recipes.tsx'),
+  route('docs/reference', 'routes/docs.reference.tsx'),
+  route('docs/reference/:nodeId', 'routes/docs.reference-detail.tsx'),
   route('docs/style-guide', 'routes/docs.style-guide.tsx'),
 ] satisfies RouteConfig;

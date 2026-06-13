@@ -23,6 +23,7 @@ interface NodeFrameProps {
   onSelect: (event?: ReactMouseEvent<HTMLDivElement>) => void;
   onToggleMuted?: () => void;
   onDelete?: () => void;
+  onDragHandlePointerDown?: () => void;
   deleteDisabled?: boolean;
   children: ReactNode;
 }
@@ -41,6 +42,7 @@ export function NodeFrame({
   onSelect,
   onToggleMuted,
   onDelete,
+  onDragHandlePointerDown,
   deleteDisabled,
   children,
 }: NodeFrameProps) {
@@ -76,6 +78,7 @@ export function NodeFrame({
           expandable
           onToggleMuted={onToggleMuted}
           onDelete={onDelete}
+          onDragHandlePointerDown={onDragHandlePointerDown}
           deleteDisabled={deleteDisabled}
         >
           {children}

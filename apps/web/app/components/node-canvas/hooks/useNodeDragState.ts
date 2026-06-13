@@ -10,6 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CanvasGraph, GraphArea, GraphEdge, Layer } from '../../../types/config';
 import {
   EXPORT_NODE_ID,
+  graphUtilityNodeKind,
   removeGraphEdge,
   removeNodesFromGraphArea,
   splitEdgeWithNode,
@@ -214,11 +215,8 @@ function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['
 }
 
 function hasSingleInputGraphNode(graph: CanvasGraph, nodeId: string) {
-  return nodeIdInGraphNodes(graph.colorNodes, nodeId) || nodeIdInGraphNodes(graph.repeatNodes, nodeId);
-}
-
-function nodeIdInGraphNodes(nodes: Array<{ id: string }> | undefined, nodeId: string) {
-  return (nodes ?? []).some((node) => node.id === nodeId);
+  const kind = graphUtilityNodeKind(graph, nodeId);
+  return kind !== null && kind !== 'merge';
 }
 
 function nodeCenterPoint(node: RFNode) {
@@ -429,7 +427,10 @@ export function useNodeDragState({
   useEffect(() => {
     if (!isDraggingRef.current) {
       setDragNodes((prev) => {
-        const next = retainNodeMeasurements(baseNodes, prev, { width: NODE_W, height: NODE_H });
+        const next = retainNodeMeasurements(baseNodes, prev, {
+          width: NODE_W,
+          height: NODE_H,
+        });
         return sameNodeList(prev, next) ? prev : next;
       });
       setDragEdges((prev) => (prev === baseEdges ? prev : baseEdges));
@@ -457,7 +458,10 @@ export function useNodeDragState({
 
   const commitNodePositions = useCallback(
     (nodes: RFNode[]) => {
-      const moved = nodes.map((node) => ({ id: node.id, position: node.position }));
+      const moved = nodes.map((node) => ({
+        id: node.id,
+        position: node.position,
+      }));
       if (moved.length === 0) return;
       onGraphChange(separateMovedNodesFromAreas(updateGraphPositions(graphRef.current, moved), nodes));
     },

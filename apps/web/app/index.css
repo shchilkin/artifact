@@ -5483,6 +5483,126 @@ button.library-card-open:focus-visible {
   flex-direction: column;
 }
 
+.docs-page--sectioned {
+  --docs-sidebar-width: clamp(220px, 18vw, 292px);
+}
+
+.docs-shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: var(--docs-sidebar-width) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 72px);
+  padding: clamp(64px, 8vw, 104px) clamp(16px, 4vw, 48px) clamp(56px, 8vw, 96px);
+}
+
+.docs-sidebar {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  display: grid;
+  gap: 20px;
+}
+
+.docs-sidebar__brand {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.docs-sidebar__brand span {
+  color: var(--accent);
+}
+
+.docs-sidebar__brand strong {
+  font-weight: 400;
+}
+
+.docs-sidebar__nav {
+  display: grid;
+  border-left: 1px solid var(--border);
+}
+
+.docs-sidebar__link {
+  display: grid;
+  gap: 5px;
+  border-left: 1px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  min-height: 58px;
+  padding: 9px 14px;
+  text-decoration: none;
+  transform: translateX(-1px);
+}
+
+.docs-sidebar__link span {
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.docs-sidebar__link small {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.docs-sidebar__link:hover,
+.docs-sidebar__link:focus-visible,
+.docs-sidebar__link--active {
+  border-left-color: var(--accent);
+  background: oklch(11% 0.014 42);
+  outline: none;
+}
+
+.docs-sidebar__link--active span,
+.docs-sidebar__link:hover span,
+.docs-sidebar__link:focus-visible span {
+  color: var(--accent);
+}
+
+.docs-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(36px, 6vw, 72px);
+}
+
+.docs-hero {
+  display: grid;
+  gap: 16px;
+}
+
+.docs-hero h1 {
+  max-width: 10ch;
+  margin: 0;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(3.2rem, 9vw, 7.5rem);
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+.docs-hero p {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: clamp(0.9rem, 1.1vw, 1rem);
+  line-height: 1.65;
+}
+
 .docs-feed {
   flex: 1;
   display: flex;
@@ -5710,6 +5830,10 @@ button.library-card-open:focus-visible {
   background: var(--border);
 }
 
+.docs-start-points--index {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .docs-start-point {
   min-height: 188px;
   display: flex;
@@ -5843,6 +5967,10 @@ button.library-card-open:focus-visible {
   background: var(--border);
 }
 
+.docs-jump-row--inline {
+  margin-top: calc(clamp(36px, 6vw, 72px) * -0.6);
+}
+
 .docs-jump-row a {
   min-height: 44px;
   display: flex;
@@ -5876,6 +6004,14 @@ button.library-card-open:focus-visible {
   border-top: 1px solid var(--border);
   padding-top: clamp(18px, 3vw, 28px);
   scroll-margin-top: 88px;
+}
+
+.docs-guide-section--stacked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.docs-guide-section--stacked .docs-guide-section__title {
+  max-width: 22ch;
 }
 
 .docs-guide-section__header {
@@ -6212,6 +6348,21 @@ button.library-card-open:focus-visible {
   padding: 16px;
 }
 
+.docs-recipe-list--featured {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+  background: var(--border);
+}
+
+.docs-recipe--feature {
+  min-height: 196px;
+  align-content: end;
+  align-items: end;
+  background: oklch(9% 0.012 42);
+}
+
 .docs-recipe__mode {
   display: block;
   margin-bottom: 8px;
@@ -6236,6 +6387,163 @@ button.library-card-open:focus-visible {
 .docs-recipe__link:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.docs-recipe-table,
+.docs-reference-list,
+.docs-param-table {
+  display: grid;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.docs-recipe-row,
+.docs-reference-row,
+.docs-param-row {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: oklch(9% 0.012 42);
+  color: inherit;
+  font-family: var(--mono);
+  padding: 16px;
+  text-decoration: none;
+}
+
+.docs-recipe-row {
+  grid-template-columns: minmax(120px, 0.2fr) minmax(0, 1fr) auto;
+}
+
+.docs-recipe-row > div span {
+  display: block;
+  margin-top: 8px;
+  color: oklch(75% 0.06 74);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.docs-recipe-row a,
+.docs-node-detail-actions a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.docs-recipe-row a:hover,
+.docs-recipe-row a:focus-visible,
+.docs-node-detail-actions a:hover,
+.docs-node-detail-actions a:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.docs-reference-search {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  border: 1px solid var(--border);
+  background: oklch(9% 0.012 42);
+  padding: clamp(16px, 3vw, 28px);
+  scroll-margin-top: 88px;
+}
+
+.docs-reference-search h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(2rem, 4.5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+.docs-type-filter--inline {
+  display: flex;
+}
+
+.docs-reference-row {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  min-height: 108px;
+  transition:
+    background 150ms ease-out,
+    outline-color 150ms ease-out;
+}
+
+.docs-reference-row:hover,
+.docs-reference-row:focus-visible {
+  background: oklch(11% 0.014 42);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.docs-reference-row--static:hover,
+.docs-reference-row--static:focus-visible {
+  background: oklch(9% 0.012 42);
+  outline: none;
+}
+
+.docs-reference-row__symbol {
+  color: var(--accent);
+  font-size: 1.25rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.docs-reference-row h3,
+.docs-recipe-row h3,
+.docs-param-row span {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.docs-reference-row p,
+.docs-recipe-row p {
+  margin: 7px 0 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.docs-reference-row > span:last-child {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.docs-node-detail-actions {
+  width: min(1120px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.docs-node-detail-actions .docs-workflow-guide__secondary {
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.docs-param-row {
+  grid-template-columns: minmax(0, 0.4fr) minmax(0, 1fr);
+  min-height: 58px;
+}
+
+.docs-param-row strong {
+  color: oklch(75% 0.06 74);
+  font-size: 0.86rem;
+  font-weight: 400;
+  line-height: 1.45;
 }
 
 .docs-details {
@@ -6345,6 +6653,40 @@ button.library-card-open:focus-visible {
 }
 
 @media (max-width: 820px) {
+  .docs-shell {
+    grid-template-columns: 1fr;
+    padding-top: clamp(48px, 14vw, 72px);
+  }
+
+  .docs-sidebar {
+    position: static;
+    gap: 12px;
+  }
+
+  .docs-sidebar__nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .docs-sidebar__link {
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+    transform: none;
+  }
+
+  .docs-sidebar__link--active {
+    border-bottom-color: var(--accent);
+  }
+
+  .docs-main {
+    gap: clamp(36px, 10vw, 64px);
+  }
+
+  .docs-hero h1 {
+    font-size: clamp(3rem, 14vw, 4.25rem);
+  }
+
   .docs-feed {
     padding-top: clamp(48px, 14vw, 72px);
     gap: clamp(36px, 10vw, 64px);
@@ -6409,6 +6751,7 @@ button.library-card-open:focus-visible {
   .docs-reference-grid,
   .docs-reference-grid--dense,
   .docs-application-grid,
+  .docs-recipe-list--featured,
   .docs-workflow-guide-grid,
   .docs-flow-map {
     grid-template-columns: 1fr;
@@ -6432,6 +6775,17 @@ button.library-card-open:focus-visible {
   .docs-recipe {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .docs-recipe-row,
+  .docs-reference-row,
+  .docs-param-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .docs-reference-row__symbol {
+    text-align: left;
   }
 
   .docs-recipe__link {

@@ -60,7 +60,14 @@ function firstDefinedNumber(fallback: number, ...values: Array<number | undefine
 
 export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] {
   if (action.kind === 'merge') return 'a';
-  if (action.kind === 'color' || action.kind === 'repeat' || action.kind === 'repeatPreset') return 'in';
+  if (
+    action.kind === 'color' ||
+    action.kind === 'repeat' ||
+    action.kind === 'repeatPreset' ||
+    action.kind === 'mask' ||
+    action.kind === 'transform'
+  )
+    return 'in';
   if (action.kind === 'effect') return 'in';
   return 'bg';
 }

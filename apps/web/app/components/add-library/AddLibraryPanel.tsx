@@ -295,10 +295,6 @@ export function AddLibraryPanel({
           setActiveRecipeId(null);
           setActiveIndex(0);
         }}
-        onClear={() => {
-          setQuery('');
-          setActiveIndex(0);
-        }}
         onKeyDown={handleKeyDown}
       />
 
@@ -350,10 +346,9 @@ const AddLibrarySearchControl = forwardRef<
     placeholder: string;
     value: string;
     onChange: (value: string) => void;
-    onClear: () => void;
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   }
->(function AddLibrarySearchControl({ searchLabel, placeholder, value, onChange, onClear, onKeyDown }, ref) {
+>(function AddLibrarySearchControl({ searchLabel, placeholder, value, onChange, onKeyDown }, ref) {
   return (
     <SearchField
       ref={ref}
@@ -364,7 +359,6 @@ const AddLibrarySearchControl = forwardRef<
       placeholder={placeholder}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      onClear={onClear}
       onKeyDown={onKeyDown}
     />
   );

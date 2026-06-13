@@ -9,7 +9,16 @@
  * primitiveScene.ts, or primitiveRenderer.ts.
  */
 
-import type { GraphColorNode, GraphEdge, GraphMergeNode, GraphRepeatNode, Layer } from '../types/config';
+import type {
+  GraphColorNode,
+  GraphEdge,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
+  GraphMergeNode,
+  GraphRepeatNode,
+  GraphTransformNode,
+  Layer,
+} from '../types/config';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
@@ -51,6 +60,27 @@ export function layerRenderSig(layer: Layer): string {
       const { id: _id, name: _name, locked: _locked, ...render } = layer;
       return JSON.stringify(render);
     }
+    case 'lineField': {
+      // Line fields are full-frame procedural material; placement fields are ignored by the renderer.
+      return JSON.stringify([
+        layer.kind,
+        layer.visible,
+        layer.opacity,
+        layer.blendMode,
+        layer.color,
+        layer.accentColor,
+        layer.seedOffset,
+        layer.lineFieldOrientation,
+        layer.lineFieldDistortion,
+        layer.lineFieldCount,
+        layer.lineFieldSpacing,
+        layer.lineFieldStroke,
+        layer.lineFieldStrength,
+        layer.lineFieldFrequency,
+        layer.lineFieldBackground,
+        layer.lineFieldTransparent,
+      ]);
+    }
     case 'primitive':
     case 'noise':
     case 'array': {
@@ -83,9 +113,47 @@ export function repeatNodeRenderSig(node: GraphRepeatNode): string {
     node.scale,
     node.jitter,
     node.rotation,
+    node.rotationMode ?? 'fixed',
+    node.rotationStep ?? 0,
+    node.rotationJitter ?? 0,
     node.seedOffset,
     node.opacity,
     node.blendMode,
+  ]);
+}
+
+/** Render-relevant fields for a mask node. */
+export function maskNodeRenderSig(node: GraphMaskNode): string {
+  return JSON.stringify([node.mode, node.invert, node.threshold, node.feather, node.expand, node.opacity]);
+}
+
+/** Render-relevant fields for a transform node. */
+export function transformNodeRenderSig(node: GraphTransformNode): string {
+  return JSON.stringify([
+    node.x,
+    node.y,
+    node.scaleX,
+    node.scaleY,
+    node.rotation,
+    node.pivotMode ?? 'canvas',
+    node.opacity,
+  ]);
+}
+
+/** Render-relevant fields for a grime shadow node. */
+export function grimeShadowNodeRenderSig(node: GraphGrimeShadowNode): string {
+  return JSON.stringify([
+    node.x,
+    node.y,
+    node.layers,
+    node.blur,
+    node.spread,
+    node.grime,
+    node.jitter,
+    node.opacity,
+    node.color,
+    node.seedOffset,
+    node.shadowOnly,
   ]);
 }
 

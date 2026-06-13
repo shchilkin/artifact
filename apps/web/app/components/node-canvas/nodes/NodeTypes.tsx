@@ -6,12 +6,23 @@ import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
-import type { ColorNodeData, ExportNodeData, LayerNodeData, MergeNodeData, RepeatNodeData } from '../types';
+import { TransformPreviewSurface } from '../thumbnails/TransformPreviewSurface';
+import type {
+  ColorNodeData,
+  ExportNodeData,
+  GrimeShadowNodeData,
+  LayerNodeData,
+  MaskNodeData,
+  MergeNodeData,
+  RepeatNodeData,
+  TransformNodeData,
+} from '../types';
 import { NodeFrame } from './NodeFrame';
 import { useLayerTransformDraft } from './useLayerTransformDraft';
+import { useTransformNodeDraft } from './useTransformNodeDraft';
 
 export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
-  const { selectNode, deleteNode, updateLayer } = useNodeCanvasActions();
+  const { selectNode, deleteNode, updateLayer, setPrimitiveViewportActive } = useNodeCanvasActions();
   const { layer, previewTargetId, selected, outputPath, editing, connected, primitiveViewState, primitiveRenderMode } =
     data;
   const isEffect = layer.kind === 'effect';
@@ -32,6 +43,9 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       onSelect={(event) => selectNode(layer.id, event)}
       onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
+      onDragHandlePointerDown={
+        layer.kind === 'primitive' ? () => setPrimitiveViewportActive(layer.id, false) : undefined
+      }
       deleteDisabled={layer.locked}
     >
       <LayerPreviewSurface
@@ -141,6 +155,105 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
           { label: 'backdrop', portId: 'bg', nodeId: repeatNode.id },
         ]}
         outputs={[{ label: 'result', portId: 'out', nodeId: repeatNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const MaskNodeComponent = memo(function MaskNodeComponent({ data }: NodeProps<MaskNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { maskNode, previewTargetId, selected, outputPath, editing, connected } = data;
+
+  return (
+    <NodeFrame
+      id={maskNode.id}
+      kind="mask"
+      label="mask"
+      name={maskNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[
+        { id: 'in', top: '36%' },
+        { id: 'mask', top: '64%' },
+      ]}
+      onSelect={(event) => selectNode(maskNode.id, event)}
+      onDelete={() => deleteNode(maskNode.id)}
+    >
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+      <PortRow
+        inputs={[
+          { label: 'source', portId: 'in', nodeId: maskNode.id },
+          { label: 'mask', portId: 'mask', nodeId: maskNode.id },
+        ]}
+        outputs={[{ label: 'cut', portId: 'out', nodeId: maskNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const TransformNodeComponent = memo(function TransformNodeComponent({ data }: NodeProps<TransformNodeData>) {
+  const { selectNode, deleteNode, updateTransformNode } = useNodeCanvasActions();
+  const { transformNode, previewTargetId, sourcePreviewTargetId, selected, outputPath, editing, connected } = data;
+  const transform = useTransformNodeDraft(transformNode, updateTransformNode);
+
+  return (
+    <NodeFrame
+      id={transformNode.id}
+      kind="transform"
+      label="transform"
+      name={transformNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[{ id: 'in' }]}
+      onSelect={(event) => selectNode(transformNode.id, event)}
+      onDelete={() => deleteNode(transformNode.id)}
+    >
+      <TransformPreviewSurface
+        transformNode={transform.effectiveTransformNode}
+        previewTargetId={previewTargetId}
+        sourcePreviewTargetId={sourcePreviewTargetId}
+        selected={selected}
+        transformActive={transform.hasDraft}
+        onTransformDraft={transform.updateDraft}
+        onTransformCommit={transform.commitDraft}
+        onTransformWheelDelta={transform.handleWheelDelta}
+      />
+      <PortRow
+        inputs={[{ label: 'source', portId: 'in', nodeId: transformNode.id }]}
+        outputs={[{ label: 'result', portId: 'out', nodeId: transformNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
+  data,
+}: NodeProps<GrimeShadowNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { grimeShadowNode, previewTargetId, selected, outputPath, editing, connected } = data;
+
+  return (
+    <NodeFrame
+      id={grimeShadowNode.id}
+      kind="grimeShadow"
+      label="shadow"
+      name={grimeShadowNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[{ id: 'in' }]}
+      onSelect={(event) => selectNode(grimeShadowNode.id, event)}
+      onDelete={() => deleteNode(grimeShadowNode.id)}
+    >
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+      <PortRow
+        inputs={[{ label: 'source', portId: 'in', nodeId: grimeShadowNode.id }]}
+        outputs={[{ label: 'result', portId: 'out', nodeId: grimeShadowNode.id }]}
         connected={connected}
       />
     </NodeFrame>

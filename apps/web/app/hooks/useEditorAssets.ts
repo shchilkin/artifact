@@ -54,7 +54,7 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
 
 export function useEditorAssets(
   doc: CanvasDocument,
-  onImportImage: (src: string) => void,
+  onImportImage: (src: string, position?: { x: number; y: number }) => void,
   onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -128,7 +128,7 @@ export function useEditorAssets(
   const handleDroppedFile = useCallback(
     // Existing drop/import guard logic; v0.32 tracks asset hook debt.
     // fallow-ignore-next-line complexity
-    async (file: File) => {
+    async (file: File, position?: { x: number; y: number }) => {
       if (!isImageFile(file)) return;
       if (file.size > MAX_IMAGE_BYTES) {
         showDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
@@ -144,7 +144,7 @@ export function useEditorAssets(
         } catch {
           // Keep the upload usable even if IndexedDB is blocked or temporarily unavailable.
         }
-        onImportImage(importedSrc);
+        onImportImage(importedSrc, position);
       } catch {
         showDropError('Could not read image');
       }

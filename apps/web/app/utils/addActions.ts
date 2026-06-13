@@ -14,4 +14,7 @@ export type AddAction =
   | { kind: 'merge' }
   | { kind: 'color' }
   | { kind: 'repeat' }
-  | { kind: 'repeatPreset'; preset: RepeatPresetId };
+  | { kind: 'repeatPreset'; preset: RepeatPresetId }
+  | { kind: 'mask' }
+  | { kind: 'transform' }
+  | { kind: 'grimeShadow' };

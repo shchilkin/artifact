@@ -59,8 +59,10 @@ test('docs index links to the main docs paths', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Docs.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Choose a docs path.' })).toBeVisible();
   const startPoints = page.locator('.docs-start-point');
-  await expect(startPoints).toHaveCount(3);
+  await expect(startPoints).toHaveCount(5);
   await expect(page.locator('.docs-start-point[href="/docs/nodes"]')).toBeVisible();
+  await expect(page.locator('.docs-start-point[href="/docs/recipes"]')).toBeVisible();
+  await expect(page.locator('.docs-start-point[href="/docs/reference"]')).toBeVisible();
   await expect(page.locator('.docs-start-point[href="/docs/style-guide"]')).toBeVisible();
   await expect(page.locator('.docs-start-point[href="/app?new=blank"]')).toBeVisible();
 });
@@ -68,21 +70,28 @@ test('docs index links to the main docs paths', async ({ page }) => {
 test('docs research page supports search and type filtering', async ({ page }) => {
   await page.goto('/docs/nodes');
 
-  await expect(page.getByRole('heading', { name: 'Artifact Docs.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Learn Artifact.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Find an answer or start here.' })).toBeVisible();
-  await expect(page.locator('.docs-start-point')).toHaveCount(3);
-  await expect(page.getByRole('navigation', { name: 'Docs sections' }).locator('a')).toHaveCount(4);
+  await expect(page.locator('#docs-search .docs-start-point')).toHaveCount(3);
+  await expect(page.getByRole('navigation', { name: 'Learn page sections' }).locator('a')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: 'Four paths.' })).toBeVisible();
   await expect(page.locator('.docs-workflow-guide')).toHaveCount(4);
 
   await page.getByPlaceholder('Search effects, export, fonts, nodes...').fill('noise');
-  await expect(page.locator('.docs-search-result')).toHaveCount(8);
+  await expect(page.locator('.docs-search-result')).toHaveCount(10);
 
   await page.getByText('Filter results by type').click();
   await page.getByRole('button', { name: 'Effects' }).click();
   await expect(page.locator('.docs-type-filter__item--active')).toHaveText('Effects');
   await expect(page.locator('.docs-search-result')).toHaveCount(2);
-  await expect(page.locator('.docs-node-feed .docs-poster')).toHaveCount(2);
+
+  await page.goto('/docs/reference');
+  await expect(page.getByRole('heading', { name: 'Reference.' })).toBeVisible();
+  await page.getByPlaceholder('Search mask, line field, grain, export...').fill('line');
+  await expect(page.locator('.docs-reference-row[href="/docs/reference/lineField"]')).toBeVisible();
+  await page.locator('.docs-reference-row[href="/docs/reference/lineField"]').click();
+  await expect(page).toHaveURL(/\/docs\/reference\/lineField$/);
+  await expect(page.getByRole('heading', { name: 'Line Field.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tune preview' }).first()).toBeVisible();
 });
 

@@ -1,8 +1,11 @@
 import type {
   CanvasGraph,
   GraphColorNode,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphTransformNode,
   ImageLayer,
   Layer,
 } from '../../../types/config';
@@ -10,7 +13,16 @@ import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { AiGenerationPanel } from '../../AiGenerationPanel';
 import { EditorTargetHeader } from '../../editor-target/EditorTargetHeader';
-import { ColorInspector, ExportInspector, LayerInspector, MergeInspector, RepeatInspector } from '../inspector';
+import {
+  ColorInspector,
+  ExportInspector,
+  GrimeShadowInspector,
+  LayerInspector,
+  MaskInspector,
+  MergeInspector,
+  RepeatInspector,
+  TransformInspector,
+} from '../inspector';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -22,6 +34,9 @@ interface NodePropertiesPanelProps
     | 'onUpdateMergeNode'
     | 'onUpdateColorNode'
     | 'onUpdateRepeatNode'
+    | 'onUpdateMaskNode'
+    | 'onUpdateTransformNode'
+    | 'onUpdateGrimeShadowNode'
     | 'onUpdateExportConfig'
     | 'onUpdateAspectRatio'
     | 'onExport'
@@ -37,7 +52,15 @@ type SelectedNodeTarget =
   | { kind: 'color'; node: GraphColorNode }
   | { kind: 'merge'; node: GraphMergeNode }
   | { kind: 'repeat'; node: GraphRepeatNode }
+  | { kind: 'mask'; node: GraphMaskNode }
+  | { kind: 'transform'; node: GraphTransformNode }
+  | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
   | { kind: 'output' };
+
+type GraphUtilityInspectorTarget = Exclude<
+  SelectedNodeTarget,
+  { kind: 'layer' } | { kind: 'color' } | { kind: 'output' }
+>;
 
 function appendAiGenerationVariant(
   layer: ImageLayer,
@@ -124,10 +147,21 @@ function getGraphNodeSearchId(selectedNodeId: string | null) {
 
 function findFirstGraphNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
   return (
-    findColorNodeTarget(graph, selectedNodeId) ??
-    findMergeNodeTarget(graph, selectedNodeId) ??
-    findRepeatNodeTarget(graph, selectedNodeId)
+    GRAPH_NODE_TARGET_FINDERS.map((findTarget) => findTarget(graph, selectedNodeId)).find(isSelectedNodeTarget) ?? null
   );
+}
+
+const GRAPH_NODE_TARGET_FINDERS = [
+  findColorNodeTarget,
+  findMergeNodeTarget,
+  findRepeatNodeTarget,
+  findMaskNodeTarget,
+  findTransformNodeTarget,
+  findGrimeShadowNodeTarget,
+];
+
+function isSelectedNodeTarget(target: SelectedNodeTarget | null): target is SelectedNodeTarget {
+  return target !== null;
 }
 
 function findColorNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
@@ -143,6 +177,21 @@ function findMergeNodeTarget(graph: CanvasGraph, selectedNodeId: string): Select
 function findRepeatNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
   const node = (graph.repeatNodes ?? []).find((item) => item.id === selectedNodeId);
   return node ? { kind: 'repeat', node } : null;
+}
+
+function findMaskNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
+  const node = (graph.maskNodes ?? []).find((item) => item.id === selectedNodeId);
+  return node ? { kind: 'mask', node } : null;
+}
+
+function findTransformNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
+  const node = (graph.transformNodes ?? []).find((item) => item.id === selectedNodeId);
+  return node ? { kind: 'transform', node } : null;
+}
+
+function findGrimeShadowNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
+  const node = (graph.grimeShadowNodes ?? []).find((item) => item.id === selectedNodeId);
+  return node ? { kind: 'grimeShadow', node } : null;
 }
 
 function resolveSelectedNodeTarget(
@@ -259,6 +308,49 @@ function RepeatNodeInspector({
   );
 }
 
+function MaskNodeInspector({
+  node,
+  onUpdateMaskNode,
+}: Pick<NodePropertiesPanelProps, 'onUpdateMaskNode'> & {
+  node: GraphMaskNode;
+}) {
+  return (
+    <MaskInspector key={node.id} maskNode={node} onChange={(patch) => onUpdateMaskNode(node.id, patch)} detached />
+  );
+}
+
+function TransformNodeInspector({
+  node,
+  onUpdateTransformNode,
+}: Pick<NodePropertiesPanelProps, 'onUpdateTransformNode'> & {
+  node: GraphTransformNode;
+}) {
+  return (
+    <TransformInspector
+      key={node.id}
+      transformNode={node}
+      onChange={(patch) => onUpdateTransformNode(node.id, patch)}
+      detached
+    />
+  );
+}
+
+function GrimeShadowNodeInspector({
+  node,
+  onUpdateGrimeShadowNode,
+}: Pick<NodePropertiesPanelProps, 'onUpdateGrimeShadowNode'> & {
+  node: GraphGrimeShadowNode;
+}) {
+  return (
+    <GrimeShadowInspector
+      key={node.id}
+      grimeShadowNode={node}
+      onChange={(patch) => onUpdateGrimeShadowNode(node.id, patch)}
+      detached
+    />
+  );
+}
+
 function ExportNodeInspector({
   doc,
   exportBusy,
@@ -317,6 +409,9 @@ function SelectedNodeInspector({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -328,6 +423,9 @@ function SelectedNodeInspector({
   | 'onUpdateMergeNode'
   | 'onUpdateColorNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaskNode'
+  | 'onUpdateTransformNode'
+  | 'onUpdateGrimeShadowNode'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
@@ -347,6 +445,9 @@ function SelectedNodeInspector({
       exportBusy={exportBusy}
       onUpdateMergeNode={onUpdateMergeNode}
       onUpdateRepeatNode={onUpdateRepeatNode}
+      onUpdateMaskNode={onUpdateMaskNode}
+      onUpdateTransformNode={onUpdateTransformNode}
+      onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
       onUpdateExportConfig={onUpdateExportConfig}
       onUpdateAspectRatio={onUpdateAspectRatio}
       onExport={onExport}
@@ -360,6 +461,9 @@ function GraphOrExportNodeInspector({
   exportBusy,
   onUpdateMergeNode,
   onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -369,18 +473,26 @@ function GraphOrExportNodeInspector({
   | 'exportBusy'
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaskNode'
+  | 'onUpdateTransformNode'
+  | 'onUpdateGrimeShadowNode'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
 > & {
   target: Exclude<SelectedNodeTarget, { kind: 'layer' } | { kind: 'color' }>;
 }) {
-  if (target.kind === 'merge') {
-    return <MergeNodeInspector node={target.node} onUpdateMergeNode={onUpdateMergeNode} />;
-  }
-  if (target.kind === 'repeat') {
-    return <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />;
-  }
+  if (target.kind !== 'output')
+    return (
+      <GraphUtilityNodeInspector
+        target={target}
+        onUpdateMergeNode={onUpdateMergeNode}
+        onUpdateRepeatNode={onUpdateRepeatNode}
+        onUpdateMaskNode={onUpdateMaskNode}
+        onUpdateTransformNode={onUpdateTransformNode}
+        onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
+      />
+    );
   return (
     <ExportNodeInspector
       doc={doc}
@@ -392,6 +504,54 @@ function GraphOrExportNodeInspector({
   );
 }
 
+function GraphUtilityNodeInspector({
+  target,
+  onUpdateMergeNode,
+  onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
+}: Pick<
+  NodePropertiesPanelProps,
+  'onUpdateMergeNode' | 'onUpdateRepeatNode' | 'onUpdateMaskNode' | 'onUpdateTransformNode' | 'onUpdateGrimeShadowNode'
+> & {
+  target: GraphUtilityInspectorTarget;
+}) {
+  return GRAPH_UTILITY_INSPECTORS[target.kind]({
+    target: target as never,
+    onUpdateMergeNode,
+    onUpdateRepeatNode,
+    onUpdateMaskNode,
+    onUpdateTransformNode,
+    onUpdateGrimeShadowNode,
+  });
+}
+
+const GRAPH_UTILITY_INSPECTORS = {
+  merge: ({ target, onUpdateMergeNode }: GraphUtilityInspectorProps<'merge'>) => (
+    <MergeNodeInspector node={target.node} onUpdateMergeNode={onUpdateMergeNode} />
+  ),
+  repeat: ({ target, onUpdateRepeatNode }: GraphUtilityInspectorProps<'repeat'>) => (
+    <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />
+  ),
+  mask: ({ target, onUpdateMaskNode }: GraphUtilityInspectorProps<'mask'>) => (
+    <MaskNodeInspector node={target.node} onUpdateMaskNode={onUpdateMaskNode} />
+  ),
+  transform: ({ target, onUpdateTransformNode }: GraphUtilityInspectorProps<'transform'>) => (
+    <TransformNodeInspector node={target.node} onUpdateTransformNode={onUpdateTransformNode} />
+  ),
+  grimeShadow: ({ target, onUpdateGrimeShadowNode }: GraphUtilityInspectorProps<'grimeShadow'>) => (
+    <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />
+  ),
+};
+
+type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> = Pick<
+  NodePropertiesPanelProps,
+  'onUpdateMergeNode' | 'onUpdateRepeatNode' | 'onUpdateMaskNode' | 'onUpdateTransformNode' | 'onUpdateGrimeShadowNode'
+> & {
+  target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
+};
+
 function NodePropertiesPanelContent({
   target,
   targetSummary,
@@ -401,6 +561,9 @@ function NodePropertiesPanelContent({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -413,6 +576,9 @@ function NodePropertiesPanelContent({
   | 'onUpdateMergeNode'
   | 'onUpdateColorNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaskNode'
+  | 'onUpdateTransformNode'
+  | 'onUpdateGrimeShadowNode'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
@@ -443,6 +609,9 @@ function NodePropertiesPanelContent({
           onUpdateMergeNode={onUpdateMergeNode}
           onUpdateColorNode={onUpdateColorNode}
           onUpdateRepeatNode={onUpdateRepeatNode}
+          onUpdateMaskNode={onUpdateMaskNode}
+          onUpdateTransformNode={onUpdateTransformNode}
+          onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}
           onExport={onExport}
@@ -462,6 +631,9 @@ export function NodePropertiesPanel({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -488,6 +660,9 @@ export function NodePropertiesPanel({
           onUpdateMergeNode={onUpdateMergeNode}
           onUpdateColorNode={onUpdateColorNode}
           onUpdateRepeatNode={onUpdateRepeatNode}
+          onUpdateMaskNode={onUpdateMaskNode}
+          onUpdateTransformNode={onUpdateTransformNode}
+          onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}
           onExport={onExport}

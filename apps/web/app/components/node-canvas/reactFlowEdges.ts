@@ -1,6 +1,7 @@
 import type { Edge as RFEdge } from '@xyflow/react';
 
 import type { CanvasGraph } from '../../types/config';
+import { graphUtilityNodeKind } from '../../utils/nodeGraph';
 
 export function toRFEdges(graph: CanvasGraph): RFEdge[] {
   return graph.edges.map((edge) => ({
@@ -19,8 +20,15 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
 }
 
 function getEdgeColor(fromId: string, graph: CanvasGraph): string {
-  if (graph.mergeNodes.some((node) => node.id === fromId)) return 'oklch(74% 0.17 152)';
-  if ((graph.colorNodes ?? []).some((node) => node.id === fromId)) return 'oklch(72% 0.18 195)';
-  if ((graph.repeatNodes ?? []).some((node) => node.id === fromId)) return 'oklch(76% 0.14 95)';
-  return 'oklch(64% 0.22 305)';
+  return EDGE_COLORS[graphUtilityNodeKind(graph, fromId) ?? 'layer'];
 }
+
+const EDGE_COLORS = {
+  merge: 'oklch(74% 0.17 152)',
+  color: 'oklch(72% 0.18 195)',
+  repeat: 'oklch(76% 0.14 95)',
+  mask: 'oklch(72% 0.18 35)',
+  transform: 'oklch(70% 0.17 265)',
+  grimeShadow: 'oklch(72% 0.18 35)',
+  layer: 'oklch(64% 0.22 305)',
+} as const;

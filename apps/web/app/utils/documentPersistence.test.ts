@@ -119,6 +119,47 @@ describe('normalizeDocument', () => {
     expect(doc.graph?.repeatNodes?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
   });
 
+  it('adds interaction defaults to older transform nodes', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        transformNodes: [{ id: 'transform-a', name: 'Transform' }],
+      },
+    });
+
+    expect(doc.graph?.transformNodes?.[0]).toMatchObject({
+      id: 'transform-a',
+      scaleX: 100,
+      scaleY: 100,
+      uniformScale: true,
+      pivotMode: 'canvas',
+    });
+  });
+
+  it('adds render defaults to older grime shadow nodes', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        grimeShadowNodes: [{ id: 'shadow-a', name: 'Grime Shadow' }],
+      },
+    });
+
+    expect(doc.graph?.grimeShadowNodes?.[0]).toMatchObject({
+      id: 'shadow-a',
+      x: 8,
+      y: 10,
+      layers: 5,
+      color: '#090606',
+      shadowOnly: false,
+    });
+  });
+
   it('adds seed defaults to older emoji layers', () => {
     const doc = normalizeDocument({
       layers: [
@@ -250,7 +291,11 @@ describe('normalizeDocument', () => {
       mergeNodes: [],
       colorNodes: [],
       repeatNodes: [],
+      maskNodes: [],
+      transformNodes: [],
+      grimeShadowNodes: [],
       areas: [],
+      primitiveViewStates: undefined,
     });
   });
 });
@@ -407,6 +452,7 @@ describe('document serialization helpers', () => {
     expect(parsed?.layers[0]?.id).toBe('share-text');
     expect(parsed?.graph?.colorNodes).toEqual([]);
     expect(parsed?.graph?.repeatNodes).toEqual([]);
+    expect(parsed?.graph?.grimeShadowNodes).toEqual([]);
     expect(parsed?.graph?.areas).toEqual([]);
   });
 
@@ -430,11 +476,17 @@ describe('document serialization helpers', () => {
             scale: 28,
             jitter: 0,
             rotation: 0,
+            rotationMode: 'fixed',
+            rotationStep: 0,
+            rotationJitter: 0,
             seedOffset: 0,
             opacity: 100,
             blendMode: 'source-over',
           },
         ],
+        maskNodes: [],
+        transformNodes: [],
+        grimeShadowNodes: [],
         areas: [
           {
             id: 'area-main',

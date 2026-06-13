@@ -7,7 +7,16 @@ import {
   type ReactFlowInstance,
   ViewportPortal,
 } from '@xyflow/react';
-import { type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type DragEvent as ReactDragEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
@@ -43,9 +52,12 @@ import type { NodeAlignmentGuide } from './nodeAlignment';
 import {
   ColorNodeComponent,
   ExportNodeComponent,
+  GrimeShadowNodeComponent,
   LayerNodeComponent,
+  MaskNodeComponent,
   MergeNodeComponent,
   RepeatNodeComponent,
+  TransformNodeComponent,
 } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
 import { toRFEdges } from './reactFlowEdges';
@@ -62,10 +74,29 @@ const nodeTypes = {
   colorNode: ColorNodeComponent,
   mergeNode: MergeNodeComponent,
   repeatNode: RepeatNodeComponent,
+  maskNode: MaskNodeComponent,
+  transformNode: TransformNodeComponent,
+  grimeShadowNode: GrimeShadowNodeComponent,
   exportNode: ExportNodeComponent,
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
+const NODE_IMAGE_FILE_RE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
+
+function hasFileTransfer(dataTransfer: DataTransfer) {
+  return Array.from(dataTransfer.types).includes('Files');
+}
+
+function imageFileFromTransfer(dataTransfer: DataTransfer) {
+  return Array.from(dataTransfer.files).find(
+    (file) => file.type.startsWith('image/') || NODE_IMAGE_FILE_RE.test(file.name),
+  );
+}
+
+function nodeDropPosition(event: ReactDragEvent<HTMLDivElement>, instance: ReactFlowInstance | null) {
+  const screenPoint = { x: event.clientX, y: event.clientY };
+  return instance?.screenToFlowPosition(screenPoint) ?? screenPoint;
+}
 
 export function NodeCanvas({
   doc,
@@ -79,11 +110,15 @@ export function NodeCanvas({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaskNode,
+  onUpdateTransformNode,
+  onUpdateGrimeShadowNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
   onExport,
   onAddLayerAt,
+  onImageFileDrop,
   onDeleteNodes,
   onDuplicateLayer,
 }: NodeCanvasProps) {
@@ -306,6 +341,26 @@ export function NodeCanvas({
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
+  const onNodeFileDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!onImageFileDrop || !hasFileTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'copy';
+    },
+    [onImageFileDrop],
+  );
+  const onNodeFileDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!onImageFileDrop || !hasFileTransfer(event.dataTransfer)) return;
+      const file = imageFileFromTransfer(event.dataTransfer);
+      if (!file) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onImageFileDrop(file, nodeDropPosition(event, rfInstanceRef.current));
+    },
+    [onImageFileDrop, rfInstanceRef],
+  );
 
   const handleJumpToOutput = useCallback(() => {
     const outputPosition = graphRef.current.positions[EXPORT_NODE_ID];
@@ -363,6 +418,9 @@ export function NodeCanvas({
       updateMergeNode: onUpdateMergeNode,
       updateColorNode: onUpdateColorNode,
       updateRepeatNode: onUpdateRepeatNode,
+      updateMaskNode: onUpdateMaskNode,
+      updateTransformNode: onUpdateTransformNode,
+      updateGrimeShadowNode: onUpdateGrimeShadowNode,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
@@ -382,6 +440,9 @@ export function NodeCanvas({
       onUpdateLayer,
       onUpdateMergeNode,
       onUpdateRepeatNode,
+      onUpdateMaskNode,
+      onUpdateTransformNode,
+      onUpdateGrimeShadowNode,
       openGallery,
       setPrimitiveViewportActive,
       updatePrimitiveView,
@@ -392,7 +453,12 @@ export function NodeCanvas({
     <NodeCanvasPreviewContext.Provider value={previewContextValue}>
       <NodeCanvasActionsContext.Provider value={actionsContextValue}>
         <div className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]">
-          <div ref={canvasSurfaceRef} className="relative min-w-0 flex-1 overflow-hidden">
+          <div
+            ref={canvasSurfaceRef}
+            className="relative min-w-0 flex-1 overflow-hidden"
+            onDragOver={onNodeFileDragOver}
+            onDrop={onNodeFileDrop}
+          >
             <NodeCanvasToolbar
               addNodeButtonRef={addNodeButtonRef}
               areaActionDisabled={areaActionDisabled}
@@ -474,6 +540,9 @@ export function NodeCanvas({
             onUpdateMergeNode={onUpdateMergeNode}
             onUpdateColorNode={onUpdateColorNode}
             onUpdateRepeatNode={onUpdateRepeatNode}
+            onUpdateMaskNode={onUpdateMaskNode}
+            onUpdateTransformNode={onUpdateTransformNode}
+            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
             onExport={onExport}

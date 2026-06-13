@@ -67,6 +67,12 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.35.md`](./version-plans/v0.35.md) — Masks, Transforms,
+  Rotated Repeats, And Line Fields: Mask, Transform, and Grime Shadow graph
+  utility nodes, Line Field source layers, deterministic Repeat per-copy
+  rotation, starter recipes, Add Library search/docs updates, and renderer,
+  thumbnail, gallery, and export parity for the new graph/source nodes.
+  Release notes are in [`releases/v0.35.0.md`](./releases/v0.35.0.md).
 - [`version-plans/v0.34.md`](./version-plans/v0.34.md) — Active Project Save
   Model: Projects became explicit local editable projects instead of
   snapshot-only saves, `Save Project` now overwrites the bound local project,
@@ -463,6 +469,8 @@ interface CanvasGraph {
   mergeNodes: GraphMergeNode[];
   colorNodes: GraphColorNode[];
   repeatNodes?: GraphRepeatNode[];
+  maskNodes?: GraphMaskNode[];
+  transformNodes?: GraphTransformNode[];
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }

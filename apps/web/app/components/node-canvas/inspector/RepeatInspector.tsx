@@ -13,6 +13,7 @@ export function RepeatInspector({
   detached?: boolean;
 }) {
   const copy = repeatInspectorCopy(repeatNode.pattern);
+  const rotationMode = repeatNode.rotationMode ?? 'fixed';
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
@@ -71,6 +72,13 @@ export function RepeatInspector({
         max={180}
         onChange={(value) => onChange({ rotation: value })}
       />
+      <InspectorSelect
+        label="Rotation Mode"
+        value={rotationMode}
+        options={['fixed', 'radial', 'step', 'random']}
+        onChange={(value) => onChange({ rotationMode: value as GraphRepeatNode['rotationMode'] })}
+      />
+      <RepeatRotationControls repeatNode={repeatNode} rotationMode={rotationMode} onChange={onChange} />
       <InspectorSlider
         label="Seed Offset"
         value={Math.round(repeatNode.seedOffset ?? 0)}
@@ -99,9 +107,57 @@ export function RepeatInspector({
 }
 
 function repeatInspectorCopy(pattern: GraphRepeatNode['pattern']) {
-  if (pattern === 'radial') return { countLabel: 'Per Ring', rowsLabel: 'Rings', gapLabel: 'Ring Gap' };
-  if (pattern === 'grid') return { countLabel: 'Columns', rowsLabel: 'Rows', gapLabel: 'Gap' };
-  return { countLabel: 'Items', rowsLabel: 'Rows', gapLabel: 'Gap' };
+  return REPEAT_COPY[pattern] ?? REPEAT_COPY.stack;
+}
+
+const REPEAT_COPY = {
+  radial: { countLabel: 'Per Ring', rowsLabel: 'Rings', gapLabel: 'Ring Gap' },
+  grid: { countLabel: 'Columns', rowsLabel: 'Rows', gapLabel: 'Gap' },
+  stack: { countLabel: 'Items', rowsLabel: 'Rows', gapLabel: 'Gap' },
+} as const;
+
+function RepeatRotationControls({
+  repeatNode,
+  rotationMode,
+  onChange,
+}: {
+  repeatNode: GraphRepeatNode;
+  rotationMode: GraphRepeatNode['rotationMode'];
+  onChange: (patch: Partial<GraphRepeatNode>) => void;
+}) {
+  return (
+    <>
+      <RepeatRotationStepSlider repeatNode={repeatNode} rotationMode={rotationMode} onChange={onChange} />
+      <InspectorSlider
+        label="Rotation Jitter"
+        value={repeatNode.rotationJitter ?? 0}
+        min={0}
+        max={180}
+        onChange={(value) => onChange({ rotationJitter: value })}
+      />
+    </>
+  );
+}
+
+function RepeatRotationStepSlider({
+  repeatNode,
+  rotationMode,
+  onChange,
+}: {
+  repeatNode: GraphRepeatNode;
+  rotationMode: GraphRepeatNode['rotationMode'];
+  onChange: (patch: Partial<GraphRepeatNode>) => void;
+}) {
+  if (rotationMode !== 'step') return null;
+  return (
+    <InspectorSlider
+      label="Rotation Step"
+      value={repeatNode.rotationStep ?? 0}
+      min={-180}
+      max={180}
+      onChange={(value) => onChange({ rotationStep: value })}
+    />
+  );
 }
 
 function RepeatRadiusSlider({

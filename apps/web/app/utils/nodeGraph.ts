@@ -5,8 +5,11 @@ import {
   type GraphArea,
   type GraphColorNode,
   type GraphEdge,
+  type GraphGrimeShadowNode,
+  type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphTransformNode,
   type Layer,
 } from '../types/config';
 
@@ -19,6 +22,26 @@ const ROW_GAP = 72;
 const TOP_PAD = 80;
 const NODE_CHROME_H = 118;
 const NODE_PREVIEW_MAX = 280;
+
+export type GraphUtilityNodeKind = 'merge' | 'color' | 'repeat' | 'mask' | 'transform' | 'grimeShadow';
+
+const GRAPH_UTILITY_NODE_SELECTORS = [
+  { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
+  { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
+  { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
+  { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
+  {
+    kind: 'transform',
+    nodes: (graph: CanvasGraph) => graph.transformNodes ?? [],
+  },
+  {
+    kind: 'grimeShadow',
+    nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [],
+  },
+] satisfies Array<{
+  kind: GraphUtilityNodeKind;
+  nodes: (graph: CanvasGraph) => Array<{ id: string }>;
+}>;
 
 type GraphLayoutState = {
   outgoing: Map<string, string[]>;
@@ -74,7 +97,17 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     }
   });
 
-  return { edges, positions, mergeNodes: [], colorNodes: [], repeatNodes: [], areas: [] };
+  return {
+    edges,
+    positions,
+    mergeNodes: [],
+    colorNodes: [],
+    repeatNodes: [],
+    maskNodes: [],
+    transformNodes: [],
+    grimeShadowNodes: [],
+    areas: [],
+  };
 }
 
 export function updateGraphPositions(
@@ -232,6 +265,84 @@ export function updateRepeatNode(graph: CanvasGraph, id: string, patch: Partial<
   return {
     ...graph,
     repeatNodes: (graph.repeatNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addMaskNode(graph: CanvasGraph, node: GraphMaskNode, position: { x: number; y: number }): CanvasGraph {
+  return {
+    ...graph,
+    maskNodes: [...(graph.maskNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeMaskNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    maskNodes: (graph.maskNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateMaskNode(graph: CanvasGraph, id: string, patch: Partial<GraphMaskNode>): CanvasGraph {
+  return {
+    ...graph,
+    maskNodes: (graph.maskNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addTransformNode(
+  graph: CanvasGraph,
+  node: GraphTransformNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    transformNodes: [...(graph.transformNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeTransformNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    transformNodes: (graph.transformNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateTransformNode(graph: CanvasGraph, id: string, patch: Partial<GraphTransformNode>): CanvasGraph {
+  return {
+    ...graph,
+    transformNodes: (graph.transformNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addGrimeShadowNode(
+  graph: CanvasGraph,
+  node: GraphGrimeShadowNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    grimeShadowNodes: [...(graph.grimeShadowNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeGrimeShadowNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    grimeShadowNodes: (graph.grimeShadowNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateGrimeShadowNode(
+  graph: CanvasGraph,
+  id: string,
+  patch: Partial<GraphGrimeShadowNode>,
+): CanvasGraph {
+  return {
+    ...graph,
+    grimeShadowNodes: (graph.grimeShadowNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
   };
 }
 
@@ -436,8 +547,22 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
     ...graph.mergeNodes.map((node) => node.id),
     ...(graph.colorNodes ?? []).map((node) => node.id),
     ...(graph.repeatNodes ?? []).map((node) => node.id),
+    ...(graph.maskNodes ?? []).map((node) => node.id),
+    ...(graph.transformNodes ?? []).map((node) => node.id),
+    ...(graph.grimeShadowNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
+}
+
+export function graphUtilityNodeCollections(graph: CanvasGraph) {
+  return GRAPH_UTILITY_NODE_SELECTORS.map((selector) => selector.nodes(graph));
+}
+
+export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphUtilityNodeKind | null {
+  return (
+    GRAPH_UTILITY_NODE_SELECTORS.find((selector) => selector.nodes(graph).some((node) => node.id === nodeId))?.kind ??
+    null
+  );
 }
 
 function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {
@@ -541,6 +666,27 @@ function resolveGraphLayoutDepths(
   return depth;
 }
 
+function rightAlignGraphLayoutDepths(
+  nodeIds: string[],
+  state: GraphLayoutState,
+  depth: Map<string, number>,
+): Map<string, number> {
+  const aligned = new Map(depth);
+  const ordered = [...nodeIds].sort((a, b) => (aligned.get(b) ?? 0) - (aligned.get(a) ?? 0));
+
+  for (const id of ordered) {
+    if (id === EXPORT_NODE_ID) continue;
+    const targets = (state.outgoing.get(id) ?? []).filter((target) => aligned.has(target));
+    if (targets.length === 0) continue;
+
+    const desiredDepth = Math.min(...targets.map((target) => Math.max((aligned.get(target) ?? 0) - 1, 0)));
+    const currentDepth = aligned.get(id) ?? 0;
+    if (desiredDepth > currentDepth) aligned.set(id, desiredDepth);
+  }
+
+  return aligned;
+}
+
 function groupGraphNodesByDepth(nodeIds: string[], depth: Map<string, number>): Map<number, string[]> {
   const columns = new Map<number, string[]>();
   for (const id of nodeIds) {
@@ -566,6 +712,38 @@ function calculateGraphColumnOffsets(orderedColumns: [number, string[]][], layer
   return columnX;
 }
 
+function graphNodeDownstreamY(
+  id: string,
+  positions: CanvasGraph['positions'],
+  outgoing: Map<string, string[]>,
+): number | null {
+  const targets = (outgoing.get(id) ?? [])
+    .map((target) => positions[target]?.y)
+    .filter((y): y is number => typeof y === 'number');
+  if (targets.length === 0) return null;
+  return targets.reduce((sum, y) => sum + y, 0) / targets.length;
+}
+
+function compareGraphColumnNodeIds(
+  a: string,
+  b: string,
+  positions: CanvasGraph['positions'],
+  previousPositions: CanvasGraph['positions'],
+  outgoing: Map<string, string[]>,
+  order: Map<string, number>,
+): number {
+  const aDownstreamY = graphNodeDownstreamY(a, positions, outgoing);
+  const bDownstreamY = graphNodeDownstreamY(b, positions, outgoing);
+  return (
+    compareNumbers(
+      aDownstreamY ?? graphNodeLayoutY(a, previousPositions),
+      bDownstreamY ?? graphNodeLayoutY(b, previousPositions),
+    ) ??
+    compareNumbers(graphNodeLayoutX(a, previousPositions), graphNodeLayoutX(b, previousPositions)) ??
+    graphNodeOrder(a, order) - graphNodeOrder(b, order)
+  );
+}
+
 function positionGraphColumn(
   positions: CanvasGraph['positions'],
   column: number,
@@ -586,15 +764,15 @@ function organizeGraphPositions(
   aspect: AspectRatio,
   depth: Map<string, number>,
   nodeIds: string[],
-  compareNodeIds: (a: string, b: string) => number,
+  state: GraphLayoutState,
 ): CanvasGraph['positions'] {
   const columns = groupGraphNodesByDepth(nodeIds, depth);
   const positions = { ...graph.positions };
   const orderedColumns = [...columns.entries()].sort(([a], [b]) => a - b);
   const columnX = calculateGraphColumnOffsets(orderedColumns, layers);
 
-  for (const [column, ids] of orderedColumns) {
-    ids.sort(compareNodeIds);
+  for (const [column, ids] of [...orderedColumns].reverse()) {
+    ids.sort((a, b) => compareGraphColumnNodeIds(a, b, positions, graph.positions, state.outgoing, state.order));
     positionGraphColumn(positions, column, ids, columnX, aspect);
   }
   return positions;
@@ -604,14 +782,18 @@ export function organizeGraph(graph: CanvasGraph, layers: Layer[], aspect: Aspec
   const nodeIds = listGraphNodeIds(graph, layers);
   const state = createGraphLayoutState(nodeIds, graph.edges);
   const compareNodeIds = (a: string, b: string) => compareGraphNodeIds(a, b, graph.positions, state.order);
-  const depth = resolveGraphLayoutDepths(nodeIds, state, compareNodeIds);
-  const positions = organizeGraphPositions(graph, layers, aspect, depth, nodeIds, compareNodeIds);
+  const sourceDepth = resolveGraphLayoutDepths(nodeIds, state, compareNodeIds);
+  const depth = rightAlignGraphLayoutDepths(nodeIds, state, sourceDepth);
+  const positions = organizeGraphPositions(graph, layers, aspect, depth, nodeIds, state);
 
   return { ...graph, positions };
 }
 
 /** Get set of node IDs that have at least one outgoing or incoming edge. */
-export function connectedPortIds(graph: CanvasGraph): { sources: Set<string>; targets: Set<string> } {
+export function connectedPortIds(graph: CanvasGraph): {
+  sources: Set<string>;
+  targets: Set<string>;
+} {
   const sources = new Set<string>();
   const targets = new Set<string>();
   for (const e of graph.edges) {

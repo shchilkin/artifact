@@ -56,10 +56,12 @@ export default function Editor() {
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
+  // fallow-ignore-next-line code-duplication
   const {
     doc,
     docRef,
     selectedLayerId,
+    // fallow-ignore-next-line code-duplication
     setSelectedLayerId,
     addLayer,
     addEffectPreset,
@@ -75,6 +77,9 @@ export default function Editor() {
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
+    updateMaskNode,
+    updateTransformNode,
+    updateGrimeShadowNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -96,7 +101,11 @@ export default function Editor() {
     isBlank,
     documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
-  const { imageCache, dropError, handleDroppedFile } = useEditorAssets(doc, addImageFromSource, storeImageAssetSource);
+  const { imageCache, dropError, handleDroppedFile } = useEditorAssets(
+    doc,
+    (src, position) => addImageFromSource(src, undefined, position),
+    storeImageAssetSource,
+  );
   const {
     effectivePrimitiveViewStates,
     exportRenderOptions,
@@ -344,11 +353,15 @@ export default function Editor() {
                   onUpdateMergeNode={updateMergeNode}
                   onUpdateColorNode={updateColorNode}
                   onUpdateRepeatNode={updateRepeatNode}
+                  onUpdateMaskNode={updateMaskNode}
+                  onUpdateTransformNode={updateTransformNode}
+                  onUpdateGrimeShadowNode={updateGrimeShadowNode}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}
                   onExport={handleNodeExport}
                   onAddLayerAt={handleAddLayerAt}
+                  onImageFileDrop={(file, position) => void handleDroppedFile(file, position)}
                   onDeleteNodes={deleteNodeSelection}
                   onDuplicateLayer={duplicateLayer}
                 />

@@ -1,5 +1,5 @@
 import { Link, type MetaFunction } from 'react-router';
-import { PublicPageLayout } from '../components/PublicPageLayout';
+import { DocsShell } from './docs.shared';
 
 export const meta: MetaFunction = () => [
   { title: 'Docs | Artifact' },
@@ -11,11 +11,25 @@ export const meta: MetaFunction = () => [
 
 const DOC_SECTIONS = [
   {
-    eyebrow: 'Editor guide',
-    title: 'Learn the editor',
-    body: 'Layers, nodes, effects, sources, recipes, export, and project packaging in one searchable guide.',
+    eyebrow: 'Learn',
+    title: 'Learn the model',
+    body: 'A short path through layers, graph branches, previews, and export without the full reference in the way.',
     href: '/docs/nodes',
-    action: 'Open editor docs',
+    action: 'Open learn guide',
+  },
+  {
+    eyebrow: 'Recipes',
+    title: 'Open a workflow',
+    body: 'Start from working documents for masks, line fields, repeated tokens, photo type, texture stacks, and print damage.',
+    href: '/docs/recipes',
+    action: 'Open recipes',
+  },
+  {
+    eyebrow: 'Reference',
+    title: 'Look up a node',
+    body: 'Find exact node controls, graph utilities, effect families, blend modes, files, and recovery checks.',
+    href: '/docs/reference',
+    action: 'Open reference',
   },
   {
     eyebrow: 'UI system',
@@ -35,38 +49,30 @@ const DOC_SECTIONS = [
 
 export default function DocsIndex() {
   return (
-    <PublicPageLayout className="docs-page">
-      <main className="docs-feed">
-        <section className="docs-intro" aria-labelledby="docs-index-title">
-          <p className="docs-guide-section__eyebrow">Artifact docs</p>
-          <h1 id="docs-index-title" className="docs-intro__headline">
-            Docs.
-          </h1>
-          <p className="docs-intro__deck">
-            Find the editor guide, reference material, recipes, component states, and design-system rules for Artifact.
-          </p>
-        </section>
-
-        <section className="docs-search-panel" aria-labelledby="docs-index-start-title">
-          <div className="docs-search-panel__header">
-            <div>
-              <span className="docs-guide-section__eyebrow">Start here</span>
-              <h2 id="docs-index-start-title">Choose a docs path.</h2>
-            </div>
-            <span className="docs-search-count">3 paths</span>
+    <DocsShell
+      active="Overview"
+      title="Docs."
+      deck="Choose the kind of help you need: learn the model, open a recipe, look up a node, or inspect the UI system."
+    >
+      <section className="docs-search-panel" aria-labelledby="docs-index-start-title">
+        <div className="docs-search-panel__header">
+          <div>
+            <span className="docs-guide-section__eyebrow">Start here</span>
+            <h2 id="docs-index-start-title">Choose a docs path.</h2>
           </div>
-          <div className="docs-start-points docs-start-points--index">
-            {DOC_SECTIONS.map((section) => (
-              <Link key={section.href} to={section.href} className="docs-start-point">
-                <span className="docs-start-point__action">{section.eyebrow}</span>
-                <strong>{section.title}</strong>
-                <span>{section.body}</span>
-                <span className="docs-start-point__action">{section.action}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </main>
-    </PublicPageLayout>
+          <span className="docs-search-count">{DOC_SECTIONS.length} paths</span>
+        </div>
+        <div className="docs-start-points docs-start-points--index">
+          {DOC_SECTIONS.map((section) => (
+            <Link key={section.href} to={section.href} className="docs-start-point">
+              <span className="docs-start-point__action">{section.eyebrow}</span>
+              <strong>{section.title}</strong>
+              <span>{section.body}</span>
+              <span className="docs-start-point__action">{section.action}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </DocsShell>
   );
 }
