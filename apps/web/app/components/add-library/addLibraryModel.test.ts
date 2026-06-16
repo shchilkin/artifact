@@ -33,13 +33,15 @@ describe('addLibraryModel', () => {
           item.action.kind === 'noisePreset' ||
           item.action.kind === 'arrayPreset' ||
           item.action.kind === 'aiImage' ||
+          item.action.kind === 'scene3d' ||
           item.action.kind === 'effect',
       ),
     ).toBe(true);
     expect(layerItems.map((item) => item.id)).toContain('effect:pixelate');
     expect(layerItems.map((item) => item.id)).toContain('textPreset:title');
     expect(layerItems.map((item) => item.id)).toContain('aiImage');
-    expect(layerItems.map((item) => item.id)).toContain('layer:model');
+    expect(layerItems.map((item) => item.id)).toContain('scene3d');
+    expect(layerItems.map((item) => item.id)).not.toContain('layer:model');
     expect(layerItems.map((item) => item.id)).toContain('noisePreset:paper');
     expect(layerItems.map((item) => item.id)).toContain('arrayPreset:stickerGrid');
     expect(layerItems.map((item) => item.id)).toContain('layer:lineField');
@@ -112,7 +114,9 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('ps1')).toEqual(expect.arrayContaining(['effect:dotGrain', 'effect:indexedPalette']));
     expect(firstIdsFor('retro resolution')).toContain('effect:retroResolution');
     expect(firstIdsFor('indexed palette')).toContain('effect:indexedPalette');
-    expect(firstIdsFor('edge crush')).toContain('effect:edgeCrush');
+    expect(firstIdsFor('alpha crush')).toContain('effect:edgeCrush');
+    expect(firstIdsFor('edge crush')).toContain('effect:silhouetteCrush');
+    expect(firstIdsFor('silhouette crush')).toContain('effect:silhouetteCrush');
     expect(firstIdsFor('hard alpha')).toContain('effect:edgeCrush');
     expect(firstIdsFor('crt')).toEqual(expect.arrayContaining(['effect:scanlines', 'effect:vhsTracking']));
     expect(firstIdsFor('paper')).toContain('effect:grain');
@@ -139,13 +143,15 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:dotGrain')?.description).toContain('stipple');
     expect(itemsById.get('effect:retroResolution')?.description).toContain('export');
     expect(itemsById.get('effect:indexedPalette')?.description).toContain('swatches');
-    expect(itemsById.get('effect:edgeCrush')?.description).toContain('sprite');
+    expect(itemsById.get('effect:edgeCrush')?.description).toContain('alpha');
+    expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
     expect(itemsById.get('effect:grain')?.tags).toEqual(expect.arrayContaining(['texture', 'paper']));
     expect(itemsById.get('effect:dotGrain')?.tags).toEqual(expect.arrayContaining(['texture', 'dots']));
     expect(itemsById.get('effect:retroResolution')?.tags).toEqual(expect.arrayContaining(['tone', 'low-res']));
     expect(itemsById.get('effect:indexedPalette')?.tags).toEqual(expect.arrayContaining(['tone', 'palette']));
     expect(itemsById.get('effect:halftone')?.tags).toEqual(expect.arrayContaining(['print', 'dots']));
-    expect(itemsById.get('effect:edgeCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'edges']));
+    expect(itemsById.get('effect:edgeCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'alpha']));
+    expect(itemsById.get('effect:silhouetteCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'edges']));
   });
 
   it('keeps v0.36 retro effects in intentional browse groups', () => {
@@ -155,6 +161,7 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:retroResolution')?.group).toBe('tone');
     expect(itemsById.get('effect:indexedPalette')?.group).toBe('tone');
     expect(itemsById.get('effect:edgeCrush')?.group).toBe('graphic');
+    expect(itemsById.get('effect:silhouetteCrush')?.group).toBe('graphic');
   });
 
   it('round trips drag actions and rejects unknown payloads', () => {

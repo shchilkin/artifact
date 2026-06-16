@@ -30,6 +30,8 @@ export type SceneEnvironmentMap = {
   dispose: () => void;
 };
 
+type SceneEnvironmentLightSource = HTMLCanvasElement | THREE.Texture | null | undefined;
+
 function hexToRgb(hex: string): [number, number, number] {
   const normalized = hex.replace('#', '');
   const value = Number.parseInt(normalized.length === 3 ? normalized.replace(/(.)/g, '$1$1') : normalized, 16);
@@ -238,6 +240,12 @@ export function applySceneEnvironmentIntensity(root: THREE.Object3D, sceneNode?:
   });
 }
 
+export function applySceneEnvironmentRotation(scene: THREE.Scene, sceneNode?: GraphScene3DNode): void {
+  const yaw = degToRad(sceneNode?.environmentRotation ?? 0);
+  scene.environmentRotation.set(0, yaw, 0);
+  scene.backgroundRotation.set(0, yaw, 0);
+}
+
 function averageCanvasColor(canvas: HTMLCanvasElement): THREE.Color | null {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
@@ -261,11 +269,61 @@ function averageCanvasColor(canvas: HTMLCanvasElement): THREE.Color | null {
   return new THREE.Color(r / count / 255, g / count / 255, b / count / 255);
 }
 
+function textureChannelValue(data: ArrayLike<number>, index: number, texture: THREE.Texture): number {
+  const raw = data[index] ?? 0;
+  if (texture.type === THREE.HalfFloatType) return THREE.DataUtils.fromHalfFloat(raw) || 0;
+  if (texture.type === THREE.FloatType) return raw;
+  return raw / 255;
+}
+
+function tonemapEnvironmentChannel(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return value / (value + 1);
+}
+
+function averageTextureColor(texture: THREE.Texture): THREE.Color | null {
+  const image = texture.image as { data?: ArrayLike<number>; width?: number; height?: number } | undefined;
+  const data = image?.data;
+  const width = image?.width ?? 0;
+  const height = image?.height ?? 0;
+  if (!data || width <= 0 || height <= 0) return null;
+
+  const stride = data.length / (width * height);
+  if (!Number.isFinite(stride) || stride < 3) return null;
+
+  const stepX = Math.max(1, Math.floor(width / 48));
+  const stepY = Math.max(1, Math.floor(height / 24));
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+
+  for (let y = 0; y < height; y += stepY) {
+    for (let x = 0; x < width; x += stepX) {
+      const index = Math.floor((y * width + x) * stride);
+      r += tonemapEnvironmentChannel(textureChannelValue(data, index, texture));
+      g += tonemapEnvironmentChannel(textureChannelValue(data, index + 1, texture));
+      b += tonemapEnvironmentChannel(textureChannelValue(data, index + 2, texture));
+      count += 1;
+    }
+  }
+
+  if (count <= 0) return null;
+  return new THREE.Color(r / count, g / count, b / count);
+}
+
+function averageEnvironmentLightColor(source: SceneEnvironmentLightSource): THREE.Color | null {
+  if (!source) return null;
+  return typeof HTMLCanvasElement !== 'undefined' && source instanceof HTMLCanvasElement
+    ? averageCanvasColor(source)
+    : averageTextureColor(source as THREE.Texture);
+}
+
 export function addModelSceneLights(
   scene: THREE.Object3D,
   layer: ModelLayer,
   sceneNode?: GraphScene3DNode,
-  environmentCanvas?: HTMLCanvasElement | null,
+  environmentSource?: SceneEnvironmentLightSource,
 ): void {
   const accent = new THREE.Color(layer.accentColor);
   const ambientIntensity = (sceneNode?.ambientIntensity ?? 115) / 100;
@@ -281,9 +339,10 @@ export function addModelSceneLights(
   const keyZ = Math.cos(elevation) * Math.cos(azimuth) * radius;
 
   scene.add(new THREE.AmbientLight(0xf4ece4, ambientIntensity));
-  const environmentColor = environmentCanvas ? averageCanvasColor(environmentCanvas) : null;
+  const environmentColor = averageEnvironmentLightColor(environmentSource);
   if (environmentColor && environmentStrength > 0) {
-    scene.add(new THREE.AmbientLight(environmentColor, environmentStrength));
+    scene.add(new THREE.HemisphereLight(environmentColor, 0x1b1118, environmentStrength * 0.85));
+    scene.add(new THREE.AmbientLight(environmentColor, environmentStrength * 0.45));
   }
 
   const keyLight = new THREE.DirectionalLight(accent, keyIntensity);
@@ -411,6 +470,7 @@ export async function renderModelSceneToCanvas(
       scene.environment = environmentMap.environment;
       if (sceneNode && !sceneNode.transparent) scene.background = environmentMap.background;
     }
+    applySceneEnvironmentRotation(scene, sceneNode);
     applySceneEnvironmentIntensity(modelRoot, sceneNode);
     const camera = createPrimitiveCamera(renderCanvas.width / renderCanvas.height);
     const effectiveViewState: PrimitiveViewportState = viewState ?? {
@@ -424,7 +484,7 @@ export async function renderModelSceneToCanvas(
       ...effectiveViewState,
       zoom: clamp(effectiveViewState.zoom, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX),
     });
-    addModelSceneLights(scene, layer, sceneNode, options.environmentCanvas);
+    addModelSceneLights(scene, layer, sceneNode, environmentMap?.background ?? options.environmentCanvas);
     applyModelTransform(group, effectiveViewState, layer.tiltZ);
     scene.add(group);
 

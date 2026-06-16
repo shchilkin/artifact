@@ -14,6 +14,7 @@ import {
   applyModelFallbackMaterials,
   applyModelTransform,
   applySceneEnvironmentIntensity,
+  applySceneEnvironmentRotation,
   applySceneMaterialMode,
   disposeObject3D,
   loadSceneEnvironmentMap,
@@ -42,6 +43,7 @@ interface Props {
   className?: string;
   interactive?: boolean;
   environmentSource?: string | null;
+  autoRotatePreview?: boolean;
 }
 
 type ModelDragState = {
@@ -55,6 +57,7 @@ type ModelDragState = {
 const ROTATE_STEP = 8;
 const PAN_STEP = 0.12;
 const ZOOM_STEP = 0.14;
+const AUTO_ROTATE_DEGREES_PER_MS = 0.018;
 
 function stopViewportEvent(event: Event, preventDefault = false) {
   event.stopPropagation();
@@ -201,10 +204,11 @@ function replaceSceneLights(
   previousLights: THREE.Group | null,
   layer: ModelLayer,
   sceneNode?: GraphScene3DNode,
+  environmentMap?: SceneEnvironmentMap | null,
 ) {
   if (previousLights) scene.remove(previousLights);
   const lights = new THREE.Group();
-  addModelSceneLights(lights, layer, sceneNode);
+  addModelSceneLights(lights, layer, sceneNode, environmentMap?.background ?? null);
   scene.add(lights);
   return lights;
 }
@@ -224,6 +228,7 @@ function applyLiveSceneSettings(
   renderer.toneMappingExposure = Math.max(0, (sceneNode?.exposure ?? 100) / 100);
   scene.environment = environmentMap?.environment ?? null;
   scene.background = environmentMap && sceneNode && !sceneNode.transparent ? environmentMap.background : null;
+  applySceneEnvironmentRotation(scene, sceneNode);
   if (modelRoot) applySceneEnvironmentIntensity(modelRoot, sceneNode);
 }
 
@@ -236,6 +241,7 @@ export function ModelViewport3D({
   className,
   interactive = true,
   environmentSource = null,
+  autoRotatePreview = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -249,22 +255,28 @@ export function ModelViewport3D({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const dragStateRef = useRef<ModelDragState | null>(null);
   const viewStateRef = useRef(viewState);
+  const autoRotateOffsetRef = useRef(0);
   const layerRef = useRef(layer);
   const sceneNodeRef = useRef(sceneNode);
   const environmentSourceRef = useRef(environmentSource);
   const onViewStateChangeRef = useRef(onViewStateChange);
   const onViewStateDraftRef = useRef(onViewStateDraft);
   const interactiveRef = useRef(interactive);
+  const autoRotatePreviewRef = useRef(autoRotatePreview);
   const lockedRef = useRef(!!viewState.locked);
   const rfPaneRef = useRef<HTMLElement | null>(null);
   const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRenderedFrameRef = useRef(false);
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [environmentFailed, setEnvironmentFailed] = useState(false);
+  const [autoRotateVisible, setAutoRotateVisible] = useState(false);
   const modelSignature = [layer.modelSrc, layer.color, layer.accentColor].join(':');
   const sceneMaterialSignature = materialSignature(sceneNode);
   const sceneEnvironmentSignature = environmentSignature(sceneNode, environmentSource);
+  const autoRotateShouldRun =
+    autoRotatePreview && (autoRotateVisible || (typeof window !== 'undefined' && !('IntersectionObserver' in window)));
 
   const renderScene = useCallback(() => {
     const renderer = rendererRef.current;
@@ -272,12 +284,15 @@ export function ModelViewport3D({
     const camera = cameraRef.current;
     if (!renderer || !scene || !camera) return;
     renderer.render(scene, camera);
-    setHasRenderedFrame(true);
+    if (!hasRenderedFrameRef.current) {
+      hasRenderedFrameRef.current = true;
+      setHasRenderedFrame(true);
+    }
   }, []);
 
-  const applyViewState = useCallback(
-    (next: PrimitiveViewportState) => {
-      viewStateRef.current = next;
+  const renderViewState = useCallback(
+    (next: PrimitiveViewportState, updateRef = true) => {
+      if (updateRef) viewStateRef.current = next;
       const camera = cameraRef.current;
       if (camera) applyViewStateToCamera(camera, { ...next, zoom: clamp(next.zoom, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX) });
       const group = modelGroupRef.current;
@@ -285,6 +300,13 @@ export function ModelViewport3D({
       renderScene();
     },
     [renderScene],
+  );
+
+  const applyViewState = useCallback(
+    (next: PrimitiveViewportState) => {
+      renderViewState(next, true);
+    },
+    [renderViewState],
   );
 
   const lockRFPane = useCallback(() => {
@@ -326,17 +348,25 @@ export function ModelViewport3D({
     onViewStateChangeRef.current = onViewStateChange;
     onViewStateDraftRef.current = onViewStateDraft;
     interactiveRef.current = interactive;
+    autoRotatePreviewRef.current = autoRotatePreview;
     lockedRef.current = !!viewState.locked;
     if (viewState.locked) unlockRFPane();
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
     if (renderer && scene) {
-      sceneLightsRef.current = replaceSceneLights(scene, sceneLightsRef.current, layer, sceneNode);
+      sceneLightsRef.current = replaceSceneLights(
+        scene,
+        sceneLightsRef.current,
+        layer,
+        sceneNode,
+        environmentMapRef.current,
+      );
       applyLiveSceneSettings(renderer, scene, modelRootRef.current, sceneNode, environmentMapRef.current);
     }
     applyViewState(viewState);
   }, [
     applyViewState,
+    autoRotatePreview,
     environmentSource,
     interactive,
     layer,
@@ -346,6 +376,53 @@ export function ModelViewport3D({
     unlockRFPane,
     viewState,
   ]);
+
+  useEffect(() => {
+    if (!autoRotatePreview) return;
+    const root = rootRef.current;
+    if (!root) return;
+    if (!('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setAutoRotateVisible(Boolean(entry?.isIntersecting));
+      },
+      { threshold: 0.01 },
+    );
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [autoRotatePreview]);
+
+  useEffect(() => {
+    if (!autoRotateShouldRun) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let frameId = 0;
+    let previousFrameTime = performance.now();
+    const renderAutoRotateFrame = (time: number) => {
+      const delta = Math.min(48, Math.max(0, time - previousFrameTime));
+      previousFrameTime = time;
+      if (
+        autoRotatePreviewRef.current &&
+        !document.hidden &&
+        !dragStateRef.current &&
+        rendererRef.current &&
+        sceneRef.current &&
+        cameraRef.current &&
+        modelGroupRef.current
+      ) {
+        autoRotateOffsetRef.current = (autoRotateOffsetRef.current + delta * AUTO_ROTATE_DEGREES_PER_MS) % 360;
+        renderViewState(
+          {
+            ...viewStateRef.current,
+            rotationY: viewStateRef.current.rotationY + autoRotateOffsetRef.current,
+          },
+          false,
+        );
+      }
+      frameId = window.requestAnimationFrame(renderAutoRotateFrame);
+    };
+    frameId = window.requestAnimationFrame(renderAutoRotateFrame);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [autoRotateShouldRun, renderViewState]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -374,7 +451,7 @@ export function ModelViewport3D({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     cameraRef.current = createPrimitiveCamera();
-    sceneLightsRef.current = replaceSceneLights(scene, null, currentLayer, sceneNodeRef.current);
+    sceneLightsRef.current = replaceSceneLights(scene, null, currentLayer, sceneNodeRef.current, null);
     applyLiveSceneSettings(renderer, scene, null, sceneNodeRef.current, null);
     const resize = () => {
       if (!rendererRef.current || !cameraRef.current) return;
@@ -389,6 +466,7 @@ export function ModelViewport3D({
     setWebglUnavailable(false);
     setLoadFailed(false);
     setEnvironmentFailed(false);
+    hasRenderedFrameRef.current = false;
     setHasRenderedFrame(false);
     const nextEnvironmentSource = environmentSourceRef.current ?? sceneNodeRef.current?.environmentSrc;
     loadSceneEnvironmentMap(renderer, nextEnvironmentSource)
@@ -398,6 +476,13 @@ export function ModelViewport3D({
           return;
         }
         environmentMapRef.current = environmentMap;
+        sceneLightsRef.current = replaceSceneLights(
+          scene,
+          sceneLightsRef.current,
+          layerRef.current,
+          sceneNodeRef.current,
+          environmentMap,
+        );
         applyLiveSceneSettings(renderer, scene, modelRootRef.current, sceneNodeRef.current, environmentMap);
         renderScene();
       })

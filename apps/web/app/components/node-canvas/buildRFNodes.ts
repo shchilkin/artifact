@@ -20,6 +20,7 @@ import type {
   ColorNodeData,
   EnvironmentNodeData,
   ExportNodeData,
+  FallbackNodeData,
   GrimeShadowNodeData,
   LayerNodeData,
   MaskNodeData,
@@ -28,6 +29,19 @@ import type {
   Scene3DNodeData,
   TransformNodeData,
 } from './types';
+
+const SUPPORTED_LAYER_KINDS = new Set([
+  'text',
+  'image',
+  'emoji',
+  'effect',
+  'fill',
+  'primitive',
+  'noise',
+  'array',
+  'lineField',
+  'model',
+]);
 
 export function buildRFNodes(
   doc: CanvasDocument,
@@ -83,6 +97,17 @@ function commonNodeData(id: string, context: BuildRFNodeContext) {
 }
 
 function buildLayerRFNode(layer: Layer, index: number, context: BuildRFNodeContext): RFNode {
+  if (!SUPPORTED_LAYER_KINDS.has((layer as { kind?: string }).kind ?? '')) {
+    return buildFallbackRFNode(
+      {
+        id: (layer as { id?: string }).id ?? `unsupported-layer-${index}`,
+        name: (layer as { name?: string }).name ?? 'Unsupported node',
+        label: (layer as { kind?: string }).kind ? `${(layer as { kind?: string }).kind}` : 'unsupported',
+      },
+      index,
+      context,
+    );
+  }
   const primitiveData =
     layer.kind === 'primitive' || layer.kind === 'model' ? layerPrimitiveData(layer.id, context) : {};
   return {
@@ -98,6 +123,30 @@ function buildLayerRFNode(layer: Layer, index: number, context: BuildRFNodeConte
       ...commonNodeData(layer.id, context),
       ...primitiveData,
     } satisfies LayerNodeData,
+  };
+}
+
+function buildFallbackRFNode(
+  node: { id: string; name: string; label: string },
+  index: number,
+  context: BuildRFNodeContext,
+): RFNode {
+  return {
+    id: node.id,
+    type: 'fallbackNode',
+    position: context.graph.positions[node.id] ?? {
+      x: index * (NODE_W + 56),
+      y: 80,
+    },
+    selected: context.selectedNodeIds.has(node.id),
+    data: {
+      id: node.id,
+      name: node.name,
+      label: node.label,
+      selected: context.selectedNodeIds.has(node.id),
+      outputPath: context.outputPathNodeIds.has(node.id),
+      editing: context.editorNodeId === node.id,
+    } satisfies FallbackNodeData,
   };
 }
 

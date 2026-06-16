@@ -46,6 +46,7 @@ export default defineConfig({
     cwd: './apps/web',
     env: {
       ...process.env,
+      VITE_AI_API_BASE_URL: 'http://127.0.0.1:4173',
       VITE_CLERK_PUBLISHABLE_KEY: '',
     },
     url: 'http://127.0.0.1:4173',

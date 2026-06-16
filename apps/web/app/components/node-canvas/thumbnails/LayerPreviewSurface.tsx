@@ -429,13 +429,9 @@ function primitiveLayerPreviewSurface({
   );
 }
 
-function modelLayerPreviewSurface({
-  layer,
-  selected,
-  primitiveViewState,
-}: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected' | 'primitiveViewState'>) {
+function modelLayerPreviewSurface({ layer, selected }: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected'>) {
   if (layer.kind !== 'model') return null;
-  return <ModelPreviewSurface layer={layer} selected={selected} modelViewState={primitiveViewState} />;
+  return <ModelPreviewSurface layer={layer} selected={selected} />;
 }
 
 function GalleryLayerPreviewSurface({
@@ -551,7 +547,6 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const modelSurface = modelLayerPreviewSurface({
     layer,
     selected,
-    primitiveViewState,
   });
   if (modelSurface) return modelSurface;
   if (isGalleryEligibleLayer(layer)) {

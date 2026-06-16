@@ -54,6 +54,7 @@ import {
   ColorNodeComponent,
   EnvironmentNodeComponent,
   ExportNodeComponent,
+  FallbackNodeComponent,
   GrimeShadowNodeComponent,
   LayerNodeComponent,
   MaskNodeComponent,
@@ -83,6 +84,7 @@ const nodeTypes = {
   scene3dNode: Scene3DNodeComponent,
   environmentNode: EnvironmentNodeComponent,
   exportNode: ExportNodeComponent,
+  fallbackNode: FallbackNodeComponent,
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
@@ -126,6 +128,7 @@ export function NodeCanvas({
   onExport,
   onAddLayerAt,
   onImageFileDrop,
+  onReplaceEnvironmentNodeFile,
   onDeleteNodes,
   onDuplicateLayer,
 }: NodeCanvasProps) {
@@ -556,6 +559,7 @@ export function NodeCanvas({
             onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
             onUpdateScene3DNode={onUpdateScene3DNode}
             onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+            onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
             onExport={onExport}
@@ -927,7 +931,7 @@ function NodeGalleryHeader({ displayLayer, hint }: { displayLayer: Layer; hint: 
 
 function gallerySubtitle(layer: Layer) {
   if (layer.kind === 'primitive') return 'Interactive primitive viewport';
-  if (layer.kind === 'model') return 'Interactive model viewport';
+  if (layer.kind === 'model') return 'Model asset preview';
   return `${layer.kind} preview`;
 }
 
@@ -965,13 +969,7 @@ function NodeGalleryViewport({
     );
   }
   if (displayLayer.kind === 'model') {
-    return (
-      <ModelGalleryViewport
-        displayLayer={displayLayer}
-        primitiveViewState={primitiveViewState}
-        onPrimitiveViewChange={onPrimitiveViewChange}
-      />
-    );
+    return <ModelGalleryViewport displayLayer={displayLayer} primitiveViewState={primitiveViewState} />;
   }
   return (
     <CanvasGalleryViewport
@@ -1013,18 +1011,18 @@ function PrimitiveGalleryViewport({
 function ModelGalleryViewport({
   displayLayer,
   primitiveViewState,
-  onPrimitiveViewChange,
 }: {
   displayLayer: Extract<Layer, { kind: 'model' }>;
   primitiveViewState: PrimitiveViewportState | null;
-  onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
-  if (!primitiveViewState) return null;
+  const viewState = primitiveViewState ?? defaultPrimitiveViewportState(displayLayer);
   return (
     <ModelViewport3D
       layer={displayLayer}
-      viewState={primitiveViewState}
-      onViewStateChange={(next) => onPrimitiveViewChange(displayLayer.id, next)}
+      viewState={viewState}
+      interactive={false}
+      autoRotatePreview
+      onViewStateChange={() => undefined}
       className="node-primitive-preview"
     />
   );

@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useMemo, useState } from 'react';
 import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../components/PrimitiveViewportState';
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
+import type { DocumentUpdateMode } from '../../utils/documentHistory';
 import { inferLinearGraph } from '../../utils/nodeGraph';
 
 export function useEditorPrimitiveExportState({
@@ -10,7 +11,7 @@ export function useEditorPrimitiveExportState({
 }: {
   doc: CanvasDocument;
   docRef: RefObject<CanvasDocument>;
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
 }) {
   const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
 
@@ -27,13 +28,13 @@ export function useEditorPrimitiveExportState({
   );
 
   const handlePrimitiveViewStatesChange = useCallback(
-    (next: Record<string, PrimitiveViewportState>) => {
+    (next: Record<string, PrimitiveViewportState>, mode: DocumentUpdateMode = 'debounce') => {
       setPrimitiveViewStates((current) => (primitiveViewStateMapsEqual(current, next) ? current : next));
       const currentDoc = docRef.current;
       const graph = currentDoc.graph ?? inferLinearGraph(currentDoc.layers);
       const currentPersisted = graph.primitiveViewStates ?? {};
       if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
-      onGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) });
+      onGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) }, mode);
     },
     [docRef, onGraphChange],
   );

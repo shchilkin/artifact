@@ -1,9 +1,96 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 
 import type { GraphScene3DNode } from '../../../types/config';
+import { NoPan } from '../nodes/NoPan';
 import { InspectorSection, InspectorSelect, InspectorSlider, InspectorTextInput, InspectorToggle } from './fields';
 
 type Scene3DSection = 'scene' | 'material' | 'environment' | 'light';
+
+type Scene3DRigPreset = {
+  id: string;
+  name: string;
+  summary: string;
+  patch: Partial<GraphScene3DNode>;
+};
+
+export const SCENE3D_RIG_PRESETS: readonly Scene3DRigPreset[] = [
+  {
+    id: 'product',
+    name: 'Product light',
+    summary: 'Balanced key with soft fill',
+    patch: {
+      materialMode: 'original',
+      exposure: 118,
+      ambientIntensity: 105,
+      keyAzimuth: 35,
+      keyElevation: 36,
+      keyIntensity: 150,
+      fillIntensity: 72,
+      rimIntensity: 46,
+    },
+  },
+  {
+    id: 'console',
+    name: 'Flat console',
+    summary: 'Even light for palette work',
+    patch: {
+      materialMode: 'clay',
+      exposure: 112,
+      ambientIntensity: 150,
+      keyAzimuth: 20,
+      keyElevation: 48,
+      keyIntensity: 88,
+      fillIntensity: 108,
+      rimIntensity: 24,
+    },
+  },
+  {
+    id: 'harsh',
+    name: 'Harsh key',
+    summary: 'Deep PS-era shadow',
+    patch: {
+      materialMode: 'original',
+      exposure: 126,
+      ambientIntensity: 34,
+      keyAzimuth: -42,
+      keyElevation: 22,
+      keyIntensity: 220,
+      fillIntensity: 16,
+      rimIntensity: 74,
+    },
+  },
+  {
+    id: 'backlit',
+    name: 'Backlit',
+    summary: 'Rim-heavy silhouette',
+    patch: {
+      materialMode: 'original',
+      exposure: 120,
+      ambientIntensity: 58,
+      keyAzimuth: 150,
+      keyElevation: 30,
+      keyIntensity: 82,
+      fillIntensity: 28,
+      rimIntensity: 160,
+    },
+  },
+  {
+    id: 'unlit',
+    name: 'Clay unlit',
+    summary: 'Shape check, no drama',
+    patch: {
+      materialMode: 'unlit',
+      exposure: 100,
+      ambientIntensity: 160,
+      keyAzimuth: 0,
+      keyElevation: 45,
+      keyIntensity: 0,
+      fillIntensity: 0,
+      rimIntensity: 0,
+    },
+  },
+];
 
 function compactPercent(value: number | undefined, fallback = 100) {
   return `${Math.round(value ?? fallback)}%`;
@@ -19,6 +106,37 @@ function materialSummary(scene3dNode: GraphScene3DNode) {
   if (scene3dNode.materialMode === 'clay') return 'Clay material';
   if (scene3dNode.materialMode === 'unlit') return 'Texture only';
   return 'Original materials';
+}
+
+function activeRigPresetId(scene3dNode: GraphScene3DNode) {
+  return SCENE3D_RIG_PRESETS.find((preset) =>
+    Object.entries(preset.patch).every(([key, value]) => scene3dNode[key as keyof GraphScene3DNode] === value),
+  )?.id;
+}
+
+function RigPresetButtons({
+  activePresetId,
+  onSelect,
+}: {
+  activePresetId?: string;
+  onSelect: (patch: Partial<GraphScene3DNode>) => void;
+}) {
+  return (
+    <div className="scene3d-rig-presets" aria-label="Scene light rig presets">
+      {SCENE3D_RIG_PRESETS.map((preset) => (
+        <NoPan
+          as="button"
+          type="button"
+          key={preset.id}
+          className={`scene3d-rig-preset${preset.id === activePresetId ? ' scene3d-rig-preset-active' : ''}`}
+          onClick={() => onSelect(preset.patch)}
+        >
+          <span>{preset.name}</span>
+          <small>{preset.summary}</small>
+        </NoPan>
+      ))}
+    </div>
+  );
 }
 
 function LightCompass({ azimuth, elevation }: { azimuth: number; elevation: number }) {
@@ -53,6 +171,7 @@ export function Scene3DInspector({
   detached?: boolean;
 }) {
   const [openSection, setOpenSection] = useState<Scene3DSection>('environment');
+  const activePresetId = activeRigPresetId(scene3dNode);
   const toggleSection = (section: Scene3DSection) => {
     setOpenSection((current) => (current === section ? 'scene' : section));
   };
@@ -99,7 +218,9 @@ export function Scene3DInspector({
       </InspectorSection>
       <InspectorSection
         title="Environment"
-        summary={`${environmentSummary(scene3dNode)} / ${compactPercent(scene3dNode.environmentStrength)}`}
+        summary={`${environmentSummary(scene3dNode)} / ${compactPercent(scene3dNode.environmentStrength)} / ${Math.round(
+          scene3dNode.environmentRotation,
+        )} deg`}
         open={openSection === 'environment'}
         onToggle={() => toggleSection('environment')}
       >
@@ -122,6 +243,13 @@ export function Scene3DInspector({
           overrideMax={500}
           onChange={(environmentStrength) => onChange({ environmentStrength })}
         />
+        <InspectorSlider
+          label="Env rotation"
+          value={scene3dNode.environmentRotation}
+          min={-180}
+          max={180}
+          onChange={(environmentRotation) => onChange({ environmentRotation })}
+        />
       </InspectorSection>
       <InspectorSection
         title="Light Rig"
@@ -129,6 +257,7 @@ export function Scene3DInspector({
         open={openSection === 'light'}
         onToggle={() => toggleSection('light')}
       >
+        <RigPresetButtons activePresetId={activePresetId} onSelect={(patch) => onChange(patch)} />
         <LightCompass azimuth={scene3dNode.keyAzimuth} elevation={scene3dNode.keyElevation} />
         <InspectorSlider
           label="Ambient"

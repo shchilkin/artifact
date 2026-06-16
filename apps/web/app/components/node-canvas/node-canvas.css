@@ -672,22 +672,65 @@
   padding: 8px 0 2px;
   color: var(--node-text-dim);
   font-family: var(--mono);
-  font-size: 9px;
-  line-height: 1.45;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
 }
 
 .node-inspector-readout strong {
   color: var(--node-text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   overflow-wrap: anywhere;
+  text-transform: uppercase;
 }
 
 .node-inspector-readout small {
   color: var(--node-text-dim);
+  font-size: 10px;
+}
+
+.scene3d-rig-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scene3d-rig-preset {
+  display: grid;
+  gap: 4px;
+  min-height: 54px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--surface-bg) 82%, transparent);
+  color: var(--node-text);
+  cursor: pointer;
+  font-family: var(--mono);
+  line-height: 1.25;
+  text-align: left;
+}
+
+.scene3d-rig-preset:hover,
+.scene3d-rig-preset:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.scene3d-rig-preset-active {
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 10%, var(--surface-bg));
+}
+
+.scene3d-rig-preset span {
   font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.scene3d-rig-preset small {
+  color: var(--node-text-dim);
+  font-size: 10px;
+  letter-spacing: 0;
 }
 
 .scene3d-light-map {
@@ -772,9 +815,7 @@
   min-height: 148px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background:
-    linear-gradient(135deg, color-mix(in oklch, var(--accent) 28%, transparent), transparent 42%),
-    linear-gradient(225deg, color-mix(in oklch, #79e3c5 22%, transparent), transparent 46%), var(--surface-input);
+  background: color-mix(in oklch, var(--surface-input) 88%, var(--panel-bg));
   color: var(--node-text);
   font-family: var(--mono);
   text-transform: uppercase;
@@ -811,7 +852,10 @@
 .node-environment-preview-idle .node-environment-preview-meta {
   top: 0;
   align-content: center;
-  background: transparent;
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--border) 64%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in oklch, var(--border) 64%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 .node-environment-preview-meta span {
@@ -829,6 +873,14 @@
   letter-spacing: 0.05em;
 }
 
+.node-fallback-empty {
+  min-height: 160px;
+  border-top: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
+  background:
+    repeating-linear-gradient(-45deg, color-mix(in oklch, var(--panel-bg) 42%, transparent) 0 8px, transparent 8px 16px),
+    color-mix(in oklch, var(--surface-bg) 88%, var(--panel-bg));
+}
+
 .node-inspector-section {
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -838,8 +890,8 @@
 
 .node-inspector-section-open {
   border-color: var(--border-strong);
-  background: color-mix(in oklch, var(--panel-raised) 86%, var(--accent) 4%);
-  box-shadow: inset 2px 0 0 color-mix(in oklch, var(--accent) 72%, transparent);
+  background: color-mix(in oklch, var(--panel-raised) 92%, var(--accent) 2%);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--accent) 48%, transparent);
 }
 
 .node-section-button {
@@ -946,6 +998,69 @@
   color: var(--accent);
 }
 
+.node-inspector-action:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.environment-load-action {
+  width: 100%;
+}
+
+.node-hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.retro-recipe-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--surface-input) 72%, transparent);
+  color: var(--node-text-dim);
+  font-family: var(--mono);
+}
+
+.retro-recipe-kicker {
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.retro-recipe-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.retro-recipe-main strong {
+  color: var(--node-text);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.retro-recipe-main span {
+  color: var(--node-text-dim);
+  font-size: 9px;
+}
+
+.retro-recipe-card p {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+}
+
 .node-slider {
   accent-color: var(--accent);
   width: 100%;
@@ -1021,10 +1136,9 @@
 .indexed-palette-panel-note {
   color: var(--node-text-dim);
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
-  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
 }
 
 .indexed-palette-random {
@@ -1067,7 +1181,7 @@
   color: var(--node-text);
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.05em;
   line-height: 1.15;
   text-align: left;

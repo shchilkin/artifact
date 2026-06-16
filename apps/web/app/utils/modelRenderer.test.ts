@@ -1,7 +1,8 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { makeSourceLayer } from '../types/config';
-import { modelRendererTestInternals, renderModelToCanvas } from './modelRenderer';
+import { makeGraphScene3DNode, makeSourceLayer } from '../types/config';
+import { addModelSceneLights, modelRendererTestInternals, renderModelToCanvas } from './modelRenderer';
 
 function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -34,5 +35,26 @@ describe('renderModelToCanvas', () => {
     const buffer = modelRendererTestInternals.dataUrlToArrayBuffer('data:model/gltf-binary;base64,AQIDBA==');
 
     expect(Array.from(new Uint8Array(buffer ?? new ArrayBuffer(0)))).toEqual([1, 2, 3, 4]);
+  });
+
+  it('uses HDR texture color as environment light when strength is enabled', () => {
+    const scene = new THREE.Scene();
+    const texture = new THREE.DataTexture(
+      new Float32Array([4, 0.1, 0.05, 1, 3, 0.1, 0.05, 1, 2, 0.1, 0.05, 1, 4, 0.1, 0.05, 1]),
+      2,
+      2,
+      THREE.RGBAFormat,
+      THREE.FloatType,
+    );
+    const layer = makeSourceLayer('model', { color: '#d7a66a', accentColor: '#ff6b48' });
+
+    addModelSceneLights(scene, layer, makeGraphScene3DNode({ environmentStrength: 150 }), texture);
+
+    const environmentLight = scene.children.find(
+      (child): child is THREE.HemisphereLight => child instanceof THREE.HemisphereLight,
+    );
+    expect(environmentLight).toBeDefined();
+    expect(environmentLight?.color.r).toBeGreaterThan(environmentLight?.color.g ?? 1);
+    expect(environmentLight?.intensity).toBeGreaterThan(1);
   });
 });

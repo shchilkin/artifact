@@ -184,6 +184,7 @@ export function scene3DNodeRenderSig(node: GraphScene3DNode): string {
     node.transparent,
     node.exposure,
     node.environmentStrength,
+    node.environmentRotation,
     node.ambientIntensity,
     node.keyAzimuth,
     node.keyElevation,

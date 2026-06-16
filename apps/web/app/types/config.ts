@@ -220,6 +220,7 @@ export type EffectPreset =
   | 'blur'
   | 'threshold'
   | 'edgeCrush'
+  | 'silhouetteCrush'
   | 'edgeDetect'
   | 'gradientOverlay'
   | 'sepia'
@@ -296,6 +297,7 @@ export interface EffectLayer extends BaseLayer {
   blurAmt: number;
   threshold: number;
   edgeCrush: number;
+  silhouetteCrush: number;
   edgeDetect: number;
   gradMix: number;
   gradA: string;
@@ -463,6 +465,7 @@ export interface GraphScene3DNode {
   transparent: boolean;
   exposure: number;
   environmentStrength: number;
+  environmentRotation: number;
   ambientIntensity: number;
   keyAzimuth: number;
   keyElevation: number;
@@ -631,6 +634,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   blurAmt: 0,
   threshold: 0,
   edgeCrush: 0,
+  silhouetteCrush: 0,
   edgeDetect: 0,
   gradMix: 0,
   gradA: '#0a0020',
@@ -1031,10 +1035,16 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     partial: { ...ZERO_EFFECT, threshold: 50 },
   },
   edgeCrush: {
-    name: 'Edge Crush',
+    name: 'Alpha Crush',
     icon: '◈',
     primary: 'edgeCrush',
     partial: { ...ZERO_EFFECT, edgeCrush: 55 },
+  },
+  silhouetteCrush: {
+    name: 'Silhouette Crush',
+    icon: '◆',
+    primary: 'silhouetteCrush',
+    partial: { ...ZERO_EFFECT, silhouetteCrush: 55 },
   },
   edgeDetect: {
     name: 'Edge Detect',
@@ -1238,6 +1248,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'blur',
   'threshold',
   'edgeCrush',
+  'silhouetteCrush',
   'edgeDetect',
   'gradientOverlay',
 ];
@@ -1391,7 +1402,8 @@ export function makeGraphScene3DNode(partial: Partial<GraphScene3DNode> = {}): G
     materialMode: 'original',
     transparent: true,
     exposure: 100,
-    environmentStrength: 0,
+    environmentStrength: 100,
+    environmentRotation: 0,
     ambientIntensity: 115,
     keyAzimuth: 38,
     keyElevation: 42,

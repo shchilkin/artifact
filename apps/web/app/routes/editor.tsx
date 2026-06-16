@@ -16,6 +16,7 @@ import { useEditorDocument } from '../hooks/useEditorDocument';
 import { useEditorExport } from '../hooks/useEditorExport';
 import { useEditorProjectsController } from '../hooks/useEditorProjectsController';
 import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
+import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
 import { getStarterDocument } from '../utils/starterDocuments';
 import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
 import { useEditorPanels } from './editor/useEditorPanels';
@@ -23,6 +24,7 @@ import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExport
 import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
+const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
 
 function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
@@ -54,6 +56,7 @@ export default function Editor() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // fallow-ignore-next-line code-duplication
@@ -111,6 +114,32 @@ export default function Editor() {
     addModelFromAsset,
     addEnvironmentFromAsset,
     storeImageAssetSource,
+  );
+
+  const handleReplaceEnvironmentNodeFile = useCallback(
+    async (id: string, file: File) => {
+      setEnvironmentFileError(null);
+      if (!isSupportedEnvironmentFile(file)) {
+        setEnvironmentFileError('Use an EXR or HDR environment map.');
+        return;
+      }
+      if (file.size > MAX_ENVIRONMENT_BYTES) {
+        setEnvironmentFileError(`Environment too large — max ${MAX_ENVIRONMENT_BYTES / 1024 / 1024}MB`);
+        return;
+      }
+      try {
+        const asset = await saveEnvironmentFileAsset(file);
+        updateEnvironmentNode(id, {
+          environmentSrc: environmentUriFromId(asset.id),
+          environmentName: asset.label,
+          environmentMime: asset.mime,
+          environmentBytes: asset.bytes,
+        });
+      } catch {
+        setEnvironmentFileError('Could not read environment map.');
+      }
+    },
+    [updateEnvironmentNode],
   );
   const {
     effectivePrimitiveViewStates,
@@ -330,6 +359,7 @@ export default function Editor() {
                 doc={doc}
                 imageCache={imageCache}
                 selectedLayerId={selectedLayerId}
+                primitiveViewStates={effectivePrimitiveViewStates}
                 dragOver={canvasDragOver}
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
@@ -364,6 +394,7 @@ export default function Editor() {
                   onUpdateGrimeShadowNode={updateGrimeShadowNode}
                   onUpdateScene3DNode={updateScene3DNode}
                   onUpdateEnvironmentNode={updateEnvironmentNode}
+                  onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}
@@ -377,9 +408,9 @@ export default function Editor() {
             </div>
           )}
 
-          {(dropError || exportError || documentFileError) && (
+          {(dropError || exportError || documentFileError || environmentFileError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
-              {dropError ?? exportError ?? documentFileError}
+              {dropError ?? exportError ?? documentFileError ?? environmentFileError}
             </p>
           )}
           <BottomBar {...bottomBarProps} />
@@ -396,6 +427,7 @@ export default function Editor() {
             onAddTextPreset={addTextPreset}
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
+            onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
             onStartAiImage={handleStartAiImage}
             onLoadStarter={handleLoadStarter}
             onOpenProjects={handleToggleProjects}

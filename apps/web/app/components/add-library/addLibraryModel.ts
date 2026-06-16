@@ -149,7 +149,7 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'graphic',
     description: 'Bold reductions, linework, blur, and gradient finishing.',
-    presets: ['blur', 'threshold', 'edgeCrush', 'edgeDetect', 'gradientOverlay'],
+    presets: ['blur', 'threshold', 'edgeCrush', 'silhouetteCrush', 'edgeDetect', 'gradientOverlay'],
   },
 ];
 
@@ -166,7 +166,8 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   halftone: 'print dots poster damage',
   tear: 'rip paper damage glitch',
   threshold: 'black white damage print cutoff',
-  edgeCrush: 'edge crush hard alpha jagged sprite pixel silhouette antialias',
+  edgeCrush: 'alpha crush hard alpha antialias transparent edge jagged sprite',
+  silhouetteCrush: 'silhouette crush edge crush jagged sprite pixel cutout alpha mask',
   retroResolution: 'retro resolution low-res low resolution ps1 old game pixel scale export',
   indexedPalette: 'indexed palette color count low color old game ps1 palette swatches',
   pixelate: 'pixel block low-res low resolution low res mosaic popular',
@@ -185,7 +186,8 @@ const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
   risoShift: 'Ink misregistration for risograph-style color drift.',
   scanlines: 'CRT-style horizontal bands for monitor and video texture.',
   tear: 'Ripped spatial offset for damaged paper and broken motion.',
-  edgeCrush: 'Hardens antialiased alpha edges into jagged sprite-like silhouettes.',
+  edgeCrush: 'Hardens semi-transparent antialiasing into hard alpha cutout edges.',
+  silhouetteCrush: 'Chips alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
   kaleidoscope: 'Radial mirrored repetition from the center of the image.',
   neonGlow: 'Hot colored bloom around bright pixels and synthetic light.',
 };
@@ -240,7 +242,8 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   overprint: ['print', 'ink'],
   blur: ['graphic', 'soft'],
   threshold: ['graphic', 'cutoff'],
-  edgeCrush: ['graphic', 'edges'],
+  edgeCrush: ['graphic', 'alpha'],
+  silhouetteCrush: ['graphic', 'edges'],
   edgeDetect: ['graphic', 'line'],
   gradientOverlay: ['graphic', 'wash'],
 };
@@ -344,10 +347,10 @@ const layerItems: AddLibraryItem[] = [
     id: 'layer:model',
     label: '3D Model',
     symbol: KIND_SYMBOL.model,
-    description: 'Use an imported GLB model as a source layer.',
+    description: 'Use an imported GLB model as a source node.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'model' },
-    surfaces: ['layers', 'nodes'],
+    surfaces: ['nodes'],
     tags: ['source', '3d'],
     keywords: '3d model glb object import ps1 game mesh source',
   },
@@ -489,10 +492,10 @@ const utilityItems: AddLibraryItem[] = [
     label: '3D Scene',
     symbol: '◌',
     description: 'Render imported models through scene camera, light, and environment controls.',
-    group: 'utility',
+    group: 'source',
     action: { kind: 'scene3d' },
-    surfaces: ['nodes'],
-    tags: ['utility', '3d', 'light'],
+    surfaces: ['layers', 'nodes'],
+    tags: ['scene', '3d', 'light'],
     keywords: '3d scene model hdri environment light lighting camera render glb ps1',
   },
   {
@@ -617,6 +620,7 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'effect:indexedPalette',
       'effect:dotGrain',
       'effect:edgeCrush',
+      'effect:silhouetteCrush',
     ],
   },
 ];

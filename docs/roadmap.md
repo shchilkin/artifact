@@ -19,11 +19,11 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.36 planning has started as a post-v0.35 follow-up for 3D model source
-  nodes and retro-game finishing effects. The plan is intentionally dependency
-  aware because the in-progress v0.35 worktree changes the same document,
-  renderer, Add Library, node canvas, docs, examples, and browser-test surfaces.
-  See [`version-plans/v0.36.md`](./version-plans/v0.36.md).
+- v0.36 has reached release-candidate prep as the 3D Model Sources And Retro
+  Game Effects release: browser model/environment assets, 3D Scene rendering,
+  Layers/Nodes semantics for model inputs, and focused retro finishing effects.
+  See [`version-plans/v0.36.md`](./version-plans/v0.36.md) and
+  [`releases/v0.36.0.md`](./releases/v0.36.0.md).
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
@@ -72,6 +72,14 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.36.md`](./version-plans/v0.36.md) — 3D Model Sources And
+  Retro Game Effects: browser `.glb` model import, model/environment asset
+  persistence, `3D Model`, `Environment Map`, and `3D Scene` node workflows,
+  Layers-mode `3D Scene` target semantics, scene lighting/environment controls,
+  model preview auto-spin, graph/export parity, fallback nodes for unsupported
+  graph records, and focused retro effects including Retro Resolution, Indexed
+  Palette, Dot Grain, Alpha Crush, and Silhouette Crush. Release notes are in
+  [`releases/v0.36.0.md`](./releases/v0.36.0.md).
 - [`version-plans/v0.35.md`](./version-plans/v0.35.md) — Masks, Transforms,
   Rotated Repeats, And Line Fields: Mask, Transform, and Grime Shadow graph
   utility nodes, Line Field source layers, deterministic Repeat per-copy
@@ -185,13 +193,19 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.34:
+Next strong candidates after v0.36:
 
-- **3D Model Sources And Retro Game Effects** — add a supported browser model
-  import path, model source nodes, local model asset persistence, and the
-  missing PS1/old-console finishing effects: internal low-resolution upscale,
-  indexed palette mapping, stronger dither variants, and hard pixel-edge
-  treatment.
+- **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
+  foundation with named old-game palettes, richer deterministic dither
+  families, optional PS1-style material/texture wobble, curated model-source
+  recipes, and deeper Model/Scene docs.
+- **History Performance And Undo Memory Budget** — keep undo/redo responsive as
+  node documents, 3D scene state, and local project payloads grow. Confirm the
+  immutable document-update contract with tests, avoid unnecessary deep clones
+  in history entries where old document references are safe, add a serialized
+  history memory budget on top of the count limit, and evaluate patch/checkpoint
+  history for high-frequency edits such as sliders, transforms, graph movement,
+  and primitive/3D camera state.
 - **Project Autosave History** — add visible automatic save points for the
   active project so recovery, autosave, explicit save, and copy/branch behavior
   are clearly separated.

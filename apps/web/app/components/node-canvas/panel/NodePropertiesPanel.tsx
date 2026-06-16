@@ -43,6 +43,7 @@ interface NodePropertiesPanelProps
     | 'onUpdateGrimeShadowNode'
     | 'onUpdateScene3DNode'
     | 'onUpdateEnvironmentNode'
+    | 'onReplaceEnvironmentNodeFile'
     | 'onUpdateExportConfig'
     | 'onUpdateAspectRatio'
     | 'onExport'
@@ -390,7 +391,8 @@ function Scene3DNodeInspector({
 function EnvironmentNodeInspector({
   node,
   onUpdateEnvironmentNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateEnvironmentNode'> & {
+  onReplaceEnvironmentNodeFile,
+}: Pick<NodePropertiesPanelProps, 'onUpdateEnvironmentNode' | 'onReplaceEnvironmentNodeFile'> & {
   node: GraphEnvironmentNode;
 }) {
   return (
@@ -398,6 +400,7 @@ function EnvironmentNodeInspector({
       key={node.id}
       environmentNode={node}
       onChange={(patch) => onUpdateEnvironmentNode(node.id, patch)}
+      onLoadFile={onReplaceEnvironmentNodeFile ? (file) => onReplaceEnvironmentNodeFile(node.id, file) : undefined}
       detached
     />
   );
@@ -466,6 +469,7 @@ function SelectedNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -482,6 +486,7 @@ function SelectedNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
@@ -506,6 +511,7 @@ function SelectedNodeInspector({
       onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
       onUpdateScene3DNode={onUpdateScene3DNode}
       onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
       onUpdateExportConfig={onUpdateExportConfig}
       onUpdateAspectRatio={onUpdateAspectRatio}
       onExport={onExport}
@@ -524,6 +530,7 @@ function GraphOrExportNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -538,6 +545,7 @@ function GraphOrExportNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
@@ -555,6 +563,7 @@ function GraphOrExportNodeInspector({
         onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
         onUpdateScene3DNode={onUpdateScene3DNode}
         onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+        onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
       />
     );
   return (
@@ -577,6 +586,7 @@ function GraphUtilityNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
 }: Pick<
   NodePropertiesPanelProps,
   | 'onUpdateMergeNode'
@@ -586,6 +596,7 @@ function GraphUtilityNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onReplaceEnvironmentNodeFile'
 > & {
   target: GraphUtilityInspectorTarget;
 }) {
@@ -598,6 +609,7 @@ function GraphUtilityNodeInspector({
     onUpdateGrimeShadowNode,
     onUpdateScene3DNode,
     onUpdateEnvironmentNode,
+    onReplaceEnvironmentNodeFile,
   });
 }
 
@@ -620,8 +632,16 @@ const GRAPH_UTILITY_INSPECTORS = {
   scene3d: ({ target, onUpdateScene3DNode }: GraphUtilityInspectorProps<'scene3d'>) => (
     <Scene3DNodeInspector node={target.node} onUpdateScene3DNode={onUpdateScene3DNode} />
   ),
-  environment: ({ target, onUpdateEnvironmentNode }: GraphUtilityInspectorProps<'environment'>) => (
-    <EnvironmentNodeInspector node={target.node} onUpdateEnvironmentNode={onUpdateEnvironmentNode} />
+  environment: ({
+    target,
+    onUpdateEnvironmentNode,
+    onReplaceEnvironmentNodeFile,
+  }: GraphUtilityInspectorProps<'environment'>) => (
+    <EnvironmentNodeInspector
+      node={target.node}
+      onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+    />
   ),
 };
 
@@ -634,6 +654,7 @@ type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> =
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onReplaceEnvironmentNodeFile'
 > & {
   target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
 };
@@ -652,6 +673,7 @@ function NodePropertiesPanelContent({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -669,6 +691,7 @@ function NodePropertiesPanelContent({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
   | 'onExport'
@@ -704,6 +727,7 @@ function NodePropertiesPanelContent({
           onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
           onUpdateScene3DNode={onUpdateScene3DNode}
           onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}
           onExport={onExport}
@@ -728,6 +752,7 @@ export function NodePropertiesPanel({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -759,6 +784,7 @@ export function NodePropertiesPanel({
           onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
           onUpdateScene3DNode={onUpdateScene3DNode}
           onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}
           onExport={onExport}

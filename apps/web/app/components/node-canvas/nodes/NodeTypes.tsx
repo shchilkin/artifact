@@ -13,6 +13,7 @@ import type {
   ColorNodeData,
   EnvironmentNodeData,
   ExportNodeData,
+  FallbackNodeData,
   GrimeShadowNodeData,
   LayerNodeData,
   MaskNodeData,
@@ -348,6 +349,28 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
         outputs={[{ label: 'environment', portId: 'out', nodeId: environmentNode.id }]}
         connected={connected}
       />
+    </NodeFrame>
+  );
+});
+
+export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data }: NodeProps<FallbackNodeData>) {
+  const { selectNode } = useNodeCanvasActions();
+  const { id, label, name, selected, outputPath, editing } = data;
+
+  return (
+    <NodeFrame
+      id={id}
+      kind="fallback"
+      label={label}
+      name={name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[]}
+      sourceHandles={[]}
+      onSelect={(event) => selectNode(id, event)}
+    >
+      <div className="node-fallback-empty" aria-hidden="true" />
     </NodeFrame>
   );
 });

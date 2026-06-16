@@ -5,6 +5,7 @@ export type EffectPixelTransformOp =
   | { type: 'colorPass'; sepia: number; infrared: number; ca: number; dither: number }
   | { type: 'indexedPalette'; amount: number; colors: string[] }
   | { type: 'edgeCrush'; amount: number }
+  | { type: 'silhouetteCrush'; amount: number }
   | { type: 'vhsTracking'; amount: number; seed: number }
   | { type: 'wave'; amount: number; frequency: number; scale: number }
   | { type: 'solarize'; amount: number }
@@ -94,7 +95,9 @@ export function transformEffectPixels({
     } else if (operation.type === 'indexedPalette') {
       applyIndexedPalette(current, operation.amount, operation.colors);
     } else if (operation.type === 'edgeCrush') {
-      applyEdgeCrush(current, operation.amount);
+      applyEdgeCrush(current, width, height, operation.amount);
+    } else if (operation.type === 'silhouetteCrush') {
+      current = applySilhouetteCrush(current, width, height, operation.amount);
     } else if (operation.type === 'vhsTracking') {
       current = applyVhsTracking(current, width, height, operation.amount, operation.seed);
     } else if (operation.type === 'wave') {
@@ -281,8 +284,9 @@ function nearestPaletteColor(
   return best;
 }
 
-function applyEdgeCrush(data: Uint8ClampedArray, amount: number) {
+function applyEdgeCrush(data: Uint8ClampedArray, width: number, height: number, amount: number) {
   if (amount <= 0) return;
+  const strength = Math.min(1, amount / 100);
   const threshold = 24 + (amount / 100) * 180;
   const feather = Math.max(1, 40 - amount * 0.32);
   for (let i = 0; i < data.length; i += 4) {
@@ -292,6 +296,176 @@ function applyEdgeCrush(data: Uint8ClampedArray, amount: number) {
     const t = Math.min(1, amount / 100 + Math.abs(alpha - threshold) / feather);
     data[i + 3] = clampByte(alpha + (hardAlpha - alpha) * t);
   }
+
+  const trimCutoff = Math.max(0, strength - 0.35) * 0.55;
+  if (trimCutoff <= 0) return;
+
+  const alpha = new Uint8ClampedArray(width * height);
+  for (let i = 0, p = 0; i < data.length; i += 4, p += 1) alpha[p] = data[i + 3] ?? 0;
+  const radius = edgeCrushRadius(width, height, strength);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const p = y * width + x;
+      const i = p * 4;
+      if ((alpha[p] ?? 0) <= 0) continue;
+      if (!hasAlphaNeighbor(alpha, width, height, x, y, false, radius)) continue;
+      if (silhouetteNoise(x, y) < trimCutoff) data[i + 3] = 0;
+    }
+  }
+}
+
+function applySilhouetteCrush(data: Uint8ClampedArray, width: number, height: number, amount: number) {
+  if (amount <= 0) return data;
+  const out = new Uint8ClampedArray(data);
+  const alpha = new Uint8ClampedArray(width * height);
+  for (let i = 0, p = 0; i < data.length; i += 4, p += 1) alpha[p] = data[i + 3] ?? 0;
+
+  const strength = Math.min(1, amount / 100);
+  const removeCutoff = strength * 0.58;
+  const addCutoff = strength * 0.42;
+  const radius = silhouetteCrushRadius(width, height, strength);
+  const cellSize = Math.max(2, Math.round(radius * 1.6));
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const p = y * width + x;
+      const i = p * 4;
+      const ownAlpha = alpha[p] ?? 0;
+      const neighbor = strongestNeighbor(alpha, data, width, height, x, y, radius);
+      const touchesOutside = ownAlpha > 0 && hasAlphaNeighbor(alpha, width, height, x, y, false, radius);
+      const touchesInside = ownAlpha <= 0 && neighbor !== null;
+      const noise = silhouetteNoise(Math.floor(x / cellSize), Math.floor(y / cellSize));
+
+      if (touchesOutside && noise < removeCutoff) {
+        out[i + 3] = 0;
+      } else if (touchesInside && noise > 1 - addCutoff) {
+        out[i] = data[neighbor] ?? 0;
+        out[i + 1] = data[neighbor + 1] ?? 0;
+        out[i + 2] = data[neighbor + 2] ?? 0;
+        out[i + 3] = 255;
+      } else if (ownAlpha > 0) {
+        const colorNeighbor = strongestColorNeighbor(data, width, height, x, y, radius);
+        const contrastThreshold = 30 + (1 - strength) * 45;
+        const chipsColorEdge =
+          colorNeighbor !== null &&
+          colorNeighbor.distance >= contrastThreshold &&
+          (noise < strength * 0.46 || noise > 1 - strength * 0.52);
+
+        if (chipsColorEdge) {
+          const mix = 0.62 + strength * 0.38;
+          out[i] = clampByte((data[i] ?? 0) + ((data[colorNeighbor.index] ?? 0) - (data[i] ?? 0)) * mix);
+          out[i + 1] = clampByte(
+            (data[i + 1] ?? 0) + ((data[colorNeighbor.index + 1] ?? 0) - (data[i + 1] ?? 0)) * mix,
+          );
+          out[i + 2] = clampByte(
+            (data[i + 2] ?? 0) + ((data[colorNeighbor.index + 2] ?? 0) - (data[i + 2] ?? 0)) * mix,
+          );
+        }
+      }
+    }
+  }
+
+  return out;
+}
+
+function hasAlphaNeighbor(
+  alpha: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  visible: boolean,
+  radius = 1,
+) {
+  for (let oy = -radius; oy <= radius; oy += 1) {
+    for (let ox = -radius; ox <= radius; ox += 1) {
+      if (ox === 0 && oy === 0) continue;
+      const nx = x + ox;
+      const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+        if (!visible) return true;
+        continue;
+      }
+      const value = alpha[ny * width + nx] ?? 0;
+      if (visible ? value > 0 : value <= 0) return true;
+    }
+  }
+  return false;
+}
+
+function strongestNeighbor(
+  alpha: Uint8ClampedArray,
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius = 1,
+) {
+  let best: number | null = null;
+  let bestAlpha = 0;
+  for (let oy = -radius; oy <= radius; oy += 1) {
+    for (let ox = -radius; ox <= radius; ox += 1) {
+      if (ox === 0 && oy === 0) continue;
+      const nx = x + ox;
+      const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const p = ny * width + nx;
+      const value = alpha[p] ?? 0;
+      if (value > bestAlpha) {
+        bestAlpha = value;
+        best = p * 4;
+      }
+    }
+  }
+  return bestAlpha > 0 && best !== null && (data[best + 3] ?? 0) > 0 ? best : null;
+}
+
+function strongestColorNeighbor(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius = 1,
+) {
+  const ownIndex = pixelIndex(width, x, y);
+  let best: { index: number; distance: number } | null = null;
+  for (let oy = -radius; oy <= radius; oy += 1) {
+    for (let ox = -radius; ox <= radius; ox += 1) {
+      if (ox === 0 && oy === 0) continue;
+      const nx = x + ox;
+      const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const neighborIndex = pixelIndex(width, nx, ny);
+      if ((data[neighborIndex + 3] ?? 0) <= 0) continue;
+      const distance = colorEdgeDistance(data, ownIndex, neighborIndex);
+      if (best === null || distance > best.distance) best = { index: neighborIndex, distance };
+    }
+  }
+  return best;
+}
+
+function colorEdgeDistance(data: Uint8ClampedArray, a: number, b: number) {
+  const dr = (data[a] ?? 0) - (data[b] ?? 0);
+  const dg = (data[a + 1] ?? 0) - (data[b + 1] ?? 0);
+  const db = (data[a + 2] ?? 0) - (data[b + 2] ?? 0);
+  const lumDelta = Math.abs(0.299 * dr + 0.587 * dg + 0.114 * db);
+  return lumDelta + (Math.abs(dr) + Math.abs(dg) + Math.abs(db)) * 0.22;
+}
+
+function edgeCrushRadius(width: number, height: number, strength: number) {
+  return Math.max(1, Math.min(4, Math.round(Math.min(width, height) * 0.0025 * strength)));
+}
+
+function silhouetteCrushRadius(width: number, height: number, strength: number) {
+  return Math.max(1, Math.min(12, Math.round(Math.min(width, height) * 0.006 * strength)));
+}
+
+function silhouetteNoise(x: number, y: number) {
+  let value = Math.imul(x + 101, 374761393) ^ Math.imul(y + 53, 668265263);
+  value = Math.imul(value ^ (value >>> 13), 1274126177);
+  return ((value ^ (value >>> 16)) >>> 0) / 4294967295;
 }
 
 function applyVhsTracking(data: Uint8ClampedArray, width: number, height: number, amount: number, seed: number) {

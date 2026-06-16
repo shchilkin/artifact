@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
 import { getPreviewDims } from '../types/config';
 import { CanvasHandles } from './CanvasHandles';
+import type { PrimitiveViewportState } from './PrimitiveViewportState';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
 const PREVIEW_RENDER_SCALE = 2;
@@ -16,16 +17,27 @@ interface Props {
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
   selectedLayerId: string | null;
+  primitiveViewStates?: Record<string, PrimitiveViewportState>;
   dragOver?: boolean;
   onLayerUpdate: (id: string, patch: Partial<TextLayer | ImageLayer>) => void;
   onSelectLayer: (id: string | null) => void;
 }
 
-export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLayerUpdate, onSelectLayer }: Props) {
+export function CanvasPreview({
+  doc,
+  imageCache,
+  selectedLayerId,
+  primitiveViewStates,
+  dragOver,
+  onLayerUpdate,
+  onSelectLayer,
+}: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
+  const viewStateCacheKey = useMemo(() => primitiveViewStatesSignature(primitiveViewStates), [primitiveViewStates]);
   const { containerRef } = useDocumentRenderer(doc, imageCache, pw, ph, {
     graphMode: doc.graph ? 'graph' : 'stack',
-    cacheKey: 'layer-preview',
+    primitiveViewStates,
+    cacheKey: `layer-preview:${viewStateCacheKey}`,
     renderScale: PREVIEW_RENDER_SCALE,
     maxRenderDimension: PREVIEW_MAX_RENDER_DIMENSION,
     draftRenderScale: PREVIEW_DRAFT_RENDER_SCALE,
@@ -71,6 +83,26 @@ export function CanvasPreview({ doc, imageCache, selectedLayerId, dragOver, onLa
       </div>
     </div>
   );
+}
+
+function primitiveViewStatesSignature(viewStates: Record<string, PrimitiveViewportState> | undefined) {
+  if (!viewStates) return 'none';
+  const entries = Object.entries(viewStates);
+  if (entries.length === 0) return 'none';
+  return entries
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, viewState]) =>
+      [
+        id,
+        viewState.rotationX,
+        viewState.rotationY,
+        viewState.zoom,
+        viewState.panX,
+        viewState.panY,
+        viewState.locked ? 1 : 0,
+      ].join(':'),
+    )
+    .join('|');
 }
 
 function isTransformablePreviewLayer(

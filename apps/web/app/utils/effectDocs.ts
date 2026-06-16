@@ -25,7 +25,7 @@ export const EFFECT_FAMILY_GUIDE = [
   },
   {
     name: 'Print',
-    desc: 'Halftone, riso shift, overprint, posterize, threshold, edge crush, and linocut push artwork toward poster production.',
+    desc: 'Halftone, riso shift, overprint, posterize, threshold, alpha/silhouette crush, and linocut push artwork toward poster production.',
   },
   {
     name: 'Signal Damage',
@@ -129,7 +129,7 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   retroResolution: {
     description:
       'Renders the upstream branch at a fixed low internal resolution in base cover pixels, then nearest-upscales it. Unlike Pixelate, export scale does not change the apparent pixel grid.',
-    params: [{ key: 'retroResolution', range: '64-512px slider, 0 disables, 1024px manual base longest edge' }],
+    params: [{ key: 'retroResolution', range: '8-512px slider, 1024px manual base longest edge' }],
   },
   pixelate: {
     description: 'Downscale then upscale the whole image for a deliberate low-resolution block treatment.',
@@ -177,8 +177,12 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     params: [{ key: 'edgeDetect', range: '0-100 linework mix' }],
   },
   edgeCrush: {
-    description: 'Crush semi-transparent antialiasing into hard alpha edges for jagged sprite-like silhouettes.',
+    description: 'Crush semi-transparent antialiasing into hard alpha edges for cutout-style compositing.',
     params: [{ key: 'edgeCrush', range: '0-100 alpha edge hardening' }],
+  },
+  silhouetteCrush: {
+    description: 'Chip alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
+    params: [{ key: 'silhouetteCrush', range: '0-100 silhouette border chipping' }],
   },
   gradientOverlay: {
     description: 'Directional two-color ramp blended over the source while preserving source alpha.',

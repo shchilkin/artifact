@@ -74,16 +74,20 @@ function SelectedScene3DPreviewSurface({
   const setLocked = (nextLocked: boolean) => {
     const next = { ...effectiveViewState, locked: nextLocked };
     setDraftViewState(null);
-    updatePrimitiveView(scene3dNode.id, next);
+    updatePrimitiveView(scene3dNode.id, next, 'snapshot');
     setPrimitiveViewportActive(scene3dNode.id, !nextLocked);
   };
 
   const resetCamera = () => {
     setDraftViewState(null);
-    updatePrimitiveView(scene3dNode.id, {
-      ...defaultPrimitiveViewportState(modelLayer),
-      locked,
-    });
+    updatePrimitiveView(
+      scene3dNode.id,
+      {
+        ...defaultPrimitiveViewportState(modelLayer),
+        locked,
+      },
+      'snapshot',
+    );
   };
 
   return (
@@ -109,7 +113,7 @@ function SelectedScene3DPreviewSurface({
             onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
             onViewStateChange={(next) => {
               setDraftViewState(null);
-              updatePrimitiveView(scene3dNode.id, next);
+              updatePrimitiveView(scene3dNode.id, next, 'snapshot');
             }}
             className="node-primitive-preview node-primitive-preview-transparent"
           />

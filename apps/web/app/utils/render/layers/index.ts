@@ -543,6 +543,10 @@ async function applyCanvas2DEffects(
     type: 'edgeCrush',
     amount: layer.edgeCrush,
   });
+  await applySingleImageDataTransform(ctx, W, H, layer.silhouetteCrush > 0, {
+    type: 'silhouetteCrush',
+    amount: layer.silhouetteCrush,
+  });
   await applySingleImageDataTransform(ctx, W, H, layer.vhsTracking > 0, {
     type: 'vhsTracking',
     amount: layer.vhsTracking,
@@ -622,6 +626,7 @@ const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'dither',
   'indexedPalette',
   'edgeCrush',
+  'silhouetteCrush',
   'vhsTracking',
   'matte',
   'waveAmt',

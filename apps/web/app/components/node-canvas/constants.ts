@@ -263,4 +263,11 @@ export const COLOR_PRESETS: EffectPreset[] = [
   'splitTone',
 ];
 export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift', 'overprint'];
-export const GRAPHIC_PRESETS: EffectPreset[] = ['blur', 'threshold', 'edgeCrush', 'edgeDetect', 'gradientOverlay'];
+export const GRAPHIC_PRESETS: EffectPreset[] = [
+  'blur',
+  'threshold',
+  'edgeCrush',
+  'silhouetteCrush',
+  'edgeDetect',
+  'gradientOverlay',
+];

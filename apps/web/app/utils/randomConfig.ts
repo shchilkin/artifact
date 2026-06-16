@@ -520,6 +520,7 @@ const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandom
   blur: () => ({ blurAmt: rand(10, 70) }),
   threshold: () => ({ threshold: rand(30, 70) }),
   edgeCrush: () => ({ edgeCrush: rand(35, 85) }),
+  silhouetteCrush: () => ({ silhouetteCrush: rand(35, 85) }),
   edgeDetect: () => ({ edgeDetect: rand(40, 90) }),
   gradientOverlay: (baseHue, ah) => ({
     gradMix: rand(30, 80),
@@ -645,6 +646,7 @@ const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> 
     indexedPaletteCount: rand(3, 6),
     threshold: optionalRand(0.2, 30, 70),
     edgeCrush: optionalRand(0.2, 30, 80),
+    silhouetteCrush: optionalRand(0.18, 30, 80),
     edgeDetect: optionalRand(0.2, 30, 80),
     gradMix: optionalRand(0.25, 30, 70),
     sepia: optionalRand(0.2, 20, 80),
@@ -745,6 +747,7 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
         indexedColorF: '#fff1df',
         threshold: 0,
         edgeCrush: 0,
+        silhouetteCrush: 0,
         edgeDetect: 0,
         gradMix: 0,
         gradA: '#0a0020',

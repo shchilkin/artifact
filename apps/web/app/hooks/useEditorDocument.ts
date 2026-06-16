@@ -79,6 +79,7 @@ import {
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
+import { isSelectableScene3DTarget } from '../utils/scene3DInputs';
 import type { TextPresetId } from '../utils/textPresets';
 
 type EditorLayerInsertAction =
@@ -132,7 +133,10 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const [future, setFuture] = useState<HistoryEntry[]>([]);
 
   const safeSelectedLayerId =
-    selectedLayerId && doc.layers.some((layer) => layer.id === selectedLayerId) ? selectedLayerId : null;
+    selectedLayerId &&
+    (doc.layers.some((layer) => layer.id === selectedLayerId) || isSelectableScene3DTarget(doc, selectedLayerId))
+      ? selectedLayerId
+      : null;
 
   const docRef = useRef(doc);
   const selectedLayerIdRef = useRef(selectedLayerId);
@@ -537,8 +541,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   }, [commitDocument]);
 
   const handleGraphChange = useCallback(
-    (graph: CanvasGraph) => {
-      updateDocument((current) => setDocumentGraph(current, graph), 'debounce');
+    (graph: CanvasGraph, mode: DocumentUpdateMode = 'debounce') => {
+      updateDocument((current) => setDocumentGraph(current, graph), mode);
     },
     [updateDocument],
   );

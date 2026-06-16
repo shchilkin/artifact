@@ -69,6 +69,7 @@ describe('EffectControlSections metadata', () => {
     });
     expect(findSlider('retroResolution')).toMatchObject({
       label: 'Longest Edge',
+      min: 8,
       max: 512,
       overrideMax: 1024,
       valueFormat: 'px',
@@ -79,7 +80,12 @@ describe('EffectControlSections metadata', () => {
       valueFormat: 'percent',
     });
     expect(findSlider('edgeCrush')).toMatchObject({
-      label: 'Edge Crush',
+      label: 'Alpha Crush',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('silhouetteCrush')).toMatchObject({
+      label: 'Silhouette Crush',
       max: 100,
       valueFormat: 'percent',
     });

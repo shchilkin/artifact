@@ -20,6 +20,7 @@ import type {
   TextLayer,
 } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
+import type { DocumentUpdateMode } from '../../utils/documentHistory';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
 export type GalleryEligibleLayer =
@@ -40,7 +41,7 @@ export interface NodeCanvasProps {
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
   initialPrimitiveViewStates?: Record<string, PrimitiveViewportState>;
-  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>) => void;
+  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   onGraphChange: (graph: CanvasGraph) => void;
@@ -59,6 +60,7 @@ export interface NodeCanvasProps {
   onExport: () => void;
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
   onImageFileDrop?: (file: File, position: { x: number; y: number }) => void;
+  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
 }
@@ -179,6 +181,15 @@ export type ExportNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type FallbackNodeData = {
+  id: string;
+  label: string;
+  name: string;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+};
+
 export interface NodeCanvasPreviewContextValue {
   doc: CanvasDocument;
   graph: CanvasGraph;
@@ -204,7 +215,7 @@ export interface NodeCanvasActionsContextValue {
   exportNode: () => void;
   deleteNode: (id: string) => void;
   openGallery: (id: string) => void;
-  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState) => void;
+  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState, mode?: DocumentUpdateMode) => void;
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
 }
 

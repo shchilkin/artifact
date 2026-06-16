@@ -140,6 +140,7 @@ describe('makeEffectLayer', () => {
       'blurAmt',
       'threshold',
       'edgeCrush',
+      'silhouetteCrush',
       'edgeDetect',
       'gradMix',
       'gradAngle',
@@ -228,6 +229,7 @@ describe('effect presets', () => {
     expect(EFFECT_PRESETS.indexedPalette.partial.indexedPalette).toBe(100);
     expect(EFFECT_PRESETS.indexedPalette.partial.indexedPaletteCount).toBe(6);
     expect(EFFECT_PRESETS.edgeCrush.partial.edgeCrush).toBe(55);
+    expect(EFFECT_PRESETS.silhouetteCrush.partial.silhouetteCrush).toBe(55);
     expect(EFFECT_PRESETS.pixelate.partial.pixelate).toBe(6);
     expect(EFFECT_PRESETS.risoShift.partial.risoShift).toBe(14);
   });

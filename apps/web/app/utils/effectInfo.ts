@@ -100,6 +100,7 @@ const EFFECT_CONTROL_FAMILIES: Record<EffectFamilyId, string[]> = {
     'blur',
     'threshold',
     'edgeCrush',
+    'silhouetteCrush',
     'edgeDetect',
     'gradientOverlay',
   ],
@@ -494,11 +495,18 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     cfgOverride: { threshold: 50 },
   },
   edgeCrush: {
-    title: 'Edge Crush',
+    title: 'Alpha Crush',
     description: 'Hardens semi-transparent antialiasing into aliased alpha edges.',
     valueLabel: 'crush 65%',
-    goodFor: 'jagged model silhouettes, old-game cutouts, hard sprite compositing',
+    goodFor: 'hard alpha cutouts, antialias removal, sprite compositing',
     cfgOverride: { edgeCrush: 65 },
+  },
+  silhouetteCrush: {
+    title: 'Silhouette Crush',
+    description: 'Chips alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
+    valueLabel: 'silhouette 65%',
+    goodFor: 'old-game cutouts, rough model borders, chipped sprite silhouettes',
+    cfgOverride: { silhouetteCrush: 65 },
   },
   edgeDetect: {
     title: 'Edge Detect',

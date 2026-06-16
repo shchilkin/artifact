@@ -108,7 +108,8 @@ const PRESET_SUMMARIES: Partial<Record<EffectSectionId, Partial<Record<EffectPre
   },
   graphic: {
     blur: (layer) => `${layer.blurAmt}px blur`,
-    edgeCrush: (layer) => `${layer.edgeCrush}% crush`,
+    edgeCrush: (layer) => `${layer.edgeCrush}% alpha`,
+    silhouetteCrush: (layer) => `${layer.silhouetteCrush}% silhouette`,
     edgeDetect: (layer) => `${layer.edgeDetect}% edge`,
     threshold: (layer) => `${layer.threshold}% threshold`,
   },

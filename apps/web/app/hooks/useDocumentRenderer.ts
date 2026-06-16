@@ -25,6 +25,8 @@ interface Options {
   fast?: boolean;
   /** Layer canvas preview should ignore any saved node graph and use layer order. */
   graphMode?: 'auto' | 'graph' | 'stack';
+  /** 3D primitive/model/scene camera overrides used by node previews and export. */
+  primitiveViewStates?: RenderOptions['primitiveViewStates'];
   /** Keeps the last good preview visible across component remounts. */
   cacheKey?: string;
   /** Render above CSS display resolution, then downsample in the browser. */
@@ -206,6 +208,7 @@ interface DocumentRendererRefs {
   renderHeightRef: MutableRefObject<number>;
   fastRef: MutableRefObject<boolean>;
   graphModeRef: MutableRefObject<RenderOptions['graphMode']>;
+  primitiveViewStatesRef: MutableRefObject<RenderOptions['primitiveViewStates']>;
   cacheKeyRef: MutableRefObject<string | null>;
   draftRenderScaleRef: MutableRefObject<number | undefined>;
   draftMaxRenderDimensionRef: MutableRefObject<number | undefined>;
@@ -334,6 +337,7 @@ function currentRenderPolicy(refs: DocumentRendererRefs, abortController: AbortC
       skipEffects: useDraftQuality,
       draft: useDraftQuality,
       graphMode: refs.graphModeRef.current,
+      primitiveViewStates: refs.primitiveViewStatesRef.current,
       signal: abortController.signal,
     } satisfies RenderOptions,
   };
@@ -569,6 +573,7 @@ export function useDocumentRenderer(
   const renderHeightRef = useRef(initialRenderHeight);
   const fastRef = useRef(options.fast ?? false);
   const graphModeRef = useRef(options.graphMode ?? 'auto');
+  const primitiveViewStatesRef = useRef(options.primitiveViewStates);
   const cacheKeyRef = useRef(makeRenderCacheKey(options.cacheKey, pw, ph));
   const draftRenderScaleRef = useRef(options.draftRenderScale ?? options.renderScale);
   const draftMaxRenderDimensionRef = useRef(options.draftMaxRenderDimension ?? options.maxRenderDimension);
@@ -605,6 +610,7 @@ export function useDocumentRenderer(
       renderHeightRef,
       fastRef,
       graphModeRef,
+      primitiveViewStatesRef,
       cacheKeyRef,
       draftRenderScaleRef,
       draftMaxRenderDimensionRef,
@@ -652,6 +658,7 @@ export function useDocumentRenderer(
     );
     fastRef.current = options.fast ?? false;
     graphModeRef.current = options.graphMode ?? 'auto';
+    primitiveViewStatesRef.current = options.primitiveViewStates;
     cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, renderWidthRef.current, renderHeightRef.current);
     draftRenderScaleRef.current = options.draftRenderScale ?? options.renderScale;
     draftMaxRenderDimensionRef.current = options.draftMaxRenderDimension ?? options.maxRenderDimension;
@@ -666,6 +673,7 @@ export function useDocumentRenderer(
     ph,
     options.fast,
     options.graphMode,
+    options.primitiveViewStates,
     options.cacheKey,
     options.renderScale,
     options.maxRenderDimension,
@@ -797,6 +805,7 @@ export function useDocumentRenderer(
     imageCache,
     options.fast,
     options.graphMode,
+    options.primitiveViewStates,
     options.cacheKey,
     options.deferFullRender,
     options.deferredPreviewQuality,

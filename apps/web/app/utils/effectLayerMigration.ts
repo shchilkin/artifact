@@ -61,6 +61,7 @@ const SPLIT_RULES: SplitRule[] = [
   { preset: 'blur', active: ['blurAmt'], copy: ['blurAmt'] },
   { preset: 'threshold', active: ['threshold'], copy: ['threshold'] },
   { preset: 'edgeCrush', active: ['edgeCrush'], copy: ['edgeCrush'] },
+  { preset: 'silhouetteCrush', active: ['silhouetteCrush'], copy: ['silhouetteCrush'] },
   { preset: 'edgeDetect', active: ['edgeDetect'], copy: ['edgeDetect'] },
   { preset: 'gradientOverlay', active: ['gradMix'], copy: ['gradMix', 'gradA', 'gradB', 'gradAngle'] },
   { preset: 'neonGlow', active: ['neonGlow'], copy: ['neonGlow', 'neonColor'] },

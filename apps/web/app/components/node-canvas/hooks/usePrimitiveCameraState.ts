@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import type { Layer } from '../../../types/config';
+import type { DocumentUpdateMode } from '../../../utils/documentHistory';
 import {
   defaultPrimitiveViewportState,
   type PrimitiveViewportState,
@@ -14,7 +15,7 @@ export interface UsePrimitiveCameraStateOptions {
   /** Current document layers — used for lock/reset helpers that need the layer's defaults. */
   layers: Layer[];
   /** Called whenever the camera states map changes. Used to lift state to the editor shell for export. */
-  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>) => void;
+  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void;
 }
 
 export interface UsePrimitiveCameraStateResult {
@@ -28,7 +29,7 @@ export interface UsePrimitiveCameraStateResult {
    */
   primitiveViewportLockActive: boolean;
   /** Update the camera state for a single layer. Skips update when values are unchanged. */
-  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState) => void;
+  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState, mode?: DocumentUpdateMode) => void;
   /** Mark a primitive viewport as the active gesture target (or release it). */
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
   /** Return the effective 3D view state for a primitive or model layer, falling back to its default. */
@@ -61,12 +62,13 @@ function resolvePrimitiveViewStateUpdate(
 
 function commitPrimitiveViewStates(
   next: Record<string, PrimitiveViewportState>,
+  mode: DocumentUpdateMode,
   isControlled: boolean,
   setUncontrolled: (viewStates: Record<string, PrimitiveViewportState>) => void,
-  onChange: ((viewStates: Record<string, PrimitiveViewportState>) => void) | undefined,
+  onChange: ((viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void) | undefined,
 ) {
   if (!isControlled) setUncontrolled(next);
-  onChange?.(next);
+  onChange?.(next, mode);
 }
 
 export function usePrimitiveCameraState({
@@ -85,12 +87,14 @@ export function usePrimitiveCameraState({
       updater:
         | Record<string, PrimitiveViewportState>
         | ((current: Record<string, PrimitiveViewportState>) => Record<string, PrimitiveViewportState>),
+      mode: DocumentUpdateMode = 'debounce',
     ) => {
       const current = initialPrimitiveViewStates ?? uncontrolledPrimitiveViewStates;
       const next = resolvePrimitiveViewStateUpdate(updater, current);
       if (primitiveViewStateMapsEqual(current, next)) return;
       commitPrimitiveViewStates(
         next,
+        mode,
         initialPrimitiveViewStates !== undefined,
         setUncontrolledPrimitiveViewStates,
         onPrimitiveViewStatesChange,
@@ -102,12 +106,12 @@ export function usePrimitiveCameraState({
   const primitiveViewportLockActive = activePrimitiveViewportId !== null;
 
   const updatePrimitiveView = useCallback(
-    (id: string, viewState: PrimitiveViewportState) => {
+    (id: string, viewState: PrimitiveViewportState, mode: DocumentUpdateMode = 'debounce') => {
       setPrimitiveViewStates((current) => {
         const previous = current[id];
         if (previous && primitiveViewStatesEqual(previous, viewState)) return current;
         return { ...current, [id]: viewState };
-      });
+      }, mode);
     },
     [setPrimitiveViewStates],
   );

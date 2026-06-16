@@ -5,8 +5,11 @@ import {
   type CanvasDocument,
   type EffectLayer,
   type EmojiLayer,
+  type GraphEnvironmentNode,
+  type GraphScene3DNode,
   type ImageLayer,
   type Layer,
+  type ModelLayer,
 } from '../types/config';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
@@ -21,15 +24,20 @@ import {
   replaceSelectedImageSourceInDocument,
   setLayersVisibilityInDocument,
   toggleLayerVisibilityInDocument,
+  updateEnvironmentNodeInDocument,
   updateGlobalInDocument,
   updateLayerInDocument,
+  updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
+import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
+import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
+import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
 import { ActionButton } from './ui/ActionButton';
 
 type SidebarLayerPanelProps = Pick<
@@ -41,6 +49,7 @@ type SidebarLayerPanelProps = Pick<
   | 'onAddTextPreset'
   | 'onAddNoisePreset'
   | 'onAddArrayPreset'
+  | 'onAddScene3D'
   | 'onStartAiImage'
   | 'onLoadStarter'
   | 'onOpenProjects'
@@ -130,6 +139,33 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
     graph: doc.graph,
     layers: doc.layers,
   });
+}
+
+function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
+  if (!scene) return null;
+  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
+  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
+  return {
+    title: scene.name,
+    eyebrow: 'Layers / 3D Scene',
+    role: 'utility' as const,
+    kindLabel: '3D Scene',
+    description: 'Renders a model input with camera, material, environment, and light settings.',
+    breadcrumbs: ['Layers', '3D Scene'],
+    badges: [
+      { label: 'Scene', tone: 'accent' as const },
+      { label: model ? 'Model input' : 'No model', tone: model ? ('success' as const) : ('warning' as const) },
+      { label: environment || scene.environmentName ? 'Environment' : 'No env', tone: 'muted' as const },
+    ],
+    notes: model
+      ? []
+      : [
+          {
+            text: 'Connect or import a model input before the scene can render model pixels.',
+            tone: 'warning' as const,
+          },
+        ],
+  };
 }
 
 function useLayerPanelHandlers({
@@ -313,6 +349,86 @@ function SelectedLayerSections({
   );
 }
 
+function SelectedScene3DSections({
+  doc,
+  scene,
+  selectedTargetSummary,
+  onDocChange,
+}: {
+  doc: CanvasDocument;
+  scene: GraphScene3DNode | null;
+  selectedTargetSummary: ReturnType<typeof selectedSceneTargetSummary>;
+  onDocChange: (doc: CanvasDocument) => void;
+}) {
+  if (!scene) return null;
+  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
+  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
+  const updateScene = (patch: Partial<GraphScene3DNode>) =>
+    onDocChange(updateScene3DNodeInDocument(doc, scene.id, patch));
+  const updateEnvironment = (node: GraphEnvironmentNode, patch: Partial<GraphEnvironmentNode>) =>
+    onDocChange(updateEnvironmentNodeInDocument(doc, node.id, patch));
+
+  return (
+    <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
+      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
+      <SelectedScene3DInputSettings model={model} environment={environment} scene={scene} />
+      <Scene3DInspector scene3dNode={scene} onChange={updateScene} detached />
+      {environment && (
+        <EnvironmentInspector
+          environmentNode={environment}
+          onChange={(patch) => updateEnvironment(environment, patch)}
+          detached
+        />
+      )}
+    </div>
+  );
+}
+
+function SelectedSceneReadout({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="node-inspector-readout">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function SelectedScene3DInputSettings({
+  model,
+  environment,
+  scene,
+}: {
+  model: ModelLayer | null;
+  environment: GraphEnvironmentNode | null;
+  scene: GraphScene3DNode;
+}) {
+  return (
+    <Section title="Scene Inputs" defaultOpen>
+      <SelectedSceneReadout
+        label="3D Model"
+        value={model?.modelName || 'No model connected'}
+        detail={
+          model
+            ? `${model.modelMime || 'model'} · ${Math.round(model.modelBytes / 1024)} KB`
+            : 'Model is a scene setting in Layers and a node in Nodes.'
+        }
+      />
+      <SelectedSceneReadout
+        label="Environment Map"
+        value={environment?.environmentName || scene.environmentName || 'No environment connected'}
+        detail={
+          environment
+            ? `${environment.environmentMime || 'environment'} · ${Math.round(environment.environmentBytes / 1024)} KB`
+            : scene.environmentName
+              ? `${scene.environmentMime || 'environment'} · ${Math.round(scene.environmentBytes / 1024)} KB`
+              : 'Environment maps are scene settings in Layers and nodes in Nodes.'
+        }
+      />
+    </Section>
+  );
+}
+
 function SelectedImageSourceSection({
   layer,
   inputRef,
@@ -491,6 +607,7 @@ export function Sidebar({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
+  onAddScene3D,
   onStartAiImage,
   onLoadStarter,
   onOpenProjects,
@@ -504,7 +621,9 @@ export function Sidebar({
   modeSwitcher,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedScene = getScene3DTarget(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
+  const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
   const docRef = useDocumentRef(doc);
   const layerPanelHandlers = useLayerPanelHandlers({ docRef, onDocChange, onReorderLayers });
 
@@ -529,6 +648,7 @@ export function Sidebar({
           onAddTextPreset={onAddTextPreset}
           onAddNoisePreset={onAddNoisePreset}
           onAddArrayPreset={onAddArrayPreset}
+          onAddScene3D={onAddScene3D}
           onStartAiImage={onStartAiImage}
           onLoadStarter={onLoadStarter}
           onOpenProjects={onOpenProjects}
@@ -555,6 +675,12 @@ export function Sidebar({
         docRef={docRef}
         selectedLayer={selectedLayer}
         selectedTargetSummary={selectedTargetSummary}
+        onDocChange={onDocChange}
+      />
+      <SelectedScene3DSections
+        doc={doc}
+        scene={selectedScene}
+        selectedTargetSummary={selectedSceneSummary}
         onDocChange={onDocChange}
       />
     </aside>
