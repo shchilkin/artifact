@@ -85,12 +85,12 @@ const INDEXED_COLOR_FIELDS = [
   'indexedColorF',
 ] as const satisfies readonly IndexedColorField[];
 
-export type IndexedPalettePreset = {
+type IndexedPalettePreset = {
   name: string;
   colors: readonly string[];
 };
 
-export const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
+const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
   { name: 'Doom dusk', colors: ['#09001f', '#341052', '#852158', '#df3b33', '#ffd65a', '#fff1df'] },
   { name: 'Sepia print', colors: ['#070611', '#392044', '#80515e', '#d58b62', '#f1d17d', '#f6f0cf'] },
   { name: 'Acid swamp', colors: ['#031d2d', '#07646d', '#37a77a', '#c8db64', '#fff07a', '#fff7db'] },
@@ -105,7 +105,7 @@ export function activeIndexedPaletteCount(layer: Pick<EffectLayer, 'indexedPalet
   return Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
 }
 
-export function indexedPalettePresetPatch(preset: IndexedPalettePreset): Partial<EffectLayer> {
+function indexedPalettePresetPatch(preset: IndexedPalettePreset): Partial<EffectLayer> {
   return Object.fromEntries(
     INDEXED_COLOR_FIELDS.map((field, index) => [field, preset.colors[index] ?? '#000000']),
   ) as Partial<EffectLayer>;

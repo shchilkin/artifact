@@ -7,7 +7,7 @@ import type {
   ModelLayer,
 } from '../types/config';
 
-export function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string> {
+function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string> {
   const ids = new Set<string>();
   if (!graph) return ids;
   const sceneNodeIds = new Set((graph.scene3dNodes ?? []).map((node) => node.id));

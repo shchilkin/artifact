@@ -69,7 +69,7 @@ export function environmentUriFromId(id: string) {
   return `${ENV_URI_PREFIX}${id}`;
 }
 
-export async function saveEnvironmentAsset(
+async function saveEnvironmentAsset(
   asset: Omit<PortableEnvironmentAsset, 'id' | 'createdAt'>,
 ): Promise<StoredEnvironmentAsset> {
   const stored: StoredEnvironmentAsset = {
@@ -83,7 +83,7 @@ export async function saveEnvironmentAsset(
   return stored;
 }
 
-export async function saveEnvironmentDataUrlAsset(
+async function saveEnvironmentDataUrlAsset(
   dataUrl: string,
   label = 'Imported environment',
 ): Promise<StoredEnvironmentAsset> {

@@ -64,7 +64,7 @@ export function modelUriFromId(id: string) {
   return `${MODEL_URI_PREFIX}${id}`;
 }
 
-export async function saveModelAsset(asset: Omit<PortableModelAsset, 'id' | 'createdAt'>): Promise<StoredModelAsset> {
+async function saveModelAsset(asset: Omit<PortableModelAsset, 'id' | 'createdAt'>): Promise<StoredModelAsset> {
   const stored: StoredModelAsset = {
     ...asset,
     id: randomStorageId(),
@@ -76,7 +76,7 @@ export async function saveModelAsset(asset: Omit<PortableModelAsset, 'id' | 'cre
   return stored;
 }
 
-export async function saveModelDataUrlAsset(dataUrl: string, label = 'Imported model'): Promise<StoredModelAsset> {
+async function saveModelDataUrlAsset(dataUrl: string, label = 'Imported model'): Promise<StoredModelAsset> {
   return saveModelAsset({
     dataUrl,
     mime: dataUrlMime(dataUrl),

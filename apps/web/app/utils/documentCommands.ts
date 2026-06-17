@@ -146,30 +146,6 @@ export function createModelLayerFromAsset({
   }) as ModelLayer;
 }
 
-export function addEnvironmentSceneToDocument(
-  doc: CanvasDocument,
-  asset: Pick<GraphScene3DNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
-  position?: { x: number; y: number },
-): { doc: CanvasDocument; nodeId: string } {
-  const node = makeGraphScene3DNode({
-    name: asset.environmentName ? `3D Scene · ${asset.environmentName}` : '3D Scene',
-    environmentSrc: asset.environmentSrc,
-    environmentName: asset.environmentName,
-    environmentMime: asset.environmentMime,
-    environmentBytes: asset.environmentBytes,
-    environmentStrength: 100,
-    transparent: false,
-  });
-  const graph = ensureDocumentGraph(doc);
-  return {
-    doc: {
-      ...doc,
-      graph: addScene3DNode(graph, node, position ?? nextDropPosition(graph)),
-    },
-    nodeId: node.id,
-  };
-}
-
 export function addEnvironmentMapToDocument(
   doc: CanvasDocument,
   asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,

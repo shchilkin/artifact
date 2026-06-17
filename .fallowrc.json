@@ -1,6 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "ignoreDependencies": ["@artifact/shared", "isbot"],
+  "audit": {
+    "healthBaseline": "docs/fallow/v0.36-health-baseline.json",
+    "dupesBaseline": "docs/fallow/v0.36-dupes-baseline.json"
+  },
   "ignoreExports": [
     {
       "file": "apps/api/src/db/postgres.ts",
