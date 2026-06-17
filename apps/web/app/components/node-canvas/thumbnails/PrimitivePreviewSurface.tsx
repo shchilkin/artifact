@@ -67,16 +67,20 @@ function SelectedPrimitivePreviewSurface({
   const setPrimitiveLocked = (locked: boolean) => {
     const next = { ...effectiveViewState, locked };
     setDraftViewState(null);
-    updatePrimitiveView(layer.id, next);
+    updatePrimitiveView(layer.id, next, 'snapshot');
     setPrimitiveViewportActive(layer.id, !locked);
   };
 
   const resetPrimitiveCamera = () => {
     setDraftViewState(null);
-    updatePrimitiveView(layer.id, {
-      ...defaultPrimitiveViewportState(layer),
-      locked: primitiveLocked,
-    });
+    updatePrimitiveView(
+      layer.id,
+      {
+        ...defaultPrimitiveViewportState(layer),
+        locked: primitiveLocked,
+      },
+      'snapshot',
+    );
   };
 
   return (
@@ -187,7 +191,7 @@ function SelectedPrimitiveSurface({
   onOpenGallery: (targetId: string) => void;
   onResetCamera: () => void;
   onToggleLocked: (locked: boolean) => void;
-  onUpdatePrimitiveView: (layerId: string, viewState: PrimitiveViewportState) => void;
+  onUpdatePrimitiveView: (layerId: string, viewState: PrimitiveViewportState, mode?: 'debounce' | 'snapshot') => void;
   onViewportActive: (layerId: string, active: boolean) => void;
 }) {
   return (
@@ -209,7 +213,7 @@ function SelectedPrimitiveSurface({
         onViewStateDraft={(next) => onDraftViewState({ baseKey: committedViewStateKey, value: next })}
         onViewStateChange={(next) => {
           onDraftViewState(null);
-          onUpdatePrimitiveView(layer.id, next);
+          onUpdatePrimitiveView(layer.id, next, 'snapshot');
         }}
       />
       <PrimitiveCameraStrip

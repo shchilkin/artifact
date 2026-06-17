@@ -1,0 +1,150 @@
+{
+  "finding_counts": {
+    "apps/web/app/components/ModelViewport3D.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/web/app/components/Sidebar.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/add-library/addLibraryModel.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/layer-controls/LayerControls.tsx": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/web/app/components/layers-panel/LayerPanel.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/NodeCanvas.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/hooks/useNodeDragState.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/hooks/useNodeGallery.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/inspector/EnvironmentInspector.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/nodes/NodeTypes.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/thumbnails/EnvironmentPreviewSurface.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/thumbnails/LayerPreviewSurface.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/components/node-canvas/thumbnails/Scene3DPreviewSurface.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/utils/documentPersistence.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/utils/modelRenderer.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/web/app/utils/render/graph.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/utils/render/layers/textureEffects.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "apps/web/app/utils/render/workers/effectPixelTransform.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 3
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/web/app/utils/scene3DInputs.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "tests/browser/v036-3d-model-retro.spec.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "apps/web/app/utils/scene3DInputs.ts:high impact",
+    "apps/web/app/utils/documentAssets.ts:high impact",
+    "apps/web/app/utils/nodeGraph.ts:high impact",
+    "apps/web/app/components/node-canvas/helpers.ts:high impact",
+    "apps/web/app/utils/envAssetStore.ts:high impact",
+    "apps/web/app/utils/documentPersistence.ts:high impact",
+    "apps/web/app/utils/render/workers/effectPixelTransform.ts:complexity"
+  ]
+}

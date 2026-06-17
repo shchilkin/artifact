@@ -162,6 +162,14 @@ describe('ai generation client', () => {
     expect(calls).toEqual(['/api/ai/access']);
   });
 
+  it('returns disabled local access without hitting same-origin API when no API credentials are configured', async () => {
+    await expect(getAiGenerationAccess()).resolves.toMatchObject({
+      authenticated: false,
+      enabled: false,
+      disabledReason: 'anonymous',
+    });
+  });
+
   it('reads jobs by id', async () => {
     const calls: string[] = [];
     const fetcher = async (url: RequestInfo | URL) => {

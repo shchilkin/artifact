@@ -37,8 +37,28 @@ export type AddLibraryItem = {
 };
 
 export const ADD_LIBRARY_ACTION_MIME = 'application/x-artifact-add-library-action';
-const SIMPLE_ADD_ACTION_KINDS = new Set(['aiImage', 'merge', 'color', 'repeat', 'mask', 'transform', 'grimeShadow']);
-const LAYER_ADD_KINDS = new Set(['text', 'image', 'emoji', 'fill', 'primitive', 'noise', 'array', 'lineField']);
+const SIMPLE_ADD_ACTION_KINDS = new Set([
+  'aiImage',
+  'merge',
+  'color',
+  'repeat',
+  'mask',
+  'transform',
+  'grimeShadow',
+  'scene3d',
+  'environment',
+]);
+const LAYER_ADD_KINDS = new Set([
+  'text',
+  'image',
+  'emoji',
+  'fill',
+  'primitive',
+  'noise',
+  'array',
+  'lineField',
+  'model',
+]);
 
 export type AddLibraryRecipe = {
   id: string;
@@ -83,7 +103,7 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'texture',
     description: 'Surface noise, print feel, and tactile detail.',
-    presets: ['grain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'],
+    presets: ['grain', 'dotGrain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'],
   },
   {
     group: 'warp',
@@ -109,8 +129,10 @@ const EFFECT_FAMILIES: Array<{
       'tint',
       'hueShift',
       'vignette',
+      'retroResolution',
       'pixelate',
       'posterize',
+      'indexedPalette',
       'sepia',
       'infrared',
       'solarize',
@@ -127,13 +149,14 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'graphic',
     description: 'Bold reductions, linework, blur, and gradient finishing.',
-    presets: ['blur', 'threshold', 'edgeDetect', 'gradientOverlay'],
+    presets: ['blur', 'threshold', 'edgeCrush', 'silhouetteCrush', 'edgeDetect', 'gradientOverlay'],
   },
 ];
 
 const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   duotone: 'photo tone color image recipe two color poster old photo',
   grain: 'paper dust texture print finish popular old photo noisy film',
+  dotGrain: 'round grain dot grain stipple ps1 old game shadow texture halftone',
   scanlines: 'crt print line signal texture tv monitor old screen',
   risoShift: 'registration misregister print sticker grid popular',
   overprint: 'ink pressure print sticker',
@@ -143,19 +166,28 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   halftone: 'print dots poster damage',
   tear: 'rip paper damage glitch',
   threshold: 'black white damage print cutoff',
+  edgeCrush: 'alpha crush hard alpha antialias transparent edge jagged sprite',
+  silhouetteCrush: 'silhouette crush edge crush jagged sprite pixel cutout alpha mask',
+  retroResolution: 'retro resolution low-res low resolution ps1 old game pixel scale export',
+  indexedPalette: 'indexed palette color count low color old game ps1 palette swatches',
   pixelate: 'pixel block low-res low resolution low res mosaic popular',
   dither: 'pixel pattern bayer print texture popular',
 };
 
 const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
   grain: 'Fine surface noise for paper, dust, and old-photo finish.',
+  dotGrain: 'Round tone-aware stipple dots for old-game shadows and chunky surface grain.',
   dither: 'Bayer-style pixel texture for crunchy low-color poster output.',
+  retroResolution: 'Fixed low internal resolution that keeps the same pixel grid at export size.',
+  indexedPalette: 'Editable low-color palette mapping with active swatches and transparency preserved.',
   pixelate: 'Whole-image block size for low-resolution cover treatments.',
   splitTone: 'Push shadows and highlights into two controlled color casts.',
   halftone: 'Screen-print dots for poster texture and print damage.',
   risoShift: 'Ink misregistration for risograph-style color drift.',
   scanlines: 'CRT-style horizontal bands for monitor and video texture.',
   tear: 'Ripped spatial offset for damaged paper and broken motion.',
+  edgeCrush: 'Hardens semi-transparent antialiasing into hard alpha cutout edges.',
+  silhouetteCrush: 'Chips alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
   kaleidoscope: 'Radial mirrored repetition from the center of the image.',
   neonGlow: 'Hot colored bloom around bright pixels and synthetic light.',
 };
@@ -174,6 +206,7 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   dataMosh: ['signal', 'damage'],
   vhsTracking: ['signal', 'crt'],
   grain: ['texture', 'paper', 'photo'],
+  dotGrain: ['texture', 'dots', 'ps1'],
   scanlines: ['texture', 'crt'],
   matte: ['texture', 'paper'],
   dither: ['texture', 'low-res'],
@@ -193,8 +226,10 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   tint: ['tone', 'color'],
   hueShift: ['tone', 'color'],
   vignette: ['tone', 'photo'],
+  retroResolution: ['tone', 'low-res'],
   pixelate: ['tone', 'low-res'],
   posterize: ['tone', 'steps'],
+  indexedPalette: ['tone', 'palette'],
   sepia: ['tone', 'photo'],
   infrared: ['tone', 'photo'],
   solarize: ['tone', 'photo'],
@@ -207,6 +242,8 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   overprint: ['print', 'ink'],
   blur: ['graphic', 'soft'],
   threshold: ['graphic', 'cutoff'],
+  edgeCrush: ['graphic', 'alpha'],
+  silhouetteCrush: ['graphic', 'edges'],
   edgeDetect: ['graphic', 'line'],
   gradientOverlay: ['graphic', 'wash'],
 };
@@ -220,6 +257,7 @@ const KIND_SYMBOL: Record<Exclude<LayerKind, 'effect'>, string> = {
   noise: '░',
   array: '▦',
   lineField: '≋',
+  model: '⬡',
 };
 
 const layerItems: AddLibraryItem[] = [
@@ -304,6 +342,17 @@ const layerItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'],
     tags: ['source', '3d'],
     keywords: '3d object shape cylinder sphere cube image branch',
+  },
+  {
+    id: 'layer:model',
+    label: '3D Model',
+    symbol: KIND_SYMBOL.model,
+    description: 'Use an imported GLB model as a source node.',
+    group: 'source',
+    action: { kind: 'layer', layerKind: 'model' },
+    surfaces: ['nodes'],
+    tags: ['source', '3d'],
+    keywords: '3d model glb object import ps1 game mesh source',
   },
   {
     id: 'layer:noise',
@@ -439,6 +488,28 @@ const utilityItems: AddLibraryItem[] = [
     keywords: 'shadow drop shadow grime dirty dirt layered volume depth alpha blur spread noise dust',
   },
   {
+    id: 'scene3d',
+    label: '3D Scene',
+    symbol: '◌',
+    description: 'Render imported models through scene camera, light, and environment controls.',
+    group: 'source',
+    action: { kind: 'scene3d' },
+    surfaces: ['layers', 'nodes'],
+    tags: ['scene', '3d', 'light'],
+    keywords: '3d scene model hdri environment light lighting camera render glb ps1',
+  },
+  {
+    id: 'environment',
+    label: 'Environment Map',
+    symbol: '◇',
+    description: 'Provide an EXR or HDR environment map to a 3D Scene.',
+    group: 'utility',
+    action: { kind: 'environment' },
+    surfaces: ['nodes'],
+    tags: ['utility', '3d', 'environment'],
+    keywords: 'environment env map hdri hdr exr lighting reflection panorama equirectangular',
+  },
+  {
     id: 'repeat',
     label: 'Repeater',
     symbol: '⧉',
@@ -533,6 +604,23 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'effect:tear',
       'effect:grain',
       'effect:threshold',
+    ],
+  },
+  {
+    id: 'retro-3d-cover',
+    label: 'Retro 3D Cover',
+    hint: 'model / scene / palette / dots',
+    surfaces: ['nodes'],
+    itemIds: [
+      'layer:fill',
+      'layer:model',
+      'environment',
+      'scene3d',
+      'effect:retroResolution',
+      'effect:indexedPalette',
+      'effect:dotGrain',
+      'effect:edgeCrush',
+      'effect:silhouetteCrush',
     ],
   },
 ];

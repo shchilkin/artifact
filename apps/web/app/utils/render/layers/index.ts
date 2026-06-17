@@ -16,7 +16,7 @@ import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
-import { applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
+import { applyDotGrain, applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
@@ -344,6 +344,18 @@ async function applyColorPassEffect(
   ]);
 }
 
+function indexedPaletteColors(layer: EffectLayer): string[] {
+  const count = Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
+  return [
+    layer.indexedColorA,
+    layer.indexedColorB,
+    layer.indexedColorC,
+    layer.indexedColorD,
+    layer.indexedColorE,
+    layer.indexedColorF,
+  ].slice(0, count);
+}
+
 async function applySingleImageDataTransform(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -370,6 +382,25 @@ function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.globalAlpha = 1 / steps;
     ctx.drawImage(snapshot, ((1 - s) * W) / 2, ((1 - s) * H) / 2, W * s, H * s);
   }
+  ctx.restore();
+}
+
+function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
+  if (layer.retroResolution <= 0) return;
+  const outputLongestEdge = Math.max(W, H);
+  const longestEdge = Math.max(8, Math.round(layer.retroResolution * (outputLongestEdge / REF)));
+  const downscale = longestEdge / outputLongestEdge;
+  if (downscale >= 1) return;
+  const lowW = Math.max(1, Math.round(W * downscale));
+  const lowH = Math.max(1, Math.round(H * downscale));
+  const low = createCanvas(lowW, lowH);
+  const lowCtx = low.getContext('2d', { willReadFrequently: true })!;
+  lowCtx.imageSmoothingEnabled = true;
+  lowCtx.drawImage(ctx.canvas, 0, 0, lowW, lowH);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(low, 0, 0, W, H);
   ctx.restore();
 }
 
@@ -490,6 +521,7 @@ async function applyCanvas2DEffects(
   scale: number,
   rng: () => number,
 ) {
+  applyRetroResolutionEffect(ctx, W, H, layer);
   applyRayEffect(ctx, W, H, layer, rng);
   applyGlitchEffect(ctx, W, H, layer, scale, rng);
   await applySingleImageDataTransform(ctx, W, H, layer.rgbSplit > 0, {
@@ -499,8 +531,22 @@ async function applyCanvas2DEffects(
 
   applyScanlines(ctx, W, H, layer, scale);
   applyGrain(ctx, W, H, layer, seed);
+  applyDotGrain(ctx, W, H, layer, seed, scale);
   applyTintEffect(ctx, W, H, layer);
   await applyColorPassEffect(ctx, W, H, layer, scale);
+  await applySingleImageDataTransform(ctx, W, H, layer.indexedPalette > 0, {
+    type: 'indexedPalette',
+    amount: layer.indexedPalette,
+    colors: indexedPaletteColors(layer),
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.edgeCrush > 0, {
+    type: 'edgeCrush',
+    amount: layer.edgeCrush,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.silhouetteCrush > 0, {
+    type: 'silhouetteCrush',
+    amount: layer.silhouetteCrush,
+  });
   await applySingleImageDataTransform(ctx, W, H, layer.vhsTracking > 0, {
     type: 'vhsTracking',
     amount: layer.vhsTracking,
@@ -569,13 +615,18 @@ async function runGpuPass(
 const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'glitch',
   'rgbSplit',
+  'retroResolution',
   'scanlines',
   'grain',
+  'dotGrain',
   'tintOp',
   'sepia',
   'infrared',
   'ca',
   'dither',
+  'indexedPalette',
+  'edgeCrush',
+  'silhouetteCrush',
   'vhsTracking',
   'matte',
   'waveAmt',
@@ -754,7 +805,9 @@ function renderFillLayerToCanvas(context: LayerRenderContext<FillLayer>) {
 }
 
 function sourceLayerLayout(layer: Layer, options: RenderOptions) {
-  return layer.kind === 'primitive' || layer.kind === 'lineField' ? 'full-frame' : (options.sourceLayout ?? 'document');
+  return layer.kind === 'primitive' || layer.kind === 'lineField' || layer.kind === 'model'
+    ? 'full-frame'
+    : (options.sourceLayout ?? 'document');
 }
 
 async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
@@ -767,7 +820,7 @@ async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
     seed,
     scale,
     options.draft ?? false,
-    layer.kind === 'primitive' ? options.primitiveViewStates?.[layer.id] : undefined,
+    layer.kind === 'primitive' || layer.kind === 'model' ? options.primitiveViewStates?.[layer.id] : undefined,
     sourceLayerLayout(layer, options),
   );
   return current;
@@ -855,6 +908,7 @@ const LAYER_RENDERERS = {
   noise: renderSourceLayerToCanvas,
   array: renderSourceLayerToCanvas,
   lineField: renderSourceLayerToCanvas,
+  model: renderSourceLayerToCanvas,
 };
 
 function layerRenderer(kind: Layer['kind']) {

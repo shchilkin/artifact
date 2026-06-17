@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CanvasDocument, ImageLayer } from '../types/config';
+import type { CanvasDocument, GraphEnvironmentNode, ImageLayer, ModelLayer } from '../types/config';
 import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '../utils/assetStore';
+import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
+import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_MODEL_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024; // 80 MB
 const MAX_EDGE = 2048;
 const RECOMPRESS_BYTES = 1 * 1024 * 1024; // re-encode if >1 MB even when small enough by edge
 const IMAGE_FILE_RE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
+const SUPPORTED_DROP_FORMATS = 'images, GLB models, EXR/HDR environments, or .artifact documents';
 
 function isImageFile(file: File) {
   return file.type.startsWith('image/') || IMAGE_FILE_RE.test(file.name);
+}
+
+export function unsupportedAssetDropMessage(file: Pick<File, 'name'>) {
+  const label = file.name?.trim() || 'This file';
+  return `Unsupported file: ${label}. Drop ${SUPPORTED_DROP_FORMATS}.`;
 }
 
 async function readImageFile(file: File): Promise<string | null> {
@@ -55,6 +65,11 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
 export function useEditorAssets(
   doc: CanvasDocument,
   onImportImage: (src: string, position?: { x: number; y: number }) => void,
+  onImportModel?: (asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>) => void,
+  onImportEnvironment?: (
+    asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
+    position?: { x: number; y: number },
+  ) => void,
   onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -129,7 +144,51 @@ export function useEditorAssets(
     // Existing drop/import guard logic; v0.32 tracks asset hook debt.
     // fallow-ignore-next-line complexity
     async (file: File, position?: { x: number; y: number }) => {
-      if (!isImageFile(file)) return;
+      if (isSupportedModelFile(file)) {
+        if (!onImportModel) return;
+        if (file.size > MAX_MODEL_BYTES) {
+          showDropError(`Model too large — max ${MAX_MODEL_BYTES / 1024 / 1024}MB`);
+          return;
+        }
+        try {
+          const asset = await saveModelFileAsset(file);
+          onImportModel({
+            modelSrc: modelUriFromId(asset.id),
+            modelName: asset.label,
+            modelMime: asset.mime,
+            modelBytes: asset.bytes,
+          });
+        } catch {
+          showDropError('Could not read model');
+        }
+        return;
+      }
+      if (isSupportedEnvironmentFile(file)) {
+        if (!onImportEnvironment) return;
+        if (file.size > MAX_ENVIRONMENT_BYTES) {
+          showDropError(`Environment too large — max ${MAX_ENVIRONMENT_BYTES / 1024 / 1024}MB`);
+          return;
+        }
+        try {
+          const asset = await saveEnvironmentFileAsset(file);
+          onImportEnvironment(
+            {
+              environmentSrc: environmentUriFromId(asset.id),
+              environmentName: asset.label,
+              environmentMime: asset.mime,
+              environmentBytes: asset.bytes,
+            },
+            position,
+          );
+        } catch {
+          showDropError('Could not read environment map');
+        }
+        return;
+      }
+      if (!isImageFile(file)) {
+        showDropError(unsupportedAssetDropMessage(file));
+        return;
+      }
       if (file.size > MAX_IMAGE_BYTES) {
         showDropError(`Image too large — max ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
         return;
@@ -149,7 +208,7 @@ export function useEditorAssets(
         showDropError('Could not read image');
       }
     },
-    [onImportImage, showDropError],
+    [onImportEnvironment, onImportImage, onImportModel, showDropError],
   );
 
   useEffect(() => {

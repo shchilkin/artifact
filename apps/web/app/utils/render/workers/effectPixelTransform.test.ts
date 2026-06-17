@@ -64,4 +64,68 @@ describe('transformEffectPixels', () => {
   it('keeps fog output visible and alpha-preserving', () => {
     expectVisibleAlphaPreservingTransform(transformFixturePixels([{ type: 'fog', amount: 80, color: '#ddeeff' }]));
   });
+
+  it('maps visible pixels to the nearest indexed palette color', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray([250, 20, 20, 255, 20, 20, 240, 255]),
+      operations: [{ type: 'indexedPalette', amount: 100, colors: ['#ff0000', '#0000ff'] }],
+    });
+
+    expect(Array.from(result.data)).toEqual([255, 0, 0, 255, 0, 0, 255, 255]);
+  });
+
+  it('hardens partial alpha for edge crush while preserving opaque pixels', () => {
+    const result = transformEffectPixels({
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray([10, 20, 30, 60, 80, 90, 100, 255]),
+      operations: [{ type: 'edgeCrush', amount: 100 }],
+    });
+
+    expect(result.data[3]).toBe(0);
+    expect(result.data[7]).toBe(255);
+  });
+
+  it('trims hard alpha borders at high edge crush amounts', () => {
+    const result = transformEffectPixels({
+      width: 3,
+      height: 3,
+      data: new Uint8ClampedArray([
+        80, 90, 100, 255, 80, 90, 100, 255, 80, 90, 100, 255, 80, 90, 100, 255, 80, 90, 100, 255, 80, 90, 100, 255, 80,
+        90, 100, 255, 80, 90, 100, 255, 80, 90, 100, 255,
+      ]),
+      operations: [{ type: 'edgeCrush', amount: 100 }],
+    });
+
+    expect(alphaValues(result.data).filter((alpha) => alpha > 0).length).toBeLessThan(9);
+  });
+
+  it('chips hard alpha-mask borders for silhouette crush', () => {
+    const result = transformEffectPixels({
+      width: 3,
+      height: 3,
+      data: new Uint8ClampedArray([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200, 40, 20, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+      ]),
+      operations: [{ type: 'silhouetteCrush', amount: 100 }],
+    });
+
+    expect(alphaValues(result.data).filter((alpha) => alpha > 0).length).toBeGreaterThan(1);
+  });
+
+  it('chips opaque high-contrast borders for silhouette crush', () => {
+    const source = new Uint8ClampedArray([4, 4, 24, 255, 220, 220, 210, 255]);
+    const result = transformEffectPixels({
+      width: 2,
+      height: 1,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'silhouetteCrush', amount: 100 }],
+    });
+
+    expect(result.data).not.toEqual(source);
+    expect(alphaValues(result.data)).toEqual([255, 255]);
+  });
 });

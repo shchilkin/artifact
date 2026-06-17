@@ -1282,6 +1282,17 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
+.layer-meta-badge {
+  flex-shrink: 0;
+  border: 1px solid color-mix(in oklch, var(--accent) 42%, var(--border));
+  padding: 1px 4px;
+  color: color-mix(in oklch, var(--accent) 74%, var(--text-dim));
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .layer-area-chip {
   display: inline-flex;
   flex-shrink: 0;

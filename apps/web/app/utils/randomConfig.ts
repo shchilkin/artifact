@@ -487,6 +487,12 @@ const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandom
   interlace: () => ({ interlace: rand(10, 70) }),
   dataMosh: () => ({ dataMosh: rand(10, 70) }),
   grain: () => ({ grain: rand(8, 42) }),
+  dotGrain: () => ({
+    dotGrain: rand(45, 90),
+    dotGrainSize: rand(2, 7),
+    dotGrainDensity: rand(40, 85),
+    dotGrainJitter: rand(20, 75),
+  }),
   scanlines: () => ({ scanlines: rand(5, 80), scanlineWidth: rand(1, 4) }),
   tint: () => ({ tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) }),
   noiseWarp: () => ({ noiseWarp: rand(10, 70) }),
@@ -497,8 +503,13 @@ const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandom
   mirror: () => ({ mirror: rand(1, 3) }),
   hueShift: () => ({ hueShift: rand(10, 350) }),
   vignette: () => ({ vignette: rand(0, 80) }),
+  retroResolution: () => ({ retroResolution: pick([160, 240, 320, 512]) }),
   pixelate: () => ({ pixelate: rand(2, 10) }),
   posterize: () => ({ posterize: rand(3, 12) }),
+  indexedPalette: () => ({
+    indexedPalette: rand(65, 100),
+    indexedPaletteCount: rand(3, 6),
+  }),
   duotone: (baseHue, ah) => ({
     duotone: rand(40, 90),
     duoA: randomHsl(baseHue, [30, 60], [3, 12]),
@@ -508,6 +519,8 @@ const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandom
   risoShift: () => ({ risoShift: rand(4, 18), risoAngle: rand(0, 360) }),
   blur: () => ({ blurAmt: rand(10, 70) }),
   threshold: () => ({ threshold: rand(30, 70) }),
+  edgeCrush: () => ({ edgeCrush: rand(35, 85) }),
+  silhouetteCrush: () => ({ silhouetteCrush: rand(35, 85) }),
   edgeDetect: () => ({ edgeDetect: rand(40, 90) }),
   gradientOverlay: (baseHue, ah) => ({
     gradMix: rand(30, 80),
@@ -591,6 +604,10 @@ const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> 
   }),
   TEXTURE: () => ({
     grain: rand(0, 42),
+    dotGrain: optionalRand(0.25, 35, 85),
+    dotGrainSize: rand(2, 7),
+    dotGrainDensity: rand(35, 85),
+    dotGrainJitter: rand(15, 75),
     scanlines: rand(0, 80),
     scanlineWidth: rand(1, 4),
     blurAmt: optionalRand(0.4, 0, 60),
@@ -622,9 +639,14 @@ const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> 
     hueShift: optionalRand(0.4, 10, 350),
     rgbSplit: optionalRand(0.4, 3, 25),
     vignette: rand(0, 80),
+    retroResolution: optionalRand(0.25, 160, 512),
     pixelate: optionalRand(0.4, 2, 10),
     posterize: optionalRand(0.4, 3, 12),
+    indexedPalette: optionalRand(0.25, 50, 100),
+    indexedPaletteCount: rand(3, 6),
     threshold: optionalRand(0.2, 30, 70),
+    edgeCrush: optionalRand(0.2, 30, 80),
+    silhouetteCrush: optionalRand(0.18, 30, 80),
     edgeDetect: optionalRand(0.2, 30, 80),
     gradMix: optionalRand(0.25, 30, 70),
     sepia: optionalRand(0.2, 20, 80),
@@ -672,7 +694,20 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
     case 'GLITCH':
       return { glitch: 0, rgbSplit: 0, ca: 0, interlace: 0, dataMosh: 0, vhsTracking: 0 };
     case 'TEXTURE':
-      return { grain: 0, scanlines: 0, scanlineWidth: 1, blurAmt: 0, matte: 0, dither: 0, emboss: 0, linocut: 0 };
+      return {
+        grain: 0,
+        dotGrain: 0,
+        dotGrainSize: 4,
+        dotGrainDensity: 62,
+        dotGrainJitter: 35,
+        scanlines: 0,
+        scanlineWidth: 1,
+        blurAmt: 0,
+        matte: 0,
+        dither: 0,
+        emboss: 0,
+        linocut: 0,
+      };
     case 'TINT':
       return { tint: '#350055', tintOp: 0 };
     case 'WARP':
@@ -699,9 +734,20 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
         hueShift: 0,
         rgbSplit: 0,
         vignette: 0,
+        retroResolution: 0,
         pixelate: 0,
         posterize: 0,
+        indexedPalette: 0,
+        indexedPaletteCount: 6,
+        indexedColorA: '#12002b',
+        indexedColorB: '#3b1590',
+        indexedColorC: '#d400b8',
+        indexedColorD: '#ff1d1d',
+        indexedColorE: '#f6c400',
+        indexedColorF: '#fff1df',
         threshold: 0,
+        edgeCrush: 0,
+        silhouetteCrush: 0,
         edgeDetect: 0,
         gradMix: 0,
         gradA: '#0a0020',

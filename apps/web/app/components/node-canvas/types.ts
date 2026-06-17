@@ -6,21 +6,26 @@ import type {
   CanvasGraph,
   GraphColorNode,
   GraphEdge,
+  GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphScene3DNode,
   GraphTransformNode,
   ImageLayer,
   Layer,
+  ModelLayer,
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
+import type { DocumentUpdateMode } from '../../utils/documentHistory';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
 export type GalleryEligibleLayer =
   | PrimitiveLayer
+  | ModelLayer
   | ImageLayer
   | TextLayer
   | Extract<Layer, { kind: 'noise' | 'array' }>;
@@ -36,7 +41,7 @@ export interface NodeCanvasProps {
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
   initialPrimitiveViewStates?: Record<string, PrimitiveViewportState>;
-  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>) => void;
+  onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
   onGraphChange: (graph: CanvasGraph) => void;
@@ -47,12 +52,15 @@ export interface NodeCanvasProps {
   onUpdateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
   onUpdateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
   onUpdateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
+  onUpdateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
+  onUpdateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
   onExport: () => void;
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
   onImageFileDrop?: (file: File, position: { x: number; y: number }) => void;
+  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
 }
@@ -140,6 +148,29 @@ export type GrimeShadowNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type Scene3DNodeData = {
+  scene3dNode: GraphScene3DNode;
+  previewTargetId: string;
+  modelPreviewTargetId: string | null;
+  modelLayer: ModelLayer | null;
+  backdropPreviewTargetId: string | null;
+  environmentPreviewTargetId: string | null;
+  environmentSource: string | null;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+  sceneViewState?: PrimitiveViewportState;
+};
+
+export type EnvironmentNodeData = {
+  environmentNode: GraphEnvironmentNode;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
 export type ExportNodeData = {
   exportConfig: CanvasDocument['export'];
   aspect: AspectRatio;
@@ -148,6 +179,15 @@ export type ExportNodeData = {
   outputPath: boolean;
   editing: boolean;
   connected: { sources: Set<string>; targets: Set<string> };
+};
+
+export type FallbackNodeData = {
+  id: string;
+  label: string;
+  name: string;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
 };
 
 export interface NodeCanvasPreviewContextValue {
@@ -168,12 +208,14 @@ export interface NodeCanvasActionsContextValue {
   updateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
   updateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
   updateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
+  updateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
+  updateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
   deleteNode: (id: string) => void;
   openGallery: (id: string) => void;
-  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState) => void;
+  updatePrimitiveView: (id: string, viewState: PrimitiveViewportState, mode?: DocumentUpdateMode) => void;
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
 }
 

@@ -211,12 +211,13 @@ function layerNodeInputPort(nodeId: string, layers: Layer[]): GraphEdge['toPort'
 
 function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['toPort'] | null {
   if (graph.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
+  if ((graph.scene3dNodes ?? []).some((sceneNode) => sceneNode.id === nodeId)) return 'model';
   return hasSingleInputGraphNode(graph, nodeId) ? 'in' : null;
 }
 
 function hasSingleInputGraphNode(graph: CanvasGraph, nodeId: string) {
   const kind = graphUtilityNodeKind(graph, nodeId);
-  return kind !== null && kind !== 'merge';
+  return kind !== null && kind !== 'merge' && kind !== 'scene3d' && kind !== 'environment';
 }
 
 function nodeCenterPoint(node: RFNode) {

@@ -92,6 +92,10 @@ describe('randomEffectLayer', () => {
     const layer = randomEffectLayer();
     const numericFields = [
       'grain',
+      'dotGrain',
+      'dotGrainSize',
+      'dotGrainDensity',
+      'dotGrainJitter',
       'scanlines',
       'scanlineWidth',
       'rgbSplit',
@@ -291,6 +295,10 @@ describe('randomLayerSection', () => {
 
       expect(texture.grain).toBeGreaterThanOrEqual(0);
       expect(texture.grain).toBeLessThanOrEqual(42);
+      expect(texture.dotGrain).toBeGreaterThanOrEqual(0);
+      expect(texture.dotGrain).toBeLessThanOrEqual(85);
+      expect(texture.dotGrainSize).toBeGreaterThanOrEqual(2);
+      expect(texture.dotGrainSize).toBeLessThanOrEqual(7);
       expect(texture.dither).toBeGreaterThanOrEqual(0);
       expect(texture.dither).toBeLessThanOrEqual(50);
       expect(color.pixelate).toBeGreaterThanOrEqual(0);

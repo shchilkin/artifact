@@ -6,16 +6,18 @@
  * that renaming a layer or locking it never triggers a thumbnail re-render.
  *
  * Add a field here if and only if it is read by renderer.ts, pixiFilters.ts,
- * primitiveScene.ts, or primitiveRenderer.ts.
+ * primitiveScene.ts, primitiveRenderer.ts, or modelRenderer.ts.
  */
 
 import type {
   GraphColorNode,
   GraphEdge,
+  GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
   GraphMergeNode,
   GraphRepeatNode,
+  GraphScene3DNode,
   GraphTransformNode,
   Layer,
 } from '../types/config';
@@ -89,6 +91,20 @@ export function layerRenderSig(layer: Layer): string {
       const { id: _id, name: _name, locked: _locked, ...render } = layer;
       return JSON.stringify(render);
     }
+    case 'model': {
+      return JSON.stringify([
+        layer.kind,
+        layer.visible,
+        layer.opacity,
+        layer.blendMode,
+        layer.color,
+        layer.accentColor,
+        layer.tiltX,
+        layer.tiltY,
+        layer.tiltZ,
+        layer.modelSrc,
+      ]);
+    }
   }
 }
 
@@ -155,6 +171,32 @@ export function grimeShadowNodeRenderSig(node: GraphGrimeShadowNode): string {
     node.seedOffset,
     node.shadowOnly,
   ]);
+}
+
+/** Render-relevant fields for a 3D scene node. */
+export function scene3DNodeRenderSig(node: GraphScene3DNode): string {
+  return JSON.stringify([
+    node.environmentSrc,
+    node.environmentName,
+    node.environmentMime,
+    node.environmentBytes,
+    node.materialMode,
+    node.transparent,
+    node.exposure,
+    node.environmentStrength,
+    node.environmentRotation,
+    node.ambientIntensity,
+    node.keyAzimuth,
+    node.keyElevation,
+    node.keyIntensity,
+    node.fillIntensity,
+    node.rimIntensity,
+  ]);
+}
+
+/** Render-relevant fields for an environment map node. */
+export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
+  return JSON.stringify([node.environmentSrc, node.environmentName, node.environmentMime, node.environmentBytes]);
 }
 
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */

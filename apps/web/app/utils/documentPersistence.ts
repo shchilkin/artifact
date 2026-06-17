@@ -13,7 +13,9 @@ import {
   type Layer,
   makeEmojiLayer,
   makeSourceLayer,
+  type PortableEnvironmentAsset,
   type PortableFontAsset,
+  type PortableModelAsset,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
@@ -92,6 +94,8 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     maskNodes: arrayField('maskNodes'),
     transformNodes: normalizeTransformNodes(arrayField('transformNodes')),
     grimeShadowNodes: normalizeGrimeShadowNodes(arrayField('grimeShadowNodes')),
+    scene3dNodes: normalizeScene3DNodes(arrayField('scene3dNodes')),
+    environmentNodes: normalizeEnvironmentNodes(arrayField('environmentNodes')),
     areas: arrayField('areas'),
     primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
   };
@@ -138,6 +142,37 @@ function normalizeGrimeShadowNodes(nodes: CanvasGraph['grimeShadowNodes']) {
   }));
 }
 
+function normalizeScene3DNodes(nodes: CanvasGraph['scene3dNodes']) {
+  return nodes.map((node) => ({
+    environmentSrc: '',
+    environmentName: '',
+    environmentMime: '',
+    environmentBytes: 0,
+    materialMode: 'original',
+    transparent: true,
+    exposure: 100,
+    environmentStrength: 100,
+    environmentRotation: 0,
+    ambientIntensity: 115,
+    keyAzimuth: 38,
+    keyElevation: 42,
+    keyIntensity: 145,
+    fillIntensity: 65,
+    rimIntensity: 55,
+    ...node,
+  }));
+}
+
+function normalizeEnvironmentNodes(nodes: CanvasGraph['environmentNodes']) {
+  return nodes.map((node) => ({
+    environmentSrc: '',
+    environmentName: '',
+    environmentMime: '',
+    environmentBytes: 0,
+    ...node,
+  }));
+}
+
 function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const assets = value.flatMap((item) => {
@@ -145,6 +180,54 @@ function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | unde
     return asset ? [asset] : [];
   });
   return assets.length > 0 ? assets : undefined;
+}
+
+function normalizePortableModelAssets(value: unknown): PortableModelAsset[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const assets = value.flatMap((item) => {
+    const asset = normalizePortableModelAsset(item);
+    return asset ? [asset] : [];
+  });
+  return assets.length > 0 ? assets : undefined;
+}
+
+function normalizePortableEnvironmentAssets(value: unknown): PortableEnvironmentAsset[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const assets = value.flatMap((item) => {
+    const asset = normalizePortableEnvironmentAsset(item);
+    return asset ? [asset] : [];
+  });
+  return assets.length > 0 ? assets : undefined;
+}
+
+function normalizePortableEnvironmentAsset(item: unknown): PortableEnvironmentAsset | null {
+  if (!isRecord(item)) return null;
+  const id = stringField(item.id);
+  const dataUrl = stringField(item.dataUrl);
+  if (!id || !dataUrl?.startsWith('data:')) return null;
+  return {
+    id,
+    dataUrl,
+    mime: stringField(item.mime) ?? 'image/x-exr',
+    bytes: finiteNumberField(item.bytes),
+    label: stringField(item.label) ?? 'Imported environment',
+    createdAt: stringField(item.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+function normalizePortableModelAsset(item: unknown): PortableModelAsset | null {
+  if (!isRecord(item)) return null;
+  const id = stringField(item.id);
+  const dataUrl = stringField(item.dataUrl);
+  if (!id || !dataUrl?.startsWith('data:')) return null;
+  return {
+    id,
+    dataUrl,
+    mime: stringField(item.mime) ?? 'model/gltf-binary',
+    bytes: finiteNumberField(item.bytes),
+    label: stringField(item.label) ?? 'Imported model',
+    createdAt: stringField(item.createdAt) ?? new Date(0).toISOString(),
+  };
 }
 
 function normalizePortableFontAsset(item: unknown): PortableFontAsset | null {
@@ -239,8 +322,12 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
     : [];
 
   const fontAssets = normalizePortableFontAssets(doc.fontAssets);
+  const modelAssets = normalizePortableModelAssets(doc.modelAssets);
+  const envAssets = normalizePortableEnvironmentAssets(doc.envAssets);
   const documentFields = { ...(doc as Partial<CanvasDocument>) };
   delete documentFields.fontAssets;
+  delete documentFields.modelAssets;
+  delete documentFields.envAssets;
   return {
     ...documentFields,
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
@@ -249,6 +336,8 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
     export: { ...DEFAULT_EXPORT, ...exportConfig } as CanvasDocument['export'],
     graph: normalizeGraph(doc.graph),
     ...(fontAssets ? { fontAssets } : {}),
+    ...(modelAssets ? { modelAssets } : {}),
+    ...(envAssets ? { envAssets } : {}),
   };
 }
 
@@ -292,6 +381,8 @@ export function isBlankDocument(doc: CanvasDocument) {
       (graph.maskNodes ?? []).length === 0 &&
       (graph.transformNodes ?? []).length === 0 &&
       (graph.grimeShadowNodes ?? []).length === 0 &&
+      (graph.scene3dNodes ?? []).length === 0 &&
+      (graph.environmentNodes ?? []).length === 0 &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 

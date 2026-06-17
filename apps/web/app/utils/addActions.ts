@@ -17,4 +17,6 @@ export type AddAction =
   | { kind: 'repeatPreset'; preset: RepeatPresetId }
   | { kind: 'mask' }
   | { kind: 'transform' }
-  | { kind: 'grimeShadow' };
+  | { kind: 'grimeShadow' }
+  | { kind: 'scene3d' }
+  | { kind: 'environment' };

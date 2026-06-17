@@ -5,10 +5,12 @@ import {
   type GraphArea,
   type GraphColorNode,
   type GraphEdge,
+  type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
   type GraphMergeNode,
   type GraphRepeatNode,
+  type GraphScene3DNode,
   type GraphTransformNode,
   type Layer,
 } from '../types/config';
@@ -23,7 +25,15 @@ const TOP_PAD = 80;
 const NODE_CHROME_H = 118;
 const NODE_PREVIEW_MAX = 280;
 
-export type GraphUtilityNodeKind = 'merge' | 'color' | 'repeat' | 'mask' | 'transform' | 'grimeShadow';
+export type GraphUtilityNodeKind =
+  | 'merge'
+  | 'color'
+  | 'repeat'
+  | 'mask'
+  | 'transform'
+  | 'grimeShadow'
+  | 'scene3d'
+  | 'environment';
 
 const GRAPH_UTILITY_NODE_SELECTORS = [
   { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
@@ -37,6 +47,14 @@ const GRAPH_UTILITY_NODE_SELECTORS = [
   {
     kind: 'grimeShadow',
     nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [],
+  },
+  {
+    kind: 'scene3d',
+    nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [],
+  },
+  {
+    kind: 'environment',
+    nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [],
   },
 ] satisfies Array<{
   kind: GraphUtilityNodeKind;
@@ -52,7 +70,9 @@ type GraphLayoutState = {
 function estimateNodeWidth(id: string, layers: Layer[]): number {
   const layer = layers.find((item) => item.id === id);
   if (!layer) return BASE_NODE_W;
-  return ['image', 'primitive', 'noise', 'array'].includes(layer.kind) ? ARTWORK_NODE_W : BASE_NODE_W;
+  return ['image', 'primitive', 'noise', 'array', 'lineField', 'model'].includes(layer.kind)
+    ? ARTWORK_NODE_W
+    : BASE_NODE_W;
 }
 
 function estimatePreviewHeight(aspect: AspectRatio): number {
@@ -106,6 +126,8 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     maskNodes: [],
     transformNodes: [],
     grimeShadowNodes: [],
+    scene3dNodes: [],
+    environmentNodes: [],
     areas: [],
   };
 }
@@ -346,6 +368,62 @@ export function updateGrimeShadowNode(
   };
 }
 
+export function addScene3DNode(
+  graph: CanvasGraph,
+  node: GraphScene3DNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    scene3dNodes: [...(graph.scene3dNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeScene3DNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    scene3dNodes: (graph.scene3dNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateScene3DNode(graph: CanvasGraph, id: string, patch: Partial<GraphScene3DNode>): CanvasGraph {
+  return {
+    ...graph,
+    scene3dNodes: (graph.scene3dNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addEnvironmentNode(
+  graph: CanvasGraph,
+  node: GraphEnvironmentNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    environmentNodes: [...(graph.environmentNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeEnvironmentNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    environmentNodes: (graph.environmentNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateEnvironmentNode(
+  graph: CanvasGraph,
+  id: string,
+  patch: Partial<GraphEnvironmentNode>,
+): CanvasGraph {
+  return {
+    ...graph,
+    environmentNodes: (graph.environmentNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
 function uniqueNodeIds(ids: string[]): string[] {
   return [...new Set(ids.filter((id) => id.trim().length > 0))];
 }
@@ -550,6 +628,8 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
     ...(graph.maskNodes ?? []).map((node) => node.id),
     ...(graph.transformNodes ?? []).map((node) => node.id),
     ...(graph.grimeShadowNodes ?? []).map((node) => node.id),
+    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+    ...(graph.environmentNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
 }

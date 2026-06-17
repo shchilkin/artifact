@@ -103,6 +103,10 @@ describe('makeEffectLayer', () => {
     const layer = makeEffectLayer();
     const numericFields = [
       'grain',
+      'dotGrain',
+      'dotGrainSize',
+      'dotGrainDensity',
+      'dotGrainJitter',
       'scanlines',
       'scanlineWidth',
       'glitch',
@@ -119,12 +123,15 @@ describe('makeEffectLayer', () => {
       'mirror',
       'dataMosh',
       'interlace',
+      'retroResolution',
       'pixelate',
       'hueShift',
       'rgbSplit',
       'vignette',
       'bloom',
       'posterize',
+      'indexedPalette',
+      'indexedPaletteCount',
       'filmBurn',
       'duotone',
       'halftone',
@@ -132,6 +139,8 @@ describe('makeEffectLayer', () => {
       'risoAngle',
       'blurAmt',
       'threshold',
+      'edgeCrush',
+      'silhouetteCrush',
       'edgeDetect',
       'gradMix',
       'gradAngle',
@@ -177,6 +186,8 @@ describe('makeEffectLayer', () => {
     const layer = makeEffectLayer();
     expect(layer.name).toBe('Effect');
     expect(layer.grain).toBe(0);
+    expect(layer.dotGrain).toBe(0);
+    expect(layer.dotGrainSize).toBe(4);
     expect(layer.scanlines).toBe(0);
     expect(layer.scanlineWidth).toBe(1);
     expect(layer.rgbSplit).toBe(0);
@@ -211,7 +222,14 @@ describe('effect presets', () => {
 
   it('keeps texture and print preset defaults immediately usable', () => {
     expect(EFFECT_PRESETS.grain.partial.grain).toBe(26);
+    expect(EFFECT_PRESETS.dotGrain.partial.dotGrain).toBe(68);
+    expect(EFFECT_PRESETS.dotGrain.partial.dotGrainSize).toBe(4);
     expect(EFFECT_PRESETS.dither.partial.dither).toBe(36);
+    expect(EFFECT_PRESETS.retroResolution.partial.retroResolution).toBe(320);
+    expect(EFFECT_PRESETS.indexedPalette.partial.indexedPalette).toBe(100);
+    expect(EFFECT_PRESETS.indexedPalette.partial.indexedPaletteCount).toBe(6);
+    expect(EFFECT_PRESETS.edgeCrush.partial.edgeCrush).toBe(55);
+    expect(EFFECT_PRESETS.silhouetteCrush.partial.silhouetteCrush).toBe(55);
     expect(EFFECT_PRESETS.pixelate.partial.pixelate).toBe(6);
     expect(EFFECT_PRESETS.risoShift.partial.risoShift).toBe(14);
   });
@@ -275,6 +293,23 @@ describe('makeSourceLayer', () => {
     expect(layer.noiseThreshold).toBe(0);
     expect(layer.scaleX).toBe(1);
     expect(layer.scaleY).toBe(1);
+  });
+
+  it('creates serializable model source layers', () => {
+    const layer = makeSourceLayer('model', {
+      modelSrc: 'artifact-model://model-a',
+      modelName: 'skull.glb',
+      modelBytes: 1024,
+    });
+
+    expect(layer.kind).toBe('model');
+    if (layer.kind === 'model') {
+      expect(layer.modelSrc).toBe('artifact-model://model-a');
+      expect(layer.modelName).toBe('skull.glb');
+      expect(layer.modelMime).toBe('model/gltf-binary');
+      expect(layer.modelBytes).toBe(1024);
+    }
+    expect(JSON.parse(JSON.stringify(layer))).toMatchObject({ kind: 'model', modelName: 'skull.glb' });
   });
 });
 
@@ -342,16 +377,73 @@ describe('cloneDocument', () => {
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [makeTextLayer({ id: 'text-1' })],
       export: { format: 'png', scale: 1, target: 'cover' },
+      modelAssets: [
+        {
+          id: 'model-a',
+          dataUrl: 'data:model/gltf-binary;base64,AAAA',
+          mime: 'model/gltf-binary',
+          bytes: 128,
+          label: 'model.glb',
+          createdAt: '2026-06-13T00:00:00.000Z',
+        },
+      ],
+      envAssets: [
+        {
+          id: 'env-a',
+          dataUrl: 'data:image/x-exr;base64,CCCC',
+          mime: 'image/x-exr',
+          bytes: 512,
+          label: 'studio.exr',
+          createdAt: '2026-06-13T00:00:00.000Z',
+        },
+      ],
       graph: {
         edges: [],
         positions: {},
         mergeNodes: [],
         colorNodes: [],
+        environmentNodes: [
+          {
+            id: 'env-node-a',
+            name: 'Environment Map',
+            environmentSrc: 'artifact-env://env-a',
+            environmentName: 'studio.exr',
+            environmentMime: 'image/x-exr',
+            environmentBytes: 512,
+          },
+        ],
         areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['text-1'] }],
       },
     };
     const cloned = cloneDocument(original);
     cloned.graph?.areas?.[0]?.nodeIds.push('other');
+    cloned.graph?.environmentNodes?.push({
+      id: 'env-node-b',
+      name: 'Other Environment',
+      environmentSrc: 'artifact-env://env-b',
+      environmentName: 'other.exr',
+      environmentMime: 'image/x-exr',
+      environmentBytes: 1024,
+    });
+    cloned.modelAssets?.push({
+      id: 'model-b',
+      dataUrl: 'data:model/gltf-binary;base64,BBBB',
+      mime: 'model/gltf-binary',
+      bytes: 256,
+      label: 'other.glb',
+      createdAt: '2026-06-13T00:00:00.000Z',
+    });
+    cloned.envAssets?.push({
+      id: 'env-b',
+      dataUrl: 'data:image/x-exr;base64,DDDD',
+      mime: 'image/x-exr',
+      bytes: 1024,
+      label: 'other.exr',
+      createdAt: '2026-06-13T00:00:00.000Z',
+    });
     expect(original.graph?.areas?.[0]?.nodeIds).toEqual(['text-1']);
+    expect(original.graph?.environmentNodes).toHaveLength(1);
+    expect(original.modelAssets).toHaveLength(1);
+    expect(original.envAssets).toHaveLength(1);
   });
 });

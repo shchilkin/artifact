@@ -133,6 +133,14 @@ export async function createAiGenerationJob(
 }
 
 export async function getAiGenerationAccess(options: AiGenerationClientOptions = {}): Promise<AiGenerationAccessState> {
+  if (!options.baseUrl && !options.bearerToken && !options.devToken && !options.fetcher) {
+    return {
+      authenticated: false,
+      enabled: false,
+      disabledReason: 'anonymous',
+      providers: [],
+    };
+  }
   const body = await requestJson(
     '/api/ai/access',
     {

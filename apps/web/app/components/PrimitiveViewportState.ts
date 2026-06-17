@@ -1,4 +1,4 @@
-import type { PrimitiveLayer } from '../types/config';
+import type { ModelLayer, PrimitiveLayer } from '../types/config';
 
 export type PrimitiveRenderMode = 'shaded' | 'unlit' | 'wireframe';
 
@@ -11,7 +11,7 @@ export interface PrimitiveViewportState {
   locked?: boolean;
 }
 
-export function defaultPrimitiveViewportState(layer: PrimitiveLayer): PrimitiveViewportState {
+export function defaultPrimitiveViewportState(layer: PrimitiveLayer | ModelLayer): PrimitiveViewportState {
   return {
     rotationX: layer.tiltX,
     rotationY: layer.tiltY,

@@ -16,11 +16,13 @@ import { type GraphRenderCache, renderGraphTarget } from '../../../utils/rendere
 import {
   colorNodeRenderSig,
   edgeRenderSig,
+  environmentNodeRenderSig,
   grimeShadowNodeRenderSig,
   layerRenderSig,
   maskNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
+  scene3DNodeRenderSig,
   transformNodeRenderSig,
 } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
@@ -67,14 +69,21 @@ function signatureList(items: Array<{ id: string; sig: string }>) {
   return items.map(({ id, sig }) => `${id}:${sig}`).join(',');
 }
 
-function primitiveViewSignature(layers: Layer[], primitiveViewStates: Record<string, PrimitiveViewportStateConfig>) {
-  return layers
-    .filter((layer) => layer.kind === 'primitive')
-    .map((layer) => {
-      const view = primitiveViewStates[layer.id];
+function primitiveViewSignature(
+  layers: Layer[],
+  graph: CanvasGraph,
+  primitiveViewStates: Record<string, PrimitiveViewportStateConfig>,
+) {
+  const ids = [
+    ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
+    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+  ];
+  return ids
+    .map((id) => {
+      const view = primitiveViewStates[id];
       return view
-        ? `${layer.id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
-        : `${layer.id}:default`;
+        ? `${id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
+        : `${id}:default`;
     })
     .join('|');
 }
@@ -95,6 +104,8 @@ function graphSignatureParts(graph: CanvasGraph) {
     maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
     transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
     grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
+    scene3DSignatures: renderSignatures(graph.scene3dNodes, scene3DNodeRenderSig),
+    environmentSignatures: renderSignatures(graph.environmentNodes, environmentNodeRenderSig),
     edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
   };
 }
@@ -130,6 +141,8 @@ function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: stri
     maskNodes: filterGraphNodes(renderGraph.maskNodes, upstreamHas),
     transformNodes: filterGraphNodes(renderGraph.transformNodes, upstreamHas),
     grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
+    scene3dNodes: filterGraphNodes(renderGraph.scene3dNodes, upstreamHas),
+    environmentNodes: filterGraphNodes(renderGraph.environmentNodes, upstreamHas),
     positions: {},
   };
 }
@@ -400,6 +413,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       maskSignatures,
       transformSignatures,
       grimeShadowSignatures,
+      scene3DSignatures,
+      environmentSignatures,
       edgeSignatures,
       allGraphSignatures,
     } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
@@ -418,8 +433,10 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(maskSignatures),
       signatureList(transformSignatures),
       signatureList(grimeShadowSignatures),
+      signatureList(scene3DSignatures),
+      signatureList(environmentSignatures),
       signatureList(edgeSignatures),
-      primitiveViewSignature(layers, renderPrimitiveViewStates),
+      primitiveViewSignature(layers, graph, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
     ].join('::');
 
@@ -436,8 +453,10 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(allGraphSignatures.maskSignatures),
       signatureList(allGraphSignatures.transformSignatures),
       signatureList(allGraphSignatures.grimeShadowSignatures),
+      signatureList(allGraphSignatures.scene3DSignatures),
+      signatureList(allGraphSignatures.environmentSignatures),
       signatureList(allGraphSignatures.edgeSignatures),
-      primitiveViewSignature(allLayers, renderPrimitiveViewStates),
+      primitiveViewSignature(allLayers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(allImageLayers, imageCache),
     ].join('::');
 

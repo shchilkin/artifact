@@ -5,11 +5,6 @@ import {
   addSceneLights,
   applyMeshTransform,
   applyViewStateToCamera,
-  CAMERA_DISTANCE,
-  CAMERA_FOV,
-  CAMERA_ZOOM_MAX,
-  CAMERA_ZOOM_MIN,
-  clamp,
   createPrimitiveCamera,
   createPrimitiveGeometry,
   createPrimitiveMaterial,
@@ -22,6 +17,25 @@ import {
   type PrimitiveRenderMode,
   type PrimitiveViewportState,
 } from './PrimitiveViewportState';
+import {
+  applyKeyboardViewportState,
+  createTransparentWebglRenderer,
+  createViewportDragState,
+  eventFromViewportControl,
+  eventInsideViewport,
+  findReactFlowPane,
+  flushViewStateCommit,
+  getWebglContext,
+  matchingViewportDrag,
+  nextViewportKeyboardState,
+  resizeViewportRenderer,
+  scheduleViewStateCommit,
+  shouldStopViewportEvent,
+  stopViewportEvent,
+  type ViewportDragState,
+  viewportDragViewState,
+  wheelZoomViewState,
+} from './viewport3DControls';
 
 interface Props {
   layer: PrimitiveLayer;
@@ -35,134 +49,17 @@ interface Props {
   interactive?: boolean;
 }
 
-type PrimitiveKeyboardAction = (next: PrimitiveViewportState, shiftKey: boolean, layer: PrimitiveLayer) => void;
-
-const ROTATE_STEP = 8;
-const PAN_STEP = 0.12;
-const ZOOM_STEP = 0.14;
-
-const PRIMITIVE_KEYBOARD_ACTIONS: Record<string, PrimitiveKeyboardAction> = {
-  ArrowUp: (next, shiftKey) => {
-    if (shiftKey) next.panY -= PAN_STEP;
-    else next.rotationX = clamp(next.rotationX - ROTATE_STEP, -85, 85);
-  },
-  ArrowDown: (next, shiftKey) => {
-    if (shiftKey) next.panY += PAN_STEP;
-    else next.rotationX = clamp(next.rotationX + ROTATE_STEP, -85, 85);
-  },
-  ArrowLeft: (next, shiftKey) => {
-    if (shiftKey) next.panX -= PAN_STEP;
-    else next.rotationY -= ROTATE_STEP;
-  },
-  ArrowRight: (next, shiftKey) => {
-    if (shiftKey) next.panX += PAN_STEP;
-    else next.rotationY += ROTATE_STEP;
-  },
-  '+': (next) => {
-    next.zoom = clamp(next.zoom + ZOOM_STEP, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
-  },
-  '=': (next) => {
-    next.zoom = clamp(next.zoom + ZOOM_STEP, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
-  },
-  '-': (next) => {
-    next.zoom = clamp(next.zoom - ZOOM_STEP, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
-  },
-  _: (next) => {
-    next.zoom = clamp(next.zoom - ZOOM_STEP, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
-  },
-  Home: (next, _shiftKey, layer) => {
-    Object.assign(next, defaultPrimitiveViewportState(layer), { locked: next.locked });
-  },
-};
-
-type PrimitiveDragState = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  startView: PrimitiveViewportState;
-  mode: 'rotate' | 'pan';
-};
-
 function nextPrimitiveKeyboardState(
   current: PrimitiveViewportState,
   key: string,
   shiftKey: boolean,
   layer: PrimitiveLayer,
 ) {
-  const action = PRIMITIVE_KEYBOARD_ACTIONS[key];
-  if (!action) return null;
-  const next = { ...current };
-  action(next, shiftKey, layer);
-  return next;
-}
-
-function eventInside(root: HTMLElement, event: Event) {
-  return root.contains(event.target as Node);
-}
-
-function eventFromPrimitiveControl(event: Event) {
-  return event.target instanceof Element && event.target.closest('[data-primitive-camera-control]') !== null;
-}
-
-function stopViewportEvent(event: Event, preventDefault = false) {
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-  if (preventDefault) event.preventDefault();
-}
-
-function primitiveGestureMode(event: PointerEvent): PrimitiveDragState['mode'] {
-  return event.button === 1 || event.button === 2 || event.shiftKey ? 'pan' : 'rotate';
-}
-
-function createPrimitiveDragState(event: PointerEvent, viewState: PrimitiveViewportState): PrimitiveDragState {
-  return {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    startView: { ...viewState },
-    mode: primitiveGestureMode(event),
-  };
-}
-
-function primitiveDragViewState(root: HTMLElement, drag: PrimitiveDragState, event: PointerEvent) {
-  const dx = event.clientX - drag.startX;
-  const dy = event.clientY - drag.startY;
-  if (drag.mode === 'pan') {
-    const panDelta = getViewportPanDelta(root, drag.startView, dx, dy);
-    return {
-      ...drag.startView,
-      panX: drag.startView.panX - panDelta.x,
-      panY: drag.startView.panY + panDelta.y,
-    };
-  }
-  return {
-    ...drag.startView,
-    rotationX: clamp(drag.startView.rotationX + dy * 0.35, -85, 85),
-    rotationY: drag.startView.rotationY + dx * 0.4,
-  };
-}
-
-function shouldStopPassiveViewportEvent(root: HTMLElement, event: Event, interactive: boolean, locked: boolean) {
-  return interactive && eventInside(root, event) && !eventFromPrimitiveControl(event) && !locked;
+  return nextViewportKeyboardState(current, key, shiftKey, defaultPrimitiveViewportState(layer));
 }
 
 function shouldStartPrimitiveDrag(root: HTMLElement, event: PointerEvent, interactive: boolean, locked: boolean) {
-  return interactive && eventInside(root, event) && !eventFromPrimitiveControl(event) && !locked;
-}
-
-function matchingPointerDrag(
-  _root: HTMLElement,
-  event: PointerEvent,
-  drag: PrimitiveDragState | null,
-  interactive: boolean,
-) {
-  if (!interactive) return null;
-  if (!drag || drag.pointerId !== event.pointerId) return null;
-  return drag;
-}
-
-function findReactFlowPane(root: HTMLElement | null) {
-  return (root?.closest('.react-flow')?.querySelector('.react-flow__pane') as HTMLElement) ?? null;
+  return shouldStopViewportEvent(root, event, interactive, locked);
 }
 
 function applyPrimitiveViewStateToScene({
@@ -237,37 +134,10 @@ interface PrimitiveSceneRefs {
   meshRef: MutableRefObject<THREE.Mesh | null>;
   resizeObserverRef: MutableRefObject<ResizeObserver | null>;
   renderSceneRef: MutableRefObject<(() => void) | null>;
-  dragStateRef: MutableRefObject<PrimitiveDragState | null>;
+  dragStateRef: MutableRefObject<ViewportDragState | null>;
   layerRef: MutableRefObject<PrimitiveLayer>;
   viewStateRef: MutableRefObject<PrimitiveViewportState>;
   hasRenderedFrameRef: MutableRefObject<boolean>;
-}
-
-function getWebglContext(canvas: HTMLCanvasElement) {
-  try {
-    return canvas.getContext('webgl2', {
-      alpha: true,
-      antialias: true,
-      preserveDrawingBuffer: true,
-    });
-  } catch {
-    return null;
-  }
-}
-
-function createPrimitiveRenderer(canvas: HTMLCanvasElement, context: WebGL2RenderingContext) {
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    context,
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: true,
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x000000, 0);
-  renderer.setClearAlpha(0);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  return renderer;
 }
 
 function resetPrimitiveSceneRefs(refs: PrimitiveSceneRefs) {
@@ -349,7 +219,7 @@ function usePrimitiveSceneLifecycle({
     }
 
     setWebglUnavailable(false);
-    const renderer = createPrimitiveRenderer(canvas, context);
+    const renderer = createTransparentWebglRenderer(canvas, context);
     rendererRef.current = renderer;
     hasRenderedFrameRef.current = false;
     setHasRenderedFrame(false);
@@ -406,12 +276,7 @@ function usePrimitiveSceneLifecycle({
 
 function resizePrimitiveRenderer(root: HTMLElement, refs: PrimitiveSceneRefs, renderScene: () => void) {
   if (!refs.rendererRef.current || !refs.cameraRef.current) return;
-  const rect = root.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width));
-  const height = Math.max(1, Math.round(rect.height));
-  refs.rendererRef.current.setSize(width, height, false);
-  refs.cameraRef.current.aspect = width / height;
-  refs.cameraRef.current.updateProjectionMatrix();
+  resizeViewportRenderer(root, refs.rendererRef.current, refs.cameraRef.current);
   renderScene();
 }
 
@@ -446,7 +311,7 @@ function usePrimitiveGestureListeners({
   interactive: boolean;
   interactiveRef: MutableRefObject<boolean>;
   lockedRef: MutableRefObject<boolean>;
-  dragStateRef: MutableRefObject<PrimitiveDragState | null>;
+  dragStateRef: MutableRefObject<ViewportDragState | null>;
   isHoveredRef: MutableRefObject<boolean>;
   onViewStateDraftRef: MutableRefObject<Props['onViewStateDraft']>;
   onViewStateChangeRef: MutableRefObject<Props['onViewStateChange']>;
@@ -464,19 +329,19 @@ function usePrimitiveGestureListeners({
     const onPointerDown = (event: PointerEvent) => {
       if (!shouldStartPrimitiveDrag(root, event, interactiveRef.current, lockedRef.current)) return;
       stopViewportEvent(event, true);
-      dragStateRef.current = createPrimitiveDragState(event, viewStateRef.current);
+      dragStateRef.current = createViewportDragState(event, viewStateRef.current);
       root.setPointerCapture(event.pointerId);
       lockRFPane();
     };
     const onPointerMove = (event: PointerEvent) => {
-      const drag = matchingPointerDrag(root, event, dragStateRef.current, interactiveRef.current);
+      const drag = matchingViewportDrag(event, dragStateRef.current, interactiveRef.current);
       if (!drag) return;
       stopViewportEvent(event);
       event.preventDefault();
-      applyDraftViewState(primitiveDragViewState(root, drag, event));
+      applyDraftViewState(viewportDragViewState(root, drag, event));
     };
     const onPointerUp = (event: PointerEvent) => {
-      const drag = matchingPointerDrag(root, event, dragStateRef.current, interactiveRef.current);
+      const drag = matchingViewportDrag(event, dragStateRef.current, interactiveRef.current);
       if (!drag) return;
       stopViewportEvent(event);
       dragStateRef.current = null;
@@ -484,23 +349,19 @@ function usePrimitiveGestureListeners({
       commit();
     };
     const onWheel = (event: WheelEvent) => {
-      if (!shouldStopPassiveViewportEvent(root, event, interactiveRef.current, lockedRef.current)) return;
+      if (!shouldStopViewportEvent(root, event, interactiveRef.current, lockedRef.current)) return;
       stopViewportEvent(event, true);
-      applyDraftViewState({
-        ...viewStateRef.current,
-        zoom: clamp(viewStateRef.current.zoom - event.deltaY * 0.0016, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX),
-      });
+      applyDraftViewState(wheelZoomViewState(viewStateRef.current, event.deltaY));
       scheduleWheelCommit();
     };
     const onContextMenu = (event: MouseEvent) => {
       if (!interactiveRef.current) return;
-      if (!eventInside(root, event)) return;
-      if (eventFromPrimitiveControl(event)) return;
+      if (!eventInsideViewport(root, event)) return;
+      if (eventFromViewportControl(event)) return;
       stopViewportEvent(event, true);
     };
     const stopIfInside = (event: Event) => {
-      if (shouldStopPassiveViewportEvent(root, event, interactiveRef.current, lockedRef.current))
-        stopViewportEvent(event);
+      if (shouldStopViewportEvent(root, event, interactiveRef.current, lockedRef.current)) stopViewportEvent(event);
     };
 
     const controller = new AbortController();
@@ -621,7 +482,7 @@ function handlePrimitiveKeyDown({
   if (!next) return;
   event.preventDefault();
   event.stopPropagation();
-  applyKeyboardState(next, applyViewState, onViewStateChange);
+  applyKeyboardViewportState(next, applyViewState, onViewStateChange);
 }
 
 function notifyPrimitiveHover(interactive: boolean, onHoverChange: Props['onHoverChange'], hovered: boolean) {
@@ -734,7 +595,7 @@ export function PrimitiveViewport3D({
   const hasRenderedFrameRef = useRef(false);
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
-  const dragStateRef = useRef<PrimitiveDragState | null>(null);
+  const dragStateRef = useRef<ViewportDragState | null>(null);
 
   // Stable refs so native listeners never close over stale props
   const modeRef = useRef(mode);
@@ -802,18 +663,11 @@ export function PrimitiveViewport3D({
   );
 
   const scheduleWheelCommit = useCallback(() => {
-    if (wheelCommitTimerRef.current) clearTimeout(wheelCommitTimerRef.current);
-    wheelCommitTimerRef.current = setTimeout(() => {
-      wheelCommitTimerRef.current = null;
-      onViewStateChangeRef.current({ ...viewStateRef.current });
-    }, 90);
+    scheduleViewStateCommit(wheelCommitTimerRef, viewStateRef, onViewStateChangeRef);
   }, []);
 
   const flushPendingWheelCommit = useCallback(() => {
-    if (!wheelCommitTimerRef.current) return;
-    clearTimeout(wheelCommitTimerRef.current);
-    wheelCommitTimerRef.current = null;
-    onViewStateChangeRef.current({ ...viewStateRef.current });
+    flushViewStateCommit(wheelCommitTimerRef, viewStateRef, onViewStateChangeRef);
   }, []);
 
   const primitiveMeshKey = useMemo(
@@ -944,32 +798,4 @@ export function PrimitiveViewport3D({
       onHoverChange={onHoverChange}
     />
   );
-}
-
-function getViewportPanDelta(
-  root: HTMLElement,
-  viewState: PrimitiveViewportState,
-  dx: number,
-  dy: number,
-): { x: number; y: number } {
-  const rect = root.getBoundingClientRect();
-  const width = Math.max(1, rect.width);
-  const height = Math.max(1, rect.height);
-  const zoom = clamp(viewState.zoom, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
-  const cameraZ = CAMERA_DISTANCE / zoom;
-  const visibleHeight = 2 * Math.tan((CAMERA_FOV * Math.PI) / 360) * cameraZ;
-  const visibleWidth = visibleHeight * (width / height);
-  return {
-    x: (dx / width) * visibleWidth,
-    y: (dy / height) * visibleHeight,
-  };
-}
-
-function applyKeyboardState(
-  next: PrimitiveViewportState,
-  applyState: (next: PrimitiveViewportState) => void,
-  onViewStateChange: (viewState: PrimitiveViewportState) => void,
-) {
-  applyState(next);
-  onViewStateChange({ ...next });
 }

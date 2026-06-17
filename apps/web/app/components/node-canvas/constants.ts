@@ -26,6 +26,8 @@ export const KIND_COLOR: Record<string, string> = {
   mask: 'var(--node-kind-effect)',
   transform: 'var(--node-kind-color)',
   grimeShadow: 'var(--node-kind-effect)',
+  scene3d: 'var(--node-kind-primitive)',
+  environment: 'var(--node-kind-color)',
   export: 'var(--node-kind-export)',
 };
 
@@ -45,6 +47,8 @@ export const KIND_SYMBOL: Record<string, string> = {
   mask: '◒',
   transform: '↻',
   grimeShadow: '◖',
+  scene3d: '◌',
+  environment: '◇',
   export: '↗',
 };
 
@@ -170,6 +174,20 @@ export const ADD_NODE_ITEMS: Array<{
     action: { kind: 'grimeShadow' },
   },
   {
+    label: '3D Scene',
+    symbol: '◌',
+    description: 'Render imported models through camera, lights, material, and environment.',
+    group: 'utilities',
+    action: { kind: 'scene3d' },
+  },
+  {
+    label: 'Environment Map',
+    symbol: '◇',
+    description: 'Provide an EXR or HDR environment map to a 3D Scene.',
+    group: 'utilities',
+    action: { kind: 'environment' },
+  },
+  {
     label: 'Repeater',
     symbol: '⧉',
     description: 'Repeat any source branch into line, grid, or radial patterns.',
@@ -206,7 +224,15 @@ export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
 
 export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'];
 export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking'];
-export const TEXTURE_PRESETS: EffectPreset[] = ['grain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'];
+export const TEXTURE_PRESETS: EffectPreset[] = [
+  'grain',
+  'dotGrain',
+  'scanlines',
+  'matte',
+  'dither',
+  'emboss',
+  'linocut',
+];
 export const TINT_PRESETS: EffectPreset[] = ['tint'];
 export const WARP_PRESETS: EffectPreset[] = [
   'noiseWarp',
@@ -225,8 +251,10 @@ export const COLOR_PRESETS: EffectPreset[] = [
   'hueShift',
   'rgbSplit',
   'vignette',
+  'retroResolution',
   'pixelate',
   'posterize',
+  'indexedPalette',
   'sepia',
   'infrared',
   'solarize',
@@ -235,4 +263,11 @@ export const COLOR_PRESETS: EffectPreset[] = [
   'splitTone',
 ];
 export const RISO_PRESETS: EffectPreset[] = ['duotone', 'halftone', 'risoShift', 'overprint'];
-export const GRAPHIC_PRESETS: EffectPreset[] = ['blur', 'threshold', 'edgeDetect', 'gradientOverlay'];
+export const GRAPHIC_PRESETS: EffectPreset[] = [
+  'blur',
+  'threshold',
+  'edgeCrush',
+  'silhouetteCrush',
+  'edgeDetect',
+  'gradientOverlay',
+];

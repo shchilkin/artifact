@@ -1,10 +1,11 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectPreset, GraphArea, Layer, LayerKind } from '../../types/config';
+import type { CanvasDocument, EffectPreset, GraphArea, GraphScene3DNode, Layer, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { canInsertLayerAbove } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
+import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
@@ -25,6 +26,7 @@ export interface LayerPanelProps {
   onAddTextPreset: (preset: TextPresetId) => void;
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onAddScene3D: () => void;
   onStartAiImage?: () => void;
   onLoadStarter?: (id: string) => void;
   onOpenProjects?: () => void;
@@ -67,6 +69,7 @@ export function LayerPanel({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
+  onAddScene3D,
   onStartAiImage,
   onLoadStarter,
   onOpenProjects,
@@ -104,7 +107,10 @@ export function LayerPanel({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showAreaMenu]);
 
-  const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
+  const displayLayers = useMemo(
+    () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
+    [doc.layers, doc.graph],
+  );
   const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
   const displayItems = useMemo(
     () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
@@ -221,6 +227,7 @@ export function LayerPanel({
         onAddTextPreset={onAddTextPreset}
         onAddNoisePreset={onAddNoisePreset}
         onAddArrayPreset={onAddArrayPreset}
+        onAddScene3D={onAddScene3D}
         onStartAiImage={onStartAiImage}
       />
 
@@ -244,6 +251,7 @@ export function LayerPanel({
           onCreateAreaFromSelection={handleCreateAreaFromSelection}
           onAddSelectionToArea={handleAddSelectionToArea}
         />
+        <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
         {displayItems.map((item) => (
           <LayerDisplayEntry
             key={item.type === 'area' ? item.area.id : item.layer.id}
@@ -295,6 +303,7 @@ function LayerPanelHeader({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
+  onAddScene3D,
   onStartAiImage,
 }: {
   modeSwitcher?: React.ReactNode;
@@ -303,6 +312,7 @@ function LayerPanelHeader({
   onAddTextPreset: (preset: TextPresetId) => void;
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
+  onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
   return (
@@ -316,6 +326,7 @@ function LayerPanelHeader({
         onAddTextPreset={onAddTextPreset}
         onAddNoisePreset={onAddNoisePreset}
         onAddArrayPreset={onAddArrayPreset}
+        onAddScene3D={onAddScene3D}
         onStartAiImage={onStartAiImage}
       />
     </div>
@@ -512,5 +523,91 @@ function LayerDisplayEntry({
       canQuickAdd={canQuickAddLayerAbove(item.layer.id)}
       onInsertLayerAbove={onInsertLayerAbove}
     />
+  );
+}
+
+function Scene3DLayerRows({
+  doc,
+  selectedLayerId,
+  onSelectLayer,
+}: {
+  doc: CanvasDocument;
+  selectedLayerId: string | null;
+  onSelectLayer: (id: string | null) => void;
+}) {
+  const scenes = doc.graph?.scene3dNodes ?? [];
+  if (scenes.length === 0) return null;
+  return (
+    <>
+      {scenes.map((scene) => (
+        <Scene3DLayerRow
+          key={scene.id}
+          scene={scene}
+          doc={doc}
+          selected={selectedLayerId === scene.id}
+          onSelectLayer={onSelectLayer}
+        />
+      ))}
+    </>
+  );
+}
+
+function Scene3DLayerRow({
+  scene,
+  doc,
+  selected,
+  onSelectLayer,
+}: {
+  scene: GraphScene3DNode;
+  doc: CanvasDocument;
+  selected: boolean;
+  onSelectLayer: (id: string | null) => void;
+}) {
+  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
+  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-selected={selected}
+      data-layer-id={scene.id}
+      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
+        selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50'
+      }`}
+      onClick={() => onSelectLayer(scene.id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelectLayer(scene.id);
+        }
+      }}
+    >
+      <span className="layer-row-drag-handle text-dim text-[10px] flex-shrink-0" aria-hidden="true">
+        ·
+      </span>
+      <span className="font-mono text-[10px] flex-shrink-0 w-5 text-center text-accent" style={{ fontWeight: 700 }}>
+        ◌
+      </span>
+      <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
+        {scene.name}
+      </span>
+      <span className="layer-meta-badge" title="3D model and environment are edited from this scene layer">
+        3D Scene
+      </span>
+      {model && (
+        <span className="layer-area-chip" title={model.modelName} aria-label={`Model: ${model.modelName}`}>
+          model
+        </span>
+      )}
+      {(environment || scene.environmentName) && (
+        <span
+          className="layer-area-chip"
+          title={environment?.environmentName || scene.environmentName}
+          aria-label={`Environment: ${environment?.environmentName || scene.environmentName}`}
+        >
+          env
+        </span>
+      )}
+    </div>
   );
 }

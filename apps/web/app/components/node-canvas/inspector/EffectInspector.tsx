@@ -45,6 +45,7 @@ export function EffectInspector({
   return (
     <div className={effectInspectorClassName(detached)}>
       <EffectInspectorHeader layer={layer} />
+      <RetroRecipeNote preset={layer.preset} />
 
       <EffectNodeSection
         layer={layer}
@@ -143,6 +144,69 @@ function effectPresetLabel(preset: EffectPreset | undefined) {
 function EffectDescription({ preset }: { preset: EffectPreset | undefined }) {
   const description = effectPresetDescription(preset);
   return description ? <p className="node-inspector-effect-description">{description}</p> : null;
+}
+
+const RETRO_RECIPE_STEPS: Partial<
+  Record<
+    EffectPreset,
+    {
+      step: string;
+      title: string;
+      detail: string;
+    }
+  >
+> = {
+  retroResolution: {
+    step: '1 / 4',
+    title: 'Sample down',
+    detail: 'Start the PS-era finish by lowering the source resolution before color mapping.',
+  },
+  indexedPalette: {
+    step: '2 / 4',
+    title: 'Map colors',
+    detail: 'Choose the limited swatches that the next texture nodes will bite into.',
+  },
+  dotGrain: {
+    step: '3 / 4',
+    title: 'Round grain',
+    detail: 'Add stochastic dot texture after palette mapping for the old-render surface.',
+  },
+  edgeCrush: {
+    step: '4 / 4',
+    title: 'Harden alpha',
+    detail: 'Remove soft transparent antialiasing before a harsher silhouette pass.',
+  },
+  silhouetteCrush: {
+    step: '4 / 4',
+    title: 'Chip silhouette',
+    detail: 'Finish by breaking alpha and high-contrast silhouette borders into chipped sprite pixels.',
+  },
+  dither: {
+    step: 'ALT',
+    title: 'Pattern texture',
+    detail: 'Use as a stricter grid alternative to round grain inside the same retro chain.',
+  },
+  halftone: {
+    step: 'ALT',
+    title: 'Print screen',
+    detail: 'Use as a print-dot alternative when the finish should feel offset instead of sampled.',
+  },
+};
+
+function RetroRecipeNote({ preset }: { preset: EffectPreset | undefined }) {
+  if (!preset) return null;
+  const step = RETRO_RECIPE_STEPS[preset];
+  if (!step) return null;
+  return (
+    <div className="retro-recipe-card" aria-label="Retro finish recipe">
+      <span className="retro-recipe-kicker">Retro finish</span>
+      <div className="retro-recipe-main">
+        <strong>{step.title}</strong>
+        <span>{step.step}</span>
+      </div>
+      <p>{step.detail}</p>
+    </div>
+  );
 }
 
 function effectPresetDescription(preset: EffectPreset | undefined) {

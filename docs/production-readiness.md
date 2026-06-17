@@ -49,6 +49,48 @@ CI should run:
 
 ## Manual QA
 
+### v0.36.0 Release Prep
+
+- Package metadata is bumped to `0.36.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.36.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.36 adds 3D Model and Environment graph inputs, a 3D Scene rendering path,
+  scene-owned model framing, lighting/environment controls, and retro finishing
+  effects for indexed palettes, dot grain, alpha crush, silhouette crush, and
+  edge crush.
+- v0.36 updates Layers semantics so 3D Scene is the layer target while 3D Model
+  and Environment are presented as scene settings there; Nodes keeps the 3D
+  Model, Environment, and 3D Scene nodes explicit.
+- Manual QA confirmed GLB model import, scene camera movement, model rotation
+  and positioning, environment/backdrop inputs, retro effect stacks,
+  preview/export parity, and always-spinning 3D Model input previews that do
+  not write to undo/history.
+- `npm run check` passed on 2026-06-16 with 12 existing lint warnings, 462 web
+  tests passing, and 93 API tests passing with 1 skipped.
+- `npm run build` passed on 2026-06-16. The build still reports a large
+  `three-vendor` chunk, which is accepted for this first 3D release.
+- `npm run test:browser:release` passed on 2026-06-16 with `296 passed` and
+  `35 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. A second full release run exposed unrelated browser-suite flakes; a
+  third full release run passed again with `296 passed` and `35 skipped`.
+- Focused browser validation passed on 2026-06-16:
+  `npm run test:browser:chromium -- tests/browser/generator.spec.ts --grep "AI image node appends history"` and
+  `npm run test:browser:chromium -- tests/browser/v036-3d-model-retro.spec.ts`.
+- `npm run perf:node-editor` passed on 2026-06-16 because v0.36 changes
+  React Flow nodes, 3D thumbnails, render signatures, scene rendering, and
+  export-sensitive behavior. Dragging, slider changes, and graph panning stayed
+  around 16-17ms p95 with zero long tasks during interactions; initial
+  node-editor load still has startup long tasks and remains a performance
+  follow-up.
+- `npm run release:verify` passed on 2026-06-16.
+- Accepted release risk: GLB/GLTF is the first-class model import path; OBJ and
+  deeper material editing remain future polish because they need separate
+  material/texture handling.
+- Accepted release risk: WebGL-heavy v0.36 browser coverage is Chromium-first;
+  Firefox and WebKit keep lightweight unsupported-drop coverage for this
+  release.
+
 ### v0.35.0 Release Prep
 
 - Package metadata is bumped to `0.35.0` in `package.json`,

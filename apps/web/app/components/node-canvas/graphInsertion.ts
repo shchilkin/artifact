@@ -60,6 +60,8 @@ function firstDefinedNumber(fallback: number, ...values: Array<number | undefine
 
 export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] {
   if (action.kind === 'merge') return 'a';
+  if (action.kind === 'scene3d') return 'model';
+  if (action.kind === 'environment') return 'env';
   if (
     action.kind === 'color' ||
     action.kind === 'repeat' ||

@@ -101,7 +101,7 @@ function galleryPrimitiveState(
   layer: Layer | null,
   primitiveViewStates: Record<string, PrimitiveViewportState>,
 ): PrimitiveViewportState | null {
-  if (layer?.kind !== 'primitive') return null;
+  if (layer?.kind !== 'primitive' && layer?.kind !== 'model') return null;
   return primitiveViewStates[layer.id] ?? defaultPrimitiveViewportState(layer);
 }
 
@@ -111,7 +111,7 @@ function galleryMediaState(layer: Layer | null, mediaViewStates: Record<string, 
 
 function galleryHintForLayer(layer: Layer | null) {
   if (!layer) return '';
-  return layer.kind === 'primitive'
+  return layer.kind === 'primitive' || layer.kind === 'model'
     ? 'Drag rotates, wheel or trackpad zooms, lock freezes camera. Export uses this camera.'
     : 'Drag to pan, scroll to zoom, Home resets.';
 }

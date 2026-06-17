@@ -34,6 +34,56 @@ export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, 
   ctx.restore();
 }
 
+export function applyDotGrain(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  seed: number,
+  scale: number,
+) {
+  if (layer.dotGrain <= 0 || W <= 0 || H <= 0) return;
+
+  const amount = Math.min(1, Math.max(0, layer.dotGrain / 100));
+  const density = Math.min(1, Math.max(0.02, (layer.dotGrainDensity ?? 62) / 100));
+  const jitter = Math.min(1, Math.max(0, (layer.dotGrainJitter ?? 35) / 100));
+  const dotSize = Math.max(1, (layer.dotGrainSize ?? 4) * scale);
+  const step = Math.max(2, dotSize * (1.35 + (1 - density) * 2.4));
+  const maxRadius = Math.max(0.75, dotSize * 0.74);
+  const source = ctx.getImageData(0, 0, W, H);
+  const data = source.data;
+  const dotRng = lcg(seed * 8111);
+  const dots = createCanvas(W, H);
+  const dctx = dots.getContext('2d')!;
+
+  dctx.fillStyle = '#050008';
+  for (let y = step * 0.5; y < H; y += step) {
+    for (let x = step * 0.5; x < W; x += step) {
+      const jx = (dotRng() - 0.5) * step * jitter;
+      const jy = (dotRng() - 0.5) * step * jitter;
+      const sx = Math.min(W - 1, Math.max(0, Math.round(x + jx)));
+      const sy = Math.min(H - 1, Math.max(0, Math.round(y + jy)));
+      const i = (sy * W + sx) * 4;
+      const alpha = (data[i + 3] ?? 0) / 255;
+      if (alpha <= 0.02) continue;
+      const lum = ((data[i] ?? 0) * 0.299 + (data[i + 1] ?? 0) * 0.587 + (data[i + 2] ?? 0) * 0.114) / 255;
+      const tone = Math.max(0, Math.min(1, 1 - lum));
+      const stochastic = 0.72 + dotRng() * 0.42;
+      const radius = maxRadius * Math.pow(tone, 0.82) * stochastic;
+      if (radius < 0.25) continue;
+      dctx.globalAlpha = Math.min(1, amount * alpha * (0.34 + tone * 0.76));
+      dctx.beginPath();
+      dctx.arc(sx, sy, radius, 0, Math.PI * 2);
+      dctx.fill();
+    }
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(dots, 0, 0);
+  ctx.restore();
+}
+
 export function applyMatte(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
   if (layer.matte <= 0) return;
 

@@ -1,0 +1,29 @@
+{
+  "clone_groups": [
+    "apps/web/app/components/ModelViewport3D.tsx:210-218|apps/web/app/components/PrimitiveViewport3D.tsx:662-671",
+    "apps/web/app/components/ModelViewport3D.tsx:425-432|apps/web/app/components/PrimitiveViewport3D.tsx:330-337",
+    "apps/web/app/components/ModelViewport3D.tsx:453-463|apps/web/app/components/PrimitiveViewport3D.tsx:364-375",
+    "apps/web/app/components/layers-panel/LayerAddMenu.tsx:24-30|apps/web/app/components/layers-panel/LayerPanel.tsx:24-30|apps/web/app/components/layers-panel/LayerPanel.tsx:310-316",
+    "apps/web/app/components/layers-panel/LayerPanel.tsx:23-30|apps/web/app/components/layers-panel/LayerPanel.tsx:309-316",
+    "apps/web/app/components/node-canvas/panel/NodePropertiesPanel.tsx:60-67|apps/web/app/utils/editorTargetSummary.ts:112-119",
+    "apps/web/app/components/node-canvas/thumbnails/PrimitivePreviewSurface.tsx:286-324|apps/web/app/components/node-canvas/thumbnails/Scene3DPreviewSurface.tsx:181-219",
+    "apps/web/app/types/config.ts:790-816|tests/browser/v036-3d-model-retro.spec.ts:37-63",
+    "apps/web/app/utils/assetStore.ts:42-49|apps/web/app/utils/envAssetStore.ts:38-45|apps/web/app/utils/modelAssetStore.ts:37-44",
+    "apps/web/app/utils/documentPersistence.ts:203-211|apps/web/app/utils/documentPersistence.ts:218-226|apps/web/app/utils/documentPersistence.ts:233-241",
+    "apps/web/app/utils/envAssetStore.ts:37-45|apps/web/app/utils/modelAssetStore.ts:36-44",
+    "apps/web/app/utils/modelRenderer.test.ts:7-13|apps/web/app/utils/primitiveRenderer.test.ts:7-13",
+    "apps/web/app/utils/modelRenderer.test.ts:19-30|apps/web/app/utils/primitiveRenderer.test.ts:44-52",
+    "apps/web/app/utils/modelRenderer.ts:35-60|apps/web/app/utils/primitiveRenderer.ts:23-48",
+    "apps/web/app/utils/modelRenderer.ts:47-59|apps/web/app/utils/primitiveRenderer.ts:35-47",
+    "apps/web/app/utils/modelRenderer.ts:62-71|apps/web/app/utils/primitiveRenderer.ts:54-63",
+    "apps/web/app/utils/modelRenderer.ts:417-427|apps/web/app/utils/primitiveRenderer.ts:127-137",
+    "apps/web/app/utils/proceduralSource.ts:355-363|apps/web/app/utils/proceduralSource.ts:375-385",
+    "apps/web/app/utils/render/workers/effectPixelTransform.ts:380-388|apps/web/app/utils/render/workers/effectPixelTransform.ts:407-412|apps/web/app/utils/render/workers/effectPixelTransform.ts:434-439",
+    "apps/web/app/utils/render/workers/effectPixelTransform.ts:406-413|apps/web/app/utils/render/workers/effectPixelTransform.ts:433-440",
+    "tests/browser/generator.spec.ts:3808-3813|tests/browser/v036-3d-model-retro.spec.ts:220-225",
+    "tests/browser/helpers.ts:106-110|tests/browser/v036-3d-model-retro.spec.ts:378-382",
+    "tests/browser/v030-visual.spec.ts:100-111|tests/browser/v036-3d-model-retro.spec.ts:185-202",
+    "tests/browser/v036-3d-model-retro.spec.ts:214-220|tests/browser/v036-3d-model-retro.spec.ts:241-245",
+    "tests/browser/v036-3d-model-retro.spec.ts:384-389|tests/browser/v036-3d-model-retro.spec.ts:408-413"
+  ]
+}

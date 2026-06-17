@@ -2,6 +2,7 @@ import type { PrimitiveViewportState } from '../components/PrimitiveViewportStat
 import type { SourceLayer } from '../types/config';
 import { hexToRgb, mixRgb, type Rgb } from './colorMath';
 import { lcg } from './lcg';
+import { renderModelToCanvas } from './modelRenderer';
 import { renderPrimitiveToCanvas } from './primitiveRenderer';
 import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
 import { renderNoiseTexture } from './render/workers/noiseTextureClient';
@@ -369,6 +370,20 @@ async function drawSourceLayerContent(
   }
   if (layer.kind === 'lineField') {
     drawLineFieldLayer(ctx, layer, seed, drawWidth, drawHeight);
+    return;
+  }
+  if (layer.kind === 'model') {
+    const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
+    const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const threeCanvas = await renderModelToCanvas(
+      layer,
+      { width: renderWidth, height: renderHeight },
+      primitiveViewState,
+      {
+        forceFallback: draft,
+      },
+    );
+    ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     return;
   }
   drawArrayLayer(ctx, layer, seed);
