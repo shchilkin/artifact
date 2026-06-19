@@ -10,6 +10,7 @@ import {
   type ImageLayer,
   type Layer,
   type ModelLayer,
+  type PrimitiveLayer,
 } from '../types/config';
 import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
@@ -394,24 +395,33 @@ function SelectedSceneReadout({ label, value, detail }: { label: string; value: 
   );
 }
 
+function sceneSourceName(model: ModelLayer | PrimitiveLayer | null) {
+  if (!model) return 'No source connected';
+  if (model.kind === 'model') return model.modelName || model.name;
+  return model.name || `${model.primitiveShape} primitive`;
+}
+
+function sceneSourceDetail(model: ModelLayer | PrimitiveLayer) {
+  if (model.kind === 'model') return `${model.modelMime || 'model'} · ${Math.round(model.modelBytes / 1024)} KB`;
+  return `${model.primitiveShape} · procedural mesh`;
+}
+
 function SelectedScene3DInputSettings({
   model,
   environment,
   scene,
 }: {
-  model: ModelLayer | null;
+  model: ModelLayer | PrimitiveLayer | null;
   environment: GraphEnvironmentNode | null;
   scene: GraphScene3DNode;
 }) {
   return (
     <Section title="Scene Inputs" defaultOpen>
       <SelectedSceneReadout
-        label="3D Model"
-        value={model?.modelName || 'No model connected'}
+        label="3D Source"
+        value={sceneSourceName(model)}
         detail={
-          model
-            ? `${model.modelMime || 'model'} · ${Math.round(model.modelBytes / 1024)} KB`
-            : 'Model is a scene setting in Layers and a node in Nodes.'
+          model ? sceneSourceDetail(model) : 'Model or primitive is a scene setting in Layers and a node in Nodes.'
         }
       />
       <SelectedSceneReadout

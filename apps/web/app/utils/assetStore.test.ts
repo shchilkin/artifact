@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type CanvasDocument, makeFillLayer, makeImageLayer } from '../types/config';
+import { type CanvasDocument, makeFillLayer, makeGraphMaterialNode, makeImageLayer } from '../types/config';
 import { hydrateDocumentImageAssets } from './assetStore';
 
 describe('hydrateDocumentImageAssets', () => {
@@ -79,5 +79,34 @@ describe('hydrateDocumentImageAssets', () => {
       kind: 'image',
       src: 'artifact-asset://missing-generated-output',
     });
+  });
+
+  it('hydrates material texture asset refs into portable document data URLs', async () => {
+    const doc: CanvasDocument = {
+      global: { bg: '#101010', seed: 13, aspect: '1:1' },
+      layers: [makeFillLayer({ id: 'fill-layer' })],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        materialNodes: [
+          makeGraphMaterialNode({
+            id: 'material-a',
+            materialAlbedoSrc: 'artifact-asset://material-albedo',
+          }),
+        ],
+      },
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const loadAssetDataUrl = vi.fn(async (src: string) =>
+      src === 'artifact-asset://material-albedo' ? portableDataUrl : null,
+    );
+
+    const hydrated = await hydrateDocumentImageAssets(doc, { loadAssetDataUrl });
+
+    expect(loadAssetDataUrl).toHaveBeenCalledWith('artifact-asset://material-albedo');
+    expect(hydrated.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: portableDataUrl });
+    expect(doc.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: 'artifact-asset://material-albedo' });
   });
 });

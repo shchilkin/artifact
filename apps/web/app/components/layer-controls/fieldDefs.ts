@@ -22,6 +22,16 @@ export const TEXT_ALIGN_OPTIONS = ['left', 'center', 'right'] as const;
 export const IMAGE_FIT_OPTIONS = ['cover', 'contain', 'tile', 'free'] as const;
 export const PRIMITIVE_SHAPE_OPTIONS = ['sphere', 'cube', 'cylinder'] as const;
 export const PRIMITIVE_SHADING_OPTIONS = ['smooth', 'flat'] as const;
+export const MATERIAL_PRESET_OPTIONS = [
+  { value: 'matte', label: 'Matte' },
+  { value: 'goldFoil', label: 'Gold Foil' },
+  { value: 'chrome', label: 'Chrome' },
+  { value: 'brushedMetal', label: 'Brushed Metal' },
+  { value: 'pearl', label: 'Pearl' },
+  { value: 'plastic', label: 'Plastic' },
+  { value: 'paper', label: 'Paper' },
+  { value: 'fabric', label: 'Fabric' },
+] as const;
 export const NOISE_TYPE_OPTIONS = ['value', 'clouds', 'cells'] as const;
 export const ARRAY_PATTERN_OPTIONS = ['line', 'grid', 'radial'] as const;
 export const ARRAY_SHAPE_OPTIONS = ['disc', 'bar', 'diamond'] as const;
@@ -60,6 +70,11 @@ export const FIELD_RANGES = {
   seedOffset: { min: -999, max: 999, step: 1 },
   tiltZ: { min: -180, max: 180, step: 1 },
   primitiveDepth: { min: 10, max: 100, step: 1 },
+  materialMetalness: { min: 0, max: 100, step: 1 },
+  materialRoughness: { min: 0, max: 100, step: 1 },
+  materialClearcoat: { min: 0, max: 100, step: 1 },
+  materialRelief: { min: 0, max: 100, step: 1 },
+  materialGrain: { min: 0, max: 100, step: 1 },
 
   // Noise
   noiseScale: { min: 1, max: 128, step: 1 },

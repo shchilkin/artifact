@@ -49,6 +49,45 @@ CI should run:
 
 ## Manual QA
 
+### v0.37.0 Release Prep
+
+- Package metadata is bumped to `0.37.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.37.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.37 adds one graph-native PBR Material node with scalar controls and
+  albedo, roughness, metalness, normal, and alpha texture-map inputs.
+- v0.37 adds explicit material ports for 3D primitive and 3D Scene workflows,
+  plus Environment Map nodes that can light and reflect in scenes instead of
+  acting only as flat backdrops.
+- v0.37 keeps material nodes graph-only while Layers continue to expose 3D
+  material controls as settings on primitive/model/scene surfaces.
+- Manual QA confirmed material-node creation from Add Library, material
+  inspector controls, connected 3D Scene material input behavior, environment
+  lighting/reflection behavior, downstream graph composition, and raster export
+  parity.
+- `npm run check` passed on 2026-06-19.
+- `npm run build` passed on 2026-06-19. The build still reports a large
+  `three-vendor` chunk, which remains accepted for the ongoing 3D work.
+- `npm run test:browser:release` passed on 2026-06-19 with `300 passed` and
+  `37 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- Focused validation passed on 2026-06-19:
+  `npm --workspace @artifact/web run test -- app/utils/modelRenderer.test.ts app/test-fixtures/render/graphRender.test.ts` and
+  `npm run test:browser:chromium -- tests/browser/v036-3d-model-retro.spec.ts`.
+- `npm run perf:node-editor` passed on 2026-06-19 because v0.37 changes
+  React Flow nodes, graph signatures, thumbnails, and WebGL-heavy material
+  preview paths. Dragging, slider changes, and graph panning stayed around
+  17ms p95 with zero long tasks during interactions; initial node-editor load
+  still has startup long tasks and remains a performance follow-up.
+- `npm run release:verify` passed on 2026-06-19.
+- Accepted release risk: PBR material authoring starts with one graph material
+  node and scalar/map inputs; deeper map scale/rotation, channel packing, and
+  larger material examples remain future polish.
+- Accepted release risk: heavy 3D material browser coverage remains
+  Chromium-first while the full browser suite continues to cover the app across
+  Firefox, WebKit, and mobile projects.
+
 ### v0.36.0 Release Prep
 
 - Package metadata is bumped to `0.36.0` in `package.json`,

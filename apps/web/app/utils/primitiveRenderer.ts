@@ -12,6 +12,8 @@ import {
   createPrimitiveMaterial,
   degToRad,
   disposeMesh,
+  primitiveLayerMaterialConfig,
+  type ResolvedMaterialConfig,
 } from './primitiveScene';
 
 const SOURCE_OVERSCAN = 1.22;
@@ -51,12 +53,17 @@ export const primitiveRendererTestInternals = {
   canvasHasPrimitiveContent,
 };
 
-function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer): void {
+function drawFallbackPrimitive(
+  canvas: HTMLCanvasElement,
+  layer: PrimitiveLayer,
+  materialConfig?: ResolvedMaterialConfig,
+): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
   const width = canvas.width;
   const height = canvas.height;
+  const material = materialConfig ?? primitiveLayerMaterialConfig(layer);
   const size = Math.min(width, height);
   const cx = width / 2;
   const cy = height / 2;
@@ -80,25 +87,25 @@ function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer)
       ctx.closePath();
       ctx.fill();
     };
-    drawPoly(top, rgba(layer.accentColor, 0.84));
-    drawPoly(left, rgba(layer.color, 0.78));
-    drawPoly(right, rgba(layer.color, 0.62));
+    drawPoly(top, rgba(material.materialAccentColor, 0.84));
+    drawPoly(left, rgba(material.materialBaseColor, 0.78));
+    drawPoly(right, rgba(material.materialBaseColor, 0.62));
     return;
   }
 
   if (layer.primitiveShape === 'cylinder') {
     const r = radius;
     const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-    grad.addColorStop(0, rgba(layer.color, 0.6));
-    grad.addColorStop(0.5, rgba(layer.color, 0.95));
-    grad.addColorStop(1, rgba(layer.accentColor, 0.65));
+    grad.addColorStop(0, rgba(material.materialBaseColor, 0.6));
+    grad.addColorStop(0.5, rgba(material.materialBaseColor, 0.95));
+    grad.addColorStop(1, rgba(material.materialAccentColor, 0.65));
     ctx.fillStyle = grad;
     ctx.fillRect(cx - r, cy - r * 0.58, r * 2, r * 1.18);
-    ctx.fillStyle = rgba(layer.accentColor, 0.85);
+    ctx.fillStyle = rgba(material.materialAccentColor, 0.85);
     ctx.beginPath();
     ctx.ellipse(cx, cy - r * 0.58, r, r * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = rgba(layer.color, 0.5);
+    ctx.fillStyle = rgba(material.materialBaseColor, 0.5);
     ctx.beginPath();
     ctx.ellipse(cx, cy + r * 0.6, r, r * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -106,9 +113,9 @@ function drawFallbackPrimitive(canvas: HTMLCanvasElement, layer: PrimitiveLayer)
   }
 
   const grad = ctx.createRadialGradient(cx - radius * 0.36, cy - radius * 0.42, radius * 0.08, cx, cy, radius);
-  grad.addColorStop(0, rgba(layer.accentColor, 0.95));
-  grad.addColorStop(0.42, rgba(layer.color, 0.86));
-  grad.addColorStop(1, rgba(layer.color, 0.36));
+  grad.addColorStop(0, rgba(material.materialAccentColor, 0.95));
+  grad.addColorStop(0.42, rgba(material.materialBaseColor, 0.86));
+  grad.addColorStop(1, rgba(material.materialBaseColor, 0.36));
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -125,6 +132,7 @@ export async function renderPrimitiveToCanvas(
   size: number | { width: number; height: number },
   viewState?: PrimitiveViewportState,
   options: PrimitiveRenderOptions = {},
+  materialConfig?: ResolvedMaterialConfig,
 ): Promise<HTMLCanvasElement> {
   const targetWidth = typeof size === 'number' ? size : size.width;
   const targetHeight = typeof size === 'number' ? size : size.height;
@@ -132,7 +140,7 @@ export async function renderPrimitiveToCanvas(
   offscreen.width = Math.max(1, Math.round(targetWidth));
   offscreen.height = Math.max(1, Math.round(targetHeight));
   if (options.forceFallback) {
-    drawFallbackPrimitive(offscreen, layer);
+    drawFallbackPrimitive(offscreen, layer, materialConfig);
     return offscreen;
   }
 
@@ -164,7 +172,7 @@ export async function renderPrimitiveToCanvas(
     }
   })();
   if (!context) {
-    drawFallbackPrimitive(offscreen, layer);
+    drawFallbackPrimitive(offscreen, layer, materialConfig);
     return offscreen;
   }
 
@@ -189,7 +197,7 @@ export async function renderPrimitiveToCanvas(
 
     const geometry = createPrimitiveGeometry(layer);
     // Export always uses 'shaded' mode — renderMode is a live viewport concept.
-    const material = createPrimitiveMaterial(layer, 'shaded');
+    const material = createPrimitiveMaterial(layer, materialConfig, 'shaded');
     mesh = new THREE.Mesh(geometry, material);
     applyMeshTransform(mesh, effectiveViewState, layer.tiltZ);
     scene.add(mesh);
@@ -202,7 +210,7 @@ export async function renderPrimitiveToCanvas(
       outCtx.drawImage(renderCanvas, 0, 0, renderWidth, renderHeight, 0, 0, offscreen.width, offscreen.height);
     }
   } catch {
-    drawFallbackPrimitive(offscreen, layer);
+    drawFallbackPrimitive(offscreen, layer, materialConfig);
   } finally {
     if (mesh) disposeMesh(mesh);
     if (renderer) {
@@ -212,7 +220,7 @@ export async function renderPrimitiveToCanvas(
     renderCanvas.height = 0;
   }
 
-  if (!canvasHasPrimitiveContent(offscreen)) drawFallbackPrimitive(offscreen, layer);
+  if (!canvasHasPrimitiveContent(offscreen)) drawFallbackPrimitive(offscreen, layer, materialConfig);
 
   return offscreen;
 }

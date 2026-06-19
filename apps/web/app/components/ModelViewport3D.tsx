@@ -7,21 +7,19 @@ import {
   useState,
 } from 'react';
 import * as THREE from 'three';
-import type { GraphScene3DNode, ModelLayer } from '../types/config';
-import { resolveModelSource } from '../utils/modelAssetStore';
+import type { GraphScene3DNode, MaterialConfig, ModelLayer, PrimitiveLayer } from '../types/config';
 import {
   addModelSceneLights,
-  applyModelFallbackMaterials,
   applyModelTransform,
   applySceneEnvironmentIntensity,
   applySceneEnvironmentRotation,
-  applySceneMaterialMode,
   disposeObject3D,
+  loadScene3DSourceObject,
+  loadSceneEnvironmentCanvas,
   loadSceneEnvironmentMap,
-  modelSourceToArrayBuffer,
   normalizeModelRoot,
-  parseGltfScene,
   type SceneEnvironmentMap,
+  type SceneMaterialTextureCanvases,
 } from '../utils/modelRenderer';
 import {
   applyViewStateToCamera,
@@ -50,18 +48,23 @@ import {
 } from './viewport3DControls';
 
 interface Props {
-  layer: ModelLayer;
+  layer: ModelLayer | PrimitiveLayer;
   sceneNode?: GraphScene3DNode;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
   className?: string;
   interactive?: boolean;
+  materialConfig?: MaterialConfig;
+  materialTextures?: SceneMaterialTextureCanvases | null;
+  environmentCanvas?: HTMLCanvasElement | null;
   environmentSource?: string | null;
   autoRotatePreview?: boolean;
 }
 
 const AUTO_ROTATE_DEGREES_PER_MS = 0.018;
+let nextEnvironmentCanvasId = 1;
+const environmentCanvasIds = new WeakMap<HTMLCanvasElement, number>();
 
 function modelViewportClassName(className: string | undefined, locked: boolean) {
   return ['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel']
@@ -75,18 +78,85 @@ function modelViewportAriaLabel(interactive: boolean, layerName: string) {
     : undefined;
 }
 
-function materialSignature(sceneNode: GraphScene3DNode | undefined) {
-  return sceneNode?.materialMode ?? 'original';
+function materialSignature(
+  sceneNode: GraphScene3DNode | undefined,
+  materialConfig: MaterialConfig | undefined,
+  materialTextures: SceneMaterialTextureCanvases | null | undefined,
+) {
+  return [
+    materialConfig ? 'pbr' : (sceneNode?.materialMode ?? 'original'),
+    materialConfig?.materialPreset ?? '',
+    materialConfig?.materialBaseColor ?? '',
+    materialConfig?.materialAccentColor ?? '',
+    materialConfig?.materialMetalness ?? '',
+    materialConfig?.materialRoughness ?? '',
+    materialConfig?.materialClearcoat ?? '',
+    materialConfig?.materialRelief ?? '',
+    materialConfig?.materialGrain ?? '',
+    materialConfig?.materialAnisotropy ?? '',
+    materialConfig?.materialAlbedoSrc ?? '',
+    materialConfig?.materialRoughnessSrc ?? '',
+    materialConfig?.materialMetalnessSrc ?? '',
+    materialConfig?.materialNormalSrc ?? '',
+    materialConfig?.materialAlphaSrc ?? '',
+    materialCanvasSignature(materialTextures?.albedo),
+    materialCanvasSignature(materialTextures?.roughness),
+    materialCanvasSignature(materialTextures?.metalness),
+    materialCanvasSignature(materialTextures?.normal),
+    materialCanvasSignature(materialTextures?.alpha),
+  ].join(':');
 }
 
-function environmentSignature(sceneNode: GraphScene3DNode | undefined, environmentSource: string | null | undefined) {
-  return environmentSource ?? sceneNode?.environmentSrc ?? '';
+function materialCanvasSignature(canvas: HTMLCanvasElement | null | undefined) {
+  return canvas ? environmentCanvasSignature(canvas) : '';
+}
+
+function sourceLayerSignature(layer: ModelLayer | PrimitiveLayer) {
+  if (layer.kind === 'model') return ['model', layer.modelSrc, layer.color, layer.accentColor].join(':');
+  return [
+    'primitive',
+    layer.primitiveShape,
+    layer.primitiveDepth,
+    layer.primitiveShading,
+    layer.color,
+    layer.accentColor,
+    layer.materialPreset,
+    layer.materialBaseColor,
+    layer.materialAccentColor,
+    layer.materialMetalness,
+    layer.materialRoughness,
+    layer.materialClearcoat,
+    layer.materialRelief,
+    layer.materialGrain,
+    layer.materialAnisotropy,
+  ].join(':');
+}
+
+function environmentSignature(
+  sceneNode: GraphScene3DNode | undefined,
+  environmentSource: string | null | undefined,
+  environmentCanvas: HTMLCanvasElement | null | undefined,
+) {
+  if (environmentSource) return environmentSource;
+  if (sceneNode?.environmentSrc) return sceneNode.environmentSrc;
+  if (environmentCanvas) return environmentCanvasSignature(environmentCanvas);
+  return '';
+}
+
+function environmentCanvasSignature(environmentCanvas: HTMLCanvasElement) {
+  let id = environmentCanvasIds.get(environmentCanvas);
+  if (!id) {
+    id = nextEnvironmentCanvasId;
+    nextEnvironmentCanvasId += 1;
+    environmentCanvasIds.set(environmentCanvas, id);
+  }
+  return `canvas:${id}:${environmentCanvas.width}x${environmentCanvas.height}`;
 }
 
 function replaceSceneLights(
   scene: THREE.Scene,
   previousLights: THREE.Group | null,
-  layer: ModelLayer,
+  layer: ModelLayer | PrimitiveLayer,
   sceneNode?: GraphScene3DNode,
   environmentMap?: SceneEnvironmentMap | null,
 ) {
@@ -95,6 +165,11 @@ function replaceSceneLights(
   addModelSceneLights(lights, layer, sceneNode, environmentMap?.background ?? null);
   scene.add(lights);
   return lights;
+}
+
+function sourceLoadStatus(layer: ModelLayer | PrimitiveLayer) {
+  if (layer.kind === 'primitive') return 'Primitive load failed';
+  return layer.modelSrc ? 'Model load failed' : 'Missing model';
 }
 
 function disposeSceneEnvironment(environmentMap: SceneEnvironmentMap | null) {
@@ -113,7 +188,7 @@ function applyLiveSceneSettings(
   scene.environment = environmentMap?.environment ?? null;
   scene.background = environmentMap && sceneNode && !sceneNode.transparent ? environmentMap.background : null;
   applySceneEnvironmentRotation(scene, sceneNode);
-  if (modelRoot) applySceneEnvironmentIntensity(modelRoot, sceneNode);
+  if (modelRoot) applySceneEnvironmentIntensity(modelRoot, sceneNode, Boolean(environmentMap));
 }
 
 export function ModelViewport3D({
@@ -124,6 +199,9 @@ export function ModelViewport3D({
   onViewStateDraft,
   className,
   interactive = true,
+  materialConfig,
+  materialTextures = null,
+  environmentCanvas = null,
   environmentSource = null,
   autoRotatePreview = false,
 }: Props) {
@@ -142,23 +220,28 @@ export function ModelViewport3D({
   const autoRotateOffsetRef = useRef(0);
   const layerRef = useRef(layer);
   const sceneNodeRef = useRef(sceneNode);
+  const materialConfigRef = useRef(materialConfig);
+  const materialTexturesRef = useRef(materialTextures);
+  const environmentCanvasRef = useRef(environmentCanvas);
   const environmentSourceRef = useRef(environmentSource);
   const onViewStateChangeRef = useRef(onViewStateChange);
   const onViewStateDraftRef = useRef(onViewStateDraft);
   const interactiveRef = useRef(interactive);
   const autoRotatePreviewRef = useRef(autoRotatePreview);
+  const sceneRevisionRef = useRef(0);
   const lockedRef = useRef(!!viewState.locked);
   const rfPaneRef = useRef<HTMLElement | null>(null);
   const wheelCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasRenderedFrameRef = useRef(false);
+  const [sceneRevision, setSceneRevision] = useState(0);
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [environmentFailed, setEnvironmentFailed] = useState(false);
   const [autoRotateVisible, setAutoRotateVisible] = useState(false);
-  const modelSignature = [layer.modelSrc, layer.color, layer.accentColor].join(':');
-  const sceneMaterialSignature = materialSignature(sceneNode);
-  const sceneEnvironmentSignature = environmentSignature(sceneNode, environmentSource);
+  const modelSignature = sourceLayerSignature(layer);
+  const sceneMaterialSignature = materialSignature(sceneNode, materialConfig, materialTextures);
+  const sceneEnvironmentSignature = environmentSignature(sceneNode, environmentSource, environmentCanvas);
   const autoRotateShouldRun =
     autoRotatePreview && (autoRotateVisible || (typeof window !== 'undefined' && !('IntersectionObserver' in window)));
 
@@ -220,6 +303,9 @@ export function ModelViewport3D({
   useLayoutEffect(() => {
     layerRef.current = layer;
     sceneNodeRef.current = sceneNode;
+    materialConfigRef.current = materialConfig;
+    materialTexturesRef.current = materialTextures;
+    environmentCanvasRef.current = environmentCanvas;
     environmentSourceRef.current = environmentSource;
     viewStateRef.current = viewState;
     onViewStateChangeRef.current = onViewStateChange;
@@ -244,9 +330,12 @@ export function ModelViewport3D({
   }, [
     applyViewState,
     autoRotatePreview,
+    environmentCanvas,
     environmentSource,
     interactive,
     layer,
+    materialConfig,
+    materialTextures,
     onViewStateChange,
     onViewStateDraft,
     sceneNode,
@@ -320,6 +409,8 @@ export function ModelViewport3D({
     cameraRef.current = createPrimitiveCamera();
     sceneLightsRef.current = replaceSceneLights(scene, null, currentLayer, sceneNodeRef.current, null);
     applyLiveSceneSettings(renderer, scene, null, sceneNodeRef.current, null);
+    sceneRevisionRef.current += 1;
+    setSceneRevision(sceneRevisionRef.current);
     const resize = () => {
       if (!rendererRef.current || !cameraRef.current) return;
       resizeViewportRenderer(root, rendererRef.current, cameraRef.current);
@@ -335,44 +426,13 @@ export function ModelViewport3D({
     setEnvironmentFailed(false);
     hasRenderedFrameRef.current = false;
     setHasRenderedFrame(false);
-    const nextEnvironmentSource = environmentSourceRef.current ?? sceneNodeRef.current?.environmentSrc;
-    loadSceneEnvironmentMap(renderer, nextEnvironmentSource)
-      .then((environmentMap) => {
-        if (cancelled) {
-          disposeSceneEnvironment(environmentMap);
-          return;
-        }
-        environmentMapRef.current = environmentMap;
-        sceneLightsRef.current = replaceSceneLights(
-          scene,
-          sceneLightsRef.current,
-          layerRef.current,
-          sceneNodeRef.current,
-          environmentMap,
-        );
-        applyLiveSceneSettings(renderer, scene, modelRootRef.current, sceneNodeRef.current, environmentMap);
-        renderScene();
-      })
-      .catch(() => {
-        if (!cancelled) {
-          if (nextEnvironmentSource) setEnvironmentFailed(true);
-          renderScene();
-        }
-      });
-    resolveModelSource(currentLayer.modelSrc)
-      .then((source) => {
-        if (!source) throw new Error('Model asset is unavailable');
-        return modelSourceToArrayBuffer(source);
-      })
-      .then(parseGltfScene)
+    loadScene3DSourceObject(currentLayer, sceneNodeRef.current, materialConfigRef.current, materialTexturesRef.current)
       .then((rootObject) => {
         if (cancelled) {
           disposeObject3D(rootObject);
           return;
         }
-        applyModelFallbackMaterials(rootObject, layerRef.current);
-        applySceneMaterialMode(rootObject, layerRef.current, sceneNodeRef.current);
-        applySceneEnvironmentIntensity(rootObject, sceneNodeRef.current);
+        applySceneEnvironmentIntensity(rootObject, sceneNodeRef.current, Boolean(environmentMapRef.current));
         const group = normalizeModelRoot(rootObject);
         if (!group) throw new Error('Model has no renderable bounds');
         modelRootRef.current = rootObject;
@@ -403,15 +463,50 @@ export function ModelViewport3D({
       sceneRef.current = null;
       cameraRef.current = null;
     };
-  }, [
-    applyViewState,
-    flushPendingWheelCommit,
-    modelSignature,
-    sceneEnvironmentSignature,
-    sceneMaterialSignature,
-    unlockRFPane,
-    renderScene,
-  ]);
+  }, [applyViewState, flushPendingWheelCommit, modelSignature, sceneMaterialSignature, unlockRFPane, renderScene]);
+
+  useEffect(() => {
+    if (sceneRevision === 0) return;
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    if (!renderer || !scene) return;
+
+    let cancelled = false;
+    const nextEnvironmentSource = environmentSourceRef.current ?? sceneNodeRef.current?.environmentSrc;
+    const nextEnvironmentCanvas = environmentCanvasRef.current;
+    setEnvironmentFailed(false);
+    (nextEnvironmentSource
+      ? loadSceneEnvironmentMap(renderer, nextEnvironmentSource)
+      : Promise.resolve(loadSceneEnvironmentCanvas(renderer, nextEnvironmentCanvas))
+    )
+      .then((environmentMap) => {
+        if (cancelled) {
+          disposeSceneEnvironment(environmentMap);
+          return;
+        }
+        const previousEnvironmentMap = environmentMapRef.current;
+        environmentMapRef.current = environmentMap;
+        if (previousEnvironmentMap) disposeSceneEnvironment(previousEnvironmentMap);
+        sceneLightsRef.current = replaceSceneLights(
+          scene,
+          sceneLightsRef.current,
+          layerRef.current,
+          sceneNodeRef.current,
+          environmentMap,
+        );
+        applyLiveSceneSettings(renderer, scene, modelRootRef.current, sceneNodeRef.current, environmentMap);
+        renderScene();
+      })
+      .catch(() => {
+        if (!cancelled) {
+          if (nextEnvironmentSource) setEnvironmentFailed(true);
+          renderScene();
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sceneEnvironmentSignature, sceneRevision, renderScene]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -478,9 +573,7 @@ export function ModelViewport3D({
   const viewportStatus = webglUnavailable
     ? 'WebGL unavailable'
     : loadFailed
-      ? layer.modelSrc
-        ? 'Model load failed'
-        : 'Missing model'
+      ? sourceLoadStatus(layer)
       : !hasRenderedFrame
         ? 'Loading 3D model'
         : null;
@@ -535,7 +628,7 @@ export function ModelViewport3D({
       )}
       {(webglUnavailable || loadFailed) && (
         <div className="node-primitive-webgl-fallback" aria-live="polite">
-          {webglUnavailable ? '3D preview unavailable' : 'Model preview unavailable'}
+          {webglUnavailable ? '3D preview unavailable' : '3D source preview unavailable'}
         </div>
       )}
     </div>

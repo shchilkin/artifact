@@ -4,6 +4,7 @@ import {
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
+  makeGraphMaterialNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -15,6 +16,7 @@ import {
   grimeShadowNodeRenderSig,
   layerRenderSig,
   maskNodeRenderSig,
+  materialNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
   transformNodeRenderSig,
@@ -262,6 +264,19 @@ describe('graph node render signatures', () => {
 
     expect(environmentNodeRenderSig(renamed)).toBe(environmentNodeRenderSig(base));
     expect(environmentNodeRenderSig(edited)).not.toBe(environmentNodeRenderSig(base));
+  });
+
+  it('changes material node signatures when PBR texture sources change', () => {
+    const base = makeGraphMaterialNode({
+      id: 'material-1',
+      name: 'Material',
+      materialAlbedoSrc: 'artifact-asset://albedo-a',
+    });
+    const renamed = { ...base, id: 'material-2', name: 'Renamed material' };
+    const edited = { ...base, materialAlbedoSrc: 'artifact-asset://albedo-b' };
+
+    expect(materialNodeRenderSig(renamed)).toBe(materialNodeRenderSig(base));
+    expect(materialNodeRenderSig(edited)).not.toBe(materialNodeRenderSig(base));
   });
 });
 

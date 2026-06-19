@@ -19,6 +19,7 @@ export type GraphHelperKind =
   | 'merge'
   | 'color'
   | 'repeat'
+  | 'material'
   | 'mask'
   | 'transform'
   | 'grimeShadow'
@@ -46,6 +47,7 @@ const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }
   merge: { icon: '◇', label: 'merge' },
   color: { icon: '◐', label: 'grade' },
   repeat: { icon: '▦', label: 'repeat' },
+  material: { icon: '◒', label: 'material' },
   mask: { icon: '◒', label: 'mask' },
   transform: { icon: '↻', label: 'transform' },
   grimeShadow: { icon: '◖', label: 'shadow' },
@@ -70,6 +72,10 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   (graph.repeatNodes ?? []).forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
+  });
+  (graph.materialNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'material', ...GRAPH_HELPER_META.material });
   });
   (graph.maskNodes ?? []).forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;

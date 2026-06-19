@@ -19,11 +19,15 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.36 has reached release-candidate prep as the 3D Model Sources And Retro
-  Game Effects release: browser model/environment assets, 3D Scene rendering,
-  Layers/Nodes semantics for model inputs, and focused retro finishing effects.
-  See [`version-plans/v0.36.md`](./version-plans/v0.36.md) and
-  [`releases/v0.36.0.md`](./releases/v0.36.0.md).
+- v0.37 has reached release-candidate prep as the 3D Material Nodes release:
+  one PBR Material graph node, explicit material and texture-map ports,
+  material/environment inputs for 3D primitives and scenes, multiple resource
+  drops, and preview/export parity for connected material workflows. See
+  [`version-plans/v0.37.md`](./version-plans/v0.37.md) and
+  [`releases/v0.37.0.md`](./releases/v0.37.0.md).
+- v0.36 has completed the 3D Model Sources And Retro Game Effects release:
+  browser model/environment assets, 3D Scene rendering, Layers/Nodes semantics
+  for model inputs, and focused retro finishing effects.
 - v0.33 has completed the Storage UX And Capability Hardening release scope:
   local workspace state is visible, recovery and storage details are
   discoverable, Presets was folded into Projects, and the conservative PWA
@@ -49,6 +53,9 @@ Current planning status:
 
 Next deferred product tracks:
 
+- 3D Material Nodes follow-up work remains focused on deeper material authoring:
+  map scale/rotation, richer example packs, broader browser WebGL coverage, and
+  external HDRI/material marketplace flows after the v0.37 PBR node settles.
 - Asset Library / Export History / Versions remains deferred until v0.33 makes
   the local storage and recovery states visible enough to build on safely.
 - Project Autosave History remains deferred until the v0.34 Projects page and
@@ -72,6 +79,13 @@ Next deferred product tracks:
 
 Recently shipped:
 
+- [`version-plans/v0.37.md`](./version-plans/v0.37.md) — 3D Material Nodes:
+  one PBR Material graph node with scalar controls and texture-map inputs,
+  explicit material/environment ports for 3D primitives and scenes, material
+  previews, connected material render signatures, model/primitive scene
+  material rendering, multiple resource drops, and focused unit/render/browser
+  coverage for material graph workflows. Release notes are in
+  [`releases/v0.37.0.md`](./releases/v0.37.0.md).
 - [`version-plans/v0.36.md`](./version-plans/v0.36.md) — 3D Model Sources And
   Retro Game Effects: browser `.glb` model import, model/environment asset
   persistence, `3D Model`, `Environment Map`, and `3D Scene` node workflows,
@@ -195,6 +209,10 @@ Recently shipped:
 
 Next strong candidates after v0.36:
 
+- **3D Material Nodes** — add material nodes for metallic foil, chrome,
+  brushed metal, plastic, paper, fabric, and related physical surfaces, connect
+  them to existing 3D primitives/scenes, and compose the rendered result with
+  the existing text, image, mask, and effect workflows.
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
   families, optional PS1-style material/texture wobble, curated model-source

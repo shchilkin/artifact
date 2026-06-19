@@ -1,4 +1,10 @@
-import type { CanvasDocument, ImageLayer, Layer } from '../types/config';
+import {
+  type CanvasDocument,
+  type GraphMaterialNode,
+  type ImageLayer,
+  type Layer,
+  MATERIAL_TEXTURE_SOURCE_FIELDS,
+} from '../types/config';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
 import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
@@ -169,5 +175,26 @@ async function mapDocumentImageSources(
     layers.push({ ...layer, src, aiGenerationHistory } satisfies ImageLayer);
   }
 
-  return changed ? { ...doc, layers } : doc;
+  let graph = doc.graph;
+  if (graph?.materialNodes?.length) {
+    const materialNodes: GraphMaterialNode[] = [];
+    for (const node of graph.materialNodes) {
+      const nextNode = { ...node };
+      let nodeChanged = false;
+      for (const field of MATERIAL_TEXTURE_SOURCE_FIELDS) {
+        const source = nextNode[field];
+        if (!source) continue;
+        const mapped = await mapSource(source);
+        if (mapped !== source) {
+          nextNode[field] = mapped;
+          nodeChanged = true;
+        }
+      }
+      changed ||= nodeChanged;
+      materialNodes.push(nextNode);
+    }
+    if (changed) graph = { ...graph, materialNodes };
+  }
+
+  return changed ? { ...doc, layers, graph } : doc;
 }

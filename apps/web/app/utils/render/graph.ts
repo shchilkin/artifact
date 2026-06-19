@@ -6,21 +6,26 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
   GraphTransformNode,
   Layer,
+  MaterialTextureInputPort,
   ModelLayer,
+  PrimitiveLayer,
 } from '../../types/config';
+import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
 import { lcg } from '../lcg';
-import { renderModelSceneToCanvas } from '../modelRenderer';
+import { renderModelSceneToCanvas, type SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
+const ENVIRONMENT_RENDER_MAX = 1024;
 
 export interface GraphRenderCache {
   namespace: string;
@@ -50,6 +55,10 @@ function findRepeatNode(graph: CanvasGraph, nodeId: string): GraphRepeatNode | u
   return (graph.repeatNodes ?? []).find((node) => node.id === nodeId);
 }
 
+function findMaterialNode(graph: CanvasGraph, nodeId: string): GraphMaterialNode | undefined {
+  return (graph.materialNodes ?? []).find((node) => node.id === nodeId);
+}
+
 function findMaskNode(graph: CanvasGraph, nodeId: string): GraphMaskNode | undefined {
   return (graph.maskNodes ?? []).find((node) => node.id === nodeId);
 }
@@ -74,10 +83,12 @@ function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
 }
 
-function findModelLayer(doc: CanvasDocument, nodeId: string | null): ModelLayer | null {
+type Scene3DSourceLayer = ModelLayer | PrimitiveLayer;
+
+function findScene3DSourceLayer(doc: CanvasDocument, nodeId: string | null): Scene3DSourceLayer | null {
   if (!nodeId) return null;
   const layer = findLayer(doc, nodeId);
-  return layer?.kind === 'model' ? layer : null;
+  return layer?.kind === 'model' || layer?.kind === 'primitive' ? layer : null;
 }
 
 interface GpuEffectChain {
@@ -565,7 +576,30 @@ function drawGridRepeat(
   }
 }
 
-type RenderDependency = (dependencyId: string) => Promise<HTMLCanvasElement>;
+function applyMaterialPreviewNode(node: GraphMaterialNode, W: number, H: number): HTMLCanvasElement {
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return canvas;
+  const gradient = ctx.createLinearGradient(0, 0, W, H);
+  gradient.addColorStop(0, node.materialAccentColor);
+  gradient.addColorStop(0.42, node.materialBaseColor);
+  gradient.addColorStop(0.68, node.materialAccentColor);
+  gradient.addColorStop(1, node.materialBaseColor);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W, H);
+  if (node.materialGrain > 0 || node.materialRelief > 0) {
+    const alpha = Math.min(0.28, (node.materialGrain + node.materialRelief) / 520);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ffffff';
+    for (let y = 0; y < H; y += 5) ctx.fillRect(0, y, W, 1);
+    ctx.globalAlpha = alpha * 0.8;
+    ctx.fillStyle = '#000000';
+    for (let x = 0; x < W; x += 7) ctx.fillRect(x, 0, 1, H);
+  }
+  return canvas;
+}
+
+type RenderDependency = (dependencyId: string, size?: { width: number; height: number }) => Promise<HTMLCanvasElement>;
 
 interface GraphNodeRenderContext {
   doc: CanvasDocument;
@@ -631,6 +665,14 @@ async function renderRepeatGraphNode(nodeId: string, context: GraphNodeRenderCon
   return applyRepeatNode(source, backdrop, repeatNode, doc.global.seed, W, H);
 }
 
+async function renderMaterialGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const materialNode = findMaterialNode(context.graph, nodeId);
+  if (!materialNode) return null;
+  const albedoId = findIncomingSource(context.graph, nodeId, 'albedo');
+  if (albedoId) return context.renderDependency(albedoId);
+  return applyMaterialPreviewNode(materialNode, context.W, context.H);
+}
+
 async function renderMaskGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const maskNode = findMaskNode(context.graph, nodeId);
   if (!maskNode) return null;
@@ -662,11 +704,16 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
   const sceneNode = findScene3DNode(context.graph, nodeId);
   if (!sceneNode) return null;
   const { doc, graph, W, H, options, renderDependency } = context;
-  const modelLayer = findModelLayer(doc, findIncomingSource(graph, nodeId, 'model'));
+  const modelLayer = findScene3DSourceLayer(doc, findIncomingSource(graph, nodeId, 'model'));
+  const materialId = findIncomingSource(graph, nodeId, 'material');
   const environmentId = findIncomingSource(graph, nodeId, 'env');
   const backdropId = findIncomingSource(graph, nodeId, 'bg');
+  const materialNode = materialId ? findMaterialNode(graph, materialId) : undefined;
+  const materialTextures = materialId ? await resolveMaterialTextureCanvases(materialId, context) : null;
   const environmentNode = environmentId ? findEnvironmentNode(graph, environmentId) : undefined;
-  const environmentCanvas = environmentId && !environmentNode ? await renderDependency(environmentId) : null;
+  const environmentNodeSourceId = environmentId ? findIncomingSource(graph, environmentId, 'in') : null;
+  const environmentCanvas =
+    environmentId && (!environmentNode || environmentNodeSourceId) ? await renderDependency(environmentId) : null;
   const backdropCanvas = backdropId ? await renderDependency(backdropId) : null;
   throwIfRenderAborted(options);
   if (!modelLayer) {
@@ -680,6 +727,8 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
     options.primitiveViewStates?.[sceneNode.id],
     {
       forceFallback: options.draft,
+      materialConfig: materialNode,
+      materialTextures,
       environmentCanvas,
       environmentSource: environmentNode?.environmentSrc ?? null,
       backdropCanvas,
@@ -687,9 +736,38 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
   );
 }
 
+async function resolveMaterialTextureCanvases(
+  materialId: string,
+  context: GraphNodeRenderContext,
+): Promise<SceneMaterialTextureCanvases | null> {
+  const textures: SceneMaterialTextureCanvases = {};
+  let hasTexture = false;
+  for (const port of MATERIAL_TEXTURE_INPUT_PORTS) {
+    const sourceId = findIncomingSource(context.graph, materialId, port);
+    if (!sourceId) continue;
+    textures[materialTextureKey(port)] = await context.renderDependency(sourceId);
+    hasTexture = true;
+  }
+  return hasTexture ? textures : null;
+}
+
+function materialTextureKey(port: MaterialTextureInputPort): keyof SceneMaterialTextureCanvases {
+  return port;
+}
+
 async function renderEnvironmentGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   if (!findEnvironmentNode(context.graph, nodeId)) return null;
-  return createCanvas(context.W, context.H);
+  const sourceId = findIncomingSource(context.graph, nodeId, 'in');
+  if (!sourceId) return createCanvas(context.W, context.H);
+  return context.renderDependency(sourceId, environmentRenderSize(context.W, context.H));
+}
+
+function environmentRenderSize(width: number, height: number) {
+  const requestedWidth = Math.max(2, width);
+  const widthFromHeight = Math.max(2, height * 2);
+  const envWidth = Math.min(ENVIRONMENT_RENDER_MAX, Math.max(requestedWidth, widthFromHeight));
+  const evenWidth = Math.max(2, Math.round(envWidth / 2) * 2);
+  return { width: evenWidth, height: Math.max(1, Math.round(evenWidth / 2)) };
 }
 
 async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderContext) {
@@ -697,6 +775,11 @@ async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderC
   const source = sourceId ? await context.renderDependency(sourceId) : createCanvas(context.W, context.H);
   throwIfRenderAborted(context.options);
   return source;
+}
+
+function primitiveMaterialFromGraph(graph: CanvasGraph, layer: PrimitiveLayer): GraphMaterialNode | undefined {
+  const materialId = findIncomingSource(graph, layer.id, 'material');
+  return materialId ? findMaterialNode(graph, materialId) : undefined;
 }
 
 async function renderGpuOnlyLayerChain(
@@ -727,6 +810,15 @@ function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOp
     : options;
 }
 
+function primitiveLayerRenderOptions(layer: Layer, graph: CanvasGraph, options: RenderOptions): RenderOptions {
+  if (layer.kind !== 'primitive') return graphLayerRenderOptions(layer, options);
+  const material = primitiveMaterialFromGraph(graph, layer);
+  const primitiveMaterials = material
+    ? { ...(options.primitiveMaterials ?? {}), [layer.id]: material }
+    : options.primitiveMaterials;
+  return { ...graphLayerRenderOptions(layer, options), primitiveMaterials };
+}
+
 async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const { doc, graph, W, H, imageCache, options, renderDependency } = context;
   const layer = findLayer(doc, nodeId);
@@ -736,7 +828,7 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   const sourceId = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
   const base = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
-  return applyLayerToCanvas(base, layer, doc, W, H, imageCache, graphLayerRenderOptions(layer, options));
+  return applyLayerToCanvas(base, layer, doc, W, H, imageCache, primitiveLayerRenderOptions(layer, graph, options));
 }
 
 const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [
@@ -744,6 +836,7 @@ const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [
   renderMergeGraphNode,
   renderColorGraphNode,
   renderRepeatGraphNode,
+  renderMaterialGraphNode,
   renderMaskGraphNode,
   renderTransformGraphNode,
   renderGrimeShadowGraphNode,
@@ -784,25 +877,28 @@ async function renderGraphNode(
   cacheNamespace: string | null,
   cacheEntryKey: ((nodeId: string) => string | null) | null,
   cacheLimit: number,
+  rootSize: { width: number; height: number } = { width: W, height: H },
 ): Promise<HTMLCanvasElement> {
   throwIfRenderAborted(options);
   const nodeCacheKey = cacheEntryKey?.(nodeId) ?? nodeId;
-  const cacheKey = cacheNamespace ? `${cacheNamespace}:${nodeCacheKey}` : nodeCacheKey;
+  const sizedNodeCacheKey = W === rootSize.width && H === rootSize.height ? nodeCacheKey : `${nodeCacheKey}@${W}x${H}`;
+  const cacheKey = cacheNamespace ? `${cacheNamespace}:${sizedNodeCacheKey}` : sizedNodeCacheKey;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
-  const renderDependency = (dependencyId: string) =>
+  const renderDependency = (dependencyId: string, size?: { width: number; height: number }) =>
     renderGraphNode(
       doc,
       graph,
       dependencyId,
-      W,
-      H,
+      size?.width ?? W,
+      size?.height ?? H,
       imageCache,
       options,
       cache,
       cacheNamespace,
       cacheEntryKey,
       cacheLimit,
+      rootSize,
     );
   const renderPromise = renderGraphNodeUncached(nodeId, {
     doc,
@@ -846,5 +942,6 @@ export async function renderGraphTarget(
     renderCache?.namespace ?? null,
     renderCache?.entryKey ?? null,
     renderCache?.limit ?? GRAPH_RENDER_CACHE_LIMIT,
+    { width: W, height: H },
   );
 }

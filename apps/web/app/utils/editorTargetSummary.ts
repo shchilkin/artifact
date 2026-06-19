@@ -5,6 +5,7 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
@@ -111,6 +112,7 @@ export function buildGraphTargetSummary(
     | { kind: 'merge'; node: GraphMergeNode }
     | { kind: 'color'; node: GraphColorNode }
     | { kind: 'repeat'; node: GraphRepeatNode }
+    | { kind: 'material'; node: GraphMaterialNode }
     | { kind: 'mask'; node: GraphMaskNode }
     | { kind: 'transform'; node: GraphTransformNode }
     | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
@@ -151,6 +153,7 @@ export function buildGraphTargetSummary(
     merge: ['Merge', 'Combines two upstream branches before sending pixels downstream.'],
     color: ['Color', 'Adjusts tone and color on its upstream branch.'],
     repeat: ['Repeat', 'Repeats an upstream source over an optional backdrop.'],
+    material: ['Material', 'Defines a 3D surface for connected primitive nodes.'],
     mask: ['Mask', 'Cuts one upstream branch by alpha or brightness from another branch.'],
     transform: ['Transform', 'Moves, scales, rotates, or fades a completed upstream branch.'],
     grimeShadow: ['Grime Shadow', 'Builds a layered dirty shadow from the visible alpha of an upstream branch.'],

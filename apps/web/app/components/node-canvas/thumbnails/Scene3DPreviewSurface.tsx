@@ -1,9 +1,17 @@
 import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
-import type { GraphScene3DNode, ModelLayer } from '../../../types/config';
+import {
+  type GraphMaterialNode,
+  type GraphScene3DNode,
+  MATERIAL_TEXTURE_INPUT_PORTS,
+  type ModelLayer,
+  type PrimitiveLayer,
+} from '../../../types/config';
+import type { SceneMaterialTextureCanvases } from '../../../utils/modelRenderer';
+import { renderGraphTarget } from '../../../utils/renderer';
 import { ModelViewport3D } from '../../ModelViewport3D';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
-import { useNodeCanvasActions } from '../context';
+import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { EmptyThumbnailFrame } from './LiveMediaOverlay';
 import { NodeThumbnail } from './NodeThumbnail';
 
@@ -11,7 +19,8 @@ interface Scene3DPreviewSurfaceProps {
   scene3dNode: GraphScene3DNode;
   selected: boolean;
   previewTargetId: string;
-  modelLayer: ModelLayer | null;
+  modelLayer: ModelLayer | PrimitiveLayer | null;
+  materialNode: GraphMaterialNode | null;
   sceneViewState?: PrimitiveViewportState;
   backdropPreviewTargetId: string | null;
   environmentPreviewTargetId: string | null;
@@ -23,6 +32,7 @@ export function Scene3DPreviewSurface({
   selected,
   previewTargetId,
   modelLayer,
+  materialNode,
   sceneViewState,
   backdropPreviewTargetId,
   environmentPreviewTargetId,
@@ -33,6 +43,7 @@ export function Scene3DPreviewSurface({
     <SelectedScene3DPreviewSurface
       scene3dNode={scene3dNode}
       modelLayer={modelLayer}
+      materialNode={materialNode}
       sceneViewState={sceneViewState}
       backdropPreviewTargetId={backdropPreviewTargetId}
       environmentPreviewTargetId={environmentPreviewTargetId}
@@ -44,19 +55,37 @@ export function Scene3DPreviewSurface({
 function SelectedScene3DPreviewSurface({
   scene3dNode,
   modelLayer,
+  materialNode,
   sceneViewState,
   backdropPreviewTargetId,
   environmentPreviewTargetId,
   environmentSource,
 }: {
   scene3dNode: GraphScene3DNode;
-  modelLayer: ModelLayer;
+  modelLayer: ModelLayer | PrimitiveLayer;
+  materialNode: GraphMaterialNode | null;
   sceneViewState?: PrimitiveViewportState;
   backdropPreviewTargetId: string | null;
   environmentPreviewTargetId: string | null;
   environmentSource: string | null;
 }) {
+  const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const { updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
+  const generatedEnvironmentCanvas = useGeneratedEnvironmentCanvas({
+    enabled: !environmentSource && Boolean(environmentPreviewTargetId),
+    previewTargetId: environmentPreviewTargetId,
+    doc,
+    graph,
+    imageCache,
+    primitiveViewStates,
+  });
+  const materialTextures = useGeneratedMaterialTextureCanvases({
+    materialNode,
+    doc,
+    graph,
+    imageCache,
+    primitiveViewStates,
+  });
   const [draftViewState, setDraftViewState] = useState<{ baseKey: string; value: PrimitiveViewportState } | null>(null);
   const committedViewState = useMemo(
     () => sceneViewState ?? defaultPrimitiveViewportState(modelLayer),
@@ -108,6 +137,9 @@ function SelectedScene3DPreviewSurface({
           <ModelViewport3D
             layer={modelLayer}
             sceneNode={scene3dNode}
+            materialConfig={materialNode ?? undefined}
+            materialTextures={materialTextures}
+            environmentCanvas={generatedEnvironmentCanvas}
             environmentSource={environmentSource ?? scene3dNode.environmentSrc ?? null}
             viewState={effectiveViewState}
             onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
@@ -127,6 +159,104 @@ function SelectedScene3DPreviewSurface({
       />
     </div>
   );
+}
+
+function useGeneratedMaterialTextureCanvases({
+  materialNode,
+  doc,
+  graph,
+  imageCache,
+  primitiveViewStates,
+}: {
+  materialNode: GraphMaterialNode | null;
+  doc: Parameters<typeof renderGraphTarget>[0];
+  graph: Parameters<typeof renderGraphTarget>[1];
+  imageCache: Map<string, HTMLImageElement>;
+  primitiveViewStates: Record<string, PrimitiveViewportState>;
+}) {
+  const renderKey = materialNode ? materialTextureInputSignature(graph, materialNode.id) : null;
+  const [renderedCanvases, setRenderedCanvases] = useState<{
+    key: string;
+    textures: SceneMaterialTextureCanvases | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!materialNode || !renderKey) return;
+    const sources = materialTextureInputSources(graph, materialNode.id);
+    let cancelled = false;
+    Promise.all(
+      sources.map(async ({ port, sourceId }) => ({
+        port,
+        canvas: await renderGraphTarget(doc, graph, sourceId, 512, 512, imageCache, {
+          primitiveViewStates,
+        }),
+      })),
+    )
+      .then((items) => {
+        if (cancelled) return;
+        const textures: SceneMaterialTextureCanvases = {};
+        for (const item of items) textures[item.port] = item.canvas;
+        setRenderedCanvases({ key: renderKey, textures });
+      })
+      .catch(() => {
+        if (!cancelled) setRenderedCanvases({ key: renderKey, textures: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, graph, imageCache, materialNode, primitiveViewStates, renderKey]);
+  return renderedCanvases?.key === renderKey ? renderedCanvases.textures : null;
+}
+
+function materialTextureInputSources(graph: Parameters<typeof renderGraphTarget>[1], materialId: string) {
+  return MATERIAL_TEXTURE_INPUT_PORTS.flatMap((port) => {
+    const sourceId = graph.edges.find((edge) => edge.toId === materialId && edge.toPort === port)?.fromId;
+    return sourceId ? [{ port, sourceId }] : [];
+  });
+}
+
+function materialTextureInputSignature(graph: Parameters<typeof renderGraphTarget>[1], materialId: string) {
+  const sources = materialTextureInputSources(graph, materialId);
+  if (sources.length === 0) return null;
+  return MATERIAL_TEXTURE_INPUT_PORTS.map((port) => {
+    const sourceId = graph.edges.find((edge) => edge.toId === materialId && edge.toPort === port)?.fromId ?? '';
+    return `${port}:${sourceId}`;
+  }).join('|');
+}
+
+function useGeneratedEnvironmentCanvas({
+  enabled,
+  previewTargetId,
+  doc,
+  graph,
+  imageCache,
+  primitiveViewStates,
+}: {
+  enabled: boolean;
+  previewTargetId: string | null;
+  doc: Parameters<typeof renderGraphTarget>[0];
+  graph: Parameters<typeof renderGraphTarget>[1];
+  imageCache: Map<string, HTMLImageElement>;
+  primitiveViewStates: Record<string, PrimitiveViewportState>;
+}) {
+  const renderKey = enabled && previewTargetId ? previewTargetId : null;
+  const [renderedCanvas, setRenderedCanvas] = useState<{ key: string; canvas: HTMLCanvasElement | null } | null>(null);
+  useEffect(() => {
+    if (!renderKey) return;
+    let cancelled = false;
+    renderGraphTarget(doc, graph, renderKey, 512, 256, imageCache, {
+      primitiveViewStates,
+    })
+      .then((nextCanvas) => {
+        if (!cancelled) setRenderedCanvas({ key: renderKey, canvas: nextCanvas });
+      })
+      .catch(() => {
+        if (!cancelled) setRenderedCanvas({ key: renderKey, canvas: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, graph, imageCache, primitiveViewStates, renderKey]);
+  return renderedCanvas?.key === renderKey ? renderedCanvas.canvas : null;
 }
 
 function activeSceneViewState(

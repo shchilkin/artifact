@@ -102,7 +102,8 @@ function environmentSummary(scene3dNode: GraphScene3DNode) {
   return 'Use env port';
 }
 
-function materialSummary(scene3dNode: GraphScene3DNode) {
+function materialSummary(scene3dNode: GraphScene3DNode, materialInputConnected = false) {
+  if (materialInputConnected) return 'PBR material input';
   if (scene3dNode.materialMode === 'clay') return 'Clay material';
   if (scene3dNode.materialMode === 'unlit') return 'Texture only';
   return 'Original materials';
@@ -163,10 +164,12 @@ function LightCompass({ azimuth, elevation }: { azimuth: number; elevation: numb
 
 export function Scene3DInspector({
   scene3dNode,
+  materialInputConnected = false,
   onChange,
   detached = false,
 }: {
   scene3dNode: GraphScene3DNode;
+  materialInputConnected?: boolean;
   onChange: (patch: Partial<GraphScene3DNode>) => void;
   detached?: boolean;
 }) {
@@ -174,6 +177,15 @@ export function Scene3DInspector({
   const activePresetId = activeRigPresetId(scene3dNode);
   const toggleSection = (section: Scene3DSection) => {
     setOpenSection((current) => (current === section ? 'scene' : section));
+  };
+  const applyRigPreset = (patch: Partial<GraphScene3DNode>) => {
+    if (!materialInputConnected) {
+      onChange(patch);
+      return;
+    }
+    const lightingPatch = { ...patch };
+    delete lightingPatch.materialMode;
+    onChange(lightingPatch);
   };
 
   return (
@@ -201,7 +213,7 @@ export function Scene3DInspector({
       </InspectorSection>
       <InspectorSection
         title="Material"
-        summary={materialSummary(scene3dNode)}
+        summary={materialSummary(scene3dNode, materialInputConnected)}
         open={openSection === 'material'}
         onToggle={() => toggleSection('material')}
       >
@@ -213,8 +225,12 @@ export function Scene3DInspector({
             { value: 'clay', label: 'Clay' },
             { value: 'unlit', label: 'Unlit' },
           ]}
+          disabled={materialInputConnected}
           onChange={(materialMode) => onChange({ materialMode: materialMode as GraphScene3DNode['materialMode'] })}
         />
+        {materialInputConnected ? (
+          <p className="node-inspector-note">Material mode is controlled by the connected PBR material input.</p>
+        ) : null}
       </InspectorSection>
       <InspectorSection
         title="Environment"
@@ -257,7 +273,7 @@ export function Scene3DInspector({
         open={openSection === 'light'}
         onToggle={() => toggleSection('light')}
       >
-        <RigPresetButtons activePresetId={activePresetId} onSelect={(patch) => onChange(patch)} />
+        <RigPresetButtons activePresetId={activePresetId} onSelect={applyRigPreset} />
         <LightCompass azimuth={scene3dNode.keyAzimuth} elevation={scene3dNode.keyElevation} />
         <InspectorSlider
           label="Ambient"

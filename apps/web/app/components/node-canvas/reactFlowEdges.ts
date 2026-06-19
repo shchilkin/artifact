@@ -32,5 +32,6 @@ const EDGE_COLORS = {
   grimeShadow: 'oklch(72% 0.18 35)',
   scene3d: 'oklch(72% 0.16 48)',
   environment: 'oklch(74% 0.16 190)',
+  material: 'oklch(82% 0.14 78)',
   layer: 'oklch(64% 0.22 305)',
 } as const;

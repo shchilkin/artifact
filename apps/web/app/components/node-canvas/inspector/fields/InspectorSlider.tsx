@@ -12,6 +12,7 @@ export function InspectorSlider({
   step = 1,
   overrideMax,
   effectKey,
+  disabled = false,
   onInfoEnter,
   onInfoLeave,
   onChange,
@@ -24,6 +25,7 @@ export function InspectorSlider({
   step?: number;
   overrideMax?: number;
   effectKey?: string;
+  disabled?: boolean;
   onInfoEnter?: (key: string, rect: DOMRect) => void;
   onInfoLeave?: () => void;
   onChange: (value: number) => void;
@@ -33,7 +35,7 @@ export function InspectorSlider({
   const manualMax = overrideMax ?? max;
   const clampManualValue = (nextValue: number) => Math.min(manualMax, Math.max(min, nextValue));
   return (
-    <div className="node-inspector-control">
+    <div className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}>
       <div className="node-inspector-control-header">
         <span className="node-inspector-control-label">
           <InspectorLabel>{label}</InspectorLabel>
@@ -63,6 +65,7 @@ export function InspectorSlider({
           max={max}
           step={step}
           value={sliderValue}
+          disabled={disabled}
           onChange={(e) => onChange(Number(e.target.value))}
         />
         {overrideMax && (
@@ -73,6 +76,7 @@ export function InspectorSlider({
             max={overrideMax}
             step={step}
             value={value}
+            disabled={disabled}
             aria-label={`${label} override`}
             title={`Manual override up to ${overrideMax}`}
             onChange={(e) => {

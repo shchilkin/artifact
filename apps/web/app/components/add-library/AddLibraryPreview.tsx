@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
+  DEFAULT_MATERIAL_CONFIG,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
@@ -27,6 +28,7 @@ const PREVIEW_KIND_PREFIX: Record<string, string> = {
   noisePreset: 'noise',
   arrayPreset: 'array',
   repeatPreset: 'repeat',
+  material: 'material',
 };
 const FALLBACK_KIND_BY_ACTION_KIND: Record<string, string> = {
   textPreset: 'text',
@@ -35,6 +37,7 @@ const FALLBACK_KIND_BY_ACTION_KIND: Record<string, string> = {
 };
 const FALLBACK_GROUP_COLORS: Partial<Record<AddLibraryItem['group'], string>> = {
   source: '#e4c96f',
+  material: '#d2a063',
   utility: '#c8b7a5',
 };
 
@@ -59,6 +62,7 @@ const PREVIEW_DOCUMENT_BUILDERS: Record<string, PreviewDocumentBuilder> = {
   arrayPreset: makeArrayPresetPreviewDocument,
   repeat: makeRepeatPreviewDocument,
   repeatPreset: makeRepeatPreviewDocument,
+  material: makeMaterialPreviewDocument,
   merge: makeUtilityPreviewDocument,
   color: makeUtilityPreviewDocument,
 };
@@ -209,6 +213,29 @@ async function makeArrayPresetPreviewDocument(
   return previewResult([makeArrayPresetLayer((item.action as ArrayPresetAction).preset)], imageCache);
 }
 
+async function makeMaterialPreviewDocument(
+  item: AddLibraryItem,
+  imageCache: Map<string, HTMLImageElement>,
+): Promise<PreviewDocumentResult> {
+  return previewResult(
+    [
+      makeSourceLayer('primitive', {
+        id: 'add-preview-material',
+        name: item.label,
+        primitiveShape: 'sphere',
+        primitiveDepth: 48,
+        tiltX: -18,
+        tiltY: 24,
+        tiltZ: -8,
+        scaleX: 0.86,
+        scaleY: 0.86,
+        ...DEFAULT_MATERIAL_CONFIG,
+      }),
+    ],
+    imageCache,
+  );
+}
+
 async function makeRepeatPreviewDocument(
   _item: AddLibraryItem,
   imageCache: Map<string, HTMLImageElement>,
@@ -352,6 +379,7 @@ function drawFallbackByKind(ctx: CanvasRenderingContext2D, item: AddLibraryItem,
     },
     noise: () => drawNoiseFallback(ctx, groupColor),
     array: () => drawArrayFallback(ctx, groupColor),
+    material: () => drawMaterialFallback(ctx, item, groupColor),
   };
   (drawers[kind] ?? (() => drawFallbackGlyph(ctx, item)))();
 }
@@ -442,6 +470,31 @@ function drawArrayFallback(ctx: CanvasRenderingContext2D, color: string) {
     }
   }
   ctx.globalAlpha = 1;
+}
+
+function drawMaterialFallback(ctx: CanvasRenderingContext2D, item: AddLibraryItem, color: string) {
+  const cx = PREVIEW_SIZE / 2;
+  const cy = PREVIEW_SIZE / 2;
+  const radius = 58;
+  const gradient = ctx.createRadialGradient(cx - 22, cy - 24, 8, cx, cy, radius);
+  gradient.addColorStop(0, '#ffffff');
+  gradient.addColorStop(0.28, color);
+  gradient.addColorStop(1, '#2b1711');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.42;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(cx + i * 9 - 12, cy - 4, radius - i * 8, 12 + i * 2, -0.45, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  drawCenteredFallbackText(ctx, item.label.slice(0, 1).toUpperCase(), 42);
 }
 
 function drawFallbackGlyph(ctx: CanvasRenderingContext2D, item: AddLibraryItem) {

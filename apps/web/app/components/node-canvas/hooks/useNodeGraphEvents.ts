@@ -1,6 +1,12 @@
 import type { Connection, ReactFlowInstance, Edge as RFEdge } from '@xyflow/react';
 import { useCallback } from 'react';
-import type { AspectRatio, CanvasGraph, GraphEdge, Layer } from '../../../types/config';
+import {
+  type AspectRatio,
+  type CanvasGraph,
+  type GraphEdge,
+  type Layer,
+  MATERIAL_TEXTURE_INPUT_PORTS,
+} from '../../../types/config';
 import {
   addGraphEdge,
   EXPORT_NODE_ID,
@@ -34,13 +40,14 @@ export interface UseNodeGraphEventsResult {
 export function useNodeGraphEvents({
   graphRef,
   aspect,
+  layers,
   send,
   rfInstanceRef,
   onGraphChange,
 }: UseNodeGraphEventsOptions): UseNodeGraphEventsResult {
   const isValidConnection = useCallback(
-    (connection: Connection) => isGraphConnectionAllowed(connection, graphRef.current),
-    [graphRef],
+    (connection: Connection) => isGraphConnectionAllowed(connection, graphRef.current, layers),
+    [graphRef, layers],
   );
 
   const onConnect = useCallback(
@@ -96,11 +103,12 @@ export function useNodeGraphEvents({
   };
 }
 
-function isGraphConnectionAllowed(connection: Connection, graph: CanvasGraph) {
+function isGraphConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
   const endpoints = graphConnectionEndpoints(connection);
   if (!endpoints) return false;
   if (endpoints.source === endpoints.target) return false;
   if (endpoints.source === EXPORT_NODE_ID) return false;
+  if (!isGraphPortConnectionAllowed(connection, graph, layers)) return false;
   return !wouldCreateCycle(graph, endpoints.source, endpoints.target);
 }
 
@@ -108,4 +116,19 @@ function graphConnectionEndpoints(connection: Connection) {
   if (!connection.source) return null;
   if (!connection.target) return null;
   return { source: connection.source, target: connection.target };
+}
+
+function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
+  const targetPort = connection.targetHandle ?? 'in';
+  const sourceIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.source);
+  const targetIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.target);
+  if ((MATERIAL_TEXTURE_INPUT_PORTS as readonly string[]).includes(targetPort)) {
+    return targetIsMaterial && !sourceIsMaterial;
+  }
+  if (targetPort === 'material') {
+    const targetIsPrimitive = layers.some((layer) => layer.id === connection.target && layer.kind === 'primitive');
+    const targetIsScene3D = (graph.scene3dNodes ?? []).some((node) => node.id === connection.target);
+    return sourceIsMaterial && (targetIsPrimitive || targetIsScene3D);
+  }
+  return !sourceIsMaterial;
 }

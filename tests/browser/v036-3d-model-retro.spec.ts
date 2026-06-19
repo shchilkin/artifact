@@ -191,6 +191,36 @@ const v036LayerSceneParityDocument = {
   },
 };
 
+const v037SceneMaterialDocument = {
+  ...v036Retro3DDocument,
+  graph: {
+    ...v036Retro3DDocument.graph,
+    edges: [
+      { id: 'e-v037-material-scene', fromId: 'v037-chrome', fromPort: 'out', toId: 'v036-scene', toPort: 'material' },
+      ...v036Retro3DDocument.graph.edges,
+    ],
+    positions: {
+      ...v036Retro3DDocument.graph.positions,
+      'v037-chrome': { x: 0, y: 840 },
+    },
+    materialNodes: [
+      {
+        id: 'v037-chrome',
+        name: 'Chrome',
+        materialPreset: 'chrome',
+        materialBaseColor: '#d6dde4',
+        materialAccentColor: '#ffffff',
+        materialMetalness: 1,
+        materialRoughness: 0.08,
+        materialClearcoat: 0.7,
+        materialRelief: 0.04,
+        materialGrain: 0,
+        materialAnisotropy: 0,
+      },
+    ],
+  },
+};
+
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
 });
@@ -229,6 +259,31 @@ test('v0.36 3D model scene and retro effect graph renders and exports', async ({
   expect(statSync(artifactPath).size).toBeGreaterThan(1024);
 });
 
+test('v0.37 material node feeds a 3D scene material slot', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', '3D scene material smoke runs once in Chromium.');
+
+  await gotoDocument(page, v036Retro3DDocument);
+  await switchToNodeView(page);
+  const baseSceneCanvas = page.locator('.react-flow__node[data-id="v036-scene"] canvas.node-thumbnail-canvas');
+  await expect(baseSceneCanvas).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => baseSceneCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  const baseScenePixels = await reducedCanvasPixels(baseSceneCanvas);
+
+  await gotoDocument(page, v037SceneMaterialDocument);
+  await switchToNodeView(page);
+
+  const sceneNode = page.locator('.react-flow__node[data-id="v036-scene"]');
+  await expect(sceneNode).toBeVisible({ timeout: 15_000 });
+  await expect(sceneNode).toContainText(/material/i);
+  await expect(page.locator('.react-flow__node[data-id="v037-chrome"]')).toContainText(/surface/i);
+
+  const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
+  await expect(outputCanvas).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  const materialScenePixels = await reducedCanvasPixels(sceneNode.locator('canvas.node-thumbnail-canvas'));
+  expect(meanAbsoluteDiff(baseScenePixels, materialScenePixels)).toBeGreaterThan(2);
+});
+
 test('v0.36 layers preview follows graph 3D scene camera state', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D layer/node preview parity runs once in Chromium.');
 
@@ -259,7 +314,7 @@ test('v0.36 layers treats 3D scene as the layer and model as a scene setting', a
   await layerRows.filter({ hasText: '3D Scene' }).first().click();
   await expect(page.locator('.sidebar-sections')).toContainText('Layers / 3D Scene');
   await expect(page.locator('.sidebar-sections')).toContainText('Scene Inputs');
-  await expect(page.locator('.sidebar-sections')).toContainText('3D Model');
+  await expect(page.locator('.sidebar-sections')).toContainText('3D Source');
   await expect(page.locator('.sidebar-sections')).toContainText('tiny.glb');
   await expect(page.locator('.sidebar-sections')).toContainText('Environment Map');
 });

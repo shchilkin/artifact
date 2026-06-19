@@ -8,6 +8,7 @@ import {
   type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
+  type GraphMaterialNode,
   type GraphMergeNode,
   type GraphRepeatNode,
   type GraphScene3DNode,
@@ -29,6 +30,7 @@ export type GraphUtilityNodeKind =
   | 'merge'
   | 'color'
   | 'repeat'
+  | 'material'
   | 'mask'
   | 'transform'
   | 'grimeShadow'
@@ -39,6 +41,7 @@ const GRAPH_UTILITY_NODE_SELECTORS = [
   { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
   { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
   { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
+  { kind: 'material', nodes: (graph: CanvasGraph) => graph.materialNodes ?? [] },
   { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
   {
     kind: 'transform',
@@ -123,6 +126,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     mergeNodes: [],
     colorNodes: [],
     repeatNodes: [],
+    materialNodes: [],
     maskNodes: [],
     transformNodes: [],
     grimeShadowNodes: [],
@@ -287,6 +291,32 @@ export function updateRepeatNode(graph: CanvasGraph, id: string, patch: Partial<
   return {
     ...graph,
     repeatNodes: (graph.repeatNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
+export function addMaterialNode(
+  graph: CanvasGraph,
+  node: GraphMaterialNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    materialNodes: [...(graph.materialNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeMaterialNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    materialNodes: (graph.materialNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateMaterialNode(graph: CanvasGraph, id: string, patch: Partial<GraphMaterialNode>): CanvasGraph {
+  return {
+    ...graph,
+    materialNodes: (graph.materialNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
   };
 }
 
@@ -625,6 +655,7 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
     ...graph.mergeNodes.map((node) => node.id),
     ...(graph.colorNodes ?? []).map((node) => node.id),
     ...(graph.repeatNodes ?? []).map((node) => node.id),
+    ...(graph.materialNodes ?? []).map((node) => node.id),
     ...(graph.maskNodes ?? []).map((node) => node.id),
     ...(graph.transformNodes ?? []).map((node) => node.id),
     ...(graph.grimeShadowNodes ?? []).map((node) => node.id),

@@ -189,6 +189,7 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'Error loading route module `/app/routes/showcase.tsx`, reloading page',
   'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
   'ResizeObserver loop completed with undelivered notifications',
+  "WebGL: INVALID_OPERATION: texImage3D: FLIP_Y or PREMULTIPLY_ALPHA isn't allowed for uploading 3D textures",
 ];
 
 const BENIGN_BROWSER_TEST_MESSAGES = new Set(['JSHandle@object']);

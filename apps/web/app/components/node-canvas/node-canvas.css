@@ -643,6 +643,15 @@
   gap: 4px;
 }
 
+.node-inspector-control-disabled {
+  opacity: 0.48;
+}
+
+.node-inspector-control-disabled .node-inspector-label::after {
+  content: " / map";
+  color: var(--node-text-dim);
+}
+
 .node-inspector-control-label {
   display: flex;
   align-items: center;
@@ -677,6 +686,10 @@
   letter-spacing: 0.02em;
 }
 
+.node-inspector-readout-locked {
+  opacity: 0.58;
+}
+
 .node-inspector-readout strong {
   color: var(--node-text);
   font-size: 11px;
@@ -688,6 +701,13 @@
 .node-inspector-readout small {
   color: var(--node-text-dim);
   font-size: 10px;
+}
+
+.node-inspector-inline-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: 4px;
 }
 
 .scene3d-rig-presets {
@@ -1101,6 +1121,14 @@
   background: var(--surface-input);
   cursor: pointer;
   padding: 4px;
+}
+
+.node-color-input:disabled,
+.node-field:disabled,
+.node-slider:disabled,
+.node-slider-number:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .node-inspector-row-inactive {

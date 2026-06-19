@@ -28,6 +28,15 @@ export type LayerKind =
 export const SOURCE_TYPES = ['primitive', 'noise', 'array', 'lineField', 'model'] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 type PrimitiveShape = 'sphere' | 'cube' | 'cylinder';
+export type MaterialPreset =
+  | 'matte'
+  | 'goldFoil'
+  | 'chrome'
+  | 'brushedMetal'
+  | 'pearl'
+  | 'plastic'
+  | 'paper'
+  | 'fabric';
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -164,7 +173,45 @@ interface ProceduralLayerBase extends BaseLayer {
   lineFieldTransparent: boolean;
 }
 
-export interface PrimitiveLayer extends ProceduralLayerBase {
+export interface MaterialConfig {
+  materialPreset: MaterialPreset;
+  materialBaseColor: string;
+  materialAccentColor: string;
+  materialMetalness: number;
+  materialRoughness: number;
+  materialClearcoat: number;
+  materialRelief: number;
+  materialGrain: number;
+  materialAnisotropy: number;
+  materialAlbedoSrc?: string;
+  materialAlbedoName?: string;
+  materialAlbedoBytes?: number;
+  materialRoughnessSrc?: string;
+  materialRoughnessName?: string;
+  materialRoughnessBytes?: number;
+  materialMetalnessSrc?: string;
+  materialMetalnessName?: string;
+  materialMetalnessBytes?: number;
+  materialNormalSrc?: string;
+  materialNormalName?: string;
+  materialNormalBytes?: number;
+  materialAlphaSrc?: string;
+  materialAlphaName?: string;
+  materialAlphaBytes?: number;
+}
+
+export const MATERIAL_TEXTURE_SOURCE_FIELDS = [
+  'materialAlbedoSrc',
+  'materialRoughnessSrc',
+  'materialMetalnessSrc',
+  'materialNormalSrc',
+  'materialAlphaSrc',
+] as const;
+
+export const MATERIAL_TEXTURE_INPUT_PORTS = ['albedo', 'roughness', 'metalness', 'normal', 'alpha'] as const;
+export type MaterialTextureInputPort = (typeof MATERIAL_TEXTURE_INPUT_PORTS)[number];
+
+export interface PrimitiveLayer extends ProceduralLayerBase, MaterialConfig {
   kind: 'primitive';
 }
 
@@ -375,7 +422,7 @@ export interface GraphEdge {
   fromId: string;
   fromPort: 'out';
   toId: string;
-  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env';
+  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | MaterialTextureInputPort;
 }
 
 export interface GraphMergeNode {
@@ -483,6 +530,11 @@ export interface GraphEnvironmentNode {
   environmentBytes: number;
 }
 
+export interface GraphMaterialNode extends MaterialConfig {
+  id: string;
+  name: string;
+}
+
 export interface GraphArea {
   id: string;
   name: string;
@@ -511,6 +563,7 @@ export interface CanvasGraph {
   grimeShadowNodes?: GraphGrimeShadowNode[];
   scene3dNodes?: GraphScene3DNode[];
   environmentNodes?: GraphEnvironmentNode[];
+  materialNodes?: GraphMaterialNode[];
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
@@ -581,6 +634,110 @@ export const DEFAULT_EXPORT: ExportConfig = {
   format: 'png',
   scale: 1,
   target: 'cover',
+};
+
+export const DEFAULT_MATERIAL_CONFIG: MaterialConfig = {
+  materialPreset: 'matte',
+  materialBaseColor: '#ff5a36',
+  materialAccentColor: '#9d5cff',
+  materialMetalness: 0.18,
+  materialRoughness: 0.38,
+  materialClearcoat: 0,
+  materialRelief: 0,
+  materialGrain: 0,
+  materialAnisotropy: 0,
+};
+
+export const MATERIAL_PRESET_LABELS: Record<MaterialPreset, string> = {
+  matte: 'Matte',
+  goldFoil: 'Gold Foil',
+  chrome: 'Chrome',
+  brushedMetal: 'Brushed Metal',
+  pearl: 'Pearl',
+  plastic: 'Plastic',
+  paper: 'Paper',
+  fabric: 'Fabric',
+};
+
+export const MATERIAL_PRESETS: Record<MaterialPreset, MaterialConfig> = {
+  matte: DEFAULT_MATERIAL_CONFIG,
+  goldFoil: {
+    materialPreset: 'goldFoil',
+    materialBaseColor: '#b98222',
+    materialAccentColor: '#ffe28a',
+    materialMetalness: 0.95,
+    materialRoughness: 0.24,
+    materialClearcoat: 0.34,
+    materialRelief: 0.38,
+    materialGrain: 0.42,
+    materialAnisotropy: 0.18,
+  },
+  chrome: {
+    materialPreset: 'chrome',
+    materialBaseColor: '#d6dde4',
+    materialAccentColor: '#ffffff',
+    materialMetalness: 1,
+    materialRoughness: 0.08,
+    materialClearcoat: 0.7,
+    materialRelief: 0.04,
+    materialGrain: 0,
+    materialAnisotropy: 0,
+  },
+  brushedMetal: {
+    materialPreset: 'brushedMetal',
+    materialBaseColor: '#9fa7ad',
+    materialAccentColor: '#f1f4f0',
+    materialMetalness: 0.92,
+    materialRoughness: 0.42,
+    materialClearcoat: 0.2,
+    materialRelief: 0.18,
+    materialGrain: 0.54,
+    materialAnisotropy: 0.8,
+  },
+  pearl: {
+    materialPreset: 'pearl',
+    materialBaseColor: '#f4edf0',
+    materialAccentColor: '#b8e7ff',
+    materialMetalness: 0,
+    materialRoughness: 0.18,
+    materialClearcoat: 0.88,
+    materialRelief: 0.12,
+    materialGrain: 0.08,
+    materialAnisotropy: 0.16,
+  },
+  plastic: {
+    materialPreset: 'plastic',
+    materialBaseColor: '#e84b73',
+    materialAccentColor: '#ffd3df',
+    materialMetalness: 0,
+    materialRoughness: 0.28,
+    materialClearcoat: 0.58,
+    materialRelief: 0.04,
+    materialGrain: 0,
+    materialAnisotropy: 0,
+  },
+  paper: {
+    materialPreset: 'paper',
+    materialBaseColor: '#d7d0bf',
+    materialAccentColor: '#fff7df',
+    materialMetalness: 0,
+    materialRoughness: 0.86,
+    materialClearcoat: 0,
+    materialRelief: 0.28,
+    materialGrain: 0.68,
+    materialAnisotropy: 0,
+  },
+  fabric: {
+    materialPreset: 'fabric',
+    materialBaseColor: '#5d6570',
+    materialAccentColor: '#c5ced2',
+    materialMetalness: 0,
+    materialRoughness: 0.92,
+    materialClearcoat: 0,
+    materialRelief: 0.44,
+    materialGrain: 0.78,
+    materialAnisotropy: 0.52,
+  },
 };
 
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
@@ -753,7 +910,7 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
 }
 
 type SourceLayerPartial = Partial<
-  Omit<ProceduralLayerBase, 'kind'> & Omit<ModelLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>
+  Omit<ProceduralLayerBase, 'kind'> & MaterialConfig & Omit<ModelLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>
 >;
 
 export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: SourceLayerPartial = {}): SourceLayer {
@@ -767,7 +924,7 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
           : sourceType === 'model'
             ? '3D Model'
             : 'Array';
-  return {
+  const base = {
     id: genId(),
     name: defaultName,
     visible: true,
@@ -818,7 +975,19 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
     modelName: 'Imported model',
     modelMime: 'model/gltf-binary',
     modelBytes: 0,
+  };
+  if (sourceType === 'primitive') {
+    return {
+      ...base,
+      ...DEFAULT_MATERIAL_CONFIG,
+      ...partial,
+      kind: 'primitive',
+    } as PrimitiveLayer;
+  }
+  return {
+    ...base,
     ...partial,
+    kind: sourceType,
   } as SourceLayer;
 }
 
@@ -1426,6 +1595,17 @@ export function makeGraphEnvironmentNode(partial: Partial<GraphEnvironmentNode> 
   };
 }
 
+export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}): GraphMaterialNode {
+  const preset = partial.materialPreset ? MATERIAL_PRESETS[partial.materialPreset] : DEFAULT_MATERIAL_CONFIG;
+  const name = partial.materialPreset ? MATERIAL_PRESET_LABELS[partial.materialPreset] : 'PBR Material';
+  return {
+    id: `material-${Date.now()}-${_idCounter++}`,
+    name,
+    ...preset,
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     schemaVersion: doc.schemaVersion,
@@ -1458,6 +1638,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
           environmentNodes: (doc.graph.environmentNodes ?? []).map((n) => ({
             ...n,
           })),
+          materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
           areas: (doc.graph.areas ?? []).map((area) => ({
             ...area,
             nodeIds: [...area.nodeIds],

@@ -7,6 +7,7 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
@@ -24,6 +25,7 @@ import type {
   GrimeShadowNodeData,
   LayerNodeData,
   MaskNodeData,
+  MaterialNodeData,
   MergeNodeData,
   RepeatNodeData,
   Scene3DNodeData,
@@ -171,6 +173,7 @@ const RF_UTILITY_NODE_BUILDERS = [
   { nodes: (graph: CanvasGraph) => graph.mergeNodes, build: buildMergeRFNode },
   { nodes: (graph: CanvasGraph) => graph.colorNodes, build: buildColorRFNode },
   { nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [], build: buildRepeatRFNode },
+  { nodes: (graph: CanvasGraph) => graph.materialNodes ?? [], build: buildMaterialRFNode },
   { nodes: (graph: CanvasGraph) => graph.maskNodes ?? [], build: buildMaskRFNode },
   { nodes: (graph: CanvasGraph) => graph.transformNodes ?? [], build: buildTransformRFNode },
   { nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [], build: buildGrimeShadowRFNode },
@@ -217,6 +220,19 @@ function buildRepeatRFNode(rn: GraphRepeatNode, context: BuildRFNodeContext): RF
   };
 }
 
+function buildMaterialRFNode(mn: GraphMaterialNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: mn.id,
+    type: 'materialNode',
+    position: utilityPosition(mn.id, context),
+    selected: context.selectedNodeIds.has(mn.id),
+    data: {
+      materialNode: mn,
+      ...commonNodeData(mn.id, context),
+    } satisfies MaterialNodeData,
+  };
+}
+
 function buildMaskRFNode(mn: GraphMaskNode, context: BuildRFNodeContext): RFNode {
   return {
     id: mn.id,
@@ -259,9 +275,13 @@ function buildGrimeShadowRFNode(sn: GraphGrimeShadowNode, context: BuildRFNodeCo
 
 function buildScene3DRFNode(sn: GraphScene3DNode, context: BuildRFNodeContext): RFNode {
   const modelPreviewTargetId = context.incomingNodeId(sn.id, 'model');
+  const materialPreviewTargetId = context.incomingNodeId(sn.id, 'material');
   const environmentPreviewTargetId = context.incomingNodeId(sn.id, 'env');
   const modelLayer =
-    context.doc.layers.find((layer) => layer.id === modelPreviewTargetId && layer.kind === 'model') ?? null;
+    context.doc.layers.find(
+      (layer) => layer.id === modelPreviewTargetId && (layer.kind === 'model' || layer.kind === 'primitive'),
+    ) ?? null;
+  const materialNode = (context.graph.materialNodes ?? []).find((node) => node.id === materialPreviewTargetId) ?? null;
   const environmentNode =
     (context.graph.environmentNodes ?? []).find((node) => node.id === environmentPreviewTargetId) ?? null;
   return {
@@ -273,6 +293,7 @@ function buildScene3DRFNode(sn: GraphScene3DNode, context: BuildRFNodeContext): 
       scene3dNode: sn,
       modelPreviewTargetId,
       modelLayer,
+      materialNode,
       backdropPreviewTargetId: context.incomingNodeId(sn.id, 'bg'),
       environmentPreviewTargetId,
       environmentSource: environmentNode?.environmentSrc ?? null,
@@ -290,10 +311,8 @@ function buildEnvironmentRFNode(en: GraphEnvironmentNode, context: BuildRFNodeCo
     selected: context.selectedNodeIds.has(en.id),
     data: {
       environmentNode: en,
-      selected: context.selectedNodeIds.has(en.id),
-      outputPath: context.outputPathNodeIds.has(en.id),
-      editing: context.editorNodeId === en.id,
-      connected: context.connected,
+      sourcePreviewTargetId: context.incomingNodeId(en.id, 'in'),
+      ...commonNodeData(en.id, context),
     } satisfies EnvironmentNodeData,
   };
 }

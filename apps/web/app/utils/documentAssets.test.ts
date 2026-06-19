@@ -3,6 +3,7 @@ import {
   type CanvasDocument,
   makeFillLayer,
   makeGraphEnvironmentNode,
+  makeGraphMaterialNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -19,7 +20,9 @@ import { EXPORT_NODE_ID } from './nodeGraph';
 
 describe('documentAssets', () => {
   const imageRef = 'artifact-asset://image-a';
+  const materialImageRef = 'artifact-asset://material-albedo';
   const imageDataUrl = 'data:image/png;base64,AAAA';
+  const materialImageDataUrl = 'data:image/png;base64,EEEE';
   const fontRef = fontUriFromId('font-a');
   const modelRef = 'artifact-model://model-a';
   const modelDataUrl = 'data:model/gltf-binary;base64,CCCC';
@@ -79,6 +82,13 @@ describe('documentAssets', () => {
           positions: {},
           mergeNodes: [],
           colorNodes: [],
+          materialNodes: [
+            makeGraphMaterialNode({
+              id: 'material-node-a',
+              materialAlbedoSrc: materialImageRef,
+              materialRoughnessSrc: materialImageDataUrl,
+            }),
+          ],
           environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
         },
         envAssets: [environmentAsset],
@@ -86,11 +96,11 @@ describe('documentAssets', () => {
     );
 
     expect(inventory).toEqual({
-      importedImageRefs: [imageRef],
+      importedImageRefs: [imageRef, materialImageRef],
       importedFontRefs: [fontRef],
       importedModelRefs: [modelRef],
       importedEnvironmentRefs: [environmentRef],
-      portableImagePayloads: [imageDataUrl],
+      portableImagePayloads: [imageDataUrl, materialImageDataUrl],
       portableFontAssetIds: ['font-a'],
       portableModelAssetIds: ['model-a'],
       portableEnvironmentAssetIds: ['env-a'],
@@ -109,7 +119,7 @@ describe('documentAssets', () => {
   });
 
   it('prepares portable documents by hydrating imported images and fonts', async () => {
-    const { loadAssetDataUrl, loadFontAsset, loadModelAsset, loadEnvironmentAsset } = makePortableAssetLoaders({
+    const { loadFontAsset, loadModelAsset, loadEnvironmentAsset } = makePortableAssetLoaders({
       imageRef,
       imageDataUrl,
       fontRef,
@@ -118,6 +128,11 @@ describe('documentAssets', () => {
       modelAsset,
       environmentRef,
       environmentAsset,
+    });
+    const loadAssetDataUrl = vi.fn(async (src: string) => {
+      if (src === imageRef) return imageDataUrl;
+      if (src === materialImageRef) return materialImageDataUrl;
+      return null;
     });
 
     const portable = await preparePortableDocument(
@@ -132,6 +147,12 @@ describe('documentAssets', () => {
           positions: {},
           mergeNodes: [],
           colorNodes: [],
+          materialNodes: [
+            makeGraphMaterialNode({
+              id: 'material-node-a',
+              materialAlbedoSrc: materialImageRef,
+            }),
+          ],
           environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
         },
       }),
@@ -139,10 +160,12 @@ describe('documentAssets', () => {
     );
 
     expect(loadAssetDataUrl).toHaveBeenCalledWith(imageRef);
+    expect(loadAssetDataUrl).toHaveBeenCalledWith(materialImageRef);
     expect(loadFontAsset).toHaveBeenCalledWith(fontRef);
     expect(loadModelAsset).toHaveBeenCalledWith(modelRef);
     expect(loadEnvironmentAsset).toHaveBeenCalledWith(environmentRef);
     expect(portable.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
+    expect(portable.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: materialImageDataUrl });
     expect(portable.fontAssets).toEqual([fontAsset]);
     expect(portable.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl, modelName: 'skull.glb' });
     expect(portable.modelAssets).toEqual([modelAsset]);
@@ -173,6 +196,11 @@ describe('documentAssets', () => {
           positions: {},
           mergeNodes: [],
           colorNodes: [],
+          materialNodes: [
+            makeGraphMaterialNode({
+              materialAlbedoSrc: materialImageDataUrl,
+            }),
+          ],
           environmentNodes: [makeGraphEnvironmentNode({ environmentSrc: environmentDataUrl })],
         },
         fontAssets: [fontAsset],
@@ -190,6 +218,7 @@ describe('documentAssets', () => {
     );
 
     expect(saveAssetDataUrl).toHaveBeenCalledWith(imageDataUrl);
+    expect(saveAssetDataUrl).toHaveBeenCalledWith(materialImageDataUrl);
     expect(saveFontAsset).toHaveBeenCalledWith(fontAsset);
     expect(saveModelDataUrl).toHaveBeenCalledWith(modelDataUrl, 'Imported model');
     expect(saveModelAsset).toHaveBeenCalledWith({
@@ -206,6 +235,7 @@ describe('documentAssets', () => {
       label: 'studio.exr',
     });
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageRef });
+    expect(stored.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
     expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelRef });
     expect(stored.graph?.environmentNodes?.[0]).toMatchObject({ environmentSrc: environmentRef });
     expect(stored.fontAssets).toBeUndefined();
