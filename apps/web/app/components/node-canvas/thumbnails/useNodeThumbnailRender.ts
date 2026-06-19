@@ -192,9 +192,24 @@ function drawCachedThumbnail(
   if (!cached || !canvasRef.current) return false;
   const drawn = drawCanvas(canvasRef.current, cached, previewSize.render.width, previewSize.render.height);
   if (!drawn) return false;
-  setHasRendered(true);
-  setRenderedPreviewKey(previewKey);
+  commitThumbnailReady(setHasRendered, setRenderedPreviewKey, previewKey);
   return true;
+}
+
+function commitThumbnailReady(
+  setHasRendered: (rendered: boolean) => void,
+  setRenderedPreviewKey: (key: string) => void,
+  previewKey: string,
+) {
+  const commit = () => {
+    setHasRendered(true);
+    setRenderedPreviewKey(previewKey);
+  };
+  if (typeof window === 'undefined') {
+    queueMicrotask(commit);
+    return;
+  }
+  window.setTimeout(commit, 0);
 }
 
 function missingThumbnailImageSources(
@@ -312,8 +327,7 @@ function drawRenderedThumbnail(
     drawCanvas(canvasRef.current!, result, snapshot.previewSize.render.width, snapshot.previewSize.render.height),
   );
   if (!didDraw) return;
-  setHasRendered(true);
-  setRenderedPreviewKey(snapshot.previewKey);
+  commitThumbnailReady(setHasRendered, setRenderedPreviewKey, snapshot.previewKey);
 }
 
 function selectPreviewValue<T>(priority: boolean, current: T, deferred: T) {

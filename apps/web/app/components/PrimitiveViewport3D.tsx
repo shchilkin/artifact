@@ -39,7 +39,7 @@ import {
   wheelZoomViewState,
 } from './viewport3DControls';
 
-interface Props {
+export interface PrimitiveViewport3DProps {
   layer: PrimitiveLayer;
   mode: 'node' | 'modal';
   renderMode: PrimitiveRenderMode;
@@ -594,7 +594,7 @@ export function PrimitiveViewport3D({
   onHoverChange,
   className,
   interactive = true,
-}: Props) {
+}: PrimitiveViewport3DProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);

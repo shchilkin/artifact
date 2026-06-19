@@ -179,6 +179,10 @@ Recent manual profiling notes:
   selected/output thumbnails. Composition, aspect, graph traversal, and effect
   density remain the same; high-DPI rendering is reserved for the active node
   or explicit output preview so cold node-editor entry does less pixel work.
+- v0.37 defers Three.js viewport and renderer chunks behind the first actual 3D
+  surface. Blank editor load and switching into Nodes without 3D nodes no longer
+  requests `three-vendor`; initial node-load long tasks that remain are from
+  thumbnail/render/GPU work rather than eager 3D module evaluation.
 
 Future measurements can add named marks around:
 

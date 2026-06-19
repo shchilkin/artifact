@@ -18,7 +18,7 @@ import type {
 } from '../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
 import { lcg } from '../lcg';
-import { renderModelSceneToCanvas, type SceneMaterialTextureCanvases } from '../modelRenderer';
+import type { SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
@@ -720,6 +720,7 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
     const fallback = backdropCanvas ? cloneCanvas(backdropCanvas, W, H) : createCanvas(W, H);
     return fallback;
   }
+  const { renderModelSceneToCanvas } = await import('../modelRenderer');
   return renderModelSceneToCanvas(
     modelLayer,
     sceneNode,

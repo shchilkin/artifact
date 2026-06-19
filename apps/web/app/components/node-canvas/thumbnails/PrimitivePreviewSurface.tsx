@@ -1,7 +1,7 @@
 import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
 import type { GraphMaterialNode, PrimitiveLayer } from '../../../types/config';
-import { PrimitiveViewport3D } from '../../PrimitiveViewport3D';
+import { LazyPrimitiveViewport3D } from '../../LazyViewport3D';
 import {
   defaultPrimitiveViewportState,
   type PrimitiveRenderMode,
@@ -373,7 +373,7 @@ function PrimitiveViewportFrame({
     <div className="node-primitive-live-frame">
       {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
-        <PrimitiveViewport3D
+        <LazyPrimitiveViewport3D
           layer={layer}
           mode="node"
           renderMode={renderMode}

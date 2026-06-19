@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getRenderWorkerDiagnosticsSnapshot,
   type RenderWorkerDiagnosticsSnapshot,
@@ -45,8 +45,12 @@ interface NodePerformanceOverlayProps {
 }
 
 export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerformanceOverlayProps) {
-  const queue = useSyncExternalStore(subscribeThumbnailQueue, getThumbnailQueueSnapshot, () => EMPTY_QUEUE_SNAPSHOT);
-  const worker = useSyncExternalStore(
+  const queue = useDeferredExternalSnapshot(
+    subscribeThumbnailQueue,
+    getThumbnailQueueSnapshot,
+    () => EMPTY_QUEUE_SNAPSHOT,
+  );
+  const worker = useDeferredExternalSnapshot(
     subscribeRenderWorkerDiagnostics,
     getRenderWorkerDiagnosticsSnapshot,
     () => EMPTY_WORKER_SNAPSHOT,
@@ -143,6 +147,36 @@ function PerfMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function useDeferredExternalSnapshot<T>(
+  subscribe: (listener: () => void) => () => void,
+  getSnapshot: () => T,
+  getServerSnapshot: () => T,
+) {
+  const [snapshot, setSnapshot] = useState(() => (typeof window === 'undefined' ? getServerSnapshot() : getSnapshot()));
+
+  useEffect(() => {
+    let cancelled = false;
+    let pendingTimer: number | null = null;
+    const publish = () => {
+      pendingTimer = null;
+      if (!cancelled) setSnapshot(getSnapshot());
+    };
+    const schedulePublish = () => {
+      if (pendingTimer !== null) return;
+      pendingTimer = window.setTimeout(publish, 0);
+    };
+    const unsubscribe = subscribe(schedulePublish);
+    schedulePublish();
+    return () => {
+      cancelled = true;
+      if (pendingTimer !== null) window.clearTimeout(pendingTimer);
+      unsubscribe();
+    };
+  }, [getSnapshot, subscribe]);
+
+  return snapshot;
+}
+
 function useFrameMetrics(enabled: boolean): FrameMetrics {
   const [metrics, setMetrics] = useState<FrameMetrics>({
     fps: 0,
@@ -171,16 +205,29 @@ function useFrameMetrics(enabled: boolean): FrameMetrics {
     }
 
     let raf = 0;
+    let pendingMetrics: FrameMetrics | null = null;
+    let pendingTimer: number | null = null;
     let lastFrame = performance.now();
     let lastPublish = lastFrame;
     let frames: number[] = [];
+    const commitMetrics = () => {
+      pendingTimer = null;
+      if (!pendingMetrics) return;
+      setMetrics(pendingMetrics);
+      pendingMetrics = null;
+    };
+    const scheduleMetricsCommit = (nextMetrics: FrameMetrics) => {
+      pendingMetrics = nextMetrics;
+      if (pendingTimer !== null) return;
+      pendingTimer = window.setTimeout(commitMetrics, 0);
+    };
 
     const tick = (now: number) => {
       frames.push(now - lastFrame);
       lastFrame = now;
 
       if (now - lastPublish >= 750) {
-        setMetrics(frameMetricsSnapshot(frames, longTasksRef.current));
+        scheduleMetricsCommit(frameMetricsSnapshot(frames, longTasksRef.current));
         frames = [];
         lastPublish = now;
       }
@@ -191,6 +238,7 @@ function useFrameMetrics(enabled: boolean): FrameMetrics {
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
+      if (pendingTimer !== null) window.clearTimeout(pendingTimer);
       observer?.disconnect();
       longTasksRef.current = { count: 0, totalMs: 0 };
     };
