@@ -47,7 +47,7 @@ import {
   wheelZoomViewState,
 } from './viewport3DControls';
 
-interface Props {
+export interface ModelViewport3DProps {
   layer: ModelLayer | PrimitiveLayer;
   sceneNode?: GraphScene3DNode;
   viewState: PrimitiveViewportState;
@@ -204,7 +204,7 @@ export function ModelViewport3D({
   environmentCanvas = null,
   environmentSource = null,
   autoRotatePreview = false,
-}: Props) {
+}: ModelViewport3DProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);

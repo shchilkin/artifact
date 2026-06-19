@@ -2,8 +2,6 @@ import type { PrimitiveViewportState } from '../components/PrimitiveViewportStat
 import type { SourceLayer } from '../types/config';
 import { hexToRgb, mixRgb, type Rgb } from './colorMath';
 import { lcg } from './lcg';
-import { renderModelToCanvas } from './modelRenderer';
-import { renderPrimitiveToCanvas } from './primitiveRenderer';
 import type { MaterialTextureCanvases, ResolvedMaterialConfig } from './primitiveScene';
 import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
 import { renderNoiseTexture } from './render/workers/noiseTextureClient';
@@ -372,6 +370,7 @@ async function drawSourceLayerContent(
   if (layer.kind === 'primitive') {
     const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
     const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const { renderPrimitiveToCanvas } = await import('./primitiveRenderer');
     const threeCanvas = await renderPrimitiveToCanvas(
       layer,
       { width: renderWidth, height: renderHeight },
@@ -394,6 +393,7 @@ async function drawSourceLayerContent(
   if (layer.kind === 'model') {
     const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
     const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const { renderModelToCanvas } = await import('./modelRenderer');
     const threeCanvas = await renderModelToCanvas(
       layer,
       { width: renderWidth, height: renderHeight },

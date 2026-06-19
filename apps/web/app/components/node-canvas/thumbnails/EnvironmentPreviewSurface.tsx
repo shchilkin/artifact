@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
 
 import type { GraphEnvironmentNode } from '../../../types/config';
 import { resolveEnvironmentSource } from '../../../utils/envAssetStore';
-import { loadEquirectangularTexture } from '../../../utils/modelRenderer';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { useNodeCanvasPreview } from '../context';
 
@@ -162,6 +160,10 @@ async function renderEnvironmentPreview(environmentSrc: string): Promise<HTMLCan
   const source = await resolveEnvironmentSource(environmentSrc);
   if (!source) throw new Error('Environment asset is unavailable');
 
+  const [THREE, { loadEquirectangularTexture }] = await Promise.all([
+    import('three'),
+    import('../../../utils/modelRenderer'),
+  ]);
   const texture = await loadEquirectangularTexture(source);
   const renderCanvas = document.createElement('canvas');
   renderCanvas.width = PREVIEW_WIDTH;

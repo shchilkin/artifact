@@ -62,6 +62,10 @@ CI should run:
   acting only as flat backdrops.
 - v0.37 keeps material nodes graph-only while Layers continue to expose 3D
   material controls as settings on primitive/model/scene surfaces.
+- v0.37 defers Three.js viewport and renderer loading for blank editor and
+  non-3D Nodes workflows. A production network smoke on
+  `http://127.0.0.1:4180/app?new=blank` confirmed no `three-vendor` or 3D
+  viewport/renderer chunks were requested before a 3D surface was needed.
 - Manual QA confirmed material-node creation from Add Library, material
   inspector controls, connected 3D Scene material input behavior, environment
   lighting/reflection behavior, downstream graph composition, and raster export
@@ -79,7 +83,9 @@ CI should run:
   React Flow nodes, graph signatures, thumbnails, and WebGL-heavy material
   preview paths. Dragging, slider changes, and graph panning stayed around
   17ms p95 with zero long tasks during interactions; initial node-editor load
-  still has startup long tasks and remains a performance follow-up.
+  still has thumbnail/render/GPU startup long tasks and remains a performance
+  follow-up, but Three.js is no longer downloaded or evaluated on the non-3D
+  startup path.
 - `npm run release:verify` passed on 2026-06-19.
 - Accepted release risk: PBR material authoring starts with one graph material
   node and scalar/map inputs; deeper map scale/rotation, channel packing, and
@@ -87,6 +93,9 @@ CI should run:
 - Accepted release risk: heavy 3D material browser coverage remains
   Chromium-first while the full browser suite continues to cover the app across
   Firefox, WebKit, and mobile projects.
+- Accepted release risk: `three-vendor` remains large when a 3D surface is
+  actually used; further Three.js loader splitting and 3D prefetch policy remain
+  future performance polish.
 
 ### v0.36.0 Release Prep
 

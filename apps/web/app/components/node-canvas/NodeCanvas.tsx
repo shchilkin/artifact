@@ -25,10 +25,9 @@ import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import type { CanvasDocument, CanvasGraph, Layer, PrimitiveLayer } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
-import { ModelViewport3D } from '../ModelViewport3D';
+import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
-import { PrimitiveViewport3D } from '../PrimitiveViewport3D';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
@@ -1030,7 +1029,7 @@ function PrimitiveGalleryViewport({
   });
   if (!primitiveViewState) return null;
   return (
-    <PrimitiveViewport3D
+    <LazyPrimitiveViewport3D
       layer={displayLayer as PrimitiveLayer}
       materialConfig={materialConfig}
       materialTextures={materialTextures}
@@ -1052,7 +1051,7 @@ function ModelGalleryViewport({
 }) {
   const viewState = primitiveViewState ?? defaultPrimitiveViewportState(displayLayer);
   return (
-    <ModelViewport3D
+    <LazyModelViewport3D
       layer={displayLayer}
       viewState={viewState}
       interactive={false}

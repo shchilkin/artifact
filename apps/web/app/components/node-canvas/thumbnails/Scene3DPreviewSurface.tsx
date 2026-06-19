@@ -7,7 +7,7 @@ import {
   type PrimitiveLayer,
 } from '../../../types/config';
 import { renderGraphTarget } from '../../../utils/renderer';
-import { ModelViewport3D } from '../../ModelViewport3D';
+import { LazyModelViewport3D } from '../../LazyViewport3D';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { EmptyThumbnailFrame } from './LiveMediaOverlay';
@@ -133,7 +133,7 @@ function SelectedScene3DPreviewSurface({
           <EmptyThumbnailFrame />
         )}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }}>
-          <ModelViewport3D
+          <LazyModelViewport3D
             layer={modelLayer}
             sceneNode={scene3dNode}
             materialConfig={materialNode ?? undefined}

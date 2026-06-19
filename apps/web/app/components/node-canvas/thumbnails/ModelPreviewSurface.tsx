@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { ModelLayer } from '../../../types/config';
-import { ModelViewport3D } from '../../ModelViewport3D';
+import { LazyModelViewport3D } from '../../LazyViewport3D';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
 import { stopNodeEvent } from '../helpers';
@@ -69,7 +69,7 @@ function ModelViewportFrame({
     <div className="node-primitive-live-frame">
       {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
-        <ModelViewport3D
+        <LazyModelViewport3D
           layer={layer}
           viewState={viewState}
           interactive={interactive}
