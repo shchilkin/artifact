@@ -61,6 +61,14 @@ export function createPrimitiveGeometry(layer: PrimitiveLayer): THREE.BufferGeom
 
 export type ResolvedMaterialConfig = MaterialConfig;
 
+export interface MaterialTextureCanvases {
+  albedo?: HTMLCanvasElement | null;
+  roughness?: HTMLCanvasElement | null;
+  metalness?: HTMLCanvasElement | null;
+  normal?: HTMLCanvasElement | null;
+  alpha?: HTMLCanvasElement | null;
+}
+
 export function primitiveLayerMaterialConfig(layer: PrimitiveLayer): ResolvedMaterialConfig {
   return {
     ...DEFAULT_MATERIAL_CONFIG,
@@ -113,6 +121,10 @@ function createCanvasTexture(canvas: HTMLCanvasElement, colorSpace?: THREE.Color
   if (colorSpace) texture.colorSpace = colorSpace;
   texture.needsUpdate = true;
   return texture;
+}
+
+function canvasMaterialTexture(canvas: HTMLCanvasElement | null | undefined, colorSpace?: THREE.ColorSpace) {
+  return canvas ? createCanvasTexture(canvas, colorSpace) : undefined;
 }
 
 function drawMaterialPattern(
@@ -212,7 +224,11 @@ function drawScalarPattern(
   }
 }
 
-function createMaterialTextureSet(layer: PrimitiveLayer, config: ResolvedMaterialConfig) {
+function createMaterialTextureSet(
+  layer: PrimitiveLayer,
+  config: ResolvedMaterialConfig,
+  materialTextures?: MaterialTextureCanvases | null,
+) {
   if (typeof document === 'undefined') return {};
   const base = new THREE.Color(config.materialBaseColor);
   const accent = new THREE.Color(config.materialAccentColor);
@@ -236,9 +252,14 @@ function createMaterialTextureSet(layer: PrimitiveLayer, config: ResolvedMateria
   drawScalarPattern(bumpCanvas.getContext('2d')!, config, seed, 'bump');
 
   return {
-    map: createCanvasTexture(mapCanvas, THREE.SRGBColorSpace),
-    roughnessMap: createCanvasTexture(roughnessCanvas),
-    bumpMap: createCanvasTexture(bumpCanvas),
+    map:
+      canvasMaterialTexture(materialTextures?.albedo, THREE.SRGBColorSpace) ??
+      createCanvasTexture(mapCanvas, THREE.SRGBColorSpace),
+    roughnessMap: canvasMaterialTexture(materialTextures?.roughness) ?? createCanvasTexture(roughnessCanvas),
+    metalnessMap: canvasMaterialTexture(materialTextures?.metalness),
+    normalMap: canvasMaterialTexture(materialTextures?.normal),
+    alphaMap: canvasMaterialTexture(materialTextures?.alpha),
+    bumpMap: materialTextures?.normal ? undefined : createCanvasTexture(bumpCanvas),
   };
 }
 
@@ -298,19 +319,24 @@ export function createPrimitiveMaterial(
   layer: PrimitiveLayer,
   materialConfig: ResolvedMaterialConfig | undefined,
   renderMode: PrimitiveRenderMode = 'shaded',
+  materialTextures?: MaterialTextureCanvases | null,
 ): THREE.Material {
   const config = materialConfig ?? primitiveLayerMaterialConfig(layer);
   const color = new THREE.Color(config.materialBaseColor);
-  const textureSet = createMaterialTextureSet(layer, config);
+  const textureSet = createMaterialTextureSet(layer, config, materialTextures);
   if (renderMode === 'unlit') {
-    return new THREE.MeshBasicMaterial({
+    const params: THREE.MeshBasicMaterialParameters = {
       color: textureSet.map ? 0xffffff : color,
       map: textureSet.map,
+      transparent: Boolean(textureSet.alphaMap),
+      alphaTest: textureSet.alphaMap ? 0.02 : 0,
       wireframe: false,
-    });
+    };
+    if (textureSet.alphaMap) params.alphaMap = textureSet.alphaMap;
+    return new THREE.MeshBasicMaterial(params);
   }
   const accent = new THREE.Color(config.materialAccentColor);
-  return new THREE.MeshPhysicalMaterial({
+  const params: THREE.MeshPhysicalMaterialParameters = {
     color: textureSet.map ? 0xffffff : color,
     map: textureSet.map,
     emissive:
@@ -328,8 +354,8 @@ export function createPrimitiveMaterial(
       materialValue(config.materialRoughness, DEFAULT_MATERIAL_CONFIG.materialRoughness) * 0.7,
     ),
     roughnessMap: textureSet.roughnessMap,
-    bumpMap: textureSet.bumpMap,
-    bumpScale: renderMode === 'wireframe' ? 0 : materialValue(config.materialRelief, 0) * 0.075,
+    transparent: Boolean(textureSet.alphaMap),
+    alphaTest: textureSet.alphaMap ? 0.02 : 0,
     envMap: createMaterialEnvironmentMap(config),
     envMapIntensity:
       0.24 +
@@ -337,7 +363,18 @@ export function createPrimitiveMaterial(
       materialValue(config.materialClearcoat, DEFAULT_MATERIAL_CONFIG.materialClearcoat) * 0.45,
     wireframe: renderMode === 'wireframe',
     flatShading: layer.primitiveShading === 'flat',
-  });
+  };
+  if (textureSet.metalnessMap) params.metalnessMap = textureSet.metalnessMap;
+  if (textureSet.normalMap) {
+    params.normalMap = textureSet.normalMap;
+    params.normalScale = new THREE.Vector2(1, 1);
+  }
+  if (textureSet.alphaMap) params.alphaMap = textureSet.alphaMap;
+  if (textureSet.bumpMap) {
+    params.bumpMap = textureSet.bumpMap;
+    params.bumpScale = renderMode === 'wireframe' ? 0 : materialValue(config.materialRelief, 0) * 0.075;
+  }
+  return new THREE.MeshPhysicalMaterial(params);
 }
 
 // ---------------------------------------------------------------------------

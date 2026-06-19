@@ -4,7 +4,7 @@ import { hexToRgb, mixRgb, type Rgb } from './colorMath';
 import { lcg } from './lcg';
 import { renderModelToCanvas } from './modelRenderer';
 import { renderPrimitiveToCanvas } from './primitiveRenderer';
-import type { ResolvedMaterialConfig } from './primitiveScene';
+import type { MaterialTextureCanvases, ResolvedMaterialConfig } from './primitiveScene';
 import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
 import { renderNoiseTexture } from './render/workers/noiseTextureClient';
 
@@ -312,6 +312,7 @@ export async function drawSourceLayer(
   draft: boolean,
   primitiveViewState?: PrimitiveViewportState,
   primitiveMaterial?: ResolvedMaterialConfig,
+  primitiveMaterialTextures?: MaterialTextureCanvases | null,
   layout: 'document' | 'full-frame' = 'document',
 ): Promise<void> {
   ctx.save();
@@ -330,6 +331,7 @@ export async function drawSourceLayer(
     draft,
     primitiveViewState,
     primitiveMaterial,
+    primitiveMaterialTextures,
     layout,
   );
   ctx.restore();
@@ -363,6 +365,7 @@ async function drawSourceLayerContent(
   draft: boolean,
   primitiveViewState: PrimitiveViewportState | undefined,
   primitiveMaterial: ResolvedMaterialConfig | undefined,
+  primitiveMaterialTextures: MaterialTextureCanvases | null | undefined,
   layout: 'document' | 'full-frame',
 ) {
   const { drawWidth, drawHeight } = sourceDrawSize(width, height, scale, layout);
@@ -375,6 +378,7 @@ async function drawSourceLayerContent(
       primitiveViewState,
       { forceFallback: draft },
       primitiveMaterial,
+      primitiveMaterialTextures,
     );
     ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     return;

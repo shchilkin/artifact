@@ -1,7 +1,9 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { makeSourceLayer } from '../types/config';
+import { makeGraphMaterialNode, makeSourceLayer } from '../types/config';
 import { primitiveRendererTestInternals, renderPrimitiveToCanvas } from './primitiveRenderer';
+import { createPrimitiveMaterial } from './primitiveScene';
 import { measureAlphaBounds } from './render/alphaBounds';
 
 function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
@@ -66,5 +68,29 @@ describe('renderPrimitiveToCanvas', () => {
     expect(bounds?.width).toBe(3);
     expect(bounds?.height).toBe(3);
     expect(primitiveRendererTestInternals.canvasHasPrimitiveContent(canvas)).toBe(true);
+  });
+
+  it('applies connected PBR texture canvases to primitive materials', () => {
+    const albedo = document.createElement('canvas');
+    albedo.width = 8;
+    albedo.height = 8;
+    albedo.getContext('2d')!.fillRect(0, 0, 8, 8);
+    const normal = document.createElement('canvas');
+    normal.width = 8;
+    normal.height = 8;
+    normal.getContext('2d')!.fillRect(0, 0, 8, 8);
+
+    const material = createPrimitiveMaterial(makeSourceLayer('primitive'), makeGraphMaterialNode(), 'shaded', {
+      albedo,
+      normal,
+    }) as THREE.MeshPhysicalMaterial;
+
+    expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+    expect(material.map).toBeInstanceOf(THREE.CanvasTexture);
+    expect(material.map?.image).toBe(albedo);
+    expect(material.normalMap).toBeInstanceOf(THREE.CanvasTexture);
+    expect(material.normalMap?.image).toBe(normal);
+    expect(material.bumpMap).toBeNull();
+    material.dispose();
   });
 });

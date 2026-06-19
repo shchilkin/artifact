@@ -777,11 +777,6 @@ async function renderSingleInputSource(nodeId: string, context: GraphNodeRenderC
   return source;
 }
 
-function primitiveMaterialFromGraph(graph: CanvasGraph, layer: PrimitiveLayer): GraphMaterialNode | undefined {
-  const materialId = findIncomingSource(graph, layer.id, 'material');
-  return materialId ? findMaterialNode(graph, materialId) : undefined;
-}
-
 async function renderGpuOnlyLayerChain(
   nodeId: string,
   layer: Layer,
@@ -810,13 +805,19 @@ function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOp
     : options;
 }
 
-function primitiveLayerRenderOptions(layer: Layer, graph: CanvasGraph, options: RenderOptions): RenderOptions {
+async function primitiveLayerRenderOptions(layer: Layer, context: GraphNodeRenderContext): Promise<RenderOptions> {
+  const { graph, options } = context;
   if (layer.kind !== 'primitive') return graphLayerRenderOptions(layer, options);
-  const material = primitiveMaterialFromGraph(graph, layer);
+  const materialId = findIncomingSource(graph, layer.id, 'material');
+  const material = materialId ? findMaterialNode(graph, materialId) : undefined;
+  const materialTextures = materialId ? await resolveMaterialTextureCanvases(materialId, context) : null;
   const primitiveMaterials = material
     ? { ...(options.primitiveMaterials ?? {}), [layer.id]: material }
     : options.primitiveMaterials;
-  return { ...graphLayerRenderOptions(layer, options), primitiveMaterials };
+  const primitiveMaterialTextures = materialTextures
+    ? { ...(options.primitiveMaterialTextures ?? {}), [layer.id]: materialTextures }
+    : options.primitiveMaterialTextures;
+  return { ...graphLayerRenderOptions(layer, options), primitiveMaterials, primitiveMaterialTextures };
 }
 
 async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderContext) {
@@ -828,7 +829,7 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   const sourceId = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
   const base = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
-  return applyLayerToCanvas(base, layer, doc, W, H, imageCache, primitiveLayerRenderOptions(layer, graph, options));
+  return applyLayerToCanvas(base, layer, doc, W, H, imageCache, await primitiveLayerRenderOptions(layer, context));
 }
 
 const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [

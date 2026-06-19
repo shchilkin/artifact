@@ -12,7 +12,7 @@ import type {
 import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { measurePerformancePhase } from '../../performanceMeasure';
-import type { ResolvedMaterialConfig } from '../../primitiveScene';
+import type { MaterialTextureCanvases, ResolvedMaterialConfig } from '../../primitiveScene';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
@@ -52,6 +52,8 @@ export interface RenderOptions {
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   /** Optional resolved primitive material overrides from graph material nodes. */
   primitiveMaterials?: Record<string, ResolvedMaterialConfig>;
+  /** Optional resolved texture-map canvases for graph-driven primitive materials. */
+  primitiveMaterialTextures?: Record<string, MaterialTextureCanvases>;
   /** Source nodes render as full-frame generators in graph mode; stack mode keeps authored placement. */
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
@@ -825,6 +827,7 @@ async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
     options.draft ?? false,
     layer.kind === 'primitive' || layer.kind === 'model' ? options.primitiveViewStates?.[layer.id] : undefined,
     layer.kind === 'primitive' ? options.primitiveMaterials?.[layer.id] : undefined,
+    layer.kind === 'primitive' ? options.primitiveMaterialTextures?.[layer.id] : undefined,
     sourceLayerLayout(layer, options),
   );
   return current;

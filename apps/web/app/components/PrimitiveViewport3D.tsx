@@ -9,6 +9,7 @@ import {
   createPrimitiveGeometry,
   createPrimitiveMaterial,
   disposeMesh,
+  type MaterialTextureCanvases,
   type PrimitiveLightRig,
   type ResolvedMaterialConfig,
   updateSceneAccentLights,
@@ -43,12 +44,22 @@ interface Props {
   mode: 'node' | 'modal';
   renderMode: PrimitiveRenderMode;
   materialConfig?: ResolvedMaterialConfig;
+  materialTextures?: MaterialTextureCanvases | null;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
   onHoverChange?: (hovered: boolean) => void;
   className?: string;
   interactive?: boolean;
+}
+
+function materialTextureCanvasSignature(textures: MaterialTextureCanvases) {
+  return ['albedo', 'roughness', 'metalness', 'normal', 'alpha']
+    .map((key) => {
+      const canvas = textures[key as keyof MaterialTextureCanvases];
+      return `${key}:${canvas?.width ?? 0}x${canvas?.height ?? 0}`;
+    })
+    .join('|');
 }
 
 function nextPrimitiveKeyboardState(
@@ -576,6 +587,7 @@ export function PrimitiveViewport3D({
   mode,
   renderMode,
   materialConfig,
+  materialTextures,
   viewState,
   onViewStateChange,
   onViewStateDraft,
@@ -682,6 +694,7 @@ export function PrimitiveViewport3D({
         layer.color,
         layer.accentColor,
         materialConfig ? JSON.stringify(materialConfig) : 'layer-material',
+        materialTextures ? materialTextureCanvasSignature(materialTextures) : 'no-material-textures',
         renderMode,
       ].join(':'),
     [
@@ -691,6 +704,7 @@ export function PrimitiveViewport3D({
       layer.primitiveShading,
       layer.primitiveShape,
       materialConfig,
+      materialTextures,
       renderMode,
     ],
   );
@@ -748,13 +762,13 @@ export function PrimitiveViewport3D({
     const currentLayer = layerRef.current;
     const mesh = new THREE.Mesh(
       createPrimitiveGeometry(currentLayer),
-      createPrimitiveMaterial(currentLayer, materialConfig, renderMode),
+      createPrimitiveMaterial(currentLayer, materialConfig, renderMode, materialTextures),
     );
     mesh.rotation.z = 0; // full transform applied via applyMeshTransform in applyViewState
     objectGroup.add(mesh);
     meshRef.current = mesh;
     applyViewState(viewStateRef.current);
-  }, [applyViewState, materialConfig, primitiveMeshKey, renderMode]);
+  }, [applyViewState, materialConfig, materialTextures, primitiveMeshKey, renderMode]);
 
   useEffect(() => {
     applyViewState(viewStateRef.current);
