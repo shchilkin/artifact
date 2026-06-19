@@ -12,6 +12,7 @@ import {
   createPrimitiveMaterial,
   degToRad,
   disposeMesh,
+  type MaterialTextureCanvases,
   primitiveLayerMaterialConfig,
   type ResolvedMaterialConfig,
 } from './primitiveScene';
@@ -133,6 +134,7 @@ export async function renderPrimitiveToCanvas(
   viewState?: PrimitiveViewportState,
   options: PrimitiveRenderOptions = {},
   materialConfig?: ResolvedMaterialConfig,
+  materialTextures?: MaterialTextureCanvases | null,
 ): Promise<HTMLCanvasElement> {
   const targetWidth = typeof size === 'number' ? size : size.width;
   const targetHeight = typeof size === 'number' ? size : size.height;
@@ -197,7 +199,7 @@ export async function renderPrimitiveToCanvas(
 
     const geometry = createPrimitiveGeometry(layer);
     // Export always uses 'shaded' mode — renderMode is a live viewport concept.
-    const material = createPrimitiveMaterial(layer, materialConfig, 'shaded');
+    const material = createPrimitiveMaterial(layer, materialConfig, 'shaded', materialTextures);
     mesh = new THREE.Mesh(geometry, material);
     applyMeshTransform(mesh, effectiveViewState, layer.tiltZ);
     scene.add(mesh);

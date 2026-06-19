@@ -34,7 +34,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
-import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
+import { NodeCanvasActionsContext, NodeCanvasPreviewContext, useNodeCanvasPreview } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
 import { resolveNearestEdgeInsertionTarget, resolveNodeInsertionTarget } from './graphInsertion';
 import { useNodeAddLibraryDropHint } from './hooks/useNodeAddLibraryDropHint';
@@ -66,6 +66,7 @@ import {
 } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
 import { toRFEdges } from './reactFlowEdges';
+import { useGeneratedMaterialTextureCanvases } from './thumbnails/materialTextureCanvases';
 import type {
   ContextMenuState,
   InsertConnectionConfig,
@@ -1017,13 +1018,22 @@ function PrimitiveGalleryViewport({
   primitiveViewState: PrimitiveViewportState | null;
   onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
-  if (!primitiveViewState) return null;
+  const { doc, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const materialId = graph.edges.find((edge) => edge.toId === displayLayer.id && edge.toPort === 'material')?.fromId;
   const materialConfig = materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
+  const materialTextures = useGeneratedMaterialTextureCanvases({
+    materialNode: materialConfig ?? null,
+    doc,
+    graph,
+    imageCache,
+    primitiveViewStates,
+  });
+  if (!primitiveViewState) return null;
   return (
     <PrimitiveViewport3D
       layer={displayLayer as PrimitiveLayer}
       materialConfig={materialConfig}
+      materialTextures={materialTextures}
       mode="modal"
       renderMode={primitiveRenderModes[displayLayer.id] ?? 'shaded'}
       viewState={primitiveViewState}

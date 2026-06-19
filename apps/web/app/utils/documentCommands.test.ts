@@ -734,6 +734,28 @@ describe('documentCommands', () => {
     expect(next.graph?.materialNodes?.map((node) => node.id)).toEqual(['material-a']);
   });
 
+  it('preserves material texture-map input edges when syncing custom graphs to the layer stack', () => {
+    const graph: CanvasGraph = {
+      ...makeGraph(),
+      edges: [
+        { id: 'e-fill-material-albedo', fromId: 'fill-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+        { id: 'e-fill-text', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
+        { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+    };
+    const doc = makeDoc(graph);
+    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
+
+    expect(next.graph?.edges).toContainEqual({
+      id: 'e-fill-material-albedo',
+      fromId: 'fill-a',
+      fromPort: 'out',
+      toId: 'material-a',
+      toPort: 'albedo',
+    });
+    expect(next.graph?.materialNodes?.map((node) => node.id)).toEqual(['material-a']);
+  });
+
   it('adds material nodes directly to primitive material inputs', () => {
     const primitive = makeSourceLayer('primitive', { id: 'primitive-a', name: 'Primitive A' });
     const doc: CanvasDocument = {

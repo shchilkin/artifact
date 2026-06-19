@@ -15,6 +15,7 @@ import {
   type GraphTransformNode,
   type Layer,
   type LayerKind,
+  MATERIAL_TEXTURE_INPUT_PORTS,
   type ModelLayer,
   makeEffectPresetLayer,
   makeEmojiLayer,
@@ -198,8 +199,11 @@ function withGeneratedNodeSeed(layer: Layer): Layer {
 function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): CanvasGraph {
   const linearGraph = inferLinearGraph(layers);
   const layerOrExportIds = new Set([...layers.map((layer) => layer.id), EXPORT_NODE_ID]);
+  const preservedSideInputPorts = new Set<string>(['material', ...MATERIAL_TEXTURE_INPUT_PORTS]);
   const graphOnlyEdges = graph.edges.filter(
-    (edge) => edge.toPort === 'material' || (!layerOrExportIds.has(edge.fromId) && !layerOrExportIds.has(edge.toId)),
+    (edge) =>
+      preservedSideInputPorts.has(edge.toPort) ||
+      (!layerOrExportIds.has(edge.fromId) && !layerOrExportIds.has(edge.toId)),
   );
   return {
     ...graph,
