@@ -1,4 +1,11 @@
-import type { CanvasDocument, GraphScene3DNode, ImageLayer, ModelLayer } from '../types/config';
+import {
+  type CanvasDocument,
+  type GraphMaterialNode,
+  type GraphScene3DNode,
+  type ImageLayer,
+  MATERIAL_TEXTURE_SOURCE_FIELDS,
+  type ModelLayer,
+} from '../types/config';
 import {
   type HydrateDocumentImageAssetOptions,
   hydrateDocumentImageAssets,
@@ -60,8 +67,17 @@ function imageSourcesForLayer(layer: ImageLayer) {
   return [layer.src, ...(layer.aiGenerationHistory?.map((variant) => variant.src) ?? [])].filter(Boolean);
 }
 
+function imageSourcesForMaterialNode(node: GraphMaterialNode) {
+  return MATERIAL_TEXTURE_SOURCE_FIELDS.map((field) => node[field]).filter((source): source is string =>
+    Boolean(source),
+  );
+}
+
 function collectDocumentImageSources(doc: CanvasDocument): string[] {
-  return doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : []));
+  return [
+    ...doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : [])),
+    ...(doc.graph?.materialNodes ?? []).flatMap(imageSourcesForMaterialNode),
+  ];
 }
 
 function collectDocumentModelSources(doc: CanvasDocument): string[] {

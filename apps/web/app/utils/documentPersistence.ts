@@ -10,12 +10,16 @@ import {
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
+  type GraphMaterialNode,
   type Layer,
+  type MaterialConfig,
   makeEmojiLayer,
+  makeGraphMaterialNode,
   makeSourceLayer,
   type PortableEnvironmentAsset,
   type PortableFontAsset,
   type PortableModelAsset,
+  type PrimitiveLayer,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
@@ -81,6 +85,33 @@ function normalizePrimitiveViewStates(value: unknown): CanvasGraph['primitiveVie
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+const MATERIAL_PERCENT_FIELDS = [
+  'materialMetalness',
+  'materialRoughness',
+  'materialClearcoat',
+  'materialRelief',
+  'materialGrain',
+  'materialAnisotropy',
+] as const;
+
+function normalizeMaterialPercent(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  if (parsed > 1) return Math.min(1, Math.max(0, parsed / 100));
+  return Math.min(1, Math.max(0, parsed));
+}
+
+function normalizeMaterialPatch<T extends Partial<MaterialConfig>>(value: T): T {
+  const patch = { ...value };
+  for (const field of MATERIAL_PERCENT_FIELDS) {
+    if (field in patch) {
+      const normalized = normalizeMaterialPercent(patch[field]);
+      if (normalized !== undefined) patch[field] = normalized;
+    }
+  }
+  return patch;
+}
+
 function normalizeGraph(value: unknown): CanvasGraph | undefined {
   if (!isRecord(value)) return undefined;
   const arrayField = <K extends keyof CanvasGraph>(key: K) =>
@@ -91,6 +122,16 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     mergeNodes: arrayField('mergeNodes'),
     colorNodes: arrayField('colorNodes'),
     repeatNodes: normalizeRepeatNodes(arrayField('repeatNodes')),
+    materialNodes: Array.isArray(value.materialNodes)
+      ? value.materialNodes.filter(isRecord).map((node) =>
+          makeGraphMaterialNode(
+            normalizeMaterialPatch({
+              ...node,
+              id: String(node.id ?? `material-${Date.now()}`),
+            } as Partial<GraphMaterialNode>),
+          ),
+        )
+      : [],
     maskNodes: arrayField('maskNodes'),
     transformNodes: normalizeTransformNodes(arrayField('transformNodes')),
     grimeShadowNodes: normalizeGrimeShadowNodes(arrayField('grimeShadowNodes')),
@@ -310,14 +351,21 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
               : normalizedLayer.kind === 'emoji'
                 ? { ...makeEmojiLayer(), ...normalizedLayer }
                 : normalizedLayer;
+        const layerWithMaterial =
+          layerWithDefaults.kind === 'primitive'
+            ? ({
+                ...layerWithDefaults,
+                ...normalizeMaterialPatch(layerWithDefaults as Partial<PrimitiveLayer>),
+              } as Layer)
+            : layerWithDefaults;
 
-        if (layerWithDefaults.kind === 'effect' && shouldSplitEffectLayer(layerWithDefaults as Partial<EffectLayer>)) {
-          return splitEffectPatchIntoPresetLayers(layerWithDefaults as Partial<EffectLayer>, {
-            idPrefix: String(layerWithDefaults.id ?? 'effect'),
+        if (layerWithMaterial.kind === 'effect' && shouldSplitEffectLayer(layerWithMaterial as Partial<EffectLayer>)) {
+          return splitEffectPatchIntoPresetLayers(layerWithMaterial as Partial<EffectLayer>, {
+            idPrefix: String(layerWithMaterial.id ?? 'effect'),
           });
         }
 
-        return [layerWithDefaults as Layer];
+        return [layerWithMaterial as Layer];
       }) as Layer[])
     : [];
 
@@ -378,6 +426,7 @@ export function isBlankDocument(doc: CanvasDocument) {
       graph.mergeNodes.length === 0 &&
       (graph.colorNodes ?? []).length === 0 &&
       (graph.repeatNodes ?? []).length === 0 &&
+      (graph.materialNodes ?? []).length === 0 &&
       (graph.maskNodes ?? []).length === 0 &&
       (graph.transformNodes ?? []).length === 0 &&
       (graph.grimeShadowNodes ?? []).length === 0 &&

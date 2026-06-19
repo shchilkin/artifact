@@ -9,6 +9,7 @@ import {
   type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
+  type GraphMaterialNode,
   type GraphMergeNode,
   type GraphRepeatNode,
   type GraphScene3DNode,
@@ -52,6 +53,7 @@ import {
   updateGrimeShadowNodeInDocument,
   updateLayerInDocument,
   updateMaskNodeInDocument,
+  updateMaterialNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
   updateScene3DNodeInDocument,
@@ -457,6 +459,13 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const updateMaterialNode = useCallback(
+    (id: string, patch: Partial<GraphMaterialNode>) => {
+      updateDocument((current) => updateMaterialNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
   const updateMaskNode = useCallback(
     (id: string, patch: Partial<GraphMaskNode>) => {
       updateDocument((current) => updateMaskNodeInDocument(current, id, patch), 'debounce');
@@ -589,6 +598,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
+    updateMaterialNode,
     updateMaskNode,
     updateTransformNode,
     updateGrimeShadowNode,

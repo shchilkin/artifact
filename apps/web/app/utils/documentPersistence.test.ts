@@ -369,6 +369,7 @@ describe('normalizeDocument', () => {
       mergeNodes: [],
       colorNodes: [],
       repeatNodes: [],
+      materialNodes: [],
       maskNodes: [],
       transformNodes: [],
       grimeShadowNodes: [],
@@ -376,6 +377,50 @@ describe('normalizeDocument', () => {
       environmentNodes: [],
       areas: [],
       primitiveViewStates: undefined,
+    });
+  });
+
+  it('normalizes legacy material percentages to unit values', () => {
+    const doc = normalizeDocument({
+      layers: [
+        {
+          id: 'legacy-primitive',
+          name: 'Legacy Primitive',
+          kind: 'primitive',
+          materialPreset: 'chrome',
+          materialMetalness: 95,
+          materialRoughness: 8,
+          materialClearcoat: 70,
+        },
+      ],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        materialNodes: [
+          {
+            id: 'legacy-material',
+            name: 'Legacy Material',
+            materialPreset: 'goldFoil',
+            materialMetalness: 95,
+            materialRoughness: 24,
+            materialClearcoat: 34,
+          },
+        ],
+      },
+    });
+
+    const layer = doc.layers[0];
+    expect(layer).toMatchObject({
+      kind: 'primitive',
+      materialMetalness: 0.95,
+      materialRoughness: 0.08,
+      materialClearcoat: 0.7,
+    });
+    expect(doc.graph?.materialNodes?.[0]).toMatchObject({
+      materialMetalness: 0.95,
+      materialRoughness: 0.24,
+      materialClearcoat: 0.34,
     });
   });
 });
@@ -564,6 +609,7 @@ describe('document serialization helpers', () => {
             blendMode: 'source-over',
           },
         ],
+        materialNodes: [],
         maskNodes: [],
         transformNodes: [],
         grimeShadowNodes: [],

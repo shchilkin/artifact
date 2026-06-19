@@ -4,6 +4,7 @@ import { hexToRgb, mixRgb, type Rgb } from './colorMath';
 import { lcg } from './lcg';
 import { renderModelToCanvas } from './modelRenderer';
 import { renderPrimitiveToCanvas } from './primitiveRenderer';
+import type { ResolvedMaterialConfig } from './primitiveScene';
 import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
 import { renderNoiseTexture } from './render/workers/noiseTextureClient';
 
@@ -310,6 +311,7 @@ export async function drawSourceLayer(
   scale: number,
   draft: boolean,
   primitiveViewState?: PrimitiveViewportState,
+  primitiveMaterial?: ResolvedMaterialConfig,
   layout: 'document' | 'full-frame' = 'document',
 ): Promise<void> {
   ctx.save();
@@ -318,7 +320,18 @@ export async function drawSourceLayer(
     layer.blendMode === 'normal' ? 'source-over' : layer.blendMode
   ) as GlobalCompositeOperation;
   applySourceLayerTransform(ctx, width, height, layer, scale, layout);
-  await drawSourceLayerContent(ctx, width, height, layer, seed, scale, draft, primitiveViewState, layout);
+  await drawSourceLayerContent(
+    ctx,
+    width,
+    height,
+    layer,
+    seed,
+    scale,
+    draft,
+    primitiveViewState,
+    primitiveMaterial,
+    layout,
+  );
   ctx.restore();
 }
 
@@ -349,6 +362,7 @@ async function drawSourceLayerContent(
   scale: number,
   draft: boolean,
   primitiveViewState: PrimitiveViewportState | undefined,
+  primitiveMaterial: ResolvedMaterialConfig | undefined,
   layout: 'document' | 'full-frame',
 ) {
   const { drawWidth, drawHeight } = sourceDrawSize(width, height, scale, layout);
@@ -360,6 +374,7 @@ async function drawSourceLayerContent(
       { width: renderWidth, height: renderHeight },
       primitiveViewState,
       { forceFallback: draft },
+      primitiveMaterial,
     );
     ctx.drawImage(threeCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     return;

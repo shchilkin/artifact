@@ -1,10 +1,11 @@
 import type { NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
+import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
-import { EnvironmentPreviewSurface } from '../thumbnails/EnvironmentPreviewSurface';
+import { EnvironmentPreviewSurface, GeneratedEnvironmentPreviewSurface } from '../thumbnails/EnvironmentPreviewSurface';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
 import { Scene3DPreviewSurface } from '../thumbnails/Scene3DPreviewSurface';
@@ -17,6 +18,7 @@ import type {
   GrimeShadowNodeData,
   LayerNodeData,
   MaskNodeData,
+  MaterialNodeData,
   MergeNodeData,
   RepeatNodeData,
   Scene3DNodeData,
@@ -32,6 +34,13 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
     data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
+  const targetHandles =
+    layer.kind === 'primitive'
+      ? [
+          { id: inputPort, top: '38%' },
+          { id: 'material', top: '66%' },
+        ]
+      : [{ id: inputPort }];
   const transform = useLayerTransformDraft(layer, updateLayer);
 
   return (
@@ -44,7 +53,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       outputPath={outputPath}
       editing={editing}
       muted={!layer.visible}
-      targetHandles={[{ id: inputPort }]}
+      targetHandles={targetHandles}
       onSelect={(event) => selectNode(layer.id, event)}
       onToggleMuted={() => updateLayer(layer.id, { visible: !layer.visible })}
       onDelete={() => deleteNode(layer.id)}
@@ -67,8 +76,48 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
         onTransformWheelDelta={transform.handleWheelDelta}
       />
       <PortRow
-        inputs={[{ label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id }]}
+        inputs={[
+          { label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id },
+          ...(layer.kind === 'primitive' ? [{ label: 'material', portId: 'material', nodeId: layer.id }] : []),
+        ]}
         outputs={[{ label: 'result', portId: 'out', nodeId: layer.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data }: NodeProps<MaterialNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { materialNode, previewTargetId, selected, outputPath, editing, connected } = data;
+  const materialInputs = [
+    { label: 'base / albedo', portId: 'albedo', nodeId: materialNode.id },
+    { label: 'roughness', portId: 'roughness', nodeId: materialNode.id },
+    { label: 'metalness', portId: 'metalness', nodeId: materialNode.id },
+    { label: 'normal', portId: 'normal', nodeId: materialNode.id },
+    { label: 'alpha', portId: 'alpha', nodeId: materialNode.id },
+  ];
+
+  return (
+    <NodeFrame
+      id={materialNode.id}
+      kind="material"
+      label="material"
+      name={materialNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={MATERIAL_TEXTURE_INPUT_PORTS.map((id, index) => ({
+        id,
+        top: `${24 + index * 13}%`,
+      }))}
+      onSelect={(event) => selectNode(materialNode.id, event)}
+      onDelete={() => deleteNode(materialNode.id)}
+    >
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+      <PortRow
+        inputs={materialInputs}
+        outputs={[{ label: 'material surface', portId: 'out', nodeId: materialNode.id }]}
         connected={connected}
       />
     </NodeFrame>
@@ -274,6 +323,7 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
     previewTargetId,
     modelPreviewTargetId,
     modelLayer,
+    materialNode,
     backdropPreviewTargetId,
     environmentPreviewTargetId,
     environmentSource,
@@ -294,9 +344,10 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
       outputPath={outputPath}
       editing={editing}
       targetHandles={[
-        { id: 'model', top: '30%' },
-        { id: 'env', top: '50%' },
-        { id: 'bg', top: '70%' },
+        { id: 'model', top: '25%' },
+        { id: 'material', top: '43%' },
+        { id: 'env', top: '61%' },
+        { id: 'bg', top: '79%' },
       ]}
       onSelect={(event) => selectNode(scene3dNode.id, event)}
       onDelete={() => deleteNode(scene3dNode.id)}
@@ -306,6 +357,7 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
         selected={selected}
         previewTargetId={previewTargetId}
         modelLayer={modelLayer}
+        materialNode={materialNode}
         sceneViewState={sceneViewState}
         backdropPreviewTargetId={backdropPreviewTargetId}
         environmentPreviewTargetId={environmentPreviewTargetId}
@@ -314,6 +366,7 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
       <PortRow
         inputs={[
           { label: modelPreviewTargetId ? 'model' : 'model required', portId: 'model', nodeId: scene3dNode.id },
+          { label: 'material', portId: 'material', nodeId: scene3dNode.id },
           { label: 'environment', portId: 'env', nodeId: scene3dNode.id },
           { label: 'backdrop', portId: 'bg', nodeId: scene3dNode.id },
         ]}
@@ -328,7 +381,8 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
   data,
 }: NodeProps<EnvironmentNodeData>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
-  const { environmentNode, selected, outputPath, editing, connected } = data;
+  const { environmentNode, previewTargetId, sourcePreviewTargetId, selected, outputPath, editing, connected } = data;
+  const rendersSource = Boolean(sourcePreviewTargetId);
 
   return (
     <NodeFrame
@@ -339,13 +393,17 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
       selected={selected}
       outputPath={outputPath}
       editing={editing}
-      targetHandles={[]}
+      targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(environmentNode.id, event)}
       onDelete={() => deleteNode(environmentNode.id)}
     >
-      <EnvironmentPreviewSurface environmentNode={environmentNode} />
+      {rendersSource ? (
+        <GeneratedEnvironmentPreviewSurface previewTargetId={previewTargetId} />
+      ) : (
+        <EnvironmentPreviewSurface environmentNode={environmentNode} />
+      )}
       <PortRow
-        inputs={[]}
+        inputs={[{ label: rendersSource ? 'source' : 'source optional', portId: 'in', nodeId: environmentNode.id }]}
         outputs={[{ label: 'environment', portId: 'out', nodeId: environmentNode.id }]}
         connected={connected}
       />

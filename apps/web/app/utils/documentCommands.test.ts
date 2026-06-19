@@ -6,10 +6,13 @@ import {
   makeFillLayer,
   makeGraphColorNode,
   makeGraphGrimeShadowNode,
+  makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
+  makeGraphScene3DNode,
   makeGraphTransformNode,
   makeImageLayer,
+  makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 import {
@@ -38,6 +41,7 @@ import {
   updateGlobalInDocument,
   updateGrimeShadowNodeInDocument,
   updateLayerInDocument,
+  updateMaterialNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
   updateTransformNodeInDocument,
@@ -81,6 +85,7 @@ function makeGraph(): CanvasGraph {
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a', opacity: 80 })],
     colorNodes: [makeGraphColorNode({ id: 'color-a', brightness: 90 })],
     repeatNodes: [makeGraphRepeatNode({ id: 'repeat-a', count: 3 })],
+    materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
     transformNodes: [makeGraphTransformNode({ id: 'transform-a', rotation: 12 })],
     grimeShadowNodes: [makeGraphGrimeShadowNode({ id: 'shadow-a', grime: 24 })],
   };
@@ -707,6 +712,112 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => edge.id === 'e-repeat-export')).toBe(false);
   });
 
+  it('preserves material side-input edges when syncing custom graphs to the layer stack', () => {
+    const graph: CanvasGraph = {
+      ...makeGraph(),
+      edges: [
+        { id: 'e-material-fill', fromId: 'material-a', fromPort: 'out', toId: 'fill-a', toPort: 'material' },
+        { id: 'e-fill-text', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
+        { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+    };
+    const doc = makeDoc(graph);
+    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
+
+    expect(next.graph?.edges).toContainEqual({
+      id: 'e-material-fill',
+      fromId: 'material-a',
+      fromPort: 'out',
+      toId: 'fill-a',
+      toPort: 'material',
+    });
+    expect(next.graph?.materialNodes?.map((node) => node.id)).toEqual(['material-a']);
+  });
+
+  it('adds material nodes directly to primitive material inputs', () => {
+    const primitive = makeSourceLayer('primitive', { id: 'primitive-a', name: 'Primitive A' });
+    const doc: CanvasDocument = {
+      ...makeDoc(),
+      layers: [primitive],
+      graph: {
+        edges: [
+          { id: 'e-primitive-export', fromId: 'primitive-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: { 'primitive-a': { x: 0, y: 80 }, [EXPORT_NODE_ID]: { x: 520, y: 80 } },
+        mergeNodes: [],
+        colorNodes: [],
+      },
+    };
+
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'material' },
+      { x: -260, y: 120 },
+      { targetId: 'primitive-a', targetPort: 'material' },
+      makeEdgeId,
+    );
+    const materialNode = result.doc.graph?.materialNodes?.[0];
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(materialNode).toMatchObject({ name: 'PBR Material', materialPreset: 'matte', materialMetalness: 0.18 });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-${materialNode?.id}-primitive-a`,
+      fromId: materialNode?.id,
+      fromPort: 'out',
+      toId: 'primitive-a',
+      toPort: 'material',
+    });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: 'e-primitive-export',
+      fromId: 'primitive-a',
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
+  });
+
+  it('adds material nodes directly to 3D scene material inputs', () => {
+    const model = makeSourceLayer('model', { id: 'model-a', name: 'Model A' });
+    const scene = makeGraphScene3DNode({ id: 'scene-a', name: 'Scene A' });
+    const doc: CanvasDocument = {
+      ...makeDoc(),
+      layers: [model],
+      graph: {
+        edges: [
+          { id: 'e-model-scene', fromId: 'model-a', fromPort: 'out', toId: 'scene-a', toPort: 'model' },
+          { id: 'e-scene-export', fromId: 'scene-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: {
+          'model-a': { x: 0, y: 80 },
+          'scene-a': { x: 360, y: 80 },
+          [EXPORT_NODE_ID]: { x: 720, y: 80 },
+        },
+        mergeNodes: [],
+        colorNodes: [],
+        scene3dNodes: [scene],
+      },
+    };
+
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'material' },
+      { x: 120, y: 520 },
+      { targetId: 'scene-a', targetPort: 'material' },
+      makeEdgeId,
+    );
+    const materialNode = result.doc.graph?.materialNodes?.[0];
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(materialNode).toMatchObject({ name: 'PBR Material', materialPreset: 'matte' });
+    expect(result.doc.graph?.edges).toContainEqual({
+      id: `edge-0-${materialNode?.id}-scene-a`,
+      fromId: materialNode?.id,
+      fromPort: 'out',
+      toId: 'scene-a',
+      toPort: 'material',
+    });
+  });
+
   it('does not remove a locked layer', () => {
     const doc = makeLockedFillDoc();
     const next = removeLayerFromDocument(doc, 'fill-a');
@@ -723,7 +834,7 @@ describe('documentCommands', () => {
     expect(next.graph?.edges.some((edge) => edge.fromId === 'text-a' || edge.toId === 'text-a')).toBe(false);
   });
 
-  it('updates layer, merge node, color node, repeat node, transform node, global, export, and graph immutably', () => {
+  it('updates layer, merge node, color node, repeat node, material node, global, export, and graph immutably', () => {
     const doc = makeDoc(makeGraph());
     const graph: CanvasGraph = { edges: [], positions: {}, mergeNodes: [], colorNodes: [] };
 
@@ -731,6 +842,10 @@ describe('documentCommands', () => {
     expect(updateMergeNodeInDocument(doc, 'merge-a', { opacity: 25 }).graph?.mergeNodes[0]?.opacity).toBe(25);
     expect(updateColorNodeInDocument(doc, 'color-a', { saturation: 140 }).graph?.colorNodes[0]?.saturation).toBe(140);
     expect(updateRepeatNodeInDocument(doc, 'repeat-a', { count: 8 }).graph?.repeatNodes?.[0]?.count).toBe(8);
+    expect(
+      updateMaterialNodeInDocument(doc, 'material-a', { materialRoughness: 0.16 }).graph?.materialNodes?.[0]
+        ?.materialRoughness,
+    ).toBe(0.16);
     expect(
       updateTransformNodeInDocument(doc, 'transform-a', { rotation: 45 }).graph?.transformNodes?.[0]?.rotation,
     ).toBe(45);

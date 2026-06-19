@@ -22,7 +22,7 @@ import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
-import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
+import type { CanvasDocument, CanvasGraph, Layer, PrimitiveLayer } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
 import { ModelViewport3D } from '../ModelViewport3D';
@@ -36,7 +36,7 @@ import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
-import { resolveNearestEdgeInsertionTarget } from './graphInsertion';
+import { resolveNearestEdgeInsertionTarget, resolveNodeInsertionTarget } from './graphInsertion';
 import { useNodeAddLibraryDropHint } from './hooks/useNodeAddLibraryDropHint';
 import { useNodeAreaActions } from './hooks/useNodeAreaActions';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
@@ -58,6 +58,7 @@ import {
   GrimeShadowNodeComponent,
   LayerNodeComponent,
   MaskNodeComponent,
+  MaterialNodeComponent,
   MergeNodeComponent,
   RepeatNodeComponent,
   Scene3DNodeComponent,
@@ -76,6 +77,7 @@ import type {
 const nodeTypes = {
   layerNode: LayerNodeComponent,
   colorNode: ColorNodeComponent,
+  materialNode: MaterialNodeComponent,
   mergeNode: MergeNodeComponent,
   repeatNode: RepeatNodeComponent,
   maskNode: MaskNodeComponent,
@@ -88,16 +90,12 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
-const NODE_IMAGE_FILE_RE = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
-
 function hasFileTransfer(dataTransfer: DataTransfer) {
   return Array.from(dataTransfer.types).includes('Files');
 }
 
-function imageFileFromTransfer(dataTransfer: DataTransfer) {
-  return Array.from(dataTransfer.files).find(
-    (file) => file.type.startsWith('image/') || NODE_IMAGE_FILE_RE.test(file.name),
-  );
+function filesFromTransfer(dataTransfer: DataTransfer) {
+  return Array.from(dataTransfer.files);
 }
 
 function nodeDropPosition(event: ReactDragEvent<HTMLDivElement>, instance: ReactFlowInstance | null) {
@@ -117,6 +115,7 @@ export function NodeCanvas({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -128,6 +127,7 @@ export function NodeCanvas({
   onExport,
   onAddLayerAt,
   onImageFileDrop,
+  onFilesDrop,
   onReplaceEnvironmentNodeFile,
   onDeleteNodes,
   onDuplicateLayer,
@@ -265,10 +265,18 @@ export function NodeCanvas({
     canDeleteNode,
   });
 
-  const resolveAddLibraryEdgeInsertionAtPoint = useCallback(
+  const resolveAddLibraryInsertionAtPoint = useCallback(
     (action: Parameters<NodeCanvasProps['onAddLayerAt']>[0], point: { x: number; y: number }) => {
       const flowPoint = rfInstanceRef.current?.screenToFlowPosition(point);
       if (!flowPoint) return null;
+      const nodeTarget = resolveNodeInsertionTarget({
+        action,
+        graph: graphRef.current,
+        layers: doc.layers,
+        nodes: dragNodesRef.current,
+        point: flowPoint,
+      });
+      if (nodeTarget) return nodeTarget;
       return resolveNearestEdgeInsertionTarget({
         action,
         graph: graphRef.current,
@@ -277,11 +285,14 @@ export function NodeCanvas({
         threshold: EDGE_INTERCEPT_THRESHOLD,
       });
     },
-    [dragNodesRef, graphRef, rfInstanceRef],
+    [doc.layers, dragNodesRef, graphRef, rfInstanceRef],
   );
 
   useNodeAddLibraryDropHint(canvasSurfaceRef, {
-    resolveEdgeId: (action, point) => resolveAddLibraryEdgeInsertionAtPoint(action, point)?.edge.id ?? null,
+    resolveEdgeId: (action, point) => {
+      const target = resolveAddLibraryInsertionAtPoint(action, point);
+      return target && 'edge' in target ? target.edge.id : null;
+    },
     onEdgeHoverChange: setAddLibraryHoverEdgeId,
   });
 
@@ -353,30 +364,32 @@ export function NodeCanvas({
   }, []);
   const onNodeFileDragOver = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
-      if (!onImageFileDrop || !hasFileTransfer(event.dataTransfer)) return;
+      if (!(onFilesDrop || onImageFileDrop) || !hasFileTransfer(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
       event.dataTransfer.dropEffect = 'copy';
     },
-    [onImageFileDrop],
+    [onFilesDrop, onImageFileDrop],
   );
   const onNodeFileDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
-      if (!onImageFileDrop || !hasFileTransfer(event.dataTransfer)) return;
-      const file = imageFileFromTransfer(event.dataTransfer) ?? Array.from(event.dataTransfer.files)[0];
-      if (!file) return;
+      if (!(onFilesDrop || onImageFileDrop) || !hasFileTransfer(event.dataTransfer)) return;
+      const files = filesFromTransfer(event.dataTransfer);
+      if (files.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      onImageFileDrop(file, nodeDropPosition(event, rfInstanceRef.current));
+      const position = nodeDropPosition(event, rfInstanceRef.current);
+      if (onFilesDrop) onFilesDrop(files, position);
+      else onImageFileDrop?.(files[0]!, position);
     },
-    [onImageFileDrop, rfInstanceRef],
+    [onFilesDrop, onImageFileDrop, rfInstanceRef],
   );
 
   const handleJumpToOutput = useCallback(() => {
-    const outputPosition = graphRef.current.positions[EXPORT_NODE_ID];
-    if (!outputPosition) return;
-    void rfInstanceRef.current?.setCenter(outputPosition.x + 160, outputPosition.y + 170, {
-      zoom: 0.9,
+    void rfInstanceRef.current?.fitView({
+      nodes: [{ id: EXPORT_NODE_ID }],
+      padding: 0.42,
+      maxZoom: 0.95,
       duration: 220,
     });
   }, []);
@@ -428,6 +441,7 @@ export function NodeCanvas({
       updateMergeNode: onUpdateMergeNode,
       updateColorNode: onUpdateColorNode,
       updateRepeatNode: onUpdateRepeatNode,
+      updateMaterialNode: onUpdateMaterialNode,
       updateMaskNode: onUpdateMaskNode,
       updateTransformNode: onUpdateTransformNode,
       updateGrimeShadowNode: onUpdateGrimeShadowNode,
@@ -450,6 +464,7 @@ export function NodeCanvas({
       onUpdateColorNode,
       onUpdateExportConfig,
       onUpdateLayer,
+      onUpdateMaterialNode,
       onUpdateMergeNode,
       onUpdateRepeatNode,
       onUpdateMaskNode,
@@ -554,6 +569,7 @@ export function NodeCanvas({
             onUpdateMergeNode={onUpdateMergeNode}
             onUpdateColorNode={onUpdateColorNode}
             onUpdateRepeatNode={onUpdateRepeatNode}
+            onUpdateMaterialNode={onUpdateMaterialNode}
             onUpdateMaskNode={onUpdateMaskNode}
             onUpdateTransformNode={onUpdateTransformNode}
             onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
@@ -573,7 +589,7 @@ export function NodeCanvas({
             rfInstanceRef={rfInstanceRef}
             onAddFromMenu={handleAddFromMenu}
             onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
-            resolveEdgeInsertionAtPoint={resolveAddLibraryEdgeInsertionAtPoint}
+            resolveInsertionAtPoint={resolveAddLibraryInsertionAtPoint}
           />
 
           <NodeContextMenuPortal
@@ -633,6 +649,9 @@ function NodeAlignmentGuideOverlay({ guides }: { guides: NodeAlignmentGuide[] })
 
 type PaneContextMenuState = Extract<ContextMenuState, { type: 'pane-add' | 'pane-insert' }>;
 type AddLayerAction = Parameters<NodeCanvasProps['onAddLayerAt']>[0];
+type AddLibraryInsertionTarget =
+  | ReturnType<typeof resolveNearestEdgeInsertionTarget>
+  | ReturnType<typeof resolveNodeInsertionTarget>;
 
 function PaneContextMenuPortal({
   contextMenu,
@@ -641,7 +660,7 @@ function PaneContextMenuPortal({
   rfInstanceRef,
   onAddFromMenu,
   onClose,
-  resolveEdgeInsertionAtPoint,
+  resolveInsertionAtPoint,
 }: {
   contextMenu: ContextMenuState;
   canvasSurfaceRef: RefObject<HTMLDivElement | null>;
@@ -649,10 +668,10 @@ function PaneContextMenuPortal({
   rfInstanceRef: RefObject<ReactFlowInstance | null>;
   onAddFromMenu: NodeCanvasProps['onAddLayerAt'];
   onClose: () => void;
-  resolveEdgeInsertionAtPoint: (
+  resolveInsertionAtPoint: (
     action: AddLayerAction,
     point: { x: number; y: number },
-  ) => ReturnType<typeof resolveNearestEdgeInsertionTarget> | null;
+  ) => AddLibraryInsertionTarget | null;
 }) {
   if (!isPaneContextMenu(contextMenu) || typeof document === 'undefined') return null;
   return createPortal(
@@ -669,7 +688,7 @@ function PaneContextMenuPortal({
           canvasSurfaceRef,
           rfInstanceRef,
           onAddFromMenu,
-          resolveEdgeInsertionAtPoint,
+          resolveInsertionAtPoint,
         })
       }
       onClose={onClose}
@@ -694,7 +713,7 @@ function handlePaneMenuDragAdd({
   canvasSurfaceRef,
   rfInstanceRef,
   onAddFromMenu,
-  resolveEdgeInsertionAtPoint,
+  resolveInsertionAtPoint,
 }: {
   action: AddLayerAction;
   point: { x: number; y: number };
@@ -702,17 +721,17 @@ function handlePaneMenuDragAdd({
   canvasSurfaceRef: RefObject<HTMLDivElement | null>;
   rfInstanceRef: RefObject<ReactFlowInstance | null>;
   onAddFromMenu: NodeCanvasProps['onAddLayerAt'];
-  resolveEdgeInsertionAtPoint: (
+  resolveInsertionAtPoint: (
     action: AddLayerAction,
     point: { x: number; y: number },
-  ) => ReturnType<typeof resolveNearestEdgeInsertionTarget> | null;
+  ) => AddLibraryInsertionTarget | null;
 }) {
   const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
   if (!pointInsideRect(point, surfaceRect)) return false;
   onAddFromMenu(
     action,
     paneDragFlowPosition(point, contextMenu.flowPos, rfInstanceRef.current),
-    paneDragInsertion(action, point, contextMenu, resolveEdgeInsertionAtPoint),
+    paneDragInsertion(action, point, contextMenu, resolveInsertionAtPoint),
   );
   return true;
 }
@@ -730,13 +749,13 @@ function paneDragInsertion(
   action: AddLayerAction,
   point: { x: number; y: number },
   contextMenu: PaneContextMenuState,
-  resolveEdgeInsertionAtPoint: (
+  resolveInsertionAtPoint: (
     action: AddLayerAction,
     point: { x: number; y: number },
-  ) => ReturnType<typeof resolveNearestEdgeInsertionTarget> | null,
+  ) => AddLibraryInsertionTarget | null,
 ) {
-  const edgeTarget = resolveEdgeInsertionAtPoint(action, point);
-  return edgeTarget?.insertion ?? paneMenuInsertion(contextMenu);
+  const target = resolveInsertionAtPoint(action, point);
+  return target?.insertion ?? paneMenuInsertion(contextMenu);
 }
 
 function pointInsideRect(point: { x: number; y: number }, rect: DOMRect | undefined) {
@@ -962,6 +981,7 @@ function NodeGalleryViewport({
     return (
       <PrimitiveGalleryViewport
         displayLayer={displayLayer}
+        graph={graph}
         primitiveRenderModes={primitiveRenderModes}
         primitiveViewState={primitiveViewState}
         onPrimitiveViewChange={onPrimitiveViewChange}
@@ -986,19 +1006,24 @@ function NodeGalleryViewport({
 
 function PrimitiveGalleryViewport({
   displayLayer,
+  graph,
   primitiveRenderModes,
   primitiveViewState,
   onPrimitiveViewChange,
 }: {
   displayLayer: Extract<Layer, { kind: 'primitive' }>;
+  graph: CanvasGraph;
   primitiveRenderModes: Record<string, PrimitiveRenderMode>;
   primitiveViewState: PrimitiveViewportState | null;
   onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
   if (!primitiveViewState) return null;
+  const materialId = graph.edges.find((edge) => edge.toId === displayLayer.id && edge.toPort === 'material')?.fromId;
+  const materialConfig = materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
   return (
     <PrimitiveViewport3D
-      layer={displayLayer}
+      layer={displayLayer as PrimitiveLayer}
+      materialConfig={materialConfig}
       mode="modal"
       renderMode={primitiveRenderModes[displayLayer.id] ?? 'shaded'}
       viewState={primitiveViewState}

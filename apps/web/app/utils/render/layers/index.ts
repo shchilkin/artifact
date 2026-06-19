@@ -12,6 +12,7 @@ import type {
 import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { measurePerformancePhase } from '../../performanceMeasure';
+import type { ResolvedMaterialConfig } from '../../primitiveScene';
 import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
@@ -49,6 +50,8 @@ export interface RenderOptions {
   outputBackground?: 'transparent' | 'document';
   /** Optional live primitive viewport overrides so node/output/export renders can match the interactive 3D preview. */
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
+  /** Optional resolved primitive material overrides from graph material nodes. */
+  primitiveMaterials?: Record<string, ResolvedMaterialConfig>;
   /** Source nodes render as full-frame generators in graph mode; stack mode keeps authored placement. */
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
@@ -821,6 +824,7 @@ async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
     scale,
     options.draft ?? false,
     layer.kind === 'primitive' || layer.kind === 'model' ? options.primitiveViewStates?.[layer.id] : undefined,
+    layer.kind === 'primitive' ? options.primitiveMaterials?.[layer.id] : undefined,
     sourceLayerLayout(layer, options),
   );
   return current;

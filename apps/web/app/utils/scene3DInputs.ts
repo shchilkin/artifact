@@ -5,6 +5,7 @@ import type {
   GraphScene3DNode,
   Layer,
   ModelLayer,
+  PrimitiveLayer,
 } from '../types/config';
 
 function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string> {
@@ -19,17 +20,17 @@ function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string>
 }
 
 export function isSceneModelInputLayer(layer: Layer, graph: CanvasGraph | undefined): boolean {
-  return layer.kind === 'model' && getSceneModelInputLayerIds(graph).has(layer.id);
+  return (layer.kind === 'model' || layer.kind === 'primitive') && getSceneModelInputLayerIds(graph).has(layer.id);
 }
 
 export function getSceneModelLayer(
   graph: CanvasGraph | undefined,
   layers: Layer[],
   sceneId: string,
-): ModelLayer | null {
+): ModelLayer | PrimitiveLayer | null {
   const modelId = graph?.edges.find((edge) => edge.toId === sceneId && edge.toPort === 'model')?.fromId;
   const layer = modelId ? layers.find((item) => item.id === modelId) : null;
-  return layer?.kind === 'model' ? layer : null;
+  return layer?.kind === 'model' || layer?.kind === 'primitive' ? layer : null;
 }
 
 export function getSceneEnvironmentNode(graph: CanvasGraph | undefined, sceneId: string): GraphEnvironmentNode | null {

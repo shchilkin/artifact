@@ -776,6 +776,7 @@ function NodePropertiesPanelSpecimens() {
           onUpdateMergeNode={noop}
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
+          onUpdateMaterialNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -793,6 +794,7 @@ function NodePropertiesPanelSpecimens() {
           onUpdateMergeNode={noop}
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
+          onUpdateMaterialNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -810,6 +812,7 @@ function NodePropertiesPanelSpecimens() {
           onUpdateMergeNode={noop}
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
+          onUpdateMaterialNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -827,6 +830,7 @@ function NodePropertiesPanelSpecimens() {
           onUpdateMergeNode={noop}
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
+          onUpdateMaterialNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}

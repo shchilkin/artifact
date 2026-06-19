@@ -8,6 +8,7 @@ import {
   type GraphEnvironmentNode,
   type GraphGrimeShadowNode,
   type GraphMaskNode,
+  type GraphMaterialNode,
   type GraphMergeNode,
   type GraphRepeatNode,
   type GraphScene3DNode,
@@ -22,6 +23,7 @@ import {
   makeGraphEnvironmentNode,
   makeGraphGrimeShadowNode,
   makeGraphMaskNode,
+  makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
   makeGraphScene3DNode,
@@ -41,6 +43,7 @@ import {
   addGrimeShadowNode,
   addLayerToGraph,
   addMaskNode,
+  addMaterialNode,
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
@@ -58,6 +61,7 @@ import {
   removeGrimeShadowNode,
   removeLayerFromGraph,
   removeMaskNode,
+  removeMaterialNode,
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
@@ -69,6 +73,7 @@ import {
   updateGraphArea,
   updateGrimeShadowNode as updateGrimeShadowNodeInGraph,
   updateMaskNode as updateMaskNodeInGraph,
+  updateMaterialNode as updateMaterialNodeInGraph,
   updateRepeatNode as updateRepeatNodeInGraph,
   updateScene3DNode as updateScene3DNodeInGraph,
   updateTransformNode as updateTransformNodeInGraph,
@@ -194,7 +199,7 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
   const linearGraph = inferLinearGraph(layers);
   const layerOrExportIds = new Set([...layers.map((layer) => layer.id), EXPORT_NODE_ID]);
   const graphOnlyEdges = graph.edges.filter(
-    (edge) => !layerOrExportIds.has(edge.fromId) && !layerOrExportIds.has(edge.toId),
+    (edge) => edge.toPort === 'material' || (!layerOrExportIds.has(edge.fromId) && !layerOrExportIds.has(edge.toId)),
   );
   return {
     ...graph,
@@ -203,6 +208,7 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
     mergeNodes: graph.mergeNodes ?? [],
     colorNodes: graph.colorNodes ?? [],
     repeatNodes: graph.repeatNodes ?? [],
+    materialNodes: graph.materialNodes ?? [],
     maskNodes: graph.maskNodes ?? [],
     transformNodes: graph.transformNodes ?? [],
     grimeShadowNodes: graph.grimeShadowNodes ?? [],
@@ -510,6 +516,7 @@ function addGraphOnlyNodeAtDocument(
         | 'merge'
         | 'color'
         | 'repeat'
+        | 'material'
         | 'repeatPreset'
         | 'mask'
         | 'transform'
@@ -535,6 +542,7 @@ function connectInsertedGraphOnlyNode(
         | 'merge'
         | 'color'
         | 'repeat'
+        | 'material'
         | 'repeatPreset'
         | 'mask'
         | 'transform'
@@ -566,6 +574,20 @@ function connectInsertedGraphOnlyNode(
       insertion,
       createEdgeId,
     );
+  }
+  if (action.kind === 'material') {
+    const node = makeGraphMaterialNode();
+    const graph = addMaterialNode(ensureDocumentGraph(doc), node, position);
+    if (insertion?.targetId && insertion.targetPort === 'material') {
+      return addGraphEdge(graph, {
+        id: createEdgeId?.(node.id, insertion.targetId, 0) ?? defaultCreateGraphEdgeId(node.id, insertion.targetId, 0),
+        fromId: node.id,
+        fromPort: 'out',
+        toId: insertion.targetId,
+        toPort: 'material',
+      });
+    }
+    return graph;
   }
   if (action.kind === 'mask') {
     const node = makeGraphMaskNode();
@@ -634,6 +656,7 @@ function isGraphOnlyAddAction(action: DocumentAddAction): action is Extract<
       | 'merge'
       | 'color'
       | 'repeat'
+      | 'material'
       | 'repeatPreset'
       | 'mask'
       | 'transform'
@@ -646,6 +669,7 @@ function isGraphOnlyAddAction(action: DocumentAddAction): action is Extract<
     action.kind === 'merge' ||
     action.kind === 'color' ||
     action.kind === 'repeat' ||
+    action.kind === 'material' ||
     action.kind === 'repeatPreset' ||
     action.kind === 'mask' ||
     action.kind === 'transform' ||
@@ -663,6 +687,7 @@ function layerForAddAction(
         | 'merge'
         | 'color'
         | 'repeat'
+        | 'material'
         | 'repeatPreset'
         | 'mask'
         | 'transform'
@@ -740,7 +765,13 @@ function removeDeletedGraphOnlyNodes(graph: CanvasGraph, idSet: Set<string>) {
   const withoutMerge = removeMatchingGraphNodes(graph, graph.mergeNodes, idSet, removeMergeNode);
   const withoutColor = removeMatchingGraphNodes(withoutMerge, withoutMerge.colorNodes, idSet, removeColorNode);
   const withoutRepeat = removeMatchingGraphNodes(withoutColor, withoutColor.repeatNodes, idSet, removeRepeatNode);
-  const withoutMask = removeMatchingGraphNodes(withoutRepeat, withoutRepeat.maskNodes, idSet, removeMaskNode);
+  const withoutMaterial = removeMatchingGraphNodes(
+    withoutRepeat,
+    withoutRepeat.materialNodes,
+    idSet,
+    removeMaterialNode,
+  );
+  const withoutMask = removeMatchingGraphNodes(withoutMaterial, withoutMaterial.maskNodes, idSet, removeMaskNode);
   const withoutTransform = removeMatchingGraphNodes(
     withoutMask,
     withoutMask.transformNodes,
@@ -855,6 +886,15 @@ export function updateRepeatNodeInDocument(
 ): CanvasDocument {
   if (!doc.graph) return doc;
   return { ...doc, graph: updateRepeatNodeInGraph(doc.graph, id, patch) };
+}
+
+export function updateMaterialNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  patch: Partial<GraphMaterialNode>,
+): CanvasDocument {
+  if (!doc.graph) return doc;
+  return { ...doc, graph: updateMaterialNodeInGraph(doc.graph, id, patch) };
 }
 
 export function updateMaskNodeInDocument(

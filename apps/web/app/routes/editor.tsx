@@ -82,6 +82,7 @@ export default function Editor() {
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
+    updateMaterialNode,
     updateMaskNode,
     updateTransformNode,
     updateGrimeShadowNode,
@@ -114,6 +115,20 @@ export default function Editor() {
     addModelFromAsset,
     addEnvironmentFromAsset,
     storeImageAssetSource,
+  );
+  const handleDroppedFiles = useCallback(
+    (files: File[], position?: { x: number; y: number }) => {
+      files.forEach((file, index) => {
+        const offsetPosition = position
+          ? {
+              x: position.x + (index % 4) * 44,
+              y: position.y + Math.floor(index / 4) * 44,
+            }
+          : undefined;
+        void handleDroppedFile(file, offsetPosition);
+      });
+    },
+    [handleDroppedFile],
   );
 
   const handleReplaceEnvironmentNodeFile = useCallback(
@@ -275,9 +290,10 @@ export default function Editor() {
         className="sr-only"
         type="file"
         accept="image/*"
+        multiple
         onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          if (file) void handleDroppedFile(file);
+          const files = Array.from(event.currentTarget.files ?? []);
+          if (files.length > 0) handleDroppedFiles(files);
           event.currentTarget.value = '';
         }}
       />
@@ -338,11 +354,11 @@ export default function Editor() {
           onDrop={(event) => {
             event.preventDefault();
             setCanvasDragOver(false);
-            const file = event.dataTransfer.files[0];
-            if (file) {
-              if (isArtifactDocumentFile(file)) void handleOpenDocument(file);
-              else void handleDroppedFile(file);
-            }
+            const files = Array.from(event.dataTransfer.files);
+            const documentFile = files.find(isArtifactDocumentFile);
+            if (documentFile) void handleOpenDocument(documentFile);
+            const assetFiles = files.filter((file) => !isArtifactDocumentFile(file));
+            if (assetFiles.length > 0) handleDroppedFiles(assetFiles);
           }}
         >
           <h1 className="sr-only">Artifact Cover Editor</h1>
@@ -389,6 +405,7 @@ export default function Editor() {
                   onUpdateMergeNode={updateMergeNode}
                   onUpdateColorNode={updateColorNode}
                   onUpdateRepeatNode={updateRepeatNode}
+                  onUpdateMaterialNode={updateMaterialNode}
                   onUpdateMaskNode={updateMaskNode}
                   onUpdateTransformNode={updateTransformNode}
                   onUpdateGrimeShadowNode={updateGrimeShadowNode}
@@ -401,6 +418,7 @@ export default function Editor() {
                   onExport={handleNodeExport}
                   onAddLayerAt={handleAddLayerAt}
                   onImageFileDrop={(file, position) => void handleDroppedFile(file, position)}
+                  onFilesDrop={handleDroppedFiles}
                   onDeleteNodes={deleteNodeSelection}
                   onDuplicateLayer={duplicateLayer}
                 />

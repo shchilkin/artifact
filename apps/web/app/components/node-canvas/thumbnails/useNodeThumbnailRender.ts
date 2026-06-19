@@ -20,6 +20,7 @@ import {
   grimeShadowNodeRenderSig,
   layerRenderSig,
   maskNodeRenderSig,
+  materialNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
   scene3DNodeRenderSig,
@@ -101,6 +102,7 @@ function graphSignatureParts(graph: CanvasGraph) {
     mergeSignatures: renderSignatures(graph.mergeNodes, mergeNodeRenderSig),
     colorSignatures: renderSignatures(graph.colorNodes, colorNodeRenderSig),
     repeatSignatures: renderSignatures(graph.repeatNodes, repeatNodeRenderSig),
+    materialSignatures: renderSignatures(graph.materialNodes, materialNodeRenderSig),
     maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
     transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
     grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
@@ -138,6 +140,7 @@ function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: stri
     mergeNodes: filterGraphNodes(renderGraph.mergeNodes, upstreamHas),
     colorNodes: filterGraphNodes(renderGraph.colorNodes, upstreamHas),
     repeatNodes: filterGraphNodes(renderGraph.repeatNodes, upstreamHas),
+    materialNodes: filterGraphNodes(renderGraph.materialNodes, upstreamHas),
     maskNodes: filterGraphNodes(renderGraph.maskNodes, upstreamHas),
     transformNodes: filterGraphNodes(renderGraph.transformNodes, upstreamHas),
     grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
@@ -381,6 +384,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const prevMergeSigsRef = useRef<Map<string, string>>(new Map());
   const prevColorSigsRef = useRef<Map<string, string>>(new Map());
   const prevRepeatSigsRef = useRef<Map<string, string>>(new Map());
+  const prevMaterialSigsRef = useRef<Map<string, string>>(new Map());
   const prevMaskSigsRef = useRef<Map<string, string>>(new Map());
   const prevTransformSigsRef = useRef<Map<string, string>>(new Map());
   const prevGrimeShadowSigsRef = useRef<Map<string, string>>(new Map());
@@ -410,6 +414,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       mergeSignatures,
       colorSignatures,
       repeatSignatures,
+      materialSignatures,
       maskSignatures,
       transformSignatures,
       grimeShadowSignatures,
@@ -430,13 +435,14 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(mergeSignatures),
       signatureList(colorSignatures),
       signatureList(repeatSignatures),
+      signatureList(materialSignatures),
       signatureList(maskSignatures),
       signatureList(transformSignatures),
       signatureList(grimeShadowSignatures),
       signatureList(scene3DSignatures),
       signatureList(environmentSignatures),
       signatureList(edgeSignatures),
-      primitiveViewSignature(layers, graph, renderPrimitiveViewStates),
+      primitiveViewSignature(layers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
     ].join('::');
 
@@ -450,6 +456,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(allGraphSignatures.mergeSignatures),
       signatureList(allGraphSignatures.colorSignatures),
       signatureList(allGraphSignatures.repeatSignatures),
+      signatureList(allGraphSignatures.materialSignatures),
       signatureList(allGraphSignatures.maskSignatures),
       signatureList(allGraphSignatures.transformSignatures),
       signatureList(allGraphSignatures.grimeShadowSignatures),
@@ -467,6 +474,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       mergeSignatures,
       colorSignatures,
       repeatSignatures,
+      materialSignatures,
       maskSignatures,
       transformSignatures,
       grimeShadowSignatures,
@@ -508,6 +516,14 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
         logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'repeat' });
       }
       prevRepeatSigsRef.current.set(id, sig);
+    });
+
+    signatureData.materialSignatures.forEach(({ id, sig }) => {
+      const prev = prevMaterialSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'material' });
+      }
+      prevMaterialSigsRef.current.set(id, sig);
     });
 
     signatureData.maskSignatures.forEach(({ id, sig }) => {

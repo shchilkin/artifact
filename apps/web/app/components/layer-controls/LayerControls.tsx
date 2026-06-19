@@ -13,6 +13,9 @@ import {
   getBundledFontRegistryItem,
   type ImageLayer,
   type Layer,
+  MATERIAL_PRESETS,
+  type MaterialPreset,
+  type PrimitiveLayer,
   type SourceLayer,
   type TextLayer,
 } from '../../types/config';
@@ -45,6 +48,7 @@ import {
   IMAGE_FIT_OPTIONS,
   LINE_FIELD_DISTORTION_OPTIONS,
   LINE_FIELD_ORIENTATION_OPTIONS,
+  MATERIAL_PRESET_OPTIONS,
   NOISE_TYPE_OPTIONS,
   PRIMITIVE_SHADING_OPTIONS,
   PRIMITIVE_SHAPE_OPTIONS,
@@ -84,6 +88,13 @@ const ARRAY_BAR_LABELS = {
   jitter: 'Unevenness',
   note: 'Width and height control each bar; rows adds stacked barcode bands.',
 };
+const MATERIAL_PERCENT_FIELDS = [
+  ['materialMetalness', 'Metalness', 'materialMetalness'],
+  ['materialRoughness', 'Roughness', 'materialRoughness'],
+  ['materialClearcoat', 'Coat', 'materialClearcoat'],
+  ['materialRelief', 'Relief', 'materialRelief'],
+  ['materialGrain', 'Grain', 'materialGrain'],
+] as const;
 
 type LayerControlSection = 'content' | 'placement' | 'style' | 'structure';
 type LayerControlsSurface = 'layers' | 'nodes';
@@ -734,7 +745,7 @@ function PrimitiveStructureControls({
   surface,
   onChange,
 }: {
-  layer: SourceLayer;
+  layer: PrimitiveLayer;
   surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
 }) {
@@ -775,6 +786,45 @@ function PrimitiveStructureControls({
           } as Partial<SourceLayer>)
         }
       />
+      <PrimitiveMaterialControls layer={layer} onChange={onChange} />
+    </>
+  );
+}
+
+function PrimitiveMaterialControls({
+  layer,
+  onChange,
+}: {
+  layer: PrimitiveLayer;
+  onChange: (patch: Partial<Layer>) => void;
+}) {
+  return (
+    <>
+      <InspectorSelect
+        label="Material"
+        value={layer.materialPreset}
+        options={MATERIAL_PRESET_OPTIONS}
+        onChange={(value) => onChange(MATERIAL_PRESETS[value as MaterialPreset] as Partial<PrimitiveLayer>)}
+      />
+      <InspectorColorInput
+        label="Base"
+        value={layer.materialBaseColor}
+        onChange={(value) => onChange({ materialBaseColor: value } as Partial<PrimitiveLayer>)}
+      />
+      <InspectorColorInput
+        label="Accent"
+        value={layer.materialAccentColor}
+        onChange={(value) => onChange({ materialAccentColor: value } as Partial<PrimitiveLayer>)}
+      />
+      {MATERIAL_PERCENT_FIELDS.map(([field, label, range]) => (
+        <InspectorSlider
+          key={field}
+          label={label}
+          value={Math.round((layer[field] ?? 0) * 100)}
+          {...R[range]}
+          onChange={(value) => onChange({ [field]: value / 100 } as Partial<PrimitiveLayer>)}
+        />
+      ))}
     </>
   );
 }
@@ -1027,7 +1077,7 @@ function SourceStructureControls({
   onChange: (patch: Partial<Layer>) => void;
 }) {
   if (layer.kind === 'primitive')
-    return <PrimitiveStructureControls layer={layer} surface={surface} onChange={onChange} />;
+    return <PrimitiveStructureControls layer={layer as PrimitiveLayer} surface={surface} onChange={onChange} />;
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'model') return <ModelStructureControls layer={layer} />;

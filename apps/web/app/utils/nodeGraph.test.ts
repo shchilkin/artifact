@@ -7,6 +7,7 @@ import {
   addGraphEdge,
   addGrimeShadowNode,
   addMaskNode,
+  addMaterialNode,
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
@@ -24,6 +25,7 @@ import {
   removeGrimeShadowNode,
   removeLayerFromGraph,
   removeMaskNode,
+  removeMaterialNode,
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
@@ -37,6 +39,7 @@ import {
   updateGraphPositions,
   updateGrimeShadowNode,
   updateMaskNode,
+  updateMaterialNode,
   updateRepeatNode,
   updateTransformNode,
   wouldCreateCycle,
@@ -210,6 +213,40 @@ describe('graph mutations', () => {
     expect(updated.repeatNodes?.[0]).toEqual({ ...repeatNode, count: 8 });
     expect(removed.repeatNodes).toEqual([]);
     expect(removed.positions['repeat-1']).toBeUndefined();
+    expect(removed.edges).toEqual([]);
+    expect(removed.areas?.[0]?.nodeIds).toEqual([]);
+  });
+
+  it('adds, updates, and removes material nodes with positions and connected edges', () => {
+    const graph = emptyGraph({
+      edges: [
+        { id: 'e-material-primitive', fromId: 'material-1', fromPort: 'out', toId: 'primitive-1', toPort: 'material' },
+      ],
+      areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['material-1'] }],
+    });
+    const materialNode = {
+      id: 'material-1',
+      name: 'Gold',
+      materialPreset: 'goldFoil' as const,
+      materialBaseColor: '#d4af37',
+      materialAccentColor: '#fff4aa',
+      materialMetalness: 0.95,
+      materialRoughness: 0.24,
+      materialClearcoat: 0.28,
+      materialRelief: 0.36,
+      materialGrain: 0.32,
+      materialAnisotropy: 0.5,
+    };
+
+    const withNode = addMaterialNode(graph, materialNode, { x: 160, y: 90 });
+    const updated = updateMaterialNode(withNode, 'material-1', { materialRoughness: 0.12 });
+    const removed = removeMaterialNode(updated, 'material-1');
+
+    expect(withNode.materialNodes).toEqual([materialNode]);
+    expect(withNode.positions['material-1']).toEqual({ x: 160, y: 90 });
+    expect(updated.materialNodes?.[0]).toEqual({ ...materialNode, materialRoughness: 0.12 });
+    expect(removed.materialNodes).toEqual([]);
+    expect(removed.positions['material-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
   });

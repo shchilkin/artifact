@@ -10,6 +10,7 @@ import {
   createPrimitiveMaterial,
   disposeMesh,
   type PrimitiveLightRig,
+  type ResolvedMaterialConfig,
   updateSceneAccentLights,
 } from '../utils/primitiveScene';
 import {
@@ -41,6 +42,7 @@ interface Props {
   layer: PrimitiveLayer;
   mode: 'node' | 'modal';
   renderMode: PrimitiveRenderMode;
+  materialConfig?: ResolvedMaterialConfig;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
@@ -573,6 +575,7 @@ export function PrimitiveViewport3D({
   layer,
   mode,
   renderMode,
+  materialConfig,
   viewState,
   onViewStateChange,
   onViewStateDraft,
@@ -678,9 +681,18 @@ export function PrimitiveViewport3D({
         layer.primitiveShading,
         layer.color,
         layer.accentColor,
+        materialConfig ? JSON.stringify(materialConfig) : 'layer-material',
         renderMode,
       ].join(':'),
-    [layer.accentColor, layer.color, layer.primitiveDepth, layer.primitiveShading, layer.primitiveShape, renderMode],
+    [
+      layer.accentColor,
+      layer.color,
+      layer.primitiveDepth,
+      layer.primitiveShading,
+      layer.primitiveShape,
+      materialConfig,
+      renderMode,
+    ],
   );
 
   useLayoutEffect(() => {
@@ -736,13 +748,13 @@ export function PrimitiveViewport3D({
     const currentLayer = layerRef.current;
     const mesh = new THREE.Mesh(
       createPrimitiveGeometry(currentLayer),
-      createPrimitiveMaterial(currentLayer, renderMode),
+      createPrimitiveMaterial(currentLayer, materialConfig, renderMode),
     );
     mesh.rotation.z = 0; // full transform applied via applyMeshTransform in applyViewState
     objectGroup.add(mesh);
     meshRef.current = mesh;
     applyViewState(viewStateRef.current);
-  }, [applyViewState, primitiveMeshKey, renderMode]);
+  }, [applyViewState, materialConfig, primitiveMeshKey, renderMode]);
 
   useEffect(() => {
     applyViewState(viewStateRef.current);

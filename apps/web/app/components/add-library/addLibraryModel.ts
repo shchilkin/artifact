@@ -13,6 +13,7 @@ export type AddLibraryAction = AddAction;
 export type AddLibraryGroupId =
   | 'content'
   | 'source'
+  | 'material'
   | 'light'
   | 'signal'
   | 'texture'
@@ -59,6 +60,16 @@ const LAYER_ADD_KINDS = new Set([
   'lineField',
   'model',
 ]);
+const MATERIAL_PRESET_IDS = [
+  'matte',
+  'goldFoil',
+  'chrome',
+  'brushedMetal',
+  'pearl',
+  'plastic',
+  'paper',
+  'fabric',
+] as const;
 
 export type AddLibraryRecipe = {
   id: string;
@@ -75,6 +86,7 @@ export const ADD_LIBRARY_GROUPS: Array<{
 }> = [
   { id: 'content', label: 'Content', hint: 'Visible layers' },
   { id: 'source', label: 'Source', hint: 'Generated inputs' },
+  { id: 'material', label: 'Material', hint: 'PBR surfaces' },
   { id: 'texture', label: 'Texture', hint: 'Grain, scan, paper' },
   { id: 'light', label: 'Light', hint: 'Glow, burn, haze' },
   { id: 'signal', label: 'Signal', hint: 'Glitch, split, tracking' },
@@ -533,9 +545,26 @@ const utilityItems: AddLibraryItem[] = [
   })),
 ];
 
+const materialItems: AddLibraryItem[] = [
+  {
+    id: 'material',
+    label: 'PBR Material',
+    symbol: '◒',
+    description: 'Custom material node with metalness, roughness, relief, grain, and texture maps.',
+    group: 'material',
+    action: { kind: 'material' },
+    surfaces: ['nodes'],
+    tags: ['3d', 'material', 'pbr'],
+    keywords:
+      'pbr material surface shader albedo roughness metalness normal alpha texture maps chrome gold foil metal paper fabric',
+    popular: true,
+  },
+];
+
 export const ADD_LIBRARY_ITEMS: AddLibraryItem[] = [
   ...layerItems,
   ...sourcePresetItems,
+  ...materialItems,
   ...effectItems,
   ...utilityItems,
 ];
@@ -686,6 +715,7 @@ export function parseAddLibraryAction(value: string): AddLibraryAction | null {
 function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   if (!isActionRecord(value)) return false;
   if (SIMPLE_ADD_ACTION_KINDS.has(value.kind)) return true;
+  if (value.kind === 'material') return value.preset === undefined || isPresetId(value.preset, MATERIAL_PRESET_IDS);
   return validateAddLibraryActionPayload(value);
 }
 

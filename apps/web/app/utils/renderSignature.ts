@@ -15,6 +15,7 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
@@ -135,6 +136,26 @@ export function repeatNodeRenderSig(node: GraphRepeatNode): string {
     node.seedOffset,
     node.opacity,
     node.blendMode,
+  ]);
+}
+
+/** Render-relevant fields for a material node. */
+export function materialNodeRenderSig(node: GraphMaterialNode): string {
+  return JSON.stringify([
+    node.materialPreset,
+    node.materialBaseColor,
+    node.materialAccentColor,
+    node.materialMetalness,
+    node.materialRoughness,
+    node.materialClearcoat,
+    node.materialRelief,
+    node.materialGrain,
+    node.materialAnisotropy,
+    node.materialAlbedoSrc ?? '',
+    node.materialRoughnessSrc ?? '',
+    node.materialMetalnessSrc ?? '',
+    node.materialNormalSrc ?? '',
+    node.materialAlphaSrc ?? '',
   ]);
 }
 

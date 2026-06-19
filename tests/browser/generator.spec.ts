@@ -1397,17 +1397,28 @@ test('node graph highlights the active output path and exposes output navigation
   const paneBox = await page.locator('.react-flow__pane').boundingBox();
   expect(paneBox).toBeTruthy();
   if (!paneBox) return;
-  const viewport = page.locator('.react-flow__viewport').first();
   await page.mouse.move(paneBox.x + paneBox.width / 2, paneBox.y + paneBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(paneBox.x + paneBox.width / 2 - 300, paneBox.y + paneBox.height / 2 - 180, { steps: 6 });
   await page.mouse.up();
-  const panned = await viewport.evaluate((element) => getComputedStyle(element).transform);
   await clickEditorControl(page.getByRole('button', { name: 'Jump to output node' }));
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
   await expect
-    .poll(() => viewport.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
-    .not.toBe(panned);
+    .poll(
+      async () => {
+        const pane = await page.locator('.react-flow__pane').boundingBox();
+        const output = await page.locator('.node-shell-kind-export').boundingBox();
+        if (!pane || !output) return false;
+        return (
+          output.x + output.width > pane.x &&
+          output.x < pane.x + pane.width &&
+          output.y + output.height > pane.y &&
+          output.y < pane.y + pane.height
+        );
+      },
+      { timeout: 2_000 },
+    )
+    .toBe(true);
 
   await clickEditorControl(page.getByRole('button', { name: 'Fit output path' }));
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
@@ -2584,6 +2595,40 @@ test('v0.35 graph nodes mount and select without recursive React updates', async
 
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
+});
+
+test('node add menu can add material nodes with previews and inspector controls', async ({ page }) => {
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'material', { waitForExportNode: true });
+  const materialMenuRow = page.getByRole('button', { name: /^◒ PBR Material/ });
+  await expect(materialMenuRow).toBeVisible({ timeout: 15_000 });
+  await materialMenuRow.hover();
+  await expect(page.locator('.add-library-node-menu img[alt="PBR Material preview"]')).toBeVisible({ timeout: 15_000 });
+  await clickEditorControl(materialMenuRow);
+
+  const materialNode = page.locator('.node-shell-kind-material').filter({ hasText: 'PBR Material' }).first();
+  await expect(materialNode).toBeVisible({ timeout: 15_000 });
+  await materialNode.click();
+  await expect(page.locator('.node-props-panel')).toContainText('Material');
+  await expect(page.locator('.node-props-panel')).toContainText('PBR Material');
+  await expect(page.locator('.node-props-panel')).toContainText('Metallic');
+
+  const graphState = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    const node = doc.graph?.materialNodes?.find(
+      (item: { name?: string; materialPreset?: string }) => item.name === 'PBR Material',
+    );
+    return {
+      name: node?.name,
+      preset: node?.materialPreset,
+      metalness: node?.materialMetalness,
+      roughness: node?.materialRoughness,
+      edgeCount: doc.graph?.edges?.length ?? 0,
+    };
+  });
+
+  expect(graphState).toMatchObject({ name: 'PBR Material', preset: 'matte', metalness: 0.18, roughness: 0.38 });
+  expect(graphState.edgeCount).toBeGreaterThan(0);
 });
 
 test('node add menu can drag an effect onto the canvas', async ({ page }) => {

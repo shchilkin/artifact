@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import type { GraphEnvironmentNode } from '../../../types/config';
 import { resolveEnvironmentSource } from '../../../utils/envAssetStore';
 import { loadEquirectangularTexture } from '../../../utils/modelRenderer';
+import { renderGraphTarget } from '../../../utils/renderer';
+import { useNodeCanvasPreview } from '../context';
 
 const PREVIEW_WIDTH = 512;
 const PREVIEW_HEIGHT = 256;
@@ -74,6 +76,51 @@ export function EnvironmentPreviewSurface({ environmentNode }: { environmentNode
         {environmentNode.environmentBytes > 0 && (
           <small>{Math.round(environmentNode.environmentBytes / 1024)} KB</small>
         )}
+      </div>
+    </div>
+  );
+}
+
+export function GeneratedEnvironmentPreviewSurface({ previewTargetId }: { previewTargetId: string }) {
+  const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [previewState, setPreviewState] = useState<PreviewState>(null);
+  const status = previewState?.key === previewTargetId ? previewState.status : 'loading';
+
+  useEffect(() => {
+    const target = canvasRef.current;
+    if (!target) return;
+    let cancelled = false;
+    renderGraphTarget(doc, graph, previewTargetId, PREVIEW_WIDTH, PREVIEW_HEIGHT, imageCache, {
+      primitiveViewStates,
+    })
+      .then((preview) => {
+        if (cancelled) return;
+        if (drawPreviewCanvas(target, preview)) setPreviewState({ key: previewTargetId, status: 'ready' });
+        else setPreviewState({ key: previewTargetId, status: 'failed' });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          clearPreviewCanvas(target);
+          setPreviewState({ key: previewTargetId, status: 'failed' });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, graph, imageCache, previewTargetId, primitiveViewStates]);
+
+  return (
+    <div className={`node-preview-surface node-environment-preview node-environment-preview-${status}`}>
+      <canvas
+        ref={canvasRef}
+        className="node-environment-preview-canvas"
+        width={PREVIEW_WIDTH}
+        height={PREVIEW_HEIGHT}
+      />
+      <div className="node-environment-preview-meta">
+        <span>{status === 'failed' ? 'Environment render unavailable' : 'Rendered environment'}</span>
+        <strong>2:1 equirectangular</strong>
       </div>
     </div>
   );

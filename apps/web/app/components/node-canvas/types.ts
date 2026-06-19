@@ -9,6 +9,7 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
@@ -49,6 +50,7 @@ export interface NodeCanvasProps {
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
+  onUpdateMaterialNode: (id: string, patch: Partial<GraphMaterialNode>) => void;
   onUpdateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
   onUpdateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
   onUpdateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
@@ -60,6 +62,7 @@ export interface NodeCanvasProps {
   onExport: () => void;
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
   onImageFileDrop?: (file: File, position: { x: number; y: number }) => void;
+  onFilesDrop?: (files: File[], position: { x: number; y: number }) => void;
   onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
@@ -129,6 +132,15 @@ export type MaskNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type MaterialNodeData = {
+  materialNode: GraphMaterialNode;
+  previewTargetId: string;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
 export type TransformNodeData = {
   transformNode: GraphTransformNode;
   previewTargetId: string;
@@ -152,7 +164,8 @@ export type Scene3DNodeData = {
   scene3dNode: GraphScene3DNode;
   previewTargetId: string;
   modelPreviewTargetId: string | null;
-  modelLayer: ModelLayer | null;
+  modelLayer: ModelLayer | PrimitiveLayer | null;
+  materialNode: GraphMaterialNode | null;
   backdropPreviewTargetId: string | null;
   environmentPreviewTargetId: string | null;
   environmentSource: string | null;
@@ -165,6 +178,8 @@ export type Scene3DNodeData = {
 
 export type EnvironmentNodeData = {
   environmentNode: GraphEnvironmentNode;
+  previewTargetId: string;
+  sourcePreviewTargetId: string | null;
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
@@ -205,6 +220,7 @@ export interface NodeCanvasActionsContextValue {
   updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
   updateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
+  updateMaterialNode: (id: string, patch: Partial<GraphMaterialNode>) => void;
   updateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
   updateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
   updateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;

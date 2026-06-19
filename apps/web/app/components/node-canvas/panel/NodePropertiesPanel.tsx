@@ -4,13 +4,16 @@ import type {
   GraphEnvironmentNode,
   GraphGrimeShadowNode,
   GraphMaskNode,
+  GraphMaterialNode,
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
   GraphTransformNode,
   ImageLayer,
   Layer,
+  MaterialTextureInputPort,
 } from '../../../types/config';
+import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { AiGenerationPanel } from '../../AiGenerationPanel';
@@ -22,6 +25,7 @@ import {
   GrimeShadowInspector,
   LayerInspector,
   MaskInspector,
+  MaterialInspector,
   MergeInspector,
   RepeatInspector,
   Scene3DInspector,
@@ -38,6 +42,7 @@ interface NodePropertiesPanelProps
     | 'onUpdateMergeNode'
     | 'onUpdateColorNode'
     | 'onUpdateRepeatNode'
+    | 'onUpdateMaterialNode'
     | 'onUpdateMaskNode'
     | 'onUpdateTransformNode'
     | 'onUpdateGrimeShadowNode'
@@ -59,6 +64,7 @@ type SelectedNodeTarget =
   | { kind: 'color'; node: GraphColorNode }
   | { kind: 'merge'; node: GraphMergeNode }
   | { kind: 'repeat'; node: GraphRepeatNode }
+  | { kind: 'material'; node: GraphMaterialNode }
   | { kind: 'mask'; node: GraphMaskNode }
   | { kind: 'transform'; node: GraphTransformNode }
   | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
@@ -164,6 +170,7 @@ const GRAPH_NODE_TARGET_FINDERS = [
   findColorNodeTarget,
   findMergeNodeTarget,
   findRepeatNodeTarget,
+  findMaterialNodeTarget,
   findMaskNodeTarget,
   findTransformNodeTarget,
   findGrimeShadowNodeTarget,
@@ -193,6 +200,11 @@ function findRepeatNodeTarget(graph: CanvasGraph, selectedNodeId: string): Selec
 function findMaskNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
   const node = (graph.maskNodes ?? []).find((item) => item.id === selectedNodeId);
   return node ? { kind: 'mask', node } : null;
+}
+
+function findMaterialNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
+  const node = (graph.materialNodes ?? []).find((item) => item.id === selectedNodeId);
+  return node ? { kind: 'material', node } : null;
 }
 
 function findTransformNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
@@ -340,6 +352,39 @@ function MaskNodeInspector({
   );
 }
 
+function MaterialNodeInspector({
+  node,
+  graph,
+  onUpdateMaterialNode,
+}: Pick<NodePropertiesPanelProps, 'onUpdateMaterialNode'> & {
+  node: GraphMaterialNode;
+  graph: CanvasGraph | undefined;
+}) {
+  return (
+    <MaterialInspector
+      key={node.id}
+      materialNode={node}
+      connectedTextureInputs={connectedMaterialTextureInputs(graph, node.id)}
+      onChange={(patch) => onUpdateMaterialNode(node.id, patch)}
+      detached
+    />
+  );
+}
+
+function connectedMaterialTextureInputs(graph: CanvasGraph | undefined, nodeId: string): Set<MaterialTextureInputPort> {
+  const inputPorts = new Set<string>(MATERIAL_TEXTURE_INPUT_PORTS);
+  const connected = new Set<MaterialTextureInputPort>();
+  for (const edge of graph?.edges ?? []) {
+    if (edge.toId !== nodeId || !inputPorts.has(edge.toPort)) continue;
+    connected.add(edge.toPort as MaterialTextureInputPort);
+  }
+  return connected;
+}
+
+function isPortConnected(graph: CanvasGraph | undefined, nodeId: string, portId: string): boolean {
+  return (graph?.edges ?? []).some((edge) => edge.toId === nodeId && edge.toPort === portId);
+}
+
 function TransformNodeInspector({
   node,
   onUpdateTransformNode,
@@ -374,14 +419,17 @@ function GrimeShadowNodeInspector({
 
 function Scene3DNodeInspector({
   node,
+  graph,
   onUpdateScene3DNode,
 }: Pick<NodePropertiesPanelProps, 'onUpdateScene3DNode'> & {
   node: GraphScene3DNode;
+  graph: CanvasGraph | undefined;
 }) {
   return (
     <Scene3DInspector
       key={node.id}
       scene3dNode={node}
+      materialInputConnected={isPortConnected(graph, node.id, 'material')}
       onChange={(patch) => onUpdateScene3DNode(node.id, patch)}
       detached
     />
@@ -464,6 +512,7 @@ function SelectedNodeInspector({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -481,6 +530,7 @@ function SelectedNodeInspector({
   | 'onUpdateMergeNode'
   | 'onUpdateColorNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaterialNode'
   | 'onUpdateMaskNode'
   | 'onUpdateTransformNode'
   | 'onUpdateGrimeShadowNode'
@@ -506,6 +556,7 @@ function SelectedNodeInspector({
       exportBusy={exportBusy}
       onUpdateMergeNode={onUpdateMergeNode}
       onUpdateRepeatNode={onUpdateRepeatNode}
+      onUpdateMaterialNode={onUpdateMaterialNode}
       onUpdateMaskNode={onUpdateMaskNode}
       onUpdateTransformNode={onUpdateTransformNode}
       onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
@@ -525,6 +576,7 @@ function GraphOrExportNodeInspector({
   exportBusy,
   onUpdateMergeNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -540,6 +592,7 @@ function GraphOrExportNodeInspector({
   | 'exportBusy'
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaterialNode'
   | 'onUpdateMaskNode'
   | 'onUpdateTransformNode'
   | 'onUpdateGrimeShadowNode'
@@ -556,8 +609,10 @@ function GraphOrExportNodeInspector({
     return (
       <GraphUtilityNodeInspector
         target={target}
+        graph={doc.graph}
         onUpdateMergeNode={onUpdateMergeNode}
         onUpdateRepeatNode={onUpdateRepeatNode}
+        onUpdateMaterialNode={onUpdateMaterialNode}
         onUpdateMaskNode={onUpdateMaskNode}
         onUpdateTransformNode={onUpdateTransformNode}
         onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
@@ -579,8 +634,10 @@ function GraphOrExportNodeInspector({
 
 function GraphUtilityNodeInspector({
   target,
+  graph,
   onUpdateMergeNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -591,6 +648,7 @@ function GraphUtilityNodeInspector({
   NodePropertiesPanelProps,
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaterialNode'
   | 'onUpdateMaskNode'
   | 'onUpdateTransformNode'
   | 'onUpdateGrimeShadowNode'
@@ -599,11 +657,14 @@ function GraphUtilityNodeInspector({
   | 'onReplaceEnvironmentNodeFile'
 > & {
   target: GraphUtilityInspectorTarget;
+  graph: CanvasGraph | undefined;
 }) {
   return GRAPH_UTILITY_INSPECTORS[target.kind]({
     target: target as never,
+    graph,
     onUpdateMergeNode,
     onUpdateRepeatNode,
+    onUpdateMaterialNode,
     onUpdateMaskNode,
     onUpdateTransformNode,
     onUpdateGrimeShadowNode,
@@ -620,6 +681,9 @@ const GRAPH_UTILITY_INSPECTORS = {
   repeat: ({ target, onUpdateRepeatNode }: GraphUtilityInspectorProps<'repeat'>) => (
     <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />
   ),
+  material: ({ target, graph, onUpdateMaterialNode }: GraphUtilityInspectorProps<'material'>) => (
+    <MaterialNodeInspector node={target.node} graph={graph} onUpdateMaterialNode={onUpdateMaterialNode} />
+  ),
   mask: ({ target, onUpdateMaskNode }: GraphUtilityInspectorProps<'mask'>) => (
     <MaskNodeInspector node={target.node} onUpdateMaskNode={onUpdateMaskNode} />
   ),
@@ -629,8 +693,8 @@ const GRAPH_UTILITY_INSPECTORS = {
   grimeShadow: ({ target, onUpdateGrimeShadowNode }: GraphUtilityInspectorProps<'grimeShadow'>) => (
     <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />
   ),
-  scene3d: ({ target, onUpdateScene3DNode }: GraphUtilityInspectorProps<'scene3d'>) => (
-    <Scene3DNodeInspector node={target.node} onUpdateScene3DNode={onUpdateScene3DNode} />
+  scene3d: ({ target, graph, onUpdateScene3DNode }: GraphUtilityInspectorProps<'scene3d'>) => (
+    <Scene3DNodeInspector node={target.node} graph={graph} onUpdateScene3DNode={onUpdateScene3DNode} />
   ),
   environment: ({
     target,
@@ -649,6 +713,7 @@ type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> =
   NodePropertiesPanelProps,
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaterialNode'
   | 'onUpdateMaskNode'
   | 'onUpdateTransformNode'
   | 'onUpdateGrimeShadowNode'
@@ -657,6 +722,7 @@ type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> =
   | 'onReplaceEnvironmentNodeFile'
 > & {
   target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
+  graph: CanvasGraph | undefined;
 };
 
 function NodePropertiesPanelContent({
@@ -668,6 +734,7 @@ function NodePropertiesPanelContent({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -686,6 +753,7 @@ function NodePropertiesPanelContent({
   | 'onUpdateMergeNode'
   | 'onUpdateColorNode'
   | 'onUpdateRepeatNode'
+  | 'onUpdateMaterialNode'
   | 'onUpdateMaskNode'
   | 'onUpdateTransformNode'
   | 'onUpdateGrimeShadowNode'
@@ -722,6 +790,7 @@ function NodePropertiesPanelContent({
           onUpdateMergeNode={onUpdateMergeNode}
           onUpdateColorNode={onUpdateColorNode}
           onUpdateRepeatNode={onUpdateRepeatNode}
+          onUpdateMaterialNode={onUpdateMaterialNode}
           onUpdateMaskNode={onUpdateMaskNode}
           onUpdateTransformNode={onUpdateTransformNode}
           onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
@@ -747,6 +816,7 @@ export function NodePropertiesPanel({
   onUpdateMergeNode,
   onUpdateColorNode,
   onUpdateRepeatNode,
+  onUpdateMaterialNode,
   onUpdateMaskNode,
   onUpdateTransformNode,
   onUpdateGrimeShadowNode,
@@ -779,6 +849,7 @@ export function NodePropertiesPanel({
           onUpdateMergeNode={onUpdateMergeNode}
           onUpdateColorNode={onUpdateColorNode}
           onUpdateRepeatNode={onUpdateRepeatNode}
+          onUpdateMaterialNode={onUpdateMaterialNode}
           onUpdateMaskNode={onUpdateMaskNode}
           onUpdateTransformNode={onUpdateTransformNode}
           onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}

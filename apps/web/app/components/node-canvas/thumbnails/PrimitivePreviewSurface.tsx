@@ -1,6 +1,6 @@
 import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
-import type { PrimitiveLayer } from '../../../types/config';
+import type { GraphMaterialNode, PrimitiveLayer } from '../../../types/config';
 import { PrimitiveViewport3D } from '../../PrimitiveViewport3D';
 import {
   defaultPrimitiveViewportState,
@@ -59,6 +59,7 @@ function SelectedPrimitivePreviewSurface({
     () => primitiveBackgroundPreviewTargetId(graph.edges, layer.id),
     [graph.edges, layer.id],
   );
+  const materialConfig = useMemo(() => primitiveMaterialConfig(graph, layer.id), [graph, layer.id]);
 
   useEffect(() => {
     return () => setPrimitiveViewportActive(layer.id, false);
@@ -87,6 +88,7 @@ function SelectedPrimitivePreviewSurface({
     <SelectedPrimitiveSurface
       layer={layer}
       bgPreviewTargetId={primitiveBgPreviewTargetId}
+      materialConfig={materialConfig}
       renderMode={effectiveRenderMode}
       viewState={effectiveViewState}
       locked={primitiveLocked}
@@ -134,6 +136,14 @@ function primitiveBackgroundPreviewTargetId(
   return edges.find((edge) => edge.toId === layerId && edge.toPort === 'bg')?.fromId ?? null;
 }
 
+function primitiveMaterialConfig(
+  graph: { edges: { toId: string; toPort: string; fromId: string }[]; materialNodes?: GraphMaterialNode[] },
+  layerId: string,
+) {
+  const materialId = graph.edges.find((edge) => edge.toId === layerId && edge.toPort === 'material')?.fromId;
+  return materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
+}
+
 function PrimitiveThumbnailSurface({
   layerId,
   hovered,
@@ -170,6 +180,7 @@ function PrimitiveThumbnailSurface({
 function SelectedPrimitiveSurface({
   layer,
   bgPreviewTargetId,
+  materialConfig,
   renderMode,
   viewState,
   locked,
@@ -183,6 +194,7 @@ function SelectedPrimitiveSurface({
 }: {
   layer: PrimitiveLayer;
   bgPreviewTargetId: string | null;
+  materialConfig?: GraphMaterialNode;
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
   locked: boolean;
@@ -206,6 +218,7 @@ function SelectedPrimitiveSurface({
     >
       <PrimitiveViewportFrame
         layer={layer}
+        materialConfig={materialConfig}
         bgPreviewTargetId={bgPreviewTargetId}
         renderMode={renderMode}
         viewState={viewState}
@@ -326,6 +339,7 @@ function primitiveViewStateKey(viewState: PrimitiveViewportState): string {
 function PrimitiveViewportFrame({
   layer,
   bgPreviewTargetId,
+  materialConfig,
   renderMode,
   viewState,
   interactive,
@@ -334,6 +348,7 @@ function PrimitiveViewportFrame({
 }: {
   layer: PrimitiveLayer;
   bgPreviewTargetId: string | null;
+  materialConfig?: GraphMaterialNode;
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
   interactive: boolean;
@@ -348,6 +363,7 @@ function PrimitiveViewportFrame({
           layer={layer}
           mode="node"
           renderMode={renderMode}
+          materialConfig={materialConfig}
           viewState={viewState}
           interactive={interactive}
           onViewStateDraft={onViewStateDraft}

@@ -1,4 +1,4 @@
-import type { EffectPreset, LayerKind } from '../types/config';
+import type { EffectPreset, LayerKind, MaterialPreset } from '../types/config';
 import type { ArrayPresetId } from './arrayPresets';
 import type { NoisePresetId } from './noisePresets';
 import type { RepeatPresetId } from './repeatPresets';
@@ -14,6 +14,7 @@ export type AddAction =
   | { kind: 'merge' }
   | { kind: 'color' }
   | { kind: 'repeat' }
+  | { kind: 'material'; preset?: MaterialPreset }
   | { kind: 'repeatPreset'; preset: RepeatPresetId }
   | { kind: 'mask' }
   | { kind: 'transform' }

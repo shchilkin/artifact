@@ -68,6 +68,7 @@ describe('addLibraryModel', () => {
     expect(layerGroups).not.toContain('utility');
     expect(nodeGroups).toContain('utility');
     expect(nodeGroups).toContain('source');
+    expect(nodeGroups).toContain('material');
     expect(nodeIds).toEqual(
       expect.arrayContaining([
         'merge',
@@ -77,9 +78,11 @@ describe('addLibraryModel', () => {
         'grimeShadow',
         'scene3d',
         'environment',
+        'material',
         'repeat',
       ]),
     );
+    expect(nodeIds).not.toContain('material:chrome');
   });
 
   it('keeps preset variants searchable without showing them as top-level browse primitives', () => {
@@ -124,6 +127,9 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('linefield')).toContain('layer:lineField');
     expect(firstIdsFor('contour')).toContain('layer:lineField');
     expect(firstIdsFor('glb model')).toContain('layer:model');
+    expect(firstIdsFor('pbr')).toContain('material');
+    expect(firstIdsFor('material')).toContain('material');
+    expect(firstIdsFor('chrome material')).toContain('material');
     expect(firstIdsFor('mask')).toContain('mask');
     expect(firstIdsFor('matte')).toContain('mask');
     expect(firstIdsFor('alpha')).toContain('mask');
@@ -164,6 +170,16 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:silhouetteCrush')?.group).toBe('graphic');
   });
 
+  it('keeps PBR material nodes in the material browse group', () => {
+    const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
+
+    expect(itemsById.get('material')?.group).toBe('material');
+    expect(itemsById.get('material')?.action).toEqual({ kind: 'material' });
+    expect(itemsById.get('material')?.tags).toEqual(expect.arrayContaining(['material', 'pbr']));
+    expect(itemsById.has('material:goldFoil')).toBe(false);
+    expect(itemsById.has('material:chrome')).toBe(false);
+  });
+
   it('round trips drag actions and rejects unknown payloads', () => {
     const action = { kind: 'textPreset' as const, preset: 'poster' as const };
 
@@ -180,12 +196,18 @@ describe('addLibraryModel', () => {
       kind: 'layer',
       layerKind: 'lineField',
     });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'material', preset: 'chrome' }))).toEqual({
+      kind: 'material',
+      preset: 'chrome',
+    });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'material' }))).toEqual({ kind: 'material' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'mask' }))).toEqual({ kind: 'mask' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'grimeShadow' }))).toEqual({ kind: 'grimeShadow' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'environment' }))).toEqual({ kind: 'environment' });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();
+    expect(parseAddLibraryAction(JSON.stringify({ kind: 'material', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction('not json')).toBeNull();
   });
 });
