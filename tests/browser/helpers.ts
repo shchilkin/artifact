@@ -91,10 +91,16 @@ export function textLayerFixture({ id, name, content }: { id: string; name: stri
 }
 
 export async function gotoDocument(page: Page, doc: object): Promise<void> {
-  await page.goto('/app?new=blank', { waitUntil: 'domcontentloaded' });
+  await gotoEditor(page, '/app?new=blank');
   await page.evaluate((serializedDoc) => localStorage.setItem('doc', serializedDoc), JSON.stringify(doc));
-  await page.goto('/app', { waitUntil: 'domcontentloaded' });
+  await gotoEditor(page, '/app');
   await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeVisible({ timeout: 15_000 });
+}
+
+async function gotoEditor(page: Page, url: string): Promise<void> {
+  await expect(async () => {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  }).toPass({ timeout: 45_000 });
 }
 
 export async function expectLayerCanvasToHavePixels(page: Page): Promise<void> {
