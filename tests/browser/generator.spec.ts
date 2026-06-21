@@ -2547,6 +2547,37 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await expectLayerCanvasToHavePixels(page);
 });
 
+test('node add menu can add Bad Stream with compression controls', async ({ page }) => {
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'bad stream', { waitForExportNode: true });
+  await expect(page.locator('.add-library-node-menu img[alt="Bad Stream preview"]')).toBeVisible({ timeout: 15_000 });
+  await clickEditorControl(page.getByRole('button', { name: /^▧ Bad Stream/ }));
+
+  const badStreamNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Bad Stream' }).first();
+  await expect(badStreamNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-props-panel')).toContainText('Compression');
+  await expect(page.locator('.node-props-panel')).toContainText('Macroblocks');
+  await expect(page.locator('.node-props-panel')).toContainText('Chroma Drift');
+
+  const layer = await getStoredLayerBy(page, 'name', 'Bad Stream');
+  expect(layer).toMatchObject({ kind: 'effect', preset: 'badStream', badStream: 72, badStreamBlockSize: 54 });
+});
+
+test('node add menu can add Macroblocks as a focused Bad Stream block', async ({ page }) => {
+  await gotoDocument(page, wideNodeDocument);
+  await openNodeAddMenuWithSearch(page, 'macroblocks', { waitForExportNode: true });
+  await expect(page.locator('.add-library-node-menu img[alt="Macroblocks preview"]')).toBeVisible({ timeout: 15_000 });
+  await clickEditorControl(page.getByRole('button', { name: /^▦ Macroblocks/ }));
+
+  const macroblocksNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Macroblocks' }).first();
+  await expect(macroblocksNode).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.node-props-panel')).toContainText('Compression');
+  await expect(page.locator('.node-props-panel')).toContainText('Macroblocks');
+
+  const layer = await getStoredLayerBy(page, 'name', 'Macroblocks');
+  expect(layer).toMatchObject({ kind: 'effect', preset: 'macroblocks', badStream: 72, badStreamBlockSize: 64 });
+});
+
 test('node add menu can add poster text starts', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'poster type');

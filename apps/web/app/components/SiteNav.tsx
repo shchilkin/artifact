@@ -32,11 +32,11 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
             ? `relative flex items-center justify-between px-5 py-2.5 bg-bg border-b border-border shrink-0 z-[100] ${
                 compact ? 'site-nav-compact' : ''
               } gap-3`
-            : 'fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-2.5 bg-transparent pointer-events-none *:pointer-events-auto'
+            : 'fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-2.5 bg-transparent pointer-events-none'
         }
         aria-label="Site navigation"
       >
-        <Link to="/" className="group flex min-h-[44px] items-center gap-2 no-underline">
+        <Link to="/" className="group flex min-h-[44px] items-center gap-2 no-underline pointer-events-auto">
           <LogoGlyph />
           <span className="font-display text-[20px] font-black tracking-[0] leading-none text-text group-hover:text-accent transition-colors duration-150">
             artifact
@@ -57,7 +57,7 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
 function DesktopNavLinks({ compact, auth }: { compact?: boolean; auth: ReturnType<typeof useArtifactAuth> }) {
   if (compact) return null;
   return (
-    <div className="hidden md:flex items-center gap-5">
+    <div className="hidden md:flex items-center gap-5 pointer-events-auto">
       {LINKS.map(({ to, label }) => (
         <NavLink key={to} to={to} className={linkClass}>
           {label}
@@ -80,7 +80,7 @@ function MobileNavToggle({ compact, open, onToggle }: { compact?: boolean; open:
   return (
     <button
       type="button"
-      className="md:hidden flex flex-col justify-center items-center gap-[5px] w-[44px] h-[44px] bg-transparent border-0 cursor-pointer p-0"
+      className="md:hidden flex flex-col justify-center items-center gap-[5px] w-[44px] h-[44px] bg-transparent border-0 cursor-pointer p-0 pointer-events-auto"
       onClick={onToggle}
       aria-label={mobileToggleLabel(open)}
       aria-expanded={open}

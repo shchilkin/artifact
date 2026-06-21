@@ -107,6 +107,13 @@ describe('addLibraryModel', () => {
         .map((item) => item.id);
 
     expect(firstIdsFor('low res')).toContain('effect:pixelate');
+    expect(firstIdsFor('bad stream')).toContain('effect:badStream');
+    expect(firstIdsFor('macroblock')).toContain('effect:badStream');
+    expect(firstIdsFor('macroblock')).toContain('effect:macroblocks');
+    expect(firstIdsFor('detail blocks')).toContain('effect:detailBlocks');
+    expect(firstIdsFor('block smear')).toContain('effect:blockSmear');
+    expect(firstIdsFor('chroma blocks')).toContain('effect:chromaBlocks');
+    expect(firstIdsFor('block dropout')).toContain('effect:blockDropout');
     expect(firstIdsFor('headline')).toContain('textPreset:title');
     expect(firstIdsFor('credit')).toContain('textPreset:credit');
     expect(firstIdsFor('dots')).toContain('effect:halftone');
@@ -141,19 +148,30 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('dirty')).toContain('grimeShadow');
   });
 
-  it('gives key effect items individual descriptions and use-case tags', () => {
+  it('gives key effect items individual descriptions', () => {
     const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
 
     expect(itemsById.get('effect:pixelate')?.description).toContain('block size');
     expect(itemsById.get('effect:splitTone')?.description).toContain('shadows');
     expect(itemsById.get('effect:dotGrain')?.description).toContain('stipple');
     expect(itemsById.get('effect:retroResolution')?.description).toContain('export');
+    expect(itemsById.get('effect:badStream')?.description).toContain('macroblocks');
+    expect(itemsById.get('effect:macroblocks')?.description).toContain('Large');
+    expect(itemsById.get('effect:detailBlocks')?.description).toContain('Small');
     expect(itemsById.get('effect:indexedPalette')?.description).toContain('swatches');
     expect(itemsById.get('effect:edgeCrush')?.description).toContain('alpha');
     expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
+  });
+
+  it('gives key effect items use-case tags', () => {
+    const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
+
     expect(itemsById.get('effect:grain')?.tags).toEqual(expect.arrayContaining(['texture', 'paper']));
     expect(itemsById.get('effect:dotGrain')?.tags).toEqual(expect.arrayContaining(['texture', 'dots']));
     expect(itemsById.get('effect:retroResolution')?.tags).toEqual(expect.arrayContaining(['tone', 'low-res']));
+    expect(itemsById.get('effect:badStream')?.tags).toEqual(expect.arrayContaining(['signal', 'compression']));
+    expect(itemsById.get('effect:macroblocks')?.tags).toEqual(expect.arrayContaining(['signal', 'blocks']));
+    expect(itemsById.get('effect:blockDropout')?.tags).toEqual(expect.arrayContaining(['signal', 'damage']));
     expect(itemsById.get('effect:indexedPalette')?.tags).toEqual(expect.arrayContaining(['tone', 'palette']));
     expect(itemsById.get('effect:halftone')?.tags).toEqual(expect.arrayContaining(['print', 'dots']));
     expect(itemsById.get('effect:edgeCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'alpha']));
@@ -164,6 +182,9 @@ describe('addLibraryModel', () => {
     const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
 
     expect(itemsById.get('effect:dotGrain')?.group).toBe('texture');
+    expect(itemsById.get('effect:badStream')?.group).toBe('signal');
+    expect(itemsById.get('effect:macroblocks')?.group).toBe('signal');
+    expect(itemsById.get('effect:detailBlocks')?.group).toBe('signal');
     expect(itemsById.get('effect:retroResolution')?.group).toBe('tone');
     expect(itemsById.get('effect:indexedPalette')?.group).toBe('tone');
     expect(itemsById.get('effect:edgeCrush')?.group).toBe('graphic');

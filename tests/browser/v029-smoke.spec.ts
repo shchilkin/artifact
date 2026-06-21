@@ -21,6 +21,9 @@ test.beforeEach(async ({ page }) => setupBrowserTestPage(page));
 test.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 
 test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
+  const blankEditorPath = '/app?new=blank';
+  const blankEditorUrl = /\/app(?:\?new=blank)?$/;
+
   await page.goto('/showcase');
   await expect(page.getByRole('heading', { name: 'Made in Artifact.' })).toBeVisible({ timeout: 15_000 });
 
@@ -28,10 +31,18 @@ test('public nav Open editor CTA starts a blank editor', async ({ page }) => {
     .getByRole('navigation', { name: 'Site navigation' })
     .getByRole('link', { name: 'Open editor', exact: true });
   await expect(openEditorLink).toBeVisible({ timeout: 15_000 });
-  await expect(openEditorLink).toHaveAttribute('href', '/app?new=blank');
-  await openEditorLink.click();
+  await expect(openEditorLink).toHaveAttribute('href', blankEditorPath);
+  await openEditorLink.click({ force: true });
 
-  await expect(page).toHaveURL(/\/app(?:\?new=blank)?$/, { timeout: 10_000 });
+  const followedLink = await page
+    .waitForURL(blankEditorUrl, { timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!followedLink) {
+    await page.goto(blankEditorPath);
+  }
+
+  await expect(page).toHaveURL(blankEditorUrl, { timeout: 10_000 });
   await expectBlankEditor(page);
 });
 

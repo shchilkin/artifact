@@ -223,7 +223,20 @@ export const NODE_CANVAS_COLORS = {
 export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
 
 export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'];
-export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking'];
+export const GLITCH_PRESETS: EffectPreset[] = [
+  'glitch',
+  'rgbSplit',
+  'ca',
+  'interlace',
+  'dataMosh',
+  'vhsTracking',
+  'badStream',
+  'macroblocks',
+  'detailBlocks',
+  'blockSmear',
+  'chromaBlocks',
+  'blockDropout',
+];
 export const TEXTURE_PRESETS: EffectPreset[] = [
   'grain',
   'dotGrain',

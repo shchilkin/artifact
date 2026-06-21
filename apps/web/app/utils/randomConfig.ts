@@ -486,6 +486,34 @@ const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandom
   rgbSplit: () => ({ rgbSplit: rand(0, 12) }),
   interlace: () => ({ interlace: rand(10, 70) }),
   dataMosh: () => ({ dataMosh: rand(10, 70) }),
+  badStream: () => ({
+    badStream: rand(35, 88),
+    badStreamBlockSize: rand(28, 86),
+    badStreamDetail: rand(18, 72),
+    badStreamSmear: rand(10, 68),
+    badStreamChroma: rand(8, 56),
+    badStreamDarkness: rand(18, 72),
+  }),
+  macroblocks: () => ({ badStream: rand(38, 86), badStreamBlockSize: rand(32, 96), badStreamDarkness: rand(0, 36) }),
+  detailBlocks: () => ({
+    badStream: rand(45, 90),
+    badStreamBlockSize: rand(28, 72),
+    badStreamDetail: rand(45, 100),
+    badStreamChroma: rand(0, 42),
+    badStreamDarkness: rand(0, 38),
+  }),
+  blockSmear: () => ({ badStream: rand(38, 86), badStreamBlockSize: rand(30, 90), badStreamSmear: rand(35, 100) }),
+  chromaBlocks: () => ({
+    badStream: rand(36, 84),
+    badStreamBlockSize: rand(24, 72),
+    badStreamDetail: rand(0, 60),
+    badStreamChroma: rand(45, 100),
+  }),
+  blockDropout: () => ({
+    badStream: rand(40, 88),
+    badStreamBlockSize: rand(32, 100),
+    badStreamDarkness: rand(45, 100),
+  }),
   grain: () => ({ grain: rand(8, 42) }),
   dotGrain: () => ({
     dotGrain: rand(45, 90),
@@ -601,6 +629,12 @@ const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> 
     interlace: optionalRand(0.4, 10, 70),
     dataMosh: optionalRand(0.4, 10, 70),
     vhsTracking: optionalRand(0.4, 10, 55),
+    badStream: optionalRand(0.25, 30, 80),
+    badStreamBlockSize: rand(28, 86),
+    badStreamDetail: rand(18, 72),
+    badStreamSmear: rand(10, 68),
+    badStreamChroma: rand(8, 56),
+    badStreamDarkness: rand(18, 72),
   }),
   TEXTURE: () => ({
     grain: rand(0, 42),
@@ -692,7 +726,20 @@ export function zeroLayerSection(section: string): Partial<EffectLayer> | Partia
         speedLines: 0,
       };
     case 'GLITCH':
-      return { glitch: 0, rgbSplit: 0, ca: 0, interlace: 0, dataMosh: 0, vhsTracking: 0 };
+      return {
+        glitch: 0,
+        rgbSplit: 0,
+        ca: 0,
+        interlace: 0,
+        dataMosh: 0,
+        vhsTracking: 0,
+        badStream: 0,
+        badStreamBlockSize: 48,
+        badStreamDetail: 42,
+        badStreamSmear: 35,
+        badStreamChroma: 28,
+        badStreamDarkness: 38,
+      };
     case 'TEXTURE':
       return {
         grain: 0,

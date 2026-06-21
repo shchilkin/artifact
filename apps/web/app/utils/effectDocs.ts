@@ -29,7 +29,7 @@ export const EFFECT_FAMILY_GUIDE = [
   },
   {
     name: 'Signal Damage',
-    desc: 'Glitch, interlace, data mosh, RGB split, chromatic aberration, VHS tracking, retro resolution, and pixelate create media failure.',
+    desc: 'Glitch, interlace, data mosh, Bad Stream, codec block nodes, RGB split, chromatic aberration, VHS tracking, retro resolution, and pixelate create media failure.',
   },
 ] as const;
 
@@ -61,6 +61,60 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   dataMosh: {
     description: 'Block compression artifacts, repeated frame error.',
     params: [{ key: 'dataMosh', range: '0-100' }],
+  },
+  badStream: {
+    description:
+      'Low-bitrate stream failure: large macroblocks, smaller compression fragments, smearing, chroma drift, and dark dropped blocks.',
+    params: [
+      { key: 'badStream', range: '0-100 compression strength' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual macroblock size' },
+      { key: 'badStreamDetail', range: '0-100 small block amount' },
+      { key: 'badStreamSmear', range: '0-100 copied block smear' },
+      { key: 'badStreamChroma', range: '0-100 color drift' },
+      { key: 'badStreamDarkness', range: '0-100 dark dropout pressure' },
+    ],
+  },
+  macroblocks: {
+    description: 'Large video-codec squares with averaged color and optional dark pressure.',
+    params: [
+      { key: 'badStream', range: '0-100 block opacity' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual macroblock size' },
+      { key: 'badStreamDarkness', range: '0-100 dark pressure' },
+    ],
+  },
+  detailBlocks: {
+    description: 'Small codec fragments for crunchy low-bitrate texture inside the frame.',
+    params: [
+      { key: 'badStream', range: '0-100 compression strength' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual parent block size' },
+      { key: 'badStreamDetail', range: '0-100 small block amount' },
+      { key: 'badStreamDarkness', range: '0-100 dark edge pressure' },
+    ],
+  },
+  blockSmear: {
+    description: 'Copied neighboring blocks that smear the frame like a stalled stream.',
+    params: [
+      { key: 'badStream', range: '0-100 smear opacity' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual block size' },
+      { key: 'badStreamSmear', range: '0-100 copied block smear' },
+    ],
+  },
+  chromaBlocks: {
+    description: 'Blocky chroma compression and color drift, separate from RGB split.',
+    params: [
+      { key: 'badStream', range: '0-100 chroma opacity' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual block size' },
+      { key: 'badStreamChroma', range: '0-100 color drift' },
+      { key: 'badStreamDetail', range: '0-100 small chroma block amount' },
+    ],
+  },
+  blockDropout: {
+    description: 'Dark dropped blocks, like missing packets in a damaged stream.',
+    params: [
+      { key: 'badStream', range: '0-100 dropout coverage' },
+      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual dropout size' },
+      { key: 'badStreamDarkness', range: '0-100 dropout darkness' },
+    ],
   },
   grain: {
     description:
