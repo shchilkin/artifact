@@ -47,6 +47,10 @@ const DISABLED_REASON_BODIES: Record<string, string> = {
   quota_exhausted: 'Your monthly generation limit is used for this account.',
   maintenance: 'Generation is temporarily unavailable while the service is being maintained.',
 };
+const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
+  anonymous: 'Create account',
+  invalid_session: 'Sign in again',
+};
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
@@ -711,10 +715,16 @@ function accessBannerBody(
   authSignedIn: boolean,
 ) {
   if (access) return disabledReasonBody(accessBlockReason);
-  if (accessCheck.state === 'failed') {
-    return accessBlockReason ?? accessCheck.message ?? 'AI access could not be checked. Try again.';
-  }
-  return checkingAccessMessage(authSignedIn);
+  return accessCheck.state === 'failed'
+    ? failedAccessCheckMessage(accessBlockReason, accessCheck.message)
+    : checkingAccessMessage(authSignedIn);
+}
+
+function failedAccessCheckMessage(
+  accessBlockReason: string | null | undefined,
+  accessCheckMessage: string | null | undefined,
+) {
+  return firstDefined(accessBlockReason, accessCheckMessage) ?? 'AI access could not be checked. Try again.';
 }
 
 function checkingAccessMessage(authSignedIn: boolean) {
@@ -736,27 +746,29 @@ function AccessActionButton({
   openSignIn: () => void;
   onRetryAccess: () => void;
 }) {
-  if (accessCheck.state === 'failed') {
-    return (
-      <button type="button" className="ai-generation-access-action" onClick={onRetryAccess}>
-        Retry access
-      </button>
-    );
-  }
-  if (!authConfigured) return null;
-  if (accessBlockReason === 'anonymous') {
-    return (
-      <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
-        Create account
-      </button>
-    );
-  }
-  if (accessBlockReason !== 'invalid_session') return null;
+  const action = accessActionModel(accessBlockReason, accessCheck, authConfigured);
+  if (!action) return null;
+  const onClick = action.kind === 'retry' ? onRetryAccess : openSignIn;
   return (
-    <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
-      Sign in again
+    <button type="button" className="ai-generation-access-action" onClick={onClick}>
+      {action.label}
     </button>
   );
+}
+
+function accessActionModel(
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+  authConfigured: boolean,
+): { kind: 'retry' | 'sign-in'; label: string } | null {
+  if (accessCheck.state === 'failed') return { kind: 'retry', label: 'Retry access' };
+  if (!authConfigured) return null;
+  return accessReasonAction(accessBlockReason);
+}
+
+function accessReasonAction(reason: string | null | undefined): { kind: 'sign-in'; label: string } | null {
+  const label = reason ? ACCESS_ACTION_LABELS[reason] : undefined;
+  return label ? { kind: 'sign-in', label } : null;
 }
 
 function GenerationRecoveryActions({

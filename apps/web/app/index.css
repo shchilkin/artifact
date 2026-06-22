@@ -131,6 +131,15 @@ body {
   background: color-mix(in oklch, var(--panel-bg) 96%, transparent);
 }
 
+.site-nav-compact-slot {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  margin-left: 2px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
 .site-nav {
   z-index: 100;
   display: flex;
@@ -1280,13 +1289,6 @@ input[type="range"] {
   width: 100%;
 }
 
-.floating-view-toggle {
-  position: absolute;
-  top: 76px;
-  left: 16px;
-  z-index: 30;
-}
-
 .storage-warning-strip {
   position: absolute;
   top: 12px;
@@ -1455,6 +1457,20 @@ input[type="range"] {
 
 .view-mode-toggle-sidebar button {
   min-width: 76px;
+}
+
+.view-mode-toggle-node button {
+  min-width: 70px;
+}
+
+@media (max-width: 767px) {
+  .editor-layout .site-nav-compact {
+    align-items: stretch;
+  }
+
+  .view-mode-toggle-node button {
+    min-width: 68px;
+  }
 }
 
 .layer-panel-header {
