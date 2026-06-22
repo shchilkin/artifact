@@ -1,10 +1,16 @@
-import type { FinalConnectionState, ReactFlowInstance, Edge as RFEdge, Node as RFNode } from '@xyflow/react';
-import { useCallback, useEffect } from 'react';
+import type {
+  FinalConnectionState,
+  OnConnectStartParams,
+  ReactFlowInstance,
+  Edge as RFEdge,
+  Node as RFNode,
+} from '@xyflow/react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import type { AddAction } from '../../../utils/addActions';
 import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
-import type { InsertConnectionConfig } from '../types';
+import type { ContextMenuState, InsertConnectionConfig } from '../types';
 
 export interface UseNodeContextMenusOptions {
   send: (event: NodeCanvasMachineEvent) => void;
@@ -26,6 +32,7 @@ export interface UseNodeContextMenusResult {
   onPaneContextMenu: (e: MouseEvent | React.MouseEvent) => void;
   onNodeContextMenu: (e: MouseEvent | React.MouseEvent, node: RFNode) => void;
   onEdgeContextMenu: (e: React.MouseEvent, edge: RFEdge) => void;
+  onConnectStart: (event: MouseEvent | TouchEvent, params: OnConnectStartParams) => void;
   onConnectEnd: (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => void;
   handleAddFromMenu: (action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
 }
@@ -68,7 +75,7 @@ function connectEndPointer(event: MouseEvent | TouchEvent) {
 
 function insertionFromConnection(
   fromNodeId: string,
-  fromHandle: NonNullable<FinalConnectionState['fromHandle']>,
+  fromHandle: Pick<NonNullable<FinalConnectionState['fromHandle']>, 'id' | 'type'>,
 ): InsertConnectionConfig {
   if (fromHandle.type === 'target') {
     return {
@@ -147,11 +154,31 @@ function handleDeleteShortcut(
 function pendingConnectEnd(connectionState: FinalConnectionState) {
   if (!connectionState.fromNode) return null;
   if (!connectionState.fromHandle) return null;
-  if (connectionState.toHandle) return null;
   return {
     fromNodeId: connectionState.fromNode.id,
     fromHandle: connectionState.fromHandle,
   };
+}
+
+function pendingConnectStart(params: OnConnectStartParams) {
+  if (!params.nodeId) return null;
+  if (!params.handleType) return null;
+  return {
+    fromNodeId: params.nodeId,
+    fromHandle: {
+      id: params.handleId,
+      type: params.handleType,
+    },
+  };
+}
+
+function openDeferredConnectAddMenu(
+  send: (event: NodeCanvasMachineEvent) => void,
+  menu: Extract<ContextMenuState, { type: 'pane-insert' }>,
+) {
+  window.requestAnimationFrame(() => {
+    send({ type: 'CONTEXT_MENU_OPENED', menu });
+  });
 }
 
 /**
@@ -171,6 +198,8 @@ export function useNodeContextMenus({
   onGraphChange,
   onAddLayerAt,
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
+  const pendingConnectionStartRef = useRef<ReturnType<typeof pendingConnectStart>>(null);
+
   // Delete/Backspace shortcut for selected nodes and edges.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -244,9 +273,18 @@ export function useNodeContextMenus({
     [send, rfInstanceRef],
   );
 
+  const onConnectStart = useCallback((event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+    event.stopPropagation();
+    pendingConnectionStartRef.current = pendingConnectStart(params);
+  }, []);
+
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      const pendingConnection = pendingConnectEnd(connectionState);
+      event.preventDefault();
+      event.stopPropagation();
+      const pendingConnection = pendingConnectEnd(connectionState) ?? pendingConnectionStartRef.current;
+      pendingConnectionStartRef.current = null;
+      if (connectionState.isValid === true) return;
       if (!pendingConnection) return;
       const pointer = connectEndPointer(event);
       if (!pointer) return;
@@ -255,15 +293,12 @@ export function useNodeContextMenus({
         y: 0,
       };
       const insertion = insertionFromConnection(pendingConnection.fromNodeId, pendingConnection.fromHandle);
-      send({
-        type: 'CONTEXT_MENU_OPENED',
-        menu: {
-          type: 'pane-insert',
-          x: pointer.clientX,
-          y: pointer.clientY,
-          flowPos,
-          insertion,
-        },
+      openDeferredConnectAddMenu(send, {
+        type: 'pane-insert',
+        x: pointer.clientX,
+        y: pointer.clientY,
+        flowPos,
+        insertion,
       });
     },
     [send, rfInstanceRef],
@@ -283,6 +318,7 @@ export function useNodeContextMenus({
     onPaneContextMenu,
     onNodeContextMenu,
     onEdgeContextMenu,
+    onConnectStart,
     onConnectEnd,
     handleAddFromMenu,
   };

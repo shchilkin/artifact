@@ -54,6 +54,7 @@ export default function Editor() {
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  const [aiPanelRequested, setAiPanelRequested] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -134,6 +135,7 @@ export default function Editor() {
   const handleLoadExternalDocument = useCallback(
     (nextDoc: typeof doc) => {
       clearActiveProject();
+      setAiPanelRequested(false);
       loadDocument(nextDoc);
     },
     [clearActiveProject, loadDocument],
@@ -162,6 +164,7 @@ export default function Editor() {
 
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
+    setAiPanelRequested(true);
     window.setTimeout(() => {
       document.querySelector<HTMLTextAreaElement>('[data-ai-generation-prompt]')?.focus();
     }, 0);
@@ -176,6 +179,7 @@ export default function Editor() {
     }
     closePanels();
     clearActiveProject();
+    setAiPanelRequested(false);
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
@@ -187,12 +191,26 @@ export default function Editor() {
       if (!starter) return;
       closePanels();
       clearActiveProject();
+      setAiPanelRequested(false);
       loadDocument(cloneDocument(starter.doc));
       resetPrimitiveViewStates();
       setViewMode('layers');
     },
     [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
+
+  const handleGeneratedImageSource = useCallback(
+    (...args: Parameters<typeof addImageFromSource>) => {
+      setAiPanelRequested(true);
+      addImageFromSource(...args);
+    },
+    [addImageFromSource],
+  );
+
+  const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedLayerHasAiGeneration =
+    selectedLayer?.kind === 'image' && Boolean(selectedLayer.aiGeneration || selectedLayer.aiGenerationHistory?.length);
+  const showAiGeneration = aiPanelRequested || selectedLayerHasAiGeneration;
 
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
@@ -214,7 +232,7 @@ export default function Editor() {
 
   return (
     <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
-      <SiteNav solid compact={viewMode === 'nodes'} />
+      <SiteNav solid compact />
       <input
         ref={fileInputRef}
         className="sr-only"
@@ -376,14 +394,12 @@ export default function Editor() {
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
             onStartAiImage={handleStartAiImage}
-            onLoadStarter={handleLoadStarter}
-            onOpenProjects={handleToggleProjects}
-            onRandomize={handleRandomize}
             onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
-            onGeneratedImageSource={addImageFromSource}
+            showAiGeneration={showAiGeneration}
+            onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
             modeSwitcher={<ViewModeToggle value={viewMode} onChange={setViewMode} variant="sidebar" />}
           />

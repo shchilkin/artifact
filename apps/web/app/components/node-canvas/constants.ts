@@ -150,10 +150,10 @@ export const ADD_NODE_ITEMS: Array<{
 ];
 
 export const HANDLE_STYLE = {
-  background: 'var(--node-handle)',
-  border: '1.5px solid var(--bg)',
-  width: 10,
-  height: 10,
+  background: 'transparent',
+  border: 'none',
+  width: 44,
+  height: 44,
 };
 
 export const NODE_CANVAS_COLORS = {

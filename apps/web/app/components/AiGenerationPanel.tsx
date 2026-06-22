@@ -77,10 +77,15 @@ function jobIsActive(job: AiGenerationJob | null) {
 }
 
 function errorMessage(error: unknown) {
-  if (error instanceof AiGenerationApiError) return error.message;
+  if (error instanceof AiGenerationApiError) return apiErrorMessage(error);
   if (isFetchFailure(error)) return 'AI API is not reachable. Start the local API server and try again.';
   if (error instanceof Error) return error.message;
   return 'Generation failed.';
+}
+
+function apiErrorMessage(error: AiGenerationApiError) {
+  if (error.status === 404) return 'AI API route is unavailable. Start the API server and try again.';
+  return error.message;
 }
 
 function isFetchFailure(error: unknown) {
@@ -668,18 +673,48 @@ function GenerationContextPanels({
 function AccessBanner({
   access,
   accessBlockReason,
+  accessCheck,
   authSignedIn,
 }: {
   access: AiGenerationAccessState | null;
   accessBlockReason: string | null | undefined;
+  accessCheck: AccessCheckState;
   authSignedIn: boolean;
 }) {
   return (
-    <div className="ai-generation-access-banner" role="status" id="ai-generation-status">
-      <span>{access ? disabledReasonTitle(accessBlockReason) : 'Checking AI access'}</span>
-      <p>{access ? disabledReasonBody(accessBlockReason) : checkingAccessMessage(authSignedIn)}</p>
+    <div className={accessBannerClassName(accessCheck)} role="status" id="ai-generation-status">
+      <span>{accessBannerTitle(access, accessBlockReason, accessCheck)}</span>
+      <p>{accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}</p>
     </div>
   );
+}
+
+function accessBannerClassName(accessCheck: AccessCheckState) {
+  return accessCheck.state === 'failed'
+    ? 'ai-generation-access-banner ai-generation-access-banner--failed'
+    : 'ai-generation-access-banner';
+}
+
+function accessBannerTitle(
+  access: AiGenerationAccessState | null,
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+) {
+  if (access) return disabledReasonTitle(accessBlockReason);
+  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access';
+}
+
+function accessBannerBody(
+  access: AiGenerationAccessState | null,
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+  authSignedIn: boolean,
+) {
+  if (access) return disabledReasonBody(accessBlockReason);
+  if (accessCheck.state === 'failed') {
+    return accessBlockReason ?? accessCheck.message ?? 'AI access could not be checked. Try again.';
+  }
+  return checkingAccessMessage(authSignedIn);
 }
 
 function checkingAccessMessage(authSignedIn: boolean) {
@@ -690,18 +725,36 @@ function checkingAccessMessage(authSignedIn: boolean) {
 
 function AccessActionButton({
   accessBlockReason,
+  accessCheck,
   authConfigured,
   openSignIn,
+  onRetryAccess,
 }: {
   accessBlockReason: string | null | undefined;
+  accessCheck: AccessCheckState;
   authConfigured: boolean;
   openSignIn: () => void;
+  onRetryAccess: () => void;
 }) {
-  if (accessBlockReason !== 'anonymous') return null;
+  if (accessCheck.state === 'failed') {
+    return (
+      <button type="button" className="ai-generation-access-action" onClick={onRetryAccess}>
+        Retry access
+      </button>
+    );
+  }
   if (!authConfigured) return null;
+  if (accessBlockReason === 'anonymous') {
+    return (
+      <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
+        Create account
+      </button>
+    );
+  }
+  if (accessBlockReason !== 'invalid_session') return null;
   return (
     <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
-      Create Account
+      Sign in again
     </button>
   );
 }
@@ -1570,11 +1623,18 @@ export function AiGenerationPanel({
   if (!aiAccessEnabled(access)) {
     return (
       <div className="ai-generation-panel">
-        <AccessBanner access={access} accessBlockReason={accessBlockReason} authSignedIn={authSignedIn} />
+        <AccessBanner
+          access={access}
+          accessBlockReason={accessBlockReason}
+          accessCheck={accessCheck}
+          authSignedIn={authSignedIn}
+        />
         <AccessActionButton
           accessBlockReason={accessBlockReason}
+          accessCheck={accessCheck}
           authConfigured={authConfigured}
           openSignIn={openSignIn}
+          onRetryAccess={handleRetryAccessCheck}
         />
         <DeveloperDiagnosticsPanel
           enabled={diagnosticsEnabled}

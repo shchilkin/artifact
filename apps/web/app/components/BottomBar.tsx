@@ -48,8 +48,7 @@ export function BottomBar({
 
   return (
     <div className="bottom-bar">
-      {/* Row 1: Undo / Redo / Rand */}
-      <div className="bottom-rand-group">
+      <div className="bottom-history-group" aria-label="Document history and reset">
         <ActionButton onClick={onNewBlank} aria-label="Create new project" title="Create new project" variant="quiet">
           NEW
         </ActionButton>
@@ -59,50 +58,55 @@ export function BottomBar({
         <ActionButton onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)" variant="quiet">
           ↪
         </ActionButton>
-        <ActionButton className="rand-btn" onClick={onRandomize} variant="primary">
+        <ActionButton className="rand-btn" onClick={onRandomize} variant="quiet">
           RAND
         </ActionButton>
       </div>
 
-      <div className="bottom-link-group">
-        <ActionButton
-          onClick={onOpenDocument}
-          aria-label="Open document file"
-          title="Open .artifact or .artifact.json"
-          variant="quiet"
-        >
-          OPEN
-        </ActionButton>
-        <ActionButton
-          onClick={onSaveDocument}
-          aria-label="Save document file"
-          title="Save .artifact.json"
-          variant="quiet"
-        >
-          SAVE
-        </ActionButton>
-        <ActionButton
-          onClick={() => onSaveProjectPackage('license-aware')}
-          aria-label="Save editable project package"
-          title="Save editable .artifact project package. Open-license Google fonts are included; unknown local fonts stay metadata-only."
-          variant="quiet"
-        >
-          PACKAGE
-        </ActionButton>
-        <ActionButton
-          onClick={() => onSaveProjectPackage('explicit-font-files')}
-          aria-label="Save project package with all imported font files"
-          title="Save .artifact with all imported font files. Only use this when you have rights to distribute those files."
-          variant="quiet"
-        >
-          PKG+FONTS
-        </ActionButton>
-        <CopyLinkButton copied={copied} onCopyLink={handleCopyLink} />
+      <div className="bottom-secondary-group">
+        <div className="bottom-file-group" aria-label="File actions">
+          <ActionButton
+            onClick={onOpenDocument}
+            aria-label="Open document file"
+            title="Open .artifact or .artifact.json"
+            variant="quiet"
+          >
+            OPEN
+          </ActionButton>
+          <ActionButton
+            onClick={onSaveDocument}
+            aria-label="Save document file"
+            title="Save .artifact.json"
+            variant="quiet"
+          >
+            SAVE
+          </ActionButton>
+          <CopyLinkButton copied={copied} onCopyLink={handleCopyLink} />
+        </div>
+
+        <div className="bottom-package-group" aria-label="Package actions">
+          <ActionButton
+            onClick={() => onSaveProjectPackage('license-aware')}
+            aria-label="Save editable project package"
+            title="Save editable .artifact project package. Open-license Google fonts are included; unknown local fonts stay metadata-only."
+            variant="quiet"
+          >
+            PKG
+          </ActionButton>
+          <ActionButton
+            onClick={() => onSaveProjectPackage('explicit-font-files')}
+            aria-label="Save project package with all imported font files"
+            title="Save .artifact with all imported font files. Only use this when you have rights to distribute those files."
+            variant="quiet"
+          >
+            PKG FONTS
+          </ActionButton>
+        </div>
       </div>
 
-      <div className="bottom-right-group">
+      <div className="bottom-primary-group">
         <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
-        <ActionButton onClick={onExport} disabled={exportBusy} variant="primary">
+        <ActionButton className="export-btn" onClick={onExport} disabled={exportBusy} variant="primary">
           {exportBusy ? '…' : 'EXPORT'}
         </ActionButton>
       </div>

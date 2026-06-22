@@ -287,7 +287,7 @@ function LayerLockToggle({
 }) {
   if (target?.kind !== 'layer') return null;
   return (
-    <div className="node-target-actions">
+    <div className="node-target-actions" aria-label="Layer node safety">
       <label
         className="node-target-toggle"
         aria-label="Toggle node delete lock"
@@ -426,27 +426,32 @@ function NodePropertiesPanelContent({
       <div className="node-props-header">
         <div className="node-props-titles">
           <span className="node-props-title">Properties</span>
-          <span className="node-props-subtitle">{targetSummary?.eyebrow ?? 'No target'}</span>
         </div>
         <button type="button" className="node-props-close" onClick={onClose} aria-label="Close properties">
           ×
         </button>
       </div>
       <div className="node-props-body">
-        {targetSummary && <EditorTargetHeader summary={targetSummary} />}
-        <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
-        <SelectedNodeInspector
-          target={target}
-          doc={doc}
-          exportBusy={exportBusy}
-          onUpdateLayer={onUpdateLayer}
-          onUpdateMergeNode={onUpdateMergeNode}
-          onUpdateColorNode={onUpdateColorNode}
-          onUpdateRepeatNode={onUpdateRepeatNode}
-          onUpdateExportConfig={onUpdateExportConfig}
-          onUpdateAspectRatio={onUpdateAspectRatio}
-          onExport={onExport}
-        />
+        {targetSummary ? (
+          <>
+            <EditorTargetHeader summary={targetSummary} compact />
+            <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
+            <SelectedNodeInspector
+              target={target}
+              doc={doc}
+              exportBusy={exportBusy}
+              onUpdateLayer={onUpdateLayer}
+              onUpdateMergeNode={onUpdateMergeNode}
+              onUpdateColorNode={onUpdateColorNode}
+              onUpdateRepeatNode={onUpdateRepeatNode}
+              onUpdateExportConfig={onUpdateExportConfig}
+              onUpdateAspectRatio={onUpdateAspectRatio}
+              onExport={onExport}
+            />
+          </>
+        ) : (
+          <div className="node-props-empty">Select a node to edit its properties.</div>
+        )}
       </div>
     </div>
   );

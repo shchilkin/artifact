@@ -42,9 +42,6 @@ type SidebarLayerPanelProps = Pick<
   | 'onAddNoisePreset'
   | 'onAddArrayPreset'
   | 'onStartAiImage'
-  | 'onLoadStarter'
-  | 'onOpenProjects'
-  | 'onRandomize'
   | 'onInsertLayerAbove'
   | 'onRemoveLayer'
   | 'onDuplicateLayer'
@@ -55,6 +52,7 @@ interface Props extends SidebarLayerPanelProps {
   doc: CanvasDocument;
   onDocChange: (doc: CanvasDocument) => void;
   onReorderLayers: (layers: Layer[]) => void;
+  showAiGeneration?: boolean;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
 }
@@ -70,15 +68,12 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   const [open, setOpen] = useState(defaultOpen);
   if (hidden) return null;
   return (
-    <div className="border-b border-border">
-      <button
-        className="flex items-center justify-between w-full min-h-11 px-3.5 cursor-pointer text-accent font-mono text-[10px] tracking-[2.5px] uppercase font-semibold hover:bg-accent-dim"
-        onClick={() => setOpen((value) => !value)}
-      >
+    <div className="sidebar-section">
+      <button className="sidebar-section-trigger" onClick={() => setOpen((value) => !value)}>
         <span>{title}</span>
-        <span className="text-dim text-[10px]">{open ? '▾' : '▸'}</span>
+        <span className="sidebar-section-indicator">{open ? '▾' : '▸'}</span>
       </button>
-      {open && <div className="px-3.5 pt-2 pb-3.5 flex flex-col gap-2.5">{children}</div>}
+      {open && <div className="sidebar-section-body">{children}</div>}
     </div>
   );
 }
@@ -104,15 +99,13 @@ function AssetImagePreview({ src }: { src: string }) {
   const resolvedSrc = isAssetUri(src) ? (resolvedAsset.src === src ? resolvedAsset.value : '') : src;
   if (!resolvedSrc) {
     return (
-      <div className="w-full aspect-square border border-border checkerboard-surface flex flex-col items-center justify-center gap-2 px-3 text-center">
-        <span className="font-mono text-[10px] uppercase tracking-[2.5px] text-accent">Image unavailable</span>
-        <span className="font-mono text-[10px] text-dim leading-relaxed">
-          Replace the source to restore this layer.
-        </span>
+      <div className="asset-image-preview asset-image-preview--empty checkerboard-surface">
+        <span className="asset-image-preview__title">Image unavailable</span>
+        <span className="asset-image-preview__copy">Replace the source to restore this layer.</span>
       </div>
     );
   }
-  return <img src={resolvedSrc} alt="" className="w-full aspect-square object-cover border border-border" />;
+  return <img src={resolvedSrc} alt="" className="asset-image-preview" />;
 }
 
 function useDocumentRef(doc: CanvasDocument) {
@@ -205,14 +198,12 @@ function useLayerPanelHandlers({
 
 function CanvasAspectControls({ aspect, onChange }: { aspect: AspectRatio; onChange: (aspect: AspectRatio) => void }) {
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border flex-shrink-0">
-      <span className="text-dim text-[9px] tracking-widest font-mono mr-1">CANVAS</span>
+    <div className="canvas-aspect-controls">
+      <span className="canvas-aspect-controls__label">CANVAS</span>
       {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((ratio) => (
         <button
           key={ratio}
-          className={`text-[9px] font-mono px-1.5 py-0.5 border rounded-sm tracking-wide transition-colors ${
-            aspect === ratio ? 'border-accent text-accent bg-accent-dim' : 'border-border text-dim hover:text-text'
-          }`}
+          className={`canvas-aspect-chip ${aspect === ratio ? 'canvas-aspect-chip--active' : ''}`}
           onClick={() => onChange(ratio)}
         >
           {ratio}
@@ -346,7 +337,7 @@ function SelectedLayerBasics({
 }) {
   return (
     <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
-      <div className="flex justify-between items-center text-dim text-[10px]">
+      <div className="sidebar-toggle-row">
         <span>Visible</span>
         <label className="toggle-switch" aria-label="Toggle layer visibility">
           <input
@@ -358,7 +349,7 @@ function SelectedLayerBasics({
         </label>
       </div>
       {selectedLayer.kind === 'effect' && (
-        <div className="flex justify-between items-center text-dim text-[10px]">
+        <div className="sidebar-toggle-row">
           <span>Use source alpha</span>
           <label className="toggle-switch" aria-label="Toggle effect alpha masking">
             <input
@@ -370,7 +361,7 @@ function SelectedLayerBasics({
           </label>
         </div>
       )}
-      <div className="flex justify-between items-center text-dim text-[10px]">
+      <div className="sidebar-toggle-row">
         <span>Locked</span>
         <label
           className="toggle-switch"
@@ -403,10 +394,7 @@ function ImageSourceSection({
       {layer.src ? (
         <AssetImagePreview src={layer.src} />
       ) : (
-        <button
-          className="border border-border text-dim h-24 text-[11px] font-mono hover:text-text"
-          onClick={() => inputRef.current?.click()}
-        >
+        <button className="image-source-empty-action" onClick={() => inputRef.current?.click()}>
           + Add image
         </button>
       )}
@@ -422,7 +410,7 @@ function ImageSourceSection({
         }}
       />
       <ActionButton
-        className="h-9 text-[11px]"
+        className="image-source-replace-action"
         onClick={() => inputRef.current?.click()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
@@ -468,12 +456,14 @@ function MobileActionBar({ content }: { content?: React.ReactNode }) {
 
 function AiImageSection({
   aspect,
+  show,
   onGeneratedImageSource,
 }: {
   aspect: AspectRatio;
+  show?: boolean;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
 }) {
-  if (!onGeneratedImageSource) return null;
+  if (!show || !onGeneratedImageSource) return null;
   return (
     <Section title="AI Image" defaultOpen>
       <AiGenerationPanel aspect={aspect} onGeneratedImageSource={onGeneratedImageSource} />
@@ -492,13 +482,11 @@ export function Sidebar({
   onAddNoisePreset,
   onAddArrayPreset,
   onStartAiImage,
-  onLoadStarter,
-  onOpenProjects,
-  onRandomize,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
+  showAiGeneration,
   onGeneratedImageSource,
   mobileActionBar,
   modeSwitcher,
@@ -517,7 +505,11 @@ export function Sidebar({
       <MobileActionBar content={mobileActionBar} />
       <CanvasAspectControls aspect={doc.global.aspect ?? '1:1'} onChange={(ratio) => setGlobal('aspect', ratio)} />
 
-      <AiImageSection aspect={doc.global.aspect ?? '1:1'} onGeneratedImageSource={onGeneratedImageSource} />
+      <AiImageSection
+        aspect={doc.global.aspect ?? '1:1'}
+        show={showAiGeneration}
+        onGeneratedImageSource={onGeneratedImageSource}
+      />
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <LayerPanel
@@ -530,9 +522,6 @@ export function Sidebar({
           onAddNoisePreset={onAddNoisePreset}
           onAddArrayPreset={onAddArrayPreset}
           onStartAiImage={onStartAiImage}
-          onLoadStarter={onLoadStarter}
-          onOpenProjects={onOpenProjects}
-          onRandomize={onRandomize}
           onInsertLayerAbove={onInsertLayerAbove}
           onRemoveLayer={onRemoveLayer}
           onReorderLayers={layerPanelHandlers.handleReorderLayers}

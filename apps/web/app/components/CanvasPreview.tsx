@@ -114,8 +114,8 @@ function CanvasPreviewHandles({
 function CanvasPreviewDropOverlay({ dragOver }: { dragOver?: boolean }) {
   if (!dragOver) return null;
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/70 border-2 border-dashed border-accent pointer-events-none z-10">
-      <span className="font-mono text-accent text-xs tracking-[4px] uppercase">Drop Image</span>
+    <div className="canvas-drop-overlay">
+      <span>Drop Image</span>
     </div>
   );
 }

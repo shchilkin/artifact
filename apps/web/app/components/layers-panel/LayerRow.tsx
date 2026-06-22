@@ -138,7 +138,9 @@ function LayerNameEditor({
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
     return (
-      <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
+      <span
+        className={`layer-row-name font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}
+      >
         {layer.name}
       </span>
     );
@@ -148,7 +150,7 @@ function LayerNameEditor({
       autoFocus
       defaultValue={layer.name}
       aria-label={`Rename layer ${layer.name}`}
-      className="font-mono text-[10px] flex-1 min-w-0 bg-transparent border-none outline-none border-b border-accent text-text"
+      className="layer-row-name font-mono text-[10px] flex-1 min-w-0 bg-transparent border-none outline-none border-b border-accent text-text"
       onBlur={(event) => finishRename(event.target.value.trim() || null)}
       onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') finishRename(event.currentTarget.value.trim() || null);
@@ -385,11 +387,12 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      tabIndex={0}
+      className={`layer-row flex items-center gap-2 px-3 min-h-[44px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
       <LayerDragHandle layer={layer} onDragStart={onDragStart} />
       <span
-        className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
+        className={`layer-row-kind-icon font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
         style={{ fontWeight: 700 }}
       >
         {getLayerIcon(layer)}

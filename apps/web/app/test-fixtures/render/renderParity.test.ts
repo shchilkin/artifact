@@ -547,6 +547,20 @@ describe('renderDocument — preview/export size parity', () => {
     expect(samplePixel(scaled, 20, 6)).toEqual(samplePixel(base, 10, 3));
   });
 
+  it('renders legacy rays layers that are missing rayColor', async () => {
+    const legacyRays = makeEffectPresetLayer('rays', { rays: 12, rayInt: 70 });
+    delete (legacyRays as Partial<typeof legacyRays>).rayColor;
+    const effectDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [makeFillLayer({ color: '#221144', opacity: 100 }), legacyRays],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderDocument(effectDoc, 64, 64, new Map(), { graphMode: 'stack' });
+    expect(canvas.width).toBe(64);
+    expect(canvas.height).toBe(64);
+  });
+
   it('solarize and bleach bypass render visible pixels over a source', async () => {
     const source = makeFillLayer({ color: '#d6c8a5', opacity: 100 });
     const effectDoc: CanvasDocument = {
