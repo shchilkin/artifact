@@ -28,9 +28,6 @@ export interface LayerPanelProps {
   onAddArrayPreset: (preset: ArrayPresetId) => void;
   onAddScene3D: () => void;
   onStartAiImage?: () => void;
-  onLoadStarter?: (id: string) => void;
-  onOpenProjects?: () => void;
-  onRandomize?: () => void;
   onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
@@ -71,9 +68,6 @@ export function LayerPanel({
   onAddArrayPreset,
   onAddScene3D,
   onStartAiImage,
-  onLoadStarter,
-  onOpenProjects,
-  onRandomize,
   onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
@@ -232,16 +226,7 @@ export function LayerPanel({
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <LayerPanelEmptyState
-          visible={displayLayers.length === 0}
-          onAddLayer={onAddLayer}
-          onAddEffectPreset={onAddEffectPreset}
-          onAddTextPreset={onAddTextPreset}
-          onStartAiImage={onStartAiImage}
-          onLoadStarter={onLoadStarter}
-          onOpenProjects={onOpenProjects}
-          onRandomize={onRandomize}
-        />
+        <LayerPanelEmptyState visible={displayLayers.length === 0} />
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
           graphAreas={graphAreas}
@@ -333,37 +318,9 @@ function LayerPanelHeader({
   );
 }
 
-function LayerPanelEmptyState({
-  visible,
-  onAddLayer,
-  onAddEffectPreset,
-  onAddTextPreset,
-  onStartAiImage,
-  onLoadStarter,
-  onOpenProjects,
-  onRandomize,
-}: {
-  visible: boolean;
-  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
-  onAddEffectPreset: (preset: EffectPreset) => void;
-  onAddTextPreset: (preset: TextPresetId) => void;
-  onStartAiImage?: () => void;
-  onLoadStarter?: (id: string) => void;
-  onOpenProjects?: () => void;
-  onRandomize?: () => void;
-}) {
+function LayerPanelEmptyState({ visible }: { visible: boolean }) {
   if (!visible) return null;
-  return (
-    <EmptyLayerPanelStart
-      onAddLayer={onAddLayer}
-      onAddEffectPreset={onAddEffectPreset}
-      onAddTextPreset={onAddTextPreset}
-      onStartAiImage={onStartAiImage}
-      onLoadStarter={onLoadStarter}
-      onOpenProjects={onOpenProjects}
-      onRandomize={onRandomize}
-    />
-  );
+  return <EmptyLayerPanelStart />;
 }
 
 function LayerSelectionActions({

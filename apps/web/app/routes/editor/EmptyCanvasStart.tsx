@@ -19,19 +19,26 @@ export function EmptyCanvasStart({
   return (
     <div className="empty-canvas-start" aria-label="Start a new artifact">
       <div className="empty-canvas-guide">
-        <span>New here?</span>
+        <span>Start with one source</span>
         <Link to="/docs/nodes#docs-first-cover">Open guide</Link>
       </div>
-      <div className="empty-canvas-start-actions">
-        <button type="button" onClick={onImportImage}>
-          Image
+      <div className="empty-canvas-start-actions" aria-label="Quick start actions">
+        <button
+          type="button"
+          className="empty-canvas-start-action empty-canvas-start-action--primary"
+          onClick={onImportImage}
+        >
+          Import image
         </button>
-        <button type="button" onClick={onStartAiImage}>
-          AI
+        <button type="button" className="empty-canvas-start-action" onClick={onAddText}>
+          Add text
         </button>
-        <button type="button" onClick={onAddText}>
-          Text
+        <button type="button" className="empty-canvas-start-action" onClick={onStartAiImage}>
+          AI image
         </button>
+      </div>
+      <div className="empty-canvas-starter-row" aria-label="Starter recipes">
+        <span>Recipes</span>
         <button type="button" onClick={onAddNoise}>
           Noise
         </button>

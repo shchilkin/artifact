@@ -9,6 +9,7 @@ import type {
   Layer,
   TextLayer,
 } from '../../../types/config';
+import { DEFAULT_EFFECT_LAYER_PROPS } from '../../../types/config';
 import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { measurePerformancePhase } from '../../performanceMeasure';
@@ -72,6 +73,13 @@ function throwIfRenderAborted(options: RenderOptions): void {
 function getLayerMeasureName(layer: Layer) {
   const label = layer.kind === 'effect' ? `effect:${layer.preset}` : layer.kind;
   return `${LAYER_RENDER_MEASURE_PREFIX}:${label}`;
+}
+
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+function parseHexRgb(value: unknown, fallback: string): [number, number, number] {
+  const hex = typeof value === 'string' && HEX_COLOR_RE.test(value) ? value : fallback;
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
 
 async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
@@ -263,9 +271,7 @@ function applyRayEffect(ctx: CanvasRenderingContext2D, W: number, H: number, lay
   const cx = W / 2;
   const cy = H / 2;
   const diagonal = Math.sqrt(W * W + H * H);
-  const r = parseInt(layer.rayColor.slice(1, 3), 16);
-  const g = parseInt(layer.rayColor.slice(3, 5), 16);
-  const b = parseInt(layer.rayColor.slice(5, 7), 16);
+  const [r, g, b] = parseHexRgb(layer.rayColor, DEFAULT_EFFECT_LAYER_PROPS.rayColor);
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   for (let i = 0; i < layer.rays; i++) {
@@ -743,9 +749,7 @@ function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H:
 
 function applyNeonGlowEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
   if (layer.neonGlow <= 0) return;
-  const r6 = parseInt(layer.neonColor.slice(1, 3), 16);
-  const g6 = parseInt(layer.neonColor.slice(3, 5), 16);
-  const b6 = parseInt(layer.neonColor.slice(5, 7), 16);
+  const [r6, g6, b6] = parseHexRgb(layer.neonColor, DEFAULT_EFFECT_LAYER_PROPS.neonColor);
   const srcData = ctx.getImageData(0, 0, W, H);
   const sd = srcData.data;
   const bright = createCanvas(W, H);

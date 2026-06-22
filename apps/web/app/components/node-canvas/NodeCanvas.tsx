@@ -314,21 +314,28 @@ export function NodeCanvas({
     onGraphChange,
   });
 
-  const { openAddNodeMenu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, onConnectEnd, handleAddFromMenu } =
-    useNodeContextMenus({
-      send,
-      graph,
-      rfInstanceRef,
-      addNodeButtonRef,
-      canvasSurfaceRef,
-      selectedEdgeId,
-      selectedNodeIds,
-      graphRef,
-      onDeleteNodes: deleteUnlockedNodes,
-      canDeleteNode,
-      onGraphChange,
-      onAddLayerAt,
-    });
+  const {
+    openAddNodeMenu,
+    onPaneContextMenu,
+    onNodeContextMenu,
+    onEdgeContextMenu,
+    onConnectStart,
+    onConnectEnd,
+    handleAddFromMenu,
+  } = useNodeContextMenus({
+    send,
+    graph,
+    rfInstanceRef,
+    addNodeButtonRef,
+    canvasSurfaceRef,
+    selectedEdgeId,
+    selectedNodeIds,
+    graphRef,
+    onDeleteNodes: deleteUnlockedNodes,
+    canDeleteNode,
+    onGraphChange,
+    onAddLayerAt,
+  });
 
   const {
     selectedAreaId,
@@ -508,6 +515,7 @@ export function NodeCanvas({
               onNodesChange={handleNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onConnectStart={onConnectStart}
               onConnectEnd={onConnectEnd}
               onEdgesDelete={onEdgesDelete}
               onNodeDragStart={onNodeDragStart}

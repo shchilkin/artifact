@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   getRenderWorkerDiagnosticsSnapshot,
   type RenderWorkerDiagnosticsSnapshot,
@@ -44,13 +52,27 @@ interface NodePerformanceOverlayProps {
   nodeCount: number;
 }
 
+interface OverlayPosition {
+  x: number;
+  y: number;
+}
+
+const PERF_OVERLAY_STORAGE_KEY = 'artifact-node-perf-overlay-position';
+const PERF_OVERLAY_DEFAULT_POSITION: OverlayPosition = { x: 12, y: 132 };
+const PERF_OVERLAY_MARGIN = 12;
+
 export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerformanceOverlayProps) {
-  const queue = useDeferredExternalSnapshot(
-    subscribeThumbnailQueue,
-    getThumbnailQueueSnapshot,
-    () => EMPTY_QUEUE_SNAPSHOT,
-  );
-  const worker = useDeferredExternalSnapshot(
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    origin: OverlayPosition;
+    pointerId: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const [position, setPosition] = useState(readStoredPerfOverlayPosition);
+  const positionRef = useRef(position);
+  const queue = useSyncExternalStore(subscribeThumbnailQueue, getThumbnailQueueSnapshot, () => EMPTY_QUEUE_SNAPSHOT);
+  const worker = useSyncExternalStore(
     subscribeRenderWorkerDiagnostics,
     getRenderWorkerDiagnosticsSnapshot,
     () => EMPTY_WORKER_SNAPSHOT,
@@ -62,10 +84,80 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
     return queue.active ? `Preparing previews ${pending} remaining` : `Queued previews ${pending}`;
   }, [pending, queue.active]);
 
+  const clampPosition = useCallback((next: OverlayPosition) => {
+    return clampPerfOverlayPosition(next, overlayRef.current);
+  }, []);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    const handleResize = () => setPosition((current) => clampPosition(current));
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [clampPosition]);
+
+  const handleDragStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      origin: positionRef.current,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+  }, []);
+
+  const handleDragMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = clampPosition({
+        x: drag.origin.x + event.clientX - drag.startX,
+        y: drag.origin.y + event.clientY - drag.startY,
+      });
+      positionRef.current = next;
+      setPosition(next);
+    },
+    [clampPosition],
+  );
+
+  const handleDragEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = null;
+    storePerfOverlayPosition(positionRef.current);
+  }, []);
+
   if (nodePerformanceOverlayHidden(debugEnabled, status)) return null;
 
   return (
-    <div className={`node-perf-overlay${debugEnabled ? ' node-perf-overlay-debug' : ''}`} aria-live="polite">
+    <div
+      ref={overlayRef}
+      className={`node-perf-overlay${debugEnabled ? ' node-perf-overlay-debug' : ''}`}
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+      aria-live="polite"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      {debugEnabled && (
+        <div
+          className="node-perf-header"
+          aria-label="Drag performance panel"
+          onPointerDown={handleDragStart}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+        >
+          <span>Perf</span>
+        </div>
+      )}
       <NodePerfStatus status={status} />
       <NodePerfDebugGrid
         debugEnabled={debugEnabled}
@@ -80,6 +172,43 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
 
 function nodePerformanceOverlayHidden(debugEnabled: boolean, status: string | null) {
   return !debugEnabled && !status;
+}
+
+function readStoredPerfOverlayPosition(): OverlayPosition {
+  if (typeof window === 'undefined') return PERF_OVERLAY_DEFAULT_POSITION;
+  try {
+    const stored = window.localStorage.getItem(PERF_OVERLAY_STORAGE_KEY);
+    if (!stored) return PERF_OVERLAY_DEFAULT_POSITION;
+    const parsed = JSON.parse(stored) as Partial<OverlayPosition>;
+    return typeof parsed.x === 'number' && typeof parsed.y === 'number'
+      ? { x: parsed.x, y: parsed.y }
+      : PERF_OVERLAY_DEFAULT_POSITION;
+  } catch {
+    return PERF_OVERLAY_DEFAULT_POSITION;
+  }
+}
+
+function storePerfOverlayPosition(position: OverlayPosition) {
+  try {
+    window.localStorage.setItem(PERF_OVERLAY_STORAGE_KEY, JSON.stringify(position));
+  } catch {
+    // Ignore storage failures; the panel remains draggable for this session.
+  }
+}
+
+function clampPerfOverlayPosition(next: OverlayPosition, overlay: HTMLDivElement | null): OverlayPosition {
+  const parent = overlay?.parentElement;
+  if (!parent || !overlay) return next;
+  const maxX = parent.clientWidth - overlay.offsetWidth - PERF_OVERLAY_MARGIN;
+  const maxY = parent.clientHeight - overlay.offsetHeight - PERF_OVERLAY_MARGIN;
+  return {
+    x: clamp(next.x, PERF_OVERLAY_MARGIN, Math.max(PERF_OVERLAY_MARGIN, maxX)),
+    y: clamp(next.y, PERF_OVERLAY_MARGIN, Math.max(PERF_OVERLAY_MARGIN, maxY)),
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function NodePerfStatus({ status }: { status: string | null }) {

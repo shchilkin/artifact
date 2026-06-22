@@ -61,6 +61,79 @@
 
 .react-flow__handle {
   border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 0 !important;
+  background: transparent !important;
+  cursor: crosshair;
+  overflow: visible;
+  z-index: 6;
+  transition:
+    background 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-flow__handle::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--node-bg) 62%, var(--node-surface));
+  border: 1px solid color-mix(in oklch, var(--node-border-strong) 74%, transparent);
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-flow__handle::after {
+  content: "";
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border: 5px solid var(--node-handle);
+  border-radius: 50%;
+  background: var(--node-bg);
+  box-shadow:
+    0 0 0 2px color-mix(in oklch, var(--node-bg) 90%, transparent),
+    0 0 0 0 color-mix(in oklch, var(--accent) 0%, transparent);
+  transition:
+    width 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-flow__handle:hover,
+.react-flow__handle:focus-visible {
+  box-shadow: none;
+}
+
+.react-flow__handle:hover::before,
+.react-flow__handle:focus-visible::before,
+.react-flow__handle.connectingfrom::before,
+.react-flow__handle.connectingto::before {
+  opacity: 1;
+  transform: scale(1.06);
+  background: color-mix(in oklch, var(--node-bg) 48%, var(--node-surface-raised));
+  border-color: color-mix(in oklch, var(--node-handle) 38%, var(--node-border-strong));
+}
+
+.react-flow__handle:hover::after,
+.react-flow__handle:focus-visible::after,
+.react-flow__handle.connectingfrom::after,
+.react-flow__handle.connectingto::after {
+  width: 18px;
+  height: 18px;
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--node-bg) 88%, black);
+  box-shadow:
+    0 0 0 2px color-mix(in oklch, var(--node-bg) 92%, transparent),
+    0 0 0 5px color-mix(in oklch, var(--accent) 20%, transparent);
 }
 
 .react-flow__controls {
@@ -407,8 +480,7 @@
 
 .node-shell-toggle,
 .node-editor-close,
-.node-shell-mute,
-.node-shell-delete {
+.node-shell-mute {
   width: var(--touch);
   height: var(--touch);
   display: grid;
@@ -441,14 +513,8 @@
     color 120ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.node-shell-delete {
-  margin: -5px -5px -5px 0;
-  border-color: transparent;
-  background: transparent;
-}
-
 .node-shell-mute {
-  margin: -5px 0;
+  margin: -5px -5px -5px 0;
   border-color: transparent;
   background: transparent;
   color: var(--node-text-dim);
@@ -475,8 +541,6 @@
   letter-spacing: 0.12em;
 }
 
-.node-shell-delete:hover,
-.node-shell-delete:focus-visible,
 .node-shell-mute:hover,
 .node-shell-mute:focus-visible {
   border-color: var(--node-border);
@@ -669,10 +733,10 @@
   padding: 8px 0 2px;
   color: var(--node-text-dim);
   font-family: var(--mono);
-  font-size: 9px;
-  line-height: 1.45;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .node-inspector-readout {
@@ -1439,14 +1503,53 @@
 
 .node-perf-overlay {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
+  top: 0;
+  left: 0;
   z-index: 7;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  max-height: calc(100% - 24px);
   max-width: min(320px, calc(100vw - 24px));
-  pointer-events: none;
+  overflow-y: auto;
+  pointer-events: auto;
+  scrollbar-color: var(--node-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.node-perf-overlay::-webkit-scrollbar {
+  width: 4px;
+}
+
+.node-perf-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.node-perf-overlay::-webkit-scrollbar-thumb {
+  background: var(--node-border-strong);
+}
+
+.node-perf-header {
+  display: flex;
+  min-width: 230px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: flex-start;
+  border: 1px solid var(--node-border);
+  border-bottom: 0;
+  background: color-mix(in oklch, var(--node-surface) 92%, transparent);
+  color: var(--node-text-dim);
+  cursor: grab;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  padding: 0 8px 0 10px;
+  text-transform: uppercase;
+  user-select: none;
+  backdrop-filter: blur(10px);
+}
+
+.node-perf-header:active {
+  cursor: grabbing;
 }
 
 .node-perf-status,
@@ -1465,7 +1568,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  width: fit-content;
+  min-width: 230px;
   min-height: 34px;
   padding: 0 10px;
 }
@@ -1484,6 +1587,12 @@
   gap: 5px 12px;
   padding: 10px;
   min-width: 230px;
+}
+
+@media (max-width: 767px) {
+  .node-perf-overlay {
+    max-height: calc(100% - 24px);
+  }
 }
 
 .node-perf-grid dt {
@@ -2487,7 +2596,7 @@
     opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
     flex-basis 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 20;
+  z-index: 35;
   border-left: 1px solid var(--border);
   border-top: none;
   border-right: none;
@@ -2516,7 +2625,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 0 14px;
-  min-height: 44px;
+  min-height: 42px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -2530,12 +2639,12 @@
 }
 
 .node-props-title {
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.12em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2585,20 +2694,21 @@
 
 .node-ai-generation-section {
   display: grid;
-  gap: 10px;
-  padding: 12px 14px 14px;
+  gap: 8px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
+  background: color-mix(in oklch, var(--sidebar-bg) 90%, var(--sidebar-raised));
 }
 
 .node-ai-generation-heading {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   line-height: 1.2;
   text-transform: uppercase;
 }
@@ -2612,14 +2722,14 @@
 
 .node-props-body .node-inspector-section {
   border: none;
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
 }
 
 .node-props-body .node-inspector-section-open {
-  background: color-mix(in oklch, var(--surface-bg) 52%, transparent);
-  box-shadow: inset 2px 0 0 color-mix(in oklch, var(--accent) 72%, transparent);
+  background: color-mix(in oklch, var(--sidebar-bg) 88%, var(--sidebar-raised));
+  box-shadow: none;
 }
 
 .node-props-body .node-section-button:hover {
@@ -2632,14 +2742,16 @@
 }
 
 .node-props-body .node-inspector-section-title {
-  color: var(--accent);
+  color: var(--text);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.1em;
 }
 
 .node-props-body .node-inspector-section-summary {
   color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 0.04em;
 }
 
 .node-props-body .node-inspector-section-toggle {
@@ -2658,6 +2770,40 @@
 .node-props-body .node-inspector-stack {
   padding: 10px 14px 14px;
   gap: 10px;
+}
+
+.node-props-body .editor-target-header {
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklch, var(--sidebar-bg) 92%, var(--sidebar-raised));
+  box-shadow: none;
+}
+
+.node-props-body .editor-target-header__topline {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.node-props-body .editor-target-header__title {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.node-props-body .editor-target-header__breadcrumbs {
+  letter-spacing: 0.03em;
+}
+
+.node-props-empty {
+  margin: 12px 14px;
+  border: 1px solid var(--border);
+  padding: 12px;
+  color: var(--text-dim);
+  background: color-mix(in oklch, var(--sidebar-bg) 88%, var(--sidebar-raised));
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .node-props-body .node-inspector-label {

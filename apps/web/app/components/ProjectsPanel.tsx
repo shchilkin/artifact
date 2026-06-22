@@ -230,8 +230,8 @@ function ProjectWorkspaceSummary({
 }
 
 function projectCountClassName(projectCount: number, maxProjects: number) {
-  const toneClassName = projectCount >= maxProjects - 2 ? 'text-accent' : 'text-dim';
-  return `text-[9px] tracking-[0.5px] ${toneClassName}`;
+  const toneClassName = projectCount >= maxProjects - 2 ? 'project-count-warning' : 'project-count-muted';
+  return `project-count ${toneClassName}`;
 }
 
 function projectsPanelViewModel(
@@ -408,7 +408,7 @@ export function ProjectsList({
 }) {
   if (!hasSavedItems) return <ProjectsEmptyState />;
   return (
-    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+    <div className="projects-list">
       <RecoveryDraftCard
         loadMode={loadMode}
         recoveryDraft={recoveryDraft}
@@ -434,8 +434,8 @@ export function ProjectsList({
 
 function ProjectsEmptyState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-dim text-[11px] p-5 text-center">
-      <div className="text-[32px] text-accent opacity-30 mb-2">▣</div>
+    <div className="projects-empty-state">
+      <div className="projects-empty-state__mark">▣</div>
       <p>No projects saved yet.</p>
       <p>Create a project to keep editing this document later.</p>
     </div>
@@ -510,10 +510,7 @@ function ProjectCard({
 function ProjectCardFrame({ active, children, draft }: { active: boolean; children: ReactNode; draft?: boolean }) {
   const stateClass = draft ? 'library-card-draft' : active ? 'library-card-active' : '';
   return (
-    <div
-      className={`library-card ${stateClass} flex gap-2.5 p-2.5 border border-border rounded bg-sidebar-raised/50 transition-colors hover:border-accent/30`}
-      aria-current={active ? 'true' : undefined}
-    >
+    <div className={`library-card ${stateClass}`} aria-current={active ? 'true' : undefined}>
       {children}
     </div>
   );
@@ -533,7 +530,7 @@ function ProjectCardPrimary({
   const content = (
     <>
       <ProjectCardImage project={project} badge={badge} loadMode={loadMode} />
-      <div className="library-card-copy flex-1 flex flex-col justify-between min-w-0">
+      <div className="library-card-copy">
         <ProjectCardMeta project={project} />
       </div>
     </>
@@ -561,7 +558,7 @@ function ProjectCardImage({
 }) {
   return (
     <div className="library-card-artwork">
-      <img src={project.thumbnail} alt={project.name} className="w-20 h-20 rounded object-cover shrink-0" />
+      <img src={project.thumbnail} alt={project.name} className="library-card-image" />
       {badge && <span className="library-card-badge">{badge}</span>}
       {loadMode === 'card' && (
         <span className="library-card-hover-cue" aria-hidden="true">
@@ -574,13 +571,11 @@ function ProjectCardImage({
 
 function ProjectCardMeta({ project }: { project: SavedProject }) {
   return (
-    <div>
-      <div className="text-[12px] text-text truncate">{project.name}</div>
-      <div className="text-[10px] text-dim tracking-[0.5px]">{formatUpdatedAt(project.updatedAt)}</div>
-      <div className="library-card-seed text-[10px] text-dim tracking-[0.5px]">seed: {project.doc.global.seed}</div>
-      <div className="library-card-size text-[10px] text-dim tracking-[0.5px]">
-        size: {formatBytes(projectSizeBytes(project))}
-      </div>
+    <div className="library-card-meta">
+      <div className="library-card-title">{project.name}</div>
+      <div className="library-card-updated">{formatUpdatedAt(project.updatedAt)}</div>
+      <div className="library-card-seed">seed: {project.doc.global.seed}</div>
+      <div className="library-card-size">size: {formatBytes(projectSizeBytes(project))}</div>
     </div>
   );
 }
@@ -641,7 +636,7 @@ function ProjectCardButtonActions({
   showLoad: boolean;
 }) {
   return (
-    <div className="library-card-actions flex gap-1.5">
+    <div className="library-card-actions">
       <ProjectLoadAction loadVariant={loadVariant} project={project} showLoad={showLoad} onLoad={onLoad} />
       <ProjectDeleteButtonAction deleteVariant={deleteVariant} project={project} onDelete={onDelete} />
       <ProjectCopyAction project={project} onCopy={onCopy} />
