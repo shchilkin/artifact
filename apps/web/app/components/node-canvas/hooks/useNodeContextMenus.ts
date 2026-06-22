@@ -184,6 +184,51 @@ function openDeferredConnectAddMenu(
   });
 }
 
+function connectEndAddMenu(
+  event: MouseEvent | TouchEvent,
+  connectionState: FinalConnectionState,
+  pendingConnection: ReturnType<typeof pendingConnectStart>,
+  screenToFlowPosition: ((point: { x: number; y: number }) => { x: number; y: number }) | undefined,
+): Extract<ContextMenuState, { type: 'pane-insert' }> | null {
+  const request = connectEndAddRequest(event, connectionState, pendingConnection);
+  if (!request) return null;
+  const { connection, pointer } = request;
+  const flowPos = connectEndFlowPosition(pointer, screenToFlowPosition);
+  return {
+    type: 'pane-insert',
+    x: pointer.clientX,
+    y: pointer.clientY,
+    flowPos,
+    insertion: insertionFromConnection(connection.fromNodeId, connection.fromHandle),
+  };
+}
+
+function connectEndAddRequest(
+  event: MouseEvent | TouchEvent,
+  connectionState: FinalConnectionState,
+  pendingConnection: ReturnType<typeof pendingConnectStart>,
+) {
+  if (connectionState.isValid === true) return null;
+  return connectEndRequest(pendingConnectEnd(connectionState) ?? pendingConnection, connectEndPointer(event));
+}
+
+function connectEndRequest(
+  connection: ReturnType<typeof pendingConnectStart>,
+  pointer: MouseEvent | Touch | undefined,
+) {
+  if (!connection) return null;
+  if (!pointer) return null;
+  return { connection, pointer };
+}
+
+function connectEndFlowPosition(
+  pointer: MouseEvent | Touch,
+  screenToFlowPosition: ((point: { x: number; y: number }) => { x: number; y: number }) | undefined,
+) {
+  if (!screenToFlowPosition) return { x: 0, y: 0 };
+  return screenToFlowPosition({ x: pointer.clientX, y: pointer.clientY });
+}
+
 /**
  * Owns all context-menu and keyboard-delete logic for the node canvas.
  * Handles pane, node, and edge context menus plus Delete/Backspace keyboard shortcut.
@@ -304,27 +349,14 @@ export function useNodeContextMenus({
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
       event.preventDefault();
       event.stopPropagation();
-      const pendingConnection = pendingConnectEnd(connectionState) ?? pendingConnectionStartRef.current;
+      const menu = connectEndAddMenu(
+        event,
+        connectionState,
+        pendingConnectionStartRef.current,
+        (point) => rfInstanceRef.current?.screenToFlowPosition(point) ?? { x: 0, y: 0 },
+      );
       pendingConnectionStartRef.current = null;
-      if (connectionState.isValid === true) return;
-      if (!pendingConnection) return;
-      const pointer = connectEndPointer(event);
-      if (!pointer) return;
-      const flowPos = rfInstanceRef.current?.screenToFlowPosition({
-        x: pointer.clientX,
-        y: pointer.clientY,
-      }) ?? {
-        x: 0,
-        y: 0,
-      };
-      const insertion = insertionFromConnection(pendingConnection.fromNodeId, pendingConnection.fromHandle);
-      openDeferredConnectAddMenu(send, {
-        type: 'pane-insert',
-        x: pointer.clientX,
-        y: pointer.clientY,
-        flowPos,
-        insertion,
-      });
+      if (menu) openDeferredConnectAddMenu(send, menu);
     },
     [send, rfInstanceRef],
   );

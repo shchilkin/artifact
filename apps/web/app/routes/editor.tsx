@@ -291,7 +291,13 @@ export default function Editor() {
 
   return (
     <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
-      <SiteNav solid compact />
+      <SiteNav
+        solid
+        compact
+        compactSlot={
+          viewMode === 'nodes' ? <ViewModeToggle value={viewMode} onChange={setViewMode} variant="node" /> : undefined
+        }
+      />
       <input
         ref={fileInputRef}
         className="sr-only"
@@ -381,11 +387,6 @@ export default function Editor() {
         >
           <h1 className="sr-only">Artifact Cover Editor</h1>
           <StorageWarningStrip status={storageStatus} storageError={storageError} />
-          {viewMode === 'nodes' && (
-            <div className="floating-view-toggle">
-              <ViewModeToggle value={viewMode} onChange={setViewMode} />
-            </div>
-          )}
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>

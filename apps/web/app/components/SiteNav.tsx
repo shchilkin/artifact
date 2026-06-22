@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
@@ -14,7 +14,20 @@ const LINKS = [
 
 const linkClass = ({ isActive }: { isActive: boolean }) => `site-nav-link ${isActive ? 'site-nav-link-active' : ''}`;
 
-export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean }) {
+function siteNavClassName({ solid, compact }: { solid?: boolean; compact?: boolean }) {
+  const surfaceClassName = solid ? 'site-nav--solid' : 'site-nav--floating';
+  return ['site-nav', surfaceClassName, compact ? 'site-nav-compact' : ''].filter(Boolean).join(' ');
+}
+
+export function SiteNav({
+  solid,
+  compact,
+  compactSlot,
+}: {
+  solid?: boolean;
+  compact?: boolean;
+  compactSlot?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const auth = useArtifactAuth();
 
@@ -24,13 +37,14 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className={`site-nav ${solid ? 'site-nav--solid' : 'site-nav--floating'} ${compact ? 'site-nav-compact' : ''}`}
+        className={siteNavClassName({ solid, compact })}
         aria-label="Site navigation"
       >
         <Link to="/" className="site-nav-brand">
           <LogoGlyph />
           <span className="site-nav-brand-text">artifact</span>
         </Link>
+        <CompactSlot compact={compact}>{compactSlot}</CompactSlot>
         <DesktopNavLinks compact={compact} auth={auth} />
         <MobileNavToggle compact={compact} open={open} onToggle={() => setOpen((o) => !o)} />
       </motion.nav>
@@ -41,6 +55,11 @@ export function SiteNav({ solid, compact }: { solid?: boolean; compact?: boolean
       </AnimatePresence>
     </>
   );
+}
+
+function CompactSlot({ compact, children }: { compact?: boolean; children: ReactNode }) {
+  if (!compact || !children) return null;
+  return <div className="site-nav-compact-slot">{children}</div>;
 }
 
 function DesktopNavLinks({ compact, auth }: { compact?: boolean; auth: ReturnType<typeof useArtifactAuth> }) {
