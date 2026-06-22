@@ -245,6 +245,12 @@ export type EffectPreset =
   | 'rgbSplit'
   | 'interlace'
   | 'dataMosh'
+  | 'badStream'
+  | 'macroblocks'
+  | 'detailBlocks'
+  | 'blockSmear'
+  | 'chromaBlocks'
+  | 'blockDropout'
   | 'grain'
   | 'dotGrain'
   | 'scanlines'
@@ -305,6 +311,12 @@ export interface EffectLayer extends BaseLayer {
   scanlineWidth: number;
   rgbSplit: number;
   glitch: number;
+  badStream: number;
+  badStreamBlockSize: number;
+  badStreamDetail: number;
+  badStreamSmear: number;
+  badStreamChroma: number;
+  badStreamDarkness: number;
   tint: string;
   tintOp: number;
   rays: number;
@@ -752,6 +764,12 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   scanlineWidth: 1,
   rgbSplit: 0,
   glitch: 0,
+  badStream: 0,
+  badStreamBlockSize: 48,
+  badStreamDetail: 42,
+  badStreamSmear: 35,
+  badStreamChroma: 28,
+  badStreamDarkness: 38,
   tint: '#350055',
   tintOp: 0,
   rays: 0,
@@ -1060,6 +1078,90 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '▥',
     primary: 'dataMosh',
     partial: { ...ZERO_EFFECT, dataMosh: 30 },
+  },
+  badStream: {
+    name: 'Bad Stream',
+    icon: '▧',
+    primary: 'badStream',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 72,
+      badStreamBlockSize: 54,
+      badStreamDetail: 48,
+      badStreamSmear: 38,
+      badStreamChroma: 28,
+      badStreamDarkness: 42,
+    },
+  },
+  macroblocks: {
+    name: 'Macroblocks',
+    icon: '▦',
+    primary: 'badStream',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 72,
+      badStreamBlockSize: 64,
+      badStreamDetail: 0,
+      badStreamSmear: 0,
+      badStreamChroma: 0,
+      badStreamDarkness: 18,
+    },
+  },
+  detailBlocks: {
+    name: 'Detail Blocks',
+    icon: '▥',
+    primary: 'badStreamDetail',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 82,
+      badStreamBlockSize: 54,
+      badStreamDetail: 86,
+      badStreamSmear: 0,
+      badStreamChroma: 28,
+      badStreamDarkness: 22,
+    },
+  },
+  blockSmear: {
+    name: 'Block Smear',
+    icon: '▰',
+    primary: 'badStreamSmear',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 76,
+      badStreamBlockSize: 52,
+      badStreamDetail: 0,
+      badStreamSmear: 82,
+      badStreamChroma: 0,
+      badStreamDarkness: 0,
+    },
+  },
+  chromaBlocks: {
+    name: 'Chroma Blocks',
+    icon: '◫',
+    primary: 'badStreamChroma',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 70,
+      badStreamBlockSize: 46,
+      badStreamDetail: 36,
+      badStreamSmear: 0,
+      badStreamChroma: 86,
+      badStreamDarkness: 0,
+    },
+  },
+  blockDropout: {
+    name: 'Block Dropout',
+    icon: '▨',
+    primary: 'badStreamDarkness',
+    partial: {
+      ...ZERO_EFFECT,
+      badStream: 78,
+      badStreamBlockSize: 58,
+      badStreamDetail: 0,
+      badStreamSmear: 0,
+      badStreamChroma: 0,
+      badStreamDarkness: 86,
+    },
   },
   grain: {
     name: 'Grain',
@@ -1379,6 +1481,12 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'interlace',
   'dataMosh',
   'vhsTracking',
+  'badStream',
+  'macroblocks',
+  'detailBlocks',
+  'blockSmear',
+  'chromaBlocks',
+  'blockDropout',
   'grain',
   'dotGrain',
   'scanlines',

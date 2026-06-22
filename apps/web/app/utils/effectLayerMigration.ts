@@ -1,6 +1,14 @@
 import { EFFECT_PRESETS, type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../types/config';
 
 const LEGACY_COMBINED_PRESETS = new Set(['warp', 'color', 'riso']);
+const CODEC_BLOCK_PRESETS = new Set([
+  'badStream',
+  'macroblocks',
+  'detailBlocks',
+  'blockSmear',
+  'chromaBlocks',
+  'blockDropout',
+]);
 
 type EffectField = keyof EffectLayer;
 
@@ -33,6 +41,18 @@ const SPLIT_RULES: SplitRule[] = [
   { preset: 'barrel', active: ['barrel'], copy: ['barrel'] },
   { preset: 'mirror', active: ['mirror'], copy: ['mirror'] },
   { preset: 'dataMosh', active: ['dataMosh'], copy: ['dataMosh'] },
+  {
+    preset: 'badStream',
+    active: ['badStream'],
+    copy: [
+      'badStream',
+      'badStreamBlockSize',
+      'badStreamDetail',
+      'badStreamSmear',
+      'badStreamChroma',
+      'badStreamDarkness',
+    ],
+  },
   { preset: 'interlace', active: ['interlace'], copy: ['interlace'] },
   { preset: 'retroResolution', active: ['retroResolution'], copy: ['retroResolution'] },
   { preset: 'pixelate', active: ['pixelate'], copy: ['pixelate'] },
@@ -126,5 +146,8 @@ export function shouldSplitEffectLayer(layer: Partial<EffectLayer>): boolean {
   if (LEGACY_COMBINED_PRESETS.has(String(layer.preset))) return true;
   const activeRules = SPLIT_RULES.filter((rule) => hasActiveValue(layer, rule.active));
   if (!isFocusedPreset(layer.preset)) return activeRules.length > 0;
-  return activeRules.some((rule) => rule.preset !== layer.preset);
+  return activeRules.some(
+    (rule) =>
+      rule.preset !== layer.preset && !(CODEC_BLOCK_PRESETS.has(layer.preset) && CODEC_BLOCK_PRESETS.has(rule.preset)),
+  );
 }
