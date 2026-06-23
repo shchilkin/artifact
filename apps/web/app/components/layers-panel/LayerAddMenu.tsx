@@ -29,57 +29,64 @@ export function LayerAddMenu({
   onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
-  const addMenu = useAddLibraryFloatingMenu({ width: LAYER_ADD_MENU_W, height: LAYER_ADD_MENU_H });
+  const {
+    anchorRef: addMenuAnchorRef,
+    close: closeAddMenu,
+    menuRef: addMenuRef,
+    menuStyle: addMenuStyle,
+    open: isAddMenuOpen,
+    toggle: toggleAddMenu,
+  } = useAddLibraryFloatingMenu({ width: LAYER_ADD_MENU_W, height: LAYER_ADD_MENU_H });
 
   const handleAddLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
       onAddLayer(kind);
-      addMenu.close();
+      closeAddMenu();
     },
-    [addMenu.close, onAddLayer],
+    [closeAddMenu, onAddLayer],
   );
 
   const handleAddEffectPreset = useCallback(
     (preset: EffectPreset) => {
       onAddEffectPreset(preset);
-      addMenu.close();
+      closeAddMenu();
     },
-    [addMenu.close, onAddEffectPreset],
+    [closeAddMenu, onAddEffectPreset],
   );
 
   const handleAddTextPreset = useCallback(
     (preset: TextPresetId) => {
       onAddTextPreset(preset);
-      addMenu.close();
+      closeAddMenu();
     },
-    [addMenu.close, onAddTextPreset],
+    [closeAddMenu, onAddTextPreset],
   );
 
   const handleAddNoisePreset = useCallback(
     (preset: NoisePresetId) => {
       onAddNoisePreset(preset);
-      addMenu.close();
+      closeAddMenu();
     },
-    [addMenu.close, onAddNoisePreset],
+    [closeAddMenu, onAddNoisePreset],
   );
 
   const handleAddArrayPreset = useCallback(
     (preset: ArrayPresetId) => {
       onAddArrayPreset(preset);
-      addMenu.close();
+      closeAddMenu();
     },
-    [addMenu.close, onAddArrayPreset],
+    [closeAddMenu, onAddArrayPreset],
   );
 
   const handleStartAiImage = useCallback(() => {
     onStartAiImage?.();
-    addMenu.close();
-  }, [addMenu.close, onStartAiImage]);
+    closeAddMenu();
+  }, [closeAddMenu, onStartAiImage]);
 
   const handleAddScene3D = useCallback(() => {
     onAddScene3D();
-    setShowAddMenu(false);
-  }, [onAddScene3D]);
+    closeAddMenu();
+  }, [closeAddMenu, onAddScene3D]);
 
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
@@ -108,20 +115,20 @@ export function LayerAddMenu({
   );
 
   return (
-    <div ref={addMenu.anchorRef} className="relative">
-      <button className="layer-add-button" onClick={addMenu.toggle} aria-label="Add layer">
+    <div ref={addMenuAnchorRef} className="relative">
+      <button className="layer-add-button" onClick={toggleAddMenu} aria-label="Add layer">
         + ADD
       </button>
-      {addMenu.open &&
+      {isAddMenuOpen &&
         typeof document !== 'undefined' &&
         createPortal(
-          <div ref={addMenu.menuRef} className="add-library-surface add-library-layer-menu" style={addMenu.menuStyle}>
+          <div ref={addMenuRef} className="add-library-surface add-library-layer-menu" style={addMenuStyle}>
             <AddLibraryPanel
               surface="layers"
               searchLabel="Search layers and effects"
               placeholder="Add layer…"
               onAdd={handleAddLibraryAction}
-              onClose={addMenu.close}
+              onClose={closeAddMenu}
             />
           </div>,
           document.body,

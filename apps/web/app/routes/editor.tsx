@@ -66,6 +66,15 @@ const IMPORT_FILE_TYPES = [
   { icon: 'PKG', label: 'Package', detail: '.artifact with assets' },
 ];
 
+async function saveRecoveryDraftOrConfirm(saveRecoveryDraft: () => Promise<void>) {
+  try {
+    await saveRecoveryDraft();
+    return true;
+  } catch {
+    return window.confirm('Could not save a recovery copy. Open the dropped file anyway?');
+  }
+}
+
 function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
   return (
@@ -333,31 +342,23 @@ export default function Editor() {
     [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
 
+  const finishDroppedDocumentImport = useCallback(() => {
+    closePanels();
+    handleConfirmDocumentImport();
+    resetPrimitiveViewStates();
+    setViewMode('layers');
+  }, [closePanels, handleConfirmDocumentImport, resetPrimitiveViewStates]);
+
   const handleConfirmDroppedDocument = useCallback(async () => {
     if (!pendingDocumentImport || documentImportBusy) return;
     setDocumentImportBusy(true);
     try {
-      try {
-        await saveRecoveryDraft();
-      } catch {
-        const openAnyway = window.confirm('Could not save a recovery copy. Open the dropped file anyway?');
-        if (!openAnyway) return;
-      }
-      closePanels();
-      handleConfirmDocumentImport();
-      resetPrimitiveViewStates();
-      setViewMode('layers');
+      const canOpenDroppedDocument = await saveRecoveryDraftOrConfirm(saveRecoveryDraft);
+      if (canOpenDroppedDocument) finishDroppedDocumentImport();
     } finally {
       setDocumentImportBusy(false);
     }
-  }, [
-    closePanels,
-    documentImportBusy,
-    handleConfirmDocumentImport,
-    pendingDocumentImport,
-    resetPrimitiveViewStates,
-    saveRecoveryDraft,
-  ]);
+  }, [documentImportBusy, finishDroppedDocumentImport, pendingDocumentImport, saveRecoveryDraft]);
 
   const handleGeneratedImageSource = useCallback(
     (...args: Parameters<typeof addImageFromSource>) => {

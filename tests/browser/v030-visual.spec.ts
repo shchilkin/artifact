@@ -119,10 +119,7 @@ test('v0.30 blank editor keeps the empty start and layer shell visually readable
   await assertReadableBox(page.locator('.empty-canvas-start'), { minWidth: 240, minHeight: 140 });
   await assertReadableBox(page.locator('.sidebar'), { minWidth: 250, minHeight: 420 });
 
-  const layerHeader = page.locator('.layer-panel-header');
-  await layerHeader.getByRole('button', { name: 'Add layer' }).click();
-  const menu = page.locator('.add-library-layer-menu');
-  await expect(menu).toBeVisible({ timeout: 15_000 });
+  const menu = await openLayerAddLibraryMenu(page);
   await expect(page.getByLabel('Search layers and effects')).toBeVisible();
   await assertAddLibraryReadability(menu);
 });
@@ -138,49 +135,19 @@ test('medium desktop editor keeps bottom actions inside the viewport', async ({ 
   await expect(bottomBar.getByRole('button', { name: /projects/i })).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /export/i })).toBeVisible();
   await bottomBar.getByRole('button', { name: /more editor actions/i }).click();
-  await expect(page.getByRole('menuitem', { name: 'Open document' })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: 'Copy editor link' })).toBeVisible();
+  const moreMenu = page.locator('.artifact-dropdown-menu-content');
+  await expect(moreMenu.getByRole('menuitem', { name: 'Open document' })).toBeVisible();
+  await expect(moreMenu.getByRole('menuitem', { name: 'Copy editor link' })).toBeVisible();
 
-  const layout = await page.evaluate(() => {
-    const bar = document.querySelector('.main > .bottom-bar')?.getBoundingClientRect();
-    const menu = document.querySelector('.artifact-dropdown-menu-content')?.getBoundingClientRect();
-    const buttons = Array.from(document.querySelectorAll('.main > .bottom-bar button'))
-      .map((button) => {
-        const box = button.getBoundingClientRect();
-        return {
-          left: box.left,
-          right: box.right,
-          top: box.top,
-          bottom: box.bottom,
-          width: box.width,
-          height: box.height,
-          label: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
-        };
-      })
-      .filter((button) => button.width > 0 && button.height > 0);
-    return {
-      bar: bar ? { left: bar.left, right: bar.right, top: bar.top, bottom: bar.bottom, height: bar.height } : null,
-      menu: menu ? { left: menu.left, right: menu.right, top: menu.top, bottom: menu.bottom } : null,
-      buttons,
-      scrollWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-    };
-  });
+  const layout = {
+    ...(await readViewportMetrics(page)),
+    bar: await readElementRect(bottomBar),
+    buttons: await readVisibleButtonRects(bottomBar.locator('button')),
+    menu: await readElementRect(moreMenu),
+  };
   await page.keyboard.press('Escape');
 
-  expect(layout.bar).not.toBeNull();
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  expect(layout.bar?.right ?? 0).toBeLessThanOrEqual(layout.viewportWidth + 1);
-
-  expect(layout.menu).not.toBeNull();
-  expect(layout.menu?.left ?? 0).toBeGreaterThanOrEqual(0);
-  expect(layout.menu?.right ?? 0).toBeLessThanOrEqual(layout.viewportWidth + 1);
-
-  for (const button of layout.buttons) {
-    expect(button.left).toBeGreaterThanOrEqual((layout.bar?.left ?? 0) - 1);
-    expect(button.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
-    expect(button.bottom).toBeLessThanOrEqual((layout.bar?.bottom ?? 0) + 1);
-  }
+  expectEditorBottomActionsInsideViewport(layout);
 });
 
 test('wide desktop editor keeps overflow-only actions collapsed', async ({ page }) => {
@@ -195,127 +162,21 @@ test('wide desktop editor keeps overflow-only actions collapsed', async ({ page 
 });
 
 test('medium desktop node bottom rail stays single-row and intentional', async ({ page }) => {
-  await page.setViewportSize({ width: 1117, height: 775 });
-  await gotoDocument(page, graphStateDocument);
-  await switchToNodeView(page);
-
-  const bottomBar = page.locator('.main-nodes > .bottom-bar');
-  await expect(bottomBar).toBeVisible({ timeout: 15_000 });
-  await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeVisible();
+  const bottomBar = await openGraphNodeBottomBar(page, { width: 1117, height: 775 });
   await expect(bottomBar.getByRole('button', { name: /projects/i })).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /export/i })).toBeVisible();
 
-  const layout = await page.evaluate(() => {
-    const bar = document.querySelector('.main-nodes > .bottom-bar')?.getBoundingClientRect();
-    const controls = document.querySelector('.react-flow__controls')?.getBoundingClientRect();
-    const buttons = Array.from(document.querySelectorAll('.main-nodes > .bottom-bar button'))
-      .map((button) => {
-        const box = button.getBoundingClientRect();
-        const style = getComputedStyle(button);
-        return {
-          display: style.display,
-          height: box.height,
-          left: box.left,
-          right: box.right,
-          top: box.top,
-          bottom: box.bottom,
-          width: box.width,
-        };
-      })
-      .filter((button) => button.display !== 'none' && button.width > 0 && button.height > 0);
-    return {
-      bar: bar
-        ? { left: bar.left, right: bar.right, top: bar.top, bottom: bar.bottom, width: bar.width, height: bar.height }
-        : null,
-      buttons,
-      scrollWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-    };
-  });
+  const layout = await readNodeBottomRailLayout(page);
 
-  expect(layout.bar).not.toBeNull();
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  expect(layout.bar?.width ?? 0).toBeGreaterThan(560);
-  expect(layout.bar?.height ?? 0).toBeLessThanOrEqual(64);
-  expect(layout.bar?.left ?? -1).toBeGreaterThanOrEqual(0);
-  expect(layout.bar?.right ?? 0).toBeLessThanOrEqual(layout.viewportWidth + 1);
-
-  const tops = layout.buttons.map((button) => button.top);
-  const bottoms = layout.buttons.map((button) => button.bottom);
-  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
-  expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThanOrEqual(1);
-
-  for (let index = 1; index < layout.buttons.length; index += 1) {
-    expect(layout.buttons[index].left).toBeGreaterThanOrEqual(layout.buttons[index - 1].right - 1);
-  }
+  expectSingleRowNodeBottomRail(layout);
 });
 
 test('narrow node bottom rail wraps into viewport-safe command rows', async ({ page }) => {
-  await page.setViewportSize({ width: 566, height: 775 });
-  await gotoDocument(page, graphStateDocument);
-  await switchToNodeView(page);
-
-  const bottomBar = page.locator('.main-nodes > .bottom-bar');
-  await expect(bottomBar).toBeVisible({ timeout: 15_000 });
-  await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeVisible();
+  const bottomBar = await openGraphNodeBottomBar(page, { width: 566, height: 775 });
   await expect(bottomBar.getByRole('button', { name: /open document file/i })).toBeHidden();
   await expect(bottomBar.getByRole('button', { name: /share link or download editable files/i })).toBeHidden();
 
-  const layout = await page.evaluate(() => {
-    const bar = document.querySelector('.main-nodes > .bottom-bar')?.getBoundingClientRect();
-    const controls = document.querySelector('.react-flow__controls')?.getBoundingClientRect();
-    const buttons = Array.from(document.querySelectorAll('.main-nodes > .bottom-bar button'))
-      .map((button) => {
-        const box = button.getBoundingClientRect();
-        const style = getComputedStyle(button);
-        return {
-          display: style.display,
-          height: box.height,
-          left: box.left,
-          right: box.right,
-          top: box.top,
-          bottom: box.bottom,
-          width: box.width,
-        };
-      })
-      .filter((button) => button.display !== 'none' && button.width > 0 && button.height > 0);
-    const rowCount = new Set(buttons.map((button) => Math.round(button.top))).size;
-    return {
-      bar: bar
-        ? { left: bar.left, right: bar.right, top: bar.top, bottom: bar.bottom, width: bar.width, height: bar.height }
-        : null,
-      controls: controls
-        ? {
-            left: controls.left,
-            right: controls.right,
-            top: controls.top,
-            bottom: controls.bottom,
-            width: controls.width,
-          }
-        : null,
-      buttons,
-      rowCount,
-      scrollWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-    };
-  });
-
-  expect(layout.bar).not.toBeNull();
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  expect(layout.bar?.left ?? -1).toBeGreaterThanOrEqual(0);
-  expect(layout.bar?.right ?? 0).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  expect(layout.bar?.width ?? 0).toBeLessThanOrEqual(layout.viewportWidth - 24);
-  expect(layout.bar?.height ?? 0).toBeLessThanOrEqual(110);
-  expect(layout.controls).not.toBeNull();
-  expect(layout.bar?.left ?? 0).toBeGreaterThanOrEqual((layout.controls?.right ?? 0) + 12);
-  expect(layout.rowCount).toBe(2);
-
-  for (const button of layout.buttons) {
-    expect(button.left).toBeGreaterThanOrEqual((layout.bar?.left ?? 0) - 1);
-    expect(button.right).toBeLessThanOrEqual((layout.bar?.right ?? layout.viewportWidth) + 1);
-    expect(button.width).toBeGreaterThanOrEqual(44);
-    expect(button.height).toBeGreaterThanOrEqual(44);
-  }
+  expectNarrowNodeBottomRail(await readNodeBottomRailLayoutWithControls(page));
 });
 
 test('v0.30 style guide exposes reusable primitives and editor states', async ({ page }) => {
@@ -477,9 +338,7 @@ test('v0.30 layers baseline preserves selected hidden locked and preview states'
 test('v0.30 layer Add Library keeps search results preview and controls readable', async ({ page }) => {
   await gotoDocument(page, layerStateDocument);
 
-  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
-  const menu = page.locator('.add-library-layer-menu');
-  await expect(menu).toBeVisible({ timeout: 15_000 });
+  const menu = await openLayerAddLibraryMenu(page);
 
   await page.getByLabel('Search layers and effects').fill('pixelate');
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
@@ -533,6 +392,140 @@ async function assertReadableBox(locator: Locator, options: { minWidth: number; 
   expect(box).toBeTruthy();
   expect(box?.width ?? 0).toBeGreaterThanOrEqual(options.minWidth);
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(options.minHeight);
+}
+
+async function openLayerAddLibraryMenu(page: Page) {
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  return menu;
+}
+
+async function openGraphNodeBottomBar(page: Page, viewport: { width: number; height: number }) {
+  await page.setViewportSize(viewport);
+  await gotoDocument(page, graphStateDocument);
+  await switchToNodeView(page);
+  const bottomBar = page.locator('.main-nodes > .bottom-bar');
+  await expect(bottomBar).toBeVisible({ timeout: 15_000 });
+  await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeVisible();
+  return bottomBar;
+}
+
+async function readNodeBottomRailLayout(page: Page) {
+  const bottomBar = page.locator('.main-nodes > .bottom-bar');
+  const buttons = await readVisibleButtonRects(bottomBar.locator('button'));
+  return {
+    ...(await readViewportMetrics(page)),
+    bar: await readElementRect(bottomBar),
+    buttons,
+    rowCount: new Set(buttons.map((button) => Math.round(button.top))).size,
+  };
+}
+
+async function readNodeBottomRailLayoutWithControls(page: Page) {
+  return {
+    ...(await readNodeBottomRailLayout(page)),
+    controls: await readElementRect(page.locator('.react-flow__controls')),
+  };
+}
+
+async function readViewportMetrics(page: Page) {
+  return page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
+}
+
+async function readElementRect(locator: Locator) {
+  return locator.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return {
+      bottom: box.bottom,
+      height: box.height,
+      left: box.left,
+      right: box.right,
+      top: box.top,
+      width: box.width,
+    };
+  });
+}
+
+async function readVisibleButtonRects(locator: Locator) {
+  return locator.evaluateAll((buttons) =>
+    buttons
+      .map((button) => {
+        const box = button.getBoundingClientRect();
+        const style = getComputedStyle(button);
+        return {
+          bottom: box.bottom,
+          display: style.display,
+          height: box.height,
+          label: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          left: box.left,
+          right: box.right,
+          top: box.top,
+          width: box.width,
+        };
+      })
+      .filter((button) => button.display !== 'none' && button.width > 0 && button.height > 0),
+  );
+}
+
+function expectEditorBottomActionsInsideViewport(
+  layout: Awaited<ReturnType<typeof readViewportMetrics>> & {
+    bar: Awaited<ReturnType<typeof readElementRect>>;
+    buttons: Awaited<ReturnType<typeof readVisibleButtonRects>>;
+    menu: Awaited<ReturnType<typeof readElementRect>>;
+  },
+) {
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(layout.bar.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(layout.menu.left).toBeGreaterThanOrEqual(0);
+  expect(layout.menu.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  for (const button of layout.buttons) {
+    expect(button.left).toBeGreaterThanOrEqual(layout.bar.left - 1);
+    expect(button.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    expect(button.bottom).toBeLessThanOrEqual(layout.bar.bottom + 1);
+  }
+}
+
+function expectSingleRowNodeBottomRail(layout: Awaited<ReturnType<typeof readNodeBottomRailLayout>>) {
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(layout.bar.width).toBeGreaterThan(560);
+  expect(layout.bar.height).toBeLessThanOrEqual(64);
+  expect(layout.bar.left).toBeGreaterThanOrEqual(0);
+  expect(layout.bar.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expectButtonRowsAligned(layout.buttons);
+  expectButtonsDoNotOverlap(layout.buttons);
+}
+
+function expectNarrowNodeBottomRail(layout: Awaited<ReturnType<typeof readNodeBottomRailLayoutWithControls>>) {
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(layout.bar.left).toBeGreaterThanOrEqual(0);
+  expect(layout.bar.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+  expect(layout.bar.width).toBeLessThanOrEqual(layout.viewportWidth - 24);
+  expect(layout.bar.height).toBeLessThanOrEqual(110);
+  expect(layout.bar.left).toBeGreaterThanOrEqual(layout.controls.right + 12);
+  expect(layout.rowCount).toBe(2);
+  for (const button of layout.buttons) {
+    expect(button.left).toBeGreaterThanOrEqual(layout.bar.left - 1);
+    expect(button.right).toBeLessThanOrEqual(layout.bar.right + 1);
+    expect(button.width).toBeGreaterThanOrEqual(44);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+  }
+}
+
+function expectButtonRowsAligned(buttons: Awaited<ReturnType<typeof readVisibleButtonRects>>) {
+  const tops = buttons.map((button) => button.top);
+  const bottoms = buttons.map((button) => button.bottom);
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+  expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThanOrEqual(1);
+}
+
+function expectButtonsDoNotOverlap(buttons: Awaited<ReturnType<typeof readVisibleButtonRects>>) {
+  for (let index = 1; index < buttons.length; index += 1) {
+    expect(buttons[index].left).toBeGreaterThanOrEqual(buttons[index - 1].right - 1);
+  }
 }
 
 async function assertReadableButtons(locator: Locator) {

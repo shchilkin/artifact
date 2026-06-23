@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import {
   documentUrl,
   editorDocumentFixture,
@@ -90,11 +90,8 @@ test('mobile nodes chrome keeps toolbar and bottom actions separated', async ({ 
 });
 
 test('mobile layer row context menu stays inside the viewport', async ({ page }) => {
-  await page.goto(documentUrl(layeredFillDocument));
-  await expectLayerCanvasToHavePixels(page);
-
-  const firstRow = page.locator('.layer-row').first();
-  await firstRow.hover();
+  await openLayeredFillDocument(page);
+  await hoverFirstLayerRow(page);
   await page
     .getByLabel(/Open actions for layer/)
     .first()
@@ -111,8 +108,7 @@ test('mobile layer row context menu stays inside the viewport', async ({ page })
 });
 
 test('mobile layer add menu stays inside the viewport', async ({ page }) => {
-  await page.goto(documentUrl(layeredFillDocument));
-  await expectLayerCanvasToHavePixels(page);
+  await openLayeredFillDocument(page);
 
   await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
   const menu = page.locator('.add-library-layer-menu');
@@ -122,17 +118,25 @@ test('mobile layer add menu stays inside the viewport', async ({ page }) => {
 });
 
 test('mobile quick add menu stays inside the viewport', async ({ page }) => {
-  await page.goto(documentUrl(layeredFillDocument));
-  await expectLayerCanvasToHavePixels(page);
-
-  const firstRow = page.locator('.layer-row').first();
-  await firstRow.hover();
+  await openLayeredFillDocument(page);
+  const firstRow = await hoverFirstLayerRow(page);
   await firstRow.getByRole('button', { name: /Insert layer above/ }).click();
   const menu = page.locator('.add-library-layer-quick-menu');
   await expect(menu).toBeVisible({ timeout: 15_000 });
 
   await expectFloatingMenuInsideViewport(menu);
 });
+
+async function openLayeredFillDocument(page: Page) {
+  await page.goto(documentUrl(layeredFillDocument));
+  await expectLayerCanvasToHavePixels(page);
+}
+
+async function hoverFirstLayerRow(page: Page) {
+  const firstRow = page.locator('.layer-row').first();
+  await firstRow.hover();
+  return firstRow;
+}
 
 async function expectFloatingMenuInsideViewport(menu: Locator) {
   const menuBox = await menu.evaluate((element) => {

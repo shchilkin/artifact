@@ -38,14 +38,21 @@ export function LayerQuickAddMenu({
   layerName: string;
   onInsert: (action: LayerInsertAction) => void;
 }) {
-  const quickMenu = useAddLibraryFloatingMenu({ width: LAYER_QUICK_MENU_W, height: LAYER_QUICK_MENU_H });
+  const {
+    anchorRef: quickMenuAnchorRef,
+    close: closeQuickMenu,
+    menuRef: quickMenuRef,
+    menuStyle: quickMenuStyle,
+    open: isQuickMenuOpen,
+    toggle: toggleQuickMenu,
+  } = useAddLibraryFloatingMenu({ width: LAYER_QUICK_MENU_W, height: LAYER_QUICK_MENU_H });
 
   const handleInsert = useCallback(
     (action: LayerInsertAction) => {
       onInsert(action);
-      quickMenu.close();
+      closeQuickMenu();
     },
-    [onInsert, quickMenu.close],
+    [closeQuickMenu, onInsert],
   );
 
   const handleAddLibraryAction = useCallback(
@@ -57,26 +64,26 @@ export function LayerQuickAddMenu({
   );
 
   return (
-    <div ref={quickMenu.anchorRef} className="layer-row-quick-add">
+    <div ref={quickMenuAnchorRef} className="layer-row-quick-add">
       <button
         type="button"
         className="layer-row-action"
         onClick={(event) => {
           event.stopPropagation();
-          quickMenu.toggle();
+          toggleQuickMenu();
         }}
         aria-label={`Insert layer above ${layerName}`}
         title="Add above"
       >
         +
       </button>
-      {quickMenu.open &&
+      {isQuickMenuOpen &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            ref={quickMenu.menuRef}
+            ref={quickMenuRef}
             className="add-library-surface add-library-layer-quick-menu"
-            style={quickMenu.menuStyle}
+            style={quickMenuStyle}
             onClick={(event) => event.stopPropagation()}
           >
             <AddLibraryPanel
@@ -84,7 +91,7 @@ export function LayerQuickAddMenu({
               searchLabel={`Search inserts above ${layerName}`}
               placeholder="Insert above…"
               onAdd={handleAddLibraryAction}
-              onClose={quickMenu.close}
+              onClose={closeQuickMenu}
             />
           </div>,
           document.body,

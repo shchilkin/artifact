@@ -314,36 +314,6 @@ function PerfMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function useDeferredExternalSnapshot<T>(
-  subscribe: (listener: () => void) => () => void,
-  getSnapshot: () => T,
-  getServerSnapshot: () => T,
-) {
-  const [snapshot, setSnapshot] = useState(() => (typeof window === 'undefined' ? getServerSnapshot() : getSnapshot()));
-
-  useEffect(() => {
-    let cancelled = false;
-    let pendingTimer: number | null = null;
-    const publish = () => {
-      pendingTimer = null;
-      if (!cancelled) setSnapshot(getSnapshot());
-    };
-    const schedulePublish = () => {
-      if (pendingTimer !== null) return;
-      pendingTimer = window.setTimeout(publish, 0);
-    };
-    const unsubscribe = subscribe(schedulePublish);
-    schedulePublish();
-    return () => {
-      cancelled = true;
-      if (pendingTimer !== null) window.clearTimeout(pendingTimer);
-      unsubscribe();
-    };
-  }, [getSnapshot, subscribe]);
-
-  return snapshot;
-}
-
 function useFrameMetrics(enabled: boolean): FrameMetrics {
   const [metrics, setMetrics] = useState<FrameMetrics>({
     fps: 0,

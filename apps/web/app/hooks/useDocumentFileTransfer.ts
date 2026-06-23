@@ -89,6 +89,27 @@ async function readDocumentFileResult(file: File): Promise<{ doc: CanvasDocument
   }
 }
 
+function createPendingDocumentImport(file: File, doc: CanvasDocument): PendingDocumentImport {
+  return {
+    id: `${file.name}-${file.size}-${file.lastModified}`,
+    fileName: file.name || 'Untitled artifact',
+    fileSize: file.size,
+    fileKind: isProjectPackageDocumentFile(file) ? 'project-package' : 'document',
+    doc,
+    layerCount: doc.layers.length,
+    aspect: doc.global.aspect ?? '1:1',
+    hasGraph: Boolean(doc.graph),
+  };
+}
+
+async function readPendingDocumentImport(
+  file: File,
+): Promise<{ pendingImport: PendingDocumentImport | null; error: string | null }> {
+  const result = await readDocumentFileResult(file);
+  if (!result.doc) return { pendingImport: null, error: result.error ?? 'Could not read document file.' };
+  return { pendingImport: createPendingDocumentImport(file, result.doc), error: null };
+}
+
 export function useDocumentFileTransfer(
   docRef: MutableRefObject<CanvasDocument>,
   onLoadDocument: (doc: CanvasDocument) => void,
@@ -160,21 +181,12 @@ export function useDocumentFileTransfer(
   const handleStageDocumentImport = useCallback(
     async (file: File | null | undefined) => {
       if (!file) return;
-      const result = await readDocumentFileResult(file);
-      if (!result.doc) {
+      const result = await readPendingDocumentImport(file);
+      if (!result.pendingImport) {
         showDocumentFileError(result.error ?? 'Could not read document file.');
         return;
       }
-      setPendingDocumentImport({
-        id: `${file.name}-${file.size}-${file.lastModified}`,
-        fileName: file.name || 'Untitled artifact',
-        fileSize: file.size,
-        fileKind: isProjectPackageDocumentFile(file) ? 'project-package' : 'document',
-        doc: result.doc,
-        layerCount: result.doc.layers.length,
-        aspect: result.doc.global.aspect ?? '1:1',
-        hasGraph: Boolean(result.doc.graph),
-      });
+      setPendingDocumentImport(result.pendingImport);
       setDocumentFileError(null);
     },
     [showDocumentFileError],
