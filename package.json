@@ -46,7 +46,6 @@
     "test:coverage:api": "npm --workspace @artifact/api run test:coverage",
     "test:coverage:web": "npm --workspace @artifact/web run test:coverage",
     "test:browser": "npm --workspace @artifact/web run test:browser --",
-    "test:browser:pr": "npm --workspace @artifact/web run test:browser:pr --",
     "test:browser:chromium": "npm --workspace @artifact/web run test:browser:chromium --",
     "test:browser:firefox": "npm --workspace @artifact/web run test:browser:firefox --",
     "test:browser:webkit": "npm --workspace @artifact/web run test:browser:webkit --",

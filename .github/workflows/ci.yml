@@ -115,48 +115,6 @@ jobs:
         run: npm run release:verify -- --skip-tag-check
 
   browser:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright browser for pull requests
-        run: npx playwright install --with-deps chromium
-
-      - name: Pull request browser smoke tests
-        run: npm run test:browser:pr
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
-
-  browser-full:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
@@ -175,7 +133,7 @@ jobs:
         run: npm ci
 
       - name: Cross-browser editor smoke tests
-        run: npm run test:browser:release
+        run: npm run test:browser
 
       - name: Upload Playwright report
         if: failure()

@@ -10,7 +10,6 @@ npm run test:coverage:web              # web Vitest coverage baseline
 npm run test:coverage:api              # API Vitest coverage baseline
 npm run check                          # format, lint, web/API typecheck, web/API tests
 npm run test:browser                   # Playwright smoke/regression tests in Chromium, Firefox, WebKit, plus mobile smoke
-npm run test:browser:pr                # fast curated PR browser gate in desktop Chromium plus mobile Chromium
 npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
@@ -189,15 +188,9 @@ These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
 
-CI uses a two-tier browser gate. Pull requests run `npm run test:browser:pr`,
-which keeps the feedback loop focused on a curated set of high-signal Chromium
-desktop and mobile Chromium checks. Pushes to `development` or `main`, tags,
-and local release prep use the full cross-browser gate so Firefox, WebKit, full
-Chromium coverage, and mobile WebKit still protect integration and release
-confidence. The full cross-browser CI job runs inside the official Playwright
-image that matches the locked Playwright version, so browser binaries and
-system dependencies are already present instead of being installed during every
-full run.
+CI runs the full browser gate inside the official Playwright image that matches
+the locked Playwright version, so Chromium, Firefox, WebKit, and their system
+dependencies are already present instead of being installed during every run.
 
 Local release prep should use `npm run test:browser:release`. It sets
 `PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
