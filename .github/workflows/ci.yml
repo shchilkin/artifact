@@ -116,6 +116,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
 
     steps:
       - name: Checkout
@@ -129,22 +131,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright browser for pull requests
-        if: github.event_name == 'pull_request'
-        run: npx playwright install --with-deps chromium
-
-      - name: Install Playwright browsers for full gate
-        if: github.event_name != 'pull_request'
-        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Pull request browser smoke tests
         if: github.event_name == 'pull_request'
