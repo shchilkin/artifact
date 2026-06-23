@@ -130,11 +130,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browser for pull requests
+        if: github.event_name == 'pull_request'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright browsers for full gate
+        if: github.event_name != 'pull_request'
         run: npx playwright install --with-deps chromium firefox webkit
 
+      - name: Pull request browser smoke tests
+        if: github.event_name == 'pull_request'
+        run: npm run test:browser:pr
+
       - name: Cross-browser editor smoke tests
-        run: npm run test:browser
+        if: github.event_name != 'pull_request'
+        run: npm run test:browser:release
 
       - name: Upload Playwright report
         if: failure()

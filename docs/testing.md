@@ -10,6 +10,7 @@ npm run test:coverage:web              # web Vitest coverage baseline
 npm run test:coverage:api              # API Vitest coverage baseline
 npm run check                          # format, lint, web/API typecheck, web/API tests
 npm run test:browser                   # Playwright smoke/regression tests in Chromium, Firefox, WebKit, plus mobile smoke
+npm run test:browser:pr                # fast PR browser gate in desktop Chromium plus mobile Chromium
 npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
@@ -187,6 +188,12 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
+
+CI uses a two-tier browser gate. Pull requests run `npm run test:browser:pr`,
+which keeps the feedback loop focused on Chromium desktop and mobile Chromium.
+Pushes to `development` or `main`, tags, and local release prep should use the
+full cross-browser gate so Firefox, WebKit, and mobile WebKit still protect
+integration and release confidence.
 
 Local release prep should use `npm run test:browser:release`. It sets
 `PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
