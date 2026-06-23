@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
 import {
   getRenderWorkerDiagnosticsSnapshot,
@@ -74,8 +73,12 @@ const PERF_OVERLAY_MARGIN = 12;
 export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerformanceOverlayProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const { dragHandlers, position } = usePerfOverlayPosition(overlayRef);
-  const queue = useSyncExternalStore(subscribeThumbnailQueue, getThumbnailQueueSnapshot, () => EMPTY_QUEUE_SNAPSHOT);
-  const worker = useSyncExternalStore(
+  const queue = useDeferredExternalSnapshot(
+    subscribeThumbnailQueue,
+    getThumbnailQueueSnapshot,
+    () => EMPTY_QUEUE_SNAPSHOT,
+  );
+  const worker = useDeferredExternalSnapshot(
     subscribeRenderWorkerDiagnostics,
     getRenderWorkerDiagnosticsSnapshot,
     () => EMPTY_WORKER_SNAPSHOT,
@@ -312,6 +315,36 @@ function PerfMetric({ label, value }: { label: string; value: string }) {
       <dd>{value}</dd>
     </>
   );
+}
+
+function useDeferredExternalSnapshot<T>(
+  subscribe: (listener: () => void) => () => void,
+  getSnapshot: () => T,
+  getServerSnapshot: () => T,
+) {
+  const [snapshot, setSnapshot] = useState(() => (typeof window === 'undefined' ? getServerSnapshot() : getSnapshot()));
+
+  useEffect(() => {
+    let cancelled = false;
+    let pendingTimer: number | null = null;
+    const publish = () => {
+      pendingTimer = null;
+      if (!cancelled) setSnapshot(getSnapshot());
+    };
+    const schedulePublish = () => {
+      if (pendingTimer !== null) return;
+      pendingTimer = window.setTimeout(publish, 0);
+    };
+    const unsubscribe = subscribe(schedulePublish);
+    schedulePublish();
+    return () => {
+      cancelled = true;
+      if (pendingTimer !== null) window.clearTimeout(pendingTimer);
+      unsubscribe();
+    };
+  }, [getSnapshot, subscribe]);
+
+  return snapshot;
 }
 
 function useFrameMetrics(enabled: boolean): FrameMetrics {
