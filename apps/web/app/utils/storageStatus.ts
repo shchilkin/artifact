@@ -103,9 +103,9 @@ export function summarizeEditorStorage({
 
 function activeWorkLabel(saveStatus: DocumentSaveStatus, projectSaveState: ProjectSaveState) {
   if (!saveStatus.ok) return 'Autosave blocked';
-  if (projectSaveState === 'saved') return 'Saved in project';
-  if (projectSaveState === 'unsaved') return 'Unsaved changes';
-  return 'Not saved as project';
+  if (projectSaveState === 'saved') return 'Saved project';
+  if (projectSaveState === 'unsaved') return 'Unsaved project';
+  return 'Local draft';
 }
 
 function estimateDataUrlLikeBytes(value: string): number {

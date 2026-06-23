@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import {
   documentUrl,
   editorDocumentFixture,
@@ -6,6 +6,7 @@ import {
   expectNoBrowserIssues,
   fillLayerFixture,
   setupBrowserTestPage,
+  switchToNodeView,
 } from './helpers';
 
 const mobileFillLayers = [
@@ -44,8 +45,8 @@ test('mobile empty start exposes starter actions without horizontal overflow', a
 
   const start = page.locator('.empty-canvas-start');
   await expect(start).toBeVisible({ timeout: 15_000 });
-  await expect(start.getByRole('button', { name: 'AI', exact: true })).toBeVisible();
-  await expect(start.getByRole('button', { name: 'Text', exact: true })).toBeVisible();
+  await expect(start.getByRole('button', { name: 'AI image' })).toBeVisible();
+  await expect(start.getByRole('button', { name: 'Add text' })).toBeVisible();
 
   const layout = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
@@ -53,3 +54,106 @@ test('mobile empty start exposes starter actions without horizontal overflow', a
   }));
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
 });
+
+test('mobile nodes chrome keeps toolbar and bottom actions separated', async ({ page }) => {
+  await page.goto(documentUrl(layeredFillDocument));
+  await switchToNodeView(page);
+
+  const layout = await page.evaluate(() => {
+    const toolbar = document.querySelector('.node-canvas-toolbar')?.getBoundingClientRect();
+    const bottom = document.querySelector('.main-nodes > .bottom-bar')?.getBoundingClientRect();
+    const actionBoxes = Array.from(document.querySelectorAll('.main-nodes > .bottom-bar button')).map((button) => {
+      const box = button.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+    });
+    return {
+      toolbar: toolbar ? { top: toolbar.top, bottom: toolbar.bottom } : null,
+      bottom: bottom ? { top: bottom.top, bottom: bottom.bottom, scrollWidth: bottom.width } : null,
+      actionBoxes,
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout.toolbar).not.toBeNull();
+  expect(layout.bottom).not.toBeNull();
+  expect(layout.toolbar?.bottom ?? 0).toBeLessThan(layout.bottom?.top ?? 0);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+
+  const visibleActions = layout.actionBoxes.filter((box) => box.right > 0 && box.left < layout.viewportWidth);
+  for (let index = 1; index < visibleActions.length; index += 1) {
+    const previous = visibleActions[index - 1];
+    const current = visibleActions[index];
+    const sameRow = current.top < previous.bottom && current.bottom > previous.top;
+    if (sameRow) expect(current.left).toBeGreaterThanOrEqual(previous.right - 1);
+  }
+});
+
+test('mobile layer row context menu stays inside the viewport', async ({ page }) => {
+  await openLayeredFillDocument(page);
+  await hoverFirstLayerRow(page);
+  await page
+    .getByLabel(/Open actions for layer/)
+    .first()
+    .click();
+
+  const menuBox = await page.locator('.layer-context-menu').evaluate((menu) => {
+    const box = menu.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, viewportWidth: window.innerWidth };
+  });
+
+  expect(menuBox.left).toBeGreaterThanOrEqual(8);
+  expect(menuBox.right).toBeLessThanOrEqual(menuBox.viewportWidth - 7);
+  expect(menuBox.bottom).toBeGreaterThan(menuBox.top);
+});
+
+test('mobile layer add menu stays inside the viewport', async ({ page }) => {
+  await openLayeredFillDocument(page);
+
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+
+  await expectFloatingMenuInsideViewport(menu);
+});
+
+test('mobile quick add menu stays inside the viewport', async ({ page }) => {
+  await openLayeredFillDocument(page);
+  const firstRow = await hoverFirstLayerRow(page);
+  await firstRow.getByRole('button', { name: /Insert layer above/ }).click();
+  const menu = page.locator('.add-library-layer-quick-menu');
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+
+  await expectFloatingMenuInsideViewport(menu);
+});
+
+async function openLayeredFillDocument(page: Page) {
+  await page.goto(documentUrl(layeredFillDocument));
+  await expectLayerCanvasToHavePixels(page);
+}
+
+async function hoverFirstLayerRow(page: Page) {
+  const firstRow = page.locator('.layer-row').first();
+  await firstRow.hover();
+  return firstRow;
+}
+
+async function expectFloatingMenuInsideViewport(menu: Locator) {
+  const menuBox = await menu.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return {
+      left: box.left,
+      right: box.right,
+      top: box.top,
+      bottom: box.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(menuBox.left).toBeGreaterThanOrEqual(7);
+  expect(menuBox.right).toBeLessThanOrEqual(menuBox.viewportWidth - 7);
+  expect(menuBox.top).toBeGreaterThanOrEqual(7);
+  expect(menuBox.bottom).toBeLessThanOrEqual(menuBox.viewportHeight - 7);
+  expect(menuBox.bottom).toBeGreaterThan(menuBox.top);
+}

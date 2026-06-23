@@ -27,7 +27,7 @@ const BASE_STATUS: BrowserStorageStatus = {
     pressure: 'ok',
     activeWorkState: 'saved',
     usageLabel: '2 KB / 1 MB',
-    saveLabel: 'Saved in project',
+    saveLabel: 'Saved project',
     projectLabel: '0 saved',
     recoveryLabel: null,
   },
@@ -38,7 +38,7 @@ describe('StorageWorkspaceStatus helpers', () => {
     ['ready workspace', BASE_STATUS, null, { tone: 'ok', badge: null }],
     [
       'unsaved changes',
-      withSummary({ activeWorkState: 'unsaved', saveLabel: 'Unsaved changes' }),
+      withSummary({ activeWorkState: 'unsaved', saveLabel: 'Unsaved project' }),
       null,
       {
         tone: 'warning',
@@ -63,17 +63,17 @@ describe('StorageWorkspaceStatus helpers', () => {
 
   it('builds workspace summary rows', () => {
     expect(workspaceStatusRows(withSummary({ recoveryLabel: 'Available / 4 KB' }), null)).toMatchObject([
-      { id: 'active-work', tone: 'ok', label: 'Active work', value: 'Saved in project' },
-      { id: 'browser-storage', tone: 'ok', label: 'Browser storage', value: '2 KB / 1 MB' },
-      { id: 'recovery', tone: 'warning', label: 'Recovery copy', value: 'Available / 4 KB' },
+      { id: 'active-work', tone: 'ok', label: 'Project status', value: 'Saved project' },
+      { id: 'browser-storage', tone: 'ok', label: 'Local storage', value: '2 KB / 1 MB' },
+      { id: 'recovery', tone: 'warning', label: 'Recovery draft', value: 'Available / 4 KB' },
       { id: 'app-shell', tone: 'ok', label: 'Offline app', value: 'Cached' },
     ]);
   });
 
   it('keeps untracked documents out of warning state', () => {
     expect(
-      workspaceStatusRows(withSummary({ activeWorkState: 'untracked', saveLabel: 'Not saved as project' }), null)[0],
-    ).toMatchObject({ id: 'active-work', tone: 'muted', label: 'Active work', value: 'Not saved as project' });
+      workspaceStatusRows(withSummary({ activeWorkState: 'untracked', saveLabel: 'Local draft' }), null)[0],
+    ).toMatchObject({ id: 'active-work', tone: 'muted', label: 'Project status', value: 'Local draft' });
     expect(getProjectWorkspaceStatus(withSummary({ activeWorkState: 'untracked' }), null)).toMatchObject({
       tone: 'ok',
       badge: null,

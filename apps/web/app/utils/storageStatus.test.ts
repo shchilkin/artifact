@@ -46,7 +46,7 @@ describe('storageStatus', () => {
 
     expect(projectSizeBytes(project)).toBeGreaterThan(0);
     expect(summary.activeWorkState).toBe('saved');
-    expect(summary.saveLabel).toBe('Saved in project');
+    expect(summary.saveLabel).toBe('Saved project');
     expect(summary.projectLabel).toContain('1 project');
     expect(summary.recoveryLabel).toContain('Available');
     expect(summary.pressure).toBe('ok');
@@ -62,7 +62,7 @@ describe('storageStatus', () => {
     });
 
     expect(summary.activeWorkState).toBe('untracked');
-    expect(summary.saveLabel).toBe('Not saved as project');
+    expect(summary.saveLabel).toBe('Local draft');
   });
 
   it('marks active work as unsaved until the current document matches a saved project', () => {
@@ -75,7 +75,7 @@ describe('storageStatus', () => {
     });
 
     expect(summary.activeWorkState).toBe('unsaved');
-    expect(summary.saveLabel).toBe('Unsaved changes');
+    expect(summary.saveLabel).toBe('Unsaved project');
   });
 
   it('surfaces blocked active saves', () => {

@@ -23,6 +23,8 @@ export function NodeShell({
   void expanded;
   void expandable;
   void onToggleExpanded;
+  void onDelete;
+  void deleteDisabled;
   const accent = KIND_COLOR[kind] ?? 'var(--accent)';
   return (
     <div
@@ -37,7 +39,6 @@ export function NodeShell({
           <NodeDisplayName label={label} name={name} />
         </div>
         <NodeMuteAction muted={muted} onToggleMuted={onToggleMuted} />
-        <NodeDeleteAction deleteDisabled={deleteDisabled} onDelete={onDelete} />
       </div>
       <div className="node-shell-body">{children}</div>
     </div>
@@ -91,21 +92,4 @@ function nodeMuteActionCopy(muted: boolean | undefined) {
   return muted
     ? { ariaLabel: 'Unmute node', title: 'Unmute (M)', dot: '○', label: 'Muted' }
     : { ariaLabel: 'Mute node', title: 'Mute (M)', dot: '●', label: 'Mute' };
-}
-
-function NodeDeleteAction({ deleteDisabled, onDelete }: Pick<NodeShellProps, 'deleteDisabled' | 'onDelete'>) {
-  if (!onDelete) return null;
-  return (
-    <NoPan
-      as="button"
-      type="button"
-      className="nodrag node-shell-action node-shell-delete"
-      aria-label="Delete node"
-      disabled={deleteDisabled}
-      title={deleteDisabled ? 'Locked layer-backed node' : 'Delete node'}
-      onClick={onDelete}
-    >
-      ×
-    </NoPan>
-  );
 }

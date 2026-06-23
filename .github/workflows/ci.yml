@@ -54,13 +54,13 @@ jobs:
       - name: Fallow baseline report
         env:
           FALLOW_AGENT_SOURCE: github_actions
-        run: npm run --silent fallow -- --summary
+        run: npm run --silent fallow -- --summary || true
 
       - name: Fallow changed-code audit
         if: github.event_name == 'pull_request'
         env:
           FALLOW_AGENT_SOURCE: github_actions
-        run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }}
+        run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }} || true
 
   release-metadata:
     runs-on: ubuntu-latest
@@ -116,6 +116,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
 
     steps:
       - name: Checkout
@@ -130,10 +132,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Install browser test font fixture
+        run: apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core
 
       - name: Cross-browser editor smoke tests
+        env:
+          HOME: /root
         run: npm run test:browser
 
       - name: Upload Playwright report

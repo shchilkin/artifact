@@ -47,6 +47,10 @@ const DISABLED_REASON_BODIES: Record<string, string> = {
   quota_exhausted: 'Your monthly generation limit is used for this account.',
   maintenance: 'Generation is temporarily unavailable while the service is being maintained.',
 };
+const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
+  anonymous: 'Create account',
+  invalid_session: 'Sign in again',
+};
 
 export interface AiGenerationPanelProps {
   aspect: AspectRatio;
@@ -77,10 +81,15 @@ function jobIsActive(job: AiGenerationJob | null) {
 }
 
 function errorMessage(error: unknown) {
-  if (error instanceof AiGenerationApiError) return error.message;
+  if (error instanceof AiGenerationApiError) return apiErrorMessage(error);
   if (isFetchFailure(error)) return 'AI API is not reachable. Start the local API server and try again.';
   if (error instanceof Error) return error.message;
   return 'Generation failed.';
+}
+
+function apiErrorMessage(error: AiGenerationApiError) {
+  if (error.status === 404) return 'AI API route is unavailable. Start the API server and try again.';
+  return error.message;
 }
 
 function isFetchFailure(error: unknown) {
@@ -668,18 +677,54 @@ function GenerationContextPanels({
 function AccessBanner({
   access,
   accessBlockReason,
+  accessCheck,
   authSignedIn,
 }: {
   access: AiGenerationAccessState | null;
   accessBlockReason: string | null | undefined;
+  accessCheck: AccessCheckState;
   authSignedIn: boolean;
 }) {
   return (
-    <div className="ai-generation-access-banner" role="status" id="ai-generation-status">
-      <span>{access ? disabledReasonTitle(accessBlockReason) : 'Checking AI access'}</span>
-      <p>{access ? disabledReasonBody(accessBlockReason) : checkingAccessMessage(authSignedIn)}</p>
+    <div className={accessBannerClassName(accessCheck)} role="status" id="ai-generation-status">
+      <span>{accessBannerTitle(access, accessBlockReason, accessCheck)}</span>
+      <p>{accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}</p>
     </div>
   );
+}
+
+function accessBannerClassName(accessCheck: AccessCheckState) {
+  return accessCheck.state === 'failed'
+    ? 'ai-generation-access-banner ai-generation-access-banner--failed'
+    : 'ai-generation-access-banner';
+}
+
+function accessBannerTitle(
+  access: AiGenerationAccessState | null,
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+) {
+  if (access) return disabledReasonTitle(accessBlockReason);
+  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access';
+}
+
+function accessBannerBody(
+  access: AiGenerationAccessState | null,
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+  authSignedIn: boolean,
+) {
+  if (access) return disabledReasonBody(accessBlockReason);
+  return accessCheck.state === 'failed'
+    ? failedAccessCheckMessage(accessBlockReason, accessCheck.message)
+    : checkingAccessMessage(authSignedIn);
+}
+
+function failedAccessCheckMessage(
+  accessBlockReason: string | null | undefined,
+  accessCheckMessage: string | null | undefined,
+) {
+  return firstDefined(accessBlockReason, accessCheckMessage) ?? 'AI access could not be checked. Try again.';
 }
 
 function checkingAccessMessage(authSignedIn: boolean) {
@@ -690,20 +735,40 @@ function checkingAccessMessage(authSignedIn: boolean) {
 
 function AccessActionButton({
   accessBlockReason,
+  accessCheck,
   authConfigured,
   openSignIn,
+  onRetryAccess,
 }: {
   accessBlockReason: string | null | undefined;
+  accessCheck: AccessCheckState;
   authConfigured: boolean;
   openSignIn: () => void;
+  onRetryAccess: () => void;
 }) {
-  if (accessBlockReason !== 'anonymous') return null;
-  if (!authConfigured) return null;
+  const action = accessActionModel(accessBlockReason, accessCheck, authConfigured);
+  if (!action) return null;
+  const onClick = action.kind === 'retry' ? onRetryAccess : openSignIn;
   return (
-    <button type="button" className="ai-generation-access-action" onClick={openSignIn}>
-      Create Account
+    <button type="button" className="ai-generation-access-action" onClick={onClick}>
+      {action.label}
     </button>
   );
+}
+
+function accessActionModel(
+  accessBlockReason: string | null | undefined,
+  accessCheck: AccessCheckState,
+  authConfigured: boolean,
+): { kind: 'retry' | 'sign-in'; label: string } | null {
+  if (accessCheck.state === 'failed') return { kind: 'retry', label: 'Retry access' };
+  if (!authConfigured) return null;
+  return accessReasonAction(accessBlockReason);
+}
+
+function accessReasonAction(reason: string | null | undefined): { kind: 'sign-in'; label: string } | null {
+  const label = reason ? ACCESS_ACTION_LABELS[reason] : undefined;
+  return label ? { kind: 'sign-in', label } : null;
 }
 
 function GenerationRecoveryActions({
@@ -1570,11 +1635,18 @@ export function AiGenerationPanel({
   if (!aiAccessEnabled(access)) {
     return (
       <div className="ai-generation-panel">
-        <AccessBanner access={access} accessBlockReason={accessBlockReason} authSignedIn={authSignedIn} />
+        <AccessBanner
+          access={access}
+          accessBlockReason={accessBlockReason}
+          accessCheck={accessCheck}
+          authSignedIn={authSignedIn}
+        />
         <AccessActionButton
           accessBlockReason={accessBlockReason}
+          accessCheck={accessCheck}
           authConfigured={authConfigured}
           openSignIn={openSignIn}
+          onRetryAccess={handleRetryAccessCheck}
         />
         <DeveloperDiagnosticsPanel
           enabled={diagnosticsEnabled}

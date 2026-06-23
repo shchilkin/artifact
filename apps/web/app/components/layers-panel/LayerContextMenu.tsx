@@ -1,6 +1,7 @@
-import type { GraphArea } from '../../types/config';
+import type { GraphArea, Layer } from '../../types/config';
+import { clampPopupPosition } from '../node-canvas/helpers';
 import { FloatingMenu } from '../ui/floating-menu';
-import { MenuItem } from '../ui/MenuItem';
+import { MenuDivider, MenuItem } from '../ui/MenuItem';
 
 export interface LayerContextMenuState {
   x: number;
@@ -12,48 +13,167 @@ export function LayerContextMenu({
   contextMenu,
   graphAreas,
   hasAreaMembership,
+  layers,
   onClose,
+  onDuplicateLayers,
+  onRemoveLayers,
   onCreateAreaFromSelection,
   onAddSelectionToArea,
   onRemoveSelectionFromAreas,
+  onRenameLayer,
+  onSetLayersVisible,
 }: {
   contextMenu: LayerContextMenuState | null;
   graphAreas: GraphArea[];
   hasAreaMembership: (id: string) => boolean;
+  layers: Layer[];
   onClose: () => void;
+  onDuplicateLayers: (ids: string[]) => void;
+  onRemoveLayers: (ids: string[]) => void;
   onCreateAreaFromSelection: (ids: string[]) => void;
   onAddSelectionToArea: (areaId: string, ids: string[]) => void;
   onRemoveSelectionFromAreas: (ids: string[]) => void;
+  onRenameLayer: (id: string) => void;
+  onSetLayersVisible: (ids: string[], visible: boolean) => void;
 }) {
   if (!contextMenu) return null;
+  const selectedLayers = selectedContextLayers(contextMenu.ids, layers);
+  const singleLayer = selectedLayers.length === 1 ? selectedLayers[0] : null;
+  const allVisible = selectedLayers.length > 0 && selectedLayers.every((layer) => layer.visible);
+  const deletableIds = selectedLayers.filter((layer) => !layer.locked).map((layer) => layer.id);
+  const hasSelectedAreaMembership = contextMenu.ids.some(hasAreaMembership);
+  const menuWidth = 196;
+  const menuHeight = 16 + layerContextMenuItemCount(singleLayer, graphAreas.length, hasSelectedAreaMembership) * 46;
+  const menuPosition = clampPopupPosition(contextMenu.x, contextMenu.y, menuWidth, menuHeight);
+
+  const run = (action: () => void) => {
+    action();
+    onClose();
+  };
 
   return (
     <FloatingMenu
-      x={contextMenu.x}
-      y={contextMenu.y}
+      x={menuPosition.left}
+      y={menuPosition.top}
       className="artifact-menu layer-context-menu"
+      style={{ width: menuWidth, padding: '4px 0' }}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       role="menu"
     >
-      <MenuItem role="menuitem" label="Create area" onClick={() => onCreateAreaFromSelection(contextMenu.ids)} />
+      <LayerEditMenuItems
+        allVisible={allVisible}
+        deletableIds={deletableIds}
+        ids={contextMenu.ids}
+        onDuplicateLayers={onDuplicateLayers}
+        onRemoveLayers={onRemoveLayers}
+        onRenameLayer={onRenameLayer}
+        onRun={run}
+        onSetLayersVisible={onSetLayersVisible}
+        singleLayer={singleLayer}
+      />
+      <MenuDivider />
+      <LayerAreaMenuItems
+        graphAreas={graphAreas}
+        hasSelectedAreaMembership={hasSelectedAreaMembership}
+        ids={contextMenu.ids}
+        onAddSelectionToArea={onAddSelectionToArea}
+        onCreateAreaFromSelection={onCreateAreaFromSelection}
+        onRemoveSelectionFromAreas={onRemoveSelectionFromAreas}
+        onRun={run}
+      />
+    </FloatingMenu>
+  );
+}
+
+function selectedContextLayers(ids: string[], layers: Layer[]) {
+  return ids.map((id) => layers.find((layer) => layer.id === id)).filter((layer): layer is Layer => Boolean(layer));
+}
+
+function layerContextMenuItemCount(singleLayer: Layer | null, areaCount: number, hasSelectedAreaMembership: boolean) {
+  return (singleLayer ? 1 : 0) + 4 + areaCount + (hasSelectedAreaMembership ? 1 : 0);
+}
+
+function LayerEditMenuItems({
+  allVisible,
+  deletableIds,
+  ids,
+  onDuplicateLayers,
+  onRemoveLayers,
+  onRenameLayer,
+  onRun,
+  onSetLayersVisible,
+  singleLayer,
+}: {
+  allVisible: boolean;
+  deletableIds: string[];
+  ids: string[];
+  onDuplicateLayers: (ids: string[]) => void;
+  onRemoveLayers: (ids: string[]) => void;
+  onRenameLayer: (id: string) => void;
+  onRun: (action: () => void) => void;
+  onSetLayersVisible: (ids: string[], visible: boolean) => void;
+  singleLayer: Layer | null;
+}) {
+  return (
+    <>
+      {singleLayer && (
+        <MenuItem role="menuitem" label="Rename" onClick={() => onRun(() => onRenameLayer(singleLayer.id))} />
+      )}
+      <MenuItem
+        role="menuitem"
+        label={allVisible ? 'Hide' : 'Show'}
+        onClick={() => onRun(() => onSetLayersVisible(ids, !allVisible))}
+      />
+      <MenuItem role="menuitem" label="Duplicate" onClick={() => onRun(() => onDuplicateLayers(ids))} />
+      <MenuItem
+        role="menuitem"
+        label={deletableIds.length === 0 ? 'Delete locked' : 'Delete'}
+        variant="danger"
+        disabled={deletableIds.length === 0}
+        onClick={() => onRun(() => onRemoveLayers(deletableIds))}
+      />
+    </>
+  );
+}
+
+function LayerAreaMenuItems({
+  graphAreas,
+  hasSelectedAreaMembership,
+  ids,
+  onAddSelectionToArea,
+  onCreateAreaFromSelection,
+  onRemoveSelectionFromAreas,
+  onRun,
+}: {
+  graphAreas: GraphArea[];
+  hasSelectedAreaMembership: boolean;
+  ids: string[];
+  onAddSelectionToArea: (areaId: string, ids: string[]) => void;
+  onCreateAreaFromSelection: (ids: string[]) => void;
+  onRemoveSelectionFromAreas: (ids: string[]) => void;
+  onRun: (action: () => void) => void;
+}) {
+  return (
+    <>
+      <MenuItem role="menuitem" label="Create area" onClick={() => onRun(() => onCreateAreaFromSelection(ids))} />
       {graphAreas.map((area) => (
         <MenuItem
           key={area.id}
           role="menuitem"
           icon={<span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />}
           label={`Add to ${area.name}`}
-          onClick={() => onAddSelectionToArea(area.id, contextMenu.ids)}
+          onClick={() => onRun(() => onAddSelectionToArea(area.id, ids))}
         />
       ))}
-      {contextMenu.ids.some(hasAreaMembership) && (
+      {hasSelectedAreaMembership && (
         <MenuItem
           role="menuitem"
           label="Remove from area"
-          onClick={() => onRemoveSelectionFromAreas(contextMenu.ids)}
+          onClick={() => onRun(() => onRemoveSelectionFromAreas(ids))}
         />
       )}
-    </FloatingMenu>
+    </>
   );
 }

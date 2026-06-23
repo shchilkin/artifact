@@ -31,7 +31,7 @@ export function getProjectWorkspaceStatus(
     return { tone: 'danger', badge: 'WARN', title: 'Local workspace needs attention' };
   }
   if (status.summary.recoveryLabel) {
-    return { tone: 'warning', badge: null, title: 'Recovery copy is available' };
+    return { tone: 'warning', badge: null, title: 'Recovery draft is available' };
   }
   if (status.summary.activeWorkState === 'unsaved') {
     return { tone: 'warning', badge: null, title: 'Unsaved project changes' };
@@ -80,7 +80,7 @@ function activeWorkRow(status: BrowserStorageStatus, storageError: string | null
   return {
     id: 'active-work',
     tone: activeWorkTone(status, storageError),
-    label: 'Active work',
+    label: 'Project status',
     value: storageError ? 'Needs attention' : status.summary.saveLabel,
   };
 }
@@ -89,7 +89,7 @@ function browserStorageRow(status: BrowserStorageStatus): WorkspaceStatusRow {
   return {
     id: 'browser-storage',
     tone: pressureStatusTone(status.summary.pressure),
-    label: 'Browser storage',
+    label: 'Local storage',
     value: status.summary.usageLabel,
   };
 }
@@ -98,7 +98,7 @@ function recoveryRow(status: BrowserStorageStatus): WorkspaceStatusRow {
   return {
     id: 'recovery',
     tone: status.summary.recoveryLabel ? 'warning' : 'muted',
-    label: 'Recovery copy',
+    label: 'Recovery draft',
     value: status.summary.recoveryLabel ?? 'None',
   };
 }

@@ -125,7 +125,7 @@ export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data 
 });
 
 export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
-  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { selectNode } = useNodeCanvasActions();
   const { colorNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
@@ -139,7 +139,6 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
       editing={editing}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(colorNode.id, event)}
-      onDelete={() => deleteNode(colorNode.id)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
@@ -152,7 +151,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
 });
 
 export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<MergeNodeData>) {
-  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { selectNode } = useNodeCanvasActions();
   const { mergeNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
@@ -169,7 +168,6 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
         { id: 'b', top: '64%' },
       ]}
       onSelect={(event) => selectNode(mergeNode.id, event)}
-      onDelete={() => deleteNode(mergeNode.id)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
@@ -185,7 +183,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
 });
 
 export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: NodeProps<RepeatNodeData>) {
-  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { selectNode } = useNodeCanvasActions();
   const { repeatNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
   return (
@@ -202,7 +200,6 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
         { id: 'bg', top: '64%' },
       ]}
       onSelect={(event) => selectNode(repeatNode.id, event)}
-      onDelete={() => deleteNode(repeatNode.id)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow

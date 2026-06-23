@@ -9,13 +9,19 @@ import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
-import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
-import { isArtifactDocumentFile, useDocumentFileTransfer } from '../hooks/useDocumentFileTransfer';
+import { type BrowserStorageStatus, useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
+import {
+  isArtifactDocumentFile,
+  type PendingDocumentImport,
+  useDocumentFileTransfer,
+} from '../hooks/useDocumentFileTransfer';
 import { useEditorAssets } from '../hooks/useEditorAssets';
 import { useEditorDocument } from '../hooks/useEditorDocument';
 import { useEditorExport } from '../hooks/useEditorExport';
 import { useEditorProjectsController } from '../hooks/useEditorProjectsController';
 import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
+import { ARTIFACT_PROJECT_PACKAGE_MIME } from '../utils/documentPackage';
+import { ARTIFACT_FILE_MIME } from '../utils/documentPersistence';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
 import { getStarterDocument } from '../utils/starterDocuments';
 import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
@@ -25,6 +31,49 @@ import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
+
+type DropPreviewKind = 'document' | 'file' | 'image';
+
+function inferDropPreviewKind(dataTransfer: DataTransfer): DropPreviewKind {
+  const items = Array.from(dataTransfer.items ?? []);
+  if (items.some((item) => item.kind === 'file' && item.type.startsWith('image/'))) return 'image';
+  if (
+    items.some(
+      (item) =>
+        item.kind === 'file' &&
+        [ARTIFACT_FILE_MIME, ARTIFACT_PROJECT_PACKAGE_MIME, 'application/json'].includes(item.type),
+    )
+  ) {
+    return 'document';
+  }
+  return 'file';
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+function importKindLabel(kind: PendingDocumentImport['fileKind']) {
+  return kind === 'project-package' ? 'PROJECT PACKAGE' : 'ARTIFACT DOCUMENT';
+}
+
+const IMPORT_FILE_TYPES = [
+  { icon: 'IMG', label: 'Images', detail: 'PNG, JPG, GIF, WebP' },
+  { icon: 'DOC', label: 'Artifact', detail: '.artifact.json' },
+  { icon: 'PKG', label: 'Package', detail: '.artifact with assets' },
+];
+
+async function saveRecoveryDraftOrConfirm(saveRecoveryDraft: () => Promise<void>) {
+  try {
+    await saveRecoveryDraft();
+    return true;
+  } catch {
+    return window.confirm('Could not save a recovery copy. Open the dropped file anyway?');
+  }
+}
 
 function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
@@ -50,13 +99,45 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   );
 }
 
+function EditorChromeSlot({
+  doc,
+  onViewModeChange,
+  storageStatus,
+  viewMode,
+}: {
+  doc: ReturnType<typeof useEditorDocument>['doc'];
+  onViewModeChange: (mode: ViewMode) => void;
+  storageStatus: BrowserStorageStatus;
+  viewMode: ViewMode;
+}) {
+  const layerCount = doc.layers.length;
+  return (
+    <div className="editor-chrome-slot">
+      <ViewModeToggle value={viewMode} onChange={onViewModeChange} variant="chrome" />
+      <div className="editor-chrome-status" aria-label="Document status">
+        <span>{doc.global.aspect ?? '1:1'}</span>
+        <span>{layerCountLabel(layerCount)}</span>
+        <span className={`editor-chrome-save editor-chrome-save-${storageStatus.summary.activeWorkState}`}>
+          {storageStatus.summary.saveLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function layerCountLabel(count: number) {
+  return `${count} layer${count === 1 ? '' : 's'}`;
+}
+
 // Renamed legacy editor shell; v0.32 tracks controller extraction.
 // fallow-ignore-next-line complexity
 export default function Editor() {
-  const [canvasDragOver, setCanvasDragOver] = useState(false);
+  const [dropPreview, setDropPreview] = useState<DropPreviewKind | null>(null);
+  const [documentImportBusy, setDocumentImportBusy] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
+  const [aiPanelRequested, setAiPanelRequested] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // fallow-ignore-next-line code-duplication
@@ -93,6 +174,7 @@ export default function Editor() {
     handleAddLayerAt,
     handleRandomize,
     handleNewBlank,
+    saveRecoveryDraft,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,
@@ -193,6 +275,7 @@ export default function Editor() {
   const handleLoadExternalDocument = useCallback(
     (nextDoc: typeof doc) => {
       clearActiveProject();
+      setAiPanelRequested(false);
       loadDocument(nextDoc);
     },
     [clearActiveProject, loadDocument],
@@ -200,10 +283,13 @@ export default function Editor() {
   const {
     fileInputRef,
     documentFileError,
-    handleOpenDocument,
+    pendingDocumentImport,
+    handleCancelDocumentImport,
+    handleConfirmDocumentImport,
     handleOpenDocumentPicker,
     handleSaveDocument,
     handleSaveProjectPackage,
+    handleStageDocumentImport,
   } = useDocumentFileTransfer(docRef, handleLoadExternalDocument);
 
   const { handleToggleProjects, closePanels } = useEditorPanels({
@@ -221,6 +307,7 @@ export default function Editor() {
 
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
+    setAiPanelRequested(true);
     window.setTimeout(() => {
       document.querySelector<HTMLTextAreaElement>('[data-ai-generation-prompt]')?.focus();
     }, 0);
@@ -235,6 +322,7 @@ export default function Editor() {
     }
     closePanels();
     clearActiveProject();
+    setAiPanelRequested(false);
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
@@ -246,12 +334,44 @@ export default function Editor() {
       if (!starter) return;
       closePanels();
       clearActiveProject();
+      setAiPanelRequested(false);
       loadDocument(cloneDocument(starter.doc));
       resetPrimitiveViewStates();
       setViewMode('layers');
     },
     [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
+
+  const finishDroppedDocumentImport = useCallback(() => {
+    closePanels();
+    handleConfirmDocumentImport();
+    resetPrimitiveViewStates();
+    setViewMode('layers');
+  }, [closePanels, handleConfirmDocumentImport, resetPrimitiveViewStates]);
+
+  const handleConfirmDroppedDocument = useCallback(async () => {
+    if (!pendingDocumentImport || documentImportBusy) return;
+    setDocumentImportBusy(true);
+    try {
+      const canOpenDroppedDocument = await saveRecoveryDraftOrConfirm(saveRecoveryDraft);
+      if (canOpenDroppedDocument) finishDroppedDocumentImport();
+    } finally {
+      setDocumentImportBusy(false);
+    }
+  }, [documentImportBusy, finishDroppedDocumentImport, pendingDocumentImport, saveRecoveryDraft]);
+
+  const handleGeneratedImageSource = useCallback(
+    (...args: Parameters<typeof addImageFromSource>) => {
+      setAiPanelRequested(true);
+      addImageFromSource(...args);
+    },
+    [addImageFromSource],
+  );
+
+  const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedLayerHasAiGeneration =
+    selectedLayer?.kind === 'image' && Boolean(selectedLayer.aiGeneration || selectedLayer.aiGenerationHistory?.length);
+  const showAiGeneration = aiPanelRequested || selectedLayerHasAiGeneration;
 
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
@@ -273,7 +393,19 @@ export default function Editor() {
 
   return (
     <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
-      <SiteNav solid compact={viewMode === 'nodes'} />
+      <SiteNav
+        ariaLabel="Editor toolbar"
+        solid
+        compact
+        compactSlot={
+          <EditorChromeSlot
+            doc={doc}
+            storageStatus={storageStatus}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
+        }
+      />
       <input
         ref={fileInputRef}
         className="sr-only"
@@ -281,7 +413,7 @@ export default function Editor() {
         accept=".artifact,.artifact.json,application/json,application/vnd.artifact.project+json"
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
-          void handleOpenDocument(file);
+          void handleStageDocumentImport(file);
           event.currentTarget.value = '';
         }}
       />
@@ -345,29 +477,29 @@ export default function Editor() {
         <main
           className={`main main-${viewMode}`}
           onDragEnter={(event) => {
-            if (Array.from(event.dataTransfer.types).includes('Files')) setCanvasDragOver(true);
+            if (Array.from(event.dataTransfer.types).includes('Files')) {
+              setDropPreview(inferDropPreviewKind(event.dataTransfer));
+            }
           }}
-          onDragOver={(event) => event.preventDefault()}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDropPreview(inferDropPreviewKind(event.dataTransfer));
+          }}
           onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node)) setCanvasDragOver(false);
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropPreview(null);
           }}
           onDrop={(event) => {
             event.preventDefault();
-            setCanvasDragOver(false);
+            setDropPreview(null);
             const files = Array.from(event.dataTransfer.files);
             const documentFile = files.find(isArtifactDocumentFile);
-            if (documentFile) void handleOpenDocument(documentFile);
+            if (documentFile) void handleStageDocumentImport(documentFile);
             const assetFiles = files.filter((file) => !isArtifactDocumentFile(file));
             if (assetFiles.length > 0) handleDroppedFiles(assetFiles);
           }}
         >
           <h1 className="sr-only">Artifact Cover Editor</h1>
           <StorageWarningStrip status={storageStatus} storageError={storageError} />
-          {viewMode === 'nodes' && (
-            <div className="floating-view-toggle">
-              <ViewModeToggle value={viewMode} onChange={setViewMode} />
-            </div>
-          )}
 
           {viewMode === 'layers' ? (
             <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
@@ -376,7 +508,7 @@ export default function Editor() {
                 imageCache={imageCache}
                 selectedLayerId={selectedLayerId}
                 primitiveViewStates={effectivePrimitiveViewStates}
-                dragOver={canvasDragOver}
+                dropPreview={dropPreview}
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
               />
@@ -425,6 +557,16 @@ export default function Editor() {
               </Suspense>
             </div>
           )}
+          {viewMode === 'nodes' && <EditorDropPreview dropPreview={dropPreview} />}
+
+          <DocumentImportConfirm
+            pendingImport={pendingDocumentImport}
+            busy={documentImportBusy}
+            onCancel={handleCancelDocumentImport}
+            onConfirm={() => {
+              void handleConfirmDroppedDocument();
+            }}
+          />
 
           {(dropError || exportError || documentFileError || environmentFileError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
@@ -447,16 +589,13 @@ export default function Editor() {
             onAddArrayPreset={addArrayPreset}
             onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
             onStartAiImage={handleStartAiImage}
-            onLoadStarter={handleLoadStarter}
-            onOpenProjects={handleToggleProjects}
-            onRandomize={handleRandomize}
             onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
-            onGeneratedImageSource={addImageFromSource}
+            showAiGeneration={showAiGeneration}
+            onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
-            modeSwitcher={<ViewModeToggle value={viewMode} onChange={setViewMode} variant="sidebar" />}
           />
         )}
 
@@ -479,6 +618,106 @@ export default function Editor() {
             />
           )}
         </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function EditorDropPreview({ dropPreview }: { dropPreview: DropPreviewKind | null }) {
+  if (!dropPreview) return null;
+  const copy = {
+    document: ['Drop artifact file', 'We will inspect it before opening.'],
+    file: ['Drop file', 'Images import as layers. Artifact files ask first.'],
+    image: ['Drop image', 'Adds a new image layer.'],
+  }[dropPreview];
+  return (
+    <div className="editor-drop-preview" aria-hidden="true">
+      <div className="editor-drop-preview__panel">
+        <div className="editor-drop-preview__header">
+          <span>Import files</span>
+        </div>
+        <ImportFileTypeRail />
+        <div className="editor-drop-preview__zone">
+          <span className="editor-drop-preview__mark">⇧</span>
+          <strong>{copy[0]}</strong>
+          <small>{copy[1]}</small>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportFileTypeRail() {
+  return (
+    <div className="import-file-types" aria-hidden="true">
+      {IMPORT_FILE_TYPES.map((type) => (
+        <div className="import-file-type" key={type.label}>
+          <span className="import-file-type__icon">{type.icon}</span>
+          <span>
+            <strong>{type.label}</strong>
+            <small>{type.detail}</small>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentImportConfirm({
+  busy,
+  onCancel,
+  onConfirm,
+  pendingImport,
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pendingImport: PendingDocumentImport | null;
+}) {
+  if (!pendingImport) return null;
+  return (
+    <div className="document-import-confirm" role="dialog" aria-modal="false" aria-labelledby="document-import-title">
+      <div className="document-import-confirm__header">
+        <h2 id="document-import-title" className="document-import-confirm__title">
+          Open artifact file
+        </h2>
+        <button type="button" className="document-import-confirm__close" onClick={onCancel} aria-label="Cancel import">
+          ×
+        </button>
+      </div>
+      <ImportFileTypeRail />
+      <div className="document-import-confirm__zone">
+        <span className="document-import-confirm__zone-mark">⇧</span>
+        <span className="document-import-confirm__eyebrow">{importKindLabel(pendingImport.fileKind)}</span>
+        <div className="document-import-confirm__file" aria-label="Artifact file">
+          <span className="document-import-confirm__file-name">{pendingImport.fileName}</span>
+          <span>{formatFileSize(pendingImport.fileSize)}</span>
+        </div>
+        <dl className="document-import-confirm__meta" aria-label="Dropped document summary">
+          <div>
+            <dt>Aspect</dt>
+            <dd>{pendingImport.aspect}</dd>
+          </div>
+          <div>
+            <dt>Layers</dt>
+            <dd>{pendingImport.layerCount}</dd>
+          </div>
+          <div>
+            <dt>Graph</dt>
+            <dd>{pendingImport.hasGraph ? 'YES' : 'NO'}</dd>
+          </div>
+        </dl>
+      </div>
+      <p className="document-import-confirm__body">
+        Current work will be saved as a recovery copy before this file replaces the canvas.
+      </p>
+      <div className="document-import-confirm__actions">
+        <button type="button" className="action-button action-button--quiet" onClick={onCancel} disabled={busy}>
+          CANCEL
+        </button>
+        <button type="button" className="action-button export-btn" onClick={onConfirm} disabled={busy}>
+          {busy ? 'SAVING' : 'OPEN FILE'}
+        </button>
       </div>
     </div>
   );

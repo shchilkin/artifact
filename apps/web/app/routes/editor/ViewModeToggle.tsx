@@ -2,6 +2,50 @@ import type { CSSProperties } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export type ViewMode = 'layers' | 'nodes';
+type ViewModeToggleVariant = 'chrome' | 'floating' | 'node' | 'sidebar';
+
+const BASE_BUTTON_STYLE: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+  border: '1px solid var(--border)',
+  borderRadius: 0,
+  transition: 'background 120ms ease-out, color 120ms ease-out',
+};
+
+const BUTTON_SIZE_STYLE: Record<ViewModeToggleVariant, CSSProperties> = {
+  chrome: {
+    minHeight: 34,
+    padding: '0 12px',
+    fontSize: 10,
+  },
+  floating: {
+    minHeight: 'var(--touch)',
+    padding: '0 16px',
+    fontSize: 11,
+  },
+  node: {
+    minHeight: 38,
+    padding: '0 13px',
+    fontSize: 10,
+  },
+  sidebar: {
+    minHeight: 'var(--touch)',
+    padding: '0 16px',
+    fontSize: 11,
+  },
+};
+
+function viewModeButtonStyle(active: boolean, side: 'left' | 'right', variant: ViewModeToggleVariant): CSSProperties {
+  return {
+    ...BASE_BUTTON_STYLE,
+    ...BUTTON_SIZE_STYLE[variant],
+    background: active ? 'var(--text)' : 'transparent',
+    color: active ? 'var(--bg)' : 'var(--text-dim)',
+    borderRight: side === 'left' ? 'none' : undefined,
+  };
+}
 
 export function ViewModeToggle({
   value,
@@ -10,24 +54,8 @@ export function ViewModeToggle({
 }: {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
-  variant?: 'floating' | 'sidebar';
+  variant?: ViewModeToggleVariant;
 }) {
-  const buttonStyle = (active: boolean, side: 'left' | 'right'): CSSProperties => ({
-    minHeight: 'var(--touch)',
-    padding: '0 16px',
-    fontFamily: 'var(--mono)',
-    fontSize: 11,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    background: active ? 'var(--text)' : 'transparent',
-    color: active ? 'var(--bg)' : 'var(--text-dim)',
-    border: '1px solid var(--border)',
-    borderRight: side === 'left' ? 'none' : undefined,
-    borderRadius: 0,
-    transition: 'background 120ms ease-out, color 120ms ease-out',
-  });
-
   return (
     <Tabs
       value={value}
@@ -35,10 +63,18 @@ export function ViewModeToggle({
       className={`view-mode-toggle view-mode-toggle-${variant}`}
     >
       <TabsList>
-        <TabsTrigger value="layers" style={buttonStyle(value === 'layers', 'left')} aria-label="Switch to layers view">
+        <TabsTrigger
+          value="layers"
+          style={viewModeButtonStyle(value === 'layers', 'left', variant)}
+          aria-label="Switch to layers view"
+        >
           layers
         </TabsTrigger>
-        <TabsTrigger value="nodes" style={buttonStyle(value === 'nodes', 'right')} aria-label="Switch to nodes view">
+        <TabsTrigger
+          value="nodes"
+          style={viewModeButtonStyle(value === 'nodes', 'right', variant)}
+          aria-label="Switch to nodes view"
+        >
           nodes
         </TabsTrigger>
       </TabsList>
