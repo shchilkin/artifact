@@ -132,7 +132,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install browser test font fixture
+        run: apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core
+
       - name: Cross-browser editor smoke tests
+        env:
+          HOME: /root
         run: npm run test:browser
 
       - name: Upload Playwright report
