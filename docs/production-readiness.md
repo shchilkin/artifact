@@ -49,6 +49,46 @@ CI should run:
 
 ## Manual QA
 
+### v0.38.0 Release Prep
+
+- Package metadata is bumped to `0.38.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.38.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.38 polishes the editor-first `/app` chrome, Layers and Nodes controls,
+  responsive bottom actions, layer rows, node handles, context menus, and local
+  project/share/open action clarity.
+- v0.38 stages `.artifact.json` and editable package files before replacing the
+  current document, saves the current canvas as a recovery copy, and asks users
+  to confirm artifact-file replacement.
+- v0.38 refreshes the app glyph, favicon, manifest icon, shared dropdown/action
+  primitives, and internal style-guide examples while keeping the broader public
+  site identity out of scope.
+- v0.38 includes the already-merged Bad Stream block effect follow-up from
+  PR #79 without turning the release into a broad effect batch.
+- Manual QA confirmed Layers and Nodes at desktop and narrow widths, aspect
+  menu behavior, Add menus, row context menus, node toolbar grouping, pan/zoom,
+  edge-drop menus, output-path controls, metrics overlay behavior, resource
+  drops, artifact replacement confirmation, and nonblank export actions.
+- `npm run check` passed on 2026-06-23.
+- `npm run build` passed on 2026-06-23.
+- `npm run test:browser` passed on 2026-06-23 with `331 passed` and
+  `38 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit.
+- `npm run perf:node-editor` passed on 2026-06-23 because v0.38 changes React
+  Flow chrome, node handles, node menus, bottom actions, thumbnails, and
+  performance overlay surfaces.
+- `npm run release:verify` passed on 2026-06-23.
+- Accepted release risk: the public landing page and broader brand/site refresh
+  remain future work; v0.38 intentionally ships the editor-first identity and
+  chrome pass.
+- Accepted release risk: project autosave history, project versions,
+  restore/compare, and cloud share links remain deferred so the local project
+  model can stay simple in this release.
+- Accepted release risk: the full browser suite remains a large single-worker
+  cross-browser gate. Continued suite stability and CI runtime work remain
+  useful, but v0.38 ships with a clean final browser pass.
+
 ### v0.37.0 Release Prep
 
 - Package metadata is bumped to `0.37.0` in `package.json`,
