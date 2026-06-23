@@ -192,11 +192,12 @@ large brittle E2E project.
 CI uses a two-tier browser gate. Pull requests run `npm run test:browser:pr`,
 which keeps the feedback loop focused on a curated set of high-signal Chromium
 desktop and mobile Chromium checks. Pushes to `development` or `main`, tags,
-and local release prep should use the full cross-browser gate so Firefox,
-WebKit, full Chromium coverage, and mobile WebKit still protect integration and
-release confidence. CI runs browser tests inside the official Playwright image
-that matches the locked Playwright version, so browser binaries and system
-dependencies are already present instead of being installed during every run.
+and local release prep use the full cross-browser gate so Firefox, WebKit, full
+Chromium coverage, and mobile WebKit still protect integration and release
+confidence. The full cross-browser CI job runs inside the official Playwright
+image that matches the locked Playwright version, so browser binaries and
+system dependencies are already present instead of being installed during every
+full run.
 
 Local release prep should use `npm run test:browser:release`. It sets
 `PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
