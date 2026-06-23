@@ -19,14 +19,14 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.38 is planned as the Editor UX, Import Safety, And Visual Identity release:
-  editor chrome, Layers/Nodes workflow polish, responsive bottom actions,
-  artifact-file replacement safeguards, drag/drop import clarity, local project
-  action clarity, visual identity refresh, and the already-merged Bad Stream
-  effect node follow-up from PR #79. See
-  [`version-plans/v0.38.md`](./version-plans/v0.38.md). Release prep should
-  happen in a follow-up PR after the feature PRs land in `development`.
-- v0.37 has reached release-candidate prep as the 3D Material Nodes release:
+- v0.38 has reached release-candidate prep as the Editor UX, Import Safety, And
+  Visual Identity release: editor chrome, Layers/Nodes workflow polish,
+  responsive bottom actions, artifact-file replacement safeguards, drag/drop
+  import clarity, local project action clarity, visual identity refresh, and
+  the already-merged Bad Stream effect node follow-up from PR #79. See
+  [`version-plans/v0.38.md`](./version-plans/v0.38.md) and
+  [`releases/v0.38.0.md`](./releases/v0.38.0.md).
+- v0.37 has completed the 3D Material Nodes release:
   one PBR Material graph node, explicit material and texture-map ports,
   material/environment inputs for 3D primitives and scenes, multiple resource
   drops, and preview/export parity for connected material workflows. See
@@ -85,15 +85,19 @@ Next deferred product tracks:
 
 Planned next:
 
-- [`version-plans/v0.38.md`](./version-plans/v0.38.md) — Editor UX, Import
-  Safety, And Visual Identity is the planned next release train after v0.37:
-  editor chrome, Layers/Nodes workflow polish, responsive bottom actions,
-  artifact-file replacement safeguards, drag/drop import clarity, local project
-  action clarity, visual identity refresh, and PR #79's Bad Stream effect node
-  follow-up. Release notes are not prepared yet; package metadata should stay
-  at v0.37 until the release-prep PR.
+- The next version scope should be selected from the deferred product tracks
+  below after v0.38 release feedback, with a likely split between 3D material
+  authoring follow-up, project history, server-backed sharing, landing refresh,
+  or CI-policy work.
 
 Recently shipped:
+
+- [`version-plans/v0.38.md`](./version-plans/v0.38.md) — Editor UX, Import
+  Safety, And Visual Identity: focused editor chrome, Layers/Nodes workflow
+  polish, responsive bottom actions, artifact-file replacement safeguards,
+  drag/drop import clarity, local project action clarity, visual identity
+  refresh, and PR #79's Bad Stream effect node follow-up. Release notes are in
+  [`releases/v0.38.0.md`](./releases/v0.38.0.md).
 
 - [`version-plans/v0.37.md`](./version-plans/v0.37.md) — 3D Material Nodes:
   one PBR Material graph node with scalar controls and texture-map inputs,

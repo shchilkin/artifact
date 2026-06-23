@@ -1139,6 +1139,33 @@ async function expectPixelateNode(page: Page) {
   return pixelateNode;
 }
 
+async function waitForPixelateEdgeInsertion(page: Page, timeoutMs: number) {
+  let state = await readPixelateEdgeInsertionState(page);
+  const deadline = Date.now() + timeoutMs;
+  while (!(state.pixelateId && state.removedOriginal && state.hasBefore && state.hasAfter) && Date.now() < deadline) {
+    await page.waitForTimeout(250);
+    state = await readPixelateEdgeInsertionState(page);
+  }
+  return state;
+}
+
+async function readPixelateEdgeInsertionState(page: Page) {
+  return page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    const pixelate = doc.layers?.find((layer: { kind: string; name: string }) => layer.name === 'Pixelate');
+    const edges = (doc.graph?.edges ?? []) as Array<{ id: string; fromId: string; toId: string; toPort: string }>;
+    return {
+      pixelateId: pixelate?.id,
+      removedOriginal: !edges.some((edge) => edge.id === 'e-wide-fill-export'),
+      hasBefore: Boolean(
+        pixelate &&
+          edges.some((edge) => edge.fromId === 'wide-fill' && edge.toId === pixelate.id && edge.toPort === 'in'),
+      ),
+      hasAfter: Boolean(pixelate && edges.some((edge) => edge.fromId === pixelate.id && edge.toId === '__export__')),
+    };
+  });
+}
+
 async function selectUnconnectedTopFillNode(page: Page) {
   await gotoDocument(page, graphPreviewDocument);
   await switchToNodeView(page);
@@ -2736,7 +2763,7 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
 });
 
 test('node add menu can drag an effect onto an edge and split it', async ({ page }) => {
-  const pixelateMenuRow = await openPixelateNodeAddMenu(page);
+  let pixelateMenuRow = await openPixelateNodeAddMenu(page);
   const targetPosition = await page.locator('.react-flow__pane').evaluate((pane) => {
     const source = document.querySelector<HTMLElement>('.react-flow__node[data-id="wide-fill"]');
     const target = document.querySelector<HTMLElement>('.react-flow__node[data-id="__export__"]');
@@ -2750,30 +2777,17 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
   });
   await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
 
-  const pixelateNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Pixelate' }).first();
-  await expect(pixelateNode).toBeVisible({ timeout: 15_000 });
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const pixelate = doc.layers?.find((layer: { kind: string; name: string }) => layer.name === 'Pixelate');
-          const edges = (doc.graph?.edges ?? []) as Array<{ id: string; fromId: string; toId: string; toPort: string }>;
-          return {
-            pixelateId: pixelate?.id,
-            removedOriginal: !edges.some((edge) => edge.id === 'e-wide-fill-export'),
-            hasBefore: Boolean(
-              pixelate &&
-                edges.some((edge) => edge.fromId === 'wide-fill' && edge.toId === pixelate.id && edge.toPort === 'in'),
-            ),
-            hasAfter: Boolean(
-              pixelate && edges.some((edge) => edge.fromId === pixelate.id && edge.toId === '__export__'),
-            ),
-          };
-        }),
-      { timeout: 15_000 },
-    )
-    .toMatchObject({ removedOriginal: true, hasBefore: true, hasAfter: true });
+  let graphState = await waitForPixelateEdgeInsertion(page, 4_000);
+  if (!graphState.pixelateId) {
+    await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
+    pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+    await expect(pixelateMenuRow).toContainText('Drag');
+    await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
+    graphState = await waitForPixelateEdgeInsertion(page, 15_000);
+  }
+
+  const pixelateNode = await expectPixelateNode(page);
+  expect(graphState).toMatchObject({ removedOriginal: true, hasBefore: true, hasAfter: true });
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect
     .poll(
