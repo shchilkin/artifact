@@ -9,6 +9,7 @@ import './dropdown-menu.css';
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
+const DropdownMenuSeparator = DropdownMenuPrimitive.Separator;
 
 const DropdownMenuContent = forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
@@ -40,4 +41,18 @@ const DropdownMenuItem = forwardRef<
   );
 });
 
-export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger };
+const DropdownMenuLabel = forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>
+>(function DropdownMenuLabel({ className, ...props }, ref) {
+  return <DropdownMenuPrimitive.Label ref={ref} className={cn('artifact-dropdown-menu-label', className)} {...props} />;
+});
+
+export {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+};

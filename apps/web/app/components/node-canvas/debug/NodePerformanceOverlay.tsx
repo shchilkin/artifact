@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   getRenderWorkerDiagnosticsSnapshot,
   type RenderWorkerDiagnosticsSnapshot,
@@ -9,6 +17,7 @@ import {
   subscribeThumbnailQueue,
   type ThumbnailQueueSnapshot,
 } from '../thumbnails/thumbnailQueue';
+import { type OverlayPosition, PERF_OVERLAY_DEFAULT_POSITION, parsePerfOverlayPosition } from './perfOverlayModel';
 
 const EMPTY_QUEUE_SNAPSHOT: ThumbnailQueueSnapshot = {
   queued: 0,
@@ -44,7 +53,26 @@ interface NodePerformanceOverlayProps {
   nodeCount: number;
 }
 
+interface OverlayDragState {
+  origin: OverlayPosition;
+  pointerId: number;
+  startX: number;
+  startY: number;
+}
+
+interface OverlayDragHandlers {
+  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+}
+
+const PERF_OVERLAY_STORAGE_KEY = 'artifact-node-perf-overlay-position';
+const PERF_OVERLAY_MARGIN = 12;
+
 export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerformanceOverlayProps) {
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const { dragHandlers, position } = usePerfOverlayPosition(overlayRef);
   const queue = useDeferredExternalSnapshot(
     subscribeThumbnailQueue,
     getThumbnailQueueSnapshot,
@@ -65,7 +93,14 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
   if (nodePerformanceOverlayHidden(debugEnabled, status)) return null;
 
   return (
-    <div className={`node-perf-overlay${debugEnabled ? ' node-perf-overlay-debug' : ''}`} aria-live="polite">
+    <div
+      ref={overlayRef}
+      className={`node-perf-overlay${debugEnabled ? ' node-perf-overlay-debug' : ''}`}
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+      aria-live="polite"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <NodePerfDragHeader debugEnabled={debugEnabled} dragHandlers={dragHandlers} />
       <NodePerfStatus status={status} />
       <NodePerfDebugGrid
         debugEnabled={debugEnabled}
@@ -80,6 +115,141 @@ export function NodePerformanceOverlay({ debugEnabled, nodeCount }: NodePerforma
 
 function nodePerformanceOverlayHidden(debugEnabled: boolean, status: string | null) {
   return !debugEnabled && !status;
+}
+
+function usePerfOverlayPosition(overlayRef: RefObject<HTMLDivElement | null>) {
+  const dragRef = useRef<OverlayDragState | null>(null);
+  const [position, setPosition] = useState(readStoredPerfOverlayPosition);
+  const positionRef = useRef(position);
+  const clampPosition = useCallback(
+    (next: OverlayPosition) => {
+      return clampPerfOverlayPosition(next, overlayRef.current);
+    },
+    [overlayRef],
+  );
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    const handleResize = () => setPosition((current) => clampPosition(current));
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [clampPosition]);
+
+  return {
+    dragHandlers: usePerfOverlayDrag(dragRef, positionRef, setPosition, clampPosition),
+    position,
+  };
+}
+
+function usePerfOverlayDrag(
+  dragRef: RefObject<OverlayDragState | null>,
+  positionRef: RefObject<OverlayPosition>,
+  setPosition: Dispatch<SetStateAction<OverlayPosition>>,
+  clampPosition: (next: OverlayPosition) => OverlayPosition,
+): OverlayDragHandlers {
+  const onPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        origin: positionRef.current,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+    },
+    [dragRef, positionRef],
+  );
+
+  const onPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = activePerfOverlayDrag(dragRef.current, event.pointerId);
+      if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = clampPosition(nextPerfOverlayDragPosition(drag, event));
+      positionRef.current = next;
+      setPosition(next);
+    },
+    [clampPosition, dragRef, positionRef, setPosition],
+  );
+
+  const onPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!activePerfOverlayDrag(dragRef.current, event.pointerId)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragRef.current = null;
+      storePerfOverlayPosition(positionRef.current);
+    },
+    [dragRef, positionRef],
+  );
+
+  return { onPointerCancel: onPointerUp, onPointerDown, onPointerMove, onPointerUp };
+}
+
+function activePerfOverlayDrag(drag: OverlayDragState | null, pointerId: number) {
+  return drag?.pointerId === pointerId ? drag : null;
+}
+
+function nextPerfOverlayDragPosition(drag: OverlayDragState, event: ReactPointerEvent<HTMLDivElement>) {
+  return {
+    x: drag.origin.x + event.clientX - drag.startX,
+    y: drag.origin.y + event.clientY - drag.startY,
+  };
+}
+
+function readStoredPerfOverlayPosition(): OverlayPosition {
+  if (typeof window === 'undefined') return PERF_OVERLAY_DEFAULT_POSITION;
+  try {
+    return parsePerfOverlayPosition(window.localStorage.getItem(PERF_OVERLAY_STORAGE_KEY));
+  } catch {
+    return PERF_OVERLAY_DEFAULT_POSITION;
+  }
+}
+
+function storePerfOverlayPosition(position: OverlayPosition) {
+  try {
+    window.localStorage.setItem(PERF_OVERLAY_STORAGE_KEY, JSON.stringify(position));
+  } catch {
+    // Ignore storage failures; the panel remains draggable for this session.
+  }
+}
+
+function clampPerfOverlayPosition(next: OverlayPosition, overlay: HTMLDivElement | null): OverlayPosition {
+  const parent = overlay?.parentElement;
+  if (!parent || !overlay) return next;
+  const maxX = parent.clientWidth - overlay.offsetWidth - PERF_OVERLAY_MARGIN;
+  const maxY = parent.clientHeight - overlay.offsetHeight - PERF_OVERLAY_MARGIN;
+  return {
+    x: clamp(next.x, PERF_OVERLAY_MARGIN, Math.max(PERF_OVERLAY_MARGIN, maxX)),
+    y: clamp(next.y, PERF_OVERLAY_MARGIN, Math.max(PERF_OVERLAY_MARGIN, maxY)),
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function NodePerfDragHeader({
+  debugEnabled,
+  dragHandlers,
+}: {
+  debugEnabled: boolean;
+  dragHandlers: OverlayDragHandlers;
+}) {
+  if (!debugEnabled) return null;
+  return (
+    <div className="node-perf-header" aria-label="Drag performance panel" {...dragHandlers}>
+      <span>Perf</span>
+    </div>
+  );
 }
 
 function NodePerfStatus({ status }: { status: string | null }) {

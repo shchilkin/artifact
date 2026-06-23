@@ -13,11 +13,12 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
 
   const projects = await openProjectsPanel(page);
   await expectSaveFormToAlign(projects);
-  await expect(projects).toContainText('Not saved as project');
-  await expect(projects.getByText('Browser storage')).toBeHidden();
+  await expect(projects).toContainText('Projects save editable work in this browser');
+  await expect(projects).toContainText('Local draft');
+  await expect(projects.getByText('Local storage')).toBeHidden();
   await expect(projects.getByText('Offline app')).toBeHidden();
   await projects.getByText('Storage details').click();
-  await expect(projects.getByText('Browser storage')).toBeVisible();
+  await expect(projects.getByText('Local storage')).toBeVisible();
   await expect(projects.getByText('Offline app')).toBeVisible();
   await expect(projects.getByRole('button', { name: 'Create new project from projects' })).toHaveClass(
     /project-new-blank-action/,
@@ -27,7 +28,7 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
 
 test('v0.34 active project save updates the current project after edits', async ({ page }) => {
   const projects = await createNamedProject(page, 'Saved State Smoke');
-  await expect(projects).toContainText('Saved in project');
+  await expect(projects).toContainText('Saved project');
   await expect(projects.getByRole('button', { name: 'Load Saved State Smoke' })).toHaveCount(1);
   await expect(projects.getByRole('button', { name: 'Save active project Saved State Smoke' })).toBeDisabled();
 
@@ -41,11 +42,11 @@ test('v0.34 active project save updates the current project after edits', async 
   await projects.getByRole('button', { name: 'Close projects' }).click();
   await page.locator('main .bottom-bar .rand-btn').click();
   await openProjectsPanel(page);
-  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved changes');
+  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved project');
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Save active project Saved State Renamed' }).click();
-  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
+  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved project');
   await expect(page.getByRole('button', { name: 'Load Saved State Renamed' })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeDisabled();
   await page.getByRole('button', { name: 'Save copy of Saved State Renamed' }).click();
@@ -55,7 +56,7 @@ test('v0.34 active project save updates the current project after edits', async 
 
 test('v0.34 dedicated Projects page opens local projects back in the editor', async ({ page }) => {
   const projects = await createNamedProject(page, 'Projects Page Smoke');
-  await expect(projects).toContainText('Saved in project');
+  await expect(projects).toContainText('Saved project');
 
   await page.goto('/projects');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
@@ -83,7 +84,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
 
   await expect(page).toHaveURL(/\/app$/);
   await openProjectsPanel(page);
-  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved in project');
+  await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Saved project');
   await expect(page.getByRole('button', { name: 'Save active project Projects Page Smoke' })).toBeDisabled();
   await expectNoBrowserIssues(page);
 });

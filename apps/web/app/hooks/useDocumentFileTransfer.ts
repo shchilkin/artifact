@@ -23,6 +23,17 @@ import {
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 const MAX_PROJECT_PACKAGE_BYTES = 75 * 1024 * 1024;
 
+export interface PendingDocumentImport {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileKind: 'document' | 'project-package';
+  doc: CanvasDocument;
+  layerCount: number;
+  aspect: string;
+  hasGraph: boolean;
+}
+
 export function isArtifactDocumentFile(file: File) {
   return (
     file.name.endsWith(ARTIFACT_FILE_EXTENSION) ||
@@ -78,12 +89,34 @@ async function readDocumentFileResult(file: File): Promise<{ doc: CanvasDocument
   }
 }
 
+function createPendingDocumentImport(file: File, doc: CanvasDocument): PendingDocumentImport {
+  return {
+    id: `${file.name}-${file.size}-${file.lastModified}`,
+    fileName: file.name || 'Untitled artifact',
+    fileSize: file.size,
+    fileKind: isProjectPackageDocumentFile(file) ? 'project-package' : 'document',
+    doc,
+    layerCount: doc.layers.length,
+    aspect: doc.global.aspect ?? '1:1',
+    hasGraph: Boolean(doc.graph),
+  };
+}
+
+async function readPendingDocumentImport(
+  file: File,
+): Promise<{ pendingImport: PendingDocumentImport | null; error: string | null }> {
+  const result = await readDocumentFileResult(file);
+  if (!result.doc) return { pendingImport: null, error: result.error ?? 'Could not read document file.' };
+  return { pendingImport: createPendingDocumentImport(file, result.doc), error: null };
+}
+
 export function useDocumentFileTransfer(
   docRef: MutableRefObject<CanvasDocument>,
   onLoadDocument: (doc: CanvasDocument) => void,
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [documentFileError, setDocumentFileError] = useState<string | null>(null);
+  const [pendingDocumentImport, setPendingDocumentImport] = useState<PendingDocumentImport | null>(null);
 
   const showDocumentFileError = useCallback((message: string) => {
     setDocumentFileError(message);
@@ -145,13 +178,42 @@ export function useDocumentFileTransfer(
     [onLoadDocument, showDocumentFileError],
   );
 
+  const handleStageDocumentImport = useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+      const result = await readPendingDocumentImport(file);
+      if (!result.pendingImport) {
+        showDocumentFileError(result.error ?? 'Could not read document file.');
+        return;
+      }
+      setPendingDocumentImport(result.pendingImport);
+      setDocumentFileError(null);
+    },
+    [showDocumentFileError],
+  );
+
+  const handleCancelDocumentImport = useCallback(() => {
+    setPendingDocumentImport(null);
+  }, []);
+
+  const handleConfirmDocumentImport = useCallback(() => {
+    if (!pendingDocumentImport) return;
+    onLoadDocument(pendingDocumentImport.doc);
+    setPendingDocumentImport(null);
+    setDocumentFileError(null);
+  }, [onLoadDocument, pendingDocumentImport]);
+
   return {
     fileInputRef,
     documentFileError,
+    pendingDocumentImport,
+    handleCancelDocumentImport,
+    handleConfirmDocumentImport,
     handleOpenDocument,
     handleOpenDocumentPicker,
     handleSaveDocument,
     handleSaveProjectPackage,
+    handleStageDocumentImport,
   };
 }
 

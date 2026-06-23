@@ -530,6 +530,86 @@ describe('renderDocument — preview/export size parity', () => {
     expectFullyOpaqueCanvas(dotted);
   });
 
+  it('bad stream creates deterministic macroblock damage and responds to seed offset', async () => {
+    const source = makeFillLayer({ color: '#777777', opacity: 100 });
+    const makeDoc = (seedOffset = 0): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+      layers: [
+        source,
+        makeEffectPresetLayer('badStream', {
+          badStream: 90,
+          badStreamBlockSize: 24,
+          badStreamDetail: 80,
+          badStreamSmear: 70,
+          badStreamChroma: 50,
+          badStreamDarkness: 72,
+          seedOffset,
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const base = await renderDocument({ ...makeDoc(), layers: [source] }, 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const damaged = await renderDocument(makeDoc(), 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const damagedAgain = await renderDocument(makeDoc(), 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+    const shifted = await renderDocument(makeDoc(13), 120, 120, new Map(), {
+      draft: true,
+      graphMode: 'stack',
+    });
+
+    expect(pixelsEqual(allPixels(damaged), allPixels(damagedAgain))).toBe(true);
+    expect(pixelsEqual(allPixels(base), allPixels(damaged))).toBe(false);
+    expect(pixelsEqual(allPixels(damaged), allPixels(shifted))).toBe(false);
+    expect(darkerThan(damaged, 90)).toBeGreaterThan(darkerThan(base, 90));
+    expectFullyOpaqueCanvas(damaged);
+  });
+
+  it('bad stream block presets render as separate deterministic passes', async () => {
+    const source = makeSourceLayer('noise', {
+      noiseType: 'clouds',
+      noiseScale: 14,
+      noiseDetail: 4,
+      noiseContrast: 70,
+      noiseBalance: 45,
+      color: '#24283a',
+      accentColor: '#e6c4a8',
+    });
+    const presets = ['macroblocks', 'detailBlocks', 'blockSmear', 'chromaBlocks', 'blockDropout'] as const;
+
+    for (const preset of presets) {
+      const doc: CanvasDocument = {
+        global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+        layers: [source, makeEffectPresetLayer(preset, { badStream: 100, badStreamBlockSize: 24 })],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      };
+      const base = await renderDocument({ ...doc, layers: [source] }, 96, 96, new Map(), {
+        draft: true,
+        graphMode: 'stack',
+      });
+      const effected = await renderDocument(doc, 96, 96, new Map(), {
+        draft: true,
+        graphMode: 'stack',
+      });
+      const again = await renderDocument(doc, 96, 96, new Map(), {
+        draft: true,
+        graphMode: 'stack',
+      });
+
+      expect(pixelsEqual(allPixels(effected), allPixels(again))).toBe(true);
+      expect(pixelsEqual(allPixels(base), allPixels(effected)), preset).toBe(false);
+      expect(visiblePixelCount(effected)).toBeGreaterThan(96 * 96 * 0.55);
+    }
+  });
+
   it('noise shaping controls alter procedural texture pixels deterministically', async () => {
     const makeNoiseDoc = (patch: Partial<ReturnType<typeof makeSourceLayer>> = {}): CanvasDocument => ({
       global: { bg: 'transparent', seed: 77, aspect: '1:1' },
@@ -658,6 +738,20 @@ describe('renderDocument — preview/export size parity', () => {
     expect(samplePixel(base, 10, 3)).toEqual([255, 90, 54, 255]);
     expect(samplePixel(scaled, 20, 0)).toEqual(samplePixel(base, 10, 0));
     expect(samplePixel(scaled, 20, 6)).toEqual(samplePixel(base, 10, 3));
+  });
+
+  it('renders legacy rays layers that are missing rayColor', async () => {
+    const legacyRays = makeEffectPresetLayer('rays', { rays: 12, rayInt: 70 });
+    delete (legacyRays as Partial<typeof legacyRays>).rayColor;
+    const effectDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [makeFillLayer({ color: '#221144', opacity: 100 }), legacyRays],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderDocument(effectDoc, 64, 64, new Map(), { graphMode: 'stack' });
+    expect(canvas.width).toBe(64);
+    expect(canvas.height).toBe(64);
   });
 
   it('solarize and bleach bypass render visible pixels over a source', async () => {

@@ -101,6 +101,15 @@ const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
   { name: 'PS fire', colors: ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'] },
 ];
 
+const CODEC_BLOCK_PRESETS = [
+  'badStream',
+  'macroblocks',
+  'detailBlocks',
+  'blockSmear',
+  'chromaBlocks',
+  'blockDropout',
+] as const satisfies readonly EffectPreset[];
+
 export function activeIndexedPaletteCount(layer: Pick<EffectLayer, 'indexedPaletteCount'>): number {
   return Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
 }
@@ -214,6 +223,61 @@ export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = [
         presets: ['vhsTracking'],
         label: 'VHS Tracking',
         field: 'vhsTracking',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: CODEC_BLOCK_PRESETS,
+        label: 'Compression',
+        field: 'badStream',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: CODEC_BLOCK_PRESETS,
+        label: 'Macroblocks',
+        field: 'badStreamBlockSize',
+        min: 12,
+        max: 96,
+        overrideMax: 180,
+        valueFormat: 'px',
+      },
+      {
+        type: 'slider',
+        presets: ['badStream', 'detailBlocks', 'chromaBlocks'],
+        label: 'Detail Blocks',
+        field: 'badStreamDetail',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['badStream', 'blockSmear'],
+        label: 'Smear',
+        field: 'badStreamSmear',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['badStream', 'chromaBlocks'],
+        label: 'Chroma Drift',
+        field: 'badStreamChroma',
+        min: 0,
+        max: 100,
+        valueFormat: 'percent',
+      },
+      {
+        type: 'slider',
+        presets: ['badStream', 'macroblocks', 'detailBlocks', 'blockDropout'],
+        label: 'Darkness',
+        field: 'badStreamDarkness',
         min: 0,
         max: 100,
         valueFormat: 'percent',

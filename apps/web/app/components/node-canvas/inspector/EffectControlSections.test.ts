@@ -74,6 +74,24 @@ describe('EffectControlSections metadata', () => {
       overrideMax: 1024,
       valueFormat: 'px',
     });
+    expect(findSlider('badStream')).toMatchObject({
+      label: 'Compression',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('badStreamBlockSize')).toMatchObject({
+      label: 'Macroblocks',
+      min: 12,
+      max: 96,
+      overrideMax: 180,
+      valueFormat: 'px',
+    });
+    expect(findSlider('badStreamDetail').presets).toEqual(
+      expect.arrayContaining(['badStream', 'detailBlocks', 'chromaBlocks']),
+    );
+    expect(findSlider('badStreamSmear').presets).toEqual(expect.arrayContaining(['badStream', 'blockSmear']));
+    expect(findSlider('badStreamChroma').presets).toEqual(expect.arrayContaining(['badStream', 'chromaBlocks']));
+    expect(findSlider('badStreamDarkness').presets).toEqual(expect.arrayContaining(['badStream', 'blockDropout']));
     expect(findSlider('indexedPalette')).toMatchObject({
       label: 'Palette Mix',
       max: 100,

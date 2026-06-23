@@ -549,6 +549,13 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     setSelectedLayerId(null);
   }, [commitDocument]);
 
+  const saveRecoveryDraft = useCallback(async () => {
+    const current = docRef.current;
+    if (isBlankDocument(current)) return;
+    const storedDoc = await storePortableDocumentAssets(current);
+    await saveStoredPreBlankDraft(storedDoc);
+  }, []);
+
   const handleGraphChange = useCallback(
     (graph: CanvasGraph, mode: DocumentUpdateMode = 'debounce') => {
       updateDocument((current) => setDocumentGraph(current, graph), mode);
@@ -609,6 +616,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     handleAddLayerAt,
     handleRandomize,
     handleNewBlank,
+    saveRecoveryDraft,
     handleGraphChange,
     handleExportConfigChange,
     handleCopyLink,

@@ -19,7 +19,7 @@ export interface LayerRowProps {
   editing: boolean;
   nested?: boolean;
   onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
-  onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
   onDragStart: (id: string) => void;
@@ -137,18 +137,14 @@ function LayerNameEditor({
 }: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onFinishRename'>) {
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
-    return (
-      <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
-        {layer.name}
-      </span>
-    );
+    return <span className={`layer-row-name ${selected ? 'text-text' : 'text-dim'}`}>{layer.name}</span>;
   }
   return (
     <input
       autoFocus
       defaultValue={layer.name}
       aria-label={`Rename layer ${layer.name}`}
-      className="font-mono text-[10px] flex-1 min-w-0 bg-transparent border-none outline-none border-b border-accent text-text"
+      className="layer-row-name layer-row-name-input bg-transparent border-none outline-none border-b border-accent text-text"
       onBlur={(event) => finishRename(event.target.value.trim() || null)}
       onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') finishRename(event.currentTarget.value.trim() || null);
@@ -156,6 +152,40 @@ function LayerNameEditor({
       }}
       onClick={(event) => event.stopPropagation()}
     />
+  );
+}
+
+function layerKindLabel(layer: Layer) {
+  if (layer.kind === 'emoji') return 'emoji';
+  if (layer.kind === 'primitive') return '3d';
+  return layer.kind;
+}
+
+function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
+  return (
+    <span
+      className={`layer-row-kind-badge layer-row-kind-badge-${layer.kind}`}
+      title={`${layerKindLabel(layer)} layer`}
+    >
+      <span className="layer-row-kind-icon" aria-hidden="true">
+        {getLayerIcon(layer)}
+      </span>
+      <span className="layer-row-kind-label">{layerKindLabel(layer)}</span>
+    </span>
+  );
+}
+
+function LayerStatusMeta({ layer }: Pick<LayerRowProps, 'layer'>) {
+  const items = [layer.visible ? 'visible' : 'hidden'];
+  if (layer.locked) items.push('locked');
+  return (
+    <span className="layer-row-meta-status">
+      {items.map((item) => (
+        <span key={item} className={`layer-row-meta-state layer-row-meta-state-${item}`}>
+          {item}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -223,75 +253,19 @@ function LayerQuickAddAction({
   return <LayerQuickAddMenu layerName={layer.name} onInsert={(action) => onInsertLayerAbove(layer.id, action)} />;
 }
 
-function RenameLayerButton({ layer, onStartEditing }: Pick<LayerRowProps, 'layer' | 'onStartEditing'>) {
-  return (
-    <button
-      type="button"
-      className="layer-row-action"
-      aria-pressed={layer.visible}
-      onClick={(event) => {
-        event.stopPropagation();
-        onStartEditing(layer.id);
-      }}
-      aria-label={`Rename layer ${layer.name}`}
-      title="Rename"
-    >
-      R
-    </button>
-  );
-}
-
-function ToggleLayerVisibilityButton({ layer, onToggleVisible }: Pick<LayerRowProps, 'layer' | 'onToggleVisible'>) {
-  const label = layer.visible ? `Hide layer ${layer.name}` : `Show layer ${layer.name}`;
-  const title = layer.visible ? 'Hide' : 'Show';
+function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
   return (
     <button
       type="button"
       className="layer-row-action"
       onClick={(event) => {
         event.stopPropagation();
-        onToggleVisible(layer.id);
+        onOpenContextMenu(layer.id, event);
       }}
-      aria-label={label}
-      title={title}
+      aria-label={`Open actions for layer ${layer.name}`}
+      title="Layer actions"
     >
-      {layer.visible ? '◉' : '○'}
-    </button>
-  );
-}
-
-function DuplicateLayerButton({ layer, onDuplicateLayer }: Pick<LayerRowProps, 'layer' | 'onDuplicateLayer'>) {
-  return (
-    <button
-      type="button"
-      className="layer-row-action"
-      onClick={(event) => {
-        event.stopPropagation();
-        onDuplicateLayer(layer.id);
-      }}
-      aria-label={`Duplicate layer ${layer.name}`}
-      title="Duplicate"
-    >
-      ⊕
-    </button>
-  );
-}
-
-function DeleteLayerButton({ layer, onRemoveLayer }: Pick<LayerRowProps, 'layer' | 'onRemoveLayer'>) {
-  const title = layer.locked ? 'Unlock to delete' : 'Delete';
-  return (
-    <button
-      type="button"
-      className="layer-row-action layer-row-action-danger"
-      disabled={layer.locked}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (!layer.locked) onRemoveLayer(layer.id);
-      }}
-      aria-label={`Delete layer ${layer.name}`}
-      title={title}
-    >
-      ×
+      •••
     </button>
   );
 }
@@ -309,27 +283,12 @@ function LayerRowActions({
   layer,
   canQuickAdd = false,
   onInsertLayerAbove,
-  onStartEditing,
-  onToggleVisible,
-  onDuplicateLayer,
-  onRemoveLayer,
-}: Pick<
-  LayerRowProps,
-  | 'layer'
-  | 'canQuickAdd'
-  | 'onInsertLayerAbove'
-  | 'onStartEditing'
-  | 'onToggleVisible'
-  | 'onDuplicateLayer'
-  | 'onRemoveLayer'
->) {
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'canQuickAdd' | 'onInsertLayerAbove' | 'onOpenContextMenu'>) {
   return (
     <div className="layer-row-actions" aria-label={`${layer.name} layer actions`}>
       <LayerQuickAddAction layer={layer} canQuickAdd={canQuickAdd} onInsertLayerAbove={onInsertLayerAbove} />
-      <RenameLayerButton layer={layer} onStartEditing={onStartEditing} />
-      <ToggleLayerVisibilityButton layer={layer} onToggleVisible={onToggleVisible} />
-      <DuplicateLayerButton layer={layer} onDuplicateLayer={onDuplicateLayer} />
-      <DeleteLayerButton layer={layer} onRemoveLayer={onRemoveLayer} />
+      <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
     </div>
   );
 }
@@ -349,9 +308,6 @@ export const LayerRow = memo(function LayerRow({
   onDragOverLayer,
   onDropLayer,
   onDragEnd,
-  onToggleVisible,
-  onDuplicateLayer,
-  onRemoveLayer,
   canQuickAdd = false,
   onInsertLayerAbove,
 }: LayerRowProps) {
@@ -385,27 +341,25 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      tabIndex={0}
+      className={`layer-row px-3 min-h-[52px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
       <LayerDragHandle layer={layer} onDragStart={onDragStart} />
-      <span
-        className={`font-mono text-[10px] flex-shrink-0 w-5 text-center ${layer.kind === 'effect' ? 'text-accent' : 'text-dim'}`}
-        style={{ fontWeight: 700 }}
-      >
-        {getLayerIcon(layer)}
-      </span>
-      <LayerNameEditor layer={layer} editing={editing} selected={selected} onFinishRename={onFinishRename} />
-      <LayerAiBadges layer={layer} />
-      <LayerLockedBadge layer={layer} />
-      <LayerAreaChip areas={areas} nested={nested} />
+      <LayerKindBadge layer={layer} />
+      <div className="layer-row-main">
+        <LayerNameEditor layer={layer} editing={editing} selected={selected} onFinishRename={onFinishRename} />
+        <div className="layer-row-meta">
+          <LayerStatusMeta layer={layer} />
+          <LayerAiBadges layer={layer} />
+          <LayerLockedBadge layer={layer} />
+          <LayerAreaChip areas={areas} nested={nested} />
+        </div>
+      </div>
       <LayerRowActions
         layer={layer}
         canQuickAdd={canQuickAdd}
         onInsertLayerAbove={onInsertLayerAbove}
-        onStartEditing={onStartEditing}
-        onToggleVisible={onToggleVisible}
-        onDuplicateLayer={onDuplicateLayer}
-        onRemoveLayer={onRemoveLayer}
+        onOpenContextMenu={onOpenContextMenu}
       />
     </div>
   );

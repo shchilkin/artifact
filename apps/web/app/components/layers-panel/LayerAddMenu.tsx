@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { EffectPreset, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
@@ -6,7 +6,7 @@ import type { NoisePresetId } from '../../utils/noisePresets';
 import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
-import { clampPopupPosition } from '../node-canvas/helpers';
+import { useAddLibraryFloatingMenu } from '../add-library/useAddLibraryFloatingMenu';
 
 const LAYER_ADD_MENU_W = 540;
 const LAYER_ADD_MENU_H = 560;
@@ -29,80 +29,64 @@ export function LayerAddMenu({
   onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const addButtonRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
-
-  useEffect(() => {
-    if (!showAddMenu) return;
-    function handleOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (addButtonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setShowAddMenu(false);
-    }
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showAddMenu]);
-
-  const openMenu = useCallback(() => {
-    const rect = addButtonRef.current?.getBoundingClientRect();
-    const position = rect
-      ? clampPopupPosition(rect.left, rect.bottom + 4, LAYER_ADD_MENU_W, LAYER_ADD_MENU_H)
-      : { left: 8, top: 8 };
-    setMenuPosition(position);
-    setShowAddMenu((prev) => !prev);
-  }, []);
+  const {
+    anchorRef: addMenuAnchorRef,
+    close: closeAddMenu,
+    menuRef: addMenuRef,
+    menuStyle: addMenuStyle,
+    open: isAddMenuOpen,
+    toggle: toggleAddMenu,
+  } = useAddLibraryFloatingMenu({ width: LAYER_ADD_MENU_W, height: LAYER_ADD_MENU_H });
 
   const handleAddLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
       onAddLayer(kind);
-      setShowAddMenu(false);
+      closeAddMenu();
     },
-    [onAddLayer],
+    [closeAddMenu, onAddLayer],
   );
 
   const handleAddEffectPreset = useCallback(
     (preset: EffectPreset) => {
       onAddEffectPreset(preset);
-      setShowAddMenu(false);
+      closeAddMenu();
     },
-    [onAddEffectPreset],
+    [closeAddMenu, onAddEffectPreset],
   );
 
   const handleAddTextPreset = useCallback(
     (preset: TextPresetId) => {
       onAddTextPreset(preset);
-      setShowAddMenu(false);
+      closeAddMenu();
     },
-    [onAddTextPreset],
+    [closeAddMenu, onAddTextPreset],
   );
 
   const handleAddNoisePreset = useCallback(
     (preset: NoisePresetId) => {
       onAddNoisePreset(preset);
-      setShowAddMenu(false);
+      closeAddMenu();
     },
-    [onAddNoisePreset],
+    [closeAddMenu, onAddNoisePreset],
   );
 
   const handleAddArrayPreset = useCallback(
     (preset: ArrayPresetId) => {
       onAddArrayPreset(preset);
-      setShowAddMenu(false);
+      closeAddMenu();
     },
-    [onAddArrayPreset],
+    [closeAddMenu, onAddArrayPreset],
   );
 
   const handleStartAiImage = useCallback(() => {
     onStartAiImage?.();
-    setShowAddMenu(false);
-  }, [onStartAiImage]);
+    closeAddMenu();
+  }, [closeAddMenu, onStartAiImage]);
 
   const handleAddScene3D = useCallback(() => {
     onAddScene3D();
-    setShowAddMenu(false);
-  }, [onAddScene3D]);
+    closeAddMenu();
+  }, [closeAddMenu, onAddScene3D]);
 
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
@@ -131,24 +115,20 @@ export function LayerAddMenu({
   );
 
   return (
-    <div ref={addButtonRef} className="relative">
-      <button className="layer-add-button" onClick={openMenu} aria-label="Add layer">
+    <div ref={addMenuAnchorRef} className="relative">
+      <button className="layer-add-button" onClick={toggleAddMenu} aria-label="Add layer">
         + ADD
       </button>
-      {showAddMenu &&
+      {isAddMenuOpen &&
         typeof document !== 'undefined' &&
         createPortal(
-          <div
-            ref={menuRef}
-            className="add-library-surface add-library-layer-menu"
-            style={{ left: menuPosition.left, top: menuPosition.top } as CSSProperties}
-          >
+          <div ref={addMenuRef} className="add-library-surface add-library-layer-menu" style={addMenuStyle}>
             <AddLibraryPanel
               surface="layers"
               searchLabel="Search layers and effects"
               placeholder="Add layer…"
               onAdd={handleAddLibraryAction}
-              onClose={() => setShowAddMenu(false)}
+              onClose={closeAddMenu}
             />
           </div>,
           document.body,

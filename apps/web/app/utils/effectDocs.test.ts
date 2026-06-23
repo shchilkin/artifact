@@ -25,6 +25,13 @@ describe('effectDocs', () => {
     expect(EFFECT_DOCS.grain.params.find((param) => param.key === 'grain')?.range).toContain('0-50 slider');
     expect(EFFECT_DOCS.dither.params.find((param) => param.key === 'dither')?.range).toContain('0-70 slider');
     expect(EFFECT_DOCS.pixelate.params.find((param) => param.key === 'pixelate')?.range).toContain('block size');
+    expect(EFFECT_DOCS.badStream.params.find((param) => param.key === 'badStreamBlockSize')?.range).toContain(
+      'macroblock',
+    );
+    expect(EFFECT_DOCS.macroblocks.description).toContain('codec');
+    expect(EFFECT_DOCS.detailBlocks.params.find((param) => param.key === 'badStreamDetail')?.range).toContain(
+      'small block',
+    );
     expect(EFFECT_DOCS.risoShift.params.find((param) => param.key === 'risoShift')?.range).toContain('0-24px slider');
   });
 });

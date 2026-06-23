@@ -204,10 +204,10 @@ export const ADD_NODE_ITEMS: Array<{
 ];
 
 export const HANDLE_STYLE = {
-  background: 'var(--node-handle)',
-  border: '1.5px solid var(--bg)',
-  width: 10,
-  height: 10,
+  background: 'transparent',
+  border: 'none',
+  width: 44,
+  height: 44,
 };
 
 export const NODE_CANVAS_COLORS = {
@@ -223,7 +223,20 @@ export const NODE_CANVAS_COLORS = {
 export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
 
 export const RAYS_PRESETS: EffectPreset[] = ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'];
-export const GLITCH_PRESETS: EffectPreset[] = ['glitch', 'rgbSplit', 'ca', 'interlace', 'dataMosh', 'vhsTracking'];
+export const GLITCH_PRESETS: EffectPreset[] = [
+  'glitch',
+  'rgbSplit',
+  'ca',
+  'interlace',
+  'dataMosh',
+  'vhsTracking',
+  'badStream',
+  'macroblocks',
+  'detailBlocks',
+  'blockSmear',
+  'chromaBlocks',
+  'blockDropout',
+];
 export const TEXTURE_PRESETS: EffectPreset[] = [
   'grain',
   'dotGrain',

@@ -5,7 +5,7 @@
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#050000",
+  "background_color": "#070302",
   "theme_color": "#ff6a5f",
   "orientation": "any",
   "categories": ["design", "graphics", "music", "productivity"],
