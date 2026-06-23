@@ -164,7 +164,7 @@ export async function switchToNodeView(page: Page): Promise<void> {
 
 export async function switchToLayerView(page: Page): Promise<void> {
   await expect(async () => {
-    const layersTab = page.locator('.floating-view-toggle').getByRole('tab', { name: 'Switch to layers view' });
+    const layersTab = page.getByRole('tab', { name: 'Switch to layers view' });
     await expect(layersTab).toBeVisible({ timeout: 5_000 });
     await layersTab.click();
     await expect(page.locator('.sidebar')).toBeVisible({ timeout: 5_000 });

@@ -1224,11 +1224,7 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
   await expectLayerCanvasToHavePixels(page);
 
   await page.getByText('Top fill', { exact: true }).click();
-  await page
-    .locator('.layer-row')
-    .filter({ hasText: 'Top fill' })
-    .getByRole('button', { name: 'Hide layer Top fill' })
-    .click();
+  await hideLayerFromRowMenu(page, await getVisibleLayerRow(page, 'Top fill'));
 
   await expect
     .poll(() => page.locator('.layer-row-hidden').evaluate((row) => Number(getComputedStyle(row).opacity)))
@@ -1241,7 +1237,7 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
     const main = document.querySelector('.main');
     const row = document.querySelector('.layer-row.bg-accent-dim');
     const hiddenRow = document.querySelector('.layer-row-hidden');
-    const hiddenName = hiddenRow?.querySelector('span:nth-child(3)');
+    const hiddenName = hiddenRow?.querySelector('.layer-row-name');
     const canvas = document.querySelector('.pixi-container canvas');
     return {
       tokens: [
@@ -1281,7 +1277,7 @@ test('rand creates cover-ready text layers with curated fonts', async ({ page })
       return calls === 1 ? 0.123456 : 0.34;
     };
   });
-  await page.getByRole('button', { name: 'RAND' }).click();
+  await page.getByRole('button', { name: 'RANDOM' }).click();
   await expectLayerCanvasToHavePixels(page);
 
   await expect
@@ -1429,7 +1425,7 @@ test('layer visibility updates the rendered canvas', async ({ page }) => {
 
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 221, g: 51, b: 34 });
 
-  await page.locator('.sidebar').getByRole('button', { name: 'Hide layer' }).first().click();
+  await hideLayerFromRowMenu(page, await getVisibleLayerRow(page, 'Top fill'));
 
   await expect.poll(async () => getCanvasCenterRgb(page), { timeout: 15_000 }).toMatchObject({ r: 34, g: 85, b: 204 });
 });
@@ -1439,7 +1435,7 @@ test('layer properties show the active editing target and hidden state', async (
 
   const topFillRow = await getVisibleLayerRow(page, 'Top fill');
   await topFillRow.click();
-  await topFillRow.getByRole('button', { name: /Hide layer Top fill/ }).click();
+  await hideLayerFromRowMenu(page, topFillRow);
 
   const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
   await expect(targetHeader).toContainText('Layers / Source');
@@ -1465,7 +1461,9 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect(targetHeader).toContainText('Locked');
   await expect(targetHeader).toContainText('Layer 2/2');
 
-  await expect(topFillRow.getByRole('button', { name: /Delete layer Top fill/ })).toBeDisabled();
+  const actionsMenu = await openLayerRowActions(page, topFillRow);
+  await expect(actionsMenu.getByRole('menuitem', { name: 'Delete locked' })).toBeDisabled();
+  await page.keyboard.press('Escape');
   await expect(topFillRow.getByRole('button', { name: /Drag layer Top fill/ })).toBeDisabled();
   await expect
     .poll(
@@ -1487,23 +1485,23 @@ test('layer rows expose rename duplicate visibility and delete actions', async (
 
   const topFillRow = await getVisibleLayerRow(page, 'Top fill');
 
-  await topFillRow.getByRole('button', { name: /Rename layer Top fill/ }).click();
+  await chooseLayerRowAction(page, topFillRow, 'Rename');
   const renameInput = page.getByRole('textbox', { name: /Rename layer Top fill/ });
   await renameInput.fill('Cover Type');
   await renameInput.press('Enter');
   await expect(page.locator('.layer-row').filter({ hasText: 'Cover Type' })).toHaveCount(1);
 
   const renamedRow = page.locator('.layer-row').filter({ hasText: 'Cover Type' }).first();
-  await renamedRow.getByRole('button', { name: /Duplicate layer Cover Type/ }).click();
+  await chooseLayerRowAction(page, renamedRow, 'Duplicate');
 
   const duplicateRow = page.locator('.layer-row').filter({ hasText: 'Cover Type copy' }).first();
   await expect(duplicateRow).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.layer-row')).toHaveCount(3);
 
-  await duplicateRow.getByRole('button', { name: /Hide layer Cover Type copy/ }).click();
+  await chooseLayerRowAction(page, duplicateRow, 'Hide');
   await expectStoredLayerField(page, { key: 'name', value: 'Cover Type copy' }, 'visible', false);
 
-  await duplicateRow.getByRole('button', { name: /Delete layer Cover Type copy/ }).click();
+  await chooseLayerRowAction(page, duplicateRow, 'Delete');
   await expect(page.locator('.layer-row').filter({ hasText: 'Cover Type copy' })).toHaveCount(0);
   await expect(page.locator('.layer-row')).toHaveCount(2);
 });
@@ -1800,7 +1798,7 @@ async function expectExplicitFontProjectPackage(page: Page) {
     });
   });
   const explicitDownloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save project package with all imported font files' }).click();
+  await clickShareMenuAction(page, 'Download package + assets + fonts');
   const explicitDownload = await explicitDownloadPromise;
   await expect(explicitDialogPromise).resolves.toContain('PKG+FONTS embeds imported local font files');
   const explicitArtifactPath = await explicitDownload.path();
@@ -1908,7 +1906,7 @@ test('portable share links include imported image and font payloads', async ({ p
   await expectLayerCanvasToHavePixels(page);
   await expectPortableRefsStored(page);
 
-  await page.getByRole('button', { name: 'Copy link to current state' }).click();
+  await clickShareMenuAction(page, 'Copy editor link');
   await expect
     .poll(
       async () =>
@@ -2036,7 +2034,7 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
 
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
-  await expect(orphanNode.getByRole('button', { name: 'Delete node' })).toBeDisabled();
+  await expect(orphanNode.getByRole('button', { name: 'Delete node' })).toHaveCount(0);
 
   await page.keyboard.press('Delete');
 
@@ -2166,7 +2164,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
     .toBeGreaterThan(1);
 
   await page.reload();
-  await page.locator('.view-mode-toggle-sidebar').getByRole('tab', { name: 'Switch to nodes view' }).click();
+  await switchToNodeView(page);
   await page.locator('.node-shell-kind-primitive').first().click();
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect(page.getByText('Oops!')).toHaveCount(0);
@@ -2239,6 +2237,44 @@ test('uploaded images are stored as asset references and survive reload', async 
   await expectLayerCanvasToHavePixels(page);
 });
 
+test('dropped artifact files stage a confirmed import and save current work as recovery', async ({ page }) => {
+  const droppedDocument = {
+    ...lightDocument,
+    global: { ...lightDocument.global, aspect: '4:5' },
+    layers: [
+      {
+        ...lightDocument.layers[0],
+        id: 'dropped-artifact-fill',
+        name: 'Dropped artifact fill',
+        color: '#cc5522',
+      },
+    ],
+  };
+
+  await gotoDocument(page, lightDocument);
+  await expectLayerCanvasToHavePixels(page);
+
+  await page.evaluate((doc) => {
+    const file = new File([JSON.stringify(doc)], 'dropped-cover.artifact.json', { type: 'application/json' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    document
+      .querySelector('main')
+      ?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  }, droppedDocument);
+
+  const dialog = page.getByRole('dialog', { name: 'Open artifact file' });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(dialog).toContainText('dropped-cover.artifact.json');
+  await expect(dialog).toContainText('4:5');
+  expect(await getStoredLayerBy(page, 'id', 'fill-browser-smoke')).toBeTruthy();
+  expect(await getStoredLayerBy(page, 'id', 'dropped-artifact-fill')).toBeFalsy();
+
+  await dialog.getByRole('button', { name: 'OPEN FILE' }).click();
+  await expect.poll(() => getStoredLayerBy(page, 'id', 'dropped-artifact-fill')).toBeTruthy();
+  await expect.poll(() => getStoredRecoveryLayerId(page)).toBe('fill-browser-smoke');
+});
+
 test('new blank canvas ignores stored work and shows the empty start panel', async ({ page }) => {
   await page.goto('/app');
   await page.evaluate((storedDoc) => localStorage.setItem('doc', JSON.stringify(storedDoc)), lightDocument);
@@ -2260,18 +2296,21 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
 
   const emptyPanel = page.locator('.layer-empty-state');
   await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
-  await expect(emptyPanel).toContainText('Fast starts');
-  await expect(emptyPanel.getByRole('link', { name: 'Showcase' })).toHaveAttribute('href', '/showcase');
-  await expect(emptyPanel.getByRole('button', { name: 'Open saved work' })).toBeVisible();
-  await expect(emptyPanel.getByRole('button', { name: 'Texture Type' })).toBeVisible();
+  await expect(emptyPanel).toContainText('No layers yet');
+  await expect(emptyPanel).toContainText('Start with image, text, AI, or a recipe.');
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
     'href',
     '/docs/nodes#docs-first-cover',
   );
+  await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Showcase' })).toHaveAttribute(
+    'href',
+    '/showcase',
+  );
+  await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Texture Type' })).toBeVisible();
 
-  await emptyPanel.getByRole('button', { name: 'Title' }).click();
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'Add text' }).click();
   await expect(page.locator('.layer-empty-state')).toHaveCount(0);
-  await expect(page.locator('.layer-row').filter({ hasText: 'Title Type' })).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.layer-row').filter({ hasText: 'Text' })).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect
     .poll(
@@ -3032,6 +3071,7 @@ test.describe('AI quota access flow', () => {
     });
 
     await page.goto('/app?new=blank');
+    await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
 
     await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI quota used');
     await expect(page.locator('.ai-generation-access-banner')).toContainText(
@@ -3103,6 +3143,32 @@ test.describe('node preview aspect ratio flow', () => {
     ({ browserName }) => browserName === 'webkit',
     'WebKit full-suite navigation flakes on this aspect-ratio doc flow.',
   );
+
+  test('layer preview display preserves wide document aspect ratio', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1000 });
+    await gotoDocument(page, wideNodeDocument);
+    await switchToLayerView(page);
+
+    const canvasArea = page.locator('.canvas-area').first();
+    const previewCanvas = page.locator('.pixi-container canvas').first();
+    await expect(previewCanvas).toBeVisible({ timeout: 15_000 });
+
+    await expect.poll(async () => frameRatio(canvasArea), { timeout: 15_000 }).toBeCloseTo(16 / 9, 2);
+    await expect.poll(async () => frameRatio(previewCanvas), { timeout: 15_000 }).toBeCloseTo(16 / 9, 2);
+    await expect
+      .poll(async () => canvasArea.evaluate((element) => element.getBoundingClientRect().height))
+      .toBeLessThan(400);
+    await expect
+      .poll(
+        async () =>
+          previewCanvas.evaluate((element) => {
+            const canvas = element as HTMLCanvasElement;
+            return canvas.width / Math.max(1, canvas.height);
+          }),
+        { timeout: 15_000 },
+      )
+      .toBeCloseTo(16 / 9, 2);
+  });
 
   test('node previews respect document aspect ratio', async ({ page }) => {
     await gotoDocument(page, wideNodeDocument);
@@ -3523,6 +3589,7 @@ async function openExistingAiImageNodePanel(page: Page) {
 
 async function generateAiImageFromSidebar(page: Page, prompt: string) {
   await page.goto('/app?new=blank');
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
   const panel = page.locator('.sidebar .ai-generation-panel').first();
   await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
   await panel.locator('[data-ai-generation-prompt]').fill(prompt);
@@ -3740,6 +3807,27 @@ async function getStoredLayerBy(page: Page, key: 'id' | 'name', value: string) {
   return (await getStoredLayers(page)).find((layer: Record<string, unknown>) => layer[key] === value);
 }
 
+async function getStoredRecoveryLayerId(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<string | null>((resolve) => {
+        const request = indexedDB.open('artifact-local-projects');
+        request.onerror = () => resolve(null);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('drafts', 'readonly');
+          const getRequest = transaction.objectStore('drafts').get('pre-blank');
+          getRequest.onerror = () => resolve(null);
+          getRequest.onsuccess = () => {
+            const record = getRequest.result as { doc?: { layers?: Array<{ id?: string }> } } | undefined;
+            resolve(record?.doc?.layers?.[0]?.id ?? null);
+          };
+          transaction.oncomplete = () => db.close();
+        };
+      }),
+  );
+}
+
 async function getStoredGraphArea(page: Page) {
   return page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
@@ -3768,6 +3856,26 @@ async function getVisibleLayerRow(page: Page, text: string) {
   const row = page.locator('.layer-row').filter({ hasText: text }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
   return row;
+}
+
+async function chooseLayerRowAction(page: Page, row: Locator, action: string) {
+  const menu = await openLayerRowActions(page, row);
+  await menu.getByRole('menuitem', { name: action }).click();
+}
+
+async function openLayerRowActions(page: Page, row: Locator) {
+  await row.hover();
+  await row
+    .getByLabel(/Open actions for layer/)
+    .first()
+    .click();
+  const menu = page.locator('.layer-context-menu');
+  await expect(menu).toBeVisible({ timeout: 5_000 });
+  return menu;
+}
+
+async function hideLayerFromRowMenu(page: Page, row: Locator) {
+  await chooseLayerRowAction(page, row, 'Hide');
 }
 
 async function expectVisibleLayerRowIds(page: Page, expected: string[]) {
@@ -3862,6 +3970,7 @@ async function addTitleTypeLayer(page: Page) {
 async function insertLayerAbove(page: Page, targetLayerText: string, addLibraryLabel: RegExp) {
   const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
   await expect(targetRow).toBeVisible({ timeout: 15_000 });
+  await targetRow.hover();
   await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
   await page
     .locator('.add-library-row')
@@ -3871,6 +3980,7 @@ async function insertLayerAbove(page: Page, targetLayerText: string, addLibraryL
 
 async function insertSourceLayerAbove(page: Page, targetLayerText: string, label: RegExp) {
   const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
+  await targetRow.hover();
   await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
   const quickMenu = page.locator('.add-library-layer-quick-menu');
   await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
@@ -3891,7 +4001,7 @@ async function expectImageExportDownload(page: Page) {
 
 async function downloadJsonFromButton(page: Page, buttonName: string) {
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: buttonName }).click();
+  await clickDownloadAction(page, buttonName);
   const download = await downloadPromise;
   const artifactPath = await download.path();
   expect(artifactPath).toBeTruthy();
@@ -3900,12 +4010,33 @@ async function downloadJsonFromButton(page: Page, buttonName: string) {
   return { raw, json: JSON.parse(raw) };
 }
 
+async function clickDownloadAction(page: Page, buttonName: string) {
+  const button = page.getByRole('button', { name: buttonName }).first();
+  if (await button.isVisible().catch(() => false)) {
+    await button.click();
+    return;
+  }
+  await clickShareMenuAction(page, shareMenuItemName(buttonName));
+}
+
+async function clickShareMenuAction(page: Page, itemName: string) {
+  await page.getByRole('button', { name: 'Share link or download editable files' }).click();
+  await page.getByRole('menuitem', { name: itemName, exact: true }).click();
+}
+
+function shareMenuItemName(buttonName: string) {
+  if (buttonName === 'Save document file') return 'Download document file';
+  if (buttonName === 'Save editable project package') return 'Download package + assets';
+  return buttonName;
+}
+
 async function openDocumentFileFromBuffer(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
   await page.goto('/app?new=blank');
   const chooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Open document file' }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles(file);
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
 }
 
 async function expectStoredAiImageLayerState(page: Page, layerId: string, expected: Record<string, unknown>) {

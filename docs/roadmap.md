@@ -19,6 +19,13 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.38 is planned as the Editor UX, Import Safety, And Visual Identity release:
+  editor chrome, Layers/Nodes workflow polish, responsive bottom actions,
+  artifact-file replacement safeguards, drag/drop import clarity, local project
+  action clarity, visual identity refresh, and the already-merged Bad Stream
+  effect node follow-up from PR #79. See
+  [`version-plans/v0.38.md`](./version-plans/v0.38.md). Release prep should
+  happen in a follow-up PR after the feature PRs land in `development`.
 - v0.37 has reached release-candidate prep as the 3D Material Nodes release:
   one PBR Material graph node, explicit material and texture-map ports,
   material/environment inputs for 3D primitives and scenes, multiple resource
@@ -39,9 +46,9 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope should start from the deferred product tracks below
-  or from a dedicated CI-policy pass if full-health complexity should become a
-  permanent strict release gate.
+- The next version scope after v0.38 should start from the deferred product
+  tracks below or from a dedicated CI-policy pass if full-health complexity
+  should become a permanent strict release gate.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -69,13 +76,22 @@ Next deferred product tracks:
   quota pressure, and project-size behavior are clearer.
 - Landing refresh remains deferred until it has its own focused plan and
   critique/prototype gate.
-- Whole-app design polish remains deferred until v0.34 settles. A future pass
-  should critique the full product surface end to end, align public pages,
-  editor chrome, Projects, docs, and shared primitives around the same
-  artwork-first visual system, and avoid card-in-card or technical dashboard
-  patterns where they weaken the creative workspace.
+- Whole-app design polish is split: v0.38 pulls the editor-first chrome,
+  import, Layers/Nodes, local project action, and visual identity polish into a
+  bounded release; public pages, docs, Showcase, and a broader brand/site
+  refresh remain future scope with their own critique/prototype gate.
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
+
+Planned next:
+
+- [`version-plans/v0.38.md`](./version-plans/v0.38.md) — Editor UX, Import
+  Safety, And Visual Identity is the planned next release train after v0.37:
+  editor chrome, Layers/Nodes workflow polish, responsive bottom actions,
+  artifact-file replacement safeguards, drag/drop import clarity, local project
+  action clarity, visual identity refresh, and PR #79's Bad Stream effect node
+  follow-up. Release notes are not prepared yet; package metadata should stay
+  at v0.37 until the release-prep PR.
 
 Recently shipped:
 
@@ -207,16 +223,15 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.36:
+Next strong candidates after v0.38:
 
-- **3D Material Nodes** — add material nodes for metallic foil, chrome,
-  brushed metal, plastic, paper, fabric, and related physical surfaces, connect
-  them to existing 3D primitives/scenes, and compose the rendered result with
-  the existing text, image, mask, and effect workflows.
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
   families, optional PS1-style material/texture wobble, curated model-source
   recipes, and deeper Model/Scene docs.
+- **3D Material Authoring Follow-Up** — build on v0.37 with material map
+  scale/rotation, channel packing, richer material examples, and broader WebGL
+  coverage after the first PBR node settles.
 - **History Performance And Undo Memory Budget** — keep undo/redo responsive as
   node documents, 3D scene state, and local project payloads grow. Confirm the
   immutable document-update contract with tests, avoid unnecessary deep clones
@@ -242,10 +257,10 @@ Next strong candidates after v0.36:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Whole-App Design Polish** — run a dedicated critique/prototype pass across
-  public routes, the editor, Projects, docs, and shared primitives so the app
-  feels consistently artwork-first instead of accumulating isolated surface
-  fixes.
+- **Whole-App Brand And Public Surface Refresh** — run a dedicated
+  critique/prototype pass across public routes, docs, Showcase, and shared
+  primitives after v0.38 lands the editor-first identity and chrome polish.
+
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and

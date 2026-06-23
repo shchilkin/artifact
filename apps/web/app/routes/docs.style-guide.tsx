@@ -4,6 +4,7 @@ import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../components/add-library/addLibraryModel';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
+import { LogoGlyph } from '../components/LogoGlyph';
 import { LayerRow } from '../components/layers-panel/LayerRow';
 import {
   BlendModeNote,
@@ -351,6 +352,11 @@ export default function DocsStyleGuide() {
           body="The first v0.30 token pass names reusable control sizes, typography, surfaces, focus rings, and state colors."
         >
           <div className="style-guide-token-grid" aria-label="Design token specimens">
+            <div className="style-guide-brand-marks" aria-label="Artifact brand mark specimens">
+              <BrandMarkSpec variant="frame" name="editor frame" value="crop / signal / node" />
+              <BrandMarkSpec variant="path" name="node path" value="flow / branch / merge" />
+              <BrandMarkSpec variant="stack" name="layer stack" value="source / stack / output" />
+            </div>
             <TokenSpec name="surface panel" value="--surface-panel" color="var(--surface-panel)" />
             <TokenSpec name="surface input" value="--surface-control" color="var(--surface-control)" />
             <TokenSpec name="selected" value="--surface-selected" color="var(--surface-selected)" />
@@ -475,6 +481,35 @@ export default function DocsStyleGuide() {
           wide
         >
           <div className="style-guide-graph-specimens">
+            <div className="style-guide-node-toolbar-specimen" aria-label="Node toolbar group specimen">
+              <div className="node-canvas-toolbar">
+                <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
+                  <span className="node-toolbar-group-label" aria-hidden="true">
+                    Build
+                  </span>
+                  <button type="button">＋ Add node</button>
+                  <button type="button">⌘ Layout</button>
+                  <button type="button" disabled>
+                    ▣ Create area
+                  </button>
+                </div>
+                <div className="node-toolbar-group" aria-label="View actions">
+                  <span className="node-toolbar-group-label" aria-hidden="true">
+                    View
+                  </span>
+                  <button type="button">◇ Fit path</button>
+                  <button type="button">◎ Output</button>
+                </div>
+                <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
+                  <span className="node-toolbar-group-label" aria-hidden="true">
+                    Debug
+                  </span>
+                  <button type="button" aria-pressed="true">
+                    ▥ Metrics
+                  </button>
+                </div>
+              </div>
+            </div>
             <div className="style-guide-node-grid" aria-label="Node shell state specimens">
               <NodeSpec kind="fill" label="fill" name="Source fill" outputPath />
               <NodeSpec kind="text" label="text" name="Cover type" selected outputPath />
@@ -588,6 +623,18 @@ function Specimen({ label, children, stack = false }: { label: string; children:
     <div className="style-guide-specimen">
       <div className="style-guide-specimen-label">{label}</div>
       <div className={`style-guide-specimen-body${stack ? ' style-guide-specimen-body--stack' : ''}`}>{children}</div>
+    </div>
+  );
+}
+
+function BrandMarkSpec({ name, value, variant }: { name: string; value: string; variant: 'frame' | 'path' | 'stack' }) {
+  return (
+    <div className="style-guide-brand-mark">
+      <LogoGlyph size={56} variant={variant} />
+      <div>
+        <span className="style-guide-token-name">{name}</span>
+        <span className="style-guide-token-value">{value}</span>
+      </div>
     </div>
   );
 }

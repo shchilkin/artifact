@@ -40,6 +40,7 @@ import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
 import { ActionButton } from './ui/ActionButton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -233,19 +234,48 @@ function useLayerPanelHandlers({
   };
 }
 
+const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }> = [
+  { ratio: '1:1', label: 'Square', size: '1000 × 1000' },
+  { ratio: '4:5', label: 'Portrait', size: '1080 × 1350' },
+  { ratio: '9:16', label: 'Story', size: '1080 × 1920' },
+  { ratio: '16:9', label: 'Wide', size: '1920 × 1080' },
+];
+
 function CanvasAspectControls({ aspect, onChange }: { aspect: AspectRatio; onChange: (aspect: AspectRatio) => void }) {
+  const current = ASPECT_OPTIONS.find((option) => option.ratio === aspect) ?? ASPECT_OPTIONS[0];
+
   return (
     <div className="canvas-aspect-controls">
       <span className="canvas-aspect-controls__label">CANVAS</span>
-      {(['1:1', '4:5', '9:16', '16:9'] as AspectRatio[]).map((ratio) => (
-        <button
-          key={ratio}
-          className={`canvas-aspect-chip ${aspect === ratio ? 'canvas-aspect-chip--active' : ''}`}
-          onClick={() => onChange(ratio)}
-        >
-          {ratio}
-        </button>
-      ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="canvas-aspect-menu-trigger" aria-label={`Canvas aspect ratio ${aspect}`}>
+            <span className="canvas-aspect-menu-trigger__ratio">{current.ratio}</span>
+            <span className="canvas-aspect-menu-trigger__name">{current.label}</span>
+            <span className="canvas-aspect-menu-trigger__chevron" aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="bottom" className="canvas-aspect-menu">
+          {ASPECT_OPTIONS.map((option) => (
+            <DropdownMenuItem
+              key={option.ratio}
+              className="canvas-aspect-menu-item"
+              onSelect={() => onChange(option.ratio)}
+            >
+              <span className="canvas-aspect-menu-item__ratio">{option.ratio}</span>
+              <span className="canvas-aspect-menu-item__label">{option.label}</span>
+              <span className="canvas-aspect-menu-item__size">{option.size}</span>
+              {aspect === option.ratio && (
+                <span className="canvas-aspect-menu-item__active" aria-hidden="true">
+                  ●
+                </span>
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

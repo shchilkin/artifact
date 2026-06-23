@@ -1,8 +1,8 @@
 export function EmptyLayerPanelStart() {
   return (
     <div className="layer-empty-state">
-      <span className="layer-empty-kicker">Canvas empty</span>
-      <p>Use the start panel on the canvas, or open + Add for every layer type.</p>
+      <span className="layer-empty-kicker">No layers yet</span>
+      <p>Start with image, text, AI, or a recipe.</p>
     </div>
   );
 }

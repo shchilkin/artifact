@@ -1,7 +1,14 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useState } from 'react';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface Props {
   onNewBlank: () => void;
@@ -48,7 +55,7 @@ export function BottomBar({
 
   return (
     <div className="bottom-bar">
-      <div className="bottom-history-group" aria-label="Document history and reset">
+      <div className="bottom-history-group" aria-label="Document history">
         <ActionButton onClick={onNewBlank} aria-label="Create new project" title="Create new project" variant="quiet">
           NEW
         </ActionButton>
@@ -59,7 +66,7 @@ export function BottomBar({
           ↪
         </ActionButton>
         <ActionButton className="rand-btn" onClick={onRandomize} variant="quiet">
-          RAND
+          RANDOM
         </ActionButton>
       </div>
 
@@ -70,41 +77,27 @@ export function BottomBar({
             aria-label="Open document file"
             title="Open .artifact or .artifact.json"
             variant="quiet"
+            className="bottom-file-action"
           >
             OPEN
           </ActionButton>
-          <ActionButton
-            onClick={onSaveDocument}
-            aria-label="Save document file"
-            title="Save .artifact.json"
-            variant="quiet"
-          >
-            SAVE
-          </ActionButton>
-          <CopyLinkButton copied={copied} onCopyLink={handleCopyLink} />
-        </div>
-
-        <div className="bottom-package-group" aria-label="Package actions">
-          <ActionButton
-            onClick={() => onSaveProjectPackage('license-aware')}
-            aria-label="Save editable project package"
-            title="Save editable .artifact project package. Open-license Google fonts are included; unknown local fonts stay metadata-only."
-            variant="quiet"
-          >
-            PKG
-          </ActionButton>
-          <ActionButton
-            onClick={() => onSaveProjectPackage('explicit-font-files')}
-            aria-label="Save project package with all imported font files"
-            title="Save .artifact with all imported font files. Only use this when you have rights to distribute those files."
-            variant="quiet"
-          >
-            PKG FONTS
-          </ActionButton>
+          <ShareMenu
+            copied={copied}
+            onCopyLink={handleCopyLink}
+            onSaveDocument={onSaveDocument}
+            onSaveProjectPackage={onSaveProjectPackage}
+          />
         </div>
       </div>
 
       <div className="bottom-primary-group">
+        <MoreMenu
+          copied={copied}
+          onCopyLink={handleCopyLink}
+          onOpenDocument={onOpenDocument}
+          onSaveDocument={onSaveDocument}
+          onSaveProjectPackage={onSaveProjectPackage}
+        />
         <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
         <ActionButton className="export-btn" onClick={onExport} disabled={exportBusy} variant="primary">
           {exportBusy ? '…' : 'EXPORT'}
@@ -114,13 +107,115 @@ export function BottomBar({
   );
 }
 
+function MoreMenu({
+  copied,
+  onCopyLink,
+  onOpenDocument,
+  onSaveDocument,
+  onSaveProjectPackage,
+}: {
+  copied: boolean;
+  onCopyLink: () => void;
+  onOpenDocument: () => void;
+  onSaveDocument: () => void;
+  onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <ActionButton
+          aria-label="More editor actions"
+          title="Open, share, or download editable files"
+          variant="quiet"
+          className="bottom-more-menu-trigger"
+        >
+          MORE
+        </ActionButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="top" className="bottom-share-menu">
+        <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
+        <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
+        <ShareMenuItems
+          copied={copied}
+          onCopyLink={onCopyLink}
+          onSaveDocument={onSaveDocument}
+          onSaveProjectPackage={onSaveProjectPackage}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ShareMenu({
+  copied,
+  onCopyLink,
+  onSaveDocument,
+  onSaveProjectPackage,
+}: {
+  copied: boolean;
+  onCopyLink: () => void;
+  onSaveDocument: () => void;
+  onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <ActionButton
+          aria-label="Share link or download editable files"
+          title="Copy an editor link or download editable files"
+          variant="quiet"
+          className="share-menu-trigger bottom-file-action"
+        >
+          SHARE
+        </ActionButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="bottom-share-menu">
+        <ShareMenuItems
+          copied={copied}
+          onCopyLink={onCopyLink}
+          onSaveDocument={onSaveDocument}
+          onSaveProjectPackage={onSaveProjectPackage}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ShareMenuItems({
+  copied,
+  onCopyLink,
+  onSaveDocument,
+  onSaveProjectPackage,
+}: {
+  copied: boolean;
+  onCopyLink: () => void;
+  onSaveDocument: () => void;
+  onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
+}) {
+  return (
+    <>
+      <DropdownMenuLabel>Share link</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={onCopyLink}>{copied ? 'Copied editor link' : 'Copy editor link'}</DropdownMenuItem>
+      <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
+      <DropdownMenuLabel>Download editable copy</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={onSaveDocument}>Download document file</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onSaveProjectPackage('license-aware')}>
+        Download package + assets
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onSaveProjectPackage('explicit-font-files')}>
+        Download package + assets + fonts
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceStatus; onClick: () => void }) {
   return (
     <ActionButton
       onClick={onClick}
       variant="quiet"
       className={`project-workspace-button project-workspace-button-${status.tone}`}
-      title={status.title}
+      title={`${status.title}. Local projects are the save workspace.`}
     >
       <span>PROJECTS</span>
       <span className="project-workspace-dot" aria-hidden="true" />
@@ -131,23 +226,4 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
 
 function undoButtonLabel(canUndo: boolean, undoCount: number) {
   return canUndo && undoCount > 0 ? `↩ ${undoCount}` : '↩';
-}
-
-function CopyLinkButton({ copied, onCopyLink }: { copied: boolean; onCopyLink: () => void }) {
-  return (
-    <ActionButton onClick={onCopyLink} aria-label="Copy link to current state" variant="quiet">
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={copied ? 'check' : 'link'}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 4 }}
-          transition={{ duration: 0.15 }}
-          style={{ display: 'inline-block' }}
-        >
-          {copied ? '✓' : 'LINK'}
-        </motion.span>
-      </AnimatePresence>
-    </ActionButton>
-  );
 }

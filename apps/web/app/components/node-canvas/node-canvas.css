@@ -24,6 +24,8 @@
   --node-text-dim: var(--text-dim);
   --node-text-muted: color-mix(in oklch, var(--node-text-dim) 68%, transparent);
   --node-focus: var(--accent);
+  --node-handle: var(--node-handle-idle);
+  --node-handle-strong: var(--node-handle-active);
   --node-width: 160px;
   --node-editor-width: 292px;
   background: var(--node-bg);
@@ -36,7 +38,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  z-index: 2;
+  z-index: var(--z-canvas);
 }
 
 .react-flow__node.selected,
@@ -67,7 +69,7 @@
   background: transparent !important;
   cursor: crosshair;
   overflow: visible;
-  z-index: 6;
+  z-index: var(--z-toolbar);
   transition:
     background 120ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -129,11 +131,11 @@
 .react-flow__handle.connectingto::after {
   width: 18px;
   height: 18px;
-  border-color: var(--accent);
+  border-color: var(--node-handle-strong);
   background: color-mix(in oklch, var(--node-bg) 88%, black);
   box-shadow:
     0 0 0 2px color-mix(in oklch, var(--node-bg) 92%, transparent),
-    0 0 0 5px color-mix(in oklch, var(--accent) 20%, transparent);
+    0 0 0 5px color-mix(in oklch, var(--node-handle-strong) 20%, transparent);
 }
 
 .react-flow__controls {
@@ -178,7 +180,7 @@
 }
 
 .react-flow__edge.node-edge-add-target .react-flow__edge-path {
-  stroke: var(--accent);
+  stroke: var(--node-edge-idle);
   stroke-width: 3;
   opacity: 0.95;
   filter: drop-shadow(0 0 7px color-mix(in oklch, var(--accent) 42%, transparent));
@@ -374,6 +376,15 @@
 
 .node-shell-muted .node-shell-body {
   opacity: 0.42;
+}
+
+.node-shell-muted {
+  border-color: color-mix(in oklch, var(--node-border) 70%, var(--node-card-outline));
+  background: color-mix(in oklch, var(--node-surface) 78%, var(--workspace-bg));
+}
+
+.node-shell-muted .node-shell-header {
+  background: color-mix(in oklch, var(--node-header-surface) 74%, var(--workspace-bg));
 }
 
 .node-shell-muted .node-shell-label,
@@ -1437,10 +1448,44 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 6;
+  z-index: var(--z-toolbar);
   display: flex;
-  gap: 8px;
+  max-width: calc(100% - 24px);
+  align-items: flex-start;
+  gap: 10px;
   pointer-events: none;
+}
+
+.node-toolbar-group {
+  pointer-events: all;
+  display: flex;
+  flex: 0 0 auto;
+  min-height: var(--touch);
+  align-items: stretch;
+  border: 1px solid var(--node-border);
+  background: color-mix(in oklch, var(--node-surface) 86%, transparent);
+}
+
+.node-toolbar-group-build {
+  border-color: color-mix(in oklch, var(--accent) 28%, var(--node-border));
+}
+
+.node-toolbar-group-debug {
+  border-color: color-mix(in oklch, var(--node-border) 82%, transparent);
+  opacity: 0.86;
+}
+
+.node-toolbar-group-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--node-border);
+  color: var(--node-text-muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .node-canvas-toolbar button {
@@ -1449,14 +1494,16 @@
   align-items: center;
   gap: 6px;
   min-height: var(--touch);
-  padding: 0 16px;
+  padding: 0 14px;
   border-radius: 0;
-  border: 1px solid var(--node-border-strong);
-  background: var(--node-surface);
+  border: 0;
+  border-right: 1px solid var(--node-border);
+  background: transparent;
   color: var(--node-text);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.06em;
+  white-space: nowrap;
   text-transform: uppercase;
   cursor: pointer;
   transition:
@@ -1465,8 +1512,11 @@
     color 120ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.node-canvas-toolbar button:last-child {
+  border-right: 0;
+}
+
 .node-canvas-toolbar button:hover {
-  border-color: var(--accent);
   background: var(--node-surface-raised);
   color: var(--node-text);
 }
@@ -1478,26 +1528,22 @@
 }
 
 .node-canvas-toolbar button:disabled:hover {
-  border-color: var(--node-border);
-  background: var(--node-surface);
+  background: transparent;
   color: var(--node-text-muted);
 }
 
 .node-canvas-toolbar button[aria-pressed="true"] {
-  border-color: var(--accent);
   background: color-mix(in oklch, var(--accent) 12%, var(--node-surface-raised));
   color: var(--accent);
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 34%, transparent);
 }
 
 .node-canvas-toolbar .node-toolbar-account {
-  border-color: color-mix(in oklch, var(--accent) 58%, var(--node-border-strong));
   background: color-mix(in oklch, var(--accent) 9%, var(--node-surface));
   color: var(--accent);
 }
 
 .node-canvas-toolbar .node-toolbar-account:hover {
-  border-color: var(--accent);
   background: color-mix(in oklch, var(--accent) 15%, var(--node-surface-raised));
 }
 
@@ -1505,7 +1551,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 7;
+  z-index: var(--z-menu);
   display: flex;
   flex-direction: column;
   max-height: calc(100% - 24px);
@@ -1793,7 +1839,7 @@
   --node-menu-border: oklch(34% 0.04 36);
 
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-modal);
   background: var(--node-menu-bg);
   border: 1px solid var(--node-menu-border);
   border-radius: 0;
@@ -1933,7 +1979,7 @@
 
 .nadd-surface {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
   background: var(--sidebar-raised);
@@ -2900,11 +2946,27 @@
   }
 
   .node-canvas-toolbar {
-    top: auto;
+    top: 10px;
     right: 10px;
     left: 10px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-    justify-content: space-between;
+    bottom: auto;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-right: 20px;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    scrollbar-width: none;
+  }
+
+  .node-canvas-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .node-toolbar-group-label {
+    padding: 0 8px;
+  }
+
+  .node-canvas-toolbar button {
+    padding: 0 12px;
   }
 
   .node-gallery-header {
@@ -2921,6 +2983,15 @@
   .node-canvas-root {
     --node-width: 132px;
     --node-editor-width: min(260px, calc(100vw - 16px));
+  }
+
+  .node-toolbar-group-label {
+    display: none;
+  }
+
+  .node-canvas-toolbar button {
+    padding: 0 10px;
+    font-size: 9px;
   }
 
   .node-shell-body {

@@ -20,10 +20,12 @@ function siteNavClassName({ solid, compact }: { solid?: boolean; compact?: boole
 }
 
 export function SiteNav({
+  ariaLabel = 'Site navigation',
   solid,
   compact,
   compactSlot,
 }: {
+  ariaLabel?: string;
   solid?: boolean;
   compact?: boolean;
   compactSlot?: ReactNode;
@@ -38,7 +40,7 @@ export function SiteNav({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className={siteNavClassName({ solid, compact })}
-        aria-label="Site navigation"
+        aria-label={ariaLabel}
       >
         <Link to="/" className="site-nav-brand">
           <LogoGlyph />

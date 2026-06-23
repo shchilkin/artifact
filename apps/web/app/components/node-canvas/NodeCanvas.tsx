@@ -1128,39 +1128,54 @@ function NodeCanvasToolbar({
   onTogglePerfDebug: () => void;
 }) {
   return (
-    <div className="node-canvas-toolbar">
-      <button ref={addNodeButtonRef} type="button" onClick={onAddNode} aria-label="Add node">
-        <span aria-hidden="true">＋</span>
-        Add node
-      </button>
-      <AreaToolbarButton
-        areaActionDisabled={areaActionDisabled}
-        areaActionTargetId={areaActionTargetId}
-        onCreateArea={onCreateArea}
-      />
-      <button type="button" onClick={onOrganizeNodes} aria-label="Auto layout nodes">
-        <span aria-hidden="true">⌘</span>
-        Auto layout
-      </button>
-      <button type="button" onClick={onFitOutputPath} aria-label="Fit output path">
-        <span aria-hidden="true">◇</span>
-        Path
-      </button>
-      <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node">
-        <span aria-hidden="true">◎</span>
-        Output
-      </button>
-      <button
-        type="button"
-        onClick={onTogglePerfDebug}
-        aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
-        aria-pressed={perfDebugEnabled}
-        title="Show FPS, thumbnail queue, and long-task metrics"
-      >
-        <span aria-hidden="true">▥</span>
-        Perf
-      </button>
-      <NodeToolbarAccountButton auth={auth} />
+    <div className="node-canvas-toolbar" role="toolbar" aria-label="Node editor actions">
+      <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
+        <span className="node-toolbar-group-label" aria-hidden="true">
+          Build
+        </span>
+        <button ref={addNodeButtonRef} type="button" onClick={onAddNode} aria-label="Add node" title="Add node">
+          <span aria-hidden="true">＋</span>
+          Add node
+        </button>
+        <button type="button" onClick={onOrganizeNodes} aria-label="Auto layout nodes" title="Auto layout nodes">
+          <span aria-hidden="true">⌘</span>
+          Layout
+        </button>
+        <AreaToolbarButton
+          areaActionDisabled={areaActionDisabled}
+          areaActionTargetId={areaActionTargetId}
+          onCreateArea={onCreateArea}
+        />
+      </div>
+      <div className="node-toolbar-group" aria-label="View actions">
+        <span className="node-toolbar-group-label" aria-hidden="true">
+          View
+        </span>
+        <button type="button" onClick={onFitOutputPath} aria-label="Fit output path" title="Fit output path">
+          <span aria-hidden="true">◇</span>
+          Fit path
+        </button>
+        <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
+          <span aria-hidden="true">◎</span>
+          Output
+        </button>
+      </div>
+      <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
+        <span className="node-toolbar-group-label" aria-hidden="true">
+          Debug
+        </span>
+        <button
+          type="button"
+          onClick={onTogglePerfDebug}
+          aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
+          aria-pressed={perfDebugEnabled}
+          title="Show FPS, thumbnail queue, and long-task metrics"
+        >
+          <span aria-hidden="true">▥</span>
+          Metrics
+        </button>
+        <NodeToolbarAccountButton auth={auth} />
+      </div>
     </div>
   );
 }
@@ -1200,7 +1215,7 @@ function areaToolbarButtonCopy(disabled: boolean, targetId: string | null) {
 const AREA_TOOLBAR_CREATE_COPY = {
   ariaLabel: 'Create area from selected nodes',
   title: 'Create area',
-  label: 'Area',
+  label: 'Create area',
 };
 const AREA_TOOLBAR_TARGET_COPY = {
   ariaLabel: 'Add selected nodes to area',

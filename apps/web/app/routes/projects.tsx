@@ -159,7 +159,7 @@ function projectsRouteViewModel(
     activeProjectId: activeProjectId(activeProject),
     hasSavedItems: hasProjectListItems(projects, recoveryDraft),
     limitLabel: projectLimitLabel(projects.length, maxProjects),
-    recoveryLabel: recoveryDraft ? 'Recovery copy available' : null,
+    recoveryLabel: recoveryDraft ? 'Recovery draft available' : null,
     savedLabel: savedProjectsLabel(projects.length),
     warning: projectWarningMessage(storageError, openError),
   };

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
 import { getPreviewDims } from '../types/config';
@@ -12,13 +12,14 @@ const PREVIEW_DRAFT_RENDER_SCALE = 1;
 const PREVIEW_DRAFT_MAX_RENDER_DIMENSION = 540;
 const PREVIEW_FULL_RENDER_DELAY_MS = 240;
 const PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS = 900;
+const PREVIEW_DISPLAY_MAX_HEIGHT = 540;
 
 interface Props {
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
   selectedLayerId: string | null;
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
-  dragOver?: boolean;
+  dropPreview?: 'document' | 'file' | 'image' | null;
   onLayerUpdate: (id: string, patch: Partial<TextLayer | ImageLayer>) => void;
   onSelectLayer: (id: string | null) => void;
 }
@@ -28,12 +29,13 @@ export function CanvasPreview({
   imageCache,
   selectedLayerId,
   primitiveViewStates,
-  dragOver,
+  dropPreview,
   onLayerUpdate,
   onSelectLayer,
 }: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const viewStateCacheKey = useMemo(() => primitiveViewStatesSignature(primitiveViewStates), [primitiveViewStates]);
+  const { frameRef, previewSize } = useContainedPreviewSize(pw, ph);
   const { containerRef } = useDocumentRenderer(doc, imageCache, pw, ph, {
     graphMode: doc.graph ? 'graph' : 'stack',
     primitiveViewStates,
@@ -59,12 +61,21 @@ export function CanvasPreview({
     },
     [selectedLayer, onLayerUpdate],
   );
+  const canvasAreaStyle = useMemo(
+    () => ({
+      aspectRatio: `${pw} / ${ph}`,
+      ...(previewSize
+        ? { width: `${previewSize.width}px`, height: `${previewSize.height}px` }
+        : { width: 'min(100%, 540px)' }),
+    }),
+    [ph, previewSize, pw],
+  );
 
   return (
-    <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
+    <div ref={frameRef} className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
       <div
-        className="canvas-area relative h-full max-h-[min(100%,540px)] max-w-full flex items-center justify-center"
-        style={{ aspectRatio: `${pw} / ${ph}` }}
+        className="canvas-area relative max-w-full flex items-center justify-center"
+        style={canvasAreaStyle}
         onWheel={handleWheel}
       >
         <div
@@ -79,7 +90,7 @@ export function CanvasPreview({
           imageCache={imageCache}
           onLayerUpdate={onLayerUpdate}
         />
-        <CanvasPreviewDropOverlay dragOver={dragOver} />
+        <CanvasPreviewDropOverlay dropPreview={dropPreview} />
       </div>
     </div>
   );
@@ -103,6 +114,50 @@ function primitiveViewStatesSignature(viewStates: Record<string, PrimitiveViewpo
       ].join(':'),
     )
     .join('|');
+}
+
+function useContainedPreviewSize(width: number, height: number) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const [previewSize, setPreviewSize] = useState<{ width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateSize = () => {
+      const bounds = frame.getBoundingClientRect();
+      const maxWidth = bounds.width;
+      const maxHeight = Math.min(bounds.height, PREVIEW_DISPLAY_MAX_HEIGHT);
+      if (maxWidth <= 0 || maxHeight <= 0) return;
+
+      const aspect = width / Math.max(1, height);
+      let nextWidth = maxWidth;
+      let nextHeight = nextWidth / aspect;
+      if (nextHeight > maxHeight) {
+        nextHeight = maxHeight;
+        nextWidth = nextHeight * aspect;
+      }
+
+      setPreviewSize((current) => {
+        if (current && Math.abs(current.width - nextWidth) < 0.5 && Math.abs(current.height - nextHeight) < 0.5) {
+          return current;
+        }
+        return { width: nextWidth, height: nextHeight };
+      });
+    };
+
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(frame);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, [height, width]);
+
+  return { frameRef, previewSize };
 }
 
 function isTransformablePreviewLayer(
@@ -143,11 +198,26 @@ function CanvasPreviewHandles({
   );
 }
 
-function CanvasPreviewDropOverlay({ dragOver }: { dragOver?: boolean }) {
-  if (!dragOver) return null;
+function CanvasPreviewDropOverlay({ dropPreview }: { dropPreview?: Props['dropPreview'] }) {
+  if (!dropPreview) return null;
+  const copy = {
+    document: {
+      label: 'Review Artifact',
+      body: 'Drop to inspect before opening.',
+    },
+    file: {
+      label: 'Review File',
+      body: 'Images import as layers. Artifact files ask first.',
+    },
+    image: {
+      label: 'Drop Image',
+      body: 'Adds a new image layer.',
+    },
+  }[dropPreview];
   return (
     <div className="canvas-drop-overlay">
-      <span>Drop Image</span>
+      <span>{copy.label}</span>
+      <small>{copy.body}</small>
     </div>
   );
 }

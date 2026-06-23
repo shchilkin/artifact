@@ -23,6 +23,17 @@ import {
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 const MAX_PROJECT_PACKAGE_BYTES = 75 * 1024 * 1024;
 
+export interface PendingDocumentImport {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileKind: 'document' | 'project-package';
+  doc: CanvasDocument;
+  layerCount: number;
+  aspect: string;
+  hasGraph: boolean;
+}
+
 export function isArtifactDocumentFile(file: File) {
   return (
     file.name.endsWith(ARTIFACT_FILE_EXTENSION) ||
@@ -84,6 +95,7 @@ export function useDocumentFileTransfer(
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [documentFileError, setDocumentFileError] = useState<string | null>(null);
+  const [pendingDocumentImport, setPendingDocumentImport] = useState<PendingDocumentImport | null>(null);
 
   const showDocumentFileError = useCallback((message: string) => {
     setDocumentFileError(message);
@@ -145,13 +157,51 @@ export function useDocumentFileTransfer(
     [onLoadDocument, showDocumentFileError],
   );
 
+  const handleStageDocumentImport = useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+      const result = await readDocumentFileResult(file);
+      if (!result.doc) {
+        showDocumentFileError(result.error ?? 'Could not read document file.');
+        return;
+      }
+      setPendingDocumentImport({
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        fileName: file.name || 'Untitled artifact',
+        fileSize: file.size,
+        fileKind: isProjectPackageDocumentFile(file) ? 'project-package' : 'document',
+        doc: result.doc,
+        layerCount: result.doc.layers.length,
+        aspect: result.doc.global.aspect ?? '1:1',
+        hasGraph: Boolean(result.doc.graph),
+      });
+      setDocumentFileError(null);
+    },
+    [showDocumentFileError],
+  );
+
+  const handleCancelDocumentImport = useCallback(() => {
+    setPendingDocumentImport(null);
+  }, []);
+
+  const handleConfirmDocumentImport = useCallback(() => {
+    if (!pendingDocumentImport) return;
+    onLoadDocument(pendingDocumentImport.doc);
+    setPendingDocumentImport(null);
+    setDocumentFileError(null);
+  }, [onLoadDocument, pendingDocumentImport]);
+
   return {
     fileInputRef,
     documentFileError,
+    pendingDocumentImport,
+    handleCancelDocumentImport,
+    handleConfirmDocumentImport,
     handleOpenDocument,
     handleOpenDocumentPicker,
     handleSaveDocument,
     handleSaveProjectPackage,
+    handleStageDocumentImport,
   };
 }
 

@@ -30,6 +30,15 @@
   --text-muted: var(--token-ash-3);
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
+  --accent-signal: oklch(74% 0.17 152);
+  --accent-output: oklch(84% 0.03 88);
+
+  /* Identity marks. */
+  --brand-mark-field: var(--surface-app);
+  --brand-mark-frame: var(--text-primary);
+  --brand-mark-signal: var(--accent-primary);
+  --brand-mark-node: var(--accent-signal);
+  --brand-mark-shadow: color-mix(in oklch, var(--accent-primary) 24%, transparent);
 
   /* Reusable editor controls. */
   --control-h-compact: 32px;
@@ -88,6 +97,16 @@
   --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--accent-primary) 20%, transparent);
   --shadow-overlay: 0 22px 70px color-mix(in oklch, var(--surface-app) 70%, transparent);
 
+  /* Layering. */
+  --z-base: 0;
+  --z-canvas: 2;
+  --z-toolbar: 6;
+  --z-overlay: 28;
+  --z-floating: 30;
+  --z-menu: 70;
+  --z-nav: 100;
+  --z-modal: 10000;
+
   /* Motion. Do not animate layout properties. */
   --motion-fast: 120ms;
   --motion-base: 180ms;
@@ -100,6 +119,7 @@
   --editor-canvas-bg: oklch(8.8% 0.013 42);
   --editor-grid-dot: oklch(22% 0.014 42 / 0.48);
   --editor-selection-outline: color-mix(in oklch, var(--accent-primary) 70%, var(--line-strong));
+  --editor-output-path: var(--accent-output);
 
   /* Node cards: default nodes must separate from canvas before selection. */
   --node-card-bg: oklch(13.8% 0.017 42);
@@ -110,4 +130,8 @@
   --node-card-outline: oklch(18% 0.018 42);
   --node-card-selected-bg: oklch(16% 0.028 36);
   --node-card-selected-header-bg: oklch(18% 0.034 36);
+  --node-handle-idle: var(--accent-signal);
+  --node-handle-active: var(--accent-primary);
+  --node-edge-idle: color-mix(in oklch, var(--accent-primary) 62%, var(--line-strong));
+  --node-edge-output: var(--editor-output-path);
 }

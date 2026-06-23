@@ -35,7 +35,7 @@ const FALLBACK_ACTIVE_WORK_ROW = {
 const FALLBACK_RECOVERY_ROW = {
   id: 'recovery',
   tone: 'muted',
-  label: 'Recovery copy',
+  label: 'Recovery draft',
   value: 'None',
 } satisfies WorkspaceStatusRow;
 
@@ -73,7 +73,7 @@ export function ProjectsPanel({
           <div>
             <SheetTitle className="text-[10px] tracking-[2.5px] text-accent font-semibold">PROJECTS</SheetTitle>
             <SheetDescription className="sr-only">
-              Save, load, delete, or start local Artifact projects.
+              Save editable work in this browser, load local projects, or start a new canvas.
             </SheetDescription>
           </div>
           <div className="flex items-center gap-2.5">
@@ -157,7 +157,7 @@ function ProjectSaveForm({
           <input
             id="project-name-input"
             type="text"
-            placeholder="Project name..."
+            placeholder="Name this project..."
             value={name}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -173,6 +173,7 @@ function ProjectSaveForm({
           {formState.buttonLabel}
         </ActionButton>
       </div>
+      <p className="project-save-note">Projects save editable work in this browser. Share downloads portable files.</p>
     </div>
   );
 }
@@ -436,8 +437,8 @@ function ProjectsEmptyState() {
   return (
     <div className="projects-empty-state">
       <div className="projects-empty-state__mark">▣</div>
-      <p>No projects saved yet.</p>
-      <p>Create a project to keep editing this document later.</p>
+      <p>Save this draft as a project.</p>
+      <p>Projects keep editable work inside this browser.</p>
     </div>
   );
 }

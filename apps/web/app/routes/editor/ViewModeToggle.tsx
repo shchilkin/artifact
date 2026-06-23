@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 export type ViewMode = 'layers' | 'nodes';
-type ViewModeToggleVariant = 'floating' | 'node' | 'sidebar';
+type ViewModeToggleVariant = 'chrome' | 'floating' | 'node' | 'sidebar';
 
 const BASE_BUTTON_STYLE: CSSProperties = {
   fontFamily: 'var(--mono)',
@@ -15,6 +15,11 @@ const BASE_BUTTON_STYLE: CSSProperties = {
 };
 
 const BUTTON_SIZE_STYLE: Record<ViewModeToggleVariant, CSSProperties> = {
+  chrome: {
+    minHeight: 34,
+    padding: '0 12px',
+    fontSize: 10,
+  },
   floating: {
     minHeight: 'var(--touch)',
     padding: '0 16px',

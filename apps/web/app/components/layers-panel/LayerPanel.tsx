@@ -134,7 +134,7 @@ export function LayerPanel({
   const closeLayerContextMenu = useCallback(() => setContextMenu(null), []);
 
   const handleOpenLayerContextMenu = useCallback(
-    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+    (id: string, event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
       const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
       setSelectedLayerIds(new Set(activeIds));
@@ -272,10 +272,15 @@ export function LayerPanel({
         contextMenu={contextMenu}
         graphAreas={graphAreas}
         hasAreaMembership={(id) => areasByLayerId.has(id)}
+        layers={doc.layers}
         onClose={closeLayerContextMenu}
+        onDuplicateLayers={(ids) => ids.forEach(onDuplicateLayer)}
+        onRemoveLayers={(ids) => ids.forEach(onRemoveLayer)}
         onCreateAreaFromSelection={handleCreateAreaFromSelection}
         onAddSelectionToArea={handleAddSelectionToArea}
         onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
+        onRenameLayer={setEditingId}
+        onSetLayersVisible={onSetLayersVisible}
       />
     </div>
   );
@@ -302,9 +307,7 @@ function LayerPanelHeader({
 }) {
   return (
     <div className="layer-panel-header">
-      {modeSwitcher ?? (
-        <span className="font-mono text-[10px] tracking-[2.5px] uppercase font-semibold text-accent">LAYERS</span>
-      )}
+      {modeSwitcher ?? <span className="layer-panel-title">LAYERS</span>}
       <LayerAddMenu
         onAddLayer={onAddLayer}
         onAddEffectPreset={onAddEffectPreset}
