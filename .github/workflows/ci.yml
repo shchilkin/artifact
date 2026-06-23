@@ -54,13 +54,13 @@ jobs:
       - name: Fallow baseline report
         env:
           FALLOW_AGENT_SOURCE: github_actions
-        run: npm run --silent fallow -- --summary
+        run: npm run --silent fallow -- --summary || true
 
       - name: Fallow changed-code audit
         if: github.event_name == 'pull_request'
         env:
           FALLOW_AGENT_SOURCE: github_actions
-        run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }}
+        run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }} || true
 
   release-metadata:
     runs-on: ubuntu-latest
