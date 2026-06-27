@@ -316,6 +316,7 @@ export function NodeCanvas({
 
   const {
     openAddNodeMenu,
+    closeContextMenu,
     onPaneContextMenu,
     onNodeContextMenu,
     onEdgeContextMenu,
@@ -324,10 +325,12 @@ export function NodeCanvas({
     handleAddFromMenu,
   } = useNodeContextMenus({
     send,
+    contextMenu,
     graph,
     rfInstanceRef,
     addNodeButtonRef,
     canvasSurfaceRef,
+    contextMenuRef,
     selectedEdgeId,
     selectedNodeIds,
     graphRef,
@@ -364,8 +367,9 @@ export function NodeCanvas({
 
   const onPaneClick = useCallback(() => {
     clearSelectedArea();
+    closeContextMenu();
     send({ type: 'PANE_CLICKED' });
-  }, [clearSelectedArea, send]);
+  }, [clearSelectedArea, closeContextMenu, send]);
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
@@ -596,7 +600,7 @@ export function NodeCanvas({
             contextMenuRef={contextMenuRef}
             rfInstanceRef={rfInstanceRef}
             onAddFromMenu={handleAddFromMenu}
-            onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+            onClose={closeContextMenu}
             resolveInsertionAtPoint={resolveAddLibraryInsertionAtPoint}
           />
 
@@ -606,7 +610,7 @@ export function NodeCanvas({
             contextMenuRef={contextMenuRef}
             graph={graph}
             layers={doc.layers}
-            onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+            onClose={closeContextMenu}
             onDeleteNodes={deleteUnlockedNodes}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveNodeFromArea={handleRemoveNodeFromArea}
