@@ -285,6 +285,7 @@ export const nodeCanvasMachine = setup({
         },
         contextMenu: {
           on: {
+            CONTEXT_MENU_OPENED: { actions: 'openContextMenu' },
             CONTEXT_MENU_CLOSED: { target: 'none', actions: 'closeContextMenu' },
             PANE_CLICKED: { target: 'none', actions: 'closeContextMenu' },
             NODE_SELECTED: { target: 'none', actions: 'closeContextMenu' },

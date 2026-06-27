@@ -31,8 +31,8 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
       const action = payload ? parseAddLibraryAction(payload) : null;
       if (!action) return;
       event.preventDefault();
-      const didAdd = onDragAdd(action as AddAction, { x: event.clientX, y: event.clientY });
-      if (didAdd) onClose();
+      onDragAdd(action as AddAction, { x: event.clientX, y: event.clientY });
+      onClose();
     };
     document.addEventListener('dragover', handleDragOver, true);
     document.addEventListener('drop', handleDrop, true);
