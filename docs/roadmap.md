@@ -249,6 +249,11 @@ Next strong candidates after v0.38:
 - **Server-backed Share Links** — once the current editor guardrails settle, add
   stored-asset share records so large projects can be shared without URL payload
   limits.
+- **Cloud Project Asset Storage** — split account-backed cloud saves into small
+  project records plus separately uploaded image/font/model/environment assets.
+  The project JSON should keep lightweight cloud asset references instead of
+  embedding portable payloads, with upload progress, asset deduplication, lazy
+  load/cache on open, and explicit oversized-project failure states.
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
@@ -464,6 +469,9 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
 - Server-side asset storage for large uploads.
 - Server-side asset library for originals, generated assets, cutouts, exported
   outputs, and future local-to-cloud sync.
+- Cloud project asset sync: upload project assets separately from `doc_json`,
+  store only stable cloud references in saved project records, and hydrate/cache
+  those assets back into local IndexedDB when a cloud project opens.
 - Share modes beyond basic links: read-only share, remix/fork share,
   export-only share, and later collaboration modes.
 - Team/project collaboration.
