@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fillOnly } from '../test-fixtures/render/fixtures';
 import { PROJECT_THUMBNAIL_FALLBACK } from '../utils/projectLibrary';
-import { draftToProject } from './useProjects';
+import { draftToProject, mergeProjectStorage, mergeProjects } from './useProjects';
 
 describe('project recovery draft mapping', () => {
   it('uses the rendered recovery thumbnail when one is available', () => {
@@ -32,3 +32,51 @@ describe('project recovery draft mapping', () => {
     expect(project?.thumbnail).toBe(PROJECT_THUMBNAIL_FALLBACK);
   });
 });
+
+describe('project cloud merge state', () => {
+  it('marks matching local and cloud projects as synced', () => {
+    const local = savedProject('shared', '2026-06-28T10:00:00.000Z', 'local');
+    const cloud = savedProject('shared', '2026-06-28T10:01:00.000Z', 'cloud');
+
+    const [merged] = mergeProjects([local], [cloud]);
+
+    expect(merged).toMatchObject({
+      id: 'shared',
+      name: 'Cloud shared',
+      storage: 'synced',
+      updatedAt: '2026-06-28T10:01:00.000Z',
+    });
+  });
+
+  it('keeps the newest project data when cloud has an older copy', () => {
+    const local = savedProject('shared', '2026-06-28T10:02:00.000Z', 'local');
+    const cloud = savedProject('shared', '2026-06-28T10:01:00.000Z', 'cloud');
+
+    const [merged] = mergeProjects([local], [cloud]);
+
+    expect(merged).toMatchObject({
+      id: 'shared',
+      name: 'Local shared',
+      storage: 'synced',
+      updatedAt: '2026-06-28T10:02:00.000Z',
+    });
+  });
+
+  it('treats cloud plus local as synced regardless of argument order', () => {
+    expect(mergeProjectStorage('local', 'cloud')).toBe('synced');
+    expect(mergeProjectStorage('cloud', 'local')).toBe('synced');
+    expect(mergeProjectStorage('synced', 'local')).toBe('synced');
+  });
+});
+
+function savedProject(id: string, updatedAt: string, storage: 'local' | 'cloud') {
+  return {
+    id,
+    name: `${storage === 'cloud' ? 'Cloud' : 'Local'} ${id}`,
+    doc: fillOnly,
+    thumbnail: PROJECT_THUMBNAIL_FALLBACK,
+    createdAt: '2026-06-28T10:00:00.000Z',
+    updatedAt,
+    storage,
+  };
+}

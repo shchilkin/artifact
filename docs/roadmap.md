@@ -739,9 +739,11 @@ Current shipped baseline:
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
-- Private AI Image alpha workflow with Clerk-gated access, VPS API/worker,
-  Postgres, Redis/BullMQ, generated asset storage, quota guards, retries,
-  diagnostics, and local asset import.
+- Private AI Image alpha workflow with Better Auth account access, VPS
+  API/worker, Postgres, Redis/BullMQ, generated asset storage, quota guards,
+  retries, diagnostics, and local asset import.
+- Account-backed cloud project saves that mirror local projects without
+  replacing IndexedDB local-first editing.
 - Future local project package direction: custom-extension downloads that keep
   the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser

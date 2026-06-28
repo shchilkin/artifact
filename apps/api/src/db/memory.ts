@@ -4,11 +4,13 @@ import type {
   AiGenerationJobRow,
   AiUsageMonthlyRow,
   AssetRow,
+  CloudProjectRow,
   CreateAiGenerationJobInput,
   CreateAssetInput,
   CreateUserInput,
   JsonObject,
   UpsertAuthenticatedUserInput,
+  UpsertCloudProjectInput,
   UserRow,
 } from './types.js';
 
@@ -16,6 +18,7 @@ export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
   private readonly assets = new Map<string, AssetRow>();
+  private readonly projects = new Map<string, CloudProjectRow>();
   private readonly monthlyUsage = new Map<string, AiUsageMonthlyRow>();
 
   seedUser(input: CreateUserInput): UserRow {
@@ -202,6 +205,37 @@ export class InMemoryApiStore {
     ).length;
   }
 
+  async listCloudProjectsForUser(userId: string): Promise<CloudProjectRow[]> {
+    return Array.from(this.projects.values())
+      .filter((project) => project.user_id === userId)
+      .sort((left, right) => right.updated_at.getTime() - left.updated_at.getTime());
+  }
+
+  async upsertCloudProject(input: UpsertCloudProjectInput): Promise<CloudProjectRow> {
+    const existing = this.projects.get(input.id);
+    if (existing && existing.user_id !== input.userId) {
+      throw new Error(`Cloud project not found for user: ${input.id}`);
+    }
+    const now = new Date();
+    const row: CloudProjectRow = {
+      id: input.id,
+      user_id: input.userId,
+      name: input.name,
+      doc_json: input.docJson,
+      thumbnail: input.thumbnail ?? null,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    };
+    this.projects.set(row.id, row);
+    return row;
+  }
+
+  async deleteCloudProjectForUser(id: string, userId: string): Promise<boolean> {
+    const existing = this.projects.get(id);
+    if (!existing || existing.user_id !== userId) return false;
+    return this.projects.delete(id);
+  }
+
   repositories(): ApiRepositories {
     return {
       users: {
@@ -221,6 +255,11 @@ export class InMemoryApiStore {
       assets: {
         create: (input) => this.createAsset(input),
         findByIdForUser: (id, userId) => this.findAssetByIdForUser(id, userId),
+      },
+      projects: {
+        listForUser: (userId) => this.listCloudProjectsForUser(userId),
+        upsert: (input) => this.upsertCloudProject(input),
+        deleteForUser: (id, userId) => this.deleteCloudProjectForUser(id, userId),
       },
       usage: {
         findMonthlyUsage: (userId, period) => this.findMonthlyUsage(userId, period),

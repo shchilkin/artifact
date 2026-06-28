@@ -8,9 +8,8 @@ export interface ApiConfig {
   authJwtSecret: string;
   authJwtIssuer?: string;
   authJwtAudience?: string;
-  clerkSecretKey?: string;
-  clerkJwtKey?: string;
-  clerkAuthorizedParties: string[];
+  betterAuthSecret: string;
+  betterAuthUrl?: string;
   devBearerToken?: string;
   bullBoardEnabled: boolean;
   openAiApiKey?: string;
@@ -47,15 +46,6 @@ function booleanEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean) {
   throw new Error(`Environment variable ${name} must be true or false`);
 }
 
-function listEnv(env: NodeJS.ProcessEnv, name: string, fallback: string[]) {
-  const value = env[name];
-  if (!value) return fallback;
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function enumEnv<T extends string>(
   env: NodeJS.ProcessEnv,
   name: string,
@@ -87,9 +77,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
     authJwtIssuer: env.AUTH_JWT_ISSUER,
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
-    clerkSecretKey: env.CLERK_SECRET_KEY,
-    clerkJwtKey: env.CLERK_JWT_KEY,
-    clerkAuthorizedParties: listEnv(env, 'CLERK_AUTHORIZED_PARTIES', [env.WEB_ORIGIN ?? 'http://localhost:5173']),
+    betterAuthSecret: env.BETTER_AUTH_SECRET ?? requiredEnv(env, 'AUTH_JWT_SECRET'),
+    betterAuthUrl: env.BETTER_AUTH_URL,
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     bullBoardEnabled: booleanEnv(env, 'API_BULL_BOARD_ENABLED', false),
     openAiApiKey: env.OPENAI_API_KEY,

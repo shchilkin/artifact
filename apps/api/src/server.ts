@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { createClerkBearerVerifier, createJwtBearerVerifier, resolveRequestUser } from './auth.js';
+import { toNodeHandler } from 'better-auth/node';
+import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
+import { createArtifactBetterAuth } from './betterAuth.js';
 import { createBullBoardHandler } from './bullBoard.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
 import { logError, logInfo } from './logger.js';
@@ -7,20 +9,18 @@ import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
 import { handleHealthRequest } from './routes/health.js';
+import { handleProjectRequest } from './routes/projects.js';
 import { createApiRuntime } from './runtime.js';
 
 const { config, store, pool, repositories, queue, storage, providers } = createApiRuntime();
 const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
+const betterAuth = createArtifactBetterAuth(config, pool);
+const betterAuthHandler = betterAuth ? toNodeHandler(betterAuth) : null;
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
 const verifyJwtBearerToken = createJwtBearerVerifier({
   secret: config.authJwtSecret,
   issuer: config.authJwtIssuer,
   audience: config.authJwtAudience,
-});
-const verifyClerkBearerToken = createClerkBearerVerifier({
-  secretKey: config.clerkSecretKey,
-  jwtKey: config.clerkJwtKey,
-  authorizedParties: config.clerkAuthorizedParties,
 });
 
 if (config.devBearerToken && store) {
@@ -55,7 +55,19 @@ async function verifyApiBearerToken(token: string) {
   if (config.devBearerToken && token === config.devBearerToken) {
     return { id: 'dev-user', email: 'dev@artifact.local', role: 'admin' };
   }
-  return (await verifyClerkBearerToken(token)) ?? verifyJwtBearerToken(token);
+  return (await verifyBetterAuthBearerToken(token)) ?? verifyJwtBearerToken(token);
+}
+
+async function verifyBetterAuthBearerToken(token: string) {
+  if (!betterAuth) return null;
+  const session = await betterAuth.api.getSession({
+    headers: new Headers({ authorization: `Bearer ${token}` }),
+  });
+  if (!session?.user.id) return null;
+  return {
+    id: session.user.id,
+    email: session.user.email ?? undefined,
+  };
 }
 
 const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
@@ -86,6 +98,10 @@ async function resolveApiResponse(req: IncomingMessage) {
       storage,
       resolveAuth,
     })) ??
+    (await handleProjectRequest(req, {
+      repositories,
+      resolveAuth,
+    })) ??
     errorJson(404, 'not_found', 'API route not found.')
   );
 }
@@ -97,6 +113,11 @@ async function handleApiRequest(req: IncomingMessage, res: ServerResponse) {
   if (handleBullBoardRequest(req, res)) return;
 
   try {
+    if (betterAuthHandler && isBetterAuthRequest(req)) {
+      await betterAuthHandler(req, res);
+      logRequest(req.method, req.url, res.statusCode, startedAt);
+      return;
+    }
     const response = await resolveApiResponse(req);
     writeApiResponse(res, response);
     logRequest(req.method, req.url, response.status, startedAt);
@@ -107,6 +128,11 @@ async function handleApiRequest(req: IncomingMessage, res: ServerResponse) {
 }
 
 const server = createServer(handleApiRequest);
+
+function isBetterAuthRequest(req: IncomingMessage) {
+  const pathname = req.url ? new URL(req.url, 'http://artifact.local').pathname : '';
+  return pathname === '/api/auth' || pathname.startsWith('/api/auth/');
+}
 
 server.listen(config.port, () => {
   logInfo('api.started', {
