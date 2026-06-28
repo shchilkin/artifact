@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { RequestLike, RequestUserResolution } from '../auth.js';
+import { isCloudProjectOwnershipConflictError } from '../db/errors.js';
 import type { ApiRepositories } from '../db/repositories.js';
 import type { CloudProjectRow, JsonObject } from '../db/types.js';
-import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
+import { errorJson, type JsonResponse, json, RequestBodyTooLargeError, readJsonBody } from '../http.js';
 import { logInfo, logWarn } from '../logger.js';
+
+const MAX_PROJECT_BODY_BYTES = 5 * 1024 * 1024;
 
 export interface ProjectRouteRequest extends RequestLike, AsyncIterable<Buffer> {
   method?: string;
@@ -67,16 +70,34 @@ async function handleSaveProject(request: ProjectRouteRequest, deps: ProjectRout
   const body = await readSaveProjectBody(request);
   if (!body.ok) return body.response;
 
-  const project = await deps.repositories.projects.upsert({
-    id: body.value.id ?? deps.createId?.() ?? randomUUID(),
-    userId: auth.user.id,
-    name: body.value.name,
-    docJson: body.value.doc,
-    thumbnail: body.value.thumbnail,
-  });
+  const projectId = body.value.id ?? deps.createId?.() ?? randomUUID();
+  const project = await upsertProjectForUser(projectId, auth.user.id, body.value, deps);
+  if ('status' in project) return project;
 
   logInfo('cloud_project.saved', { projectId: project.id, userId: auth.user.id });
   return json(200, { project: projectResponse(project) });
+}
+
+async function upsertProjectForUser(
+  id: string,
+  userId: string,
+  value: { name: string; doc: JsonObject; thumbnail?: string | null },
+  deps: ProjectRouteDeps,
+) {
+  try {
+    return await deps.repositories.projects.upsert({
+      id,
+      userId,
+      name: value.name,
+      docJson: value.doc,
+      thumbnail: value.thumbnail,
+    });
+  } catch (error) {
+    if (isCloudProjectOwnershipConflictError(error)) {
+      return errorJson(409, 'project_id_conflict', 'Cloud project id belongs to another account.');
+    }
+    throw error;
+  }
 }
 
 async function handleDeleteProject(request: ProjectRouteRequest, projectId: string, deps: ProjectRouteDeps) {
@@ -118,10 +139,13 @@ async function readSaveProjectBody(
   | { ok: false; response: JsonResponse<{ code: string; message: string }> }
 > {
   try {
-    const body = await readJsonBody<SaveCloudProjectRequest>(request);
+    const body = await readJsonBody<SaveCloudProjectRequest>(request, { maxBytes: MAX_PROJECT_BODY_BYTES });
     const normalized = normalizeSaveProjectBody(body);
     return normalized.ok ? normalized : { ok: false, response: errorJson(400, 'invalid_request', normalized.message) };
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return { ok: false, response: errorJson(413, 'payload_too_large', 'Project is too large to sync.') };
+    }
     return { ok: false, response: errorJson(400, 'invalid_json', 'Request body must be valid JSON.') };
   }
 }

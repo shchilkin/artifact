@@ -1,13 +1,10 @@
 import { createAuthClient } from 'better-auth/react';
+import { getArtifactAuthApiBaseUrl } from './apiBaseUrl';
 
 export const AUTH_BEARER_TOKEN_KEY = 'artifact-better-auth-token';
 
-function env() {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-}
-
 export function getArtifactAuthBaseUrl() {
-  return env().VITE_AUTH_API_BASE_URL;
+  return getArtifactAuthApiBaseUrl();
 }
 
 export function readAuthBearerToken() {

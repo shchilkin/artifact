@@ -7,8 +7,19 @@ export class ActiveGenerationJobExistsError extends Error {
   }
 }
 
+export class CloudProjectOwnershipConflictError extends Error {
+  constructor(readonly projectId: string) {
+    super(`Cloud project belongs to another user: ${projectId}`);
+    this.name = 'CloudProjectOwnershipConflictError';
+  }
+}
+
 export function isActiveGenerationJobExistsError(error: unknown): error is ActiveGenerationJobExistsError {
   return error instanceof ActiveGenerationJobExistsError;
+}
+
+export function isCloudProjectOwnershipConflictError(error: unknown): error is CloudProjectOwnershipConflictError {
+  return error instanceof CloudProjectOwnershipConflictError;
 }
 
 export function isActiveGenerationJobUniqueViolation(error: unknown): boolean {

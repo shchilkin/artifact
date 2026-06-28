@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fillOnly } from '../test-fixtures/render/fixtures';
 import { PROJECT_THUMBNAIL_FALLBACK } from '../utils/projectLibrary';
-import { draftToProject, mergeProjectStorage, mergeProjects } from './useProjects';
+import { draftToProject, mergeProjectStorage, mergeProjects, mergeStoredProjectsWithCurrent } from './useProjects';
 
 describe('project recovery draft mapping', () => {
   it('uses the rendered recovery thumbnail when one is available', () => {
@@ -66,6 +66,16 @@ describe('project cloud merge state', () => {
     expect(mergeProjectStorage('local', 'cloud')).toBe('synced');
     expect(mergeProjectStorage('cloud', 'local')).toBe('synced');
     expect(mergeProjectStorage('synced', 'local')).toBe('synced');
+  });
+
+  it('preserves cloud-only projects when local storage returns a fresh project list', () => {
+    const local = savedProject('local-only', '2026-06-28T10:02:00.000Z', 'local');
+    const cloud = savedProject('cloud-only', '2026-06-28T10:01:00.000Z', 'cloud');
+
+    expect(mergeStoredProjectsWithCurrent([local], [cloud])).toMatchObject([
+      { id: 'local-only', storage: 'local' },
+      { id: 'cloud-only', storage: 'cloud' },
+    ]);
   });
 });
 

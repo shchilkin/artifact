@@ -1,4 +1,4 @@
-import { ActiveGenerationJobExistsError } from './errors.js';
+import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } from './errors.js';
 import type { ApiRepositories } from './repositories.js';
 import type {
   AiGenerationJobRow,
@@ -214,7 +214,7 @@ export class InMemoryApiStore {
   async upsertCloudProject(input: UpsertCloudProjectInput): Promise<CloudProjectRow> {
     const existing = this.projects.get(input.id);
     if (existing && existing.user_id !== input.userId) {
-      throw new Error(`Cloud project not found for user: ${input.id}`);
+      throw new CloudProjectOwnershipConflictError(input.id);
     }
     const now = new Date();
     const row: CloudProjectRow = {

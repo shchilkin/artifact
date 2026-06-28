@@ -1,3 +1,4 @@
+import { CloudProjectOwnershipConflictError } from './errors.js';
 import type { CloudProjectRepository, CloudProjectRow, UpsertCloudProjectInput } from './types.js';
 
 export interface PostgresQueryClient {
@@ -45,7 +46,7 @@ export class PostgresCloudProjectRepository implements CloudProjectRepository {
       `,
       [input.id, input.userId, input.name, input.docJson, input.thumbnail ?? null],
     );
-    return requireSingleRow(result.rows, `Cloud project was not saved: ${input.id}`);
+    return requireSingleRow(result.rows, () => new CloudProjectOwnershipConflictError(input.id));
   }
 
   async deleteForUser(id: string, userId: string): Promise<boolean> {
@@ -60,8 +61,8 @@ export class PostgresCloudProjectRepository implements CloudProjectRepository {
   }
 }
 
-function requireSingleRow<Row>(rows: Row[], message: string): Row {
+function requireSingleRow<Row>(rows: Row[], error: () => Error): Row {
   const row = rows[0];
-  if (!row) throw new Error(message);
+  if (!row) throw error();
   return row;
 }

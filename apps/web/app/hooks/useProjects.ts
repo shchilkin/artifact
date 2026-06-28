@@ -134,7 +134,7 @@ export function useProjects() {
         });
         const next = await saveStoredProject(project);
         setStorageError(null);
-        if (mountedRef.current) setProjects(next);
+        if (mountedRef.current) setProjects((current) => mergeStoredProjectsWithCurrent(next, current));
         void autoSyncProjectToCloud(project, auth, mountedRef, setProjects, setStorageError);
         return project;
       } catch (error) {
@@ -280,6 +280,13 @@ export function mergeProjectStorage(a: SavedProject['storage'], b: SavedProject[
   return 'local';
 }
 
+export function mergeStoredProjectsWithCurrent(storedProjects: SavedProject[], currentProjects: SavedProject[]) {
+  return mergeProjects(
+    storedProjects,
+    currentProjects.filter((project) => normalizeProjectStorage(project.storage) !== 'local'),
+  );
+}
+
 function setMountedStorageError(
   mounted: boolean,
   setStorageError: (value: string | null) => void,
@@ -322,7 +329,7 @@ async function recoveryDraftThumbnail(draft: NonNullable<LoadedPreBlankDraft>) {
 async function refreshOutdatedProjectThumbnails(
   projects: SavedProject[],
   mountedRef: MutableRefObject<boolean>,
-  setProjects: (projects: SavedProject[]) => void,
+  setProjects: (projects: SavedProject[] | ((projects: SavedProject[]) => SavedProject[])) => void,
   setStorageError: (value: string | null) => void,
 ) {
   for (const project of projects) {
@@ -333,7 +340,7 @@ async function refreshOutdatedProjectThumbnails(
     try {
       const next = await saveStoredProject({ ...project, thumbnail });
       setStorageError(null);
-      if (mountedRef.current) setProjects(next);
+      if (mountedRef.current) setProjects((current) => mergeStoredProjectsWithCurrent(next, current));
     } catch (error) {
       setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to update project preview');
     }

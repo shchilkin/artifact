@@ -60,24 +60,32 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
       setPending(true);
       setError(null);
 
-      const formData = new FormData(event.currentTarget);
-      const email = String(formData.get('email') ?? '').trim();
-      const password = String(formData.get('password') ?? '');
-      const name = String(formData.get('name') ?? '').trim() || email.split('@')[0] || 'Artifact user';
+      let authenticated = false;
+      try {
+        const formData = new FormData(event.currentTarget);
+        const email = String(formData.get('email') ?? '').trim();
+        const password = String(formData.get('password') ?? '');
+        const name = String(formData.get('name') ?? '').trim() || email.split('@')[0] || 'Artifact user';
 
-      const result =
-        mode === 'sign-up'
-          ? await authClient.signUp.email({ email, password, name })
-          : await authClient.signIn.email({ email, password, rememberMe: true });
+        const result =
+          mode === 'sign-up'
+            ? await authClient.signUp.email({ email, password, name })
+            : await authClient.signIn.email({ email, password, rememberMe: true });
 
-      setPending(false);
-      if (result.error) {
-        setError(result.error.message || 'Could not authenticate.');
-        return;
+        if (result.error) {
+          setError(result.error.message || 'Could not authenticate.');
+          return;
+        }
+
+        await onAuthenticated();
+        authenticated = true;
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Could not reach the account service.');
+      } finally {
+        setPending(false);
       }
 
-      await onAuthenticated();
-      onClose();
+      if (authenticated) onClose();
     },
     [mode, onAuthenticated, onClose],
   );

@@ -93,6 +93,27 @@ describe('project route handlers', () => {
     });
   });
 
+  it('returns a conflict when another user owns the requested project id', async () => {
+    const { deps, store } = createDeps();
+    await store.repositories().projects.upsert({
+      id: 'project-1',
+      userId: 'user-2',
+      name: 'Other user project',
+      docJson: projectDoc,
+      thumbnail: null,
+    });
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', { id: 'project-1', name: 'Collision', doc: projectDoc }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { code: 'project_id_conflict' },
+    });
+  });
+
   it('deletes only projects owned by the authenticated user', async () => {
     const { deps, store } = createDeps();
     await handleProjectRequest(
@@ -133,6 +154,25 @@ describe('project route handlers', () => {
     ).resolves.toMatchObject({
       status: 400,
       body: { code: 'invalid_request' },
+    });
+  });
+
+  it('rejects project saves that exceed the sync body limit', async () => {
+    const { deps } = createDeps();
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', {
+          id: 'too-large',
+          name: 'Too large',
+          doc: projectDoc,
+          thumbnail: `data:image/png;base64,${'a'.repeat(5 * 1024 * 1024)}`,
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 413,
+      body: { code: 'payload_too_large' },
     });
   });
 });
