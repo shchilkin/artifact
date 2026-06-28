@@ -118,13 +118,13 @@ describe('ai generation client', () => {
     expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer dev-token' });
   });
 
-  it('can attach a Clerk bearer token', async () => {
+  it('can attach an account bearer token', async () => {
     const { calls, fetcher } = captureJsonFetch(accessResponse());
 
-    await getAiGenerationAccess({ baseUrl: 'http://localhost:4000', bearerToken: 'clerk-token', fetcher });
+    await getAiGenerationAccess({ baseUrl: 'http://localhost:4000', bearerToken: 'account-token', fetcher });
 
     expect(calls[0]?.url).toBe('http://localhost:4000/api/ai/access');
-    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer clerk-token' });
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
   });
 
   it('prefers explicit bearer tokens over local development tokens', async () => {
@@ -138,9 +138,9 @@ describe('ai generation client', () => {
       });
     };
 
-    await getAiGenerationAccess({ bearerToken: 'clerk-token', devToken: 'dev-token', fetcher });
+    await getAiGenerationAccess({ bearerToken: 'account-token', devToken: 'dev-token', fetcher });
 
-    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer clerk-token' });
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
   });
 
   it('reads AI access state', async () => {

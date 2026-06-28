@@ -41,6 +41,7 @@ export function useEditorProjectsController({
     storageError,
     maxProjects,
     saveProject,
+    saveProjectToCloud,
     deleteProject,
     loadProject,
     deleteRecoveryDraft,
@@ -128,6 +129,9 @@ export function useEditorProjectsController({
     deleteProject: (id: string) => {
       if (activeProjectBinding?.projectId === id) clearActiveProject();
       void deleteProject(id);
+    },
+    saveProjectToCloud: (project: SavedProject) => {
+      void saveProjectToCloud(project);
     },
     deleteRecoveryDraft,
     projectSaveState,

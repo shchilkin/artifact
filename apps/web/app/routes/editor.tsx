@@ -263,6 +263,7 @@ export default function Editor() {
     saveCurrentProject,
     saveActiveProject,
     deleteProject,
+    saveProjectToCloud,
     deleteRecoveryDraft,
     projectSaveState,
   } = useEditorProjectsController({
@@ -612,6 +613,7 @@ export default function Editor() {
               onSaveActive={saveActiveProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
+              onSaveToCloud={saveProjectToCloud}
               onDeleteRecoveryDraft={deleteRecoveryDraft}
               onNewBlank={handleNewBlankRequest}
               onClose={closeProjects}

@@ -28,7 +28,8 @@ export default function ProjectsRoute() {
   const navigate = useNavigate();
   const [openError, setOpenError] = useState<string | null>(null);
   const [activeProjectBinding, setActiveProjectBinding] = useState(loadInitialActiveProjectBinding);
-  const { projects, recoveryDraft, storageError, maxProjects, deleteProject, deleteRecoveryDraft } = useProjects();
+  const { projects, recoveryDraft, storageError, maxProjects, deleteProject, saveProjectToCloud, deleteRecoveryDraft } =
+    useProjects();
   const activeProject = useMemo(
     () => activeProjectFromBinding(projects, activeProjectBinding),
     [activeProjectBinding, projects],
@@ -67,6 +68,7 @@ export default function ProjectsRoute() {
           recoveryDraft={recoveryDraft}
           onDelete={handleDeleteProject}
           onDeleteRecoveryDraft={deleteRecoveryDraft}
+          onSaveToCloud={saveProjectToCloud}
           onLoad={handleOpenProject}
         />
       </section>
@@ -115,6 +117,7 @@ function ProjectsPageLibrary({
   hasSavedItems,
   onDelete,
   onDeleteRecoveryDraft,
+  onSaveToCloud,
   onLoad,
   projects,
   recoveryDraft,
@@ -123,6 +126,7 @@ function ProjectsPageLibrary({
   hasSavedItems: boolean;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
+  onSaveToCloud: (project: SavedProject) => void;
   onLoad: (project: SavedProject) => void;
   projects: SavedProject[];
   recoveryDraft: SavedProject | null;
@@ -137,6 +141,7 @@ function ProjectsPageLibrary({
         loadMode="card"
         onDelete={onDelete}
         onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+        onSaveToCloud={onSaveToCloud}
         onLoad={onLoad}
       />
     </section>

@@ -13,8 +13,9 @@ describe('applyCorsHeaders', () => {
 
     expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-origin', 'https://artifact.example');
     expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-credentials', 'true');
+    expect(res.setHeader).toHaveBeenCalledWith('access-control-expose-headers', 'set-auth-token');
     expect(res.setHeader).toHaveBeenCalledWith('vary', 'Origin');
-    expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-methods', 'GET,POST,OPTIONS');
+    expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS');
     expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-headers', 'authorization,content-type');
   });
 
@@ -28,6 +29,6 @@ describe('applyCorsHeaders', () => {
     );
 
     expect(res.setHeader).not.toHaveBeenCalledWith('access-control-allow-origin', expect.any(String));
-    expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-methods', 'GET,POST,OPTIONS');
+    expect(res.setHeader).toHaveBeenCalledWith('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS');
   });
 });

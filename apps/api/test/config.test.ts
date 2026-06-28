@@ -64,23 +64,19 @@ describe('loadConfig', () => {
     });
   });
 
-  it('keeps Clerk verification settings when configured', () => {
+  it('keeps Better Auth settings when configured', () => {
     expect(
       loadConfig({
         ...requiredEnv,
         WEB_ORIGIN: 'https://artifact.example',
-        CLERK_SECRET_KEY: 'sk_test_123',
-        CLERK_JWT_KEY: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
-        CLERK_AUTHORIZED_PARTIES: 'https://artifact.example,http://localhost:5173',
+        BETTER_AUTH_SECRET: 'better-secret',
+        BETTER_AUTH_URL: 'https://api.artifact.example/api/auth',
       }),
     ).toMatchObject({
-      clerkSecretKey: 'sk_test_123',
-      clerkJwtKey: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
-      clerkAuthorizedParties: ['https://artifact.example', 'http://localhost:5173'],
+      betterAuthSecret: 'better-secret',
+      betterAuthUrl: 'https://api.artifact.example/api/auth',
     });
-    expect(loadConfig({ ...requiredEnv, WEB_ORIGIN: 'https://artifact.example' })).toMatchObject({
-      clerkAuthorizedParties: ['https://artifact.example'],
-    });
+    expect(loadConfig({ ...requiredEnv })).toMatchObject({ betterAuthSecret: 'secret' });
   });
 
   it('parses Bull Board enablement explicitly', () => {

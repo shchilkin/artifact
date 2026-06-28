@@ -7,7 +7,10 @@ export interface SavedProject {
   thumbnail: string;
   createdAt: string;
   updatedAt: string;
+  storage?: ProjectStorageKind;
 }
+
+export type ProjectStorageKind = 'local' | 'cloud' | 'synced';
 
 export const PROJECTS_STORAGE_KEY = 'artifact-projects-v1';
 export const MAX_PROJECTS = 30;
@@ -41,11 +44,19 @@ function normalizeProjectThumbnail(thumbnail: string) {
   return LEGACY_PROJECT_THUMBNAIL_FALLBACKS.has(thumbnail) ? PROJECT_THUMBNAIL_FALLBACK : thumbnail;
 }
 
+export function normalizeProjectStorage(storage: unknown): ProjectStorageKind {
+  return storage === 'cloud' || storage === 'synced' ? storage : 'local';
+}
+
 export function normalizeSavedProjects(value: unknown): SavedProject[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter(isSavedProject)
-    .map((project) => ({ ...project, thumbnail: normalizeProjectThumbnail(project.thumbnail) }))
+    .map((project) => ({
+      ...project,
+      thumbnail: normalizeProjectThumbnail(project.thumbnail),
+      storage: normalizeProjectStorage(project.storage),
+    }))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, MAX_PROJECTS);
 }

@@ -2,7 +2,6 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   computeAiAccessResponse,
-  createClerkBearerVerifier,
   createJwtBearerVerifier,
   readBearerToken,
   resolveRequestUser,
@@ -105,14 +104,6 @@ describe('auth helpers', () => {
       authenticated: true,
       user: { id: 'user-1' },
     });
-  });
-
-  it('ignores Clerk bearer verification when Clerk keys are not configured', async () => {
-    await expect(createClerkBearerVerifier({})('not-a-clerk-token')).resolves.toBeNull();
-  });
-
-  it('treats malformed Clerk bearer tokens as invalid credentials', async () => {
-    await expect(createClerkBearerVerifier({ secretKey: 'sk_test_fake' })('not-a-jwt')).resolves.toBeNull();
   });
 
   it('separates missing and invalid bearer credentials in access state', () => {

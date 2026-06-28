@@ -1,7 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { verifyToken } from '@clerk/backend';
 import type { AiAccessResponse, AiProvider, AiQuotaSnapshot } from './contracts.js';
-import { logWarn } from './logger.js';
 
 export interface RequestUser {
   id: string;
@@ -42,12 +40,6 @@ export interface JwtVerifierOptions {
   issuer?: string;
   audience?: string;
   now?: () => Date;
-}
-
-export interface ClerkBearerVerifierOptions {
-  secretKey?: string;
-  jwtKey?: string;
-  authorizedParties?: string[];
 }
 
 interface JwtClaims {
@@ -120,40 +112,6 @@ export async function resolveRequestUser(
 
 export function createJwtBearerVerifier(options: JwtVerifierOptions) {
   return async (token: string): Promise<RequestUser | null> => verifySignedBearerToken(token, options);
-}
-
-export function createClerkBearerVerifier(options: ClerkBearerVerifierOptions) {
-  return async (token: string): Promise<RequestUser | null> => {
-    if (!options.secretKey && !options.jwtKey) return null;
-    const payload = await verifyClerkToken(token, options);
-    if (!payload || typeof payload !== 'object') return null;
-
-    const claims = payload as Record<string, unknown>;
-    const { sub, email, role } = claims;
-    if (typeof sub !== 'string' || !sub) return null;
-    return {
-      id: sub,
-      email: typeof email === 'string' ? email : undefined,
-      role: typeof role === 'string' ? role : undefined,
-    };
-  };
-}
-
-async function verifyClerkToken(token: string, options: ClerkBearerVerifierOptions) {
-  try {
-    return await verifyToken(token, {
-      secretKey: options.secretKey,
-      jwtKey: options.jwtKey,
-      authorizedParties: options.authorizedParties?.filter(Boolean),
-    });
-  } catch (error) {
-    logWarn('auth.clerk_token_rejected', {
-      reason: error instanceof Error ? error.message : 'unknown',
-      authorizedParties: formatAuthorizedParties(options.authorizedParties),
-      ...summarizeBearerTokenClaims(token),
-    });
-    return null;
-  }
 }
 
 export function verifySignedBearerToken(token: string, options: JwtVerifierOptions): RequestUser | null {
@@ -247,37 +205,6 @@ function parseJwtPart<T>(encoded: string): T | null {
   } catch {
     return null;
   }
-}
-
-function summarizeBearerTokenClaims(token: string) {
-  const [, encodedPayload] = token.split('.');
-  const claims = encodedPayload ? parseJwtPart<JwtClaims>(encodedPayload) : null;
-  if (!claims) {
-    return {
-      tokenClaims: 'unavailable',
-    };
-  }
-
-  return {
-    tokenClaims: 'decoded',
-    tokenSub: debugClaim(claims.sub),
-    tokenIss: debugClaim(claims.iss),
-    tokenAud: debugClaim(claims.aud),
-    tokenAzp: debugClaim(claims.azp),
-    tokenSid: debugClaim(claims.sid),
-  };
-}
-
-function debugClaim(value: unknown): string | null {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(debugClaim).filter(Boolean).join(',');
-  return null;
-}
-
-function formatAuthorizedParties(parties: string[] | undefined) {
-  const filtered = parties?.filter(Boolean) ?? [];
-  return filtered.length ? filtered.join(',') : null;
 }
 
 function signJwtParts(value: string, secret: string): string {

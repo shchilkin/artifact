@@ -90,9 +90,8 @@ Dependency findings need trace validation before any package metadata change:
   package.
 - `isbot` appears unused at the root and needs a route/runtime trace before
   removal.
-- `@clerk/react` is imported by `apps/web/app/utils/clerkAuth.ts` without a
-  direct dependency entry. Decide whether to add it directly or change the
-  import boundary.
+- The prior `@clerk/react` direct-dependency finding was resolved by the
+  Better Auth account migration.
 
 The duplicate export finding is `PostgresQueryClient` across API database
 modules. This looks like an intentional local type alias pattern, so it should
@@ -104,7 +103,7 @@ Actionable now, after trace validation:
 
 - Trace the four unused-file candidates with
   `npm exec fallow -- dead-code --trace-file <path> --format json --quiet`.
-- Trace `@clerk/react`, `isbot`, and `@artifact/shared` with
+- Trace `isbot` and `@artifact/shared` with
   `npm exec fallow -- dead-code --trace-dependency <package> --format json --quiet`.
 - Review API script/env duplication around
   `apps/api/scripts/export-job-image.mjs`,

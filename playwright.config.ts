@@ -47,7 +47,7 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_AI_API_BASE_URL: 'http://127.0.0.1:4173',
-      VITE_CLERK_PUBLISHABLE_KEY: '',
+      VITE_AUTH_API_BASE_URL: '',
     },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_REUSE_SERVER !== '0',

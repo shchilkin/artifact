@@ -20,6 +20,7 @@ interface Props {
   onSaveActive: (name: string) => void;
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
+  onSaveToCloud: (project: SavedProject) => void;
   onDeleteRecoveryDraft: () => void;
   onNewBlank: () => void;
   onClose: () => void;
@@ -56,6 +57,7 @@ export function ProjectsPanel({
   onSaveActive,
   onLoad,
   onDelete,
+  onSaveToCloud,
   onDeleteRecoveryDraft,
   onNewBlank,
   onClose,
@@ -110,6 +112,7 @@ export function ProjectsPanel({
           recoveryDraft={recoveryDraft}
           onDelete={onDelete}
           onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+          onSaveToCloud={onSaveToCloud}
           onSaveCopy={onSaveCopy}
           onLoad={onLoad}
         />
@@ -394,6 +397,7 @@ export function ProjectsList({
   recoveryDraft,
   onDelete,
   onDeleteRecoveryDraft,
+  onSaveToCloud,
   onSaveCopy,
   onLoad,
 }: {
@@ -404,6 +408,7 @@ export function ProjectsList({
   recoveryDraft: SavedProject | null;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
+  onSaveToCloud?: (project: SavedProject) => void;
   onSaveCopy?: (name: string) => void;
   onLoad: (project: SavedProject) => void;
 }) {
@@ -423,6 +428,7 @@ export function ProjectsList({
           active={project.id === activeProjectId}
           loadMode={loadMode}
           onDelete={onDelete}
+          onSaveToCloud={onSaveToCloud}
           onSaveCopy={
             project.id === activeProjectId && onSaveCopy ? () => onSaveCopy(`${project.name} copy`) : undefined
           }
@@ -476,6 +482,7 @@ function ProjectCard({
   active,
   loadMode,
   onDelete,
+  onSaveToCloud,
   onSaveCopy,
   onLoad,
 }: {
@@ -483,6 +490,7 @@ function ProjectCard({
   active: boolean;
   loadMode: 'button' | 'card';
   onDelete: (id: string) => void;
+  onSaveToCloud?: (project: SavedProject) => void;
   onSaveCopy?: () => void;
   onLoad: (project: SavedProject) => void;
 }) {
@@ -503,6 +511,7 @@ function ProjectCard({
         onCopy={onSaveCopy}
         onDelete={() => onDelete(project.id)}
         onLoad={loadProject}
+        onSaveToCloud={shouldShowSaveToCloud(project, onSaveToCloud) ? () => onSaveToCloud(project) : undefined}
       />
     </ProjectCardFrame>
   );
@@ -574,11 +583,17 @@ function ProjectCardMeta({ project }: { project: SavedProject }) {
   return (
     <div className="library-card-meta">
       <div className="library-card-title">{project.name}</div>
+      <ProjectStorageChip project={project} />
       <div className="library-card-updated">{formatUpdatedAt(project.updatedAt)}</div>
       <div className="library-card-seed">seed: {project.doc.global.seed}</div>
       <div className="library-card-size">size: {formatBytes(projectSizeBytes(project))}</div>
     </div>
   );
+}
+
+function ProjectStorageChip({ project }: { project: SavedProject }) {
+  const storage = project.storage ?? 'local';
+  return <div className={`library-card-storage library-card-storage-${storage}`}>{storageLabel(storage)}</div>;
 }
 
 function ProjectCardActions({
@@ -587,6 +602,7 @@ function ProjectCardActions({
   onCopy,
   onDelete,
   onLoad,
+  onSaveToCloud,
   project,
   showLoad = true,
 }: {
@@ -595,15 +611,23 @@ function ProjectCardActions({
   onCopy?: () => void;
   onDelete: () => void;
   onLoad: () => void;
+  onSaveToCloud?: () => void;
   project: SavedProject;
   showLoad?: boolean;
 }) {
-  if (!showLoad && !onCopy) {
+  if (!showLoad && !onCopy && !onSaveToCloud) {
     return <ProjectCardSecondaryActions project={project} onConfirmDelete={onDelete} />;
   }
 
   if (!showLoad) {
-    return <ProjectCardSecondaryActions project={project} onConfirmDelete={onDelete} onCopy={onCopy} />;
+    return (
+      <ProjectCardSecondaryActions
+        project={project}
+        onConfirmDelete={onDelete}
+        onCopy={onCopy}
+        onSaveToCloud={onSaveToCloud}
+      />
+    );
   }
 
   return (
@@ -613,6 +637,7 @@ function ProjectCardActions({
       onCopy={onCopy}
       onDelete={onDelete}
       onLoad={onLoad}
+      onSaveToCloud={onSaveToCloud}
       project={project}
       showLoad={showLoad}
     />
@@ -625,6 +650,7 @@ function ProjectCardButtonActions({
   onCopy,
   onDelete,
   onLoad,
+  onSaveToCloud,
   project,
   showLoad,
 }: {
@@ -633,6 +659,7 @@ function ProjectCardButtonActions({
   onCopy?: () => void;
   onDelete: () => void;
   onLoad: () => void;
+  onSaveToCloud?: () => void;
   project: SavedProject;
   showLoad: boolean;
 }) {
@@ -641,6 +668,7 @@ function ProjectCardButtonActions({
       <ProjectLoadAction loadVariant={loadVariant} project={project} showLoad={showLoad} onLoad={onLoad} />
       <ProjectDeleteButtonAction deleteVariant={deleteVariant} project={project} onDelete={onDelete} />
       <ProjectCopyAction project={project} onCopy={onCopy} />
+      <ProjectCloudAction project={project} onSaveToCloud={onSaveToCloud} />
     </div>
   );
 }
@@ -736,10 +764,12 @@ function ProjectDeleteDialog({
 function ProjectCardSecondaryActions({
   onConfirmDelete,
   onCopy,
+  onSaveToCloud,
   project,
 }: {
   onConfirmDelete: () => void;
   onCopy?: () => void;
+  onSaveToCloud?: () => void;
   project: SavedProject;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -753,6 +783,7 @@ function ProjectCardSecondaryActions({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="bottom" onClick={(event) => event.stopPropagation()}>
+          {onSaveToCloud && <DropdownMenuItem onSelect={onSaveToCloud}>Save to cloud</DropdownMenuItem>}
           {onCopy && <DropdownMenuItem onSelect={onCopy}>Save copy</DropdownMenuItem>}
           <DropdownMenuItem destructive onSelect={() => setConfirmOpen(true)}>
             Delete project
@@ -781,4 +812,28 @@ function ProjectCopyAction({ onCopy, project }: { onCopy?: () => void; project: 
       COPY
     </ActionButton>
   );
+}
+
+function ProjectCloudAction({ onSaveToCloud, project }: { onSaveToCloud?: () => void; project: SavedProject }) {
+  if (!onSaveToCloud) return null;
+  return (
+    <ActionButton
+      className="library-card-action library-card-action-cloud"
+      aria-label={`Save ${project.name} to cloud`}
+      onClick={onSaveToCloud}
+      variant="quiet"
+    >
+      CLOUD
+    </ActionButton>
+  );
+}
+
+function shouldShowSaveToCloud(project: SavedProject, onSaveToCloud?: (project: SavedProject) => void) {
+  return Boolean(onSaveToCloud) && (project.storage ?? 'local') === 'local';
+}
+
+function storageLabel(storage: SavedProject['storage']) {
+  if (storage === 'cloud') return 'CLOUD';
+  if (storage === 'synced') return 'SYNCED';
+  return 'LOCAL';
 }
