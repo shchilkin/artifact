@@ -91,6 +91,7 @@ Minimum VPS-like configuration:
 NODE_ENV=production
 PORT=4000
 WEB_ORIGIN=https://your-vercel-domain.example
+WEB_ORIGINS=https://your-vercel-domain.example,https://your-preview-domain.vercel.app
 
 API_DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://artifact:change-me@127.0.0.1:5432/artifact
@@ -324,8 +325,11 @@ before freeing old generated files on the VPS.
 
 - Run API and worker from the same git revision.
 - Keep provider keys out of the frontend and Vercel client env.
-- Set `WEB_ORIGIN` to the exact Vercel app origin. Credentialed CORS only echoes
-  that configured origin.
+- Set `WEB_ORIGIN` to the primary Vercel app origin. Use `WEB_ORIGINS` when the
+  API must also trust preview or dev frontends; it is a comma-separated list and
+  overrides the single-origin fallback. Prefer exact preview domains, or a narrow
+  project-owned wildcard such as `https://artifact-git-*-owner.vercel.app`.
+  Credentialed CORS only echoes a matched configured origin.
 - Failed provider calls should mark the job failed and not leave orphan files.
 - If asset creation fails after writing bytes, storage cleanup should remove the
   just-written file.

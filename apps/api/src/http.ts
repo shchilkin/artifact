@@ -67,9 +67,9 @@ export async function readJsonBody<T>(request: AsyncIterable<Buffer>, options: {
   return JSON.parse(body) as T;
 }
 
-export function applyCorsHeaders(req: IncomingMessage, res: ServerResponse, webOrigin: string) {
+export function applyCorsHeaders(req: IncomingMessage, res: ServerResponse, webOrigins: string | readonly string[]) {
   const origin = req.headers.origin;
-  if (typeof origin === 'string' && origin === webOrigin) {
+  if (typeof origin === 'string' && isAllowedWebOrigin(origin, webOrigins)) {
     res.setHeader('access-control-allow-origin', origin);
     res.setHeader('access-control-allow-credentials', 'true');
     res.setHeader('access-control-expose-headers', 'set-auth-token');
@@ -77,4 +77,37 @@ export function applyCorsHeaders(req: IncomingMessage, res: ServerResponse, webO
   }
   res.setHeader('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('access-control-allow-headers', 'authorization,content-type');
+}
+
+export function isAllowedWebOrigin(origin: string, webOrigins: string | readonly string[]) {
+  const allowed = Array.isArray(webOrigins) ? webOrigins : [webOrigins];
+  return allowed.some((pattern) => originMatchesPattern(origin, pattern));
+}
+
+function originMatchesPattern(origin: string, pattern: string) {
+  const normalizedPattern = pattern.trim().replace(/\/$/, '');
+  if (!normalizedPattern) return false;
+  const normalizedOrigin = normalizeOriginValue(origin);
+  if (normalizedOrigin === normalizedPattern) return true;
+  if (!normalizedPattern.includes('*')) return false;
+  return wildcardOriginRegex(normalizedPattern).test(normalizedOrigin);
+}
+
+function normalizeOriginValue(value: string) {
+  const trimmed = value.trim().replace(/\/$/, '');
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.origin;
+  } catch {
+    // Keep the original value so the allow-list check can reject it.
+  }
+  return trimmed;
+}
+
+function wildcardOriginRegex(pattern: string) {
+  const escaped = pattern
+    .split('*')
+    .map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, '\\$&'))
+    .join('[^.:/]+');
+  return new RegExp(`^${escaped}$`);
 }

@@ -1,7 +1,8 @@
 x-artifact-api-env: &artifact-api-env
   NODE_ENV: production
   PORT: 4000
-  WEB_ORIGIN: ${WEB_ORIGIN:?Set the public Vercel/frontend origin}
+  WEB_ORIGIN: ${WEB_ORIGIN:?Set the primary public Vercel/frontend origin}
+  WEB_ORIGINS: ${WEB_ORIGINS:-}
   API_DATABASE_DRIVER: postgres
   DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artifact}
   API_QUEUE_DRIVER: bullmq
