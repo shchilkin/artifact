@@ -76,9 +76,8 @@ export function useEditorProjectsController({
 
   const handleLoadProject = useCallback(
     (project: SavedProject) => {
-      const { doc } = loadProject(project);
-      void storePortableDocumentAssets(doc)
-        .catch(() => doc)
+      void loadProject(project)
+        .then(({ doc }) => storePortableDocumentAssets(doc).catch(() => doc))
         .then((storedDoc) => {
           onLoadDocument(storedDoc);
           updateActiveProjectBinding(
@@ -90,6 +89,9 @@ export function useEditorProjectsController({
                 },
           );
           setShowProjects(false);
+        })
+        .catch((error) => {
+          console.error('[projects] unable to load project', error);
         });
     },
     [loadProject, onLoadDocument, updateActiveProjectBinding],

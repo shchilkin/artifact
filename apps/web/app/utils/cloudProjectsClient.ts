@@ -1,5 +1,6 @@
 import type { CanvasDocument } from '../types/config';
-import { type PreparePortableDocumentOptions, preparePortableDocument } from './documentAssets';
+import { hydrateCloudProjectDocument, prepareCloudProjectDocument } from './cloudProjectAssets';
+import type { PreparePortableDocumentOptions } from './documentAssets';
 import { normalizeDocument } from './documentPersistence';
 import { PROJECT_THUMBNAIL_FALLBACK, type SavedProject } from './projectLibrary';
 
@@ -24,7 +25,7 @@ interface CloudProjectResponse {
   updatedAt: string;
 }
 
-interface CloudProjectsClientOptions {
+interface CloudProjectsClientOptions extends PreparePortableDocumentOptions {
   baseUrl?: string;
   bearerToken?: string | null;
   fetcher?: typeof fetch;
@@ -129,10 +130,20 @@ export async function deleteCloudProject(id: string, options: CloudProjectsClien
 
 export async function prepareCloudSavedProject(
   project: SavedProject,
-  options: PreparePortableDocumentOptions = {},
+  options: CloudProjectsClientOptions = {},
 ): Promise<SavedProject> {
   return {
     ...project,
-    doc: await preparePortableDocument(project.doc, options),
+    doc: await prepareCloudProjectDocument(project.doc, options),
+  };
+}
+
+export async function hydrateCloudSavedProject(
+  project: SavedProject,
+  options: CloudProjectsClientOptions = {},
+): Promise<SavedProject> {
+  return {
+    ...project,
+    doc: normalizeDocument(await hydrateCloudProjectDocument(project.doc, options)),
   };
 }

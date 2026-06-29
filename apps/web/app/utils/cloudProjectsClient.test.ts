@@ -5,7 +5,7 @@ import { listCloudProjects, prepareCloudSavedProject } from './cloudProjectsClie
 import { PROJECT_THUMBNAIL_FALLBACK, type SavedProject } from './projectLibrary';
 
 describe('prepareCloudSavedProject', () => {
-  it('hydrates local image assets into a portable cloud document', async () => {
+  it('uploads local image assets separately and keeps cloud project JSON lightweight', async () => {
     const doc: CanvasDocument = {
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [makeImageLayer('artifact-asset://cover-image', { id: 'image-layer' })],
@@ -22,14 +22,35 @@ describe('prepareCloudSavedProject', () => {
     const loadAssetDataUrl = vi.fn(async (src: string) =>
       src === 'artifact-asset://cover-image' ? 'data:image/png;base64,AAAA' : null,
     );
+    const fetcher = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          asset: {
+            id: 'cloud-image',
+            kind: 'image',
+            uri: 'artifact-cloud-asset://image/cloud-image',
+            mime: 'image/png',
+            bytes: 3,
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
 
-    const cloudProject = await prepareCloudSavedProject(project, { loadAssetDataUrl });
+    const cloudProject = await prepareCloudSavedProject(project, { loadAssetDataUrl, fetcher });
 
     expect(loadAssetDataUrl).toHaveBeenCalledWith('artifact-asset://cover-image');
+    expect(fetcher).toHaveBeenCalledWith(
+      '/api/project-assets',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('data:image/png;base64,AAAA'),
+      }),
+    );
     expect(cloudProject.doc.layers[0]).toMatchObject({
       id: 'image-layer',
       kind: 'image',
-      src: 'data:image/png;base64,AAAA',
+      src: 'artifact-cloud-asset://image/cloud-image',
     });
     expect(cloudProject.storage).toBe(project.storage);
     expect(project.doc.layers[0]).toMatchObject({
