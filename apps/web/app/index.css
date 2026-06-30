@@ -1429,6 +1429,7 @@ input[type="range"] {
   background: color-mix(in oklch, var(--panel-bg) 94%, transparent);
   color: var(--text-dim);
   font-family: var(--mono);
+  pointer-events: none;
   box-shadow: inset 2px 0 0 color-mix(in oklch, var(--accent) 42%, transparent);
 }
 
