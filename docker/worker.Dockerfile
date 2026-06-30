@@ -25,4 +25,7 @@ RUN mkdir -p /var/lib/artifact/generated-assets && chown -R node:node /var/lib/a
 WORKDIR /app/apps/api
 USER node
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node dist/healthcheck.js worker
+
 CMD ["node", "dist/worker.js"]

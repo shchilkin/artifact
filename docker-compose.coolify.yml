@@ -92,6 +92,12 @@ services:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
+    healthcheck:
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'worker']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   bull-board:
@@ -108,6 +114,12 @@ services:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
     expose:
       - '4000'
+    healthcheck:
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'bull-board']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
 volumes:

@@ -65,11 +65,13 @@ Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an
 operator surface, not a public app feature.
 
-The API service defines a container healthcheck against
-`http://127.0.0.1:4000/api/health`. Coolify/Traefik will not route public
-traffic while the resource is unhealthy, so if the public API domain returns
-`503 no available server`, check the API, Postgres, and Redis container health
-first.
+The API and Bull Board services define container healthchecks against
+`http://127.0.0.1:4000/api/health`; the Bull Board check also verifies that the
+server booted with board routes enabled. Runtime checks verify Postgres, Redis
+writes, and local generated-asset storage where each container depends on them.
+Coolify/Traefik will not route public traffic while the resource is unhealthy,
+so if the public API domain returns `503 no available server`, check the API,
+worker, Postgres, and Redis container health first.
 
 For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for
