@@ -1,15 +1,27 @@
+import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { Pool } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ACTIVE_GENERATION_JOB_INDEX } from '../src/db/errors.js';
 
+const execFileAsync = promisify(execFile);
 const testDatabaseUrl = process.env.API_TEST_DATABASE_URL;
 const integrationDescribe = testDatabaseUrl ? describe : describe.skip;
-const migrationsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/db/migrations');
+const apiDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const migrationsDir = resolve(apiDir, 'src/db/migrations');
+const migrationFiles = [
+  '001_initial_ai_generation.sql',
+  '002_users_email_nullable.sql',
+  '003_active_generation_guard.sql',
+  '004_better_auth_cloud_projects.sql',
+];
+const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
 const activeGuardMigrationSql = readFileSync(resolve(migrationsDir, '003_active_generation_guard.sql'), 'utf8');
+const betterAuthMigrationSql = readFileSync(resolve(migrationsDir, '004_better_auth_cloud_projects.sql'), 'utf8');
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -17,6 +29,24 @@ afterAll(async () => {
 });
 
 describe('AI generation migrations', () => {
+  it('tracks applied production migrations with checksums under an advisory lock', () => {
+    expect(migrateScript).toContain('schema_migrations');
+    expect(migrateScript).toContain('pg_advisory_lock');
+    expect(migrateScript).toContain('checksum');
+    expect(migrateScript).toContain("await client.query('BEGIN')");
+    expect(migrateScript).toContain("await client.query('COMMIT')");
+    expect(migrateScript).toContain("await client.query('ROLLBACK')");
+    expect(migrateScript).toContain('already applied with a different checksum');
+    expect(migrateScript).toContain('must not contain transaction control statements');
+  });
+
+  it('keeps SQL migration files free of transaction control statements', () => {
+    for (const file of migrationFiles) {
+      const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+      expect(sql).not.toMatch(/(^|\n)\s*(BEGIN|COMMIT|ROLLBACK)\s*;/iu);
+    }
+  });
+
   it('keeps the active generation guard migration as a partial unique user index', () => {
     expect(activeGuardMigrationSql).toContain(`CREATE UNIQUE INDEX IF NOT EXISTS ${ACTIVE_GENERATION_JOB_INDEX}`);
     expect(activeGuardMigrationSql).toContain('ON ai_generation_jobs (user_id)');
@@ -24,9 +54,60 @@ describe('AI generation migrations', () => {
     expect(activeGuardMigrationSql).toContain("status = 'expired'");
     expect(activeGuardMigrationSql).toContain("error_code = 'active_job_guard_migration_expired'");
   });
+
+  it('creates Better Auth and cloud project tables in the account migration', () => {
+    expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS "user"');
+    expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS "session"');
+    expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS account');
+    expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS verification');
+    expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS cloud_projects');
+  });
 });
 
 integrationDescribe('AI generation migration integration', () => {
+  it('applies production migrations once and skips them on rerun', async () => {
+    if (!pool || !testDatabaseUrl) throw new Error('API_TEST_DATABASE_URL is required for this test.');
+
+    const schema = `artifact_runner_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const client = await pool.connect();
+    try {
+      await client.query(`CREATE SCHEMA ${schema}`);
+
+      const migrationDatabaseUrl = databaseUrlWithSearchPath(testDatabaseUrl, schema);
+      const migrationEnv = {
+        ...process.env,
+        DATABASE_URL: migrationDatabaseUrl,
+        DB_MIGRATION_CONNECT_ATTEMPTS: '1',
+      };
+
+      const firstRun = await execFileAsync(process.execPath, ['scripts/migrate.mjs'], {
+        cwd: apiDir,
+        env: migrationEnv,
+      });
+      expect(firstRun.stdout).toContain('"applied":true');
+
+      await expect(
+        client.query<{ name: string }>(`SELECT name FROM ${schema}.schema_migrations ORDER BY name`),
+      ).resolves.toMatchObject({ rows: migrationFiles.map((name) => ({ name })) });
+      await expect(
+        client.query<{ exists: boolean }>(
+          "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = 'user')",
+          [schema],
+        ),
+      ).resolves.toMatchObject({ rows: [{ exists: true }] });
+
+      const secondRun = await execFileAsync(process.execPath, ['scripts/migrate.mjs'], {
+        cwd: apiDir,
+        env: migrationEnv,
+      });
+      expect(secondRun.stdout).toContain('"applied":false');
+      expect(secondRun.stdout).toContain('"reason":"already_applied"');
+    } finally {
+      await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      client.release();
+    }
+  });
+
   it('expires pre-existing duplicate active jobs before creating the active guard index', async () => {
     if (!pool) throw new Error('API_TEST_DATABASE_URL is required for this test.');
 
@@ -67,3 +148,9 @@ integrationDescribe('AI generation migration integration', () => {
     }
   });
 });
+
+function databaseUrlWithSearchPath(databaseUrl: string, schema: string) {
+  const url = new URL(databaseUrl);
+  url.searchParams.set('options', `-c search_path=${schema}`);
+  return url.toString();
+}

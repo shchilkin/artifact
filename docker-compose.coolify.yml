@@ -54,6 +54,7 @@ services:
     build:
       context: .
       dockerfile: docker/api.Dockerfile
+    command: ['npm', 'run', 'start:with-migrations']
     environment:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
@@ -67,11 +68,7 @@ services:
     expose:
       - '4000'
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'api']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -89,6 +86,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      api:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
@@ -109,6 +108,8 @@ services:
       API_BULL_BOARD_ENABLED: true
     depends_on:
       redis:
+        condition: service_healthy
+      api:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro

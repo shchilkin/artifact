@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE IF NOT EXISTS users (
   id text PRIMARY KEY,
   email text UNIQUE NULL,
@@ -108,5 +106,3 @@ CREATE INDEX IF NOT EXISTS ai_rate_limit_events_user_id_created_at_idx
 CREATE INDEX IF NOT EXISTS ai_rate_limit_events_ip_hash_created_at_idx
   ON ai_rate_limit_events (ip_hash, created_at DESC)
   WHERE ip_hash IS NOT NULL;
-
-COMMIT;
