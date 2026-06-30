@@ -52,13 +52,11 @@ import {
   addTransformNode,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
-  graphUtilityNodeCollections,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
   removeEnvironmentNode,
   removeGraphArea,
-  removeGraphEdge,
   removeGrimeShadowNode,
   removeLayerFromGraph,
   removeMaskNode,
@@ -241,120 +239,6 @@ export function addLooseLayerNodeToDocument(
     ...doc,
     layers: [...doc.layers, layer],
     graph: addLayerToGraph(graph, layer.id, position ?? nextDropPosition(graph)),
-  };
-}
-
-function layerInputPort(layer: Layer): GraphEdge['toPort'] {
-  return layer.kind === 'effect' ? 'in' : 'bg';
-}
-
-function expectedLinearGraphEdge(fromId: string, toLayerOrExport: Layer | string) {
-  const toId = typeof toLayerOrExport === 'string' ? toLayerOrExport : toLayerOrExport.id;
-  return {
-    fromId,
-    toId,
-    toPort: typeof toLayerOrExport === 'string' ? 'in' : layerInputPort(toLayerOrExport),
-  };
-}
-
-function isLinearLayerGraph(doc: CanvasDocument): boolean {
-  const graph = doc.graph;
-  if (!graph) return true;
-  return (
-    graphHasOnlyLayerNodes(graph) &&
-    graphHasLinearEdgeCount(graph, doc.layers) &&
-    hasExpectedLinearEdges(graph, doc.layers)
-  );
-}
-
-function graphHasOnlyLayerNodes(graph: CanvasGraph) {
-  return graphUtilityNodeCollections(graph).every((nodes) => nodes.length === 0);
-}
-
-function graphHasLinearEdgeCount(graph: CanvasGraph, layers: Layer[]) {
-  return graph.edges.length === layers.length;
-}
-
-function hasExpectedLinearEdges(graph: CanvasGraph, layers: Layer[]) {
-  return layers.every((layer, index) => graphHasExpectedLinearEdge(graph, layer, layers[index + 1] ?? EXPORT_NODE_ID));
-}
-
-function graphHasExpectedLinearEdge(graph: CanvasGraph, layer: Layer, next: Layer | string) {
-  const expected = expectedLinearGraphEdge(layer.id, next);
-  return graph.edges.some((edge) => isExpectedLinearEdge(edge, expected));
-}
-
-function isExpectedLinearEdge(edge: GraphEdge, expected: ReturnType<typeof expectedLinearGraphEdge>) {
-  return (
-    edge.fromId === expected.fromId &&
-    edge.fromPort === 'out' &&
-    edge.toId === expected.toId &&
-    edge.toPort === expected.toPort
-  );
-}
-
-export function canInsertLayerAbove(doc: CanvasDocument, targetLayerId: string): boolean {
-  return doc.layers.some((layer) => layer.id === targetLayerId);
-}
-
-function insertLayerIntoLinearGraph(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasGraph {
-  const graph = doc.graph ?? inferLinearGraph(doc.layers);
-  const targetIndex = doc.layers.findIndex((item) => item.id === targetLayerId);
-  const nextLayer = doc.layers[targetIndex + 1];
-  const nextNodeId = nextLayer?.id ?? EXPORT_NODE_ID;
-  const existingEdge = graph.edges.find((edge) => edge.fromId === targetLayerId && edge.toId === nextNodeId);
-  const targetPosition = graph.positions[targetLayerId] ?? nextDropPosition(graph);
-  const nextPosition = nextLayer ? graph.positions[nextLayer.id] : graph.positions[EXPORT_NODE_ID];
-  const position = insertedLinearLayerPosition(targetPosition, nextPosition);
-  let nextGraph = addLayerToGraph(graph, layer.id, position);
-
-  if (existingEdge) nextGraph = removeGraphEdge(nextGraph, existingEdge.id);
-  nextGraph = addGraphEdge(nextGraph, linearGraphEdge(targetLayerId, layer.id, layerInputPort(layer)));
-  nextGraph = addGraphEdge(
-    nextGraph,
-    linearGraphEdge(layer.id, nextNodeId, nextLayer ? layerInputPort(nextLayer) : 'in'),
-  );
-  return nextGraph;
-}
-
-function linearGraphEdge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
-  return {
-    id: `e-${fromId}-${toId}`,
-    fromId,
-    fromPort: 'out',
-    toId,
-    toPort,
-  };
-}
-
-function insertedLinearLayerPosition(
-  targetPosition: { x: number; y: number },
-  nextPosition: { x: number; y: number } | undefined,
-) {
-  if (!nextPosition) return { x: targetPosition.x + 360, y: targetPosition.y };
-  return {
-    x: Math.round((targetPosition.x + nextPosition.x) / 2),
-    y: Math.round((targetPosition.y + nextPosition.y) / 2),
-  };
-}
-
-export function insertLayerAboveInDocument(doc: CanvasDocument, targetLayerId: string, layer: Layer): CanvasDocument {
-  if (!canInsertLayerAbove(doc, targetLayerId)) return doc;
-  const targetIndex = doc.layers.findIndex((item) => item.id === targetLayerId);
-  const layers = [...doc.layers];
-  layers.splice(targetIndex + 1, 0, layer);
-  if (!doc.graph) return { ...doc, layers };
-  if (!isLinearLayerGraph(doc)) {
-    return {
-      ...doc,
-      layers,
-      graph: syncGraphToLayerStackOrder(addLayerToGraph(doc.graph, layer.id, nextDropPosition(doc.graph)), layers),
-    };
-  }
-  return {
-    ...doc,
-    layers,
-    graph: insertLayerIntoLinearGraph(doc, targetLayerId, layer),
   };
 }
 
