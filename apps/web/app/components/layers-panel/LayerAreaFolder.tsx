@@ -4,7 +4,6 @@ import { GraphHelperRow } from './GraphHelperRow';
 import type { LayerRowProps } from './LayerRow';
 import { LayerRow } from './LayerRow';
 import type { GraphHelperRowData } from './layerDisplayItems';
-import type { LayerInsertAction } from './layerInsertAction';
 import type { LayerDropPosition } from './useLayerDragReorder';
 
 interface LayerAreaFolderProps {
@@ -32,8 +31,6 @@ interface LayerAreaFolderProps {
   onToggleVisible: LayerRowProps['onToggleVisible'];
   onDuplicateLayer: LayerRowProps['onDuplicateLayer'];
   onRemoveLayer: LayerRowProps['onRemoveLayer'];
-  canQuickAddLayerAbove: (layerId: string) => boolean;
-  onInsertLayerAbove: (id: string, action: LayerInsertAction) => void;
   onRemoveNodesFromArea: (areaId: string, ids: string[]) => void;
 }
 
@@ -217,8 +214,6 @@ function LayerAreaContents(props: LayerAreaFolderProps) {
           onToggleVisible={props.onToggleVisible}
           onDuplicateLayer={props.onDuplicateLayer}
           onRemoveLayer={props.onRemoveLayer}
-          canQuickAdd={props.canQuickAddLayerAbove(layer.id)}
-          onInsertLayerAbove={props.onInsertLayerAbove}
         />
       ))}
       {props.graphHelpers.map((helper) => (

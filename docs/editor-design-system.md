@@ -24,8 +24,10 @@ Artifact's print-like visual language.
 
 The v0.30 foundation should inventory and normalize these token families:
 
-- **Typography**: editor labels, body copy, button text, compact mono labels,
-  inspector values, and large display labels.
+- **Typography**: Barlow Condensed as the readable UI family for layer names,
+  longer descriptions, and recovery copy; mono for editor labels, button text,
+  node labels, field keys, ids, inspector values, and compact meta; display only
+  for real route or section titles.
 - **Control sizing**: icon buttons, compact buttons, default buttons, search
   fields, row heights, toolbar controls, and tab triggers.
 - **Spacing**: panel padding, row gaps, toolbar gaps, menu item padding, and
@@ -44,6 +46,16 @@ The v0.30 foundation should inventory and normalize these token families:
 
 Avoid local `text-[8px]`, `h-[22px]`, one-off borders, and one-off focus styles
 when they describe a reusable editor control state.
+
+Avoid treating radius 0 or mono text as universal style requirements. Square
+geometry is useful for artwork frames, node housings, and hard editor panels;
+small radius is acceptable for controls, menus, inputs, and overlays when it
+improves affordance. Mono is a control grammar; longer explanatory copy should
+stay readable.
+
+Avoid over-tracked microcopy as a default editor style. Dense node/editor
+surfaces should prefer 10–11px mono labels with 0.05–0.1em tracking, and use
+readable sans for notes, descriptions, and recovery copy.
 
 Node graph colors are product semantics. Do not collapse category, selection,
 and output route into one accent token while extracting primitives. `NodeShell`
@@ -218,8 +230,8 @@ After v0.30 closes the baseline, extract the rest of the app in this order:
 3. **Forms and inspector fields**: consolidate repeated text inputs, search
    inputs, selects, toggles, sliders, color fields, and section labels into
    product-shaped inspector primitives instead of one-off CSS blocks.
-4. **Menus and overlays**: migrate layer/node context menus, quick-add menus,
-   Add Library menus, projects, and info popups onto the shared
+4. **Menus and overlays**: migrate layer/node context menus, Add Library menus,
+   node insertion menus, projects, and info popups onto the shared
    `FloatingMenu`, `Dialog`, and `Sheet` mechanics with Artifact tokens.
 5. **Rows and panels**: make `LayerRow`, area rows, project rows, Add Library
    result rows, and node property rows share explicit row tokens and state
@@ -265,8 +277,8 @@ High-priority follow-up specimens:
 - bottom command bar default, compact, and mobile states
 - canvas handles for selected, locked, and hidden layers
 - canvas preview frame with deterministic content
-- layer empty start, area folders, add menus, context menus, quick-add menus,
-  and reduced full layer panel states
+- layer empty start, area folders, add menus, context menus, and reduced full
+  layer panel states
 - graph area overlay, node add/context/pane menus, node canvas, node gallery,
   node editor panel, and node thumbnail states
 - projects list, empty, selected, and import states

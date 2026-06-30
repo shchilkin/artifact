@@ -46,11 +46,11 @@
   --control-h-large: 52px;
   --control-pad-x-compact: 10px;
   --control-pad-x-default: 16px;
-  --control-radius: 0;
+  --control-radius: 3px;
   --control-font-size-xs: 11px;
   --control-font-size-sm: 12px;
   --control-font-size-md: 13px;
-  --control-letter-spacing: 0.08em;
+  --control-letter-spacing: 0.07em;
   --row-h-compact: 42px;
   --row-h-default: 52px;
   --focus-ring: 2px solid var(--accent-primary);
@@ -70,18 +70,21 @@
   --space-8: 32px;
   --space-12: 48px;
 
-  /* Radius scale. Artifact is square by default. */
+  /* Radius scale. Square is for frames; controls may use low-radius affordance. */
   --radius-sm: 0;
   --radius-md: 2px;
   --radius-lg: 4px;
   --radius-xl: 9px;
 
-  /* Typography scale. UI chrome uses mono; page titles use display. */
+  /* Typography scale. Barlow is the editor's readable UI voice; mono is the control grammar. */
+  --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
   --type-ui-xs: 10px;
   --type-ui-sm: 11px;
   --type-ui-md: 12px;
+  --type-editor-label: 11px;
+  --type-editor-meta: 10px;
   --type-body: 15px;
   --type-title: 28px;
   --type-display: clamp(48px, 6vw, 88px);

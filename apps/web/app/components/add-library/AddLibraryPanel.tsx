@@ -23,12 +23,27 @@ import {
 const RECENT_LIMIT = 6;
 const FAVORITE_LIMIT = 12;
 
+type AddLibraryIntentId = 'sources' | 'effects' | 'structure' | 'color' | 'threeD';
+
 interface AddLibrarySection {
   id: string;
   label: string;
   hint: string;
   items: AddLibraryItem[];
 }
+
+const ADD_LIBRARY_INTENTS: Array<{
+  id: AddLibraryIntentId;
+  label: string;
+  hint: string;
+  colorKind: string;
+}> = [
+  { id: 'sources', label: 'Sources', hint: 'Images, type, generated bases', colorKind: 'image' },
+  { id: 'effects', label: 'Effects', hint: 'Pixel transforms and print finish', colorKind: 'effect' },
+  { id: 'structure', label: 'Structure', hint: 'Merge, repeat, mask, transform', colorKind: 'merge' },
+  { id: 'color', label: 'Color', hint: 'Tone, palette, grading', colorKind: 'color' },
+  { id: 'threeD', label: '3D', hint: 'Models, materials, scenes', colorKind: 'primitive' },
+];
 
 function itemsForIds(ids: string[], itemById: Map<string, AddLibraryItem>) {
   return ids.map((id) => itemById.get(id)).filter((item): item is AddLibraryItem => Boolean(item));
@@ -66,14 +81,11 @@ function buildDefaultSections({
   ];
 }
 
-function searchSection(
-  activeGroup: ReturnType<typeof addLibraryGroupsForSurface>[number] | null,
-  searchResults: AddLibraryItem[],
-): AddLibrarySection[] {
+function searchSection(activeScope: AddLibraryScope | null, searchResults: AddLibraryItem[]): AddLibrarySection[] {
   return [
     {
       id: 'search',
-      label: activeGroup ? `${activeGroup.label} Search` : 'Search',
+      label: activeScope ? `${activeScope.label} Search` : 'Search',
       hint: `${searchResults.length} matches`,
       items: searchResults,
     },
@@ -95,8 +107,13 @@ function nextLibraryIndexForKey(key: string, currentIndex: number, itemCount: nu
   return LIBRARY_INDEX_UPDATERS[key]?.(currentIndex, Math.max(0, itemCount - 1)) ?? null;
 }
 
-function hasActiveLibraryScope(query: string, activeRecipeId: string | null, activeGroupId: AddLibraryGroupId | null) {
-  return Boolean(query || activeRecipeId || activeGroupId);
+function hasActiveLibraryScope(
+  query: string,
+  activeRecipeId: string | null,
+  activeGroupId: AddLibraryGroupId | null,
+  activeIntentId: AddLibraryIntentId | null,
+) {
+  return Boolean(query || activeRecipeId || activeGroupId || activeIntentId);
 }
 
 function activeAddLibraryGroup(groups: ReturnType<typeof addLibraryGroupsForSurface>, id: AddLibraryGroupId | null) {
@@ -107,8 +124,53 @@ function activeAddLibraryRecipe(recipes: ReturnType<typeof addLibraryRecipesForS
   return recipes.find((recipe) => recipe.id === id) ?? null;
 }
 
-function scopedAddLibraryItems(items: AddLibraryItem[], activeGroupId: AddLibraryGroupId | null) {
-  return activeGroupId ? items.filter((item) => item.group === activeGroupId) : items;
+type AddLibraryScope = { id: string; label: string; hint: string };
+
+function activeAddLibraryIntent(id: AddLibraryIntentId | null) {
+  return ADD_LIBRARY_INTENTS.find((intent) => intent.id === id) ?? null;
+}
+
+function scopedAddLibraryItems(
+  items: AddLibraryItem[],
+  activeGroupId: AddLibraryGroupId | null,
+  activeIntentId: AddLibraryIntentId | null,
+) {
+  if (activeGroupId) return items.filter((item) => item.group === activeGroupId);
+  if (activeIntentId) return items.filter((item) => itemMatchesIntent(item, activeIntentId));
+  return items;
+}
+
+function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
+  switch (intentId) {
+    case 'sources':
+      return (
+        item.group === 'content' ||
+        item.group === 'source' ||
+        item.action.kind === 'textPreset' ||
+        item.action.kind === 'noisePreset' ||
+        item.action.kind === 'arrayPreset'
+      );
+    case 'effects':
+      return item.action.kind === 'effect';
+    case 'structure':
+      return ['merge', 'repeat', 'repeatPreset', 'mask', 'transform', 'grimeShadow'].includes(item.action.kind);
+    case 'color':
+      return (
+        item.action.kind === 'color' ||
+        item.group === 'tone' ||
+        item.id === 'effect:duotone' ||
+        item.id === 'effect:splitTone' ||
+        item.id === 'effect:indexedPalette'
+      );
+    case 'threeD':
+      return (
+        item.group === 'material' ||
+        item.action.kind === 'material' ||
+        item.action.kind === 'scene3d' ||
+        item.action.kind === 'environment' ||
+        (item.action.kind === 'layer' && ['primitive', 'model'].includes(item.action.layerKind))
+      );
+  }
 }
 
 function favoriteClassName(favorite: boolean) {
@@ -167,6 +229,42 @@ function addLibraryGroupColorKind(groupId: AddLibraryGroupId) {
   }
 }
 
+function addLibraryResultLabel(item: AddLibraryItem) {
+  switch (item.action.kind) {
+    case 'layer':
+      return `Adds ${item.action.layerKind} layer`;
+    case 'textPreset':
+      return 'Adds text preset';
+    case 'aiImage':
+      return 'Starts AI image source';
+    case 'noisePreset':
+      return 'Adds noise source';
+    case 'arrayPreset':
+      return 'Adds array source';
+    case 'effect':
+      return 'Adds effect';
+    case 'merge':
+      return 'Adds merge node';
+    case 'color':
+      return 'Adds color node';
+    case 'repeat':
+    case 'repeatPreset':
+      return 'Adds repeat node';
+    case 'material':
+      return 'Adds material node';
+    case 'mask':
+      return 'Adds mask node';
+    case 'transform':
+      return 'Adds transform node';
+    case 'grimeShadow':
+      return 'Adds grime shadow node';
+    case 'scene3d':
+      return 'Adds 3D scene';
+    case 'environment':
+      return 'Adds environment node';
+  }
+}
+
 function canAddActiveLibraryItem(key: string, item: AddLibraryItem | null): item is AddLibraryItem {
   return key === 'Enter' && item !== null;
 }
@@ -180,6 +278,7 @@ function recipeLibraryItems(
 
 function resolveAddLibrarySections({
   activeGroup,
+  activeIntent,
   activeRecipe,
   browsableItems,
   browsableScopedItems,
@@ -191,6 +290,7 @@ function resolveAddLibrarySections({
   searchResults,
 }: {
   activeGroup: ReturnType<typeof activeAddLibraryGroup>;
+  activeIntent: ReturnType<typeof activeAddLibraryIntent>;
   activeRecipe: ReturnType<typeof activeAddLibraryRecipe>;
   browsableItems: AddLibraryItem[];
   browsableScopedItems: AddLibraryItem[];
@@ -201,8 +301,10 @@ function resolveAddLibrarySections({
   recipeItems: AddLibraryItem[];
   searchResults: AddLibraryItem[];
 }): AddLibrarySection[] {
-  if (isSearching) return searchSection(activeGroup, searchResults);
+  const activeScope = activeIntent ?? activeGroup;
+  if (isSearching) return searchSection(activeScope, searchResults);
   if (activeRecipe) return singleSection(activeRecipe.id, activeRecipe.label, activeRecipe.hint, recipeItems);
+  if (activeIntent) return singleSection(activeIntent.id, activeIntent.label, activeIntent.hint, browsableScopedItems);
   if (activeGroup) return singleSection(activeGroup.id, activeGroup.label, activeGroup.hint, browsableScopedItems);
   return buildDefaultSections({ browsableItems, favoriteIds, itemById, recentIds });
 }
@@ -226,6 +328,7 @@ export function AddLibraryPanel({
 }) {
   const [query, setQuery] = useState('');
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
+  const [activeIntentId, setActiveIntentId] = useState<AddLibraryIntentId | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<AddLibraryGroupId | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecent(surface));
@@ -238,11 +341,12 @@ export function AddLibraryPanel({
   const groups = useMemo(() => addLibraryGroupsForSurface(surface), [surface]);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const activeRecipe = activeAddLibraryRecipe(recipes, activeRecipeId);
+  const activeIntent = activeAddLibraryIntent(activeIntentId);
   const activeGroup = activeAddLibraryGroup(groups, activeGroupId);
-  const scopedItems = scopedAddLibraryItems(items, activeGroupId);
+  const scopedItems = scopedAddLibraryItems(items, activeGroupId, activeIntentId);
   const browsableScopedItems = useMemo(
-    () => scopedAddLibraryItems(browsableItems, activeGroupId),
-    [activeGroupId, browsableItems],
+    () => scopedAddLibraryItems(browsableItems, activeGroupId, activeIntentId),
+    [activeGroupId, activeIntentId, browsableItems],
   );
   const isSearching = !!query.trim();
 
@@ -262,6 +366,7 @@ export function AddLibraryPanel({
     () =>
       resolveAddLibrarySections({
         activeGroup,
+        activeIntent,
         activeRecipe,
         browsableItems,
         browsableScopedItems,
@@ -274,6 +379,7 @@ export function AddLibraryPanel({
       }),
     [
       activeGroup,
+      activeIntent,
       activeRecipe,
       browsableItems,
       browsableScopedItems,
@@ -307,12 +413,13 @@ export function AddLibraryPanel({
   const resetLibraryScope = () => {
     setQuery('');
     setActiveRecipeId(null);
+    setActiveIntentId(null);
     setActiveGroupId(null);
     setActiveIndex(0);
   };
 
   const handleEscapeKey = () => {
-    if (hasActiveLibraryScope(query, activeRecipeId, activeGroupId)) resetLibraryScope();
+    if (hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId)) resetLibraryScope();
     else onClose();
   };
 
@@ -351,15 +458,24 @@ export function AddLibraryPanel({
       />
 
       <AddLibraryBrowseTabs
+        activeIntentId={activeIntentId}
         groups={groups}
         activeGroupId={activeGroupId}
+        onToggleIntent={(intentId) => {
+          setActiveRecipeId(null);
+          setActiveGroupId(null);
+          setActiveIntentId((current) => (current === intentId ? null : intentId));
+          setActiveIndex(0);
+        }}
         onShowAll={() => {
           setActiveRecipeId(null);
+          setActiveIntentId(null);
           setActiveGroupId(null);
           setActiveIndex(0);
         }}
         onToggleGroup={(groupId) => {
           setActiveRecipeId(null);
+          setActiveIntentId(null);
           setActiveGroupId((current) => (current === groupId ? null : groupId));
           setActiveIndex(0);
         }}
@@ -372,6 +488,7 @@ export function AddLibraryPanel({
           setQuery('');
           setActiveIndex(0);
           setActiveGroupId(null);
+          setActiveIntentId(null);
           setActiveRecipeId((current) => (current === recipeId ? null : recipeId));
         }}
       />
@@ -417,41 +534,62 @@ const AddLibrarySearchControl = forwardRef<
 });
 
 function AddLibraryBrowseTabs({
+  activeIntentId,
   groups,
   activeGroupId,
+  onToggleIntent,
   onShowAll,
   onToggleGroup,
 }: {
+  activeIntentId: AddLibraryIntentId | null;
   groups: ReturnType<typeof addLibraryGroupsForSurface>;
   activeGroupId: AddLibraryGroupId | null;
+  onToggleIntent: (intentId: AddLibraryIntentId) => void;
   onShowAll: () => void;
   onToggleGroup: (groupId: AddLibraryGroupId) => void;
 }) {
   return (
-    <div className="add-library-browse nadd-browse" aria-label="Browse library groups">
-      <ToolbarButton
-        type="button"
-        className={`add-library-browse-item nadd-browse-item${activeGroupId === null ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
-        aria-pressed={activeGroupId === null}
-        onClick={onShowAll}
-      >
-        All
-      </ToolbarButton>
-      {groups.map((group) => (
+    <>
+      <div className="add-library-intents nadd-intents" aria-label="Browse by creative intent">
         <ToolbarButton
-          key={group.id}
           type="button"
-          className={`add-library-browse-item nadd-browse-item${activeGroupId === group.id ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
-          data-add-color-kind={addLibraryGroupColorKind(group.id)}
-          data-add-kind={group.id}
-          title={group.hint}
-          aria-pressed={activeGroupId === group.id}
-          onClick={() => onToggleGroup(group.id)}
+          className={`add-library-intent nadd-intent${activeGroupId === null && activeIntentId === null ? ' add-library-intent-active nadd-intent-active' : ''}`}
+          aria-pressed={activeGroupId === null && activeIntentId === null}
+          onClick={onShowAll}
         >
-          {group.label}
+          All
         </ToolbarButton>
-      ))}
-    </div>
+        {ADD_LIBRARY_INTENTS.map((intent) => (
+          <ToolbarButton
+            key={intent.id}
+            type="button"
+            className={`add-library-intent nadd-intent${activeIntentId === intent.id ? ' add-library-intent-active nadd-intent-active' : ''}`}
+            data-add-color-kind={intent.colorKind}
+            title={intent.hint}
+            aria-pressed={activeIntentId === intent.id}
+            onClick={() => onToggleIntent(intent.id)}
+          >
+            {intent.label}
+          </ToolbarButton>
+        ))}
+      </div>
+      <div className="add-library-browse nadd-browse" aria-label="Browse exact library groups">
+        {groups.map((group) => (
+          <ToolbarButton
+            key={group.id}
+            type="button"
+            className={`add-library-browse-item nadd-browse-item${activeGroupId === group.id ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
+            data-add-color-kind={addLibraryGroupColorKind(group.id)}
+            data-add-kind={group.id}
+            title={group.hint}
+            aria-pressed={activeGroupId === group.id}
+            onClick={() => onToggleGroup(group.id)}
+          >
+            {group.label}
+          </ToolbarButton>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -644,6 +782,7 @@ function AddLibraryDetailContent({
       <div className="add-library-detail-copy">
         <span className="add-library-detail-kicker">{group?.label ?? 'Add'}</span>
         <strong>{item.label}</strong>
+        <span className="add-library-detail-result">{addLibraryResultLabel(item)}</span>
         <p>{item.description}</p>
         <AddLibraryTags tags={item.tags} />
         <ActionButton

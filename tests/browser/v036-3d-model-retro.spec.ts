@@ -312,11 +312,13 @@ test('v0.36 layers treats 3D scene as the layer and model as a scene setting', a
   await expect(layerRows.filter({ hasText: 'Tiny GLB' })).toHaveCount(0);
 
   await layerRows.filter({ hasText: '3D Scene' }).first().click();
-  await expect(page.locator('.sidebar-sections')).toContainText('Layers / 3D Scene');
-  await expect(page.locator('.sidebar-sections')).toContainText('Scene Inputs');
-  await expect(page.locator('.sidebar-sections')).toContainText('3D Source');
-  await expect(page.locator('.sidebar-sections')).toContainText('tiny.glb');
-  await expect(page.locator('.sidebar-sections')).toContainText('Environment Map');
+  const inspector = page.locator('.layer-inspector-drawer');
+  await expect(inspector.locator('.editor-target-header').first()).toContainText('3D Scene');
+  await expect(inspector.locator('.editor-target-header').first()).not.toContainText('Layers / 3D Scene');
+  await expect(inspector).toContainText('Scene Inputs');
+  await expect(inspector).toContainText('3D Source');
+  await expect(inspector).toContainText('tiny.glb');
+  await expect(inspector).toContainText('Environment Map');
 });
 
 test('v0.36 3D model node always auto-spins without committing view state', async ({ page }, testInfo) => {

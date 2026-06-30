@@ -21,7 +21,8 @@ Source-of-truth companions:
 | Editor visual baseline | In progress | The first visual polish pass is committed in `2afe860` and protected by browser tests. |
 | Node category color | In progress | Category-colored layer badges and node selection are restored; graph color grammar is documented. |
 | Node canvas contrast | In progress | Grid dots, node frames, and output edges have stronger contracts; more zoom-state work remains. |
-| Inspector usability | In progress | The selected-target overview and denser control rows are in place; primary-control ordering still needs a deeper pass. |
+| Design rules | In progress | `DESIGN.md` now relaxes radius, mono, tracking, and flatness into usable product rules; shared controls and node-editor overlays have the first implementation pass. |
+| Inspector usability | In progress | The Layers drawer now uses a compact selected-target header and denser control rows; primary-control ordering still needs a deeper pass. |
 | Add Node / Library flow | In progress | Rows, group filters, and detail preview now inherit node category color grammar; intent grouping and keyboard polish remain. |
 | Layers and Nodes parity | Planned | The two modes need stronger shared mental model and cross-mode status cues. |
 | First-run / empty editor | Planned | Starter paths exist, but the first working screen can do more to teach without marketing copy. |
@@ -56,6 +57,10 @@ not the right visual choice.
 6. **Every visual state needs a test or specimen.** Selected, hover, focus,
    muted, locked, output path, empty, dense, mobile, and error states should be
    represented in `/docs/style-guide`, browser tests, or both.
+7. **Rules should create freedom.** Radius 0, mono type, and flat surfaces are
+   visual tools, not universal constraints. Use them where they preserve
+   Artifact's print-like character; relax them when readability, affordance, or
+   workflow speed improves.
 
 ## Workstreams
 
@@ -73,6 +78,33 @@ Tasks:
   readability.
 - [ ] Improve edge hit areas and selected-edge feedback without reintroducing
   React Flow update-depth loops.
+- [x] Simplify the node-canvas toolbar into a compact command strip by removing
+  visible group labels, duplicate view commands, and disabled area noise.
+- [x] Standardize the node-mode bottom rail with the same compact command-strip
+  treatment while keeping export as the only primary action.
+- [x] Make floating editor command surfaces opaque by default; translucency may
+  support borders/shadows but not the panel or button planes themselves.
+- [x] Remove low-value document chrome data from the top nav. Aspect ratio,
+  layer count, and local draft state are visible or actionable elsewhere, so
+  the mode switcher owns that slot by itself.
+- [x] Replace the sidebar canvas-aspect readout with a compact Layer header
+  command, preserving aspect changes in Layers mode without making `1:1` a
+  persistent status block.
+- [x] Reduce layer-row metadata noise by hiding the default "visible" label.
+  Rows only surface exceptional states such as hidden, locked, AI status, or
+  area membership.
+- [x] Remove row-level quick-add from Layers mode. Adding belongs to the Layer
+  header; row controls are reserved for layer-specific actions.
+- [x] Increase Layers panel separation with a distinct list surface, stronger
+  row dividers, and clearer hover/selected contrast.
+- [x] Split Layers mode into a left layer stack and a right settings drawer.
+  The left side stays navigation/build-focused; selected-layer controls live in
+  the inspector surface.
+- [x] Redesign layer rows as compact stack rows instead of large kind cards:
+  48px touch-safe height, 26px category tokens, readable layer names, and
+  category-colored selected outlines.
+- [x] Add Figma-style inline layer renaming: click a selected layer name to
+  edit it in place while keeping first click reserved for selection.
 - [ ] Add zoom-aware visual states: far zoom emphasizes topology; near zoom
   emphasizes preview, ports, and controls.
 - [ ] Make source/effect/utility/export roles easier to scan through
@@ -110,6 +142,9 @@ Tasks:
 - [ ] Collapse rare or advanced controls behind explicit section headers.
 - [x] Keep output-path, visible, muted, locked, and source/result status near
   the selected target header.
+- [x] Simplify the Layers drawer selected-target header to name, kind, and
+  meaningful status only. Default visibility, layer count breadcrumbs, and
+  repeated surface labels should not compete with controls.
 - [x] Give open inspector sections and control rows a compact pult treatment
   without changing control semantics.
 - [ ] Add style-guide specimens for dense, empty, selected layer, selected
@@ -139,6 +174,8 @@ Tasks:
 
 - [ ] Rework Add Node categories around user intent: sources, effects,
   structure, color, output utilities, recent.
+- [x] Add a first-pass intent rail for sources, effects, structure, color, and
+  3D while preserving exact browse groups.
 - [ ] Keep search primary and keyboard-friendly.
 - [x] Show category color and concise effect/source purpose in each row.
 - [ ] Preserve drag-to-edge insertion and node-menu insertion.
@@ -257,6 +294,12 @@ Tasks:
 
 - [x] Document category-colored selection in `PRODUCT.md`, `DESIGN.md`,
   `docs/style-guide.md`, and `docs/editor-design-system.md`.
+- [x] Apply the first low-radius/readable-sans implementation pass to shared
+  controls, menus, empty-state copy, Add Library, and node-editor overlays
+  while keeping artwork/node frames square.
+- [x] Apply the first typography pass that reduces over-tracked microcopy,
+  raises dense editor labels toward 10–11px, and moves readable UI text from
+  generic system sans to the Barlow-based Artifact UI voice.
 - [x] Add browser coverage for category-colored node selection and output-path
   visuals.
 - [ ] Add style-guide specimens for node category states and inspector states.

@@ -47,7 +47,7 @@ export const FONT_REGISTRY = {
     family: 'Barlow Condensed',
     stack: '"Barlow Condensed", "Arial Black", sans-serif',
     googleFamily: 'Barlow Condensed',
-    weights: [700, 900],
+    weights: [400, 500, 600, 700, 900],
     sample: 'POSTER',
   },
   ANTON: {

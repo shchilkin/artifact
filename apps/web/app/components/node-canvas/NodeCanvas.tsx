@@ -1133,11 +1133,13 @@ function NodeCanvasToolbar({
           <span aria-hidden="true">⌘</span>
           Layout
         </button>
-        <AreaToolbarButton
-          areaActionDisabled={areaActionDisabled}
-          areaActionTargetId={areaActionTargetId}
-          onCreateArea={onCreateArea}
-        />
+        {!areaActionDisabled ? (
+          <AreaToolbarButton
+            areaActionDisabled={areaActionDisabled}
+            areaActionTargetId={areaActionTargetId}
+            onCreateArea={onCreateArea}
+          />
+        ) : null}
       </div>
       <div className="node-toolbar-group" aria-label="View actions">
         <span className="node-toolbar-group-label" aria-hidden="true">

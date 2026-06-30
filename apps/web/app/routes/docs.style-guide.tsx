@@ -489,15 +489,11 @@ export default function DocsStyleGuide() {
                   </span>
                   <button type="button">＋ Add node</button>
                   <button type="button">⌘ Layout</button>
-                  <button type="button" disabled>
-                    ▣ Create area
-                  </button>
                 </div>
                 <div className="node-toolbar-group" aria-label="View actions">
                   <span className="node-toolbar-group-label" aria-hidden="true">
                     View
                   </span>
-                  <button type="button">◇ Fit path</button>
                   <button type="button">◎ Output</button>
                 </div>
                 <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">

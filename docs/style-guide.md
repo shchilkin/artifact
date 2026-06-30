@@ -120,27 +120,36 @@ should use the scale above.
 
 ### Radius
 
-Artifact is square by default.
+Artifact uses crisp, low-radius geometry. Square corners are part of the print
+language for artwork frames, hard panels, crop marks, and node housings, but
+the system should not force radius 0 onto every interactive control. Buttons,
+inputs, chips, menus, and overlays may use 2–6px radius when it improves
+affordance, focus readability, or touch feel.
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--radius-sm` | `0` | buttons, panels, cards, menus |
-| `--radius-md` | `2px` | fine native affordances only |
-| `--radius-lg` | `4px` | sliders and small controls that need thumb affordance |
+| `--radius-sm` | `0` | artwork frames, crop marks, hard panels, node housings |
+| `--radius-md` | `2px` | compact buttons, chips, tight controls |
+| `--radius-lg` | `4px` | inputs, menus, sliders, repeated rows |
 | `--radius-xl` | `9px` | rare pill-like native affordances |
 
-Do not round cards, panels, or navigation just to make them feel friendly.
+Do not round cards, panels, or navigation just to make them feel friendly. Use
+radius because it improves interaction clarity, not because the surface looks
+too severe.
 
 ### Typography
 
 | Role | Token | Use |
 | --- | --- | --- |
-| Mono family | `--font-mono` | UI labels, controls, buttons, meta |
+| Readable UI family | `--font-body` | layer names, inspector descriptions, empty states, route copy |
+| Mono family | `--font-mono` | control labels, commands, node labels, ids, meta |
 | Display family | `--font-display` | page and section headlines |
 | UI XS | `--type-ui-xs` | dense meta, badge text |
 | UI SM | `--type-ui-sm` | buttons, labels |
 | UI MD | `--type-ui-md` | input values, body in panels |
-| Body | `--type-body` | route copy and readable descriptions |
+| Editor label | `--type-editor-label` | node labels, inspector labels, add-library row labels |
+| Editor meta | `--type-editor-meta` | compact badges, section summaries, hints |
+| Body | `--type-body` | route copy, readable descriptions, empty states |
 | Title | `--type-title` | compact section titles |
 | Display | `--type-display` | major page titles |
 | UI line | `--leading-ui` | compact controls |
@@ -150,11 +159,16 @@ Do not round cards, panels, or navigation just to make them feel friendly.
 | Strong weight | `--weight-strong` | selected or primary labels |
 | Display weight | `--weight-display` | display headings |
 
-UI chrome uses mono. Display type is reserved for real titles, not controls.
+Mono is the control grammar, not the paragraph voice. Use mono for commands,
+labels, node names, ids, field keys, and short values. Use readable sans for
+long descriptions, onboarding, empty states, error recovery, and dense
+explanatory panels. Display type is reserved for real titles, not controls.
+Avoid making dense editor labels smaller than 10px or tracking them beyond
+0.1em by default; over-tracked microcopy slows scanning.
 
 ### Elevation
 
-Flat by default.
+Layered by default.
 
 | Token | Use |
 | --- | --- |
@@ -162,7 +176,9 @@ Flat by default.
 | `--shadow-focus` | focused controls when outline needs support |
 | `--shadow-overlay` | dialogs, sheets, and anchored floating menus |
 
-Do not add resting card shadows. Use tonal surfaces and borders.
+Do not add soft generic resting card shadows. Use tonal surfaces and borders
+first; reserve shadows for overlays, focus support, selected graph objects,
+and drag states where separation is functional.
 
 ### Motion
 

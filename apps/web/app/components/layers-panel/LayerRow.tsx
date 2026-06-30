@@ -6,9 +6,7 @@ import type {
 import { memo } from 'react';
 import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
-import { LayerQuickAddMenu } from './LayerQuickAddMenu';
 import { getLayerIcon } from './layerDisplayItems';
-import type { LayerInsertAction } from './layerInsertAction';
 import type { LayerDropPosition } from './useLayerDragReorder';
 
 export interface LayerRowProps {
@@ -29,8 +27,6 @@ export interface LayerRowProps {
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
-  canQuickAdd?: boolean;
-  onInsertLayerAbove?: (id: string, action: LayerInsertAction) => void;
 }
 
 function getImageAiHistoryState(layer: ImageLayer) {
@@ -133,11 +129,25 @@ function LayerNameEditor({
   layer,
   editing,
   selected,
+  onStartEditing,
   onFinishRename,
-}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onFinishRename'>) {
+}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'>) {
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
-    return <span className={`layer-row-name ${selected ? 'text-text' : 'text-dim'}`}>{layer.name}</span>;
+    return (
+      <button
+        type="button"
+        className={`layer-row-name layer-row-name-button ${selected ? 'text-text' : 'text-dim'}`}
+        title={selected ? `Rename ${layer.name}` : `Select ${layer.name}`}
+        onClick={(event) => {
+          if (!selected) return;
+          event.stopPropagation();
+          onStartEditing(layer.id);
+        }}
+      >
+        {layer.name}
+      </button>
+    );
   }
   return (
     <input
@@ -166,18 +176,22 @@ function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
     <span
       className={`layer-row-kind-badge layer-row-kind-badge-${layer.kind}`}
       title={`${layerKindLabel(layer)} layer`}
+      aria-label={`${layerKindLabel(layer)} layer`}
     >
       <span className="layer-row-kind-icon" aria-hidden="true">
         {getLayerIcon(layer)}
       </span>
-      <span className="layer-row-kind-label">{layerKindLabel(layer)}</span>
+      <span className="layer-row-kind-label" aria-hidden="true">
+        {layerKindLabel(layer)}
+      </span>
     </span>
   );
 }
 
 function LayerStatusMeta({ layer }: Pick<LayerRowProps, 'layer'>) {
-  const items = [layer.visible ? 'visible' : 'hidden'];
+  const items = layer.visible ? [] : ['hidden'];
   if (layer.locked) items.push('locked');
+  if (items.length === 0) return null;
   return (
     <span className="layer-row-meta-status">
       {items.map((item) => (
@@ -244,15 +258,6 @@ function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'
   );
 }
 
-function LayerQuickAddAction({
-  layer,
-  canQuickAdd,
-  onInsertLayerAbove,
-}: Pick<LayerRowProps, 'layer' | 'canQuickAdd' | 'onInsertLayerAbove'>) {
-  if (!canQuickAdd || !onInsertLayerAbove) return null;
-  return <LayerQuickAddMenu layerName={layer.name} onInsert={(action) => onInsertLayerAbove(layer.id, action)} />;
-}
-
 function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
   return (
     <button
@@ -279,15 +284,9 @@ function LayerLockedBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerRowActions({
-  layer,
-  canQuickAdd = false,
-  onInsertLayerAbove,
-  onOpenContextMenu,
-}: Pick<LayerRowProps, 'layer' | 'canQuickAdd' | 'onInsertLayerAbove' | 'onOpenContextMenu'>) {
+function LayerRowActions({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
   return (
     <div className="layer-row-actions" aria-label={`${layer.name} layer actions`}>
-      <LayerQuickAddAction layer={layer} canQuickAdd={canQuickAdd} onInsertLayerAbove={onInsertLayerAbove} />
       <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
     </div>
   );
@@ -308,8 +307,6 @@ export const LayerRow = memo(function LayerRow({
   onDragOverLayer,
   onDropLayer,
   onDragEnd,
-  canQuickAdd = false,
-  onInsertLayerAbove,
 }: LayerRowProps) {
   const stateClassNames = getLayerRowStateClassNames({
     selected,
@@ -342,12 +339,18 @@ export const LayerRow = memo(function LayerRow({
         onStartEditing(layer.id);
       }}
       tabIndex={0}
-      className={`layer-row px-3 min-h-[64px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
       <LayerDragHandle layer={layer} onDragStart={onDragStart} />
       <LayerKindBadge layer={layer} />
       <div className="layer-row-main">
-        <LayerNameEditor layer={layer} editing={editing} selected={selected} onFinishRename={onFinishRename} />
+        <LayerNameEditor
+          layer={layer}
+          editing={editing}
+          selected={selected}
+          onStartEditing={onStartEditing}
+          onFinishRename={onFinishRename}
+        />
         <div className="layer-row-meta">
           <LayerStatusMeta layer={layer} />
           <LayerAiBadges layer={layer} />
@@ -355,12 +358,7 @@ export const LayerRow = memo(function LayerRow({
           <LayerAreaChip areas={areas} nested={nested} />
         </div>
       </div>
-      <LayerRowActions
-        layer={layer}
-        canQuickAdd={canQuickAdd}
-        onInsertLayerAbove={onInsertLayerAbove}
-        onOpenContextMenu={onOpenContextMenu}
-      />
+      <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
     </div>
   );
 });
