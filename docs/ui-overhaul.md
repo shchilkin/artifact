@@ -21,8 +21,8 @@ Source-of-truth companions:
 | Editor visual baseline | In progress | The first visual polish pass is committed in `2afe860` and protected by browser tests. |
 | Node category color | In progress | Category-colored layer badges and node selection are restored; graph color grammar is documented. |
 | Node canvas contrast | In progress | Grid dots, node frames, and output edges have stronger contracts; more zoom-state work remains. |
-| Inspector usability | Not started | The right panel still reads too much like a long form instead of a compact control surface. |
-| Add Node / Library flow | Not started | The flow should become faster and more command-palette-like without becoming generic SaaS. |
+| Inspector usability | In progress | The selected-target overview and denser control rows are in place; primary-control ordering still needs a deeper pass. |
+| Add Node / Library flow | In progress | Rows, group filters, and detail preview now inherit node category color grammar; intent grouping and keyboard polish remain. |
 | Layers and Nodes parity | Planned | The two modes need stronger shared mental model and cross-mode status cues. |
 | First-run / empty editor | Planned | Starter paths exist, but the first working screen can do more to teach without marketing copy. |
 | Visual QA contract | In progress | Browser coverage now checks category-colored node selection and output-path readability. |
@@ -108,8 +108,10 @@ Tasks:
 - [ ] Promote high-impact controls for effect/source nodes into a compact
   top section with clear live values.
 - [ ] Collapse rare or advanced controls behind explicit section headers.
-- [ ] Keep output-path, visible, muted, locked, and source/result status near
+- [x] Keep output-path, visible, muted, locked, and source/result status near
   the selected target header.
+- [x] Give open inspector sections and control rows a compact pult treatment
+  without changing control semantics.
 - [ ] Add style-guide specimens for dense, empty, selected layer, selected
   effect, graph-only utility, and export target inspector states.
 - [ ] Add browser coverage for inspector readability and non-overlap in common
@@ -138,7 +140,7 @@ Tasks:
 - [ ] Rework Add Node categories around user intent: sources, effects,
   structure, color, output utilities, recent.
 - [ ] Keep search primary and keyboard-friendly.
-- [ ] Show category color and concise effect/source purpose in each row.
+- [x] Show category color and concise effect/source purpose in each row.
 - [ ] Preserve drag-to-edge insertion and node-menu insertion.
 - [ ] Add recent or commonly used items if it improves repeat workflows without
   clutter.

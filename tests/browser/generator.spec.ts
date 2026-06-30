@@ -1632,7 +1632,9 @@ test('node graph highlights the active output path and exposes output navigation
     )
     .toBe(true);
 
-  await clickEditorControl(page.getByRole('button', { name: 'Fit output path' }));
+  await expect(page.getByRole('button', { name: 'Fit output path' })).toHaveCount(0);
+  await expect(page.locator('.react-flow__controls')).toBeVisible();
+  await expect(page.locator('.react-flow__controls-button')).toHaveCount(3);
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
 });
 
@@ -2234,12 +2236,37 @@ test('layer preview follows graph output when unconnected layers exist', async (
 
 test('node properties show whether the selected target feeds output', async ({ page }) => {
   await selectUnconnectedTopFillNode(page);
-  const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
+  const nodePropsPanel = page.locator('.node-props-panel-open');
+  const targetOverview = nodePropsPanel.locator('.node-target-overview').first();
+  const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(targetOverview).toHaveClass(/node-target-overview-source/);
+  await expect(targetOverview.getByLabel('Toggle node delete lock')).toBeVisible();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
   await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).toContainText('Not in output');
   await expect(targetHeader).toContainText('Off output path');
+
+  const controlSurfaceStyles = await nodePropsPanel.evaluate((panel) => {
+    const read = (element: Element | null) => {
+      if (!element) return null;
+      const styles = getComputedStyle(element);
+      return {
+        background: styles.backgroundColor,
+        border: styles.borderColor,
+      };
+    };
+    return {
+      panel: read(panel),
+      section: read(panel.querySelector('.node-inspector-section-open')),
+      control: read(panel.querySelector('.node-inspector-control, .node-inspector-row, .node-inspector-toggle')),
+      summary: read(panel.querySelector('.node-inspector-section-summary')),
+    };
+  });
+  expect(controlSurfaceStyles.section?.background).toBeTruthy();
+  expect(controlSurfaceStyles.section?.background).not.toBe(controlSurfaceStyles.panel?.background);
+  expect(controlSurfaceStyles.control?.border).toBeTruthy();
+  expect(controlSurfaceStyles.summary?.background).toBeTruthy();
 });
 
 test('locked node target stays in the graph when delete is pressed', async ({ page }) => {
@@ -2283,6 +2310,7 @@ test('graph-only utility properties show area and output context without lock co
 
   const nodePropsPanel = page.locator('.node-props-panel-open');
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(nodePropsPanel.locator('.node-target-overview').first()).toHaveClass(/node-target-overview-utility/);
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
@@ -2766,6 +2794,26 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(recipeRail.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+
+  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveAttribute('data-add-color-kind', 'fill');
+  await expect(nodeAddRowByLabel(/^Text$/)).toHaveAttribute('data-add-color-kind', 'text');
+  await expect(nodeAddRowByLabel(/^Pixelate$/)).toHaveAttribute('data-add-color-kind', 'effect');
+  const addLibraryColors = await page.evaluate(() => {
+    const rowSymbolColor = (label: string) => {
+      const rows = [...document.querySelectorAll('.add-library-node-menu .add-library-row')];
+      const row = rows.find((candidate) => candidate.querySelector('.add-library-row-label')?.textContent === label);
+      const symbol = row?.querySelector('.add-library-row-symbol');
+      return symbol ? getComputedStyle(symbol).color : '';
+    };
+    return {
+      fill: rowSymbolColor('Fill'),
+      text: rowSymbolColor('Text'),
+      pixelate: rowSymbolColor('Pixelate'),
+    };
+  });
+  expect(addLibraryColors.fill).not.toBe('');
+  expect(addLibraryColors.text).not.toBe(addLibraryColors.fill);
+  expect(addLibraryColors.pixelate).not.toBe(addLibraryColors.fill);
 
   await clickEditorControl(page.getByRole('button', { name: /^Tone$/ }));
   await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();

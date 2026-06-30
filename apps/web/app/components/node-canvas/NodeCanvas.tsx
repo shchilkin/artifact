@@ -406,16 +406,6 @@ export function NodeCanvas({
     });
   }, []);
 
-  const handleFitOutputPath = useCallback(() => {
-    const nodes = [...outputPath.nodeIds].map((id) => ({ id }));
-    void rfInstanceRef.current?.fitView({
-      nodes,
-      padding: 0.24,
-      maxZoom: 1.05,
-      duration: 220,
-    });
-  }, [outputPath.nodeIds]);
-
   const handleToggleSelectedLayerVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
       .map((id) => doc.layers.find((layer) => layer.id === id))
@@ -508,7 +498,6 @@ export function NodeCanvas({
               perfDebugEnabled={perfDebugEnabled}
               onAddNode={openAddNodeMenu}
               onCreateArea={handleCreateAreaFromSelection}
-              onFitOutputPath={handleFitOutputPath}
               onJumpToOutput={handleJumpToOutput}
               onOrganizeNodes={() => handleOrganizeNodes(doc.layers)}
               onTogglePerfDebug={handleTogglePerfDebug}
@@ -1115,7 +1104,6 @@ function NodeCanvasToolbar({
   perfDebugEnabled,
   onAddNode,
   onCreateArea,
-  onFitOutputPath,
   onJumpToOutput,
   onOrganizeNodes,
   onTogglePerfDebug,
@@ -1127,7 +1115,6 @@ function NodeCanvasToolbar({
   perfDebugEnabled: boolean;
   onAddNode: () => void;
   onCreateArea: () => void;
-  onFitOutputPath: () => void;
   onJumpToOutput: () => void;
   onOrganizeNodes: () => void;
   onTogglePerfDebug: () => void;
@@ -1156,10 +1143,6 @@ function NodeCanvasToolbar({
         <span className="node-toolbar-group-label" aria-hidden="true">
           View
         </span>
-        <button type="button" onClick={onFitOutputPath} aria-label="Fit output path" title="Fit output path">
-          <span aria-hidden="true">◇</span>
-          Fit path
-        </button>
         <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
           <span aria-hidden="true">◎</span>
           Output

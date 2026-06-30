@@ -115,6 +115,58 @@ function favoriteClassName(favorite: boolean) {
   return `add-library-favorite${favorite ? ' add-library-favorite-active' : ''}`;
 }
 
+function addLibraryColorKind(item: AddLibraryItem) {
+  switch (item.action.kind) {
+    case 'layer':
+      return item.action.layerKind;
+    case 'textPreset':
+      return 'text';
+    case 'aiImage':
+      return 'image';
+    case 'noisePreset':
+      return 'noise';
+    case 'arrayPreset':
+    case 'repeat':
+    case 'repeatPreset':
+      return 'array';
+    case 'effect':
+      return 'effect';
+    case 'merge':
+    case 'mask':
+    case 'grimeShadow':
+      return 'merge';
+    case 'color':
+    case 'transform':
+    case 'environment':
+      return 'color';
+    case 'material':
+    case 'scene3d':
+      return 'primitive';
+  }
+}
+
+function addLibraryGroupColorKind(groupId: AddLibraryGroupId) {
+  switch (groupId) {
+    case 'content':
+      return 'fill';
+    case 'source':
+    case 'material':
+      return 'primitive';
+    case 'texture':
+      return 'noise';
+    case 'tone':
+      return 'color';
+    case 'utility':
+      return 'merge';
+    case 'light':
+    case 'signal':
+    case 'warp':
+    case 'print':
+    case 'graphic':
+      return 'effect';
+  }
+}
+
 function canAddActiveLibraryItem(key: string, item: AddLibraryItem | null): item is AddLibraryItem {
   return key === 'Enter' && item !== null;
 }
@@ -390,6 +442,8 @@ function AddLibraryBrowseTabs({
           key={group.id}
           type="button"
           className={`add-library-browse-item nadd-browse-item${activeGroupId === group.id ? ' add-library-browse-item-active nadd-browse-item-active' : ''}`}
+          data-add-color-kind={addLibraryGroupColorKind(group.id)}
+          data-add-kind={group.id}
           title={group.hint}
           aria-pressed={activeGroupId === group.id}
           onClick={() => onToggleGroup(group.id)}
@@ -517,9 +571,13 @@ function AddLibrarySectionRows({
   onActivateItem: (index: number) => void;
   onAdd: (item: AddLibraryItem) => void;
 }) {
+  const sectionColorKind =
+    section.items.length > 0 && section.items.every((item) => item.group === section.items[0]?.group)
+      ? addLibraryColorKind(section.items[0]!)
+      : undefined;
   return (
     <div className="add-library-section nadd-section">
-      <div className="add-library-section-header nadd-section-header">
+      <div className="add-library-section-header nadd-section-header" data-add-color-kind={sectionColorKind}>
         <span>{section.label}</span>
         <small>{section.hint}</small>
       </div>
@@ -557,8 +615,14 @@ function AddLibraryDetail({
     );
   }
 
+  const colorKind = addLibraryColorKind(item);
   return (
-    <aside className="add-library-detail" aria-hidden={false}>
+    <aside
+      className="add-library-detail"
+      data-add-color-kind={colorKind}
+      data-add-kind={item.group}
+      aria-hidden={false}
+    >
       <AddLibraryDetailContent item={item} favorite={favorite} onToggleFavorite={onToggleFavorite} />
     </aside>
   );
@@ -623,10 +687,13 @@ function AddLibraryRow({
   onAdd: (item: AddLibraryItem) => void;
 }) {
   const group = ADD_LIBRARY_GROUPS.find((entry) => entry.id === item.group);
+  const colorKind = addLibraryColorKind(item);
   return (
     <button
       type="button"
       className={`add-library-row nadd-row${active ? ' add-library-row-active' : ''}`}
+      data-add-color-kind={colorKind}
+      data-add-kind={item.group}
       draggable={draggable}
       onPointerEnter={onPointerEnter}
       onDragStart={(event) => {
@@ -642,7 +709,11 @@ function AddLibraryRow({
       }}
       onClick={() => onAdd(item)}
     >
-      <span className="add-library-row-symbol nadd-row-symbol" data-add-kind={item.group}>
+      <span
+        className="add-library-row-symbol nadd-row-symbol"
+        data-add-color-kind={colorKind}
+        data-add-kind={item.group}
+      >
         {item.symbol}
       </span>
       <span className="add-library-row-copy nadd-row-copy">
@@ -650,7 +721,11 @@ function AddLibraryRow({
         <span className="add-library-row-desc nadd-row-desc">{item.description}</span>
       </span>
       {draggable && <span className="add-library-row-drag">Drag</span>}
-      {group && <Badge className="add-library-row-tag nadd-row-tag">{group.label}</Badge>}
+      {group && (
+        <Badge className="add-library-row-tag nadd-row-tag" data-add-color-kind={colorKind} data-add-kind={item.group}>
+          {group.label}
+        </Badge>
+      )}
     </button>
   );
 }
