@@ -275,7 +275,7 @@ until the migration is complete.
 - **Anatomy**: graph background, dot grid, nodes, ports, edges, active output
   path, toolbar, inspector, optional graph areas.
 - **Variants**: default graph, selected node, selected edge, output path, muted
-  node, locked delete state, graph area, fit-output-path view.
+  node, locked delete state, graph area, jump-to-output view.
 - **States**: default, hover, focus-visible, selected, output-path,
   selected+output-path, muted, locked, dragging, invalid connection.
 - **Accessibility**: node frames and toolbar controls need visible focus;
