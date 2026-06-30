@@ -27,6 +27,6 @@ USER node
 
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "const port = process.env.PORT || 4000; fetch(`http://127.0.0.1:${port}/api/health`).then((res) => { if (!res.ok) process.exit(1); }).catch(() => process.exit(1));"
+  CMD node dist/healthcheck.js bull-board
 
 CMD ["node", "dist/server.js"]
