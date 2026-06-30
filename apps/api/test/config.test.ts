@@ -75,8 +75,23 @@ describe('loadConfig', () => {
     ).toMatchObject({
       betterAuthSecret: 'better-secret',
       betterAuthUrl: 'https://api.artifact.example/api/auth',
+      webOrigin: 'https://artifact.example',
+      webOrigins: ['https://artifact.example'],
     });
     expect(loadConfig({ ...requiredEnv })).toMatchObject({ betterAuthSecret: 'secret' });
+  });
+
+  it('parses multiple web origins for Vercel production and preview deployments', () => {
+    expect(
+      loadConfig({
+        ...requiredEnv,
+        WEB_ORIGIN: 'https://artifact.example',
+        WEB_ORIGINS: 'https://artifact.example, https://artifact-git-preview.vercel.app ',
+      }),
+    ).toMatchObject({
+      webOrigin: 'https://artifact.example',
+      webOrigins: ['https://artifact.example', 'https://artifact-git-preview.vercel.app'],
+    });
   });
 
   it('parses Bull Board enablement explicitly', () => {

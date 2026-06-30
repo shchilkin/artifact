@@ -20,6 +20,7 @@ import { renderDocument } from '../utils/renderer';
 const SEED = 31415;
 const CANVAS_PX = 540;
 const HERO_IMAGE_SRC = '/girl_image_landing.png';
+const HERO_DEFAULT_STEP_INDEX = 6;
 const HOME_STEP_KEY_DELTA: Record<string, number> = {
   ArrowDown: 1,
   PageDown: 1,
@@ -328,7 +329,7 @@ export default function Home() {
   // Track which canvas is currently displayed (0 = A, 1 = B)
   const frontIdxRef = useRef<0 | 1>(0);
 
-  const effectiveStep = step;
+  const effectiveStep = heroVisible ? HERO_DEFAULT_STEP_INDEX : step;
   const registerStepRef = (index: number, element: HTMLElement | null) => {
     stepRefs.current[index] = element;
   };

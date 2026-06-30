@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE IF NOT EXISTS "user" (
   id text PRIMARY KEY,
   name text NOT NULL,
@@ -67,5 +65,3 @@ CREATE INDEX IF NOT EXISTS verification_identifier_idx
 
 CREATE INDEX IF NOT EXISTS cloud_projects_user_updated_idx
   ON cloud_projects (user_id, updated_at DESC);
-
-COMMIT;

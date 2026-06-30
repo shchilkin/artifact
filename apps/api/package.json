@@ -13,6 +13,7 @@
     "migrate": "node scripts/migrate.mjs",
     "smoke": "node scripts/smoke.mjs",
     "start": "node dist/server.js",
+    "start:with-migrations": "npm run migrate && npm run start",
     "worker:dev": "npm --workspace @artifact/shared run build && tsx src/worker.ts",
     "worker:start": "node dist/worker.js",
     "typecheck": "npm --workspace @artifact/shared run build && tsc --noEmit -p tsconfig.json",

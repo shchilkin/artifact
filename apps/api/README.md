@@ -65,7 +65,7 @@ Implemented:
 - OpenAI and xAI provider adapters enabled by `OPENAI_API_KEY` and
   `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.
-- Credentialed CORS/preflight handling for `WEB_ORIGIN`.
+- Credentialed CORS/preflight handling for configured frontend origins.
 - Unauthenticated `GET /api/health` for liveness and VPS smoke checks.
 - VPS/local operations runbook in [`RUNBOOK.md`](./RUNBOOK.md).
 - Production `build`, `start`, and `worker:start` scripts for container

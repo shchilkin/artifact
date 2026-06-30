@@ -1,7 +1,8 @@
 x-artifact-api-env: &artifact-api-env
   NODE_ENV: production
   PORT: 4000
-  WEB_ORIGIN: ${WEB_ORIGIN:?Set the public Vercel/frontend origin}
+  WEB_ORIGIN: ${WEB_ORIGIN:?Set the primary public Vercel/frontend origin}
+  WEB_ORIGINS: ${WEB_ORIGINS:-}
   API_DATABASE_DRIVER: postgres
   DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artifact}
   API_QUEUE_DRIVER: bullmq
@@ -39,7 +40,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: ['redis-server', '--appendonly', 'yes']
+    command: ['redis-server', '--appendonly', 'yes', '--save', '']
     volumes:
       - artifact-redis-data:/data
     healthcheck:
@@ -53,6 +54,7 @@ services:
     build:
       context: .
       dockerfile: docker/api.Dockerfile
+    command: ['npm', 'run', 'start:with-migrations']
     environment:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
@@ -66,11 +68,7 @@ services:
     expose:
       - '4000'
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'api']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -89,8 +87,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
+    healthcheck:
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'worker']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   bull-board:
@@ -103,10 +109,18 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      api:
+        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
     expose:
       - '4000'
+    healthcheck:
+      test: ['CMD', 'node', 'dist/healthcheck.js', 'bull-board']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
 volumes:

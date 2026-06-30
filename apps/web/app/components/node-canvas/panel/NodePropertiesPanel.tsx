@@ -14,6 +14,7 @@ import type {
   MaterialTextureInputPort,
 } from '../../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
+import type { EditorTargetSummary } from '../../../utils/editorTargetSummary';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { AiGenerationPanel } from '../../AiGenerationPanel';
@@ -504,6 +505,25 @@ function LayerLockToggle({
   );
 }
 
+function NodeTargetOverview({
+  target,
+  summary,
+  onUpdateLayer,
+}: Pick<NodePropertiesPanelProps, 'onUpdateLayer'> & {
+  target: SelectedNodeTarget | null;
+  summary: EditorTargetSummary;
+}) {
+  return (
+    <section
+      className={`node-target-overview node-target-overview-${summary.role}`}
+      aria-label="Selected node overview"
+    >
+      <EditorTargetHeader summary={summary} compact />
+      <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
+    </section>
+  );
+}
+
 function SelectedNodeInspector({
   target,
   doc,
@@ -781,8 +801,7 @@ function NodePropertiesPanelContent({
       <div className="node-props-body">
         {targetSummary ? (
           <>
-            <EditorTargetHeader summary={targetSummary} compact />
-            <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
+            <NodeTargetOverview target={target} summary={targetSummary} onUpdateLayer={onUpdateLayer} />
             <SelectedNodeInspector
               target={target}
               doc={doc}

@@ -40,7 +40,6 @@ import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
 import { ActionButton } from './ui/ActionButton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -53,7 +52,6 @@ type SidebarLayerPanelProps = Pick<
   | 'onAddArrayPreset'
   | 'onAddScene3D'
   | 'onStartAiImage'
-  | 'onInsertLayerAbove'
   | 'onRemoveLayer'
   | 'onDuplicateLayer'
   | 'modeSwitcher'
@@ -234,52 +232,6 @@ function useLayerPanelHandlers({
   };
 }
 
-const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }> = [
-  { ratio: '1:1', label: 'Square', size: '1000 × 1000' },
-  { ratio: '4:5', label: 'Portrait', size: '1080 × 1350' },
-  { ratio: '9:16', label: 'Story', size: '1080 × 1920' },
-  { ratio: '16:9', label: 'Wide', size: '1920 × 1080' },
-];
-
-function CanvasAspectControls({ aspect, onChange }: { aspect: AspectRatio; onChange: (aspect: AspectRatio) => void }) {
-  const current = ASPECT_OPTIONS.find((option) => option.ratio === aspect) ?? ASPECT_OPTIONS[0];
-
-  return (
-    <div className="canvas-aspect-controls">
-      <span className="canvas-aspect-controls__label">CANVAS</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" className="canvas-aspect-menu-trigger" aria-label={`Canvas aspect ratio ${aspect}`}>
-            <span className="canvas-aspect-menu-trigger__ratio">{current.ratio}</span>
-            <span className="canvas-aspect-menu-trigger__name">{current.label}</span>
-            <span className="canvas-aspect-menu-trigger__chevron" aria-hidden="true">
-              ▾
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="bottom" className="canvas-aspect-menu">
-          {ASPECT_OPTIONS.map((option) => (
-            <DropdownMenuItem
-              key={option.ratio}
-              className="canvas-aspect-menu-item"
-              onSelect={() => onChange(option.ratio)}
-            >
-              <span className="canvas-aspect-menu-item__ratio">{option.ratio}</span>
-              <span className="canvas-aspect-menu-item__label">{option.label}</span>
-              <span className="canvas-aspect-menu-item__size">{option.size}</span>
-              {aspect === option.ratio && (
-                <span className="canvas-aspect-menu-item__active" aria-hidden="true">
-                  ●
-                </span>
-              )}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-
 function applySelectedLayerPatch<T extends Layer>(
   doc: CanvasDocument,
   selectedLayer: Layer,
@@ -356,8 +308,8 @@ function SelectedLayerSections({
   };
 
   return (
-    <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
-      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
+    <div className="layer-inspector-sections sidebar-sections">
+      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
       <SelectedLayerBasics selectedLayer={selectedLayer} onPatch={applyPatch} />
       <SelectedImageSourceSection layer={selectedLayer} inputRef={fileInputRef} onImageFile={handleImageFile} />
       <SelectedEmojiSetSection layer={selectedLayer} onToggleEmoji={toggleEmoji} />
@@ -391,8 +343,8 @@ function SelectedScene3DSections({
     onDocChange(updateEnvironmentNodeInDocument(doc, node.id, patch));
 
   return (
-    <div className="sidebar-sections border-t border-border flex-shrink-0 max-h-[60%]">
-      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact />}
+    <div className="layer-inspector-sections sidebar-sections">
+      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
       <SelectedScene3DInputSettings model={model} environment={environment} scene={scene} />
       <Scene3DInspector scene3dNode={scene} onChange={updateScene} detached />
       {environment && (
@@ -639,7 +591,6 @@ export function Sidebar({
   onAddArrayPreset,
   onAddScene3D,
   onStartAiImage,
-  onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
@@ -655,63 +606,70 @@ export function Sidebar({
   const docRef = useDocumentRef(doc);
   const layerPanelHandlers = useLayerPanelHandlers({ docRef, onDocChange, onReorderLayers });
 
-  const setGlobal = <K extends keyof CanvasDocument['global']>(key: K, value: CanvasDocument['global'][K]) => {
-    onDocChange(updateGlobalInDocument(doc, { [key]: value }));
-  };
+  const handleAspectChange = useCallback(
+    (aspect: AspectRatio) => onDocChange(updateGlobalInDocument(doc, { aspect })),
+    [doc, onDocChange],
+  );
+
+  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene);
 
   return (
-    <aside className="sidebar">
-      <MobileActionBar content={mobileActionBar} />
-      <CanvasAspectControls aspect={doc.global.aspect ?? '1:1'} onChange={(ratio) => setGlobal('aspect', ratio)} />
+    <>
+      <aside className="sidebar sidebar-layers-list">
+        <MobileActionBar content={mobileActionBar} />
 
-      <AiImageSection
-        aspect={doc.global.aspect ?? '1:1'}
-        show={showAiGeneration}
-        onGeneratedImageSource={onGeneratedImageSource}
-      />
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <LayerPanel
+            doc={doc}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={onSelectLayer}
+            onAddLayer={onAddLayer}
+            onAddEffectPreset={onAddEffectPreset}
+            onAddTextPreset={onAddTextPreset}
+            onAddNoisePreset={onAddNoisePreset}
+            onAddArrayPreset={onAddArrayPreset}
+            onAddScene3D={onAddScene3D}
+            onStartAiImage={onStartAiImage}
+            onRemoveLayer={onRemoveLayer}
+            onReorderLayers={layerPanelHandlers.handleReorderLayers}
+            onToggleVisible={layerPanelHandlers.handleToggleVisible}
+            onSetLayersVisible={layerPanelHandlers.handleSetLayersVisible}
+            onCreateAreaFromLayers={layerPanelHandlers.handleCreateAreaFromLayers}
+            onAddLayersToArea={layerPanelHandlers.handleAddLayersToArea}
+            onRemoveLayersFromAreas={layerPanelHandlers.handleRemoveLayersFromAreas}
+            onRemoveNodesFromArea={layerPanelHandlers.handleRemoveNodesFromArea}
+            onRemoveArea={layerPanelHandlers.handleRemoveArea}
+            onRenameArea={layerPanelHandlers.handleRenameArea}
+            onDuplicateLayer={onDuplicateLayer}
+            onRenameLayer={layerPanelHandlers.handleRenameLayer}
+            onAspectChange={handleAspectChange}
+            modeSwitcher={modeSwitcher}
+          />
+        </div>
+      </aside>
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <LayerPanel
-          doc={doc}
-          selectedLayerId={selectedLayerId}
-          onSelectLayer={onSelectLayer}
-          onAddLayer={onAddLayer}
-          onAddEffectPreset={onAddEffectPreset}
-          onAddTextPreset={onAddTextPreset}
-          onAddNoisePreset={onAddNoisePreset}
-          onAddArrayPreset={onAddArrayPreset}
-          onAddScene3D={onAddScene3D}
-          onStartAiImage={onStartAiImage}
-          onInsertLayerAbove={onInsertLayerAbove}
-          onRemoveLayer={onRemoveLayer}
-          onReorderLayers={layerPanelHandlers.handleReorderLayers}
-          onToggleVisible={layerPanelHandlers.handleToggleVisible}
-          onSetLayersVisible={layerPanelHandlers.handleSetLayersVisible}
-          onCreateAreaFromLayers={layerPanelHandlers.handleCreateAreaFromLayers}
-          onAddLayersToArea={layerPanelHandlers.handleAddLayersToArea}
-          onRemoveLayersFromAreas={layerPanelHandlers.handleRemoveLayersFromAreas}
-          onRemoveNodesFromArea={layerPanelHandlers.handleRemoveNodesFromArea}
-          onRemoveArea={layerPanelHandlers.handleRemoveArea}
-          onRenameArea={layerPanelHandlers.handleRenameArea}
-          onDuplicateLayer={onDuplicateLayer}
-          onRenameLayer={layerPanelHandlers.handleRenameLayer}
-          modeSwitcher={modeSwitcher}
-        />
-      </div>
-
-      <SelectedLayerSections
-        doc={doc}
-        docRef={docRef}
-        selectedLayer={selectedLayer}
-        selectedTargetSummary={selectedTargetSummary}
-        onDocChange={onDocChange}
-      />
-      <SelectedScene3DSections
-        doc={doc}
-        scene={selectedScene}
-        selectedTargetSummary={selectedSceneSummary}
-        onDocChange={onDocChange}
-      />
-    </aside>
+      {hasInspectorContent && (
+        <aside className="layer-inspector-drawer" aria-label="Layer settings">
+          <AiImageSection
+            aspect={doc.global.aspect ?? '1:1'}
+            show={showAiGeneration}
+            onGeneratedImageSource={onGeneratedImageSource}
+          />
+          <SelectedLayerSections
+            doc={doc}
+            docRef={docRef}
+            selectedLayer={selectedLayer}
+            selectedTargetSummary={selectedTargetSummary}
+            onDocChange={onDocChange}
+          />
+          <SelectedScene3DSections
+            doc={doc}
+            scene={selectedScene}
+            selectedTargetSummary={selectedSceneSummary}
+            onDocChange={onDocChange}
+          />
+        </aside>
+      )}
+    </>
   );
 }

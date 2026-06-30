@@ -56,28 +56,37 @@ so do not set `DATABASE_URL` or `REDIS_URL` manually for this first setup. Set
 `POSTGRES_PASSWORD` instead, and optionally override `POSTGRES_DB` /
 `POSTGRES_USER` if needed.
 
+Redis uses append-only file persistence for BullMQ state and disables RDB
+snapshots in the Coolify compose file. If Redis logs `MISCONF ... unable to
+persist to disk`, redeploy the current compose config before investigating queue
+workers; old containers may still have the default RDB snapshot settings.
+
 Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an
 operator surface, not a public app feature.
 
-The API service defines a container healthcheck against
-`http://127.0.0.1:4000/api/health`. Coolify/Traefik will not route public
-traffic while the resource is unhealthy, so if the public API domain returns
-`503 no available server`, check the API, Postgres, and Redis container health
-first.
+The API and Bull Board services define container healthchecks against
+`http://127.0.0.1:4000/api/health`; the Bull Board check also verifies that the
+server booted with board routes enabled. Runtime checks verify Postgres, Redis
+writes, and local generated-asset storage where each container depends on them.
+Coolify/Traefik will not route public traffic while the resource is unhealthy,
+so if the public API domain returns `503 no available server`, check the API,
+worker, Postgres, and Redis container health first.
 
 For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for
 example `https://api.example.com/api/auth`.
 
-After the first successful image build, run migrations from the API container
-terminal before enabling traffic or creating generation jobs:
+The Coolify API service starts with `npm run start:with-migrations`, which runs
+`npm run migrate` before `node dist/server.js`. The worker and Bull Board wait
+for the API healthcheck, so deploys do not serve traffic or process jobs against
+an old schema. Migration state is recorded in the `schema_migrations` table with
+checksums; if a previously applied migration file changes, startup fails instead
+of silently applying drift. The migration runner owns the transaction for each
+file, so SQL migration files must not include `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
-```bash
-npm run migrate
-```
-
-Then grant the intended account user AI access from the same API container:
+After a user signs up, grant the intended account user AI access from the API
+container only when they should receive private-alpha generation access:
 
 ```bash
 npm run grant:ai -- user_xxx user@example.com
@@ -91,6 +100,7 @@ Minimum VPS-like configuration:
 NODE_ENV=production
 PORT=4000
 WEB_ORIGIN=https://your-vercel-domain.example
+WEB_ORIGINS=https://your-vercel-domain.example,https://your-preview-domain.vercel.app
 
 API_DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://artifact:change-me@127.0.0.1:5432/artifact
@@ -158,7 +168,10 @@ that adapter exists, production should keep `ASSET_STORAGE_DRIVER=local`.
 
 ## Database Bootstrap
 
-Apply migrations before starting the API or worker:
+Production Coolify deploys apply migrations automatically through the API
+container startup command. For local development, one-off debugging, or a
+manually managed VPS process, apply migrations before starting the API or
+worker:
 
 ```bash
 npm --workspace @artifact/api run migrate
@@ -343,8 +356,11 @@ before freeing old generated files on the VPS.
 
 - Run API and worker from the same git revision.
 - Keep provider keys out of the frontend and Vercel client env.
-- Set `WEB_ORIGIN` to the exact Vercel app origin. Credentialed CORS only echoes
-  that configured origin.
+- Set `WEB_ORIGIN` to the primary Vercel app origin. Use `WEB_ORIGINS` when the
+  API must also trust preview or dev frontends; it is a comma-separated list and
+  overrides the single-origin fallback. Prefer exact preview domains, or a narrow
+  project-owned wildcard such as `https://artifact-git-*-owner.vercel.app`.
+  Credentialed CORS only echoes a matched configured origin.
 - Failed provider calls should mark the job failed and not leave orphan files.
 - If asset creation fails after writing bytes, storage cleanup should remove the
   just-written file.

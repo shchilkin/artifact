@@ -165,6 +165,12 @@ Recently shipped:
   [`releases/v0.30.0.md`](./releases/v0.30.0.md). Landing, Showcase / How-to,
   Fallow, server-backed sharing, and command-palette work were explicitly
   deferred out of v0.30.
+- [`ui-overhaul.md`](./ui-overhaul.md) — Editor UI Overhaul Tracker: active
+  product/design backlog for node canvas readability, category-color grammar,
+  inspector usability, Add Node / Library command-palette direction,
+  Layers/Nodes parity, empty starts, and visual QA contracts. Use this as the
+  tracking document for iterative editor UI improvements that are broader than
+  a single version-plan patch but still need concrete acceptance criteria.
 - [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
   Recovery: terminology, docs, showcase, public navigation, shared UI
   primitives, and focused browser coverage. Released as `v0.29.0`; release

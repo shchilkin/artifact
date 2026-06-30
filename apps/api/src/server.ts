@@ -114,7 +114,7 @@ async function resolveApiResponse(req: IncomingMessage) {
 
 async function handleApiRequest(req: IncomingMessage, res: ServerResponse) {
   const startedAt = Date.now();
-  applyCorsHeaders(req, res, config.webOrigin);
+  applyCorsHeaders(req, res, config.webOrigins);
   if (handlePreflightRequest(req, res, startedAt)) return;
   if (handleBullBoardRequest(req, res)) return;
 

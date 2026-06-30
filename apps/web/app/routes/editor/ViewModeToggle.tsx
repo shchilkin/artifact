@@ -6,7 +6,7 @@ type ViewModeToggleVariant = 'chrome' | 'floating' | 'node' | 'sidebar';
 
 const BASE_BUTTON_STYLE: CSSProperties = {
   fontFamily: 'var(--mono)',
-  letterSpacing: '0.12em',
+  letterSpacing: '0.08em',
   textTransform: 'uppercase',
   cursor: 'pointer',
   border: '1px solid var(--border)',
@@ -16,9 +16,9 @@ const BASE_BUTTON_STYLE: CSSProperties = {
 
 const BUTTON_SIZE_STYLE: Record<ViewModeToggleVariant, CSSProperties> = {
   chrome: {
-    minHeight: 34,
-    padding: '0 12px',
-    fontSize: 10,
+    minHeight: 'var(--touch)',
+    padding: '0 14px',
+    fontSize: 11,
   },
   floating: {
     minHeight: 'var(--touch)',
@@ -26,9 +26,9 @@ const BUTTON_SIZE_STYLE: Record<ViewModeToggleVariant, CSSProperties> = {
     fontSize: 11,
   },
   node: {
-    minHeight: 38,
-    padding: '0 13px',
-    fontSize: 10,
+    minHeight: 'var(--touch)',
+    padding: '0 14px',
+    fontSize: 11,
   },
   sidebar: {
     minHeight: 'var(--touch)',
