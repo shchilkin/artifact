@@ -77,14 +77,16 @@ For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for
 example `https://api.example.com/api/auth`.
 
-After the first successful image build, run migrations from the API container
-terminal before enabling traffic or creating generation jobs:
+The Coolify API service starts with `npm run start:with-migrations`, which runs
+`npm run migrate` before `node dist/server.js`. The worker and Bull Board wait
+for the API healthcheck, so deploys do not serve traffic or process jobs against
+an old schema. Migration state is recorded in the `schema_migrations` table with
+checksums; if a previously applied migration file changes, startup fails instead
+of silently applying drift. The migration runner owns the transaction for each
+file, so SQL migration files must not include `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
-```bash
-npm run migrate
-```
-
-Then grant the intended account user AI access from the same API container:
+After a user signs up, grant the intended account user AI access from the API
+container only when they should receive private-alpha generation access:
 
 ```bash
 npm run grant:ai -- user_xxx user@example.com
@@ -147,7 +149,10 @@ The email argument is optional; the Better Auth user id is the durable key.
 
 ## Database Bootstrap
 
-Apply migrations before starting the API or worker:
+Production Coolify deploys apply migrations automatically through the API
+container startup command. For local development, one-off debugging, or a
+manually managed VPS process, apply migrations before starting the API or
+worker:
 
 ```bash
 npm --workspace @artifact/api run migrate
