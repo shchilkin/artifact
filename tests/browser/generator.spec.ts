@@ -323,6 +323,65 @@ const areaMergeDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const categoryColorNodeDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 33, aspect: '1:1' },
+  layers: [
+    {
+      id: 'category-emoji',
+      name: 'Emoji source',
+      visible: true,
+      locked: false,
+      kind: 'emoji',
+      emojis: ['😂', '😭', '💔', '💀'],
+      density: 22,
+      minSz: 28,
+      maxSz: 64,
+      blur: 0,
+      seedOffset: 0,
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'category-rays',
+      name: 'Rays effect',
+      visible: true,
+      locked: false,
+      kind: 'effect',
+      preset: 'rays',
+      rays: 12,
+      rayInt: 60,
+      rayColor: '#bb00ff',
+      seedOffset: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-category-emoji-rays',
+        fromId: 'category-emoji',
+        fromPort: 'out',
+        toId: 'category-rays',
+        toPort: 'in',
+      },
+      {
+        id: 'e-category-rays-export',
+        fromId: 'category-rays',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'category-emoji': { x: 0, y: 80 },
+      'category-rays': { x: 420, y: 80 },
+      __export__: { x: 840, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const areaExtendDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 7, aspect: '16:9' },
@@ -1182,6 +1241,106 @@ async function selectFirstNodeByKind(page: Page, kind: string) {
   return node;
 }
 
+async function clickGraphEdges(page: Page, count: number) {
+  const edges = page.locator('.react-flow__edge-path');
+  await expect.poll(async () => (await edges.first().boundingBox()) !== null, { timeout: 15_000 }).toBe(true);
+  const edgeCount = await edges.count();
+  for (let index = 0; index < Math.min(count, edgeCount); index += 1) {
+    await edges.nth(index).click({ force: true });
+  }
+}
+
+async function waitForOutputEdgeVisualContract(page: Page) {
+  const readOutputEdge = () =>
+    page
+      .locator('.react-flow__edge.node-edge-output-path .react-flow__edge-path')
+      .first()
+      .evaluate((edge) => {
+        const style = getComputedStyle(edge);
+        return {
+          opacity: Number(style.opacity),
+          stroke: style.stroke,
+          strokeWidth: Number.parseFloat(style.strokeWidth),
+          selectionColor: style.getPropertyValue('--node-edge-selection-color').trim(),
+        };
+      });
+  await expect.poll(async () => (await readOutputEdge()).opacity, { timeout: 2_000 }).toBeGreaterThanOrEqual(0.75);
+  return readOutputEdge();
+}
+
+async function readSelectedNodeColorContract(node: Locator) {
+  return node.evaluate((element) => {
+    const firstColorToken = (value: string) => {
+      const start = value.search(/(?:color|oklab|oklch|rgb|rgba)\(/);
+      if (start < 0) return '';
+      let depth = 0;
+      for (let index = start; index < value.length; index += 1) {
+        if (value[index] === '(') depth += 1;
+        if (value[index] === ')') {
+          depth -= 1;
+          if (depth === 0) return value.slice(start, index + 1);
+        }
+      }
+      return '';
+    };
+    const resolveColorString = (color: string) => {
+      const probe = document.createElement('span');
+      probe.style.color = color;
+      document.body.append(probe);
+      const resolved = getComputedStyle(probe).color;
+      probe.remove();
+      return resolved;
+    };
+    const shell = element as HTMLElement;
+    const shellStyle = getComputedStyle(shell);
+    const accent = resolveColorString(shellStyle.getPropertyValue('--node-accent').trim());
+    const shadow = shellStyle.boxShadow;
+    const shadowAccent = firstColorToken(shadow);
+    const rail = shell.querySelector('.node-shell-accent');
+    return {
+      accent,
+      border: shellStyle.borderColor,
+      outline: shellStyle.outlineColor,
+      shadow: shellStyle.boxShadow,
+      shadowAccent: resolveColorString(shadowAccent),
+      rail: rail ? getComputedStyle(rail).backgroundColor : '',
+    };
+  });
+}
+
+async function waitForSelectedNodeColorContract(node: Locator) {
+  await expect
+    .poll(async () => nodeSelectionUsesAccent(await readSelectedNodeColorContract(node)), { timeout: 2_000 })
+    .toBe(true);
+  const selection = await readSelectedNodeColorContract(node);
+  expectNodeSelectionUsesAccent(selection);
+  return selection;
+}
+
+function expectNodeSelectionUsesAccent(selection: Awaited<ReturnType<typeof readSelectedNodeColorContract>>) {
+  expect(selection.accent).not.toBe('');
+  expect(selection.border).toBe(selection.accent);
+  expect(selection.outline).toBe(selection.accent);
+  expect(selection.rail).toBe(selection.accent);
+  expect(selection.shadowAccent).toBe(selection.accent);
+  expect(selection.shadow).not.toBe('none');
+  expect(selection.shadow).toContain('0px 0px 0px 2px');
+  expect(selection.shadow).toContain('0px 0px 0px 7px');
+}
+
+function nodeSelectionUsesAccent(selection: Awaited<ReturnType<typeof readSelectedNodeColorContract>>) {
+  return (
+    selection.accent !== '' &&
+    selection.border === selection.accent &&
+    selection.outline === selection.accent &&
+    selection.rail === selection.accent &&
+    selection.shadowAccent === selection.accent &&
+    selection.shadow !== 'none' &&
+    selection.shadow.includes('0px 0px 0px 2px') &&
+    selection.shadow.includes('0px 0px 0px 7px')
+  );
+}
+
 async function dragMouseFromBoxCenter(
   page: Page,
   box: { x: number; y: number; width: number; height: number },
@@ -1405,6 +1564,36 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
   expect(stateStyles.selectedAreaShadow).not.toBe('none');
   expect(stateStyles.selectedAreaLabelBg).not.toBe('');
   expect(stateStyles.perfActiveShadow).not.toBe('none');
+});
+
+test('node canvas keeps category-colored selection and stable output path visuals', async ({ page }) => {
+  await gotoDocument(page, categoryColorNodeDocument);
+  await switchToNodeView(page);
+
+  const emojiNode = page.locator('.node-shell-kind-emoji').first();
+  const effectNode = page.locator('.node-shell-kind-effect').first();
+  await expect(emojiNode).toBeVisible({ timeout: 15_000 });
+  await expect(effectNode).toBeVisible({ timeout: 15_000 });
+
+  await emojiNode.click();
+  await expect(emojiNode).toHaveClass(/node-shell-selected/);
+  const emojiSelection = await waitForSelectedNodeColorContract(emojiNode);
+
+  await effectNode.click();
+  await expect(effectNode).toHaveClass(/node-shell-selected/);
+  const effectSelection = await waitForSelectedNodeColorContract(effectNode);
+
+  expect(emojiSelection.accent).not.toBe(effectSelection.accent);
+
+  await clickGraphEdges(page, 6);
+  await expect(page.locator('body')).not.toContainText('Maximum update depth exceeded');
+
+  const outputEdge = await waitForOutputEdgeVisualContract(page);
+  expect(outputEdge.opacity).toBeGreaterThanOrEqual(0.75);
+  expect(outputEdge.stroke).not.toBe('');
+  expect(outputEdge.stroke).not.toBe('none');
+  expect(outputEdge.strokeWidth).toBeGreaterThanOrEqual(2);
+  expect(outputEdge.selectionColor).not.toBe('');
 });
 
 test('node graph highlights the active output path and exposes output navigation', async ({ page }) => {

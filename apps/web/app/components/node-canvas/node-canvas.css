@@ -57,7 +57,7 @@
 
 .node-shell-frame:focus-visible .node-shell,
 .node-shell-frame:focus .node-shell {
-  outline: 2px solid var(--node-focus);
+  outline: 2px solid var(--node-accent, var(--node-focus));
   outline-offset: 4px;
 }
 
@@ -177,10 +177,27 @@
   display: none;
 }
 
-.react-flow__edge:not(.node-edge-output-path) .react-flow__edge-path {
+.react-flow__edge .react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
   transition:
     opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    stroke 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    stroke 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    stroke-width 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-flow__edge:not(.node-edge-output-path):not(.node-edge-selected) .react-flow__edge-path {
+  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 80%, transparent));
+}
+
+.react-flow__edge.node-edge-output-path:not(.node-edge-selected) .react-flow__edge-path {
+  filter: drop-shadow(0 0 4px color-mix(in oklch, var(--node-edge-output) 34%, transparent));
+}
+
+.react-flow__edge.node-edge-selected .react-flow__edge-path {
+  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 82%, transparent))
+    drop-shadow(0 0 9px color-mix(in oklch, var(--node-edge-selection-color) 52%, transparent));
 }
 
 .react-flow__edge.node-edge-add-target .react-flow__edge-path {
@@ -295,10 +312,10 @@
     var(--node-max-width, 380px)
   );
   background: var(--node-surface);
-  border: 1px solid color-mix(in oklch, var(--node-accent) 18%, var(--node-border-strong));
+  border: 1px solid color-mix(in srgb, var(--node-accent) 22%, var(--node-border-strong));
   border-radius: 0;
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--node-accent) 12%, var(--node-card-outline)),
+    0 0 0 1px color-mix(in srgb, var(--node-accent) 16%, var(--node-card-outline)),
     inset 0 0 0 1px color-mix(in oklch, var(--node-text) 3%, transparent);
   overflow: hidden;
   cursor: default;
@@ -310,11 +327,12 @@
     transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.node-shell-frame:hover .node-shell {
-  border-color: color-mix(in oklch, var(--node-accent) 34%, var(--node-border-strong));
-  background: color-mix(in oklch, var(--node-accent) 4%, var(--node-surface-raised));
+.node-shell-frame:hover .node-shell:not(.node-shell-selected) {
+  border-color: color-mix(in srgb, var(--node-accent) 38%, var(--node-border-strong));
+  background: color-mix(in srgb, var(--node-accent) 4%, var(--node-surface-raised));
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--node-accent) 24%, var(--node-card-outline)),
+    0 0 0 1px color-mix(in srgb, var(--node-accent) 34%, var(--node-card-outline)),
+    0 0 0 4px color-mix(in srgb, var(--node-accent) 7%, transparent),
     inset 0 0 0 1px color-mix(in oklch, var(--node-text) 4%, transparent);
 }
 
@@ -349,19 +367,28 @@
 
 .node-shell-selected {
   border-color: var(--node-accent);
-  background: color-mix(in oklch, var(--node-accent) 8%, var(--node-card-selected-bg));
+  background: color-mix(in srgb, var(--node-accent) 7%, var(--node-surface));
   box-shadow:
-    0 0 0 1px var(--editor-selection-outline),
-    0 0 0 7px color-mix(in oklch, var(--node-accent) 17%, transparent),
+    0 0 0 2px var(--node-accent),
+    0 0 0 7px color-mix(in srgb, var(--node-accent) 13%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, var(--node-text) 5%, transparent);
+}
+
+.node-shell-frame:hover .node-shell-selected {
+  border-color: var(--node-accent);
+  background: color-mix(in srgb, var(--node-accent) 7%, var(--node-surface));
+  box-shadow:
+    0 0 0 2px var(--node-accent),
+    0 0 0 7px color-mix(in srgb, var(--node-accent) 13%, transparent),
     inset 0 0 0 1px color-mix(in oklch, var(--node-text) 5%, transparent);
 }
 
 .node-shell-output-path:not(.node-shell-selected) {
-  border-color: color-mix(in oklch, var(--node-accent) 56%, var(--node-border-strong));
-  background: color-mix(in oklch, var(--node-accent) 4%, var(--node-surface));
+  border-color: color-mix(in srgb, var(--node-accent) 62%, var(--node-border-strong));
+  background: color-mix(in srgb, var(--node-accent) 4%, var(--node-surface));
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--node-accent) 28%, var(--node-card-outline)),
-    0 0 0 3px color-mix(in oklch, var(--accent) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--node-accent) 30%, var(--node-card-outline)),
+    0 0 0 3px color-mix(in oklch, var(--node-edge-output) 8%, transparent),
     inset 0 0 0 1px color-mix(in oklch, var(--node-text) 4%, transparent);
 }
 
@@ -375,8 +402,8 @@
 }
 
 .node-shell-selected .node-shell-header {
-  background: color-mix(in oklch, var(--node-accent) 14%, var(--node-card-selected-header-bg));
-  border-bottom-color: color-mix(in oklch, var(--node-accent) 40%, var(--node-border));
+  background: color-mix(in srgb, var(--node-accent) 10%, var(--node-header-surface));
+  border-bottom-color: color-mix(in srgb, var(--node-accent) 42%, var(--node-border));
 }
 
 .node-shell-muted .node-shell-body {
@@ -1451,13 +1478,19 @@
 
 .node-canvas-toolbar {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   z-index: var(--z-toolbar);
   display: flex;
-  max-width: calc(100% - 24px);
+  max-width: calc(100% - 28px);
   align-items: flex-start;
-  gap: 10px;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid color-mix(in oklch, var(--node-border-strong) 78%, transparent);
+  background: color-mix(in oklch, var(--node-bg) 86%, var(--node-surface));
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--node-bg) 90%, transparent),
+    0 12px 0 color-mix(in oklch, var(--node-bg) 24%, transparent);
   pointer-events: none;
 }
 
@@ -1467,24 +1500,28 @@
   flex: 0 0 auto;
   min-height: var(--touch);
   align-items: stretch;
-  border: 1px solid var(--node-border);
-  background: color-mix(in oklch, var(--node-surface) 86%, transparent);
+  border: 0;
+  border-right: 1px solid color-mix(in oklch, var(--node-border) 82%, transparent);
+  background: transparent;
+}
+
+.node-toolbar-group:last-child {
+  border-right: 0;
 }
 
 .node-toolbar-group-build {
-  border-color: color-mix(in oklch, var(--accent) 28%, var(--node-border));
+  background: color-mix(in oklch, var(--accent) 4%, transparent);
 }
 
 .node-toolbar-group-debug {
-  border-color: color-mix(in oklch, var(--node-border) 82%, transparent);
-  opacity: 0.86;
+  opacity: 0.82;
 }
 
 .node-toolbar-group-label {
   display: inline-flex;
   align-items: center;
   padding: 0 10px;
-  border-right: 1px solid var(--node-border);
+  border-right: 1px solid color-mix(in oklch, var(--node-border) 70%, transparent);
   color: var(--node-text-muted);
   font-family: var(--mono);
   font-size: 8px;
@@ -1502,9 +1539,9 @@
   padding: 0 14px;
   border-radius: 0;
   border: 0;
-  border-right: 1px solid var(--node-border);
+  border-right: 1px solid color-mix(in oklch, var(--node-border) 70%, transparent);
   background: transparent;
-  color: var(--node-text);
+  color: color-mix(in oklch, var(--node-text) 92%, var(--node-text-dim));
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -1522,7 +1559,7 @@
 }
 
 .node-canvas-toolbar button:hover {
-  background: var(--node-surface-raised);
+  background: color-mix(in oklch, var(--node-surface-raised) 72%, var(--node-bg));
   color: var(--node-text);
 }
 
