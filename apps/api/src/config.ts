@@ -1,6 +1,7 @@
 export interface ApiConfig {
   port: number;
   webOrigin: string;
+  webOrigins: string[];
   databaseDriver: 'memory' | 'postgres';
   databaseUrl: string;
   queueDriver: 'memory' | 'bullmq';
@@ -62,14 +63,29 @@ function driverUrl(env: NodeJS.ProcessEnv, enabled: boolean, name: string) {
   return enabled ? requiredEnv(env, name) : (env[name] ?? '');
 }
 
+function stringListEnv(env: NodeJS.ProcessEnv, name: string): string[] {
+  return (env[name] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function webOriginsEnv(env: NodeJS.ProcessEnv) {
+  const fallbackOrigin = (env.WEB_ORIGIN ?? 'http://localhost:5173').trim();
+  const origins = stringListEnv(env, 'WEB_ORIGINS');
+  return origins.length > 0 ? origins : [fallbackOrigin];
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const assetStorageDriver = enumEnv(env, 'ASSET_STORAGE_DRIVER', 'local', ['local', 's3'], 'local or s3');
   const databaseDriver = enumEnv(env, 'API_DATABASE_DRIVER', 'memory', ['memory', 'postgres'], 'memory or postgres');
   const queueDriver = enumEnv(env, 'API_QUEUE_DRIVER', 'memory', ['memory', 'bullmq'], 'memory or bullmq');
+  const webOrigins = webOriginsEnv(env);
 
   return {
     port: numberEnv(env, 'PORT', 4000),
-    webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
+    webOrigin: webOrigins[0] ?? 'http://localhost:5173',
+    webOrigins,
     databaseDriver,
     databaseUrl: driverUrl(env, databaseDriver === 'postgres', 'DATABASE_URL'),
     queueDriver,
