@@ -342,7 +342,7 @@ export const LayerRow = memo(function LayerRow({
         onStartEditing(layer.id);
       }}
       tabIndex={0}
-      className={`layer-row px-3 min-h-[52px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      className={`layer-row px-3 min-h-[64px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
       <LayerDragHandle layer={layer} onDragStart={onDragStart} />
       <LayerKindBadge layer={layer} />

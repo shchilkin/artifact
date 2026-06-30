@@ -27,7 +27,7 @@
   --line-strong: var(--token-ink-6);
   --text-primary: var(--token-ash-1);
   --text-secondary: var(--token-ash-2);
-  --text-muted: var(--token-ash-3);
+  --text-muted: oklch(55% 0.018 68);
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(74% 0.17 152);
@@ -41,18 +41,18 @@
   --brand-mark-shadow: color-mix(in oklch, var(--accent-primary) 24%, transparent);
 
   /* Reusable editor controls. */
-  --control-h-compact: 32px;
+  --control-h-compact: 38px;
   --control-h-default: 44px;
   --control-h-large: 52px;
   --control-pad-x-compact: 10px;
   --control-pad-x-default: 16px;
   --control-radius: 0;
-  --control-font-size-xs: 10px;
-  --control-font-size-sm: 11px;
-  --control-font-size-md: 12px;
-  --control-letter-spacing: 0.12em;
-  --row-h-compact: 36px;
-  --row-h-default: 44px;
+  --control-font-size-xs: 11px;
+  --control-font-size-sm: 12px;
+  --control-font-size-md: 13px;
+  --control-letter-spacing: 0.08em;
+  --row-h-compact: 42px;
+  --row-h-default: 52px;
   --focus-ring: 2px solid var(--accent-primary);
   --focus-ring-offset: 3px;
   --state-danger: oklch(66% 0.18 28);
@@ -117,17 +117,17 @@
 
   /* Editor surfaces. */
   --editor-canvas-bg: oklch(8.8% 0.013 42);
-  --editor-grid-dot: oklch(22% 0.014 42 / 0.48);
+  --editor-grid-dot: oklch(34% 0.022 218 / 0.58);
   --editor-selection-outline: color-mix(in oklch, var(--accent-primary) 70%, var(--line-strong));
   --editor-output-path: var(--accent-output);
 
   /* Node cards: default nodes must separate from canvas before selection. */
-  --node-card-bg: oklch(13.8% 0.017 42);
-  --node-card-bg-hover: oklch(16.5% 0.02 42);
-  --node-card-header-bg: oklch(11% 0.015 42);
-  --node-card-border: oklch(34% 0.024 42);
-  --node-card-border-soft: oklch(24% 0.018 42);
-  --node-card-outline: oklch(18% 0.018 42);
+  --node-card-bg: oklch(14.8% 0.018 42);
+  --node-card-bg-hover: oklch(17.5% 0.022 42);
+  --node-card-header-bg: oklch(12.2% 0.016 42);
+  --node-card-border: oklch(38% 0.028 42);
+  --node-card-border-soft: oklch(27% 0.02 42);
+  --node-card-outline: oklch(21% 0.02 42);
   --node-card-selected-bg: oklch(16% 0.028 36);
   --node-card-selected-header-bg: oklch(18% 0.034 36);
   --node-handle-idle: var(--accent-signal);
