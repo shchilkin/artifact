@@ -56,6 +56,11 @@ so do not set `DATABASE_URL` or `REDIS_URL` manually for this first setup. Set
 `POSTGRES_PASSWORD` instead, and optionally override `POSTGRES_DB` /
 `POSTGRES_USER` if needed.
 
+Redis uses append-only file persistence for BullMQ state and disables RDB
+snapshots in the Coolify compose file. If Redis logs `MISCONF ... unable to
+persist to disk`, redeploy the current compose config before investigating queue
+workers; old containers may still have the default RDB snapshot settings.
+
 Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
 `bull-board` only behind an admin-only domain or Coolify protection; it is an
 operator surface, not a public app feature.
