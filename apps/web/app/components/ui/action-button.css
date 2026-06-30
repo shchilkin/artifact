@@ -8,6 +8,7 @@
   justify-content: center;
   gap: 10px;
   border: 1px solid var(--line-default);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;

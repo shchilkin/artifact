@@ -115,9 +115,23 @@ test('v0.30 blank editor keeps the empty start and layer shell visually readable
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.sidebar')).toBeVisible();
   await expect(page.locator('.sidebar .layer-row')).toHaveCount(0);
+  await expect(page.locator('.editor-chrome-status')).toHaveCount(0);
+  await expect(page.locator('.canvas-aspect-controls')).toHaveCount(0);
+  await expect(page.getByText('Local draft')).toHaveCount(0);
 
   await assertReadableBox(page.locator('.empty-canvas-start'), { minWidth: 240, minHeight: 140 });
   await assertReadableBox(page.locator('.sidebar'), { minWidth: 250, minHeight: 420 });
+
+  await page.getByRole('button', { name: /change canvas aspect ratio/i }).click();
+  await page.getByRole('menuitem', { name: /4:5.*Portrait/i }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.global?.aspect;
+      }),
+    )
+    .toBe('4:5');
 
   const menu = await openLayerAddLibraryMenu(page);
   await expect(page.getByLabel('Search layers and effects')).toBeVisible();
@@ -290,6 +304,8 @@ test('v0.30 layers baseline preserves selected hidden locked and preview states'
   const hiddenRow = page.locator('.layer-row').filter({ hasText: 'Hidden wash' }).first();
   const lockedRow = page.locator('.layer-row').filter({ hasText: 'Locked ink' }).first();
 
+  await expect(page.locator('.layer-row-meta-state-visible')).toHaveCount(0);
+  await expect(hiddenRow.locator('.layer-row-meta-state-hidden')).toContainText('hidden');
   await expect(hiddenRow).toHaveAttribute('data-layer-visible', 'false');
   await expect(lockedRow).toHaveAttribute('data-layer-locked', 'true');
   await expect(lockedRow.locator('.layer-lock-badge')).toContainText('lock');
@@ -297,7 +313,7 @@ test('v0.30 layers baseline preserves selected hidden locked and preview states'
   await hiddenRow.click();
   await expect(hiddenRow).toHaveClass(/layer-row-selected/);
   await expect(hiddenRow).toHaveClass(/layer-row-hidden/);
-  await expect(page.locator('.sidebar-sections .editor-target-header').first()).toContainText('Hidden');
+  await expect(page.locator('.layer-inspector-drawer .editor-target-header').first()).toContainText('Hidden');
 
   await lockedRow.click();
   await expect(lockedRow).toHaveClass(/layer-row-selected/);
@@ -310,14 +326,18 @@ test('v0.30 layers baseline preserves selected hidden locked and preview states'
   await expect(lockedLayerMenu).toBeVisible();
   await expect(lockedLayerMenu.getByRole('menuitem', { name: 'Delete locked' })).toBeDisabled();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.sidebar-sections .editor-target-header').first()).toContainText('Locked');
+  await expect(page.locator('.layer-inspector-drawer .editor-target-header').first()).toContainText('Locked');
 
   const visualStates = await page.evaluate(() => {
+    const list = document.querySelector('.layer-panel-list');
+    const firstRow = document.querySelector('.layer-row');
     const selected = document.querySelector('.layer-row-selected');
     const hidden = document.querySelector('.layer-row-hidden');
     const locked = document.querySelector('.layer-row-locked');
     const name = hidden?.querySelector('.layer-row-name');
     return {
+      listBg: list ? getComputedStyle(list).background : '',
+      firstRowBorder: firstRow ? getComputedStyle(firstRow).borderBottomColor : '',
       selectedShadow: selected ? getComputedStyle(selected).boxShadow : '',
       hiddenOpacity: hidden ? Number(getComputedStyle(hidden).opacity) : 1,
       hiddenDecoration: name ? getComputedStyle(name).textDecorationLine : '',
@@ -328,6 +348,8 @@ test('v0.30 layers baseline preserves selected hidden locked and preview states'
     };
   });
 
+  expect(visualStates.listBg).not.toBe('');
+  expect(visualStates.firstRowBorder).not.toBe('rgba(0, 0, 0, 0)');
   expect(visualStates.selectedShadow).not.toBe('none');
   expect(visualStates.hiddenOpacity).toBeLessThan(0.9);
   expect(visualStates.hiddenDecoration).toContain('line-through');
@@ -491,7 +513,7 @@ function expectEditorBottomActionsInsideViewport(
 
 function expectSingleRowNodeBottomRail(layout: Awaited<ReturnType<typeof readNodeBottomRailLayout>>) {
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  expect(layout.bar.width).toBeGreaterThan(560);
+  expect(layout.bar.width).toBeGreaterThan(360);
   expect(layout.bar.height).toBeLessThanOrEqual(64);
   expect(layout.bar.left).toBeGreaterThanOrEqual(0);
   expect(layout.bar.right).toBeLessThanOrEqual(layout.viewportWidth + 1);

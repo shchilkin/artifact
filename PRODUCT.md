@@ -47,6 +47,15 @@ Artifact has two editing modes with different jobs:
 - **Nodes** are for advanced work: branching, merging, effect chains, reusable
   procedural sources, and precise output structure.
 
+The node canvas is not a decorative diagram. It is the user's map of the
+composition. Node category color is product information: fill, image, text,
+emoji, effect, primitive, noise, array, merge, color, and export nodes should
+remain distinguishable by color in node frames, handles, badges, selection, and
+focus. Selection must resolve to the selected node's category color, not to a
+global red/orange accent. The output path should read as a route through the
+graph; category color identifies the node, output color identifies the active
+result path.
+
 Both modes must operate on one document. If a user organizes a composition in
 nodes, the layer view should not become misleading; grouping, folders, or graph
 areas should help the layer view respect the node structure instead of showing a
@@ -74,6 +83,13 @@ configuration copy, and anything that makes the editor feel like a corporate
 content tool. The editor chrome should stay direct, compact, creative, dark,
 print-like, mono, and low-chrome. Its menus should behave like fast
 command/library palettes, not like SaaS settings catalogs.
+
+Visual legibility is a product feature. The editor canvas may be dark and
+print-like, but it cannot be muddy: grid dots, graph edges, node boundaries,
+selected states, focus rings, hidden/muted states, and output-path states must
+remain readable at normal zoom without requiring the user to squint or hover.
+If a visual direction makes the graph feel atmospheric but harder to parse, the
+direction loses.
 
 ## Brand Personality
 
@@ -105,6 +121,7 @@ experimental, polished, deliberate, layered, editable, or export-ready.
 3. **Mobile is the first canvas.** This tool is used in moments — between ideas, on the go. Pocket-first layout is not an afterthought; it's the primary constraint.
 4. **The seed is identity.** The seed number is a creative artifact — a serial number for a piece of art. It should be treated with weight, not as a form field.
 5. **Honest materials.** Monospace, raw borders, no decorative chrome. Craft is in the composition. The UI doesn't perform aesthetics — it enables them.
+6. **Graph color is grammar.** Category color, output-path color, and selection color each carry different meaning. Do not collapse them into one global accent.
 
 ## Accessibility & Inclusion
 

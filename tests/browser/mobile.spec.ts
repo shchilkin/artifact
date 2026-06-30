@@ -117,14 +117,10 @@ test('mobile layer add menu stays inside the viewport', async ({ page }) => {
   await expectFloatingMenuInsideViewport(menu);
 });
 
-test('mobile quick add menu stays inside the viewport', async ({ page }) => {
+test('mobile layer rows keep insert controls out of row actions', async ({ page }) => {
   await openLayeredFillDocument(page);
   const firstRow = await hoverFirstLayerRow(page);
-  await firstRow.getByRole('button', { name: /Insert layer above/ }).click();
-  const menu = page.locator('.add-library-layer-quick-menu');
-  await expect(menu).toBeVisible({ timeout: 15_000 });
-
-  await expectFloatingMenuInsideViewport(menu);
+  await expect(firstRow.getByRole('button', { name: /Insert layer above/ })).toHaveCount(0);
 });
 
 async function openLayeredFillDocument(page: Page) {

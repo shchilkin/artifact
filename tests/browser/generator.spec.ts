@@ -323,6 +323,65 @@ const areaMergeDocument = {
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };
+const categoryColorNodeDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 33, aspect: '1:1' },
+  layers: [
+    {
+      id: 'category-emoji',
+      name: 'Emoji source',
+      visible: true,
+      locked: false,
+      kind: 'emoji',
+      emojis: ['😂', '😭', '💔', '💀'],
+      density: 22,
+      minSz: 28,
+      maxSz: 64,
+      blur: 0,
+      seedOffset: 0,
+      opacity: 100,
+      blendMode: 'normal',
+    },
+    {
+      id: 'category-rays',
+      name: 'Rays effect',
+      visible: true,
+      locked: false,
+      kind: 'effect',
+      preset: 'rays',
+      rays: 12,
+      rayInt: 60,
+      rayColor: '#bb00ff',
+      seedOffset: 0,
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'e-category-emoji-rays',
+        fromId: 'category-emoji',
+        fromPort: 'out',
+        toId: 'category-rays',
+        toPort: 'in',
+      },
+      {
+        id: 'e-category-rays-export',
+        fromId: 'category-rays',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'category-emoji': { x: 0, y: 80 },
+      'category-rays': { x: 420, y: 80 },
+      __export__: { x: 840, y: 80 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 const areaExtendDocument = {
   schemaVersion: 1,
   global: { bg: '#101018', seed: 7, aspect: '16:9' },
@@ -1036,13 +1095,13 @@ function readBrowserFontFixture() {
 
 async function importPortableFontForLayer(page: Page, layerName = 'Portable Type') {
   await page.locator('.layer-row').filter({ hasText: layerName }).first().click();
-  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.locator('.layer-inspector-drawer .font-picker-trigger').click();
   await page.getByLabel('Import font').setInputFiles({
     name: 'Portable Poster.ttf',
     mimeType: 'font/ttf',
     buffer: readBrowserFontFixture(),
   });
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Portable Poster');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Portable Poster');
 }
 
 async function expectPortableRefsStored(page: Page) {
@@ -1098,10 +1157,10 @@ async function expectNodeViewHasNodes(page: Page) {
 }
 
 async function choosePixelFont(page: Page) {
-  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.locator('.layer-inspector-drawer .font-picker-trigger').click();
   await page.getByLabel('Search fonts').fill('pixel');
   await page.getByRole('button', { name: /Press Start \/ arcade pixel/ }).click();
-  await expect(page.locator('.sidebar')).toContainText('Press Start / arcade pixel');
+  await expect(page.locator('.layer-inspector-drawer')).toContainText('Press Start / arcade pixel');
 }
 
 async function expectPortableTypeReady(page: Page, options: { refs?: boolean; outputNode?: boolean } = {}) {
@@ -1117,7 +1176,7 @@ async function expectPortableTypeReady(page: Page, options: { refs?: boolean; ou
 async function expectMissingFontLayerVisible(page: Page) {
   await page.locator('.layer-row').filter({ hasText: 'Missing Font Type' }).click();
   await expectLayerCanvasToHavePixels(page);
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Missing imported font');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Missing imported font');
 }
 
 async function startBlankEditor(page: Page) {
@@ -1180,6 +1239,106 @@ async function selectFirstNodeByKind(page: Page, kind: string) {
   await expect(node).toBeVisible({ timeout: 15_000 });
   await node.click();
   return node;
+}
+
+async function clickGraphEdges(page: Page, count: number) {
+  const edges = page.locator('.react-flow__edge-path');
+  await expect.poll(async () => (await edges.first().boundingBox()) !== null, { timeout: 15_000 }).toBe(true);
+  const edgeCount = await edges.count();
+  for (let index = 0; index < Math.min(count, edgeCount); index += 1) {
+    await edges.nth(index).click({ force: true });
+  }
+}
+
+async function waitForOutputEdgeVisualContract(page: Page) {
+  const readOutputEdge = () =>
+    page
+      .locator('.react-flow__edge.node-edge-output-path .react-flow__edge-path')
+      .first()
+      .evaluate((edge) => {
+        const style = getComputedStyle(edge);
+        return {
+          opacity: Number(style.opacity),
+          stroke: style.stroke,
+          strokeWidth: Number.parseFloat(style.strokeWidth),
+          selectionColor: style.getPropertyValue('--node-edge-selection-color').trim(),
+        };
+      });
+  await expect.poll(async () => (await readOutputEdge()).opacity, { timeout: 2_000 }).toBeGreaterThanOrEqual(0.75);
+  return readOutputEdge();
+}
+
+async function readSelectedNodeColorContract(node: Locator) {
+  return node.evaluate((element) => {
+    const firstColorToken = (value: string) => {
+      const start = value.search(/(?:color|oklab|oklch|rgb|rgba)\(/);
+      if (start < 0) return '';
+      let depth = 0;
+      for (let index = start; index < value.length; index += 1) {
+        if (value[index] === '(') depth += 1;
+        if (value[index] === ')') {
+          depth -= 1;
+          if (depth === 0) return value.slice(start, index + 1);
+        }
+      }
+      return '';
+    };
+    const resolveColorString = (color: string) => {
+      const probe = document.createElement('span');
+      probe.style.color = color;
+      document.body.append(probe);
+      const resolved = getComputedStyle(probe).color;
+      probe.remove();
+      return resolved;
+    };
+    const shell = element as HTMLElement;
+    const shellStyle = getComputedStyle(shell);
+    const accent = resolveColorString(shellStyle.getPropertyValue('--node-accent').trim());
+    const shadow = shellStyle.boxShadow;
+    const shadowAccent = firstColorToken(shadow);
+    const rail = shell.querySelector('.node-shell-accent');
+    return {
+      accent,
+      border: shellStyle.borderColor,
+      outline: shellStyle.outlineColor,
+      shadow: shellStyle.boxShadow,
+      shadowAccent: resolveColorString(shadowAccent),
+      rail: rail ? getComputedStyle(rail).backgroundColor : '',
+    };
+  });
+}
+
+async function waitForSelectedNodeColorContract(node: Locator) {
+  await expect
+    .poll(async () => nodeSelectionUsesAccent(await readSelectedNodeColorContract(node)), { timeout: 2_000 })
+    .toBe(true);
+  const selection = await readSelectedNodeColorContract(node);
+  expectNodeSelectionUsesAccent(selection);
+  return selection;
+}
+
+function expectNodeSelectionUsesAccent(selection: Awaited<ReturnType<typeof readSelectedNodeColorContract>>) {
+  expect(selection.accent).not.toBe('');
+  expect(selection.border).toBe(selection.accent);
+  expect(selection.outline).toBe(selection.accent);
+  expect(selection.rail).toBe(selection.accent);
+  expect(selection.shadowAccent).toBe(selection.accent);
+  expect(selection.shadow).not.toBe('none');
+  expect(selection.shadow).toContain('0px 0px 0px 2px');
+  expect(selection.shadow).toContain('0px 0px 0px 7px');
+}
+
+function nodeSelectionUsesAccent(selection: Awaited<ReturnType<typeof readSelectedNodeColorContract>>) {
+  return (
+    selection.accent !== '' &&
+    selection.border === selection.accent &&
+    selection.outline === selection.accent &&
+    selection.rail === selection.accent &&
+    selection.shadowAccent === selection.accent &&
+    selection.shadow !== 'none' &&
+    selection.shadow.includes('0px 0px 0px 2px') &&
+    selection.shadow.includes('0px 0px 0px 7px')
+  );
 }
 
 async function dragMouseFromBoxCenter(
@@ -1407,6 +1566,36 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
   expect(stateStyles.perfActiveShadow).not.toBe('none');
 });
 
+test('node canvas keeps category-colored selection and stable output path visuals', async ({ page }) => {
+  await gotoDocument(page, categoryColorNodeDocument);
+  await switchToNodeView(page);
+
+  const emojiNode = page.locator('.node-shell-kind-emoji').first();
+  const effectNode = page.locator('.node-shell-kind-effect').first();
+  await expect(emojiNode).toBeVisible({ timeout: 15_000 });
+  await expect(effectNode).toBeVisible({ timeout: 15_000 });
+
+  await emojiNode.click();
+  await expect(emojiNode).toHaveClass(/node-shell-selected/);
+  const emojiSelection = await waitForSelectedNodeColorContract(emojiNode);
+
+  await effectNode.click();
+  await expect(effectNode).toHaveClass(/node-shell-selected/);
+  const effectSelection = await waitForSelectedNodeColorContract(effectNode);
+
+  expect(emojiSelection.accent).not.toBe(effectSelection.accent);
+
+  await clickGraphEdges(page, 6);
+  await expect(page.locator('body')).not.toContainText('Maximum update depth exceeded');
+
+  const outputEdge = await waitForOutputEdgeVisualContract(page);
+  expect(outputEdge.opacity).toBeGreaterThanOrEqual(0.75);
+  expect(outputEdge.stroke).not.toBe('');
+  expect(outputEdge.stroke).not.toBe('none');
+  expect(outputEdge.strokeWidth).toBeGreaterThanOrEqual(2);
+  expect(outputEdge.selectionColor).not.toBe('');
+});
+
 test('node graph highlights the active output path and exposes output navigation', async ({ page }) => {
   await gotoDocument(page, graphPreviewDocument);
   await switchToNodeView(page);
@@ -1443,7 +1632,9 @@ test('node graph highlights the active output path and exposes output navigation
     )
     .toBe(true);
 
-  await clickEditorControl(page.getByRole('button', { name: 'Fit output path' }));
+  await expect(page.getByRole('button', { name: 'Fit output path' })).toHaveCount(0);
+  await expect(page.locator('.react-flow__controls')).toBeVisible();
+  await expect(page.locator('.react-flow__controls-button')).toHaveCount(3);
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
 });
 
@@ -1464,11 +1655,12 @@ test('layer properties show the active editing target and hidden state', async (
   await topFillRow.click();
   await hideLayerFromRowMenu(page, topFillRow);
 
-  const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
-  await expect(targetHeader).toContainText('Layers / Source');
+  const targetHeader = page.locator('.layer-inspector-drawer .editor-target-header').first();
   await expect(targetHeader).toContainText('Top fill');
-  await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).toContainText('Hidden');
+  await expect(targetHeader).not.toContainText('Layers / Source');
+  await expect(targetHeader).not.toContainText('Layer 2/2');
+  await expect(targetHeader).not.toContainText('Visible');
 });
 
 test('locked layer surfaces status and blocks row deletion', async ({ page }) => {
@@ -1484,9 +1676,9 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
 
   await expect(topFillRow).toHaveAttribute('data-layer-locked', 'true');
   await expect(topFillRow.locator('.layer-lock-badge')).toContainText('lock');
-  const targetHeader = page.locator('.sidebar-sections .editor-target-header').first();
+  const targetHeader = page.locator('.layer-inspector-drawer .editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
-  await expect(targetHeader).toContainText('Layer 2/2');
+  await expect(targetHeader).not.toContainText('Layer 2/2');
 
   const actionsMenu = await openLayerRowActions(page, topFillRow);
   await expect(actionsMenu.getByRole('menuitem', { name: 'Delete locked' })).toBeDisabled();
@@ -1533,35 +1725,59 @@ test('layer rows expose rename duplicate visibility and delete actions', async (
   await expect(page.locator('.layer-row')).toHaveCount(2);
 });
 
-test('layer rows can quick-add a layer above the current row', async ({ page }) => {
+test('selected layer name enters inline rename on click', async ({ page }) => {
   await gotoDocument(page, layeredFillDocument);
 
-  await insertLayerAbove(page, 'Top fill', /^Grain$/);
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
+  await topFillRow.click();
+  await topFillRow.locator('.layer-row-name').click();
+
+  const renameInput = page.getByRole('textbox', { name: /Rename layer Top fill/ });
+  await expect(renameInput).toBeVisible();
+  await renameInput.fill('Inline Cover');
+  await renameInput.press('Enter');
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Inline Cover' })).toHaveCount(1);
+  await expectStoredLayerField(page, { key: 'name', value: 'Inline Cover' }, 'name', 'Inline Cover');
+});
+
+test('layers use the Artifact UI font instead of system UI', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
+  await topFillRow.click();
+
+  const fontFamilies = await page.evaluate(() => {
+    const readFamily = (selector: string) => {
+      const element = document.querySelector(selector);
+      return element ? getComputedStyle(element).fontFamily : '';
+    };
+    return {
+      rowName: readFamily('.layer-row-selected .layer-row-name'),
+      targetTitle: readFamily('.layer-inspector-drawer .editor-target-header__title'),
+      documentBody: getComputedStyle(document.body).fontFamily,
+    };
+  });
+
+  expect(fontFamilies.rowName).toContain('Barlow Condensed');
+  expect(fontFamilies.targetTitle).toContain('Barlow Condensed');
+  expect(fontFamilies.documentBody).toContain('Barlow Condensed');
+  expect(fontFamilies.rowName).not.toContain('system-ui');
+  expect(fontFamilies.targetTitle).not.toContain('system-ui');
+});
+
+test('layer rows keep add actions in the panel header', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
+  await topFillRow.hover();
+  await expect(topFillRow.getByRole('button', { name: /Insert layer above/ })).toHaveCount(0);
+
+  await addLayerFromHeader(page, /^Grain$/);
 
   await expect(page.locator('.layer-row').filter({ hasText: 'Grain' })).toHaveCount(1, { timeout: 15_000 });
   await expectStoredLayerSummaries(page, [
     { name: 'Bottom fill', kind: 'fill' },
-    { name: 'Top fill', kind: 'fill' },
-    { name: 'Grain', kind: 'effect' },
-  ]);
-
-  await insertSourceLayerAbove(page, 'Bottom fill', /^AI Image$/);
-
-  await expect(page.locator('.layer-row').filter({ hasText: 'AI Image' })).toHaveCount(1, { timeout: 15_000 });
-  await expectStoredLayerSummaries(page, [
-    { name: 'Bottom fill', kind: 'fill' },
-    { name: 'AI Image', kind: 'image' },
-    { name: 'Top fill', kind: 'fill' },
-    { name: 'Grain', kind: 'effect' },
-  ]);
-
-  await insertSourceLayerAbove(page, 'Bottom fill', /^Array$/);
-
-  await expect(page.locator('.layer-row').filter({ hasText: 'Array' })).toHaveCount(1, { timeout: 15_000 });
-  await expectStoredLayerSummaries(page, [
-    { name: 'Bottom fill', kind: 'fill' },
-    { name: 'Array', kind: 'array' },
-    { name: 'AI Image', kind: 'image' },
     { name: 'Top fill', kind: 'fill' },
     { name: 'Grain', kind: 'effect' },
   ]);
@@ -1639,16 +1855,16 @@ test('layer add library shows source previews and can add source presets', async
   await expectLayerCanvasToHavePixels(page);
 });
 
-test('layers can quick-add Pixelate with formatted creative controls', async ({ page }) => {
+test('layers can add Pixelate with formatted creative controls', async ({ page }) => {
   await gotoDocument(page, layeredFillDocument);
 
-  await insertLayerAbove(page, 'Top fill', /^Pixelate$/);
+  await addLayerFromHeader(page, /^Pixelate$/);
 
   const pixelateRow = page.locator('.layer-row').filter({ hasText: 'Pixelate' }).first();
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
   await pixelateRow.click();
-  await expect(page.locator('.sidebar')).toContainText('Block Size');
-  await expect(page.locator('.sidebar .node-inspector-value')).toContainText('6px');
+  await expect(page.locator('.layer-inspector-drawer')).toContainText('Block Size');
+  await expect(page.locator('.layer-inspector-drawer .node-inspector-value')).toContainText('6px');
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -1656,8 +1872,8 @@ test('layers can add title text starts with readable font controls', async ({ pa
   await gotoDocument(page, layeredFillDocument);
 
   await addTitleTypeLayer(page);
-  await expect(page.locator('.sidebar')).toContainText('Archivo Black / dense cover');
-  await expect(page.locator('.sidebar')).toContainText('TITLE');
+  await expect(page.locator('.layer-inspector-drawer')).toContainText('Archivo Black / dense cover');
+  await expect(page.locator('.layer-inspector-drawer')).toContainText('TITLE');
   await choosePixelFont(page);
   await expectLayerCanvasToHavePixels(page);
 
@@ -1669,15 +1885,15 @@ test('layers can import a local font through the shared font picker', async ({ p
   await gotoDocument(page, layeredFillDocument);
 
   await addTitleTypeLayer(page);
-  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.locator('.layer-inspector-drawer .font-picker-trigger').click();
   await page.getByLabel('Import font').setInputFiles({
     name: 'Local Poster.ttf',
     mimeType: 'font/ttf',
     buffer: readBrowserFontFixture(),
   });
 
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Imported');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Local Poster');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Imported');
   await expectLayerCanvasToHavePixels(page);
 
   const importedLayer = await getStoredLayerBy(page, 'name', 'Title Type');
@@ -1685,9 +1901,9 @@ test('layers can import a local font through the shared font picker', async ({ p
 
   await page.reload();
   await page.locator('.layer-row').filter({ hasText: 'Title Type' }).first().click();
-  await page.locator('.sidebar .font-picker-trigger').click();
-  await page.locator('.sidebar .font-picker-option').filter({ hasText: 'Local Poster' }).click();
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Local Poster');
+  await page.locator('.layer-inspector-drawer .font-picker-trigger').click();
+  await page.locator('.layer-inspector-drawer .font-picker-option').filter({ hasText: 'Local Poster' }).click();
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Local Poster');
 });
 
 test('layers can import a Google font with license-aware package metadata', async ({ page }, testInfo) => {
@@ -1714,12 +1930,12 @@ test('layers can import a Google font with license-aware package metadata', asyn
 
   await gotoDocument(page, layeredFillDocument);
   await addTitleTypeLayer(page);
-  await page.locator('.sidebar .font-picker-trigger').click();
+  await page.locator('.layer-inspector-drawer .font-picker-trigger').click();
   await page.getByLabel('Import Google font').fill('Mock Google');
-  await page.locator('.sidebar .font-picker-google-action').click();
+  await page.locator('.layer-inspector-drawer .font-picker-google-action').click();
 
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Mock Google');
-  await expect(page.locator('.sidebar .font-picker-trigger')).toContainText('Google');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Mock Google');
+  await expect(page.locator('.layer-inspector-drawer .font-picker-trigger')).toContainText('Google');
   await expectLayerCanvasToHavePixels(page);
 
   const { json: projectPackage } = await downloadJsonFromButton(page, 'Save editable project package');
@@ -2045,12 +2261,37 @@ test('layer preview follows graph output when unconnected layers exist', async (
 
 test('node properties show whether the selected target feeds output', async ({ page }) => {
   await selectUnconnectedTopFillNode(page);
-  const targetHeader = page.locator('.node-props-panel .editor-target-header').first();
+  const nodePropsPanel = page.locator('.node-props-panel-open');
+  const targetOverview = nodePropsPanel.locator('.node-target-overview').first();
+  const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(targetOverview).toHaveClass(/node-target-overview-source/);
+  await expect(targetOverview.getByLabel('Toggle node delete lock')).toBeVisible();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
   await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).toContainText('Not in output');
   await expect(targetHeader).toContainText('Off output path');
+
+  const controlSurfaceStyles = await nodePropsPanel.evaluate((panel) => {
+    const read = (element: Element | null) => {
+      if (!element) return null;
+      const styles = getComputedStyle(element);
+      return {
+        background: styles.backgroundColor,
+        border: styles.borderColor,
+      };
+    };
+    return {
+      panel: read(panel),
+      section: read(panel.querySelector('.node-inspector-section-open')),
+      control: read(panel.querySelector('.node-inspector-control, .node-inspector-row, .node-inspector-toggle')),
+      summary: read(panel.querySelector('.node-inspector-section-summary')),
+    };
+  });
+  expect(controlSurfaceStyles.section?.background).toBeTruthy();
+  expect(controlSurfaceStyles.section?.background).not.toBe(controlSurfaceStyles.panel?.background);
+  expect(controlSurfaceStyles.control?.border).toBeTruthy();
+  expect(controlSurfaceStyles.summary?.background).toBeTruthy();
 });
 
 test('locked node target stays in the graph when delete is pressed', async ({ page }) => {
@@ -2094,6 +2335,7 @@ test('graph-only utility properties show area and output context without lock co
 
   const nodePropsPanel = page.locator('.node-props-panel-open');
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
+  await expect(nodePropsPanel.locator('.node-target-overview').first()).toHaveClass(/node-target-overview-utility/);
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
@@ -2570,13 +2812,44 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await page.goto('/app?new=blank');
   await switchToNodeView(page);
   await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
+  const intentRail = page.locator('.add-library-intents');
   const recipeRail = page.locator('.add-library-recipes');
   const nodeAddRowByLabel = (label: RegExp) =>
     page.locator('.nadd-row').filter({ has: page.locator('.nadd-row-label', { hasText: label }) });
 
+  await expect(intentRail.getByRole('button', { name: 'Sources' })).toBeVisible();
+  await expect(intentRail.getByRole('button', { name: 'Effects' })).toBeVisible();
+  await expect(intentRail.getByRole('button', { name: 'Structure' })).toBeVisible();
+  await expect(intentRail.getByRole('button', { name: 'Color' })).toBeVisible();
+  await expect(intentRail.getByRole('button', { name: '3D' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
   await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+
+  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveAttribute('data-add-color-kind', 'fill');
+  await expect(nodeAddRowByLabel(/^Text$/)).toHaveAttribute('data-add-color-kind', 'text');
+  await expect(nodeAddRowByLabel(/^Pixelate$/)).toHaveAttribute('data-add-color-kind', 'effect');
+  const addLibraryColors = await page.evaluate(() => {
+    const rowSymbolColor = (label: string) => {
+      const rows = [...document.querySelectorAll('.add-library-node-menu .add-library-row')];
+      const row = rows.find((candidate) => candidate.querySelector('.add-library-row-label')?.textContent === label);
+      const symbol = row?.querySelector('.add-library-row-symbol');
+      return symbol ? getComputedStyle(symbol).color : '';
+    };
+    return {
+      fill: rowSymbolColor('Fill'),
+      text: rowSymbolColor('Text'),
+      pixelate: rowSymbolColor('Pixelate'),
+    };
+  });
+  expect(addLibraryColors.fill).not.toBe('');
+  expect(addLibraryColors.text).not.toBe(addLibraryColors.fill);
+  expect(addLibraryColors.pixelate).not.toBe(addLibraryColors.fill);
+
+  await clickEditorControl(intentRail.getByRole('button', { name: 'Effects' }));
+  await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
+  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
+  await clickEditorControl(intentRail.getByRole('button', { name: /^All$/ }));
 
   await clickEditorControl(page.getByRole('button', { name: /^Tone$/ }));
   await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
@@ -2597,6 +2870,7 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
 
   await page.getByLabel('Search nodes and effects').fill('split tone');
   await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.add-library-detail-result')).toContainText('Adds effect');
   await expect(page.locator('.add-library-tags')).toContainText('photo');
 });
 
@@ -3604,7 +3878,7 @@ async function openExistingAiImageNodePanel(page: Page) {
 async function generateAiImageFromSidebar(page: Page, prompt: string) {
   await page.goto('/app?new=blank');
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
-  const panel = page.locator('.sidebar .ai-generation-panel').first();
+  const panel = page.locator('.layer-inspector-drawer .ai-generation-panel').first();
   await expect(panel.locator('[data-ai-generation-prompt]')).toBeVisible({ timeout: 15_000 });
   await panel.locator('[data-ai-generation-prompt]').fill(prompt);
   await panel.getByRole('button', { name: 'Generate' }).click();
@@ -3970,37 +4244,23 @@ async function expectStoredStarterDocument(
 }
 
 async function addTitleTypeLayer(page: Page) {
-  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
-  const search = page.getByLabel('Search layers and effects');
-  await expect(search).toBeVisible({ timeout: 15_000 });
-  await search.fill('headline');
-  await page.getByRole('button', { name: /^T Title Type/ }).click();
+  await addLayerFromHeader(page, /^Title Type$/, 'headline');
   const titleRow = page.locator('.layer-row').filter({ hasText: 'Title Type' }).first();
   await expect(titleRow).toBeVisible({ timeout: 15_000 });
   await titleRow.click();
   return titleRow;
 }
 
-async function insertLayerAbove(page: Page, targetLayerText: string, addLibraryLabel: RegExp) {
-  const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
-  await expect(targetRow).toBeVisible({ timeout: 15_000 });
-  await targetRow.hover();
-  await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
+async function addLayerFromHeader(page: Page, addLibraryLabel: RegExp, searchText?: string) {
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  if (searchText) {
+    const search = page.getByLabel('Search layers and effects');
+    await expect(search).toBeVisible({ timeout: 15_000 });
+    await search.fill(searchText);
+  }
   await page
     .locator('.add-library-row')
     .filter({ has: page.locator('.add-library-row-label', { hasText: addLibraryLabel }) })
-    .click();
-}
-
-async function insertSourceLayerAbove(page: Page, targetLayerText: string, label: RegExp) {
-  const targetRow = page.locator('.layer-row').filter({ hasText: targetLayerText }).first();
-  await targetRow.hover();
-  await targetRow.getByRole('button', { name: new RegExp(`Insert layer above ${targetLayerText}`) }).click();
-  const quickMenu = page.locator('.add-library-layer-quick-menu');
-  await quickMenu.getByRole('button', { name: 'Source', exact: true }).click();
-  await quickMenu
-    .locator('.add-library-row')
-    .filter({ has: page.locator('.add-library-row-label', { hasText: label }) })
     .click();
 }
 

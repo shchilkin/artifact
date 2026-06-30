@@ -114,8 +114,51 @@ jobs:
         if: steps.release_files.outputs.should_run == 'true'
         run: npm run release:verify -- --skip-tag-check
 
-  browser:
+  browser-changes:
     runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.browser_files.outputs.should_run }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect browser-relevant changes
+        id: browser_files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base="${{ github.event.pull_request.base.sha }}"
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="origin/${{ github.base_ref }}"
+          fi
+
+          changed="$(git diff --name-only "$base" HEAD || true)"
+          echo "$changed"
+
+          if echo "$changed" | grep -Eq '^(\.github/workflows/ci\.yml|package\.json|package-lock\.json|playwright\.config\.ts|apps/|packages/|tests/browser/)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  browser:
+    needs: browser-changes
+    if: needs.browser-changes.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    name: browser (${{ matrix.project }})
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, mobile-chromium, mobile-webkit]
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
 
@@ -138,13 +181,13 @@ jobs:
       - name: Cross-browser editor smoke tests
         env:
           HOME: /root
-        run: npm run test:browser
+        run: npm run test:browser -- --project=${{ matrix.project }}
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: |
             playwright-report/
             test-results/

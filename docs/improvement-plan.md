@@ -22,6 +22,9 @@ phase should leave the repo in a better state even if later phases change.
   `apps/web/app/utils/render/layers/textureEffects.ts`.
 - `EffectInspector.tsx` is now orchestration over data-driven effect section
   definitions instead of one large repeated control surface.
+- The editor UI overhaul is tracked in [`ui-overhaul.md`](./ui-overhaul.md):
+  node canvas readability, category-color grammar, inspector usability, Add
+  Node / Library flow, Layers/Nodes parity, empty starts, and visual QA.
 
 ## Remaining Work Snapshot
 
@@ -88,6 +91,9 @@ the detailed source of truth.
 
 ### Highest leverage next
 
+- [ ] Advance the editor UI overhaul workstreams in
+  [`docs/ui-overhaul.md`](./ui-overhaul.md), starting with Inspector-as-control
+  surface and Add Node / Library command-palette improvements.
 - [x] Extract history/update behavior from `useEditorDocument.ts` into named
   update modes: `snapshot`, `debounce`, and `silent`.
 - [x] Add pure document-sync tests for undo/redo, graph creation, document

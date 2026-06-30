@@ -188,9 +188,15 @@ These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
 large brittle E2E project.
 
-CI runs the full browser gate inside the official Playwright image that matches
-the locked Playwright version, so Chromium, Firefox, WebKit, and their system
+CI runs the browser gate inside the official Playwright image that matches the
+locked Playwright version, so Chromium, Firefox, WebKit, and their system
 dependencies are already present instead of being installed during every run.
+Pull-request browser coverage is split by Playwright project
+(`chromium`, `firefox`, `webkit`, `mobile-chromium`, and `mobile-webkit`) so the
+cross-browser gate runs in parallel. A lightweight browser-change detector skips
+the browser matrix for documentation-only pull requests; code, workflow,
+package, Playwright config, app, shared package, or browser-test changes still
+run the browser gate.
 
 Local release prep should use `npm run test:browser:release`. It sets
 `PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev

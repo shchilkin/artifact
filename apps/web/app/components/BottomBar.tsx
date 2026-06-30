@@ -54,18 +54,49 @@ export function BottomBar({
   }, [onCopyLink]);
 
   return (
-    <div className="bottom-bar">
+    <div className="bottom-bar" role="toolbar" aria-label="Editor actions">
       <div className="bottom-history-group" aria-label="Document history">
-        <ActionButton onClick={onNewBlank} aria-label="Create new project" title="Create new project" variant="quiet">
+        <ActionButton
+          onClick={onNewBlank}
+          aria-label="Create new project"
+          title="Create new project"
+          variant="quiet"
+          className="bottom-command"
+        >
           NEW
         </ActionButton>
-        <ActionButton onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Cmd+Z)" variant="quiet">
-          {undoButtonLabel(canUndo, undoCount)}
+        <ActionButton
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo (Cmd+Z)"
+          variant="quiet"
+          className="bottom-command bottom-icon-command"
+        >
+          <span aria-hidden="true">↩</span>
+          {canUndo && undoCount > 0 ? (
+            <span className="bottom-command-badge" aria-hidden="true">
+              {undoCount}
+            </span>
+          ) : null}
         </ActionButton>
-        <ActionButton onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Cmd+Shift+Z)" variant="quiet">
-          ↪
+        <ActionButton
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo (Cmd+Shift+Z)"
+          variant="quiet"
+          className="bottom-command bottom-icon-command"
+        >
+          <span aria-hidden="true">↪</span>
         </ActionButton>
-        <ActionButton className="rand-btn" onClick={onRandomize} variant="quiet">
+        <ActionButton
+          className="bottom-command rand-btn"
+          onClick={onRandomize}
+          aria-label="Randomize document"
+          title="Randomize document"
+          variant="quiet"
+        >
           RANDOM
         </ActionButton>
       </div>
@@ -77,7 +108,7 @@ export function BottomBar({
             aria-label="Open document file"
             title="Open .artifact or .artifact.json"
             variant="quiet"
-            className="bottom-file-action"
+            className="bottom-command bottom-file-action"
           >
             OPEN
           </ActionButton>
@@ -127,7 +158,7 @@ function MoreMenu({
           aria-label="More editor actions"
           title="Open, share, or download editable files"
           variant="quiet"
-          className="bottom-more-menu-trigger"
+          className="bottom-command bottom-more-menu-trigger"
         >
           MORE
         </ActionButton>
@@ -164,7 +195,7 @@ function ShareMenu({
           aria-label="Share link or download editable files"
           title="Copy an editor link or download editable files"
           variant="quiet"
-          className="share-menu-trigger bottom-file-action"
+          className="bottom-command share-menu-trigger bottom-file-action"
         >
           SHARE
         </ActionButton>
@@ -214,7 +245,7 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
     <ActionButton
       onClick={onClick}
       variant="quiet"
-      className={`project-workspace-button project-workspace-button-${status.tone}`}
+      className={`bottom-command project-workspace-button project-workspace-button-${status.tone}`}
       title={`${status.title}. Local projects are the save workspace.`}
     >
       <span>PROJECTS</span>
@@ -222,8 +253,4 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
       {status.badge && <span className="project-workspace-badge">{status.badge}</span>}
     </ActionButton>
   );
-}
-
-function undoButtonLabel(canUndo: boolean, undoCount: number) {
-  return canUndo && undoCount > 0 ? `↩ ${undoCount}` : '↩';
 }

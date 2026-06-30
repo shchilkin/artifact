@@ -178,7 +178,9 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line-default);
+  border-radius: var(--control-radius);
   background: var(--surface-control);
+  overflow: hidden;
 }
 
 .artifact-toolbar-button,
@@ -208,7 +210,9 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(96px, 1fr);
   border: 1px solid var(--line-default);
+  border-radius: var(--control-radius);
   background: var(--surface-control);
+  overflow: hidden;
 }
 
 .artifact-segmented-trigger {
@@ -224,7 +228,9 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line-default);
+  border-radius: var(--control-radius);
   background: var(--surface-control);
+  overflow: hidden;
 }
 
 .artifact-tabs-trigger {
@@ -262,7 +268,7 @@
 
 .artifact-tabs-content {
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--control-font-size-md);
   line-height: 1.6;
 }
@@ -327,8 +333,10 @@
   min-width: 180px;
   flex-direction: column;
   border: 1px solid var(--line-default);
+  border-radius: var(--radius-lg);
   background: var(--surface-control);
   box-shadow: var(--shadow-overlay);
+  overflow: hidden;
 }
 
 .artifact-menu-item {
@@ -422,7 +430,7 @@
   margin: 0;
   max-width: 64ch;
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--type-body);
   line-height: var(--leading-body);
 }

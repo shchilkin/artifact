@@ -2,10 +2,12 @@
   z-index: 22000;
   min-width: 180px;
   border: 1px solid var(--line-default);
+  border-radius: var(--radius-lg);
   background: var(--surface-control);
   box-shadow: var(--shadow-overlay);
   padding: 4px 0;
   outline: none;
+  overflow: hidden;
 }
 
 .artifact-dropdown-menu-content[data-state="open"] {
