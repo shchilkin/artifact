@@ -19,6 +19,9 @@ primitive controls, read the current docs:
   user-facing UI.
 - `docs/editor-design-system.md` — editor style-guide source of truth, design
   tokens, shared primitives, Radix/shadcn boundaries, and migration order.
+- `docs/ui-overhaul.md` — active editor UI overhaul tracker: node canvas
+  readability, category-color grammar, inspector usability, Add Node / Library
+  flow, Layers/Nodes parity, empty starts, and visual QA.
 - `docs/app-structure-guidelines.md` — feature-folder structure, component
   boundaries, variant rules, and preview/export invariants.
 - `docs/testing.md` — current unit, render, graph, browser, performance, and CI

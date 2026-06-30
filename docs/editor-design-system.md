@@ -36,11 +36,20 @@ The v0.30 foundation should inventory and normalize these token families:
   ring, disabled border, and output-path emphasis.
 - **State colors**: selected, active, hidden, muted, locked, disabled, danger,
   output path, off-output-path, loading, and warning.
+- **Node graph color**: category color tokens (`--node-kind-*`), output-path
+  color (`--node-edge-output`), grid dot color (`--editor-grid-dot`), selected
+  node rings, selected edge emphasis, handle colors, and layer-kind badges.
 - **Motion and layering**: overlay z-index, sheet/dialog z-index, menu z-index,
   hover/focus transitions, and reduced-motion behavior.
 
 Avoid local `text-[8px]`, `h-[22px]`, one-off borders, and one-off focus styles
 when they describe a reusable editor control state.
+
+Node graph colors are product semantics. Do not collapse category, selection,
+and output route into one accent token while extracting primitives. `NodeShell`
+and future `NodeFrame` primitives should accept a category role and derive rail,
+handle, focus, selected, and hover states from that role. Output-path styling is
+an additional route state, not a replacement for category color.
 
 ## Shared Primitive Ladder
 
@@ -113,6 +122,8 @@ The deterministic internal route for the visual UI catalog is
 - badges and status chips
 - layer rows: default, selected, hidden, locked, selected+hidden
 - node frames: default, selected, output path, muted, locked delete action
+- node color states: at least two distinct categories selected in sequence
+  (for example emoji and effect), selected+output-path, and active output edge
 - Add Library: search, result row, detail preview, empty state, and default
   browse lists that show one base primitive per layer kind. Preset variants
   belong in recipes or search results unless a dedicated variant picker is
@@ -220,6 +231,13 @@ After v0.30 closes the baseline, extract the rest of the app in this order:
    and route pages as composed product surfaces, but ensure every visible
    control inside them comes from a primitive or documented editor primitive.
 
+Node canvas extraction must preserve the visual contract before reducing local
+CSS: category-colored node selection, visible grid dots, readable output-path
+edges, hover that does not override selected state, and focused browser coverage
+for React Flow selection regressions. If an extraction makes all selected nodes
+share the global accent, it is a regression even if the component API is
+cleaner.
+
 Do not try to migrate the whole editor in one sweep. Each extraction pass should
 have a style-guide specimen, focused browser coverage, and no renderer, graph,
 export, persistence, or document-schema semantic changes unless that is the
@@ -290,3 +308,5 @@ Intentionally excluded from style-guide specimens:
 - Did the change avoid renderer, graph traversal, export, persistence, and
   document-schema changes?
 - Did focused browser coverage run for the affected style-guide/editor states?
+- For node canvas changes, did the change preserve category-colored selection,
+  output-path contrast, grid readability, and React Flow stability?

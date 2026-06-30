@@ -10,6 +10,18 @@ colors:
   ash-dim: "oklch(50% 0.018 68)"
   flare-accent: "oklch(66% 0.16 28)"
   flare-accent-soft: "oklch(66% 0.16 28 / 0.15)"
+  node-fill: "oklch(72% 0.18 48)"
+  node-image: "oklch(73% 0.15 222)"
+  node-text: "oklch(80% 0.08 94)"
+  node-emoji: "oklch(72% 0.18 342)"
+  node-effect: "oklch(66% 0.18 286)"
+  node-primitive: "oklch(72% 0.13 162)"
+  node-noise: "oklch(62% 0.05 245)"
+  node-array: "oklch(72% 0.11 125)"
+  node-merge: "oklch(72% 0.12 165)"
+  node-color: "oklch(74% 0.13 210)"
+  node-export: "oklch(84% 0.05 88)"
+  node-grid-dot: "oklch(34% 0.022 218 / 0.58)"
 typography:
   display:
     fontFamily: "Barlow Condensed, sans-serif"
@@ -141,6 +153,38 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 **The Tinted-Neutral Rule.** Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.
 
+### Node Category Palette
+
+The node editor has a secondary product palette. These colors are not brand
+accents and do not count against the Registration-Mark Rule because they carry
+structural information. They identify node category, not emphasis.
+
+- **Fill** (`oklch(72% 0.18 48)`): flat color and wash sources.
+- **Image** (`oklch(73% 0.15 222)`): uploaded, generated, or imported bitmap sources.
+- **Text** (`oklch(80% 0.08 94)`): typography and text-layer sources.
+- **Emoji** (`oklch(72% 0.18 342)`): repeated glyph and symbol sources.
+- **Effect** (`oklch(66% 0.18 286)`): transforms that change pixels.
+- **Primitive** (`oklch(72% 0.13 162)`): 3D and generated form sources.
+- **Noise** (`oklch(62% 0.05 245)`): procedural texture sources.
+- **Array** (`oklch(72% 0.11 125)`): repeat, line-field, and pattern structure.
+- **Merge** (`oklch(72% 0.12 165)`): compositing utility nodes.
+- **Color** (`oklch(74% 0.13 210)`): grading, transform, and environment utilities.
+- **Export** (`oklch(84% 0.05 88)`): final output target.
+
+**The Category-Is-Grammar Rule.** Node category color must appear in the node
+rail, icon, handle labels, selection border, focus outline, and hover/active
+states. Do not replace category color with the global flare accent for selected
+nodes. The selected emoji node should be emoji pink; the selected effect node
+should be effect violet.
+
+**The Output-Path Rule.** Output-path color is a route marker. It may tint graph
+edges and non-selected output-path frames, but it must not erase the category
+identity of the node itself.
+
+**The Canvas Grid Rule.** The node canvas grid is an orientation layer, not
+background texture. It should be visible at normal zoom on the dark workspace,
+but lower contrast than node borders, selected state, and output-path edges.
+
 ## 3. Typography
 
 **Display Font:** Barlow Condensed (fallback: `sans-serif`), weights 700 / 900
@@ -234,6 +278,21 @@ The one place state pushes a surface forward is the showcase tile on hover: a 2p
 - Mono label, 8px padding, 36px height, 1px Ink Border between rows. Selected row shows accent left edge as a 1px hairline (not a stripe — a 1px hairline carries the meaning without becoming a band).
 - Drag handle is a mono character (`⋮⋮`), accent-colored on hover.
 
+### Node Canvas (Editor)
+- **Node frame:** Square card, warm dark surface, category-colored top rail and
+  subtle category-tinted border. The frame is a tool housing, not a generic
+  card.
+- **Selected node:** Border, focus outline, rail, and first shadow ring resolve
+  to the node's category color. Hover may not override selected styling.
+- **Output path:** Active output route is visible through edge color, edge
+  opacity, and light path tinting on non-selected nodes. A selected output-path
+  node still uses its category color for selection.
+- **Grid:** Dot grid remains visible enough for positioning. If the grid nearly
+  disappears in screenshots, the canvas has failed.
+- **Toolbar:** Node commands are one compact control strip. Grouping should
+  clarify Build, View, and Debug actions without turning the toolbar into
+  floating cards.
+
 ### Print / Crop Marks
 - **Signature element.** Used at the corners of the home canvas frame and the home hero. 14–18px L-shaped arms, 1px wide, accent-colored. Carry the "this is being prepared for print" voice without becoming decorative chrome.
 
@@ -250,6 +309,10 @@ The one place state pushes a surface forward is the showcase tile on hover: a 2p
 - **Do** borrow strong product mechanics from mature SaaS: search, categories,
   keyboard navigation, predictable state, accessibility, and clear error
   recovery.
+- **Do** preserve node category colors across layer badges, node rails, handles,
+  focus, and selection. Color is how users scan the graph.
+- **Do** treat output-path color as route emphasis, separate from category
+  color.
 
 ### Don't:
 - **Don't** use overdesigned dev-tool aesthetics: neon gradients, crypto-bro purple, glowing grid backgrounds, glassmorphism, or stacked decorative effects in the chrome.
@@ -266,3 +329,7 @@ The one place state pushes a surface forward is the showcase tile on hover: a 2p
 - **Don't** modal a flow that fits inline. A modal is the lazy answer; the editor opens as a route, public editor CTAs start blank, and showcase tiles deep-link their editable project into the editor.
 - **Don't** call Artifact a generator in public product copy. "Generate" is reserved for specific source-making actions: AI images, procedural textures, random seeds, and thumbnails. The product, workspace, route labels, and CTAs are "editor", "workspace", "open in editor", or "start editing".
 - **Don't** use the word `weird` in product or marketing copy. Do not replace it with broad outcome labels like strange, raw, damaged, or glitchy at the product-promise level. Prefer control and process language: editable, shaped, layered, textured, local-first, export-ready, deliberate.
+- **Don't** collapse node selection, focus, and output-path emphasis into the
+  global flare accent. A single red frame across all node types destroys the
+  graph grammar.
+- **Don't** dim the node grid so far that it becomes invisible at normal zoom.

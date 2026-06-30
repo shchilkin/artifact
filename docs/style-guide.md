@@ -77,6 +77,29 @@ geometry that is not a reusable UI rule.
 | Success | `--state-success` |
 | Warning | `--state-warning` |
 
+Editor graph color roles:
+
+| Role | Token |
+| --- | --- |
+| Node fill | `--node-kind-fill` |
+| Node image | `--node-kind-image` |
+| Node text | `--node-kind-text` |
+| Node emoji | `--node-kind-emoji` |
+| Node effect | `--node-kind-effect` |
+| Node primitive/model/3D | `--node-kind-primitive` |
+| Node noise | `--node-kind-noise` |
+| Node array/repeat/line field | `--node-kind-array` |
+| Node merge | `--node-kind-merge` |
+| Node color/transform/environment | `--node-kind-color` |
+| Node export | `--node-kind-export` |
+| Node canvas grid dot | `--editor-grid-dot` |
+| Node output path | `--node-edge-output` |
+
+Node category colors are semantic editor state. Use them for graph scanning,
+not decoration. A selected node's frame, focus outline, rail, and leading
+shadow must resolve to that node's category token; do not substitute
+`--accent-primary` or `--editor-selection-outline` for all node kinds.
+
 ### Spacing
 
 Use the shared scale:
@@ -231,6 +254,29 @@ until the migration is complete.
 - **Anti-patterns**: tabs for unrelated navigation, too many triggers, hidden
   panels that should be routes.
 
+### Node Canvas
+
+- **Anatomy**: graph background, dot grid, nodes, ports, edges, active output
+  path, toolbar, inspector, optional graph areas.
+- **Variants**: default graph, selected node, selected edge, output path, muted
+  node, locked delete state, graph area, fit-output-path view.
+- **States**: default, hover, focus-visible, selected, output-path,
+  selected+output-path, muted, locked, dragging, invalid connection.
+- **Accessibility**: node frames and toolbar controls need visible focus;
+  icon-only graph controls need accessible labels; selected state cannot rely
+  on color alone when text or state labels are available.
+- **Usage**: editing graph structure, reading composition flow, navigating to
+  the final render path.
+- **Color contract**: category color identifies node kind; output-path color
+  identifies route; global accent identifies product commands. Keep those three
+  roles separate.
+- **Grid contract**: grid dots must be visible on the workspace at normal zoom,
+  but lower contrast than node borders and output edges.
+- **Anti-patterns**: one global red/orange selected frame for every node kind,
+  invisible grids, hover styles that override selected styles, decorative edge
+  glow that makes topology harder to read, node toolbars split into floating
+  cards.
+
 ### Navigation
 
 - **Anatomy**: brand, primary links, primary action, account action, mobile
@@ -325,6 +371,9 @@ until the migration is complete.
    surfaces.
 10. UI changes that affect layout, overlays, menus, focus, or responsive
     behavior need focused browser verification.
+11. Node canvas visual changes need browser coverage for category-colored
+    selection, output-path visibility, grid readability, and absence of
+    React/React Flow update loops.
 
 ## 7. Output Checklist
 
