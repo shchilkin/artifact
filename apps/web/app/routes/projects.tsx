@@ -205,6 +205,7 @@ function projectWarningMessage(storageError: string | null, openError: string | 
 async function openProjectInEditor(
   project: SavedProject,
   {
+    loadProject,
     navigate,
     setOpenError,
     updateActiveProjectBinding,
