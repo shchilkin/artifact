@@ -3,6 +3,7 @@ import { type ReactNode, useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
+import { ThemeToggle } from './ThemeToggle';
 import { ActionButton } from './ui/ActionButton';
 import { actionButtonClassName } from './ui/actionButtonClassName';
 
@@ -74,6 +75,7 @@ function DesktopNavLinks({ compact, auth }: { compact?: boolean; auth: ReturnTyp
         </NavLink>
       ))}
       <GitHubNavLink className="site-nav-link" />
+      <ThemeToggle />
       <NavLink
         to="/app?new=blank"
         className={({ isActive }) => actionButtonClassName({ active: isActive, variant: 'primary' })}
@@ -158,6 +160,7 @@ function MobileNavMenu({
         Open editor
       </NavLink>
       <GitHubNavLink className="site-nav-mobile-link" />
+      <ThemeToggle />
       <AccountButton auth={auth} />
     </motion.div>
   );

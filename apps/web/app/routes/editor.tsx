@@ -9,6 +9,7 @@ import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
   isArtifactDocumentFile,
@@ -109,6 +110,7 @@ function EditorChromeSlot({
   return (
     <div className="editor-chrome-slot">
       <ViewModeToggle value={viewMode} onChange={onViewModeChange} variant="chrome" />
+      <ThemeToggle compact />
     </div>
   );
 }
