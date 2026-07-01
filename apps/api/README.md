@@ -46,6 +46,7 @@ Implemented:
 - HS256 JWT bearer verification with optional issuer/audience checks, plus
   dev bearer-token fallback.
 - Better Auth email/password sessions with bearer-token API compatibility.
+- Better Auth password recovery emails through Resend.
 - First-login user provisioning with AI disabled by default, plus
   `npm --workspace @artifact/api run grant:ai -- <auth-user-id> [email]` for private
   alpha entitlement.
@@ -105,6 +106,10 @@ seeded user.
 
 To test real browser sign-in instead, leave `VITE_AI_API_DEV_TOKEN` empty and
 set `VITE_AUTH_API_BASE_URL=http://localhost:4000` in the root `.env`.
+For local password recovery without Resend, keep
+`PASSWORD_RESET_LOG_URL=true` in `apps/api/.env` and copy the reset link from
+the API log. Production should configure `RESEND_API_KEY` and `EMAIL_FROM`
+instead.
 
 If your local Postgres volume already existed before a migration was added, run
 `npm --workspace @artifact/api run migrate` from the repo root after

@@ -77,6 +77,11 @@ For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for
 example `https://api.example.com/api/auth`.
 
+Password recovery uses Better Auth reset tokens and Resend email delivery. Set
+`RESEND_API_KEY` and `EMAIL_FROM` in production. `PASSWORD_RESET_LOG_URL` should
+stay unset or `false` in production; local development can set it to `true` to
+print reset links in API logs when email delivery is not configured.
+
 The Coolify API service starts with `npm run start:with-migrations`, which runs
 `npm run migrate` before `node dist/server.js`. The worker and Bull Board wait
 for the API healthcheck, so deploys do not serve traffic or process jobs against
@@ -114,6 +119,10 @@ AUTH_JWT_AUDIENCE=
 API_DEV_BEARER_TOKEN=
 BETTER_AUTH_SECRET=change-me-long-random-secret
 BETTER_AUTH_URL=https://your-api-domain.example/api/auth
+PASSWORD_RESET_LOG_URL=false
+RESEND_API_KEY=
+EMAIL_FROM="Artifact <hello@your-domain.example>"
+EMAIL_REPLY_TO=
 
 API_BULL_BOARD_ENABLED=false
 

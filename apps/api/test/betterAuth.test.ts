@@ -28,6 +28,21 @@ describe('createTrustedOriginsResolver', () => {
     ).toEqual(['https://artifact-eblxdafr1-shchilkins-projects.vercel.app']);
   });
 
+  it('returns the exact callback origin for password reset email redirects', () => {
+    const resolveTrustedOrigins = createTrustedOriginsResolver([
+      'https://artifact.shchilkin.dev',
+      'https://artifact-*-shchilkins-projects.vercel.app',
+    ]);
+
+    expect(
+      resolveTrustedOrigins(
+        new Request(
+          'https://api.artifact.shchilkin.dev/api/auth/reset-password/token?callbackURL=https%3A%2F%2Fartifact-eblxdafr1-shchilkins-projects.vercel.app%2Freset-password',
+        ),
+      ),
+    ).toEqual(['https://artifact-eblxdafr1-shchilkins-projects.vercel.app']);
+  });
+
   it('rejects origins that Better Auth wildcard matching would otherwise accept', () => {
     const resolveTrustedOrigins = createTrustedOriginsResolver(['https://artifact-*-shchilkins-projects.vercel.app']);
 

@@ -3,6 +3,8 @@ import { bearer } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import type { ApiConfig } from './config.js';
 import { isAllowedWebOrigin } from './http.js';
+import { logInfo } from './logger.js';
+import { sendPasswordResetEmail } from './passwordResetEmail.js';
 
 export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
   if (!pool) return null;
@@ -14,6 +16,24 @@ export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
     trustedOrigins: createTrustedOriginsResolver(config.webOrigins),
     emailAndPassword: {
       enabled: true,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: ({ user, url }) =>
+        sendPasswordResetEmail(
+          {
+            email: user.email,
+            resetUrl: url,
+            userId: user.id,
+          },
+          { config },
+        ),
+      onPasswordReset: ({ user }) => {
+        logInfo('auth.password_reset_completed', {
+          email: user.email,
+          userId: user.id,
+        });
+        return Promise.resolve();
+      },
     },
     plugins: [bearer()],
   });
@@ -21,7 +41,7 @@ export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
 
 export function createTrustedOriginsResolver(webOrigins: readonly string[]) {
   return (request?: Request) => {
-    const requestOrigin = request ? requestOriginHeader(request) : null;
+    const requestOrigin = request ? requestTrustedOriginCandidate(request) : null;
     if (!requestOrigin) return exactOrigins(webOrigins);
     return isAllowedWebOrigin(requestOrigin, webOrigins) ? [normalizeOriginValue(requestOrigin)] : [];
   };
@@ -31,8 +51,16 @@ function exactOrigins(webOrigins: readonly string[]) {
   return webOrigins.filter((origin) => !origin.includes('*') && !origin.includes('?'));
 }
 
-function requestOriginHeader(request: Request) {
-  return request.headers.get('origin') ?? request.headers.get('referer');
+function requestTrustedOriginCandidate(request: Request) {
+  return request.headers.get('origin') ?? request.headers.get('referer') ?? requestCallbackUrl(request);
+}
+
+function requestCallbackUrl(request: Request) {
+  try {
+    return new URL(request.url).searchParams.get('callbackURL');
+  } catch {
+    return null;
+  }
 }
 
 function normalizeOriginValue(value: string) {
