@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RequestUserResolution } from '../src/auth.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
 import { handleProjectRequest, type ProjectRouteDeps } from '../src/routes/projects.js';
@@ -147,6 +147,27 @@ describe('project route handlers', () => {
     });
   });
 
+  it('keeps cloud project saves successful when asset reconcile fails', async () => {
+    const { deps } = createDeps();
+    deps.repositories.assets.listProjectAssetsForUser = vi.fn(async () => {
+      throw new Error('temporary reconcile outage');
+    });
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', {
+          id: 'project-1',
+          name: 'Still saved',
+          doc: projectDoc,
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { project: { id: 'project-1', name: 'Still saved' } },
+    });
+  });
+
   it('returns a conflict when another user owns the requested project id', async () => {
     const { deps, store } = createDeps();
     await store.repositories().projects.upsert({
@@ -220,6 +241,22 @@ describe('project route handlers', () => {
     });
     await expect(store.findAssetByIdForUser('asset-1', 'user-1')).resolves.toMatchObject({
       deleted_at: expect.any(Date),
+    });
+  });
+
+  it('keeps cloud project deletes successful when asset reconcile fails', async () => {
+    const { deps } = createDeps();
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', { id: 'project-1', name: 'One', doc: projectDoc }),
+      deps,
+    );
+    deps.repositories.assets.listProjectAssetsForUser = vi.fn(async () => {
+      throw new Error('temporary reconcile outage');
+    });
+
+    await expect(handleProjectRequest(jsonRequest('DELETE', '/api/projects/project-1'), deps)).resolves.toMatchObject({
+      status: 200,
+      body: { ok: true },
     });
   });
 

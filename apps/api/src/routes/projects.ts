@@ -75,7 +75,7 @@ async function handleSaveProject(request: ProjectRouteRequest, deps: ProjectRout
   const project = await upsertProjectForUser(projectId, auth.user.id, body.value, deps);
   if ('status' in project) return project;
 
-  await reconcileProjectAssetsForUser(auth.user.id, deps.repositories);
+  await reconcileProjectAssetsBestEffort(auth.user.id, deps.repositories, 'save');
 
   logInfo('cloud_project.saved', { projectId: project.id, userId: auth.user.id });
   return json(200, { project: projectResponse(project) });
@@ -110,7 +110,7 @@ async function handleDeleteProject(request: ProjectRouteRequest, projectId: stri
   const deleted = await deps.repositories.projects.deleteForUser(projectId, auth.user.id);
   if (!deleted) return errorJson(404, 'not_found', 'Cloud project not found.');
 
-  await reconcileProjectAssetsForUser(auth.user.id, deps.repositories);
+  await reconcileProjectAssetsBestEffort(auth.user.id, deps.repositories, 'delete');
 
   logInfo('cloud_project.deleted', { projectId, userId: auth.user.id });
   return json(200, { ok: true as const });
@@ -133,6 +133,22 @@ async function reconcileProjectAssetsForUser(userId: string, repositories: ApiRe
 
   const deleted = await repositories.assets.softDeleteManyForUser(staleIds, userId, new Date());
   if (deleted.length) logInfo('cloud_project_assets.reconciled', { userId, deletedAssetCount: deleted.length });
+}
+
+async function reconcileProjectAssetsBestEffort(
+  userId: string,
+  repositories: ApiRepositories,
+  operation: 'delete' | 'save',
+) {
+  try {
+    await reconcileProjectAssetsForUser(userId, repositories);
+  } catch (error) {
+    logWarn('cloud_project_assets.reconcile_failed', {
+      userId,
+      operation,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 async function requireAuth(request: ProjectRouteRequest, deps: ProjectRouteDeps) {

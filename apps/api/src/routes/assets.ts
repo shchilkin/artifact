@@ -58,9 +58,19 @@ export async function handleAssetFileRequest(
     mimeType: asset.mime_type,
     sizeBytes: file.bytes.byteLength,
   });
-  return binary(200, file.bytes, {
+  return binary(200, file.bytes, assetDownloadHeaders(asset.mime_type, file.bytes.byteLength));
+}
+
+function assetDownloadHeaders(mimeType: string, byteLength: number) {
+  const headers: Record<string, string> = {
     'cache-control': 'private, max-age=300',
-    'content-length': String(file.bytes.byteLength),
-    'content-type': asset.mime_type,
-  });
+    'content-length': String(byteLength),
+    'content-type': mimeType,
+  };
+  if (mimeType === 'image/svg+xml') {
+    headers['content-disposition'] = 'attachment';
+    headers['content-security-policy'] = "default-src 'none'; sandbox";
+    headers['x-content-type-options'] = 'nosniff';
+  }
+  return headers;
 }

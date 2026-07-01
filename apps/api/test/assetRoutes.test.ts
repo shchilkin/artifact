@@ -51,6 +51,38 @@ describe('asset route handlers', () => {
     expect(storage.readImage).toHaveBeenCalledWith('generated/asset-1.png');
   });
 
+  it('serves SVG assets with defensive download headers', async () => {
+    const { deps, store, storage } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await store.createAsset({
+      id: 'asset-svg',
+      userId: 'user-1',
+      kind: 'project-image',
+      storageKey: 'generated/asset-svg.svg',
+      mimeType: 'image/svg+xml',
+      width: 1,
+      height: 1,
+      sizeBytes: 11,
+      metadataJson: {},
+    });
+    vi.mocked(storage.readImage).mockResolvedValueOnce({
+      bytes: new TextEncoder().encode('<svg></svg>'),
+      mimeType: 'image/svg+xml',
+    });
+
+    const response = await handleAssetFileRequest({ headers: {} }, 'asset-svg', deps);
+
+    expect(response).toMatchObject({
+      status: 200,
+      headers: {
+        'content-disposition': 'attachment',
+        'content-security-policy': "default-src 'none'; sandbox",
+        'content-type': 'image/svg+xml',
+        'x-content-type-options': 'nosniff',
+      },
+    });
+  });
+
   it('rejects anonymous asset downloads', async () => {
     const { deps } = createDeps({ authenticated: false, reason: 'missing_credentials' });
 
