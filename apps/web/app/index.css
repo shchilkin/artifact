@@ -5064,6 +5064,46 @@ button.library-card-open:focus-visible {
   color: var(--accent);
 }
 
+.library-card-storage-syncing {
+  border-color: color-mix(in oklch, var(--warning) 54%, var(--border));
+  color: var(--warning);
+}
+
+.library-card-storage-warning {
+  border-color: color-mix(in oklch, var(--warning) 58%, var(--border));
+  color: var(--warning);
+}
+
+.library-card-storage-danger {
+  border-color: color-mix(in oklch, var(--danger) 58%, var(--border));
+  color: var(--danger);
+}
+
+.library-card-sync-detail {
+  overflow: hidden;
+  max-width: 100%;
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-size: var(--type-ui-xs);
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-card-sync-detail-synced {
+  color: color-mix(in oklch, var(--success) 72%, var(--text-dim));
+}
+
+.library-card-sync-detail-syncing,
+.library-card-sync-detail-warning {
+  color: var(--warning);
+}
+
+.library-card-sync-detail-danger {
+  color: var(--danger);
+}
+
 .library-card-updated,
 .library-card-seed,
 .library-card-size {

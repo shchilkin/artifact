@@ -238,6 +238,7 @@ export default function Editor() {
     activeProject,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     toggleProjects,
     closeProjects,
@@ -583,6 +584,7 @@ export default function Editor() {
               recoveryDraft={recoveryDraft}
               storageStatus={storageStatus}
               storageError={storageError}
+              projectSyncStates={projectSyncStates}
               maxProjects={maxProjects}
               onSaveCopy={saveCurrentProject}
               onSaveActive={saveActiveProject}
