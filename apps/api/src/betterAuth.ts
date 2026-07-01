@@ -41,7 +41,7 @@ export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
 
 export function createTrustedOriginsResolver(webOrigins: readonly string[]) {
   return (request?: Request) => {
-    const requestOrigin = request ? requestOriginHeader(request) : null;
+    const requestOrigin = request ? requestTrustedOriginCandidate(request) : null;
     if (!requestOrigin) return exactOrigins(webOrigins);
     return isAllowedWebOrigin(requestOrigin, webOrigins) ? [normalizeOriginValue(requestOrigin)] : [];
   };
@@ -51,8 +51,16 @@ function exactOrigins(webOrigins: readonly string[]) {
   return webOrigins.filter((origin) => !origin.includes('*') && !origin.includes('?'));
 }
 
-function requestOriginHeader(request: Request) {
-  return request.headers.get('origin') ?? request.headers.get('referer');
+function requestTrustedOriginCandidate(request: Request) {
+  return request.headers.get('origin') ?? request.headers.get('referer') ?? requestCallbackUrl(request);
+}
+
+function requestCallbackUrl(request: Request) {
+  try {
+    return new URL(request.url).searchParams.get('callbackURL');
+  } catch {
+    return null;
+  }
 }
 
 function normalizeOriginValue(value: string) {
