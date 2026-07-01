@@ -49,6 +49,54 @@ CI should run:
 
 ## Manual QA
 
+### v0.39.0 Release Prep
+
+- Package metadata is bumped to `0.39.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.39.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.39 replaces Clerk with Better Auth for account sign-up, sign-in, session
+  loading, sign-out, and account-backed project access.
+- v0.39 adds password recovery through Resend-backed reset emails and a
+  dedicated reset-password route.
+- v0.39 adds cloud project saves, project API routes, cloud asset upload routes,
+  and client-side project reassembly so large image/font/model/environment
+  payloads can sync outside the compact project manifest.
+- v0.39 hardens production API deploys with startup migrations, Coolify
+  healthchecks, Vercel preview API origin support, and Redis persistence
+  configuration fixes.
+- v0.39 clarifies Projects sync state for local-only, cloud-only, synced,
+  syncing, failed, and too-large projects while preserving local Projects and
+  recovery drafts.
+- Manual QA confirmed account creation, sign-in, sign-out, password reset email
+  delivery, local-to-cloud project behavior, large asset-backed project loading,
+  production API logs, and Coolify health during the auth/cloud-save debugging
+  pass.
+- `npm run release:verify` passed on 2026-07-01.
+- `npm run check` passed on 2026-07-01 with 11 existing Fast Refresh lint
+  warnings, 511 web tests passing, and 123 API tests passing with 2 skipped.
+- `npm run build` passed on 2026-07-01. The build still reports large
+  `three-vendor` and `pixi-vendor` chunks, which remain accepted for the
+  current 3D/Pixi editor paths.
+- `npm run test:browser` passed on 2026-07-01 with `340 passed` and
+  `38 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. An earlier local full browser run exposed transient dev-server route
+  loading and Firefox `@vite/client` HMR noise; targeted reruns passed and the
+  final full browser gate passed cleanly.
+- `npm run perf:node-editor` is not required for the v0.39 release-prep diff
+  because the release changes account-backed persistence, API deploy behavior,
+  project asset sync, and Projects/status UI rather than React Flow gesture
+  paths, graph traversal, thumbnail scheduling, renderer/export behavior, or
+  performance-sensitive node-editor interactions.
+- Accepted release risk: public share links, sharing permissions, ownership
+  transfer, and collaboration remain future work; cloud projects are private
+  account saves in this release.
+- Accepted release risk: cloud assets remain on the initial server storage path
+  instead of S3-compatible object storage; quotas, cleanup, deduplication, and
+  storage billing policy remain future work.
+- Accepted release risk: project history, autosave versions, restore/compare,
+  and explicit cloud/local conflict resolution remain deferred.
+
 ### v0.38.0 Release Prep
 
 - Package metadata is bumped to `0.38.0` in `package.json`,
