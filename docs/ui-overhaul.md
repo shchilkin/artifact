@@ -300,6 +300,8 @@ Tasks:
 - [x] Apply the first typography pass that reduces over-tracked microcopy,
   raises dense editor labels toward 10–11px, and moves readable UI text from
   generic system sans to the Barlow-based Artifact UI voice.
+- [x] Replace raw system mono chrome with Space Mono control grammar and align
+  layer/inspector/bottom-bar text to shared tracking and readable-size tokens.
 - [x] Add browser coverage for category-colored node selection and output-path
   visuals.
 - [ ] Add style-guide specimens for node category states and inspector states.

@@ -142,7 +142,7 @@ too severe.
 | Role | Token | Use |
 | --- | --- | --- |
 | Readable UI family | `--font-body` | layer names, inspector descriptions, empty states, route copy |
-| Mono family | `--font-mono` | control labels, commands, node labels, ids, meta |
+| Mono family | `--font-mono` | Space Mono for control labels, commands, node labels, ids, meta |
 | Display family | `--font-display` | page and section headlines |
 | UI XS | `--type-ui-xs` | dense meta, badge text |
 | UI SM | `--type-ui-sm` | buttons, labels |
@@ -159,7 +159,7 @@ too severe.
 | Strong weight | `--weight-strong` | selected or primary labels |
 | Display weight | `--weight-display` | display headings |
 
-Mono is the control grammar, not the paragraph voice. Use mono for commands,
+Mono is the control grammar, not the paragraph voice. Use Space Mono for commands,
 labels, node names, ids, field keys, and short values. Use readable sans for
 long descriptions, onboarding, empty states, error recovery, and dense
 explanatory panels. Display type is reserved for real titles, not controls.
