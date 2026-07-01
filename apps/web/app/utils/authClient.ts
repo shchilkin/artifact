@@ -3,6 +3,20 @@ import { getArtifactAuthApiBaseUrl } from './apiBaseUrl';
 
 export const AUTH_BEARER_TOKEN_KEY = 'artifact-better-auth-token';
 
+interface BetterAuthClientResult {
+  data?: unknown;
+  error?: {
+    code?: string;
+    message?: string;
+    status?: number;
+  } | null;
+}
+
+interface PasswordRecoveryClient {
+  requestPasswordReset: (input: { email: string; redirectTo: string }) => Promise<BetterAuthClientResult>;
+  resetPassword: (input: { newPassword: string; token: string }) => Promise<BetterAuthClientResult>;
+}
+
 export function getArtifactAuthBaseUrl() {
   return getArtifactAuthApiBaseUrl();
 }
@@ -35,3 +49,15 @@ export const authClient = createAuthClient({
     },
   },
 });
+
+function passwordRecoveryClient() {
+  return authClient as unknown as PasswordRecoveryClient;
+}
+
+export async function requestArtifactPasswordReset(input: { email: string; redirectTo: string }) {
+  return passwordRecoveryClient().requestPasswordReset(input);
+}
+
+export async function resetArtifactPassword(input: { newPassword: string; token: string }) {
+  return passwordRecoveryClient().resetPassword(input);
+}

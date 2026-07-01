@@ -11,6 +11,10 @@ export interface ApiConfig {
   authJwtAudience?: string;
   betterAuthSecret: string;
   betterAuthUrl?: string;
+  resendApiKey?: string;
+  emailFrom?: string;
+  emailReplyTo?: string;
+  passwordResetLogUrl: boolean;
   devBearerToken?: string;
   bullBoardEnabled: boolean;
   openAiApiKey?: string;
@@ -95,6 +99,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
     betterAuthSecret: env.BETTER_AUTH_SECRET ?? requiredEnv(env, 'AUTH_JWT_SECRET'),
     betterAuthUrl: env.BETTER_AUTH_URL,
+    resendApiKey: env.RESEND_API_KEY,
+    emailFrom: env.EMAIL_FROM,
+    emailReplyTo: env.EMAIL_REPLY_TO,
+    passwordResetLogUrl: booleanEnv(env, 'PASSWORD_RESET_LOG_URL', env.NODE_ENV !== 'production'),
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     bullBoardEnabled: booleanEnv(env, 'API_BULL_BOARD_ENABLED', false),
     openAiApiKey: env.OPENAI_API_KEY,
