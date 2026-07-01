@@ -1,6 +1,7 @@
 import { type CSSProperties, type KeyboardEvent, type ReactNode, useState } from 'react';
 
 import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
+import type { ProjectCloudSyncState } from '../hooks/useProjects';
 import type { SavedProject } from '../utils/projectLibrary';
 import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
 import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from './StorageWorkspaceStatusModel';
@@ -15,6 +16,7 @@ interface Props {
   recoveryDraft: SavedProject | null;
   storageStatus: BrowserStorageStatus;
   storageError: string | null;
+  projectSyncStates?: Record<string, ProjectCloudSyncState>;
   maxProjects: number;
   onSaveCopy: (name: string) => void;
   onSaveActive: (name: string) => void;
@@ -52,6 +54,7 @@ export function ProjectsPanel({
   recoveryDraft,
   storageStatus,
   storageError,
+  projectSyncStates = {},
   maxProjects,
   onSaveCopy,
   onSaveActive,
@@ -102,6 +105,7 @@ export function ProjectsPanel({
           activeProject={activeProject}
           storageStatus={storageStatus}
           storageError={storageError}
+          projectSyncStates={projectSyncStates}
           maxProjects={maxProjects}
           onNewBlank={onNewBlank}
         />
@@ -110,6 +114,7 @@ export function ProjectsPanel({
           projects={projects}
           activeProjectId={viewModel.activeProjectId}
           recoveryDraft={recoveryDraft}
+          projectSyncStates={projectSyncStates}
           onDelete={onDelete}
           onDeleteRecoveryDraft={onDeleteRecoveryDraft}
           onSaveToCloud={onSaveToCloud}
@@ -186,6 +191,7 @@ function ProjectWorkspaceSummary({
   activeProject,
   storageStatus,
   storageError,
+  projectSyncStates,
   maxProjects,
   onNewBlank,
 }: {
@@ -193,6 +199,7 @@ function ProjectWorkspaceSummary({
   activeProject: SavedProject | null;
   storageStatus: BrowserStorageStatus;
   storageError: string | null;
+  projectSyncStates: Record<string, ProjectCloudSyncState>;
   maxProjects: number;
   onNewBlank: () => void;
 }) {
@@ -200,12 +207,14 @@ function ProjectWorkspaceSummary({
   const statusRows = workspaceStatusRows(storageStatus, storageError);
   const activeWorkRow = getStatusRow(statusRows, 'active-work', FALLBACK_ACTIVE_WORK_ROW);
   const recoveryRow = getStatusRow(statusRows, 'recovery', FALLBACK_RECOVERY_ROW);
+  const cloudSyncRow = projectCloudSyncSummaryRow(projects, projectSyncStates);
   const detailRows = statusRows.filter(isWorkspaceDetailRow);
 
   return (
     <div className="project-workspace-summary px-4 py-3 border-b border-border shrink-0">
       <div className="project-status-stack">
         <ProjectStatusLine row={activeWorkRow} />
+        <ProjectStatusLine row={cloudSyncRow} />
         <RecoveryStatusLine row={recoveryRow} />
       </div>
       <WorkspaceWarnings storageStatus={storageStatus} storageError={storageError} />
@@ -215,6 +224,7 @@ function ProjectWorkspaceSummary({
           {detailRows.map((row) => (
             <ProjectDetailRow key={row.id} row={row} />
           ))}
+          <ProjectDetailRow row={cloudSyncRow} />
           <ProjectDetailRow row={recoveryRow} />
           <ProjectPlainDetailRow label="Active project" value={activeProject?.name ?? 'None'} />
           <ProjectPlainDetailRow label="Saved projects" value={`${projects.length} / ${maxProjects}`} />
@@ -395,6 +405,7 @@ export function ProjectsList({
   activeProjectId,
   loadMode = 'button',
   recoveryDraft,
+  projectSyncStates = {},
   onDelete,
   onDeleteRecoveryDraft,
   onSaveToCloud,
@@ -406,6 +417,7 @@ export function ProjectsList({
   activeProjectId: string | null;
   loadMode?: 'button' | 'card';
   recoveryDraft: SavedProject | null;
+  projectSyncStates?: Record<string, ProjectCloudSyncState>;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
   onSaveToCloud?: (project: SavedProject) => void;
@@ -426,6 +438,7 @@ export function ProjectsList({
           key={project.id}
           project={project}
           active={project.id === activeProjectId}
+          syncState={projectSyncStates[project.id] ?? null}
           loadMode={loadMode}
           onDelete={onDelete}
           onSaveToCloud={onSaveToCloud}
@@ -480,6 +493,7 @@ function RecoveryDraftCard({
 function ProjectCard({
   project,
   active,
+  syncState,
   loadMode,
   onDelete,
   onSaveToCloud,
@@ -488,6 +502,7 @@ function ProjectCard({
 }: {
   project: SavedProject;
   active: boolean;
+  syncState: ProjectCloudSyncState | null;
   loadMode: 'button' | 'card';
   onDelete: (id: string) => void;
   onSaveToCloud?: (project: SavedProject) => void;
@@ -500,6 +515,7 @@ function ProjectCard({
       <ProjectCardPrimary
         project={project}
         badge={active ? 'ACTIVE' : undefined}
+        syncState={syncState}
         loadMode={loadMode}
         onLoad={loadProject}
       />
@@ -511,7 +527,10 @@ function ProjectCard({
         onCopy={onSaveCopy}
         onDelete={() => onDelete(project.id)}
         onLoad={loadProject}
-        onSaveToCloud={shouldShowSaveToCloud(project, onSaveToCloud) ? () => onSaveToCloud(project) : undefined}
+        onSaveToCloud={
+          shouldShowSaveToCloud(project, syncState, onSaveToCloud) ? () => onSaveToCloud(project) : undefined
+        }
+        syncState={syncState}
       />
     </ProjectCardFrame>
   );
@@ -531,17 +550,19 @@ function ProjectCardPrimary({
   loadMode,
   onLoad,
   project,
+  syncState,
 }: {
   badge?: string;
   loadMode: 'button' | 'card';
   onLoad: () => void;
   project: SavedProject;
+  syncState?: ProjectCloudSyncState | null;
 }) {
   const content = (
     <>
       <ProjectCardImage project={project} badge={badge} loadMode={loadMode} />
       <div className="library-card-copy">
-        <ProjectCardMeta project={project} />
+        <ProjectCardMeta project={project} syncState={syncState ?? null} />
       </div>
     </>
   );
@@ -579,11 +600,15 @@ function ProjectCardImage({
   );
 }
 
-function ProjectCardMeta({ project }: { project: SavedProject }) {
+function ProjectCardMeta({ project, syncState }: { project: SavedProject; syncState: ProjectCloudSyncState | null }) {
+  const cloudStatus = projectCloudStatusModel(project, syncState);
   return (
     <div className="library-card-meta">
       <div className="library-card-title">{project.name}</div>
-      <ProjectStorageChip project={project} />
+      <ProjectStorageChip status={cloudStatus} />
+      <div className={`library-card-sync-detail library-card-sync-detail-${cloudStatus.tone}`}>
+        {cloudStatus.description}
+      </div>
       <div className="library-card-updated">{formatUpdatedAt(project.updatedAt)}</div>
       <div className="library-card-seed">seed: {project.doc.global.seed}</div>
       <div className="library-card-size">size: {formatBytes(projectSizeBytes(project))}</div>
@@ -591,9 +616,8 @@ function ProjectCardMeta({ project }: { project: SavedProject }) {
   );
 }
 
-function ProjectStorageChip({ project }: { project: SavedProject }) {
-  const storage = project.storage ?? 'local';
-  return <div className={`library-card-storage library-card-storage-${storage}`}>{storageLabel(storage)}</div>;
+function ProjectStorageChip({ status }: { status: ProjectCloudStatusModel }) {
+  return <div className={`library-card-storage library-card-storage-${status.tone}`}>{status.label}</div>;
 }
 
 function ProjectCardActions({
@@ -604,6 +628,7 @@ function ProjectCardActions({
   onLoad,
   onSaveToCloud,
   project,
+  syncState,
   showLoad = true,
 }: {
   deleteVariant: 'danger' | 'quiet';
@@ -613,6 +638,7 @@ function ProjectCardActions({
   onLoad: () => void;
   onSaveToCloud?: () => void;
   project: SavedProject;
+  syncState?: ProjectCloudSyncState | null;
   showLoad?: boolean;
 }) {
   if (!showLoad && !onCopy && !onSaveToCloud) {
@@ -639,6 +665,7 @@ function ProjectCardActions({
       onLoad={onLoad}
       onSaveToCloud={onSaveToCloud}
       project={project}
+      syncState={syncState ?? null}
       showLoad={showLoad}
     />
   );
@@ -652,6 +679,7 @@ function ProjectCardButtonActions({
   onLoad,
   onSaveToCloud,
   project,
+  syncState,
   showLoad,
 }: {
   deleteVariant: 'danger' | 'quiet';
@@ -661,6 +689,7 @@ function ProjectCardButtonActions({
   onLoad: () => void;
   onSaveToCloud?: () => void;
   project: SavedProject;
+  syncState: ProjectCloudSyncState | null;
   showLoad: boolean;
 }) {
   return (
@@ -668,7 +697,7 @@ function ProjectCardButtonActions({
       <ProjectLoadAction loadVariant={loadVariant} project={project} showLoad={showLoad} onLoad={onLoad} />
       <ProjectDeleteButtonAction deleteVariant={deleteVariant} project={project} onDelete={onDelete} />
       <ProjectCopyAction project={project} onCopy={onCopy} />
-      <ProjectCloudAction project={project} onSaveToCloud={onSaveToCloud} />
+      <ProjectCloudAction project={project} syncState={syncState} onSaveToCloud={onSaveToCloud} />
     </div>
   );
 }
@@ -814,26 +843,95 @@ function ProjectCopyAction({ onCopy, project }: { onCopy?: () => void; project: 
   );
 }
 
-function ProjectCloudAction({ onSaveToCloud, project }: { onSaveToCloud?: () => void; project: SavedProject }) {
+function ProjectCloudAction({
+  onSaveToCloud,
+  project,
+  syncState,
+}: {
+  onSaveToCloud?: () => void;
+  project: SavedProject;
+  syncState: ProjectCloudSyncState | null;
+}) {
+  if (syncState?.phase === 'syncing') {
+    return (
+      <ActionButton
+        className="library-card-action library-card-action-cloud"
+        aria-label={`Syncing ${project.name} to cloud`}
+        disabled
+        variant="quiet"
+      >
+        SYNCING
+      </ActionButton>
+    );
+  }
   if (!onSaveToCloud) return null;
   return (
     <ActionButton
       className="library-card-action library-card-action-cloud"
-      aria-label={`Save ${project.name} to cloud`}
+      aria-label={syncState ? `Retry cloud sync for ${project.name}` : `Save ${project.name} to cloud`}
       onClick={onSaveToCloud}
       variant="quiet"
     >
-      CLOUD
+      {syncState ? 'RETRY' : 'CLOUD'}
     </ActionButton>
   );
 }
 
-function shouldShowSaveToCloud(project: SavedProject, onSaveToCloud?: (project: SavedProject) => void) {
-  return Boolean(onSaveToCloud) && (project.storage ?? 'local') === 'local';
+function shouldShowSaveToCloud(
+  project: SavedProject,
+  syncState: ProjectCloudSyncState | null,
+  onSaveToCloud?: (project: SavedProject) => void,
+) {
+  if (!onSaveToCloud) return false;
+  if (syncState) return syncState.phase !== 'syncing';
+  return (project.storage ?? 'local') === 'local';
 }
 
-function storageLabel(storage: SavedProject['storage']) {
-  if (storage === 'cloud') return 'CLOUD';
-  if (storage === 'synced') return 'SYNCED';
-  return 'LOCAL';
+interface ProjectCloudStatusModel {
+  label: string;
+  description: string;
+  tone: 'local' | 'cloud' | 'synced' | 'syncing' | 'warning' | 'danger';
+}
+
+function projectCloudStatusModel(
+  project: SavedProject,
+  syncState: ProjectCloudSyncState | null,
+): ProjectCloudStatusModel {
+  if (syncState?.phase === 'syncing') {
+    return { label: 'SYNCING', description: syncState.message, tone: 'syncing' };
+  }
+  if (syncState?.phase === 'too-large') {
+    return { label: 'TOO LARGE', description: syncState.message, tone: 'warning' };
+  }
+  if (syncState?.phase === 'failed') {
+    return { label: 'SYNC FAILED', description: syncState.message, tone: 'danger' };
+  }
+
+  const storage = project.storage ?? 'local';
+  if (storage === 'cloud') return { label: 'CLOUD', description: 'Cloud copy only', tone: 'cloud' };
+  if (storage === 'synced') return { label: 'SYNCED', description: 'Local and cloud copies match', tone: 'synced' };
+  return { label: 'LOCAL', description: 'Saved in this browser', tone: 'local' };
+}
+
+function projectCloudSyncSummaryRow(
+  projects: SavedProject[],
+  syncStates: Record<string, ProjectCloudSyncState>,
+): WorkspaceStatusRow {
+  if (projects.length === 0) {
+    return { id: 'cloud-sync', tone: 'muted', label: 'Cloud sync', value: 'No projects' };
+  }
+  const states = Object.values(syncStates);
+  const syncing = states.filter((state) => state.phase === 'syncing').length;
+  if (syncing > 0) {
+    return { id: 'cloud-sync', tone: 'warning', label: 'Cloud sync', value: `Syncing ${syncing}` };
+  }
+  const blocked = states.filter((state) => state.phase === 'failed' || state.phase === 'too-large').length;
+  if (blocked > 0) {
+    return { id: 'cloud-sync', tone: 'danger', label: 'Cloud sync', value: `${blocked} need attention` };
+  }
+  const local = projects.filter((project) => (project.storage ?? 'local') === 'local').length;
+  if (local > 0) {
+    return { id: 'cloud-sync', tone: 'warning', label: 'Cloud sync', value: `${local} local only` };
+  }
+  return { id: 'cloud-sync', tone: 'ok', label: 'Cloud sync', value: 'Up to date' };
 }

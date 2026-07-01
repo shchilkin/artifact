@@ -1,8 +1,17 @@
-import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import type { CanvasDocument, ImageLayer } from '../types/config';
 import { getArtifactAuthBaseUrl } from '../utils/authClient';
 import {
+  CloudProjectsApiError,
   deleteCloudProject,
   hydrateCloudSavedProject,
   listCloudProjects,
@@ -42,6 +51,17 @@ function loadFromStorage(): SavedProject[] {
 
 type LoadedPreBlankDraft = Awaited<ReturnType<typeof loadStoredPreBlankDraft>>;
 
+export type ProjectCloudSyncPhase = 'syncing' | 'failed' | 'too-large';
+
+export interface ProjectCloudSyncState {
+  phase: ProjectCloudSyncPhase;
+  message: string;
+  updatedAt: string;
+}
+
+type ProjectCloudSyncStates = Record<string, ProjectCloudSyncState>;
+type SetProjectCloudSyncStates = Dispatch<SetStateAction<ProjectCloudSyncStates>>;
+
 export function draftToProject(draft: LoadedPreBlankDraft, thumbnail?: string): SavedProject | null {
   if (!draft) return null;
   return {
@@ -59,6 +79,7 @@ export function useProjects() {
   const [projects, setProjects] = useState<SavedProject[]>(loadFromStorage);
   const [recoveryDraft, setRecoveryDraft] = useState<SavedProject | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [projectSyncStates, setProjectSyncStates] = useState<ProjectCloudSyncStates>({});
   const mountedRef = useRef(true);
 
   const refreshRecoveryDraft = useCallback(async () => {
@@ -108,6 +129,10 @@ export function useProjects() {
         if (!mountedRef.current) return;
         setStorageError(null);
         setProjects((current) => mergeProjects(current, cloudProjects));
+        clearProjectSyncStates(
+          setProjectSyncStates,
+          cloudProjects.map((project) => project.id),
+        );
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
@@ -136,7 +161,7 @@ export function useProjects() {
         const next = await saveStoredProject(project);
         setStorageError(null);
         if (mountedRef.current) setProjects((current) => mergeStoredProjectsWithCurrent(next, current));
-        void autoSyncProjectToCloud(project, auth, mountedRef, setProjects, setStorageError);
+        void autoSyncProjectToCloud(project, auth, mountedRef, setProjects, setStorageError, setProjectSyncStates);
         return project;
       } catch (error) {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to save project');
@@ -173,7 +198,7 @@ export function useProjects() {
         setStorageError('Sign in to save projects to cloud');
         return null;
       }
-      return await uploadProjectToCloud(project, auth, mountedRef, setProjects, setStorageError);
+      return await uploadProjectToCloud(project, auth, mountedRef, setProjects, setStorageError, setProjectSyncStates);
     },
     [auth],
   );
@@ -201,6 +226,7 @@ export function useProjects() {
     projects,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     saveProject,
     saveProjectToCloud,
     deleteProject,
@@ -217,9 +243,10 @@ async function autoSyncProjectToCloud(
   mountedRef: MutableRefObject<boolean>,
   setProjects: (projects: SavedProject[] | ((projects: SavedProject[]) => SavedProject[])) => void,
   setStorageError: (value: string | null) => void,
+  setProjectSyncStates: SetProjectCloudSyncStates,
 ) {
   if (!auth.configured || !auth.signedIn) return;
-  await uploadProjectToCloud(project, auth, mountedRef, setProjects, setStorageError);
+  await uploadProjectToCloud(project, auth, mountedRef, setProjects, setStorageError, setProjectSyncStates);
 }
 
 async function uploadProjectToCloud(
@@ -228,18 +255,60 @@ async function uploadProjectToCloud(
   mountedRef: MutableRefObject<boolean>,
   setProjects: (projects: SavedProject[] | ((projects: SavedProject[]) => SavedProject[])) => void,
   setStorageError: (value: string | null) => void,
+  setProjectSyncStates: SetProjectCloudSyncStates,
 ) {
+  setProjectSyncState(mountedRef.current, setProjectSyncStates, project.id, {
+    phase: 'syncing',
+    message: 'Uploading cloud copy',
+    updatedAt: new Date().toISOString(),
+  });
   try {
     const bearerToken = await auth.getToken();
     const cloudProject = await prepareCloudSavedProject(project, { baseUrl: getArtifactAuthBaseUrl(), bearerToken });
     const saved = await saveCloudProject(cloudProject, { baseUrl: getArtifactAuthBaseUrl(), bearerToken });
     if (mountedRef.current) setProjects((current) => mergeProjects(current, [saved]));
     if (mountedRef.current) setStorageError(null);
+    clearProjectSyncStates(setProjectSyncStates, [project.id]);
     return saved;
   } catch (error) {
     setMountedStorageError(mountedRef.current, setStorageError, error, 'Saved locally. Cloud sync failed');
+    setProjectSyncState(mountedRef.current, setProjectSyncStates, project.id, projectCloudSyncErrorState(error));
     return null;
   }
+}
+
+function clearProjectSyncStates(setProjectSyncStates: SetProjectCloudSyncStates, projectIds: string[]) {
+  if (projectIds.length === 0) return;
+  setProjectSyncStates((current) => {
+    const next = { ...current };
+    for (const id of projectIds) delete next[id];
+    return next;
+  });
+}
+
+function setProjectSyncState(
+  mounted: boolean,
+  setProjectSyncStates: SetProjectCloudSyncStates,
+  projectId: string,
+  state: ProjectCloudSyncState,
+) {
+  if (!mounted) return;
+  setProjectSyncStates((current) => ({ ...current, [projectId]: state }));
+}
+
+function projectCloudSyncErrorState(error: unknown): ProjectCloudSyncState {
+  if (error instanceof CloudProjectsApiError && (error.status === 413 || error.code === 'payload_too_large')) {
+    return {
+      phase: 'too-large',
+      message: 'Too large for cloud sync',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return {
+    phase: 'failed',
+    message: errorMessage(error, 'Cloud sync failed'),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 async function deleteProjectFromCloud(

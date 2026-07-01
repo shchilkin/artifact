@@ -39,6 +39,7 @@ export function useEditorProjectsController({
     projects,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     saveProject,
     saveProjectToCloud,
@@ -113,6 +114,7 @@ export function useEditorProjectsController({
     activeProject,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     toggleProjects: () => {
       refreshRecoveryDraft();
