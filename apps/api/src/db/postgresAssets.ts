@@ -70,6 +70,46 @@ export class PostgresAssetRepository implements AssetRepository {
     return result.rows[0] ?? null;
   }
 
+  async findProjectAssetByFingerprintForUser(input: {
+    userId: string;
+    kind: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  }): Promise<AssetRow | null> {
+    const result = await this.client.query<AssetRow>(
+      `
+        SELECT ${assetColumns}
+        FROM assets
+        WHERE user_id = $1
+          AND kind = $2
+          AND mime_type = $3
+          AND size_bytes = $4
+          AND metadata_json->>'sha256' = $5
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+        LIMIT 1
+      `,
+      [input.userId, input.kind, input.mimeType, input.sizeBytes, input.sha256],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async listProjectAssetsForUser(userId: string): Promise<AssetRow[]> {
+    const result = await this.client.query<AssetRow>(
+      `
+        SELECT ${assetColumns}
+        FROM assets
+        WHERE user_id = $1
+          AND kind LIKE 'project-%'
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+      `,
+      [userId],
+    );
+    return result.rows;
+  }
+
   async softDelete(id: string, userId: string, deletedAt: Date): Promise<AssetRow> {
     const result = await this.client.query<AssetRow>(
       `
@@ -81,6 +121,23 @@ export class PostgresAssetRepository implements AssetRepository {
       [id, userId, deletedAt],
     );
     return requireRow(result.rows, `Asset not found: ${id}`);
+  }
+
+  async softDeleteManyForUser(ids: readonly string[], userId: string, deletedAt: Date): Promise<AssetRow[]> {
+    if (!ids.length) return [];
+    const result = await this.client.query<AssetRow>(
+      `
+        UPDATE assets
+        SET deleted_at = $3
+        WHERE id = ANY($1::text[])
+          AND user_id = $2
+          AND kind LIKE 'project-%'
+          AND deleted_at IS NULL
+        RETURNING ${assetColumns}
+      `,
+      [ids, userId, deletedAt],
+    );
+    return result.rows;
   }
 }
 

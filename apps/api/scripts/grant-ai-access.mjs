@@ -6,7 +6,7 @@ loadEnvFiles([resolve(process.cwd(), '.env'), resolve(process.cwd(), '.env.local
 
 const [userId, email] = process.argv.slice(2);
 if (!userId) {
-  console.error('Usage: npm --workspace @artifact/api run grant:ai -- <clerk-user-id> [email]');
+  console.error('Usage: npm --workspace @artifact/api run grant:ai -- <auth-user-id> [email]');
   process.exit(1);
 }
 

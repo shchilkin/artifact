@@ -1,14 +1,16 @@
-import { ActiveGenerationJobExistsError } from './errors.js';
+import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } from './errors.js';
 import type { ApiRepositories } from './repositories.js';
 import type {
   AiGenerationJobRow,
   AiUsageMonthlyRow,
   AssetRow,
+  CloudProjectRow,
   CreateAiGenerationJobInput,
   CreateAssetInput,
   CreateUserInput,
   JsonObject,
   UpsertAuthenticatedUserInput,
+  UpsertCloudProjectInput,
   UserRow,
 } from './types.js';
 
@@ -16,6 +18,7 @@ export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
   private readonly assets = new Map<string, AssetRow>();
+  private readonly projects = new Map<string, CloudProjectRow>();
   private readonly monthlyUsage = new Map<string, AiUsageMonthlyRow>();
 
   seedUser(input: CreateUserInput): UserRow {
@@ -77,6 +80,52 @@ export class InMemoryApiStore {
     const asset = this.assets.get(id);
     if (asset && asset.user_id === userId) return asset;
     return null;
+  }
+
+  async findProjectAssetByFingerprintForUser(input: {
+    userId: string;
+    kind: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  }): Promise<AssetRow | null> {
+    return (
+      Array.from(this.assets.values()).find(
+        (asset) =>
+          asset.user_id === input.userId &&
+          asset.kind === input.kind &&
+          asset.mime_type === input.mimeType &&
+          asset.size_bytes === input.sizeBytes &&
+          asset.metadata_json.sha256 === input.sha256 &&
+          !asset.deleted_at,
+      ) ?? null
+    );
+  }
+
+  async listProjectAssetsForUser(userId: string): Promise<AssetRow[]> {
+    return Array.from(this.assets.values()).filter(
+      (asset) => asset.user_id === userId && asset.kind.startsWith('project-') && !asset.deleted_at,
+    );
+  }
+
+  async softDeleteAsset(id: string, userId: string, deletedAt: Date): Promise<AssetRow> {
+    const asset = this.assets.get(id);
+    if (!asset || asset.user_id !== userId) throw new Error(`Asset not found: ${id}`);
+    const updated = { ...asset, deleted_at: deletedAt };
+    this.assets.set(id, updated);
+    return updated;
+  }
+
+  async softDeleteAssetsForUser(ids: readonly string[], userId: string, deletedAt: Date): Promise<AssetRow[]> {
+    const deleted: AssetRow[] = [];
+    for (const id of ids) {
+      const asset = this.assets.get(id);
+      if (!asset || asset.user_id !== userId || !asset.kind.startsWith('project-') || asset.deleted_at) continue;
+      const updated = { ...asset, deleted_at: deletedAt };
+      this.assets.set(id, updated);
+      deleted.push(updated);
+    }
+    return deleted;
   }
 
   async findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null> {
@@ -202,6 +251,37 @@ export class InMemoryApiStore {
     ).length;
   }
 
+  async listCloudProjectsForUser(userId: string): Promise<CloudProjectRow[]> {
+    return Array.from(this.projects.values())
+      .filter((project) => project.user_id === userId)
+      .sort((left, right) => right.updated_at.getTime() - left.updated_at.getTime());
+  }
+
+  async upsertCloudProject(input: UpsertCloudProjectInput): Promise<CloudProjectRow> {
+    const existing = this.projects.get(input.id);
+    if (existing && existing.user_id !== input.userId) {
+      throw new CloudProjectOwnershipConflictError(input.id);
+    }
+    const now = new Date();
+    const row: CloudProjectRow = {
+      id: input.id,
+      user_id: input.userId,
+      name: input.name,
+      doc_json: input.docJson,
+      thumbnail: input.thumbnail ?? null,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    };
+    this.projects.set(row.id, row);
+    return row;
+  }
+
+  async deleteCloudProjectForUser(id: string, userId: string): Promise<boolean> {
+    const existing = this.projects.get(id);
+    if (!existing || existing.user_id !== userId) return false;
+    return this.projects.delete(id);
+  }
+
   repositories(): ApiRepositories {
     return {
       users: {
@@ -221,6 +301,15 @@ export class InMemoryApiStore {
       assets: {
         create: (input) => this.createAsset(input),
         findByIdForUser: (id, userId) => this.findAssetByIdForUser(id, userId),
+        findProjectAssetByFingerprintForUser: (input) => this.findProjectAssetByFingerprintForUser(input),
+        listProjectAssetsForUser: (userId) => this.listProjectAssetsForUser(userId),
+        softDelete: (id, userId, deletedAt) => this.softDeleteAsset(id, userId, deletedAt),
+        softDeleteManyForUser: (ids, userId, deletedAt) => this.softDeleteAssetsForUser(ids, userId, deletedAt),
+      },
+      projects: {
+        listForUser: (userId) => this.listCloudProjectsForUser(userId),
+        upsert: (input) => this.upsertCloudProject(input),
+        deleteForUser: (id, userId) => this.deleteCloudProjectForUser(id, userId),
       },
       usage: {
         findMonthlyUsage: (userId, period) => this.findMonthlyUsage(userId, period),

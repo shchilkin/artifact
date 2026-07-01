@@ -77,6 +77,29 @@ geometry that is not a reusable UI rule.
 | Success | `--state-success` |
 | Warning | `--state-warning` |
 
+Editor graph color roles:
+
+| Role | Token |
+| --- | --- |
+| Node fill | `--node-kind-fill` |
+| Node image | `--node-kind-image` |
+| Node text | `--node-kind-text` |
+| Node emoji | `--node-kind-emoji` |
+| Node effect | `--node-kind-effect` |
+| Node primitive/model/3D | `--node-kind-primitive` |
+| Node noise | `--node-kind-noise` |
+| Node array/repeat/line field | `--node-kind-array` |
+| Node merge | `--node-kind-merge` |
+| Node color/transform/environment | `--node-kind-color` |
+| Node export | `--node-kind-export` |
+| Node canvas grid dot | `--editor-grid-dot` |
+| Node output path | `--node-edge-output` |
+
+Node category colors are semantic editor state. Use them for graph scanning,
+not decoration. A selected node's frame, focus outline, rail, and leading
+shadow must resolve to that node's category token; do not substitute
+`--accent-primary` or `--editor-selection-outline` for all node kinds.
+
 ### Spacing
 
 Use the shared scale:
@@ -97,27 +120,36 @@ should use the scale above.
 
 ### Radius
 
-Artifact is square by default.
+Artifact uses crisp, low-radius geometry. Square corners are part of the print
+language for artwork frames, hard panels, crop marks, and node housings, but
+the system should not force radius 0 onto every interactive control. Buttons,
+inputs, chips, menus, and overlays may use 2–6px radius when it improves
+affordance, focus readability, or touch feel.
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--radius-sm` | `0` | buttons, panels, cards, menus |
-| `--radius-md` | `2px` | fine native affordances only |
-| `--radius-lg` | `4px` | sliders and small controls that need thumb affordance |
+| `--radius-sm` | `0` | artwork frames, crop marks, hard panels, node housings |
+| `--radius-md` | `2px` | compact buttons, chips, tight controls |
+| `--radius-lg` | `4px` | inputs, menus, sliders, repeated rows |
 | `--radius-xl` | `9px` | rare pill-like native affordances |
 
-Do not round cards, panels, or navigation just to make them feel friendly.
+Do not round cards, panels, or navigation just to make them feel friendly. Use
+radius because it improves interaction clarity, not because the surface looks
+too severe.
 
 ### Typography
 
 | Role | Token | Use |
 | --- | --- | --- |
-| Mono family | `--font-mono` | UI labels, controls, buttons, meta |
+| Readable UI family | `--font-body` | layer names, inspector descriptions, empty states, route copy |
+| Mono family | `--font-mono` | Space Mono for control labels, commands, node labels, ids, meta |
 | Display family | `--font-display` | page and section headlines |
 | UI XS | `--type-ui-xs` | dense meta, badge text |
 | UI SM | `--type-ui-sm` | buttons, labels |
 | UI MD | `--type-ui-md` | input values, body in panels |
-| Body | `--type-body` | route copy and readable descriptions |
+| Editor label | `--type-editor-label` | node labels, inspector labels, add-library row labels |
+| Editor meta | `--type-editor-meta` | compact badges, section summaries, hints |
+| Body | `--type-body` | route copy, readable descriptions, empty states |
 | Title | `--type-title` | compact section titles |
 | Display | `--type-display` | major page titles |
 | UI line | `--leading-ui` | compact controls |
@@ -127,11 +159,16 @@ Do not round cards, panels, or navigation just to make them feel friendly.
 | Strong weight | `--weight-strong` | selected or primary labels |
 | Display weight | `--weight-display` | display headings |
 
-UI chrome uses mono. Display type is reserved for real titles, not controls.
+Mono is the control grammar, not the paragraph voice. Use Space Mono for commands,
+labels, node names, ids, field keys, and short values. Use readable sans for
+long descriptions, onboarding, empty states, error recovery, and dense
+explanatory panels. Display type is reserved for real titles, not controls.
+Avoid making dense editor labels smaller than 10px or tracking them beyond
+0.1em by default; over-tracked microcopy slows scanning.
 
 ### Elevation
 
-Flat by default.
+Layered by default.
 
 | Token | Use |
 | --- | --- |
@@ -139,7 +176,9 @@ Flat by default.
 | `--shadow-focus` | focused controls when outline needs support |
 | `--shadow-overlay` | dialogs, sheets, and anchored floating menus |
 
-Do not add resting card shadows. Use tonal surfaces and borders.
+Do not add soft generic resting card shadows. Use tonal surfaces and borders
+first; reserve shadows for overlays, focus support, selected graph objects,
+and drag states where separation is functional.
 
 ### Motion
 
@@ -230,6 +269,29 @@ until the migration is complete.
 - **Usage**: Layers/Nodes, docs sections, compact panel switching.
 - **Anti-patterns**: tabs for unrelated navigation, too many triggers, hidden
   panels that should be routes.
+
+### Node Canvas
+
+- **Anatomy**: graph background, dot grid, nodes, ports, edges, active output
+  path, toolbar, inspector, optional graph areas.
+- **Variants**: default graph, selected node, selected edge, output path, muted
+  node, locked delete state, graph area, jump-to-output view.
+- **States**: default, hover, focus-visible, selected, output-path,
+  selected+output-path, muted, locked, dragging, invalid connection.
+- **Accessibility**: node frames and toolbar controls need visible focus;
+  icon-only graph controls need accessible labels; selected state cannot rely
+  on color alone when text or state labels are available.
+- **Usage**: editing graph structure, reading composition flow, navigating to
+  the final render path.
+- **Color contract**: category color identifies node kind; output-path color
+  identifies route; global accent identifies product commands. Keep those three
+  roles separate.
+- **Grid contract**: grid dots must be visible on the workspace at normal zoom,
+  but lower contrast than node borders and output edges.
+- **Anti-patterns**: one global red/orange selected frame for every node kind,
+  invisible grids, hover styles that override selected styles, decorative edge
+  glow that makes topology harder to read, node toolbars split into floating
+  cards.
 
 ### Navigation
 
@@ -325,6 +387,9 @@ until the migration is complete.
    surfaces.
 10. UI changes that affect layout, overlays, menus, focus, or responsive
     behavior need focused browser verification.
+11. Node canvas visual changes need browser coverage for category-colored
+    selection, output-path visibility, grid readability, and absence of
+    React/React Flow update loops.
 
 ## 7. Output Checklist
 

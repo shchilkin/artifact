@@ -1,6 +1,7 @@
 export interface ApiConfig {
   port: number;
   webOrigin: string;
+  webOrigins: string[];
   databaseDriver: 'memory' | 'postgres';
   databaseUrl: string;
   queueDriver: 'memory' | 'bullmq';
@@ -8,9 +9,12 @@ export interface ApiConfig {
   authJwtSecret: string;
   authJwtIssuer?: string;
   authJwtAudience?: string;
-  clerkSecretKey?: string;
-  clerkJwtKey?: string;
-  clerkAuthorizedParties: string[];
+  betterAuthSecret: string;
+  betterAuthUrl?: string;
+  resendApiKey?: string;
+  emailFrom?: string;
+  emailReplyTo?: string;
+  passwordResetLogUrl: boolean;
   devBearerToken?: string;
   bullBoardEnabled: boolean;
   openAiApiKey?: string;
@@ -47,15 +51,6 @@ function booleanEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean) {
   throw new Error(`Environment variable ${name} must be true or false`);
 }
 
-function listEnv(env: NodeJS.ProcessEnv, name: string, fallback: string[]) {
-  const value = env[name];
-  if (!value) return fallback;
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function enumEnv<T extends string>(
   env: NodeJS.ProcessEnv,
   name: string,
@@ -72,14 +67,29 @@ function driverUrl(env: NodeJS.ProcessEnv, enabled: boolean, name: string) {
   return enabled ? requiredEnv(env, name) : (env[name] ?? '');
 }
 
+function stringListEnv(env: NodeJS.ProcessEnv, name: string): string[] {
+  return (env[name] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function webOriginsEnv(env: NodeJS.ProcessEnv) {
+  const fallbackOrigin = (env.WEB_ORIGIN ?? 'http://localhost:5173').trim();
+  const origins = stringListEnv(env, 'WEB_ORIGINS');
+  return origins.length > 0 ? origins : [fallbackOrigin];
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const assetStorageDriver = enumEnv(env, 'ASSET_STORAGE_DRIVER', 'local', ['local', 's3'], 'local or s3');
   const databaseDriver = enumEnv(env, 'API_DATABASE_DRIVER', 'memory', ['memory', 'postgres'], 'memory or postgres');
   const queueDriver = enumEnv(env, 'API_QUEUE_DRIVER', 'memory', ['memory', 'bullmq'], 'memory or bullmq');
+  const webOrigins = webOriginsEnv(env);
 
   return {
     port: numberEnv(env, 'PORT', 4000),
-    webOrigin: env.WEB_ORIGIN ?? 'http://localhost:5173',
+    webOrigin: webOrigins[0] ?? 'http://localhost:5173',
+    webOrigins,
     databaseDriver,
     databaseUrl: driverUrl(env, databaseDriver === 'postgres', 'DATABASE_URL'),
     queueDriver,
@@ -87,9 +97,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     authJwtSecret: requiredEnv(env, 'AUTH_JWT_SECRET'),
     authJwtIssuer: env.AUTH_JWT_ISSUER,
     authJwtAudience: env.AUTH_JWT_AUDIENCE,
-    clerkSecretKey: env.CLERK_SECRET_KEY,
-    clerkJwtKey: env.CLERK_JWT_KEY,
-    clerkAuthorizedParties: listEnv(env, 'CLERK_AUTHORIZED_PARTIES', [env.WEB_ORIGIN ?? 'http://localhost:5173']),
+    betterAuthSecret: env.BETTER_AUTH_SECRET ?? requiredEnv(env, 'AUTH_JWT_SECRET'),
+    betterAuthUrl: env.BETTER_AUTH_URL,
+    resendApiKey: env.RESEND_API_KEY,
+    emailFrom: env.EMAIL_FROM,
+    emailReplyTo: env.EMAIL_REPLY_TO,
+    passwordResetLogUrl: booleanEnv(env, 'PASSWORD_RESET_LOG_URL', env.NODE_ENV !== 'production'),
     devBearerToken: env.API_DEV_BEARER_TOKEN,
     bullBoardEnabled: booleanEnv(env, 'API_BULL_BOARD_ENABLED', false),
     openAiApiKey: env.OPENAI_API_KEY,

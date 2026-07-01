@@ -60,6 +60,16 @@ export interface AssetRow {
   deleted_at: DbTimestamp | null;
 }
 
+export interface CloudProjectRow {
+  id: string;
+  user_id: string;
+  name: string;
+  doc_json: JsonObject;
+  thumbnail: string | null;
+  created_at: DbTimestamp;
+  updated_at: DbTimestamp;
+}
+
 export interface AiUsageMonthlyRow {
   user_id: string;
   period: string;
@@ -107,6 +117,14 @@ export interface CreateAssetInput {
   metadataJson: JsonObject;
 }
 
+export interface UpsertCloudProjectInput {
+  id: string;
+  userId: string;
+  name: string;
+  docJson: JsonObject;
+  thumbnail?: string | null;
+}
+
 export interface UpsertAiUsageMonthlyInput {
   userId: string;
   period: string;
@@ -145,7 +163,22 @@ export interface AiGenerationJobRepository {
 export interface AssetRepository {
   create(input: CreateAssetInput): Promise<AssetRow>;
   findByIdForUser(id: string, userId: string): Promise<AssetRow | null>;
+  findProjectAssetByFingerprintForUser(input: {
+    userId: string;
+    kind: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  }): Promise<AssetRow | null>;
+  listProjectAssetsForUser(userId: string): Promise<AssetRow[]>;
   softDelete(id: string, userId: string, deletedAt: Date): Promise<AssetRow>;
+  softDeleteManyForUser(ids: readonly string[], userId: string, deletedAt: Date): Promise<AssetRow[]>;
+}
+
+export interface CloudProjectRepository {
+  listForUser(userId: string): Promise<CloudProjectRow[]>;
+  upsert(input: UpsertCloudProjectInput): Promise<CloudProjectRow>;
+  deleteForUser(id: string, userId: string): Promise<boolean>;
 }
 
 export interface AiUsageRepository {

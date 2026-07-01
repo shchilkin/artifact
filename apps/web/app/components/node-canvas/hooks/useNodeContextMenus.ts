@@ -14,10 +14,12 @@ import type { ContextMenuState, InsertConnectionConfig } from '../types';
 
 export interface UseNodeContextMenusOptions {
   send: (event: NodeCanvasMachineEvent) => void;
+  contextMenu: ContextMenuState;
   graph: CanvasGraph;
   rfInstanceRef: React.RefObject<ReactFlowInstance | null>;
   addNodeButtonRef: React.RefObject<HTMLButtonElement | null>;
   canvasSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  contextMenuRef: React.RefObject<HTMLDivElement | null>;
   selectedEdgeId: string | null;
   selectedNodeIds: string[];
   graphRef: React.RefObject<CanvasGraph>;
@@ -29,6 +31,7 @@ export interface UseNodeContextMenusOptions {
 
 export interface UseNodeContextMenusResult {
   openAddNodeMenu: () => void;
+  closeContextMenu: () => void;
   onPaneContextMenu: (e: MouseEvent | React.MouseEvent) => void;
   onNodeContextMenu: (e: MouseEvent | React.MouseEvent, node: RFNode) => void;
   onEdgeContextMenu: (e: React.MouseEvent, edge: RFEdge) => void;
@@ -178,10 +181,23 @@ function pendingConnectStart(params: OnConnectStartParams) {
 function openDeferredConnectAddMenu(
   send: (event: NodeCanvasMachineEvent) => void,
   menu: Extract<ContextMenuState, { type: 'pane-insert' }>,
+  frameRef: React.MutableRefObject<number | null>,
 ) {
-  window.requestAnimationFrame(() => {
+  cancelDeferredConnectAddMenu(frameRef);
+  frameRef.current = window.requestAnimationFrame(() => {
+    frameRef.current = null;
     send({ type: 'CONTEXT_MENU_OPENED', menu });
   });
+}
+
+function cancelDeferredConnectAddMenu(frameRef: React.MutableRefObject<number | null>) {
+  if (frameRef.current === null) return;
+  window.cancelAnimationFrame(frameRef.current);
+  frameRef.current = null;
+}
+
+function targetInsideElement(target: EventTarget | null, element: HTMLElement | null) {
+  return typeof Node !== 'undefined' && target instanceof Node && element?.contains(target) === true;
 }
 
 function connectEndAddMenu(
@@ -235,9 +251,11 @@ function connectEndFlowPosition(
  */
 export function useNodeContextMenus({
   send,
+  contextMenu,
   rfInstanceRef,
   addNodeButtonRef,
   canvasSurfaceRef,
+  contextMenuRef,
   selectedEdgeId,
   selectedNodeIds,
   graphRef,
@@ -247,6 +265,15 @@ export function useNodeContextMenus({
   onAddLayerAt,
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
   const pendingConnectionStartRef = useRef<ReturnType<typeof pendingConnectStart>>(null);
+  const deferredConnectMenuFrameRef = useRef<number | null>(null);
+
+  const closeContextMenu = useCallback(() => {
+    cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+    pendingConnectionStartRef.current = null;
+    send({ type: 'CONTEXT_MENU_CLOSED' });
+  }, [send]);
+
+  useEffect(() => () => cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef), []);
 
   // Delete/Backspace shortcut for selected nodes and edges.
   useEffect(() => {
@@ -265,7 +292,42 @@ export function useNodeContextMenus({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, canDeleteNode, onGraphChange, graphRef, send]);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const isInsideMenu = (target: EventTarget | null) => targetInsideElement(target, contextMenuRef.current);
+
+    const closeForOutsidePointer = (event: PointerEvent) => {
+      if (isInsideMenu(event.target)) return;
+      closeContextMenu();
+    };
+
+    const closeForOutsideContextMenu = (event: MouseEvent) => {
+      if (isInsideMenu(event.target)) return;
+      closeContextMenu();
+    };
+
+    const closeForEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (isInsideMenu(event.target)) return;
+      event.preventDefault();
+      closeContextMenu();
+    };
+
+    document.addEventListener('pointerdown', closeForOutsidePointer, true);
+    document.addEventListener('contextmenu', closeForOutsideContextMenu, true);
+    document.addEventListener('keydown', closeForEscape);
+    window.addEventListener('blur', closeContextMenu);
+    return () => {
+      document.removeEventListener('pointerdown', closeForOutsidePointer, true);
+      document.removeEventListener('contextmenu', closeForOutsideContextMenu, true);
+      document.removeEventListener('keydown', closeForEscape);
+      window.removeEventListener('blur', closeContextMenu);
+    };
+  }, [closeContextMenu, contextMenu, contextMenuRef]);
+
   const openAddNodeMenu = useCallback(() => {
+    cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
     const buttonRect = addNodeButtonRef.current?.getBoundingClientRect();
     const surfaceRect = canvasSurfaceRef.current?.getBoundingClientRect();
     const anchor = addNodeMenuAnchor(buttonRect, surfaceRect);
@@ -280,6 +342,7 @@ export function useNodeContextMenus({
   const onPaneContextMenu = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
       e.preventDefault();
+      cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
@@ -296,6 +359,7 @@ export function useNodeContextMenus({
     (e: MouseEvent | React.MouseEvent, node: RFNode) => {
       e.preventDefault();
       e.stopPropagation();
+      cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
       const isMerge = isGraphUtilityNode(graphRef.current, node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
@@ -317,6 +381,7 @@ export function useNodeContextMenus({
     (e: React.MouseEvent, edge: RFEdge) => {
       e.preventDefault();
       e.stopPropagation();
+      cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
@@ -340,10 +405,14 @@ export function useNodeContextMenus({
     [send, rfInstanceRef],
   );
 
-  const onConnectStart = useCallback((event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
-    event.stopPropagation();
-    pendingConnectionStartRef.current = pendingConnectStart(params);
-  }, []);
+  const onConnectStart = useCallback(
+    (event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+      event.stopPropagation();
+      closeContextMenu();
+      pendingConnectionStartRef.current = pendingConnectStart(params);
+    },
+    [closeContextMenu],
+  );
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
@@ -356,7 +425,8 @@ export function useNodeContextMenus({
         (point) => rfInstanceRef.current?.screenToFlowPosition(point) ?? { x: 0, y: 0 },
       );
       pendingConnectionStartRef.current = null;
-      if (menu) openDeferredConnectAddMenu(send, menu);
+      if (menu) openDeferredConnectAddMenu(send, menu, deferredConnectMenuFrameRef);
+      else cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
     },
     [send, rfInstanceRef],
   );
@@ -372,6 +442,7 @@ export function useNodeContextMenus({
 
   return {
     openAddNodeMenu,
+    closeContextMenu,
     onPaneContextMenu,
     onNodeContextMenu,
     onEdgeContextMenu,

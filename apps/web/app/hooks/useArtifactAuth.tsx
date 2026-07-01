@@ -24,10 +24,6 @@ export const anonymousAuth: ArtifactAuthState = {
 
 export const ArtifactAuthContext = createContext<ArtifactAuthState>(anonymousAuth);
 
-export function getClerkPublishableKey() {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_CLERK_PUBLISHABLE_KEY;
-}
-
 export function useArtifactAuth() {
   return useContext(ArtifactAuthContext);
 }

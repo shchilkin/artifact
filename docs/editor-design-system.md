@@ -24,8 +24,10 @@ Artifact's print-like visual language.
 
 The v0.30 foundation should inventory and normalize these token families:
 
-- **Typography**: editor labels, body copy, button text, compact mono labels,
-  inspector values, and large display labels.
+- **Typography**: Barlow Condensed as the readable UI family for layer names,
+  longer descriptions, and recovery copy; Space Mono for editor labels, button
+  text, node labels, field keys, ids, inspector values, and compact meta;
+  display only for real route or section titles.
 - **Control sizing**: icon buttons, compact buttons, default buttons, search
   fields, row heights, toolbar controls, and tab triggers.
 - **Spacing**: panel padding, row gaps, toolbar gaps, menu item padding, and
@@ -36,11 +38,30 @@ The v0.30 foundation should inventory and normalize these token families:
   ring, disabled border, and output-path emphasis.
 - **State colors**: selected, active, hidden, muted, locked, disabled, danger,
   output path, off-output-path, loading, and warning.
+- **Node graph color**: category color tokens (`--node-kind-*`), output-path
+  color (`--node-edge-output`), grid dot color (`--editor-grid-dot`), selected
+  node rings, selected edge emphasis, handle colors, and layer-kind badges.
 - **Motion and layering**: overlay z-index, sheet/dialog z-index, menu z-index,
   hover/focus transitions, and reduced-motion behavior.
 
 Avoid local `text-[8px]`, `h-[22px]`, one-off borders, and one-off focus styles
 when they describe a reusable editor control state.
+
+Avoid treating radius 0 or mono text as universal style requirements. Square
+geometry is useful for artwork frames, node housings, and hard editor panels;
+small radius is acceptable for controls, menus, inputs, and overlays when it
+improves affordance. Mono is a control grammar; longer explanatory copy should
+stay readable.
+
+Avoid over-tracked microcopy as a default editor style. Dense node/editor
+surfaces should prefer 10–11px mono labels with 0.05–0.1em tracking, and use
+readable sans for notes, descriptions, and recovery copy.
+
+Node graph colors are product semantics. Do not collapse category, selection,
+and output route into one accent token while extracting primitives. `NodeShell`
+and future `NodeFrame` primitives should accept a category role and derive rail,
+handle, focus, selected, and hover states from that role. Output-path styling is
+an additional route state, not a replacement for category color.
 
 ## Shared Primitive Ladder
 
@@ -113,6 +134,8 @@ The deterministic internal route for the visual UI catalog is
 - badges and status chips
 - layer rows: default, selected, hidden, locked, selected+hidden
 - node frames: default, selected, output path, muted, locked delete action
+- node color states: at least two distinct categories selected in sequence
+  (for example emoji and effect), selected+output-path, and active output edge
 - Add Library: search, result row, detail preview, empty state, and default
   browse lists that show one base primitive per layer kind. Preset variants
   belong in recipes or search results unless a dedicated variant picker is
@@ -207,8 +230,8 @@ After v0.30 closes the baseline, extract the rest of the app in this order:
 3. **Forms and inspector fields**: consolidate repeated text inputs, search
    inputs, selects, toggles, sliders, color fields, and section labels into
    product-shaped inspector primitives instead of one-off CSS blocks.
-4. **Menus and overlays**: migrate layer/node context menus, quick-add menus,
-   Add Library menus, projects, and info popups onto the shared
+4. **Menus and overlays**: migrate layer/node context menus, Add Library menus,
+   node insertion menus, projects, and info popups onto the shared
    `FloatingMenu`, `Dialog`, and `Sheet` mechanics with Artifact tokens.
 5. **Rows and panels**: make `LayerRow`, area rows, project rows, Add Library
    result rows, and node property rows share explicit row tokens and state
@@ -219,6 +242,13 @@ After v0.30 closes the baseline, extract the rest of the app in this order:
 7. **Large composed surfaces**: keep `NodeCanvas`, `CanvasPreview`, `Sidebar`,
    and route pages as composed product surfaces, but ensure every visible
    control inside them comes from a primitive or documented editor primitive.
+
+Node canvas extraction must preserve the visual contract before reducing local
+CSS: category-colored node selection, visible grid dots, readable output-path
+edges, hover that does not override selected state, and focused browser coverage
+for React Flow selection regressions. If an extraction makes all selected nodes
+share the global accent, it is a regression even if the component API is
+cleaner.
 
 Do not try to migrate the whole editor in one sweep. Each extraction pass should
 have a style-guide specimen, focused browser coverage, and no renderer, graph,
@@ -247,8 +277,8 @@ High-priority follow-up specimens:
 - bottom command bar default, compact, and mobile states
 - canvas handles for selected, locked, and hidden layers
 - canvas preview frame with deterministic content
-- layer empty start, area folders, add menus, context menus, quick-add menus,
-  and reduced full layer panel states
+- layer empty start, area folders, add menus, context menus, and reduced full
+  layer panel states
 - graph area overlay, node add/context/pane menus, node canvas, node gallery,
   node editor panel, and node thumbnail states
 - projects list, empty, selected, and import states
@@ -290,3 +320,5 @@ Intentionally excluded from style-guide specimens:
 - Did the change avoid renderer, graph traversal, export, persistence, and
   document-schema changes?
 - Did focused browser coverage run for the affected style-guide/editor states?
+- For node canvas changes, did the change preserve category-colored selection,
+  output-path contrast, grid readability, and React Flow stability?

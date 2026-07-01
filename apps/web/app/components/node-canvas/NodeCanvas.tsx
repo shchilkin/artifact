@@ -8,6 +8,7 @@ import {
   ViewportPortal,
 } from '@xyflow/react';
 import {
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type RefObject,
   useCallback,
@@ -316,6 +317,7 @@ export function NodeCanvas({
 
   const {
     openAddNodeMenu,
+    closeContextMenu,
     onPaneContextMenu,
     onNodeContextMenu,
     onEdgeContextMenu,
@@ -324,10 +326,12 @@ export function NodeCanvas({
     handleAddFromMenu,
   } = useNodeContextMenus({
     send,
+    contextMenu,
     graph,
     rfInstanceRef,
     addNodeButtonRef,
     canvasSurfaceRef,
+    contextMenuRef,
     selectedEdgeId,
     selectedNodeIds,
     graphRef,
@@ -364,8 +368,9 @@ export function NodeCanvas({
 
   const onPaneClick = useCallback(() => {
     clearSelectedArea();
+    closeContextMenu();
     send({ type: 'PANE_CLICKED' });
-  }, [clearSelectedArea, send]);
+  }, [clearSelectedArea, closeContextMenu, send]);
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
@@ -400,16 +405,6 @@ export function NodeCanvas({
       duration: 220,
     });
   }, []);
-
-  const handleFitOutputPath = useCallback(() => {
-    const nodes = [...outputPath.nodeIds].map((id) => ({ id }));
-    void rfInstanceRef.current?.fitView({
-      nodes,
-      padding: 0.24,
-      maxZoom: 1.05,
-      duration: 220,
-    });
-  }, [outputPath.nodeIds]);
 
   const handleToggleSelectedLayerVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
@@ -503,7 +498,6 @@ export function NodeCanvas({
               perfDebugEnabled={perfDebugEnabled}
               onAddNode={openAddNodeMenu}
               onCreateArea={handleCreateAreaFromSelection}
-              onFitOutputPath={handleFitOutputPath}
               onJumpToOutput={handleJumpToOutput}
               onOrganizeNodes={() => handleOrganizeNodes(doc.layers)}
               onTogglePerfDebug={handleTogglePerfDebug}
@@ -596,7 +590,7 @@ export function NodeCanvas({
             contextMenuRef={contextMenuRef}
             rfInstanceRef={rfInstanceRef}
             onAddFromMenu={handleAddFromMenu}
-            onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+            onClose={closeContextMenu}
             resolveInsertionAtPoint={resolveAddLibraryInsertionAtPoint}
           />
 
@@ -606,7 +600,7 @@ export function NodeCanvas({
             contextMenuRef={contextMenuRef}
             graph={graph}
             layers={doc.layers}
-            onClose={() => send({ type: 'CONTEXT_MENU_CLOSED' })}
+            onClose={closeContextMenu}
             onDeleteNodes={deleteUnlockedNodes}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveNodeFromArea={handleRemoveNodeFromArea}
@@ -1110,7 +1104,6 @@ function NodeCanvasToolbar({
   perfDebugEnabled,
   onAddNode,
   onCreateArea,
-  onFitOutputPath,
   onJumpToOutput,
   onOrganizeNodes,
   onTogglePerfDebug,
@@ -1122,7 +1115,6 @@ function NodeCanvasToolbar({
   perfDebugEnabled: boolean;
   onAddNode: () => void;
   onCreateArea: () => void;
-  onFitOutputPath: () => void;
   onJumpToOutput: () => void;
   onOrganizeNodes: () => void;
   onTogglePerfDebug: () => void;
@@ -1141,20 +1133,18 @@ function NodeCanvasToolbar({
           <span aria-hidden="true">⌘</span>
           Layout
         </button>
-        <AreaToolbarButton
-          areaActionDisabled={areaActionDisabled}
-          areaActionTargetId={areaActionTargetId}
-          onCreateArea={onCreateArea}
-        />
+        {!areaActionDisabled ? (
+          <AreaToolbarButton
+            areaActionDisabled={areaActionDisabled}
+            areaActionTargetId={areaActionTargetId}
+            onCreateArea={onCreateArea}
+          />
+        ) : null}
       </div>
       <div className="node-toolbar-group" aria-label="View actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           View
         </span>
-        <button type="button" onClick={onFitOutputPath} aria-label="Fit output path" title="Fit output path">
-          <span aria-hidden="true">◇</span>
-          Fit path
-        </button>
         <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
           <span aria-hidden="true">◎</span>
           Output
@@ -1249,37 +1239,47 @@ function decorateRFEdge(
   const onOutputPath = outputEdgeIds.has(edge.id);
   return {
     ...edge,
-    className: onOutputPath ? 'node-edge-output-path' : edge.className,
-    selected,
+    className: edgeClassName(edge.className, { selected, onOutputPath }),
     style: {
       ...edge.style,
-      stroke: edgeStroke(edge.style?.stroke, selected, onOutputPath),
+      '--node-edge-selection-color': edgeSelectionColor(edge.style?.stroke, onOutputPath),
+      stroke: edgeStroke(edge.style?.stroke, onOutputPath),
       strokeWidth: edgeStrokeWidth(edge.style?.strokeWidth, selected, onOutputPath),
       opacity: edgeOpacity(selectedEdgeId, selected, onOutputPath),
-    },
+    } as CSSProperties,
   };
 }
 
-function edgeStroke(defaultStroke: unknown, selected: boolean, onOutputPath: boolean) {
-  if (selected) return 'var(--text)';
-  if (onOutputPath) return 'var(--accent)';
+function edgeClassName(baseClassName: string | undefined, flags: { selected: boolean; onOutputPath: boolean }) {
+  return [baseClassName, flags.onOutputPath && 'node-edge-output-path', flags.selected && 'node-edge-selected']
+    .filter(Boolean)
+    .join(' ');
+}
+
+function edgeSelectionColor(defaultStroke: unknown, onOutputPath: boolean) {
+  if (onOutputPath) return 'var(--node-edge-output)';
+  return typeof defaultStroke === 'string' ? defaultStroke : 'var(--node-edge-idle)';
+}
+
+function edgeStroke(defaultStroke: unknown, onOutputPath: boolean) {
+  if (onOutputPath) return 'var(--node-edge-output)';
   return defaultStroke;
 }
 
 function edgeStrokeWidth(defaultWidth: unknown, selected: boolean, onOutputPath: boolean) {
-  if (selected) return 2.75;
-  if (onOutputPath) return 2.4;
+  if (selected) return 3.25;
+  if (onOutputPath) return 2.35;
   return defaultWidth;
 }
 
 function edgeOpacity(selectedEdgeId: string | null, selected: boolean, onOutputPath: boolean) {
-  if (selected) return 0.95;
+  if (selected) return 1;
   return edgeOpacityByState(selectedEdgeId === null, onOutputPath);
 }
 
 function edgeOpacityByState(visibleOutputPath: boolean, onOutputPath: boolean) {
-  if (visibleOutputPath) return onOutputPath ? 0.9 : 0.42;
-  return onOutputPath ? 0.58 : 0.24;
+  if (visibleOutputPath) return onOutputPath ? 0.82 : 0.36;
+  return onOutputPath ? 0.5 : 0.2;
 }
 
 const EDITABLE_KEY_TARGETS = new Set(['input', 'textarea', 'select']);

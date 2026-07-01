@@ -64,22 +64,46 @@ describe('loadConfig', () => {
     });
   });
 
-  it('keeps Clerk verification settings when configured', () => {
+  it('keeps Better Auth settings when configured', () => {
     expect(
       loadConfig({
         ...requiredEnv,
         WEB_ORIGIN: 'https://artifact.example',
-        CLERK_SECRET_KEY: 'sk_test_123',
-        CLERK_JWT_KEY: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
-        CLERK_AUTHORIZED_PARTIES: 'https://artifact.example,http://localhost:5173',
+        BETTER_AUTH_SECRET: 'better-secret',
+        BETTER_AUTH_URL: 'https://api.artifact.example/api/auth',
+        EMAIL_FROM: 'Artifact <hello@artifact.example>',
+        EMAIL_REPLY_TO: 'support@artifact.example',
+        PASSWORD_RESET_LOG_URL: 'false',
+        RESEND_API_KEY: 're_test',
       }),
     ).toMatchObject({
-      clerkSecretKey: 'sk_test_123',
-      clerkJwtKey: '-----BEGIN PUBLIC KEY-----\\nkey\\n-----END PUBLIC KEY-----',
-      clerkAuthorizedParties: ['https://artifact.example', 'http://localhost:5173'],
+      betterAuthSecret: 'better-secret',
+      betterAuthUrl: 'https://api.artifact.example/api/auth',
+      emailFrom: 'Artifact <hello@artifact.example>',
+      emailReplyTo: 'support@artifact.example',
+      passwordResetLogUrl: false,
+      resendApiKey: 're_test',
+      webOrigin: 'https://artifact.example',
+      webOrigins: ['https://artifact.example'],
     });
-    expect(loadConfig({ ...requiredEnv, WEB_ORIGIN: 'https://artifact.example' })).toMatchObject({
-      clerkAuthorizedParties: ['https://artifact.example'],
+    expect(loadConfig({ ...requiredEnv })).toMatchObject({ betterAuthSecret: 'secret' });
+  });
+
+  it('logs password reset URLs locally but not by default in production', () => {
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'development' })).toMatchObject({ passwordResetLogUrl: true });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production' })).toMatchObject({ passwordResetLogUrl: false });
+  });
+
+  it('parses multiple web origins for Vercel production and preview deployments', () => {
+    expect(
+      loadConfig({
+        ...requiredEnv,
+        WEB_ORIGIN: 'https://artifact.example',
+        WEB_ORIGINS: 'https://artifact.example, https://artifact-git-preview.vercel.app ',
+      }),
+    ).toMatchObject({
+      webOrigin: 'https://artifact.example',
+      webOrigins: ['https://artifact.example', 'https://artifact-git-preview.vercel.app'],
     });
   });
 

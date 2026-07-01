@@ -45,15 +45,19 @@ Implemented:
 - Pure auth/access, quota, active-job, and in-memory rate-limit helpers.
 - HS256 JWT bearer verification with optional issuer/audience checks, plus
   dev bearer-token fallback.
-- Clerk bearer-token verification with `CLERK_SECRET_KEY` or `CLERK_JWT_KEY`.
+- Better Auth email/password sessions with bearer-token API compatibility.
+- Better Auth password recovery emails through Resend.
 - First-login user provisioning with AI disabled by default, plus
-  `npm --workspace @artifact/api run grant:ai -- <clerk-user-id> [email]` for private
+  `npm --workspace @artifact/api run grant:ai -- <auth-user-id> [email]` for private
   alpha entitlement.
+- Authenticated cloud project save/list/delete routes.
+- Authenticated cloud project asset upload route that keeps large image, font,
+  model, and environment payloads outside project JSON.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
-- Local asset storage adapter.
+- Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
 - Authenticated generated-asset download route handler.
@@ -62,7 +66,7 @@ Implemented:
 - OpenAI and xAI provider adapters enabled by `OPENAI_API_KEY` and
   `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.
-- Credentialed CORS/preflight handling for `WEB_ORIGIN`.
+- Credentialed CORS/preflight handling for configured frontend origins.
 - Unauthenticated `GET /api/health` for liveness and VPS smoke checks.
 - VPS/local operations runbook in [`RUNBOOK.md`](./RUNBOOK.md).
 - Production `build`, `start`, and `worker:start` scripts for container
@@ -95,14 +99,22 @@ npm --workspace @artifact/api run smoke
 ```
 
 Run `dev:api`, `dev:worker`, and `dev:web` in separate terminals. The
-Compose database is
-initialized with the v0.13 migration and a local `dev-user` with AI access. The
-root `.env` exposes `VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call
-the local API as that seeded user.
+Compose database is initialized with the API, Better Auth, and cloud-project
+migrations plus a local `dev-user` with AI access. The root `.env` exposes
+`VITE_AI_API_DEV_TOKEN=dev-token` so the browser can call the local API as that
+seeded user.
 
-To test real browser sign-in instead, leave `VITE_AI_API_DEV_TOKEN` empty, set
-`VITE_CLERK_PUBLISHABLE_KEY` in the root `.env`, and configure either
-`CLERK_SECRET_KEY` or `CLERK_JWT_KEY` in `apps/api/.env`.
+To test real browser sign-in instead, leave `VITE_AI_API_DEV_TOKEN` empty and
+set `VITE_AUTH_API_BASE_URL=http://localhost:4000` in the root `.env`.
+For local password recovery without Resend, keep
+`PASSWORD_RESET_LOG_URL=true` in `apps/api/.env` and copy the reset link from
+the API log. Production should configure `RESEND_API_KEY` and `EMAIL_FROM`
+instead.
+
+If your local Postgres volume already existed before a migration was added, run
+`npm --workspace @artifact/api run migrate` from the repo root after
+`npm run dev:infra`, or reset the volume with `npm run dev:infra:down` followed
+by `docker compose -f docker-compose.local.yml down -v`.
 
 The API server and worker load `apps/api/.env` and `apps/api/.env.local`
 automatically. Shell-provided environment variables still take precedence, so

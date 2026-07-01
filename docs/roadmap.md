@@ -19,6 +19,13 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.39 has reached release-candidate prep as the Account Cloud Saves And
+  Production Auth release: Better Auth replaces Clerk, account-backed cloud
+  projects ship, large project assets sync separately from project manifests,
+  password recovery is available, production API deploys run migrations and
+  healthchecks, Vercel preview origins are supported, and Projects shows clearer
+  sync status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
+  [`releases/v0.39.0.md`](./releases/v0.39.0.md).
 - v0.38 has reached release-candidate prep as the Editor UX, Import Safety, And
   Visual Identity release: editor chrome, Layers/Nodes workflow polish,
   responsive bottom actions, artifact-file replacement safeguards, drag/drop
@@ -46,9 +53,10 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope after v0.38 should start from the deferred product
-  tracks below or from a dedicated CI-policy pass if full-health complexity
-  should become a permanent strict release gate.
+- The next version scope after v0.39 should start from the deferred product
+  tracks below, especially sharing permissions, S3-compatible asset storage,
+  project history/versioning, public-surface polish, or a dedicated CI-policy
+  pass if full-health complexity should become a permanent strict release gate.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -73,7 +81,8 @@ Next deferred product tracks:
   editing and the local Projects page have enough usage signal to design the
   history model.
 - Server-backed Share Links remains deferred until local asset/project cleanup,
-  quota pressure, and project-size behavior are clearer.
+  quota pressure, project-size behavior, and account ownership rules are
+  clearer after the first private cloud-save release.
 - Landing refresh remains deferred until it has its own focused plan and
   critique/prototype gate.
 - Whole-app design polish is split: v0.38 pulls the editor-first chrome,
@@ -86,11 +95,18 @@ Next deferred product tracks:
 Planned next:
 
 - The next version scope should be selected from the deferred product tracks
-  below after v0.38 release feedback, with a likely split between 3D material
-  authoring follow-up, project history, server-backed sharing, landing refresh,
-  or CI-policy work.
+  below after v0.39 release feedback, with a likely split between public share
+  links and ownership/security, S3-compatible cloud asset storage, project
+  history/versioning, landing refresh, or CI-policy work.
 
 Recently shipped:
+
+- [`version-plans/v0.39.md`](./version-plans/v0.39.md) — Account Cloud Saves
+  And Production Auth: Better Auth account flow, password recovery, cloud
+  project saves, separate cloud asset upload/reassembly for large projects,
+  Coolify/Vercel production API hardening, migrations on startup, backend
+  healthchecks, and clearer Projects sync status. Release notes are in
+  [`releases/v0.39.0.md`](./releases/v0.39.0.md).
 
 - [`version-plans/v0.38.md`](./version-plans/v0.38.md) — Editor UX, Import
   Safety, And Visual Identity: focused editor chrome, Layers/Nodes workflow
@@ -165,6 +181,12 @@ Recently shipped:
   [`releases/v0.30.0.md`](./releases/v0.30.0.md). Landing, Showcase / How-to,
   Fallow, server-backed sharing, and command-palette work were explicitly
   deferred out of v0.30.
+- [`ui-overhaul.md`](./ui-overhaul.md) — Editor UI Overhaul Tracker: active
+  product/design backlog for node canvas readability, category-color grammar,
+  inspector usability, Add Node / Library command-palette direction,
+  Layers/Nodes parity, empty starts, and visual QA contracts. Use this as the
+  tracking document for iterative editor UI improvements that are broader than
+  a single version-plan patch but still need concrete acceptance criteria.
 - [`version-plans/v0.29.md`](./version-plans/v0.29.md) — Product Surface
   Recovery: terminology, docs, showcase, public navigation, shared UI
   primitives, and focused browser coverage. Released as `v0.29.0`; release
@@ -227,7 +249,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.38:
+Next strong candidates after v0.39:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -246,9 +268,13 @@ Next strong candidates after v0.38:
 - **Project Autosave History** — add visible automatic save points for the
   active project so recovery, autosave, explicit save, and copy/branch behavior
   are clearly separated.
-- **Server-backed Share Links** — once the current editor guardrails settle, add
-  stored-asset share records so large projects can be shared without URL payload
-  limits.
+- **Server-backed Share Links And Ownership** — build on v0.39 private cloud
+  projects with explicit sharing permissions, link tokens, ownership rules, and
+  security tests before public project links become available.
+- **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
+  asset sync. Follow-up scope remains upload progress, cross-project asset
+  deduplication, quota/cleanup policy, S3-compatible object storage, and richer
+  oversized-project recovery states.
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
@@ -262,8 +288,8 @@ Next strong candidates after v0.38:
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
 - **Whole-App Brand And Public Surface Refresh** — run a dedicated
-  critique/prototype pass across public routes, docs, Showcase, and shared
-  primitives after v0.38 lands the editor-first identity and chrome polish.
+  critique/prototype pass across public routes, docs, Showcase, account
+  surfaces, and shared primitives after v0.39 lands the account/cloud-save core.
 
 ## Product summary
 
@@ -461,9 +487,14 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
   provider fallback behavior.
 - Image background removal service if browser-side quality, bundle size, or
   performance tradeoffs are not acceptable.
-- Server-side asset storage for large uploads.
+- Server-side asset storage for large uploads on the existing local Coolify
+  volume, with S3-compatible object storage still deferred.
 - Server-side asset library for originals, generated assets, cutouts, exported
   outputs, and future local-to-cloud sync.
+- Cloud project asset sync: upload project assets separately from `doc_json`,
+  store only stable cloud references in saved project records, and hydrate/cache
+  those assets back into local IndexedDB when a cloud project opens. Next pass:
+  progress UI, quota/cleanup rules, and optional S3-compatible storage.
 - Share modes beyond basic links: read-only share, remix/fork share,
   export-only share, and later collaboration modes.
 - Team/project collaboration.
@@ -739,9 +770,11 @@ Current shipped baseline:
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
   assets are available.
-- Private AI Image alpha workflow with Clerk-gated access, VPS API/worker,
-  Postgres, Redis/BullMQ, generated asset storage, quota guards, retries,
-  diagnostics, and local asset import.
+- Private AI Image alpha workflow with Better Auth account access, VPS
+  API/worker, Postgres, Redis/BullMQ, generated asset storage, quota guards,
+  retries, diagnostics, and local asset import.
+- Account-backed cloud project saves that mirror local projects without
+  replacing IndexedDB local-first editing.
 - Future local project package direction: custom-extension downloads that keep
   the user's document and assets portable outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser

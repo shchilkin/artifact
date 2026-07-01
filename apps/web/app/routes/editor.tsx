@@ -9,7 +9,7 @@ import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
-import { type BrowserStorageStatus, useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
+import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
   isArtifactDocumentFile,
   type PendingDocumentImport,
@@ -100,33 +100,17 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
 }
 
 function EditorChromeSlot({
-  doc,
   onViewModeChange,
-  storageStatus,
   viewMode,
 }: {
-  doc: ReturnType<typeof useEditorDocument>['doc'];
   onViewModeChange: (mode: ViewMode) => void;
-  storageStatus: BrowserStorageStatus;
   viewMode: ViewMode;
 }) {
-  const layerCount = doc.layers.length;
   return (
     <div className="editor-chrome-slot">
       <ViewModeToggle value={viewMode} onChange={onViewModeChange} variant="chrome" />
-      <div className="editor-chrome-status" aria-label="Document status">
-        <span>{doc.global.aspect ?? '1:1'}</span>
-        <span>{layerCountLabel(layerCount)}</span>
-        <span className={`editor-chrome-save editor-chrome-save-${storageStatus.summary.activeWorkState}`}>
-          {storageStatus.summary.saveLabel}
-        </span>
-      </div>
     </div>
   );
-}
-
-function layerCountLabel(count: number) {
-  return `${count} layer${count === 1 ? '' : 's'}`;
 }
 
 // Renamed legacy editor shell; v0.32 tracks controller extraction.
@@ -152,7 +136,6 @@ export default function Editor() {
     addTextPreset,
     addNoisePreset,
     addArrayPreset,
-    insertLayerAbove,
     addImageFromSource,
     addModelFromAsset,
     addEnvironmentFromAsset,
@@ -255,6 +238,7 @@ export default function Editor() {
     activeProject,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     toggleProjects,
     closeProjects,
@@ -263,6 +247,7 @@ export default function Editor() {
     saveCurrentProject,
     saveActiveProject,
     deleteProject,
+    saveProjectToCloud,
     deleteRecoveryDraft,
     projectSaveState,
   } = useEditorProjectsController({
@@ -397,14 +382,7 @@ export default function Editor() {
         ariaLabel="Editor toolbar"
         solid
         compact
-        compactSlot={
-          <EditorChromeSlot
-            doc={doc}
-            storageStatus={storageStatus}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-        }
+        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
       />
       <input
         ref={fileInputRef}
@@ -589,7 +567,6 @@ export default function Editor() {
             onAddArrayPreset={addArrayPreset}
             onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
             onStartAiImage={handleStartAiImage}
-            onInsertLayerAbove={insertLayerAbove}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
@@ -607,11 +584,13 @@ export default function Editor() {
               recoveryDraft={recoveryDraft}
               storageStatus={storageStatus}
               storageError={storageError}
+              projectSyncStates={projectSyncStates}
               maxProjects={maxProjects}
               onSaveCopy={saveCurrentProject}
               onSaveActive={saveActiveProject}
               onLoad={handleLoadProject}
               onDelete={deleteProject}
+              onSaveToCloud={saveProjectToCloud}
               onDeleteRecoveryDraft={deleteRecoveryDraft}
               onNewBlank={handleNewBlankRequest}
               onClose={closeProjects}

@@ -38,6 +38,22 @@ describe('projectLibrary', () => {
     expect(result.map((item) => item.id)).toEqual(['new', 'old']);
   });
 
+  it('normalizes local and cloud project storage labels', () => {
+    const result = normalizeSavedProjects([
+      project('legacy-local', '2024-01-01T00:00:00.000Z'),
+      { ...project('cloud', '2025-01-01T00:00:00.000Z'), storage: 'cloud' },
+      { ...project('synced', '2026-01-01T00:00:00.000Z'), storage: 'synced' },
+      { ...project('bad-storage', '2027-01-01T00:00:00.000Z'), storage: 'remote' },
+    ]);
+
+    expect(result.map((item) => [item.id, item.storage])).toEqual([
+      ['bad-storage', 'local'],
+      ['synced', 'synced'],
+      ['cloud', 'cloud'],
+      ['legacy-local', 'local'],
+    ]);
+  });
+
   it('normalizes the legacy green thumbnail fallback', () => {
     const legacyGreenFallback =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';

@@ -1,0 +1,77 @@
+import { betterAuth } from 'better-auth';
+import { bearer } from 'better-auth/plugins';
+import type { Pool } from 'pg';
+import type { ApiConfig } from './config.js';
+import { isAllowedWebOrigin } from './http.js';
+import { logInfo } from './logger.js';
+import { sendPasswordResetEmail } from './passwordResetEmail.js';
+
+export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
+  if (!pool) return null;
+
+  return betterAuth({
+    database: pool,
+    secret: config.betterAuthSecret,
+    ...(config.betterAuthUrl ? { baseURL: config.betterAuthUrl } : {}),
+    trustedOrigins: createTrustedOriginsResolver(config.webOrigins),
+    emailAndPassword: {
+      enabled: true,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: ({ user, url }) =>
+        sendPasswordResetEmail(
+          {
+            email: user.email,
+            resetUrl: url,
+            userId: user.id,
+          },
+          { config },
+        ),
+      onPasswordReset: ({ user }) => {
+        logInfo('auth.password_reset_completed', {
+          email: user.email,
+          userId: user.id,
+        });
+        return Promise.resolve();
+      },
+    },
+    plugins: [bearer()],
+  });
+}
+
+export function createTrustedOriginsResolver(webOrigins: readonly string[]) {
+  return (request?: Request) => {
+    const requestOrigin = request ? requestTrustedOriginCandidate(request) : null;
+    if (!requestOrigin) return exactOrigins(webOrigins);
+    return isAllowedWebOrigin(requestOrigin, webOrigins) ? [normalizeOriginValue(requestOrigin)] : [];
+  };
+}
+
+function exactOrigins(webOrigins: readonly string[]) {
+  return webOrigins.filter((origin) => !origin.includes('*') && !origin.includes('?'));
+}
+
+function requestTrustedOriginCandidate(request: Request) {
+  return request.headers.get('origin') ?? request.headers.get('referer') ?? requestCallbackUrl(request);
+}
+
+function requestCallbackUrl(request: Request) {
+  try {
+    return new URL(request.url).searchParams.get('callbackURL');
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOriginValue(value: string) {
+  const trimmed = value.trim().replace(/\/$/, '');
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.origin;
+  } catch {
+    // Keep the original value so the allow-list check can reject it.
+  }
+  return trimmed;
+}
+
+export type ArtifactBetterAuth = NonNullable<ReturnType<typeof createArtifactBetterAuth>>;

@@ -6,11 +6,13 @@ services:
       POSTGRES_USER: artifact
       POSTGRES_PASSWORD: artifact
     ports:
-      - '5432:5432'
+      - '${ARTIFACT_POSTGRES_PORT:-5432}:5432'
     volumes:
       - artifact-postgres-data:/var/lib/postgresql/data
       - ./apps/api/src/db/migrations/001_initial_ai_generation.sql:/docker-entrypoint-initdb.d/001_initial_ai_generation.sql:ro
       - ./apps/api/src/db/migrations/002_users_email_nullable.sql:/docker-entrypoint-initdb.d/002_users_email_nullable.sql:ro
+      - ./apps/api/src/db/migrations/003_active_generation_guard.sql:/docker-entrypoint-initdb.d/003_active_generation_guard.sql:ro
+      - ./apps/api/src/db/migrations/004_better_auth_cloud_projects.sql:/docker-entrypoint-initdb.d/004_better_auth_cloud_projects.sql:ro
       - ./apps/api/docker/init/002_local_dev_seed.sql:/docker-entrypoint-initdb.d/002_local_dev_seed.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U artifact -d artifact']
@@ -21,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - '${ARTIFACT_REDIS_PORT:-6379}:6379'
     volumes:
       - artifact-redis-data:/data
     healthcheck:

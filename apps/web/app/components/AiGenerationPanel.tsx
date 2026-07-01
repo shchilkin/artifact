@@ -19,6 +19,7 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../utils/aiGenerationStatus';
+import { getArtifactAiApiBaseUrl } from '../utils/apiBaseUrl';
 import { getAppBuildInfo } from '../utils/appBuildInfo';
 import { ActionButton } from './ui/ActionButton';
 
@@ -62,10 +63,6 @@ export interface AiGenerationPanelProps {
   onGenerationHistorySelect?: (index: number) => void;
   submitLabel?: string;
   successMessage?: string;
-}
-
-function getAiApiBaseUrl() {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_AI_API_BASE_URL;
 }
 
 function getAiApiDevToken() {
@@ -1509,7 +1506,7 @@ export function AiGenerationPanel({
     getToken: getAuthToken,
     openSignIn,
   } = auth;
-  const baseUrl = useMemo(() => getAiApiBaseUrl(), []);
+  const baseUrl = useMemo(() => getArtifactAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
   const diagnosticsEnabled = useMemo(() => aiGenerationDebugEnabled(), []);
   const providers = availableAiProviders(access);

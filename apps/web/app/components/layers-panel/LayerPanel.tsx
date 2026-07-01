@@ -1,19 +1,26 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CanvasDocument, EffectPreset, GraphArea, GraphScene3DNode, Layer, LayerKind } from '../../types/config';
+import type {
+  AspectRatio,
+  CanvasDocument,
+  EffectPreset,
+  GraphArea,
+  GraphScene3DNode,
+  Layer,
+  LayerKind,
+} from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
-import { canInsertLayerAbove } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
 import { LayerRow } from './LayerRow';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
-import type { LayerInsertAction } from './layerInsertAction';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
 
@@ -28,7 +35,6 @@ export interface LayerPanelProps {
   onAddArrayPreset: (preset: ArrayPresetId) => void;
   onAddScene3D: () => void;
   onStartAiImage?: () => void;
-  onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
   onRemoveLayer: (id: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
   onToggleVisible: (id: string) => void;
@@ -41,8 +47,16 @@ export interface LayerPanelProps {
   onRenameArea: (areaId: string, name: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRenameLayer: (id: string, name: string) => void;
+  onAspectChange: (aspect: AspectRatio) => void;
   modeSwitcher?: React.ReactNode;
 }
+
+const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }> = [
+  { ratio: '1:1', label: 'Square', size: '1000 x 1000' },
+  { ratio: '4:5', label: 'Portrait', size: '1080 x 1350' },
+  { ratio: '9:16', label: 'Story', size: '1080 x 1920' },
+  { ratio: '16:9', label: 'Wide', size: '1920 x 1080' },
+];
 
 function graphAreasForDocument(doc: CanvasDocument) {
   return doc.graph?.areas ?? [];
@@ -51,10 +65,6 @@ function graphAreasForDocument(doc: CanvasDocument) {
 function activeLayerPanelCollapsedAreaIds(collapsedAreaIds: Set<string>, graphAreas: GraphArea[]) {
   const areaIds = new Set(graphAreas.map((area) => area.id));
   return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
-}
-
-function quickAddLayerIdsForDocument(doc: CanvasDocument) {
-  return new Set(doc.layers.filter((layer) => canInsertLayerAbove(doc, layer.id)).map((layer) => layer.id));
 }
 
 export function LayerPanel({
@@ -68,7 +78,6 @@ export function LayerPanel({
   onAddArrayPreset,
   onAddScene3D,
   onStartAiImage,
-  onInsertLayerAbove,
   onRemoveLayer,
   onReorderLayers,
   onToggleVisible,
@@ -81,6 +90,7 @@ export function LayerPanel({
   onRenameArea,
   onDuplicateLayer,
   onRenameLayer,
+  onAspectChange,
   modeSwitcher,
 }: LayerPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -115,9 +125,6 @@ export function LayerPanel({
     () => activeLayerPanelCollapsedAreaIds(collapsedAreaIds, graphAreas),
     [collapsedAreaIds, graphAreas],
   );
-  const quickAddLayerIds = useMemo(() => quickAddLayerIdsForDocument(doc), [doc]);
-  const canQuickAddLayerAbove = useCallback((layerId: string) => quickAddLayerIds.has(layerId), [quickAddLayerIds]);
-
   const { selectedActionLayerIds, setSelectedLayerIds, handleSelectLayer } = useLayerSelection({
     displayLayers,
     layers: doc.layers,
@@ -215,7 +222,9 @@ export function LayerPanel({
   return (
     <div className="flex flex-col min-h-0 h-full">
       <LayerPanelHeader
+        aspect={doc.global.aspect ?? '1:1'}
         modeSwitcher={modeSwitcher}
+        onAspectChange={onAspectChange}
         onAddLayer={onAddLayer}
         onAddEffectPreset={onAddEffectPreset}
         onAddTextPreset={onAddTextPreset}
@@ -225,7 +234,7 @@ export function LayerPanel({
         onStartAiImage={onStartAiImage}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
@@ -262,8 +271,6 @@ export function LayerPanel({
             onToggleVisible={onToggleVisible}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveLayer={onRemoveLayer}
-            canQuickAddLayerAbove={canQuickAddLayerAbove}
-            onInsertLayerAbove={onInsertLayerAbove}
             onRemoveNodesFromArea={onRemoveNodesFromArea}
           />
         ))}
@@ -286,8 +293,47 @@ export function LayerPanel({
   );
 }
 
+function LayerAspectMenu({ aspect, onChange }: { aspect: AspectRatio; onChange: (aspect: AspectRatio) => void }) {
+  const current = ASPECT_OPTIONS.find((option) => option.ratio === aspect) ?? ASPECT_OPTIONS[0];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="layer-aspect-button"
+          aria-label={`Change canvas aspect ratio. Current ${current.ratio} ${current.label}`}
+          title={`Canvas aspect: ${current.ratio} ${current.label}`}
+        >
+          Aspect
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="bottom" className="layer-aspect-menu">
+        {ASPECT_OPTIONS.map((option) => (
+          <DropdownMenuItem
+            key={option.ratio}
+            className="layer-aspect-menu-item"
+            onSelect={() => onChange(option.ratio)}
+          >
+            <span className="layer-aspect-menu-item__ratio">{option.ratio}</span>
+            <span className="layer-aspect-menu-item__label">{option.label}</span>
+            <span className="layer-aspect-menu-item__size">{option.size}</span>
+            {aspect === option.ratio && (
+              <span className="layer-aspect-menu-item__active" aria-hidden="true">
+                *
+              </span>
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function LayerPanelHeader({
+  aspect,
   modeSwitcher,
+  onAspectChange,
   onAddLayer,
   onAddEffectPreset,
   onAddTextPreset,
@@ -296,7 +342,9 @@ function LayerPanelHeader({
   onAddScene3D,
   onStartAiImage,
 }: {
+  aspect: AspectRatio;
   modeSwitcher?: React.ReactNode;
+  onAspectChange: (aspect: AspectRatio) => void;
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
   onAddEffectPreset: (preset: EffectPreset) => void;
   onAddTextPreset: (preset: TextPresetId) => void;
@@ -308,15 +356,18 @@ function LayerPanelHeader({
   return (
     <div className="layer-panel-header">
       {modeSwitcher ?? <span className="layer-panel-title">LAYERS</span>}
-      <LayerAddMenu
-        onAddLayer={onAddLayer}
-        onAddEffectPreset={onAddEffectPreset}
-        onAddTextPreset={onAddTextPreset}
-        onAddNoisePreset={onAddNoisePreset}
-        onAddArrayPreset={onAddArrayPreset}
-        onAddScene3D={onAddScene3D}
-        onStartAiImage={onStartAiImage}
-      />
+      <div className="layer-panel-actions">
+        <LayerAspectMenu aspect={aspect} onChange={onAspectChange} />
+        <LayerAddMenu
+          onAddLayer={onAddLayer}
+          onAddEffectPreset={onAddEffectPreset}
+          onAddTextPreset={onAddTextPreset}
+          onAddNoisePreset={onAddNoisePreset}
+          onAddArrayPreset={onAddArrayPreset}
+          onAddScene3D={onAddScene3D}
+          onStartAiImage={onStartAiImage}
+        />
+      </div>
     </div>
   );
 }
@@ -398,8 +449,6 @@ function LayerDisplayEntry({
   onToggleVisible,
   onDuplicateLayer,
   onRemoveLayer,
-  canQuickAddLayerAbove,
-  onInsertLayerAbove,
   onRemoveNodesFromArea,
 }: {
   item: LayerDisplayItem;
@@ -424,8 +473,6 @@ function LayerDisplayEntry({
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
-  canQuickAddLayerAbove: (layerId: string) => boolean;
-  onInsertLayerAbove: (targetLayerId: string, action: LayerInsertAction) => void;
   onRemoveNodesFromArea: (areaId: string, ids: string[]) => void;
 }) {
   if (item.type === 'area') {
@@ -455,8 +502,6 @@ function LayerDisplayEntry({
         onToggleVisible={onToggleVisible}
         onDuplicateLayer={onDuplicateLayer}
         onRemoveLayer={onRemoveLayer}
-        canQuickAddLayerAbove={canQuickAddLayerAbove}
-        onInsertLayerAbove={onInsertLayerAbove}
         onRemoveNodesFromArea={onRemoveNodesFromArea}
       />
     );
@@ -480,8 +525,6 @@ function LayerDisplayEntry({
       onToggleVisible={onToggleVisible}
       onDuplicateLayer={onDuplicateLayer}
       onRemoveLayer={onRemoveLayer}
-      canQuickAdd={canQuickAddLayerAbove(item.layer.id)}
-      onInsertLayerAbove={onInsertLayerAbove}
     />
   );
 }
@@ -531,7 +574,7 @@ function Scene3DLayerRow({
       tabIndex={0}
       aria-selected={selected}
       data-layer-id={scene.id}
-      className={`layer-row flex items-center gap-2 px-3 min-h-[36px] cursor-pointer border-b border-border select-none transition-colors ${
+      className={`layer-row layer-row-kind-primitive flex items-center gap-2 px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50'
       }`}
       onClick={() => onSelectLayer(scene.id)}

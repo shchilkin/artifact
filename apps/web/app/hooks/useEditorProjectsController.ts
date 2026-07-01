@@ -39,8 +39,10 @@ export function useEditorProjectsController({
     projects,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     saveProject,
+    saveProjectToCloud,
     deleteProject,
     loadProject,
     deleteRecoveryDraft,
@@ -75,9 +77,8 @@ export function useEditorProjectsController({
 
   const handleLoadProject = useCallback(
     (project: SavedProject) => {
-      const { doc } = loadProject(project);
-      void storePortableDocumentAssets(doc)
-        .catch(() => doc)
+      void loadProject(project)
+        .then(({ doc }) => storePortableDocumentAssets(doc).catch(() => doc))
         .then((storedDoc) => {
           onLoadDocument(storedDoc);
           updateActiveProjectBinding(
@@ -89,6 +90,9 @@ export function useEditorProjectsController({
                 },
           );
           setShowProjects(false);
+        })
+        .catch((error) => {
+          console.error('[projects] unable to load project', error);
         });
     },
     [loadProject, onLoadDocument, updateActiveProjectBinding],
@@ -110,6 +114,7 @@ export function useEditorProjectsController({
     activeProject,
     recoveryDraft,
     storageError,
+    projectSyncStates,
     maxProjects,
     toggleProjects: () => {
       refreshRecoveryDraft();
@@ -128,6 +133,9 @@ export function useEditorProjectsController({
     deleteProject: (id: string) => {
       if (activeProjectBinding?.projectId === id) clearActiveProject();
       void deleteProject(id);
+    },
+    saveProjectToCloud: (project: SavedProject) => {
+      void saveProjectToCloud(project);
     },
     deleteRecoveryDraft,
     projectSaveState,
