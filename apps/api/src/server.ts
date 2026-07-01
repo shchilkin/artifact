@@ -9,6 +9,7 @@ import { createInMemoryRateLimiter } from './rateLimit.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
 import { handleHealthRequest } from './routes/health.js';
+import { handleProjectAssetRequest } from './routes/projectAssets.js';
 import { handleProjectRequest } from './routes/projects.js';
 import { createApiRuntime } from './runtime.js';
 
@@ -94,6 +95,11 @@ async function resolveApiResponse(req: IncomingMessage) {
       resolveAuth,
     })) ??
     (await handleAssetRequest(req, {
+      repositories,
+      storage,
+      resolveAuth,
+    })) ??
+    (await handleProjectAssetRequest(req, {
       repositories,
       storage,
       resolveAuth,

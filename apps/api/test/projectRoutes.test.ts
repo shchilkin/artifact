@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RequestUserResolution } from '../src/auth.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
 import { handleProjectRequest, type ProjectRouteDeps } from '../src/routes/projects.js';
@@ -27,6 +27,27 @@ const projectDoc = {
   layers: [],
   export: { width: 1200, height: 1200, format: 'png' },
 };
+
+function projectDocWithCloudAsset(assetId: string) {
+  return {
+    ...projectDoc,
+    layers: [{ id: 'image-layer', kind: 'image', src: `artifact-cloud-asset://image/${assetId}` }],
+  };
+}
+
+async function createProjectAsset(store: InMemoryApiStore, id: string, userId = 'user-1') {
+  return store.repositories().assets.create({
+    id,
+    userId,
+    kind: 'project-image',
+    storageKey: `generated/${id}.png`,
+    mimeType: 'image/png',
+    width: 1,
+    height: 1,
+    sizeBytes: 4,
+    metadataJson: { projectAssetKind: 'image' },
+  });
+}
 
 describe('project route handlers', () => {
   it('rejects cloud project access for anonymous users', async () => {
@@ -93,6 +114,60 @@ describe('project route handlers', () => {
     });
   });
 
+  it('soft-deletes project assets that are no longer referenced after an update', async () => {
+    const { deps, store } = createDeps();
+    await createProjectAsset(store, 'asset-old');
+
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', {
+        id: 'project-1',
+        name: 'First',
+        doc: projectDocWithCloudAsset('asset-old'),
+      }),
+      deps,
+    );
+    await createProjectAsset(store, 'asset-new');
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', {
+          id: 'project-1',
+          name: 'Updated',
+          doc: projectDocWithCloudAsset('asset-new'),
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 200 });
+
+    await expect(store.findAssetByIdForUser('asset-old', 'user-1')).resolves.toMatchObject({
+      deleted_at: expect.any(Date),
+    });
+    await expect(store.findAssetByIdForUser('asset-new', 'user-1')).resolves.toMatchObject({
+      deleted_at: null,
+    });
+  });
+
+  it('keeps cloud project saves successful when asset reconcile fails', async () => {
+    const { deps } = createDeps();
+    deps.repositories.assets.listProjectAssetsForUser = vi.fn(async () => {
+      throw new Error('temporary reconcile outage');
+    });
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', {
+          id: 'project-1',
+          name: 'Still saved',
+          doc: projectDoc,
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: { project: { id: 'project-1', name: 'Still saved' } },
+    });
+  });
+
   it('returns a conflict when another user owns the requested project id', async () => {
     const { deps, store } = createDeps();
     await store.repositories().projects.upsert({
@@ -144,6 +219,45 @@ describe('project route handlers', () => {
     await expect(store.repositories().projects.listForUser('user-2')).resolves.toMatchObject([
       { id: 'project-2', name: 'Other user project' },
     ]);
+  });
+
+  it('soft-deletes project assets when their cloud project is deleted', async () => {
+    const { deps, store } = createDeps();
+    await createProjectAsset(store, 'asset-1');
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', {
+        id: 'project-1',
+        name: 'One',
+        doc: projectDocWithCloudAsset('asset-1'),
+      }),
+      deps,
+    );
+
+    await expect(store.findAssetByIdForUser('asset-1', 'user-1')).resolves.toMatchObject({ deleted_at: null });
+
+    await expect(handleProjectRequest(jsonRequest('DELETE', '/api/projects/project-1'), deps)).resolves.toMatchObject({
+      status: 200,
+      body: { ok: true },
+    });
+    await expect(store.findAssetByIdForUser('asset-1', 'user-1')).resolves.toMatchObject({
+      deleted_at: expect.any(Date),
+    });
+  });
+
+  it('keeps cloud project deletes successful when asset reconcile fails', async () => {
+    const { deps } = createDeps();
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', { id: 'project-1', name: 'One', doc: projectDoc }),
+      deps,
+    );
+    deps.repositories.assets.listProjectAssetsForUser = vi.fn(async () => {
+      throw new Error('temporary reconcile outage');
+    });
+
+    await expect(handleProjectRequest(jsonRequest('DELETE', '/api/projects/project-1'), deps)).resolves.toMatchObject({
+      status: 200,
+      body: { ok: true },
+    });
   });
 
   it('rejects cloud project saves without a document object', async () => {

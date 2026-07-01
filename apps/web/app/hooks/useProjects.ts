@@ -4,6 +4,7 @@ import type { CanvasDocument, ImageLayer } from '../types/config';
 import { getArtifactAuthBaseUrl } from '../utils/authClient';
 import {
   deleteCloudProject,
+  hydrateCloudSavedProject,
   listCloudProjects,
   prepareCloudSavedProject,
   saveCloudProject,
@@ -177,7 +178,14 @@ export function useProjects() {
     [auth],
   );
 
-  const loadProject = useCallback((project: SavedProject) => ({ doc: project.doc }), []);
+  const loadProject = useCallback(
+    async (project: SavedProject) => {
+      const bearerToken = auth.configured && auth.signedIn ? await auth.getToken() : null;
+      const hydrated = await hydrateCloudSavedProject(project, { baseUrl: getArtifactAuthBaseUrl(), bearerToken });
+      return { doc: hydrated.doc };
+    },
+    [auth],
+  );
 
   const deleteRecoveryDraft = useCallback(() => {
     deleteStoredPreBlankDraft()
@@ -223,7 +231,7 @@ async function uploadProjectToCloud(
 ) {
   try {
     const bearerToken = await auth.getToken();
-    const cloudProject = await prepareCloudSavedProject(project);
+    const cloudProject = await prepareCloudSavedProject(project, { baseUrl: getArtifactAuthBaseUrl(), bearerToken });
     const saved = await saveCloudProject(cloudProject, { baseUrl: getArtifactAuthBaseUrl(), bearerToken });
     if (mountedRef.current) setProjects((current) => mergeProjects(current, [saved]));
     if (mountedRef.current) setStorageError(null);

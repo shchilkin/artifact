@@ -50,11 +50,13 @@ Implemented:
   `npm --workspace @artifact/api run grant:ai -- <auth-user-id> [email]` for private
   alpha entitlement.
 - Authenticated cloud project save/list/delete routes.
+- Authenticated cloud project asset upload route that keeps large image, font,
+  model, and environment payloads outside project JSON.
 - In-memory generation queue.
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
-- Local asset storage adapter.
+- Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
 - Authenticated generated-asset download route handler.

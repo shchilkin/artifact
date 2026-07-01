@@ -82,6 +82,52 @@ export class InMemoryApiStore {
     return null;
   }
 
+  async findProjectAssetByFingerprintForUser(input: {
+    userId: string;
+    kind: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  }): Promise<AssetRow | null> {
+    return (
+      Array.from(this.assets.values()).find(
+        (asset) =>
+          asset.user_id === input.userId &&
+          asset.kind === input.kind &&
+          asset.mime_type === input.mimeType &&
+          asset.size_bytes === input.sizeBytes &&
+          asset.metadata_json.sha256 === input.sha256 &&
+          !asset.deleted_at,
+      ) ?? null
+    );
+  }
+
+  async listProjectAssetsForUser(userId: string): Promise<AssetRow[]> {
+    return Array.from(this.assets.values()).filter(
+      (asset) => asset.user_id === userId && asset.kind.startsWith('project-') && !asset.deleted_at,
+    );
+  }
+
+  async softDeleteAsset(id: string, userId: string, deletedAt: Date): Promise<AssetRow> {
+    const asset = this.assets.get(id);
+    if (!asset || asset.user_id !== userId) throw new Error(`Asset not found: ${id}`);
+    const updated = { ...asset, deleted_at: deletedAt };
+    this.assets.set(id, updated);
+    return updated;
+  }
+
+  async softDeleteAssetsForUser(ids: readonly string[], userId: string, deletedAt: Date): Promise<AssetRow[]> {
+    const deleted: AssetRow[] = [];
+    for (const id of ids) {
+      const asset = this.assets.get(id);
+      if (!asset || asset.user_id !== userId || !asset.kind.startsWith('project-') || asset.deleted_at) continue;
+      const updated = { ...asset, deleted_at: deletedAt };
+      this.assets.set(id, updated);
+      deleted.push(updated);
+    }
+    return deleted;
+  }
+
   async findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null> {
     return (
       Array.from(this.jobs.values()).find((job) => job.user_id === userId && job.idempotency_key === idempotencyKey) ??
@@ -255,6 +301,10 @@ export class InMemoryApiStore {
       assets: {
         create: (input) => this.createAsset(input),
         findByIdForUser: (id, userId) => this.findAssetByIdForUser(id, userId),
+        findProjectAssetByFingerprintForUser: (input) => this.findProjectAssetByFingerprintForUser(input),
+        listProjectAssetsForUser: (userId) => this.listProjectAssetsForUser(userId),
+        softDelete: (id, userId, deletedAt) => this.softDeleteAsset(id, userId, deletedAt),
+        softDeleteManyForUser: (ids, userId, deletedAt) => this.softDeleteAssetsForUser(ids, userId, deletedAt),
       },
       projects: {
         listForUser: (userId) => this.listCloudProjectsForUser(userId),

@@ -238,7 +238,7 @@ CI should run:
 - Focused post-release-file validation passed on 2026-06-07:
   `npm run format:check`, `npx tsc --noEmit --pretty false --project apps/web/tsconfig.json`,
   `npm --workspace @artifact/web run test -- app/utils/activeProjectBinding.test.ts app/utils/storageStatus.test.ts app/components/StorageWorkspaceStatus.test.ts`,
-  and `npm run test:browser:chromium -- tests/browser/v033-storage.spec.ts`.
+  and `npm run test:browser:chromium -- tests/browser/projects-storage.spec.ts`.
 - Final v0.34 release action was confirmed by the maintainer on 2026-06-11.
 - `npm run perf:node-editor` is not required for the current release-prep diff
   because v0.34 changes local project persistence semantics and Projects panel

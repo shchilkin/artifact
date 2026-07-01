@@ -3,10 +3,21 @@ import { dirname, join, relative, sep } from 'node:path';
 import type { AssetStorage, StoredAssetFile } from './types.js';
 
 const EXTENSIONS: Record<string, string> = {
+  'application/font-woff': 'woff',
+  'application/font-woff2': 'woff2',
+  'application/octet-stream': 'bin',
+  'application/vnd.ms-fontobject': 'eot',
+  'font/otf': 'otf',
+  'font/ttf': 'ttf',
+  'font/woff': 'woff',
+  'font/woff2': 'woff2',
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/svg+xml': 'svg',
   'image/webp': 'webp',
+  'image/vnd.radiance': 'hdr',
+  'image/x-exr': 'exr',
+  'model/gltf-binary': 'glb',
 };
 
 function extensionForMime(mimeType: string) {
@@ -73,5 +84,12 @@ function mimeTypeFromStorageKey(storageKey: string) {
   if (storageKey.endsWith('.png')) return 'image/png';
   if (storageKey.endsWith('.svg')) return 'image/svg+xml';
   if (storageKey.endsWith('.webp')) return 'image/webp';
+  if (storageKey.endsWith('.woff2')) return 'font/woff2';
+  if (storageKey.endsWith('.woff')) return 'font/woff';
+  if (storageKey.endsWith('.otf')) return 'font/otf';
+  if (storageKey.endsWith('.ttf')) return 'font/ttf';
+  if (storageKey.endsWith('.glb')) return 'model/gltf-binary';
+  if (storageKey.endsWith('.exr')) return 'image/x-exr';
+  if (storageKey.endsWith('.hdr')) return 'image/vnd.radiance';
   return 'application/octet-stream';
 }

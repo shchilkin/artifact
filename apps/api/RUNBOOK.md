@@ -147,6 +147,25 @@ npm --workspace @artifact/api run grant:ai -- user_xxx user@example.com
 
 The email argument is optional; the Better Auth user id is the durable key.
 
+## Cloud Project Assets
+
+Cloud project saves keep the editable project record in Postgres and upload
+large project dependencies separately:
+
+- `cloud_projects.doc_json` stores lightweight `artifact-cloud-asset://...`
+  references.
+- `assets` stores the authenticated owner, MIME type, byte size, storage key,
+  and metadata for each uploaded image, font, model, or environment asset.
+- `ASSET_STORAGE_DIR` stores the bytes on the persistent Coolify volume.
+
+For the Coolify compose deployment, `artifact-generated-assets` must stay
+mounted at `/var/lib/artifact/generated-assets` for the API and worker. Back up
+both Postgres and this volume together; a database backup without the asset
+volume will leave cloud project references pointing at missing files.
+
+`ASSET_STORAGE_DRIVER=s3` is reserved for a future object-storage adapter. Until
+that adapter exists, production should keep `ASSET_STORAGE_DRIVER=local`.
+
 ## Database Bootstrap
 
 Production Coolify deploys apply migrations automatically through the API

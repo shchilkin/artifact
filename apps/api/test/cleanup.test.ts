@@ -20,8 +20,14 @@ class FakeQueryClient implements CleanupQueryClient {
 const now = new Date('2026-05-22T09:00:00.000Z');
 const cleanupRows = () => [
   [{ id: 'job-expired' }],
-  [{ id: 'asset-orphan', storage_key: 'generated/orphan.png' }],
-  [{ id: 'asset-deleted', storage_key: 'generated/deleted.png' }],
+  [
+    { id: 'asset-orphan', storage_key: 'generated/orphan.png' },
+    { id: 'project-asset-orphan', storage_key: 'generated/project-orphan.png' },
+  ],
+  [
+    { id: 'asset-deleted', storage_key: 'generated/deleted.png' },
+    { id: 'project-asset-deleted', storage_key: 'generated/project-deleted.png' },
+  ],
   [{ storage_key: 'generated/known.png' }],
 ];
 const listLocalStorageKeys = async () => ['generated/known.png', 'generated/missing.png'];
@@ -41,7 +47,7 @@ describe('cleanupAiGenerationData', () => {
     ).resolves.toEqual({
       dryRun: true,
       expiredJobIds: ['job-expired'],
-      softDeletedAssetIds: ['asset-orphan'],
+      softDeletedAssetIds: ['asset-orphan', 'project-asset-orphan'],
       storageKeysDeleted: [],
       orphanStorageKeysDeleted: ['generated/missing.png'],
     });
@@ -49,6 +55,8 @@ describe('cleanupAiGenerationData', () => {
     expect(storage.deleteImage).not.toHaveBeenCalled();
     expect(client.calls[0]?.sql).toContain('SELECT id');
     expect(client.calls[1]?.sql).toContain('SELECT id, storage_key');
+    expect(client.calls[1]?.sql).toContain('cloud_projects');
+    expect(client.calls[1]?.sql).toContain('artifact-cloud-asset://');
   });
 
   it('expires stale jobs, soft-deletes orphan assets, and deletes local files when applied', async () => {
@@ -65,16 +73,24 @@ describe('cleanupAiGenerationData', () => {
     ).resolves.toEqual({
       dryRun: false,
       expiredJobIds: ['job-expired'],
-      softDeletedAssetIds: ['asset-orphan'],
-      storageKeysDeleted: ['generated/orphan.png', 'generated/deleted.png'],
+      softDeletedAssetIds: ['asset-orphan', 'project-asset-orphan'],
+      storageKeysDeleted: [
+        'generated/orphan.png',
+        'generated/project-orphan.png',
+        'generated/deleted.png',
+        'generated/project-deleted.png',
+      ],
       orphanStorageKeysDeleted: ['generated/missing.png'],
     });
 
-    expect(storage.deleteImage).toHaveBeenCalledTimes(3);
+    expect(storage.deleteImage).toHaveBeenCalledTimes(5);
     expect(storage.deleteImage).toHaveBeenNthCalledWith(1, 'generated/orphan.png');
-    expect(storage.deleteImage).toHaveBeenNthCalledWith(2, 'generated/deleted.png');
-    expect(storage.deleteImage).toHaveBeenNthCalledWith(3, 'generated/missing.png');
+    expect(storage.deleteImage).toHaveBeenNthCalledWith(2, 'generated/project-orphan.png');
+    expect(storage.deleteImage).toHaveBeenNthCalledWith(3, 'generated/deleted.png');
+    expect(storage.deleteImage).toHaveBeenNthCalledWith(4, 'generated/project-deleted.png');
+    expect(storage.deleteImage).toHaveBeenNthCalledWith(5, 'generated/missing.png');
     expect(client.calls[0]?.sql).toContain('UPDATE ai_generation_jobs');
     expect(client.calls[1]?.sql).toContain('UPDATE assets');
+    expect(client.calls[1]?.sql).toContain('cloud_projects');
   });
 });

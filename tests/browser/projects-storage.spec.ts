@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
 });
 
-test('v0.34 Projects shows work state first and keeps storage diagnostics collapsed', async ({ page }) => {
+test('Projects panel shows work state first and keeps storage diagnostics collapsed', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
@@ -26,7 +26,7 @@ test('v0.34 Projects shows work state first and keeps storage diagnostics collap
   await expectNoBrowserIssues(page);
 });
 
-test('v0.34 active project save updates the current project after edits', async ({ page }) => {
+test('active project save updates the current project after edits', async ({ page }) => {
   const projects = await createNamedProject(page, 'Saved State Smoke');
   await expect(projects).toContainText('Saved project');
   await expect(projects.getByRole('button', { name: 'Load Saved State Smoke' })).toHaveCount(1);
@@ -54,7 +54,7 @@ test('v0.34 active project save updates the current project after edits', async 
   await expectNoBrowserIssues(page);
 });
 
-test('v0.34 dedicated Projects page opens local projects back in the editor', async ({ page }) => {
+test('dedicated Projects page opens local projects back in the editor', async ({ page }) => {
   const projects = await createNamedProject(page, 'Projects Page Smoke');
   await expect(projects).toContainText('Saved project');
 
@@ -89,7 +89,7 @@ test('v0.34 dedicated Projects page opens local projects back in the editor', as
   await expectNoBrowserIssues(page);
 });
 
-test('v0.34 local workspace stays usable in node mode with healthy active work', async ({ page }) => {
+test('local workspace stays usable in node mode with healthy active work', async ({ page }) => {
   await page.goto('/app?new=blank');
 
   await switchToNodeView(page);
@@ -99,7 +99,7 @@ test('v0.34 local workspace stays usable in node mode with healthy active work',
   await expectNoBrowserIssues(page);
 });
 
-test('v0.33 pwa assets are served for install and app shell support', async ({ page }) => {
+test('PWA assets are served for install and app shell support', async ({ page }) => {
   const manifest = await page.request.get('/manifest.webmanifest');
   expect(manifest.ok()).toBe(true);
   await expect(manifest.json()).resolves.toMatchObject({
