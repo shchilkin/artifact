@@ -50,7 +50,7 @@
   --control-font-size-xs: 11px;
   --control-font-size-sm: 12px;
   --control-font-size-md: 13px;
-  --control-letter-spacing: 0.07em;
+  --control-letter-spacing: 0.06em;
   --row-h-compact: 42px;
   --row-h-default: 52px;
   --focus-ring: 2px solid var(--accent-primary);
@@ -76,24 +76,34 @@
   --radius-lg: 4px;
   --radius-xl: 9px;
 
-  /* Typography scale. Barlow is the editor's readable UI voice; mono is the control grammar. */
+  /* Typography scale. Barlow is the editor's readable UI voice; Space Mono is the control grammar. */
   --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono:
+    "Space Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
   --type-ui-xs: 10px;
   --type-ui-sm: 11px;
   --type-ui-md: 12px;
   --type-editor-label: 11px;
   --type-editor-meta: 10px;
+  --type-readable-sm: 14px;
+  --type-readable-md: 15px;
+  --type-layer-name: 17px;
   --type-body: 15px;
   --type-title: 28px;
   --type-display: clamp(48px, 6vw, 88px);
   --leading-ui: 1.2;
+  --leading-readable: 1.36;
   --leading-body: 1.65;
   --leading-tight: 0.92;
   --weight-ui: 600;
+  --weight-readable: 500;
+  --weight-readable-strong: 600;
   --weight-strong: 700;
   --weight-display: 900;
+  --tracking-meta: 0.04em;
+  --tracking-label: 0.06em;
+  --tracking-command: 0.06em;
 
   /* Elevation. Resting surfaces stay flat; overlays may lift. */
   --shadow-none: none;

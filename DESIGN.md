@@ -42,19 +42,19 @@ typography:
     lineHeight: "1.35"
     letterSpacing: "0.01em"
   control:
-    fontFamily: "ui-monospace, Consolas, Courier New, monospace"
+    fontFamily: "Space Mono, ui-monospace, Consolas, Courier New, monospace"
     fontSize: "0.72rem"
-    fontWeight: 500
+    fontWeight: "500–700"
     lineHeight: "1.2"
-    letterSpacing: "0.07em"
+    letterSpacing: "0.04–0.07em"
   label:
-    fontFamily: "ui-monospace, Consolas, Courier New, monospace"
+    fontFamily: "Space Mono, ui-monospace, Consolas, Courier New, monospace"
     fontSize: "0.7rem"
-    fontWeight: 400
+    fontWeight: 500
     lineHeight: "1.2"
     letterSpacing: "0.1em"
   meta:
-    fontFamily: "ui-monospace, Consolas, Courier New, monospace"
+    fontFamily: "Space Mono, ui-monospace, Consolas, Courier New, monospace"
     fontSize: "0.65rem"
     fontWeight: 400
     lineHeight: "1.2"
@@ -200,24 +200,24 @@ but lower contrast than node borders, selected state, and output-path edges.
 
 **Display Font:** Barlow Condensed (fallback: `Arial Narrow`, `Impact`, `sans-serif`), weights 700 / 900
 **Readable UI Font:** Barlow Condensed (fallback: `Arial Narrow`, `Arial`, `sans-serif`), weights 400 / 500 / 600 / 700 / 900
-**Control / Label Font:** System mono (`ui-monospace, Consolas, "Courier New", monospace`)
+**Control / Label Font:** Space Mono (fallback: `ui-monospace, Consolas, "Courier New", monospace`)
 **Inside the canvas only:** VT323 and Special Elite, loaded for the editor's text-layer presets — never used in UI chrome.
 
 **Character:** Condensed all-caps display headlines paired with a mono control
 layer and a readable condensed UI layer. The display gives the work the weight
-of a concert poster; the mono keeps commands, ids, badges, and metadata honest
-and machine-typed. The readable UI layer keeps layer names, inspector
-descriptions, empty states, and recovery copy usable without falling back to
-generic OS typography. No webfont body serif anywhere — the project would not
-look like itself with one.
+of a concert poster; Space Mono keeps commands, ids, badges, and metadata
+honest and machine-typed without inheriting raw OS chrome. The readable UI
+layer keeps layer names, inspector descriptions, empty states, and recovery
+copy usable without falling back to generic OS typography. No webfont body
+serif anywhere — the project would not look like itself with one.
 
 ### Hierarchy
 - **Hero** (900, `clamp(3rem, 11vw, 11rem)`, line-height 0.86, tracking -0.02em): Used once per page, on the landing hero. ALL CAPS.
 - **Display** (900, `clamp(2.4rem, 7vw, 5.5rem)`, line-height 0.9, tracking -0.015em): Step titles, section titles, showcase header. ALL CAPS.
 - **Body** (500, `0.9–1rem`, line-height 1.3–1.45, tracking 0–0.01em): Barlow Condensed. Help text, route copy, longer descriptions, empty states, layer names, and inspector explanations. Max width ~45–70ch.
-- **Control** (500, `0.72rem`, tracking 0.05–0.08em): Mono. Buttons, tabs, menu commands, node labels, inspector field labels, layer kind hints.
-- **Label** (500, `0.7rem`, tracking 0.08–0.12em, ALL CAPS): Mono. Eyebrows, filter chips, compact section labels.
-- **Meta** (400, `0.65rem`, tracking 0.06–0.1em, ALL CAPS): Mono. Seed numerals, step counters (`07 / 11`), small timestamps.
+- **Control** (500–700, `0.72rem`, tracking 0.04–0.07em): Space Mono. Buttons, tabs, menu commands, node labels, inspector field labels, layer kind hints.
+- **Label** (500, `0.7rem`, tracking 0.08–0.12em, ALL CAPS): Space Mono. Eyebrows, filter chips, compact section labels.
+- **Meta** (400, `0.65rem`, tracking 0.06–0.1em, ALL CAPS): Space Mono. Seed numerals, step counters (`07 / 11`), small timestamps.
 
 ### Named Rules
 
@@ -353,7 +353,7 @@ selected graph objects where tonal separation alone is not enough.
 
 ### Do:
 - **Do** keep the accent on ≤10% of any screen. Treat it like a registration mark: rare and load-bearing.
-- **Do** use mono (`ui-monospace`) for control grammar: UI labels, buttons,
+- **Do** use Space Mono for control grammar: UI labels, buttons,
   tabs, node labels, field keys, ids, and meta lines.
 - **Do** use readable sans for longer prose, descriptions, onboarding, empty
   states, and any inspector copy that runs beyond a short phrase.

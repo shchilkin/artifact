@@ -5,8 +5,8 @@ export type ViewMode = 'layers' | 'nodes';
 type ViewModeToggleVariant = 'chrome' | 'floating' | 'node' | 'sidebar';
 
 const BASE_BUTTON_STYLE: CSSProperties = {
-  fontFamily: 'var(--mono)',
-  letterSpacing: '0.08em',
+  fontFamily: 'var(--font-mono)',
+  letterSpacing: 'var(--tracking-command)',
   textTransform: 'uppercase',
   cursor: 'pointer',
   border: '1px solid var(--border)',
@@ -18,22 +18,22 @@ const BUTTON_SIZE_STYLE: Record<ViewModeToggleVariant, CSSProperties> = {
   chrome: {
     minHeight: 'var(--touch)',
     padding: '0 14px',
-    fontSize: 11,
+    fontSize: 'var(--type-ui-sm)',
   },
   floating: {
     minHeight: 'var(--touch)',
     padding: '0 16px',
-    fontSize: 11,
+    fontSize: 'var(--type-ui-sm)',
   },
   node: {
     minHeight: 'var(--touch)',
     padding: '0 14px',
-    fontSize: 11,
+    fontSize: 'var(--type-ui-sm)',
   },
   sidebar: {
     minHeight: 'var(--touch)',
     padding: '0 16px',
-    fontSize: 11,
+    fontSize: 'var(--type-ui-sm)',
   },
 };
 

@@ -25,9 +25,9 @@ Artifact's print-like visual language.
 The v0.30 foundation should inventory and normalize these token families:
 
 - **Typography**: Barlow Condensed as the readable UI family for layer names,
-  longer descriptions, and recovery copy; mono for editor labels, button text,
-  node labels, field keys, ids, inspector values, and compact meta; display only
-  for real route or section titles.
+  longer descriptions, and recovery copy; Space Mono for editor labels, button
+  text, node labels, field keys, ids, inspector values, and compact meta;
+  display only for real route or section titles.
 - **Control sizing**: icon buttons, compact buttons, default buttons, search
   fields, row heights, toolbar controls, and tab triggers.
 - **Spacing**: panel padding, row gaps, toolbar gaps, menu item padding, and
