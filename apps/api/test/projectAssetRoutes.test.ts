@@ -84,4 +84,74 @@ describe('project asset route handlers', () => {
       body: { code: 'unauthenticated' },
     });
   });
+
+  it('rejects project asset MIME values that do not match the payload', async () => {
+    const { deps, storage } = createDeps();
+
+    await expect(
+      handleProjectAssetRequest(
+        jsonRequest('POST', '/api/project-assets', {
+          kind: 'image',
+          dataUrl: 'data:image/png;base64,AAAA',
+          mime: 'image/webp',
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { code: 'invalid_request' },
+    });
+    expect(storage.writeImage).not.toHaveBeenCalled();
+  });
+
+  it('allows declared MIME only for opaque binary payloads and supported asset kinds', async () => {
+    const { deps, storage } = createDeps();
+
+    await expect(
+      handleProjectAssetRequest(
+        jsonRequest('POST', '/api/project-assets', {
+          kind: 'model',
+          dataUrl: 'data:application/octet-stream;base64,AAAA',
+          mime: 'model/gltf-binary',
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        asset: {
+          id: 'asset-1',
+          kind: 'model',
+          mime: 'model/gltf-binary',
+        },
+      },
+    });
+    expect(storage.writeImage).toHaveBeenCalledWith({
+      assetId: 'asset-1',
+      bytes: expect.any(Uint8Array),
+      mimeType: 'model/gltf-binary',
+    });
+  });
+
+  it('reuses an existing project asset with the same fingerprint for the user', async () => {
+    const { deps, storage } = createDeps();
+    const body = {
+      kind: 'image',
+      dataUrl: 'data:image/png;base64,AAAA',
+      label: 'Cover',
+    };
+
+    const first = await handleProjectAssetRequest(jsonRequest('POST', '/api/project-assets', body), deps);
+    const second = await handleProjectAssetRequest(jsonRequest('POST', '/api/project-assets', body), deps);
+
+    expect(first).toMatchObject({
+      status: 200,
+      body: { asset: { id: 'asset-1', uri: 'artifact-cloud-asset://image/asset-1' } },
+    });
+    expect(second).toMatchObject({
+      status: 200,
+      body: { asset: { id: 'asset-1', uri: 'artifact-cloud-asset://image/asset-1' } },
+    });
+    expect(storage.writeImage).toHaveBeenCalledTimes(1);
+  });
 });

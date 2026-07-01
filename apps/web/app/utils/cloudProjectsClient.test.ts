@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { type CanvasDocument, makeImageLayer } from '../types/config';
-import { listCloudProjects, prepareCloudSavedProject, saveCloudProject } from './cloudProjectsClient';
+import {
+  hydrateCloudSavedProject,
+  listCloudProjects,
+  prepareCloudSavedProject,
+  saveCloudProject,
+} from './cloudProjectsClient';
 import { PROJECT_THUMBNAIL_FALLBACK, type SavedProject } from './projectLibrary';
 
 describe('prepareCloudSavedProject', () => {
@@ -155,5 +160,35 @@ describe('prepareCloudSavedProject', () => {
     const [project] = await listCloudProjects({ fetcher });
 
     expect(project).toMatchObject({ id: 'cloud-project', storage: 'cloud' });
+  });
+
+  it('keeps unresolved cloud asset refs when an asset file is missing', async () => {
+    const doc: CanvasDocument = {
+      global: { bg: '#101010', seed: 13, aspect: '1:1' },
+      layers: [makeImageLayer('artifact-cloud-asset://image/missing-image', { id: 'image-layer' })],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const project: SavedProject = {
+      id: 'project-a',
+      name: 'Cloud project',
+      doc,
+      thumbnail: PROJECT_THUMBNAIL_FALLBACK,
+      createdAt: '2026-06-28T10:00:00.000Z',
+      updatedAt: '2026-06-28T10:00:00.000Z',
+      storage: 'cloud',
+    };
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 'asset_file_missing' }), { status: 404 }));
+
+    const hydrated = await hydrateCloudSavedProject(project, { fetcher });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      '/api/assets/missing-image/file',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(hydrated.doc.layers[0]).toMatchObject({
+      id: 'image-layer',
+      kind: 'image',
+      src: 'artifact-cloud-asset://image/missing-image',
+    });
   });
 });

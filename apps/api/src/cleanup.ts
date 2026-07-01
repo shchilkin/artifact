@@ -59,10 +59,10 @@ export async function cleanupAiGenerationData(
     : await expireStaleActiveJobs(client, staleActiveJobCutoff, now, limit);
 
   const softDeletedAssets = dryRun
-    ? await selectOrphanGeneratedAssets(client, orphanAssetCutoff, limit)
-    : await softDeleteOrphanGeneratedAssets(client, orphanAssetCutoff, now, limit);
+    ? await selectOrphanAssets(client, orphanAssetCutoff, limit)
+    : await softDeleteOrphanAssets(client, orphanAssetCutoff, now, limit);
 
-  const deletedAssetFiles = await selectDeletedGeneratedAssetFiles(client, deletedAssetFileCutoff, limit);
+  const deletedAssetFiles = await selectDeletedAssetFiles(client, deletedAssetFileCutoff, limit);
   const storageKeysDeleted: string[] = [];
   if (!dryRun && options.assetStorage) {
     for (const asset of [...softDeletedAssets, ...deletedAssetFiles]) {
@@ -126,19 +126,34 @@ async function expireStaleActiveJobs(client: CleanupQueryClient, cutoff: Date, n
   return result.rows.map((row) => row.id);
 }
 
-async function selectOrphanGeneratedAssets(client: CleanupQueryClient, cutoff: Date, limit: number) {
+async function selectOrphanAssets(client: CleanupQueryClient, cutoff: Date, limit: number) {
   const result = await client.query<AssetCleanupRow>(
     `
       SELECT id, storage_key
       FROM assets
-      WHERE kind = 'generated-image'
+      WHERE (
+        (
+          kind = 'generated-image'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ai_generation_jobs
+            WHERE ai_generation_jobs.output_asset_id = assets.id
+          )
+        )
+        OR (
+          kind LIKE 'project-%'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM cloud_projects
+            WHERE cloud_projects.user_id = assets.user_id
+              AND cloud_projects.doc_json::text LIKE (
+                '%artifact-cloud-asset://' || replace(assets.kind, 'project-', '') || '/' || assets.id || '%'
+              )
+          )
+        )
+      )
         AND deleted_at IS NULL
         AND created_at < $1
-        AND NOT EXISTS (
-          SELECT 1
-          FROM ai_generation_jobs
-          WHERE ai_generation_jobs.output_asset_id = assets.id
-        )
       ORDER BY created_at ASC
       LIMIT $2
     `,
@@ -147,7 +162,7 @@ async function selectOrphanGeneratedAssets(client: CleanupQueryClient, cutoff: D
   return result.rows;
 }
 
-async function softDeleteOrphanGeneratedAssets(client: CleanupQueryClient, cutoff: Date, now: Date, limit: number) {
+async function softDeleteOrphanAssets(client: CleanupQueryClient, cutoff: Date, now: Date, limit: number) {
   const result = await client.query<AssetCleanupRow>(
     `
       UPDATE assets
@@ -155,14 +170,29 @@ async function softDeleteOrphanGeneratedAssets(client: CleanupQueryClient, cutof
       WHERE id IN (
         SELECT id
         FROM assets
-        WHERE kind = 'generated-image'
+        WHERE (
+          (
+            kind = 'generated-image'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM ai_generation_jobs
+              WHERE ai_generation_jobs.output_asset_id = assets.id
+            )
+          )
+          OR (
+            kind LIKE 'project-%'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM cloud_projects
+              WHERE cloud_projects.user_id = assets.user_id
+                AND cloud_projects.doc_json::text LIKE (
+                  '%artifact-cloud-asset://' || replace(assets.kind, 'project-', '') || '/' || assets.id || '%'
+                )
+            )
+          )
+        )
           AND deleted_at IS NULL
           AND created_at < $1
-          AND NOT EXISTS (
-            SELECT 1
-            FROM ai_generation_jobs
-            WHERE ai_generation_jobs.output_asset_id = assets.id
-          )
         ORDER BY created_at ASC
         LIMIT $3
       )
@@ -173,12 +203,12 @@ async function softDeleteOrphanGeneratedAssets(client: CleanupQueryClient, cutof
   return result.rows;
 }
 
-async function selectDeletedGeneratedAssetFiles(client: CleanupQueryClient, cutoff: Date, limit: number) {
+async function selectDeletedAssetFiles(client: CleanupQueryClient, cutoff: Date, limit: number) {
   const result = await client.query<AssetCleanupRow>(
     `
       SELECT id, storage_key
       FROM assets
-      WHERE kind = 'generated-image'
+      WHERE (kind = 'generated-image' OR kind LIKE 'project-%')
         AND deleted_at IS NOT NULL
         AND deleted_at < $1
       ORDER BY deleted_at ASC

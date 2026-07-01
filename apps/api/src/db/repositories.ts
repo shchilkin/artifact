@@ -29,7 +29,15 @@ export type JobReadWriteRepository = Pick<
   countActiveJobs(userId: string): Promise<number>;
 };
 
-export type AssetReadWriteRepository = Pick<AssetRepository, 'create' | 'findByIdForUser'>;
+export type AssetReadWriteRepository = Pick<
+  AssetRepository,
+  | 'create'
+  | 'findByIdForUser'
+  | 'findProjectAssetByFingerprintForUser'
+  | 'listProjectAssetsForUser'
+  | 'softDelete'
+  | 'softDeleteManyForUser'
+>;
 
 export type ProjectReadWriteRepository = Pick<CloudProjectRepository, 'listForUser' | 'upsert' | 'deleteForUser'>;
 

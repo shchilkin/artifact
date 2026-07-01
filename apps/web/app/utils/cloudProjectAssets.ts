@@ -131,12 +131,13 @@ export async function hydrateCloudProjectDocument(
   let hydratedDoc = await mapDocumentImageSources(doc, async (source) => {
     const cloud = parseCloudAssetUri(source);
     if (!cloud || cloud.kind !== 'image') return source;
-    return downloader.download(cloud);
+    return downloader.downloadOrKeepRef(source, cloud);
   });
   hydratedDoc = await mapDocumentFontSources(hydratedDoc, async (font) => {
     const cloud = parseCloudAssetUri(font);
     if (!cloud || cloud.kind !== 'font') return font;
-    const dataUrl = await downloader.download(cloud);
+    const dataUrl = await downloader.downloadOrKeepRef(font, cloud);
+    if (dataUrl === font) return font;
     fontAssets.push({
       id: cloud.id,
       dataUrl,
@@ -153,12 +154,12 @@ export async function hydrateCloudProjectDocument(
   hydratedDoc = await mapDocumentModelSources(hydratedDoc, async (source) => {
     const cloud = parseCloudAssetUri(source);
     if (!cloud || cloud.kind !== 'model') return source;
-    return downloader.download(cloud);
+    return downloader.downloadOrKeepRef(source, cloud);
   });
   hydratedDoc = await mapDocumentEnvironmentSources(hydratedDoc, async (source) => {
     const cloud = parseCloudAssetUri(source);
     if (!cloud || cloud.kind !== 'environment') return source;
-    return downloader.download(cloud);
+    return downloader.downloadOrKeepRef(source, cloud);
   });
 
   return storePortableDocumentAssets({
@@ -185,13 +186,21 @@ function createCloudAssetUploader(options: CloudProjectAssetClientOptions) {
 
 function createCloudAssetDownloader(options: CloudProjectAssetClientOptions) {
   const cache = new Map<string, Promise<string>>();
+  const download = (asset: { kind: CloudProjectAssetKind; id: string }) => {
+    const cached = cache.get(asset.id);
+    if (cached) return cached;
+    const promise = downloadCloudAssetDataUrl(asset.id, options);
+    cache.set(asset.id, promise);
+    return promise;
+  };
   return {
-    download(asset: { kind: CloudProjectAssetKind; id: string }) {
-      const cached = cache.get(asset.id);
-      if (cached) return cached;
-      const promise = downloadCloudAssetDataUrl(asset.id, options);
-      cache.set(asset.id, promise);
-      return promise;
+    download,
+    async downloadOrKeepRef(source: string, asset: { kind: CloudProjectAssetKind; id: string }) {
+      try {
+        return await download(asset);
+      } catch {
+        return source;
+      }
     },
   };
 }

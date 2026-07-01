@@ -163,7 +163,16 @@ export interface AiGenerationJobRepository {
 export interface AssetRepository {
   create(input: CreateAssetInput): Promise<AssetRow>;
   findByIdForUser(id: string, userId: string): Promise<AssetRow | null>;
+  findProjectAssetByFingerprintForUser(input: {
+    userId: string;
+    kind: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+  }): Promise<AssetRow | null>;
+  listProjectAssetsForUser(userId: string): Promise<AssetRow[]>;
   softDelete(id: string, userId: string, deletedAt: Date): Promise<AssetRow>;
+  softDeleteManyForUser(ids: readonly string[], userId: string, deletedAt: Date): Promise<AssetRow[]>;
 }
 
 export interface CloudProjectRepository {

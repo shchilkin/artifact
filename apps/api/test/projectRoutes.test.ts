@@ -28,6 +28,27 @@ const projectDoc = {
   export: { width: 1200, height: 1200, format: 'png' },
 };
 
+function projectDocWithCloudAsset(assetId: string) {
+  return {
+    ...projectDoc,
+    layers: [{ id: 'image-layer', kind: 'image', src: `artifact-cloud-asset://image/${assetId}` }],
+  };
+}
+
+async function createProjectAsset(store: InMemoryApiStore, id: string, userId = 'user-1') {
+  return store.repositories().assets.create({
+    id,
+    userId,
+    kind: 'project-image',
+    storageKey: `generated/${id}.png`,
+    mimeType: 'image/png',
+    width: 1,
+    height: 1,
+    sizeBytes: 4,
+    metadataJson: { projectAssetKind: 'image' },
+  });
+}
+
 describe('project route handlers', () => {
   it('rejects cloud project access for anonymous users', async () => {
     const { deps } = createDeps({ authenticated: false, reason: 'missing_credentials' });
@@ -93,6 +114,39 @@ describe('project route handlers', () => {
     });
   });
 
+  it('soft-deletes project assets that are no longer referenced after an update', async () => {
+    const { deps, store } = createDeps();
+    await createProjectAsset(store, 'asset-old');
+
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', {
+        id: 'project-1',
+        name: 'First',
+        doc: projectDocWithCloudAsset('asset-old'),
+      }),
+      deps,
+    );
+    await createProjectAsset(store, 'asset-new');
+
+    await expect(
+      handleProjectRequest(
+        jsonRequest('POST', '/api/projects', {
+          id: 'project-1',
+          name: 'Updated',
+          doc: projectDocWithCloudAsset('asset-new'),
+        }),
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 200 });
+
+    await expect(store.findAssetByIdForUser('asset-old', 'user-1')).resolves.toMatchObject({
+      deleted_at: expect.any(Date),
+    });
+    await expect(store.findAssetByIdForUser('asset-new', 'user-1')).resolves.toMatchObject({
+      deleted_at: null,
+    });
+  });
+
   it('returns a conflict when another user owns the requested project id', async () => {
     const { deps, store } = createDeps();
     await store.repositories().projects.upsert({
@@ -144,6 +198,29 @@ describe('project route handlers', () => {
     await expect(store.repositories().projects.listForUser('user-2')).resolves.toMatchObject([
       { id: 'project-2', name: 'Other user project' },
     ]);
+  });
+
+  it('soft-deletes project assets when their cloud project is deleted', async () => {
+    const { deps, store } = createDeps();
+    await createProjectAsset(store, 'asset-1');
+    await handleProjectRequest(
+      jsonRequest('POST', '/api/projects', {
+        id: 'project-1',
+        name: 'One',
+        doc: projectDocWithCloudAsset('asset-1'),
+      }),
+      deps,
+    );
+
+    await expect(store.findAssetByIdForUser('asset-1', 'user-1')).resolves.toMatchObject({ deleted_at: null });
+
+    await expect(handleProjectRequest(jsonRequest('DELETE', '/api/projects/project-1'), deps)).resolves.toMatchObject({
+      status: 200,
+      body: { ok: true },
+    });
+    await expect(store.findAssetByIdForUser('asset-1', 'user-1')).resolves.toMatchObject({
+      deleted_at: expect.any(Date),
+    });
   });
 
   it('rejects cloud project saves without a document object', async () => {
