@@ -71,14 +71,27 @@ describe('loadConfig', () => {
         WEB_ORIGIN: 'https://artifact.example',
         BETTER_AUTH_SECRET: 'better-secret',
         BETTER_AUTH_URL: 'https://api.artifact.example/api/auth',
+        EMAIL_FROM: 'Artifact <hello@artifact.example>',
+        EMAIL_REPLY_TO: 'support@artifact.example',
+        PASSWORD_RESET_LOG_URL: 'false',
+        RESEND_API_KEY: 're_test',
       }),
     ).toMatchObject({
       betterAuthSecret: 'better-secret',
       betterAuthUrl: 'https://api.artifact.example/api/auth',
+      emailFrom: 'Artifact <hello@artifact.example>',
+      emailReplyTo: 'support@artifact.example',
+      passwordResetLogUrl: false,
+      resendApiKey: 're_test',
       webOrigin: 'https://artifact.example',
       webOrigins: ['https://artifact.example'],
     });
     expect(loadConfig({ ...requiredEnv })).toMatchObject({ betterAuthSecret: 'secret' });
+  });
+
+  it('logs password reset URLs locally but not by default in production', () => {
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'development' })).toMatchObject({ passwordResetLogUrl: true });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production' })).toMatchObject({ passwordResetLogUrl: false });
   });
 
   it('parses multiple web origins for Vercel production and preview deployments', () => {

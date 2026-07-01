@@ -3,6 +3,8 @@ import { bearer } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import type { ApiConfig } from './config.js';
 import { isAllowedWebOrigin } from './http.js';
+import { logInfo } from './logger.js';
+import { sendPasswordResetEmail } from './passwordResetEmail.js';
 
 export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
   if (!pool) return null;
@@ -14,6 +16,24 @@ export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
     trustedOrigins: createTrustedOriginsResolver(config.webOrigins),
     emailAndPassword: {
       enabled: true,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: ({ user, url }) =>
+        sendPasswordResetEmail(
+          {
+            email: user.email,
+            resetUrl: url,
+            userId: user.id,
+          },
+          { config },
+        ),
+      onPasswordReset: ({ user }) => {
+        logInfo('auth.password_reset_completed', {
+          email: user.email,
+          userId: user.id,
+        });
+        return Promise.resolve();
+      },
     },
     plugins: [bearer()],
   });
