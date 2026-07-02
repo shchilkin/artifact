@@ -23,6 +23,7 @@ import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
+import { useArtifactTheme } from '../../hooks/useArtifactTheme';
 import type { CanvasDocument, CanvasGraph, Layer, PrimitiveLayer } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
@@ -134,6 +135,7 @@ export function NodeCanvas({
   onDuplicateLayer,
 }: NodeCanvasProps) {
   const auth = useArtifactAuth();
+  const { resolvedTheme } = useArtifactTheme();
   const graph = useMemo(() => doc.graph ?? inferLinearGraph(doc.layers), [doc.graph, doc.layers]);
 
   const graphRef = useRef(graph);
@@ -524,7 +526,7 @@ export function NodeCanvas({
               isValidConnection={isValidConnection}
               onInit={onRFInit}
               nodeTypes={nodeTypes}
-              colorMode="dark"
+              colorMode={resolvedTheme}
               elementsSelectable
               selectionKeyCode="Shift"
               selectionOnDrag={!primitiveViewportLockActive}

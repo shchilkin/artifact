@@ -4,6 +4,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import type { Route } from './+types/root';
 import './index.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
+import { ARTIFACT_THEME_STORAGE_KEY, useArtifactTheme } from './hooks/useArtifactTheme';
 import { GOOGLE_FONT_STYLESHEET_URL } from './types/config';
 import { logAppBuildInfo } from './utils/appBuildInfo';
 import { registerArtifactServiceWorker } from './utils/pwaRegistration';
@@ -17,15 +18,32 @@ export const meta: MetaFunction = () => [
   },
 ];
 
+const themeBootScript = `(() => {
+  let stored = null;
+  try {
+    stored = window.localStorage.getItem('${ARTIFACT_THEME_STORAGE_KEY}');
+  } catch {
+    stored = null;
+  }
+  const preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+  const resolved = preference === 'system'
+    ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    : preference;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themePreference = preference;
+  document.documentElement.style.colorScheme = resolved;
+})();`;
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" data-theme-preference="system" suppressHydrationWarning>
       <head>
         <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#ff6a5f" />
+        <meta name="color-scheme" content="dark light" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Artifact" />
         {/* OG */}
@@ -53,6 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href={GOOGLE_FONT_STYLESHEET_URL} rel="stylesheet" />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
         <Meta />
         <Links />
       </head>
@@ -66,6 +85,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function Root() {
+  useArtifactTheme();
+
   useEffect(() => {
     logAppBuildInfo();
     void registerArtifactServiceWorker({ enabled: !import.meta.env.DEV }).catch((error) => {
