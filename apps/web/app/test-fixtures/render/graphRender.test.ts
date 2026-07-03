@@ -356,6 +356,29 @@ describe('renderGraphTarget', () => {
     expect(pixelsEqual(allPixels(cached), allPixels(uncached))).toBe(true);
   });
 
+  it('treats zero-size cached node canvases as transparent fallbacks', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc = graphDocument(graph);
+    const zeroCanvas = document.createElement('canvas');
+    zeroCanvas.width = 0;
+    zeroCanvas.height = 0;
+    const cache: GraphRenderCache = {
+      namespace: 'zero-canvas-session',
+      entries: new Map([['zero-canvas-session:red-fill', Promise.resolve(zeroCanvas)]]),
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 24, new Map(), { skipEffects: true }, cache);
+
+    expect(canvas.width).toBe(32);
+    expect(canvas.height).toBe(24);
+    expect(centerPixel(canvas)[3]).toBe(0);
+  });
+
   it('composites merge node inputs with merge opacity', async () => {
     const graph = mergeGraph();
     const doc = graphDocument(graph);
