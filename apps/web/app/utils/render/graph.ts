@@ -21,7 +21,7 @@ import { lcg } from '../lcg';
 import type { SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
-import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
+import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
@@ -125,6 +125,10 @@ function throwIfRenderAborted(options: RenderOptions): void {
   const error = new Error('Render aborted');
   error.name = 'AbortError';
   throw error;
+}
+
+function normalizeRenderedCanvas(canvas: HTMLCanvasElement, W: number, H: number): HTMLCanvasElement {
+  return isDrawableCanvas(canvas) ? canvas : createCanvas(W, H);
 }
 
 function withGraphPrimitiveViewStates(doc: CanvasDocument, graph: CanvasGraph, options: RenderOptions): RenderOptions {
@@ -886,7 +890,7 @@ async function renderGraphNode(
   const sizedNodeCacheKey = W === rootSize.width && H === rootSize.height ? nodeCacheKey : `${nodeCacheKey}@${W}x${H}`;
   const cacheKey = cacheNamespace ? `${cacheNamespace}:${sizedNodeCacheKey}` : sizedNodeCacheKey;
   const cached = cache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
   const renderDependency = (dependencyId: string, size?: { width: number; height: number }) =>
     renderGraphNode(
       doc,
@@ -910,7 +914,7 @@ async function renderGraphNode(
     imageCache,
     options,
     renderDependency,
-  });
+  }).then((canvas) => normalizeRenderedCanvas(canvas, W, H));
 
   cache.set(cacheKey, renderPromise);
   renderPromise.catch(() => {
