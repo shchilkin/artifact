@@ -189,11 +189,13 @@
 }
 
 .react-flow__edge:not(.node-edge-output-path):not(.node-edge-selected) .react-flow__edge-path {
-  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 80%, transparent));
+  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 86%, transparent))
+    drop-shadow(0 0 5px color-mix(in oklch, var(--node-edge-idle) 24%, transparent));
 }
 
 .react-flow__edge.node-edge-output-path:not(.node-edge-selected) .react-flow__edge-path {
-  filter: drop-shadow(0 0 4px color-mix(in oklch, var(--node-edge-output) 34%, transparent));
+  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 82%, transparent))
+    drop-shadow(0 0 6px color-mix(in oklch, var(--node-edge-output) 42%, transparent));
 }
 
 .react-flow__edge.node-edge-selected .react-flow__edge-path {
@@ -347,10 +349,13 @@
 }
 
 .node-shell-kind-image,
-.node-shell-kind-primitive,
 .node-shell-kind-noise,
 .node-shell-kind-array {
   --node-preferred-width: 340px;
+}
+
+.node-shell-kind-primitive {
+  --node-preferred-width: 300px;
 }
 
 .node-shell-kind-text,
@@ -2547,48 +2552,57 @@
   width: 100%;
   height: auto;
   overflow: hidden;
+  border-bottom: 1px solid var(--node-border);
+  background: var(--node-bg);
+  contain: layout paint;
+}
+
+.node-primitive-live-viewport-layer {
+  position: absolute;
+  z-index: 2;
+  inset: 10px;
+  overflow: hidden;
 }
 
 .primitive-node-camera-strip {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 4;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  flex-direction: column;
-  gap: 5px;
-  min-height: 56px;
-  padding: 7px 8px 8px;
+  gap: 4px;
+  padding: 4px;
   font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--node-text-dim);
-  background: color-mix(in oklch, var(--node-bg) 86%, var(--node-surface));
-  border-top: 1px solid var(--node-border);
+  background: color-mix(in oklch, var(--node-bg) 88%, transparent);
+  border: 1px solid var(--node-border);
+  backdrop-filter: blur(8px);
 }
 
 .primitive-node-camera-hint {
-  min-width: 0;
-  overflow: hidden;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .primitive-node-camera-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-  width: 100%;
 }
 
 .primitive-camera-button {
   min-width: 0;
+  width: 44px;
   height: 24px;
-  flex: 1;
+  flex: 0 0 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 7px;
+  padding: 0;
   border: 1px solid var(--node-border);
   border-radius: 0;
   background: var(--node-bg);

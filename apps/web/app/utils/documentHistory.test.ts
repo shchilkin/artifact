@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { type CanvasDocument, type CanvasGraph, makeFillLayer, makeTextLayer } from '../types/config';
+import {
+  type CanvasDocument,
+  type CanvasGraph,
+  makeEffectLayer,
+  makeFillLayer,
+  makeGraphMaterialNode,
+  makeGraphShaderNode,
+  makeSourceLayer,
+  makeTextLayer,
+} from '../types/config';
 import {
   appendHistoryEntry,
   createHistoryEntry,
@@ -30,6 +39,45 @@ function makeGraphDoc(x: number): CanvasDocument {
   return {
     global: { bg: '#000000', seed: 88, aspect: '1:1' },
     layers: [makeFillLayer({ id: 'fill-graph' })],
+    graph,
+    export: { format: 'png', scale: 1, target: 'cover' },
+  };
+}
+
+function makeShaderMaterialGraphDoc(shaderKind: 'waterCaustic' | 'glowingWave'): CanvasDocument {
+  const source = makeFillLayer({ id: 'shader-effect-source', color: '#2244ff', opacity: 100, blendMode: 'normal' });
+  const effect = makeEffectLayer({
+    id: 'shader-effect-a',
+    preset: 'gradientMap',
+    gradientMap: 85,
+    gradientMapShadow: '#041020',
+    gradientMapMid: '#3ce4b4',
+    gradientMapHighlight: '#ffe98a',
+  });
+  const primitive = makeSourceLayer('primitive', {
+    id: 'primitive-a',
+    primitiveShape: 'sphere',
+    color: '#773322',
+    accentColor: '#ffd180',
+  });
+  const graph: CanvasGraph = {
+    edges: [
+      { id: 'e-shader-albedo', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+      { id: 'e-source-effect', fromId: source.id, fromPort: 'out', toId: effect.id, toPort: 'in' },
+      { id: 'e-effect-normal', fromId: effect.id, fromPort: 'out', toId: 'material-a', toPort: 'normal' },
+      { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+      { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
+    ],
+    positions: {},
+    mergeNodes: [],
+    colorNodes: [],
+    materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+    shaderNodes: [makeGraphShaderNode({ id: 'shader-a', shaderKind, distortion: 54, grain: 0 })],
+  };
+
+  return {
+    global: { bg: 'transparent', seed: 44, aspect: '1:1' },
+    layers: [source, effect, primitive],
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
   };
@@ -110,6 +158,36 @@ describe('documentHistory', () => {
     );
 
     expect(redoResult?.doc.graph?.positions['fill-graph']).toEqual({ x: 120, y: 80 });
+  });
+
+  it('preserves shader material graph nodes and texture-map edges through undo and redo history', () => {
+    const beforeGraphEdit = makeShaderMaterialGraphDoc('waterCaustic');
+    const afterGraphEdit = makeShaderMaterialGraphDoc('glowingWave');
+    const undoResult = undoHistory(pushSnapshotHistory({ past: [], future: [] }, beforeGraphEdit), afterGraphEdit);
+
+    expect(undoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('waterCaustic');
+    expect(undoResult?.doc.graph?.edges.map((edge) => edge.toPort)).toEqual([
+      'albedo',
+      'in',
+      'normal',
+      'material',
+      'in',
+    ]);
+
+    const redoResult = redoHistory(
+      {
+        past: undoResult?.past ?? [],
+        future: undoResult?.future ?? [],
+      },
+      undoResult?.doc ?? beforeGraphEdit,
+    );
+
+    expect(redoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('glowingWave');
+    expect(redoResult?.doc.graph?.materialNodes?.[0]?.materialPreset).toBe('plastic');
+    expect(redoResult?.doc.layers.find((layer) => layer.id === 'shader-effect-a')).toMatchObject({
+      preset: 'gradientMap',
+      gradientMap: 85,
+    });
   });
 
   it('flushes multiple debounced graph edits as one undo entry', () => {

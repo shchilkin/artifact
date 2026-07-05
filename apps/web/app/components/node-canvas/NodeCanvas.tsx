@@ -23,9 +23,22 @@ import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
-import type { CanvasDocument, CanvasGraph, Layer, PrimitiveLayer } from '../../types/config';
+import {
+  type CanvasDocument,
+  type CanvasGraph,
+  DEFAULT_MATERIAL_CONFIG,
+  type Layer,
+  type MaterialConfig,
+  type PrimitiveLayer,
+} from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
-import { connectedPortIds, EXPORT_NODE_ID, inferLinearGraph, resolveOutputPath } from '../../utils/nodeGraph';
+import {
+  connectedPortIds,
+  EXPORT_NODE_ID,
+  inferLinearGraph,
+  removeGraphEdge,
+  resolveOutputPath,
+} from '../../utils/nodeGraph';
 import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
@@ -47,6 +60,7 @@ import { useNodePerfDebug } from './hooks/useNodePerfDebug';
 import { useNodeSelectionSync } from './hooks/useNodeSelectionSync';
 import { usePrimitiveCameraState } from './hooks/usePrimitiveCameraState';
 import { nodeCanvasMachine } from './machine';
+import { EdgeContextMenu } from './menus/EdgeContextMenu';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
 import type { NodeAlignmentGuide } from './nodeAlignment';
@@ -62,6 +76,7 @@ import {
   MergeNodeComponent,
   RepeatNodeComponent,
   Scene3DNodeComponent,
+  ShaderNodeComponent,
   TransformNodeComponent,
 } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
@@ -86,6 +101,7 @@ const nodeTypes = {
   grimeShadowNode: GrimeShadowNodeComponent,
   scene3dNode: Scene3DNodeComponent,
   environmentNode: EnvironmentNodeComponent,
+  shaderNode: ShaderNodeComponent,
   exportNode: ExportNodeComponent,
   fallbackNode: FallbackNodeComponent,
 };
@@ -122,6 +138,7 @@ export function NodeCanvas({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -129,6 +146,7 @@ export function NodeCanvas({
   onAddLayerAt,
   onImageFileDrop,
   onFilesDrop,
+  onFileDragPreviewChange,
   onReplaceEnvironmentNodeFile,
   onDeleteNodes,
   onDuplicateLayer,
@@ -168,6 +186,13 @@ export function NodeCanvas({
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
   const { perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
+  const deleteEdge = useCallback(
+    (edgeId: string) => {
+      onGraphChange(removeGraphEdge(graphRef.current, edgeId));
+      send({ type: 'EDGE_IDS_REMOVED', ids: [edgeId] });
+    },
+    [graphRef, onGraphChange, send],
+  );
 
   // Focused hooks.
   const { primitiveViewStates, primitiveViewportLockActive, updatePrimitiveView, setPrimitiveViewportActive } =
@@ -374,27 +399,52 @@ export function NodeCanvas({
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
+  const updateNodeFileDropPreview = useCallback(
+    (event: ReactDragEvent<HTMLDivElement> | null) => {
+      onFileDragPreviewChange?.(event?.dataTransfer ?? null);
+    },
+    [onFileDragPreviewChange],
+  );
+  const onNodeFileDragEnter = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!(onFilesDrop || onImageFileDrop) || !hasFileTransfer(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateNodeFileDropPreview(event);
+    },
+    [onFilesDrop, onImageFileDrop, updateNodeFileDropPreview],
+  );
   const onNodeFileDragOver = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
       if (!(onFilesDrop || onImageFileDrop) || !hasFileTransfer(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
       event.dataTransfer.dropEffect = 'copy';
+      updateNodeFileDropPreview(event);
     },
-    [onFilesDrop, onImageFileDrop],
+    [onFilesDrop, onImageFileDrop, updateNodeFileDropPreview],
+  );
+  const onNodeFileDragLeave = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasFileTransfer(event.dataTransfer)) return;
+      if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+      updateNodeFileDropPreview(null);
+    },
+    [updateNodeFileDropPreview],
   );
   const onNodeFileDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
       if (!(onFilesDrop || onImageFileDrop) || !hasFileTransfer(event.dataTransfer)) return;
       const files = filesFromTransfer(event.dataTransfer);
-      if (files.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
+      updateNodeFileDropPreview(null);
+      if (files.length === 0) return;
       const position = nodeDropPosition(event, rfInstanceRef.current);
       if (onFilesDrop) onFilesDrop(files, position);
       else onImageFileDrop?.(files[0]!, position);
     },
-    [onFilesDrop, onImageFileDrop, rfInstanceRef],
+    [onFilesDrop, onImageFileDrop, rfInstanceRef, updateNodeFileDropPreview],
   );
 
   const handleJumpToOutput = useCallback(() => {
@@ -449,6 +499,7 @@ export function NodeCanvas({
       updateGrimeShadowNode: onUpdateGrimeShadowNode,
       updateScene3DNode: onUpdateScene3DNode,
       updateEnvironmentNode: onUpdateEnvironmentNode,
+      updateShaderNode: onUpdateShaderNode,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
@@ -474,6 +525,7 @@ export function NodeCanvas({
       onUpdateGrimeShadowNode,
       onUpdateScene3DNode,
       onUpdateEnvironmentNode,
+      onUpdateShaderNode,
       openGallery,
       setPrimitiveViewportActive,
       updatePrimitiveView,
@@ -487,7 +539,9 @@ export function NodeCanvas({
           <div
             ref={canvasSurfaceRef}
             className="relative min-w-0 flex-1 overflow-hidden"
+            onDragEnter={onNodeFileDragEnter}
             onDragOver={onNodeFileDragOver}
+            onDragLeave={onNodeFileDragLeave}
             onDrop={onNodeFileDrop}
           >
             <NodeCanvasToolbar
@@ -577,6 +631,7 @@ export function NodeCanvas({
             onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
             onUpdateScene3DNode={onUpdateScene3DNode}
             onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+            onUpdateShaderNode={onUpdateShaderNode}
             onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
@@ -592,6 +647,14 @@ export function NodeCanvas({
             onAddFromMenu={handleAddFromMenu}
             onClose={closeContextMenu}
             resolveInsertionAtPoint={resolveAddLibraryInsertionAtPoint}
+          />
+
+          <EdgeContextMenuPortal
+            contextMenu={contextMenu}
+            contextMenuRef={contextMenuRef}
+            onClose={closeContextMenu}
+            onDeleteEdge={deleteEdge}
+            onOpenInsertMenu={(menu) => send({ type: 'CONTEXT_MENU_OPENED', menu })}
           />
 
           <NodeContextMenuPortal
@@ -650,6 +713,7 @@ function NodeAlignmentGuideOverlay({ guides }: { guides: NodeAlignmentGuide[] })
 }
 
 type PaneContextMenuState = Extract<ContextMenuState, { type: 'pane-add' | 'pane-insert' }>;
+type EdgeContextMenuState = Extract<ContextMenuState, { type: 'edge' }>;
 type AddLayerAction = Parameters<NodeCanvasProps['onAddLayerAt']>[0];
 type AddLibraryInsertionTarget =
   | ReturnType<typeof resolveNearestEdgeInsertionTarget>
@@ -706,6 +770,45 @@ function isPaneContextMenu(menu: ContextMenuState): menu is PaneContextMenuState
 
 function paneMenuInsertion(menu: PaneContextMenuState): InsertConnectionConfig | undefined {
   return menu.type === 'pane-insert' ? menu.insertion : undefined;
+}
+
+function EdgeContextMenuPortal({
+  contextMenu,
+  contextMenuRef,
+  onClose,
+  onDeleteEdge,
+  onOpenInsertMenu,
+}: {
+  contextMenu: ContextMenuState;
+  contextMenuRef: RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  onDeleteEdge: (edgeId: string) => void;
+  onOpenInsertMenu: (menu: PaneContextMenuState) => void;
+}) {
+  if (!isEdgeContextMenu(contextMenu) || typeof document === 'undefined') return null;
+  return createPortal(
+    <EdgeContextMenu
+      x={contextMenu.x}
+      y={contextMenu.y}
+      onInsertNode={() =>
+        onOpenInsertMenu({
+          type: 'pane-insert',
+          x: contextMenu.x,
+          y: contextMenu.y,
+          flowPos: contextMenu.flowPos,
+          insertion: contextMenu.insertion,
+        })
+      }
+      onDelete={() => onDeleteEdge(contextMenu.edgeId)}
+      onClose={onClose}
+      menuRef={contextMenuRef}
+    />,
+    document.body,
+  );
+}
+
+function isEdgeContextMenu(menu: ContextMenuState): menu is EdgeContextMenuState {
+  return menu?.type === 'edge';
 }
 
 function handlePaneMenuDragAdd({
@@ -1022,8 +1125,10 @@ function PrimitiveGalleryViewport({
   const { doc, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const materialId = graph.edges.find((edge) => edge.toId === displayLayer.id && edge.toPort === 'material')?.fromId;
   const materialConfig = materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
+  const materialShader = materialId ? graph.shaderNodes?.find((node) => node.id === materialId) : undefined;
   const materialTextures = useGeneratedMaterialTextureCanvases({
     materialNode: materialConfig ?? null,
+    directTextureSourceId: materialShader?.id ?? null,
     doc,
     graph,
     imageCache,
@@ -1033,7 +1138,7 @@ function PrimitiveGalleryViewport({
   return (
     <LazyPrimitiveViewport3D
       layer={displayLayer as PrimitiveLayer}
-      materialConfig={materialConfig}
+      materialConfig={materialConfig ?? (materialShader ? shaderMaterialConfig(materialShader.id) : undefined)}
       materialTextures={materialTextures}
       mode="modal"
       renderMode={primitiveRenderModes[displayLayer.id] ?? 'shaded'}
@@ -1042,6 +1147,19 @@ function PrimitiveGalleryViewport({
       className="node-primitive-preview"
     />
   );
+}
+
+function shaderMaterialConfig(shaderId: string): MaterialConfig {
+  return {
+    ...DEFAULT_MATERIAL_CONFIG,
+    materialPreset: 'matte',
+    materialBaseColor: '#ffffff',
+    materialAccentColor: '#ffffff',
+    materialRoughness: 0.32,
+    materialGrain: 0,
+    materialRelief: 0,
+    materialAlbedoName: shaderId,
+  };
 }
 
 function ModelGalleryViewport({
@@ -1239,6 +1357,7 @@ function decorateRFEdge(
   const onOutputPath = outputEdgeIds.has(edge.id);
   return {
     ...edge,
+    selected,
     className: edgeClassName(edge.className, { selected, onOutputPath }),
     style: {
       ...edge.style,
@@ -1267,8 +1386,8 @@ function edgeStroke(defaultStroke: unknown, onOutputPath: boolean) {
 }
 
 function edgeStrokeWidth(defaultWidth: unknown, selected: boolean, onOutputPath: boolean) {
-  if (selected) return 3.25;
-  if (onOutputPath) return 2.35;
+  if (selected) return 3.6;
+  if (onOutputPath) return 2.8;
   return defaultWidth;
 }
 
@@ -1278,8 +1397,8 @@ function edgeOpacity(selectedEdgeId: string | null, selected: boolean, onOutputP
 }
 
 function edgeOpacityByState(visibleOutputPath: boolean, onOutputPath: boolean) {
-  if (visibleOutputPath) return onOutputPath ? 0.82 : 0.36;
-  return onOutputPath ? 0.5 : 0.2;
+  if (visibleOutputPath) return onOutputPath ? 0.92 : 0.68;
+  return onOutputPath ? 0.72 : 0.46;
 }
 
 const EDITABLE_KEY_TARGETS = new Set(['input', 'textarea', 'select']);

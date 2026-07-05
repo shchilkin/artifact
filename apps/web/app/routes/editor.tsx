@@ -152,6 +152,7 @@ export default function Editor() {
     updateGrimeShadowNode,
     updateScene3DNode,
     updateEnvironmentNode,
+    updateShaderNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -276,6 +277,19 @@ export default function Editor() {
     handleSaveProjectPackage,
     handleStageDocumentImport,
   } = useDocumentFileTransfer(docRef, handleLoadExternalDocument);
+
+  const handleNodeFileDragPreviewChange = useCallback((dataTransfer: DataTransfer | null) => {
+    setDropPreview(dataTransfer ? inferDropPreviewKind(dataTransfer) : null);
+  }, []);
+  const handleNodeDroppedFiles = useCallback(
+    (files: File[], position: { x: number; y: number }) => {
+      const documentFile = files.find(isArtifactDocumentFile);
+      if (documentFile) void handleStageDocumentImport(documentFile);
+      const assetFiles = files.filter((file) => !isArtifactDocumentFile(file));
+      if (assetFiles.length > 0) handleDroppedFiles(assetFiles, position);
+    },
+    [handleDroppedFiles, handleStageDocumentImport],
+  );
 
   const { handleToggleProjects, closePanels } = useEditorPanels({
     closeProjects,
@@ -521,6 +535,7 @@ export default function Editor() {
                   onUpdateGrimeShadowNode={updateGrimeShadowNode}
                   onUpdateScene3DNode={updateScene3DNode}
                   onUpdateEnvironmentNode={updateEnvironmentNode}
+                  onUpdateShaderNode={updateShaderNode}
                   onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
@@ -528,7 +543,8 @@ export default function Editor() {
                   onExport={handleNodeExport}
                   onAddLayerAt={handleAddLayerAt}
                   onImageFileDrop={(file, position) => void handleDroppedFile(file, position)}
-                  onFilesDrop={handleDroppedFiles}
+                  onFilesDrop={handleNodeDroppedFiles}
+                  onFileDragPreviewChange={handleNodeFileDragPreviewChange}
                   onDeleteNodes={deleteNodeSelection}
                   onDuplicateLayer={duplicateLayer}
                 />

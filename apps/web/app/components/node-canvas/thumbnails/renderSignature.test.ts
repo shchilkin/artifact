@@ -5,6 +5,7 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeGraphMaterialNode,
+  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -19,6 +20,7 @@ import {
   materialNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
+  shaderNodeRenderSig,
   transformNodeRenderSig,
 } from '../../../utils/renderSignature';
 
@@ -183,6 +185,17 @@ describe('graph node render signatures', () => {
 
     expect(repeatNodeRenderSig(renamed)).toBe(repeatNodeRenderSig(base));
     expect(repeatNodeRenderSig(edited)).not.toBe(repeatNodeRenderSig(base));
+  });
+
+  it('ignores shader node identity and changes for procedural fields', () => {
+    const base = makeGraphShaderNode({ id: 'shader-1', name: 'Mesh Shader', distortion: 24 });
+    const renamed = { ...base, id: 'shader-2', name: 'Renamed shader' };
+    const edited = { ...base, distortion: 68 };
+    const composited = { ...base, opacity: 42 };
+
+    expect(shaderNodeRenderSig(renamed)).toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(edited)).not.toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(composited)).not.toBe(shaderNodeRenderSig(base));
   });
 
   it('ignores mask node identity and changes for mask fields', () => {

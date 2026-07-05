@@ -24,6 +24,7 @@ import {
   mergeNodeRenderSig,
   repeatNodeRenderSig,
   scene3DNodeRenderSig,
+  shaderNodeRenderSig,
   transformNodeRenderSig,
 } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
@@ -108,6 +109,7 @@ function graphSignatureParts(graph: CanvasGraph) {
     grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
     scene3DSignatures: renderSignatures(graph.scene3dNodes, scene3DNodeRenderSig),
     environmentSignatures: renderSignatures(graph.environmentNodes, environmentNodeRenderSig),
+    shaderSignatures: renderSignatures(graph.shaderNodes, shaderNodeRenderSig),
     edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
   };
 }
@@ -146,6 +148,7 @@ function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: stri
     grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
     scene3dNodes: filterGraphNodes(renderGraph.scene3dNodes, upstreamHas),
     environmentNodes: filterGraphNodes(renderGraph.environmentNodes, upstreamHas),
+    shaderNodes: filterGraphNodes(renderGraph.shaderNodes, upstreamHas),
     positions: {},
   };
 }
@@ -402,6 +405,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const prevMaskSigsRef = useRef<Map<string, string>>(new Map());
   const prevTransformSigsRef = useRef<Map<string, string>>(new Map());
   const prevGrimeShadowSigsRef = useRef<Map<string, string>>(new Map());
+  const prevShaderSigsRef = useRef<Map<string, string>>(new Map());
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
@@ -434,6 +438,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       grimeShadowSignatures,
       scene3DSignatures,
       environmentSignatures,
+      shaderSignatures,
       edgeSignatures,
       allGraphSignatures,
     } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
@@ -455,6 +460,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(grimeShadowSignatures),
       signatureList(scene3DSignatures),
       signatureList(environmentSignatures),
+      signatureList(shaderSignatures),
       signatureList(edgeSignatures),
       primitiveViewSignature(layers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
@@ -476,6 +482,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(allGraphSignatures.grimeShadowSignatures),
       signatureList(allGraphSignatures.scene3DSignatures),
       signatureList(allGraphSignatures.environmentSignatures),
+      signatureList(allGraphSignatures.shaderSignatures),
       signatureList(allGraphSignatures.edgeSignatures),
       primitiveViewSignature(allLayers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(allImageLayers, imageCache),
@@ -492,6 +499,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       maskSignatures,
       transformSignatures,
       grimeShadowSignatures,
+      shaderSignatures,
       edgeSignatures,
     };
   }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
@@ -562,6 +570,14 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
         logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'grimeShadow' });
       }
       prevGrimeShadowSigsRef.current.set(id, sig);
+    });
+
+    signatureData.shaderSignatures.forEach(({ id, sig }) => {
+      const prev = prevShaderSigsRef.current.get(id);
+      if (prev !== undefined && prev !== sig) {
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'shader' });
+      }
+      prevShaderSigsRef.current.set(id, sig);
     });
 
     signatureData.edgeSignatures.forEach(({ id, sig }) => {

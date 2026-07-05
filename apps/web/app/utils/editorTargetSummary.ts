@@ -9,6 +9,7 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   Layer,
 } from '../types/config';
@@ -118,6 +119,7 @@ export function buildGraphTargetSummary(
     | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
     | { kind: 'scene3d'; node: GraphScene3DNode }
     | { kind: 'environment'; node: GraphEnvironmentNode }
+    | { kind: 'shader'; node: GraphShaderNode }
     | { kind: 'output' },
   options: GraphTargetOptions,
 ): EditorTargetSummary {
@@ -159,6 +161,7 @@ export function buildGraphTargetSummary(
     grimeShadow: ['Grime Shadow', 'Builds a layered dirty shadow from the visible alpha of an upstream branch.'],
     scene3d: ['3D Scene', 'Renders imported models through camera, light, material, and environment settings.'],
     environment: ['Environment Map', 'Provides an EXR or HDR lighting environment to a 3D Scene.'],
+    shader: ['Shader', 'Generates a procedural pixel source or pass for artwork branches and material texture inputs.'],
   } as const;
   const [kindLabel, description] = labels[target.kind];
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];

@@ -76,10 +76,97 @@ Current React Flow node types:
 | `mergeNode` | Combines two upstream inputs. |
 | `colorNode` | Applies non-layer color adjustment. |
 | `repeatNode` | Repeats any upstream source branch over an optional backdrop. |
+| `maskNode` | Cuts one source branch with a matte source. |
+| `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
+| `grimeShadowNode` | Builds a layered dirty shadow from upstream alpha. |
+| `materialNode` | Defines a reusable 3D material and texture-map inputs. |
+| `shaderNode` | Generates one procedural raster shader source or composites it over an optional backdrop (`Shader Fill` / `Shader Pass` in the UI). |
+| `environmentNode` | Provides an environment map source for 3D scene lighting. |
+| `scene3dNode` | Renders a 3D scene from model, material, lighting, environment, and backdrop inputs. |
 | `exportNode` | Terminal output target. |
 
-Layer nodes map to `CanvasDocument.layers`. Merge, color, and repeat nodes live
-in `CanvasGraph`.
+Layer nodes map to `CanvasDocument.layers`. Graph-only utility, material,
+shader, environment, scene, and export nodes live in `CanvasGraph`.
+
+### Single-purpose node contract
+
+Nodes should have one primary reason to exist. A node may expose presets or
+variants when they are different flavors of the same role, but it should not
+silently combine unrelated roles.
+
+Use these boundaries:
+
+- **Source nodes** create pixels or assets: image, fill, noise, array, line
+  field, primitive/model source, shader fill, environment map.
+- **Process nodes** transform one upstream branch: effect, color, transform,
+  mask, grime shadow.
+- **Combine nodes** join multiple branches: merge and repeat-over-backdrop.
+- **Resource nodes** describe reusable non-image data for another node:
+  material and environment.
+- **Scene nodes** render a domain object from explicit inputs: 3D Scene owns
+  camera, lighting, scene material mode, environment strength, and backdrop
+  composition.
+- **Output nodes** define a render target and export path.
+
+When a node starts needing controls from two roles, split the roles instead of
+adding another mode. For example, a shader fill node may switch between mesh,
+marble, liquid, noise, water-surface, or tileable texture algorithms because
+each still produces one texture source. It should not also own 3D lighting,
+material scalar controls, export settings, or input-dependent image
+transforms. Those belong to Material, 3D Scene, Output, and Effect nodes.
+
+Exceptions must be explicit in docs and tests. A temporary MVP shortcut is
+acceptable only when it preserves serialized state clarity, render/export
+parity, and a clear migration path to separate nodes.
+
+### Shader fill, shader effect, and material boundary
+
+Shader work follows the same single-purpose split:
+
+- **Shader Fill / Pass** nodes are procedural raster shader passes. They
+  generate pixels from their own parameters and document seed, expose their
+  output as a source texture, and do not require an upstream image. When their
+  optional `backdrop` input is connected, they sample that upstream branch as
+  input texture data, use its luminance/detail to shape the generated shader,
+  and then apply the node's opacity and blend mode as pass intensity. New shader
+  nodes default to an overlay-friendly `screen` blend at 58% opacity so pass
+  mode reveals the connected backdrop immediately instead of replacing it.
+- **Shader Effect** nodes are normal Effect layer nodes with shader-style image
+  transforms. They require an upstream source branch; if there is no upstream
+  input, the graph render should remain transparent instead of inventing source
+  pixels.
+- **Material** nodes describe PBR surface parameters and texture-map inputs:
+  `albedo`, `roughness`, `metalness`, `normal`, and `alpha`.
+- **Primitive** and **3D Scene** nodes consume a material or texture source while
+  keeping model, camera, view, lighting, and composition controls separate from
+  material authoring.
+
+Material texture-map ports may receive either a Shader Fill output directly or
+the output of an input-dependent Shader Effect branch. The latter is valid only
+when the effect has an upstream source. This keeps the graph readable:
+`Shader Fill -> Material.albedo -> Primitive.material -> Output` for standalone
+textures, `Source -> Shader Fill/Pass.backdrop -> Output` when a procedural
+shader is layered over an image branch, or `Source -> Shader Effect ->
+Material.normal -> Primitive.material -> Output` when the map is derived from
+existing pixels.
+
+The Add Node library should keep this taxonomy visible:
+
+- **Sources** for imported/generated image branches and text/pattern bases.
+- **Shader Fills** for standalone procedural texture sources.
+- **Effects** for input-dependent image transforms, even when browse sections
+  further split them by tone, warp, print, light, signal, texture, or graphic
+  family.
+- **Materials** for reusable PBR surface nodes and texture-map ports.
+- **3D / Primitive** for primitive/model source nodes, scene renderers, and
+  environment-map resources.
+- **Output** for the fixed graph terminal/export target. It is not currently an
+  add-library item because each graph owns one canonical output node.
+
+The `Shader Material` Add Node recipe is the canonical starter for the material
+bridge: it surfaces Shader Fill, Material, Primitive, and input-dependent shader
+effect nodes together while keeping the actual connections explicit in the
+graph.
 
 The v0.13 `AI Image` add-menu entry is intentionally layer-backed: it creates a
 normal image layer node named `AI Image`, then the image-node properties panel

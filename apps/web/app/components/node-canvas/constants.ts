@@ -26,6 +26,7 @@ export const KIND_COLOR: Record<string, string> = {
   repeat: 'var(--node-kind-array)',
   mask: 'var(--node-kind-effect)',
   material: 'var(--node-kind-primitive)',
+  shader: 'var(--node-kind-noise)',
   transform: 'var(--node-kind-color)',
   grimeShadow: 'var(--node-kind-effect)',
   scene3d: 'var(--node-kind-primitive)',
@@ -49,6 +50,7 @@ export const KIND_SYMBOL: Record<string, string> = {
   repeat: '⧉',
   mask: '◒',
   material: '◒',
+  shader: '◉',
   transform: '↻',
   grimeShadow: '◖',
   scene3d: '◌',
@@ -141,6 +143,13 @@ export const ADD_NODE_ITEMS: Array<{
     description: 'Draw editable optical, contour, and warped line fields.',
     group: 'generators',
     action: { kind: 'layer', layerKind: 'lineField' },
+  },
+  {
+    label: 'Shader Fill',
+    symbol: '◉',
+    description: 'Generate procedural textures standalone or composite them over a backdrop.',
+    group: 'generators',
+    action: { kind: 'shader' },
   },
   {
     label: 'Merge',
@@ -240,6 +249,7 @@ export const GLITCH_PRESETS: EffectPreset[] = [
   'blockSmear',
   'chromaBlocks',
   'blockDropout',
+  'pixelStretch',
 ];
 export const TEXTURE_PRESETS: EffectPreset[] = [
   'grain',
@@ -261,6 +271,7 @@ export const WARP_PRESETS: EffectPreset[] = [
   'wave',
   'zoomBlur',
   'ripple',
+  'patternRefraction',
   'kaleidoscope',
   'squeeze',
 ];
@@ -272,6 +283,8 @@ export const COLOR_PRESETS: EffectPreset[] = [
   'pixelate',
   'posterize',
   'indexedPalette',
+  'gradientMap',
+  'channelMixer',
   'sepia',
   'infrared',
   'solarize',
@@ -286,5 +299,8 @@ export const GRAPHIC_PRESETS: EffectPreset[] = [
   'edgeCrush',
   'silhouetteCrush',
   'edgeDetect',
+  'bokehBlur',
+  'hatching',
+  'gooeyMerge',
   'gradientOverlay',
 ];

@@ -1,3 +1,4 @@
+import { stopNodeEvent } from '../../helpers';
 import { InspectorLabel } from './InspectorLabel';
 
 export type InspectorSelectOption = string | { value: string; label: string };
@@ -18,7 +19,16 @@ export function InspectorSelect({
   return (
     <div className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}>
       <InspectorLabel>{label}</InspectorLabel>
-      <select className="node-field" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className="node-field nodrag nopan nowheel"
+        value={value}
+        disabled={disabled}
+        onPointerDown={stopNodeEvent}
+        onMouseDown={stopNodeEvent}
+        onClick={stopNodeEvent}
+        onDoubleClick={stopNodeEvent}
+        onChange={(e) => onChange(e.target.value)}
+      >
         {options.map((option) => {
           const optionValue = typeof option === 'string' ? option : option.value;
           const optionLabel = typeof option === 'string' ? option : option.label;

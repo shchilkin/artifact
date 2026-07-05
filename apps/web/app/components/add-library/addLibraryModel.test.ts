@@ -58,6 +58,25 @@ describe('addLibraryModel', () => {
     }
   });
 
+  it('offers a shader material recipe with single-purpose nodes for the material bridge workflow', () => {
+    const recipe = ADD_LIBRARY_RECIPES.find((item) => item.id === 'shader-material');
+
+    expect(recipe).toMatchObject({
+      label: 'Shader Material',
+      hint: 'shader fill / material maps / primitive',
+      surfaces: ['nodes'],
+    });
+    expect(recipe?.itemIds).toEqual(
+      expect.arrayContaining([
+        'shader:mesh',
+        'material',
+        'layer:primitive',
+        'effect:gradientMap',
+        'effect:patternRefraction',
+      ]),
+    );
+  });
+
   it('exposes only groups that are available on each surface', () => {
     const layerGroups = addLibraryGroupsForSurface('layers').map((group) => group.id);
     const nodeGroups = addLibraryGroupsForSurface('nodes').map((group) => group.id);
@@ -68,7 +87,9 @@ describe('addLibraryModel', () => {
     expect(layerGroups).not.toContain('utility');
     expect(nodeGroups).toContain('utility');
     expect(nodeGroups).toContain('source');
+    expect(nodeGroups).toContain('shaderFill');
     expect(nodeGroups).toContain('material');
+    expect(nodeGroups).toContain('primitive');
     expect(nodeIds).toEqual(
       expect.arrayContaining([
         'merge',
@@ -78,6 +99,7 @@ describe('addLibraryModel', () => {
         'grimeShadow',
         'scene3d',
         'environment',
+        'shader:mesh',
         'material',
         'repeat',
       ]),
@@ -118,12 +140,21 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('credit')).toContain('textPreset:credit');
     expect(firstIdsFor('dots')).toContain('effect:halftone');
     expect(firstIdsFor('dot grain')).toContain('effect:dotGrain');
+    expect(firstIdsFor('mesh shader')).toContain('shader:mesh');
+    expect(firstIdsFor('shader fill')).toContain('shader:mesh');
     expect(firstIdsFor('stipple')).toContain('effect:dotGrain');
     expect(firstIdsFor('old photo')).toEqual(expect.arrayContaining(['effect:grain', 'effect:duotone']));
     expect(firstIdsFor('old game')).toEqual(expect.arrayContaining(['effect:dotGrain', 'effect:indexedPalette']));
     expect(firstIdsFor('ps1')).toEqual(expect.arrayContaining(['effect:dotGrain', 'effect:indexedPalette']));
     expect(firstIdsFor('retro resolution')).toContain('effect:retroResolution');
     expect(firstIdsFor('indexed palette')).toContain('effect:indexedPalette');
+    expect(firstIdsFor('gradient map')).toContain('effect:gradientMap');
+    expect(firstIdsFor('channel mixer')).toContain('effect:channelMixer');
+    expect(firstIdsFor('bokeh blur')).toContain('effect:bokehBlur');
+    expect(firstIdsFor('hatching')).toContain('effect:hatching');
+    expect(firstIdsFor('pattern refraction')).toContain('effect:patternRefraction');
+    expect(firstIdsFor('pixel stretch')).toContain('effect:pixelStretch');
+    expect(firstIdsFor('gooey merge')).toContain('effect:gooeyMerge');
     expect(firstIdsFor('alpha crush')).toContain('effect:edgeCrush');
     expect(firstIdsFor('edge crush')).toContain('effect:silhouetteCrush');
     expect(firstIdsFor('silhouette crush')).toContain('effect:silhouetteCrush');
@@ -159,6 +190,13 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:macroblocks')?.description).toContain('Large');
     expect(itemsById.get('effect:detailBlocks')?.description).toContain('Small');
     expect(itemsById.get('effect:indexedPalette')?.description).toContain('swatches');
+    expect(itemsById.get('effect:gradientMap')?.description).toContain('luminance');
+    expect(itemsById.get('effect:channelMixer')?.description).toContain('RGB channels');
+    expect(itemsById.get('effect:bokehBlur')?.description).toContain('highlight');
+    expect(itemsById.get('effect:hatching')?.description).toContain('hatch');
+    expect(itemsById.get('effect:patternRefraction')?.description).toContain('Refracts');
+    expect(itemsById.get('effect:pixelStretch')?.description).toContain('streaks');
+    expect(itemsById.get('effect:gooeyMerge')?.description).toContain('blobs');
     expect(itemsById.get('effect:edgeCrush')?.description).toContain('alpha');
     expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
   });
@@ -173,6 +211,13 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:macroblocks')?.tags).toEqual(expect.arrayContaining(['signal', 'blocks']));
     expect(itemsById.get('effect:blockDropout')?.tags).toEqual(expect.arrayContaining(['signal', 'damage']));
     expect(itemsById.get('effect:indexedPalette')?.tags).toEqual(expect.arrayContaining(['tone', 'palette']));
+    expect(itemsById.get('effect:gradientMap')?.tags).toEqual(expect.arrayContaining(['tone', 'shader']));
+    expect(itemsById.get('effect:channelMixer')?.tags).toEqual(expect.arrayContaining(['tone', 'channels']));
+    expect(itemsById.get('effect:bokehBlur')?.tags).toEqual(expect.arrayContaining(['graphic', 'lens']));
+    expect(itemsById.get('effect:hatching')?.tags).toEqual(expect.arrayContaining(['graphic', 'line']));
+    expect(itemsById.get('effect:patternRefraction')?.tags).toEqual(expect.arrayContaining(['warp', 'shader']));
+    expect(itemsById.get('effect:pixelStretch')?.tags).toEqual(expect.arrayContaining(['signal', 'smear']));
+    expect(itemsById.get('effect:gooeyMerge')?.tags).toEqual(expect.arrayContaining(['graphic', 'blob']));
     expect(itemsById.get('effect:halftone')?.tags).toEqual(expect.arrayContaining(['print', 'dots']));
     expect(itemsById.get('effect:edgeCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'alpha']));
     expect(itemsById.get('effect:silhouetteCrush')?.tags).toEqual(expect.arrayContaining(['graphic', 'edges']));
@@ -201,6 +246,26 @@ describe('addLibraryModel', () => {
     expect(itemsById.has('material:chrome')).toBe(false);
   });
 
+  it('keeps 3D primitives, models, scenes, and environments in the 3D / Primitive browse group', () => {
+    const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
+
+    expect(itemsById.get('layer:primitive')?.group).toBe('primitive');
+    expect(itemsById.get('layer:model')?.group).toBe('primitive');
+    expect(itemsById.get('scene3d')?.group).toBe('primitive');
+    expect(itemsById.get('environment')?.group).toBe('primitive');
+    expect(itemsById.get('material')?.group).toBe('material');
+  });
+
+  it('keeps standalone procedural shaders in the Shader Fills group', () => {
+    const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
+    const shaderFillGroup = ADD_LIBRARY_ITEMS.find((item) => item.id === 'shader:mesh')?.group;
+
+    expect(shaderFillGroup).toBe('shaderFill');
+    expect(itemsById.get('shader:mesh')?.label).toBe('Shader Fill');
+    expect(itemsById.get('shader:mesh')?.description).toContain('standalone procedural texture');
+    expect(itemsById.get('shader:mesh')?.tags).toEqual(expect.arrayContaining(['source', 'shader', 'fill']));
+  });
+
   it('round trips drag actions and rejects unknown payloads', () => {
     const action = { kind: 'textPreset' as const, preset: 'poster' as const };
 
@@ -226,6 +291,7 @@ describe('addLibraryModel', () => {
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'grimeShadow' }))).toEqual({ kind: 'grimeShadow' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'environment' }))).toEqual({ kind: 'environment' });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'shader' }))).toEqual({ kind: 'shader' });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'material', preset: 'not-real' }))).toBeNull();

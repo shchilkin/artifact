@@ -11,10 +11,11 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
     target: edge.toId,
     targetHandle: edge.toPort,
     type: 'smoothstep',
+    interactionWidth: 28,
     style: {
       stroke: getEdgeColor(edge.fromId, graph),
-      strokeWidth: 2,
-      opacity: 0.82,
+      strokeWidth: 2.35,
+      opacity: 0.9,
     },
   }));
 }

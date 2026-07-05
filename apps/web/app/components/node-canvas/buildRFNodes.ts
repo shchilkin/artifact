@@ -11,6 +11,7 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   Layer,
 } from '../../types/config';
@@ -29,6 +30,7 @@ import type {
   MergeNodeData,
   RepeatNodeData,
   Scene3DNodeData,
+  ShaderNodeData,
   TransformNodeData,
 } from './types';
 
@@ -179,6 +181,7 @@ const RF_UTILITY_NODE_BUILDERS = [
   { nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [], build: buildGrimeShadowRFNode },
   { nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [], build: buildScene3DRFNode },
   { nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [], build: buildEnvironmentRFNode },
+  { nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [], build: buildShaderRFNode },
 ];
 
 function buildMergeRFNode(mn: GraphMergeNode, context: BuildRFNodeContext): RFNode {
@@ -314,6 +317,20 @@ function buildEnvironmentRFNode(en: GraphEnvironmentNode, context: BuildRFNodeCo
       sourcePreviewTargetId: context.incomingNodeId(en.id, 'in'),
       ...commonNodeData(en.id, context),
     } satisfies EnvironmentNodeData,
+  };
+}
+
+function buildShaderRFNode(sn: GraphShaderNode, context: BuildRFNodeContext): RFNode {
+  return {
+    id: sn.id,
+    type: 'shaderNode',
+    position: utilityPosition(sn.id, context),
+    selected: context.selectedNodeIds.has(sn.id),
+    data: {
+      shaderNode: sn,
+      backdropPreviewTargetId: context.incomingNodeId(sn.id, 'bg'),
+      ...commonNodeData(sn.id, context),
+    } satisfies ShaderNodeData,
   };
 }
 

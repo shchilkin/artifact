@@ -19,6 +19,7 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   Layer,
 } from '../types/config';
@@ -218,6 +219,27 @@ export function scene3DNodeRenderSig(node: GraphScene3DNode): string {
 /** Render-relevant fields for an environment map node. */
 export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
   return JSON.stringify([node.environmentSrc, node.environmentName, node.environmentMime, node.environmentBytes]);
+}
+
+/** Render-relevant fields for a procedural shader node. */
+export function shaderNodeRenderSig(node: GraphShaderNode): string {
+  return JSON.stringify([
+    node.shaderKind,
+    node.colorA,
+    node.colorB,
+    node.colorC,
+    node.colorD,
+    node.distortion,
+    node.swirl,
+    node.grain,
+    node.scale,
+    node.rotation,
+    node.offsetX,
+    node.offsetY,
+    node.seedOffset,
+    node.opacity,
+    node.blendMode,
+  ]);
 }
 
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */

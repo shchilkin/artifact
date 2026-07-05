@@ -10,6 +10,7 @@ import {
   makeGraphMergeNode,
   makeGraphRepeatNode,
   makeGraphScene3DNode,
+  makeGraphShaderNode,
   makeGraphTransformNode,
   makeImageLayer,
   makeSourceLayer,
@@ -44,6 +45,7 @@ import {
   updateMaterialNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
+  updateShaderNodeInDocument,
   updateTransformNodeInDocument,
 } from './documentCommands';
 import { EXPORT_NODE_ID } from './nodeGraph';
@@ -80,6 +82,7 @@ function makeGraph(): CanvasGraph {
       'repeat-a': { x: 756, y: 80 },
       'transform-a': { x: 810, y: 80 },
       'shadow-a': { x: 830, y: 80 },
+      'shader-a': { x: 840, y: 80 },
       [EXPORT_NODE_ID]: { x: 864, y: 80 },
     },
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a', opacity: 80 })],
@@ -88,6 +91,7 @@ function makeGraph(): CanvasGraph {
     materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
     transformNodes: [makeGraphTransformNode({ id: 'transform-a', rotation: 12 })],
     grimeShadowNodes: [makeGraphGrimeShadowNode({ id: 'shadow-a', grime: 24 })],
+    shaderNodes: [makeGraphShaderNode({ id: 'shader-a', distortion: 32 })],
   };
 }
 
@@ -873,6 +877,9 @@ describe('documentCommands', () => {
     ).toBe(45);
     expect(updateGrimeShadowNodeInDocument(doc, 'shadow-a', { grime: 66 }).graph?.grimeShadowNodes?.[0]?.grime).toBe(
       66,
+    );
+    expect(updateShaderNodeInDocument(doc, 'shader-a', { distortion: 70 }).graph?.shaderNodes?.[0]?.distortion).toBe(
+      70,
     );
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');

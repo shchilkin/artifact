@@ -16,6 +16,7 @@ import {
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
+  SHADER_KINDS,
 } from './config';
 
 function cloneableDocument(): CanvasDocument {
@@ -93,6 +94,12 @@ describe('makeTextLayer', () => {
   });
 });
 
+describe('shader kind scope', () => {
+  it('keeps tileless texture out of active shader fills until the future track is implemented', () => {
+    expect(SHADER_KINDS).not.toContain('tilelessTexture');
+  });
+});
+
 describe('makeEffectLayer', () => {
   it('returns a layer with kind: effect', () => {
     const layer = makeEffectLayer();
@@ -116,6 +123,9 @@ describe('makeEffectLayer', () => {
       'badStreamSmear',
       'badStreamChroma',
       'badStreamDarkness',
+      'pixelStretch',
+      'pixelStretchLength',
+      'pixelStretchAngle',
       'tintOp',
       'rays',
       'rayInt',
@@ -138,6 +148,11 @@ describe('makeEffectLayer', () => {
       'posterize',
       'indexedPalette',
       'indexedPaletteCount',
+      'gradientMap',
+      'channelMixer',
+      'channelRedMix',
+      'channelGreenMix',
+      'channelBlueMix',
       'filmBurn',
       'duotone',
       'halftone',
@@ -148,6 +163,14 @@ describe('makeEffectLayer', () => {
       'edgeCrush',
       'silhouetteCrush',
       'edgeDetect',
+      'bokehBlur',
+      'bokehThreshold',
+      'hatching',
+      'hatchScale',
+      'hatchAngle',
+      'gooeyMerge',
+      'gooeyRadius',
+      'gooeyThreshold',
       'gradMix',
       'gradAngle',
       'sepia',
@@ -167,6 +190,9 @@ describe('makeEffectLayer', () => {
       'splitToneAmt',
       'rippleAmt',
       'rippleFreq',
+      'patternRefraction',
+      'patternRefractionScale',
+      'patternRefractionAngle',
       'kaleidoscope',
       'squeezeX',
       'squeezeY',

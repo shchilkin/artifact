@@ -389,9 +389,10 @@ export function useNodeContextMenus({
       send({
         type: 'CONTEXT_MENU_OPENED',
         menu: {
-          type: 'pane-insert',
+          type: 'edge',
           x: e.clientX,
           y: e.clientY,
+          edgeId: edge.id,
           flowPos,
           insertion: {
             sourceId: edge.source,

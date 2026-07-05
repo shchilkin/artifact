@@ -8,4 +8,5 @@ export { MaterialInspector } from './MaterialInspector';
 export { MergeInspector } from './MergeInspector';
 export { RepeatInspector } from './RepeatInspector';
 export { Scene3DInspector } from './Scene3DInspector';
+export { ShaderInspector } from './ShaderInspector';
 export { TransformInspector } from './TransformInspector';

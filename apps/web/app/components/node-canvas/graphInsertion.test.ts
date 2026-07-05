@@ -31,6 +31,7 @@ describe('graphInsertion', () => {
     expect(inputPortForAddedAction({ kind: 'repeatPreset', preset: 'stickerGrid' })).toBe('in');
     expect(inputPortForAddedAction({ kind: 'merge' })).toBe('a');
     expect(inputPortForAddedAction({ kind: 'material', preset: 'chrome' })).toBe('material');
+    expect(inputPortForAddedAction({ kind: 'shader' })).toBe('bg');
     expect(inputPortForAddedAction({ kind: 'layer', layerKind: 'text' })).toBe('bg');
     expect(inputPortForAddedAction({ kind: 'noisePreset', preset: 'crtDirt' })).toBe('bg');
   });

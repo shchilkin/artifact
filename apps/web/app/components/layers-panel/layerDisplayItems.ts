@@ -24,6 +24,7 @@ export type GraphHelperKind =
   | 'transform'
   | 'grimeShadow'
   | 'environment'
+  | 'shader'
   | 'export';
 
 export interface GraphHelperRowData {
@@ -52,6 +53,7 @@ const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }
   transform: { icon: '↻', label: 'transform' },
   grimeShadow: { icon: '◖', label: 'shadow' },
   environment: { icon: '◇', label: 'env' },
+  shader: { icon: '◉', label: 'shader' },
   export: { icon: '↗', label: 'output' },
 };
 
@@ -92,6 +94,10 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   (graph.environmentNodes ?? []).forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'environment', ...GRAPH_HELPER_META.environment });
+  });
+  (graph.shaderNodes ?? []).forEach((node) => {
+    if (!areaNodeIds.has(node.id)) return;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'shader', ...GRAPH_HELPER_META.shader });
   });
   if (areaNodeIds.has(EXPORT_NODE_ID)) {
     helpersById.set(EXPORT_NODE_ID, {

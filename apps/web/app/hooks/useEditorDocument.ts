@@ -13,6 +13,7 @@ import {
   type GraphMergeNode,
   type GraphRepeatNode,
   type GraphScene3DNode,
+  type GraphShaderNode,
   type GraphTransformNode,
   type ImageLayer,
   type Layer,
@@ -57,6 +58,7 @@ import {
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
   updateScene3DNodeInDocument,
+  updateShaderNodeInDocument,
   updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
@@ -501,6 +503,13 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  const updateShaderNode = useCallback(
+    (id: string, patch: Partial<GraphShaderNode>) => {
+      updateDocument((current) => updateShaderNodeInDocument(current, id, patch), 'debounce');
+    },
+    [updateDocument],
+  );
+
   const reorderLayers = useCallback(
     (layers: Layer[]) => {
       updateDocument((current) => reorderDocumentLayers(current, layers), 'snapshot');
@@ -611,6 +620,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     updateGrimeShadowNode,
     updateScene3DNode,
     updateEnvironmentNode,
+    updateShaderNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,

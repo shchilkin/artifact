@@ -25,6 +25,11 @@ describe('toRFEdges', () => {
         target: 'merge-a',
         targetHandle: 'a',
         type: 'smoothstep',
+        interactionWidth: 28,
+        style: {
+          opacity: 0.9,
+          strokeWidth: 2.35,
+        },
       },
       {
         id: 'e-merge-color',

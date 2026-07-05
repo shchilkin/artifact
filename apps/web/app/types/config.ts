@@ -37,6 +37,38 @@ export type MaterialPreset =
   | 'plastic'
   | 'paper'
   | 'fabric';
+export const SHADER_KINDS = [
+  'paperTexture',
+  'water',
+  'waterCaustic',
+  'heatmap',
+  'liquidMetal',
+  'gemSmoke',
+  'meshGradient',
+  'staticRadialGradient',
+  'grainGradient',
+  'dotOrbit',
+  'dotGrid',
+  'moire',
+  'concentricPatterns',
+  'spiral',
+  'swirl',
+  'waves',
+  'glowingWave',
+  'neuroNoise',
+  'perlin',
+  'simplexNoise',
+  'voronoi',
+  'borderRings',
+  'metaballs',
+  'colorPanels',
+  'smokeRing',
+  'noiseField',
+  'marble',
+  'liquid',
+] as const;
+export const LEGACY_SHADER_KINDS = ['tilelessTexture'] as const;
+export type ShaderKind = (typeof SHADER_KINDS)[number] | (typeof LEGACY_SHADER_KINDS)[number];
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -251,6 +283,7 @@ export type EffectPreset =
   | 'blockSmear'
   | 'chromaBlocks'
   | 'blockDropout'
+  | 'pixelStretch'
   | 'grain'
   | 'dotGrain'
   | 'scanlines'
@@ -267,6 +300,8 @@ export type EffectPreset =
   | 'pixelate'
   | 'posterize'
   | 'indexedPalette'
+  | 'gradientMap'
+  | 'channelMixer'
   | 'duotone'
   | 'halftone'
   | 'risoShift'
@@ -275,6 +310,9 @@ export type EffectPreset =
   | 'edgeCrush'
   | 'silhouetteCrush'
   | 'edgeDetect'
+  | 'bokehBlur'
+  | 'hatching'
+  | 'gooeyMerge'
   | 'gradientOverlay'
   | 'sepia'
   | 'neonGlow'
@@ -291,6 +329,7 @@ export type EffectPreset =
   | 'cyanotype'
   | 'splitTone'
   | 'ripple'
+  | 'patternRefraction'
   | 'kaleidoscope'
   | 'squeeze'
   | 'emboss'
@@ -317,6 +356,9 @@ export interface EffectLayer extends BaseLayer {
   badStreamSmear: number;
   badStreamChroma: number;
   badStreamDarkness: number;
+  pixelStretch: number;
+  pixelStretchLength: number;
+  pixelStretchAngle: number;
   tint: string;
   tintOp: number;
   rays: number;
@@ -346,6 +388,14 @@ export interface EffectLayer extends BaseLayer {
   indexedColorD: string;
   indexedColorE: string;
   indexedColorF: string;
+  gradientMap: number;
+  gradientMapShadow: string;
+  gradientMapMid: string;
+  gradientMapHighlight: string;
+  channelMixer: number;
+  channelRedMix: number;
+  channelGreenMix: number;
+  channelBlueMix: number;
   filmBurn: number;
   duotone: number;
   duoA: string;
@@ -358,6 +408,14 @@ export interface EffectLayer extends BaseLayer {
   edgeCrush: number;
   silhouetteCrush: number;
   edgeDetect: number;
+  bokehBlur: number;
+  bokehThreshold: number;
+  hatching: number;
+  hatchScale: number;
+  hatchAngle: number;
+  gooeyMerge: number;
+  gooeyRadius: number;
+  gooeyThreshold: number;
   gradMix: number;
   gradA: string;
   gradB: string;
@@ -384,6 +442,9 @@ export interface EffectLayer extends BaseLayer {
   splitHighlight: string;
   rippleAmt: number;
   rippleFreq: number;
+  patternRefraction: number;
+  patternRefractionScale: number;
+  patternRefractionAngle: number;
   kaleidoscope: number;
   squeezeX: number;
   squeezeY: number;
@@ -547,6 +608,26 @@ export interface GraphMaterialNode extends MaterialConfig {
   name: string;
 }
 
+export interface GraphShaderNode {
+  id: string;
+  name: string;
+  shaderKind: ShaderKind;
+  colorA: string;
+  colorB: string;
+  colorC: string;
+  colorD: string;
+  distortion: number;
+  swirl: number;
+  grain: number;
+  scale: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+  seedOffset: number;
+  opacity: number;
+  blendMode: string;
+}
+
 export interface GraphArea {
   id: string;
   name: string;
@@ -576,6 +657,7 @@ export interface CanvasGraph {
   scene3dNodes?: GraphScene3DNode[];
   environmentNodes?: GraphEnvironmentNode[];
   materialNodes?: GraphMaterialNode[];
+  shaderNodes?: GraphShaderNode[];
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
@@ -770,6 +852,9 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   badStreamSmear: 35,
   badStreamChroma: 28,
   badStreamDarkness: 38,
+  pixelStretch: 0,
+  pixelStretchLength: 24,
+  pixelStretchAngle: 0,
   tint: '#350055',
   tintOp: 0,
   rays: 0,
@@ -799,6 +884,14 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   indexedColorD: '#ff1d1d',
   indexedColorE: '#f6c400',
   indexedColorF: '#fff1df',
+  gradientMap: 0,
+  gradientMapShadow: '#0d0033',
+  gradientMapMid: '#9c5a13',
+  gradientMapHighlight: '#00e6cc',
+  channelMixer: 0,
+  channelRedMix: 45,
+  channelGreenMix: 35,
+  channelBlueMix: 25,
   filmBurn: 0,
   duotone: 0,
   duoA: '#0a0020',
@@ -811,6 +904,14 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   edgeCrush: 0,
   silhouetteCrush: 0,
   edgeDetect: 0,
+  bokehBlur: 0,
+  bokehThreshold: 68,
+  hatching: 0,
+  hatchScale: 9,
+  hatchAngle: 35,
+  gooeyMerge: 0,
+  gooeyRadius: 8,
+  gooeyThreshold: 46,
   gradMix: 0,
   gradA: '#0a0020',
   gradB: '#ff6ec7',
@@ -835,6 +936,9 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   splitHighlight: '#ff8040',
   rippleAmt: 0,
   rippleFreq: 3,
+  patternRefraction: 0,
+  patternRefractionScale: 16,
+  patternRefractionAngle: 35,
   kaleidoscope: 0,
   squeezeX: 0,
   squeezeY: 0,
@@ -1163,6 +1267,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
       badStreamDarkness: 86,
     },
   },
+  pixelStretch: {
+    name: 'Pixel Stretch',
+    icon: '▥',
+    primary: 'pixelStretch',
+    partial: { ...ZERO_EFFECT, pixelStretch: 70, pixelStretchLength: 34, pixelStretchAngle: 0 },
+  },
   grain: {
     name: 'Grain',
     icon: '⣿',
@@ -1275,6 +1385,30 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
       indexedColorF: '#fff1df',
     },
   },
+  gradientMap: {
+    name: 'Gradient Map',
+    icon: '◫',
+    primary: 'gradientMap',
+    partial: {
+      ...ZERO_EFFECT,
+      gradientMap: 80,
+      gradientMapShadow: '#0d0033',
+      gradientMapMid: '#865812',
+      gradientMapHighlight: '#00e6cc',
+    },
+  },
+  channelMixer: {
+    name: 'Channel Mixer',
+    icon: '◭',
+    primary: 'channelMixer',
+    partial: {
+      ...ZERO_EFFECT,
+      channelMixer: 70,
+      channelRedMix: 55,
+      channelGreenMix: 35,
+      channelBlueMix: 45,
+    },
+  },
   duotone: {
     name: 'Duotone',
     icon: '◎',
@@ -1322,6 +1456,24 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◇',
     primary: 'edgeDetect',
     partial: { ...ZERO_EFFECT, edgeDetect: 60 },
+  },
+  bokehBlur: {
+    name: 'Bokeh Blur',
+    icon: '◎',
+    primary: 'bokehBlur',
+    partial: { ...ZERO_EFFECT, bokehBlur: 12, bokehThreshold: 68 },
+  },
+  hatching: {
+    name: 'Hatching',
+    icon: '≋',
+    primary: 'hatching',
+    partial: { ...ZERO_EFFECT, hatching: 65, hatchScale: 9, hatchAngle: 35 },
+  },
+  gooeyMerge: {
+    name: 'Gooey Merge',
+    icon: '●',
+    primary: 'gooeyMerge',
+    partial: { ...ZERO_EFFECT, gooeyMerge: 72, gooeyRadius: 10, gooeyThreshold: 42 },
   },
   gradientOverlay: {
     name: 'Gradient',
@@ -1430,6 +1582,12 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     primary: 'rippleAmt',
     partial: { ...ZERO_EFFECT, rippleAmt: 20, rippleFreq: 3 },
   },
+  patternRefraction: {
+    name: 'Pattern Refraction',
+    icon: '∿',
+    primary: 'patternRefraction',
+    partial: { ...ZERO_EFFECT, patternRefraction: 58, patternRefractionScale: 18, patternRefractionAngle: 35 },
+  },
   kaleidoscope: {
     name: 'Kaleidoscope',
     icon: '❋',
@@ -1487,6 +1645,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'blockSmear',
   'chromaBlocks',
   'blockDropout',
+  'pixelStretch',
   'grain',
   'dotGrain',
   'scanlines',
@@ -1504,6 +1663,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'wave',
   'zoomBlur',
   'ripple',
+  'patternRefraction',
   'kaleidoscope',
   'squeeze',
   'hueShift',
@@ -1512,6 +1672,8 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'pixelate',
   'posterize',
   'indexedPalette',
+  'gradientMap',
+  'channelMixer',
   'sepia',
   'infrared',
   'solarize',
@@ -1527,6 +1689,9 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'edgeCrush',
   'silhouetteCrush',
   'edgeDetect',
+  'bokehBlur',
+  'hatching',
+  'gooeyMerge',
   'gradientOverlay',
 ];
 
@@ -1613,8 +1778,8 @@ export function makeGraphRepeatNode(partial: Partial<GraphRepeatNode> = {}): Gra
     rotationStep: 0,
     rotationJitter: 0,
     seedOffset: 0,
-    opacity: 100,
-    blendMode: 'source-over',
+    opacity: 58,
+    blendMode: 'screen',
     ...partial,
   };
 }
@@ -1714,6 +1879,29 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
   };
 }
 
+export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
+  return {
+    id: `shader-${Date.now()}-${_idCounter++}`,
+    name: 'Shader',
+    shaderKind: 'meshGradient',
+    colorA: '#ff705f',
+    colorB: '#8d5cff',
+    colorC: '#79e3c5',
+    colorD: '#f6c96f',
+    distortion: 56,
+    swirl: 28,
+    grain: 12,
+    scale: 100,
+    rotation: 0,
+    offsetX: 0,
+    offsetY: 0,
+    seedOffset: 0,
+    opacity: 58,
+    blendMode: 'screen',
+    ...partial,
+  };
+}
+
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     schemaVersion: doc.schemaVersion,
@@ -1747,6 +1935,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
             ...n,
           })),
           materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
+          shaderNodes: (doc.graph.shaderNodes ?? []).map((n) => ({ ...n })),
           areas: (doc.graph.areas ?? []).map((area) => ({
             ...area,
             nodeIds: [...area.nodeIds],

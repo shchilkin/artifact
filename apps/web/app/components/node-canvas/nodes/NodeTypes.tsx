@@ -22,6 +22,7 @@ import type {
   MergeNodeData,
   RepeatNodeData,
   Scene3DNodeData,
+  ShaderNodeData,
   TransformNodeData,
 } from '../types';
 import { NodeFrame } from './NodeFrame';
@@ -402,6 +403,34 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
       <PortRow
         inputs={[{ label: rendersSource ? 'source' : 'source optional', portId: 'in', nodeId: environmentNode.id }]}
         outputs={[{ label: 'environment', portId: 'out', nodeId: environmentNode.id }]}
+        connected={connected}
+      />
+    </NodeFrame>
+  );
+});
+
+export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: NodeProps<ShaderNodeData>) {
+  const { selectNode, deleteNode } = useNodeCanvasActions();
+  const { shaderNode, previewTargetId, backdropPreviewTargetId, selected, outputPath, editing, connected } = data;
+  const rendersBackdrop = Boolean(backdropPreviewTargetId);
+
+  return (
+    <NodeFrame
+      id={shaderNode.id}
+      kind="shader"
+      label={rendersBackdrop ? 'shader pass' : 'shader fill'}
+      name={shaderNode.name}
+      selected={selected}
+      outputPath={outputPath}
+      editing={editing}
+      targetHandles={[{ id: 'bg' }]}
+      onSelect={(event) => selectNode(shaderNode.id, event)}
+      onDelete={() => deleteNode(shaderNode.id)}
+    >
+      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+      <PortRow
+        inputs={[{ label: rendersBackdrop ? 'backdrop' : 'backdrop optional', portId: 'bg', nodeId: shaderNode.id }]}
+        outputs={[{ label: rendersBackdrop ? 'pass' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
         connected={connected}
       />
     </NodeFrame>

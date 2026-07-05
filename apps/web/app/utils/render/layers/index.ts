@@ -881,6 +881,20 @@ async function applyCanvas2DEffects(
     amount: layer.indexedPalette,
     colors: indexedPaletteColors(layer),
   });
+  await applySingleImageDataTransform(ctx, W, H, layer.gradientMap > 0, {
+    type: 'gradientMap',
+    amount: layer.gradientMap,
+    shadow: layer.gradientMapShadow,
+    mid: layer.gradientMapMid,
+    highlight: layer.gradientMapHighlight,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.channelMixer > 0, {
+    type: 'channelMixer',
+    amount: layer.channelMixer,
+    redMix: layer.channelRedMix,
+    greenMix: layer.channelGreenMix,
+    blueMix: layer.channelBlueMix,
+  });
   await applySingleImageDataTransform(ctx, W, H, layer.edgeCrush > 0, {
     type: 'edgeCrush',
     amount: layer.edgeCrush,
@@ -888,6 +902,23 @@ async function applyCanvas2DEffects(
   await applySingleImageDataTransform(ctx, W, H, layer.silhouetteCrush > 0, {
     type: 'silhouetteCrush',
     amount: layer.silhouetteCrush,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.pixelStretch > 0, {
+    type: 'pixelStretch',
+    amount: layer.pixelStretch,
+    length: Math.max(1, layer.pixelStretchLength * scale),
+    angle: layer.pixelStretchAngle,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.bokehBlur > 0, {
+    type: 'bokehBlur',
+    amount: Math.max(1, layer.bokehBlur * scale),
+    threshold: layer.bokehThreshold,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.hatching > 0, {
+    type: 'hatching',
+    amount: layer.hatching,
+    scale: Math.max(3, layer.hatchScale * scale),
+    angle: layer.hatchAngle,
   });
   await applySingleImageDataTransform(ctx, W, H, layer.vhsTracking > 0, {
     type: 'vhsTracking',
@@ -924,6 +955,12 @@ async function applyCanvas2DEffects(
     frequency: layer.rippleFreq,
     scale,
   });
+  await applySingleImageDataTransform(ctx, W, H, layer.patternRefraction > 0, {
+    type: 'patternRefraction',
+    amount: layer.patternRefraction,
+    scale: Math.max(3, layer.patternRefractionScale * scale),
+    angle: layer.patternRefractionAngle,
+  });
   await applySingleImageDataTransform(ctx, W, H, layer.kaleidoscope > 0, {
     type: 'kaleidoscope',
     amount: layer.kaleidoscope,
@@ -940,6 +977,12 @@ async function applyCanvas2DEffects(
     type: 'fog',
     amount: layer.fog,
     color: layer.fogColor,
+  });
+  await applySingleImageDataTransform(ctx, W, H, layer.gooeyMerge > 0, {
+    type: 'gooeyMerge',
+    amount: layer.gooeyMerge,
+    radius: Math.max(1, layer.gooeyRadius * scale),
+    threshold: layer.gooeyThreshold,
   });
   applySpeedLinesEffect(ctx, W, H, layer, seed, scale);
 }
@@ -968,8 +1011,13 @@ const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'ca',
   'dither',
   'indexedPalette',
+  'gradientMap',
+  'channelMixer',
   'edgeCrush',
   'silhouetteCrush',
+  'pixelStretch',
+  'bokehBlur',
+  'hatching',
   'vhsTracking',
   'matte',
   'waveAmt',
@@ -981,10 +1029,12 @@ const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'cyanotype',
   'splitToneAmt',
   'rippleAmt',
+  'patternRefraction',
   'kaleidoscope',
   'emboss',
   'linocut',
   'fog',
+  'gooeyMerge',
   'speedLines',
 ];
 const CANVAS_NONZERO_EFFECT_KEYS: Array<keyof EffectLayer> = ['squeezeX', 'squeezeY'];

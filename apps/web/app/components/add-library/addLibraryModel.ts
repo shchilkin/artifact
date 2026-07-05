@@ -13,7 +13,9 @@ export type AddLibraryAction = AddAction;
 export type AddLibraryGroupId =
   | 'content'
   | 'source'
+  | 'shaderFill'
   | 'material'
+  | 'primitive'
   | 'light'
   | 'signal'
   | 'texture'
@@ -48,6 +50,7 @@ const SIMPLE_ADD_ACTION_KINDS = new Set([
   'grimeShadow',
   'scene3d',
   'environment',
+  'shader',
 ]);
 const LAYER_ADD_KINDS = new Set([
   'text',
@@ -85,8 +88,10 @@ export const ADD_LIBRARY_GROUPS: Array<{
   hint: string;
 }> = [
   { id: 'content', label: 'Content', hint: 'Visible layers' },
-  { id: 'source', label: 'Source', hint: 'Generated inputs' },
-  { id: 'material', label: 'Material', hint: 'PBR surfaces' },
+  { id: 'source', label: 'Sources', hint: 'Generated inputs' },
+  { id: 'shaderFill', label: 'Shader Fills', hint: 'Procedural textures' },
+  { id: 'material', label: 'Materials', hint: 'PBR surfaces' },
+  { id: 'primitive', label: '3D / Primitive', hint: 'Models, scenes, environment' },
   { id: 'texture', label: 'Texture', hint: 'Grain, scan, paper' },
   { id: 'light', label: 'Light', hint: 'Glow, burn, haze' },
   { id: 'signal', label: 'Signal', hint: 'Glitch, split, tracking' },
@@ -123,6 +128,7 @@ const EFFECT_FAMILIES: Array<{
       'blockSmear',
       'chromaBlocks',
       'blockDropout',
+      'pixelStretch',
     ],
   },
   {
@@ -143,6 +149,7 @@ const EFFECT_FAMILIES: Array<{
       'wave',
       'zoomBlur',
       'ripple',
+      'patternRefraction',
       'kaleidoscope',
       'squeeze',
     ],
@@ -158,6 +165,8 @@ const EFFECT_FAMILIES: Array<{
       'pixelate',
       'posterize',
       'indexedPalette',
+      'gradientMap',
+      'channelMixer',
       'sepia',
       'infrared',
       'solarize',
@@ -174,7 +183,17 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'graphic',
     description: 'Bold reductions, linework, blur, and gradient finishing.',
-    presets: ['blur', 'threshold', 'edgeCrush', 'silhouetteCrush', 'edgeDetect', 'gradientOverlay'],
+    presets: [
+      'blur',
+      'threshold',
+      'edgeCrush',
+      'silhouetteCrush',
+      'edgeDetect',
+      'bokehBlur',
+      'hatching',
+      'gooeyMerge',
+      'gradientOverlay',
+    ],
   },
 ];
 
@@ -193,8 +212,12 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   threshold: 'black white damage print cutoff',
   edgeCrush: 'alpha crush hard alpha antialias transparent edge jagged sprite',
   silhouetteCrush: 'silhouette crush edge crush jagged sprite pixel cutout alpha mask',
+  bokehBlur: 'bokeh blur lens defocus figma shader soft highlight circles photo',
+  hatching: 'hatching hatch line shader figma engraved linework sketch crosshatch',
   retroResolution: 'retro resolution low-res low resolution ps1 old game pixel scale export',
   indexedPalette: 'indexed palette color count low color old game ps1 palette swatches',
+  gradientMap: 'gradient map shader figma color ramp luminance tone remap',
+  channelMixer: 'channel mixer shader figma rgb matrix color channels remap',
   pixelate: 'pixel block low-res low resolution low res mosaic popular',
   badStream:
     'bad stream low bitrate compression macroblock macroblocks lofi lo-fi stream broken video blocky pixel bad connection',
@@ -203,6 +226,9 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   blockSmear: 'block smear smear copy copied blocks stream freeze bad connection video drag',
   chromaBlocks: 'chroma blocks color blocks color compression chroma drift low bitrate video',
   blockDropout: 'block dropout dropped blocks dark blocks missing stream broken video loss',
+  pixelStretch: 'pixel stretch smear directional shader figma streak drag scanline pull',
+  patternRefraction: 'pattern refraction shader figma refract wave glass displacement',
+  gooeyMerge: 'gooey merge shader figma metaball blob liquid merge',
   dither: 'pixel pattern bayer print texture popular',
 };
 
@@ -212,6 +238,8 @@ const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
   dither: 'Bayer-style pixel texture for crunchy low-color poster output.',
   retroResolution: 'Fixed low internal resolution that keeps the same pixel grid at export size.',
   indexedPalette: 'Editable low-color palette mapping with active swatches and transparency preserved.',
+  gradientMap: 'Maps source luminance through a three-color shader ramp.',
+  channelMixer: 'Crossfeeds RGB channels into a matrix-like color remap.',
   pixelate: 'Whole-image block size for low-resolution cover treatments.',
   badStream:
     'Low-bitrate stream failure with macroblocks, detail blocks, smear, chroma drift, and dark dropped blocks.',
@@ -220,6 +248,9 @@ const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
   blockSmear: 'Copied neighboring blocks that smear the frame like a stalled stream.',
   chromaBlocks: 'Blocky chroma compression and color drift, separate from RGB split.',
   blockDropout: 'Dark dropped blocks, like missing packets in a damaged stream.',
+  pixelStretch: 'Pulls pixels into directional streaks sampled from the source.',
+  patternRefraction: 'Refracts the source through a repeating wave pattern.',
+  gooeyMerge: 'Merges nearby shapes into soft liquid blobs.',
   splitTone: 'Push shadows and highlights into two controlled color casts.',
   halftone: 'Screen-print dots for poster texture and print damage.',
   risoShift: 'Ink misregistration for risograph-style color drift.',
@@ -227,6 +258,8 @@ const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
   tear: 'Ripped spatial offset for damaged paper and broken motion.',
   edgeCrush: 'Hardens semi-transparent antialiasing into hard alpha cutout edges.',
   silhouetteCrush: 'Chips alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
+  bokehBlur: 'Softens the source with lens-like highlight bloom.',
+  hatching: 'Draws tone-aware hatch linework over the source.',
   kaleidoscope: 'Radial mirrored repetition from the center of the image.',
   neonGlow: 'Hot colored bloom around bright pixels and synthetic light.',
 };
@@ -250,6 +283,7 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   blockSmear: ['signal', 'smear', 'video'],
   chromaBlocks: ['signal', 'color', 'compression'],
   blockDropout: ['signal', 'damage', 'blocks'],
+  pixelStretch: ['signal', 'smear'],
   grain: ['texture', 'paper', 'photo'],
   dotGrain: ['texture', 'dots', 'ps1'],
   scanlines: ['texture', 'crt'],
@@ -266,6 +300,7 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   wave: ['warp', 'motion'],
   zoomBlur: ['warp', 'motion'],
   ripple: ['warp', 'liquid'],
+  patternRefraction: ['warp', 'shader'],
   kaleidoscope: ['warp', 'repeat'],
   squeeze: ['warp', 'stretch'],
   tint: ['tone', 'color'],
@@ -275,6 +310,8 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   pixelate: ['tone', 'low-res'],
   posterize: ['tone', 'steps'],
   indexedPalette: ['tone', 'palette'],
+  gradientMap: ['tone', 'shader'],
+  channelMixer: ['tone', 'channels'],
   sepia: ['tone', 'photo'],
   infrared: ['tone', 'photo'],
   solarize: ['tone', 'photo'],
@@ -290,6 +327,9 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   edgeCrush: ['graphic', 'alpha'],
   silhouetteCrush: ['graphic', 'edges'],
   edgeDetect: ['graphic', 'line'],
+  bokehBlur: ['graphic', 'lens'],
+  hatching: ['graphic', 'line'],
+  gooeyMerge: ['graphic', 'blob'],
   gradientOverlay: ['graphic', 'wash'],
 };
 
@@ -382,7 +422,7 @@ const layerItems: AddLibraryItem[] = [
     label: 'Primitive',
     symbol: KIND_SYMBOL.primitive,
     description: 'Render a lit 3D form as a source layer.',
-    group: 'source',
+    group: 'primitive',
     action: { kind: 'layer', layerKind: 'primitive' },
     surfaces: ['layers', 'nodes'],
     tags: ['source', '3d'],
@@ -393,7 +433,7 @@ const layerItems: AddLibraryItem[] = [
     label: '3D Model',
     symbol: KIND_SYMBOL.model,
     description: 'Use an imported GLB model as a source node.',
-    group: 'source',
+    group: 'primitive',
     action: { kind: 'layer', layerKind: 'model' },
     surfaces: ['nodes'],
     tags: ['source', '3d'],
@@ -431,6 +471,18 @@ const layerItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'],
     tags: ['source', 'lines', 'pattern'],
     keywords: 'line field linefield optical contour warped wave stripe stripes mesh grid source pattern',
+  },
+  {
+    id: 'shader:mesh',
+    label: 'Shader Fill',
+    symbol: '◉',
+    description: 'Generate a standalone procedural texture for branches or material maps.',
+    group: 'shaderFill',
+    action: { kind: 'shader' },
+    surfaces: ['nodes'],
+    tags: ['source', 'shader', 'fill', 'material'],
+    keywords:
+      'shader fill mesh gradient static radial grain noise dots paper water heatmap liquid metal smoke orbit grid spiral swirl waves neuro perlin simplex voronoi metaballs border rings procedural source material texture albedo roughness metalness normal alpha paper design',
   },
 ];
 
@@ -537,7 +589,7 @@ const utilityItems: AddLibraryItem[] = [
     label: '3D Scene',
     symbol: '◌',
     description: 'Render imported models through scene camera, light, and environment controls.',
-    group: 'source',
+    group: 'primitive',
     action: { kind: 'scene3d' },
     surfaces: ['layers', 'nodes'],
     tags: ['scene', '3d', 'light'],
@@ -548,7 +600,7 @@ const utilityItems: AddLibraryItem[] = [
     label: 'Environment Map',
     symbol: '◇',
     description: 'Provide an EXR or HDR environment map to a 3D Scene.',
-    group: 'utility',
+    group: 'primitive',
     action: { kind: 'environment' },
     surfaces: ['nodes'],
     tags: ['utility', '3d', 'environment'],
@@ -653,6 +705,13 @@ export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
       'textPreset:title',
       'effect:vignette',
     ],
+  },
+  {
+    id: 'shader-material',
+    label: 'Shader Material',
+    hint: 'shader fill / material maps / primitive',
+    surfaces: ['nodes'],
+    itemIds: ['shader:mesh', 'material', 'layer:primitive', 'effect:gradientMap', 'effect:patternRefraction'],
   },
   {
     id: 'print-damage',

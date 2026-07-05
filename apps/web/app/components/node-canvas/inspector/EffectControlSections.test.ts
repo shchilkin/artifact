@@ -92,15 +92,66 @@ describe('EffectControlSections metadata', () => {
     expect(findSlider('badStreamSmear').presets).toEqual(expect.arrayContaining(['badStream', 'blockSmear']));
     expect(findSlider('badStreamChroma').presets).toEqual(expect.arrayContaining(['badStream', 'chromaBlocks']));
     expect(findSlider('badStreamDarkness').presets).toEqual(expect.arrayContaining(['badStream', 'blockDropout']));
+    expect(findSlider('pixelStretch')).toMatchObject({
+      label: 'Stretch',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('pixelStretchLength')).toMatchObject({
+      label: 'Length',
+      overrideMax: 160,
+      valueFormat: 'px',
+    });
     expect(findSlider('indexedPalette')).toMatchObject({
       label: 'Palette Mix',
       max: 100,
       valueFormat: 'percent',
     });
+    expect(findSlider('gradientMap')).toMatchObject({
+      label: 'Map Mix',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('channelMixer')).toMatchObject({
+      label: 'Mixer',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('patternRefraction')).toMatchObject({
+      label: 'Refraction',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('patternRefractionScale')).toMatchObject({
+      label: 'Pattern Scale',
+      overrideMax: 160,
+      valueFormat: 'px',
+    });
     expect(findSlider('edgeCrush')).toMatchObject({
       label: 'Alpha Crush',
       max: 100,
       valueFormat: 'percent',
+    });
+    expect(findSlider('bokehBlur')).toMatchObject({
+      label: 'Bokeh Blur',
+      max: 28,
+      overrideMax: 60,
+      valueFormat: 'px',
+    });
+    expect(findSlider('hatching')).toMatchObject({
+      label: 'Hatching',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('gooeyMerge')).toMatchObject({
+      label: 'Merge',
+      max: 100,
+      valueFormat: 'percent',
+    });
+    expect(findSlider('gooeyRadius')).toMatchObject({
+      label: 'Radius',
+      overrideMax: 80,
+      valueFormat: 'px',
     });
     expect(findSlider('silhouetteCrush')).toMatchObject({
       label: 'Silhouette Crush',

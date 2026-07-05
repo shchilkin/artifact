@@ -258,6 +258,25 @@ Next strong candidates after v0.39:
 - **3D Material Authoring Follow-Up** — build on v0.37 with material map
   scale/rotation, channel packing, richer material examples, and broader WebGL
   coverage after the first PBR node settles.
+- **Shader Fills And Shader Effects** — keep shader work aligned with the
+  single-purpose node contract. Shader Fill nodes generate standalone raster
+  texture sources. Effect nodes own input-dependent shader-style transforms.
+  Material nodes describe PBR surface parameters, and scene nodes own 3D
+  lighting/camera composition.
+
+  Figma Shaders parity should stay split by dependency:
+
+  | Track | Covered or near-covered | Missing / follow-up |
+  | --- | --- | --- |
+  | Shader Fills | mesh gradient, moire, concentric patterns, water caustic, glowing wave, clouds/fractal noise via noise fields, nebula-like smoke/noise, pattern grids via dot grids | stronger named Clouds/Fractal/Nebula/Pattern Grid presets |
+  | Shader Effects | bloom, dither, halftone, pixelate, gradient map, channel mixer, bokeh blur, hatching, pattern refraction, pixel stretch, gooey merge, lens/warp families, colored-edge/outline building blocks, slice-shift-like glitch/tear effects | deeper preset tuning and visual examples |
+  | Material Bridge | shader fill output can feed material texture-map inputs and primitive material inputs | polish texture-map controls, examples, export/browser parity coverage |
+
+  Tileless/seamless texture generation remains a future Shader Fill track for
+  repeatable material maps. Custom GLSL/WGSL code editing is a separate
+  advanced track because it needs compilation, uniforms, error states, and
+  sandboxing. Prompt-to-shader and timeline animation are out of scope for the
+  current shader parity work.
 - **History Performance And Undo Memory Budget** — keep undo/redo responsive as
   node documents, 3D scene state, and local project payloads grow. Confirm the
   immutable document-update contract with tests, avoid unnecessary deep clones
@@ -346,7 +365,8 @@ These can mostly stay browser-only and fit the current architecture:
   ratio and export scale.
 - More procedural texture/noise nodes with presets.
 - More primitive shapes, SVG-like primitives, and 3D sketch primitives.
-- More focused effect nodes and shader-style effects with stronger controls.
+- More focused effect nodes and shader-style sources with stronger controls,
+  split by role instead of folded into multi-purpose nodes.
 - Font import, improved font browsing, and possible external font catalog
   support.
 - Better text workflow, including typography presets, multi-font work, and text

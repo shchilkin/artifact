@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasGraph } from '../types/config';
-import { makeEmojiLayer, makeFillLayer, makeGraphMergeNode, makeTextLayer } from '../types/config';
+import { makeEmojiLayer, makeFillLayer, makeGraphMergeNode, makeGraphShaderNode, makeTextLayer } from '../types/config';
 import {
   addColorNode,
   addGraphArea,
@@ -11,6 +11,7 @@ import {
   addMergeNode,
   addNodesToGraphArea,
   addRepeatNode,
+  addShaderNode,
   addTransformNode,
   appendNodeToExportPath,
   assignNodesToGraphArea,
@@ -29,6 +30,7 @@ import {
   removeMergeNode,
   removeNodesFromGraphArea,
   removeRepeatNode,
+  removeShaderNode,
   removeTransformNode,
   resolveOutputPath,
   resolveRenderOrder,
@@ -41,6 +43,7 @@ import {
   updateMaskNode,
   updateMaterialNode,
   updateRepeatNode,
+  updateShaderNode,
   updateTransformNode,
   wouldCreateCycle,
 } from './nodeGraph';
@@ -247,6 +250,26 @@ describe('graph mutations', () => {
     expect(updated.materialNodes?.[0]).toEqual({ ...materialNode, materialRoughness: 0.12 });
     expect(removed.materialNodes).toEqual([]);
     expect(removed.positions['material-1']).toBeUndefined();
+    expect(removed.edges).toEqual([]);
+    expect(removed.areas?.[0]?.nodeIds).toEqual([]);
+  });
+
+  it('adds, updates, and removes shader nodes with positions and connected edges', () => {
+    const graph = emptyGraph({
+      edges: [{ id: 'e-shader-export', fromId: 'shader-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['shader-1'] }],
+    });
+    const shaderNode = makeGraphShaderNode({ id: 'shader-1', name: 'Shader', colorA: '#111111' });
+
+    const withNode = addShaderNode(graph, shaderNode, { x: 180, y: 100 });
+    const updated = updateShaderNode(withNode, 'shader-1', { colorA: '#ffffff', swirl: 64 });
+    const removed = removeShaderNode(updated, 'shader-1');
+
+    expect(withNode.shaderNodes).toEqual([shaderNode]);
+    expect(withNode.positions['shader-1']).toEqual({ x: 180, y: 100 });
+    expect(updated.shaderNodes?.[0]).toEqual({ ...shaderNode, colorA: '#ffffff', swirl: 64 });
+    expect(removed.shaderNodes).toEqual([]);
+    expect(removed.positions['shader-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
   });

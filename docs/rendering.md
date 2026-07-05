@@ -96,6 +96,11 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - merge nodes
 - color nodes
 - repeat nodes
+- mask, transform, and grime-shadow nodes
+- material nodes
+- shader nodes
+- environment-map nodes
+- 3D scene nodes
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
@@ -117,6 +122,18 @@ bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
 procedural sources, and future asset nodes can all repeat through the same
 render path once they produce canvas pixels.
+Shader fill nodes render deterministic procedural raster textures through
+`apps/web/app/utils/render/shaderNodes.ts`. They can act as graph sources when
+their optional backdrop input is empty, or as shader passes when a backdrop is
+connected. In pass mode the backdrop is sampled as input texture data: source
+luminance and detail shape the generated shader response before opacity and
+blend mode are applied as pass intensity. Their output can be composed
+directly, repeated, masked, or used as a material texture map.
+Input-dependent visual transforms such as dithering, halftone, refraction,
+warps, ripple, and light-ray overlays remain effect nodes because they need an
+upstream canvas to sample.
+They are not programmable GLSL/WGSL shader editors in the current architecture;
+custom shader code would need its own compile/error/uniform boundary and tests.
 
 ### Rule
 

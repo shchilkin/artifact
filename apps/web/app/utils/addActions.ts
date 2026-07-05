@@ -20,4 +20,5 @@ export type AddAction =
   | { kind: 'transform' }
   | { kind: 'grimeShadow' }
   | { kind: 'scene3d' }
-  | { kind: 'environment' };
+  | { kind: 'environment' }
+  | { kind: 'shader' };

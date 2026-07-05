@@ -13,6 +13,7 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   ImageLayer,
   Layer,
@@ -56,6 +57,7 @@ export interface NodeCanvasProps {
   onUpdateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
   onUpdateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
   onUpdateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
+  onUpdateShaderNode: (id: string, patch: Partial<GraphShaderNode>) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
@@ -63,6 +65,7 @@ export interface NodeCanvasProps {
   onAddLayerAt: (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
   onImageFileDrop?: (file: File, position: { x: number; y: number }) => void;
   onFilesDrop?: (files: File[], position: { x: number; y: number }) => void;
+  onFileDragPreviewChange?: (dataTransfer: DataTransfer | null) => void;
   onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
@@ -186,6 +189,16 @@ export type EnvironmentNodeData = {
   connected: { sources: Set<string>; targets: Set<string> };
 };
 
+export type ShaderNodeData = {
+  shaderNode: GraphShaderNode;
+  previewTargetId: string;
+  backdropPreviewTargetId: string | null;
+  selected: boolean;
+  outputPath: boolean;
+  editing: boolean;
+  connected: { sources: Set<string>; targets: Set<string> };
+};
+
 export type ExportNodeData = {
   exportConfig: CanvasDocument['export'];
   aspect: AspectRatio;
@@ -226,6 +239,7 @@ export interface NodeCanvasActionsContextValue {
   updateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
   updateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
   updateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
+  updateShaderNode: (id: string, patch: Partial<GraphShaderNode>) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
@@ -238,6 +252,14 @@ export interface NodeCanvasActionsContextValue {
 export type ContextMenuState =
   | { type: 'pane-add'; x: number; y: number; flowPos: { x: number; y: number } }
   | { type: 'pane-insert'; x: number; y: number; flowPos: { x: number; y: number }; insertion: InsertConnectionConfig }
+  | {
+      type: 'edge';
+      x: number;
+      y: number;
+      edgeId: string;
+      flowPos: { x: number; y: number };
+      insertion: InsertConnectionConfig;
+    }
   | { type: 'node'; x: number; y: number; nodeId: string; isMerge: boolean; isExport: boolean }
   | null;
 

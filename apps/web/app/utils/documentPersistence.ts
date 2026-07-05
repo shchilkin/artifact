@@ -11,15 +11,20 @@ import {
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
   type GraphMaterialNode,
+  type GraphShaderNode,
   type Layer,
+  LEGACY_SHADER_KINDS,
   type MaterialConfig,
   makeEmojiLayer,
   makeGraphMaterialNode,
+  makeGraphShaderNode,
   makeSourceLayer,
   type PortableEnvironmentAsset,
   type PortableFontAsset,
   type PortableModelAsset,
   type PrimitiveLayer,
+  SHADER_KINDS,
+  type ShaderKind,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
@@ -94,6 +99,36 @@ const MATERIAL_PERCENT_FIELDS = [
   'materialAnisotropy',
 ] as const;
 
+function isShaderKind(value: unknown): value is ShaderKind {
+  return (
+    typeof value === 'string' &&
+    ((SHADER_KINDS as readonly string[]).includes(value) || (LEGACY_SHADER_KINDS as readonly string[]).includes(value))
+  );
+}
+
+function normalizeShaderKind(value: unknown): ShaderKind {
+  if (isShaderKind(value)) return value;
+  switch (value) {
+    case 'staticMeshGradient':
+      return 'meshGradient';
+    case 'pulsingBorder':
+      return 'borderRings';
+    case 'flutedGlass':
+    case 'warp':
+      return 'waves';
+    case 'imageDithering':
+    case 'dithering':
+    case 'halftone':
+    case 'halftoneDots':
+    case 'halftoneCmyk':
+      return 'dotGrid';
+    case 'godRays':
+      return 'smokeRing';
+    default:
+      return 'meshGradient';
+  }
+}
+
 function normalizeMaterialPercent(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return undefined;
@@ -137,9 +172,21 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
     grimeShadowNodes: normalizeGrimeShadowNodes(arrayField('grimeShadowNodes')),
     scene3dNodes: normalizeScene3DNodes(arrayField('scene3dNodes')),
     environmentNodes: normalizeEnvironmentNodes(arrayField('environmentNodes')),
+    shaderNodes: normalizeShaderNodes(arrayField('shaderNodes')),
     areas: arrayField('areas'),
     primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
   };
+}
+
+function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
+  return (nodes ?? []).filter(isRecord).map((node) =>
+    makeGraphShaderNode({
+      ...node,
+      ...(node.shaderKind === 'staticMeshGradient' ? { distortion: 0 } : {}),
+      id: String(node.id ?? `shader-${Date.now()}`),
+      shaderKind: normalizeShaderKind(node.shaderKind),
+    } as Partial<GraphShaderNode>),
+  );
 }
 
 function normalizeRepeatNodes(nodes: CanvasGraph['repeatNodes']) {
@@ -432,6 +479,7 @@ export function isBlankDocument(doc: CanvasDocument) {
       (graph.grimeShadowNodes ?? []).length === 0 &&
       (graph.scene3dNodes ?? []).length === 0 &&
       (graph.environmentNodes ?? []).length === 0 &&
+      (graph.shaderNodes ?? []).length === 0 &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 

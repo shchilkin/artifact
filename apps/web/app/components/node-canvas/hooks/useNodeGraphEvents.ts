@@ -121,6 +121,7 @@ function graphConnectionEndpoints(connection: Connection) {
 function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
   const targetPort = connection.targetHandle ?? 'in';
   const sourceIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.source);
+  const sourceIsShader = (graph.shaderNodes ?? []).some((node) => node.id === connection.source);
   const targetIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.target);
   if ((MATERIAL_TEXTURE_INPUT_PORTS as readonly string[]).includes(targetPort)) {
     return targetIsMaterial && !sourceIsMaterial;
@@ -128,7 +129,7 @@ function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph
   if (targetPort === 'material') {
     const targetIsPrimitive = layers.some((layer) => layer.id === connection.target && layer.kind === 'primitive');
     const targetIsScene3D = (graph.scene3dNodes ?? []).some((node) => node.id === connection.target);
-    return sourceIsMaterial && (targetIsPrimitive || targetIsScene3D);
+    return (sourceIsMaterial || sourceIsShader) && (targetIsPrimitive || targetIsScene3D);
   }
   return !sourceIsMaterial;
 }

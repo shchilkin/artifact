@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 
+import { stopNodeEvent } from '../../helpers';
 import { NoPan } from '../../nodes/NoPan';
 import { InspectorLabel } from './InspectorLabel';
 
@@ -59,13 +60,18 @@ export function InspectorSlider({
       </div>
       <div className="node-slider-row">
         <input
-          className="node-slider"
+          className="node-slider nodrag nopan nowheel"
           type="range"
           min={min}
           max={max}
           step={step}
           value={sliderValue}
           disabled={disabled}
+          onPointerDown={stopNodeEvent}
+          onMouseDown={stopNodeEvent}
+          onClick={stopNodeEvent}
+          onDoubleClick={stopNodeEvent}
+          onWheel={stopNodeEvent}
           onChange={(e) => onChange(Number(e.target.value))}
         />
         {overrideMax && (
@@ -79,6 +85,11 @@ export function InspectorSlider({
             disabled={disabled}
             aria-label={`${label} override`}
             title={`Manual override up to ${overrideMax}`}
+            onPointerDown={stopNodeEvent}
+            onMouseDown={stopNodeEvent}
+            onClick={stopNodeEvent}
+            onDoubleClick={stopNodeEvent}
+            onWheel={stopNodeEvent}
             onChange={(e) => {
               if (e.target.value === '') return;
               onChange(clampManualValue(Number(e.target.value)));

@@ -3,7 +3,10 @@ import {
   type CanvasDocument,
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
+  makeEffectLayer,
   makeFillLayer,
+  makeGraphMaterialNode,
+  makeGraphShaderNode,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -50,6 +53,39 @@ describe('normalizeDocument', () => {
 
     expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(doc.layers[0]?.id).toBe('legacy-fill');
+  });
+
+  it('preserves supported shader kinds and normalizes legacy or unknown shader kinds', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          { id: 'shader-liquid', name: 'Liquid', shaderKind: 'liquidMetal' },
+          { id: 'shader-static-mesh', name: 'Static Mesh', shaderKind: 'staticMeshGradient', distortion: 44 },
+          { id: 'shader-border', name: 'Border', shaderKind: 'pulsingBorder' },
+          { id: 'shader-dither', name: 'Dither', shaderKind: 'imageDithering' },
+          { id: 'shader-warp', name: 'Warp', shaderKind: 'warp' },
+          { id: 'shader-rays', name: 'Rays', shaderKind: 'godRays' },
+          { id: 'shader-tileless', name: 'Tileless', shaderKind: 'tilelessTexture' },
+          { id: 'shader-unknown', name: 'Unknown', shaderKind: 'futureShader' },
+        ],
+      },
+    });
+
+    expect(doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('liquidMetal');
+    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({ opacity: 58, blendMode: 'screen' });
+    expect(doc.graph?.shaderNodes?.[1]?.shaderKind).toBe('meshGradient');
+    expect(doc.graph?.shaderNodes?.[1]?.distortion).toBe(0);
+    expect(doc.graph?.shaderNodes?.[2]?.shaderKind).toBe('borderRings');
+    expect(doc.graph?.shaderNodes?.[3]?.shaderKind).toBe('dotGrid');
+    expect(doc.graph?.shaderNodes?.[4]?.shaderKind).toBe('waves');
+    expect(doc.graph?.shaderNodes?.[5]?.shaderKind).toBe('smokeRing');
+    expect(doc.graph?.shaderNodes?.[6]?.shaderKind).toBe('tilelessTexture');
+    expect(doc.graph?.shaderNodes?.[7]?.shaderKind).toBe('meshGradient');
   });
 
   it('normalizes portable imported font assets without keeping invalid payloads', () => {
@@ -375,6 +411,7 @@ describe('normalizeDocument', () => {
       grimeShadowNodes: [],
       scene3dNodes: [],
       environmentNodes: [],
+      shaderNodes: [],
       areas: [],
       primitiveViewStates: undefined,
     });
@@ -578,6 +615,7 @@ describe('document serialization helpers', () => {
     expect(parsed?.graph?.colorNodes).toEqual([]);
     expect(parsed?.graph?.repeatNodes).toEqual([]);
     expect(parsed?.graph?.grimeShadowNodes).toEqual([]);
+    expect(parsed?.graph?.shaderNodes).toEqual([]);
     expect(parsed?.graph?.areas).toEqual([]);
   });
 
@@ -615,6 +653,27 @@ describe('document serialization helpers', () => {
         grimeShadowNodes: [],
         scene3dNodes: [],
         environmentNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-a',
+            name: 'Mesh Shader',
+            shaderKind: 'meshGradient',
+            colorA: '#101010',
+            colorB: '#ff705f',
+            colorC: '#8d5cff',
+            colorD: '#79e3c5',
+            distortion: 48,
+            swirl: 36,
+            grain: 14,
+            scale: 120,
+            rotation: 18,
+            offsetX: 4,
+            offsetY: -6,
+            seedOffset: 3,
+            opacity: 64,
+            blendMode: 'screen',
+          },
+        ],
         areas: [
           {
             id: 'area-main',
@@ -633,6 +692,89 @@ describe('document serialization helpers', () => {
 
     expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(parsed.graph).toEqual(graphDoc.graph);
+  });
+
+  it('round-trips shader material bridge graphs with shader effects and texture-map ports', () => {
+    const source = makeFillLayer({ id: 'shader-effect-source', color: '#2244ff', opacity: 100, blendMode: 'normal' });
+    const effect = makeEffectLayer({
+      id: 'shader-effect-a',
+      preset: 'patternRefraction',
+      patternRefraction: 72,
+      patternRefractionScale: 24,
+      patternRefractionAngle: 42,
+    });
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-a',
+      primitiveShape: 'sphere',
+      color: '#773322',
+      accentColor: '#ffd180',
+    });
+    const graphDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 44, aspect: '1:1' },
+      layers: [source, effect, primitive],
+      graph: {
+        edges: [
+          { id: 'e-shader-albedo', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+          { id: 'e-source-effect', fromId: source.id, fromPort: 'out', toId: effect.id, toPort: 'in' },
+          { id: 'e-effect-normal', fromId: effect.id, fromPort: 'out', toId: 'material-a', toPort: 'normal' },
+          { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+          { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
+        ],
+        positions: {
+          'shader-a': { x: 0, y: 0 },
+          'material-a': { x: 260, y: 90 },
+          [primitive.id]: { x: 520, y: 90 },
+          __export__: { x: 780, y: 90 },
+        },
+        mergeNodes: [],
+        colorNodes: [],
+        materialNodes: [
+          makeGraphMaterialNode({
+            id: 'material-a',
+            materialPreset: 'plastic',
+            materialRoughness: 0.38,
+            materialMetalness: 0.12,
+          }),
+        ],
+        shaderNodes: [
+          makeGraphShaderNode({
+            id: 'shader-a',
+            shaderKind: 'waterCaustic',
+            colorA: '#041c2a',
+            colorB: '#4df4d0',
+            colorC: '#ffcf6b',
+            colorD: '#ffffff',
+            distortion: 54,
+            grain: 0,
+          }),
+        ],
+      },
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const parsed = normalizeDocument(JSON.parse(serializeDocument(graphDoc)));
+    const parsedEffect = parsed.layers.find((layer) => layer.id === effect.id);
+
+    expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+    expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
+    expect(parsed.graph?.materialNodes?.[0]).toMatchObject({
+      id: 'material-a',
+      materialPreset: 'plastic',
+      materialRoughness: 0.38,
+      materialMetalness: 0.12,
+    });
+    expect(parsed.graph?.shaderNodes?.[0]).toMatchObject({
+      id: 'shader-a',
+      shaderKind: 'waterCaustic',
+      distortion: 54,
+    });
+    expect(parsedEffect).toMatchObject({
+      id: effect.id,
+      preset: 'patternRefraction',
+      patternRefraction: 72,
+      patternRefractionScale: 24,
+      patternRefractionAngle: 42,
+    });
   });
 
   it('rejects invalid artifact document JSON without throwing', () => {

@@ -4,8 +4,15 @@ export type EffectPixelTransformOp =
   | { type: 'rgbSplit'; amount: number }
   | { type: 'colorPass'; sepia: number; infrared: number; ca: number; dither: number }
   | { type: 'indexedPalette'; amount: number; colors: string[] }
+  | { type: 'gradientMap'; amount: number; shadow: string; mid: string; highlight: string }
+  | { type: 'channelMixer'; amount: number; redMix: number; greenMix: number; blueMix: number }
   | { type: 'edgeCrush'; amount: number }
   | { type: 'silhouetteCrush'; amount: number }
+  | { type: 'bokehBlur'; amount: number; threshold: number }
+  | { type: 'hatching'; amount: number; scale: number; angle: number }
+  | { type: 'pixelStretch'; amount: number; length: number; angle: number }
+  | { type: 'patternRefraction'; amount: number; scale: number; angle: number }
+  | { type: 'gooeyMerge'; amount: number; radius: number; threshold: number }
   | { type: 'vhsTracking'; amount: number; seed: number }
   | { type: 'wave'; amount: number; frequency: number; scale: number }
   | { type: 'solarize'; amount: number }
@@ -94,10 +101,24 @@ export function transformEffectPixels({
       applyColorPass(current, width, height, operation);
     } else if (operation.type === 'indexedPalette') {
       applyIndexedPalette(current, operation.amount, operation.colors);
+    } else if (operation.type === 'gradientMap') {
+      applyGradientMap(current, operation.amount, operation.shadow, operation.mid, operation.highlight);
+    } else if (operation.type === 'channelMixer') {
+      applyChannelMixer(current, operation.amount, operation.redMix, operation.greenMix, operation.blueMix);
     } else if (operation.type === 'edgeCrush') {
       applyEdgeCrush(current, width, height, operation.amount);
     } else if (operation.type === 'silhouetteCrush') {
       current = applySilhouetteCrush(current, width, height, operation.amount);
+    } else if (operation.type === 'bokehBlur') {
+      current = applyBokehBlur(current, width, height, operation.amount, operation.threshold);
+    } else if (operation.type === 'hatching') {
+      applyHatching(current, width, height, operation.amount, operation.scale, operation.angle);
+    } else if (operation.type === 'pixelStretch') {
+      current = applyPixelStretch(current, width, height, operation.amount, operation.length, operation.angle);
+    } else if (operation.type === 'patternRefraction') {
+      current = applyPatternRefraction(current, width, height, operation.amount, operation.scale, operation.angle);
+    } else if (operation.type === 'gooeyMerge') {
+      current = applyGooeyMerge(current, width, height, operation.amount, operation.radius, operation.threshold);
     } else if (operation.type === 'vhsTracking') {
       current = applyVhsTracking(current, width, height, operation.amount, operation.seed);
     } else if (operation.type === 'wave') {
@@ -260,6 +281,270 @@ function applyIndexedPalette(data: Uint8ClampedArray, amount: number, colorValue
     data[i + 1] = clampByte(data[i + 1] + (target[1] - data[i + 1]) * t);
     data[i + 2] = clampByte(data[i + 2] + (target[2] - data[i + 2]) * t);
   }
+}
+
+function lerpColor(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+function gradientMapColor(
+  lum: number,
+  shadow: [number, number, number],
+  mid: [number, number, number],
+  highlight: [number, number, number],
+): [number, number, number] {
+  if (lum <= 0.5) return lerpColor(shadow, mid, lum * 2);
+  return lerpColor(mid, highlight, (lum - 0.5) * 2);
+}
+
+function applyGradientMap(
+  data: Uint8ClampedArray,
+  amount: number,
+  shadowHex: string,
+  midHex: string,
+  highlightHex: string,
+) {
+  if (amount <= 0) return;
+  const t = Math.min(1, Math.max(0, amount / 100));
+  const shadow = parsePaletteColor(shadowHex);
+  const mid = parsePaletteColor(midHex);
+  const highlight = parsePaletteColor(highlightHex);
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] <= 0) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const mapped = gradientMapColor(lum, shadow, mid, highlight);
+    data[i] = clampByte(r + (mapped[0] - r) * t);
+    data[i + 1] = clampByte(g + (mapped[1] - g) * t);
+    data[i + 2] = clampByte(b + (mapped[2] - b) * t);
+  }
+}
+
+function signedMixChannel(source: number, target: number, amount: number) {
+  const t = Math.min(1, Math.abs(amount) / 100);
+  return amount >= 0 ? source + (target - source) * t : source + (source - target) * t;
+}
+
+function applyChannelMixer(data: Uint8ClampedArray, amount: number, redMix: number, greenMix: number, blueMix: number) {
+  if (amount <= 0) return;
+  const t = Math.min(1, Math.max(0, amount / 100));
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] <= 0) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const mixedR = signedMixChannel(r, g, redMix);
+    const mixedG = signedMixChannel(g, b, greenMix);
+    const mixedB = signedMixChannel(b, r, blueMix);
+    data[i] = clampByte(r + (mixedR - r) * t);
+    data[i + 1] = clampByte(g + (mixedG - g) * t);
+    data[i + 2] = clampByte(b + (mixedB - b) * t);
+  }
+}
+
+function applyBokehBlur(data: Uint8ClampedArray, width: number, height: number, amount: number, threshold: number) {
+  if (amount <= 0) return data;
+  const radius = Math.min(18, Math.max(1, Math.round(amount)));
+  const blurred = boxBlur(data, width, height, radius);
+  const out = new Uint8ClampedArray(data.length);
+  const thresholdLum = Math.min(255, Math.max(0, (threshold / 100) * 255));
+  const denom = Math.max(1, 255 - thresholdLum);
+
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3];
+    const lum = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    const highlight = Math.min(1, Math.max(0, (lum - thresholdLum) / denom));
+    out[i] = clampByte(blurred[i] + data[i] * highlight * 0.35);
+    out[i + 1] = clampByte(blurred[i + 1] + data[i + 1] * highlight * 0.35);
+    out[i + 2] = clampByte(blurred[i + 2] + data[i + 2] * highlight * 0.35);
+    out[i + 3] = alpha;
+  }
+
+  return out;
+}
+
+function boxBlur(data: Uint8ClampedArray, width: number, height: number, radius: number) {
+  const horizontal = new Float32Array(data.length);
+  const out = new Uint8ClampedArray(data.length);
+  const diameter = radius * 2 + 1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const target = pixelIndex(width, x, y);
+      for (let c = 0; c < 4; c += 1) {
+        let sum = 0;
+        for (let k = -radius; k <= radius; k += 1) {
+          const sx = Math.min(width - 1, Math.max(0, x + k));
+          sum += data[pixelIndex(width, sx, y) + c];
+        }
+        horizontal[target + c] = sum / diameter;
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const target = pixelIndex(width, x, y);
+      for (let c = 0; c < 4; c += 1) {
+        let sum = 0;
+        for (let k = -radius; k <= radius; k += 1) {
+          const sy = Math.min(height - 1, Math.max(0, y + k));
+          sum += horizontal[pixelIndex(width, x, sy) + c];
+        }
+        out[target + c] = clampByte(sum / diameter);
+      }
+    }
+  }
+
+  return out;
+}
+
+function applyHatching(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amount: number,
+  scale: number,
+  angle: number,
+) {
+  if (amount <= 0) return;
+  const strength = Math.min(1, Math.max(0, amount / 100));
+  const spacing = Math.max(3, scale);
+  const theta = (angle / 180) * Math.PI;
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const lineWidth = Math.max(0.9, spacing * 0.18);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = pixelIndex(width, x, y);
+      if (data[i + 3] <= 0) continue;
+      const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+      const shade = 1 - lum;
+      const u = x * cos + y * sin;
+      const phase = Math.abs((((u % spacing) + spacing) % spacing) - spacing / 2);
+      const line = phase <= lineWidth * (0.55 + shade);
+      if (!line) continue;
+      const ink = strength * shade * 0.82;
+      data[i] = clampByte(data[i] * (1 - ink));
+      data[i + 1] = clampByte(data[i + 1] * (1 - ink));
+      data[i + 2] = clampByte(data[i + 2] * (1 - ink));
+    }
+  }
+}
+
+function clampCoord(value: number, max: number) {
+  return Math.min(max, Math.max(0, Math.round(value)));
+}
+
+function applyPixelStretch(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amount: number,
+  length: number,
+  angle: number,
+) {
+  if (amount <= 0 || length <= 0) return data;
+  const strength = Math.min(1, Math.max(0, amount / 100));
+  const sampleLength = Math.max(1, length);
+  const sampleCount = Math.min(28, Math.max(3, Math.round(sampleLength / 3)));
+  const theta = (angle / 180) * Math.PI;
+  const dx = Math.cos(theta);
+  const dy = Math.sin(theta);
+  const out = new Uint8ClampedArray(data.length);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const target = pixelIndex(width, x, y);
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      for (let step = 0; step < sampleCount; step += 1) {
+        const t = sampleCount <= 1 ? 0 : step / (sampleCount - 1);
+        const sx = clampCoord(x - dx * sampleLength * t, width - 1);
+        const sy = clampCoord(y - dy * sampleLength * t, height - 1);
+        const source = pixelIndex(width, sx, sy);
+        r += data[source] ?? 0;
+        g += data[source + 1] ?? 0;
+        b += data[source + 2] ?? 0;
+        a += data[source + 3] ?? 0;
+      }
+      const inv = 1 / sampleCount;
+      out[target] = clampByte((data[target] ?? 0) + (r * inv - (data[target] ?? 0)) * strength);
+      out[target + 1] = clampByte((data[target + 1] ?? 0) + (g * inv - (data[target + 1] ?? 0)) * strength);
+      out[target + 2] = clampByte((data[target + 2] ?? 0) + (b * inv - (data[target + 2] ?? 0)) * strength);
+      out[target + 3] = clampByte((data[target + 3] ?? 0) + (a * inv - (data[target + 3] ?? 0)) * strength);
+    }
+  }
+
+  return out;
+}
+
+function applyPatternRefraction(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amount: number,
+  scale: number,
+  angle: number,
+) {
+  if (amount <= 0) return data;
+  const strength = Math.min(1, Math.max(0, amount / 100));
+  const spacing = Math.max(3, scale);
+  const theta = (angle / 180) * Math.PI;
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const normalX = -sin;
+  const normalY = cos;
+  const displacement = spacing * 0.42 * strength;
+
+  return remapPixels(data, width, height, (x, y) => {
+    const u = (x * cos + y * sin) / spacing;
+    const v = (x * normalX + y * normalY) / spacing;
+    const wave = Math.sin(u * Math.PI * 2) * Math.cos(v * Math.PI * 1.2);
+    const secondary = Math.sin((u + v) * Math.PI * 1.4) * 0.35;
+    const offset = (wave + secondary) * displacement;
+    return {
+      x: clampCoord(x - normalX * offset - cos * offset * 0.28, width - 1),
+      y: clampCoord(y - normalY * offset - sin * offset * 0.28, height - 1),
+    };
+  });
+}
+
+function applyGooeyMerge(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amount: number,
+  radius: number,
+  threshold: number,
+) {
+  if (amount <= 0 || radius <= 0) return data;
+  const strength = Math.min(1, Math.max(0, amount / 100));
+  const blurRadius = Math.min(24, Math.max(1, Math.round(radius)));
+  const blurred = boxBlur(data, width, height, blurRadius);
+  const out = new Uint8ClampedArray(data.length);
+  const cutoff = Math.min(255, Math.max(0, (threshold / 100) * 255));
+  const feather = Math.max(8, 42 - threshold * 0.24);
+
+  for (let i = 0; i < data.length; i += 4) {
+    const sourceAlpha = data[i + 3] ?? 0;
+    const blurAlpha = blurred[i + 3] ?? 0;
+    const mergedAlpha = Math.min(255, Math.max(0, ((blurAlpha - cutoff) / feather) * 255));
+    const targetAlpha = Math.max(sourceAlpha, mergedAlpha);
+    out[i] = clampByte((data[i] ?? 0) + ((blurred[i] ?? 0) - (data[i] ?? 0)) * strength * 0.72);
+    out[i + 1] = clampByte((data[i + 1] ?? 0) + ((blurred[i + 1] ?? 0) - (data[i + 1] ?? 0)) * strength * 0.72);
+    out[i + 2] = clampByte((data[i + 2] ?? 0) + ((blurred[i + 2] ?? 0) - (data[i + 2] ?? 0)) * strength * 0.72);
+    out[i + 3] = clampByte(sourceAlpha + (targetAlpha - sourceAlpha) * strength);
+  }
+
+  return out;
 }
 
 function nearestPaletteColor(
