@@ -1467,7 +1467,7 @@
   border-radius: var(--control-radius);
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
@@ -2055,45 +2055,45 @@
 }
 
 .nadd-surface [data-add-color-kind="fill"] {
-  --add-kind-color: var(--node-kind-fill, oklch(72% 0.18 48));
+  --add-kind-color: var(--node-kind-fill);
 }
 
 .nadd-surface [data-add-color-kind="image"] {
-  --add-kind-color: var(--node-kind-image, oklch(73% 0.15 222));
+  --add-kind-color: var(--node-kind-image);
 }
 
 .nadd-surface [data-add-color-kind="text"] {
-  --add-kind-color: var(--node-kind-text, oklch(80% 0.08 94));
+  --add-kind-color: var(--node-kind-text);
 }
 
 .nadd-surface [data-add-color-kind="emoji"] {
-  --add-kind-color: var(--node-kind-emoji, oklch(72% 0.18 342));
+  --add-kind-color: var(--node-kind-emoji);
 }
 
 .nadd-surface [data-add-color-kind="effect"] {
-  --add-kind-color: var(--node-kind-effect, oklch(66% 0.18 286));
+  --add-kind-color: var(--node-kind-effect);
 }
 
 .nadd-surface [data-add-color-kind="primitive"],
 .nadd-surface [data-add-color-kind="model"] {
-  --add-kind-color: var(--node-kind-primitive, oklch(72% 0.13 162));
+  --add-kind-color: var(--node-kind-primitive);
 }
 
 .nadd-surface [data-add-color-kind="noise"] {
-  --add-kind-color: var(--node-kind-noise, oklch(62% 0.05 245));
+  --add-kind-color: var(--node-kind-noise);
 }
 
 .nadd-surface [data-add-color-kind="array"],
 .nadd-surface [data-add-color-kind="lineField"] {
-  --add-kind-color: var(--node-kind-array, oklch(72% 0.11 125));
+  --add-kind-color: var(--node-kind-array);
 }
 
 .nadd-surface [data-add-color-kind="merge"] {
-  --add-kind-color: var(--node-kind-merge, oklch(72% 0.12 165));
+  --add-kind-color: var(--node-kind-merge);
 }
 
 .nadd-surface [data-add-color-kind="color"] {
-  --add-kind-color: var(--node-kind-color, oklch(74% 0.13 210));
+  --add-kind-color: var(--node-kind-color);
 }
 
 /* Search row */
@@ -2477,8 +2477,8 @@
 }
 
 .node-ai-status-failed {
-  border-color: color-mix(in oklch, var(--danger, #ff6b5a) 65%, var(--node-border));
-  background: color-mix(in oklch, #2a0805 72%, transparent);
+  border-color: color-mix(in oklch, var(--danger) 65%, var(--node-border));
+  background: color-mix(in oklch, var(--danger) 16%, var(--node-bg));
 }
 
 .node-ai-status-spinner {

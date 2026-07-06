@@ -2,14 +2,14 @@
 @import "./styles/tokens.css";
 
 @theme {
-  --color-bg: oklch(8% 0.012 42);
-  --color-sidebar: oklch(11% 0.016 42);
-  --color-sidebar-raised: oklch(14% 0.016 42);
-  --color-border: oklch(24% 0.018 42);
-  --color-text: oklch(80% 0.022 68);
-  --color-dim: oklch(60% 0.018 68);
-  --color-accent: oklch(66% 0.16 28);
-  --color-accent-dim: oklch(66% 0.16 28 / 0.15);
+  --color-bg: var(--surface-app);
+  --color-sidebar: var(--surface-panel);
+  --color-sidebar-raised: var(--surface-panel-raised);
+  --color-border: var(--line-default);
+  --color-text: var(--text-primary);
+  --color-dim: var(--text-secondary);
+  --color-accent: var(--accent-primary);
+  --color-accent-dim: var(--accent-soft);
   --font-mono: "Space Mono", ui-monospace, Consolas, "Courier New", monospace;
   --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
@@ -346,16 +346,16 @@ body {
 
 .theme-toggle__option[aria-checked="true"] {
   background: var(--accent);
-  color: oklch(98% 0.005 250);
+  color: var(--text-on-accent);
   box-shadow: none;
 }
 
 [data-theme="light"] .theme-toggle__option[aria-checked="true"] {
-  color: oklch(98% 0.005 250);
+  color: var(--text-on-accent);
 }
 
 .theme-toggle__option[aria-checked="true"]:focus-visible {
-  outline: 2px solid oklch(98% 0.005 250);
+  outline: 2px solid var(--text-on-accent);
   outline-offset: -5px;
 }
 
@@ -1498,7 +1498,7 @@ input[type="range"] {
 
 .emoji-btn:hover {
   opacity: 0.8;
-  border-color: oklch(66% 0.16 28 / 0.5);
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
 }
 
 /* ─── MAIN AREA ──────────────────────────────────── */
@@ -2381,45 +2381,45 @@ input[type="range"] {
 }
 
 .add-library-surface [data-add-color-kind="fill"] {
-  --add-kind-color: var(--node-kind-fill, oklch(72% 0.18 48));
+  --add-kind-color: var(--node-kind-fill);
 }
 
 .add-library-surface [data-add-color-kind="image"] {
-  --add-kind-color: var(--node-kind-image, oklch(73% 0.15 222));
+  --add-kind-color: var(--node-kind-image);
 }
 
 .add-library-surface [data-add-color-kind="text"] {
-  --add-kind-color: var(--node-kind-text, oklch(80% 0.08 94));
+  --add-kind-color: var(--node-kind-text);
 }
 
 .add-library-surface [data-add-color-kind="emoji"] {
-  --add-kind-color: var(--node-kind-emoji, oklch(72% 0.18 342));
+  --add-kind-color: var(--node-kind-emoji);
 }
 
 .add-library-surface [data-add-color-kind="effect"] {
-  --add-kind-color: var(--node-kind-effect, oklch(66% 0.18 286));
+  --add-kind-color: var(--node-kind-effect);
 }
 
 .add-library-surface [data-add-color-kind="primitive"],
 .add-library-surface [data-add-color-kind="model"] {
-  --add-kind-color: var(--node-kind-primitive, oklch(72% 0.13 162));
+  --add-kind-color: var(--node-kind-primitive);
 }
 
 .add-library-surface [data-add-color-kind="noise"] {
-  --add-kind-color: var(--node-kind-noise, oklch(62% 0.05 245));
+  --add-kind-color: var(--node-kind-noise);
 }
 
 .add-library-surface [data-add-color-kind="array"],
 .add-library-surface [data-add-color-kind="lineField"] {
-  --add-kind-color: var(--node-kind-array, oklch(72% 0.11 125));
+  --add-kind-color: var(--node-kind-array);
 }
 
 .add-library-surface [data-add-color-kind="merge"] {
-  --add-kind-color: var(--node-kind-merge, oklch(72% 0.12 165));
+  --add-kind-color: var(--node-kind-merge);
 }
 
 .add-library-surface [data-add-color-kind="color"] {
-  --add-kind-color: var(--node-kind-color, oklch(74% 0.13 210));
+  --add-kind-color: var(--node-kind-color);
 }
 
 .add-library-layer-menu {
@@ -2709,7 +2709,7 @@ input[type="range"] {
 }
 
 .add-library-row:focus-visible {
-  outline: 2px solid var(--focus);
+  outline: var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -4045,14 +4045,14 @@ input[type="range"] {
 .empty-canvas-start-action--primary {
   border-color: color-mix(in oklch, var(--accent) 72%, var(--border));
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   font-weight: var(--weight-strong);
 }
 
 .empty-canvas-start-action--primary:hover,
 .empty-canvas-start-action--primary:focus-visible {
   background: color-mix(in oklch, var(--accent) 88%, var(--text));
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 .ai-generation-panel {
@@ -4514,7 +4514,7 @@ input[type="range"] {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--text-on-accent);
   transition: transform 0.18s ease;
 }
 
@@ -4990,12 +4990,12 @@ input[type="range"] {
 }
 
 .btn-danger {
-  border-color: oklch(55% 0.18 15 / 0.4);
-  color: oklch(65% 0.18 15 / 0.8);
+  border-color: color-mix(in oklch, var(--danger) 40%, transparent);
+  color: color-mix(in oklch, var(--danger) 80%, var(--text));
 }
 .btn-danger:hover {
   background: color-mix(in oklch, var(--danger) 10%, transparent);
-  border-color: oklch(55% 0.18 15 / 0.8);
+  border-color: color-mix(in oklch, var(--danger) 80%, transparent);
 }
 
 .btn-small {
@@ -6262,7 +6262,7 @@ button.library-card-open:focus-visible {
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 4px 24px oklch(0% 0 0 / 0.5);
+  box-shadow: var(--shadow-overlay);
   overflow: hidden;
   pointer-events: auto;
   opacity: 0;
@@ -6323,7 +6323,7 @@ button.library-card-open:focus-visible {
 .effect-popup__family {
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--accent-2);
+  color: var(--accent-signal);
   line-height: 1.45;
 }
 
@@ -7612,7 +7612,7 @@ button.library-card-open:focus-visible {
 .docs-action--primary:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 .docs-search-panel {
@@ -8957,7 +8957,7 @@ button.library-card-open:focus-visible {
 
 .docs-poster__try:hover {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8981,7 +8981,7 @@ button.library-card-open:focus-visible {
 
 .account-modal {
   width: min(540px, 100%);
-  border: 1px solid color-mix(in oklch, var(--line), var(--accent) 24%);
+  border: 1px solid color-mix(in oklch, var(--line-default), var(--accent) 24%);
   background: var(--surface-panel);
   box-shadow: var(--shadow-overlay);
   color: var(--text);
@@ -8993,7 +8993,7 @@ button.library-card-open:focus-visible {
   justify-content: space-between;
   gap: 20px;
   padding: 24px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .account-modal-kicker {
@@ -9017,7 +9017,7 @@ button.library-card-open:focus-visible {
 .account-modal-body {
   max-width: 34rem;
   margin: 10px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.55;
 }
@@ -9025,9 +9025,9 @@ button.library-card-open:focus-visible {
 .account-modal-close {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-default);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 1rem;
@@ -9041,15 +9041,15 @@ button.library-card-open:focus-visible {
 .account-mode-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .account-mode-tabs button {
   min-height: 52px;
   border: 0;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--line-default);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -9063,8 +9063,8 @@ button.library-card-open:focus-visible {
 }
 
 .account-mode-tabs button.active {
-  background: var(--panel-active);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .account-form {
@@ -9079,7 +9079,7 @@ button.library-card-open:focus-visible {
 }
 
 .account-form span {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.68rem;
   font-weight: 800;
@@ -9089,7 +9089,7 @@ button.library-card-open:focus-visible {
 
 .account-form input {
   min-height: 48px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-default);
   background: var(--surface-control);
   color: var(--text);
   font: inherit;
@@ -9107,7 +9107,7 @@ button.library-card-open:focus-visible {
   width: fit-content;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -9132,7 +9132,7 @@ button.library-card-open:focus-visible {
 
 .account-form-notice {
   margin: 0;
-  color: var(--state-success, #73d79b);
+  color: var(--state-success);
   font-family: var(--mono);
   font-size: 0.75rem;
   line-height: 1.5;
@@ -9142,7 +9142,7 @@ button.library-card-open:focus-visible {
   min-height: 54px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.82rem;
@@ -9165,10 +9165,10 @@ button.library-card-open:focus-visible {
 
 .auth-page-panel {
   width: min(560px, 100%);
-  border: 1px solid color-mix(in oklch, var(--line), var(--accent) 24%);
+  border: 1px solid color-mix(in oklch, var(--line-default), var(--accent) 24%);
   background:
-    linear-gradient(180deg, rgb(255 106 95 / 0.08), transparent 34%), color-mix(in oklch, var(--bg), black 10%);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 0.42);
+    linear-gradient(180deg, color-mix(in oklch, var(--accent) 8%, transparent), transparent 34%), var(--surface-bg);
+  box-shadow: var(--shadow-overlay);
   padding: clamp(24px, 5vw, 40px);
 }
 
@@ -9192,7 +9192,7 @@ button.library-card-open:focus-visible {
 
 .auth-page-copy {
   margin: 14px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -9208,7 +9208,7 @@ button.library-card-open:focus-visible {
 }
 
 .auth-page-form span {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.68rem;
   font-weight: 800;
@@ -9218,8 +9218,8 @@ button.library-card-open:focus-visible {
 
 .auth-page-form input {
   min-height: 50px;
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.32);
+  border: 1px solid var(--line-default);
+  background: var(--surface-input);
   color: var(--text);
   font: inherit;
   padding: 0 14px;
@@ -9243,14 +9243,14 @@ button.library-card-open:focus-visible {
 }
 
 .auth-page-message-success {
-  color: var(--state-success, #73d79b);
+  color: var(--state-success);
 }
 
 .auth-page-submit {
   min-height: 54px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.82rem;
@@ -9267,7 +9267,7 @@ button.library-card-open:focus-visible {
 .auth-page-link {
   display: inline-block;
   margin-top: 22px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.72rem;
   font-weight: 800;

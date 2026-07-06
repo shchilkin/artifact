@@ -33,6 +33,7 @@
   --text-muted: oklch(55% 0.018 68);
   --text-on-artwork: oklch(86% 0.018 68);
   --text-on-artwork-muted: oklch(66% 0.016 68);
+  --text-on-accent: oklch(9.5% 0.014 42);
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(74% 0.17 152);
@@ -186,7 +187,7 @@
   --token-ash-1: oklch(18% 0.018 42);
   --token-ash-2: oklch(34% 0.016 52);
   --token-ash-3: oklch(48% 0.014 56);
-  --token-flare: oklch(58% 0.18 28);
+  --token-flare: oklch(56% 0.18 28);
   --token-flare-soft: oklch(58% 0.18 28 / 0.12);
 
   --surface-app: var(--token-ink-0);
@@ -208,6 +209,7 @@
   --text-muted: var(--token-ash-3);
   --text-on-artwork: oklch(88% 0.018 68);
   --text-on-artwork-muted: oklch(72% 0.014 68);
+  --text-on-accent: oklch(98% 0.005 250);
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(44% 0.13 154);
