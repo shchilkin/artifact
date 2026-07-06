@@ -1,6 +1,30 @@
 ---
 name: Artifact
 description: Browser-based cover and poster editor for musicians and designers who want control over image, type, texture, effects, and export.
+register: product
+northStar: "Photocopied zine editor: print-proof tactility, compact creative control, dark-first studio mood, light-mode proofing surface."
+tokenSource:
+  css: "apps/web/app/styles/tokens.css"
+  liveSpecimen: "/docs/style-guide"
+  editorSpec: "docs/editor-design-system.md"
+appearance:
+  defaultPreference: "system"
+  supported:
+    - system
+    - light
+    - dark
+  resolvedAttribute: "data-theme"
+  preferenceAttribute: "data-theme-preference"
+  contract:
+    - "System follows prefers-color-scheme and resolves before hydration."
+    - "Components consume semantic tokens, not hard-coded mode colors."
+    - "Dark is the canonical studio appearance; light is a proofing condition, not a second brand."
+    - "Artwork inspection surfaces may stay intentionally dark only when the role is named with an artwork/proofing token."
+colorStrategy:
+  mode: restrained
+  accentUse: "Registration mark only; keep saturated accent at or below 10% of any screen."
+  neutralRule: "Tinted neutrals in both appearances; no pure black, pure white, or generic gray."
+  categoryColorRule: "Node category colors are grammar and stay separate from global accent and output-path color."
 colors:
   ink-bg: "oklch(8% 0.012 42)"
   ink-sidebar: "oklch(11% 0.016 42)"
@@ -22,6 +46,54 @@ colors:
   node-color: "oklch(74% 0.13 210)"
   node-export: "oklch(84% 0.05 88)"
   node-grid-dot: "oklch(34% 0.022 218 / 0.58)"
+semanticColorRoles:
+  surfaces:
+    app: "--surface-app"
+    workspace: "--surface-workspace"
+    panel: "--surface-panel"
+    raised: "--surface-panel-raised"
+    card: "--surface-card"
+    control: "--surface-control"
+    controlHover: "--surface-control-hover"
+    selected: "--surface-control-selected"
+  artwork:
+    frame: "--surface-artwork-frame"
+    frameRaised: "--surface-artwork-frame-raised"
+    overlay: "--surface-artwork-overlay"
+    text: "--text-on-artwork"
+    mutedText: "--text-on-artwork-muted"
+  lines:
+    muted: "--line-muted"
+    default: "--line-default"
+    strong: "--line-strong"
+  text:
+    primary: "--text-primary"
+    secondary: "--text-secondary"
+    muted: "--text-muted"
+  accent:
+    primary: "--accent-primary"
+    soft: "--accent-soft"
+    signal: "--accent-signal"
+    output: "--accent-output"
+  states:
+    danger: "--state-danger"
+    success: "--state-success"
+    warning: "--state-warning"
+  graph:
+    canvas: "--editor-canvas-bg"
+    gridDot: "--editor-grid-dot"
+    outputPath: "--editor-output-path"
+    nodeFill: "--node-kind-fill"
+    nodeImage: "--node-kind-image"
+    nodeText: "--node-kind-text"
+    nodeEmoji: "--node-kind-emoji"
+    nodeEffect: "--node-kind-effect"
+    nodePrimitive: "--node-kind-primitive"
+    nodeNoise: "--node-kind-noise"
+    nodeArray: "--node-kind-array"
+    nodeMerge: "--node-kind-merge"
+    nodeColor: "--node-kind-color"
+    nodeExport: "--node-kind-export"
 typography:
   display:
     fontFamily: "Barlow Condensed, sans-serif"
@@ -106,6 +178,19 @@ components:
     backgroundColor: "{colors.ink-border}"
     rounded: "{rounded.slider}"
     height: "3px"
+implementationRules:
+  do:
+    - "Use CSS semantic tokens for repeated color, spacing, radius, focus, shadow, and state choices."
+    - "Keep public/editor navigation, dialogs, menus, project panels, and graph chrome appearance-safe."
+    - "Preserve category color on node rails, handles, badges, selection, and focus."
+    - "Use Space Mono for control grammar and Barlow Condensed for readable UI text."
+    - "Give light mode dedicated proofing tokens instead of inverting dark values mechanically."
+  dont:
+    - "Do not add raw black, raw white, or generic gray as reusable UI colors."
+    - "Do not collapse category, selected, focus, and output-route colors into the flare accent."
+    - "Do not import generic shadcn/Button or Card styling as Artifact chrome."
+    - "Do not use gradient text, decorative glow, glassmorphism, or generic SaaS cards."
+    - "Do not put implementation plans, QA notes, or agent workflow text on user-facing app surfaces."
 ---
 
 # Design System: Artifact
@@ -115,11 +200,14 @@ components:
 **Creative North Star: "The Photocopied Zine"**
 
 The interface has the material feel of a print proof: mono labels, square edges,
-warm dark surfaces, and raw rules. The screen is dark because the user is in a
-bedroom studio at 1am, laptop open, ambient screen-light only, shaping artwork
-with intent. Restraint here is not minimalism for safety; it is the chassis of
-a mixing board, where every control earns its place. Artifact does not decide
-whether the result is clean, elegant, rough, loud, or restrained.
+tinted surfaces, and raw rules. Artifact is dark-first because the core editor
+still imagines a bedroom studio at 1am, laptop open, ambient screen-light only,
+shaping artwork with intent. Light mode is a companion proofing condition, not a
+second brand: it keeps the same low-chroma paper logic, hairline rules, rare
+accent, and artwork-forward restraint. Restraint here is not minimalism for
+safety; it is the chassis of a mixing board, where every control earns its
+place. Artifact does not decide whether the result is clean, elegant, rough,
+loud, or restrained.
 
 The system rejects three things by name. It rejects the overdesigned dev-tool aesthetic: neon gradients, crypto-bro purple, glowing grids. It rejects generic SaaS neutrality (Canva, Adobe Express): polished, corporate-safe, identity-free. And it rejects any palette someone could guess from the domain alone. The accent color is a warm red-orange, not a tech-blue or a creator-purple, and it is used like a printer's registration mark: rare, deliberate, load-bearing.
 
@@ -132,7 +220,9 @@ screens, soft generic cards, verbose configuration panels, and admin-like flows
 that make art-making feel like account management.
 
 **Key Characteristics:**
-- Dark, warm-tinted neutrals (chroma 0.012–0.022, hue 42–68); never pure `#000` or `#fff`
+- System / Light / Dark appearance control, with System as the default
+  preference and semantic tokens as the only public color API.
+- Warm-tinted neutrals in both appearances; never pure `#000` or `#fff`.
 - One accent (`oklch(66% 0.16 28)`), used on ≤10% of any screen
 - Crisp geometry by default; square for artwork frames and panels, 2–6px
   radius for controls, menus, inputs, chips, and overlays that need readable
@@ -145,7 +235,13 @@ that make art-making feel like account management.
 
 ## 2. Colors: The Riso-Print Palette
 
-A dark warm-tinted neutral set with a single saturated accent. The neutrals carry low chroma (0.012–0.022) along the warm 42–68 hue band — they read as paper-going-yellow under tungsten, not as cool digital gray. The accent is the registration mark: a single hot color the eye finds because nothing else competes.
+A warm-tinted neutral set with a single saturated accent. Dark mode is the
+canonical palette; light mode raises the same semantic roles into a pale proofing
+surface without switching to generic cool gray SaaS. The neutrals carry low
+chroma along the warm 42–68 hue band where possible: paper-going-yellow under
+tungsten in dark mode, paper proof in daylight in light mode. The accent is the
+registration mark: a single hot color the eye finds because nothing else
+competes.
 
 ### Primary
 - **Flare Accent** (`oklch(66% 0.16 28)`): Active filter chips, CTA fill, current-step progress bar, layer numerals, accent rules. The only saturated color in the system. Treat its rarity as the message.
@@ -162,7 +258,11 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 **The Registration-Mark Rule.** The accent is a registration mark, not a brand wash. It appears on ≤10% of any screen — current-step indicator, active chip, primary CTA, layer numerals. If two or more accent uses are within thumb's reach of each other, one is decoration. Remove it.
 
-**The Tinted-Neutral Rule.** Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.
+**The Tinted-Neutral Rule.** Every neutral should carry visible tint instead of
+collapsing into default black, white, or generic gray. Pure gray is forbidden.
+Pure black is forbidden. Pure white is forbidden. Dark mode should read like
+newsprint at night; light mode should read like a proof sheet, not an admin
+dashboard.
 
 ### Node Category Palette
 

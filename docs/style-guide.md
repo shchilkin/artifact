@@ -18,7 +18,7 @@ Artifact should feel like a compact creative studio for covers, posters, type,
 textures, effects, layers, and nodes. The UI should be:
 
 - **Deliberate**: every visible control has a job.
-- **Tactile**: warm dark surfaces, mono labels, hairline borders, print-like
+- **Tactile**: warm tinted surfaces, mono labels, hairline borders, print-like
   framing, and clear state marks.
 - **Creative but controlled**: expressive output belongs to the user; the
   interface provides tools, not a prescribed final look.
@@ -52,6 +52,23 @@ geometry that is not a reusable UI rule.
 - Live token specimens: `/docs/style-guide`
 - Feature CSS may define feature-specific aliases, but it should map back to
   semantic tokens when possible.
+- Appearance preference: `system`, `light`, and `dark`, resolved onto
+  `data-theme` before hydration. New UI should respond through semantic tokens,
+  not mode-specific hard-coded colors.
+
+### Appearance Modes
+
+Artifact is dark-first in character, but the application supports System,
+Light, and Dark. System is the default preference and follows the operating
+system color scheme. Light mode is a proofing surface: it should preserve the
+same print-like grammar, accent restraint, crisp borders, and artwork contrast
+instead of becoming a generic white SaaS dashboard.
+
+When adding or migrating UI, define the role once in `tokens.css`, provide
+`[data-theme="light"]` overrides when needed, and consume the semantic token
+from components. Artwork frames, checkerboards, graph chrome, home previews,
+and overlay text may need dedicated semantic aliases because they sit on or
+near user artwork.
 
 ### Colors
 

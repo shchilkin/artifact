@@ -513,7 +513,7 @@ function PrimitiveWebglFallback({ visible }: { visible: boolean }) {
         inset: 0,
         display: 'grid',
         placeItems: 'center',
-        color: 'var(--muted)',
+        color: 'var(--text-secondary)',
         fontSize: 11,
         letterSpacing: 0,
         textTransform: 'uppercase',

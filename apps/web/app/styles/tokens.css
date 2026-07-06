@@ -22,16 +22,33 @@
   --surface-control: oklch(10.5% 0.014 42);
   --surface-control-hover: oklch(18% 0.021 42);
   --surface-control-selected: oklch(21% 0.036 36);
+  --surface-artwork-frame: oklch(8% 0.012 42);
+  --surface-artwork-frame-raised: oklch(12% 0.01 42);
+  --surface-artwork-overlay: oklch(5% 0.01 42 / 0.86);
   --line-muted: var(--token-ink-4);
   --line-default: var(--token-ink-5);
   --line-strong: var(--token-ink-6);
   --text-primary: var(--token-ash-1);
   --text-secondary: var(--token-ash-2);
   --text-muted: oklch(55% 0.018 68);
+  --text-on-artwork: oklch(86% 0.018 68);
+  --text-on-artwork-muted: oklch(66% 0.016 68);
+  --text-on-accent: oklch(9.5% 0.014 42);
   --accent-primary: var(--token-flare);
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(74% 0.17 152);
   --accent-output: oklch(84% 0.03 88);
+  --node-kind-fill: oklch(72% 0.18 48);
+  --node-kind-image: oklch(73% 0.15 222);
+  --node-kind-text: oklch(80% 0.08 94);
+  --node-kind-emoji: oklch(72% 0.18 342);
+  --node-kind-effect: oklch(66% 0.18 286);
+  --node-kind-primitive: oklch(72% 0.13 162);
+  --node-kind-noise: oklch(62% 0.05 245);
+  --node-kind-array: oklch(72% 0.11 125);
+  --node-kind-merge: oklch(72% 0.12 165);
+  --node-kind-color: oklch(74% 0.13 210);
+  --node-kind-export: oklch(84% 0.05 88);
 
   /* Identity marks. */
   --brand-mark-field: var(--surface-app);
@@ -109,6 +126,15 @@
   --shadow-none: none;
   --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--accent-primary) 20%, transparent);
   --shadow-overlay: 0 22px 70px color-mix(in oklch, var(--surface-app) 70%, transparent);
+  --checkerboard-base: oklch(12% 0.012 42);
+  --checkerboard-tile: oklch(18% 0.014 42);
+  --home-preview-bg: var(--surface-artwork-frame);
+  --home-preview-border: var(--line-default);
+  --home-preview-meta: var(--text-secondary);
+  --home-preview-progress: var(--line-muted);
+  --home-preview-progress-active: var(--accent-primary);
+  --home-preview-mosaic-opacity: 0.13;
+  --home-preview-mosaic-filter: blur(1.5px) saturate(1.4);
 
   /* Layering. */
   --z-base: 0;
@@ -146,5 +172,97 @@
   --node-handle-idle: var(--accent-signal);
   --node-handle-active: var(--accent-primary);
   --node-edge-idle: color-mix(in oklch, var(--accent-primary) 62%, var(--line-strong));
+  --node-edge-output: var(--editor-output-path);
+}
+
+[data-theme="light"] {
+  /* Foundation: proofing-light neutrals, tinted away from pure gray/white. */
+  --token-ink-0: oklch(97% 0.006 250);
+  --token-ink-1: oklch(93.5% 0.009 250);
+  --token-ink-2: oklch(98.2% 0.005 250);
+  --token-ink-3: oklch(95.5% 0.008 250);
+  --token-ink-4: oklch(84% 0.012 250);
+  --token-ink-5: oklch(73% 0.016 250);
+  --token-ink-6: oklch(58% 0.021 250);
+  --token-ash-1: oklch(18% 0.018 42);
+  --token-ash-2: oklch(34% 0.016 52);
+  --token-ash-3: oklch(48% 0.014 56);
+  --token-flare: oklch(56% 0.18 28);
+  --token-flare-soft: oklch(58% 0.18 28 / 0.12);
+
+  --surface-app: var(--token-ink-0);
+  --surface-workspace: var(--token-ink-1);
+  --surface-panel: var(--token-ink-2);
+  --surface-panel-raised: var(--token-ink-3);
+  --surface-card: oklch(96% 0.007 250);
+  --surface-control: oklch(99% 0.004 250);
+  --surface-control-hover: oklch(92% 0.012 250);
+  --surface-control-selected: oklch(92% 0.035 32);
+  --surface-artwork-frame: oklch(8% 0.012 42);
+  --surface-artwork-frame-raised: oklch(12% 0.01 42);
+  --surface-artwork-overlay: oklch(5% 0.01 42 / 0.88);
+  --line-muted: var(--token-ink-4);
+  --line-default: var(--token-ink-5);
+  --line-strong: var(--token-ink-6);
+  --text-primary: var(--token-ash-1);
+  --text-secondary: var(--token-ash-2);
+  --text-muted: var(--token-ash-3);
+  --text-on-artwork: oklch(88% 0.018 68);
+  --text-on-artwork-muted: oklch(72% 0.014 68);
+  --text-on-accent: oklch(98% 0.005 250);
+  --accent-primary: var(--token-flare);
+  --accent-soft: var(--token-flare-soft);
+  --accent-signal: oklch(44% 0.13 154);
+  --accent-output: oklch(42% 0.065 96);
+  --node-kind-fill: oklch(49% 0.17 48);
+  --node-kind-image: oklch(47% 0.13 222);
+  --node-kind-text: oklch(44% 0.095 94);
+  --node-kind-emoji: oklch(50% 0.17 342);
+  --node-kind-effect: oklch(48% 0.16 286);
+  --node-kind-primitive: oklch(43% 0.12 162);
+  --node-kind-noise: oklch(42% 0.06 245);
+  --node-kind-array: oklch(43% 0.105 125);
+  --node-kind-merge: oklch(42% 0.11 165);
+  --node-kind-color: oklch(45% 0.12 210);
+  --node-kind-export: oklch(42% 0.07 88);
+
+  --brand-mark-field: var(--surface-control);
+  --brand-mark-frame: var(--text-primary);
+  --brand-mark-signal: var(--accent-primary);
+  --brand-mark-node: var(--accent-signal);
+  --brand-mark-shadow: color-mix(in oklch, var(--accent-primary) 16%, transparent);
+
+  --state-danger: oklch(52% 0.18 28);
+  --state-success: oklch(45% 0.13 152);
+  --state-warning: oklch(48% 0.11 68);
+
+  --shadow-focus: 0 0 0 3px color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --shadow-overlay: 0 22px 70px color-mix(in oklch, oklch(46% 0.02 250) 22%, transparent);
+  --checkerboard-base: oklch(91% 0.008 250);
+  --checkerboard-tile: oklch(82% 0.011 250);
+  --home-preview-bg: oklch(94.5% 0.008 250);
+  --home-preview-border: var(--line-default);
+  --home-preview-meta: oklch(44% 0.014 56);
+  --home-preview-progress: oklch(73% 0.016 250);
+  --home-preview-progress-active: var(--accent-primary);
+  --home-preview-mosaic-opacity: 0.052;
+  --home-preview-mosaic-filter: blur(1.2px) saturate(0.66) contrast(0.78) brightness(1.12);
+
+  --editor-canvas-bg: oklch(90.5% 0.011 250);
+  --editor-grid-dot: oklch(56% 0.027 225 / 0.58);
+  --editor-selection-outline: color-mix(in oklch, var(--accent-primary) 72%, var(--line-strong));
+  --editor-output-path: var(--accent-output);
+
+  --node-card-bg: oklch(97% 0.006 250);
+  --node-card-bg-hover: oklch(94% 0.01 250);
+  --node-card-header-bg: oklch(92.5% 0.011 250);
+  --node-card-border: oklch(63% 0.025 250);
+  --node-card-border-soft: oklch(78% 0.015 250);
+  --node-card-outline: oklch(84% 0.012 250);
+  --node-card-selected-bg: oklch(95% 0.025 34);
+  --node-card-selected-header-bg: oklch(92% 0.032 34);
+  --node-handle-idle: var(--accent-signal);
+  --node-handle-active: var(--accent-primary);
+  --node-edge-idle: color-mix(in oklch, var(--accent-primary) 54%, var(--line-strong));
   --node-edge-output: var(--editor-output-path);
 }

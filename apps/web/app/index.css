@@ -2,14 +2,14 @@
 @import "./styles/tokens.css";
 
 @theme {
-  --color-bg: oklch(8% 0.012 42);
-  --color-sidebar: oklch(11% 0.016 42);
-  --color-sidebar-raised: oklch(14% 0.016 42);
-  --color-border: oklch(24% 0.018 42);
-  --color-text: oklch(80% 0.022 68);
-  --color-dim: oklch(60% 0.018 68);
-  --color-accent: oklch(66% 0.16 28);
-  --color-accent-dim: oklch(66% 0.16 28 / 0.15);
+  --color-bg: var(--surface-app);
+  --color-sidebar: var(--surface-panel);
+  --color-sidebar-raised: var(--surface-panel-raised);
+  --color-border: var(--line-default);
+  --color-text: var(--text-primary);
+  --color-dim: var(--text-secondary);
+  --color-accent: var(--accent-primary);
+  --color-accent-dim: var(--accent-soft);
   --font-mono: "Space Mono", ui-monospace, Consolas, "Courier New", monospace;
   --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
@@ -24,6 +24,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --app-bg: var(--surface-app);
   --workspace-bg: var(--surface-workspace);
   --panel-bg: var(--surface-panel);
@@ -32,7 +33,7 @@
   --surface-hover: var(--surface-control-hover);
   --surface-input: var(--surface-control);
   --surface-selected: var(--surface-control-selected);
-  --canvas-stage-bg: oklch(11% 0.013 42);
+  --canvas-stage-bg: var(--editor-canvas-bg);
   --border-muted: var(--line-muted);
   --border: var(--line-default);
   --border-strong: var(--line-strong);
@@ -44,23 +45,12 @@
   --sidebar-raised: var(--panel-raised);
   --accent: var(--accent-primary);
   --accent-dim: var(--accent-soft);
-  --danger: oklch(66% 0.18 28);
-  --success: oklch(72% 0.14 152);
-  --warning: oklch(74% 0.12 68);
-  --node-kind-fill: oklch(72% 0.18 48);
-  --node-kind-image: oklch(73% 0.15 222);
-  --node-kind-text: oklch(80% 0.08 94);
-  --node-kind-emoji: oklch(72% 0.18 342);
-  --node-kind-effect: oklch(66% 0.18 286);
-  --node-kind-primitive: oklch(72% 0.13 162);
-  --node-kind-noise: oklch(62% 0.05 245);
-  --node-kind-array: oklch(72% 0.11 125);
-  --node-kind-merge: oklch(72% 0.12 165);
-  --node-kind-color: oklch(74% 0.13 210);
-  --node-kind-export: oklch(84% 0.05 88);
+  --danger: var(--state-danger);
+  --success: var(--state-success);
+  --warning: var(--state-warning);
   --node-handle: var(--node-handle-idle);
   --node-grid: var(--editor-grid-dot);
-  --node-danger: oklch(62% 0.15 25);
+  --node-danger: var(--state-danger);
   --node-backdrop: color-mix(in oklch, var(--bg) 82%, transparent);
   --body: var(--font-body);
   --sans: var(--font-body);
@@ -70,6 +60,19 @@
   --touch: 44px;
 }
 
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: var(--surface-app);
+  --color-sidebar: var(--surface-panel);
+  --color-sidebar-raised: var(--surface-panel-raised);
+  --color-border: var(--line-default);
+  --color-text: var(--text-primary);
+  --color-dim: var(--text-secondary);
+  --color-accent: var(--accent-primary);
+  --color-accent-dim: var(--accent-soft);
+  --node-backdrop: color-mix(in oklch, var(--bg) 78%, transparent);
+}
+
 @keyframes ai-status-spin {
   to {
     transform: rotate(360deg);
@@ -77,10 +80,10 @@
 }
 
 .checkerboard-surface {
-  background-color: oklch(12% 0.012 42);
+  background-color: var(--checkerboard-base);
   background-image:
-    linear-gradient(45deg, oklch(18% 0.014 42) 25%, transparent 25%, transparent 75%, oklch(18% 0.014 42) 75%),
-    linear-gradient(45deg, oklch(18% 0.014 42) 25%, transparent 25%, transparent 75%, oklch(18% 0.014 42) 75%);
+    linear-gradient(45deg, var(--checkerboard-tile) 25%, transparent 25%, transparent 75%, var(--checkerboard-tile) 75%),
+    linear-gradient(45deg, var(--checkerboard-tile) 25%, transparent 25%, transparent 75%, var(--checkerboard-tile) 75%);
   background-size: 24px 24px;
   background-position:
     0 0,
@@ -245,6 +248,11 @@ body {
   pointer-events: none;
 }
 
+[data-theme="light"] .site-nav--floating {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
 .site-nav--floating > * {
   pointer-events: auto;
 }
@@ -277,6 +285,108 @@ body {
   display: none;
   align-items: center;
   gap: 20px;
+}
+
+.theme-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 32px);
+  min-height: 40px;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  color: var(--text-dim);
+  padding: 2px;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-strong);
+}
+
+.theme-toggle__option {
+  display: inline-flex;
+  width: 32px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: calc(var(--control-radius) - 1px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.theme-toggle__option:hover {
+  color: var(--text);
+  background: var(--surface-control-hover);
+}
+
+.theme-toggle__option:active {
+  transform: scale(0.96);
+}
+
+.theme-toggle__option:focus {
+  outline: none;
+}
+
+.theme-toggle__option:focus-visible {
+  outline: 1px solid color-mix(in oklch, var(--accent) 82%, var(--surface-control));
+  outline-offset: -3px;
+}
+
+.theme-toggle__option[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+
+[data-theme="light"] .theme-toggle__option[aria-checked="true"] {
+  color: var(--text-on-accent);
+}
+
+.theme-toggle__option[aria-checked="true"]:focus-visible {
+  outline: 2px solid var(--text-on-accent);
+  outline-offset: -5px;
+}
+
+.theme-toggle__icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+}
+
+.theme-toggle__option[aria-checked="true"] .theme-toggle__icon {
+  stroke-width: 2.4;
+}
+
+.theme-toggle--compact {
+  grid-template-columns: repeat(3, 28px);
+  min-height: 36px;
+  padding: 2px;
+}
+
+.theme-toggle--compact .theme-toggle__option {
+  width: 28px;
+  height: 30px;
+}
+
+.theme-toggle--compact .theme-toggle__icon {
+  width: 16px;
+  height: 16px;
 }
 
 .site-nav-link,
@@ -384,6 +494,11 @@ body {
   top: 52px;
   right: 0;
   left: 0;
+}
+
+.site-nav-mobile-menu .theme-toggle {
+  align-self: flex-start;
+  margin: 6px 0;
 }
 
 @media (min-width: 768px) {
@@ -1052,7 +1167,7 @@ body {
 .node-field:hover,
 .node-color-input:hover {
   border-color: var(--border-strong);
-  background: color-mix(in oklch, var(--surface-bg) 84%, black);
+  background: var(--surface-control-hover);
 }
 
 .font-picker {
@@ -1383,7 +1498,7 @@ input[type="range"] {
 
 .emoji-btn:hover {
   opacity: 0.8;
-  border-color: oklch(66% 0.16 28 / 0.5);
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
 }
 
 /* ─── MAIN AREA ──────────────────────────────────── */
@@ -2266,45 +2381,45 @@ input[type="range"] {
 }
 
 .add-library-surface [data-add-color-kind="fill"] {
-  --add-kind-color: var(--node-kind-fill, oklch(72% 0.18 48));
+  --add-kind-color: var(--node-kind-fill);
 }
 
 .add-library-surface [data-add-color-kind="image"] {
-  --add-kind-color: var(--node-kind-image, oklch(73% 0.15 222));
+  --add-kind-color: var(--node-kind-image);
 }
 
 .add-library-surface [data-add-color-kind="text"] {
-  --add-kind-color: var(--node-kind-text, oklch(80% 0.08 94));
+  --add-kind-color: var(--node-kind-text);
 }
 
 .add-library-surface [data-add-color-kind="emoji"] {
-  --add-kind-color: var(--node-kind-emoji, oklch(72% 0.18 342));
+  --add-kind-color: var(--node-kind-emoji);
 }
 
 .add-library-surface [data-add-color-kind="effect"] {
-  --add-kind-color: var(--node-kind-effect, oklch(66% 0.18 286));
+  --add-kind-color: var(--node-kind-effect);
 }
 
 .add-library-surface [data-add-color-kind="primitive"],
 .add-library-surface [data-add-color-kind="model"] {
-  --add-kind-color: var(--node-kind-primitive, oklch(72% 0.13 162));
+  --add-kind-color: var(--node-kind-primitive);
 }
 
 .add-library-surface [data-add-color-kind="noise"] {
-  --add-kind-color: var(--node-kind-noise, oklch(62% 0.05 245));
+  --add-kind-color: var(--node-kind-noise);
 }
 
 .add-library-surface [data-add-color-kind="array"],
 .add-library-surface [data-add-color-kind="lineField"] {
-  --add-kind-color: var(--node-kind-array, oklch(72% 0.11 125));
+  --add-kind-color: var(--node-kind-array);
 }
 
 .add-library-surface [data-add-color-kind="merge"] {
-  --add-kind-color: var(--node-kind-merge, oklch(72% 0.12 165));
+  --add-kind-color: var(--node-kind-merge);
 }
 
 .add-library-surface [data-add-color-kind="color"] {
-  --add-kind-color: var(--node-kind-color, oklch(74% 0.13 210));
+  --add-kind-color: var(--node-kind-color);
 }
 
 .add-library-layer-menu {
@@ -2594,7 +2709,7 @@ input[type="range"] {
 }
 
 .add-library-row:focus-visible {
-  outline: 2px solid var(--focus);
+  outline: var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -3900,7 +4015,7 @@ input[type="range"] {
   min-width: 76px;
   min-height: 44px;
   border: 1px solid var(--border);
-  background: oklch(9% 0.015 42 / 0.82);
+  background: color-mix(in oklch, var(--surface-control) 92%, var(--surface-bg));
   color: var(--text);
   cursor: pointer;
   font-family: var(--mono);
@@ -3930,14 +4045,14 @@ input[type="range"] {
 .empty-canvas-start-action--primary {
   border-color: color-mix(in oklch, var(--accent) 72%, var(--border));
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   font-weight: var(--weight-strong);
 }
 
 .empty-canvas-start-action--primary:hover,
 .empty-canvas-start-action--primary:focus-visible {
   background: color-mix(in oklch, var(--accent) 88%, var(--text));
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 .ai-generation-panel {
@@ -4382,7 +4497,7 @@ input[type="range"] {
   display: block;
   width: 32px;
   height: 18px;
-  background: oklch(25% 0.01 280);
+  background: var(--line-default);
   border-radius: 9px;
   transition: background 0.18s ease;
 }
@@ -4399,7 +4514,7 @@ input[type="range"] {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--text-on-accent);
   transition: transform 0.18s ease;
 }
 
@@ -4875,12 +4990,12 @@ input[type="range"] {
 }
 
 .btn-danger {
-  border-color: oklch(55% 0.18 15 / 0.4);
-  color: oklch(65% 0.18 15 / 0.8);
+  border-color: color-mix(in oklch, var(--danger) 40%, transparent);
+  color: color-mix(in oklch, var(--danger) 80%, var(--text));
 }
 .btn-danger:hover {
-  background: oklch(55% 0.18 15 / 0.1);
-  border-color: oklch(55% 0.18 15 / 0.8);
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
+  border-color: color-mix(in oklch, var(--danger) 80%, transparent);
 }
 
 .btn-small {
@@ -5241,7 +5356,7 @@ button.library-card-open:focus-visible {
   overflow: hidden;
   z-index: 100;
   min-width: 142px;
-  box-shadow: 0 18px 46px color-mix(in oklch, black 56%, transparent);
+  box-shadow: var(--shadow-overlay);
 }
 
 .export-option {
@@ -5276,7 +5391,7 @@ button.library-card-open:focus-visible {
 }
 
 .library-panel {
-  box-shadow: -18px 0 50px color-mix(in oklch, black 44%, transparent);
+  box-shadow: var(--shadow-overlay);
 }
 
 .library-panel > div:first-child,
@@ -6147,7 +6262,7 @@ button.library-card-open:focus-visible {
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 4px 24px oklch(0% 0 0 / 0.5);
+  box-shadow: var(--shadow-overlay);
   overflow: hidden;
   pointer-events: auto;
   opacity: 0;
@@ -6165,7 +6280,7 @@ button.library-card-open:focus-visible {
 .effect-popup__image-wrap {
   width: 100%;
   aspect-ratio: 1;
-  background: oklch(12% 0.016 42);
+  background: var(--surface-artwork-frame-raised);
   overflow: hidden;
 }
 
@@ -6208,7 +6323,7 @@ button.library-card-open:focus-visible {
 .effect-popup__family {
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--accent-2);
+  color: var(--accent-signal);
   line-height: 1.45;
 }
 
@@ -6237,7 +6352,7 @@ button.library-card-open:focus-visible {
   width: 100%;
   max-width: 480px;
   aspect-ratio: 1;
-  background: oklch(14% 0.01 280);
+  background: var(--surface-artwork-frame-raised);
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
@@ -6279,7 +6394,7 @@ button.library-card-open:focus-visible {
 .hero-cover__overlay {
   position: absolute;
   inset: 0;
-  background: oklch(5% 0.01 42 / 0.82);
+  background: var(--surface-artwork-overlay);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -6341,9 +6456,24 @@ button.library-card-open:focus-visible {
   align-items: center;
   gap: clamp(8px, 1.6vw, 24px);
   padding: clamp(12px, 3vw, 48px) clamp(12px, 4vw, 64px);
-  background: oklch(6% 0.01 42);
+  background:
+    linear-gradient(color-mix(in oklch, var(--home-preview-bg) 86%, transparent), var(--home-preview-bg)),
+    var(--home-preview-bg);
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--home-preview-border);
+}
+
+[data-theme="light"] .home-stage__canvas {
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--line-muted) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in oklch, var(--line-muted) 34%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 50% 42%, color-mix(in oklch, var(--surface-control) 82%, transparent), transparent 56%),
+    var(--home-preview-bg);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto;
 }
 
 @media (min-width: 1024px) {
@@ -6352,7 +6482,7 @@ button.library-card-open:focus-visible {
     gap: clamp(12px, 1.6vw, 24px);
     padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 64px);
     border-bottom: none;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--home-preview-border);
   }
 }
 
@@ -6389,8 +6519,8 @@ button.library-card-open:focus-visible {
   height: 100%;
   object-fit: cover;
   display: block;
-  opacity: 0.13;
-  filter: blur(1.5px) saturate(1.4);
+  opacity: var(--home-preview-mosaic-opacity);
+  filter: var(--home-preview-mosaic-filter);
   transition: opacity 0.4s ease;
 }
 
@@ -6546,7 +6676,7 @@ button.library-card-open:focus-visible {
   position: relative;
   width: min(72vw, 38dvh, 360px);
   aspect-ratio: 1;
-  background: oklch(8% 0.012 42);
+  background: var(--surface-artwork-frame);
   border: 1px solid var(--border);
   flex-shrink: 0;
   animation: landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
@@ -6688,7 +6818,7 @@ button.library-card-open:focus-visible {
   font-family: var(--mono);
   font-size: 0.65rem;
   letter-spacing: 0.14em;
-  color: var(--text-dim);
+  color: var(--home-preview-meta);
   text-transform: uppercase;
   transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -6751,7 +6881,7 @@ button.library-card-open:focus-visible {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: oklch(35% 0.012 42);
+  background: var(--home-preview-progress);
   transition:
     background 250ms cubic-bezier(0.16, 1, 0.3, 1),
     width 250ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -6759,10 +6889,10 @@ button.library-card-open:focus-visible {
 }
 
 .home-mobile-dot--reached::before {
-  background: oklch(55% 0.018 42);
+  background: var(--home-preview-meta);
 }
 .home-mobile-dot--current::before {
-  background: var(--accent);
+  background: var(--home-preview-progress-active);
   width: 9px;
   height: 9px;
 }
@@ -6818,15 +6948,15 @@ button.library-card-open:focus-visible {
 .home-progress__bar {
   display: block;
   height: 2px;
-  background: oklch(20% 0.012 42);
+  background: var(--home-preview-progress);
   transition: background 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .home-progress__item--reached .home-progress__bar {
-  background: var(--accent);
+  background: var(--home-preview-progress-active);
 }
 .home-progress__item--current .home-progress__bar {
-  background: var(--accent);
+  background: var(--home-preview-progress-active);
   height: 3px;
 }
 
@@ -6867,7 +6997,7 @@ button.library-card-open:focus-visible {
   justify-content: center;
   gap: 14px;
   padding: clamp(32px, 5vw, 48px) clamp(24px, 6vw, 36px) clamp(36px, 6vw, 80px);
-  border-bottom: 1px dashed oklch(20% 0.018 42);
+  border-bottom: 1px dashed var(--line-muted);
   opacity: 0.4;
   transition: opacity 380ms cubic-bezier(0.16, 1, 0.3, 1);
   /* Each step is self-contained — style changes don't escape to sibling layout */
@@ -6974,7 +7104,7 @@ button.library-card-open:focus-visible {
   align-items: flex-start;
   gap: 18px;
   padding: clamp(48px, 8vw, 112px) clamp(24px, 6vw, 88px);
-  background: linear-gradient(to bottom, transparent, oklch(11% 0.014 42));
+  background: linear-gradient(to bottom, transparent, var(--surface-workspace));
 }
 
 /* Children hidden until section enters viewport */
@@ -7153,9 +7283,9 @@ button.library-card-open:focus-visible {
 .showcase-tile__frame {
   position: relative;
   width: 100%;
-  background: oklch(12% 0.01 42);
+  background: var(--surface-artwork-frame-raised);
   overflow: hidden;
-  outline: 1px solid oklch(18% 0.012 42);
+  outline: 1px solid var(--line-default);
   outline-offset: 0;
   transition:
     outline-color 180ms ease-out,
@@ -7179,7 +7309,7 @@ button.library-card-open:focus-visible {
 .showcase-tile__loading {
   position: absolute;
   inset: 0;
-  background: oklch(14% 0.01 42);
+  background: var(--surface-artwork-frame-raised);
   animation: showcase-pulse 2.4s ease-in-out infinite;
 }
 
@@ -7198,9 +7328,9 @@ button.library-card-open:focus-visible {
   inset: 0;
   background: linear-gradient(
     to top,
-    oklch(4% 0.005 42 / 0.96) 0%,
-    oklch(4% 0.005 42 / 0.7) 32%,
-    oklch(4% 0.005 42 / 0.18) 58%,
+    color-mix(in oklch, var(--surface-artwork-overlay) 100%, transparent) 0%,
+    color-mix(in oklch, var(--surface-artwork-overlay) 76%, transparent) 32%,
+    color-mix(in oklch, var(--surface-artwork-overlay) 24%, transparent) 58%,
     transparent 75%
   );
   display: flex;
@@ -7221,7 +7351,7 @@ button.library-card-open:focus-visible {
 .showcase-tile__seed {
   font-family: var(--mono);
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--text-on-artwork-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -7231,7 +7361,7 @@ button.library-card-open:focus-visible {
   font-weight: 700;
   font-size: clamp(16px, 2vw, 24px);
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--text-on-artwork);
   line-height: 1.1;
   margin: 0;
 }
@@ -7363,7 +7493,7 @@ button.library-card-open:focus-visible {
 .docs-sidebar__link:focus-visible,
 .docs-sidebar__link--active {
   border-left-color: var(--accent);
-  background: oklch(11% 0.014 42);
+  background: var(--surface-control-hover);
   outline: none;
 }
 
@@ -7482,7 +7612,7 @@ button.library-card-open:focus-visible {
 .docs-action--primary:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 .docs-search-panel {
@@ -7491,7 +7621,7 @@ button.library-card-open:focus-visible {
   display: grid;
   gap: 14px;
   border: 1px solid var(--border);
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   padding: clamp(16px, 3vw, 28px);
   scroll-margin-top: 88px;
 }
@@ -7532,7 +7662,7 @@ button.library-card-open:focus-visible {
   width: 100%;
   min-height: 58px;
   border: 1px solid var(--border);
-  background: oklch(6% 0.01 42);
+  background: var(--surface-control);
   color: var(--text);
   font-family: var(--mono);
   font-size: clamp(0.95rem, 1.1vw, 1.08rem);
@@ -7586,7 +7716,7 @@ button.library-card-open:focus-visible {
 
 .docs-filter-details {
   border: 1px solid var(--border);
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
 }
 
 .docs-filter-details summary {
@@ -7644,7 +7774,7 @@ button.library-card-open:focus-visible {
   justify-content: flex-end;
   gap: 10px;
   border: 0;
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
   color: inherit;
   cursor: pointer;
   padding: 18px;
@@ -7676,7 +7806,7 @@ button.library-card-open:focus-visible {
 
 .docs-start-point:hover,
 .docs-start-point:focus-visible {
-  background: oklch(11% 0.014 42);
+  background: var(--surface-control-hover);
   outline: 1px solid var(--accent);
   outline-offset: -1px;
 }
@@ -7686,7 +7816,7 @@ button.library-card-open:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   align-content: start;
   border: 1px solid var(--border);
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
 }
 
 .docs-search-result {
@@ -7696,7 +7826,7 @@ button.library-card-open:focus-visible {
   gap: 10px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
   color: inherit;
   padding: 16px;
   text-decoration: none;
@@ -7704,7 +7834,7 @@ button.library-card-open:focus-visible {
 
 .docs-search-result:hover,
 .docs-search-result:focus-visible {
-  background: oklch(11% 0.014 42);
+  background: var(--surface-control-hover);
   outline: 1px solid var(--accent);
   outline-offset: -1px;
 }
@@ -7737,7 +7867,7 @@ button.library-card-open:focus-visible {
 
 .docs-search-empty {
   grid-column: 1 / -1;
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
   padding: 16px;
 }
 
@@ -7779,7 +7909,7 @@ button.library-card-open:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: oklch(7% 0.01 42);
+  background: var(--surface-control);
   color: var(--text-dim);
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -7792,7 +7922,7 @@ button.library-card-open:focus-visible {
 
 .docs-jump-row a:hover,
 .docs-jump-row a:focus-visible {
-  background: oklch(11% 0.014 42);
+  background: var(--surface-control-hover);
   color: var(--accent);
   outline: 1px solid var(--accent);
   outline-offset: -1px;
@@ -7863,7 +7993,7 @@ button.library-card-open:focus-visible {
 .docs-recipe,
 .docs-trouble {
   border-bottom: 1px solid var(--border);
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
 }
 
 .docs-step {
@@ -7917,7 +8047,7 @@ button.library-card-open:focus-visible {
 .docs-recipe__steps {
   display: block;
   margin-top: 9px;
-  color: oklch(75% 0.06 74);
+  color: var(--text-secondary);
   font-size: 0.82rem;
   line-height: 1.45;
   letter-spacing: 0.05em;
@@ -7946,7 +8076,7 @@ button.library-card-open:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   color: var(--text-dim);
   font-family: var(--mono);
   padding: clamp(16px, 2.4vw, 22px);
@@ -7995,7 +8125,7 @@ button.library-card-open:focus-visible {
 }
 
 .docs-workflow-guide__next strong {
-  color: oklch(75% 0.06 74);
+  color: var(--text-secondary);
   font-size: 0.86rem;
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -8048,7 +8178,7 @@ button.library-card-open:focus-visible {
 .docs-choice,
 .docs-reference-item,
 .docs-application {
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   padding: 16px;
 }
 
@@ -8062,7 +8192,7 @@ button.library-card-open:focus-visible {
 }
 
 .docs-choice li {
-  color: oklch(75% 0.06 74);
+  color: var(--text-secondary);
   font-size: 0.82rem;
   line-height: 1.45;
 }
@@ -8078,8 +8208,8 @@ button.library-card-open:focus-visible {
 .docs-mini-list span,
 .docs-flow-step__tags span,
 .docs-application > span:last-child {
-  border: 1px solid oklch(22% 0.018 42);
-  color: oklch(75% 0.06 74);
+  border: 1px solid var(--line-muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
@@ -8100,7 +8230,7 @@ button.library-card-open:focus-visible {
   min-height: 240px;
   display: flex;
   flex-direction: column;
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   font-family: var(--mono);
   padding: 16px;
 }
@@ -8163,7 +8293,7 @@ button.library-card-open:focus-visible {
   min-height: 196px;
   align-content: end;
   align-items: end;
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
 }
 
 .docs-recipe__mode {
@@ -8207,7 +8337,7 @@ button.library-card-open:focus-visible {
   gap: 16px;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   color: inherit;
   font-family: var(--mono);
   padding: 16px;
@@ -8221,7 +8351,7 @@ button.library-card-open:focus-visible {
 .docs-recipe-row > div span {
   display: block;
   margin-top: 8px;
-  color: oklch(75% 0.06 74);
+  color: var(--text-secondary);
   font-size: 0.82rem;
   line-height: 1.45;
 }
@@ -8252,7 +8382,7 @@ button.library-card-open:focus-visible {
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   border: 1px solid var(--border);
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   padding: clamp(16px, 3vw, 28px);
   scroll-margin-top: 88px;
 }
@@ -8282,14 +8412,14 @@ button.library-card-open:focus-visible {
 
 .docs-reference-row:hover,
 .docs-reference-row:focus-visible {
-  background: oklch(11% 0.014 42);
+  background: var(--surface-control-hover);
   outline: 1px solid var(--accent);
   outline-offset: -1px;
 }
 
 .docs-reference-row--static:hover,
 .docs-reference-row--static:focus-visible {
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   outline: none;
 }
 
@@ -8343,7 +8473,7 @@ button.library-card-open:focus-visible {
 }
 
 .docs-param-row strong {
-  color: oklch(75% 0.06 74);
+  color: var(--text-secondary);
   font-size: 0.86rem;
   font-weight: 400;
   line-height: 1.45;
@@ -8351,7 +8481,7 @@ button.library-card-open:focus-visible {
 
 .docs-details {
   border: 1px solid var(--border);
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
 }
 
 .docs-details summary {
@@ -8374,7 +8504,7 @@ button.library-card-open:focus-visible {
 }
 
 .docs-compact-grid > div {
-  background: oklch(9% 0.012 42);
+  background: var(--surface-card);
   padding: 12px;
 }
 
@@ -8655,30 +8785,30 @@ button.library-card-open:focus-visible {
   width: 100%;
   aspect-ratio: 1;
   display: block;
-  background-color: oklch(8% 0.012 42);
+  background-color: var(--checkerboard-base);
   background-image:
     linear-gradient(
       45deg,
-      oklch(12% 0.012 42) 25%,
+      var(--checkerboard-tile) 25%,
       transparent 25%,
       transparent 75%,
-      oklch(12% 0.012 42) 75%,
-      oklch(12% 0.012 42)
+      var(--checkerboard-tile) 75%,
+      var(--checkerboard-tile)
     ),
     linear-gradient(
       45deg,
-      oklch(12% 0.012 42) 25%,
+      var(--checkerboard-tile) 25%,
       transparent 25%,
       transparent 75%,
-      oklch(12% 0.012 42) 75%,
-      oklch(12% 0.012 42)
+      var(--checkerboard-tile) 75%,
+      var(--checkerboard-tile)
     );
   background-size: 20px 20px;
   background-position:
     0 0,
     10px 10px;
   /* subtle border */
-  box-shadow: inset 0 0 0 1px oklch(24% 0.018 42);
+  box-shadow: inset 0 0 0 1px var(--line-default);
   transition: outline 0.2s ease;
 }
 
@@ -8695,7 +8825,7 @@ button.library-card-open:focus-visible {
   z-index: 2;
   min-height: 44px;
   border: 1px solid var(--border);
-  background: oklch(7% 0.01 42 / 0.9);
+  background: color-mix(in oklch, var(--surface-control) 92%, transparent);
   color: var(--text);
   cursor: pointer;
   font-family: var(--mono);
@@ -8714,7 +8844,7 @@ button.library-card-open:focus-visible {
 .docs-poster__tune[aria-expanded="true"] {
   border-color: var(--accent);
   color: var(--accent);
-  background: oklch(8% 0.012 42);
+  background: var(--surface-control-hover);
   outline: none;
 }
 
@@ -8761,7 +8891,12 @@ button.library-card-open:focus-visible {
   bottom: 0;
   left: clamp(16px, 4vw, 48px);
   right: clamp(16px, 4vw, 48px);
-  background: linear-gradient(to top, oklch(8% 0.012 42 / 0.95), oklch(8% 0.012 42 / 0.8) 60%, transparent);
+  background: linear-gradient(
+    to top,
+    color-mix(in oklch, var(--surface-panel) 96%, transparent),
+    color-mix(in oklch, var(--surface-panel) 82%, transparent) 60%,
+    transparent
+  );
   padding: 48px 24px 24px;
   display: flex;
   flex-direction: column;
@@ -8822,7 +8957,7 @@ button.library-card-open:focus-visible {
 
 .docs-poster__try:hover {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8840,16 +8975,15 @@ button.library-card-open:focus-visible {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(0 0 0 / 0.62);
+  background: color-mix(in oklch, var(--surface-app) 62%, transparent);
   backdrop-filter: blur(6px);
 }
 
 .account-modal {
   width: min(540px, 100%);
-  border: 1px solid color-mix(in oklch, var(--line), var(--accent) 24%);
-  background:
-    linear-gradient(180deg, rgb(255 106 95 / 0.06), transparent 36%), color-mix(in oklch, var(--bg), black 10%);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 0.52);
+  border: 1px solid color-mix(in oklch, var(--line-default), var(--accent) 24%);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-overlay);
   color: var(--text);
 }
 
@@ -8859,7 +8993,7 @@ button.library-card-open:focus-visible {
   justify-content: space-between;
   gap: 20px;
   padding: 24px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .account-modal-kicker {
@@ -8883,7 +9017,7 @@ button.library-card-open:focus-visible {
 .account-modal-body {
   max-width: 34rem;
   margin: 10px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.55;
 }
@@ -8891,9 +9025,9 @@ button.library-card-open:focus-visible {
 .account-modal-close {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-default);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 1rem;
@@ -8907,15 +9041,15 @@ button.library-card-open:focus-visible {
 .account-mode-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .account-mode-tabs button {
   min-height: 52px;
   border: 0;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--line-default);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -8929,8 +9063,8 @@ button.library-card-open:focus-visible {
 }
 
 .account-mode-tabs button.active {
-  background: var(--panel-active);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .account-form {
@@ -8945,7 +9079,7 @@ button.library-card-open:focus-visible {
 }
 
 .account-form span {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.68rem;
   font-weight: 800;
@@ -8955,8 +9089,8 @@ button.library-card-open:focus-visible {
 
 .account-form input {
   min-height: 48px;
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.32);
+  border: 1px solid var(--line-default);
+  background: var(--surface-control);
   color: var(--text);
   font: inherit;
   padding: 0 14px;
@@ -8973,7 +9107,7 @@ button.library-card-open:focus-visible {
   width: fit-content;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -8998,7 +9132,7 @@ button.library-card-open:focus-visible {
 
 .account-form-notice {
   margin: 0;
-  color: var(--state-success, #73d79b);
+  color: var(--state-success);
   font-family: var(--mono);
   font-size: 0.75rem;
   line-height: 1.5;
@@ -9008,7 +9142,7 @@ button.library-card-open:focus-visible {
   min-height: 54px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.82rem;
@@ -9031,10 +9165,10 @@ button.library-card-open:focus-visible {
 
 .auth-page-panel {
   width: min(560px, 100%);
-  border: 1px solid color-mix(in oklch, var(--line), var(--accent) 24%);
+  border: 1px solid color-mix(in oklch, var(--line-default), var(--accent) 24%);
   background:
-    linear-gradient(180deg, rgb(255 106 95 / 0.08), transparent 34%), color-mix(in oklch, var(--bg), black 10%);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 0.42);
+    linear-gradient(180deg, color-mix(in oklch, var(--accent) 8%, transparent), transparent 34%), var(--surface-bg);
+  box-shadow: var(--shadow-overlay);
   padding: clamp(24px, 5vw, 40px);
 }
 
@@ -9058,7 +9192,7 @@ button.library-card-open:focus-visible {
 
 .auth-page-copy {
   margin: 14px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -9074,7 +9208,7 @@ button.library-card-open:focus-visible {
 }
 
 .auth-page-form span {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.68rem;
   font-weight: 800;
@@ -9084,8 +9218,8 @@ button.library-card-open:focus-visible {
 
 .auth-page-form input {
   min-height: 50px;
-  border: 1px solid var(--line);
-  background: rgb(0 0 0 / 0.32);
+  border: 1px solid var(--line-default);
+  background: var(--surface-input);
   color: var(--text);
   font: inherit;
   padding: 0 14px;
@@ -9109,14 +9243,14 @@ button.library-card-open:focus-visible {
 }
 
 .auth-page-message-success {
-  color: var(--state-success, #73d79b);
+  color: var(--state-success);
 }
 
 .auth-page-submit {
   min-height: 54px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: var(--bg);
+  color: var(--text-on-accent);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.82rem;
@@ -9133,7 +9267,7 @@ button.library-card-open:focus-visible {
 .auth-page-link {
   display: inline-block;
   margin-top: 22px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 0.72rem;
   font-weight: 800;
