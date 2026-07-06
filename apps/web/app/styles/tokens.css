@@ -37,6 +37,17 @@
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(74% 0.17 152);
   --accent-output: oklch(84% 0.03 88);
+  --node-kind-fill: oklch(72% 0.18 48);
+  --node-kind-image: oklch(73% 0.15 222);
+  --node-kind-text: oklch(80% 0.08 94);
+  --node-kind-emoji: oklch(72% 0.18 342);
+  --node-kind-effect: oklch(66% 0.18 286);
+  --node-kind-primitive: oklch(72% 0.13 162);
+  --node-kind-noise: oklch(62% 0.05 245);
+  --node-kind-array: oklch(72% 0.11 125);
+  --node-kind-merge: oklch(72% 0.12 165);
+  --node-kind-color: oklch(74% 0.13 210);
+  --node-kind-export: oklch(84% 0.05 88);
 
   /* Identity marks. */
   --brand-mark-field: var(--surface-app);
@@ -201,6 +212,17 @@
   --accent-soft: var(--token-flare-soft);
   --accent-signal: oklch(44% 0.13 154);
   --accent-output: oklch(42% 0.065 96);
+  --node-kind-fill: oklch(49% 0.17 48);
+  --node-kind-image: oklch(47% 0.13 222);
+  --node-kind-text: oklch(44% 0.095 94);
+  --node-kind-emoji: oklch(50% 0.17 342);
+  --node-kind-effect: oklch(48% 0.16 286);
+  --node-kind-primitive: oklch(43% 0.12 162);
+  --node-kind-noise: oklch(42% 0.06 245);
+  --node-kind-array: oklch(43% 0.105 125);
+  --node-kind-merge: oklch(42% 0.11 165);
+  --node-kind-color: oklch(45% 0.12 210);
+  --node-kind-export: oklch(42% 0.07 88);
 
   --brand-mark-field: var(--surface-control);
   --brand-mark-frame: var(--text-primary);

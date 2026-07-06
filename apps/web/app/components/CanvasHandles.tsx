@@ -103,7 +103,7 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
         width={hw * 2}
         height={hh * 2}
         fill="transparent"
-        stroke="white"
+        stroke="var(--text-on-artwork-muted)"
         strokeWidth="1"
         strokeDasharray="4 3"
         transform={`rotate(${layer.rotation} ${cx} ${cy})`}
@@ -124,21 +124,29 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
             cx={hx}
             cy={hy}
             r={5}
-            fill="white"
-            stroke="#333"
+            fill="var(--text-on-artwork)"
+            stroke="var(--surface-artwork-overlay)"
             strokeWidth="1"
             style={{ pointerEvents: 'all', cursor: `${corner}-resize` }}
             onPointerDown={(e) => startDrag(e, `scale-${corner}` as DragMode)}
           />
         );
       })}
-      <line x1={cx} y1={cy - hh} x2={rotHx} y2={rotHy} stroke="white" strokeWidth="1" strokeDasharray="3 2" />
+      <line
+        x1={cx}
+        y1={cy - hh}
+        x2={rotHx}
+        y2={rotHy}
+        stroke="var(--text-on-artwork-muted)"
+        strokeWidth="1"
+        strokeDasharray="3 2"
+      />
       <circle
         cx={rotHx}
         cy={rotHy}
         r={5}
-        fill="#fff"
-        stroke="#333"
+        fill="var(--text-on-artwork)"
+        stroke="var(--surface-artwork-overlay)"
         strokeWidth="1"
         style={{ pointerEvents: 'all', cursor: 'crosshair' }}
         onPointerDown={(e) => startDrag(e, 'rotate')}
