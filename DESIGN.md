@@ -1,6 +1,30 @@
 ---
 name: Artifact
 description: Browser-based cover and poster editor for musicians and designers who want control over image, type, texture, effects, and export.
+register: product
+northStar: "Photocopied zine editor: print-proof tactility, compact creative control, dark-first studio mood, light-mode proofing surface."
+tokenSource:
+  css: "apps/web/app/styles/tokens.css"
+  liveSpecimen: "/docs/style-guide"
+  editorSpec: "docs/editor-design-system.md"
+appearance:
+  defaultPreference: "system"
+  supported:
+    - system
+    - light
+    - dark
+  resolvedAttribute: "data-theme"
+  preferenceAttribute: "data-theme-preference"
+  contract:
+    - "System follows prefers-color-scheme and resolves before hydration."
+    - "Components consume semantic tokens, not hard-coded mode colors."
+    - "Dark is the canonical studio appearance; light is a proofing condition, not a second brand."
+    - "Artwork inspection surfaces may stay intentionally dark only when the role is named with an artwork/proofing token."
+colorStrategy:
+  mode: restrained
+  accentUse: "Registration mark only; keep saturated accent at or below 10% of any screen."
+  neutralRule: "Tinted neutrals in both appearances; no pure black, pure white, or generic gray."
+  categoryColorRule: "Node category colors are grammar and stay separate from global accent and output-path color."
 colors:
   ink-bg: "oklch(8% 0.012 42)"
   ink-sidebar: "oklch(11% 0.016 42)"
@@ -22,6 +46,54 @@ colors:
   node-color: "oklch(74% 0.13 210)"
   node-export: "oklch(84% 0.05 88)"
   node-grid-dot: "oklch(34% 0.022 218 / 0.58)"
+semanticColorRoles:
+  surfaces:
+    app: "--surface-app"
+    workspace: "--surface-workspace"
+    panel: "--surface-panel"
+    raised: "--surface-panel-raised"
+    card: "--surface-card"
+    control: "--surface-control"
+    controlHover: "--surface-control-hover"
+    selected: "--surface-control-selected"
+  artwork:
+    frame: "--surface-artwork-frame"
+    frameRaised: "--surface-artwork-frame-raised"
+    overlay: "--surface-artwork-overlay"
+    text: "--text-on-artwork"
+    mutedText: "--text-on-artwork-muted"
+  lines:
+    muted: "--line-muted"
+    default: "--line-default"
+    strong: "--line-strong"
+  text:
+    primary: "--text-primary"
+    secondary: "--text-secondary"
+    muted: "--text-muted"
+  accent:
+    primary: "--accent-primary"
+    soft: "--accent-soft"
+    signal: "--accent-signal"
+    output: "--accent-output"
+  states:
+    danger: "--state-danger"
+    success: "--state-success"
+    warning: "--state-warning"
+  graph:
+    canvas: "--editor-canvas-bg"
+    gridDot: "--editor-grid-dot"
+    outputPath: "--editor-output-path"
+    nodeFill: "--node-kind-fill"
+    nodeImage: "--node-kind-image"
+    nodeText: "--node-kind-text"
+    nodeEmoji: "--node-kind-emoji"
+    nodeEffect: "--node-kind-effect"
+    nodePrimitive: "--node-kind-primitive"
+    nodeNoise: "--node-kind-noise"
+    nodeArray: "--node-kind-array"
+    nodeMerge: "--node-kind-merge"
+    nodeColor: "--node-kind-color"
+    nodeExport: "--node-kind-export"
 typography:
   display:
     fontFamily: "Barlow Condensed, sans-serif"
@@ -106,6 +178,19 @@ components:
     backgroundColor: "{colors.ink-border}"
     rounded: "{rounded.slider}"
     height: "3px"
+implementationRules:
+  do:
+    - "Use CSS semantic tokens for repeated color, spacing, radius, focus, shadow, and state choices."
+    - "Keep public/editor navigation, dialogs, menus, project panels, and graph chrome appearance-safe."
+    - "Preserve category color on node rails, handles, badges, selection, and focus."
+    - "Use Space Mono for control grammar and Barlow Condensed for readable UI text."
+    - "Give light mode dedicated proofing tokens instead of inverting dark values mechanically."
+  dont:
+    - "Do not add raw black, raw white, or generic gray as reusable UI colors."
+    - "Do not collapse category, selected, focus, and output-route colors into the flare accent."
+    - "Do not import generic shadcn/Button or Card styling as Artifact chrome."
+    - "Do not use gradient text, decorative glow, glassmorphism, or generic SaaS cards."
+    - "Do not put implementation plans, QA notes, or agent workflow text on user-facing app surfaces."
 ---
 
 # Design System: Artifact
