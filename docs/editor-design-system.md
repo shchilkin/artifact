@@ -14,6 +14,7 @@ Artifact's print-like visual language.
 | Principle | Rule |
 | --- | --- |
 | One source of truth | Reused control sizing, typography, borders, focus rings, shadows, and state colors belong in tokens or shared primitives. |
+| Appearance-safe tokens | Components must work under System, Light, and Dark by consuming semantic tokens instead of hard-coded dark surfaces. |
 | Product-shaped primitives | Prefer `ActionButton`, `SearchField`, `Panel`, `LayerRow`, `NodeFrame`, and `InspectorField` over generic wrappers that callers restyle each time. |
 | Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
@@ -33,7 +34,8 @@ The v0.30 foundation should inventory and normalize these token families:
 - **Spacing**: panel padding, row gaps, toolbar gaps, menu item padding, and
   inspector field spacing.
 - **Surfaces**: app background, workspace background, panel background, menu
-  background, selected surface, canvas chrome, and overlay surfaces.
+  background, selected surface, canvas chrome, overlay surfaces, artwork frames,
+  checkerboards, and light-mode proofing backgrounds.
 - **Borders and focus**: default border, selected border, danger border, focus
   ring, disabled border, and output-path emphasis.
 - **State colors**: selected, active, hidden, muted, locked, disabled, danger,
@@ -46,6 +48,12 @@ The v0.30 foundation should inventory and normalize these token families:
 
 Avoid local `text-[8px]`, `h-[22px]`, one-off borders, and one-off focus styles
 when they describe a reusable editor control state.
+
+Avoid hard-coding dark mode while extracting primitives. Editor components,
+dialogs, graph canvas chrome, React Flow color mode, and public/editor shared
+navigation should derive from the resolved appearance tokens. If a surface must
+stay dark to preserve artwork inspection, name that role explicitly instead of
+using raw black or dark OKLCH values inline.
 
 Avoid treating radius 0 or mono text as universal style requirements. Square
 geometry is useful for artwork frames, node housings, and hard editor panels;

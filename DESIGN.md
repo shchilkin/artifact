@@ -115,11 +115,14 @@ components:
 **Creative North Star: "The Photocopied Zine"**
 
 The interface has the material feel of a print proof: mono labels, square edges,
-warm dark surfaces, and raw rules. The screen is dark because the user is in a
-bedroom studio at 1am, laptop open, ambient screen-light only, shaping artwork
-with intent. Restraint here is not minimalism for safety; it is the chassis of
-a mixing board, where every control earns its place. Artifact does not decide
-whether the result is clean, elegant, rough, loud, or restrained.
+tinted surfaces, and raw rules. Artifact is dark-first because the core editor
+still imagines a bedroom studio at 1am, laptop open, ambient screen-light only,
+shaping artwork with intent. Light mode is a companion proofing condition, not a
+second brand: it keeps the same low-chroma paper logic, hairline rules, rare
+accent, and artwork-forward restraint. Restraint here is not minimalism for
+safety; it is the chassis of a mixing board, where every control earns its
+place. Artifact does not decide whether the result is clean, elegant, rough,
+loud, or restrained.
 
 The system rejects three things by name. It rejects the overdesigned dev-tool aesthetic: neon gradients, crypto-bro purple, glowing grids. It rejects generic SaaS neutrality (Canva, Adobe Express): polished, corporate-safe, identity-free. And it rejects any palette someone could guess from the domain alone. The accent color is a warm red-orange, not a tech-blue or a creator-purple, and it is used like a printer's registration mark: rare, deliberate, load-bearing.
 
@@ -132,7 +135,9 @@ screens, soft generic cards, verbose configuration panels, and admin-like flows
 that make art-making feel like account management.
 
 **Key Characteristics:**
-- Dark, warm-tinted neutrals (chroma 0.012–0.022, hue 42–68); never pure `#000` or `#fff`
+- System / Light / Dark appearance control, with System as the default
+  preference and semantic tokens as the only public color API.
+- Warm-tinted neutrals in both appearances; never pure `#000` or `#fff`.
 - One accent (`oklch(66% 0.16 28)`), used on ≤10% of any screen
 - Crisp geometry by default; square for artwork frames and panels, 2–6px
   radius for controls, menus, inputs, chips, and overlays that need readable
@@ -145,7 +150,13 @@ that make art-making feel like account management.
 
 ## 2. Colors: The Riso-Print Palette
 
-A dark warm-tinted neutral set with a single saturated accent. The neutrals carry low chroma (0.012–0.022) along the warm 42–68 hue band — they read as paper-going-yellow under tungsten, not as cool digital gray. The accent is the registration mark: a single hot color the eye finds because nothing else competes.
+A warm-tinted neutral set with a single saturated accent. Dark mode is the
+canonical palette; light mode raises the same semantic roles into a pale proofing
+surface without switching to generic cool gray SaaS. The neutrals carry low
+chroma along the warm 42–68 hue band where possible: paper-going-yellow under
+tungsten in dark mode, paper proof in daylight in light mode. The accent is the
+registration mark: a single hot color the eye finds because nothing else
+competes.
 
 ### Primary
 - **Flare Accent** (`oklch(66% 0.16 28)`): Active filter chips, CTA fill, current-step progress bar, layer numerals, accent rules. The only saturated color in the system. Treat its rarity as the message.
@@ -162,7 +173,11 @@ A dark warm-tinted neutral set with a single saturated accent. The neutrals carr
 
 **The Registration-Mark Rule.** The accent is a registration mark, not a brand wash. It appears on ≤10% of any screen — current-step indicator, active chip, primary CTA, layer numerals. If two or more accent uses are within thumb's reach of each other, one is decoration. Remove it.
 
-**The Tinted-Neutral Rule.** Every neutral carries 0.012–0.022 chroma along the 42–68 hue band. Pure gray is forbidden. Pure black is forbidden. Pure white is forbidden. The screen should read as a warm-tinted dark, like newsprint at night.
+**The Tinted-Neutral Rule.** Every neutral should carry visible tint instead of
+collapsing into default black, white, or generic gray. Pure gray is forbidden.
+Pure black is forbidden. Pure white is forbidden. Dark mode should read like
+newsprint at night; light mode should read like a proof sheet, not an admin
+dashboard.
 
 ### Node Category Palette
 
