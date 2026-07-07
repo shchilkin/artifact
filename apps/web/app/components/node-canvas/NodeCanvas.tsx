@@ -1419,7 +1419,7 @@ function edgeOpacity(selectedEdgeId: string | null, selected: boolean, onOutputP
 
 function edgeOpacityByState(visibleOutputPath: boolean, onOutputPath: boolean) {
   if (visibleOutputPath) return onOutputPath ? 0.92 : 0.68;
-  return onOutputPath ? 0.72 : 0.46;
+  return onOutputPath ? 0.78 : 0.46;
 }
 
 const EDITABLE_KEY_TARGETS = new Set(['input', 'textarea', 'select']);

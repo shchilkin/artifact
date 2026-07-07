@@ -311,6 +311,8 @@ function EffectPreviewCard({ preset, index }: { preset: EffectPreset; index: num
     const target = canvasRef.current;
     const targetCtx = target?.getContext('2d');
     if (!target || !targetCtx) return;
+    const textColor =
+      getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || 'rgb(247 230 212)';
 
     const doc = {
       schemaVersion: DOCUMENT_SCHEMA_VERSION,
@@ -321,7 +323,7 @@ function EffectPreviewCard({ preset, index }: { preset: EffectPreset; index: num
           id: `debug-effect-text-${preset}`,
           name: 'Debug Source',
           content: 'SHADER',
-          color: '#f7e6d4',
+          color: textColor,
           size: 74,
           x: 0.5,
           y: 0.48,
