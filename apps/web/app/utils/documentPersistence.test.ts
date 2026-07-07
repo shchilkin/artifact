@@ -29,6 +29,7 @@ import {
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
+import { EXPORT_NODE_ID } from './nodeGraph';
 
 function encodeDoc(doc: unknown) {
   return JSON.stringify(doc);
@@ -86,6 +87,138 @@ describe('normalizeDocument', () => {
     expect(doc.graph?.shaderNodes?.[5]?.shaderKind).toBe('smokeRing');
     expect(doc.graph?.shaderNodes?.[6]?.shaderKind).toBe('tilelessTexture');
     expect(doc.graph?.shaderNodes?.[7]?.shaderKind).toBe('meshGradient');
+  });
+
+  it('normalizes custom shader specs for AI-generated shader nodes', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-ai',
+            name: 'AI Shader',
+            shaderKind: 'customSpec',
+            aiPrompt: 'make electric mineral smoke',
+            customShaderSpec: {
+              version: 1,
+              palette: ['#000', 'not-a-color', '#ff00aa'],
+              base: 2,
+              contrast: 9,
+              operations: [
+                { op: 'noise', scale: 200, amount: 4, octaves: 99 },
+                { op: 'rawCode', code: 'while(true){}' },
+                { op: 'posterize', steps: 999 },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const node = doc.graph?.shaderNodes?.[0];
+    expect(node?.shaderKind).toBe('customSpec');
+    expect(node?.aiPrompt).toBe('make electric mineral smoke');
+    expect(node?.customShaderSpec).toMatchObject({
+      base: 1,
+      contrast: 4,
+      palette: ['#000', '#ff00aa'],
+      operations: [
+        { op: 'noise', scale: 40, amount: 2, octaves: 7 },
+        { op: 'posterize', steps: 16 },
+      ],
+    });
+  });
+
+  it('normalizes custom shader code nodes', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-code',
+            name: 'Code Shader',
+            shaderKind: 'customCode',
+            customShaderCode: {
+              version: 3,
+              language: 'javascript',
+              code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+            },
+          },
+        ],
+      },
+    });
+
+    const node = doc.graph?.shaderNodes?.[0];
+    expect(node?.shaderKind).toBe('customCode');
+    expect(node?.customShaderCode).toEqual({
+      version: 1,
+      language: 'glsl-fragment',
+      code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+    });
+  });
+
+  it('round-trips AI custom shader nodes through artifact document JSON', () => {
+    const shaderNode = makeGraphShaderNode({
+      id: 'shader-ai',
+      name: 'AI Waves',
+      shaderKind: 'customSpec',
+      aiPrompt: 'neon waves',
+      customShaderSpec: {
+        version: 1,
+        label: 'AI Waves',
+        prompt: 'neon waves',
+        palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
+        operations: [
+          { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
+          { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
+        ],
+      },
+    });
+    const serialized = serializeArtifactDocument({
+      global: { bg: 'transparent', seed: 1234, aspect: '16:9' },
+      layers: [],
+      graph: {
+        edges: [{ id: 'e-ai-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+        positions: { [shaderNode.id]: { x: 0, y: 80 }, [EXPORT_NODE_ID]: { x: 320, y: 80 } },
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [shaderNode],
+      },
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const parsed = parseArtifactDocument(serialized);
+    const parsedNode = parsed?.graph?.shaderNodes?.[0];
+
+    expect(parsedNode).toMatchObject({
+      id: 'shader-ai',
+      name: 'AI Waves',
+      shaderKind: 'customSpec',
+      aiPrompt: 'neon waves',
+      customShaderSpec: {
+        label: 'AI Waves',
+        prompt: 'neon waves',
+        operations: [
+          { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
+          { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
+        ],
+      },
+    });
+    expect(parsed?.graph?.edges).toContainEqual({
+      id: 'e-ai-export',
+      fromId: 'shader-ai',
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
   });
 
   it('normalizes portable imported font assets without keeping invalid payloads', () => {
@@ -658,6 +791,7 @@ describe('document serialization helpers', () => {
             id: 'shader-a',
             name: 'Mesh Shader',
             shaderKind: 'meshGradient',
+            aiPrompt: undefined,
             colorA: '#101010',
             colorB: '#ff705f',
             colorC: '#8d5cff',

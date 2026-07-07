@@ -1,5 +1,5 @@
 import type { EffectPreset, LayerKind } from '../../types/config';
-import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
+import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS, LEGACY_SHADER_KINDS, SHADER_KINDS } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
@@ -50,7 +50,6 @@ const SIMPLE_ADD_ACTION_KINDS = new Set([
   'grimeShadow',
   'scene3d',
   'environment',
-  'shader',
 ]);
 const LAYER_ADD_KINDS = new Set([
   'text',
@@ -484,6 +483,29 @@ const layerItems: AddLibraryItem[] = [
     keywords:
       'shader fill mesh gradient static radial grain noise dots paper water heatmap liquid metal smoke orbit grid spiral swirl waves neuro perlin simplex voronoi metaballs border rings procedural source material texture albedo roughness metalness normal alpha paper design',
   },
+  {
+    id: 'shader:ai',
+    label: 'AI Shader',
+    symbol: '✦',
+    description: 'Create an editable custom shader spec from a prompt-ready node.',
+    group: 'shaderFill',
+    action: { kind: 'shader', shaderKind: 'customSpec' },
+    surfaces: ['nodes'],
+    tags: ['source', 'shader', 'ai', 'custom'],
+    keywords: 'ai shader custom prompt generated editable spec procedural fill pass backdrop figma',
+    popular: true,
+  },
+  {
+    id: 'shader:code',
+    label: 'Code Shader',
+    symbol: '</>',
+    description: 'Write a GLSL fragment shader that can generate or process a backdrop.',
+    group: 'shaderFill',
+    action: { kind: 'shader', shaderKind: 'customCode' },
+    surfaces: ['nodes'],
+    tags: ['source', 'shader', 'code', 'custom'],
+    keywords: 'code shader glsl fragment custom procedural pass backdrop material texture',
+  },
 ];
 
 const sourcePresetItems: AddLibraryItem[] = [
@@ -808,10 +830,15 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   if (!isActionRecord(value)) return false;
   if (SIMPLE_ADD_ACTION_KINDS.has(value.kind)) return true;
   if (value.kind === 'material') return value.preset === undefined || isPresetId(value.preset, MATERIAL_PRESET_IDS);
+  if (value.kind === 'shader') {
+    return value.shaderKind === undefined || isPresetId(value.shaderKind, [...SHADER_KINDS, ...LEGACY_SHADER_KINDS]);
+  }
   return validateAddLibraryActionPayload(value);
 }
 
-function isActionRecord(value: unknown): value is { kind: string; layerKind?: unknown; preset?: unknown } {
+function isActionRecord(
+  value: unknown,
+): value is { kind: string; layerKind?: unknown; preset?: unknown; shaderKind?: unknown } {
   if (!value || typeof value !== 'object') return false;
   return 'kind' in value && typeof value.kind === 'string';
 }

@@ -131,6 +131,21 @@ Shader work follows the same single-purpose split:
   and then apply the node's opacity and blend mode as pass intensity. New shader
   nodes default to an overlay-friendly `screen` blend at 58% opacity so pass
   mode reveals the connected backdrop immediately instead of replacing it.
+  `AI Shader` is a prompt-ready Shader Fill variant: it stores a validated
+  `customSpec` JSON shader description and prompt provenance, not raw
+  GLSL/WGSL. Its inspector can generate an editable spec from a prompt through
+  the AI shader-spec endpoint. The default path must request the configured
+  OpenAI provider; if that fails, the inspector may offer a separate local
+  deterministic fallback, and the saved spec must keep `localFallback`
+  provenance. The same node can render standalone or as a backdrop pass.
+  `Code Shader` is the editable-code variant of the same node role: it stores a
+  GLSL fragment body that defines `mainImage(vec2 uv)` and receives
+  `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
+  `u_has_backdrop` from the renderer.
+  It can generate a standalone texture without an input, or process the
+  connected `backdrop` branch as a pass. It must stay a shader-source/pass node,
+  not a place for JavaScript, network access, material controls, or 3D scene
+  controls.
 - **Shader Effect** nodes are normal Effect layer nodes with shader-style image
   transforms. They require an upstream source branch; if there is no upstream
   input, the graph render should remain transparent instead of inventing source

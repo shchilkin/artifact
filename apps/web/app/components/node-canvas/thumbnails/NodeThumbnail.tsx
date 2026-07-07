@@ -3,7 +3,11 @@ import { memo } from 'react';
 import type { ThumbProps } from '../types';
 import { useNodeThumbnailRender } from './useNodeThumbnailRender';
 
-export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, priority = false }: ThumbProps) {
+export const NodeThumbnail = memo(function NodeThumbnail({
+  previewTargetId,
+  priority = false,
+  statusOverlay,
+}: ThumbProps) {
   const {
     frameRef,
     canvasRef,
@@ -37,6 +41,7 @@ export const NodeThumbnail = memo(function NodeThumbnail({ previewTargetId, prio
           showPreparing={showPreparing}
           showSkeleton={showSkeleton}
         />
+        {statusOverlay}
       </div>
     </div>
   );

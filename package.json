@@ -20,6 +20,7 @@
     "dev:api": "npm --workspace @artifact/api run dev",
     "dev:infra": "docker compose -f docker-compose.local.yml up -d postgres redis",
     "dev:infra:down": "docker compose -f docker-compose.local.yml down",
+    "dev:local-ai": "deno task dev:local-ai",
     "dev:web": "npm --workspace @artifact/web run dev",
     "dev:worker": "npm --workspace @artifact/api run worker:dev",
     "build": "npm --workspace @artifact/web run build",

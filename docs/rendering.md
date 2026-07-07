@@ -129,11 +129,30 @@ connected. In pass mode the backdrop is sampled as input texture data: source
 luminance and detail shape the generated shader response before opacity and
 blend mode are applied as pass intensity. Their output can be composed
 directly, repeated, masked, or used as a material texture map.
+AI/custom shader work uses the same renderer boundary through a validated
+`customSpec` shader kind. The document stores a constrained JSON spec, not raw
+shader code; normalization clamps numeric ranges, drops unsupported operations,
+and keeps render output deterministic from document seed, node seed offset, and
+the saved spec. Prompt generation enters through the shared
+`/api/ai/shader-spec` contract. The default request path is OpenAI-backed and
+must fail visibly if no provider is configured. A deterministic local mapper is
+available only as an explicit user-confirmed fallback, and fallback specs carry
+`localFallback` provenance in the saved JSON. API calls create or update specs
+only, never participate in preview/export rendering.
+Custom code shader work uses the separate `customCode` shader kind. The
+document stores a GLSL fragment body that must define `mainImage(vec2 uv)`.
+The renderer wraps that body with the stable uniforms `u_backdrop`,
+`u_resolution`, `u_seed`, `u_strength`, and `u_has_backdrop`; it does not execute JavaScript or mutate
+document state during compile/render. When no backdrop is connected, the shader
+receives a deterministic fallback texture and acts as a standalone fill. When a
+backdrop is connected, `u_has_backdrop` is `1.0`, `u_backdrop` samples that
+upstream canvas directly, and the node opacity/blend mode control pass
+intensity.
+Browsers without WebGL or shaders that fail to compile must return a visible
+deterministic fallback canvas instead of breaking graph traversal.
 Input-dependent visual transforms such as dithering, halftone, refraction,
 warps, ripple, and light-ray overlays remain effect nodes because they need an
 upstream canvas to sample.
-They are not programmable GLSL/WGSL shader editors in the current architecture;
-custom shader code would need its own compile/error/uniform boundary and tests.
 
 ### Rule
 

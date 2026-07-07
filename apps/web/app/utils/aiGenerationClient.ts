@@ -3,10 +3,14 @@ import {
   type AiGenerationJob,
   type AiGenerationJobStatus,
   type AiGenerationProvider,
+  type AiShaderSpecGenerationResponse,
+  type AiShaderSpecSource,
   type CreateAiGenerationRequest,
+  type CreateAiShaderSpecRequest,
   isAiGenerationJobStatus,
   isAiGenerationProvider,
 } from '../types/aiGeneration';
+import { normalizeCustomShaderSpec } from './customShaderSpec';
 
 export class AiGenerationApiError extends Error {
   readonly status: number;
@@ -60,6 +64,13 @@ function ensureStatus(value: unknown): AiGenerationJobStatus {
   return value;
 }
 
+function ensureShaderSpecSource(value: unknown): AiShaderSpecSource {
+  if (value !== 'openai' && value !== 'localFallback') {
+    throw new AiGenerationApiError('Generation API returned an unknown shader source.', 0, 'invalid_response');
+  }
+  return value;
+}
+
 export function parseAiGenerationJob(value: unknown): AiGenerationJob {
   const job = ensureObject(value);
   return {
@@ -82,6 +93,27 @@ export function parseAiGenerationAccessState(value: unknown): AiGenerationAccess
     for (const provider of access.providers) ensureProvider(provider);
   }
   return access as unknown as AiGenerationAccessState;
+}
+
+export function parseAiShaderSpecGenerationResponse(value: unknown): AiShaderSpecGenerationResponse {
+  const response = ensureObject(value);
+  const prompt = ensureString(response.prompt, 'prompt');
+  const source = ensureShaderSpecSource(response.source);
+  const spec = normalizeCustomShaderSpec(response.spec);
+  const model = typeof response.model === 'string' && response.model.length > 0 ? response.model : undefined;
+  const warnings = Array.isArray(response.warnings)
+    ? response.warnings.filter((warning): warning is string => typeof warning === 'string')
+    : undefined;
+  return {
+    prompt,
+    spec: {
+      ...spec,
+      provenance: spec.provenance ?? { source, ...(model ? { model } : {}) },
+    },
+    source,
+    ...(model ? { model } : {}),
+    ...(warnings?.length ? { warnings } : {}),
+  };
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {
@@ -130,6 +162,21 @@ export async function createAiGenerationJob(
     options,
   );
   return parseAiGenerationJob(body);
+}
+
+export async function createAiShaderSpec(
+  request: CreateAiShaderSpecRequest,
+  options: AiGenerationClientOptions = {},
+): Promise<AiShaderSpecGenerationResponse> {
+  const body = await requestJson(
+    '/api/ai/shader-spec',
+    {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+    options,
+  );
+  return parseAiShaderSpecGenerationResponse(body);
 }
 
 export async function getAiGenerationAccess(options: AiGenerationClientOptions = {}): Promise<AiGenerationAccessState> {

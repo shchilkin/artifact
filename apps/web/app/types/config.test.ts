@@ -13,6 +13,7 @@ import {
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
+  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -95,6 +96,15 @@ describe('makeTextLayer', () => {
 });
 
 describe('shader kind scope', () => {
+  it('keeps AI custom specs in active shader fills', () => {
+    expect(SHADER_KINDS).toContain('customSpec');
+  });
+
+  it('keeps editable code shaders in active shader fills', () => {
+    expect(SHADER_KINDS).toContain('customCode');
+    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).customShaderCode?.code).toContain('mainImage');
+  });
+
   it('keeps tileless texture out of active shader fills until the future track is implemented', () => {
     expect(SHADER_KINDS).not.toContain('tilelessTexture');
   });

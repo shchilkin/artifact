@@ -31,6 +31,7 @@ import type {
   RepeatNodeData,
   Scene3DNodeData,
   ShaderNodeData,
+  ShaderNodeGenerationStatus,
   TransformNodeData,
 } from './types';
 
@@ -56,6 +57,7 @@ export function buildRFNodes(
   connected: { sources: Set<string>; targets: Set<string> },
   primitiveViewStates: Record<string, PrimitiveViewportState>,
   primitiveRenderModes: Record<string, PrimitiveRenderMode>,
+  shaderGenerationStatusById: Record<string, ShaderNodeGenerationStatus>,
 ): RFNode[] {
   const incomingNodeId = (toId: string, toPort: string) =>
     graph.edges.find((edge) => edge.toId === toId && edge.toPort === toPort)?.fromId ?? null;
@@ -68,6 +70,7 @@ export function buildRFNodes(
     connected,
     primitiveViewStates,
     primitiveRenderModes,
+    shaderGenerationStatusById,
     incomingNodeId,
   };
 
@@ -87,6 +90,7 @@ type BuildRFNodeContext = {
   connected: { sources: Set<string>; targets: Set<string> };
   primitiveViewStates: Record<string, PrimitiveViewportState>;
   primitiveRenderModes: Record<string, PrimitiveRenderMode>;
+  shaderGenerationStatusById: Record<string, ShaderNodeGenerationStatus>;
   incomingNodeId: (toId: string, toPort: string) => string | null;
 };
 
@@ -329,6 +333,7 @@ function buildShaderRFNode(sn: GraphShaderNode, context: BuildRFNodeContext): RF
     data: {
       shaderNode: sn,
       backdropPreviewTargetId: context.incomingNodeId(sn.id, 'bg'),
+      generationStatus: context.shaderGenerationStatusById[sn.id] ?? null,
       ...commonNodeData(sn.id, context),
     } satisfies ShaderNodeData,
   };

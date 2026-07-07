@@ -192,10 +192,46 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'shader-2', name: 'Renamed shader' };
     const edited = { ...base, distortion: 68 };
     const composited = { ...base, opacity: 42 };
+    const custom = makeGraphShaderNode({
+      ...base,
+      shaderKind: 'customSpec',
+      customShaderSpec: {
+        version: 1,
+        palette: ['#111111', '#eeeeee'],
+        operations: [{ op: 'wave', frequency: 5, amplitude: 0.2, angle: 0 }],
+      },
+    });
+    const customEdited = {
+      ...custom,
+      customShaderSpec: {
+        ...custom.customShaderSpec!,
+        operations: [{ op: 'wave' as const, frequency: 9, amplitude: 0.2, angle: 0 }],
+      },
+    };
+    const code = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      customShaderCode: {
+        version: 1,
+        language: 'glsl-fragment',
+        code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+      },
+    });
+    const codeEdited = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      customShaderCode: {
+        version: 1,
+        language: 'glsl-fragment',
+        code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+      },
+    });
 
     expect(shaderNodeRenderSig(renamed)).toBe(shaderNodeRenderSig(base));
     expect(shaderNodeRenderSig(edited)).not.toBe(shaderNodeRenderSig(base));
     expect(shaderNodeRenderSig(composited)).not.toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(customEdited)).not.toBe(shaderNodeRenderSig(custom));
+    expect(shaderNodeRenderSig(codeEdited)).not.toBe(shaderNodeRenderSig(code));
   });
 
   it('ignores mask node identity and changes for mask fields', () => {

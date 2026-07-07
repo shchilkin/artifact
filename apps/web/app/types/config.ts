@@ -1,3 +1,4 @@
+import type { CustomShaderOperation, CustomShaderSpec } from '@artifact/shared';
 import type { TextFontRef } from './typography';
 
 export {
@@ -66,9 +67,12 @@ export const SHADER_KINDS = [
   'noiseField',
   'marble',
   'liquid',
+  'customSpec',
+  'customCode',
 ] as const;
 export const LEGACY_SHADER_KINDS = ['tilelessTexture'] as const;
 export type ShaderKind = (typeof SHADER_KINDS)[number] | (typeof LEGACY_SHADER_KINDS)[number];
+export type { CustomShaderOperation, CustomShaderSpec };
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -495,7 +499,7 @@ export interface GraphEdge {
   fromId: string;
   fromPort: 'out';
   toId: string;
-  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | MaterialTextureInputPort;
+  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | 'time' | MaterialTextureInputPort;
 }
 
 export interface GraphMergeNode {
@@ -612,6 +616,9 @@ export interface GraphShaderNode {
   id: string;
   name: string;
   shaderKind: ShaderKind;
+  aiPrompt?: string;
+  customShaderSpec?: CustomShaderSpec;
+  customShaderCode?: CustomShaderCodeConfig;
   colorA: string;
   colorB: string;
   colorC: string;
@@ -626,6 +633,12 @@ export interface GraphShaderNode {
   seedOffset: number;
   opacity: number;
   blendMode: string;
+}
+
+export interface CustomShaderCodeConfig {
+  version: 1;
+  language: 'glsl-fragment';
+  code: string;
 }
 
 export interface GraphArea {
@@ -1880,6 +1893,34 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 }
 
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
+  const defaultCustomShaderSpec: CustomShaderSpec = {
+    version: 1,
+    label: 'AI Shader',
+    base: 0.46,
+    contrast: 1.18,
+    palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],
+    operations: [
+      { op: 'noise', scale: 3.2, amount: 0.34, octaves: 4 },
+      { op: 'wave', frequency: 7.5, amplitude: 0.22, angle: 28 },
+      { op: 'swirl', amount: 0.18, radius: 1.25 },
+    ],
+  };
+  const defaultCustomShaderCode: CustomShaderCodeConfig = {
+    version: 1,
+    language: 'glsl-fragment',
+    code: `vec4 mainImage(vec2 uv) {
+  vec4 base = texture2D(u_backdrop, uv);
+  vec3 baseColor = mix(vec3(0.035, 0.055, 0.09), base.rgb, u_has_backdrop);
+  float wave = sin((uv.x + uv.y) * 42.0 + u_seed * 0.01);
+  vec2 warpedUv = uv + vec2(wave, -wave) * 0.012 * u_strength;
+  vec4 warped = texture2D(u_backdrop, warpedUv);
+  vec3 color = mix(baseColor, warped.rgb, base.a * u_has_backdrop);
+  vec3 tint = vec3(0.62, 0.92, 1.0);
+  float caustic = pow(max(0.0, sin((uv.x - uv.y) * 60.0 + u_seed * 0.02)), 6.0);
+  color = mix(color, color * tint + caustic * 0.18, 0.32 * u_strength);
+  return vec4(color, mix(1.0, base.a, u_has_backdrop));
+}`,
+  };
   return {
     id: `shader-${Date.now()}-${_idCounter++}`,
     name: 'Shader',
@@ -1898,6 +1939,8 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
     seedOffset: 0,
     opacity: 58,
     blendMode: 'screen',
+    ...(partial.shaderKind === 'customSpec' ? { customShaderSpec: defaultCustomShaderSpec } : {}),
+    ...(partial.shaderKind === 'customCode' ? { customShaderCode: defaultCustomShaderCode } : {}),
     ...partial,
   };
 }

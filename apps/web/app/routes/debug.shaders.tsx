@@ -56,6 +56,8 @@ const SHADER_LABELS: Record<ShaderKind, string> = {
   noiseField: 'Noise Field',
   marble: 'Marble',
   liquid: 'Liquid',
+  customSpec: 'AI Shader',
+  customCode: 'Code Shader',
   tilelessTexture: 'Tileless Texture',
 };
 
@@ -232,6 +234,27 @@ const SHADER_PROFILES: Partial<Record<ShaderKind, Partial<ReturnType<typeof make
     distortion: 82,
     swirl: 62,
     grain: 4,
+  },
+  customSpec: {
+    grain: 0,
+    customShaderSpec: {
+      version: 1,
+      label: 'AI Shader',
+      prompt: 'neon halftone wave texture',
+      palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
+      base: 0.46,
+      contrast: 1.24,
+      operations: [
+        { op: 'noise', scale: 4.8, amount: 0.26, octaves: 4 },
+        { op: 'wave', frequency: 16, amplitude: 0.22, angle: 0.8 },
+        { op: 'threshold', value: 0.52, softness: 0.12 },
+      ],
+    },
+  },
+  customCode: {
+    name: 'Code Shader',
+    distortion: 74,
+    opacity: 74,
   },
   tilelessTexture: {
     colorA: '#172018',

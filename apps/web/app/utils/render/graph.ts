@@ -24,6 +24,7 @@ import type { SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
+import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
@@ -711,13 +712,29 @@ function byteClamp(value: number) {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
+function unitClamp(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
 function pixelLuma(r: number, g: number, b: number) {
   return (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
+}
+
+function imageIndex(width: number, height: number, x: number, y: number) {
+  const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(height - 1, Math.round(y)));
+  return (py * width + px) * 4;
+}
+
+function shaderLumaAt(shaderImage: ImageData, width: number, height: number, x: number, y: number) {
+  const index = imageIndex(width, height, x, y);
+  return pixelLuma(shaderImage.data[index] ?? 0, shaderImage.data[index + 1] ?? 0, shaderImage.data[index + 2] ?? 0);
 }
 
 function createBackdropAwareShaderCanvas(
   backdrop: HTMLCanvasElement,
   shader: HTMLCanvasElement,
+  shaderNode: GraphShaderNode,
   W: number,
   H: number,
 ): HTMLCanvasElement {
@@ -730,49 +747,93 @@ function createBackdropAwareShaderCanvas(
   const sourceImage = sourceCtx.getImageData(0, 0, W, H);
   const shaderImage = shaderCtx.getImageData(0, 0, W, H);
   const outputImage = outputCtx.createImageData(W, H);
+  const distortionStrength = unitClamp(shaderNode.distortion / 100);
+  const displacement = Math.max(1, Math.min(W, H) * (0.006 + distortionStrength * 0.048));
+  const causticStrength = 0.16 + distortionStrength * 0.34;
+  const tintBase = 0.035 + distortionStrength * 0.085;
 
   for (let index = 0; index < outputImage.data.length; index += 4) {
-    const sr = sourceImage.data[index] ?? 0;
-    const sg = sourceImage.data[index + 1] ?? 0;
-    const sb = sourceImage.data[index + 2] ?? 0;
-    const sa = sourceImage.data[index + 3] ?? 0;
+    const pixel = index / 4;
+    const x = pixel % W;
+    const y = Math.floor(pixel / W);
     const hr = shaderImage.data[index] ?? 0;
     const hg = shaderImage.data[index + 1] ?? 0;
     const hb = shaderImage.data[index + 2] ?? 0;
-    const ha = shaderImage.data[index + 3] ?? 0;
-    const sourceLuma = pixelLuma(sr, sg, sb);
     const shaderLuma = pixelLuma(hr, hg, hb);
-    const shade = 0.22 + sourceLuma * 0.92;
-    const sourceDetail = 0.72 + sourceLuma * 0.38;
-    const pattern = 0.58 + shaderLuma * 0.42;
+    const dx = shaderLumaAt(shaderImage, W, H, x + 1, y) - shaderLumaAt(shaderImage, W, H, x - 1, y);
+    const dy = shaderLumaAt(shaderImage, W, H, x, y + 1) - shaderLumaAt(shaderImage, W, H, x, y - 1);
+    const sourceIndex = imageIndex(W, H, x + dx * displacement, y + dy * displacement);
+    const sr = sourceImage.data[sourceIndex] ?? 0;
+    const sg = sourceImage.data[sourceIndex + 1] ?? 0;
+    const sb = sourceImage.data[sourceIndex + 2] ?? 0;
+    const sa = sourceImage.data[sourceIndex + 3] ?? 0;
+    const edge = unitClamp(Math.abs(dx) + Math.abs(dy));
+    const caustic = (shaderLuma - 0.5) * causticStrength + edge * (0.18 + distortionStrength * 0.28);
+    const tint = unitClamp(tintBase + edge * 0.12) * 0.68;
 
-    outputImage.data[index] = byteClamp(hr * shade * pattern + sr * (1 - pattern) * 0.26);
-    outputImage.data[index + 1] = byteClamp(hg * shade * pattern + sg * (1 - pattern) * 0.26);
-    outputImage.data[index + 2] = byteClamp(hb * shade * pattern + sb * (1 - pattern) * 0.26);
-    outputImage.data[index + 3] = byteClamp(Math.max(sa, ha) * sourceDetail);
+    outputImage.data[index] = byteClamp(sr * (1 - tint) + hr * tint + caustic * 255);
+    outputImage.data[index + 1] = byteClamp(sg * (1 - tint) + hg * tint + caustic * 255);
+    outputImage.data[index + 2] = byteClamp(sb * (1 - tint) + hb * tint + caustic * 255);
+    outputImage.data[index + 3] = sa;
   }
 
   outputCtx.putImageData(outputImage, 0, 0);
   return output;
 }
 
+function mixShaderPassWithBackdrop(
+  backdrop: HTMLCanvasElement,
+  processedBackdrop: HTMLCanvasElement,
+  strengthPercent: number,
+  blendMode: GraphShaderNode['blendMode'],
+  W: number,
+  H: number,
+) {
+  const strength = Math.max(0, Math.min(1, strengthPercent / 100));
+  if (strength >= 0.999) return processedBackdrop;
+  if (strength <= 0.001) return cloneCanvas(backdrop, W, H);
+
+  const canvas = cloneCanvas(backdrop, W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.save();
+  ctx.globalAlpha = strength;
+  ctx.globalCompositeOperation = toCompositeOperation(blendMode);
+  ctx.drawImage(processedBackdrop, 0, 0, W, H);
+  ctx.restore();
+  return canvas;
+}
+
 async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const shaderNode = findShaderNode(context.graph, nodeId);
   if (!shaderNode) return null;
-  const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);
   const backdropId = findIncomingSource(context.graph, nodeId, 'bg');
+  if (shaderNode.shaderKind === 'customCode') {
+    const backdrop = backdropId ? await context.renderDependency(backdropId) : null;
+    throwIfRenderAborted(context.options);
+    const rendered = renderCustomCodeShaderNodeToCanvas(
+      shaderNode,
+      context.doc.global.seed,
+      context.W,
+      context.H,
+      backdrop,
+    );
+    return backdrop
+      ? mixShaderPassWithBackdrop(backdrop, rendered, shaderNode.opacity, shaderNode.blendMode, context.W, context.H)
+      : rendered;
+  }
+  const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);
   if (!backdropId) return shader;
   const backdrop = await context.renderDependency(backdropId);
   throwIfRenderAborted(context.options);
-  const canvas = cloneCanvas(backdrop, context.W, context.H);
-  const inputAwareShader = createBackdropAwareShaderCanvas(backdrop, shader, context.W, context.H);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  ctx.save();
-  ctx.globalCompositeOperation = toCompositeOperation(shaderNode.blendMode);
-  ctx.globalAlpha = shaderNode.opacity / 100;
-  ctx.drawImage(inputAwareShader, 0, 0);
-  ctx.restore();
-  return canvas;
+  const processedBackdrop = createBackdropAwareShaderCanvas(backdrop, shader, shaderNode, context.W, context.H);
+  return mixShaderPassWithBackdrop(
+    backdrop,
+    processedBackdrop,
+    shaderNode.opacity,
+    shaderNode.blendMode,
+    context.W,
+    context.H,
+  );
 }
 
 async function renderMaskGraphNode(nodeId: string, context: GraphNodeRenderContext) {

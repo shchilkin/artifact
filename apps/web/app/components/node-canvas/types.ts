@@ -193,6 +193,7 @@ export type ShaderNodeData = {
   shaderNode: GraphShaderNode;
   previewTargetId: string;
   backdropPreviewTargetId: string | null;
+  generationStatus: ShaderNodeGenerationStatus | null;
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
@@ -240,6 +241,7 @@ export interface NodeCanvasActionsContextValue {
   updateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
   updateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
   updateShaderNode: (id: string, patch: Partial<GraphShaderNode>) => void;
+  setShaderNodeGenerationStatus: (id: string, status: ShaderNodeGenerationStatus | null) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;
   exportNode: () => void;
@@ -248,6 +250,8 @@ export interface NodeCanvasActionsContextValue {
   updatePrimitiveView: (id: string, viewState: PrimitiveViewportState, mode?: DocumentUpdateMode) => void;
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
 }
+
+export type ShaderNodeGenerationStatus = 'creatingOpenAi' | 'creatingFallback' | 'failed';
 
 export type ContextMenuState =
   | { type: 'pane-add'; x: number; y: number; flowPos: { x: number; y: number } }
@@ -283,6 +287,7 @@ export type NodeCanvasUiAction =
 export interface ThumbProps {
   previewTargetId: string;
   priority?: boolean;
+  statusOverlay?: ReactNode;
 }
 
 export type ThumbnailRenderTask = () => Promise<void>;

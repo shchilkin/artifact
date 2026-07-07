@@ -672,7 +672,11 @@ function connectInsertedGraphOnlyNode(
     );
   }
   if (action.kind === 'shader') {
-    const node = makeGraphShaderNode();
+    const node = makeGraphShaderNode({
+      ...(action.shaderKind ? { shaderKind: action.shaderKind } : {}),
+      ...(action.shaderKind === 'customSpec' ? { name: 'AI Shader' } : {}),
+      ...(action.shaderKind === 'customCode' ? { name: 'Code Shader' } : {}),
+    });
     return connectInsertedSourceNode(
       addShaderNode(ensureDocumentGraph(doc), node, position),
       node.id,

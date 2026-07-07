@@ -28,6 +28,8 @@ import {
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
+import { normalizeCustomShaderCodeConfig } from './customShaderCode';
+import { normalizeCustomShaderSpec } from './customShaderSpec';
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export const DOC_KEY = 'doc';
@@ -179,14 +181,18 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
 }
 
 function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
-  return (nodes ?? []).filter(isRecord).map((node) =>
-    makeGraphShaderNode({
+  return (nodes ?? []).filter(isRecord).map((node) => {
+    const shaderKind = normalizeShaderKind(node.shaderKind);
+    return makeGraphShaderNode({
       ...node,
       ...(node.shaderKind === 'staticMeshGradient' ? { distortion: 0 } : {}),
       id: String(node.id ?? `shader-${Date.now()}`),
-      shaderKind: normalizeShaderKind(node.shaderKind),
-    } as Partial<GraphShaderNode>),
-  );
+      shaderKind,
+      ...(node.customShaderSpec ? { customShaderSpec: normalizeCustomShaderSpec(node.customShaderSpec) } : {}),
+      ...(node.customShaderCode ? { customShaderCode: normalizeCustomShaderCodeConfig(node.customShaderCode) } : {}),
+      aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, 500) : undefined,
+    } as Partial<GraphShaderNode>);
+  });
 }
 
 function normalizeRepeatNodes(nodes: CanvasGraph['repeatNodes']) {

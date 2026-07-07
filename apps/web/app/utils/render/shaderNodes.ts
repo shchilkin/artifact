@@ -1,6 +1,8 @@
 import type { GraphShaderNode } from '../../types/config';
+import { normalizeCustomShaderSpec } from '../customShaderSpec';
 import { lcg } from '../lcg';
 import { createCanvas } from './canvas';
+import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
 
 type Rgb = [number, number, number];
 
@@ -519,9 +521,67 @@ function renderFieldPattern(node: GraphShaderNode, seed: number, canvas: HTMLCan
   });
 }
 
+function renderCustomShaderSpec(node: GraphShaderNode, seed: number, canvas: HTMLCanvasElement) {
+  const spec = normalizeCustomShaderSpec(node.customShaderSpec);
+  const colors = (spec.palette?.length ? spec.palette : [node.colorA, node.colorB, node.colorC, node.colorD]).map(
+    hexToRgb,
+  );
+  const base = clamp(spec.base ?? 0.46, 0, 1);
+  const contrast = clamp(spec.contrast ?? 1, 0.1, 4);
+
+  applySampledImage(canvas, node, seed, (x, y, width, height) => {
+    const p = transformedPoint(node, x, y, width, height);
+    const radius = Math.hypot(p.x, p.y);
+    const angle = Math.atan2(p.y, p.x);
+    let tone = base;
+
+    for (const operation of spec.operations) {
+      if (operation.op === 'noise') {
+        const scale = operation.scale / Math.max(0.01, node.scale / 100);
+        tone +=
+          (fbm(p.x * scale, p.y * scale, seed + (operation.seedOffset ?? 0) + 6101, operation.octaves ?? 4) - 0.5) *
+          operation.amount;
+      } else if (operation.op === 'wave') {
+        const direction = (operation.angle * Math.PI) / 180;
+        const u = p.x * Math.cos(direction) + p.y * Math.sin(direction);
+        tone += Math.sin(u * operation.frequency + (operation.phase ?? 0)) * operation.amplitude;
+      } else if (operation.op === 'rings') {
+        const cx = operation.centerX ?? 0;
+        const cy = operation.centerY ?? 0;
+        const distance = Math.hypot(p.x - cx, p.y - cy);
+        tone += Math.sin(distance * operation.frequency) * operation.amount;
+      } else if (operation.op === 'swirl') {
+        const radiusScale = Math.max(0.05, operation.radius ?? 1);
+        tone += Math.sin(angle + radius * radiusScale * 8) * operation.amount * smoothstep(1.7, 0.02, radius);
+      } else if (operation.op === 'threshold') {
+        tone = smoothstep(
+          operation.value - (operation.softness ?? 0.08),
+          operation.value + (operation.softness ?? 0.08),
+          tone,
+        );
+      } else if (operation.op === 'posterize') {
+        const steps = Math.max(2, operation.steps);
+        tone = Math.round(clamp(tone, 0, 1) * (steps - 1)) / (steps - 1);
+      } else if (operation.op === 'invert') {
+        tone = lerp(tone, 1 - tone, operation.amount);
+      }
+    }
+
+    const corrected = clamp((tone - 0.5) * contrast + 0.5, 0, 1);
+    return samplePalette(colors, corrected);
+  });
+}
+
 export function renderShaderNodeToCanvas(node: GraphShaderNode, seed: number, width: number, height: number) {
+  const renderNode = node;
+  const renderSeed = seed;
   const canvas = createCanvas(width, height);
-  switch (node.shaderKind) {
+  switch (renderNode.shaderKind) {
+    case 'customSpec':
+      renderCustomShaderSpec(renderNode, renderSeed, canvas);
+      break;
+    case 'customCode':
+      return renderCustomCodeShaderNodeToCanvas(renderNode, renderSeed, width, height, null);
     case 'paperTexture':
     case 'water':
     case 'waterCaustic':
@@ -540,41 +600,41 @@ export function renderShaderNodeToCanvas(node: GraphShaderNode, seed: number, wi
     case 'voronoi':
     case 'smokeRing':
     case 'tilelessTexture':
-      renderFieldPattern(node, seed, canvas, node.shaderKind);
+      renderFieldPattern(renderNode, renderSeed, canvas, renderNode.shaderKind);
       break;
     case 'staticRadialGradient':
-      renderStaticRadialGradient(node, seed, canvas);
+      renderStaticRadialGradient(renderNode, renderSeed, canvas);
       break;
     case 'grainGradient':
-      renderGrainGradient(node, seed, canvas);
+      renderGrainGradient(renderNode, renderSeed, canvas);
       break;
     case 'dotOrbit':
-      renderDotOrbit(node, seed, canvas);
+      renderDotOrbit(renderNode, renderSeed, canvas);
       break;
     case 'dotGrid':
-      renderDotGrid(node, seed, canvas);
+      renderDotGrid(renderNode, renderSeed, canvas);
       break;
     case 'borderRings':
-      renderBorderRings(node, seed, canvas);
+      renderBorderRings(renderNode, renderSeed, canvas);
       break;
     case 'metaballs':
-      renderLiquid({ ...node, swirl: Math.max(node.swirl, 55) }, seed, canvas);
+      renderLiquid({ ...renderNode, swirl: Math.max(renderNode.swirl, 55) }, renderSeed, canvas);
       break;
     case 'colorPanels':
-      renderColorPanels(node, seed, canvas);
+      renderColorPanels(renderNode, renderSeed, canvas);
       break;
     case 'noiseField':
-      renderNoiseField(node, seed, canvas);
+      renderNoiseField(renderNode, renderSeed, canvas);
       break;
     case 'marble':
-      renderMarble(node, seed, canvas);
+      renderMarble(renderNode, renderSeed, canvas);
       break;
     case 'liquid':
-      renderLiquid(node, seed, canvas);
+      renderLiquid(renderNode, renderSeed, canvas);
       break;
     case 'meshGradient':
     default:
-      renderMeshGradient(node, seed, canvas);
+      renderMeshGradient(renderNode, renderSeed, canvas);
       break;
   }
   return canvas;

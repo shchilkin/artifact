@@ -23,6 +23,7 @@ import type {
   RepeatNodeData,
   Scene3DNodeData,
   ShaderNodeData,
+  ShaderNodeGenerationStatus,
   TransformNodeData,
 } from '../types';
 import { NodeFrame } from './NodeFrame';
@@ -411,7 +412,16 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
 
 export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: NodeProps<ShaderNodeData>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
-  const { shaderNode, previewTargetId, backdropPreviewTargetId, selected, outputPath, editing, connected } = data;
+  const {
+    shaderNode,
+    previewTargetId,
+    backdropPreviewTargetId,
+    generationStatus,
+    selected,
+    outputPath,
+    editing,
+    connected,
+  } = data;
   const rendersBackdrop = Boolean(backdropPreviewTargetId);
 
   return (
@@ -423,11 +433,18 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
       selected={selected}
       outputPath={outputPath}
       editing={editing}
-      targetHandles={[{ id: 'bg' }]}
+      targetHandles={[
+        { id: 'bg', top: '42%' },
+        { id: 'time', top: '72%' },
+      ]}
       onSelect={(event) => selectNode(shaderNode.id, event)}
       onDelete={() => deleteNode(shaderNode.id)}
     >
-      <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
+      <NodeThumbnail
+        previewTargetId={previewTargetId}
+        priority={selected}
+        statusOverlay={generationStatus ? <ShaderNodeCreationOverlay status={generationStatus} /> : null}
+      />
       <PortRow
         inputs={[{ label: rendersBackdrop ? 'backdrop' : 'backdrop optional', portId: 'bg', nodeId: shaderNode.id }]}
         outputs={[{ label: rendersBackdrop ? 'pass' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
@@ -436,6 +453,32 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
     </NodeFrame>
   );
 });
+
+function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationStatus }) {
+  const fallback = status === 'creatingFallback';
+  const failed = status === 'failed';
+  return (
+    <div
+      className={`node-thumbnail-ai-overlay${failed ? ' node-thumbnail-ai-overlay-error' : ''}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className={`node-thumbnail-ai-card${failed ? ' node-thumbnail-ai-card-error' : ''}`}>
+        {failed ? (
+          <span className="node-thumbnail-ai-error-mark" aria-hidden="true">
+            !
+          </span>
+        ) : (
+          <span className="node-thumbnail-ai-spinner" aria-hidden="true" />
+        )}
+        <span>
+          <strong>{failed ? 'AI did not finish' : fallback ? 'Creating local version' : 'Creating shader'}</strong>
+          <small>{failed ? 'Choose next step' : fallback ? 'Labeled local' : 'Setting it up'}</small>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data }: NodeProps<FallbackNodeData>) {
   const { selectNode } = useNodeCanvasActions();

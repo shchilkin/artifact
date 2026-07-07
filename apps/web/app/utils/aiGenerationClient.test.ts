@@ -3,10 +3,12 @@ import {
   AiGenerationApiError,
   cancelAiGenerationJob,
   createAiGenerationJob,
+  createAiShaderSpec,
   getAiGenerationAccess,
   getAiGenerationJob,
   parseAiGenerationAccessState,
   parseAiGenerationJob,
+  parseAiShaderSpecGenerationResponse,
 } from './aiGenerationClient';
 
 const job = {
@@ -89,6 +91,54 @@ describe('parseAiGenerationAccessState', () => {
 });
 
 describe('ai generation client', () => {
+  it('parses and normalizes generated shader specs', () => {
+    const response = parseAiShaderSpecGenerationResponse({
+      prompt: 'marble waves',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      spec: {
+        version: 1,
+        label: 'AI Marble',
+        operations: [
+          { op: 'noise', scale: 1000, amount: 2, octaves: 99 },
+          { op: 'rawCode', source: 'void main() {}' },
+        ],
+      },
+    });
+
+    expect(response.prompt).toBe('marble waves');
+    expect(response.source).toBe('openai');
+    expect(response.model).toBe('gpt-5.5-mini');
+    expect(response.spec.provenance).toEqual({ source: 'openai', model: 'gpt-5.5-mini' });
+    expect(response.spec.operations).toEqual([{ op: 'noise', scale: 40, amount: 2, octaves: 7, seedOffset: 0 }]);
+  });
+
+  it('creates shader specs through the AI shader endpoint', async () => {
+    const { calls, fetcher } = captureJsonFetch({
+      prompt: 'neon waves',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      spec: {
+        version: 1,
+        label: 'AI Waves',
+        prompt: 'neon waves',
+        operations: [{ op: 'wave', frequency: 8, amplitude: 0.2, angle: 1 }],
+      },
+    });
+
+    const result = await createAiShaderSpec(
+      { prompt: 'neon waves', mode: 'openai' },
+      { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
+    );
+
+    expect(result.spec.label).toBe('AI Waves');
+    expect(result.source).toBe('openai');
+    expect(calls[0]?.url).toBe('https://api.example.test/api/ai/shader-spec');
+    expect(calls[0]?.init.method).toBe('POST');
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ prompt: 'neon waves', mode: 'openai' });
+  });
+
   it('creates jobs with credentials and an idempotent request body', async () => {
     const { calls, fetcher } = captureJsonFetch(job);
 

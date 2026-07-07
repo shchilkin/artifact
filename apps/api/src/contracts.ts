@@ -6,9 +6,15 @@ export type {
   AiGenerationSettings,
   AiProvider,
   AiQuotaSnapshot,
+  AiShaderSpecGenerationResponse,
+  AiShaderSpecRequestMode,
+  AiShaderSpecSource,
   ApiHealthResponse,
+  CreateAiShaderSpecRequest,
   CreateGenerationRequest,
+  CustomShaderOperation,
+  CustomShaderSpec,
   GenerationQueuePayload,
 } from '@artifact/shared';
 
-export { AI_API_PATHS, AI_PROVIDERS } from '@artifact/shared';
+export { AI_API_PATHS, AI_PROVIDERS, normalizeCustomShaderSpec, validateCustomShaderSpec } from '@artifact/shared';

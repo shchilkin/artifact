@@ -271,12 +271,14 @@ Next strong candidates after v0.39:
   | Shader Fills | mesh gradient, moire, concentric patterns, water caustic, glowing wave, clouds/fractal noise via noise fields, nebula-like smoke/noise, pattern grids via dot grids | stronger named Clouds/Fractal/Nebula/Pattern Grid presets |
   | Shader Effects | bloom, dither, halftone, pixelate, gradient map, channel mixer, bokeh blur, hatching, pattern refraction, pixel stretch, gooey merge, lens/warp families, colored-edge/outline building blocks, slice-shift-like glitch/tear effects | deeper preset tuning and visual examples |
   | Material Bridge | shader fill output can feed material texture-map inputs and primitive material inputs | polish texture-map controls, examples, export/browser parity coverage |
+  | AI Custom Shaders | prompt-ready `AI Shader` node requests OpenAI-backed validated `customSpec` JSON by default, offers deterministic local fallback only after explicit user choice, stores source provenance, and renders as standalone fill or backdrop pass | generation history, cost/accounting, richer spec editor controls |
+  | Code Shaders | `Code Shader` node stores a GLSL fragment body, wraps it with stable backdrop/resolution/seed/strength uniforms, and renders as standalone fill or backdrop pass with deterministic fallback when WebGL/compile fails | compile diagnostics in the node UI, richer uniform controls, safer authoring affordances, prompt-to-code generation |
 
   Tileless/seamless texture generation remains a future Shader Fill track for
-  repeatable material maps. Custom GLSL/WGSL code editing is a separate
-  advanced track because it needs compilation, uniforms, error states, and
-  sandboxing. Prompt-to-shader and timeline animation are out of scope for the
-  current shader parity work.
+  repeatable material maps. Rich custom GLSL/WGSL code editing remains an
+  advanced track beyond the current MVP because it needs better compilation
+  diagnostics, uniform editing, and sandboxing affordances. Prompt-to-shader
+  generation should target validated specs first. Shader animation is deferred: before adding it back, define whether animation belongs in shader nodes, effect nodes, a reusable control node, or export settings; then set performance budgets for live thumbnails, graph preview caches, and eventual video/sequence export.
 - **History Performance And Undo Memory Budget** — keep undo/redo responsive as
   node documents, 3D scene state, and local project payloads grow. Confirm the
   immutable document-update contract with tests, avoid unnecessary deep clones

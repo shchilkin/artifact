@@ -124,6 +124,15 @@ describe('loadConfig', () => {
     });
   });
 
+  it('keeps the OpenAI shader model separate from the image model', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({
+      openAiShaderModel: 'gpt-5.5',
+    });
+    expect(loadConfig({ ...requiredEnv, OPENAI_SHADER_MODEL: 'gpt-5.5-mini' })).toMatchObject({
+      openAiShaderModel: 'gpt-5.5-mini',
+    });
+  });
+
   it('defaults the xAI image model to the current Grok Imagine target', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       xAiImageModel: 'grok-imagine-image-quality',

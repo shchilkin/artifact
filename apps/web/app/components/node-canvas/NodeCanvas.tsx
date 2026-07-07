@@ -88,6 +88,7 @@ import type {
   NodeCanvasActionsContextValue,
   NodeCanvasPreviewContextValue,
   NodeCanvasProps,
+  ShaderNodeGenerationStatus,
 } from './types';
 
 const nodeTypes = {
@@ -203,6 +204,22 @@ export function NodeCanvas({
     });
 
   const primitiveRenderModes = useMemo<Record<string, PrimitiveRenderMode>>(() => ({}), []);
+  const [shaderGenerationStatusById, setShaderGenerationStatusById] = useState<
+    Record<string, ShaderNodeGenerationStatus>
+  >({});
+
+  const setShaderNodeGenerationStatus = useCallback((id: string, status: ShaderNodeGenerationStatus | null) => {
+    setShaderGenerationStatusById((current) => {
+      if (status) {
+        if (current[id] === status) return current;
+        return { ...current, [id]: status };
+      }
+      if (!(id in current)) return current;
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }, []);
 
   const {
     selectedNodeId,
@@ -251,6 +268,7 @@ export function NodeCanvas({
         connected,
         primitiveViewStates,
         primitiveRenderModes,
+        shaderGenerationStatusById,
       ),
     [
       doc,
@@ -261,6 +279,7 @@ export function NodeCanvas({
       connected,
       primitiveRenderModes,
       primitiveViewStates,
+      shaderGenerationStatusById,
     ],
   );
   const baseEdges = useMemo(
@@ -500,6 +519,7 @@ export function NodeCanvas({
       updateScene3DNode: onUpdateScene3DNode,
       updateEnvironmentNode: onUpdateEnvironmentNode,
       updateShaderNode: onUpdateShaderNode,
+      setShaderNodeGenerationStatus,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
       exportNode: onExport,
@@ -526,6 +546,7 @@ export function NodeCanvas({
       onUpdateScene3DNode,
       onUpdateEnvironmentNode,
       onUpdateShaderNode,
+      setShaderNodeGenerationStatus,
       openGallery,
       setPrimitiveViewportActive,
       updatePrimitiveView,

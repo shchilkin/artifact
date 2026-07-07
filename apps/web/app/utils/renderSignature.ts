@@ -24,6 +24,8 @@ import type {
   Layer,
 } from '../types/config';
 
+const SHADER_PASS_RENDER_VERSION = 'shader-pass-processed-backdrop-v2';
+
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
   switch (layer.kind) {
@@ -137,6 +139,9 @@ export function repeatNodeRenderSig(node: GraphRepeatNode): string {
     node.seedOffset,
     node.opacity,
     node.blendMode,
+    node.aiPrompt,
+    node.customShaderSpec,
+    node.customShaderCode,
   ]);
 }
 
@@ -224,6 +229,7 @@ export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
 /** Render-relevant fields for a procedural shader node. */
 export function shaderNodeRenderSig(node: GraphShaderNode): string {
   return JSON.stringify([
+    SHADER_PASS_RENDER_VERSION,
     node.shaderKind,
     node.colorA,
     node.colorB,
@@ -239,6 +245,9 @@ export function shaderNodeRenderSig(node: GraphShaderNode): string {
     node.seedOffset,
     node.opacity,
     node.blendMode,
+    node.aiPrompt,
+    node.customShaderSpec,
+    node.customShaderCode,
   ]);
 }
 

@@ -15,6 +15,17 @@ Run these as separate long-lived processes:
 | Postgres | VPS service or container | users, jobs, assets, usage |
 | Redis | VPS service or container | BullMQ queue |
 
+For local AI Shader-only development, prefer the repo-level launcher:
+
+```bash
+npm run dev:local-ai
+```
+
+It runs API and web together with memory-backed API state, a browser dev token,
+free-port selection, and optional `OPENAI_API_KEY` discovery from the shell or
+macOS Keychain. Use the Postgres/Redis flow below only when testing queues,
+workers, cloud project persistence, or production-like auth storage.
+
 For production, use a process manager such as systemd, PM2, Docker Compose, or
 your existing VPS supervisor. The API and worker must share the same `.env`
 values for database, queue, providers, and storage.
@@ -128,6 +139,7 @@ API_BULL_BOARD_ENABLED=false
 
 OPENAI_API_KEY=
 OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_SHADER_MODEL=gpt-5.5
 XAI_API_KEY=
 XAI_IMAGE_MODEL=grok-imagine-image-quality
 

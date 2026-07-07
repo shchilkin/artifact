@@ -77,6 +77,35 @@ describe('addLibraryModel', () => {
     );
   });
 
+  it('exposes AI Shader as a prompt-ready custom shader node', () => {
+    const item = addLibraryItemsForSurface('nodes').find((entry) => entry.id === 'shader:ai');
+
+    expect(item).toMatchObject({
+      label: 'AI Shader',
+      action: { kind: 'shader', shaderKind: 'customSpec' },
+      group: 'shaderFill',
+    });
+    expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
+      kind: 'shader',
+      shaderKind: 'customSpec',
+    });
+    expect(parseAddLibraryAction(JSON.stringify({ kind: 'shader', shaderKind: 'rawCode' }))).toBeNull();
+  });
+
+  it('exposes Code Shader as an editable GLSL shader node', () => {
+    const item = addLibraryItemsForSurface('nodes').find((entry) => entry.id === 'shader:code');
+
+    expect(item).toMatchObject({
+      label: 'Code Shader',
+      action: { kind: 'shader', shaderKind: 'customCode' },
+      group: 'shaderFill',
+    });
+    expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
+      kind: 'shader',
+      shaderKind: 'customCode',
+    });
+  });
+
   it('exposes only groups that are available on each surface', () => {
     const layerGroups = addLibraryGroupsForSurface('layers').map((group) => group.id);
     const nodeGroups = addLibraryGroupsForSurface('nodes').map((group) => group.id);
@@ -100,6 +129,7 @@ describe('addLibraryModel', () => {
         'scene3d',
         'environment',
         'shader:mesh',
+        'shader:ai',
         'material',
         'repeat',
       ]),

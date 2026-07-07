@@ -6,15 +6,19 @@ import type {
   AiGenerationJobResponse,
   AiGenerationSettings,
   AiProvider,
+  AiShaderSpecGenerationResponse,
+  AiShaderSpecRequestMode,
+  CreateAiShaderSpecRequest,
   CreateGenerationRequest,
 } from '../contracts.js';
 import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
+import { generateCustomShaderSpecFromPrompt, validateShaderPrompt } from '../customShaderSpecGenerator.js';
 import { isActiveGenerationJobExistsError } from '../db/errors.js';
 import type { ApiRepositories } from '../db/repositories.js';
 import type { AiGenerationJobRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
 import { logInfo, logWarn } from '../logger.js';
-import type { ProviderRegistry } from '../providers/index.js';
+import type { ProviderRegistry, ShaderSpecGenerationProvider } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
 import {
   checkMonthlyQuota,
@@ -38,6 +42,7 @@ export interface AiRouteDeps {
   monthlyGenerationLimit: number;
   maxActiveJobsPerUser: number;
   createRateLimiter?: InMemoryRateLimiter;
+  shaderSpecProvider?: ShaderSpecGenerationProvider;
   now?: () => Date;
   createId?: () => string;
 }
@@ -46,7 +51,9 @@ type AiRouteHandler = (
   request: AiRouteRequest,
   deps: AiRouteDeps,
   pathname: string,
-) => Promise<JsonResponse<AiAccessResponse | AiGenerationJobResponse | { code: string; message: string }> | null>;
+) => Promise<JsonResponse<
+  AiAccessResponse | AiGenerationJobResponse | AiShaderSpecGenerationResponse | { code: string; message: string }
+> | null>;
 
 const AI_ROUTE_HANDLERS: Array<{
   match: (method: string, pathname: string) => boolean;
@@ -55,6 +62,10 @@ const AI_ROUTE_HANDLERS: Array<{
   {
     match: (method, pathname) => method === 'GET' && pathname === '/api/ai/access',
     handle: (request, deps) => handleAccessRequest(request, deps),
+  },
+  {
+    match: (method, pathname) => method === 'POST' && pathname === AI_API_PATHS.shaderSpec,
+    handle: handleCreateShaderSpecRoute,
   },
   {
     match: (method, pathname) => method === 'POST' && pathname === '/api/ai/generations',
@@ -75,16 +86,36 @@ const AI_ROUTE_HANDLERS: Array<{
 export async function handleAiRequest(
   request: AiRouteRequest,
   deps: AiRouteDeps,
-): Promise<JsonResponse<AiAccessResponse | AiGenerationJobResponse | { code: string; message: string }> | null> {
+): Promise<JsonResponse<
+  AiAccessResponse | AiGenerationJobResponse | AiShaderSpecGenerationResponse | { code: string; message: string }
+> | null> {
   const method = request.method ?? 'GET';
   const pathname = new URL(request.url ?? '/', 'http://artifact.local').pathname;
   const route = AI_ROUTE_HANDLERS.find((candidate) => candidate.match(method, pathname));
   return route ? route.handle(request, deps, pathname) : null;
 }
 
+async function handleCreateShaderSpecRoute(request: AiRouteRequest, deps: AiRouteDeps) {
+  const body = await readCreateShaderSpecBody(request);
+  return body.ok ? handleCreateShaderSpecRequest(request, body.value, deps) : body.response;
+}
+
 async function handleCreateGenerationRoute(request: AiRouteRequest, deps: AiRouteDeps) {
   const body = await readCreateGenerationBody(request);
   return body.ok ? handleCreateGenerationRequest(request, body.value, deps) : body.response;
+}
+
+async function readCreateShaderSpecBody(
+  request: AiRouteRequest,
+): Promise<
+  | { ok: true; value: CreateAiShaderSpecRequest }
+  | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  try {
+    return { ok: true, value: await readJsonBody<CreateAiShaderSpecRequest>(request) };
+  } catch {
+    return { ok: false, response: errorJson(400, 'invalid_json', 'Request body must be valid JSON.') };
+  }
 }
 
 async function readCreateGenerationBody(
@@ -142,6 +173,106 @@ export async function handleAccessRequest(
   );
 }
 
+export async function handleCreateShaderSpecRequest(
+  request: RequestLike,
+  body: CreateAiShaderSpecRequest,
+  deps: AiRouteDeps,
+): Promise<JsonResponse<AiShaderSpecGenerationResponse | { code: string; message: string }>> {
+  const authResult = await authenticateCreateShaderSpec(request, deps);
+  if (!authResult.ok) return authResult.response;
+
+  const promptResult = validateShaderPrompt(body?.prompt);
+  if (!promptResult.ok) return errorJson(400, promptResult.code, promptResult.message);
+
+  const rateLimitResponse = createShaderSpecRateLimitResponse(authResult.user.id, deps);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const modeResult = validateShaderSpecMode(body?.mode);
+  if (!modeResult.ok) return errorJson(400, modeResult.code, modeResult.message);
+
+  const specResult = await createShaderSpec(promptResult.prompt, modeResult.mode, deps);
+  if (!specResult.ok) return specResult.response;
+  logInfo('ai_shader_spec.generated', {
+    userId: authResult.user.id,
+    source: specResult.source,
+    model: specResult.model,
+    operations: specResult.spec.operations.length,
+  });
+
+  return json(200, {
+    prompt: promptResult.prompt,
+    spec: specResult.spec,
+    source: specResult.source,
+    ...(specResult.model ? { model: specResult.model } : {}),
+  });
+}
+
+async function createShaderSpec(
+  prompt: string,
+  mode: AiShaderSpecRequestMode,
+  deps: AiRouteDeps,
+): Promise<
+  | {
+      ok: true;
+      spec: AiShaderSpecGenerationResponse['spec'];
+      source: AiShaderSpecGenerationResponse['source'];
+      model?: string;
+    }
+  | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  if (mode === 'localFallback') {
+    const spec = generateCustomShaderSpecFromPrompt(prompt);
+    return {
+      ok: true,
+      source: 'localFallback',
+      spec: {
+        ...spec,
+        provenance: { source: 'localFallback', model: 'deterministic-local-mapper' },
+      },
+      model: 'deterministic-local-mapper',
+    };
+  }
+
+  if (!deps.shaderSpecProvider) {
+    return {
+      ok: false,
+      response: errorJson(503, 'shader_provider_unavailable', 'OpenAI shader generation is not configured.'),
+    };
+  }
+
+  try {
+    const model = deps.shaderSpecProvider.defaultModel;
+    const spec = await deps.shaderSpecProvider.generateShaderSpec({ prompt });
+    return {
+      ok: true,
+      source: 'openai',
+      spec: {
+        ...spec,
+        provenance: { source: 'openai', model },
+      },
+      model,
+    };
+  } catch (error) {
+    logWarn('ai_shader_spec.provider_failed', {
+      provider: deps.shaderSpecProvider.provider,
+      model: deps.shaderSpecProvider.defaultModel,
+      reason: error instanceof Error ? error.message : 'unknown_error',
+    });
+    return {
+      ok: false,
+      response: errorJson(502, 'shader_provider_failed', 'Shader generation failed. Try again or adjust the prompt.'),
+    };
+  }
+}
+
+function validateShaderSpecMode(
+  value: unknown,
+): { ok: true; mode: AiShaderSpecRequestMode } | { ok: false; code: string; message: string } {
+  if (value === undefined || value === null) return { ok: true, mode: 'openai' };
+  if (value === 'openai' || value === 'localFallback') return { ok: true, mode: value };
+  return { ok: false, code: 'invalid_shader_mode', message: 'Shader generation mode is not supported.' };
+}
+
 export async function handleCreateGenerationRequest(
   request: RequestLike,
   body: CreateGenerationRequest,
@@ -185,6 +316,26 @@ type CreateGenerationPrepared = {
   quotaCheck: MonthlyQuotaCheck;
   user: AuthenticatedUserRow;
 };
+
+async function authenticateCreateShaderSpec(
+  request: RequestLike,
+  deps: AiRouteDeps,
+): Promise<
+  { ok: true; user: AuthenticatedUserRow } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+> {
+  const auth = await deps.resolveAuth(request);
+  if (!auth.authenticated) {
+    logWarn('ai_shader_spec.create_denied', { reason: 'unauthenticated' });
+    return { ok: false, response: errorJson(401, 'unauthenticated', 'Sign in before generating shaders.') };
+  }
+
+  const user = await ensureAuthenticatedUser(auth, deps);
+  if (!user?.ai_enabled || user.disabled_at) {
+    logWarn('ai_shader_spec.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
+    return { ok: false, response: errorJson(403, 'not_enabled', 'AI shader generation is not enabled for this user.') };
+  }
+  return { ok: true, user };
+}
 
 async function prepareCreateGeneration(
   request: RequestLike,
@@ -305,6 +456,17 @@ function createGenerationRateLimitResponse(userId: string, deps: AiRouteDeps) {
   return json(
     429,
     { code: 'rate_limited', message: 'Too many generation requests.' },
+    { 'retry-after': String(Math.ceil(rate.retryAfterMs / 1000)) },
+  );
+}
+
+function createShaderSpecRateLimitResponse(userId: string, deps: AiRouteDeps) {
+  const rate = deps.createRateLimiter?.check(`shader-spec:create:user:${userId}`);
+  if (!rate || rate.allowed) return null;
+  logWarn('ai_shader_spec.create_denied', { userId, reason: 'rate_limited' });
+  return json(
+    429,
+    { code: 'rate_limited', message: 'Too many shader generation requests.' },
     { 'retry-after': String(Math.ceil(rate.retryAfterMs / 1000)) },
   );
 }
