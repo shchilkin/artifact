@@ -101,6 +101,10 @@ describe('ai generation client', () => {
         label: 'AI Marble',
         operations: [
           { op: 'noise', scale: 1000, amount: 2, octaves: 99 },
+          { op: 'sourceLuma', amount: 0.7 },
+          { op: 'edgeGlow', amount: 4, softness: 2 },
+          { op: 'chromaticShift', amount: 0.4, angle: 380 },
+          { op: 'gradientMap', amount: 0.5 },
           { op: 'rawCode', source: 'void main() {}' },
         ],
       },
@@ -110,7 +114,13 @@ describe('ai generation client', () => {
     expect(response.source).toBe('openai');
     expect(response.model).toBe('gpt-5.5-mini');
     expect(response.spec.provenance).toEqual({ source: 'openai', model: 'gpt-5.5-mini' });
-    expect(response.spec.operations).toEqual([{ op: 'noise', scale: 40, amount: 2, octaves: 7, seedOffset: 0 }]);
+    expect(response.spec.operations).toEqual([
+      { op: 'noise', scale: 40, amount: 2, octaves: 7, seedOffset: 0 },
+      { op: 'sourceLuma', amount: 0.7 },
+      { op: 'edgeGlow', amount: 2, softness: 1 },
+      { op: 'chromaticShift', amount: 0.4, angle: 360 },
+      { op: 'gradientMap', amount: 0.5 },
+    ]);
   });
 
   it('creates shader specs through the AI shader endpoint', async () => {

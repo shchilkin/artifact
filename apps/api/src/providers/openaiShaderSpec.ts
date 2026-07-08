@@ -59,7 +59,7 @@ export function createOpenAiShaderSpecProvider(options: OpenAiShaderSpecProvider
             {
               role: 'system',
               content:
-                'Create a deterministic editable shader spec for Artifact. Return only structured JSON matching the provided schema. Do not include GLSL, WGSL, JavaScript, HTML, or executable code.',
+                'Create a deterministic editable shader pass spec for Artifact. The spec processes a connected source image/backdrop. Prefer source-aware operations such as sourceLuma, edgeGlow, chromaticShift, and gradientMap when the prompt asks for photo processing, glass, water, print, glow, or tone mapping. Return only structured JSON matching the provided schema. Do not include GLSL, WGSL, JavaScript, HTML, or executable code.',
             },
             {
               role: 'user',
@@ -156,7 +156,22 @@ const CUSTOM_SHADER_SPEC_JSON_SCHEMA = {
           'steps',
         ],
         properties: {
-          op: { type: 'string', enum: ['noise', 'wave', 'rings', 'swirl', 'threshold', 'posterize', 'invert'] },
+          op: {
+            type: 'string',
+            enum: [
+              'noise',
+              'wave',
+              'rings',
+              'swirl',
+              'threshold',
+              'posterize',
+              'invert',
+              'sourceLuma',
+              'edgeGlow',
+              'chromaticShift',
+              'gradientMap',
+            ],
+          },
           scale: numericParamSchema,
           amount: numericParamSchema,
           octaves: numericParamSchema,

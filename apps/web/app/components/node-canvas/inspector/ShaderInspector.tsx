@@ -691,15 +691,59 @@ function renderOperationControls(
       );
     case 'swirl':
     case 'invert':
+    case 'sourceLuma':
+    case 'gradientMap':
       return (
         <InspectorSlider
           label="Strength"
           value={Math.round(operation.amount * 100)}
-          min={operation.op === 'invert' ? 0 : -200}
-          max={operation.op === 'invert' ? 100 : 200}
+          min={operation.op === 'swirl' ? -200 : 0}
+          max={operation.op === 'swirl' ? 200 : 100}
           valueLabel={`${Math.round(operation.amount * 100)}%`}
           onChange={(value) => onChange(index, { amount: value / 100 })}
         />
+      );
+    case 'edgeGlow':
+      return (
+        <>
+          <InspectorSlider
+            label="Strength"
+            value={Math.round(operation.amount * 100)}
+            min={0}
+            max={200}
+            valueLabel={`${Math.round(operation.amount * 100)}%`}
+            onChange={(value) => onChange(index, { amount: value / 100 })}
+          />
+          <InspectorSlider
+            label="Softness"
+            value={Math.round((operation.softness ?? 0.18) * 100)}
+            min={0}
+            max={100}
+            valueLabel={`${Math.round((operation.softness ?? 0.18) * 100)}%`}
+            onChange={(value) => onChange(index, { softness: value / 100 })}
+          />
+        </>
+      );
+    case 'chromaticShift':
+      return (
+        <>
+          <InspectorSlider
+            label="Strength"
+            value={Math.round(operation.amount * 100)}
+            min={0}
+            max={100}
+            valueLabel={`${Math.round(operation.amount * 100)}%`}
+            onChange={(value) => onChange(index, { amount: value / 100 })}
+          />
+          <InspectorSlider
+            label="Angle"
+            value={Math.round(operation.angle ?? 0)}
+            min={-180}
+            max={180}
+            valueLabel={`${Math.round(operation.angle ?? 0)}°`}
+            onChange={(value) => onChange(index, { angle: value })}
+          />
+        </>
       );
     case 'threshold':
       return (
@@ -751,6 +795,14 @@ function operationLabel(operation: CustomShaderOperation) {
       return 'Color bands';
     case 'invert':
       return 'Invert colors';
+    case 'sourceLuma':
+      return 'Source light';
+    case 'edgeGlow':
+      return 'Edge glow';
+    case 'chromaticShift':
+      return 'Color split';
+    case 'gradientMap':
+      return 'Gradient map';
   }
 }
 

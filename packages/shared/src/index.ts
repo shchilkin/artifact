@@ -75,6 +75,24 @@ export type CustomShaderOperation =
   | {
       op: 'invert';
       amount: number;
+    }
+  | {
+      op: 'sourceLuma';
+      amount: number;
+    }
+  | {
+      op: 'edgeGlow';
+      amount: number;
+      softness?: number;
+    }
+  | {
+      op: 'chromaticShift';
+      amount: number;
+      angle?: number;
+    }
+  | {
+      op: 'gradientMap';
+      amount: number;
     };
 
 export const AI_SHADER_SPEC_SOURCES = ['openai', 'localFallback'] as const;
@@ -116,7 +134,7 @@ const CUSTOM_SHADER_HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export const DEFAULT_CUSTOM_SHADER_SPEC: CustomShaderSpec = {
   version: 1,
-  label: 'AI Shader',
+  label: 'AI Shader Pass',
   base: 0.46,
   contrast: 1.18,
   palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],
@@ -221,6 +239,28 @@ function normalizeCustomShaderOperation(value: unknown): CustomShaderOperation |
       return {
         op: 'invert',
         amount: clampCustomShaderNumber(value.amount, 0, 1, 1),
+      };
+    case 'sourceLuma':
+      return {
+        op: 'sourceLuma',
+        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.45),
+      };
+    case 'edgeGlow':
+      return {
+        op: 'edgeGlow',
+        amount: clampCustomShaderNumber(value.amount, 0, 2, 0.35),
+        softness: clampCustomShaderNumber(value.softness, 0, 1, 0.18),
+      };
+    case 'chromaticShift':
+      return {
+        op: 'chromaticShift',
+        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.24),
+        angle: clampCustomShaderNumber(value.angle, -360, 360, 0),
+      };
+    case 'gradientMap':
+      return {
+        op: 'gradientMap',
+        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.65),
       };
     default:
       return null;

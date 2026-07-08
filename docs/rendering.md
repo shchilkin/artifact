@@ -135,7 +135,11 @@ standalone fill. If no source/backdrop is connected, or no generated spec exists
 graph rendering returns a transparent canvas. The document stores a constrained
 JSON spec, not raw shader code; normalization clamps numeric ranges, drops
 unsupported operations, and keeps render output deterministic from document
-seed, node seed offset, and the saved spec. Prompt generation enters through the shared
+seed, node seed offset, and the saved spec. The spec grammar is intentionally
+limited to deterministic operations such as procedural noise/waves/rings,
+cutoff/posterize/invert shaping, and source-aware pass operations including
+source luminance, edge glow, chromatic shift, and gradient-map tinting.
+Prompt generation enters through the shared
 `/api/ai/shader-spec` contract. The default request path is OpenAI-backed and
 must fail visibly if no provider is configured. A deterministic local mapper is
 available only as an explicit user-confirmed fallback, and fallback specs carry

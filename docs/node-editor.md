@@ -138,8 +138,11 @@ Shader work follows the same single-purpose split:
   the AI shader-spec endpoint. The default path must request the configured
   OpenAI provider; if that fails, the inspector may offer a separate local
   deterministic fallback, and the saved spec must keep `localFallback`
-  provenance. Without a connected source/backdrop, or before a generated spec
-  exists, it renders transparent instead of inventing source pixels.
+  provenance. The v2 spec grammar supports source-aware pass operations such as
+  source luminance, edge glow, chromatic shift, and gradient-map tinting in
+  addition to procedural noise/waves/rings. Without a connected source/backdrop,
+  or before a generated spec exists, it renders transparent instead of inventing
+  source pixels.
   `Code Shader` is the editable-code variant of the same node role: it stores a
   GLSL fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and

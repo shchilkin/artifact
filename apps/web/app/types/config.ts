@@ -1895,7 +1895,7 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
   const defaultCustomShaderSpec: CustomShaderSpec = {
     version: 1,
-    label: 'AI Shader',
+    label: 'AI Shader Pass',
     base: 0.46,
     contrast: 1.18,
     palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],

@@ -19,6 +19,7 @@ import type {
   PrimitiveLayer,
 } from '../../types/config';
 import { DEFAULT_MATERIAL_CONFIG, MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
+import { normalizeCustomShaderSpec } from '../customShaderSpec';
 import { lcg } from '../lcg';
 import type { SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
@@ -726,9 +727,56 @@ function imageIndex(width: number, height: number, x: number, y: number) {
   return (py * width + px) * 4;
 }
 
-function shaderLumaAt(shaderImage: ImageData, width: number, height: number, x: number, y: number) {
+function pixelLumaAt(image: ImageData, width: number, height: number, x: number, y: number) {
   const index = imageIndex(width, height, x, y);
-  return pixelLuma(shaderImage.data[index] ?? 0, shaderImage.data[index + 1] ?? 0, shaderImage.data[index + 2] ?? 0);
+  return pixelLuma(image.data[index] ?? 0, image.data[index + 1] ?? 0, image.data[index + 2] ?? 0);
+}
+
+function shaderLumaAt(shaderImage: ImageData, width: number, height: number, x: number, y: number) {
+  return pixelLumaAt(shaderImage, width, height, x, y);
+}
+
+function customShaderPassTuning(shaderNode: GraphShaderNode) {
+  if (shaderNode.shaderKind !== 'customSpec') {
+    return {
+      sourceLuma: 0,
+      edgeGlow: 0,
+      edgeSoftness: 0.18,
+      chromaticShift: 0,
+      chromaticAngle: 0,
+      gradientMap: 0,
+    };
+  }
+
+  const spec = normalizeCustomShaderSpec(shaderNode.customShaderSpec);
+  let sourceLuma = 0;
+  let edgeGlow = 0;
+  let edgeSoftness = 0.18;
+  let chromaticShift = 0;
+  let chromaticAngle = 0;
+  let gradientMap = 0;
+
+  for (const operation of spec.operations) {
+    if (operation.op === 'sourceLuma') sourceLuma = Math.max(sourceLuma, operation.amount);
+    else if (operation.op === 'edgeGlow') {
+      edgeGlow = Math.max(edgeGlow, operation.amount);
+      edgeSoftness = operation.softness ?? edgeSoftness;
+    } else if (operation.op === 'chromaticShift') {
+      chromaticShift = Math.max(chromaticShift, operation.amount);
+      chromaticAngle = operation.angle ?? chromaticAngle;
+    } else if (operation.op === 'gradientMap') {
+      gradientMap = Math.max(gradientMap, operation.amount);
+    }
+  }
+
+  return {
+    sourceLuma: unitClamp(sourceLuma),
+    edgeGlow: Math.max(0, Math.min(2, edgeGlow)),
+    edgeSoftness: unitClamp(edgeSoftness),
+    chromaticShift: unitClamp(chromaticShift),
+    chromaticAngle,
+    gradientMap: unitClamp(gradientMap),
+  };
 }
 
 function createBackdropAwareShaderCanvas(
@@ -747,6 +795,7 @@ function createBackdropAwareShaderCanvas(
   const sourceImage = sourceCtx.getImageData(0, 0, W, H);
   const shaderImage = shaderCtx.getImageData(0, 0, W, H);
   const outputImage = outputCtx.createImageData(W, H);
+  const passTuning = customShaderPassTuning(shaderNode);
   const distortionStrength = unitClamp(shaderNode.distortion / 100);
   const displacement = Math.max(1, Math.min(W, H) * (0.006 + distortionStrength * 0.048));
   const causticStrength = 0.16 + distortionStrength * 0.34;
@@ -759,17 +808,40 @@ function createBackdropAwareShaderCanvas(
     const hr = shaderImage.data[index] ?? 0;
     const hg = shaderImage.data[index + 1] ?? 0;
     const hb = shaderImage.data[index + 2] ?? 0;
-    const shaderLuma = pixelLuma(hr, hg, hb);
+    let shaderLuma = pixelLuma(hr, hg, hb);
     const dx = shaderLumaAt(shaderImage, W, H, x + 1, y) - shaderLumaAt(shaderImage, W, H, x - 1, y);
     const dy = shaderLumaAt(shaderImage, W, H, x, y + 1) - shaderLumaAt(shaderImage, W, H, x, y - 1);
     const sourceIndex = imageIndex(W, H, x + dx * displacement, y + dy * displacement);
-    const sr = sourceImage.data[sourceIndex] ?? 0;
+    let sr = sourceImage.data[sourceIndex] ?? 0;
     const sg = sourceImage.data[sourceIndex + 1] ?? 0;
-    const sb = sourceImage.data[sourceIndex + 2] ?? 0;
+    let sb = sourceImage.data[sourceIndex + 2] ?? 0;
     const sa = sourceImage.data[sourceIndex + 3] ?? 0;
-    const edge = unitClamp(Math.abs(dx) + Math.abs(dy));
-    const caustic = (shaderLuma - 0.5) * causticStrength + edge * (0.18 + distortionStrength * 0.28);
-    const tint = unitClamp(tintBase + edge * 0.12) * 0.68;
+    const sourceLuma = pixelLuma(sr, sg, sb);
+    const sourceDx = pixelLumaAt(sourceImage, W, H, x + 1, y) - pixelLumaAt(sourceImage, W, H, x - 1, y);
+    const sourceDy = pixelLumaAt(sourceImage, W, H, x, y + 1) - pixelLumaAt(sourceImage, W, H, x, y - 1);
+    const sourceEdge = unitClamp(Math.abs(sourceDx) + Math.abs(sourceDy));
+
+    shaderLuma = shaderLuma * (1 - passTuning.sourceLuma) + sourceLuma * passTuning.sourceLuma;
+
+    if (passTuning.chromaticShift > 0) {
+      const angle = passTuning.chromaticAngle !== 0 ? (passTuning.chromaticAngle * Math.PI) / 180 : Math.atan2(dy, dx);
+      const chroma = passTuning.chromaticShift * Math.min(W, H) * 0.028;
+      const cx = Math.cos(angle) * chroma;
+      const cy = Math.sin(angle) * chroma;
+      const redIndex = imageIndex(W, H, x + dx * displacement + cx, y + dy * displacement + cy);
+      const blueIndex = imageIndex(W, H, x + dx * displacement - cx, y + dy * displacement - cy);
+      sr = sourceImage.data[redIndex] ?? sr;
+      sb = sourceImage.data[blueIndex + 2] ?? sb;
+    }
+
+    const edge = unitClamp(
+      Math.abs(dx) + Math.abs(dy) + sourceEdge * passTuning.edgeGlow * (1 - passTuning.edgeSoftness * 0.5),
+    );
+    const caustic =
+      (shaderLuma - 0.5) * causticStrength +
+      edge * (0.18 + distortionStrength * 0.28) +
+      sourceEdge * passTuning.edgeGlow * 0.36;
+    const tint = unitClamp(tintBase + edge * 0.12 + passTuning.gradientMap * 0.72) * 0.68;
 
     outputImage.data[index] = byteClamp(sr * (1 - tint) + hr * tint + caustic * 255);
     outputImage.data[index + 1] = byteClamp(sg * (1 - tint) + hg * tint + caustic * 255);

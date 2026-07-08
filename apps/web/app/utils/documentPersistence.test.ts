@@ -111,6 +111,10 @@ describe('normalizeDocument', () => {
               operations: [
                 { op: 'noise', scale: 200, amount: 4, octaves: 99 },
                 { op: 'rawCode', code: 'while(true){}' },
+                { op: 'sourceLuma', amount: 0.45 },
+                { op: 'edgeGlow', amount: 0.5, softness: 0.12 },
+                { op: 'chromaticShift', amount: 0.25, angle: 42 },
+                { op: 'gradientMap', amount: 0.7 },
                 { op: 'posterize', steps: 999 },
               ],
             },
@@ -128,6 +132,10 @@ describe('normalizeDocument', () => {
       palette: ['#000', '#ff00aa'],
       operations: [
         { op: 'noise', scale: 40, amount: 2, octaves: 7 },
+        { op: 'sourceLuma', amount: 0.45 },
+        { op: 'edgeGlow', amount: 0.5, softness: 0.12 },
+        { op: 'chromaticShift', amount: 0.25, angle: 42 },
+        { op: 'gradientMap', amount: 0.7 },
         { op: 'posterize', steps: 16 },
       ],
     });

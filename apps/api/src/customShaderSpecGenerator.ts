@@ -92,6 +92,36 @@ function operationsForPrompt(text: string, seed: number): CustomShaderOperation[
     });
   }
 
+  if (mentions(text, ['photo', 'image', 'source', 'input', 'portrait', 'face', 'luma', 'luminance', 'light'])) {
+    operations.push({
+      op: 'sourceLuma',
+      amount: valueFromSeed(seed >>> 17, 0.28, 0.72),
+    });
+  }
+
+  if (mentions(text, ['edge', 'outline', 'rim', 'glow', 'neon', 'hatching', 'xerox', 'ink'])) {
+    operations.push({
+      op: 'edgeGlow',
+      amount: valueFromSeed(seed >>> 18, 0.22, 0.86),
+      softness: valueFromSeed(seed >>> 19, 0.08, 0.32),
+    });
+  }
+
+  if (mentions(text, ['glass', 'water', 'refract', 'refraction', 'caustic', 'prism', 'chromatic', 'rgb'])) {
+    operations.push({
+      op: 'chromaticShift',
+      amount: valueFromSeed(seed >>> 20, 0.12, 0.46),
+      angle: valueFromSeed(seed >>> 21, -90, 90),
+    });
+  }
+
+  if (mentions(text, ['gradient map', 'duotone', 'map', 'tone map', 'poster', 'cyanotype', 'infrared'])) {
+    operations.push({
+      op: 'gradientMap',
+      amount: valueFromSeed(seed >>> 22, 0.35, 0.86),
+    });
+  }
+
   if (operations.length === 1) {
     operations.push({
       op: 'wave',
@@ -129,7 +159,7 @@ function labelForPrompt(text: string) {
   if (mentions(text, ['spiral', 'vortex'])) return 'AI Spiral';
   if (mentions(text, ['wave', 'ripple'])) return 'AI Waves';
   if (mentions(text, ['neon', 'cyber'])) return 'AI Neon';
-  return 'AI Shader';
+  return 'AI Shader Pass';
 }
 
 function mentions(text: string, words: string[]) {
