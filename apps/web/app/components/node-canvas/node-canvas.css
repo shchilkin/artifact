@@ -3401,6 +3401,51 @@
   height: 34px;
 }
 
+.node-shader-role-status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 8px;
+  align-items: baseline;
+  border: 1px solid color-mix(in oklch, var(--border) 76%, transparent);
+  border-left-color: color-mix(in oklch, var(--node-accent) 56%, var(--border));
+  border-radius: var(--control-radius);
+  padding: 8px 10px;
+  background: color-mix(in oklch, var(--surface-input) 62%, transparent);
+}
+
+.node-shader-role-status span {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-shader-role-status strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--type-editor-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-shader-role-status p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: color-mix(in oklch, var(--text) 56%, var(--text-dim));
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+.node-shader-role-status-pass {
+  border-left-color: color-mix(in oklch, var(--accent) 68%, var(--border));
+  background: color-mix(in oklch, var(--accent) 8%, var(--surface-input));
+}
+
 .node-shader-color-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

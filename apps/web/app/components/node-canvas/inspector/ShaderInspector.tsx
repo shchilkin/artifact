@@ -23,6 +23,7 @@ import {
   aiShaderPassEmptyStatus,
   canCreateAiShaderPass,
   shaderInspectorRoleNote,
+  shaderInspectorRoleStatus,
   showsPresetShaderControls,
 } from './ShaderInspectorModel';
 import { shaderGenerationMachine } from './shaderGenerationMachine';
@@ -59,7 +60,7 @@ const SHADER_KIND_OPTIONS: Array<{ value: ShaderKind; label: string }> = [
 ];
 
 const SHADER_MODE_OPTIONS: Array<{ value: ShaderMode; label: string }> = [
-  { value: 'preset', label: 'Shader Preset' },
+  { value: 'preset', label: 'Shader Fill / Pass' },
   { value: 'ai', label: 'AI Shader Pass' },
   { value: 'code', label: 'Code Shader' },
 ];
@@ -208,6 +209,7 @@ export function ShaderInspector({
           ? 'Create New Version'
           : 'Create with AI';
   const showPresetShaderControls = showsPresetShaderControls(shaderNode.shaderKind);
+  const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, sourceConnected);
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
     sendGeneration({ type: 'RESET' });
@@ -345,6 +347,7 @@ export function ShaderInspector({
           onChange={handleKindChange}
         />
       )}
+      <ShaderRoleStatus status={roleStatus} />
       {shaderNode.shaderKind === 'customSpec' && (
         <InspectorSection
           title="AI Shader Pass"
@@ -583,6 +586,16 @@ export function ShaderInspector({
         </InspectorSection>
       )}
       <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind)}</p>
+    </div>
+  );
+}
+
+function ShaderRoleStatus({ status }: { status: ReturnType<typeof shaderInspectorRoleStatus> }) {
+  return (
+    <div className={`node-shader-role-status node-shader-role-status-${status.mode}`}>
+      <span>Role</span>
+      <strong>{status.label}</strong>
+      <p>{status.message}</p>
     </div>
   );
 }

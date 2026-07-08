@@ -10,6 +10,7 @@ import {
   aiShaderPassEmptyStatus,
   canCreateAiShaderPass,
   shaderInspectorRoleNote,
+  shaderInspectorRoleStatus,
   showsPresetShaderControls,
 } from './ShaderInspectorModel';
 
@@ -58,5 +59,22 @@ describe('ShaderInspector metadata', () => {
     expect(showsPresetShaderControls('meshGradient')).toBe(true);
     expect(showsPresetShaderControls('customSpec')).toBe(false);
     expect(showsPresetShaderControls('customCode')).toBe(false);
+  });
+
+  it('describes preset shaders as fill or pass from source connection state', () => {
+    expect(shaderInspectorRoleStatus('meshGradient', false)).toEqual({
+      label: 'Shader Fill',
+      message: 'No input is connected, so this shader renders its own texture.',
+      mode: 'fill',
+    });
+    expect(shaderInspectorRoleStatus('meshGradient', true)).toEqual({
+      label: 'Shader Pass',
+      message: 'Connected artwork is sampled by this shader and sent onward as a pass.',
+      mode: 'pass',
+    });
+    expect(shaderInspectorRoleStatus('customCode', true)).toMatchObject({
+      label: 'Code Pass',
+      mode: 'pass',
+    });
   });
 });
