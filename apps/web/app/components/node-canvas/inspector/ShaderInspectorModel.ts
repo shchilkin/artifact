@@ -33,3 +33,7 @@ export function shaderInspectorRoleNote(shaderKind: ShaderKind) {
   }
   return 'Use as a fill, place it over a backdrop, or send it into a material.';
 }
+
+export function showsPresetShaderControls(shaderKind: ShaderKind) {
+  return shaderKind !== 'customSpec' && shaderKind !== 'customCode';
+}

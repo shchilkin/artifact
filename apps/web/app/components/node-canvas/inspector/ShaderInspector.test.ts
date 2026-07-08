@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SHADER_ADVANCED_CONTROL_FIELDS, SHADER_PRIMARY_CONTROL_FIELDS } from './ShaderInspectorMetadata';
-import { aiShaderPassEmptyStatus, canCreateAiShaderPass, shaderInspectorRoleNote } from './ShaderInspectorModel';
+import {
+  aiShaderPassEmptyStatus,
+  canCreateAiShaderPass,
+  shaderInspectorRoleNote,
+  showsPresetShaderControls,
+} from './ShaderInspectorModel';
 
 describe('ShaderInspector metadata', () => {
   it('keeps shader fills focused on no more than five primary controls', () => {
@@ -45,5 +50,11 @@ describe('ShaderInspector metadata', () => {
     expect(shaderInspectorRoleNote('customCode')).toBe(
       'Use code as a standalone shader fill or as a pass over the connected backdrop.',
     );
+  });
+
+  it('keeps preset-only color/detail controls off custom shader variants', () => {
+    expect(showsPresetShaderControls('meshGradient')).toBe(true);
+    expect(showsPresetShaderControls('customSpec')).toBe(false);
+    expect(showsPresetShaderControls('customCode')).toBe(false);
   });
 });

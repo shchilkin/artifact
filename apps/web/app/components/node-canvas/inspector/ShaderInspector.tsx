@@ -19,7 +19,12 @@ import {
   InspectorTextArea,
   InspectorTextInput,
 } from './fields';
-import { aiShaderPassEmptyStatus, canCreateAiShaderPass, shaderInspectorRoleNote } from './ShaderInspectorModel';
+import {
+  aiShaderPassEmptyStatus,
+  canCreateAiShaderPass,
+  shaderInspectorRoleNote,
+  showsPresetShaderControls,
+} from './ShaderInspectorModel';
 import { shaderGenerationMachine } from './shaderGenerationMachine';
 
 const SHADER_KIND_OPTIONS: Array<{ value: ShaderKind; label: string }> = [
@@ -202,7 +207,7 @@ export function ShaderInspector({
         : customHasResult
           ? 'Create New Version'
           : 'Create with AI';
-  const showBaseShaderControls = shaderNode.shaderKind !== 'customCode';
+  const showPresetShaderControls = showsPresetShaderControls(shaderNode.shaderKind);
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
     sendGeneration({ type: 'RESET' });
@@ -466,7 +471,7 @@ export function ShaderInspector({
           </p>
         </InspectorSection>
       )}
-      {showBaseShaderControls && (
+      {showPresetShaderControls && (
         <>
           <InspectorSection
             title="Palette"
@@ -529,7 +534,7 @@ export function ShaderInspector({
           onChange={(value) => onChange({ opacity: value })}
         />
       </InspectorSection>
-      {showBaseShaderControls && (
+      {showPresetShaderControls && (
         <InspectorSection
           title="Advanced"
           summary="secondary colors / placement"
