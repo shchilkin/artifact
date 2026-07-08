@@ -467,14 +467,17 @@ function EnvironmentNodeInspector({
 
 function ShaderNodeInspector({
   node,
+  graph,
   onUpdateShaderNode,
 }: Pick<NodePropertiesPanelProps, 'onUpdateShaderNode'> & {
   node: GraphShaderNode;
+  graph: CanvasGraph | undefined;
 }) {
   return (
     <ShaderInspector
       key={node.id}
       shaderNode={node}
+      sourceConnected={isPortConnected(graph, node.id, 'bg')}
       onChange={(patch) => onUpdateShaderNode(node.id, patch)}
       detached
     />
@@ -762,8 +765,8 @@ const GRAPH_UTILITY_INSPECTORS = {
       onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
     />
   ),
-  shader: ({ target, onUpdateShaderNode }: GraphUtilityInspectorProps<'shader'>) => (
-    <ShaderNodeInspector node={target.node} onUpdateShaderNode={onUpdateShaderNode} />
+  shader: ({ target, graph, onUpdateShaderNode }: GraphUtilityInspectorProps<'shader'>) => (
+    <ShaderNodeInspector node={target.node} graph={graph} onUpdateShaderNode={onUpdateShaderNode} />
   ),
 };
 

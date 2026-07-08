@@ -19,6 +19,7 @@ import {
   InspectorTextArea,
   InspectorTextInput,
 } from './fields';
+import { aiShaderPassEmptyStatus, canCreateAiShaderPass, shaderInspectorRoleNote } from './ShaderInspectorModel';
 import { shaderGenerationMachine } from './shaderGenerationMachine';
 
 const SHADER_KIND_OPTIONS: Array<{ value: ShaderKind; label: string }> = [
@@ -63,10 +64,12 @@ type ShaderMode = 'preset' | 'ai' | 'code';
 export function ShaderInspector({
   shaderNode,
   onChange,
+  sourceConnected = false,
   detached = false,
 }: {
   shaderNode: GraphShaderNode;
   onChange: (patch: Partial<GraphShaderNode>) => void;
+  sourceConnected?: boolean;
   detached?: boolean;
 }) {
   const [paletteOpen, setPaletteOpen] = useState(true);
@@ -135,7 +138,9 @@ export function ShaderInspector({
   const shaderMode = shaderModeForKind(shaderNode.shaderKind);
   const customHasResult = Boolean(customSpec?.provenance);
   const customHasPrompt = customPrompt.trim().length >= 3;
+  const customNeedsSource = shaderNode.shaderKind === 'customSpec' && !sourceConnected;
   const customGenerating = generationState.matches('creatingOpenAi') || generationState.matches('creatingFallback');
+  const customCanCreate = canCreateAiShaderPass(customPrompt, sourceConnected, customGenerating);
   const customGeneratingFallback = generationState.matches('creatingFallback');
   const customFallbackOffered = generationState.matches('fallbackOffered');
   const customMessage = generationState.context.message;
@@ -147,24 +152,32 @@ export function ShaderInspector({
           message: customSpecValidationMessage(customSpecErrors),
           tone: 'warning' as const,
         }
-      : customMessage
+      : customNeedsSource
         ? {
-            title: customFallbackOffered
-              ? 'Could not create'
-              : generationState.matches('failed')
-                ? 'Could not create'
-                : 'Shader ready',
-            message: customMessage,
-            tone:
-              customFallbackOffered || generationState.matches('failed') ? ('warning' as const) : ('success' as const),
+            title: 'Connect source',
+            message: 'Connect an image or source node before creating this pass. Until then, the output stays empty.',
+            tone: 'info' as const,
           }
-        : customProvenanceMessage
+        : customMessage
           ? {
-              title: customSpec?.provenance?.source === 'localFallback' ? 'Local draft' : 'AI version',
-              message: customProvenanceMessage,
-              tone: 'info' as const,
+              title: customFallbackOffered
+                ? 'Could not create'
+                : generationState.matches('failed')
+                  ? 'Could not create'
+                  : 'Shader ready',
+              message: customMessage,
+              tone:
+                customFallbackOffered || generationState.matches('failed')
+                  ? ('warning' as const)
+                  : ('success' as const),
             }
-          : null;
+          : customProvenanceMessage
+            ? {
+                title: customSpec?.provenance?.source === 'localFallback' ? 'Local draft' : 'AI version',
+                message: customProvenanceMessage,
+                tone: 'info' as const,
+              }
+            : null;
   const customSummary = customGenerating
     ? 'creating'
     : customFallbackOffered
@@ -173,18 +186,22 @@ export function ShaderInspector({
         ? 'try again'
         : customSpecErrors.length
           ? 'needs attention'
-          : customHasResult
-            ? 'ready'
-            : customHasPrompt
-              ? 'ready to create'
-              : 'empty';
+          : customNeedsSource
+            ? 'needs source'
+            : customHasResult
+              ? 'ready'
+              : customHasPrompt
+                ? 'ready to create'
+                : 'empty';
   const customPrimaryActionLabel = generationState.matches('creatingOpenAi')
     ? 'Creating...'
     : customFallbackOffered || generationState.matches('failed')
       ? 'Try Again'
-      : customHasResult
-        ? 'Create New Version'
-        : 'Create with AI';
+      : customNeedsSource
+        ? 'Connect Source First'
+        : customHasResult
+          ? 'Create New Version'
+          : 'Create with AI';
   const showBaseShaderControls = shaderNode.shaderKind !== 'customCode';
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
@@ -217,7 +234,7 @@ export function ShaderInspector({
   const handleGenerateCustomSpec = useCallback(
     async (mode: AiShaderSpecRequestMode = 'openai') => {
       const prompt = customPrompt.trim();
-      if (!prompt || customGenerating) return;
+      if (!prompt || customGenerating || customNeedsSource) return;
       if (mode === 'localFallback') {
         sendGeneration({ type: 'CREATE_FALLBACK' });
         setShaderNodeGenerationStatus(shaderNode.id, 'creatingFallback');
@@ -266,6 +283,7 @@ export function ShaderInspector({
       auth,
       customGenerating,
       customPrompt,
+      customNeedsSource,
       devToken,
       onChange,
       sendGeneration,
@@ -330,15 +348,7 @@ export function ShaderInspector({
           onToggle={() => setCustomOpen((open) => !open)}
         >
           {!customHasResult && !customGenerating && !customFallbackOffered && !generationState.matches('failed') ? (
-            <CustomShaderStatusMessage
-              title={customHasPrompt ? 'Ready to create' : 'Start with a prompt'}
-              message={
-                customHasPrompt
-                  ? 'Create an editable pass that processes the connected source.'
-                  : 'Connect a source, then describe how the shader should transform it. The output stays transparent until a result exists.'
-              }
-              tone="info"
-            />
+            <CustomShaderStatusMessage {...aiShaderPassEmptyStatus(customHasPrompt, sourceConnected)} tone="info" />
           ) : null}
           <InspectorTextArea
             value={customPrompt}
@@ -358,7 +368,7 @@ export function ShaderInspector({
           <button
             type="button"
             className="node-inspector-action nodrag nopan nowheel"
-            disabled={customGenerating || customPrompt.trim().length < 3}
+            disabled={customGenerating || !customCanCreate}
             onClick={() => void handleGenerateCustomSpec('openai')}
           >
             {customPrimaryActionLabel}
@@ -367,7 +377,7 @@ export function ShaderInspector({
             <button
               type="button"
               className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
-              disabled={customGenerating || customPrompt.trim().length < 3}
+              disabled={customGenerating || !customCanCreate}
               onClick={() => void handleGenerateCustomSpec('localFallback')}
             >
               Make Local Draft
@@ -580,7 +590,7 @@ export function ShaderInspector({
           />
         </InspectorSection>
       )}
-      <p className="node-inspector-note">Use as a fill, place it over a backdrop, or send it into a material.</p>
+      <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind)}</p>
     </div>
   );
 }
