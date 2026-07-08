@@ -9,6 +9,13 @@ function sampleRgb(canvas: HTMLCanvasElement, x: number, y: number) {
   return [data[0] ?? 0, data[1] ?? 0, data[2] ?? 0] as const;
 }
 
+function sampleRgba(canvas: HTMLCanvasElement, x: number, y: number) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('2D context unavailable');
+  const data = ctx.getImageData(x, y, 1, 1).data;
+  return [data[0] ?? 0, data[1] ?? 0, data[2] ?? 0, data[3] ?? 0] as const;
+}
+
 function rgbDelta(a: readonly [number, number, number], b: readonly [number, number, number]) {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
 }
@@ -21,6 +28,7 @@ describe('shader node renderer', () => {
       grain: 0,
       customShaderSpec: {
         version: 1,
+        provenance: { source: 'openai' },
         palette: ['#101020', '#ff3050', '#5cf0ff'],
         base: 0.42,
         contrast: 1.4,
@@ -36,6 +44,21 @@ describe('shader node renderer', () => {
 
     expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
     expect(rgbDelta(sampleRgb(first, 40, 30), sampleRgb(first, 180, 110))).toBeGreaterThan(20);
+  });
+
+  it('renders empty AI shader nodes as transparent until a spec is created', () => {
+    const canvas = renderShaderNodeToCanvas(
+      makeGraphShaderNode({
+        id: 'empty-ai-shader',
+        shaderKind: 'customSpec',
+      }),
+      1171,
+      220,
+      140,
+    );
+
+    expect(sampleRgba(canvas, 40, 30)).toEqual([0, 0, 0, 0]);
+    expect(sampleRgba(canvas, 180, 110)).toEqual([0, 0, 0, 0]);
   });
 
   it('renders custom code shader nodes with visible pixels', () => {
@@ -54,6 +77,26 @@ describe('shader node renderer', () => {
 
     expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
     expect(rgbDelta(sampleRgb(first, 30, 30), sampleRgb(first, 190, 110))).toBeGreaterThan(10);
+  });
+
+  it('renders empty custom code shader nodes as transparent', () => {
+    const canvas = renderShaderNodeToCanvas(
+      makeGraphShaderNode({
+        id: 'empty-code-shader',
+        shaderKind: 'customCode',
+        customShaderCode: {
+          version: 1,
+          language: 'glsl-fragment',
+          code: '',
+        },
+      }),
+      1171,
+      220,
+      140,
+    );
+
+    expect(sampleRgba(canvas, 40, 30)).toEqual([0, 0, 0, 0]);
+    expect(sampleRgba(canvas, 180, 110)).toEqual([0, 0, 0, 0]);
   });
 
   it('keeps spiral continuous across the angular wrap seam', () => {

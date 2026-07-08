@@ -499,7 +499,7 @@ export interface GraphEdge {
   fromId: string;
   fromPort: 'out';
   toId: string;
-  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | 'time' | MaterialTextureInputPort;
+  toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | MaterialTextureInputPort;
 }
 
 export interface GraphMergeNode {

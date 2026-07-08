@@ -522,7 +522,9 @@ describe('renderGraphTarget', () => {
     expect(new Set(Array.from(allPixels(canvas)))).not.toEqual(new Set([0, 255]));
   });
 
-  it.each(SHADER_KINDS)('renders %s shader nodes with visible procedural pixels', async (shaderKind) => {
+  it.each(
+    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'customSpec'),
+  )('renders %s shader nodes with visible procedural pixels', async (shaderKind) => {
     const graph: CanvasGraph = {
       edges: [
         { id: `e-${shaderKind}-export`, fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
@@ -551,7 +553,7 @@ describe('renderGraphTarget', () => {
     expect(uniquePixelCount(canvas)).toBeGreaterThan(1);
   });
 
-  it('renders custom spec shader nodes identically through document preview and export target', async () => {
+  it('keeps unconnected AI shader passes transparent instead of acting as fills', async () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
@@ -564,6 +566,7 @@ describe('renderGraphTarget', () => {
           grain: 0,
           customShaderSpec: {
             version: 1,
+            provenance: { source: 'openai' },
             label: 'AI Waves',
             prompt: 'neon waves',
             palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
@@ -575,7 +578,44 @@ describe('renderGraphTarget', () => {
         }),
       ],
     };
-    const doc = graphDocument(graph);
+    const canvas = await renderGraphTarget(graphDocument(graph), graph, EXPORT_NODE_ID, 64, 64, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(hasVisiblePixels(canvas)).toBe(false);
+    expect(centerPixel(canvas)[3]).toBe(0);
+  });
+
+  it('renders custom spec shader passes identically through document preview and export target', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-custom', fromId: base.id, fromPort: 'out', toId: 'custom-shader', toPort: 'bg' },
+        { id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'custom-shader',
+          shaderKind: 'customSpec',
+          grain: 0,
+          customShaderSpec: {
+            version: 1,
+            provenance: { source: 'openai' },
+            label: 'AI Waves',
+            prompt: 'neon waves',
+            palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
+            operations: [
+              { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
+              { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
+            ],
+          },
+        }),
+      ],
+    };
+    const doc = graphDocument(graph, [base]);
     const options = { skipEffects: true as const };
 
     const documentCanvas = await renderDocument(doc, 96, 64, new Map(), { ...options, graphMode: 'graph' });
@@ -603,6 +643,7 @@ describe('renderGraphTarget', () => {
       blendMode: 'screen',
       customShaderSpec: {
         version: 1,
+        provenance: { source: 'openai' },
         label: 'AI Halftone',
         prompt: 'neon halftone wave pass',
         palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
@@ -730,6 +771,61 @@ describe('renderGraphTarget', () => {
 
     expect(pixelsEqual(allPixels(pass), allPixels(base))).toBe(false);
     expect(uniquePixelCount(pass)).toBeGreaterThan(1);
+  });
+
+  it('keeps the connected backdrop when custom code shader output is transparent', async () => {
+    const baseLayer = makeFillLayer({ id: 'base-fill', color: '#230033', opacity: 100, blendMode: 'normal' });
+    const codeShader = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      opacity: 100,
+      blendMode: 'normal',
+      customShaderCode: {
+        version: 1,
+        language: 'glsl-fragment',
+        code: '',
+      },
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-code', fromId: 'base-fill', fromPort: 'out', toId: 'code-shader', toPort: 'bg' },
+        { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [codeShader],
+    };
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(baseGraph, [baseLayer]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const canvas = await renderGraphTarget(
+      graphDocument(graph, [baseLayer]),
+      graph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    expect(pixelsEqual(allPixels(canvas), allPixels(baseCanvas))).toBe(true);
   });
 
   it('exposes backdrop presence to custom code shader passes', async () => {
@@ -933,6 +1029,7 @@ describe('renderGraphTarget', () => {
       blendMode: 'screen',
       customShaderSpec: {
         version: 1,
+        provenance: { source: 'openai' },
         label: 'Transparent shallow-water pass',
         base: 0.55,
         contrast: 1.1,
@@ -949,13 +1046,6 @@ describe('renderGraphTarget', () => {
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    };
-    const standaloneShaderGraph: CanvasGraph = {
-      edges: [{ id: 'e-custom-export', fromId: customShader.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
-      positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [customShader],
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -979,15 +1069,6 @@ describe('renderGraphTarget', () => {
         skipEffects: true,
       },
     );
-    const standaloneShader = await renderGraphTarget(
-      graphDocument(standaloneShaderGraph),
-      standaloneShaderGraph,
-      EXPORT_NODE_ID,
-      72,
-      72,
-      new Map(),
-      { skipEffects: true },
-    );
     const pass = await renderGraphTarget(
       graphDocument(passGraph, [base]),
       passGraph,
@@ -1000,9 +1081,8 @@ describe('renderGraphTarget', () => {
       },
     );
 
-    expect(rgbDistance(centerPixel(pass), centerPixel(baseCanvas))).toBeLessThan(
-      rgbDistance(centerPixel(standaloneShader), centerPixel(baseCanvas)),
-    );
+    expect(centerPixel(pass)[3]).toBe(255);
+    expect(hasVisiblePixels(pass)).toBe(true);
     expect(pixelsEqual(allPixels(pass), allPixels(baseCanvas))).toBe(false);
   });
 
@@ -1023,6 +1103,7 @@ describe('renderGraphTarget', () => {
       grain: 12,
       customShaderSpec: {
         version: 1,
+        provenance: { source: 'openai' },
         label: 'Transparent Shallow-Water Caustic Refraction',
         base: 0.22,
         contrast: 0.36,

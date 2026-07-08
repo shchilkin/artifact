@@ -578,7 +578,7 @@ export function renderShaderNodeToCanvas(node: GraphShaderNode, seed: number, wi
   const canvas = createCanvas(width, height);
   switch (renderNode.shaderKind) {
     case 'customSpec':
-      renderCustomShaderSpec(renderNode, renderSeed, canvas);
+      if (renderNode.customShaderSpec?.provenance) renderCustomShaderSpec(renderNode, renderSeed, canvas);
       break;
     case 'customCode':
       return renderCustomCodeShaderNodeToCanvas(renderNode, renderSeed, width, height, null);

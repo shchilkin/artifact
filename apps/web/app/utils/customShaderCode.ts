@@ -1,6 +1,12 @@
 import type { CustomShaderCodeConfig } from '../types/config';
 
 const MAX_CUSTOM_SHADER_CODE_LENGTH = 12_000;
+const MAX_CUSTOM_SHADER_LOOP_COUNT = 64;
+
+export interface CustomShaderCodeIssue {
+  severity: 'error' | 'warning';
+  message: string;
+}
 
 export const DEFAULT_CUSTOM_SHADER_CODE: CustomShaderCodeConfig = {
   version: 1,
@@ -23,7 +29,7 @@ export function normalizeCustomShaderCodeConfig(value: unknown): CustomShaderCod
   if (!value || typeof value !== 'object') return DEFAULT_CUSTOM_SHADER_CODE;
   const record = value as Record<string, unknown>;
   const code =
-    typeof record.code === 'string' && record.code.trim().length > 0
+    typeof record.code === 'string'
       ? record.code.slice(0, MAX_CUSTOM_SHADER_CODE_LENGTH)
       : DEFAULT_CUSTOM_SHADER_CODE.code;
   return {
@@ -31,4 +37,56 @@ export function normalizeCustomShaderCodeConfig(value: unknown): CustomShaderCod
     language: 'glsl-fragment',
     code,
   };
+}
+
+export function validateCustomShaderCode(code: string): CustomShaderCodeIssue[] {
+  const issues: CustomShaderCodeIssue[] = [];
+  const trimmed = code.trim();
+  if (!trimmed) {
+    issues.push({ severity: 'error', message: 'Add code for mainImage(uv).' });
+    return issues;
+  }
+  if (code.length > MAX_CUSTOM_SHADER_CODE_LENGTH) {
+    issues.push({ severity: 'error', message: 'Keep shader code under 12,000 characters.' });
+  }
+  if (!/\bvec4\s+mainImage\s*\(\s*vec2\s+\w+\s*\)/.test(code)) {
+    issues.push({ severity: 'error', message: 'Add vec4 mainImage(vec2 uv) so the shader knows what to draw.' });
+  }
+  if (/\bvoid\s+main\s*\(/.test(code)) {
+    issues.push({ severity: 'error', message: 'Remove void main(). Artifact adds the final wrapper for you.' });
+  }
+  if (/\bgl_Frag(Color|Data)\b/.test(code)) {
+    issues.push({ severity: 'error', message: 'Return a vec4 from mainImage instead of writing gl_FragColor.' });
+  }
+  if (/^\s*#/m.test(code)) {
+    issues.push({ severity: 'error', message: 'Remove preprocessor lines that start with #.' });
+  }
+  if (/\b(while|do)\b/.test(code)) {
+    issues.push({ severity: 'error', message: 'Use small fixed for-loops. while and do loops are blocked.' });
+  }
+  collectLoopIssues(code).forEach((message) => issues.push({ severity: 'error', message }));
+  return issues;
+}
+
+export function customShaderCodeHasBlockingIssues(code: string) {
+  return validateCustomShaderCode(code).some((issue) => issue.severity === 'error');
+}
+
+function collectLoopIssues(code: string) {
+  const issues: string[] = [];
+  const loopRe = /\bfor\s*\(([^;]*);([^;]*);([^)]*)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = loopRe.exec(code))) {
+    const condition = match[2] ?? '';
+    const limitMatch = condition.match(/[<]=?\s*(\d+)/);
+    if (!limitMatch) {
+      issues.push('Use fixed numeric loop limits, for example for (int i = 0; i < 12; i++).');
+      continue;
+    }
+    const limit = Number(limitMatch[1]);
+    if (!Number.isFinite(limit) || limit > MAX_CUSTOM_SHADER_LOOP_COUNT) {
+      issues.push(`Keep for-loops at ${MAX_CUSTOM_SHADER_LOOP_COUNT} steps or fewer.`);
+    }
+  }
+  return issues;
 }

@@ -77,13 +77,13 @@ describe('addLibraryModel', () => {
     );
   });
 
-  it('exposes AI Shader as a prompt-ready custom shader node', () => {
+  it('exposes AI Shader Pass as a prompt-ready input-driven shader node', () => {
     const item = addLibraryItemsForSurface('nodes').find((entry) => entry.id === 'shader:ai');
 
     expect(item).toMatchObject({
-      label: 'AI Shader',
+      label: 'AI Shader Pass',
       action: { kind: 'shader', shaderKind: 'customSpec' },
-      group: 'shaderFill',
+      group: 'shaderEffect',
     });
     expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
       kind: 'shader',
@@ -117,6 +117,7 @@ describe('addLibraryModel', () => {
     expect(nodeGroups).toContain('utility');
     expect(nodeGroups).toContain('source');
     expect(nodeGroups).toContain('shaderFill');
+    expect(nodeGroups).toContain('shaderEffect');
     expect(nodeGroups).toContain('material');
     expect(nodeGroups).toContain('primitive');
     expect(nodeIds).toEqual(

@@ -14,6 +14,7 @@ export type AddLibraryGroupId =
   | 'content'
   | 'source'
   | 'shaderFill'
+  | 'shaderEffect'
   | 'material'
   | 'primitive'
   | 'light'
@@ -89,6 +90,7 @@ export const ADD_LIBRARY_GROUPS: Array<{
   { id: 'content', label: 'Content', hint: 'Visible layers' },
   { id: 'source', label: 'Sources', hint: 'Generated inputs' },
   { id: 'shaderFill', label: 'Shader Fills', hint: 'Procedural textures' },
+  { id: 'shaderEffect', label: 'Shader Effects', hint: 'Input-driven passes' },
   { id: 'material', label: 'Materials', hint: 'PBR surfaces' },
   { id: 'primitive', label: '3D / Primitive', hint: 'Models, scenes, environment' },
   { id: 'texture', label: 'Texture', hint: 'Grain, scan, paper' },
@@ -485,14 +487,14 @@ const layerItems: AddLibraryItem[] = [
   },
   {
     id: 'shader:ai',
-    label: 'AI Shader',
+    label: 'AI Shader Pass',
     symbol: '✦',
-    description: 'Create an editable custom shader spec from a prompt-ready node.',
-    group: 'shaderFill',
+    description: 'Create an editable shader pass that processes a connected source.',
+    group: 'shaderEffect',
     action: { kind: 'shader', shaderKind: 'customSpec' },
     surfaces: ['nodes'],
-    tags: ['source', 'shader', 'ai', 'custom'],
-    keywords: 'ai shader custom prompt generated editable spec procedural fill pass backdrop figma',
+    tags: ['effect', 'shader', 'ai', 'custom', 'pass'],
+    keywords: 'ai shader custom prompt generated editable spec effect pass backdrop source input figma',
     popular: true,
   },
   {

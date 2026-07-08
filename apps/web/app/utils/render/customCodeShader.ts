@@ -1,5 +1,9 @@
 import type { GraphShaderNode } from '../../types/config';
-import { normalizeCustomShaderCodeConfig } from '../customShaderCode';
+import {
+  customShaderCodeHasBlockingIssues,
+  normalizeCustomShaderCodeConfig,
+  validateCustomShaderCode,
+} from '../customShaderCode';
 import { createCanvas, isDrawableCanvas } from './canvas';
 
 function clamp(value: number, min: number, max: number) {
@@ -56,16 +60,109 @@ function renderCanvasFallback(
   return canvas;
 }
 
+function renderTransparentShaderCanvas(width: number, height: number) {
+  return createCanvas(width, height);
+}
+
+const CUSTOM_CODE_VERTEX_SOURCE = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+
+const CUSTOM_CODE_FRAGMENT_PREFIX = `
+precision highp float;
+uniform sampler2D u_backdrop;
+uniform vec2 u_resolution;
+uniform float u_seed;
+uniform float u_strength;
+uniform float u_has_backdrop;
+varying vec2 v_uv;
+`;
+
+const CUSTOM_CODE_FRAGMENT_SUFFIX = `
+void main() {
+  gl_FragColor = mainImage(v_uv);
+}`;
+
+export interface CustomCodeShaderCompileResult {
+  ok: boolean;
+  message: string | null;
+}
+
+function buildCustomCodeFragmentSource(code: string) {
+  return `${CUSTOM_CODE_FRAGMENT_PREFIX}${code}\n${CUSTOM_CODE_FRAGMENT_SUFFIX}`;
+}
+
 function compileShader(gl: WebGLRenderingContext, type: number, source: string) {
   const shader = gl.createShader(type);
-  if (!shader) return null;
+  if (!shader) return { shader: null, log: 'Could not prepare shader.' };
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(shader) ?? 'Shader did not compile.';
     gl.deleteShader(shader);
-    return null;
+    return { shader: null, log };
   }
-  return shader;
+  return { shader, log: null };
+}
+
+function linkProgram(gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) {
+  const program = gl.createProgram();
+  if (!program) return { program: null, log: 'Could not prepare shader preview.' };
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(program) ?? 'Shader did not link.';
+    gl.deleteProgram(program);
+    return { program: null, log };
+  }
+  return { program, log: null };
+}
+
+function createWebGlContext(width: number, height: number) {
+  if (typeof document === 'undefined') return { canvas: null, gl: null };
+  const canvas = createCanvas(width, height);
+  try {
+    return { canvas, gl: canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: true }) };
+  } catch {
+    return { canvas, gl: null };
+  }
+}
+
+function cleanCompileLog(log: string | null) {
+  if (!log) return 'Shader did not compile.';
+  const firstLine = log
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!firstLine) return 'Shader did not compile.';
+  return firstLine.replace(/^ERROR:\s*0:\d+:\s*/i, '').slice(0, 180);
+}
+
+export function compileCustomCodeShaderForDiagnostics(code: string): CustomCodeShaderCompileResult {
+  const blockingIssue = validateCustomShaderCode(code).find((issue) => issue.severity === 'error');
+  if (blockingIssue) return { ok: false, message: blockingIssue.message };
+
+  const { gl } = createWebGlContext(16, 16);
+  if (!gl) return { ok: false, message: 'Shader preview is not available in this browser.' };
+
+  const vertex = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
+  if (!vertex.shader) return { ok: false, message: cleanCompileLog(vertex.log) };
+  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, buildCustomCodeFragmentSource(code));
+  if (!fragment.shader) {
+    gl.deleteShader(vertex.shader);
+    return { ok: false, message: cleanCompileLog(fragment.log) };
+  }
+  const linked = linkProgram(gl, vertex.shader, fragment.shader);
+  gl.deleteShader(vertex.shader);
+  gl.deleteShader(fragment.shader);
+  if (!linked.program) return { ok: false, message: cleanCompileLog(linked.log) };
+  gl.deleteProgram(linked.program);
+  return { ok: true, message: null };
 }
 
 function renderWithWebGl(
@@ -75,47 +172,19 @@ function renderWithWebGl(
   height: number,
   backdrop?: HTMLCanvasElement | null,
 ) {
-  const canvas = createCanvas(width, height);
-  let gl: WebGLRenderingContext | null;
-  try {
-    gl = canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: true });
-  } catch {
-    return null;
-  }
-  if (!gl) return null;
+  const { canvas, gl } = createWebGlContext(width, height);
+  if (!canvas || !gl) return null;
 
   const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
-  if (!config.code.includes('mainImage')) return null;
+  if (customShaderCodeHasBlockingIssues(config.code)) return null;
 
-  const vertexSource = `
-attribute vec2 a_position;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_position * 0.5 + 0.5;
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
-  const fragmentSource = `
-precision highp float;
-uniform sampler2D u_backdrop;
-uniform vec2 u_resolution;
-uniform float u_seed;
-uniform float u_strength;
-uniform float u_has_backdrop;
-varying vec2 v_uv;
-${config.code}
-void main() {
-  gl_FragColor = mainImage(v_uv);
-}`;
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-  if (!vertexShader || !fragmentShader) return null;
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, buildCustomCodeFragmentSource(config.code));
+  if (!vertexShader.shader || !fragmentShader.shader) return null;
 
-  const program = gl.createProgram();
-  if (!program) return null;
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
+  const linked = linkProgram(gl, vertexShader.shader, fragmentShader.shader);
+  if (!linked.program) return null;
+  const program = linked.program;
   gl.useProgram(program);
 
   const buffer = gl.createBuffer();
@@ -152,6 +221,8 @@ export function renderCustomCodeShaderNodeToCanvas(
   height: number,
   backdrop?: HTMLCanvasElement | null,
 ) {
+  const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
+  if (customShaderCodeHasBlockingIssues(config.code)) return renderTransparentShaderCanvas(width, height);
   return (
     renderWithWebGl(node, seed, width, height, backdrop) ?? renderCanvasFallback(node, seed, width, height, backdrop)
   );

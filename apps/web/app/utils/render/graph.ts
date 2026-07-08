@@ -790,7 +790,6 @@ function mixShaderPassWithBackdrop(
   H: number,
 ) {
   const strength = Math.max(0, Math.min(1, strengthPercent / 100));
-  if (strength >= 0.999) return processedBackdrop;
   if (strength <= 0.001) return cloneCanvas(backdrop, W, H);
 
   const canvas = cloneCanvas(backdrop, W, H);
@@ -821,6 +820,11 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
       ? mixShaderPassWithBackdrop(backdrop, rendered, shaderNode.opacity, shaderNode.blendMode, context.W, context.H)
       : rendered;
   }
+
+  if (shaderNode.shaderKind === 'customSpec' && (!backdropId || !shaderNode.customShaderSpec?.provenance)) {
+    return createCanvas(context.W, context.H);
+  }
+
   const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);
   if (!backdropId) return shader;
   const backdrop = await context.renderDependency(backdropId);

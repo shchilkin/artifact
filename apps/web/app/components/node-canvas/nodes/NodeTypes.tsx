@@ -2,6 +2,7 @@ import type { NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
+import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
@@ -423,36 +424,93 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
     connected,
   } = data;
   const rendersBackdrop = Boolean(backdropPreviewTargetId);
+  const aiPass = shaderNode.shaderKind === 'customSpec';
+  const aiPrompt = shaderNode.aiPrompt ?? shaderNode.customShaderSpec?.prompt ?? '';
+  const aiHasResult = Boolean(shaderNode.customShaderSpec?.provenance);
+  const aiEmptyOverlay =
+    shaderNode.shaderKind === 'customSpec' && !aiHasResult ? (
+      <ShaderNodeAiEmptyOverlay hasPrompt={aiPrompt.trim().length >= 3} hasInput={rendersBackdrop} />
+    ) : null;
+  const code = shaderNode.customShaderCode?.code ?? DEFAULT_CUSTOM_SHADER_CODE.code;
+  const codeIssue =
+    shaderNode.shaderKind === 'customCode'
+      ? (validateCustomShaderCode(code).find((issue) => issue.severity === 'error') ?? null)
+      : null;
+  const codeOverlay = codeIssue ? <ShaderNodeCodeOverlay empty={code.trim().length === 0} /> : null;
 
   return (
     <NodeFrame
       id={shaderNode.id}
       kind="shader"
-      label={rendersBackdrop ? 'shader pass' : 'shader fill'}
+      label={aiPass ? 'ai shader pass' : rendersBackdrop ? 'shader pass' : 'shader fill'}
       name={shaderNode.name}
       selected={selected}
       outputPath={outputPath}
       editing={editing}
-      targetHandles={[
-        { id: 'bg', top: '42%' },
-        { id: 'time', top: '72%' },
-      ]}
+      targetHandles={[{ id: 'bg' }]}
       onSelect={(event) => selectNode(shaderNode.id, event)}
       onDelete={() => deleteNode(shaderNode.id)}
     >
       <NodeThumbnail
         previewTargetId={previewTargetId}
         priority={selected}
-        statusOverlay={generationStatus ? <ShaderNodeCreationOverlay status={generationStatus} /> : null}
+        statusOverlay={
+          generationStatus ? <ShaderNodeCreationOverlay status={generationStatus} /> : (aiEmptyOverlay ?? codeOverlay)
+        }
       />
       <PortRow
-        inputs={[{ label: rendersBackdrop ? 'backdrop' : 'backdrop optional', portId: 'bg', nodeId: shaderNode.id }]}
-        outputs={[{ label: rendersBackdrop ? 'pass' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
+        inputs={[
+          {
+            label: aiPass
+              ? rendersBackdrop
+                ? 'source'
+                : 'source required'
+              : rendersBackdrop
+                ? 'backdrop'
+                : 'backdrop optional',
+            portId: 'bg',
+            nodeId: shaderNode.id,
+          },
+        ]}
+        outputs={[{ label: aiPass || rendersBackdrop ? 'pass' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
         connected={connected}
       />
     </NodeFrame>
   );
 });
+
+function ShaderNodeCodeOverlay({ empty }: { empty: boolean }) {
+  return (
+    <div className="node-thumbnail-ai-overlay node-thumbnail-code-overlay" role="status" aria-live="polite">
+      <div className="node-thumbnail-ai-card node-thumbnail-code-card">
+        <span className="node-thumbnail-code-mark" aria-hidden="true">
+          {'{}'}
+        </span>
+        <span>
+          <strong>{empty ? 'Add code' : 'Code needs fix'}</strong>
+          <small>{empty ? 'No shader yet' : 'Check properties'}</small>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ShaderNodeAiEmptyOverlay({ hasPrompt, hasInput }: { hasPrompt: boolean; hasInput: boolean }) {
+  const title = !hasInput ? 'Connect source' : hasPrompt ? 'Ready to create' : 'Describe pass';
+  const detail = !hasInput ? 'Input required' : hasPrompt ? 'Use properties' : 'No result yet';
+
+  return (
+    <div className="node-thumbnail-ai-overlay node-thumbnail-ai-overlay-empty" role="status" aria-live="polite">
+      <div className="node-thumbnail-ai-card node-thumbnail-ai-card-empty">
+        <span className="node-thumbnail-ai-empty-mark" aria-hidden="true" />
+        <span>
+          <strong>{title}</strong>
+          <small>{detail}</small>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationStatus }) {
   const fallback = status === 'creatingFallback';
@@ -472,7 +530,7 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
           <span className="node-thumbnail-ai-spinner" aria-hidden="true" />
         )}
         <span>
-          <strong>{failed ? 'AI did not finish' : fallback ? 'Creating local version' : 'Creating shader'}</strong>
+          <strong>{failed ? 'Could not create' : fallback ? 'Making local draft' : 'Creating shader'}</strong>
           <small>{failed ? 'Choose next step' : fallback ? 'Labeled local' : 'Setting it up'}</small>
         </span>
       </div>

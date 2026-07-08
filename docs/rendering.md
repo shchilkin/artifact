@@ -123,17 +123,19 @@ bounds, and stamp it into a line, grid, or radial pattern over an optional
 procedural sources, and future asset nodes can all repeat through the same
 render path once they produce canvas pixels.
 Shader fill nodes render deterministic procedural raster textures through
-`apps/web/app/utils/render/shaderNodes.ts`. They can act as graph sources when
-their optional backdrop input is empty, or as shader passes when a backdrop is
-connected. In pass mode the backdrop is sampled as input texture data: source
-luminance and detail shape the generated shader response before opacity and
-blend mode are applied as pass intensity. Their output can be composed
-directly, repeated, masked, or used as a material texture map.
-AI/custom shader work uses the same renderer boundary through a validated
-`customSpec` shader kind. The document stores a constrained JSON spec, not raw
-shader code; normalization clamps numeric ranges, drops unsupported operations,
-and keeps render output deterministic from document seed, node seed offset, and
-the saved spec. Prompt generation enters through the shared
+`apps/web/app/utils/render/shaderNodes.ts`. Preset shader fills can act as graph
+sources when their optional backdrop input is empty, or as shader passes when a
+backdrop is connected. In pass mode the backdrop is sampled as input texture
+data: source luminance and detail shape the generated shader response before
+opacity and blend mode are applied as pass intensity. Their output can be
+composed directly, repeated, masked, or used as a material texture map.
+AI/custom shader spec work uses the same renderer boundary through a validated
+`customSpec` shader kind, but it is an input-dependent shader pass rather than a
+standalone fill. If no source/backdrop is connected, or no generated spec exists,
+graph rendering returns a transparent canvas. The document stores a constrained
+JSON spec, not raw shader code; normalization clamps numeric ranges, drops
+unsupported operations, and keeps render output deterministic from document
+seed, node seed offset, and the saved spec. Prompt generation enters through the shared
 `/api/ai/shader-spec` contract. The default request path is OpenAI-backed and
 must fail visibly if no provider is configured. A deterministic local mapper is
 available only as an explicit user-confirmed fallback, and fallback specs carry

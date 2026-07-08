@@ -307,6 +307,26 @@
     color-mix(in oklch, var(--warning) 12%, transparent);
 }
 
+.node-thumbnail-ai-overlay-empty {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--node-bg) 58%, transparent),
+      color-mix(in oklch, var(--node-bg) 78%, transparent)
+    ),
+    color-mix(in oklch, var(--node-accent, var(--accent)) 7%, transparent);
+}
+
+.node-thumbnail-code-overlay {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--node-bg) 64%, transparent),
+      color-mix(in oklch, var(--node-bg) 82%, transparent)
+    ),
+    color-mix(in oklch, var(--warning) 8%, transparent);
+}
+
 .node-thumbnail-ai-card {
   display: flex;
   align-items: center;
@@ -322,6 +342,16 @@
 .node-thumbnail-ai-card-error {
   border-color: color-mix(in oklch, var(--warning) 68%, var(--node-border));
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warning) 22%, transparent);
+}
+
+.node-thumbnail-ai-card-empty {
+  border-color: color-mix(in oklch, var(--node-text-dim) 50%, var(--node-border));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--node-text-dim) 14%, transparent);
+}
+
+.node-thumbnail-code-card {
+  border-color: color-mix(in oklch, var(--warning) 58%, var(--node-border));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warning) 18%, transparent);
 }
 
 .node-thumbnail-ai-spinner {
@@ -344,6 +374,29 @@
   color: color-mix(in oklch, var(--warning) 86%, var(--node-text));
   font-family: var(--mono);
   font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.node-thumbnail-ai-empty-mark {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid color-mix(in oklch, var(--node-accent, var(--accent)) 64%, transparent);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 3px color-mix(in oklch, var(--node-bg) 88%, transparent);
+}
+
+.node-thumbnail-code-mark {
+  display: grid;
+  min-width: 22px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--warning) 62%, transparent);
+  color: color-mix(in oklch, var(--warning) 82%, var(--node-text));
+  font-family: var(--mono);
+  font-size: 8px;
   font-weight: 700;
   line-height: 1;
 }

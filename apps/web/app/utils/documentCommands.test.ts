@@ -844,19 +844,27 @@ describe('documentCommands', () => {
     });
   });
 
-  it('adds prompt-ready custom shader spec nodes as source nodes', () => {
+  it('adds prompt-ready custom shader spec nodes as input-driven pass nodes', () => {
     const result = addNodeToFillSource({ kind: 'shader', shaderKind: 'customSpec' }, { replaceEdgeId: 'e-fill-text' });
     const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'customSpec');
 
     expect(result.selectedLayerId).toBeNull();
     expect(shaderNode).toMatchObject({
-      name: 'AI Shader',
+      name: 'AI Shader Pass',
       shaderKind: 'customSpec',
       customShaderSpec: {
         version: 1,
         operations: expect.arrayContaining([expect.objectContaining({ op: 'noise' })]),
       },
     });
+    expect(result.doc.graph?.edges).toContainEqual(
+      expect.objectContaining({
+        fromId: 'fill-a',
+        fromPort: 'out',
+        toId: shaderNode?.id,
+        toPort: 'bg',
+      }),
+    );
     expect(result.doc.graph?.edges).toContainEqual(
       expect.objectContaining({
         fromId: shaderNode?.id,

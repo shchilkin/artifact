@@ -80,7 +80,7 @@ Current React Flow node types:
 | `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
 | `grimeShadowNode` | Builds a layered dirty shadow from upstream alpha. |
 | `materialNode` | Defines a reusable 3D material and texture-map inputs. |
-| `shaderNode` | Generates one procedural raster shader source or composites it over an optional backdrop (`Shader Fill` / `Shader Pass` in the UI). |
+| `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Pass` / `AI Shader Pass` in the UI). |
 | `environmentNode` | Provides an environment map source for 3D scene lighting. |
 | `scene3dNode` | Renders a 3D scene from model, material, lighting, environment, and backdrop inputs. |
 | `exportNode` | Terminal output target. |
@@ -123,21 +123,23 @@ parity, and a clear migration path to separate nodes.
 
 Shader work follows the same single-purpose split:
 
-- **Shader Fill / Pass** nodes are procedural raster shader passes. They
-  generate pixels from their own parameters and document seed, expose their
-  output as a source texture, and do not require an upstream image. When their
-  optional `backdrop` input is connected, they sample that upstream branch as
-  input texture data, use its luminance/detail to shape the generated shader,
-  and then apply the node's opacity and blend mode as pass intensity. New shader
-  nodes default to an overlay-friendly `screen` blend at 58% opacity so pass
-  mode reveals the connected backdrop immediately instead of replacing it.
-  `AI Shader` is a prompt-ready Shader Fill variant: it stores a validated
+- **Shader Fill / Pass** nodes are procedural raster shader passes. Preset
+  shader fills generate pixels from their own parameters and document seed,
+  expose their output as a source texture, and do not require an upstream image.
+  When their optional `backdrop` input is connected, they sample that upstream
+  branch as input texture data, use its luminance/detail to shape the generated
+  shader, and then apply the node's opacity and blend mode as pass intensity.
+  New shader nodes default to an overlay-friendly `screen` blend at 58% opacity
+  so pass mode reveals the connected backdrop immediately instead of replacing
+  it.
+  `AI Shader Pass` is prompt-ready and input-dependent: it stores a validated
   `customSpec` JSON shader description and prompt provenance, not raw
   GLSL/WGSL. Its inspector can generate an editable spec from a prompt through
   the AI shader-spec endpoint. The default path must request the configured
   OpenAI provider; if that fails, the inspector may offer a separate local
   deterministic fallback, and the saved spec must keep `localFallback`
-  provenance. The same node can render standalone or as a backdrop pass.
+  provenance. Without a connected source/backdrop, or before a generated spec
+  exists, it renders transparent instead of inventing source pixels.
   `Code Shader` is the editable-code variant of the same node role: it stores a
   GLSL fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
@@ -157,18 +159,19 @@ Shader work follows the same single-purpose split:
   material authoring.
 
 Material texture-map ports may receive either a Shader Fill output directly or
-the output of an input-dependent Shader Effect branch. The latter is valid only
-when the effect has an upstream source. This keeps the graph readable:
-`Shader Fill -> Material.albedo -> Primitive.material -> Output` for standalone
-textures, `Source -> Shader Fill/Pass.backdrop -> Output` when a procedural
-shader is layered over an image branch, or `Source -> Shader Effect ->
-Material.normal -> Primitive.material -> Output` when the map is derived from
+the output of an input-dependent Shader Effect / AI Shader Pass branch. The
+latter is valid only when the pass has an upstream source. This keeps the graph
+readable: `Shader Fill -> Material.albedo -> Primitive.material -> Output` for
+standalone textures, `Source -> Shader Fill.backdrop -> Output` when a preset
+procedural shader is layered over an image branch, or `Source -> AI Shader Pass
+-> Material.normal -> Primitive.material -> Output` when the map is derived from
 existing pixels.
 
 The Add Node library should keep this taxonomy visible:
 
 - **Sources** for imported/generated image branches and text/pattern bases.
 - **Shader Fills** for standalone procedural texture sources.
+- **Shader Effects** for input-dependent shader passes such as `AI Shader Pass`.
 - **Effects** for input-dependent image transforms, even when browse sections
   further split them by tone, warp, print, light, signal, texture, or graphic
   family.

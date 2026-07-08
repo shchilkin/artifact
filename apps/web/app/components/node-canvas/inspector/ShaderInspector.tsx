@@ -5,8 +5,9 @@ import type { AiShaderSpecRequestMode } from '../../../types/aiGeneration';
 import type { CustomShaderOperation, CustomShaderSpec, GraphShaderNode, ShaderKind } from '../../../types/config';
 import { AiGenerationApiError, createAiShaderSpec } from '../../../utils/aiGenerationClient';
 import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
-import { DEFAULT_CUSTOM_SHADER_CODE } from '../../../utils/customShaderCode';
+import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { cloneDefaultCustomShaderSpec, validateCustomShaderSpec } from '../../../utils/customShaderSpec';
+import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
 import { BLEND_OPTIONS } from '../constants';
 import { useNodeCanvasActions } from '../context';
 import {
@@ -49,9 +50,15 @@ const SHADER_KIND_OPTIONS: Array<{ value: ShaderKind; label: string }> = [
   { value: 'noiseField', label: 'Noise Field' },
   { value: 'marble', label: 'Marble' },
   { value: 'liquid', label: 'Liquid' },
-  { value: 'customSpec', label: 'AI Shader' },
-  { value: 'customCode', label: 'Code Shader' },
 ];
+
+const SHADER_MODE_OPTIONS: Array<{ value: ShaderMode; label: string }> = [
+  { value: 'preset', label: 'Shader Preset' },
+  { value: 'ai', label: 'AI Shader Pass' },
+  { value: 'code', label: 'Code Shader' },
+];
+
+type ShaderMode = 'preset' | 'ai' | 'code';
 
 export function ShaderInspector({
   shaderNode,
@@ -72,11 +79,62 @@ export function ShaderInspector({
   const { setShaderNodeGenerationStatus } = useNodeCanvasActions();
   const apiBaseUrl = useMemo(() => getArtifactAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
-  const customSpecErrors =
-    shaderNode.shaderKind === 'customSpec' ? validateCustomShaderSpec(shaderNode.customShaderSpec) : [];
   const customPrompt = shaderNode.aiPrompt ?? shaderNode.customShaderSpec?.prompt ?? '';
   const customSpec =
     shaderNode.shaderKind === 'customSpec' ? (shaderNode.customShaderSpec ?? cloneDefaultCustomShaderSpec()) : null;
+  const customSpecErrors = customSpec ? validateCustomShaderSpec(customSpec) : [];
+  const customCode = shaderNode.customShaderCode?.code ?? DEFAULT_CUSTOM_SHADER_CODE.code;
+  const customCodeIssues = useMemo(
+    () => (shaderNode.shaderKind === 'customCode' ? validateCustomShaderCode(customCode) : []),
+    [customCode, shaderNode.shaderKind],
+  );
+  const customCodeCompileResult = useMemo(() => {
+    if (shaderNode.shaderKind !== 'customCode') return null;
+    if (customCodeIssues.some((issue) => issue.severity === 'error')) return null;
+    return compileCustomCodeShaderForDiagnostics(customCode);
+  }, [customCode, customCodeIssues, shaderNode.shaderKind]);
+  const customCodeBlockingIssue = customCodeIssues.find((issue) => issue.severity === 'error') ?? null;
+  const customCodeEmpty = shaderNode.shaderKind === 'customCode' && customCode.trim().length === 0;
+  const customCodeStatus =
+    shaderNode.shaderKind !== 'customCode'
+      ? null
+      : customCodeEmpty
+        ? {
+            title: 'Start with code',
+            message: 'Add mainImage(uv). The preview will stay on a safe placeholder until the shader is ready.',
+            tone: 'info' as const,
+          }
+        : customCodeBlockingIssue
+          ? {
+              title: 'Code needs a fix',
+              message: customCodeBlockingIssue.message,
+              tone: 'warning' as const,
+            }
+          : customCodeCompileResult && !customCodeCompileResult.ok
+            ? {
+                title: 'Could not compile',
+                message: customCodeCompileResult.message ?? 'Check the shader code and try again.',
+                tone: 'warning' as const,
+              }
+            : customCodeCompileResult?.ok
+              ? {
+                  title: 'Shader ready',
+                  message: 'The code compiles and can render in the preview.',
+                  tone: 'success' as const,
+                }
+              : null;
+  const customCodeSummary = customCodeEmpty
+    ? 'empty'
+    : customCodeBlockingIssue
+      ? 'needs attention'
+      : customCodeCompileResult && !customCodeCompileResult.ok
+        ? 'compile error'
+        : customCodeCompileResult?.ok
+          ? 'ready'
+          : 'checking';
+  const shaderMode = shaderModeForKind(shaderNode.shaderKind);
+  const customHasResult = Boolean(customSpec?.provenance);
+  const customHasPrompt = customPrompt.trim().length >= 3;
   const customGenerating = generationState.matches('creatingOpenAi') || generationState.matches('creatingFallback');
   const customGeneratingFallback = generationState.matches('creatingFallback');
   const customFallbackOffered = generationState.matches('fallbackOffered');
@@ -92,7 +150,7 @@ export function ShaderInspector({
       : customMessage
         ? {
             title: customFallbackOffered
-              ? 'AI did not finish'
+              ? 'Could not create'
               : generationState.matches('failed')
                 ? 'Could not create'
                 : 'Shader ready',
@@ -102,11 +160,32 @@ export function ShaderInspector({
           }
         : customProvenanceMessage
           ? {
-              title: customSpec?.provenance?.source === 'localFallback' ? 'Local version' : 'AI version',
+              title: customSpec?.provenance?.source === 'localFallback' ? 'Local draft' : 'AI version',
               message: customProvenanceMessage,
               tone: 'info' as const,
             }
           : null;
+  const customSummary = customGenerating
+    ? 'creating'
+    : customFallbackOffered
+      ? 'choose next'
+      : generationState.matches('failed')
+        ? 'try again'
+        : customSpecErrors.length
+          ? 'needs attention'
+          : customHasResult
+            ? 'ready'
+            : customHasPrompt
+              ? 'ready to create'
+              : 'empty';
+  const customPrimaryActionLabel = generationState.matches('creatingOpenAi')
+    ? 'Creating...'
+    : customFallbackOffered || generationState.matches('failed')
+      ? 'Try Again'
+      : customHasResult
+        ? 'Create New Version'
+        : 'Create with AI';
+  const showBaseShaderControls = shaderNode.shaderKind !== 'customCode';
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
     sendGeneration({ type: 'RESET' });
@@ -120,6 +199,20 @@ export function ShaderInspector({
         ? { customShaderCode: DEFAULT_CUSTOM_SHADER_CODE }
         : {}),
     });
+  };
+  const handleModeChange = (value: string) => {
+    const mode = value as ShaderMode;
+    if (mode === 'ai') {
+      handleKindChange('customSpec');
+      return;
+    }
+    if (mode === 'code') {
+      handleKindChange('customCode');
+      return;
+    }
+    if (shaderNode.shaderKind === 'customSpec' || shaderNode.shaderKind === 'customCode') {
+      handleKindChange('meshGradient');
+    }
   };
   const handleGenerateCustomSpec = useCallback(
     async (mode: AiShaderSpecRequestMode = 'openai') => {
@@ -216,29 +309,40 @@ export function ShaderInspector({
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
       <InspectorTextInput value={shaderNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
-        label="Shader"
-        value={shaderNode.shaderKind}
-        options={SHADER_KIND_OPTIONS}
-        onChange={handleKindChange}
+        label="Shader type"
+        value={shaderMode}
+        options={SHADER_MODE_OPTIONS}
+        onChange={handleModeChange}
       />
+      {shaderMode === 'preset' && (
+        <InspectorSelect
+          label="Preset"
+          value={shaderNode.shaderKind}
+          options={SHADER_KIND_OPTIONS}
+          onChange={handleKindChange}
+        />
+      )}
       {shaderNode.shaderKind === 'customSpec' && (
         <InspectorSection
-          title="Prompt"
-          summary={
-            customGenerating
-              ? 'working'
-              : customFallbackOffered
-                ? 'choose next'
-                : customSpecErrors.length
-                  ? 'needs attention'
-                  : 'ready'
-          }
+          title="AI Shader Pass"
+          summary={customSummary}
           open={customOpen}
           onToggle={() => setCustomOpen((open) => !open)}
         >
+          {!customHasResult && !customGenerating && !customFallbackOffered && !generationState.matches('failed') ? (
+            <CustomShaderStatusMessage
+              title={customHasPrompt ? 'Ready to create' : 'Start with a prompt'}
+              message={
+                customHasPrompt
+                  ? 'Create an editable pass that processes the connected source.'
+                  : 'Connect a source, then describe how the shader should transform it. The output stays transparent until a result exists.'
+              }
+              tone="info"
+            />
+          ) : null}
           <InspectorTextArea
             value={customPrompt}
-            placeholder="Describe a texture, material, or visual effect"
+            placeholder="Describe how this should process the connected source"
             onChange={(value) => {
               sendGeneration({ type: 'RESET' });
               setShaderNodeGenerationStatus(shaderNode.id, null);
@@ -257,7 +361,7 @@ export function ShaderInspector({
             disabled={customGenerating || customPrompt.trim().length < 3}
             onClick={() => void handleGenerateCustomSpec('openai')}
           >
-            {generationState.matches('creatingOpenAi') ? 'Creating...' : 'Create with AI'}
+            {customPrimaryActionLabel}
           </button>
           {customFallbackOffered && (
             <button
@@ -266,7 +370,7 @@ export function ShaderInspector({
               disabled={customGenerating || customPrompt.trim().length < 3}
               onClick={() => void handleGenerateCustomSpec('localFallback')}
             >
-              Use Local Version
+              Make Local Draft
             </button>
           )}
           {customGenerating && (
@@ -274,18 +378,18 @@ export function ShaderInspector({
               <span className="node-inspector-loading-dot" aria-hidden="true" />
               <div>
                 <p className="node-inspector-loading-title">
-                  {customGeneratingFallback ? 'Creating local version' : 'Creating shader'}
+                  {customGeneratingFallback ? 'Making local draft' : 'Creating shader'}
                 </p>
                 <p className="node-inspector-loading-copy">
                   {customGeneratingFallback
-                    ? 'Making a simple editable shader from this prompt. It will be labeled as local.'
+                    ? 'Making an editable draft from this prompt. It will be labeled as local.'
                     : 'Building an editable shader from this prompt. This usually takes a few seconds.'}
                 </p>
               </div>
             </div>
           )}
           {!customGenerating && customStatus ? <CustomShaderStatusMessage {...customStatus} /> : null}
-          {customSpec && !customGenerating && (
+          {customSpec && customHasResult && !customGenerating && (
             <>
               <InspectorSlider
                 label="Base tone"
@@ -321,15 +425,18 @@ export function ShaderInspector({
               ))}
             </>
           )}
-          {!customStatus && !customGenerating ? (
-            <p className="node-inspector-note">Describe the look, create the shader, then tune colors and detail.</p>
-          ) : null}
         </InspectorSection>
       )}
       {shaderNode.shaderKind === 'customCode' && (
-        <InspectorSection title="Code" summary="glsl" open={customOpen} onToggle={() => setCustomOpen((open) => !open)}>
+        <InspectorSection
+          title="Code Shader"
+          summary={customCodeSummary}
+          open={customOpen}
+          onToggle={() => setCustomOpen((open) => !open)}
+        >
+          {customCodeStatus ? <CustomShaderStatusMessage {...customCodeStatus} /> : null}
           <InspectorTextArea
-            value={shaderNode.customShaderCode?.code ?? DEFAULT_CUSTOM_SHADER_CODE.code}
+            value={customCode}
             rows={12}
             placeholder="vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }"
             onChange={(value) =>
@@ -345,48 +452,52 @@ export function ShaderInspector({
           <p className="node-inspector-note">
             Write GLSL for <code>mainImage(uv)</code>. Use <code>u_backdrop</code> for the incoming image,{' '}
             <code>u_has_backdrop</code> to detect a connected input, plus <code>u_resolution</code>, <code>u_seed</code>
-            , and <code>u_strength</code>.
+            , and <code>u_strength</code>. Preview uses a safe placeholder when code is empty or cannot compile.
           </p>
         </InspectorSection>
       )}
-      <InspectorSection
-        title="Palette"
-        summary="2 main colors"
-        open={paletteOpen}
-        onToggle={() => setPaletteOpen((open) => !open)}
-      >
-        <InspectorColorInput
-          label="Color A"
-          value={shaderNode.colorA}
-          onChange={(value) => onChange({ colorA: value })}
-        />
-        <InspectorColorInput
-          label="Color B"
-          value={shaderNode.colorB}
-          onChange={(value) => onChange({ colorB: value })}
-        />
-      </InspectorSection>
-      <InspectorSection
-        title="Detail"
-        summary="distortion / grain"
-        open={detailOpen}
-        onToggle={() => setDetailOpen((open) => !open)}
-      >
-        <InspectorSlider
-          label="Distortion"
-          value={shaderNode.distortion}
-          min={0}
-          max={100}
-          onChange={(value) => onChange({ distortion: value })}
-        />
-        <InspectorSlider
-          label="Grain"
-          value={shaderNode.grain}
-          min={0}
-          max={100}
-          onChange={(value) => onChange({ grain: value })}
-        />
-      </InspectorSection>
+      {showBaseShaderControls && (
+        <>
+          <InspectorSection
+            title="Palette"
+            summary="2 main colors"
+            open={paletteOpen}
+            onToggle={() => setPaletteOpen((open) => !open)}
+          >
+            <InspectorColorInput
+              label="Color A"
+              value={shaderNode.colorA}
+              onChange={(value) => onChange({ colorA: value })}
+            />
+            <InspectorColorInput
+              label="Color B"
+              value={shaderNode.colorB}
+              onChange={(value) => onChange({ colorB: value })}
+            />
+          </InspectorSection>
+          <InspectorSection
+            title="Detail"
+            summary="distortion / grain"
+            open={detailOpen}
+            onToggle={() => setDetailOpen((open) => !open)}
+          >
+            <InspectorSlider
+              label="Distortion"
+              value={shaderNode.distortion}
+              min={0}
+              max={100}
+              onChange={(value) => onChange({ distortion: value })}
+            />
+            <InspectorSlider
+              label="Grain"
+              value={shaderNode.grain}
+              min={0}
+              max={100}
+              onChange={(value) => onChange({ grain: value })}
+            />
+          </InspectorSection>
+        </>
+      )}
       <InspectorSection
         title="Composite"
         summary={`${shaderNode.blendMode} / ${shaderNode.opacity}%`}
@@ -408,65 +519,67 @@ export function ShaderInspector({
           onChange={(value) => onChange({ opacity: value })}
         />
       </InspectorSection>
-      <InspectorSection
-        title="Advanced"
-        summary="secondary colors / placement"
-        open={advancedOpen}
-        onToggle={() => setAdvancedOpen((open) => !open)}
-      >
-        <InspectorColorInput
-          label="Color C"
-          value={shaderNode.colorC}
-          onChange={(value) => onChange({ colorC: value })}
-        />
-        <InspectorColorInput
-          label="Color D"
-          value={shaderNode.colorD}
-          onChange={(value) => onChange({ colorD: value })}
-        />
-        <InspectorSlider
-          label="Swirl"
-          value={shaderNode.swirl}
-          min={0}
-          max={100}
-          onChange={(value) => onChange({ swirl: value })}
-        />
-        <InspectorSlider
-          label="Scale"
-          value={shaderNode.scale}
-          min={20}
-          max={300}
-          onChange={(value) => onChange({ scale: value })}
-        />
-        <InspectorSlider
-          label="Rotation"
-          value={shaderNode.rotation}
-          min={0}
-          max={360}
-          onChange={(value) => onChange({ rotation: value })}
-        />
-        <InspectorSlider
-          label="Offset X"
-          value={shaderNode.offsetX}
-          min={-100}
-          max={100}
-          onChange={(value) => onChange({ offsetX: value })}
-        />
-        <InspectorSlider
-          label="Offset Y"
-          value={shaderNode.offsetY}
-          min={-100}
-          max={100}
-          onChange={(value) => onChange({ offsetY: value })}
-        />
-        <InspectorSlider
-          label="Variation"
-          value={shaderNode.seedOffset}
-          min={0}
-          max={9999}
-          onChange={(value) => onChange({ seedOffset: value })}
-        />
-      </InspectorSection>
+      {showBaseShaderControls && (
+        <InspectorSection
+          title="Advanced"
+          summary="secondary colors / placement"
+          open={advancedOpen}
+          onToggle={() => setAdvancedOpen((open) => !open)}
+        >
+          <InspectorColorInput
+            label="Color C"
+            value={shaderNode.colorC}
+            onChange={(value) => onChange({ colorC: value })}
+          />
+          <InspectorColorInput
+            label="Color D"
+            value={shaderNode.colorD}
+            onChange={(value) => onChange({ colorD: value })}
+          />
+          <InspectorSlider
+            label="Swirl"
+            value={shaderNode.swirl}
+            min={0}
+            max={100}
+            onChange={(value) => onChange({ swirl: value })}
+          />
+          <InspectorSlider
+            label="Scale"
+            value={shaderNode.scale}
+            min={20}
+            max={300}
+            onChange={(value) => onChange({ scale: value })}
+          />
+          <InspectorSlider
+            label="Rotation"
+            value={shaderNode.rotation}
+            min={0}
+            max={360}
+            onChange={(value) => onChange({ rotation: value })}
+          />
+          <InspectorSlider
+            label="Offset X"
+            value={shaderNode.offsetX}
+            min={-100}
+            max={100}
+            onChange={(value) => onChange({ offsetX: value })}
+          />
+          <InspectorSlider
+            label="Offset Y"
+            value={shaderNode.offsetY}
+            min={-100}
+            max={100}
+            onChange={(value) => onChange({ offsetY: value })}
+          />
+          <InspectorSlider
+            label="Variation"
+            value={shaderNode.seedOffset}
+            min={0}
+            max={9999}
+            onChange={(value) => onChange({ seedOffset: value })}
+          />
+        </InspectorSection>
+      )}
       <p className="node-inspector-note">Use as a fill, place it over a backdrop, or send it into a material.</p>
     </div>
   );
@@ -641,6 +754,12 @@ function operationLabel(operation: CustomShaderOperation) {
   }
 }
 
+function shaderModeForKind(shaderKind: ShaderKind): ShaderMode {
+  if (shaderKind === 'customSpec') return 'ai';
+  if (shaderKind === 'customCode') return 'code';
+  return 'preset';
+}
+
 function getAiApiDevToken() {
   return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_AI_API_DEV_TOKEN;
 }
@@ -657,18 +776,18 @@ function customSpecValidationMessage(errors: string[]) {
 
 function customSpecProvenanceMessage(provenance: CustomShaderSpec['provenance']) {
   if (!provenance) return null;
-  if (provenance.source === 'localFallback') return 'This shader was made locally after AI creation was unavailable.';
-  return 'This shader was made with AI.';
+  if (provenance.source === 'localFallback') return 'This is a local draft because AI creation was unavailable.';
+  return 'Created with AI. Tune the controls below.';
 }
 
 function customSpecGenerationError(error: unknown, mode: AiShaderSpecRequestMode) {
   if (mode === 'openai') {
-    const fallbackPrompt = 'AI did not finish this shader. Try again, or make a local version from the same prompt.';
+    const fallbackPrompt = 'Could not create this shader. Try again, or make a local draft from the same prompt.';
     if (error instanceof AiGenerationApiError) {
       switch (error.code) {
         case 'unauthorized':
         case 'missing_auth':
-          return 'Sign in, then try again. If you are testing locally, start the AI service first.';
+          return 'Sign in, then try again. For local testing, make sure the app service is running.';
         case 'ai_disabled':
         case 'provider_disabled':
           return 'AI creation is not available for this account.';
@@ -680,7 +799,7 @@ function customSpecGenerationError(error: unknown, mode: AiShaderSpecRequestMode
         case 'rate_limited':
           return 'Too many AI requests. Wait a moment, then try again.';
         case 'invalid_response':
-          return 'AI service needs a restart. Restart it, then try again.';
+          return 'Creation returned something incomplete. Try again.';
         case 'shader_provider_failed':
         case 'provider_failed':
           return fallbackPrompt;
