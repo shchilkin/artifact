@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { SHADER_ADVANCED_CONTROL_FIELDS, SHADER_PRIMARY_CONTROL_FIELDS } from './ShaderInspectorMetadata';
+import {
+  SHADER_COLOR_CONTROL_FIELDS,
+  SHADER_COMPOSITE_CONTROL_FIELDS,
+  SHADER_PATTERN_CONTROL_FIELDS,
+  SHADER_PLACEMENT_CONTROL_FIELDS,
+  SHADER_PRESET_CONTROL_GROUPS,
+} from './ShaderInspectorMetadata';
 import {
   aiShaderPassEmptyStatus,
   canCreateAiShaderPass,
@@ -8,23 +14,19 @@ import {
 } from './ShaderInspectorModel';
 
 describe('ShaderInspector metadata', () => {
-  it('keeps shader fills focused on no more than five primary controls', () => {
-    expect(SHADER_PRIMARY_CONTROL_FIELDS).toEqual(['shaderKind', 'colorA', 'colorB', 'distortion', 'grain']);
-    expect(SHADER_PRIMARY_CONTROL_FIELDS).toHaveLength(5);
+  it('keeps preset shader colors in one group', () => {
+    expect(SHADER_COLOR_CONTROL_FIELDS).toEqual(['colorA', 'colorB', 'colorC', 'colorD']);
   });
 
-  it('keeps secondary shader tuning available as advanced controls', () => {
-    expect(SHADER_ADVANCED_CONTROL_FIELDS).toEqual([
-      'blendMode',
-      'opacity',
-      'colorC',
-      'colorD',
-      'swirl',
-      'scale',
-      'rotation',
-      'offsetX',
-      'offsetY',
-      'seedOffset',
+  it('groups preset shader controls by the job they do', () => {
+    expect(SHADER_PATTERN_CONTROL_FIELDS).toEqual(['distortion', 'grain', 'swirl', 'scale', 'seedOffset']);
+    expect(SHADER_PLACEMENT_CONTROL_FIELDS).toEqual(['rotation', 'offsetX', 'offsetY']);
+    expect(SHADER_COMPOSITE_CONTROL_FIELDS).toEqual(['blendMode', 'opacity']);
+    expect(SHADER_PRESET_CONTROL_GROUPS.map((group) => group.title)).toEqual([
+      'Colors',
+      'Pattern',
+      'Placement',
+      'Composite',
     ]);
   });
 

@@ -77,11 +77,11 @@ export function ShaderInspector({
   sourceConnected?: boolean;
   detached?: boolean;
 }) {
-  const [paletteOpen, setPaletteOpen] = useState(true);
-  const [detailOpen, setDetailOpen] = useState(true);
+  const [colorsOpen, setColorsOpen] = useState(true);
+  const [patternOpen, setPatternOpen] = useState(true);
   const [customOpen, setCustomOpen] = useState(true);
   const [compositeOpen, setCompositeOpen] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const [generationState, sendGeneration] = useMachine(shaderGenerationMachine);
   const auth = useArtifactAuth();
   const { setShaderNodeGenerationStatus } = useNodeCanvasActions();
@@ -474,42 +474,56 @@ export function ShaderInspector({
       {showPresetShaderControls && (
         <>
           <InspectorSection
-            title="Palette"
-            summary="2 main colors"
-            open={paletteOpen}
-            onToggle={() => setPaletteOpen((open) => !open)}
+            title="Colors"
+            summary="4 swatches"
+            open={colorsOpen}
+            onToggle={() => setColorsOpen((open) => !open)}
           >
-            <InspectorColorInput
-              label="Color A"
-              value={shaderNode.colorA}
-              onChange={(value) => onChange({ colorA: value })}
-            />
-            <InspectorColorInput
-              label="Color B"
-              value={shaderNode.colorB}
-              onChange={(value) => onChange({ colorB: value })}
-            />
+            <ShaderColorGrid shaderNode={shaderNode} onChange={onChange} />
           </InspectorSection>
           <InspectorSection
-            title="Detail"
-            summary="distortion / grain"
-            open={detailOpen}
-            onToggle={() => setDetailOpen((open) => !open)}
+            title="Pattern"
+            summary="shape / texture"
+            open={patternOpen}
+            onToggle={() => setPatternOpen((open) => !open)}
           >
-            <InspectorSlider
-              label="Distortion"
-              value={shaderNode.distortion}
-              min={0}
-              max={100}
-              onChange={(value) => onChange({ distortion: value })}
-            />
-            <InspectorSlider
-              label="Grain"
-              value={shaderNode.grain}
-              min={0}
-              max={100}
-              onChange={(value) => onChange({ grain: value })}
-            />
+            <div className="node-shader-flat-controls">
+              <InspectorSlider
+                label="Distortion"
+                value={shaderNode.distortion}
+                min={0}
+                max={100}
+                onChange={(value) => onChange({ distortion: value })}
+              />
+              <InspectorSlider
+                label="Grain"
+                value={shaderNode.grain}
+                min={0}
+                max={100}
+                onChange={(value) => onChange({ grain: value })}
+              />
+              <InspectorSlider
+                label="Swirl"
+                value={shaderNode.swirl}
+                min={0}
+                max={100}
+                onChange={(value) => onChange({ swirl: value })}
+              />
+              <InspectorSlider
+                label="Scale"
+                value={shaderNode.scale}
+                min={20}
+                max={300}
+                onChange={(value) => onChange({ scale: value })}
+              />
+              <InspectorSlider
+                label="Variation"
+                value={shaderNode.seedOffset}
+                min={0}
+                max={9999}
+                onChange={(value) => onChange({ seedOffset: value })}
+              />
+            </div>
           </InspectorSection>
         </>
       )}
@@ -519,83 +533,73 @@ export function ShaderInspector({
         open={compositeOpen}
         onToggle={() => setCompositeOpen((open) => !open)}
       >
-        <InspectorSelect
-          label="Blend"
-          value={shaderNode.blendMode}
-          options={BLEND_OPTIONS}
-          onChange={(value) => onChange({ blendMode: value })}
-        />
+        <div className="node-shader-flat-controls">
+          <InspectorSelect
+            label="Blend"
+            value={shaderNode.blendMode}
+            options={BLEND_OPTIONS}
+            onChange={(value) => onChange({ blendMode: value })}
+          />
+          <InspectorSlider
+            label="Opacity"
+            value={shaderNode.opacity}
+            min={0}
+            max={100}
+            onChange={(value) => onChange({ opacity: value })}
+          />
+        </div>
         <BlendModeNote value={shaderNode.blendMode} />
-        <InspectorSlider
-          label="Opacity"
-          value={shaderNode.opacity}
-          min={0}
-          max={100}
-          onChange={(value) => onChange({ opacity: value })}
-        />
       </InspectorSection>
       {showPresetShaderControls && (
         <InspectorSection
-          title="Advanced"
-          summary="secondary colors / placement"
-          open={advancedOpen}
-          onToggle={() => setAdvancedOpen((open) => !open)}
+          title="Placement"
+          summary="rotation / offset"
+          open={placementOpen}
+          onToggle={() => setPlacementOpen((open) => !open)}
         >
-          <InspectorColorInput
-            label="Color C"
-            value={shaderNode.colorC}
-            onChange={(value) => onChange({ colorC: value })}
-          />
-          <InspectorColorInput
-            label="Color D"
-            value={shaderNode.colorD}
-            onChange={(value) => onChange({ colorD: value })}
-          />
-          <InspectorSlider
-            label="Swirl"
-            value={shaderNode.swirl}
-            min={0}
-            max={100}
-            onChange={(value) => onChange({ swirl: value })}
-          />
-          <InspectorSlider
-            label="Scale"
-            value={shaderNode.scale}
-            min={20}
-            max={300}
-            onChange={(value) => onChange({ scale: value })}
-          />
-          <InspectorSlider
-            label="Rotation"
-            value={shaderNode.rotation}
-            min={0}
-            max={360}
-            onChange={(value) => onChange({ rotation: value })}
-          />
-          <InspectorSlider
-            label="Offset X"
-            value={shaderNode.offsetX}
-            min={-100}
-            max={100}
-            onChange={(value) => onChange({ offsetX: value })}
-          />
-          <InspectorSlider
-            label="Offset Y"
-            value={shaderNode.offsetY}
-            min={-100}
-            max={100}
-            onChange={(value) => onChange({ offsetY: value })}
-          />
-          <InspectorSlider
-            label="Variation"
-            value={shaderNode.seedOffset}
-            min={0}
-            max={9999}
-            onChange={(value) => onChange({ seedOffset: value })}
-          />
+          <div className="node-shader-flat-controls">
+            <InspectorSlider
+              label="Rotation"
+              value={shaderNode.rotation}
+              min={0}
+              max={360}
+              onChange={(value) => onChange({ rotation: value })}
+            />
+            <InspectorSlider
+              label="Offset X"
+              value={shaderNode.offsetX}
+              min={-100}
+              max={100}
+              onChange={(value) => onChange({ offsetX: value })}
+            />
+            <InspectorSlider
+              label="Offset Y"
+              value={shaderNode.offsetY}
+              min={-100}
+              max={100}
+              onChange={(value) => onChange({ offsetY: value })}
+            />
+          </div>
         </InspectorSection>
       )}
       <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind)}</p>
+    </div>
+  );
+}
+
+function ShaderColorGrid({
+  shaderNode,
+  onChange,
+}: {
+  shaderNode: GraphShaderNode;
+  onChange: (patch: Partial<GraphShaderNode>) => void;
+}) {
+  return (
+    <div className="node-shader-color-grid">
+      <InspectorColorInput label="A" value={shaderNode.colorA} onChange={(value) => onChange({ colorA: value })} />
+      <InspectorColorInput label="B" value={shaderNode.colorB} onChange={(value) => onChange({ colorB: value })} />
+      <InspectorColorInput label="C" value={shaderNode.colorC} onChange={(value) => onChange({ colorC: value })} />
+      <InspectorColorInput label="D" value={shaderNode.colorD} onChange={(value) => onChange({ colorD: value })} />
     </div>
   );
 }
