@@ -1,6 +1,7 @@
 import type { GraphShaderNode } from '../../types/config';
 import { normalizeCustomShaderSpec } from '../customShaderSpec';
 import { lcg } from '../lcg';
+import { normalizeShaderPalette } from '../shaderPalette';
 import { createCanvas } from './canvas';
 import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
 
@@ -36,11 +37,15 @@ function rgba(hex: string, alpha: number) {
 }
 
 function shaderColorStops(node: GraphShaderNode) {
-  return [node.colorA, node.colorB, node.colorC, node.colorD];
+  return normalizeShaderPalette(node.shaderKind, node.palette);
 }
 
 function shaderPalette(node: GraphShaderNode): Rgb[] {
   return shaderColorStops(node).map(hexToRgb);
+}
+
+function colorStop(colors: readonly string[], index: number) {
+  return colors[index % Math.max(1, colors.length)] ?? '#ffffff';
 }
 
 function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
@@ -181,7 +186,7 @@ function renderMeshGradient(node: GraphShaderNode, seed: number, canvas: HTMLCan
   const offsetY = clamp(node.offsetY / 100, -1, 1) * height * 0.35;
   const rotation = (node.rotation * Math.PI) / 180;
 
-  ctx.fillStyle = colors[0];
+  ctx.fillStyle = colorStop(colors, 0);
   ctx.fillRect(0, 0, width, height);
 
   const diagonal = Math.hypot(width, height) * scale;
@@ -202,9 +207,9 @@ function renderMeshGradient(node: GraphShaderNode, seed: number, canvas: HTMLCan
   }
 
   const linear = ctx.createLinearGradient(0, 0, width, height);
-  linear.addColorStop(0, rgba(colors[1], 0.22 + distortion * 0.16));
-  linear.addColorStop(0.5, rgba(colors[2], 0.08 + swirl * 0.18));
-  linear.addColorStop(1, rgba(colors[3], 0.26));
+  linear.addColorStop(0, rgba(colorStop(colors, 1), 0.22 + distortion * 0.16));
+  linear.addColorStop(0.5, rgba(colorStop(colors, 2), 0.08 + swirl * 0.18));
+  linear.addColorStop(1, rgba(colorStop(colors, 3), 0.26));
   ctx.globalCompositeOperation = 'overlay';
   ctx.fillStyle = linear;
   ctx.fillRect(0, 0, width, height);
@@ -301,10 +306,10 @@ function renderStaticRadialGradient(node: GraphShaderNode, seed: number, canvas:
     height / 2,
     radius,
   );
-  gradient.addColorStop(0, colors[1]);
-  gradient.addColorStop(0.42, colors[2]);
-  gradient.addColorStop(1, colors[3]);
-  ctx.fillStyle = colors[0];
+  colors.forEach((color, index) => {
+    gradient.addColorStop(index / Math.max(1, colors.length - 1), color);
+  });
+  ctx.fillStyle = colors[colors.length - 1] ?? '#000000';
   ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = gradient;
@@ -322,7 +327,7 @@ function renderColorPanels(node: GraphShaderNode, seed: number, canvas: HTMLCanv
   const { width, height } = canvas;
   const colors = shaderColorStops(node);
   const rng = lcg(seed + (node.seedOffset ?? 0) + 1201);
-  ctx.fillStyle = colors[0];
+  ctx.fillStyle = colorStop(colors, 0);
   ctx.fillRect(0, 0, width, height);
   const columns = 4 + Math.round(clamp(node.scale / 100, 0.2, 3) * 2);
   for (let i = 0; i < columns; i += 1) {
@@ -344,13 +349,14 @@ function renderDotGrid(node: GraphShaderNode, seed: number, canvas: HTMLCanvasEl
   const spacing = clamp(30 / scale, 6, 60);
   const distortion = clamp(node.distortion / 100, 0, 1);
   const rng = lcg(seed + (node.seedOffset ?? 0) + 1301);
-  ctx.fillStyle = colors[3];
+  const dotColors = colors.slice(0, -1);
+  ctx.fillStyle = colors[colors.length - 1] ?? '#000000';
   ctx.fillRect(0, 0, width, height);
   for (let y = spacing / 2; y < height; y += spacing) {
     for (let x = spacing / 2; x < width; x += spacing) {
       const tone = valueNoise(x / spacing, y / spacing, seed + 1307);
       const jitter = spacing * distortion * 0.32;
-      ctx.fillStyle = tone > 0.5 ? colors[1] : colors[0];
+      ctx.fillStyle = dotColors[Math.min(dotColors.length - 1, Math.floor(tone * dotColors.length))] ?? '#ffffff';
       ctx.beginPath();
       ctx.arc(x + (rng() - 0.5) * jitter, y + (rng() - 0.5) * jitter, spacing * (0.13 + tone * 0.22), 0, Math.PI * 2);
       ctx.fill();
@@ -368,7 +374,7 @@ function renderDotOrbit(node: GraphShaderNode, seed: number, canvas: HTMLCanvasE
   const rings = 3 + Math.round(clamp(node.swirl / 100, 0, 1) * 4);
   const count = 18 + Math.round(scale * 14);
   const rng = lcg(seed + (node.seedOffset ?? 0) + 1401);
-  ctx.fillStyle = colors[3];
+  ctx.fillStyle = colorStop(colors, 3);
   ctx.fillRect(0, 0, width, height);
   ctx.save();
   ctx.translate(width / 2, height / 2);
@@ -394,7 +400,7 @@ function renderBorderRings(node: GraphShaderNode, seed: number, canvas: HTMLCanv
   if (!ctx) return;
   const { width, height } = canvas;
   const colors = shaderColorStops(node);
-  ctx.fillStyle = colors[0];
+  ctx.fillStyle = colorStop(colors, 0);
   ctx.fillRect(0, 0, width, height);
   const steps = 9;
   for (let i = 0; i < steps; i += 1) {
@@ -523,9 +529,7 @@ function renderFieldPattern(node: GraphShaderNode, seed: number, canvas: HTMLCan
 
 function renderCustomShaderSpec(node: GraphShaderNode, seed: number, canvas: HTMLCanvasElement) {
   const spec = normalizeCustomShaderSpec(node.customShaderSpec);
-  const colors = (spec.palette?.length ? spec.palette : [node.colorA, node.colorB, node.colorC, node.colorD]).map(
-    hexToRgb,
-  );
+  const colors = (spec.palette?.length ? spec.palette : shaderColorStops(node)).map(hexToRgb);
   const base = clamp(spec.base ?? 0.46, 0, 1);
   const contrast = clamp(spec.contrast ?? 1, 0.1, 4);
 

@@ -105,8 +105,52 @@ describe('shader kind scope', () => {
     expect(makeGraphShaderNode({ shaderKind: 'customCode' }).customShaderCode?.code).toBe('');
   });
 
+  it('normalizes shader palettes at the factory boundary', () => {
+    expect(makeGraphShaderNode({ shaderKind: 'waves', palette: ['#123', 'invalid'] }).palette).toEqual([
+      '#112233',
+      '#5033a6',
+    ]);
+  });
+
   it('keeps tileless texture out of active shader fills until the future track is implemented', () => {
     expect(SHADER_KINDS).not.toContain('tilelessTexture');
+  });
+});
+
+describe('cloneDocument shader state', () => {
+  it('deep-clones nested shader state for undo snapshots', () => {
+    const shader = makeGraphShaderNode({
+      id: 'shader-history',
+      shaderKind: 'customSpec',
+      palette: ['#111111', '#eeeeee'],
+      customShaderSpec: {
+        version: 1,
+        provenance: { source: 'openai', model: 'test-model' },
+        palette: ['#101010', '#f0f0f0'],
+        operations: [{ op: 'invert', amount: 0.25 }],
+      },
+    });
+    const source: CanvasDocument = {
+      ...cloneableDocument(),
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [shader],
+      },
+    };
+
+    const cloned = cloneDocument(source);
+    const clonedShader = cloned.graph?.shaderNodes?.[0];
+    if (!clonedShader?.customShaderSpec) throw new Error('Expected cloned shader state');
+    clonedShader.palette[0] = '#ff0000';
+    clonedShader.customShaderSpec.palette![0] = '#00ff00';
+    clonedShader.customShaderSpec.operations[0] = { op: 'invert', amount: 0.9 };
+
+    expect(shader.palette[0]).toBe('#111111');
+    expect(shader.customShaderSpec?.palette?.[0]).toBe('#101010');
+    expect(shader.customShaderSpec?.operations[0]).toEqual({ op: 'invert', amount: 0.25 });
   });
 });
 

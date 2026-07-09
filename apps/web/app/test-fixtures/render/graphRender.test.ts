@@ -190,10 +190,7 @@ describe('renderDocument graph mode', () => {
           makeGraphShaderNode({
             id: 'shader-a',
             shaderKind: 'waterCaustic',
-            colorA: '#052d3b',
-            colorB: '#8ff8d2',
-            colorC: '#ffcf6b',
-            colorD: '#ffffff',
+            palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
             grain: 0,
           }),
         ],
@@ -511,7 +508,7 @@ describe('renderGraphTarget', () => {
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', colorA: '#ff0000', colorB: '#00ff00', grain: 0 })],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
     };
     const doc = graphDocument(graph);
 
@@ -536,10 +533,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind,
-          colorA: '#0c1024',
-          colorB: '#ff705f',
-          colorC: '#79e3c5',
-          colorD: '#f6c96f',
+          palette: ['#0c1024', '#ff705f', '#79e3c5', '#f6c96f'],
           grain: 0,
         }),
       ],
@@ -657,10 +651,7 @@ describe('renderGraphTarget', () => {
     const backdropShader = makeGraphShaderNode({
       id: 'backdrop-shader',
       shaderKind: 'waterCaustic',
-      colorA: '#052d3b',
-      colorB: '#8ff8d2',
-      colorC: '#ffcf6b',
-      colorD: '#ffffff',
+      palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
       grain: 0,
     });
     const customShader = makeGraphShaderNode({
@@ -929,10 +920,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind: 'staticRadialGradient',
-          colorA: '#ff2200',
-          colorB: '#ff2200',
-          colorC: '#ff2200',
-          colorD: '#ff2200',
+          palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 45,
           blendMode: 'source-over',
@@ -967,10 +955,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
-          colorA: '#ff2200',
-          colorB: '#ff2200',
-          colorC: '#ff2200',
-          colorD: '#ff2200',
+          palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 100,
           blendMode: 'source-over',
@@ -988,10 +973,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'backdrop-shader',
           shaderKind: 'waterCaustic',
-          colorA: '#052d3b',
-          colorB: '#8ff8d2',
-          colorC: '#ffcf6b',
-          colorD: '#ffffff',
+          palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
           grain: 0,
         }),
       ],
@@ -1009,10 +991,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
-          colorA: '#ff2200',
-          colorB: '#ff2200',
-          colorC: '#ff2200',
-          colorD: '#ff2200',
+          palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 100,
           blendMode: 'source-over',
@@ -1256,10 +1235,7 @@ describe('renderGraphTarget', () => {
     const shaderNode = makeGraphShaderNode({
       id: 'shader-a',
       shaderKind: 'staticRadialGradient',
-      colorA: '#ff2200',
-      colorB: '#ff2200',
-      colorC: '#ff2200',
-      colorD: '#ff2200',
+      palette: ['#ff2200', '#ff2200'],
       grain: 0,
     });
     const graph: CanvasGraph = {
@@ -1339,7 +1315,7 @@ describe('renderGraphTarget', () => {
       mergeNodes: [],
       colorNodes: [],
       materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', colorA: '#ff0000', colorB: '#00ff00', grain: 0 })],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
     };
     const doc = graphDocument(graph);
 
@@ -1372,10 +1348,7 @@ describe('renderGraphTarget', () => {
       shaderNodes: [
         makeGraphShaderNode({
           id: 'shader-a',
-          colorA: '#00ccff',
-          colorB: '#ff00cc',
-          colorC: '#f8ff00',
-          colorD: '#101020',
+          palette: ['#00ccff', '#ff00cc', '#f8ff00', '#101020'],
           distortion: 80,
           grain: 0,
         }),
@@ -1431,10 +1404,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind: 'moire',
-          colorA: '#06040a',
-          colorB: '#f7e6ff',
-          colorC: '#ff6ab7',
-          colorD: '#50e3c2',
+          palette: ['#06040a', '#f7e6ff', '#ff6ab7', '#50e3c2'],
           grain: 0,
         }),
       ],

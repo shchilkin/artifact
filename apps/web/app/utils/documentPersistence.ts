@@ -31,6 +31,7 @@ import {
 import { normalizeCustomShaderCodeConfig } from './customShaderCode';
 import { normalizeCustomShaderSpec } from './customShaderSpec';
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
+import { normalizeShaderPalette } from './shaderPalette';
 
 export const DOC_KEY = 'doc';
 export const PRE_BLANK_DRAFT_KEY = 'artifact-pre-blank-draft-v1';
@@ -183,16 +184,32 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
 function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
   return (nodes ?? []).filter(isRecord).map((node) => {
     const shaderKind = normalizeShaderKind(node.shaderKind);
+    const defaults = makeGraphShaderNode({ shaderKind });
     return makeGraphShaderNode({
-      ...node,
-      ...(node.shaderKind === 'staticMeshGradient' ? { distortion: 0 } : {}),
       id: String(node.id ?? `shader-${Date.now()}`),
+      name: typeof node.name === 'string' ? node.name : defaults.name,
       shaderKind,
+      palette: normalizeShaderPalette(shaderKind, node.palette),
+      distortion:
+        node.shaderKind === 'staticMeshGradient' ? 0 : normalizeShaderNumber(node.distortion, defaults.distortion),
+      swirl: normalizeShaderNumber(node.swirl, defaults.swirl),
+      grain: normalizeShaderNumber(node.grain, defaults.grain),
+      scale: normalizeShaderNumber(node.scale, defaults.scale),
+      rotation: normalizeShaderNumber(node.rotation, defaults.rotation),
+      offsetX: normalizeShaderNumber(node.offsetX, defaults.offsetX),
+      offsetY: normalizeShaderNumber(node.offsetY, defaults.offsetY),
+      seedOffset: normalizeShaderNumber(node.seedOffset, defaults.seedOffset),
+      opacity: normalizeShaderNumber(node.opacity, defaults.opacity),
+      blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
       ...(node.customShaderSpec ? { customShaderSpec: normalizeCustomShaderSpec(node.customShaderSpec) } : {}),
       ...(node.customShaderCode ? { customShaderCode: normalizeCustomShaderCodeConfig(node.customShaderCode) } : {}),
       aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, 500) : undefined,
-    } as Partial<GraphShaderNode>);
+    });
   });
+}
+
+function normalizeShaderNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function normalizeRepeatNodes(nodes: CanvasGraph['repeatNodes']) {

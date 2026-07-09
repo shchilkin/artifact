@@ -116,15 +116,40 @@ describe('shader node renderer', () => {
     expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
   });
 
+  it('uses every configured static radial palette color', () => {
+    const base = makeGraphShaderNode({
+      shaderKind: 'staticRadialGradient',
+      grain: 0,
+      palette: ['#110000', '#220000', '#330000', '#440000', '#550000'],
+    });
+    const edited = { ...base, palette: ['#110000', '#220000', '#330000', '#440000', '#005500'] };
+
+    const first = renderShaderNodeToCanvas(base, 1171, 220, 140);
+    const second = renderShaderNodeToCanvas(edited, 1171, 220, 140);
+
+    expect(rgbDelta(sampleRgb(first, 0, 0), sampleRgb(second, 0, 0))).toBeGreaterThan(20);
+  });
+
+  it('uses the final dot grid palette color as its background', () => {
+    const base = makeGraphShaderNode({
+      shaderKind: 'dotGrid',
+      grain: 0,
+      palette: ['#111111', '#eeeeee', '#ff0000'],
+    });
+    const edited = { ...base, palette: ['#111111', '#eeeeee', '#0000ff'] };
+
+    const first = renderShaderNodeToCanvas(base, 1171, 220, 140);
+    const second = renderShaderNodeToCanvas(edited, 1171, 220, 140);
+
+    expect(rgbDelta(sampleRgb(first, 0, 0), sampleRgb(second, 0, 0))).toBeGreaterThan(100);
+  });
+
   it('keeps spiral continuous across the angular wrap seam', () => {
     const canvas = renderShaderNodeToCanvas(
       makeGraphShaderNode({
         id: 'spiral-seam',
         shaderKind: 'spiral',
-        colorA: '#ff3b5c',
-        colorB: '#42e8f5',
-        colorC: '#fff36a',
-        colorD: '#7f5cff',
+        palette: ['#ff3b5c', '#42e8f5', '#fff36a', '#7f5cff'],
         grain: 0,
         scale: 100,
         swirl: 88,

@@ -173,6 +173,31 @@ describe('normalizeDocument', () => {
     });
   });
 
+  it('normalizes malformed shader palettes without retaining removed color fields', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-palette',
+            name: 'Imported shader',
+            shaderKind: 'waves',
+            palette: ['#123', 'invalid'],
+            colorA: '#ff0000',
+          },
+        ],
+      },
+    });
+
+    const shader = doc.graph?.shaderNodes?.[0];
+    expect(shader?.palette).toEqual(['#112233', '#5033a6']);
+    expect(shader).not.toHaveProperty('colorA');
+  });
+
   it('round-trips AI custom shader nodes through artifact document JSON', () => {
     const shaderNode = makeGraphShaderNode({
       id: 'shader-ai',
@@ -800,10 +825,7 @@ describe('document serialization helpers', () => {
             name: 'Mesh Shader',
             shaderKind: 'meshGradient',
             aiPrompt: undefined,
-            colorA: '#101010',
-            colorB: '#ff705f',
-            colorC: '#8d5cff',
-            colorD: '#79e3c5',
+            palette: ['#101010', '#ff705f', '#8d5cff', '#79e3c5'],
             distortion: 48,
             swirl: 36,
             grain: 14,
@@ -882,10 +904,7 @@ describe('document serialization helpers', () => {
           makeGraphShaderNode({
             id: 'shader-a',
             shaderKind: 'waterCaustic',
-            colorA: '#041c2a',
-            colorB: '#4df4d0',
-            colorC: '#ffcf6b',
-            colorD: '#ffffff',
+            palette: ['#041c2a', '#4df4d0', '#ffcf6b', '#ffffff'],
             distortion: 54,
             grain: 0,
           }),

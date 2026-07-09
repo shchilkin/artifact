@@ -126,12 +126,13 @@ Shader work follows the same single-purpose split:
 - **Shader Fill / Pass** nodes are procedural raster shader passes. Preset
   shader fills generate pixels from their own parameters and document seed,
   expose their output as a source texture, and do not require an upstream image.
+  Their colors are stored as an ordered `palette` array; each preset declares
+  how many colors it starts with and whether the user can add more.
   When their optional `backdrop` input is connected, they sample that upstream
   branch as input texture data, use its luminance/detail to shape the generated
   shader, and then apply the node's opacity and blend mode as pass intensity.
-  New shader nodes default to an overlay-friendly `screen` blend at 58% opacity
-  so pass mode reveals the connected backdrop immediately instead of replacing
-  it.
+  Opacity and blend mode are pass-only controls; fill mode outputs the generated
+  texture directly.
   `AI Shader Pass` is prompt-ready and input-dependent: it stores a validated
   `customSpec` JSON shader description and prompt provenance, not raw
   GLSL/WGSL. Its inspector can generate an editable spec from a prompt through

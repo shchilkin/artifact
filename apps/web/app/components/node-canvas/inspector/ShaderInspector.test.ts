@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SHADER_COLOR_CONTROL_FIELDS,
   SHADER_COMPOSITE_CONTROL_FIELDS,
+  SHADER_PALETTE_CONTROL_FIELDS,
   SHADER_PATTERN_CONTROL_FIELDS,
   SHADER_PLACEMENT_CONTROL_FIELDS,
   SHADER_PRESET_CONTROL_GROUPS,
@@ -15,8 +15,8 @@ import {
 } from './ShaderInspectorModel';
 
 describe('ShaderInspector metadata', () => {
-  it('keeps preset shader colors in one group', () => {
-    expect(SHADER_COLOR_CONTROL_FIELDS).toEqual(['colorA', 'colorB', 'colorC', 'colorD']);
+  it('keeps preset shader palette in one group', () => {
+    expect(SHADER_PALETTE_CONTROL_FIELDS).toEqual(['palette']);
   });
 
   it('groups preset shader controls by the job they do', () => {

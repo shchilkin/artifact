@@ -3448,11 +3448,19 @@
 
 .node-shader-color-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   overflow: hidden;
   border: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
   border-radius: var(--control-radius);
   background: color-mix(in oklch, var(--surface-input) 70%, transparent);
+}
+
+.node-shader-color-swatch {
+  border-right: 1px solid color-mix(in oklch, var(--border) 62%, transparent);
+}
+
+.node-shader-color-swatch:last-child {
+  border-right: 0;
 }
 
 .node-props-body .node-shader-color-grid .node-inspector-row {
@@ -3461,14 +3469,9 @@
   gap: 7px;
   padding: 8px;
   border: 0;
-  border-right: 1px solid color-mix(in oklch, var(--border) 62%, transparent);
   border-radius: 0;
   background: transparent;
   flex-direction: column;
-}
-
-.node-props-body .node-shader-color-grid .node-inspector-row:last-child {
-  border-right: 0;
 }
 
 .node-props-body .node-shader-color-grid .node-inspector-label {
@@ -3479,6 +3482,24 @@
 .node-props-body .node-shader-color-grid .node-color-input {
   width: 100%;
   height: 34px;
+}
+
+.node-shader-color-remove {
+  width: calc(100% - 16px);
+  margin: 0 8px 8px;
+  padding: 6px 4px;
+  border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in oklch, var(--text) 58%, var(--text-dim));
+  font: var(--font-label);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.node-shader-color-remove:hover {
+  color: var(--text);
+  border-color: color-mix(in oklch, var(--accent) 42%, var(--border));
 }
 
 .node-shader-flat-controls {

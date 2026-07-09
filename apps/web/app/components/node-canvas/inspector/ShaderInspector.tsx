@@ -8,6 +8,7 @@ import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
 import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { cloneDefaultCustomShaderSpec, validateCustomShaderSpec } from '../../../utils/customShaderSpec';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
+import { defaultShaderPalette, normalizeShaderPalette, shaderPaletteConfig } from '../../../utils/shaderPalette';
 import { BLEND_OPTIONS } from '../constants';
 import { useNodeCanvasActions } from '../context';
 import {
@@ -210,12 +211,15 @@ export function ShaderInspector({
           : 'Create with AI';
   const showPresetShaderControls = showsPresetShaderControls(shaderNode.shaderKind);
   const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, sourceConnected);
+  const presetPalette = normalizeShaderPalette(shaderNode.shaderKind, shaderNode.palette);
+  const showCompositeControls = sourceConnected;
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
     sendGeneration({ type: 'RESET' });
     setShaderNodeGenerationStatus(shaderNode.id, null);
     onChange({
       shaderKind,
+      palette: defaultShaderPalette(shaderKind),
       ...(shaderKind === 'customSpec' && !shaderNode.customShaderSpec
         ? { customShaderSpec: cloneDefaultCustomShaderSpec() }
         : {}),
@@ -425,7 +429,7 @@ export function ShaderInspector({
                 valueLabel={`${Math.round((customSpec.contrast ?? 1.18) * 100)}%`}
                 onChange={(value) => handleCustomSpecChange({ contrast: value / 100 })}
               />
-              {(customSpec.palette ?? cloneDefaultCustomShaderSpec().palette ?? []).slice(0, 4).map((color, index) => (
+              {(customSpec.palette ?? cloneDefaultCustomShaderSpec().palette ?? []).map((color, index) => (
                 <InspectorColorInput
                   key={`custom-palette-${index}`}
                   label={`Color ${index + 1}`}
@@ -478,7 +482,7 @@ export function ShaderInspector({
         <>
           <InspectorSection
             title="Colors"
-            summary="4 swatches"
+            summary={`${presetPalette.length} colors`}
             open={colorsOpen}
             onToggle={() => setColorsOpen((open) => !open)}
           >
@@ -530,29 +534,31 @@ export function ShaderInspector({
           </InspectorSection>
         </>
       )}
-      <InspectorSection
-        title="Composite"
-        summary={`${shaderNode.blendMode} / ${shaderNode.opacity}%`}
-        open={compositeOpen}
-        onToggle={() => setCompositeOpen((open) => !open)}
-      >
-        <div className="node-shader-flat-controls">
-          <InspectorSelect
-            label="Blend"
-            value={shaderNode.blendMode}
-            options={BLEND_OPTIONS}
-            onChange={(value) => onChange({ blendMode: value })}
-          />
-          <InspectorSlider
-            label="Opacity"
-            value={shaderNode.opacity}
-            min={0}
-            max={100}
-            onChange={(value) => onChange({ opacity: value })}
-          />
-        </div>
-        <BlendModeNote value={shaderNode.blendMode} />
-      </InspectorSection>
+      {showCompositeControls && (
+        <InspectorSection
+          title="Composite"
+          summary={`${shaderNode.blendMode} / ${shaderNode.opacity}%`}
+          open={compositeOpen}
+          onToggle={() => setCompositeOpen((open) => !open)}
+        >
+          <div className="node-shader-flat-controls">
+            <InspectorSelect
+              label="Blend"
+              value={shaderNode.blendMode}
+              options={BLEND_OPTIONS}
+              onChange={(value) => onChange({ blendMode: value })}
+            />
+            <InspectorSlider
+              label="Opacity"
+              value={shaderNode.opacity}
+              min={0}
+              max={100}
+              onChange={(value) => onChange({ opacity: value })}
+            />
+          </div>
+          <BlendModeNote value={shaderNode.blendMode} />
+        </InspectorSection>
+      )}
       {showPresetShaderControls && (
         <InspectorSection
           title="Placement"
@@ -607,14 +613,55 @@ function ShaderColorGrid({
   shaderNode: GraphShaderNode;
   onChange: (patch: Partial<GraphShaderNode>) => void;
 }) {
+  const config = shaderPaletteConfig(shaderNode.shaderKind);
+  const palette = normalizeShaderPalette(shaderNode.shaderKind, shaderNode.palette);
+  const updatePalette = (nextPalette: string[]) => {
+    onChange({ palette: normalizeShaderPalette(shaderNode.shaderKind, nextPalette) });
+  };
+
   return (
-    <div className="node-shader-color-grid">
-      <InspectorColorInput label="A" value={shaderNode.colorA} onChange={(value) => onChange({ colorA: value })} />
-      <InspectorColorInput label="B" value={shaderNode.colorB} onChange={(value) => onChange({ colorB: value })} />
-      <InspectorColorInput label="C" value={shaderNode.colorC} onChange={(value) => onChange({ colorC: value })} />
-      <InspectorColorInput label="D" value={shaderNode.colorD} onChange={(value) => onChange({ colorD: value })} />
-    </div>
+    <>
+      <div className="node-shader-color-grid">
+        {palette.map((color, index) => (
+          <div key={`shader-palette-${index}`} className="node-shader-color-swatch">
+            <InspectorColorInput
+              label={paletteLabel(index)}
+              value={color}
+              onChange={(value) => {
+                const nextPalette = [...palette];
+                nextPalette[index] = value;
+                updatePalette(nextPalette);
+              }}
+            />
+            {palette.length > config.min && (
+              <button
+                type="button"
+                className="node-shader-color-remove nodrag nopan nowheel"
+                onClick={() => updatePalette(palette.filter((_, colorIndex) => colorIndex !== index))}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {config.addable && palette.length < config.max && (
+        <button
+          type="button"
+          className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
+          onClick={() =>
+            updatePalette([...palette, config.defaults[palette.length % config.defaults.length] ?? '#ffffff'])
+          }
+        >
+          Add Color
+        </button>
+      )}
+    </>
   );
+}
+
+function paletteLabel(index: number) {
+  return index < 26 ? String.fromCharCode(65 + index) : `${index + 1}`;
 }
 
 function CustomShaderStatusMessage({

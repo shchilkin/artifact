@@ -259,15 +259,15 @@ describe('graph mutations', () => {
       edges: [{ id: 'e-shader-export', fromId: 'shader-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['shader-1'] }],
     });
-    const shaderNode = makeGraphShaderNode({ id: 'shader-1', name: 'Shader', colorA: '#111111' });
+    const shaderNode = makeGraphShaderNode({ id: 'shader-1', name: 'Shader', palette: ['#111111', '#222222'] });
 
     const withNode = addShaderNode(graph, shaderNode, { x: 180, y: 100 });
-    const updated = updateShaderNode(withNode, 'shader-1', { colorA: '#ffffff', swirl: 64 });
+    const updated = updateShaderNode(withNode, 'shader-1', { palette: ['#ffffff', '#222222'], swirl: 64 });
     const removed = removeShaderNode(updated, 'shader-1');
 
     expect(withNode.shaderNodes).toEqual([shaderNode]);
     expect(withNode.positions['shader-1']).toEqual({ x: 180, y: 100 });
-    expect(updated.shaderNodes?.[0]).toEqual({ ...shaderNode, colorA: '#ffffff', swirl: 64 });
+    expect(updated.shaderNodes?.[0]).toEqual({ ...shaderNode, palette: ['#ffffff', '#222222'], swirl: 64 });
     expect(removed.shaderNodes).toEqual([]);
     expect(removed.positions['shader-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);

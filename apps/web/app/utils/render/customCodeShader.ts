@@ -4,6 +4,7 @@ import {
   normalizeCustomShaderCodeConfig,
   validateCustomShaderCode,
 } from '../customShaderCode';
+import { normalizeShaderPalette } from '../shaderPalette';
 import { createCanvas, isDrawableCanvas } from './canvas';
 
 function clamp(value: number, min: number, max: number) {
@@ -40,7 +41,7 @@ function renderCanvasFallback(
   ctx.drawImage(base, 0, 0, width, height);
   ctx.globalCompositeOperation = 'screen';
   ctx.globalAlpha = 0.35 + clamp(node.distortion / 100, 0, 1) * 0.35;
-  ctx.strokeStyle = node.colorC;
+  ctx.strokeStyle = normalizeShaderPalette(node.shaderKind, node.palette)[2] ?? '#79e3c5';
   ctx.lineWidth = Math.max(1.5, width / 96);
   const waves = Math.max(5, Math.round(8 + node.scale / 12));
   for (let i = -2; i < waves + 2; i += 1) {

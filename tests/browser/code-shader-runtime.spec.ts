@@ -40,7 +40,7 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
         {
           shaderKind: 'customCode',
           customShaderCode: { version: 1, language: 'glsl-fragment', code },
-          colorC: '#79e3c5',
+          palette: ['#ff705f', '#8d5cff', '#79e3c5', '#f6c96f'],
           distortion: 56,
           scale: 100,
           seedOffset: 0,

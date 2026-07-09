@@ -1,4 +1,5 @@
 import type { CustomShaderOperation, CustomShaderSpec } from '@artifact/shared';
+import { defaultShaderPalette, normalizeShaderPalette } from '../utils/shaderPalette';
 import type { TextFontRef } from './typography';
 
 export {
@@ -619,10 +620,7 @@ export interface GraphShaderNode {
   aiPrompt?: string;
   customShaderSpec?: CustomShaderSpec;
   customShaderCode?: CustomShaderCodeConfig;
-  colorA: string;
-  colorB: string;
-  colorC: string;
-  colorD: string;
+  palette: string[];
   distortion: number;
   swirl: number;
   grain: number;
@@ -1893,6 +1891,7 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 }
 
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
+  const shaderKind = partial.shaderKind ?? 'meshGradient';
   const defaultCustomShaderSpec: CustomShaderSpec = {
     version: 1,
     label: 'AI Shader Pass',
@@ -1913,11 +1912,8 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
   return {
     id: `shader-${Date.now()}-${_idCounter++}`,
     name: 'Shader',
-    shaderKind: 'meshGradient',
-    colorA: '#ff705f',
-    colorB: '#8d5cff',
-    colorC: '#79e3c5',
-    colorD: '#f6c96f',
+    shaderKind,
+    palette: defaultShaderPalette(shaderKind),
     distortion: 56,
     swirl: 28,
     grain: 12,
@@ -1928,9 +1924,26 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
     seedOffset: 0,
     opacity: 58,
     blendMode: 'screen',
-    ...(partial.shaderKind === 'customSpec' ? { customShaderSpec: defaultCustomShaderSpec } : {}),
-    ...(partial.shaderKind === 'customCode' ? { customShaderCode: defaultCustomShaderCode } : {}),
+    ...(shaderKind === 'customSpec' ? { customShaderSpec: defaultCustomShaderSpec } : {}),
+    ...(shaderKind === 'customCode' ? { customShaderCode: defaultCustomShaderCode } : {}),
     ...partial,
+    palette: normalizeShaderPalette(shaderKind, partial.palette ?? defaultShaderPalette(shaderKind)),
+  };
+}
+
+function cloneGraphShaderNode(node: GraphShaderNode): GraphShaderNode {
+  return {
+    ...node,
+    palette: [...node.palette],
+    customShaderSpec: node.customShaderSpec
+      ? {
+          ...node.customShaderSpec,
+          palette: node.customShaderSpec.palette ? [...node.customShaderSpec.palette] : undefined,
+          operations: node.customShaderSpec.operations.map((operation) => ({ ...operation })),
+          provenance: node.customShaderSpec.provenance ? { ...node.customShaderSpec.provenance } : undefined,
+        }
+      : undefined,
+    customShaderCode: node.customShaderCode ? { ...node.customShaderCode } : undefined,
   };
 }
 
@@ -1967,7 +1980,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
             ...n,
           })),
           materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
-          shaderNodes: (doc.graph.shaderNodes ?? []).map((n) => ({ ...n })),
+          shaderNodes: (doc.graph.shaderNodes ?? []).map(cloneGraphShaderNode),
           areas: (doc.graph.areas ?? []).map((area) => ({
             ...area,
             nodeIds: [...area.nodeIds],

@@ -197,6 +197,7 @@ describe('graph node render signatures', () => {
       shaderKind: 'customSpec',
       customShaderSpec: {
         version: 1,
+        provenance: { source: 'openai', model: 'test-model' },
         palette: ['#111111', '#eeeeee'],
         operations: [{ op: 'wave', frequency: 5, amplitude: 0.2, angle: 0 }],
       },
@@ -226,11 +227,22 @@ describe('graph node render signatures', () => {
         code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
       },
     });
+    const promptEdited = {
+      ...custom,
+      aiPrompt: 'A different prompt with the same rendered spec',
+      customShaderSpec: {
+        ...custom.customShaderSpec!,
+        label: 'Renamed result',
+        prompt: 'A different prompt with the same rendered spec',
+        provenance: { source: 'openai' as const, model: 'another-model' },
+      },
+    };
 
     expect(shaderNodeRenderSig(renamed)).toBe(shaderNodeRenderSig(base));
     expect(shaderNodeRenderSig(edited)).not.toBe(shaderNodeRenderSig(base));
     expect(shaderNodeRenderSig(composited)).not.toBe(shaderNodeRenderSig(base));
     expect(shaderNodeRenderSig(customEdited)).not.toBe(shaderNodeRenderSig(custom));
+    expect(shaderNodeRenderSig(promptEdited)).toBe(shaderNodeRenderSig(custom));
     expect(shaderNodeRenderSig(codeEdited)).not.toBe(shaderNodeRenderSig(code));
   });
 
