@@ -1893,7 +1893,7 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
   const shaderKind = partial.shaderKind ?? 'meshGradient';
   const defaultCustomShaderSpec: CustomShaderSpec = {
-    version: 1,
+    version: 2,
     label: 'AI Shader Pass',
     base: 0.46,
     contrast: 1.18,

@@ -107,7 +107,7 @@ export interface CustomShaderProvenance {
 }
 
 export interface CustomShaderSpec {
-  version: 1;
+  version: 2;
   label?: string;
   prompt?: string;
   base?: number;
@@ -133,7 +133,7 @@ export interface AiShaderSpecGenerationResponse {
 const CUSTOM_SHADER_HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export const DEFAULT_CUSTOM_SHADER_SPEC: CustomShaderSpec = {
-  version: 1,
+  version: 2,
   label: 'AI Shader Pass',
   base: 0.46,
   contrast: 1.18,
@@ -162,7 +162,7 @@ export function normalizeCustomShaderSpec(value: unknown): CustomShaderSpec {
         .filter((operation): operation is CustomShaderOperation => Boolean(operation))
     : [];
   return {
-    version: 1,
+    version: 2,
     label: typeof value.label === 'string' ? value.label.slice(0, 80) : DEFAULT_CUSTOM_SHADER_SPEC.label,
     prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, 500) : undefined,
     base: clampCustomShaderNumber(value.base, 0, 1, DEFAULT_CUSTOM_SHADER_SPEC.base ?? 0.46),
@@ -176,7 +176,7 @@ export function normalizeCustomShaderSpec(value: unknown): CustomShaderSpec {
 export function validateCustomShaderSpec(value: unknown): string[] {
   const errors: string[] = [];
   if (!isCustomShaderRecord(value)) return ['Shader spec must be an object.'];
-  if (value.version !== 1) errors.push('Shader spec version must be 1.');
+  if (value.version !== 2) errors.push('Shader spec version must be 2.');
   const palette = normalizeCustomShaderPalette(value.palette);
   if (palette.length === 0) errors.push('Palette needs at least one hex color.');
   if (!Array.isArray(value.operations) || value.operations.length === 0)

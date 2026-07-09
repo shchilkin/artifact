@@ -587,7 +587,7 @@ describe('renderGraphTarget', () => {
           shaderKind: 'customSpec',
           grain: 0,
           customShaderSpec: {
-            version: 1,
+            version: 2,
             provenance: { source: 'openai' },
             label: 'AI Waves',
             prompt: 'neon waves',
@@ -624,7 +624,7 @@ describe('renderGraphTarget', () => {
           shaderKind: 'customSpec',
           grain: 0,
           customShaderSpec: {
-            version: 1,
+            version: 2,
             provenance: { source: 'openai' },
             label: 'AI Waves',
             prompt: 'neon waves',
@@ -661,7 +661,7 @@ describe('renderGraphTarget', () => {
       opacity: 72,
       blendMode: 'screen',
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai' },
         label: 'AI Halftone',
         prompt: 'neon halftone wave pass',
@@ -1035,7 +1035,7 @@ describe('renderGraphTarget', () => {
       opacity: 100,
       blendMode: 'screen',
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai' },
         label: 'Transparent shallow-water pass',
         base: 0.55,
@@ -1109,7 +1109,7 @@ describe('renderGraphTarget', () => {
       distortion: 56,
       grain: 12,
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai' },
         label: 'Transparent Shallow-Water Caustic Refraction',
         base: 0.22,

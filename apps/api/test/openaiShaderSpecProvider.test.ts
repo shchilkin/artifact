@@ -8,7 +8,7 @@ describe('createOpenAiShaderSpecProvider', () => {
       expect(args).toHaveLength(2);
       return jsonFetchResponse({
         output_text: JSON.stringify({
-          version: 1,
+          version: 2,
           label: 'Neon Wave',
           prompt: 'ignored provider prompt',
           base: 1.4,
@@ -34,7 +34,7 @@ describe('createOpenAiShaderSpecProvider', () => {
     });
 
     await expect(provider.generateShaderSpec({ prompt: 'neon waves' })).resolves.toMatchObject({
-      version: 1,
+      version: 2,
       label: 'Neon Wave',
       prompt: 'neon waves',
       base: 1,
@@ -77,7 +77,7 @@ describe('createOpenAiShaderSpecProvider', () => {
               content: [
                 {
                   text: JSON.stringify({
-                    version: 1,
+                    version: 2,
                     label: 'Ink',
                     prompt: 'ink',
                     base: 0.4,

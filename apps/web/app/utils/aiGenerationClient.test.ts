@@ -97,7 +97,7 @@ describe('ai generation client', () => {
       source: 'openai',
       model: 'gpt-5.5-mini',
       spec: {
-        version: 1,
+        version: 2,
         label: 'AI Marble',
         operations: [
           { op: 'noise', scale: 1000, amount: 2, octaves: 99 },
@@ -129,7 +129,7 @@ describe('ai generation client', () => {
       source: 'openai',
       model: 'gpt-5.5-mini',
       spec: {
-        version: 1,
+        version: 2,
         label: 'AI Waves',
         prompt: 'neon waves',
         operations: [{ op: 'wave', frequency: 8, amplitude: 0.2, angle: 1 }],

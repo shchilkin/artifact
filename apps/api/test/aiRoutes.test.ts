@@ -178,7 +178,7 @@ describe('AI route handlers', () => {
         source: 'localFallback',
         model: 'deterministic-local-mapper',
         spec: {
-          version: 1,
+          version: 2,
           label: 'AI Halftone',
           prompt: 'neon marble swirl with halftone ink texture',
           provenance: { source: 'localFallback', model: 'deterministic-local-mapper' },
@@ -207,7 +207,7 @@ describe('AI route handlers', () => {
       body: {
         source: 'localFallback',
         spec: {
-          version: 1,
+          version: 2,
           label: 'AI Waves',
         },
       },
@@ -222,7 +222,7 @@ describe('AI route handlers', () => {
       defaultModel: 'gpt-5.5-mini',
       generateShaderSpec: vi.fn(
         async (): Promise<CustomShaderSpec> => ({
-          version: 1,
+          version: 2,
           label: 'Provider Shader',
           prompt: 'neon waves',
           base: 0.4,

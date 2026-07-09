@@ -141,7 +141,9 @@ Shader work follows the same single-purpose split:
   deterministic fallback, and the saved spec must keep `localFallback`
   provenance. The v2 spec grammar supports source-aware pass operations such as
   source luminance, edge glow, chromatic shift, and gradient-map tinting in
-  addition to procedural noise/waves/rings. Without a connected source/backdrop,
+  addition to procedural noise/waves/rings. Saved operations execute in order,
+  so the spec is an editable render recipe rather than an unordered set of
+  effect amounts. Without a connected source/backdrop,
   or before a generated spec exists, it renders transparent instead of inventing
   source pixels.
   `Code Shader` is the editable-code variant of the same node role: it stores a

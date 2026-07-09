@@ -120,7 +120,7 @@ const CUSTOM_SHADER_SPEC_JSON_SCHEMA = {
   additionalProperties: false,
   required: ['version', 'label', 'prompt', 'base', 'contrast', 'palette', 'operations'],
   properties: {
-    version: { type: 'number', enum: [1] },
+    version: { type: 'number', enum: [2] },
     label: { type: 'string', maxLength: 80 },
     prompt: { type: 'string', maxLength: 500 },
     base: { type: 'number', minimum: 0, maximum: 1 },

@@ -145,6 +145,10 @@ must fail visibly if no provider is configured. A deterministic local mapper is
 available only as an explicit user-confirmed fallback, and fallback specs carry
 `localFallback` provenance in the saved JSON. API calls create or update specs
 only, never participate in preview/export rendering.
+AI Shader Pass operations execute in their saved order. Procedural operations
+change the working tone, source operations read or transform the connected
+backdrop at that point in the sequence, and `gradientMap` maps the current tone
+through the saved palette. Reordering operations is therefore render-relevant.
 Custom code shader work uses the separate `customCode` shader kind. The
 document stores a GLSL fragment body that must define `mainImage(vec2 uv)`.
 The renderer wraps that body with the stable uniforms `u_backdrop`,

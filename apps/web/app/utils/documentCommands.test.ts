@@ -853,7 +853,7 @@ describe('documentCommands', () => {
       name: 'AI Shader Pass',
       shaderKind: 'customSpec',
       customShaderSpec: {
-        version: 1,
+        version: 2,
         operations: expect.arrayContaining([expect.objectContaining({ op: 'noise' })]),
       },
     });

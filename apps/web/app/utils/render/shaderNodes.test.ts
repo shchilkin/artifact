@@ -27,7 +27,7 @@ describe('shader node renderer', () => {
       shaderKind: 'customSpec',
       grain: 0,
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai' },
         palette: ['#101020', '#ff3050', '#5cf0ff'],
         base: 0.42,

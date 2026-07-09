@@ -9,7 +9,7 @@ describe('custom shader spec generator', () => {
 
     expect(first).toEqual(second);
     expect(first).toMatchObject({
-      version: 1,
+      version: 2,
       label: 'AI Halftone',
       prompt,
     });

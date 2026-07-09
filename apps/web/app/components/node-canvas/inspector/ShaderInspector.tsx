@@ -464,7 +464,7 @@ export function ShaderInspector({
             onChange={(value) =>
               onChange({
                 customShaderCode: {
-                  version: 1,
+                  version: 2,
                   language: 'glsl-fragment',
                   code: value,
                 },

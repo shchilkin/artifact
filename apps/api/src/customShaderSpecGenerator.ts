@@ -22,7 +22,7 @@ export function generateCustomShaderSpecFromPrompt(prompt: string): CustomShader
   const operations = operationsForPrompt(text, seed);
 
   return normalizeCustomShaderSpec({
-    version: 1,
+    version: 2,
     label: labelForPrompt(text),
     prompt: normalized,
     base: valueFromSeed(seed, 0.34, 0.62),

@@ -124,7 +124,7 @@ describe('cloneDocument shader state', () => {
       shaderKind: 'customSpec',
       palette: ['#111111', '#eeeeee'],
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai', model: 'test-model' },
         palette: ['#101010', '#f0f0f0'],
         operations: [{ op: 'invert', amount: 0.25 }],

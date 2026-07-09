@@ -199,7 +199,7 @@ const SHADER_PROFILES: Partial<Record<ShaderKind, Partial<ReturnType<typeof make
   customSpec: {
     grain: 0,
     customShaderSpec: {
-      version: 1,
+      version: 2,
       label: 'AI Shader',
       prompt: 'neon halftone wave texture',
       palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],

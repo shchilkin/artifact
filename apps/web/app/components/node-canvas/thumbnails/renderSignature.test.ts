@@ -196,7 +196,7 @@ describe('graph node render signatures', () => {
       ...base,
       shaderKind: 'customSpec',
       customShaderSpec: {
-        version: 1,
+        version: 2,
         provenance: { source: 'openai', model: 'test-model' },
         palette: ['#111111', '#eeeeee'],
         operations: [{ op: 'wave', frequency: 5, amplitude: 0.2, angle: 0 }],

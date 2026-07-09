@@ -104,7 +104,7 @@ describe('normalizeDocument', () => {
             shaderKind: 'customSpec',
             aiPrompt: 'make electric mineral smoke',
             customShaderSpec: {
-              version: 1,
+              version: 2,
               palette: ['#000', 'not-a-color', '#ff00aa'],
               base: 2,
               contrast: 9,
@@ -205,7 +205,7 @@ describe('normalizeDocument', () => {
       shaderKind: 'customSpec',
       aiPrompt: 'neon waves',
       customShaderSpec: {
-        version: 1,
+        version: 2,
         label: 'AI Waves',
         prompt: 'neon waves',
         palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],

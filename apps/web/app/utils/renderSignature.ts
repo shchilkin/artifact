@@ -24,7 +24,7 @@ import type {
   Layer,
 } from '../types/config';
 
-const SHADER_PASS_RENDER_VERSION = 'shader-pass-processed-backdrop-v2';
+const SHADER_PASS_RENDER_VERSION = 'shader-pass-ordered-operations-v3';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
