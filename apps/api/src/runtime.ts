@@ -41,7 +41,11 @@ function createOpenAiProvider(config: ReturnType<typeof loadConfig>) {
 
 function createShaderSpecProvider(config: ReturnType<typeof loadConfig>) {
   return config.openAiApiKey
-    ? createOpenAiShaderSpecProvider({ apiKey: config.openAiApiKey, defaultModel: config.openAiShaderModel })
+    ? createOpenAiShaderSpecProvider({
+        apiKey: config.openAiApiKey,
+        defaultModel: config.openAiShaderModel,
+        timeoutMs: config.openAiShaderTimeoutMs,
+      })
     : undefined;
 }
 

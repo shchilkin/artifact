@@ -8,6 +8,7 @@ export type DbNumeric = string;
 export type UserRole = 'user' | 'admin' | 'operator' | string;
 export type PlusStatus = 'none' | 'active' | 'trialing' | 'past_due' | 'cancelled' | string;
 export type AiGenerationJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'expired';
+export type AiShaderSpecRequestStatus = 'pending' | 'succeeded' | 'failed';
 
 export interface UserRow {
   id: string;
@@ -43,6 +44,23 @@ export interface AiGenerationJobRow {
   completed_at: DbTimestamp | null;
   cancelled_at: DbTimestamp | null;
   expires_at: DbTimestamp | null;
+}
+
+export interface AiShaderSpecRequestRow {
+  id: string;
+  user_id: string;
+  idempotency_key: string;
+  mode: 'openai' | 'localFallback';
+  prompt: string;
+  status: AiShaderSpecRequestStatus;
+  response_json: JsonObject | null;
+  provider_request_id: string | null;
+  provider_usage_json: JsonObject | null;
+  error_status: number | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: DbTimestamp;
+  completed_at: DbTimestamp | null;
 }
 
 export interface AssetRow {
@@ -104,6 +122,26 @@ export interface CreateAiGenerationJobInput {
   expiresAt?: Date | null;
 }
 
+export interface ClaimAiShaderSpecRequestInput {
+  id: string;
+  userId: string;
+  idempotencyKey: string;
+  mode: 'openai' | 'localFallback';
+  prompt: string;
+}
+
+export interface CompleteAiShaderSpecRequestInput {
+  id: string;
+  responseJson: JsonObject;
+  providerRequestId?: string | null;
+  providerUsageJson?: JsonObject | null;
+  completedAt: Date;
+  usage?: {
+    period: string;
+    generationLimit: number;
+  };
+}
+
 export interface CreateAssetInput {
   id: string;
   userId: string;
@@ -158,6 +196,16 @@ export interface AiGenerationJobRepository {
       estimatedCost?: DbNumeric | null;
     },
   ): Promise<AiGenerationJobRow>;
+}
+
+export interface AiShaderSpecRequestRepository {
+  claim(input: ClaimAiShaderSpecRequestInput): Promise<{ row: AiShaderSpecRequestRow; claimed: boolean }>;
+  findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderSpecRequestRow | null>;
+  complete(input: CompleteAiShaderSpecRequestInput): Promise<AiShaderSpecRequestRow>;
+  markFailed(
+    id: string,
+    error: { status: number; code: string; message: string; completedAt: Date },
+  ): Promise<AiShaderSpecRequestRow>;
 }
 
 export interface AssetRepository {

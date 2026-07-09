@@ -1,4 +1,4 @@
-import { type CustomShaderSpec, normalizeCustomShaderSpec } from '../contracts.js';
+import { type CustomShaderSpec, normalizeCustomShaderSpec, validateCustomShaderSpec } from '../contracts.js';
 
 interface FetchResponseLike {
   ok: boolean;
@@ -11,18 +11,30 @@ interface FetchResponseLike {
 
 export interface ShaderSpecGenerationRequest {
   prompt: string;
+  clientRequestId: string;
+}
+
+export interface ShaderSpecGenerationResult {
+  spec: CustomShaderSpec;
+  requestId?: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 export interface ShaderSpecGenerationProvider {
   readonly provider: 'openai' | 'local';
   readonly defaultModel: string;
-  generateShaderSpec(request: ShaderSpecGenerationRequest): Promise<CustomShaderSpec>;
+  generateShaderSpec(request: ShaderSpecGenerationRequest): Promise<ShaderSpecGenerationResult>;
 }
 
 export interface OpenAiShaderSpecProviderOptions {
   apiKey: string;
   defaultModel?: string;
   endpoint?: string;
+  timeoutMs?: number;
   fetch?: (url: string, init: RequestInit) => Promise<FetchResponseLike>;
 }
 
@@ -36,51 +48,102 @@ interface OpenAiResponsesApiBody {
   error?: {
     message?: unknown;
   };
+  usage?: {
+    input_tokens?: unknown;
+    output_tokens?: unknown;
+    total_tokens?: unknown;
+  };
+}
+
+export class OpenAiShaderSpecTimeoutError extends Error {
+  constructor(readonly timeoutMs: number) {
+    super(`OpenAI shader generation timed out after ${timeoutMs} ms.`);
+    this.name = 'OpenAiShaderSpecTimeoutError';
+  }
+}
+
+export function isOpenAiShaderSpecTimeoutError(error: unknown): error is OpenAiShaderSpecTimeoutError {
+  return error instanceof OpenAiShaderSpecTimeoutError;
 }
 
 export function createOpenAiShaderSpecProvider(options: OpenAiShaderSpecProviderOptions): ShaderSpecGenerationProvider {
   const endpoint = options.endpoint ?? 'https://api.openai.com/v1/responses';
   const fetcher = options.fetch ?? fetch;
+  const timeoutMs = options.timeoutMs ?? 20_000;
 
   return {
     provider: 'openai',
     defaultModel: options.defaultModel ?? 'gpt-5.5',
     async generateShaderSpec(request) {
       const model = options.defaultModel ?? 'gpt-5.5';
-      const response = await fetcher(endpoint, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${options.apiKey}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          input: [
-            {
-              role: 'system',
-              content:
-                'Create a deterministic editable shader pass spec for Artifact. The spec processes a connected source image/backdrop. Prefer source-aware operations such as sourceLuma, edgeGlow, chromaticShift, and gradientMap when the prompt asks for photo processing, glass, water, print, glow, or tone mapping. Return only structured JSON matching the provided schema. Do not include GLSL, WGSL, JavaScript, HTML, or executable code.',
-            },
-            {
-              role: 'user',
-              content: request.prompt,
-            },
-          ],
-          text: {
-            format: {
-              type: 'json_schema',
-              name: 'artifact_custom_shader_spec',
-              strict: true,
-              schema: CUSTOM_SHADER_SPEC_JSON_SCHEMA,
-            },
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetcher(endpoint, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${options.apiKey}`,
+            'content-type': 'application/json',
+            'x-client-request-id': request.clientRequestId,
           },
-        }),
-      });
-      const body = (await response.json()) as OpenAiResponsesApiBody;
-      assertOpenAiShaderSpecResponseOk(response, body);
-      return normalizeCustomShaderSpec(readOpenAiShaderSpec(body, request.prompt));
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            max_output_tokens: 2_400,
+            reasoning: { effort: 'low' },
+            input: [
+              {
+                role: 'system',
+                content:
+                  'Create a deterministic editable shader pass spec for Artifact. The spec processes a connected source image/backdrop. Prefer source-aware operations such as sourceLuma, edgeGlow, chromaticShift, and gradientMap when the prompt asks for photo processing, glass, water, print, glow, or tone mapping. Return only structured JSON matching the provided schema. Do not include GLSL, WGSL, JavaScript, HTML, or executable code.',
+              },
+              {
+                role: 'user',
+                content: request.prompt,
+              },
+            ],
+            text: {
+              format: {
+                type: 'json_schema',
+                name: 'artifact_custom_shader_spec',
+                strict: true,
+                schema: CUSTOM_SHADER_SPEC_JSON_SCHEMA,
+              },
+            },
+          }),
+        });
+        const body = (await response.json()) as OpenAiResponsesApiBody;
+        assertOpenAiShaderSpecResponseOk(response, body);
+        const rawSpec = readOpenAiShaderSpec(body, request.prompt);
+        const validationErrors = validateCustomShaderSpec(rawSpec);
+        if (validationErrors.length > 0) {
+          throw new Error(`OpenAI shader spec did not match the contract: ${validationErrors.join(' ')}`);
+        }
+        return {
+          spec: normalizeCustomShaderSpec(rawSpec),
+          requestId: response.headers.get('x-request-id') ?? undefined,
+          usage: readOpenAiUsage(body),
+        };
+      } catch (error) {
+        if (controller.signal.aborted) throw new OpenAiShaderSpecTimeoutError(timeoutMs);
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
     },
   };
+}
+
+function readOpenAiUsage(body: OpenAiResponsesApiBody): ShaderSpecGenerationResult['usage'] {
+  const inputTokens = finiteNumber(body.usage?.input_tokens);
+  const outputTokens = finiteNumber(body.usage?.output_tokens);
+  const totalTokens = finiteNumber(body.usage?.total_tokens);
+  if (inputTokens === undefined && outputTokens === undefined && totalTokens === undefined) return undefined;
+  return { inputTokens, outputTokens, totalTokens };
+}
+
+function finiteNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function assertOpenAiShaderSpecResponseOk(response: FetchResponseLike, body: OpenAiResponsesApiBody) {
@@ -113,7 +176,19 @@ function readOpenAiShaderSpecError(body: OpenAiResponsesApiBody, status: number)
   return typeof message === 'string' && message ? message : `OpenAI shader spec generation failed with HTTP ${status}.`;
 }
 
-const numericParamSchema = { type: 'number' };
+const numericParamSchema = { type: 'number' } as const;
+
+function operationSchema(op: string, properties: Record<string, typeof numericParamSchema>) {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['op', ...Object.keys(properties)],
+    properties: {
+      op: { type: 'string', enum: [op] },
+      ...properties,
+    },
+  } as const;
+}
 
 const CUSTOM_SHADER_SPEC_JSON_SCHEMA = {
   type: 'object',
@@ -136,57 +211,34 @@ const CUSTOM_SHADER_SPEC_JSON_SCHEMA = {
       minItems: 1,
       maxItems: 8,
       items: {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'op',
-          'scale',
-          'amount',
-          'octaves',
-          'seedOffset',
-          'frequency',
-          'amplitude',
-          'angle',
-          'phase',
-          'centerX',
-          'centerY',
-          'radius',
-          'value',
-          'softness',
-          'steps',
+        anyOf: [
+          operationSchema('noise', {
+            scale: numericParamSchema,
+            amount: numericParamSchema,
+            octaves: numericParamSchema,
+            seedOffset: numericParamSchema,
+          }),
+          operationSchema('wave', {
+            frequency: numericParamSchema,
+            amplitude: numericParamSchema,
+            angle: numericParamSchema,
+            phase: numericParamSchema,
+          }),
+          operationSchema('rings', {
+            frequency: numericParamSchema,
+            amount: numericParamSchema,
+            centerX: numericParamSchema,
+            centerY: numericParamSchema,
+          }),
+          operationSchema('swirl', { amount: numericParamSchema, radius: numericParamSchema }),
+          operationSchema('threshold', { value: numericParamSchema, softness: numericParamSchema }),
+          operationSchema('posterize', { steps: numericParamSchema }),
+          operationSchema('invert', { amount: numericParamSchema }),
+          operationSchema('sourceLuma', { amount: numericParamSchema }),
+          operationSchema('edgeGlow', { amount: numericParamSchema, softness: numericParamSchema }),
+          operationSchema('chromaticShift', { amount: numericParamSchema, angle: numericParamSchema }),
+          operationSchema('gradientMap', { amount: numericParamSchema }),
         ],
-        properties: {
-          op: {
-            type: 'string',
-            enum: [
-              'noise',
-              'wave',
-              'rings',
-              'swirl',
-              'threshold',
-              'posterize',
-              'invert',
-              'sourceLuma',
-              'edgeGlow',
-              'chromaticShift',
-              'gradientMap',
-            ],
-          },
-          scale: numericParamSchema,
-          amount: numericParamSchema,
-          octaves: numericParamSchema,
-          seedOffset: numericParamSchema,
-          frequency: numericParamSchema,
-          amplitude: numericParamSchema,
-          angle: numericParamSchema,
-          phase: numericParamSchema,
-          centerX: numericParamSchema,
-          centerY: numericParamSchema,
-          radius: numericParamSchema,
-          value: numericParamSchema,
-          softness: numericParamSchema,
-          steps: numericParamSchema,
-        },
       },
     },
   },

@@ -2,9 +2,12 @@ import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } fr
 import type { ApiRepositories } from './repositories.js';
 import type {
   AiGenerationJobRow,
+  AiShaderSpecRequestRow,
   AiUsageMonthlyRow,
   AssetRow,
+  ClaimAiShaderSpecRequestInput,
   CloudProjectRow,
+  CompleteAiShaderSpecRequestInput,
   CreateAiGenerationJobInput,
   CreateAssetInput,
   CreateUserInput,
@@ -17,6 +20,7 @@ import type {
 export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
+  private readonly shaderSpecs = new Map<string, AiShaderSpecRequestRow>();
   private readonly assets = new Map<string, AssetRow>();
   private readonly projects = new Map<string, CloudProjectRow>();
   private readonly monthlyUsage = new Map<string, AiUsageMonthlyRow>();
@@ -133,6 +137,86 @@ export class InMemoryApiStore {
       Array.from(this.jobs.values()).find((job) => job.user_id === userId && job.idempotency_key === idempotencyKey) ??
       null
     );
+  }
+
+  async claimShaderSpecRequest(
+    input: ClaimAiShaderSpecRequestInput,
+  ): Promise<{ row: AiShaderSpecRequestRow; claimed: boolean }> {
+    const existing = Array.from(this.shaderSpecs.values()).find(
+      (request) => request.user_id === input.userId && request.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) return { row: existing, claimed: false };
+    const row: AiShaderSpecRequestRow = {
+      id: input.id,
+      user_id: input.userId,
+      idempotency_key: input.idempotencyKey,
+      mode: input.mode,
+      prompt: input.prompt,
+      status: 'pending',
+      response_json: null,
+      provider_request_id: null,
+      provider_usage_json: null,
+      error_status: null,
+      error_code: null,
+      error_message: null,
+      created_at: new Date(),
+      completed_at: null,
+    };
+    this.shaderSpecs.set(row.id, row);
+    return { row, claimed: true };
+  }
+
+  async findShaderSpecByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderSpecRequestRow | null> {
+    return (
+      Array.from(this.shaderSpecs.values()).find(
+        (request) => request.user_id === userId && request.idempotency_key === idempotencyKey,
+      ) ?? null
+    );
+  }
+
+  async completeShaderSpecRequest(input: CompleteAiShaderSpecRequestInput): Promise<AiShaderSpecRequestRow> {
+    const request = this.shaderSpecs.get(input.id);
+    if (!request || request.status !== 'pending') {
+      throw new Error(`Pending shader spec request not found: ${input.id}`);
+    }
+    const completed: AiShaderSpecRequestRow = {
+      ...request,
+      status: 'succeeded',
+      response_json: input.responseJson,
+      provider_request_id: input.providerRequestId ?? null,
+      provider_usage_json: input.providerUsageJson ?? null,
+      completed_at: input.completedAt,
+    };
+    this.shaderSpecs.set(request.id, completed);
+    if (input.usage) {
+      await this.upsertMonthlyUsage({
+        userId: request.user_id,
+        period: input.usage.period,
+        generationLimit: input.usage.generationLimit,
+        generationCountDelta: 1,
+      });
+    }
+    return completed;
+  }
+
+  async failShaderSpecRequest(
+    id: string,
+    error: { status: number; code: string; message: string; completedAt: Date },
+  ): Promise<AiShaderSpecRequestRow> {
+    const request = this.shaderSpecs.get(id);
+    if (!request || request.status !== 'pending') {
+      throw new Error(`Pending shader spec request not found: ${id}`);
+    }
+    const failed: AiShaderSpecRequestRow = {
+      ...request,
+      status: 'failed',
+      error_status: error.status,
+      error_code: error.code,
+      error_message: error.message,
+      completed_at: error.completedAt,
+    };
+    this.shaderSpecs.set(id, failed);
+    return failed;
   }
 
   async markRunning(id: string, startedAt: Date): Promise<AiGenerationJobRow> {
@@ -297,6 +381,12 @@ export class InMemoryApiStore {
         markSucceeded: (id, outputAssetId, completedAt) => this.markSucceeded(id, outputAssetId, completedAt),
         markCancelled: (id, cancelledAt) => this.markCancelled(id, cancelledAt),
         markFailed: (id, error) => this.markFailed(id, error),
+      },
+      shaderSpecs: {
+        claim: (input) => this.claimShaderSpecRequest(input),
+        findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderSpecByIdempotencyKey(userId, idempotencyKey),
+        complete: (input) => this.completeShaderSpecRequest(input),
+        markFailed: (id, error) => this.failShaderSpecRequest(id, error),
       },
       assets: {
         create: (input) => this.createAsset(input),

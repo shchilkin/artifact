@@ -120,6 +120,7 @@ export interface CustomShaderSpec {
 export interface CreateAiShaderSpecRequest {
   prompt: string;
   mode?: AiShaderSpecRequestMode;
+  idempotencyKey: string;
 }
 
 export interface AiShaderSpecGenerationResponse {

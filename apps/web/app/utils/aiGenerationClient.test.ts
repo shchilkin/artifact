@@ -137,7 +137,7 @@ describe('ai generation client', () => {
     });
 
     const result = await createAiShaderSpec(
-      { prompt: 'neon waves', mode: 'openai' },
+      { prompt: 'neon waves', mode: 'openai', idempotencyKey: 'shader-request-1' },
       { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
     );
 
@@ -146,7 +146,11 @@ describe('ai generation client', () => {
     expect(calls[0]?.url).toBe('https://api.example.test/api/ai/shader-spec');
     expect(calls[0]?.init.method).toBe('POST');
     expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ prompt: 'neon waves', mode: 'openai' });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      prompt: 'neon waves',
+      mode: 'openai',
+      idempotencyKey: 'shader-request-1',
+    });
   });
 
   it('creates jobs with credentials and an idempotent request body', async () => {

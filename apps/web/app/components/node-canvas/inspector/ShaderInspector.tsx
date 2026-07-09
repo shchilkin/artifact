@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useArtifactAuth } from '../../../hooks/useArtifactAuth';
 import type { AiShaderSpecRequestMode } from '../../../types/aiGeneration';
 import type { CustomShaderOperation, CustomShaderSpec, GraphShaderNode, ShaderKind } from '../../../types/config';
-import { AiGenerationApiError, createAiShaderSpec } from '../../../utils/aiGenerationClient';
+import { AiGenerationApiError, createAiIdempotencyKey, createAiShaderSpec } from '../../../utils/aiGenerationClient';
 import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
 import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { cloneDefaultCustomShaderSpec, validateCustomShaderSpec } from '../../../utils/customShaderSpec';
@@ -256,7 +256,7 @@ export function ShaderInspector({
       try {
         const bearerToken = devToken || (auth.signedIn ? ((await auth.getToken()) ?? undefined) : undefined);
         const result = await createAiShaderSpec(
-          { prompt, mode },
+          { prompt, mode, idempotencyKey: createAiIdempotencyKey('shader') },
           {
             baseUrl: apiBaseUrl,
             bearerToken,

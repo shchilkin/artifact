@@ -145,6 +145,11 @@ must fail visibly if no provider is configured. A deterministic local mapper is
 available only as an explicit user-confirmed fallback, and fallback specs carry
 `localFallback` provenance in the saved JSON. API calls create or update specs
 only, never participate in preview/export rendering.
+Each shader-spec request carries a per-user idempotency key. The API stores the
+completed response and returns it for a repeated key without calling OpenAI or
+charging monthly quota again. OpenAI requests use a bounded timeout and record
+the provider request ID plus input/output token counts for operational tracing;
+the deterministic local fallback does not consume provider quota.
 AI Shader Pass operations execute in their saved order. Procedural operations
 change the working tone, source operations read or transform the connected
 backdrop at that point in the sequence, and `gradientMap` maps the current tone

@@ -58,5 +58,11 @@ export function createProviderRegistry(providers: readonly ImageGenerationProvid
 
 export { createMockImageProvider } from './mock.js';
 export { createOpenAiImageProvider } from './openai.js';
-export { createOpenAiShaderSpecProvider, type ShaderSpecGenerationProvider } from './openaiShaderSpec.js';
+export {
+  createOpenAiShaderSpecProvider,
+  isOpenAiShaderSpecTimeoutError,
+  OpenAiShaderSpecTimeoutError,
+  type ShaderSpecGenerationProvider,
+  type ShaderSpecGenerationResult,
+} from './openaiShaderSpec.js';
 export { createXAiImageProvider } from './xai.js';

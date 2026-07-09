@@ -20,6 +20,7 @@ export interface ApiConfig {
   openAiApiKey?: string;
   openAiImageModel: string;
   openAiShaderModel: string;
+  openAiShaderTimeoutMs: number;
   xAiApiKey?: string;
   xAiImageModel: string;
   assetStorageDriver: 'local' | 's3';
@@ -109,6 +110,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     openAiApiKey: env.OPENAI_API_KEY,
     openAiImageModel: env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2',
     openAiShaderModel: env.OPENAI_SHADER_MODEL ?? 'gpt-5.5',
+    openAiShaderTimeoutMs: numberEnv(env, 'OPENAI_SHADER_TIMEOUT_MS', 20_000),
     xAiApiKey: env.XAI_API_KEY,
     xAiImageModel: env.XAI_IMAGE_MODEL ?? 'grok-imagine-image-quality',
     assetStorageDriver,

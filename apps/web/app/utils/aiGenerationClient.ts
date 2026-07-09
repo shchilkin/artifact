@@ -24,6 +24,12 @@ export class AiGenerationApiError extends Error {
   }
 }
 
+export function createAiIdempotencyKey(prefix = 'ai') {
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
 export interface AiGenerationClientOptions {
   baseUrl?: string;
   devToken?: string;

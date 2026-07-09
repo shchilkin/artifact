@@ -1,5 +1,6 @@
 import type {
   AiGenerationJobRepository,
+  AiShaderSpecRequestRepository,
   AiUsageRepository,
   AssetRepository,
   CloudProjectRepository,
@@ -9,6 +10,7 @@ import type {
 export interface ApiRepositories {
   users: UserReadWriteRepository;
   jobs: JobReadWriteRepository;
+  shaderSpecs: ShaderSpecRequestReadWriteRepository;
   assets: AssetReadWriteRepository;
   projects: ProjectReadWriteRepository;
   usage: UsageReadWriteRepository;
@@ -28,6 +30,11 @@ export type JobReadWriteRepository = Pick<
 > & {
   countActiveJobs(userId: string): Promise<number>;
 };
+
+export type ShaderSpecRequestReadWriteRepository = Pick<
+  AiShaderSpecRequestRepository,
+  'claim' | 'findByIdempotencyKey' | 'complete' | 'markFailed'
+>;
 
 export type AssetReadWriteRepository = Pick<
   AssetRepository,

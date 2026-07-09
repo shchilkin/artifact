@@ -5,14 +5,18 @@ import {
   type PostgresQueryClient as JobQueryClient,
   PostgresAiGenerationJobRepository,
 } from '../src/db/postgresJobs.js';
-import type { AiGenerationJobRow, AssetRow, JsonObject } from '../src/db/types.js';
+import {
+  PostgresAiShaderSpecRequestRepository,
+  type PostgresQueryClient as ShaderSpecQueryClient,
+} from '../src/db/postgresShaderSpecs.js';
+import type { AiGenerationJobRow, AiShaderSpecRequestRow, AssetRow, JsonObject } from '../src/db/types.js';
 
 interface RecordedQuery {
   sql: string;
   params: readonly unknown[];
 }
 
-class FakeQueryClient implements AssetQueryClient, JobQueryClient {
+class FakeQueryClient implements AssetQueryClient, JobQueryClient, ShaderSpecQueryClient {
   readonly queries: RecordedQuery[] = [];
   private readonly rows: unknown[][];
 
@@ -164,6 +168,79 @@ describe('PostgresAssetRepository', () => {
   });
 });
 
+describe('PostgresAiShaderSpecRequestRepository', () => {
+  it('claims a request without replacing an existing idempotency key', async () => {
+    const row = createShaderSpecRow();
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderSpecRequestRepository(client);
+
+    await expect(
+      repo.claim({
+        id: 'shader-request-1',
+        userId: 'user-1',
+        idempotencyKey: 'shader-idem-1',
+        mode: 'openai',
+        prompt: 'water glass',
+      }),
+    ).resolves.toMatchObject({ claimed: true, row: { id: 'shader-request-1', status: 'pending' } });
+
+    expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain('ON CONFLICT (user_id, idempotency_key) DO NOTHING');
+    expect(client.queries[0]?.params).toEqual(['shader-request-1', 'user-1', 'shader-idem-1', 'openai', 'water glass']);
+  });
+
+  it('reads the winning row with a fresh query after an idempotency conflict', async () => {
+    const row = createShaderSpecRow({ id: 'winner-request' });
+    const client = new FakeQueryClient([[], [row]]);
+    const repo = new PostgresAiShaderSpecRequestRepository(client);
+
+    await expect(
+      repo.claim({
+        id: 'loser-request',
+        userId: 'user-1',
+        idempotencyKey: 'shader-idem-1',
+        mode: 'openai',
+        prompt: 'water glass',
+      }),
+    ).resolves.toEqual({ row, claimed: false });
+
+    expect(client.queries).toHaveLength(2);
+    expect(normalizeSql(client.queries[1]?.sql ?? '')).toContain('WHERE user_id = $1 AND idempotency_key = $2');
+  });
+
+  it('completes a pending OpenAI request and increments usage in one query', async () => {
+    const row = createShaderSpecRow({ status: 'succeeded' });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderSpecRequestRepository(client);
+    const completedAt = new Date('2026-05-20T10:01:00.000Z');
+    const responseJson: JsonObject = { prompt: 'water glass', source: 'openai' };
+    const providerUsageJson: JsonObject = { inputTokens: 20, outputTokens: 40 };
+
+    await expect(
+      repo.complete({
+        id: 'shader-request-1',
+        responseJson,
+        providerRequestId: 'req-openai-1',
+        providerUsageJson,
+        completedAt,
+        usage: { period: '2026-05', generationLimit: 10 },
+      }),
+    ).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("WHERE id = $1 AND status = 'pending'");
+    expect(sql).toContain('INSERT INTO ai_usage_monthly');
+    expect(client.queries[0]?.params).toEqual([
+      'shader-request-1',
+      responseJson,
+      'req-openai-1',
+      providerUsageJson,
+      completedAt,
+      '2026-05',
+      10,
+    ]);
+  });
+});
+
 function createJobRow(overrides: Partial<AiGenerationJobRow>): AiGenerationJobRow {
   const now = new Date('2026-05-20T10:00:00.000Z');
   return {
@@ -207,6 +284,26 @@ function createAssetRow(overrides: Partial<AssetRow>): AssetRow {
     metadata_json: {},
     created_at: new Date('2026-05-20T10:00:00.000Z'),
     deleted_at: null,
+    ...overrides,
+  };
+}
+
+function createShaderSpecRow(overrides: Partial<AiShaderSpecRequestRow> = {}): AiShaderSpecRequestRow {
+  return {
+    id: 'shader-request-1',
+    user_id: 'user-1',
+    idempotency_key: 'shader-idem-1',
+    mode: 'openai',
+    prompt: 'water glass',
+    status: 'pending',
+    response_json: null,
+    provider_request_id: null,
+    provider_usage_json: null,
+    error_status: null,
+    error_code: null,
+    error_message: null,
+    created_at: new Date('2026-05-20T10:00:00.000Z'),
+    completed_at: null,
     ...overrides,
   };
 }

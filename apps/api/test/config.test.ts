@@ -127,9 +127,13 @@ describe('loadConfig', () => {
   it('keeps the OpenAI shader model separate from the image model', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       openAiShaderModel: 'gpt-5.5',
+      openAiShaderTimeoutMs: 20_000,
     });
-    expect(loadConfig({ ...requiredEnv, OPENAI_SHADER_MODEL: 'gpt-5.5-mini' })).toMatchObject({
+    expect(
+      loadConfig({ ...requiredEnv, OPENAI_SHADER_MODEL: 'gpt-5.5-mini', OPENAI_SHADER_TIMEOUT_MS: '15000' }),
+    ).toMatchObject({
       openAiShaderModel: 'gpt-5.5-mini',
+      openAiShaderTimeoutMs: 15_000,
     });
   });
 

@@ -58,7 +58,11 @@ Implemented:
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
 - OpenAI shader-spec provider for `/api/ai/shader-spec`, enabled by
-  `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` override.
+  `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
+  `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
+  persist their result, log OpenAI request/token metadata, and consume monthly
+  quota exactly once after a successful OpenAI response. Explicit local
+  fallback requests remain quota-free.
 - Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
