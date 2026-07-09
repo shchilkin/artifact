@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { codeShaderUniformControls } from './CodeShaderInspectorModel';
 import { shaderPresetControlConfig } from './ShaderInspectorMetadata';
 import {
   aiShaderPassEmptyStatus,
@@ -78,5 +79,14 @@ describe('ShaderInspector metadata', () => {
       label: 'Code Pass',
       mode: 'pass',
     });
+  });
+
+  it('shows Code Shader inputs only when the GLSL reads their uniforms', () => {
+    expect(codeShaderUniformControls('vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }')).toEqual([]);
+    expect(codeShaderUniformControls('vec4 mainImage(vec2 uv) { return vec4(u_strength + u_seed); }')).toEqual([
+      'strength',
+      'variation',
+    ]);
+    expect(codeShaderUniformControls('// u_strength\nvec4 mainImage(vec2 uv) { return vec4(1.0); }')).toEqual([]);
   });
 });

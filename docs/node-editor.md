@@ -146,13 +146,18 @@ Shader work follows the same single-purpose split:
   source luminance, edge glow, chromatic shift, and gradient-map tinting in
   addition to procedural noise/waves/rings. Saved operations execute in order,
   so the spec is an editable render recipe rather than an unordered set of
-  effect amounts. Without a connected source/backdrop,
+  effect amounts. Its inspector is split into Prompt, Tone, Colors, and ordered
+  Steps; preset-only shape, placement, and texture controls are not reused.
+  Without a connected source/backdrop,
   or before a generated spec exists, it renders transparent instead of inventing
   source pixels.
   `Code Shader` is the editable-code variant of the same node role: it stores a
   GLSL fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
   `u_has_backdrop` from the renderer.
+  Its inspector exposes Strength and Variation only when the code reads the
+  matching uniform; an empty shader has no inherited preset controls and stays
+  transparent.
   It can generate a standalone texture without an input, or process the
   connected `backdrop` branch as a pass. It must stay a shader-source/pass node,
   not a place for JavaScript, network access, material controls, or 3D scene

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { GraphShaderNode } from '../../../types/config';
 import { normalizeShaderPalette, shaderPaletteConfig } from '../../../utils/shaderPalette';
-import { BLEND_OPTIONS } from '../constants';
-import { BlendModeNote, InspectorColorInput, InspectorSection, InspectorSelect, InspectorSlider } from './fields';
+import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields';
+import { ShaderCompositeSection } from './ShaderCompositeSection';
 import {
   type ShaderPlacementControlField,
   type ShaderShapeControlField,
@@ -22,7 +22,6 @@ export function PresetShaderInspector({
   const [shapeOpen, setShapeOpen] = useState(true);
   const [textureOpen, setTextureOpen] = useState(true);
   const [placementOpen, setPlacementOpen] = useState(false);
-  const [compositeOpen, setCompositeOpen] = useState(false);
   const controls = shaderPresetControlConfig(shaderNode.shaderKind);
   const palette = normalizeShaderPalette(shaderNode.shaderKind, shaderNode.palette);
 
@@ -87,31 +86,7 @@ export function PresetShaderInspector({
           </div>
         </InspectorSection>
       )}
-      {sourceConnected && (
-        <InspectorSection
-          title="Composite"
-          summary={`${shaderNode.blendMode} / ${shaderNode.opacity}%`}
-          open={compositeOpen}
-          onToggle={() => setCompositeOpen((open) => !open)}
-        >
-          <div className="node-shader-flat-controls">
-            <InspectorSelect
-              label="Blend"
-              value={shaderNode.blendMode}
-              options={BLEND_OPTIONS}
-              onChange={(value) => onChange({ blendMode: value })}
-            />
-            <InspectorSlider
-              label="Opacity"
-              value={shaderNode.opacity}
-              min={0}
-              max={100}
-              onChange={(value) => onChange({ opacity: value })}
-            />
-          </div>
-          <BlendModeNote value={shaderNode.blendMode} />
-        </InspectorSection>
-      )}
+      {sourceConnected && <ShaderCompositeSection shaderNode={shaderNode} onChange={onChange} />}
     </>
   );
 }

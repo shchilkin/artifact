@@ -154,6 +154,10 @@ AI Shader Pass operations execute in their saved order. Procedural operations
 change the working tone, source operations read or transform the connected
 backdrop at that point in the sequence, and `gradientMap` maps the current tone
 through the saved palette. Reordering operations is therefore render-relevant.
+The AI pass does not read preset-only shader fields such as node distortion,
+scale, rotation, offsets, or the preset seed offset. Its output is controlled by
+the saved spec operations, document seed, and pass-only opacity/blend settings,
+so hidden settings from a previously selected preset cannot change the result.
 Custom code shader work uses the separate `customCode` shader kind. The
 document stores a GLSL fragment body that must define `mainImage(vec2 uv)`.
 The renderer wraps that body with the stable uniforms `u_backdrop`,

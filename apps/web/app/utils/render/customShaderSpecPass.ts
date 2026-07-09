@@ -20,13 +20,13 @@ export function renderCustomShaderSpecPass(
   const spec = normalizeCustomShaderSpec(node.customShaderSpec);
   const palette = (spec.palette ?? node.palette).map(hexToRgb);
   const contrast = clamp(spec.contrast ?? 1, 0.1, 4);
-  const proceduralMix = 0.18 + clamp(node.distortion / 100, 0, 1) * 0.34;
+  const proceduralMix = 0.37;
 
   for (let index = 0; index < outputImage.data.length; index += 4) {
     const pixel = index / 4;
     const x = pixel % width;
     const y = Math.floor(pixel / width);
-    const point = transformedPoint(node, x, y, width, height);
+    const point = normalizedPoint(x, y, width, height);
     const radius = Math.hypot(point.x, point.y);
     const angle = Math.atan2(point.y, point.x);
     const sourceRgb = readRgb(sourceImage, index);
@@ -39,12 +39,11 @@ export function renderCustomShaderSpecPass(
     for (const operation of spec.operations) {
       switch (operation.op) {
         case 'noise': {
-          const scale = operation.scale / Math.max(0.01, node.scale / 100);
           tone +=
             (fbm(
-              point.x * scale,
-              point.y * scale,
-              seed + node.seedOffset + (operation.seedOffset ?? 0) + 6101,
+              point.x * operation.scale,
+              point.y * operation.scale,
+              seed + (operation.seedOffset ?? 0) + 6101,
               operation.octaves ?? 4,
             ) -
               0.5) *
@@ -122,15 +121,11 @@ export function renderCustomShaderSpecPass(
   return output;
 }
 
-function transformedPoint(node: GraphShaderNode, x: number, y: number, width: number, height: number) {
+function normalizedPoint(x: number, y: number, width: number, height: number) {
   const aspect = width / Math.max(1, height);
-  const scale = Math.max(0.01, node.scale / 100);
-  const px = ((x / Math.max(1, width - 1)) * 2 - 1) * aspect - (node.offsetX / 100) * aspect;
-  const py = (y / Math.max(1, height - 1)) * 2 - 1 - node.offsetY / 100;
-  const rotation = (-node.rotation * Math.PI) / 180;
   return {
-    x: (px * Math.cos(rotation) - py * Math.sin(rotation)) / scale,
-    y: (px * Math.sin(rotation) + py * Math.cos(rotation)) / scale,
+    x: ((x / Math.max(1, width - 1)) * 2 - 1) * aspect,
+    y: (y / Math.max(1, height - 1)) * 2 - 1,
   };
 }
 

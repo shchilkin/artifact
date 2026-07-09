@@ -3529,6 +3529,37 @@
   border-bottom: 0;
 }
 
+.node-shader-operation-list {
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  border-radius: var(--control-radius);
+  background: color-mix(in oklch, var(--surface-input) 58%, transparent);
+}
+
+.node-shader-operation {
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 62%, transparent);
+}
+
+.node-shader-operation:last-child {
+  border-bottom: 0;
+}
+
+.node-shader-operation-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 8px 2px;
+}
+
+.node-props-body .node-shader-operation-controls .node-inspector-control {
+  gap: 7px;
+  padding: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .node-props-empty {
   margin: 12px 14px;
   border: 1px solid var(--border);
