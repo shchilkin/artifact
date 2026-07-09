@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SHADER_COMPOSITE_CONTROL_FIELDS,
-  SHADER_PALETTE_CONTROL_FIELDS,
-  SHADER_PATTERN_CONTROL_FIELDS,
-  SHADER_PLACEMENT_CONTROL_FIELDS,
-  SHADER_PRESET_CONTROL_GROUPS,
-} from './ShaderInspectorMetadata';
+import { shaderPresetControlConfig } from './ShaderInspectorMetadata';
 import {
   aiShaderPassEmptyStatus,
   canCreateAiShaderPass,
@@ -15,20 +9,28 @@ import {
 } from './ShaderInspectorModel';
 
 describe('ShaderInspector metadata', () => {
-  it('keeps preset shader palette in one group', () => {
-    expect(SHADER_PALETTE_CONTROL_FIELDS).toEqual(['palette']);
+  it('shows the full shape and placement surface only for presets that read every field', () => {
+    expect(shaderPresetControlConfig('meshGradient')).toEqual({
+      shape: ['distortion', 'swirl', 'scale'],
+      placement: ['rotation', 'offsetX', 'offsetY'],
+    });
+    expect(shaderPresetControlConfig('marble')).toEqual({
+      shape: ['distortion', 'swirl', 'scale'],
+      placement: ['rotation', 'offsetX', 'offsetY'],
+    });
   });
 
-  it('groups preset shader controls by the job they do', () => {
-    expect(SHADER_PATTERN_CONTROL_FIELDS).toEqual(['distortion', 'grain', 'swirl', 'scale', 'seedOffset']);
-    expect(SHADER_PLACEMENT_CONTROL_FIELDS).toEqual(['rotation', 'offsetX', 'offsetY']);
-    expect(SHADER_COMPOSITE_CONTROL_FIELDS).toEqual(['blendMode', 'opacity']);
-    expect(SHADER_PRESET_CONTROL_GROUPS.map((group) => group.title)).toEqual([
-      'Colors',
-      'Pattern',
-      'Placement',
-      'Composite',
-    ]);
+  it('hides preset controls that the selected renderer does not read', () => {
+    expect(shaderPresetControlConfig('borderRings')).toEqual({ shape: [], placement: [] });
+    expect(shaderPresetControlConfig('staticRadialGradient')).toEqual({
+      shape: ['scale'],
+      placement: ['offsetX', 'offsetY'],
+    });
+    expect(shaderPresetControlConfig('colorPanels')).toEqual({ shape: ['scale'], placement: [] });
+    expect(shaderPresetControlConfig('dotOrbit')).toEqual({
+      shape: ['swirl', 'scale'],
+      placement: ['rotation'],
+    });
   });
 
   it('requires a connected source before AI shader generation can start', () => {

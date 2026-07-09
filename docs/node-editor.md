@@ -128,6 +128,9 @@ Shader work follows the same single-purpose split:
   expose their output as a source texture, and do not require an upstream image.
   Their colors are stored as an ordered `palette` array; each preset declares
   how many colors it starts with and whether the user can add more.
+  The preset inspector exposes only shape and placement fields read by the
+  selected renderer; shared grain/variation controls remain available for
+  texture output, while irrelevant controls stay hidden.
   When their optional `backdrop` input is connected, they sample that upstream
   branch as input texture data, use its luminance/detail to shape the generated
   shader, and then apply the node's opacity and blend mode as pass intensity.

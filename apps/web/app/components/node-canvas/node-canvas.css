@@ -3450,12 +3450,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   overflow: hidden;
-  border: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
-  border-radius: var(--control-radius);
-  background: color-mix(in oklch, var(--surface-input) 70%, transparent);
 }
 
 .node-shader-color-swatch {
+  position: relative;
   border-right: 1px solid color-mix(in oklch, var(--border) 62%, transparent);
 }
 
@@ -3485,15 +3483,21 @@
 }
 
 .node-shader-color-remove {
-  width: calc(100% - 16px);
-  margin: 0 8px 8px;
-  padding: 6px 4px;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
-  border-radius: 0;
-  background: transparent;
+  border-radius: var(--control-radius);
+  background: color-mix(in oklch, var(--sidebar-bg) 82%, transparent);
   color: color-mix(in oklch, var(--text) 58%, var(--text-dim));
-  font: var(--font-label);
-  text-transform: uppercase;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1;
   cursor: pointer;
 }
 

@@ -8,11 +8,9 @@ import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
 import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { cloneDefaultCustomShaderSpec, validateCustomShaderSpec } from '../../../utils/customShaderSpec';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
-import { defaultShaderPalette, normalizeShaderPalette, shaderPaletteConfig } from '../../../utils/shaderPalette';
-import { BLEND_OPTIONS } from '../constants';
+import { defaultShaderPalette } from '../../../utils/shaderPalette';
 import { useNodeCanvasActions } from '../context';
 import {
-  BlendModeNote,
   InspectorColorInput,
   InspectorSection,
   InspectorSelect,
@@ -20,6 +18,7 @@ import {
   InspectorTextArea,
   InspectorTextInput,
 } from './fields';
+import { PresetShaderInspector } from './PresetShaderInspector';
 import {
   aiShaderPassEmptyStatus,
   canCreateAiShaderPass,
@@ -79,11 +78,7 @@ export function ShaderInspector({
   sourceConnected?: boolean;
   detached?: boolean;
 }) {
-  const [colorsOpen, setColorsOpen] = useState(true);
-  const [patternOpen, setPatternOpen] = useState(true);
   const [customOpen, setCustomOpen] = useState(true);
-  const [compositeOpen, setCompositeOpen] = useState(false);
-  const [placementOpen, setPlacementOpen] = useState(false);
   const [generationState, sendGeneration] = useMachine(shaderGenerationMachine);
   const auth = useArtifactAuth();
   const { setShaderNodeGenerationStatus } = useNodeCanvasActions();
@@ -211,8 +206,6 @@ export function ShaderInspector({
           : 'Create with AI';
   const showPresetShaderControls = showsPresetShaderControls(shaderNode.shaderKind);
   const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, sourceConnected);
-  const presetPalette = normalizeShaderPalette(shaderNode.shaderKind, shaderNode.palette);
-  const showCompositeControls = sourceConnected;
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
     sendGeneration({ type: 'RESET' });
@@ -479,117 +472,7 @@ export function ShaderInspector({
         </InspectorSection>
       )}
       {showPresetShaderControls && (
-        <>
-          <InspectorSection
-            title="Colors"
-            summary={`${presetPalette.length} colors`}
-            open={colorsOpen}
-            onToggle={() => setColorsOpen((open) => !open)}
-          >
-            <ShaderColorGrid shaderNode={shaderNode} onChange={onChange} />
-          </InspectorSection>
-          <InspectorSection
-            title="Pattern"
-            summary="shape / texture"
-            open={patternOpen}
-            onToggle={() => setPatternOpen((open) => !open)}
-          >
-            <div className="node-shader-flat-controls">
-              <InspectorSlider
-                label="Distortion"
-                value={shaderNode.distortion}
-                min={0}
-                max={100}
-                onChange={(value) => onChange({ distortion: value })}
-              />
-              <InspectorSlider
-                label="Grain"
-                value={shaderNode.grain}
-                min={0}
-                max={100}
-                onChange={(value) => onChange({ grain: value })}
-              />
-              <InspectorSlider
-                label="Swirl"
-                value={shaderNode.swirl}
-                min={0}
-                max={100}
-                onChange={(value) => onChange({ swirl: value })}
-              />
-              <InspectorSlider
-                label="Scale"
-                value={shaderNode.scale}
-                min={20}
-                max={300}
-                onChange={(value) => onChange({ scale: value })}
-              />
-              <InspectorSlider
-                label="Variation"
-                value={shaderNode.seedOffset}
-                min={0}
-                max={9999}
-                onChange={(value) => onChange({ seedOffset: value })}
-              />
-            </div>
-          </InspectorSection>
-        </>
-      )}
-      {showCompositeControls && (
-        <InspectorSection
-          title="Composite"
-          summary={`${shaderNode.blendMode} / ${shaderNode.opacity}%`}
-          open={compositeOpen}
-          onToggle={() => setCompositeOpen((open) => !open)}
-        >
-          <div className="node-shader-flat-controls">
-            <InspectorSelect
-              label="Blend"
-              value={shaderNode.blendMode}
-              options={BLEND_OPTIONS}
-              onChange={(value) => onChange({ blendMode: value })}
-            />
-            <InspectorSlider
-              label="Opacity"
-              value={shaderNode.opacity}
-              min={0}
-              max={100}
-              onChange={(value) => onChange({ opacity: value })}
-            />
-          </div>
-          <BlendModeNote value={shaderNode.blendMode} />
-        </InspectorSection>
-      )}
-      {showPresetShaderControls && (
-        <InspectorSection
-          title="Placement"
-          summary="rotation / offset"
-          open={placementOpen}
-          onToggle={() => setPlacementOpen((open) => !open)}
-        >
-          <div className="node-shader-flat-controls">
-            <InspectorSlider
-              label="Rotation"
-              value={shaderNode.rotation}
-              min={0}
-              max={360}
-              onChange={(value) => onChange({ rotation: value })}
-            />
-            <InspectorSlider
-              label="Offset X"
-              value={shaderNode.offsetX}
-              min={-100}
-              max={100}
-              onChange={(value) => onChange({ offsetX: value })}
-            />
-            <InspectorSlider
-              label="Offset Y"
-              value={shaderNode.offsetY}
-              min={-100}
-              max={100}
-              onChange={(value) => onChange({ offsetY: value })}
-            />
-          </div>
-        </InspectorSection>
+        <PresetShaderInspector shaderNode={shaderNode} onChange={onChange} sourceConnected={sourceConnected} />
       )}
       <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind)}</p>
     </div>
@@ -604,64 +487,6 @@ function ShaderRoleStatus({ status }: { status: ReturnType<typeof shaderInspecto
       <p>{status.message}</p>
     </div>
   );
-}
-
-function ShaderColorGrid({
-  shaderNode,
-  onChange,
-}: {
-  shaderNode: GraphShaderNode;
-  onChange: (patch: Partial<GraphShaderNode>) => void;
-}) {
-  const config = shaderPaletteConfig(shaderNode.shaderKind);
-  const palette = normalizeShaderPalette(shaderNode.shaderKind, shaderNode.palette);
-  const updatePalette = (nextPalette: string[]) => {
-    onChange({ palette: normalizeShaderPalette(shaderNode.shaderKind, nextPalette) });
-  };
-
-  return (
-    <>
-      <div className="node-shader-color-grid">
-        {palette.map((color, index) => (
-          <div key={`shader-palette-${index}`} className="node-shader-color-swatch">
-            <InspectorColorInput
-              label={paletteLabel(index)}
-              value={color}
-              onChange={(value) => {
-                const nextPalette = [...palette];
-                nextPalette[index] = value;
-                updatePalette(nextPalette);
-              }}
-            />
-            {palette.length > config.min && (
-              <button
-                type="button"
-                className="node-shader-color-remove nodrag nopan nowheel"
-                onClick={() => updatePalette(palette.filter((_, colorIndex) => colorIndex !== index))}
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-      {config.addable && palette.length < config.max && (
-        <button
-          type="button"
-          className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
-          onClick={() =>
-            updatePalette([...palette, config.defaults[palette.length % config.defaults.length] ?? '#ffffff'])
-          }
-        >
-          Add Color
-        </button>
-      )}
-    </>
-  );
-}
-
-function paletteLabel(index: number) {
-  return index < 26 ? String.fromCharCode(65 + index) : `${index + 1}`;
 }
 
 function CustomShaderStatusMessage({
