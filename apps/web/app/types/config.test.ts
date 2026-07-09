@@ -102,7 +102,7 @@ describe('shader kind scope', () => {
 
   it('keeps editable code shaders in active shader fills', () => {
     expect(SHADER_KINDS).toContain('customCode');
-    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).customShaderCode?.code).toContain('mainImage');
+    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).customShaderCode?.code).toBe('');
   });
 
   it('keeps tileless texture out of active shader fills until the future track is implemented', () => {

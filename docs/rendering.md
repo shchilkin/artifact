@@ -156,6 +156,10 @@ upstream canvas directly, and the node opacity/blend mode control pass
 intensity.
 Browsers without WebGL or shaders that fail to compile must return a visible
 deterministic fallback canvas instead of breaking graph traversal.
+An empty Code Shader is different from a failed shader: it renders transparent
+until code is added. Code Shader loops use one fixed zero-based counter, advance
+by a positive constant, and are limited to 32 iterations so preview and export
+cannot accidentally schedule unbounded GPU work.
 Input-dependent visual transforms such as dithering, halftone, refraction,
 warps, ripple, and light-ray overlays remain effect nodes because they need an
 upstream canvas to sample.

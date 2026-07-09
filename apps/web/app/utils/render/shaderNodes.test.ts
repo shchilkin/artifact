@@ -99,6 +99,23 @@ describe('shader node renderer', () => {
     expect(sampleRgba(canvas, 180, 110)).toEqual([0, 0, 0, 0]);
   });
 
+  it('renders invalid non-empty custom code with a visible deterministic fallback', () => {
+    const node = makeGraphShaderNode({
+      id: 'invalid-code-shader',
+      shaderKind: 'customCode',
+      customShaderCode: {
+        version: 1,
+        language: 'glsl-fragment',
+        code: 'vec4 shade(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+      },
+    });
+    const first = renderShaderNodeToCanvas(node, 1171, 220, 140);
+    const second = renderShaderNodeToCanvas(node, 1171, 220, 140);
+
+    expect(sampleRgba(first, 40, 30)[3]).toBeGreaterThan(0);
+    expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
+  });
+
   it('keeps spiral continuous across the angular wrap seam', () => {
     const canvas = renderShaderNodeToCanvas(
       makeGraphShaderNode({

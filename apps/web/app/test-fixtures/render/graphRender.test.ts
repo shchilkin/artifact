@@ -523,7 +523,7 @@ describe('renderGraphTarget', () => {
   });
 
   it.each(
-    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'customSpec'),
+    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'customSpec' && shaderKind !== 'customCode'),
   )('renders %s shader nodes with visible procedural pixels', async (shaderKind) => {
     const graph: CanvasGraph = {
       edges: [
@@ -541,6 +541,34 @@ describe('renderGraphTarget', () => {
           colorC: '#79e3c5',
           colorD: '#f6c96f',
           grain: 0,
+        }),
+      ],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), { skipEffects: true });
+    const samples = [centerPixel(canvas), samplePixel(canvas, 4, 4)];
+
+    expect(samples.every((pixel) => pixel[3] === 255)).toBe(true);
+    expect(uniquePixelCount(canvas)).toBeGreaterThan(1);
+  });
+
+  it('renders a customCode shader with explicitly saved code', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-code-export', fromId: 'shader-code', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-code',
+          shaderKind: 'customCode',
+          grain: 0,
+          customShaderCode: {
+            version: 1,
+            language: 'glsl-fragment',
+            code: 'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
+          },
         }),
       ],
     };

@@ -1,7 +1,8 @@
 import type { CustomShaderCodeConfig } from '../types/config';
 
 const MAX_CUSTOM_SHADER_CODE_LENGTH = 12_000;
-const MAX_CUSTOM_SHADER_LOOP_COUNT = 64;
+const MAX_CUSTOM_SHADER_LOOP_COUNT = 32;
+const MAX_CUSTOM_SHADER_LOOP_STATEMENTS = 1;
 
 export interface CustomShaderCodeIssue {
   severity: 'error' | 'warning';
@@ -11,18 +12,7 @@ export interface CustomShaderCodeIssue {
 export const DEFAULT_CUSTOM_SHADER_CODE: CustomShaderCodeConfig = {
   version: 1,
   language: 'glsl-fragment',
-  code: `vec4 mainImage(vec2 uv) {
-  vec4 base = texture2D(u_backdrop, uv);
-  vec3 baseColor = mix(vec3(0.035, 0.055, 0.09), base.rgb, u_has_backdrop);
-  float wave = sin((uv.x + uv.y) * 42.0 + u_seed * 0.01);
-  vec2 warpedUv = uv + vec2(wave, -wave) * 0.012 * u_strength;
-  vec4 warped = texture2D(u_backdrop, warpedUv);
-  vec3 color = mix(baseColor, warped.rgb, base.a * u_has_backdrop);
-  vec3 tint = vec3(0.62, 0.92, 1.0);
-  float caustic = pow(max(0.0, sin((uv.x - uv.y) * 60.0 + u_seed * 0.02)), 6.0);
-  color = mix(color, color * tint + caustic * 0.18, 0.32 * u_strength);
-  return vec4(color, mix(1.0, base.a, u_has_backdrop));
-}`,
+  code: '',
 };
 
 export function normalizeCustomShaderCodeConfig(value: unknown): CustomShaderCodeConfig {
@@ -75,15 +65,33 @@ export function customShaderCodeHasBlockingIssues(code: string) {
 function collectLoopIssues(code: string) {
   const issues: string[] = [];
   const loopRe = /\bfor\s*\(([^;]*);([^;]*);([^)]*)\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = loopRe.exec(code))) {
-    const condition = match[2] ?? '';
-    const limitMatch = condition.match(/[<]=?\s*(\d+)/);
-    if (!limitMatch) {
-      issues.push('Use fixed numeric loop limits, for example for (int i = 0; i < 12; i++).');
+  const loops = [...code.matchAll(loopRe)];
+  if (loops.length > MAX_CUSTOM_SHADER_LOOP_STATEMENTS) {
+    issues.push('Use at most one small fixed for-loop in a code shader.');
+  }
+  for (const match of loops) {
+    const initializer = (match[1] ?? '').trim();
+    const condition = (match[2] ?? '').trim();
+    const increment = (match[3] ?? '').trim();
+    const initializerMatch = initializer.match(/^int\s+([A-Za-z_]\w*)\s*=\s*0$/);
+    if (!initializerMatch) {
+      issues.push('Start fixed loops at zero, for example for (int i = 0; i < 12; i++).');
       continue;
     }
-    const limit = Number(limitMatch[1]);
+    const variable = initializerMatch[1];
+    const conditionMatch = condition.match(new RegExp(`^${variable}\\s*<\\s*(\\d+)$`));
+    if (!conditionMatch) {
+      issues.push('Use a fixed numeric loop limit with the same counter, for example i < 12.');
+      continue;
+    }
+    const escapedVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const incrementPattern = new RegExp(
+      `^(?:${escapedVariable}\\+\\+|\\+\\+${escapedVariable}|${escapedVariable}\\s*\\+=\\s*[1-9]\\d*)$`,
+    );
+    if (!incrementPattern.test(increment)) {
+      issues.push('Advance the loop counter with i++, ++i, or i += a positive number.');
+    }
+    const limit = Number(conditionMatch[1]);
     if (!Number.isFinite(limit) || limit > MAX_CUSTOM_SHADER_LOOP_COUNT) {
       issues.push(`Keep for-loops at ${MAX_CUSTOM_SHADER_LOOP_COUNT} steps or fewer.`);
     }

@@ -123,6 +123,22 @@ function linkProgram(gl: WebGLRenderingContext, vertexShader: WebGLShader, fragm
   return { program, log: null };
 }
 
+function buildProgram(gl: WebGLRenderingContext, fragmentSource: string) {
+  const vertex = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
+  if (!vertex.shader) return { program: null, log: vertex.log };
+
+  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+  if (!fragment.shader) {
+    gl.deleteShader(vertex.shader);
+    return { program: null, log: fragment.log };
+  }
+
+  const linked = linkProgram(gl, vertex.shader, fragment.shader);
+  gl.deleteShader(vertex.shader);
+  gl.deleteShader(fragment.shader);
+  return linked;
+}
+
 function createWebGlContext(width: number, height: number) {
   if (typeof document === 'undefined') return { canvas: null, gl: null };
   const canvas = createCanvas(width, height);
@@ -130,6 +146,14 @@ function createWebGlContext(width: number, height: number) {
     return { canvas, gl: canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: true }) };
   } catch {
     return { canvas, gl: null };
+  }
+}
+
+function releaseWebGlContext(gl: WebGLRenderingContext) {
+  try {
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+  } catch {
+    // Context disposal is best-effort on browsers that expose an incomplete extension.
   }
 }
 
@@ -149,20 +173,18 @@ export function compileCustomCodeShaderForDiagnostics(code: string): CustomCodeS
 
   const { gl } = createWebGlContext(16, 16);
   if (!gl) return { ok: false, message: 'Shader preview is not available in this browser.' };
-
-  const vertex = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
-  if (!vertex.shader) return { ok: false, message: cleanCompileLog(vertex.log) };
-  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, buildCustomCodeFragmentSource(code));
-  if (!fragment.shader) {
-    gl.deleteShader(vertex.shader);
-    return { ok: false, message: cleanCompileLog(fragment.log) };
+  let program: WebGLProgram | null = null;
+  try {
+    const built = buildProgram(gl, buildCustomCodeFragmentSource(code));
+    program = built.program;
+    if (!program) return { ok: false, message: cleanCompileLog(built.log) };
+    return { ok: true, message: null };
+  } catch {
+    return { ok: false, message: 'Shader compilation failed in this browser.' };
+  } finally {
+    if (program) gl.deleteProgram(program);
+    releaseWebGlContext(gl);
   }
-  const linked = linkProgram(gl, vertex.shader, fragment.shader);
-  gl.deleteShader(vertex.shader);
-  gl.deleteShader(fragment.shader);
-  if (!linked.program) return { ok: false, message: cleanCompileLog(linked.log) };
-  gl.deleteProgram(linked.program);
-  return { ok: true, message: null };
 }
 
 function renderWithWebGl(
@@ -174,44 +196,59 @@ function renderWithWebGl(
 ) {
   const { canvas, gl } = createWebGlContext(width, height);
   if (!canvas || !gl) return null;
-
   const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
-  if (customShaderCodeHasBlockingIssues(config.code)) return null;
+  let program: WebGLProgram | null = null;
+  let buffer: WebGLBuffer | null = null;
+  let texture: WebGLTexture | null = null;
 
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, buildCustomCodeFragmentSource(config.code));
-  if (!vertexShader.shader || !fragmentShader.shader) return null;
+  try {
+    const built = buildProgram(gl, buildCustomCodeFragmentSource(config.code));
+    program = built.program;
+    if (!program) return null;
+    gl.useProgram(program);
 
-  const linked = linkProgram(gl, vertexShader.shader, fragmentShader.shader);
-  if (!linked.program) return null;
-  const program = linked.program;
-  gl.useProgram(program);
+    buffer = gl.createBuffer();
+    if (!buffer) return null;
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    if (positionLocation < 0) return null;
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  const positionLocation = gl.getAttribLocation(program, 'a_position');
-  gl.enableVertexAttribArray(positionLocation);
-  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    texture = gl.createTexture();
+    if (!texture) return null;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    const source = chooseBackdrop(backdrop, width, height, seed);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
 
-  const texture = gl.createTexture();
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  const source = chooseBackdrop(backdrop, width, height, seed);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_backdrop'), 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_seed'), seed + node.seedOffset);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), clamp(node.distortion / 100, 0, 1.5));
+    gl.uniform1f(gl.getUniformLocation(program, 'u_has_backdrop'), backdrop && isDrawableCanvas(backdrop) ? 1 : 0);
+    gl.viewport(0, 0, width, height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.finish();
 
-  gl.uniform1i(gl.getUniformLocation(program, 'u_backdrop'), 0);
-  gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
-  gl.uniform1f(gl.getUniformLocation(program, 'u_seed'), seed + node.seedOffset);
-  gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), clamp(node.distortion / 100, 0, 1.5));
-  gl.uniform1f(gl.getUniformLocation(program, 'u_has_backdrop'), backdrop && isDrawableCanvas(backdrop) ? 1 : 0);
-  gl.viewport(0, 0, width, height);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  return canvas;
+    const output = createCanvas(width, height);
+    const outputContext = output.getContext('2d');
+    if (!outputContext) return null;
+    outputContext.drawImage(canvas, 0, 0, width, height);
+    return output;
+  } catch {
+    return null;
+  } finally {
+    if (texture) gl.deleteTexture(texture);
+    if (buffer) gl.deleteBuffer(buffer);
+    if (program) gl.deleteProgram(program);
+    releaseWebGlContext(gl);
+  }
 }
 
 export function renderCustomCodeShaderNodeToCanvas(
@@ -222,7 +259,10 @@ export function renderCustomCodeShaderNodeToCanvas(
   backdrop?: HTMLCanvasElement | null,
 ) {
   const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
-  if (customShaderCodeHasBlockingIssues(config.code)) return renderTransparentShaderCanvas(width, height);
+  if (!config.code.trim()) return renderTransparentShaderCanvas(width, height);
+  if (customShaderCodeHasBlockingIssues(config.code)) {
+    return renderCanvasFallback(node, seed, width, height, backdrop);
+  }
   return (
     renderWithWebGl(node, seed, width, height, backdrop) ?? renderCanvasFallback(node, seed, width, height, backdrop)
   );
