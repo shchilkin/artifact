@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import { codeShaderUniformControls } from './CodeShaderInspectorModel';
 import { shaderPresetControlConfig } from './ShaderInspectorMetadata';
 import {
@@ -39,6 +40,7 @@ describe('ShaderInspector metadata', () => {
     expect(canCreateAiShaderPass('water refraction', true, true)).toBe(false);
     expect(canCreateAiShaderPass('ok', true, false)).toBe(false);
     expect(canCreateAiShaderPass('water refraction', true, false)).toBe(true);
+    expect(canCreateAiShaderPass('x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1), true, false)).toBe(false);
   });
 
   it('describes AI shader empty state as a source-connected pass', () => {

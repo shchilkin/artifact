@@ -100,6 +100,7 @@ export type AiShaderSpecSource = (typeof AI_SHADER_SPEC_SOURCES)[number];
 
 export const AI_SHADER_SPEC_REQUEST_MODES = ['openai', 'localFallback'] as const;
 export type AiShaderSpecRequestMode = (typeof AI_SHADER_SPEC_REQUEST_MODES)[number];
+export const AI_SHADER_PROMPT_MAX_LENGTH = 1_500;
 
 export interface CustomShaderProvenance {
   source: AiShaderSpecSource;
@@ -165,7 +166,7 @@ export function normalizeCustomShaderSpec(value: unknown): CustomShaderSpec {
   return {
     version: 2,
     label: typeof value.label === 'string' ? value.label.slice(0, 80) : DEFAULT_CUSTOM_SHADER_SPEC.label,
-    prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, 500) : undefined,
+    prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
     base: clampCustomShaderNumber(value.base, 0, 1, DEFAULT_CUSTOM_SHADER_SPEC.base ?? 0.46),
     contrast: clampCustomShaderNumber(value.contrast, 0.1, 4, DEFAULT_CUSTOM_SHADER_SPEC.contrast ?? 1.18),
     palette: palette.length > 0 ? palette : [...(DEFAULT_CUSTOM_SHADER_SPEC.palette ?? [])],

@@ -1,7 +1,9 @@
+import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import type { ShaderKind } from '../../../types/config';
 
 export function canCreateAiShaderPass(prompt: string, sourceConnected: boolean, generating: boolean) {
-  return prompt.trim().length >= 3 && sourceConnected && !generating;
+  const length = prompt.trim().length;
+  return length >= 3 && length <= AI_SHADER_PROMPT_MAX_LENGTH && sourceConnected && !generating;
 }
 
 export function aiShaderPassEmptyStatus(hasPrompt: boolean, sourceConnected: boolean) {

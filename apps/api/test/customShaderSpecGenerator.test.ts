@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AI_SHADER_PROMPT_MAX_LENGTH } from '../src/contracts.js';
 import { generateCustomShaderSpecFromPrompt, validateShaderPrompt } from '../src/customShaderSpecGenerator.js';
 
 describe('custom shader spec generator', () => {
@@ -28,5 +29,9 @@ describe('custom shader spec generator', () => {
   it('validates prompt input before generation', () => {
     expect(validateShaderPrompt('  ')).toMatchObject({ ok: false, code: 'invalid_prompt' });
     expect(validateShaderPrompt('water caustics')).toMatchObject({ ok: true, prompt: 'water caustics' });
+    expect(validateShaderPrompt('x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1))).toMatchObject({
+      ok: false,
+      code: 'prompt_too_long',
+    });
   });
 });

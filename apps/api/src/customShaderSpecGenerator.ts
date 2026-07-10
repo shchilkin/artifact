@@ -1,9 +1,12 @@
-import { type CustomShaderOperation, type CustomShaderSpec, normalizeCustomShaderSpec } from './contracts.js';
-
-const PROMPT_LIMIT = 500;
+import {
+  AI_SHADER_PROMPT_MAX_LENGTH,
+  type CustomShaderOperation,
+  type CustomShaderSpec,
+  normalizeCustomShaderSpec,
+} from './contracts.js';
 
 export function normalizeShaderPrompt(value: unknown) {
-  return typeof value === 'string' ? value.trim().slice(0, PROMPT_LIMIT) : '';
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 export function validateShaderPrompt(
@@ -12,6 +15,13 @@ export function validateShaderPrompt(
   const prompt = normalizeShaderPrompt(value);
   if (!prompt) return { ok: false, code: 'invalid_prompt', message: 'Prompt is required.' };
   if (prompt.length < 3) return { ok: false, code: 'invalid_prompt', message: 'Prompt is too short.' };
+  if (prompt.length > AI_SHADER_PROMPT_MAX_LENGTH) {
+    return {
+      ok: false,
+      code: 'prompt_too_long',
+      message: `Prompt must be ${AI_SHADER_PROMPT_MAX_LENGTH} characters or fewer.`,
+    };
+  }
   return { ok: true, prompt };
 }
 

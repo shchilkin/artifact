@@ -17,4 +17,10 @@ export type {
   GenerationQueuePayload,
 } from '@artifact/shared';
 
-export { AI_API_PATHS, AI_PROVIDERS, normalizeCustomShaderSpec, validateCustomShaderSpec } from '@artifact/shared';
+export {
+  AI_API_PATHS,
+  AI_PROVIDERS,
+  AI_SHADER_PROMPT_MAX_LENGTH,
+  normalizeCustomShaderSpec,
+  validateCustomShaderSpec,
+} from '@artifact/shared';

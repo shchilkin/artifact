@@ -1,7 +1,7 @@
 import { useMachine } from '@xstate/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useArtifactAuth } from '../../../hooks/useArtifactAuth';
-import type { AiShaderSpecRequestMode } from '../../../types/aiGeneration';
+import { AI_SHADER_PROMPT_MAX_LENGTH, type AiShaderSpecRequestMode } from '../../../types/aiGeneration';
 import type { CustomShaderOperation, CustomShaderSpec, GraphShaderNode } from '../../../types/config';
 import { AiGenerationApiError, createAiIdempotencyKey, createAiShaderSpec } from '../../../utils/aiGenerationClient';
 import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
@@ -34,6 +34,8 @@ export function AiShaderInspector({
   const apiBaseUrl = useMemo(() => getArtifactAiApiBaseUrl(), []);
   const devToken = useMemo(() => getAiApiDevToken(), []);
   const prompt = shaderNode.aiPrompt ?? shaderNode.customShaderSpec?.prompt ?? '';
+  const promptLength = prompt.length;
+  const promptTooLong = promptLength > AI_SHADER_PROMPT_MAX_LENGTH;
   const spec = shaderNode.customShaderSpec ?? cloneDefaultCustomShaderSpec();
   const specErrors = validateCustomShaderSpec(spec);
   const hasResult = Boolean(spec.provenance);
@@ -45,8 +47,13 @@ export function AiShaderInspector({
   const fallbackOffered = generationState.matches('fallbackOffered');
   const message = generationState.context.message;
   const provenanceMessage = customSpecProvenanceMessage(spec.provenance);
-  const status =
-    specErrors.length > 0
+  const status = promptTooLong
+    ? {
+        title: 'Prompt is too long',
+        message: `Shorten it to ${AI_SHADER_PROMPT_MAX_LENGTH} characters or fewer. Nothing was cut off.`,
+        tone: 'warning' as const,
+      }
+    : specErrors.length > 0
       ? {
           title: 'Needs attention',
           message: customSpecValidationMessage(specErrors),
@@ -77,24 +84,28 @@ export function AiShaderInspector({
       ? 'choose next'
       : generationState.matches('failed')
         ? 'try again'
-        : specErrors.length
-          ? 'needs attention'
-          : needsSource
-            ? 'needs source'
-            : hasResult
-              ? 'ready'
-              : hasPrompt
-                ? 'ready to create'
-                : 'empty';
+        : promptTooLong
+          ? 'too long'
+          : specErrors.length
+            ? 'needs attention'
+            : needsSource
+              ? 'needs source'
+              : hasResult
+                ? 'ready'
+                : hasPrompt
+                  ? 'ready to create'
+                  : 'empty';
   const primaryActionLabel = generationState.matches('creatingOpenAi')
     ? 'Creating...'
     : fallbackOffered || generationState.matches('failed')
       ? 'Try Again'
-      : needsSource
-        ? 'Connect Source First'
-        : hasResult
-          ? 'Create New Version'
-          : 'Create with AI';
+      : promptTooLong
+        ? 'Shorten Prompt'
+        : needsSource
+          ? 'Connect Source First'
+          : hasResult
+            ? 'Create New Version'
+            : 'Create with AI';
 
   useEffect(
     () => () => {
@@ -119,7 +130,7 @@ export function AiShaderInspector({
   const generate = useCallback(
     async (mode: AiShaderSpecRequestMode = 'openai') => {
       const cleanPrompt = prompt.trim();
-      if (!cleanPrompt || generating || needsSource) return;
+      if (!canCreate) return;
       const controller = new AbortController();
       requestRef.current = controller;
       if (mode === 'localFallback') {
@@ -169,9 +180,8 @@ export function AiShaderInspector({
     [
       apiBaseUrl,
       auth,
+      canCreate,
       devToken,
-      generating,
-      needsSource,
       onChange,
       prompt,
       sendGeneration,
@@ -224,6 +234,12 @@ export function AiShaderInspector({
             });
           }}
         />
+        <p
+          className={`node-inspector-character-count${promptTooLong ? ' node-inspector-character-count-warning' : ''}`}
+          aria-live="polite"
+        >
+          {promptLength} / {AI_SHADER_PROMPT_MAX_LENGTH}
+        </p>
         <button
           type="button"
           className="node-inspector-action nodrag nopan nowheel"
@@ -664,6 +680,8 @@ function customSpecGenerationError(error: unknown, mode: AiShaderSpecRequestMode
       case 'invalid_prompt':
       case 'prompt_too_short':
         return 'Add a little more detail to the prompt.';
+      case 'prompt_too_long':
+        return `Shorten the prompt to ${AI_SHADER_PROMPT_MAX_LENGTH} characters or fewer.`;
       case 'rate_limited':
         return 'Too many requests. Wait a moment, then try again.';
       case 'quota_exceeded':

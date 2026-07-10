@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AI_SHADER_PROMPT_MAX_LENGTH } from '../types/aiGeneration';
 import {
   type CanvasDocument,
   DEFAULT_DOCUMENT,
@@ -90,6 +91,7 @@ describe('normalizeDocument', () => {
   });
 
   it('normalizes custom shader specs for AI-generated shader nodes', () => {
+    const aiPrompt = 'x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1);
     const doc = normalizeDocument({
       layers: [],
       graph: {
@@ -102,7 +104,7 @@ describe('normalizeDocument', () => {
             id: 'shader-ai',
             name: 'AI Shader',
             shaderKind: 'customSpec',
-            aiPrompt: 'make electric mineral smoke',
+            aiPrompt,
             customShaderSpec: {
               version: 2,
               palette: ['#000', 'not-a-color', '#ff00aa'],
@@ -125,7 +127,7 @@ describe('normalizeDocument', () => {
 
     const node = doc.graph?.shaderNodes?.[0];
     expect(node?.shaderKind).toBe('customSpec');
-    expect(node?.aiPrompt).toBe('make electric mineral smoke');
+    expect(node?.aiPrompt).toBe(aiPrompt);
     expect(node?.customShaderSpec).toMatchObject({
       base: 1,
       contrast: 4,

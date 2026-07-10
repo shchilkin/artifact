@@ -1,4 +1,9 @@
-import { type CustomShaderSpec, normalizeCustomShaderSpec, validateCustomShaderSpec } from '../contracts.js';
+import {
+  AI_SHADER_PROMPT_MAX_LENGTH,
+  type CustomShaderSpec,
+  normalizeCustomShaderSpec,
+  validateCustomShaderSpec,
+} from '../contracts.js';
 
 interface FetchResponseLike {
   ok: boolean;
@@ -197,7 +202,7 @@ const CUSTOM_SHADER_SPEC_JSON_SCHEMA = {
   properties: {
     version: { type: 'number', enum: [2] },
     label: { type: 'string', maxLength: 80 },
-    prompt: { type: 'string', maxLength: 500 },
+    prompt: { type: 'string', maxLength: AI_SHADER_PROMPT_MAX_LENGTH },
     base: { type: 'number', minimum: 0, maximum: 1 },
     contrast: { type: 'number', minimum: 0.1, maximum: 4 },
     palette: {

@@ -1389,6 +1389,18 @@
   line-height: 1.35;
 }
 
+.node-inspector-character-count {
+  margin: -2px 0 0;
+  color: var(--node-text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: right;
+}
+
+.node-inspector-character-count-warning {
+  color: var(--warning);
+}
+
 @keyframes node-inspector-loading-spin {
   to {
     transform: rotate(1turn);

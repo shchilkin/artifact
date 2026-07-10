@@ -142,7 +142,9 @@ Shader work follows the same single-purpose split:
   the AI shader-spec endpoint. The default path must request the configured
   OpenAI provider; if that fails, the inspector may offer a separate local
   deterministic fallback, and the saved spec must keep `localFallback`
-  provenance. The v2 spec grammar supports source-aware pass operations such as
+  provenance. Prompts allow up to 1500 characters; the inspector shows the
+  current count and the API rejects oversized prompts instead of silently
+  truncating them. The v2 spec grammar supports source-aware pass operations such as
   source luminance, edge glow, chromatic shift, and gradient-map tinting in
   addition to procedural noise/waves/rings. Saved operations execute in order,
   so the spec is an editable render recipe rather than an unordered set of

@@ -203,7 +203,7 @@ function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNod
       blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
       ...(node.customShaderSpec ? { customShaderSpec: normalizeCustomShaderSpec(node.customShaderSpec) } : {}),
       ...(node.customShaderCode ? { customShaderCode: normalizeCustomShaderCodeConfig(node.customShaderCode) } : {}),
-      aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, 500) : undefined,
+      aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt : undefined,
     });
   });
 }
