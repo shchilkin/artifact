@@ -3541,6 +3541,45 @@
   border-bottom: 0;
 }
 
+.node-shader-property-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 58%, transparent);
+}
+
+.node-shader-property-control > div > :is(.node-inspector-control, .node-inspector-row, .node-inspector-toggle) {
+  border: 0;
+  background: transparent;
+}
+
+.node-shader-property-remove {
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.node-shader-property-remove:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.node-shader-property-authoring {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.node-shader-property-authoring .node-shell-action {
+  min-height: var(--control-height);
+  padding-inline: 12px;
+}
+
 .node-shader-operation-list {
   overflow: hidden;
   border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);

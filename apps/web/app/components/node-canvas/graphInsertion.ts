@@ -63,7 +63,8 @@ function firstDefinedNumber(fallback: number, ...values: Array<number | undefine
   return fallback;
 }
 
-export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] {
+export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] | null {
+  if (action.kind === 'shader') return action.role === 'effect' ? 'bg' : null;
   if (action.kind === 'material') return 'material';
   if (action.kind === 'merge') return 'a';
   if (action.kind === 'scene3d') return 'model';
@@ -82,6 +83,7 @@ export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] 
 
 export function resolveEdgeInsertion(action: AddAction, edge: GraphEdge): InsertConnectionConfig | null {
   if (action.kind === 'material') return null;
+  if (action.kind === 'shader' && action.role === 'fill') return null;
   if (edge.fromId === EXPORT_NODE_ID) return null;
   return {
     sourceId: edge.fromId,

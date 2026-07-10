@@ -80,7 +80,7 @@ Current React Flow node types:
 | `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
 | `grimeShadowNode` | Builds a layered dirty shadow from upstream alpha. |
 | `materialNode` | Defines a reusable 3D material and texture-map inputs. |
-| `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Pass` / `AI Shader Pass` in the UI). |
+| `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Effect` / `AI Shader Effect` in the UI). |
 | `environmentNode` | Provides an environment map source for 3D scene lighting. |
 | `scene3dNode` | Renders a 3D scene from model, material, lighting, environment, and backdrop inputs. |
 | `exportNode` | Terminal output target. |
@@ -119,11 +119,26 @@ Exceptions must be explicit in docs and tests. A temporary MVP shortcut is
 acceptable only when it preserves serialized state clarity, render/export
 parity, and a clear migration path to separate nodes.
 
-### Shader fill, shader effect, and material boundary
+### Shader definition, instance, and material boundary
 
 Shader work follows the same single-purpose split:
 
-- **Shader Fill / Pass** nodes are procedural raster shader passes. Preset
+- A **Shader Definition** is a serializable shader program with a property
+  manifest. A **Shader Instance** is a graph node using that definition with its
+  own property values and one explicit role (`fill` or `effect`). Definitions
+  may be authored from a built-in preset, code, or AI; those authoring methods
+  do not create additional runtime roles.
+- Shader roles never depend on connection state. A **Shader Fill** has no image
+  input and creates its own pixels. A **Shader Effect** requires one source
+  input and renders transparent when that input is missing.
+- The first definition-backed runtime supports number, boolean, and color
+  properties. Each property maps to a stable `u_prop_<key>` uniform and the
+  inspector is generated from the manifest rather than hard-coded sections.
+- Code Shader nodes persist a Shader Definition and instance values. Older
+  development documents with `customShaderCode` are normalized once into this
+  model and no longer retain the old field.
+
+- **Shader Fill / Effect** nodes are procedural raster shaders. Preset
   shader fills generate pixels from their own parameters and document seed,
   expose their output as a source texture, and do not require an upstream image.
   Their colors are stored as an ordered `palette` array; each preset declares
@@ -131,12 +146,12 @@ Shader work follows the same single-purpose split:
   The preset inspector exposes only shape and placement fields read by the
   selected renderer; shared grain/variation controls remain available for
   texture output, while irrelevant controls stay hidden.
-  When their optional `backdrop` input is connected, they sample that upstream
+  When explicitly set to Effect, they sample the required upstream
   branch as input texture data, use its luminance/detail to shape the generated
   shader, and then apply the node's opacity and blend mode as pass intensity.
-  Opacity and blend mode are pass-only controls; fill mode outputs the generated
+  Opacity and blend mode are effect-only controls; fill mode outputs the generated
   texture directly.
-  `AI Shader Pass` is prompt-ready and input-dependent: it stores a validated
+  `AI Shader Effect` is prompt-ready and input-dependent: it stores a validated
   `customSpec` JSON shader description and prompt provenance, not raw
   GLSL/WGSL. Its inspector can generate an editable spec from a prompt through
   the AI shader-spec endpoint. The default path must request the configured
@@ -153,21 +168,21 @@ Shader work follows the same single-purpose split:
   Without a connected source/backdrop,
   or before a generated spec exists, it renders transparent instead of inventing
   source pixels.
-  `Code Shader` is the editable-code variant of the same node role: it stores a
-  GLSL fragment body that defines `mainImage(vec2 uv)` and receives
+  `Code Shader` is a shader authoring method: its definition stores a GLSL
+  fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
   `u_has_backdrop` from the renderer.
-  Its inspector exposes Strength and Variation only when the code reads the
-  matching uniform; an empty shader has no inherited preset controls and stays
-  transparent.
-  It can generate a standalone texture without an input, or process the
-  connected `backdrop` branch as a pass. It must stay a shader-source/pass node,
+  Its inspector exposes manifest-defined controls plus Strength and Variation
+  only when the code reads the matching built-in uniform; an empty shader has
+  no inherited preset controls and stays transparent.
+  Its explicit role decides whether it generates a standalone texture or
+  processes a required `backdrop` branch. It must stay a shader node,
   not a place for JavaScript, network access, material controls, or 3D scene
   controls.
-- **Shader Effect** nodes are normal Effect layer nodes with shader-style image
-  transforms. They require an upstream source branch; if there is no upstream
-  input, the graph render should remain transparent instead of inventing source
-  pixels.
+- Built-in image transforms such as dithering, blur, and refraction remain
+  **Effect** nodes. Like Shader Effects, they require an upstream source branch;
+  unlike authored Shader Effects, their program and controls are maintained by
+  Artifact.
 - **Material** nodes describe PBR surface parameters and texture-map inputs:
   `albedo`, `roughness`, `metalness`, `normal`, and `alpha`.
 - **Primitive** and **3D Scene** nodes consume a material or texture source while
@@ -175,11 +190,11 @@ Shader work follows the same single-purpose split:
   material authoring.
 
 Material texture-map ports may receive either a Shader Fill output directly or
-the output of an input-dependent Shader Effect / AI Shader Pass branch. The
+the output of an input-dependent Shader Effect / AI Shader Effect branch. The
 latter is valid only when the pass has an upstream source. This keeps the graph
 readable: `Shader Fill -> Material.albedo -> Primitive.material -> Output` for
-standalone textures, `Source -> Shader Fill.backdrop -> Output` when a preset
-procedural shader is layered over an image branch, or `Source -> AI Shader Pass
+standalone textures, `Source -> Shader Effect -> Output` when a preset
+procedural shader transforms an image branch, or `Source -> AI Shader Effect
 -> Material.normal -> Primitive.material -> Output` when the map is derived from
 existing pixels.
 
@@ -187,7 +202,7 @@ The Add Node library should keep this taxonomy visible:
 
 - **Sources** for imported/generated image branches and text/pattern bases.
 - **Shader Fills** for standalone procedural texture sources.
-- **Shader Effects** for input-dependent shader passes such as `AI Shader Pass`.
+- **Shader Effects** for input-dependent shader transforms such as `AI Shader Effect`.
 - **Effects** for input-dependent image transforms, even when browse sections
   further split them by tone, warp, print, light, signal, texture, or graphic
   family.

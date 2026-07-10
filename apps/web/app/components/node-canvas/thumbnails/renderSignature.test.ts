@@ -10,6 +10,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../../../types/config';
+import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
 import {
   colorNodeRenderSig,
   edgeRenderSig,
@@ -212,19 +213,23 @@ describe('graph node render signatures', () => {
     const code = makeGraphShaderNode({
       id: 'code-shader',
       shaderKind: 'customCode',
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('code-shader'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('code-shader').definition,
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+        },
       },
     });
     const codeEdited = makeGraphShaderNode({
       id: 'code-shader',
       shaderKind: 'customCode',
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('code-shader'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('code-shader').definition,
+          code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+        },
       },
     });
     const promptEdited = {

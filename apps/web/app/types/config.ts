@@ -1,4 +1,12 @@
-import type { CustomShaderOperation, CustomShaderSpec } from '@artifact/shared';
+import type {
+  CustomShaderOperation,
+  CustomShaderSpec,
+  ShaderDefinition,
+  ShaderInstance,
+  ShaderPropertyDefinition,
+  ShaderPropertyValue,
+  ShaderRole,
+} from '@artifact/shared';
 import { defaultShaderPalette, normalizeShaderPalette } from '../utils/shaderPalette';
 import type { TextFontRef } from './typography';
 
@@ -73,7 +81,15 @@ export const SHADER_KINDS = [
 ] as const;
 export const LEGACY_SHADER_KINDS = ['tilelessTexture'] as const;
 export type ShaderKind = (typeof SHADER_KINDS)[number] | (typeof LEGACY_SHADER_KINDS)[number];
-export type { CustomShaderOperation, CustomShaderSpec };
+export type {
+  CustomShaderOperation,
+  CustomShaderSpec,
+  ShaderDefinition,
+  ShaderInstance,
+  ShaderPropertyDefinition,
+  ShaderPropertyValue,
+  ShaderRole,
+};
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -617,9 +633,10 @@ export interface GraphShaderNode {
   id: string;
   name: string;
   shaderKind: ShaderKind;
+  role: ShaderRole;
   aiPrompt?: string;
   customShaderSpec?: CustomShaderSpec;
-  customShaderCode?: CustomShaderCodeConfig;
+  shaderInstance?: ShaderInstance;
   palette: string[];
   distortion: number;
   swirl: number;
@@ -631,12 +648,6 @@ export interface GraphShaderNode {
   seedOffset: number;
   opacity: number;
   blendMode: string;
-}
-
-export interface CustomShaderCodeConfig {
-  version: 1;
-  language: 'glsl-fragment';
-  code: string;
 }
 
 export interface GraphArea {
@@ -727,7 +738,7 @@ export interface CanvasDocument {
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export const DOCUMENT_SCHEMA_VERSION = 1;
+export const DOCUMENT_SCHEMA_VERSION = 2;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -1892,9 +1903,11 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
   const shaderKind = partial.shaderKind ?? 'meshGradient';
+  const id = partial.id ?? `shader-${Date.now()}-${_idCounter++}`;
+  const role = shaderKind === 'customSpec' ? 'effect' : (partial.role ?? 'fill');
   const defaultCustomShaderSpec: CustomShaderSpec = {
     version: 2,
-    label: 'AI Shader Pass',
+    label: 'AI Shader Effect',
     base: 0.46,
     contrast: 1.18,
     palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],
@@ -1904,15 +1917,23 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
       { op: 'swirl', amount: 0.18, radius: 1.25 },
     ],
   };
-  const defaultCustomShaderCode: CustomShaderCodeConfig = {
-    version: 1,
-    language: 'glsl-fragment',
-    code: '',
+  const defaultShaderInstance: ShaderInstance = {
+    definition: {
+      version: 1,
+      id: `${id}-definition`,
+      label: 'Code Shader',
+      language: 'glsl-fragment',
+      code: '',
+      properties: [],
+      provenance: { source: 'manual' },
+    },
+    values: {},
   };
   return {
-    id: `shader-${Date.now()}-${_idCounter++}`,
+    id,
     name: 'Shader',
     shaderKind,
+    role,
     palette: defaultShaderPalette(shaderKind),
     distortion: 56,
     swirl: 28,
@@ -1925,8 +1946,19 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
     opacity: 58,
     blendMode: 'screen',
     ...(shaderKind === 'customSpec' ? { customShaderSpec: defaultCustomShaderSpec } : {}),
-    ...(shaderKind === 'customCode' ? { customShaderCode: defaultCustomShaderCode } : {}),
     ...partial,
+    role,
+    ...(shaderKind === 'customCode'
+      ? {
+          shaderInstance: partial.shaderInstance
+            ? {
+                ...partial.shaderInstance,
+                definition: { ...partial.shaderInstance.definition },
+                values: { ...partial.shaderInstance.values },
+              }
+            : defaultShaderInstance,
+        }
+      : {}),
     palette: normalizeShaderPalette(shaderKind, partial.palette ?? defaultShaderPalette(shaderKind)),
   };
 }
@@ -1943,7 +1975,18 @@ function cloneGraphShaderNode(node: GraphShaderNode): GraphShaderNode {
           provenance: node.customShaderSpec.provenance ? { ...node.customShaderSpec.provenance } : undefined,
         }
       : undefined,
-    customShaderCode: node.customShaderCode ? { ...node.customShaderCode } : undefined,
+    shaderInstance: node.shaderInstance
+      ? {
+          definition: {
+            ...node.shaderInstance.definition,
+            properties: node.shaderInstance.definition.properties.map((property) => ({ ...property })),
+            provenance: node.shaderInstance.definition.provenance
+              ? { ...node.shaderInstance.definition.provenance }
+              : undefined,
+          },
+          values: { ...node.shaderInstance.values },
+        }
+      : undefined,
   };
 }
 

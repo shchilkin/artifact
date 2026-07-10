@@ -1,5 +1,5 @@
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
-import type { ShaderKind } from '../../../types/config';
+import type { ShaderKind, ShaderRole } from '../../../types/config';
 
 export function canCreateAiShaderPass(prompt: string, sourceConnected: boolean, generating: boolean) {
   const length = prompt.trim().length;
@@ -10,13 +10,13 @@ export function aiShaderPassEmptyStatus(hasPrompt: boolean, sourceConnected: boo
   if (!sourceConnected) {
     return {
       title: 'Connect source',
-      message: 'This pass transforms an incoming image. Connect a source before creating it.',
+      message: 'This effect transforms an incoming image. Connect a source before creating it.',
     };
   }
   if (hasPrompt) {
     return {
       title: 'Ready to create',
-      message: 'Create an editable pass that processes the connected source.',
+      message: 'Create an editable effect that processes the connected source.',
     };
   }
   return {
@@ -26,38 +26,29 @@ export function aiShaderPassEmptyStatus(hasPrompt: boolean, sourceConnected: boo
   };
 }
 
-export function shaderInspectorRoleNote(shaderKind: ShaderKind) {
+export function shaderInspectorRoleNote(shaderKind: ShaderKind, role: ShaderRole) {
   if (shaderKind === 'customSpec') {
-    return 'Use as a source-connected pass, then send the processed result onward or into a material map.';
+    return 'Use as a source-connected effect, then send the processed result onward or into a material map.';
   }
-  if (shaderKind === 'customCode') {
-    return 'Use code as a standalone shader fill or as a pass over the connected backdrop.';
-  }
-  return 'Use as a fill, place it over a backdrop, or send it into a material.';
+  return role === 'effect'
+    ? 'This shader requires an incoming image and transforms that branch.'
+    : 'This shader creates its own pixels and can feed artwork or a material map.';
 }
 
-export function shaderInspectorRoleStatus(shaderKind: ShaderKind, sourceConnected: boolean) {
-  if (shaderKind === 'customSpec') {
+export function shaderInspectorRoleStatus(shaderKind: ShaderKind, role: ShaderRole, sourceConnected: boolean) {
+  if (role === 'effect') {
     return {
-      label: 'AI Shader Pass',
+      label: shaderKind === 'customSpec' ? 'AI Shader Effect' : 'Shader Effect',
       message: sourceConnected
         ? 'Connected artwork can be transformed by the generated shader.'
-        : 'Connect artwork first; this pass stays transparent without a source.',
-      mode: 'pass' as const,
-    };
-  }
-
-  if (sourceConnected) {
-    return {
-      label: shaderKind === 'customCode' ? 'Code Pass' : 'Shader Pass',
-      message: 'Connected artwork is sampled by this shader and sent onward as a pass.',
+        : 'Connect artwork first; this shader stays transparent without a source.',
       mode: 'pass' as const,
     };
   }
 
   return {
     label: shaderKind === 'customCode' ? 'Code Fill' : 'Shader Fill',
-    message: 'No input is connected, so this shader renders its own texture.',
+    message: 'This shader renders its own texture and does not accept an image input.',
     mode: 'fill' as const,
   };
 }

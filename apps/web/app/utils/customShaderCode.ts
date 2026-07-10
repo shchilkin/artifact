@@ -1,4 +1,4 @@
-import type { CustomShaderCodeConfig } from '../types/config';
+import type { ShaderDefinition, ShaderInstance } from '../types/config';
 
 const MAX_CUSTOM_SHADER_CODE_LENGTH = 12_000;
 const MAX_CUSTOM_SHADER_LOOP_COUNT = 32;
@@ -9,23 +9,24 @@ export interface CustomShaderCodeIssue {
   message: string;
 }
 
-export const DEFAULT_CUSTOM_SHADER_CODE: CustomShaderCodeConfig = {
+export const DEFAULT_CUSTOM_SHADER_DEFINITION: ShaderDefinition = {
   version: 1,
+  id: 'code-shader-definition',
+  label: 'Code Shader',
   language: 'glsl-fragment',
   code: '',
+  properties: [],
+  provenance: { source: 'manual' },
 };
 
-export function normalizeCustomShaderCodeConfig(value: unknown): CustomShaderCodeConfig {
-  if (!value || typeof value !== 'object') return DEFAULT_CUSTOM_SHADER_CODE;
-  const record = value as Record<string, unknown>;
-  const code =
-    typeof record.code === 'string'
-      ? record.code.slice(0, MAX_CUSTOM_SHADER_CODE_LENGTH)
-      : DEFAULT_CUSTOM_SHADER_CODE.code;
+export function makeDefaultCodeShaderInstance(id: string): ShaderInstance {
   return {
-    version: 1,
-    language: 'glsl-fragment',
-    code,
+    definition: {
+      ...DEFAULT_CUSTOM_SHADER_DEFINITION,
+      id: `${id}-definition`,
+      provenance: { source: 'manual' },
+    },
+    values: {},
   };
 }
 

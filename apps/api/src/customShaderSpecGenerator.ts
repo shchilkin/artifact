@@ -169,7 +169,7 @@ function labelForPrompt(text: string) {
   if (mentions(text, ['spiral', 'vortex'])) return 'AI Spiral';
   if (mentions(text, ['wave', 'ripple'])) return 'AI Waves';
   if (mentions(text, ['neon', 'cyber'])) return 'AI Neon';
-  return 'AI Shader Pass';
+  return 'AI Shader Effect';
 }
 
 function mentions(text: string, words: string[]) {

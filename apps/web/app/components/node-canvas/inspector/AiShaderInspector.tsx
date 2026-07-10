@@ -62,7 +62,7 @@ export function AiShaderInspector({
       : needsSource
         ? {
             title: 'Connect source',
-            message: 'Connect an image or source node before creating this pass. Until then, the output stays empty.',
+            message: 'Connect an image or source node before creating this effect. Until then, the output stays empty.',
             tone: 'info' as const,
           }
         : message

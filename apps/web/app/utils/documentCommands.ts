@@ -672,12 +672,14 @@ function connectInsertedGraphOnlyNode(
     );
   }
   if (action.kind === 'shader') {
+    const role = action.role;
     const node = makeGraphShaderNode({
       ...(action.shaderKind ? { shaderKind: action.shaderKind } : {}),
-      ...(action.shaderKind === 'customSpec' ? { name: 'AI Shader Pass' } : {}),
+      role,
+      ...(action.shaderKind === 'customSpec' ? { name: 'AI Shader Effect' } : {}),
       ...(action.shaderKind === 'customCode' ? { name: 'Code Shader' } : {}),
     });
-    if (action.shaderKind === 'customSpec') {
+    if (role === 'effect') {
       return connectInsertedNode(
         addShaderNode(ensureDocumentGraph(doc), node, position),
         node.id,
@@ -966,7 +968,15 @@ export function updateShaderNodeInDocument(
   patch: Partial<GraphShaderNode>,
 ): CanvasDocument {
   if (!doc.graph) return doc;
-  return { ...doc, graph: updateShaderNodeInGraph(doc.graph, id, patch) };
+  const graph = updateShaderNodeInGraph(doc.graph, id, patch);
+  if (patch.role !== 'fill') return { ...doc, graph };
+  return {
+    ...doc,
+    graph: {
+      ...graph,
+      edges: graph.edges.filter((edge) => edge.toId !== id || edge.toPort !== 'bg'),
+    },
+  };
 }
 
 export function updateMaskNodeInDocument(

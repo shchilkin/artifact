@@ -24,7 +24,7 @@ import type {
   Layer,
 } from '../types/config';
 
-const SHADER_PASS_RENDER_VERSION = 'shader-pass-ordered-operations-v3';
+const SHADER_PASS_RENDER_VERSION = 'shader-definition-instance-v4';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
@@ -139,9 +139,6 @@ export function repeatNodeRenderSig(node: GraphRepeatNode): string {
     node.seedOffset,
     node.opacity,
     node.blendMode,
-    node.aiPrompt,
-    node.customShaderSpec,
-    node.customShaderCode,
   ]);
 }
 
@@ -240,6 +237,7 @@ export function shaderNodeRenderSig(node: GraphShaderNode): string {
   return JSON.stringify([
     SHADER_PASS_RENDER_VERSION,
     node.shaderKind,
+    node.role,
     node.palette,
     node.distortion,
     node.swirl,
@@ -252,7 +250,7 @@ export function shaderNodeRenderSig(node: GraphShaderNode): string {
     node.opacity,
     node.blendMode,
     customSpecRenderState,
-    node.customShaderCode?.code ?? null,
+    node.shaderInstance ?? null,
   ]);
 }
 

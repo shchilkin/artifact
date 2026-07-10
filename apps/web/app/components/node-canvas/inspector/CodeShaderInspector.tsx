@@ -1,9 +1,21 @@
 import { useMemo, useState } from 'react';
-import type { GraphShaderNode } from '../../../types/config';
-import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
+import type {
+  GraphShaderNode,
+  ShaderPropertyDefinition,
+  ShaderPropertyType,
+  ShaderPropertyValue,
+} from '../../../types/config';
+import { makeDefaultCodeShaderInstance, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
-import { codeShaderUniformControls } from './CodeShaderInspectorModel';
-import { InspectorSection, InspectorSlider, InspectorTextArea } from './fields';
+import { codeShaderUniformControls, makeCodeShaderProperty } from './CodeShaderInspectorModel';
+import {
+  InspectorColorInput,
+  InspectorSection,
+  InspectorSelect,
+  InspectorSlider,
+  InspectorTextArea,
+  InspectorToggle,
+} from './fields';
 import { ShaderStatusMessage } from './ShaderStatusMessage';
 
 export function CodeShaderInspector({
@@ -15,15 +27,35 @@ export function CodeShaderInspector({
 }) {
   const [codeOpen, setCodeOpen] = useState(true);
   const [uniformsOpen, setUniformsOpen] = useState(true);
-  const code = shaderNode.customShaderCode?.code ?? DEFAULT_CUSTOM_SHADER_CODE.code;
+  const [newPropertyType, setNewPropertyType] = useState<ShaderPropertyType>('number');
+  const shaderInstance = shaderNode.shaderInstance ?? makeDefaultCodeShaderInstance(shaderNode.id);
+  const definition = shaderInstance.definition;
+  const code = definition.code;
   const issues = useMemo(() => validateCustomShaderCode(code), [code]);
   const compileResult = useMemo(() => {
     if (issues.some((issue) => issue.severity === 'error')) return null;
-    return compileCustomCodeShaderForDiagnostics(code);
-  }, [code, issues]);
+    return compileCustomCodeShaderForDiagnostics(code, definition.properties);
+  }, [code, definition.properties, issues]);
   const blockingIssue = issues.find((issue) => issue.severity === 'error') ?? null;
   const empty = code.trim().length === 0;
   const uniformControls = codeShaderUniformControls(code);
+  const updateInstance = (patch: Partial<typeof shaderInstance>) =>
+    onChange({ shaderInstance: { ...shaderInstance, ...patch } });
+  const addProperty = () => {
+    const property = makeCodeShaderProperty(newPropertyType, definition.properties);
+    updateInstance({
+      definition: { ...definition, properties: [...definition.properties, property] },
+      values: { ...shaderInstance.values, [property.key]: property.default },
+    });
+  };
+  const removeProperty = (key: string) => {
+    const values = { ...shaderInstance.values };
+    delete values[key];
+    updateInstance({
+      definition: { ...definition, properties: definition.properties.filter((property) => property.key !== key) },
+      values,
+    });
+  };
   const status = empty
     ? {
         title: 'Start with code',
@@ -69,10 +101,9 @@ export function CodeShaderInspector({
           placeholder="vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }"
           onChange={(value) =>
             onChange({
-              customShaderCode: {
-                version: 1,
-                language: 'glsl-fragment',
-                code: value,
+              shaderInstance: {
+                ...shaderInstance,
+                definition: { ...definition, code: value },
               },
             })
           }
@@ -83,35 +114,112 @@ export function CodeShaderInspector({
           <code>u_strength</code> are also available. Empty code stays transparent; compile errors use a safe fallback.
         </p>
       </InspectorSection>
-      {uniformControls.length > 0 && (
-        <InspectorSection
-          title="Inputs"
-          summary={uniformControls.join(' / ')}
-          open={uniformsOpen}
-          onToggle={() => setUniformsOpen((open) => !open)}
-        >
-          <div className="node-shader-flat-controls">
-            {uniformControls.includes('strength') && (
-              <InspectorSlider
-                label="Strength"
-                value={shaderNode.distortion}
-                min={0}
-                max={100}
-                onChange={(value) => onChange({ distortion: value })}
-              />
-            )}
-            {uniformControls.includes('variation') && (
-              <InspectorSlider
-                label="Variation"
-                value={shaderNode.seedOffset}
-                min={0}
-                max={9999}
-                onChange={(value) => onChange({ seedOffset: value })}
-              />
-            )}
+      <InspectorSection
+        title="Controls"
+        summary={`${uniformControls.length + definition.properties.length} controls`}
+        open={uniformsOpen}
+        onToggle={() => setUniformsOpen((open) => !open)}
+      >
+        <div className="node-shader-flat-controls">
+          {uniformControls.includes('strength') && (
+            <InspectorSlider
+              label="Strength"
+              value={shaderNode.distortion}
+              min={0}
+              max={100}
+              onChange={(value) => onChange({ distortion: value })}
+            />
+          )}
+          {uniformControls.includes('variation') && (
+            <InspectorSlider
+              label="Variation"
+              value={shaderNode.seedOffset}
+              min={0}
+              max={9999}
+              onChange={(value) => onChange({ seedOffset: value })}
+            />
+          )}
+          {definition.properties.map((property) => (
+            <ShaderPropertyControl
+              key={property.key}
+              property={property}
+              value={shaderInstance.values[property.key] ?? property.default}
+              onChange={(nextValue) =>
+                updateInstance({ values: { ...shaderInstance.values, [property.key]: nextValue } })
+              }
+              onRemove={() => removeProperty(property.key)}
+            />
+          ))}
+        </div>
+        {definition.properties.length < 12 && (
+          <div className="node-shader-property-authoring">
+            <InspectorSelect
+              label="New control"
+              value={newPropertyType}
+              options={[
+                { value: 'number', label: 'Number' },
+                { value: 'color', label: 'Color' },
+                { value: 'boolean', label: 'Toggle' },
+              ]}
+              onChange={(value) => setNewPropertyType(value as ShaderPropertyType)}
+            />
+            <button type="button" className="node-shell-action nodrag nopan nowheel" onClick={addProperty}>
+              Add control
+            </button>
           </div>
-        </InspectorSection>
-      )}
+        )}
+      </InspectorSection>
     </>
+  );
+}
+
+function ShaderPropertyControl({
+  property,
+  value,
+  onChange,
+  onRemove,
+}: {
+  property: ShaderPropertyDefinition;
+  value: ShaderPropertyValue;
+  onChange: (value: ShaderPropertyValue) => void;
+  onRemove: () => void;
+}) {
+  const label = `${property.label} · u_prop_${property.key}`;
+  return (
+    <div className="node-shader-property-control">
+      <div>
+        {property.type === 'color' ? (
+          <InspectorColorInput
+            label={label}
+            value={typeof value === 'string' ? value : property.default}
+            onChange={onChange}
+          />
+        ) : property.type === 'boolean' ? (
+          <InspectorToggle
+            label={label}
+            checked={typeof value === 'boolean' ? value : property.default}
+            onChange={onChange}
+          />
+        ) : (
+          <InspectorSlider
+            label={label}
+            value={typeof value === 'number' ? value : property.default}
+            min={property.min}
+            max={property.max}
+            step={property.step}
+            onChange={onChange}
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        className="node-shader-property-remove nodrag nopan nowheel"
+        aria-label={`Remove ${property.label}`}
+        title={`Remove ${property.label}`}
+        onClick={onRemove}
+      >
+        ×
+      </button>
+    </div>
   );
 }

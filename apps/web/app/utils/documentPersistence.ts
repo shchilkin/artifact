@@ -1,3 +1,4 @@
+import { normalizeShaderInstance } from '@artifact/shared';
 import {
   ASPECT_SIZES,
   type AspectRatio,
@@ -28,7 +29,7 @@ import {
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
-import { normalizeCustomShaderCodeConfig } from './customShaderCode';
+import { makeDefaultCodeShaderInstance } from './customShaderCode';
 import { normalizeCustomShaderSpec } from './customShaderSpec';
 import { shouldSplitEffectLayer, splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 import { normalizeShaderPalette } from './shaderPalette';
@@ -184,11 +185,18 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
 function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
   return (nodes ?? []).filter(isRecord).map((node) => {
     const shaderKind = normalizeShaderKind(node.shaderKind);
-    const defaults = makeGraphShaderNode({ shaderKind });
+    const id = String(node.id ?? `shader-${Date.now()}`);
+    const role =
+      shaderKind === 'customSpec' ? 'effect' : node.role === 'effect' || node.role === 'fill' ? node.role : 'fill';
+    const defaults = makeGraphShaderNode({ id, shaderKind, role });
+    const normalizedInstance = normalizeShaderInstance(node.shaderInstance, `${id}-definition`);
+    const shaderInstance =
+      normalizedInstance ?? (shaderKind === 'customCode' ? makeDefaultCodeShaderInstance(id) : undefined);
     return makeGraphShaderNode({
-      id: String(node.id ?? `shader-${Date.now()}`),
+      id,
       name: typeof node.name === 'string' ? node.name : defaults.name,
       shaderKind,
+      role,
       palette: normalizeShaderPalette(shaderKind, node.palette),
       distortion:
         node.shaderKind === 'staticMeshGradient' ? 0 : normalizeShaderNumber(node.distortion, defaults.distortion),
@@ -202,7 +210,11 @@ function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNod
       opacity: normalizeShaderNumber(node.opacity, defaults.opacity),
       blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
       ...(node.customShaderSpec ? { customShaderSpec: normalizeCustomShaderSpec(node.customShaderSpec) } : {}),
-      ...(node.customShaderCode ? { customShaderCode: normalizeCustomShaderCodeConfig(node.customShaderCode) } : {}),
+      ...(shaderInstance
+        ? {
+            shaderInstance,
+          }
+        : {}),
       aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt : undefined,
     });
   });
@@ -397,7 +409,7 @@ function fontAssetEmbeddingPolicyField(
 }
 
 export function normalizeDocument(raw: unknown): CanvasDocument {
-  const doc = isRecord(raw) ? raw : {};
+  const doc = migrateDocumentSchema(isRecord(raw) ? raw : {});
   const global = isRecord(doc.global) ? doc.global : {};
   const exportConfig = isRecord(doc.export) ? doc.export : {};
   const aspect = isValidAspect(global.aspect) ? global.aspect : DEFAULT_GLOBAL.aspect;
@@ -456,6 +468,56 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
     ...(fontAssets ? { fontAssets } : {}),
     ...(modelAssets ? { modelAssets } : {}),
     ...(envAssets ? { envAssets } : {}),
+  };
+}
+
+function migrateDocumentSchema(raw: Record<string, unknown>): Record<string, unknown> {
+  const schemaVersion = typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1;
+  if (schemaVersion > DOCUMENT_SCHEMA_VERSION) {
+    throw new Error(
+      `Unsupported document schema version ${schemaVersion}; this build supports up to ${DOCUMENT_SCHEMA_VERSION}.`,
+    );
+  }
+  if (schemaVersion === DOCUMENT_SCHEMA_VERSION) return raw;
+  return migrateDocumentV1ToV2(raw);
+}
+
+function migrateDocumentV1ToV2(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!isRecord(raw.graph)) return { ...raw, schemaVersion: DOCUMENT_SCHEMA_VERSION };
+  const graph = raw.graph;
+  const edges = Array.isArray(graph.edges) ? graph.edges.filter(isRecord) : [];
+  const shaderNodes = Array.isArray(graph.shaderNodes)
+    ? graph.shaderNodes.filter(isRecord).map((node) => {
+        const id = String(node.id ?? `shader-${Date.now()}`);
+        const shaderKind = normalizeShaderKind(node.shaderKind);
+        const hasBackdrop = edges.some((edge) => edge.toId === id && edge.toPort === 'bg');
+        const role =
+          shaderKind === 'customSpec'
+            ? 'effect'
+            : node.role === 'effect' || node.role === 'fill'
+              ? node.role
+              : hasBackdrop
+                ? 'effect'
+                : 'fill';
+        const { customShaderCode, ...nodeFields } = node;
+        if (shaderKind !== 'customCode' || node.shaderInstance) return { ...nodeFields, role };
+        const instance = makeDefaultCodeShaderInstance(id);
+        const code =
+          isRecord(customShaderCode) && typeof customShaderCode.code === 'string' ? customShaderCode.code : '';
+        return {
+          ...nodeFields,
+          role,
+          shaderInstance: {
+            ...instance,
+            definition: { ...instance.definition, code: code.slice(0, 12_000) },
+          },
+        };
+      })
+    : [];
+  return {
+    ...raw,
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    graph: { ...graph, shaderNodes },
   };
 }
 

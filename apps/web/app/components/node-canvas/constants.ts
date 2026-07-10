@@ -147,9 +147,9 @@ export const ADD_NODE_ITEMS: Array<{
   {
     label: 'Shader Fill',
     symbol: '◉',
-    description: 'Generate procedural textures standalone or composite them over a backdrop.',
+    description: 'Generate a standalone procedural texture.',
     group: 'generators',
-    action: { kind: 'shader' },
+    action: { kind: 'shader', role: 'fill' },
   },
   {
     label: 'Merge',

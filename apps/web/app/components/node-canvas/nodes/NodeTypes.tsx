@@ -2,7 +2,7 @@ import type { NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
-import { DEFAULT_CUSTOM_SHADER_CODE, validateCustomShaderCode } from '../../../utils/customShaderCode';
+import { validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
@@ -424,6 +424,7 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
     connected,
   } = data;
   const rendersBackdrop = Boolean(backdropPreviewTargetId);
+  const effectRole = shaderNode.role === 'effect';
   const aiPass = shaderNode.shaderKind === 'customSpec';
   const aiPrompt = shaderNode.aiPrompt ?? shaderNode.customShaderSpec?.prompt ?? '';
   const aiHasResult = Boolean(shaderNode.customShaderSpec?.provenance);
@@ -431,7 +432,7 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
     shaderNode.shaderKind === 'customSpec' && !aiHasResult ? (
       <ShaderNodeAiEmptyOverlay hasPrompt={aiPrompt.trim().length >= 3} hasInput={rendersBackdrop} />
     ) : null;
-  const code = shaderNode.customShaderCode?.code ?? DEFAULT_CUSTOM_SHADER_CODE.code;
+  const code = shaderNode.shaderInstance?.definition.code ?? '';
   const codeIssue =
     shaderNode.shaderKind === 'customCode'
       ? (validateCustomShaderCode(code).find((issue) => issue.severity === 'error') ?? null)
@@ -442,12 +443,12 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
     <NodeFrame
       id={shaderNode.id}
       kind="shader"
-      label={aiPass ? 'ai shader pass' : rendersBackdrop ? 'shader pass' : 'shader fill'}
+      label={aiPass ? 'ai shader effect' : effectRole ? 'shader effect' : 'shader fill'}
       name={shaderNode.name}
       selected={selected}
       outputPath={outputPath}
       editing={editing}
-      targetHandles={[{ id: 'bg' }]}
+      targetHandles={effectRole ? [{ id: 'bg' }] : []}
       onSelect={(event) => selectNode(shaderNode.id, event)}
       onDelete={() => deleteNode(shaderNode.id)}
     >
@@ -459,20 +460,12 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
         }
       />
       <PortRow
-        inputs={[
-          {
-            label: aiPass
-              ? rendersBackdrop
-                ? 'source'
-                : 'source required'
-              : rendersBackdrop
-                ? 'backdrop'
-                : 'backdrop optional',
-            portId: 'bg',
-            nodeId: shaderNode.id,
-          },
-        ]}
-        outputs={[{ label: aiPass || rendersBackdrop ? 'pass' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
+        inputs={
+          effectRole
+            ? [{ label: rendersBackdrop ? 'source' : 'source required', portId: 'bg', nodeId: shaderNode.id }]
+            : []
+        }
+        outputs={[{ label: effectRole ? 'effect' : 'fill', portId: 'out', nodeId: shaderNode.id }]}
         connected={connected}
       />
     </NodeFrame>
@@ -496,7 +489,7 @@ function ShaderNodeCodeOverlay({ empty }: { empty: boolean }) {
 }
 
 function ShaderNodeAiEmptyOverlay({ hasPrompt, hasInput }: { hasPrompt: boolean; hasInput: boolean }) {
-  const title = !hasInput ? 'Connect source' : hasPrompt ? 'Ready to create' : 'Describe pass';
+  const title = !hasInput ? 'Connect source' : hasPrompt ? 'Ready to create' : 'Describe effect';
   const detail = !hasInput ? 'Input required' : hasPrompt ? 'Use properties' : 'No result yet';
 
   return (

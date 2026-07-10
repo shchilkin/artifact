@@ -212,7 +212,8 @@ function layerNodeInputPort(nodeId: string, layers: Layer[]): GraphEdge['toPort'
 function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['toPort'] | null {
   if (graph.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
   if ((graph.scene3dNodes ?? []).some((sceneNode) => sceneNode.id === nodeId)) return 'model';
-  if ((graph.shaderNodes ?? []).some((shaderNode) => shaderNode.id === nodeId)) return 'bg';
+  const shaderNode = (graph.shaderNodes ?? []).find((node) => node.id === nodeId);
+  if (shaderNode) return shaderNode.role === 'effect' ? 'bg' : null;
   return hasSingleInputGraphNode(graph, nodeId) ? 'in' : null;
 }
 

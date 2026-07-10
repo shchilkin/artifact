@@ -1,5 +1,5 @@
-import type { GraphShaderNode, ShaderKind } from '../../../types/config';
-import { DEFAULT_CUSTOM_SHADER_CODE } from '../../../utils/customShaderCode';
+import type { GraphShaderNode, ShaderKind, ShaderRole } from '../../../types/config';
+import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
 import { cloneDefaultCustomShaderSpec } from '../../../utils/customShaderSpec';
 import { defaultShaderPalette } from '../../../utils/shaderPalette';
 import { useNodeCanvasActions } from '../context';
@@ -42,12 +42,16 @@ const SHADER_KIND_OPTIONS: Array<{ value: ShaderKind; label: string }> = [
 ];
 
 const SHADER_MODE_OPTIONS: Array<{ value: ShaderMode; label: string }> = [
-  { value: 'preset', label: 'Shader Fill / Pass' },
-  { value: 'ai', label: 'AI Shader Pass' },
+  { value: 'preset', label: 'Shader Fill / Effect' },
+  { value: 'ai', label: 'AI Shader Effect' },
   { value: 'code', label: 'Code Shader' },
 ];
 
 type ShaderMode = 'preset' | 'ai' | 'code';
+const SHADER_ROLE_OPTIONS: Array<{ value: ShaderRole; label: string }> = [
+  { value: 'fill', label: 'Fill' },
+  { value: 'effect', label: 'Effect' },
+];
 
 export function ShaderInspector({
   shaderNode,
@@ -63,20 +67,29 @@ export function ShaderInspector({
   const { setShaderNodeGenerationStatus } = useNodeCanvasActions();
   const shaderMode = shaderModeForKind(shaderNode.shaderKind);
   const preset = showsPresetShaderControls(shaderNode.shaderKind);
-  const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, sourceConnected);
+  const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, shaderNode.role, sourceConnected);
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
+    const role =
+      shaderKind === 'customSpec' ? 'effect' : shaderNode.shaderKind === 'customSpec' ? 'fill' : shaderNode.role;
     setShaderNodeGenerationStatus(shaderNode.id, null);
     onChange({
       shaderKind,
+      role,
       palette: defaultShaderPalette(shaderKind),
       ...(shaderKind === 'customSpec' && !shaderNode.customShaderSpec
         ? { customShaderSpec: cloneDefaultCustomShaderSpec() }
         : {}),
-      ...(shaderKind === 'customCode' && !shaderNode.customShaderCode
-        ? { customShaderCode: DEFAULT_CUSTOM_SHADER_CODE }
+      ...(shaderKind === 'customCode'
+        ? {
+            shaderInstance: shaderNode.shaderInstance ?? makeDefaultCodeShaderInstance(shaderNode.id),
+          }
         : {}),
     });
+  };
+  const handleRoleChange = (value: string) => {
+    const role = value as ShaderRole;
+    onChange({ role });
   };
   const handleModeChange = (value: string) => {
     const mode = value as ShaderMode;
@@ -102,16 +115,30 @@ export function ShaderInspector({
           onChange={handleKindChange}
         />
       )}
+      {shaderMode !== 'ai' && (
+        <InspectorSelect
+          label="Role"
+          value={shaderNode.role}
+          options={SHADER_ROLE_OPTIONS}
+          onChange={handleRoleChange}
+        />
+      )}
       <ShaderRoleStatus status={roleStatus} />
       {shaderNode.shaderKind === 'customSpec' && (
         <AiShaderInspector shaderNode={shaderNode} onChange={onChange} sourceConnected={sourceConnected} />
       )}
       {shaderNode.shaderKind === 'customCode' && <CodeShaderInspector shaderNode={shaderNode} onChange={onChange} />}
       {preset && (
-        <PresetShaderInspector shaderNode={shaderNode} onChange={onChange} sourceConnected={sourceConnected} />
+        <PresetShaderInspector
+          shaderNode={shaderNode}
+          onChange={onChange}
+          sourceConnected={shaderNode.role === 'effect' && sourceConnected}
+        />
       )}
-      {!preset && sourceConnected && <ShaderCompositeSection shaderNode={shaderNode} onChange={onChange} />}
-      <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind)}</p>
+      {!preset && shaderNode.role === 'effect' && sourceConnected && (
+        <ShaderCompositeSection shaderNode={shaderNode} onChange={onChange} />
+      )}
+      <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind, shaderNode.role)}</p>
     </div>
   );
 }

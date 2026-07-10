@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCustomShaderCodeConfig, validateCustomShaderCode } from './customShaderCode';
+import { makeDefaultCodeShaderInstance, validateCustomShaderCode } from './customShaderCode';
 
 describe('custom shader code validation', () => {
-  it('uses an empty shader for a new or missing code configuration', () => {
-    expect(normalizeCustomShaderCodeConfig(undefined).code).toBe('');
-  });
-
-  it('preserves an explicitly empty code shader', () => {
-    expect(normalizeCustomShaderCodeConfig({ code: '' }).code).toBe('');
+  it('creates an empty serializable shader definition for a new code node', () => {
+    expect(makeDefaultCodeShaderInstance('shader-a')).toMatchObject({
+      definition: { id: 'shader-a-definition', code: '', properties: [] },
+      values: {},
+    });
   });
 
   it('requires a mainImage entry point', () => {

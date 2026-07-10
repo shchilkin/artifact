@@ -1,9 +1,5 @@
-import type { GraphShaderNode } from '../../types/config';
-import {
-  customShaderCodeHasBlockingIssues,
-  normalizeCustomShaderCodeConfig,
-  validateCustomShaderCode,
-} from '../customShaderCode';
+import type { GraphShaderNode, ShaderDefinition, ShaderPropertyDefinition } from '../../types/config';
+import { customShaderCodeHasBlockingIssues, validateCustomShaderCode } from '../customShaderCode';
 import { normalizeShaderPalette } from '../shaderPalette';
 import { createCanvas, isDrawableCanvas } from './canvas';
 
@@ -93,8 +89,13 @@ export interface CustomCodeShaderCompileResult {
   message: string | null;
 }
 
-function buildCustomCodeFragmentSource(code: string) {
-  return `${CUSTOM_CODE_FRAGMENT_PREFIX}${code}\n${CUSTOM_CODE_FRAGMENT_SUFFIX}`;
+function shaderPropertyUniformDeclaration(property: ShaderPropertyDefinition) {
+  return `uniform ${property.type === 'color' ? 'vec3' : 'float'} u_prop_${property.key};`;
+}
+
+function buildCustomCodeFragmentSource(code: string, properties: ShaderPropertyDefinition[] = []) {
+  const propertyUniforms = properties.map(shaderPropertyUniformDeclaration).join('\n');
+  return `${CUSTOM_CODE_FRAGMENT_PREFIX}${propertyUniforms}\n${code}\n${CUSTOM_CODE_FRAGMENT_SUFFIX}`;
 }
 
 function compileShader(gl: WebGLRenderingContext, type: number, source: string) {
@@ -168,7 +169,10 @@ function cleanCompileLog(log: string | null) {
   return firstLine.replace(/^ERROR:\s*0:\d+:\s*/i, '').slice(0, 180);
 }
 
-export function compileCustomCodeShaderForDiagnostics(code: string): CustomCodeShaderCompileResult {
+export function compileCustomCodeShaderForDiagnostics(
+  code: string,
+  properties: ShaderPropertyDefinition[] = [],
+): CustomCodeShaderCompileResult {
   const blockingIssue = validateCustomShaderCode(code).find((issue) => issue.severity === 'error');
   if (blockingIssue) return { ok: false, message: blockingIssue.message };
 
@@ -176,7 +180,7 @@ export function compileCustomCodeShaderForDiagnostics(code: string): CustomCodeS
   if (!gl) return { ok: false, message: 'Shader preview is not available in this browser.' };
   let program: WebGLProgram | null = null;
   try {
-    const built = buildProgram(gl, buildCustomCodeFragmentSource(code));
+    const built = buildProgram(gl, buildCustomCodeFragmentSource(code, properties));
     program = built.program;
     if (!program) return { ok: false, message: cleanCompileLog(built.log) };
     return { ok: true, message: null };
@@ -190,6 +194,7 @@ export function compileCustomCodeShaderForDiagnostics(code: string): CustomCodeS
 
 function renderWithWebGl(
   node: GraphShaderNode,
+  definition: ShaderDefinition,
   seed: number,
   width: number,
   height: number,
@@ -197,13 +202,12 @@ function renderWithWebGl(
 ) {
   const { canvas, gl } = createWebGlContext(width, height);
   if (!canvas || !gl) return null;
-  const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
   let program: WebGLProgram | null = null;
   let buffer: WebGLBuffer | null = null;
   let texture: WebGLTexture | null = null;
 
   try {
-    const built = buildProgram(gl, buildCustomCodeFragmentSource(config.code));
+    const built = buildProgram(gl, buildCustomCodeFragmentSource(definition.code, definition.properties));
     program = built.program;
     if (!program) return null;
     gl.useProgram(program);
@@ -233,6 +237,7 @@ function renderWithWebGl(
     gl.uniform1f(gl.getUniformLocation(program, 'u_seed'), seed + node.seedOffset);
     gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), clamp(node.distortion / 100, 0, 1.5));
     gl.uniform1f(gl.getUniformLocation(program, 'u_has_backdrop'), backdrop && isDrawableCanvas(backdrop) ? 1 : 0);
+    setShaderPropertyUniforms(gl, program, definition, node.shaderInstance?.values ?? {});
     gl.viewport(0, 0, width, height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.finish();
@@ -252,6 +257,37 @@ function renderWithWebGl(
   }
 }
 
+function setShaderPropertyUniforms(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  definition: ShaderDefinition,
+  values: Record<string, number | boolean | string>,
+) {
+  for (const property of definition.properties) {
+    const location = gl.getUniformLocation(program, `u_prop_${property.key}`);
+    if (!location) continue;
+    const value = values[property.key] ?? property.default;
+    if (property.type === 'color') {
+      const [red, green, blue] = shaderHexToRgb(typeof value === 'string' ? value : property.default);
+      gl.uniform3f(location, red, green, blue);
+    } else if (property.type === 'boolean') {
+      gl.uniform1f(location, value === true ? 1 : 0);
+    } else {
+      gl.uniform1f(location, typeof value === 'number' ? value : property.default);
+    }
+  }
+}
+
+function shaderHexToRgb(value: string): [number, number, number] {
+  const hex = value.replace('#', '');
+  const expanded = hex.length === 3 ? hex.replace(/./g, (character) => character.repeat(2)) : hex;
+  return [0, 2, 4].map((offset) => Number.parseInt(expanded.slice(offset, offset + 2), 16) / 255) as [
+    number,
+    number,
+    number,
+  ];
+}
+
 export function renderCustomCodeShaderNodeToCanvas(
   node: GraphShaderNode,
   seed: number,
@@ -259,12 +295,16 @@ export function renderCustomCodeShaderNodeToCanvas(
   height: number,
   backdrop?: HTMLCanvasElement | null,
 ) {
-  const config = normalizeCustomShaderCodeConfig(node.customShaderCode);
-  if (!config.code.trim()) return renderTransparentShaderCanvas(width, height);
-  if (customShaderCodeHasBlockingIssues(config.code)) {
+  const definition = node.shaderInstance?.definition;
+  if (!definition?.code.trim()) return renderTransparentShaderCanvas(width, height);
+  if (node.role === 'effect' && (!backdrop || !isDrawableCanvas(backdrop))) {
+    return renderTransparentShaderCanvas(width, height);
+  }
+  if (customShaderCodeHasBlockingIssues(definition.code)) {
     return renderCanvasFallback(node, seed, width, height, backdrop);
   }
   return (
-    renderWithWebGl(node, seed, width, height, backdrop) ?? renderCanvasFallback(node, seed, width, height, backdrop)
+    renderWithWebGl(node, definition, seed, width, height, backdrop) ??
+    renderCanvasFallback(node, seed, width, height, backdrop)
   );
 }

@@ -479,7 +479,7 @@ const layerItems: AddLibraryItem[] = [
     symbol: '◉',
     description: 'Generate a standalone procedural texture for branches or material maps.',
     group: 'shaderFill',
-    action: { kind: 'shader' },
+    action: { kind: 'shader', role: 'fill' },
     surfaces: ['nodes'],
     tags: ['source', 'shader', 'fill', 'material'],
     keywords:
@@ -487,11 +487,11 @@ const layerItems: AddLibraryItem[] = [
   },
   {
     id: 'shader:ai',
-    label: 'AI Shader Pass',
+    label: 'AI Shader Effect',
     symbol: '✦',
     description: 'Create an editable shader pass that processes a connected source.',
     group: 'shaderEffect',
-    action: { kind: 'shader', shaderKind: 'customSpec' },
+    action: { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
     surfaces: ['nodes'],
     tags: ['effect', 'shader', 'ai', 'custom', 'pass'],
     keywords: 'ai shader custom prompt generated editable spec effect pass backdrop source input figma',
@@ -503,7 +503,7 @@ const layerItems: AddLibraryItem[] = [
     symbol: '</>',
     description: 'Write a GLSL fragment shader that can generate or process a backdrop.',
     group: 'shaderFill',
-    action: { kind: 'shader', shaderKind: 'customCode' },
+    action: { kind: 'shader', shaderKind: 'customCode', role: 'fill' },
     surfaces: ['nodes'],
     tags: ['source', 'shader', 'code', 'custom'],
     keywords: 'code shader glsl fragment custom procedural pass backdrop material texture',
@@ -833,14 +833,17 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   if (SIMPLE_ADD_ACTION_KINDS.has(value.kind)) return true;
   if (value.kind === 'material') return value.preset === undefined || isPresetId(value.preset, MATERIAL_PRESET_IDS);
   if (value.kind === 'shader') {
-    return value.shaderKind === undefined || isPresetId(value.shaderKind, [...SHADER_KINDS, ...LEGACY_SHADER_KINDS]);
+    const roleValid = value.role === 'fill' || value.role === 'effect';
+    const kindValid =
+      value.shaderKind === undefined || isPresetId(value.shaderKind, [...SHADER_KINDS, ...LEGACY_SHADER_KINDS]);
+    return roleValid && kindValid && (value.shaderKind !== 'customSpec' || value.role === 'effect');
   }
   return validateAddLibraryActionPayload(value);
 }
 
 function isActionRecord(
   value: unknown,
-): value is { kind: string; layerKind?: unknown; preset?: unknown; shaderKind?: unknown } {
+): value is { kind: string; layerKind?: unknown; preset?: unknown; shaderKind?: unknown; role?: unknown } {
   if (!value || typeof value !== 'object') return false;
   return 'kind' in value && typeof value.kind === 'string';
 }

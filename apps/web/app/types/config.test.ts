@@ -102,7 +102,7 @@ describe('shader kind scope', () => {
 
   it('keeps editable code shaders in active shader fills', () => {
     expect(SHADER_KINDS).toContain('customCode');
-    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).customShaderCode?.code).toBe('');
+    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).shaderInstance?.definition.code).toBe('');
   });
 
   it('normalizes shader palettes at the factory boundary', () => {

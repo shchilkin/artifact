@@ -31,7 +31,8 @@ describe('graphInsertion', () => {
     expect(inputPortForAddedAction({ kind: 'repeatPreset', preset: 'stickerGrid' })).toBe('in');
     expect(inputPortForAddedAction({ kind: 'merge' })).toBe('a');
     expect(inputPortForAddedAction({ kind: 'material', preset: 'chrome' })).toBe('material');
-    expect(inputPortForAddedAction({ kind: 'shader' })).toBe('bg');
+    expect(inputPortForAddedAction({ kind: 'shader', role: 'effect' })).toBe('bg');
+    expect(inputPortForAddedAction({ kind: 'shader', role: 'fill' })).toBeNull();
     expect(inputPortForAddedAction({ kind: 'layer', layerKind: 'text' })).toBe('bg');
     expect(inputPortForAddedAction({ kind: 'noisePreset', preset: 'crtDirt' })).toBe('bg');
   });
@@ -47,6 +48,10 @@ describe('graphInsertion', () => {
 
   it('does not split pixel edges with material nodes', () => {
     expect(resolveEdgeInsertion({ kind: 'material', preset: 'chrome' }, graph.edges[0])).toBeNull();
+  });
+
+  it('does not turn a shader fill into an effect when dropped on an edge', () => {
+    expect(resolveEdgeInsertion({ kind: 'shader', role: 'fill' }, graph.edges[0])).toBeNull();
   });
 
   it('targets 3D scene material slots when material nodes are dropped on scene nodes', () => {

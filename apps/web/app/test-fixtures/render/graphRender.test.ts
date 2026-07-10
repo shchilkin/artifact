@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
+import type { CanvasDocument, CanvasGraph, Layer, ShaderInstance } from '../../types/config';
 import {
   MATERIAL_TEXTURE_INPUT_PORTS,
   type MaterialTextureInputPort,
@@ -15,6 +15,7 @@ import {
   makeTextLayer,
   SHADER_KINDS,
 } from '../../types/config';
+import { makeDefaultCodeShaderInstance } from '../../utils/customShaderCode';
 import { reorderDocumentLayers } from '../../utils/documentCommands';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { measureAlphaBounds } from '../../utils/render/alphaBounds';
@@ -32,6 +33,11 @@ function graphDocument(graph: CanvasGraph, layers?: Layer[]): CanvasDocument {
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
   };
+}
+
+function codeShaderInstance(id: string, code: string): ShaderInstance {
+  const instance = makeDefaultCodeShaderInstance(id);
+  return { ...instance, definition: { ...instance.definition, code } };
 }
 
 function uniquePixelCount(canvas: HTMLCanvasElement) {
@@ -558,11 +564,10 @@ describe('renderGraphTarget', () => {
           id: 'shader-code',
           shaderKind: 'customCode',
           grain: 0,
-          customShaderCode: {
-            version: 1,
-            language: 'glsl-fragment',
-            code: 'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
-          },
+          shaderInstance: codeShaderInstance(
+            'shader-code',
+            'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
+          ),
         }),
       ],
     };
@@ -739,14 +744,14 @@ describe('renderGraphTarget', () => {
       opacity: 100,
       blendMode: 'normal',
       distortion: 100,
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: `vec4 mainImage(vec2 uv) {
+      role: 'effect',
+      shaderInstance: codeShaderInstance(
+        'code-shader',
+        `vec4 mainImage(vec2 uv) {
   vec4 base = texture2D(u_backdrop, uv);
   return vec4(1.0 - base.r, base.g + uv.x * 0.25, base.b + uv.y * 0.25, base.a);
 }`,
-      },
+      ),
     });
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -799,11 +804,8 @@ describe('renderGraphTarget', () => {
       shaderKind: 'customCode',
       opacity: 100,
       blendMode: 'normal',
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: '',
-      },
+      role: 'effect',
+      shaderInstance: codeShaderInstance('code-shader', ''),
     });
     const graph: CanvasGraph = {
       edges: [
@@ -854,16 +856,16 @@ describe('renderGraphTarget', () => {
       shaderKind: 'customCode',
       opacity: 70,
       blendMode: 'screen',
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: `vec4 mainImage(vec2 uv) {
+      role: 'effect',
+      shaderInstance: codeShaderInstance(
+        'code-shader',
+        `vec4 mainImage(vec2 uv) {
   vec4 base = texture2D(u_backdrop, uv);
   vec3 fill = vec3(1.0, 0.15, 0.05);
   vec3 pass = mix(base.rgb, vec3(0.1, 0.9, 1.0), 0.35);
   return vec4(mix(fill, pass, u_has_backdrop), 1.0);
 }`,
-      },
+      ),
     });
     const standaloneGraph: CanvasGraph = {
       edges: [{ id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -906,7 +908,7 @@ describe('renderGraphTarget', () => {
     expect(uniquePixelCount(pass)).toBeGreaterThan(1);
   });
 
-  it('composites shader nodes over an optional backdrop input', async () => {
+  it('composites shader effect nodes over their required backdrop input', async () => {
     const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
     const graph: CanvasGraph = {
       edges: [
@@ -920,6 +922,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind: 'staticRadialGradient',
+          role: 'effect',
           palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 45,
@@ -955,6 +958,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
+          role: 'fill',
           palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 100,
@@ -991,6 +995,7 @@ describe('renderGraphTarget', () => {
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
+          role: 'effect',
           palette: ['#ff2200', '#ff2200'],
           grain: 0,
           opacity: 100,
@@ -1195,7 +1200,7 @@ describe('renderGraphTarget', () => {
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', opacity: 0, grain: 0 })],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', role: 'effect', opacity: 0, grain: 0 })],
     };
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -1235,6 +1240,7 @@ describe('renderGraphTarget', () => {
     const shaderNode = makeGraphShaderNode({
       id: 'shader-a',
       shaderKind: 'staticRadialGradient',
+      role: 'effect',
       palette: ['#ff2200', '#ff2200'],
       grain: 0,
     });

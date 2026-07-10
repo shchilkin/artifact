@@ -36,6 +36,64 @@ export interface CreateAiGenerationRequest {
   idempotencyKey: string;
 }
 
+export const SHADER_ROLES = ['fill', 'effect'] as const;
+export type ShaderRole = (typeof SHADER_ROLES)[number];
+
+export const SHADER_PROPERTY_TYPES = ['number', 'boolean', 'color'] as const;
+export type ShaderPropertyType = (typeof SHADER_PROPERTY_TYPES)[number];
+export type ShaderPropertyValue = number | boolean | string;
+
+interface ShaderPropertyDefinitionBase {
+  key: string;
+  label: string;
+  description?: string;
+}
+
+export interface ShaderNumberPropertyDefinition extends ShaderPropertyDefinitionBase {
+  type: 'number';
+  default: number;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface ShaderBooleanPropertyDefinition extends ShaderPropertyDefinitionBase {
+  type: 'boolean';
+  default: boolean;
+}
+
+export interface ShaderColorPropertyDefinition extends ShaderPropertyDefinitionBase {
+  type: 'color';
+  default: string;
+}
+
+export type ShaderPropertyDefinition =
+  | ShaderNumberPropertyDefinition
+  | ShaderBooleanPropertyDefinition
+  | ShaderColorPropertyDefinition;
+
+export interface ShaderDefinitionProvenance {
+  source: 'manual' | 'openai' | 'localFallback';
+  prompt?: string;
+  model?: string;
+}
+
+/** A reusable, serializable shader program. A graph node owns only an instance of this definition. */
+export interface ShaderDefinition {
+  version: 1;
+  id: string;
+  label: string;
+  language: 'glsl-fragment';
+  code: string;
+  properties: ShaderPropertyDefinition[];
+  provenance?: ShaderDefinitionProvenance;
+}
+
+export interface ShaderInstance {
+  definition: ShaderDefinition;
+  values: Record<string, ShaderPropertyValue>;
+}
+
 export type CustomShaderOperation =
   | {
       op: 'noise';
@@ -133,10 +191,180 @@ export interface AiShaderSpecGenerationResponse {
 }
 
 const CUSTOM_SHADER_HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+const SHADER_PROPERTY_KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
+const MAX_SHADER_DEFINITION_PROPERTIES = 12;
+
+export function normalizeShaderDefinition(value: unknown, fallbackId = 'shader-definition'): ShaderDefinition | null {
+  if (!isCustomShaderRecord(value)) return null;
+  const properties = Array.isArray(value.properties)
+    ? value.properties
+        .map(normalizeShaderPropertyDefinition)
+        .filter((property): property is ShaderPropertyDefinition => Boolean(property))
+        .filter((property, index, all) => all.findIndex((candidate) => candidate.key === property.key) === index)
+        .slice(0, MAX_SHADER_DEFINITION_PROPERTIES)
+    : [];
+  return {
+    version: 1,
+    id: normalizeShaderText(value.id, fallbackId, 120),
+    label: normalizeShaderText(value.label, 'Untitled Shader', 80),
+    language: 'glsl-fragment',
+    code: typeof value.code === 'string' ? value.code.slice(0, 12_000) : '',
+    properties,
+    provenance: normalizeShaderDefinitionProvenance(value.provenance),
+  };
+}
+
+export function normalizeShaderInstance(value: unknown, fallbackId = 'shader-definition'): ShaderInstance | null {
+  if (!isCustomShaderRecord(value)) return null;
+  const definition = normalizeShaderDefinition(value.definition, fallbackId);
+  if (!definition) return null;
+  return {
+    definition,
+    values: normalizeShaderPropertyValues(definition, value.values),
+  };
+}
+
+export function normalizeShaderPropertyValues(
+  definition: ShaderDefinition,
+  value: unknown,
+): Record<string, ShaderPropertyValue> {
+  const values = isCustomShaderRecord(value) ? value : {};
+  return Object.fromEntries(
+    definition.properties.map((property) => [
+      property.key,
+      normalizeShaderPropertyValue(property, values[property.key]),
+    ]),
+  );
+}
+
+export function validateShaderDefinition(value: unknown): string[] {
+  if (!isCustomShaderRecord(value)) return ['Shader definition must be an object.'];
+  const errors: string[] = [];
+  if (value.version !== 1) errors.push('Shader definition version must be 1.');
+  if (value.language !== 'glsl-fragment') errors.push('Shader language must be glsl-fragment.');
+  if (typeof value.code !== 'string') errors.push('Shader code must be a string.');
+  if (typeof value.code === 'string' && value.code.length > 12_000)
+    errors.push('Keep shader code under 12,000 characters.');
+  if (!Array.isArray(value.properties)) {
+    errors.push('Shader properties must be an array.');
+    return errors;
+  }
+  if (value.properties.length > MAX_SHADER_DEFINITION_PROPERTIES)
+    errors.push(`Use ${MAX_SHADER_DEFINITION_PROPERTIES} shader properties or fewer.`);
+  const keys = new Set<string>();
+  value.properties.forEach((property, index) => {
+    const normalized = normalizeShaderPropertyDefinition(property);
+    if (!normalized) {
+      errors.push(`Shader property ${index + 1} is invalid.`);
+      return;
+    }
+    shaderPropertyValidationErrors(property).forEach((error) => errors.push(`Shader property ${index + 1}: ${error}`));
+    if (keys.has(normalized.key)) errors.push(`Shader property key ${normalized.key} is duplicated.`);
+    keys.add(normalized.key);
+  });
+  return errors;
+}
+
+function shaderPropertyValidationErrors(value: unknown): string[] {
+  if (!isCustomShaderRecord(value)) return ['definition must be an object.'];
+  switch (value.type) {
+    case 'number': {
+      const numbers = [value.default, value.min, value.max, value.step];
+      if (!numbers.every((number) => typeof number === 'number' && Number.isFinite(number)))
+        return ['number fields must be finite numbers.'];
+      const errors: string[] = [];
+      if ((value.min as number) > (value.max as number)) errors.push('minimum must not exceed maximum.');
+      if ((value.step as number) <= 0) errors.push('step must be greater than zero.');
+      if ((value.default as number) < (value.min as number) || (value.default as number) > (value.max as number))
+        errors.push('default must be inside the allowed range.');
+      return errors;
+    }
+    case 'boolean':
+      return typeof value.default === 'boolean' ? [] : ['default must be true or false.'];
+    case 'color':
+      return typeof value.default === 'string' && CUSTOM_SHADER_HEX_COLOR_RE.test(value.default)
+        ? []
+        : ['default must be a hex color.'];
+    default:
+      return ['type is not supported.'];
+  }
+}
+
+function normalizeShaderPropertyDefinition(value: unknown): ShaderPropertyDefinition | null {
+  if (!isCustomShaderRecord(value) || !SHADER_PROPERTY_KEY_RE.test(String(value.key ?? ''))) return null;
+  const key = String(value.key);
+  const label = normalizeShaderText(value.label, humanizeShaderPropertyKey(key), 60);
+  const description = typeof value.description === 'string' ? value.description.slice(0, 180) : undefined;
+  switch (value.type) {
+    case 'number': {
+      const min = finiteShaderNumber(value.min, 0);
+      const max = Math.max(min, finiteShaderNumber(value.max, 1));
+      const step = Math.max(0.0001, finiteShaderNumber(value.step, Math.max((max - min) / 100, 0.01)));
+      return {
+        type: 'number',
+        key,
+        label,
+        description,
+        min,
+        max,
+        step,
+        default: clampCustomShaderNumber(value.default, min, max, min),
+      };
+    }
+    case 'boolean':
+      return { type: 'boolean', key, label, description, default: value.default === true };
+    case 'color':
+      return {
+        type: 'color',
+        key,
+        label,
+        description,
+        default:
+          typeof value.default === 'string' && CUSTOM_SHADER_HEX_COLOR_RE.test(value.default)
+            ? value.default
+            : '#ffffff',
+      };
+    default:
+      return null;
+  }
+}
+
+function normalizeShaderPropertyValue(property: ShaderPropertyDefinition, value: unknown): ShaderPropertyValue {
+  switch (property.type) {
+    case 'number':
+      return clampCustomShaderNumber(value, property.min, property.max, property.default);
+    case 'boolean':
+      return typeof value === 'boolean' ? value : property.default;
+    case 'color':
+      return typeof value === 'string' && CUSTOM_SHADER_HEX_COLOR_RE.test(value) ? value : property.default;
+  }
+}
+
+function normalizeShaderDefinitionProvenance(value: unknown): ShaderDefinitionProvenance | undefined {
+  if (!isCustomShaderRecord(value)) return undefined;
+  if (!['manual', 'openai', 'localFallback'].includes(String(value.source))) return undefined;
+  return {
+    source: value.source as ShaderDefinitionProvenance['source'],
+    prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
+    model: typeof value.model === 'string' ? value.model.slice(0, 120) : undefined,
+  };
+}
+
+function normalizeShaderText(value: unknown, fallback: string, maxLength: number) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : fallback;
+}
+
+function humanizeShaderPropertyKey(key: string) {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function finiteShaderNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
 
 export const DEFAULT_CUSTOM_SHADER_SPEC: CustomShaderSpec = {
   version: 2,
-  label: 'AI Shader Pass',
+  label: 'AI Shader Effect',
   base: 0.46,
   contrast: 1.18,
   palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],

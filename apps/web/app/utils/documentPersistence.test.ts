@@ -57,6 +57,15 @@ describe('normalizeDocument', () => {
     expect(doc.layers[0]?.id).toBe('legacy-fill');
   });
 
+  it('rejects documents created by a newer schema instead of downgrading them', () => {
+    expect(() =>
+      normalizeDocument({
+        schemaVersion: DOCUMENT_SCHEMA_VERSION + 1,
+        layers: [],
+      }),
+    ).toThrow(`Unsupported document schema version ${DOCUMENT_SCHEMA_VERSION + 1}`);
+  });
+
   it('preserves supported shader kinds and normalizes legacy or unknown shader kinds', () => {
     const doc = normalizeDocument({
       layers: [],
@@ -104,6 +113,7 @@ describe('normalizeDocument', () => {
             id: 'shader-ai',
             name: 'AI Shader',
             shaderKind: 'customSpec',
+            role: 'fill',
             aiPrompt,
             customShaderSpec: {
               version: 2,
@@ -127,6 +137,7 @@ describe('normalizeDocument', () => {
 
     const node = doc.graph?.shaderNodes?.[0];
     expect(node?.shaderKind).toBe('customSpec');
+    expect(node?.role).toBe('effect');
     expect(node?.aiPrompt).toBe(aiPrompt);
     expect(node?.customShaderSpec).toMatchObject({
       base: 1,
@@ -143,11 +154,12 @@ describe('normalizeDocument', () => {
     });
   });
 
-  it('normalizes custom shader code nodes', () => {
+  it('migrates legacy custom shader code into a shader definition instance', () => {
     const doc = normalizeDocument({
+      schemaVersion: 1,
       layers: [],
       graph: {
-        edges: [],
+        edges: [{ id: 'e-source-shader', fromId: 'source', fromPort: 'out', toId: 'shader-code', toPort: 'bg' }],
         positions: {},
         mergeNodes: [],
         colorNodes: [],
@@ -167,11 +179,60 @@ describe('normalizeDocument', () => {
     });
 
     const node = doc.graph?.shaderNodes?.[0];
+    expect(doc.schemaVersion).toBe(2);
     expect(node?.shaderKind).toBe('customCode');
-    expect(node?.customShaderCode).toEqual({
-      version: 1,
-      language: 'glsl-fragment',
-      code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+    expect(node?.role).toBe('effect');
+    expect(node?.shaderInstance).toMatchObject({
+      definition: {
+        id: 'shader-code-definition',
+        language: 'glsl-fragment',
+        code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+        properties: [],
+      },
+      values: {},
+    });
+    expect(node).not.toHaveProperty('customShaderCode');
+  });
+
+  it('normalizes shader definitions and instance values at the document boundary', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-definition',
+            name: 'Water Effect',
+            shaderKind: 'customCode',
+            role: 'effect',
+            shaderInstance: {
+              definition: {
+                version: 1,
+                id: 'water-effect',
+                label: 'Water Effect',
+                language: 'glsl-fragment',
+                code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+                properties: [
+                  { key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 1, step: 0.01 },
+                  { key: 'tint', label: 'Tint', type: 'color', default: '#55ccff' },
+                ],
+              },
+              values: { amount: 9, tint: 'invalid', ignored: true },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({
+      role: 'effect',
+      shaderInstance: {
+        definition: { id: 'water-effect' },
+        values: { amount: 1, tint: '#55ccff' },
+      },
     });
   });
 
@@ -826,6 +887,7 @@ describe('document serialization helpers', () => {
             id: 'shader-a',
             name: 'Mesh Shader',
             shaderKind: 'meshGradient',
+            role: 'fill',
             aiPrompt: undefined,
             palette: ['#101010', '#ff705f', '#8d5cff', '#79e3c5'],
             distortion: 48,

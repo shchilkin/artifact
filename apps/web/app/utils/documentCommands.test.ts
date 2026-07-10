@@ -844,14 +844,18 @@ describe('documentCommands', () => {
     });
   });
 
-  it('adds prompt-ready custom shader spec nodes as input-driven pass nodes', () => {
-    const result = addNodeToFillSource({ kind: 'shader', shaderKind: 'customSpec' }, { replaceEdgeId: 'e-fill-text' });
+  it('adds prompt-ready AI shaders as explicit input-driven effect nodes', () => {
+    const result = addNodeToFillSource(
+      { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
+      { replaceEdgeId: 'e-fill-text' },
+    );
     const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'customSpec');
 
     expect(result.selectedLayerId).toBeNull();
     expect(shaderNode).toMatchObject({
-      name: 'AI Shader Pass',
+      name: 'AI Shader Effect',
       shaderKind: 'customSpec',
+      role: 'effect',
       customShaderSpec: {
         version: 2,
         operations: expect.arrayContaining([expect.objectContaining({ op: 'noise' })]),
@@ -873,6 +877,20 @@ describe('documentCommands', () => {
         toPort: 'bg',
       }),
     );
+  });
+
+  it('creates a code shader as an effect when inserted into an edge', () => {
+    const result = addNodeToFillSource(
+      { kind: 'shader', shaderKind: 'customCode', role: 'effect' },
+      { replaceEdgeId: 'e-fill-text' },
+    );
+    const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'customCode');
+
+    expect(shaderNode).toMatchObject({
+      name: 'Code Shader',
+      role: 'effect',
+      shaderInstance: { definition: { code: '' }, values: {} },
+    });
   });
 
   it('does not remove a locked layer', () => {
@@ -919,6 +937,17 @@ describe('documentCommands', () => {
     expect(setDocumentGraph(doc, graph).graph).toBe(graph);
     expect(doc.global.seed).toBe(12);
     expect(doc.export.scale).toBe(1);
+  });
+
+  it('removes the image input edge when a shader becomes a fill', () => {
+    const graph = makeGraph();
+    graph.edges.push({ id: 'e-fill-shader', fromId: 'fill-a', fromPort: 'out', toId: 'shader-a', toPort: 'bg' });
+    graph.shaderNodes = [makeGraphShaderNode({ id: 'shader-a', role: 'effect' })];
+
+    const next = updateShaderNodeInDocument(makeDoc(graph), 'shader-a', { role: 'fill' });
+
+    expect(next.graph?.shaderNodes?.[0]?.role).toBe('fill');
+    expect(next.graph?.edges.some((edge) => edge.toId === 'shader-a' && edge.toPort === 'bg')).toBe(false);
   });
 
   it('duplicates layers after the source and deep-clones emoji arrays', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
-import { codeShaderUniformControls } from './CodeShaderInspectorModel';
+import { codeShaderUniformControls, makeCodeShaderProperty } from './CodeShaderInspectorModel';
 import { shaderPresetControlConfig } from './ShaderInspectorMetadata';
 import {
   aiShaderPassEmptyStatus,
@@ -43,20 +43,20 @@ describe('ShaderInspector metadata', () => {
     expect(canCreateAiShaderPass('x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1), true, false)).toBe(false);
   });
 
-  it('describes AI shader empty state as a source-connected pass', () => {
+  it('describes AI shader empty state as a source-connected effect', () => {
     expect(aiShaderPassEmptyStatus(false, false)).toEqual({
       title: 'Connect source',
-      message: 'This pass transforms an incoming image. Connect a source before creating it.',
+      message: 'This effect transforms an incoming image. Connect a source before creating it.',
     });
     expect(aiShaderPassEmptyStatus(true, true)).toEqual({
       title: 'Ready to create',
-      message: 'Create an editable pass that processes the connected source.',
+      message: 'Create an editable effect that processes the connected source.',
     });
-    expect(shaderInspectorRoleNote('customSpec')).toBe(
-      'Use as a source-connected pass, then send the processed result onward or into a material map.',
+    expect(shaderInspectorRoleNote('customSpec', 'effect')).toBe(
+      'Use as a source-connected effect, then send the processed result onward or into a material map.',
     );
-    expect(shaderInspectorRoleNote('customCode')).toBe(
-      'Use code as a standalone shader fill or as a pass over the connected backdrop.',
+    expect(shaderInspectorRoleNote('customCode', 'fill')).toBe(
+      'This shader creates its own pixels and can feed artwork or a material map.',
     );
   });
 
@@ -66,19 +66,20 @@ describe('ShaderInspector metadata', () => {
     expect(showsPresetShaderControls('customCode')).toBe(false);
   });
 
-  it('describes preset shaders as fill or pass from source connection state', () => {
-    expect(shaderInspectorRoleStatus('meshGradient', false)).toEqual({
+  it('describes shader roles independently from connection state', () => {
+    expect(shaderInspectorRoleStatus('meshGradient', 'fill', false)).toEqual({
       label: 'Shader Fill',
-      message: 'No input is connected, so this shader renders its own texture.',
+      message: 'This shader renders its own texture and does not accept an image input.',
       mode: 'fill',
     });
-    expect(shaderInspectorRoleStatus('meshGradient', true)).toEqual({
-      label: 'Shader Pass',
-      message: 'Connected artwork is sampled by this shader and sent onward as a pass.',
+    expect(shaderInspectorRoleStatus('meshGradient', 'effect', true)).toEqual({
+      label: 'Shader Effect',
+      message: 'Connected artwork can be transformed by the generated shader.',
       mode: 'pass',
     });
-    expect(shaderInspectorRoleStatus('customCode', true)).toMatchObject({
-      label: 'Code Pass',
+    expect(shaderInspectorRoleStatus('customCode', 'effect', false)).toMatchObject({
+      label: 'Shader Effect',
+      message: expect.stringContaining('stays transparent'),
       mode: 'pass',
     });
   });
@@ -90,5 +91,15 @@ describe('ShaderInspector metadata', () => {
       'variation',
     ]);
     expect(codeShaderUniformControls('// u_strength\nvec4 mainImage(vec2 uv) { return vec4(1.0); }')).toEqual([]);
+  });
+
+  it('creates reachable manifest controls with stable unique uniform keys', () => {
+    const amount = makeCodeShaderProperty('number', []);
+    const secondAmount = makeCodeShaderProperty('number', [amount]);
+    const tint = makeCodeShaderProperty('color', [amount, secondAmount]);
+
+    expect(amount).toMatchObject({ key: 'amount', type: 'number', default: 0.5 });
+    expect(secondAmount).toMatchObject({ key: 'amount2', label: 'Amount 2' });
+    expect(tint).toEqual({ key: 'tint', label: 'Tint', type: 'color', default: '#ffffff' });
   });
 });

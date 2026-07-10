@@ -77,19 +77,20 @@ describe('addLibraryModel', () => {
     );
   });
 
-  it('exposes AI Shader Pass as a prompt-ready input-driven shader node', () => {
+  it('exposes AI Shader Effect as a prompt-ready input-driven shader node', () => {
     const item = addLibraryItemsForSurface('nodes').find((entry) => entry.id === 'shader:ai');
 
     expect(item).toMatchObject({
-      label: 'AI Shader Pass',
-      action: { kind: 'shader', shaderKind: 'customSpec' },
+      label: 'AI Shader Effect',
+      action: { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
       group: 'shaderEffect',
     });
     expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
       kind: 'shader',
       shaderKind: 'customSpec',
+      role: 'effect',
     });
-    expect(parseAddLibraryAction(JSON.stringify({ kind: 'shader', shaderKind: 'rawCode' }))).toBeNull();
+    expect(parseAddLibraryAction(JSON.stringify({ kind: 'shader', shaderKind: 'rawCode', role: 'fill' }))).toBeNull();
   });
 
   it('exposes Code Shader as an editable GLSL shader node', () => {
@@ -97,12 +98,13 @@ describe('addLibraryModel', () => {
 
     expect(item).toMatchObject({
       label: 'Code Shader',
-      action: { kind: 'shader', shaderKind: 'customCode' },
+      action: { kind: 'shader', shaderKind: 'customCode', role: 'fill' },
       group: 'shaderFill',
     });
     expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
       kind: 'shader',
       shaderKind: 'customCode',
+      role: 'fill',
     });
   });
 
@@ -322,7 +324,10 @@ describe('addLibraryModel', () => {
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'grimeShadow' }))).toEqual({ kind: 'grimeShadow' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'environment' }))).toEqual({ kind: 'environment' });
-    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'shader' }))).toEqual({ kind: 'shader' });
+    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'shader', role: 'fill' }))).toEqual({
+      kind: 'shader',
+      role: 'fill',
+    });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'effect', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'textPreset', preset: 'not-real' }))).toBeNull();
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'material', preset: 'not-real' }))).toBeNull();

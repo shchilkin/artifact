@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeGraphShaderNode } from '../../types/config';
+import { makeDefaultCodeShaderInstance } from '../customShaderCode';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
 function sampleRgb(canvas: HTMLCanvasElement, x: number, y: number) {
@@ -66,10 +67,12 @@ describe('shader node renderer', () => {
       id: 'custom-code',
       shaderKind: 'customCode',
       distortion: 64,
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: 'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('custom-code'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('custom-code').definition,
+          code: 'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
+        },
       },
     });
     const first = renderShaderNodeToCanvas(node, 1171, 220, 140);
@@ -84,11 +87,7 @@ describe('shader node renderer', () => {
       makeGraphShaderNode({
         id: 'empty-code-shader',
         shaderKind: 'customCode',
-        customShaderCode: {
-          version: 1,
-          language: 'glsl-fragment',
-          code: '',
-        },
+        shaderInstance: makeDefaultCodeShaderInstance('empty-code-shader'),
       }),
       1171,
       220,
@@ -103,10 +102,12 @@ describe('shader node renderer', () => {
     const node = makeGraphShaderNode({
       id: 'invalid-code-shader',
       shaderKind: 'customCode',
-      customShaderCode: {
-        version: 1,
-        language: 'glsl-fragment',
-        code: 'vec4 shade(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('invalid-code-shader'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('invalid-code-shader').definition,
+          code: 'vec4 shade(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+        },
       },
     });
     const first = renderShaderNodeToCanvas(node, 1171, 220, 140);

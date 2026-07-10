@@ -122,12 +122,16 @@ bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
 procedural sources, and future asset nodes can all repeat through the same
 render path once they produce canvas pixels.
+Shader nodes have an explicit persisted `fill` or `effect` role. Connection
+state does not switch render semantics. Fill nodes ignore image-input edges and
+create their own pixels; effect nodes require a `bg` dependency and return a
+transparent canvas when it is absent.
 Shader fill nodes render deterministic procedural raster textures through
 `apps/web/app/utils/render/shaderNodes.ts`. Preset shader fills can act as graph
-sources when their optional backdrop input is empty, or as shader passes when a
-backdrop is connected. In pass mode the backdrop is sampled as input texture
-data: source luminance and detail shape the generated shader response before
-opacity and blend mode are applied as pass intensity. Their output can be
+sources. Preset shader effects use the same procedural renderer but sample their
+required backdrop as input texture data: source luminance and detail shape the
+generated shader response before opacity and blend mode are applied as effect
+intensity. Their output can be
 composed directly, repeated, masked, or used as a material texture map.
 AI/custom shader spec work uses the same renderer boundary through a validated
 `customSpec` shader kind, but it is an input-dependent shader pass rather than a
@@ -150,7 +154,7 @@ completed response and returns it for a repeated key without calling OpenAI or
 charging monthly quota again. OpenAI requests use a bounded timeout and record
 the provider request ID plus input/output token counts for operational tracing;
 the deterministic local fallback does not consume provider quota.
-AI Shader Pass operations execute in their saved order. Procedural operations
+AI Shader Effect operations execute in their saved order. Procedural operations
 change the working tone, source operations read or transform the connected
 backdrop at that point in the sequence, and `gradientMap` maps the current tone
 through the saved palette. Reordering operations is therefore render-relevant.
@@ -158,15 +162,18 @@ The AI pass does not read preset-only shader fields such as node distortion,
 scale, rotation, offsets, or the preset seed offset. Its output is controlled by
 the saved spec operations, document seed, and pass-only opacity/blend settings,
 so hidden settings from a previously selected preset cannot change the result.
-Custom code shader work uses the separate `customCode` shader kind. The
-document stores a GLSL fragment body that must define `mainImage(vec2 uv)`.
+Custom code shader work uses the separate `customCode` shader kind. The graph
+node stores a Shader Instance containing a serializable Shader Definition and
+instance property values; the graph node owns the instance's explicit role. The
+definition stores a GLSL fragment body that must
+define `mainImage(vec2 uv)`.
 The renderer wraps that body with the stable uniforms `u_backdrop`,
-`u_resolution`, `u_seed`, `u_strength`, and `u_has_backdrop`; it does not execute JavaScript or mutate
-document state during compile/render. When no backdrop is connected, the shader
-receives a deterministic fallback texture and acts as a standalone fill. When a
-backdrop is connected, `u_has_backdrop` is `1.0`, `u_backdrop` samples that
-upstream canvas directly, and the node opacity/blend mode control pass
-intensity.
+`u_resolution`, `u_seed`, `u_strength`, and `u_has_backdrop`, plus manifest
+properties as `u_prop_<key>` uniforms; it does not execute JavaScript or mutate
+document state during compile/render. A fill receives a deterministic fallback
+texture for optional sampling and never consumes an upstream image. An effect
+receives its required upstream canvas directly; without it, output is
+transparent. Node opacity and blend mode control effect intensity.
 Browsers without WebGL or shaders that fail to compile must return a visible
 deterministic fallback canvas instead of breaking graph traversal.
 An empty Code Shader is different from a failed shader: it renders transparent

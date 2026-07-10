@@ -817,7 +817,7 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
   if (!shaderNode) return null;
   const backdropId = findIncomingSource(context.graph, nodeId, 'bg');
   if (shaderNode.shaderKind === 'customCode') {
-    const backdrop = backdropId ? await context.renderDependency(backdropId) : null;
+    const backdrop = shaderNode.role === 'effect' && backdropId ? await context.renderDependency(backdropId) : null;
     throwIfRenderAborted(context.options);
     const rendered = renderCustomCodeShaderNodeToCanvas(
       shaderNode,
@@ -826,12 +826,15 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
       context.H,
       backdrop,
     );
-    return backdrop
+    return shaderNode.role === 'effect' && backdrop
       ? mixShaderPassWithBackdrop(backdrop, rendered, shaderNode.opacity, shaderNode.blendMode, context.W, context.H)
       : rendered;
   }
 
-  if (shaderNode.shaderKind === 'customSpec' && (!backdropId || !shaderNode.customShaderSpec?.provenance)) {
+  if (
+    shaderNode.shaderKind === 'customSpec' &&
+    (shaderNode.role !== 'effect' || !backdropId || !shaderNode.customShaderSpec?.provenance)
+  ) {
     return createCanvas(context.W, context.H);
   }
 
@@ -856,7 +859,8 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
   }
 
   const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);
-  if (!backdropId) return shader;
+  if (shaderNode.role === 'fill') return shader;
+  if (!backdropId) return createCanvas(context.W, context.H);
   const backdrop = await context.renderDependency(backdropId);
   throwIfRenderAborted(context.options);
   const processedBackdrop = createBackdropAwareShaderCanvas(backdrop, shader, shaderNode, context.W, context.H);
