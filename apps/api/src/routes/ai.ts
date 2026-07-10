@@ -6,32 +6,26 @@ import type {
   AiGenerationJobResponse,
   AiGenerationSettings,
   AiProvider,
-  AiShaderSpecGenerationResponse,
-  AiShaderSpecRequestMode,
-  CreateAiShaderSpecRequest,
+  AiShaderGenerationResponse,
+  AiShaderRequestMode,
+  CreateAiShaderRequest,
   CreateGenerationRequest,
 } from '../contracts.js';
 import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
-import { generateCustomShaderSpecFromPrompt, validateShaderPrompt } from '../customShaderSpecGenerator.js';
 import { isActiveGenerationJobExistsError } from '../db/errors.js';
 import type { ApiRepositories } from '../db/repositories.js';
-import type { AiGenerationJobRow, AiShaderSpecRequestRow, AssetRow, JsonObject } from '../db/types.js';
+import type { AiGenerationJobRow, AiShaderRequestRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
 import { logInfo, logWarn } from '../logger.js';
 import {
-  isOpenAiShaderSpecTimeoutError,
+  isOpenAiShaderTimeoutError,
   type ProviderRegistry,
-  type ShaderSpecGenerationProvider,
+  type ShaderGenerationProvider,
 } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
-import {
-  checkMonthlyQuota,
-  checkOneActiveJob,
-  createQuotaSnapshot,
-  getMonthlyQuotaPeriod,
-  type MonthlyQuotaCheck,
-} from '../quota.js';
+import { checkOneActiveJob, createQuotaSnapshot, getMonthlyQuotaPeriod, type MonthlyQuotaCheck } from '../quota.js';
 import type { InMemoryRateLimiter } from '../rateLimit.js';
+import { generateLocalShaderInstanceFromPrompt, validateShaderPrompt } from '../shaderGenerator.js';
 
 export interface AiRouteRequest extends RequestLike, AsyncIterable<Buffer> {
   method?: string;
@@ -46,7 +40,7 @@ export interface AiRouteDeps {
   monthlyGenerationLimit: number;
   maxActiveJobsPerUser: number;
   createRateLimiter?: InMemoryRateLimiter;
-  shaderSpecProvider?: ShaderSpecGenerationProvider;
+  shaderProvider?: ShaderGenerationProvider;
   now?: () => Date;
   createId?: () => string;
 }
@@ -56,7 +50,7 @@ type AiRouteHandler = (
   deps: AiRouteDeps,
   pathname: string,
 ) => Promise<JsonResponse<
-  AiAccessResponse | AiGenerationJobResponse | AiShaderSpecGenerationResponse | { code: string; message: string }
+  AiAccessResponse | AiGenerationJobResponse | AiShaderGenerationResponse | { code: string; message: string }
 > | null>;
 
 const AI_ROUTE_HANDLERS: Array<{
@@ -68,8 +62,8 @@ const AI_ROUTE_HANDLERS: Array<{
     handle: (request, deps) => handleAccessRequest(request, deps),
   },
   {
-    match: (method, pathname) => method === 'POST' && pathname === AI_API_PATHS.shaderSpec,
-    handle: handleCreateShaderSpecRoute,
+    match: (method, pathname) => method === 'POST' && pathname === AI_API_PATHS.shader,
+    handle: handleCreateShaderRoute,
   },
   {
     match: (method, pathname) => method === 'POST' && pathname === '/api/ai/generations',
@@ -91,7 +85,7 @@ export async function handleAiRequest(
   request: AiRouteRequest,
   deps: AiRouteDeps,
 ): Promise<JsonResponse<
-  AiAccessResponse | AiGenerationJobResponse | AiShaderSpecGenerationResponse | { code: string; message: string }
+  AiAccessResponse | AiGenerationJobResponse | AiShaderGenerationResponse | { code: string; message: string }
 > | null> {
   const method = request.method ?? 'GET';
   const pathname = new URL(request.url ?? '/', 'http://artifact.local').pathname;
@@ -99,9 +93,9 @@ export async function handleAiRequest(
   return route ? route.handle(request, deps, pathname) : null;
 }
 
-async function handleCreateShaderSpecRoute(request: AiRouteRequest, deps: AiRouteDeps) {
-  const body = await readCreateShaderSpecBody(request);
-  return body.ok ? handleCreateShaderSpecRequest(request, body.value, deps) : body.response;
+async function handleCreateShaderRoute(request: AiRouteRequest, deps: AiRouteDeps) {
+  const body = await readCreateShaderBody(request);
+  return body.ok ? handleCreateShaderRequest(request, body.value, deps) : body.response;
 }
 
 async function handleCreateGenerationRoute(request: AiRouteRequest, deps: AiRouteDeps) {
@@ -109,14 +103,13 @@ async function handleCreateGenerationRoute(request: AiRouteRequest, deps: AiRout
   return body.ok ? handleCreateGenerationRequest(request, body.value, deps) : body.response;
 }
 
-async function readCreateShaderSpecBody(
+async function readCreateShaderBody(
   request: AiRouteRequest,
 ): Promise<
-  | { ok: true; value: CreateAiShaderSpecRequest }
-  | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+  { ok: true; value: CreateAiShaderRequest } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
 > {
   try {
-    return { ok: true, value: await readJsonBody<CreateAiShaderSpecRequest>(request) };
+    return { ok: true, value: await readJsonBody<CreateAiShaderRequest>(request) };
   } catch {
     return { ok: false, response: errorJson(400, 'invalid_json', 'Request body must be valid JSON.') };
   }
@@ -177,106 +170,144 @@ export async function handleAccessRequest(
   );
 }
 
-export async function handleCreateShaderSpecRequest(
+export async function handleCreateShaderRequest(
   request: RequestLike,
-  body: CreateAiShaderSpecRequest,
+  body: CreateAiShaderRequest,
   deps: AiRouteDeps,
-): Promise<JsonResponse<AiShaderSpecGenerationResponse | { code: string; message: string }>> {
-  const authResult = await authenticateCreateShaderSpec(request, deps);
+): Promise<JsonResponse<AiShaderGenerationResponse | { code: string; message: string }>> {
+  const authResult = await authenticateCreateShader(request, deps);
   if (!authResult.ok) return authResult.response;
 
   const promptResult = validateShaderPrompt(body?.prompt);
   if (!promptResult.ok) return errorJson(400, promptResult.code, promptResult.message);
 
-  const modeResult = validateShaderSpecMode(body?.mode);
+  const modeResult = validateShaderMode(body?.mode);
   if (!modeResult.ok) return errorJson(400, modeResult.code, modeResult.message);
 
-  const idempotencyResult = validateShaderSpecIdempotencyKey(body?.idempotencyKey);
+  const idempotencyResult = validateShaderIdempotencyKey(body?.idempotencyKey);
   if (!idempotencyResult.ok) return errorJson(400, idempotencyResult.code, idempotencyResult.message);
 
-  const existing = await deps.repositories.shaderSpecs.findByIdempotencyKey(
+  const existing = await deps.repositories.shaderRequests.findByIdempotencyKey(
     authResult.user.id,
     idempotencyResult.idempotencyKey,
   );
-  if (existing) return storedShaderSpecResponse(existing, promptResult.prompt, modeResult.mode);
+  if (existing) return storedShaderResponse(existing, promptResult.prompt, modeResult.mode);
 
-  if (modeResult.mode === 'openai' && !deps.shaderSpecProvider) {
-    return errorJson(503, 'shader_provider_unavailable', 'OpenAI shader generation is not configured.');
+  if (modeResult.mode === 'localFallback') {
+    const fallbackReference = validateShaderIdempotencyKey(body?.fallbackForIdempotencyKey);
+    if (!fallbackReference.ok) {
+      return errorJson(400, 'invalid_fallback_reference', 'A failed OpenAI request is required for a local draft.');
+    }
+    const openAiAttempt = await deps.repositories.shaderRequests.findByIdempotencyKey(
+      authResult.user.id,
+      fallbackReference.idempotencyKey,
+    );
+    const fallbackEligibleErrorCodes = new Set([
+      'shader_provider_unavailable',
+      'shader_provider_timeout',
+      'shader_provider_failed',
+    ]);
+    if (
+      !openAiAttempt ||
+      openAiAttempt.mode !== 'openai' ||
+      openAiAttempt.status !== 'failed' ||
+      openAiAttempt.prompt !== promptResult.prompt ||
+      !openAiAttempt.error_code ||
+      !fallbackEligibleErrorCodes.has(openAiAttempt.error_code)
+    ) {
+      return errorJson(409, 'fallback_not_available', 'Try creating with AI before making a local draft.');
+    }
   }
 
-  const rateLimitResponse = createShaderSpecRateLimitResponse(authResult.user.id, deps);
+  const rateLimitResponse = createShaderRateLimitResponse(authResult.user.id, deps);
   if (rateLimitResponse) return rateLimitResponse;
 
-  const quotaCheck =
-    modeResult.mode === 'openai'
-      ? await checkMonthlyQuota({
-          limit: deps.monthlyGenerationLimit,
-          usageReader: deps.repositories.usage,
-          userId: authResult.user.id,
-          now: deps.now?.(),
-        })
-      : null;
-  if (quotaCheck && !quotaCheck.allowed) {
-    logWarn('ai_shader_spec.create_denied', { userId: authResult.user.id, reason: 'quota_exceeded' });
-    return errorJson(429, 'quota_exceeded', 'Monthly generation quota used.');
-  }
-
-  const claimed = await deps.repositories.shaderSpecs.claim({
+  const claimed = await deps.repositories.shaderRequests.claim({
     id: deps.createId?.() ?? randomUUID(),
     userId: authResult.user.id,
     idempotencyKey: idempotencyResult.idempotencyKey,
     mode: modeResult.mode,
     prompt: promptResult.prompt,
   });
-  if (!claimed.claimed) return storedShaderSpecResponse(claimed.row, promptResult.prompt, modeResult.mode);
+  if (!claimed.claimed) return storedShaderResponse(claimed.row, promptResult.prompt, modeResult.mode);
 
-  const specResult = await createShaderSpec(promptResult.prompt, modeResult.mode, claimed.row.id, deps);
-  if (!specResult.ok) {
-    await deps.repositories.shaderSpecs.markFailed(claimed.row.id, {
-      ...specResult.failure,
+  if (modeResult.mode === 'openai' && !deps.shaderProvider) {
+    const failure = {
+      status: 503,
+      code: 'shader_provider_unavailable',
+      message: 'OpenAI shader generation is not configured.',
+    };
+    await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
+      ...failure,
       completedAt: deps.now?.() ?? new Date(),
     });
-    return errorJson(specResult.failure.status, specResult.failure.code, specResult.failure.message);
+    return errorJson(failure.status, failure.code, failure.message);
   }
-  const responseBody: AiShaderSpecGenerationResponse = {
-    prompt: promptResult.prompt,
-    spec: specResult.spec,
-    source: specResult.source,
-    ...(specResult.model ? { model: specResult.model } : {}),
-  };
+
   const period = getMonthlyQuotaPeriod(deps.now?.());
-  await deps.repositories.shaderSpecs.complete({
+  if (modeResult.mode === 'openai') {
+    const reserved = await deps.repositories.usage.reserveMonthlyGeneration({
+      userId: authResult.user.id,
+      period,
+      generationLimit: deps.monthlyGenerationLimit,
+    });
+    if (!reserved) {
+      const failure = { status: 429, code: 'quota_exceeded', message: 'Monthly generation quota used.' };
+      await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
+        ...failure,
+        completedAt: deps.now?.() ?? new Date(),
+      });
+      logWarn('ai_shader.create_denied', { userId: authResult.user.id, reason: failure.code });
+      return errorJson(failure.status, failure.code, failure.message);
+    }
+  }
+
+  const shaderResult = await createShader(promptResult.prompt, modeResult.mode, claimed.row.id, deps);
+  if (!shaderResult.ok) {
+    await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
+      ...shaderResult.failure,
+      completedAt: deps.now?.() ?? new Date(),
+    });
+    return errorJson(shaderResult.failure.status, shaderResult.failure.code, shaderResult.failure.message);
+  }
+  const responseBody: AiShaderGenerationResponse = {
+    prompt: promptResult.prompt,
+    instance: shaderResult.instance,
+    source: shaderResult.source,
+    ...(shaderResult.model ? { model: shaderResult.model } : {}),
+  };
+  await deps.repositories.shaderRequests.complete({
     id: claimed.row.id,
     responseJson: toJsonObject(responseBody),
-    providerRequestId: specResult.providerRequestId,
-    providerUsageJson: specResult.usage ? toJsonObject(specResult.usage) : null,
+    providerRequestId: shaderResult.providerRequestId,
+    providerUsageJson: shaderResult.usage ? toJsonObject(shaderResult.usage) : null,
     completedAt: deps.now?.() ?? new Date(),
-    usage: modeResult.mode === 'openai' ? { period, generationLimit: deps.monthlyGenerationLimit } : undefined,
   });
-  logInfo('ai_shader_spec.generated', {
+  logInfo('ai_shader.generated', {
     requestId: claimed.row.id,
     userId: authResult.user.id,
-    source: specResult.source,
-    model: specResult.model,
-    operations: specResult.spec.operations.length,
-    providerRequestId: specResult.providerRequestId,
-    inputTokens: specResult.usage?.inputTokens,
-    outputTokens: specResult.usage?.outputTokens,
+    source: shaderResult.source,
+    model: shaderResult.model,
+    properties: shaderResult.instance.definition.properties.length,
+    codeLength: shaderResult.instance.definition.code.length,
+    providerRequestId: shaderResult.providerRequestId,
+    inputTokens: shaderResult.usage?.inputTokens,
+    outputTokens: shaderResult.usage?.outputTokens,
   });
 
   return json(200, responseBody);
 }
 
-async function createShaderSpec(
+async function createShader(
   prompt: string,
-  mode: AiShaderSpecRequestMode,
+  mode: AiShaderRequestMode,
   clientRequestId: string,
   deps: AiRouteDeps,
 ): Promise<
   | {
       ok: true;
-      spec: AiShaderSpecGenerationResponse['spec'];
-      source: AiShaderSpecGenerationResponse['source'];
+      instance: AiShaderGenerationResponse['instance'];
+      source: AiShaderGenerationResponse['source'];
       model?: string;
       providerRequestId?: string;
       usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
@@ -284,36 +315,36 @@ async function createShaderSpec(
   | { ok: false; failure: { status: number; code: string; message: string } }
 > {
   if (mode === 'localFallback') {
-    const spec = generateCustomShaderSpecFromPrompt(prompt);
+    const instance = generateLocalShaderInstanceFromPrompt(prompt);
     return {
       ok: true,
       source: 'localFallback',
-      spec: {
-        ...spec,
-        provenance: { source: 'localFallback', model: 'deterministic-local-mapper' },
-      },
-      model: 'deterministic-local-mapper',
+      instance,
+      model: instance.definition.provenance?.model,
     };
   }
 
-  if (!deps.shaderSpecProvider) throw new Error('Shader provider was not checked before generation.');
+  if (!deps.shaderProvider) throw new Error('Shader provider was not checked before generation.');
 
   try {
-    const model = deps.shaderSpecProvider.defaultModel;
-    const result = await deps.shaderSpecProvider.generateShaderSpec({ prompt, clientRequestId });
+    const model = deps.shaderProvider.defaultModel;
+    const result = await deps.shaderProvider.generateShader({ prompt, clientRequestId });
     return {
       ok: true,
       source: 'openai',
-      spec: {
-        ...result.spec,
-        provenance: { source: 'openai', model },
+      instance: {
+        ...result.instance,
+        definition: {
+          ...result.instance.definition,
+          provenance: { source: 'openai', prompt, model },
+        },
       },
       model,
       providerRequestId: result.requestId,
       usage: result.usage,
     };
   } catch (error) {
-    const timedOut = isOpenAiShaderSpecTimeoutError(error);
+    const timedOut = isOpenAiShaderTimeoutError(error);
     const failure = timedOut
       ? {
           status: 504,
@@ -325,10 +356,10 @@ async function createShaderSpec(
           code: 'shader_provider_failed',
           message: 'Shader generation failed. Try again or adjust the prompt.',
         };
-    logWarn('ai_shader_spec.provider_failed', {
+    logWarn('ai_shader.provider_failed', {
       requestId: clientRequestId,
-      provider: deps.shaderSpecProvider.provider,
-      model: deps.shaderSpecProvider.defaultModel,
+      provider: deps.shaderProvider.provider,
+      model: deps.shaderProvider.defaultModel,
       code: failure.code,
       reason: error instanceof Error ? error.message : 'unknown_error',
     });
@@ -336,11 +367,11 @@ async function createShaderSpec(
   }
 }
 
-function storedShaderSpecResponse(
-  request: AiShaderSpecRequestRow,
+function storedShaderResponse(
+  request: AiShaderRequestRow,
   prompt: string,
-  mode: AiShaderSpecRequestMode,
-): JsonResponse<AiShaderSpecGenerationResponse | { code: string; message: string }> {
+  mode: AiShaderRequestMode,
+): JsonResponse<AiShaderGenerationResponse | { code: string; message: string }> {
   if (request.prompt !== prompt || request.mode !== mode) {
     return errorJson(409, 'idempotency_conflict', 'This request key was already used for another shader.');
   }
@@ -357,23 +388,23 @@ function storedShaderSpecResponse(
   if (!request.response_json) {
     return errorJson(500, 'shader_response_missing', 'The saved shader response is unavailable.');
   }
-  logInfo('ai_shader_spec.idempotency_hit', {
+  logInfo('ai_shader.idempotency_hit', {
     requestId: request.id,
     userId: request.user_id,
     source: request.mode,
   });
-  return json(200, request.response_json as unknown as AiShaderSpecGenerationResponse);
+  return json(200, request.response_json as unknown as AiShaderGenerationResponse);
 }
 
-function validateShaderSpecMode(
+function validateShaderMode(
   value: unknown,
-): { ok: true; mode: AiShaderSpecRequestMode } | { ok: false; code: string; message: string } {
+): { ok: true; mode: AiShaderRequestMode } | { ok: false; code: string; message: string } {
   if (value === undefined || value === null) return { ok: true, mode: 'openai' };
   if (value === 'openai' || value === 'localFallback') return { ok: true, mode: value };
   return { ok: false, code: 'invalid_shader_mode', message: 'Shader generation mode is not supported.' };
 }
 
-function validateShaderSpecIdempotencyKey(
+function validateShaderIdempotencyKey(
   value: unknown,
 ): { ok: true; idempotencyKey: string } | { ok: false; code: string; message: string } {
   if (typeof value !== 'string' || !/^[\x21-\x7e]{1,200}$/.test(value)) {
@@ -396,10 +427,12 @@ export async function handleCreateGenerationRequest(
 
   const { provider, model, quotaCheck, user } = prepared;
   const created = await createGenerationJob(body, prepared, deps);
-  if (!created.ok) return created.response;
+  if (!created.ok) {
+    await deps.repositories.usage.releaseMonthlyGeneration(user.id, quotaCheck.quota.period);
+    return created.response;
+  }
 
   const job = created.job;
-  await recordGenerationUsage(user.id, quotaCheck.quota.period, 1, deps);
   const enqueued = await enqueueGenerationJob(job, user.id, quotaCheck.quota.period, deps);
   if (!enqueued.ok) return enqueued.response;
 
@@ -408,18 +441,10 @@ export async function handleCreateGenerationRequest(
     userId: user.id,
     provider,
     model,
-    quotaRemaining: quotaCheck.quota.remaining - 1,
+    quotaRemaining: quotaCheck.quota.remaining,
   });
 
-  return json(
-    201,
-    await toJobResponseForUser(
-      job,
-      user.id,
-      deps.repositories,
-      createQuotaSnapshot(quotaCheck.quota.period, deps.monthlyGenerationLimit, quotaCheck.quota.used + 1),
-    ),
-  );
+  return json(201, await toJobResponseForUser(job, user.id, deps.repositories, quotaCheck.quota));
 }
 
 type AuthenticatedUserRow = NonNullable<Awaited<ReturnType<typeof ensureAuthenticatedUser>>>;
@@ -430,7 +455,7 @@ type CreateGenerationPrepared = {
   user: AuthenticatedUserRow;
 };
 
-async function authenticateCreateShaderSpec(
+async function authenticateCreateShader(
   request: RequestLike,
   deps: AiRouteDeps,
 ): Promise<
@@ -438,13 +463,13 @@ async function authenticateCreateShaderSpec(
 > {
   const auth = await deps.resolveAuth(request);
   if (!auth.authenticated) {
-    logWarn('ai_shader_spec.create_denied', { reason: 'unauthenticated' });
+    logWarn('ai_shader.create_denied', { reason: 'unauthenticated' });
     return { ok: false, response: errorJson(401, 'unauthenticated', 'Sign in before generating shaders.') };
   }
 
   const user = await ensureAuthenticatedUser(auth, deps);
   if (!user?.ai_enabled || user.disabled_at) {
-    logWarn('ai_shader_spec.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
+    logWarn('ai_shader.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
     return { ok: false, response: errorJson(403, 'not_enabled', 'AI shader generation is not enabled for this user.') };
   }
   return { ok: true, user };
@@ -522,17 +547,6 @@ async function ensureCreateGenerationCapacity(
 > {
   const rateLimitResponse = createGenerationRateLimitResponse(userId, deps);
   if (rateLimitResponse) return { ok: false, response: rateLimitResponse };
-  const quotaCheck = await checkMonthlyQuota({
-    limit: deps.monthlyGenerationLimit,
-    usageReader: deps.repositories.usage,
-    userId,
-    now: deps.now?.(),
-  });
-  if (!quotaCheck.allowed) {
-    logWarn('ai_generation.create_denied', { userId, reason: 'quota_exceeded' });
-    return { ok: false, response: errorJson(429, 'quota_exceeded', 'Monthly generation quota used.') };
-  }
-
   const activeCheck = await checkOneActiveJob({
     activeJobReader: deps.repositories.jobs,
     maxActiveJobs: deps.maxActiveJobsPerUser,
@@ -545,6 +559,21 @@ async function ensureCreateGenerationCapacity(
       response: errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.'),
     };
   }
+
+  const period = getMonthlyQuotaPeriod(deps.now?.());
+  const reserved = await deps.repositories.usage.reserveMonthlyGeneration({
+    userId,
+    period,
+    generationLimit: deps.monthlyGenerationLimit,
+  });
+  if (!reserved) {
+    logWarn('ai_generation.create_denied', { userId, reason: 'quota_exceeded' });
+    return { ok: false, response: errorJson(429, 'quota_exceeded', 'Monthly generation quota used.') };
+  }
+  const quotaCheck: MonthlyQuotaCheck = {
+    allowed: true,
+    quota: createQuotaSnapshot(period, deps.monthlyGenerationLimit, reserved.generation_count),
+  };
 
   return { ok: true, quotaCheck };
 }
@@ -573,10 +602,10 @@ function createGenerationRateLimitResponse(userId: string, deps: AiRouteDeps) {
   );
 }
 
-function createShaderSpecRateLimitResponse(userId: string, deps: AiRouteDeps) {
-  const rate = deps.createRateLimiter?.check(`shader-spec:create:user:${userId}`);
+function createShaderRateLimitResponse(userId: string, deps: AiRouteDeps) {
+  const rate = deps.createRateLimiter?.check(`shader:create:user:${userId}`);
   if (!rate || rate.allowed) return null;
-  logWarn('ai_shader_spec.create_denied', { userId, reason: 'rate_limited' });
+  logWarn('ai_shader.create_denied', { userId, reason: 'rate_limited' });
   return json(
     429,
     { code: 'rate_limited', message: 'Too many shader generation requests.' },
@@ -617,15 +646,6 @@ async function createGenerationJob(
   }
 }
 
-async function recordGenerationUsage(userId: string, period: string, generationCountDelta: number, deps: AiRouteDeps) {
-  await deps.repositories.usage.upsertMonthlyUsage({
-    userId,
-    period,
-    generationLimit: deps.monthlyGenerationLimit,
-    generationCountDelta,
-  });
-}
-
 async function enqueueGenerationJob(
   job: AiGenerationJobRow,
   userId: string,
@@ -646,7 +666,7 @@ async function enqueueGenerationJob(
       message: 'Generation queue is unavailable. Try again later.',
       retryable: true,
     });
-    await recordGenerationUsage(userId, period, -1, deps);
+    await deps.repositories.usage.releaseMonthlyGeneration(userId, period);
     return {
       ok: false,
       response: errorJson(503, 'queue_unavailable', 'Generation queue is unavailable. Try again later.'),

@@ -133,35 +133,31 @@ required backdrop as input texture data: source luminance and detail shape the
 generated shader response before opacity and blend mode are applied as effect
 intensity. Their output can be
 composed directly, repeated, masked, or used as a material texture map.
-AI/custom shader spec work uses the same renderer boundary through a validated
-`customSpec` shader kind, but it is an input-dependent shader pass rather than a
-standalone fill. If no source/backdrop is connected, or no generated spec exists,
-graph rendering returns a transparent canvas. The document stores a constrained
-JSON spec, not raw shader code; normalization clamps numeric ranges, drops
-unsupported operations, and keeps render output deterministic from document
-seed, node seed offset, and the saved spec. The spec grammar is intentionally
-limited to deterministic operations such as procedural noise/waves/rings,
-cutoff/posterize/invert shaping, and source-aware pass operations including
-source luminance, edge glow, chromatic shift, and gradient-map tinting.
-Prompt generation enters through the shared
-`/api/ai/shader-spec` contract. The default request path is OpenAI-backed and
-must fail visibly if no provider is configured. A deterministic local mapper is
-available only as an explicit user-confirmed fallback, and fallback specs carry
-`localFallback` provenance in the saved JSON. API calls create or update specs
+AI Shader uses the same definition-backed WebGL runtime as Code Shader through
+the `aiShader` shader kind, but it is always an input-dependent effect. If no
+source is connected or no generated `ShaderInstance` exists, graph rendering
+returns a transparent result layer. The graph compositor then preserves the
+upstream image. Definitions store GLSL, a typed property manifest, and
+provenance; instances store only the values for that manifest. Generated GLSL
+must sample `u_backdrop`, and controls map to `u_prop_<key>` uniforms.
+Prompt generation enters through the shared `/api/ai/shaders` contract. The
+default request path is OpenAI-backed and fails visibly if no provider is
+configured. A deterministic local shader generator is available only as an
+explicit user-confirmed fallback, and fallback definitions carry
+`localFallback` provenance. API calls create or update shader requests
 only, never participate in preview/export rendering.
-Each shader-spec request carries a per-user idempotency key. The API stores the
+Each shader request carries a per-user idempotency key. The API stores the
 completed response and returns it for a repeated key without calling OpenAI or
 charging monthly quota again. OpenAI requests use a bounded timeout and record
 the provider request ID plus input/output token counts for operational tracing;
-the deterministic local fallback does not consume provider quota.
-AI Shader Effect operations execute in their saved order. Procedural operations
-change the working tone, source operations read or transform the connected
-backdrop at that point in the sequence, and `gradientMap` maps the current tone
-through the saved palette. Reordering operations is therefore render-relevant.
-The AI pass does not read preset-only shader fields such as node distortion,
-scale, rotation, offsets, or the preset seed offset. Its output is controlled by
-the saved spec operations, document seed, and pass-only opacity/blend settings,
-so hidden settings from a previously selected preset cannot change the result.
+the deterministic local fallback does not consume provider quota. Quota is
+reserved atomically before an OpenAI call so parallel requests cannot cross the
+monthly limit. A local fallback request must reference a previously failed
+OpenAI shader request for the same user.
+AI Shader output is controlled by its saved definition, instance property
+values, built-in uniforms that the code actually reads, and effect-only
+opacity/blend settings. Preset-only palette, shape, placement, and texture
+controls stay hidden and do not participate in the generated shader contract.
 Custom code shader work uses the separate `customCode` shader kind. The graph
 node stores a Shader Instance containing a serializable Shader Definition and
 instance property values; the graph node owns the instance's explicit role. The
@@ -174,8 +170,9 @@ document state during compile/render. A fill receives a deterministic fallback
 texture for optional sampling and never consumes an upstream image. An effect
 receives its required upstream canvas directly; without it, output is
 transparent. Node opacity and blend mode control effect intensity.
-Browsers without WebGL or shaders that fail to compile must return a visible
-deterministic fallback canvas instead of breaking graph traversal.
+Browsers without WebGL or shaders that fail to compile return a transparent
+shader result layer. Code Shader fills therefore remain transparent, while
+effect nodes preserve their upstream image through the graph compositor.
 An empty Code Shader is different from a failed shader: it renders transparent
 until code is added. Code Shader loops use one fixed zero-based counter, advance
 by a positive constant, and are limited to 32 iterations so preview and export

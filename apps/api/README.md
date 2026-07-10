@@ -57,7 +57,7 @@ Implemented:
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
-- OpenAI shader-spec provider for `/api/ai/shader-spec`, enabled by
+- OpenAI shader provider for `/api/ai/shaders`, enabled by
   `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
   `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
   persist their result, log OpenAI request/token metadata, and consume monthly

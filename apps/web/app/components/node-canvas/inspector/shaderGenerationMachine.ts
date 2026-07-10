@@ -1,19 +1,20 @@
 import { assign, setup } from 'xstate';
 
-import type { AiShaderSpecSource } from '../../../types/aiGeneration';
+import type { AiShaderSource } from '../../../types/aiGeneration';
 
 interface ShaderGenerationMachineContext {
   message: string | null;
-  source: AiShaderSpecSource | null;
+  source: AiShaderSource | null;
   model: string | undefined;
 }
 
 export type ShaderGenerationMachineEvent =
   | { type: 'CREATE_OPENAI' }
-  | { type: 'OPENAI_DONE'; message: string; source: AiShaderSpecSource; model?: string }
+  | { type: 'OPENAI_DONE'; message: string; source: AiShaderSource; model?: string }
   | { type: 'OPENAI_FAILED'; message: string }
+  | { type: 'OPENAI_BLOCKED'; message: string }
   | { type: 'CREATE_FALLBACK' }
-  | { type: 'FALLBACK_DONE'; message: string; source: AiShaderSpecSource; model?: string }
+  | { type: 'FALLBACK_DONE'; message: string; source: AiShaderSource; model?: string }
   | { type: 'FALLBACK_FAILED'; message: string }
   | { type: 'RESET' };
 
@@ -44,7 +45,8 @@ export const shaderGenerationMachine = setup({
       model: ({ event }) => (event.type === 'OPENAI_DONE' ? event.model : undefined),
     }),
     markOpenAiFailure: assign({
-      message: ({ event }) => (event.type === 'OPENAI_FAILED' ? event.message : null),
+      message: ({ event }) =>
+        event.type === 'OPENAI_FAILED' || event.type === 'OPENAI_BLOCKED' ? event.message : null,
       source: null,
       model: undefined,
     }),
@@ -80,6 +82,7 @@ export const shaderGenerationMachine = setup({
       on: {
         OPENAI_DONE: { target: 'succeeded', actions: 'markOpenAiSuccess' },
         OPENAI_FAILED: { target: 'fallbackOffered', actions: 'markOpenAiFailure' },
+        OPENAI_BLOCKED: { target: 'failed', actions: 'markOpenAiFailure' },
       },
     },
     fallbackOffered: {

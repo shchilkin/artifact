@@ -99,7 +99,7 @@ describe('normalizeDocument', () => {
     expect(doc.graph?.shaderNodes?.[7]?.shaderKind).toBe('meshGradient');
   });
 
-  it('normalizes custom shader specs for AI-generated shader nodes', () => {
+  it('migrates old AI operation specs to a definition-backed local draft', () => {
     const aiPrompt = 'x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1);
     const doc = normalizeDocument({
       layers: [],
@@ -136,22 +136,27 @@ describe('normalizeDocument', () => {
     });
 
     const node = doc.graph?.shaderNodes?.[0];
-    expect(node?.shaderKind).toBe('customSpec');
+    expect(node?.shaderKind).toBe('aiShader');
     expect(node?.role).toBe('effect');
-    expect(node?.aiPrompt).toBe(aiPrompt);
-    expect(node?.customShaderSpec).toMatchObject({
-      base: 1,
-      contrast: 4,
-      palette: ['#000', '#ff00aa'],
-      operations: [
-        { op: 'noise', scale: 40, amount: 2, octaves: 7 },
-        { op: 'sourceLuma', amount: 0.45 },
-        { op: 'edgeGlow', amount: 0.5, softness: 0.12 },
-        { op: 'chromaticShift', amount: 0.25, angle: 42 },
-        { op: 'gradientMap', amount: 0.7 },
-        { op: 'posterize', steps: 16 },
-      ],
+    expect(node?.aiPrompt).toBe(aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH));
+    expect(node).not.toHaveProperty('customShaderSpec');
+    expect(node?.shaderInstance).toMatchObject({
+      definition: {
+        language: 'glsl-fragment',
+        provenance: { source: 'localFallback', model: 'legacy-operation-migration' },
+        properties: [],
+      },
+      values: {},
     });
+    const migratedCode = node?.shaderInstance?.definition.code ?? '';
+    expect(migratedCode).toContain('float tone = 1.00000000;');
+    expect(migratedCode).toContain('float contrast = 4.00000000;');
+    expect(migratedCode).toContain('legacyFbm(point * 40.00000000, 7.00000000');
+    expect(migratedCode).toContain('legacyLuma(source.rgb)');
+    expect(migratedCode).toContain('color.r = texture2D');
+    expect(migratedCode).toContain('mapped = 1.0');
+    expect(migratedCode).toContain('max(2.0, 16.00000000)');
+    expect(migratedCode).not.toContain('while(true)');
   });
 
   it('migrates legacy custom shader code into a shader definition instance', () => {
@@ -179,7 +184,7 @@ describe('normalizeDocument', () => {
     });
 
     const node = doc.graph?.shaderNodes?.[0];
-    expect(doc.schemaVersion).toBe(2);
+    expect(doc.schemaVersion).toBe(3);
     expect(node?.shaderKind).toBe('customCode');
     expect(node?.role).toBe('effect');
     expect(node?.shaderInstance).toMatchObject({
@@ -265,17 +270,21 @@ describe('normalizeDocument', () => {
     const shaderNode = makeGraphShaderNode({
       id: 'shader-ai',
       name: 'AI Waves',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       aiPrompt: 'neon waves',
-      customShaderSpec: {
-        version: 2,
-        label: 'AI Waves',
-        prompt: 'neon waves',
-        palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
-        operations: [
-          { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
-          { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
-        ],
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'shader-ai-definition',
+          label: 'AI Waves',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [
+            { key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 },
+          ],
+          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+        },
+        values: { amount: 0.03 },
       },
     });
     const serialized = serializeArtifactDocument({
@@ -297,15 +306,15 @@ describe('normalizeDocument', () => {
     expect(parsedNode).toMatchObject({
       id: 'shader-ai',
       name: 'AI Waves',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       aiPrompt: 'neon waves',
-      customShaderSpec: {
-        label: 'AI Waves',
-        prompt: 'neon waves',
-        operations: [
-          { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
-          { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
-        ],
+      shaderInstance: {
+        definition: {
+          id: 'shader-ai-definition',
+          label: 'AI Waves',
+          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+        },
+        values: { amount: 0.03 },
       },
     });
     expect(parsed?.graph?.edges).toContainEqual({

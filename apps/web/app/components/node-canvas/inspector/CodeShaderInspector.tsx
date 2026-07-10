@@ -1,21 +1,10 @@
 import { useMemo, useState } from 'react';
-import type {
-  GraphShaderNode,
-  ShaderPropertyDefinition,
-  ShaderPropertyType,
-  ShaderPropertyValue,
-} from '../../../types/config';
+import type { GraphShaderNode, ShaderPropertyType } from '../../../types/config';
 import { makeDefaultCodeShaderInstance, validateCustomShaderCode } from '../../../utils/customShaderCode';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
 import { codeShaderUniformControls, makeCodeShaderProperty } from './CodeShaderInspectorModel';
-import {
-  InspectorColorInput,
-  InspectorSection,
-  InspectorSelect,
-  InspectorSlider,
-  InspectorTextArea,
-  InspectorToggle,
-} from './fields';
+import { InspectorSection, InspectorSelect, InspectorSlider, InspectorTextArea } from './fields';
+import { ShaderPropertyControl } from './ShaderPropertyControl';
 import { ShaderStatusMessage } from './ShaderStatusMessage';
 
 export function CodeShaderInspector({
@@ -111,7 +100,7 @@ export function CodeShaderInspector({
         <p className="node-inspector-note">
           Write GLSL for <code>mainImage(uv)</code>. Use <code>u_backdrop</code> for the incoming image and{' '}
           <code>u_has_backdrop</code> to detect it. <code>u_resolution</code>, <code>u_seed</code>, and{' '}
-          <code>u_strength</code> are also available. Empty code stays transparent; compile errors use a safe fallback.
+          <code>u_strength</code> are also available. Empty or invalid code stays transparent until it is fixed.
         </p>
       </InspectorSection>
       <InspectorSection
@@ -170,56 +159,5 @@ export function CodeShaderInspector({
         )}
       </InspectorSection>
     </>
-  );
-}
-
-function ShaderPropertyControl({
-  property,
-  value,
-  onChange,
-  onRemove,
-}: {
-  property: ShaderPropertyDefinition;
-  value: ShaderPropertyValue;
-  onChange: (value: ShaderPropertyValue) => void;
-  onRemove: () => void;
-}) {
-  const label = `${property.label} · u_prop_${property.key}`;
-  return (
-    <div className="node-shader-property-control">
-      <div>
-        {property.type === 'color' ? (
-          <InspectorColorInput
-            label={label}
-            value={typeof value === 'string' ? value : property.default}
-            onChange={onChange}
-          />
-        ) : property.type === 'boolean' ? (
-          <InspectorToggle
-            label={label}
-            checked={typeof value === 'boolean' ? value : property.default}
-            onChange={onChange}
-          />
-        ) : (
-          <InspectorSlider
-            label={label}
-            value={typeof value === 'number' ? value : property.default}
-            min={property.min}
-            max={property.max}
-            step={property.step}
-            onChange={onChange}
-          />
-        )}
-      </div>
-      <button
-        type="button"
-        className="node-shader-property-remove nodrag nopan nowheel"
-        aria-label={`Remove ${property.label}`}
-        title={`Remove ${property.label}`}
-        onClick={onRemove}
-      >
-        ×
-      </button>
-    </div>
   );
 }

@@ -1,6 +1,5 @@
 import type { GraphShaderNode, ShaderDefinition, ShaderPropertyDefinition } from '../../types/config';
 import { customShaderCodeHasBlockingIssues, validateCustomShaderCode } from '../customShaderCode';
-import { normalizeShaderPalette } from '../shaderPalette';
 import { createCanvas, isDrawableCanvas } from './canvas';
 
 function clamp(value: number, min: number, max: number) {
@@ -22,39 +21,6 @@ function createFallbackBackdrop(width: number, height: number, seed: number) {
 
 function chooseBackdrop(backdrop: HTMLCanvasElement | null | undefined, width: number, height: number, seed: number) {
   return backdrop && isDrawableCanvas(backdrop) ? backdrop : createFallbackBackdrop(width, height, seed);
-}
-
-function renderCanvasFallback(
-  node: GraphShaderNode,
-  seed: number,
-  width: number,
-  height: number,
-  backdrop?: HTMLCanvasElement | null,
-) {
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d')!;
-  const base = chooseBackdrop(backdrop, width, height, seed);
-  ctx.drawImage(base, 0, 0, width, height);
-  ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.35 + clamp(node.distortion / 100, 0, 1) * 0.35;
-  ctx.strokeStyle = normalizeShaderPalette(node.shaderKind, node.palette)[2] ?? '#79e3c5';
-  ctx.lineWidth = Math.max(1.5, width / 96);
-  const waves = Math.max(5, Math.round(8 + node.scale / 12));
-  for (let i = -2; i < waves + 2; i += 1) {
-    ctx.beginPath();
-    for (let x = 0; x <= width; x += Math.max(4, width / 80)) {
-      const t = x / Math.max(1, width);
-      const y =
-        ((i + 0.5) / waves) * height +
-        Math.sin(t * Math.PI * 6 + seed * 0.01 + i * 0.7) * height * 0.045 * clamp(node.distortion / 70, 0.2, 1.4);
-      if (x === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-  return canvas;
 }
 
 function renderTransparentShaderCanvas(width: number, height: number) {
@@ -88,6 +54,13 @@ export interface CustomCodeShaderCompileResult {
   ok: boolean;
   message: string | null;
 }
+
+export interface CustomCodeShaderCompileRequirements {
+  requireBackdrop?: boolean;
+  requirePropertyUniforms?: boolean;
+}
+
+const aiShaderInfluenceCache = new Map<string, string | null>();
 
 function shaderPropertyUniformDeclaration(property: ShaderPropertyDefinition) {
   return `uniform ${property.type === 'color' ? 'vec3' : 'float'} u_prop_${property.key};`;
@@ -172,6 +145,7 @@ function cleanCompileLog(log: string | null) {
 export function compileCustomCodeShaderForDiagnostics(
   code: string,
   properties: ShaderPropertyDefinition[] = [],
+  requirements: CustomCodeShaderCompileRequirements = {},
 ): CustomCodeShaderCompileResult {
   const blockingIssue = validateCustomShaderCode(code).find((issue) => issue.severity === 'error');
   if (blockingIssue) return { ok: false, message: blockingIssue.message };
@@ -183,6 +157,10 @@ export function compileCustomCodeShaderForDiagnostics(
     const built = buildProgram(gl, buildCustomCodeFragmentSource(code, properties));
     program = built.program;
     if (!program) return { ok: false, message: cleanCompileLog(built.log) };
+    const inactiveUniform = findRequiredInactiveUniform(gl, program, properties, requirements);
+    if (inactiveUniform) return { ok: false, message: inactiveUniform };
+    const nonInfluentialInput = findRequiredNonInfluentialInput(gl, program, properties, requirements);
+    if (nonInfluentialInput) return { ok: false, message: nonInfluentialInput };
     return { ok: true, message: null };
   } catch {
     return { ok: false, message: 'Shader compilation failed in this browser.' };
@@ -190,6 +168,110 @@ export function compileCustomCodeShaderForDiagnostics(
     if (program) gl.deleteProgram(program);
     releaseWebGlContext(gl);
   }
+}
+
+function findRequiredInactiveUniform(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  properties: ShaderPropertyDefinition[],
+  requirements: CustomCodeShaderCompileRequirements,
+) {
+  if (requirements.requireBackdrop && gl.getUniformLocation(program, 'u_backdrop') === null) {
+    return 'Use the connected image in the final shader result.';
+  }
+  if (requirements.requirePropertyUniforms) {
+    const inactiveProperty = properties.find(
+      (property) => gl.getUniformLocation(program, `u_prop_${property.key}`) === null,
+    );
+    if (inactiveProperty) return `${inactiveProperty.label} is not used by the final shader result.`;
+  }
+  return null;
+}
+
+function readDiagnosticFrame(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  properties: ShaderPropertyDefinition[],
+  overrides: { backdrop?: [number, number, number, number]; property?: ShaderPropertyDefinition; value?: unknown } = {},
+) {
+  const buffer = gl.createBuffer();
+  const texture = gl.createTexture();
+  if (!buffer || !texture) return null;
+  try {
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    if (positionLocation < 0) return null;
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    const backdrop = overrides.backdrop ?? [0, 0, 0, 255];
+    const texturePixels = new Uint8Array(8 * 8 * 4);
+    for (let y = 0; y < 8; y += 1) {
+      for (let x = 0; x < 8; x += 1) {
+        const offset = (y * 8 + x) * 4;
+        texturePixels[offset] = (backdrop[0] + x * 29 + y * 7) % 256;
+        texturePixels[offset + 1] = (backdrop[1] + x * 11 + y * 31) % 256;
+        texturePixels[offset + 2] = (backdrop[2] + x * 19 + y * 17) % 256;
+        texturePixels[offset + 3] = backdrop[3];
+      }
+    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 8, 8, 0, gl.RGBA, gl.UNSIGNED_BYTE, texturePixels);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_backdrop'), 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), 4, 4);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_seed'), 1171);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), 0.5);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_has_backdrop'), 1);
+    for (const property of properties) {
+      setSingleShaderPropertyUniform(gl, program, property, property.default);
+    }
+    if (overrides.property) {
+      setSingleShaderPropertyUniform(gl, program, overrides.property, overrides.value ?? overrides.property.default);
+    }
+    gl.viewport(0, 0, 4, 4);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    const pixels = new Uint8Array(4 * 4 * 4);
+    gl.readPixels(0, 0, 4, 4, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return pixels;
+  } finally {
+    gl.deleteTexture(texture);
+    gl.deleteBuffer(buffer);
+  }
+}
+
+function framesDiffer(first: Uint8Array | null, second: Uint8Array | null) {
+  if (!first || !second || first.length !== second.length) return false;
+  return first.some((value, index) => value !== second[index]);
+}
+
+function findRequiredNonInfluentialInput(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  properties: ShaderPropertyDefinition[],
+  requirements: CustomCodeShaderCompileRequirements,
+) {
+  if (requirements.requireBackdrop) {
+    const dark = readDiagnosticFrame(gl, program, properties, { backdrop: [7, 19, 41, 255] });
+    const light = readDiagnosticFrame(gl, program, properties, { backdrop: [223, 181, 97, 255] });
+    if (!framesDiffer(dark, light)) return 'Use the connected image in the final shader result.';
+  }
+  return null;
+}
+
+function validateAiShaderInfluence(gl: WebGLRenderingContext, program: WebGLProgram, definition: ShaderDefinition) {
+  const cacheKey = JSON.stringify({ code: definition.code, properties: definition.properties });
+  if (aiShaderInfluenceCache.has(cacheKey)) return aiShaderInfluenceCache.get(cacheKey) ?? null;
+  const message = findRequiredNonInfluentialInput(gl, program, definition.properties, {
+    requireBackdrop: true,
+    requirePropertyUniforms: true,
+  });
+  aiShaderInfluenceCache.set(cacheKey, message);
+  return message;
 }
 
 function renderWithWebGl(
@@ -210,6 +292,16 @@ function renderWithWebGl(
     const built = buildProgram(gl, buildCustomCodeFragmentSource(definition.code, definition.properties));
     program = built.program;
     if (!program) return null;
+    if (
+      node.shaderKind === 'aiShader' &&
+      (findRequiredInactiveUniform(gl, program, definition.properties, {
+        requireBackdrop: true,
+        requirePropertyUniforms: true,
+      }) ||
+        validateAiShaderInfluence(gl, program, definition))
+    ) {
+      return null;
+    }
     gl.useProgram(program);
 
     buffer = gl.createBuffer();
@@ -264,17 +356,26 @@ function setShaderPropertyUniforms(
   values: Record<string, number | boolean | string>,
 ) {
   for (const property of definition.properties) {
-    const location = gl.getUniformLocation(program, `u_prop_${property.key}`);
-    if (!location) continue;
     const value = values[property.key] ?? property.default;
-    if (property.type === 'color') {
-      const [red, green, blue] = shaderHexToRgb(typeof value === 'string' ? value : property.default);
-      gl.uniform3f(location, red, green, blue);
-    } else if (property.type === 'boolean') {
-      gl.uniform1f(location, value === true ? 1 : 0);
-    } else {
-      gl.uniform1f(location, typeof value === 'number' ? value : property.default);
-    }
+    setSingleShaderPropertyUniform(gl, program, property, value);
+  }
+}
+
+function setSingleShaderPropertyUniform(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  property: ShaderPropertyDefinition,
+  value: unknown,
+) {
+  const location = gl.getUniformLocation(program, `u_prop_${property.key}`);
+  if (!location) return;
+  if (property.type === 'color') {
+    const [red, green, blue] = shaderHexToRgb(typeof value === 'string' ? value : property.default);
+    gl.uniform3f(location, red, green, blue);
+  } else if (property.type === 'boolean') {
+    gl.uniform1f(location, value === true ? 1 : 0);
+  } else {
+    gl.uniform1f(location, typeof value === 'number' ? value : property.default);
   }
 }
 
@@ -301,10 +402,9 @@ export function renderCustomCodeShaderNodeToCanvas(
     return renderTransparentShaderCanvas(width, height);
   }
   if (customShaderCodeHasBlockingIssues(definition.code)) {
-    return renderCanvasFallback(node, seed, width, height, backdrop);
+    return renderTransparentShaderCanvas(width, height);
   }
   return (
-    renderWithWebGl(node, definition, seed, width, height, backdrop) ??
-    renderCanvasFallback(node, seed, width, height, backdrop)
+    renderWithWebGl(node, definition, seed, width, height, backdrop) ?? renderTransparentShaderCanvas(width, height)
   );
 }

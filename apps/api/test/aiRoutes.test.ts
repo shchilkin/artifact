@@ -3,11 +3,7 @@ import type { RequestUserResolution } from '../src/auth.js';
 import type { GenerationQueuePayload } from '../src/contracts.js';
 import { ActiveGenerationJobExistsError } from '../src/db/errors.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
-import {
-  createMockImageProvider,
-  createProviderRegistry,
-  OpenAiShaderSpecTimeoutError,
-} from '../src/providers/index.js';
+import { createMockImageProvider, createProviderRegistry, OpenAiShaderTimeoutError } from '../src/providers/index.js';
 import type { GenerationQueue, QueueJob } from '../src/queue.js';
 import { createInMemoryRateLimiter } from '../src/rateLimit.js';
 import {
@@ -16,7 +12,7 @@ import {
   handleAiRequest,
   handleCancelGenerationRequest,
   handleCreateGenerationRequest,
-  handleCreateShaderSpecRequest,
+  handleCreateShaderRequest,
   handleGetGenerationRequest,
 } from '../src/routes/ai.js';
 
@@ -41,6 +37,7 @@ function createQueueSpy() {
 function createDeps(auth: RequestUserResolution = { authenticated: true, user: { id: 'user-1' } }) {
   const store = new InMemoryApiStore();
   const { enqueue, queue } = createQueueSpy();
+  let nextId = 0;
   const deps: AiRouteDeps = {
     repositories: store.repositories(),
     queue,
@@ -50,7 +47,7 @@ function createDeps(auth: RequestUserResolution = { authenticated: true, user: {
     maxActiveJobsPerUser: 1,
     createRateLimiter: createInMemoryRateLimiter({ limit: 10, windowMs: 60_000, now: () => 0 }),
     now: () => new Date('2026-05-20T10:00:00.000Z'),
-    createId: () => 'job-1',
+    createId: () => `job-${++nextId}`,
   };
   return { deps, enqueue, store };
 }
@@ -79,6 +76,24 @@ const createBody = {
   settings: { aspect: '1:1' as const, quality: 'standard' as const },
   idempotencyKey: 'request-1',
 };
+
+function providerShader(label = 'Provider Shader') {
+  return {
+    instance: {
+      definition: {
+        version: 1 as const,
+        id: 'provider-shader',
+        label,
+        language: 'glsl-fragment' as const,
+        code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+        properties: [
+          { key: 'amount', label: 'Amount', type: 'number' as const, default: 0.5, min: 0, max: 1, step: 0.01 },
+        ],
+      },
+      values: { amount: 0.5 },
+    },
+  };
+}
 
 describe('AI route handlers', () => {
   it('returns anonymous access state without failing auth', async () => {
@@ -155,7 +170,7 @@ describe('AI route handlers', () => {
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
 
     await expect(
-      handleCreateShaderSpecRequest(
+      handleCreateShaderRequest(
         { headers: {} },
         { prompt: 'neon marble swirl with halftone ink texture', idempotencyKey: 'shader-unavailable-1' },
         deps,
@@ -169,16 +184,22 @@ describe('AI route handlers', () => {
     });
   });
 
-  it('creates an explicit local fallback shader spec without queueing an image job', async () => {
+  it('creates an explicit local fallback shader without queueing an image job', async () => {
     const { deps, enqueue, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'neon marble swirl with halftone ink texture', idempotencyKey: 'shader-openai-failed-1' },
+      deps,
+    );
 
-    const response = await handleCreateShaderSpecRequest(
+    const response = await handleCreateShaderRequest(
       { headers: {} },
       {
         prompt: 'neon marble swirl with halftone ink texture',
         mode: 'localFallback',
         idempotencyKey: 'shader-local-1',
+        fallbackForIdempotencyKey: 'shader-openai-failed-1',
       },
       deps,
     );
@@ -188,68 +209,68 @@ describe('AI route handlers', () => {
       body: {
         prompt: 'neon marble swirl with halftone ink texture',
         source: 'localFallback',
-        model: 'deterministic-local-mapper',
-        spec: {
-          version: 2,
-          label: 'AI Halftone',
-          prompt: 'neon marble swirl with halftone ink texture',
-          provenance: { source: 'localFallback', model: 'deterministic-local-mapper' },
+        model: 'deterministic-local-shader',
+        instance: {
+          definition: {
+            version: 1,
+            language: 'glsl-fragment',
+            provenance: {
+              source: 'localFallback',
+              prompt: 'neon marble swirl with halftone ink texture',
+              model: 'deterministic-local-shader',
+            },
+          },
         },
       },
     });
     expect(response.status).toBe(200);
-    if (!('spec' in response.body)) throw new Error('Expected shader spec response.');
-    expect(response.body.spec.operations.map((operation) => operation.op)).toEqual(
-      expect.arrayContaining(['noise', 'swirl', 'threshold']),
-    );
+    if (!('instance' in response.body)) throw new Error('Expected shader response.');
+    expect(response.body.instance.definition.code).toContain('texture2D(u_backdrop');
     expect(enqueue).not.toHaveBeenCalled();
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
   });
 
-  it('dispatches shader spec requests through the AI route table', async () => {
+  it('dispatches shader requests through the AI route table', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    const request = ReadableStreamRequest.fromJson('/api/ai/shader-spec', {
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'ocean waves', idempotencyKey: 'shader-route-openai-failed' },
+      deps,
+    );
+    const request = ReadableStreamRequest.fromJson('/api/ai/shaders', {
       prompt: 'ocean waves',
       mode: 'localFallback',
       idempotencyKey: 'shader-route-1',
+      fallbackForIdempotencyKey: 'shader-route-openai-failed',
     });
 
     await expect(handleAiRequest(request, deps)).resolves.toMatchObject({
       status: 200,
       body: {
         source: 'localFallback',
-        spec: {
-          version: 2,
-          label: 'AI Waves',
+        instance: {
+          definition: { version: 1, label: 'Local Water Effect' },
         },
       },
     });
   });
 
-  it('uses a configured shader spec provider when available', async () => {
+  it('uses a configured shader provider when available', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    const shaderSpecProvider = {
+    const shaderProvider = {
       provider: 'openai',
       defaultModel: 'gpt-5.5-mini',
-      generateShaderSpec: vi.fn(async () => ({
-        spec: {
-          version: 2 as const,
-          label: 'Provider Shader',
-          prompt: 'neon waves',
-          base: 0.4,
-          contrast: 1.2,
-          palette: ['#000000', '#ffffff'],
-          operations: [{ op: 'wave' as const, frequency: 9, amplitude: 0.2, angle: 0 }],
-        },
+      generateShader: vi.fn(async () => ({
+        ...providerShader(),
         requestId: 'openai-request-1',
         usage: { inputTokens: 40, outputTokens: 80, totalTokens: 120 },
       })),
     } as const;
-    deps.shaderSpecProvider = shaderSpecProvider;
+    deps.shaderProvider = shaderProvider;
 
-    const response = await handleCreateShaderSpecRequest(
+    const response = await handleCreateShaderRequest(
       { headers: {} },
       { prompt: 'neon waves', idempotencyKey: 'shader-openai-1' },
       deps,
@@ -261,33 +282,34 @@ describe('AI route handlers', () => {
         prompt: 'neon waves',
         source: 'openai',
         model: 'gpt-5.5-mini',
-        spec: {
-          label: 'Provider Shader',
-          provenance: { source: 'openai', model: 'gpt-5.5-mini' },
-          operations: [{ op: 'wave' }],
+        instance: {
+          definition: {
+            label: 'Provider Shader',
+            provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+          },
         },
       },
     });
-    expect(shaderSpecProvider.generateShaderSpec).toHaveBeenCalledWith({
+    expect(shaderProvider.generateShader).toHaveBeenCalledWith({
       prompt: 'neon waves',
       clientRequestId: 'job-1',
     });
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
   });
 
-  it('returns inspector-visible errors when the shader spec provider fails', async () => {
+  it('returns inspector-visible errors when the shader provider fails', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderSpecProvider = {
+    deps.shaderProvider = {
       provider: 'openai',
       defaultModel: 'gpt-5.5-mini',
-      generateShaderSpec: vi.fn(async () => {
+      generateShader: vi.fn(async () => {
         throw new Error('provider down');
       }),
     };
 
     await expect(
-      handleCreateShaderSpecRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'shader-failed-1' }, deps),
+      handleCreateShaderRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'shader-failed-1' }, deps),
     ).resolves.toMatchObject({
       status: 502,
       body: {
@@ -297,27 +319,23 @@ describe('AI route handlers', () => {
     });
   });
 
-  it('rejects shader spec generation for anonymous users', async () => {
+  it('rejects shader generation for anonymous users', async () => {
     const { deps } = createDeps({ authenticated: false, reason: 'missing_credentials' });
 
     await expect(
-      handleCreateShaderSpecRequest(
-        { headers: {} },
-        { prompt: 'neon waves', idempotencyKey: 'shader-anonymous-1' },
-        deps,
-      ),
+      handleCreateShaderRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'shader-anonymous-1' }, deps),
     ).resolves.toMatchObject({
       status: 401,
       body: { code: 'unauthenticated', message: 'Sign in before generating shaders.' },
     });
   });
 
-  it('validates shader spec prompts before generation', async () => {
+  it('validates shader prompts before generation', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
 
     await expect(
-      handleCreateShaderSpecRequest({ headers: {} }, { prompt: '  ', idempotencyKey: 'shader-invalid-1' }, deps),
+      handleCreateShaderRequest({ headers: {} }, { prompt: '  ', idempotencyKey: 'shader-invalid-1' }, deps),
     ).resolves.toMatchObject({
       status: 400,
       body: { code: 'invalid_prompt' },
@@ -329,28 +347,22 @@ describe('AI route handlers', () => {
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
 
     await expect(
-      handleCreateShaderSpecRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'bad key' }, deps),
+      handleCreateShaderRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'bad key' }, deps),
     ).resolves.toMatchObject({ status: 400, body: { code: 'invalid_idempotency_key' } });
   });
 
   it('returns an idempotent OpenAI shader result without charging or calling the provider twice', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    const generateShaderSpec = vi.fn(async () => ({
-      spec: {
-        version: 2 as const,
-        label: 'One Result',
-        operations: [{ op: 'invert' as const, amount: 0.5 }],
-      },
-    }));
-    deps.shaderSpecProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShaderSpec };
+    const generateShader = vi.fn(async () => providerShader('One Result'));
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
     const body = { prompt: 'invert softly', idempotencyKey: 'shader-idempotent-1' };
 
-    const first = await handleCreateShaderSpecRequest({ headers: {} }, body, deps);
-    const second = await handleCreateShaderSpecRequest({ headers: {} }, body, deps);
+    const first = await handleCreateShaderRequest({ headers: {} }, body, deps);
+    const second = await handleCreateShaderRequest({ headers: {} }, body, deps);
 
     expect(second).toEqual(first);
-    expect(generateShaderSpec).toHaveBeenCalledTimes(1);
+    expect(generateShader).toHaveBeenCalledTimes(1);
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
   });
 
@@ -358,34 +370,59 @@ describe('AI route handlers', () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
     let finishProvider: (() => void) | undefined;
-    const generateShaderSpec = vi.fn(
+    const generateShader = vi.fn(
       () =>
-        new Promise<{
-          spec: { version: 2; label: string; operations: [{ op: 'invert'; amount: number }] };
-        }>((resolve) => {
-          finishProvider = () =>
-            resolve({
-              spec: {
-                version: 2,
-                label: 'Pending Result',
-                operations: [{ op: 'invert', amount: 0.25 }],
-              },
-            });
+        new Promise<ReturnType<typeof providerShader>>((resolve) => {
+          finishProvider = () => resolve(providerShader('Pending Result'));
         }),
     );
-    deps.shaderSpecProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShaderSpec };
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
     const body = { prompt: 'invert softly', idempotencyKey: 'shader-pending-1' };
 
-    const firstRequest = handleCreateShaderSpecRequest({ headers: {} }, body, deps);
-    await vi.waitFor(() => expect(generateShaderSpec).toHaveBeenCalledTimes(1));
-    await expect(handleCreateShaderSpecRequest({ headers: {} }, body, deps)).resolves.toMatchObject({
+    const firstRequest = handleCreateShaderRequest({ headers: {} }, body, deps);
+    await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(1));
+    await expect(handleCreateShaderRequest({ headers: {} }, body, deps)).resolves.toMatchObject({
       status: 409,
       body: { code: 'shader_request_in_progress' },
     });
 
     finishProvider?.();
     await expect(firstRequest).resolves.toMatchObject({ status: 200 });
-    expect(generateShaderSpec).toHaveBeenCalledTimes(1);
+    expect(generateShader).toHaveBeenCalledTimes(1);
+  });
+
+  it('atomically blocks parallel shader requests at the monthly quota boundary', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.monthlyGenerationLimit = 1;
+    let finishProvider: (() => void) | undefined;
+    const generateShader = vi.fn(
+      () =>
+        new Promise<ReturnType<typeof providerShader>>((resolve) => {
+          finishProvider = () => resolve(providerShader('Reserved Result'));
+        }),
+    );
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+
+    const firstRequest = handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'first shader', idempotencyKey: 'shader-quota-race-1' },
+      deps,
+    );
+    await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(1));
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: 'second shader', idempotencyKey: 'shader-quota-race-2' },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 429, body: { code: 'quota_exceeded' } });
+
+    finishProvider?.();
+    await expect(firstRequest).resolves.toMatchObject({ status: 200 });
+    expect(generateShader).toHaveBeenCalledTimes(1);
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
   });
 
   it('does not call OpenAI after the monthly quota is exhausted', async () => {
@@ -397,41 +434,107 @@ describe('AI route handlers', () => {
       generationLimit: 10,
       generationCountDelta: 10,
     });
-    const generateShaderSpec = vi.fn();
-    deps.shaderSpecProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShaderSpec };
+    const generateShader = vi.fn();
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
 
     await expect(
-      handleCreateShaderSpecRequest(
-        { headers: {} },
-        { prompt: 'neon waves', idempotencyKey: 'shader-over-quota-1' },
-        deps,
-      ),
+      handleCreateShaderRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'shader-over-quota-1' }, deps),
     ).resolves.toMatchObject({ status: 429, body: { code: 'quota_exceeded' } });
-    expect(generateShaderSpec).not.toHaveBeenCalled();
+    expect(generateShader).not.toHaveBeenCalled();
   });
 
-  it('returns a distinct timeout error and does not consume quota', async () => {
+  it('returns a distinct timeout error and keeps the provider-call reservation', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderSpecProvider = {
+    deps.shaderProvider = {
       provider: 'openai',
       defaultModel: 'gpt-5.5-mini',
-      generateShaderSpec: vi.fn(async () => {
-        throw new OpenAiShaderSpecTimeoutError(100);
+      generateShader: vi.fn(async () => {
+        throw new OpenAiShaderTimeoutError(100);
       }),
     };
 
     await expect(
-      handleCreateShaderSpecRequest(
-        { headers: {} },
-        { prompt: 'slow water', idempotencyKey: 'shader-timeout-1' },
-        deps,
-      ),
+      handleCreateShaderRequest({ headers: {} }, { prompt: 'slow water', idempotencyKey: 'shader-timeout-1' }, deps),
     ).resolves.toMatchObject({
       status: 504,
       body: { code: 'shader_provider_timeout', message: 'Shader generation took too long. Try again.' },
     });
-    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
+  });
+
+  it('rejects local fallback requests without a failed OpenAI attempt', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        {
+          prompt: 'ocean waves',
+          mode: 'localFallback',
+          idempotencyKey: 'shader-local-without-openai',
+        },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 400, body: { code: 'invalid_fallback_reference' } });
+  });
+
+  it('does not authorize fallback when OpenAI was blocked before the provider call', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+    await store.upsertMonthlyUsage({
+      userId: 'user-1',
+      period: '2026-05',
+      generationLimit: 10,
+      generationCountDelta: 10,
+    });
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'ocean waves', idempotencyKey: 'shader-quota-blocked' },
+      deps,
+    );
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        {
+          prompt: 'ocean waves',
+          mode: 'localFallback',
+          idempotencyKey: 'shader-fallback-after-quota',
+          fallbackForIdempotencyKey: 'shader-quota-blocked',
+        },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 409, body: { code: 'fallback_not_available' } });
+  });
+
+  it('only authorizes fallback for the prompt that failed at the provider', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'ocean waves', idempotencyKey: 'shader-provider-failed-prompt' },
+      deps,
+    );
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        {
+          prompt: 'neon marble',
+          mode: 'localFallback',
+          idempotencyKey: 'shader-fallback-other-prompt',
+          fallbackForIdempotencyKey: 'shader-provider-failed-prompt',
+        },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 409, body: { code: 'fallback_not_available' } });
   });
 
   it('returns exhausted quota access state for an AI-enabled user at the monthly limit', async () => {

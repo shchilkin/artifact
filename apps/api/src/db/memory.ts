@@ -2,12 +2,12 @@ import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } fr
 import type { ApiRepositories } from './repositories.js';
 import type {
   AiGenerationJobRow,
-  AiShaderSpecRequestRow,
+  AiShaderRequestRow,
   AiUsageMonthlyRow,
   AssetRow,
-  ClaimAiShaderSpecRequestInput,
+  ClaimAiShaderRequestInput,
   CloudProjectRow,
-  CompleteAiShaderSpecRequestInput,
+  CompleteAiShaderRequestInput,
   CreateAiGenerationJobInput,
   CreateAssetInput,
   CreateUserInput,
@@ -20,7 +20,7 @@ import type {
 export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
-  private readonly shaderSpecs = new Map<string, AiShaderSpecRequestRow>();
+  private readonly shaderRequests = new Map<string, AiShaderRequestRow>();
   private readonly assets = new Map<string, AssetRow>();
   private readonly projects = new Map<string, CloudProjectRow>();
   private readonly monthlyUsage = new Map<string, AiUsageMonthlyRow>();
@@ -139,14 +139,12 @@ export class InMemoryApiStore {
     );
   }
 
-  async claimShaderSpecRequest(
-    input: ClaimAiShaderSpecRequestInput,
-  ): Promise<{ row: AiShaderSpecRequestRow; claimed: boolean }> {
-    const existing = Array.from(this.shaderSpecs.values()).find(
+  async claimShaderRequest(input: ClaimAiShaderRequestInput): Promise<{ row: AiShaderRequestRow; claimed: boolean }> {
+    const existing = Array.from(this.shaderRequests.values()).find(
       (request) => request.user_id === input.userId && request.idempotency_key === input.idempotencyKey,
     );
     if (existing) return { row: existing, claimed: false };
-    const row: AiShaderSpecRequestRow = {
+    const row: AiShaderRequestRow = {
       id: input.id,
       user_id: input.userId,
       idempotency_key: input.idempotencyKey,
@@ -162,24 +160,24 @@ export class InMemoryApiStore {
       created_at: new Date(),
       completed_at: null,
     };
-    this.shaderSpecs.set(row.id, row);
+    this.shaderRequests.set(row.id, row);
     return { row, claimed: true };
   }
 
-  async findShaderSpecByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderSpecRequestRow | null> {
+  async findShaderByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderRequestRow | null> {
     return (
-      Array.from(this.shaderSpecs.values()).find(
+      Array.from(this.shaderRequests.values()).find(
         (request) => request.user_id === userId && request.idempotency_key === idempotencyKey,
       ) ?? null
     );
   }
 
-  async completeShaderSpecRequest(input: CompleteAiShaderSpecRequestInput): Promise<AiShaderSpecRequestRow> {
-    const request = this.shaderSpecs.get(input.id);
+  async completeShaderRequest(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(input.id);
     if (!request || request.status !== 'pending') {
-      throw new Error(`Pending shader spec request not found: ${input.id}`);
+      throw new Error(`Pending shader request not found: ${input.id}`);
     }
-    const completed: AiShaderSpecRequestRow = {
+    const completed: AiShaderRequestRow = {
       ...request,
       status: 'succeeded',
       response_json: input.responseJson,
@@ -187,27 +185,19 @@ export class InMemoryApiStore {
       provider_usage_json: input.providerUsageJson ?? null,
       completed_at: input.completedAt,
     };
-    this.shaderSpecs.set(request.id, completed);
-    if (input.usage) {
-      await this.upsertMonthlyUsage({
-        userId: request.user_id,
-        period: input.usage.period,
-        generationLimit: input.usage.generationLimit,
-        generationCountDelta: 1,
-      });
-    }
+    this.shaderRequests.set(request.id, completed);
     return completed;
   }
 
-  async failShaderSpecRequest(
+  async failShaderRequest(
     id: string,
     error: { status: number; code: string; message: string; completedAt: Date },
-  ): Promise<AiShaderSpecRequestRow> {
-    const request = this.shaderSpecs.get(id);
+  ): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(id);
     if (!request || request.status !== 'pending') {
-      throw new Error(`Pending shader spec request not found: ${id}`);
+      throw new Error(`Pending shader request not found: ${id}`);
     }
-    const failed: AiShaderSpecRequestRow = {
+    const failed: AiShaderRequestRow = {
       ...request,
       status: 'failed',
       error_status: error.status,
@@ -215,7 +205,7 @@ export class InMemoryApiStore {
       error_message: error.message,
       completed_at: error.completedAt,
     };
-    this.shaderSpecs.set(id, failed);
+    this.shaderRequests.set(id, failed);
     return failed;
   }
 
@@ -329,6 +319,28 @@ export class InMemoryApiStore {
     return (await this.findMonthlyUsage(userId, period))?.generation_count ?? 0;
   }
 
+  async reserveMonthlyGeneration(input: {
+    userId: string;
+    period: string;
+    generationLimit: number;
+  }): Promise<AiUsageMonthlyRow | null> {
+    const existing = this.monthlyUsage.get(monthlyUsageKey(input.userId, input.period));
+    if ((existing?.generation_count ?? 0) >= input.generationLimit) return null;
+    return this.upsertMonthlyUsage({ ...input, generationCountDelta: 1 });
+  }
+
+  async releaseMonthlyGeneration(userId: string, period: string): Promise<AiUsageMonthlyRow | null> {
+    const existing = this.monthlyUsage.get(monthlyUsageKey(userId, period));
+    if (!existing) return null;
+    const released = {
+      ...existing,
+      generation_count: Math.max(0, existing.generation_count - 1),
+      updated_at: new Date(),
+    };
+    this.monthlyUsage.set(monthlyUsageKey(userId, period), released);
+    return released;
+  }
+
   async countActiveJobs(userId: string): Promise<number> {
     return Array.from(this.jobs.values()).filter(
       (job) => job.user_id === userId && (job.status === 'queued' || job.status === 'running'),
@@ -382,11 +394,11 @@ export class InMemoryApiStore {
         markCancelled: (id, cancelledAt) => this.markCancelled(id, cancelledAt),
         markFailed: (id, error) => this.markFailed(id, error),
       },
-      shaderSpecs: {
-        claim: (input) => this.claimShaderSpecRequest(input),
-        findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderSpecByIdempotencyKey(userId, idempotencyKey),
-        complete: (input) => this.completeShaderSpecRequest(input),
-        markFailed: (id, error) => this.failShaderSpecRequest(id, error),
+      shaderRequests: {
+        claim: (input) => this.claimShaderRequest(input),
+        findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderByIdempotencyKey(userId, idempotencyKey),
+        complete: (input) => this.completeShaderRequest(input),
+        markFailed: (id, error) => this.failShaderRequest(id, error),
       },
       assets: {
         create: (input) => this.createAsset(input),
@@ -404,6 +416,8 @@ export class InMemoryApiStore {
       usage: {
         findMonthlyUsage: (userId, period) => this.findMonthlyUsage(userId, period),
         upsertMonthlyUsage: (input) => this.upsertMonthlyUsage(input),
+        reserveMonthlyGeneration: (input) => this.reserveMonthlyGeneration(input),
+        releaseMonthlyGeneration: (userId, period) => this.releaseMonthlyGeneration(userId, period),
         countMonthlyGenerations: (userId, period) => this.countMonthlyGenerations(userId, period),
       },
     };

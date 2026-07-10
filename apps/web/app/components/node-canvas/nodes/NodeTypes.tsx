@@ -425,16 +425,17 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
   } = data;
   const rendersBackdrop = Boolean(backdropPreviewTargetId);
   const effectRole = shaderNode.role === 'effect';
-  const aiPass = shaderNode.shaderKind === 'customSpec';
-  const aiPrompt = shaderNode.aiPrompt ?? shaderNode.customShaderSpec?.prompt ?? '';
-  const aiHasResult = Boolean(shaderNode.customShaderSpec?.provenance);
+  const aiPass = shaderNode.shaderKind === 'aiShader';
+  const shaderDefinition = shaderNode.shaderInstance?.definition;
+  const aiPrompt = shaderNode.aiPrompt ?? shaderDefinition?.provenance?.prompt ?? '';
+  const aiHasResult = Boolean(shaderDefinition?.code.trim() && shaderDefinition.provenance);
   const aiEmptyOverlay =
-    shaderNode.shaderKind === 'customSpec' && !aiHasResult ? (
+    shaderNode.shaderKind === 'aiShader' && !aiHasResult ? (
       <ShaderNodeAiEmptyOverlay hasPrompt={aiPrompt.trim().length >= 3} hasInput={rendersBackdrop} />
     ) : null;
-  const code = shaderNode.shaderInstance?.definition.code ?? '';
+  const code = shaderDefinition?.code ?? '';
   const codeIssue =
-    shaderNode.shaderKind === 'customCode'
+    shaderNode.shaderKind === 'customCode' || shaderNode.shaderKind === 'aiShader'
       ? (validateCustomShaderCode(code).find((issue) => issue.severity === 'error') ?? null)
       : null;
   const codeOverlay = codeIssue ? <ShaderNodeCodeOverlay empty={code.trim().length === 0} /> : null;

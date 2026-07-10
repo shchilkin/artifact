@@ -56,7 +56,7 @@ const SHADER_LABELS: Record<ShaderKind, string> = {
   noiseField: 'Noise Field',
   marble: 'Marble',
   liquid: 'Liquid',
-  customSpec: 'AI Shader',
+  aiShader: 'AI Shader',
   customCode: 'Code Shader',
   tilelessTexture: 'Tileless Texture',
 };
@@ -196,20 +196,26 @@ const SHADER_PROFILES: Partial<Record<ShaderKind, Partial<ReturnType<typeof make
     swirl: 62,
     grain: 4,
   },
-  customSpec: {
+  aiShader: {
     grain: 0,
-    customShaderSpec: {
-      version: 2,
-      label: 'AI Shader',
-      prompt: 'neon halftone wave texture',
-      palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
-      base: 0.46,
-      contrast: 1.24,
-      operations: [
-        { op: 'noise', scale: 4.8, amount: 0.26, octaves: 4 },
-        { op: 'wave', frequency: 16, amplitude: 0.22, angle: 0.8 },
-        { op: 'threshold', value: 0.52, softness: 0.12 },
-      ],
+    shaderInstance: {
+      definition: {
+        version: 1,
+        id: 'debug-ai-shader-definition',
+        label: 'AI Refraction',
+        language: 'glsl-fragment',
+        code: `vec4 mainImage(vec2 uv) {
+          vec2 offset = vec2(sin(uv.y * 18.0), cos(uv.x * 16.0)) * u_prop_amount;
+          vec4 source = texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
+          return vec4(mix(source.rgb, source.bgr * u_prop_tint, 0.32), source.a);
+        }`,
+        properties: [
+          { key: 'amount', label: 'Refraction', type: 'number', default: 0.025, min: 0, max: 0.1, step: 0.001 },
+          { key: 'tint', label: 'Tint', type: 'color', default: '#7b61ff' },
+        ],
+        provenance: { source: 'openai', prompt: 'neon halftone wave texture', model: 'debug-fixture' },
+      },
+      values: { amount: 0.025, tint: '#7b61ff' },
     },
   },
   customCode: {

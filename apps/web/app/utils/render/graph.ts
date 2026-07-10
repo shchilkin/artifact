@@ -25,7 +25,6 @@ import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
-import { renderCustomShaderSpecPass } from './customShaderSpecPass';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
@@ -816,7 +815,7 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
   const shaderNode = findShaderNode(context.graph, nodeId);
   if (!shaderNode) return null;
   const backdropId = findIncomingSource(context.graph, nodeId, 'bg');
-  if (shaderNode.shaderKind === 'customCode') {
+  if (shaderNode.shaderKind === 'customCode' || shaderNode.shaderKind === 'aiShader') {
     const backdrop = shaderNode.role === 'effect' && backdropId ? await context.renderDependency(backdropId) : null;
     throwIfRenderAborted(context.options);
     const rendered = renderCustomCodeShaderNodeToCanvas(
@@ -829,33 +828,6 @@ async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderCon
     return shaderNode.role === 'effect' && backdrop
       ? mixShaderPassWithBackdrop(backdrop, rendered, shaderNode.opacity, shaderNode.blendMode, context.W, context.H)
       : rendered;
-  }
-
-  if (
-    shaderNode.shaderKind === 'customSpec' &&
-    (shaderNode.role !== 'effect' || !backdropId || !shaderNode.customShaderSpec?.provenance)
-  ) {
-    return createCanvas(context.W, context.H);
-  }
-
-  if (shaderNode.shaderKind === 'customSpec') {
-    const backdrop = await context.renderDependency(backdropId!);
-    throwIfRenderAborted(context.options);
-    const processedBackdrop = renderCustomShaderSpecPass(
-      backdrop,
-      shaderNode,
-      context.doc.global.seed,
-      context.W,
-      context.H,
-    );
-    return mixShaderPassWithBackdrop(
-      backdrop,
-      processedBackdrop,
-      shaderNode.opacity,
-      shaderNode.blendMode,
-      context.W,
-      context.H,
-    );
   }
 
   const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);

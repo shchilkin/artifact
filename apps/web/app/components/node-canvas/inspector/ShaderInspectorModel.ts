@@ -1,12 +1,12 @@
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import type { ShaderKind, ShaderRole } from '../../../types/config';
 
-export function canCreateAiShaderPass(prompt: string, sourceConnected: boolean, generating: boolean) {
+export function canCreateAiShader(prompt: string, sourceConnected: boolean, generating: boolean) {
   const length = prompt.trim().length;
   return length >= 3 && length <= AI_SHADER_PROMPT_MAX_LENGTH && sourceConnected && !generating;
 }
 
-export function aiShaderPassEmptyStatus(hasPrompt: boolean, sourceConnected: boolean) {
+export function aiShaderEmptyStatus(hasPrompt: boolean, sourceConnected: boolean) {
   if (!sourceConnected) {
     return {
       title: 'Connect source',
@@ -27,7 +27,7 @@ export function aiShaderPassEmptyStatus(hasPrompt: boolean, sourceConnected: boo
 }
 
 export function shaderInspectorRoleNote(shaderKind: ShaderKind, role: ShaderRole) {
-  if (shaderKind === 'customSpec') {
+  if (shaderKind === 'aiShader') {
     return 'Use as a source-connected effect, then send the processed result onward or into a material map.';
   }
   return role === 'effect'
@@ -38,7 +38,7 @@ export function shaderInspectorRoleNote(shaderKind: ShaderKind, role: ShaderRole
 export function shaderInspectorRoleStatus(shaderKind: ShaderKind, role: ShaderRole, sourceConnected: boolean) {
   if (role === 'effect') {
     return {
-      label: shaderKind === 'customSpec' ? 'AI Shader Effect' : 'Shader Effect',
+      label: shaderKind === 'aiShader' ? 'AI Shader Effect' : 'Shader Effect',
       message: sourceConnected
         ? 'Connected artwork can be transformed by the generated shader.'
         : 'Connect artwork first; this shader stays transparent without a source.',
@@ -54,5 +54,5 @@ export function shaderInspectorRoleStatus(shaderKind: ShaderKind, role: ShaderRo
 }
 
 export function showsPresetShaderControls(shaderKind: ShaderKind) {
-  return shaderKind !== 'customSpec' && shaderKind !== 'customCode';
+  return shaderKind !== 'aiShader' && shaderKind !== 'customCode';
 }

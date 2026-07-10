@@ -24,7 +24,7 @@ describe('shaderPalette', () => {
 
   it('does not expose palette additions for AI and Code Shader modes', () => {
     expect(shaderPaletteConfig('meshGradient')).toMatchObject({ min: 2, max: 8, addable: true });
-    expect(shaderPaletteConfig('customSpec')).toMatchObject({ addable: false });
+    expect(shaderPaletteConfig('aiShader')).toMatchObject({ addable: false });
     expect(shaderPaletteConfig('customCode')).toMatchObject({ addable: false });
   });
 });

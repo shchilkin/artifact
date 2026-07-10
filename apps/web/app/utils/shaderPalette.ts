@@ -40,7 +40,7 @@ export const SHADER_PALETTE_CONFIGS: Record<string, ShaderPaletteConfig> = {
   noiseField: paletteConfig(['#151a20', '#6f8793', '#e7e3d4', '#b68a62'], 2, 6),
   marble: paletteConfig(WARM_TEXTURE, 2, 6),
   liquid: paletteConfig(['#05030a', '#45f2a8', '#ff6ad5', '#fff4b8'], 2, 6),
-  customSpec: paletteConfig(DEFAULT_SHADER_PALETTE, 2, 4, false),
+  aiShader: paletteConfig(DEFAULT_SHADER_PALETTE, 2, 4, false),
   customCode: paletteConfig(DEFAULT_SHADER_PALETTE, 2, 4, false),
 };
 

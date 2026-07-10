@@ -1,7 +1,10 @@
+import { stripShaderCodeComments } from '@artifact/shared';
+import type { ShaderPropertyDefinition, ShaderPropertyType } from '../../../types/config';
+
 export type CodeShaderUniformControl = 'strength' | 'variation';
 
 export function codeShaderUniformControls(code: string): CodeShaderUniformControl[] {
-  const executableCode = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const executableCode = stripShaderCodeComments(code);
   const controls: CodeShaderUniformControl[] = [];
   if (/\bu_strength\b/.test(executableCode)) controls.push('strength');
   if (/\bu_seed\b/.test(executableCode)) controls.push('variation');
@@ -32,5 +35,3 @@ function uniqueShaderPropertyKey(base: string, existing: ShaderPropertyDefinitio
   while (keys.has(`${base}${suffix}`)) suffix += 1;
   return `${base}${suffix}`;
 }
-
-import type { ShaderPropertyDefinition, ShaderPropertyType } from '../../../types/config';

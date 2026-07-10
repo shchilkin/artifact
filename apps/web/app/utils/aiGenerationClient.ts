@@ -1,16 +1,16 @@
+import { normalizeShaderInstance, validateShaderCode, validateShaderInstance } from '@artifact/shared';
 import {
   type AiGenerationAccessState,
   type AiGenerationJob,
   type AiGenerationJobStatus,
   type AiGenerationProvider,
-  type AiShaderSpecGenerationResponse,
-  type AiShaderSpecSource,
+  type AiShaderGenerationResponse,
+  type AiShaderSource,
   type CreateAiGenerationRequest,
-  type CreateAiShaderSpecRequest,
+  type CreateAiShaderRequest,
   isAiGenerationJobStatus,
   isAiGenerationProvider,
 } from '../types/aiGeneration';
-import { normalizeCustomShaderSpec } from './customShaderSpec';
 
 export class AiGenerationApiError extends Error {
   readonly status: number;
@@ -70,7 +70,7 @@ function ensureStatus(value: unknown): AiGenerationJobStatus {
   return value;
 }
 
-function ensureShaderSpecSource(value: unknown): AiShaderSpecSource {
+function ensureShaderSource(value: unknown): AiShaderSource {
   if (value !== 'openai' && value !== 'localFallback') {
     throw new AiGenerationApiError('Generation API returned an unknown shader source.', 0, 'invalid_response');
   }
@@ -101,20 +101,32 @@ export function parseAiGenerationAccessState(value: unknown): AiGenerationAccess
   return access as unknown as AiGenerationAccessState;
 }
 
-export function parseAiShaderSpecGenerationResponse(value: unknown): AiShaderSpecGenerationResponse {
+export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerationResponse {
   const response = ensureObject(value);
   const prompt = ensureString(response.prompt, 'prompt');
-  const source = ensureShaderSpecSource(response.source);
-  const spec = normalizeCustomShaderSpec(response.spec);
+  const source = ensureShaderSource(response.source);
+  const validationErrors = validateShaderInstance(response.instance);
+  const codeIssues =
+    response.instance && typeof response.instance === 'object' && 'definition' in response.instance
+      ? validateShaderCode(String((response.instance as { definition?: { code?: unknown } }).definition?.code ?? ''))
+      : [];
+  if (validationErrors.length > 0 || codeIssues.length > 0) {
+    throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
+  }
+  const instance = normalizeShaderInstance(response.instance);
+  if (!instance) throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
   const model = typeof response.model === 'string' && response.model.length > 0 ? response.model : undefined;
   const warnings = Array.isArray(response.warnings)
     ? response.warnings.filter((warning): warning is string => typeof warning === 'string')
     : undefined;
   return {
     prompt,
-    spec: {
-      ...spec,
-      provenance: spec.provenance ?? { source, ...(model ? { model } : {}) },
+    instance: {
+      ...instance,
+      definition: {
+        ...instance.definition,
+        provenance: instance.definition.provenance ?? { source, prompt, ...(model ? { model } : {}) },
+      },
     },
     source,
     ...(model ? { model } : {}),
@@ -170,19 +182,19 @@ export async function createAiGenerationJob(
   return parseAiGenerationJob(body);
 }
 
-export async function createAiShaderSpec(
-  request: CreateAiShaderSpecRequest,
+export async function createAiShader(
+  request: CreateAiShaderRequest,
   options: AiGenerationClientOptions = {},
-): Promise<AiShaderSpecGenerationResponse> {
+): Promise<AiShaderGenerationResponse> {
   const body = await requestJson(
-    '/api/ai/shader-spec',
+    '/api/ai/shaders',
     {
       method: 'POST',
       body: JSON.stringify(request),
     },
     options,
   );
-  return parseAiShaderSpecGenerationResponse(body);
+  return parseAiShaderGenerationResponse(body);
 }
 
 export async function getAiGenerationAccess(options: AiGenerationClientOptions = {}): Promise<AiGenerationAccessState> {

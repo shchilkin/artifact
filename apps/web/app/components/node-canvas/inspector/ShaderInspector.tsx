@@ -1,6 +1,5 @@
 import type { GraphShaderNode, ShaderKind, ShaderRole } from '../../../types/config';
 import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
-import { cloneDefaultCustomShaderSpec } from '../../../utils/customShaderSpec';
 import { defaultShaderPalette } from '../../../utils/shaderPalette';
 import { useNodeCanvasActions } from '../context';
 import { AiShaderInspector } from './AiShaderInspector';
@@ -70,19 +69,21 @@ export function ShaderInspector({
   const roleStatus = shaderInspectorRoleStatus(shaderNode.shaderKind, shaderNode.role, sourceConnected);
   const handleKindChange = (value: string) => {
     const shaderKind = value as ShaderKind;
-    const role =
-      shaderKind === 'customSpec' ? 'effect' : shaderNode.shaderKind === 'customSpec' ? 'fill' : shaderNode.role;
+    const role = shaderKind === 'aiShader' ? 'effect' : shaderNode.shaderKind === 'aiShader' ? 'fill' : shaderNode.role;
     setShaderNodeGenerationStatus(shaderNode.id, null);
     onChange({
       shaderKind,
       role,
       palette: defaultShaderPalette(shaderKind),
-      ...(shaderKind === 'customSpec' && !shaderNode.customShaderSpec
-        ? { customShaderSpec: cloneDefaultCustomShaderSpec() }
+      ...(shaderKind === 'aiShader'
+        ? { shaderInstance: shaderNode.shaderKind === 'aiShader' ? shaderNode.shaderInstance : undefined }
         : {}),
       ...(shaderKind === 'customCode'
         ? {
-            shaderInstance: shaderNode.shaderInstance ?? makeDefaultCodeShaderInstance(shaderNode.id),
+            shaderInstance:
+              shaderNode.shaderKind === 'customCode' && shaderNode.shaderInstance
+                ? shaderNode.shaderInstance
+                : makeDefaultCodeShaderInstance(shaderNode.id),
           }
         : {}),
     });
@@ -93,7 +94,7 @@ export function ShaderInspector({
   };
   const handleModeChange = (value: string) => {
     const mode = value as ShaderMode;
-    if (mode === 'ai') return handleKindChange('customSpec');
+    if (mode === 'ai') return handleKindChange('aiShader');
     if (mode === 'code') return handleKindChange('customCode');
     if (!preset) handleKindChange('meshGradient');
   };
@@ -124,7 +125,7 @@ export function ShaderInspector({
         />
       )}
       <ShaderRoleStatus status={roleStatus} />
-      {shaderNode.shaderKind === 'customSpec' && (
+      {shaderNode.shaderKind === 'aiShader' && (
         <AiShaderInspector shaderNode={shaderNode} onChange={onChange} sourceConnected={sourceConnected} />
       )}
       {shaderNode.shaderKind === 'customCode' && <CodeShaderInspector shaderNode={shaderNode} onChange={onChange} />}
@@ -154,7 +155,7 @@ function ShaderRoleStatus({ status }: { status: ReturnType<typeof shaderInspecto
 }
 
 function shaderModeForKind(shaderKind: ShaderKind): ShaderMode {
-  if (shaderKind === 'customSpec') return 'ai';
+  if (shaderKind === 'aiShader') return 'ai';
   if (shaderKind === 'customCode') return 'code';
   return 'preset';
 }

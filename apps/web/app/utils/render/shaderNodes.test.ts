@@ -22,36 +22,11 @@ function rgbDelta(a: readonly [number, number, number], b: readonly [number, num
 }
 
 describe('shader node renderer', () => {
-  it('renders custom shader specs deterministically from the saved spec', () => {
-    const node = makeGraphShaderNode({
-      id: 'custom-spec',
-      shaderKind: 'customSpec',
-      grain: 0,
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai' },
-        palette: ['#101020', '#ff3050', '#5cf0ff'],
-        base: 0.42,
-        contrast: 1.4,
-        operations: [
-          { op: 'noise', scale: 4, amount: 0.3, octaves: 3 },
-          { op: 'rings', frequency: 18, amount: 0.22, centerX: 0.1, centerY: -0.2 },
-          { op: 'posterize', steps: 5 },
-        ],
-      },
-    });
-    const first = renderShaderNodeToCanvas(node, 1171, 220, 140);
-    const second = renderShaderNodeToCanvas(node, 1171, 220, 140);
-
-    expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
-    expect(rgbDelta(sampleRgb(first, 40, 30), sampleRgb(first, 180, 110))).toBeGreaterThan(20);
-  });
-
-  it('renders empty AI shader nodes as transparent until a spec is created', () => {
+  it('renders empty AI shader nodes as transparent until a definition is created', () => {
     const canvas = renderShaderNodeToCanvas(
       makeGraphShaderNode({
         id: 'empty-ai-shader',
-        shaderKind: 'customSpec',
+        shaderKind: 'aiShader',
       }),
       1171,
       220,
@@ -62,7 +37,7 @@ describe('shader node renderer', () => {
     expect(sampleRgba(canvas, 180, 110)).toEqual([0, 0, 0, 0]);
   });
 
-  it('renders custom code shader nodes with visible pixels', () => {
+  it('keeps valid custom code fills transparent when WebGL is unavailable', () => {
     const node = makeGraphShaderNode({
       id: 'custom-code',
       shaderKind: 'customCode',
@@ -78,8 +53,8 @@ describe('shader node renderer', () => {
     const first = renderShaderNodeToCanvas(node, 1171, 220, 140);
     const second = renderShaderNodeToCanvas(node, 1171, 220, 140);
 
-    expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
-    expect(rgbDelta(sampleRgb(first, 30, 30), sampleRgb(first, 190, 110))).toBeGreaterThan(10);
+    expect(sampleRgba(first, 40, 30)).toEqual([0, 0, 0, 0]);
+    expect(sampleRgba(second, 40, 30)).toEqual([0, 0, 0, 0]);
   });
 
   it('renders empty custom code shader nodes as transparent', () => {
@@ -98,7 +73,7 @@ describe('shader node renderer', () => {
     expect(sampleRgba(canvas, 180, 110)).toEqual([0, 0, 0, 0]);
   });
 
-  it('renders invalid non-empty custom code with a visible deterministic fallback', () => {
+  it('renders invalid non-empty custom code as transparent instead of inventing a fallback image', () => {
     const node = makeGraphShaderNode({
       id: 'invalid-code-shader',
       shaderKind: 'customCode',
@@ -113,8 +88,8 @@ describe('shader node renderer', () => {
     const first = renderShaderNodeToCanvas(node, 1171, 220, 140);
     const second = renderShaderNodeToCanvas(node, 1171, 220, 140);
 
-    expect(sampleRgba(first, 40, 30)[3]).toBeGreaterThan(0);
-    expect(sampleRgb(first, 40, 30)).toEqual(sampleRgb(second, 40, 30));
+    expect(sampleRgba(first, 40, 30)).toEqual([0, 0, 0, 0]);
+    expect(sampleRgba(second, 40, 30)).toEqual([0, 0, 0, 0]);
   });
 
   it('uses every configured static radial palette color', () => {

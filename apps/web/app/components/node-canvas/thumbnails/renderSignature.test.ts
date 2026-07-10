@@ -195,19 +195,27 @@ describe('graph node render signatures', () => {
     const composited = { ...base, opacity: 42 };
     const custom = makeGraphShaderNode({
       ...base,
-      shaderKind: 'customSpec',
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai', model: 'test-model' },
-        palette: ['#111111', '#eeeeee'],
-        operations: [{ op: 'wave', frequency: 5, amplitude: 0.2, angle: 0 }],
+      shaderKind: 'aiShader',
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'ai-definition',
+          label: 'AI Refraction',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [
+            { key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 },
+          ],
+          provenance: { source: 'openai', prompt: 'Refraction', model: 'test-model' },
+        },
+        values: { amount: 0.02 },
       },
     });
     const customEdited = {
       ...custom,
-      customShaderSpec: {
-        ...custom.customShaderSpec!,
-        operations: [{ op: 'wave' as const, frequency: 9, amplitude: 0.2, angle: 0 }],
+      shaderInstance: {
+        ...custom.shaderInstance!,
+        values: { amount: 0.06 },
       },
     };
     const code = makeGraphShaderNode({
@@ -234,12 +242,14 @@ describe('graph node render signatures', () => {
     });
     const promptEdited = {
       ...custom,
-      aiPrompt: 'A different prompt with the same rendered spec',
-      customShaderSpec: {
-        ...custom.customShaderSpec!,
-        label: 'Renamed result',
-        prompt: 'A different prompt with the same rendered spec',
-        provenance: { source: 'openai' as const, model: 'another-model' },
+      aiPrompt: 'A different prompt with the same rendered shader',
+      shaderInstance: {
+        ...custom.shaderInstance!,
+        definition: {
+          ...custom.shaderInstance!.definition,
+          label: 'Renamed result',
+          provenance: { source: 'openai' as const, prompt: 'Different prompt', model: 'another-model' },
+        },
       },
     };
 

@@ -12,7 +12,11 @@ const definition: ShaderDefinition = {
   id: 'water-effect',
   label: 'Water Effect',
   language: 'glsl-fragment',
-  code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+  code: `vec4 mainImage(vec2 uv) {
+    vec4 source = texture2D(u_backdrop, uv);
+    vec3 tinted = mix(source.rgb, source.rgb * u_prop_tint, u_prop_amount);
+    return vec4(mix(source.rgb, tinted, u_prop_highlights), source.a);
+  }`,
   properties: [
     { key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 1, step: 0.01 },
     { key: 'tint', label: 'Tint', type: 'color', default: '#55ccff' },
@@ -62,5 +66,30 @@ describe('shader definition contract', () => {
         'Shader property 1: default must be inside the allowed range.',
       ]),
     );
+  });
+
+  it('rejects manifest controls that the shader code never reads', () => {
+    expect(
+      validateShaderDefinition({
+        ...definition,
+        code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        'Shader property amount is not used by the shader code.',
+        'Shader property tint is not used by the shader code.',
+        'Shader property highlights is not used by the shader code.',
+      ]),
+    );
+  });
+
+  it('does not count commented uniforms as editable control usage', () => {
+    expect(
+      validateShaderDefinition({
+        ...definition,
+        code: `// u_prop_amount u_prop_tint u_prop_highlights
+vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }`,
+      }),
+    ).toContain('Shader property amount is not used by the shader code.');
   });
 });

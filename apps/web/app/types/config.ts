@@ -1,6 +1,4 @@
 import type {
-  CustomShaderOperation,
-  CustomShaderSpec,
   ShaderDefinition,
   ShaderInstance,
   ShaderPropertyDefinition,
@@ -76,20 +74,12 @@ export const SHADER_KINDS = [
   'noiseField',
   'marble',
   'liquid',
-  'customSpec',
+  'aiShader',
   'customCode',
 ] as const;
 export const LEGACY_SHADER_KINDS = ['tilelessTexture'] as const;
 export type ShaderKind = (typeof SHADER_KINDS)[number] | (typeof LEGACY_SHADER_KINDS)[number];
-export type {
-  CustomShaderOperation,
-  CustomShaderSpec,
-  ShaderDefinition,
-  ShaderInstance,
-  ShaderPropertyDefinition,
-  ShaderPropertyValue,
-  ShaderRole,
-};
+export type { ShaderDefinition, ShaderInstance, ShaderPropertyDefinition, ShaderPropertyValue, ShaderRole };
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -635,7 +625,6 @@ export interface GraphShaderNode {
   shaderKind: ShaderKind;
   role: ShaderRole;
   aiPrompt?: string;
-  customShaderSpec?: CustomShaderSpec;
   shaderInstance?: ShaderInstance;
   palette: string[];
   distortion: number;
@@ -738,7 +727,7 @@ export interface CanvasDocument {
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export const DOCUMENT_SCHEMA_VERSION = 2;
+export const DOCUMENT_SCHEMA_VERSION = 3;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -1904,19 +1893,7 @@ export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}):
 export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
   const shaderKind = partial.shaderKind ?? 'meshGradient';
   const id = partial.id ?? `shader-${Date.now()}-${_idCounter++}`;
-  const role = shaderKind === 'customSpec' ? 'effect' : (partial.role ?? 'fill');
-  const defaultCustomShaderSpec: CustomShaderSpec = {
-    version: 2,
-    label: 'AI Shader Effect',
-    base: 0.46,
-    contrast: 1.18,
-    palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],
-    operations: [
-      { op: 'noise', scale: 3.2, amount: 0.34, octaves: 4 },
-      { op: 'wave', frequency: 7.5, amplitude: 0.22, angle: 28 },
-      { op: 'swirl', amount: 0.18, radius: 1.25 },
-    ],
-  };
+  const role = shaderKind === 'aiShader' ? 'effect' : (partial.role ?? 'fill');
   const defaultShaderInstance: ShaderInstance = {
     definition: {
       version: 1,
@@ -1945,7 +1922,6 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
     seedOffset: 0,
     opacity: 58,
     blendMode: 'screen',
-    ...(shaderKind === 'customSpec' ? { customShaderSpec: defaultCustomShaderSpec } : {}),
     ...partial,
     role,
     ...(shaderKind === 'customCode'
@@ -1967,14 +1943,6 @@ function cloneGraphShaderNode(node: GraphShaderNode): GraphShaderNode {
   return {
     ...node,
     palette: [...node.palette],
-    customShaderSpec: node.customShaderSpec
-      ? {
-          ...node.customShaderSpec,
-          palette: node.customShaderSpec.palette ? [...node.customShaderSpec.palette] : undefined,
-          operations: node.customShaderSpec.operations.map((operation) => ({ ...operation })),
-          provenance: node.customShaderSpec.provenance ? { ...node.customShaderSpec.provenance } : undefined,
-        }
-      : undefined,
     shaderInstance: node.shaderInstance
       ? {
           definition: {

@@ -97,7 +97,7 @@ describe('makeTextLayer', () => {
 
 describe('shader kind scope', () => {
   it('keeps AI custom specs in active shader fills', () => {
-    expect(SHADER_KINDS).toContain('customSpec');
+    expect(SHADER_KINDS).toContain('aiShader');
   });
 
   it('keeps editable code shaders in active shader fills', () => {
@@ -121,13 +121,19 @@ describe('cloneDocument shader state', () => {
   it('deep-clones nested shader state for undo snapshots', () => {
     const shader = makeGraphShaderNode({
       id: 'shader-history',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       palette: ['#111111', '#eeeeee'],
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai', model: 'test-model' },
-        palette: ['#101010', '#f0f0f0'],
-        operations: [{ op: 'invert', amount: 0.25 }],
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'shader-history-definition',
+          label: 'AI Refraction',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.25, min: 0, max: 1, step: 0.01 }],
+          provenance: { source: 'openai', model: 'test-model' },
+        },
+        values: { amount: 0.25 },
       },
     });
     const source: CanvasDocument = {
@@ -143,14 +149,14 @@ describe('cloneDocument shader state', () => {
 
     const cloned = cloneDocument(source);
     const clonedShader = cloned.graph?.shaderNodes?.[0];
-    if (!clonedShader?.customShaderSpec) throw new Error('Expected cloned shader state');
+    if (!clonedShader?.shaderInstance) throw new Error('Expected cloned shader state');
     clonedShader.palette[0] = '#ff0000';
-    clonedShader.customShaderSpec.palette![0] = '#00ff00';
-    clonedShader.customShaderSpec.operations[0] = { op: 'invert', amount: 0.9 };
+    clonedShader.shaderInstance.definition.properties[0]!.label = 'Changed';
+    clonedShader.shaderInstance.values.amount = 0.9;
 
     expect(shader.palette[0]).toBe('#111111');
-    expect(shader.customShaderSpec?.palette?.[0]).toBe('#101010');
-    expect(shader.customShaderSpec?.operations[0]).toEqual({ op: 'invert', amount: 0.25 });
+    expect(shader.shaderInstance?.definition.properties[0]?.label).toBe('Amount');
+    expect(shader.shaderInstance?.values.amount).toBe(0.25);
   });
 });
 

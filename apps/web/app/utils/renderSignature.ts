@@ -225,15 +225,9 @@ export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
 
 /** Render-relevant fields for a procedural shader node. */
 export function shaderNodeRenderSig(node: GraphShaderNode): string {
-  const customSpecRenderState = node.customShaderSpec?.provenance
-    ? [
-        true,
-        node.customShaderSpec.base,
-        node.customShaderSpec.contrast,
-        node.customShaderSpec.palette,
-        node.customShaderSpec.operations,
-      ]
-    : [false];
+  const shaderInstanceRenderState = node.shaderInstance
+    ? [node.shaderInstance.definition.code, node.shaderInstance.definition.properties, node.shaderInstance.values]
+    : null;
   return JSON.stringify([
     SHADER_PASS_RENDER_VERSION,
     node.shaderKind,
@@ -249,8 +243,7 @@ export function shaderNodeRenderSig(node: GraphShaderNode): string {
     node.seedOffset,
     node.opacity,
     node.blendMode,
-    customSpecRenderState,
-    node.shaderInstance ?? null,
+    shaderInstanceRenderState,
   ]);
 }
 

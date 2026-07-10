@@ -491,7 +491,7 @@ const layerItems: AddLibraryItem[] = [
     symbol: '✦',
     description: 'Create an editable shader pass that processes a connected source.',
     group: 'shaderEffect',
-    action: { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
+    action: { kind: 'shader', shaderKind: 'aiShader', role: 'effect' },
     surfaces: ['nodes'],
     tags: ['effect', 'shader', 'ai', 'custom', 'pass'],
     keywords: 'ai shader custom prompt generated editable spec effect pass backdrop source input figma',
@@ -836,7 +836,7 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
     const roleValid = value.role === 'fill' || value.role === 'effect';
     const kindValid =
       value.shaderKind === undefined || isPresetId(value.shaderKind, [...SHADER_KINDS, ...LEGACY_SHADER_KINDS]);
-    return roleValid && kindValid && (value.shaderKind !== 'customSpec' || value.role === 'effect');
+    return roleValid && kindValid && (value.shaderKind !== 'aiShader' || value.role === 'effect');
   }
   return validateAddLibraryActionPayload(value);
 }

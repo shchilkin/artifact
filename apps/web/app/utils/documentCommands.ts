@@ -676,7 +676,7 @@ function connectInsertedGraphOnlyNode(
     const node = makeGraphShaderNode({
       ...(action.shaderKind ? { shaderKind: action.shaderKind } : {}),
       role,
-      ...(action.shaderKind === 'customSpec' ? { name: 'AI Shader Effect' } : {}),
+      ...(action.shaderKind === 'aiShader' ? { name: 'AI Shader Effect' } : {}),
       ...(action.shaderKind === 'customCode' ? { name: 'Code Shader' } : {}),
     });
     if (role === 'effect') {

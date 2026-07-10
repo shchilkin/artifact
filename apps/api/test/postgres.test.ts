@@ -10,7 +10,7 @@ describe('createPostgresRepositories', () => {
 
     await expect(repositories.users.findById('user-1')).resolves.toBeNull();
     await expect(repositories.jobs.countActiveJobs('user-1')).resolves.toBe(0);
-    await expect(repositories.shaderSpecs.findByIdempotencyKey('user-1', 'shader-1')).resolves.toBeNull();
+    await expect(repositories.shaderRequests.findByIdempotencyKey('user-1', 'shader-1')).resolves.toBeNull();
     await expect(repositories.usage.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
 
     expect(client.query).toHaveBeenCalledTimes(4);

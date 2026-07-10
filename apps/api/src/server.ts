@@ -13,7 +13,7 @@ import { handleProjectAssetRequest } from './routes/projectAssets.js';
 import { handleProjectRequest } from './routes/projects.js';
 import { createApiRuntime } from './runtime.js';
 
-const { config, store, pool, repositories, queue, storage, providers, shaderSpecProvider } = createApiRuntime();
+const { config, store, pool, repositories, queue, storage, providers, shaderProvider } = createApiRuntime();
 const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
 const betterAuth = createArtifactBetterAuth(config, pool);
 const betterAuthHandler = betterAuth ? toNodeHandler(betterAuth) : null;
@@ -89,7 +89,7 @@ async function resolveApiResponse(req: IncomingMessage) {
       repositories,
       queue,
       providers,
-      shaderSpecProvider,
+      shaderProvider,
       createRateLimiter,
       monthlyGenerationLimit: config.monthlyGenerationLimit,
       maxActiveJobsPerUser: config.maxActiveJobsPerUser,

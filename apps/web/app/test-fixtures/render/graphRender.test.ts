@@ -40,6 +40,25 @@ function codeShaderInstance(id: string, code: string): ShaderInstance {
   return { ...instance, definition: { ...instance.definition, code } };
 }
 
+function aiShaderInstance(id: string): ShaderInstance {
+  return {
+    definition: {
+      version: 1,
+      id: `${id}-definition`,
+      label: 'AI Refraction',
+      language: 'glsl-fragment',
+      code: `vec4 mainImage(vec2 uv) {
+        vec2 offset = vec2(sin(uv.y * 18.0), cos(uv.x * 16.0)) * 0.025;
+        vec4 source = texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
+        return vec4(mix(source.rgb, source.bgr * vec3(0.8, 1.08, 1.2), 0.42), source.a);
+      }`,
+      properties: [],
+      provenance: { source: 'openai', prompt: 'Refract and tint the connected artwork', model: 'test-model' },
+    },
+    values: {},
+  };
+}
+
 function uniquePixelCount(canvas: HTMLCanvasElement) {
   const data = allPixels(canvas);
   const colors = new Set<string>();
@@ -526,7 +545,7 @@ describe('renderGraphTarget', () => {
   });
 
   it.each(
-    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'customSpec' && shaderKind !== 'customCode'),
+    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'aiShader' && shaderKind !== 'customCode'),
   )('renders %s shader nodes with visible procedural pixels', async (shaderKind) => {
     const graph: CanvasGraph = {
       edges: [
@@ -553,7 +572,7 @@ describe('renderGraphTarget', () => {
     expect(uniquePixelCount(canvas)).toBeGreaterThan(1);
   });
 
-  it('renders a customCode shader with explicitly saved code', async () => {
+  it('keeps custom code fills transparent in the non-WebGL unit runtime', async () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-code-export', fromId: 'shader-code', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
@@ -576,8 +595,8 @@ describe('renderGraphTarget', () => {
     const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), { skipEffects: true });
     const samples = [centerPixel(canvas), samplePixel(canvas, 4, 4)];
 
-    expect(samples.every((pixel) => pixel[3] === 255)).toBe(true);
-    expect(uniquePixelCount(canvas)).toBeGreaterThan(1);
+    expect(samples.every((pixel) => pixel[3] === 0)).toBe(true);
+    expect(uniquePixelCount(canvas)).toBe(1);
   });
 
   it('keeps unconnected AI shader passes transparent instead of acting as fills', async () => {
@@ -589,19 +608,9 @@ describe('renderGraphTarget', () => {
       shaderNodes: [
         makeGraphShaderNode({
           id: 'custom-shader',
-          shaderKind: 'customSpec',
+          shaderKind: 'aiShader',
           grain: 0,
-          customShaderSpec: {
-            version: 2,
-            provenance: { source: 'openai' },
-            label: 'AI Waves',
-            prompt: 'neon waves',
-            palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
-            operations: [
-              { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
-              { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
-            ],
-          },
+          shaderInstance: aiShaderInstance('custom-shader'),
         }),
       ],
     };
@@ -613,7 +622,7 @@ describe('renderGraphTarget', () => {
     expect(centerPixel(canvas)[3]).toBe(0);
   });
 
-  it('renders custom spec shader passes identically through document preview and export target', async () => {
+  it('renders AI shader effects identically through document preview and export target', async () => {
     const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
     const graph: CanvasGraph = {
       edges: [
@@ -626,19 +635,9 @@ describe('renderGraphTarget', () => {
       shaderNodes: [
         makeGraphShaderNode({
           id: 'custom-shader',
-          shaderKind: 'customSpec',
+          shaderKind: 'aiShader',
           grain: 0,
-          customShaderSpec: {
-            version: 2,
-            provenance: { source: 'openai' },
-            label: 'AI Waves',
-            prompt: 'neon waves',
-            palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
-            operations: [
-              { op: 'noise', scale: 4, amount: 0.3, octaves: 4 },
-              { op: 'wave', frequency: 12, amplitude: 0.22, angle: 1.2 },
-            ],
-          },
+          shaderInstance: aiShaderInstance('custom-shader'),
         }),
       ],
     };
@@ -649,10 +648,10 @@ describe('renderGraphTarget', () => {
     const exportCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(exportCanvas))).toBe(true);
-    expect(uniquePixelCount(exportCanvas)).toBeGreaterThan(1);
+    expect(centerPixel(exportCanvas)).toEqual([26, 51, 85, 255]);
   });
 
-  it('keeps custom spec shader pass deterministic while sampling its backdrop', async () => {
+  it('keeps AI shader fallback deterministic and preserves its backdrop', async () => {
     const backdropShader = makeGraphShaderNode({
       id: 'backdrop-shader',
       shaderKind: 'waterCaustic',
@@ -661,22 +660,11 @@ describe('renderGraphTarget', () => {
     });
     const customShader = makeGraphShaderNode({
       id: 'custom-shader',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       grain: 0,
       opacity: 72,
       blendMode: 'screen',
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai' },
-        label: 'AI Halftone',
-        prompt: 'neon halftone wave pass',
-        palette: ['#080816', '#7b61ff', '#ff4ec7', '#55f7d5'],
-        operations: [
-          { op: 'noise', scale: 5, amount: 0.28, octaves: 3 },
-          { op: 'wave', frequency: 18, amplitude: 0.24, angle: 0.45 },
-          { op: 'threshold', value: 0.48, softness: 0.12 },
-        ],
-      },
+      shaderInstance: aiShaderInstance('custom-shader'),
     });
     const standaloneGraph: CanvasGraph = {
       edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -732,11 +720,11 @@ describe('renderGraphTarget', () => {
 
     expect(pixelsEqual(allPixels(firstPass), allPixels(secondPass))).toBe(true);
     expect(pixelsEqual(allPixels(firstPass), allPixels(standalone))).toBe(false);
-    expect(pixelsEqual(allPixels(firstPass), allPixels(backdrop))).toBe(false);
+    expect(pixelsEqual(allPixels(firstPass), allPixels(backdrop))).toBe(true);
     expect(uniquePixelCount(firstPass)).toBeGreaterThan(1);
   });
 
-  it('runs custom code shaders as backdrop-aware passes', async () => {
+  it('preserves the backdrop when WebGL is unavailable for a custom code effect', async () => {
     const baseLayer = makeFillLayer({ id: 'base-fill', color: '#24334f', opacity: 100, blendMode: 'normal' });
     const codeShader = makeGraphShaderNode({
       id: 'code-shader',
@@ -793,8 +781,8 @@ describe('renderGraphTarget', () => {
       },
     );
 
-    expect(pixelsEqual(allPixels(pass), allPixels(base))).toBe(false);
-    expect(uniquePixelCount(pass)).toBeGreaterThan(1);
+    expect(pixelsEqual(allPixels(pass), allPixels(base))).toBe(true);
+    expect(uniquePixelCount(pass)).toBe(1);
   });
 
   it('keeps the connected backdrop when custom code shader output is transparent', async () => {
@@ -905,7 +893,7 @@ describe('renderGraphTarget', () => {
     );
 
     expect(averageRgbDistance(standalone, pass)).toBeGreaterThan(20);
-    expect(uniquePixelCount(pass)).toBeGreaterThan(1);
+    expect(uniquePixelCount(pass)).toBe(1);
   });
 
   it('composites shader effect nodes over their required backdrop input', async () => {
@@ -1031,27 +1019,15 @@ describe('renderGraphTarget', () => {
     expect(uniquePixelCount(pass)).toBeGreaterThan(1);
   });
 
-  it('keeps a custom shader pass image-like instead of replacing the backdrop with shader fill colors', async () => {
+  it('keeps an AI shader backdrop unchanged when WebGL is unavailable', async () => {
     const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
     const customShader = makeGraphShaderNode({
       id: 'custom-water-pass',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       grain: 0,
       opacity: 100,
       blendMode: 'screen',
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai' },
-        label: 'Transparent shallow-water pass',
-        base: 0.55,
-        contrast: 1.1,
-        palette: ['#bdfaff', '#8befff', '#efffff'],
-        operations: [
-          { op: 'noise', scale: 5.8, amount: 0.22, octaves: 4, seedOffset: 21 },
-          { op: 'rings', frequency: 14, amount: 0.14, centerX: 0.12, centerY: -0.08 },
-          { op: 'wave', frequency: 9, amplitude: 0.1, angle: 27 },
-        ],
-      },
+      shaderInstance: aiShaderInstance('custom-water-pass'),
     });
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -1095,10 +1071,10 @@ describe('renderGraphTarget', () => {
 
     expect(centerPixel(pass)[3]).toBe(255);
     expect(hasVisiblePixels(pass)).toBe(true);
-    expect(pixelsEqual(allPixels(pass), allPixels(baseCanvas))).toBe(false);
+    expect(pixelsEqual(allPixels(pass), allPixels(baseCanvas))).toBe(true);
   });
 
-  it('keeps low-contrast AI water passes visible on detailed image backdrops', async () => {
+  it('preserves detailed image backdrops when AI shader WebGL is unavailable', async () => {
     const imageSrc = 'test-cache://detailed-water-pass-input';
     const imageLayer = makeImageLayer(imageSrc, {
       id: 'image-input',
@@ -1108,29 +1084,12 @@ describe('renderGraphTarget', () => {
     });
     const shaderNode = makeGraphShaderNode({
       id: 'ai-water-pass',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       opacity: 100,
       blendMode: 'normal',
       distortion: 56,
       grain: 12,
-      customShaderSpec: {
-        version: 2,
-        provenance: { source: 'openai' },
-        label: 'Transparent Shallow-Water Caustic Refraction',
-        base: 0.22,
-        contrast: 0.36,
-        palette: ['#bdfaff', '#8befff', '#efffff'],
-        operations: [
-          { op: 'noise', scale: 5.8, amount: 0.22, octaves: 4, seedOffset: 21 },
-          { op: 'wave', frequency: 9, amplitude: 0.1, angle: 27 },
-          { op: 'rings', frequency: 14, amount: 0.14, centerX: 0.12, centerY: -0.08 },
-          { op: 'sourceLuma', amount: 0.58 },
-          { op: 'edgeGlow', amount: 0.46, softness: 0.16 },
-          { op: 'chromaticShift', amount: 0.22, angle: 36 },
-          { op: 'gradientMap', amount: 0.48 },
-          { op: 'posterize', steps: 5 },
-        ],
-      },
+      shaderInstance: aiShaderInstance('ai-water-pass'),
     });
     const imageGraph: CanvasGraph = {
       edges: [{ id: 'e-image-export', fromId: imageLayer.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
@@ -1186,8 +1145,8 @@ describe('renderGraphTarget', () => {
     );
 
     const passDelta = averageRgbDistance(pass, baseCanvas);
-    expect(passDelta).toBeGreaterThan(8);
-    expect(passDelta).toBeLessThan(averageRgbDistance(standaloneShader, baseCanvas));
+    expect(passDelta).toBe(0);
+    expect(averageRgbDistance(standaloneShader, baseCanvas)).toBeGreaterThan(0);
   });
 
   it('keeps shader backdrop unchanged when shader pass opacity is zero', async () => {

@@ -151,23 +151,20 @@ Shader work follows the same single-purpose split:
   shader, and then apply the node's opacity and blend mode as pass intensity.
   Opacity and blend mode are effect-only controls; fill mode outputs the generated
   texture directly.
-  `AI Shader Effect` is prompt-ready and input-dependent: it stores a validated
-  `customSpec` JSON shader description and prompt provenance, not raw
-  GLSL/WGSL. Its inspector can generate an editable spec from a prompt through
-  the AI shader-spec endpoint. The default path must request the configured
-  OpenAI provider; if that fails, the inspector may offer a separate local
-  deterministic fallback, and the saved spec must keep `localFallback`
-  provenance. Prompts allow up to 1500 characters; the inspector shows the
-  current count and the API rejects oversized prompts instead of silently
-  truncating them. The v2 spec grammar supports source-aware pass operations such as
-  source luminance, edge glow, chromatic shift, and gradient-map tinting in
-  addition to procedural noise/waves/rings. Saved operations execute in order,
-  so the spec is an editable render recipe rather than an unordered set of
-  effect amounts. Its inspector is split into Prompt, Tone, Colors, and ordered
-  Steps; preset-only shape, placement, and texture controls are not reused.
-  Without a connected source/backdrop,
-  or before a generated spec exists, it renders transparent instead of inventing
-  source pixels.
+  `AI Shader Effect` is prompt-ready and input-dependent. The API returns a
+  validated `ShaderInstance`: GLSL for `mainImage(vec2 uv)`, a manifest of
+  editable controls, their initial values, and OpenAI or local-fallback
+  provenance. Generated code must sample the connected `u_backdrop`; every
+  manifest control must be read through its `u_prop_<key>` uniform. The default
+  request goes to the configured OpenAI provider. If that fails, the inspector
+  offers a separate local draft and labels it `localFallback` instead of
+  silently substituting it. The fallback API request must reference the failed
+  OpenAI attempt. Prompts allow up to 500 characters and OpenAI
+  responses are capped at 2400 output tokens. The inspector shows only Prompt,
+  result status, and controls declared by the generated manifest. Without a
+  connected source, before generation succeeds, or when the shader cannot run,
+  its result layer is transparent and the graph keeps the upstream image
+  unchanged.
   `Code Shader` is a shader authoring method: its definition stores a GLSL
   fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and

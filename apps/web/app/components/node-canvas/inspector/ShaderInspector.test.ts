@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { createActor } from 'xstate';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import { codeShaderUniformControls, makeCodeShaderProperty } from './CodeShaderInspectorModel';
 import { shaderPresetControlConfig } from './ShaderInspectorMetadata';
 import {
-  aiShaderPassEmptyStatus,
-  canCreateAiShaderPass,
+  aiShaderEmptyStatus,
+  canCreateAiShader,
   shaderInspectorRoleNote,
   shaderInspectorRoleStatus,
   showsPresetShaderControls,
 } from './ShaderInspectorModel';
+import { shaderGenerationMachine } from './shaderGenerationMachine';
 
 describe('ShaderInspector metadata', () => {
   it('shows the full shape and placement surface only for presets that read every field', () => {
@@ -36,23 +38,36 @@ describe('ShaderInspector metadata', () => {
   });
 
   it('requires a connected source before AI shader generation can start', () => {
-    expect(canCreateAiShaderPass('water refraction', false, false)).toBe(false);
-    expect(canCreateAiShaderPass('water refraction', true, true)).toBe(false);
-    expect(canCreateAiShaderPass('ok', true, false)).toBe(false);
-    expect(canCreateAiShaderPass('water refraction', true, false)).toBe(true);
-    expect(canCreateAiShaderPass('x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1), true, false)).toBe(false);
+    expect(canCreateAiShader('water refraction', false, false)).toBe(false);
+    expect(canCreateAiShader('water refraction', true, true)).toBe(false);
+    expect(canCreateAiShader('ok', true, false)).toBe(false);
+    expect(canCreateAiShader('water refraction', true, false)).toBe(true);
+    expect(canCreateAiShader('x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1), true, false)).toBe(false);
+  });
+
+  it('offers local fallback only for recoverable OpenAI failures', () => {
+    const recoverable = createActor(shaderGenerationMachine).start();
+    recoverable.send({ type: 'CREATE_OPENAI' });
+    recoverable.send({ type: 'OPENAI_FAILED', message: 'Provider failed.' });
+    expect(recoverable.getSnapshot().matches('fallbackOffered')).toBe(true);
+
+    const blocked = createActor(shaderGenerationMachine).start();
+    blocked.send({ type: 'CREATE_OPENAI' });
+    blocked.send({ type: 'OPENAI_BLOCKED', message: 'Quota reached.' });
+    expect(blocked.getSnapshot().matches('failed')).toBe(true);
+    expect(blocked.getSnapshot().context.message).toBe('Quota reached.');
   });
 
   it('describes AI shader empty state as a source-connected effect', () => {
-    expect(aiShaderPassEmptyStatus(false, false)).toEqual({
+    expect(aiShaderEmptyStatus(false, false)).toEqual({
       title: 'Connect source',
       message: 'This effect transforms an incoming image. Connect a source before creating it.',
     });
-    expect(aiShaderPassEmptyStatus(true, true)).toEqual({
+    expect(aiShaderEmptyStatus(true, true)).toEqual({
       title: 'Ready to create',
       message: 'Create an editable effect that processes the connected source.',
     });
-    expect(shaderInspectorRoleNote('customSpec', 'effect')).toBe(
+    expect(shaderInspectorRoleNote('aiShader', 'effect')).toBe(
       'Use as a source-connected effect, then send the processed result onward or into a material map.',
     );
     expect(shaderInspectorRoleNote('customCode', 'fill')).toBe(
@@ -62,7 +77,7 @@ describe('ShaderInspector metadata', () => {
 
   it('keeps preset-only color/detail controls off custom shader variants', () => {
     expect(showsPresetShaderControls('meshGradient')).toBe(true);
-    expect(showsPresetShaderControls('customSpec')).toBe(false);
+    expect(showsPresetShaderControls('aiShader')).toBe(false);
     expect(showsPresetShaderControls('customCode')).toBe(false);
   });
 

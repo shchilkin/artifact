@@ -82,12 +82,12 @@ describe('addLibraryModel', () => {
 
     expect(item).toMatchObject({
       label: 'AI Shader Effect',
-      action: { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
+      action: { kind: 'shader', shaderKind: 'aiShader', role: 'effect' },
       group: 'shaderEffect',
     });
     expect(parseAddLibraryAction(serializeAddLibraryAction(item!.action))).toEqual({
       kind: 'shader',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       role: 'effect',
     });
     expect(parseAddLibraryAction(JSON.stringify({ kind: 'shader', shaderKind: 'rawCode', role: 'fill' }))).toBeNull();

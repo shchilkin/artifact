@@ -3,13 +3,28 @@ import {
   AiGenerationApiError,
   cancelAiGenerationJob,
   createAiGenerationJob,
-  createAiShaderSpec,
+  createAiShader,
   getAiGenerationAccess,
   getAiGenerationJob,
   parseAiGenerationAccessState,
   parseAiGenerationJob,
-  parseAiShaderSpecGenerationResponse,
+  parseAiShaderGenerationResponse,
 } from './aiGenerationClient';
+
+const generatedShaderInstance = {
+  definition: {
+    version: 1,
+    id: 'water-refraction',
+    label: 'Water Refraction',
+    language: 'glsl-fragment',
+    code: `vec4 mainImage(vec2 uv) {
+      vec2 offset = vec2(sin(uv.y * 16.0), cos(uv.x * 14.0)) * u_prop_amount;
+      return texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
+    }`,
+    properties: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 }],
+  },
+  values: { amount: 0.02 },
+};
 
 const job = {
   id: 'job-1',
@@ -91,59 +106,57 @@ describe('parseAiGenerationAccessState', () => {
 });
 
 describe('ai generation client', () => {
-  it('parses and normalizes generated shader specs', () => {
-    const response = parseAiShaderSpecGenerationResponse({
-      prompt: 'marble waves',
+  it('parses and normalizes generated shader instances', () => {
+    const response = parseAiShaderGenerationResponse({
+      prompt: 'water refraction',
       source: 'openai',
       model: 'gpt-5.5-mini',
-      spec: {
-        version: 2,
-        label: 'AI Marble',
-        operations: [
-          { op: 'noise', scale: 1000, amount: 2, octaves: 99 },
-          { op: 'sourceLuma', amount: 0.7 },
-          { op: 'edgeGlow', amount: 4, softness: 2 },
-          { op: 'chromaticShift', amount: 0.4, angle: 380 },
-          { op: 'gradientMap', amount: 0.5 },
-          { op: 'rawCode', source: 'void main() {}' },
-        ],
-      },
+      instance: generatedShaderInstance,
     });
 
-    expect(response.prompt).toBe('marble waves');
+    expect(response.prompt).toBe('water refraction');
     expect(response.source).toBe('openai');
     expect(response.model).toBe('gpt-5.5-mini');
-    expect(response.spec.provenance).toEqual({ source: 'openai', model: 'gpt-5.5-mini' });
-    expect(response.spec.operations).toEqual([
-      { op: 'noise', scale: 40, amount: 2, octaves: 7, seedOffset: 0 },
-      { op: 'sourceLuma', amount: 0.7 },
-      { op: 'edgeGlow', amount: 2, softness: 1 },
-      { op: 'chromaticShift', amount: 0.4, angle: 360 },
-      { op: 'gradientMap', amount: 0.5 },
-    ]);
+    expect(response.instance.definition.provenance).toEqual({
+      source: 'openai',
+      prompt: 'water refraction',
+      model: 'gpt-5.5-mini',
+    });
+    expect(response.instance.values).toEqual({ amount: 0.02 });
   });
 
-  it('creates shader specs through the AI shader endpoint', async () => {
+  it('rejects shader responses with controls that the code does not read', () => {
+    expect(() =>
+      parseAiShaderGenerationResponse({
+        prompt: 'water refraction',
+        source: 'openai',
+        instance: {
+          ...generatedShaderInstance,
+          definition: {
+            ...generatedShaderInstance.definition,
+            code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+          },
+        },
+      }),
+    ).toThrow(AiGenerationApiError);
+  });
+
+  it('creates shader instances through the AI shader endpoint', async () => {
     const { calls, fetcher } = captureJsonFetch({
       prompt: 'neon waves',
       source: 'openai',
       model: 'gpt-5.5-mini',
-      spec: {
-        version: 2,
-        label: 'AI Waves',
-        prompt: 'neon waves',
-        operations: [{ op: 'wave', frequency: 8, amplitude: 0.2, angle: 1 }],
-      },
+      instance: generatedShaderInstance,
     });
 
-    const result = await createAiShaderSpec(
+    const result = await createAiShader(
       { prompt: 'neon waves', mode: 'openai', idempotencyKey: 'shader-request-1' },
       { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
     );
 
-    expect(result.spec.label).toBe('AI Waves');
+    expect(result.instance.definition.label).toBe('Water Refraction');
     expect(result.source).toBe('openai');
-    expect(calls[0]?.url).toBe('https://api.example.test/api/ai/shader-spec');
+    expect(calls[0]?.url).toBe('https://api.example.test/api/ai/shaders');
     expect(calls[0]?.init.method).toBe('POST');
     expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({

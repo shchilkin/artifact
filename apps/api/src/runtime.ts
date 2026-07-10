@@ -6,7 +6,7 @@ import { loadApiEnv } from './env.js';
 import {
   createMockImageProvider,
   createOpenAiImageProvider,
-  createOpenAiShaderSpecProvider,
+  createOpenAiShaderProvider,
   createProviderRegistry,
   createXAiImageProvider,
 } from './providers/index.js';
@@ -39,9 +39,9 @@ function createOpenAiProvider(config: ReturnType<typeof loadConfig>) {
     : createMockImageProvider({ provider: 'openai' });
 }
 
-function createShaderSpecProvider(config: ReturnType<typeof loadConfig>) {
+function createShaderProvider(config: ReturnType<typeof loadConfig>) {
   return config.openAiApiKey
-    ? createOpenAiShaderSpecProvider({
+    ? createOpenAiShaderProvider({
         apiKey: config.openAiApiKey,
         defaultModel: config.openAiShaderModel,
         timeoutMs: config.openAiShaderTimeoutMs,
@@ -64,7 +64,7 @@ export function createApiRuntime() {
   const queue = createApiQueue(config);
   const storage = new LocalAssetStorage(config.assetStorageDir);
   const providers = createProviderRegistry([createOpenAiProvider(config), createXAiProvider(config)]);
-  const shaderSpecProvider = createShaderSpecProvider(config);
+  const shaderProvider = createShaderProvider(config);
 
-  return { config, store, pool, repositories, queue, storage, providers, shaderSpecProvider };
+  return { config, store, pool, repositories, queue, storage, providers, shaderProvider };
 }

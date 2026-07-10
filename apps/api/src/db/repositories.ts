@@ -1,6 +1,6 @@
 import type {
   AiGenerationJobRepository,
-  AiShaderSpecRequestRepository,
+  AiShaderRequestRepository,
   AiUsageRepository,
   AssetRepository,
   CloudProjectRepository,
@@ -10,7 +10,7 @@ import type {
 export interface ApiRepositories {
   users: UserReadWriteRepository;
   jobs: JobReadWriteRepository;
-  shaderSpecs: ShaderSpecRequestReadWriteRepository;
+  shaderRequests: ShaderRequestReadWriteRepository;
   assets: AssetReadWriteRepository;
   projects: ProjectReadWriteRepository;
   usage: UsageReadWriteRepository;
@@ -31,8 +31,8 @@ export type JobReadWriteRepository = Pick<
   countActiveJobs(userId: string): Promise<number>;
 };
 
-export type ShaderSpecRequestReadWriteRepository = Pick<
-  AiShaderSpecRequestRepository,
+export type ShaderRequestReadWriteRepository = Pick<
+  AiShaderRequestRepository,
   'claim' | 'findByIdempotencyKey' | 'complete' | 'markFailed'
 >;
 
@@ -48,6 +48,9 @@ export type AssetReadWriteRepository = Pick<
 
 export type ProjectReadWriteRepository = Pick<CloudProjectRepository, 'listForUser' | 'upsert' | 'deleteForUser'>;
 
-export type UsageReadWriteRepository = Pick<AiUsageRepository, 'findMonthlyUsage' | 'upsertMonthlyUsage'> & {
+export type UsageReadWriteRepository = Pick<
+  AiUsageRepository,
+  'findMonthlyUsage' | 'upsertMonthlyUsage' | 'reserveMonthlyGeneration' | 'releaseMonthlyGeneration'
+> & {
   countMonthlyGenerations(userId: string, period: string): Promise<number>;
 };

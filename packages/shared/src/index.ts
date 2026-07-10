@@ -1,7 +1,7 @@
 export const AI_API_PATHS = {
   health: '/api/health',
   access: '/api/ai/access',
-  shaderSpec: '/api/ai/shader-spec',
+  shader: '/api/ai/shaders',
   generations: '/api/ai/generations',
   generation: (id: string) => `/api/ai/generations/${encodeURIComponent(id)}`,
   generationCancel: (id: string) => `/api/ai/generations/${encodeURIComponent(id)}/cancel`,
@@ -94,98 +94,24 @@ export interface ShaderInstance {
   values: Record<string, ShaderPropertyValue>;
 }
 
-export type CustomShaderOperation =
-  | {
-      op: 'noise';
-      scale: number;
-      amount: number;
-      octaves?: number;
-      seedOffset?: number;
-    }
-  | {
-      op: 'wave';
-      frequency: number;
-      amplitude: number;
-      angle: number;
-      phase?: number;
-    }
-  | {
-      op: 'rings';
-      frequency: number;
-      amount: number;
-      centerX?: number;
-      centerY?: number;
-    }
-  | {
-      op: 'swirl';
-      amount: number;
-      radius?: number;
-    }
-  | {
-      op: 'threshold';
-      value: number;
-      softness?: number;
-    }
-  | {
-      op: 'posterize';
-      steps: number;
-    }
-  | {
-      op: 'invert';
-      amount: number;
-    }
-  | {
-      op: 'sourceLuma';
-      amount: number;
-    }
-  | {
-      op: 'edgeGlow';
-      amount: number;
-      softness?: number;
-    }
-  | {
-      op: 'chromaticShift';
-      amount: number;
-      angle?: number;
-    }
-  | {
-      op: 'gradientMap';
-      amount: number;
-    };
+export const AI_SHADER_SOURCES = ['openai', 'localFallback'] as const;
+export type AiShaderSource = (typeof AI_SHADER_SOURCES)[number];
 
-export const AI_SHADER_SPEC_SOURCES = ['openai', 'localFallback'] as const;
-export type AiShaderSpecSource = (typeof AI_SHADER_SPEC_SOURCES)[number];
+export const AI_SHADER_REQUEST_MODES = ['openai', 'localFallback'] as const;
+export type AiShaderRequestMode = (typeof AI_SHADER_REQUEST_MODES)[number];
+export const AI_SHADER_PROMPT_MAX_LENGTH = 500;
 
-export const AI_SHADER_SPEC_REQUEST_MODES = ['openai', 'localFallback'] as const;
-export type AiShaderSpecRequestMode = (typeof AI_SHADER_SPEC_REQUEST_MODES)[number];
-export const AI_SHADER_PROMPT_MAX_LENGTH = 1_500;
-
-export interface CustomShaderProvenance {
-  source: AiShaderSpecSource;
-  model?: string;
-}
-
-export interface CustomShaderSpec {
-  version: 2;
-  label?: string;
-  prompt?: string;
-  base?: number;
-  contrast?: number;
-  palette?: string[];
-  provenance?: CustomShaderProvenance;
-  operations: CustomShaderOperation[];
-}
-
-export interface CreateAiShaderSpecRequest {
+export interface CreateAiShaderRequest {
   prompt: string;
-  mode?: AiShaderSpecRequestMode;
+  mode?: AiShaderRequestMode;
   idempotencyKey: string;
+  fallbackForIdempotencyKey?: string;
 }
 
-export interface AiShaderSpecGenerationResponse {
+export interface AiShaderGenerationResponse {
   prompt: string;
-  spec: CustomShaderSpec;
-  source: AiShaderSpecSource;
+  instance: ShaderInstance;
+  source: AiShaderSource;
   model?: string;
   warnings?: string[];
 }
@@ -251,6 +177,7 @@ export function validateShaderDefinition(value: unknown): string[] {
   }
   if (value.properties.length > MAX_SHADER_DEFINITION_PROPERTIES)
     errors.push(`Use ${MAX_SHADER_DEFINITION_PROPERTIES} shader properties or fewer.`);
+  const executableCode = typeof value.code === 'string' ? stripShaderCodeComments(value.code) : '';
   const keys = new Set<string>();
   value.properties.forEach((property, index) => {
     const normalized = normalizeShaderPropertyDefinition(property);
@@ -261,8 +188,106 @@ export function validateShaderDefinition(value: unknown): string[] {
     shaderPropertyValidationErrors(property).forEach((error) => errors.push(`Shader property ${index + 1}: ${error}`));
     if (keys.has(normalized.key)) errors.push(`Shader property key ${normalized.key} is duplicated.`);
     keys.add(normalized.key);
+    if (!new RegExp(`\\bu_prop_${normalized.key}\\b`).test(executableCode)) {
+      errors.push(`Shader property ${normalized.key} is not used by the shader code.`);
+    }
   });
   return errors;
+}
+
+export function validateShaderInstance(value: unknown): string[] {
+  if (!isCustomShaderRecord(value)) return ['Shader instance must be an object.'];
+  const errors = validateShaderDefinition(value.definition);
+  if (errors.length > 0) return errors;
+  const definition = value.definition as unknown as ShaderDefinition;
+  const values = isCustomShaderRecord(value.values) ? value.values : {};
+  for (const property of definition.properties) {
+    const candidate = values[property.key];
+    if (candidate === undefined) continue;
+    if (property.type === 'number' && (typeof candidate !== 'number' || !Number.isFinite(candidate))) {
+      errors.push(`Shader property value ${property.key} must be a finite number.`);
+    }
+    if (property.type === 'boolean' && typeof candidate !== 'boolean') {
+      errors.push(`Shader property value ${property.key} must be true or false.`);
+    }
+    if (property.type === 'color' && (typeof candidate !== 'string' || !CUSTOM_SHADER_HEX_COLOR_RE.test(candidate))) {
+      errors.push(`Shader property value ${property.key} must be a hex color.`);
+    }
+  }
+  return errors;
+}
+
+export interface ShaderCodeIssue {
+  severity: 'error';
+  message: string;
+}
+
+const MAX_SHADER_CODE_LENGTH = 12_000;
+const MAX_SHADER_LOOP_COUNT = 32;
+const MAX_SHADER_LOOP_STATEMENTS = 1;
+
+export function validateShaderCode(code: string): ShaderCodeIssue[] {
+  const issues: ShaderCodeIssue[] = [];
+  if (!code.trim()) return [{ severity: 'error', message: 'Add code for mainImage(uv).' }];
+  const executableCode = stripShaderCodeComments(code);
+  if (code.length > MAX_SHADER_CODE_LENGTH) {
+    issues.push({ severity: 'error', message: 'Keep shader code under 12,000 characters.' });
+  }
+  if (!/\bvec4\s+mainImage\s*\(\s*vec2\s+\w+\s*\)/.test(executableCode)) {
+    issues.push({ severity: 'error', message: 'Add vec4 mainImage(vec2 uv) so the shader knows what to draw.' });
+  }
+  if (/\bvoid\s+main\s*\(/.test(executableCode)) {
+    issues.push({ severity: 'error', message: 'Remove void main(). Artifact adds the final wrapper for you.' });
+  }
+  if (/\bgl_Frag(Color|Data)\b/.test(executableCode)) {
+    issues.push({ severity: 'error', message: 'Return a vec4 from mainImage instead of writing gl_FragColor.' });
+  }
+  if (/^\s*#/m.test(executableCode)) {
+    issues.push({ severity: 'error', message: 'Remove preprocessor lines that start with #.' });
+  }
+  if (/\b(while|do)\b/.test(executableCode)) {
+    issues.push({ severity: 'error', message: 'Use small fixed for-loops. while and do loops are blocked.' });
+  }
+  collectShaderLoopIssues(executableCode).forEach((message) => issues.push({ severity: 'error', message }));
+  return issues;
+}
+
+export function stripShaderCodeComments(code: string) {
+  return code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+function collectShaderLoopIssues(code: string) {
+  const issues: string[] = [];
+  const loops = [...code.matchAll(/\bfor\s*\(([^;]*);([^;]*);([^)]*)\)/g)];
+  if (loops.length > MAX_SHADER_LOOP_STATEMENTS) issues.push('Use at most one small fixed for-loop in a shader.');
+  for (const match of loops) {
+    const initializer = (match[1] ?? '').trim();
+    const condition = (match[2] ?? '').trim();
+    const increment = (match[3] ?? '').trim();
+    const initializerMatch = initializer.match(/^int\s+([A-Za-z_]\w*)\s*=\s*0$/);
+    if (!initializerMatch) {
+      issues.push('Start fixed loops at zero, for example for (int i = 0; i < 12; i++).');
+      continue;
+    }
+    const variable = initializerMatch[1];
+    const conditionMatch = condition.match(new RegExp(`^${variable}\\s*<\\s*(\\d+)$`));
+    if (!conditionMatch) {
+      issues.push('Use a fixed numeric loop limit with the same counter, for example i < 12.');
+      continue;
+    }
+    const escapedVariable = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (
+      !new RegExp(
+        `^(?:${escapedVariable}\\+\\+|\\+\\+${escapedVariable}|${escapedVariable}\\s*\\+=\\s*[1-9]\\d*)$`,
+      ).test(increment)
+    ) {
+      issues.push('Advance the loop counter with i++, ++i, or i += a positive number.');
+    }
+    if (Number(conditionMatch[1]) > MAX_SHADER_LOOP_COUNT) {
+      issues.push(`Keep for-loops at ${MAX_SHADER_LOOP_COUNT} steps or fewer.`);
+    }
+  }
+  return issues;
 }
 
 function shaderPropertyValidationErrors(value: unknown): string[] {
@@ -360,158 +385,6 @@ function humanizeShaderPropertyKey(key: string) {
 
 function finiteShaderNumber(value: unknown, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-export const DEFAULT_CUSTOM_SHADER_SPEC: CustomShaderSpec = {
-  version: 2,
-  label: 'AI Shader Effect',
-  base: 0.46,
-  contrast: 1.18,
-  palette: ['#0d1020', '#7b61ff', '#56f0c6', '#fff1a8'],
-  operations: [
-    { op: 'noise', scale: 3.2, amount: 0.34, octaves: 4 },
-    { op: 'wave', frequency: 7.5, amplitude: 0.22, angle: 28 },
-    { op: 'swirl', amount: 0.18, radius: 1.25 },
-  ],
-};
-
-export function cloneDefaultCustomShaderSpec(): CustomShaderSpec {
-  return {
-    ...DEFAULT_CUSTOM_SHADER_SPEC,
-    palette: [...(DEFAULT_CUSTOM_SHADER_SPEC.palette ?? [])],
-    operations: DEFAULT_CUSTOM_SHADER_SPEC.operations.map((operation) => ({ ...operation })),
-  };
-}
-
-export function normalizeCustomShaderSpec(value: unknown): CustomShaderSpec {
-  if (!isCustomShaderRecord(value)) return cloneDefaultCustomShaderSpec();
-  const palette = normalizeCustomShaderPalette(value.palette);
-  const operations = Array.isArray(value.operations)
-    ? value.operations
-        .map(normalizeCustomShaderOperation)
-        .filter((operation): operation is CustomShaderOperation => Boolean(operation))
-    : [];
-  return {
-    version: 2,
-    label: typeof value.label === 'string' ? value.label.slice(0, 80) : DEFAULT_CUSTOM_SHADER_SPEC.label,
-    prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
-    base: clampCustomShaderNumber(value.base, 0, 1, DEFAULT_CUSTOM_SHADER_SPEC.base ?? 0.46),
-    contrast: clampCustomShaderNumber(value.contrast, 0.1, 4, DEFAULT_CUSTOM_SHADER_SPEC.contrast ?? 1.18),
-    palette: palette.length > 0 ? palette : [...(DEFAULT_CUSTOM_SHADER_SPEC.palette ?? [])],
-    provenance: normalizeCustomShaderProvenance(value.provenance),
-    operations: operations.length > 0 ? operations.slice(0, 12) : cloneDefaultCustomShaderSpec().operations,
-  };
-}
-
-export function validateCustomShaderSpec(value: unknown): string[] {
-  const errors: string[] = [];
-  if (!isCustomShaderRecord(value)) return ['Shader spec must be an object.'];
-  if (value.version !== 2) errors.push('Shader spec version must be 2.');
-  const palette = normalizeCustomShaderPalette(value.palette);
-  if (palette.length === 0) errors.push('Palette needs at least one hex color.');
-  if (!Array.isArray(value.operations) || value.operations.length === 0)
-    errors.push('Add at least one shader operation.');
-  if (Array.isArray(value.operations) && value.operations.length > 12) errors.push('Use 12 operations or fewer.');
-  if (Array.isArray(value.operations)) {
-    value.operations.forEach((operation, index) => {
-      if (!normalizeCustomShaderOperation(operation))
-        errors.push(`Operation ${index + 1} is not supported or has invalid values.`);
-    });
-  }
-  return errors;
-}
-
-function normalizeCustomShaderOperation(value: unknown): CustomShaderOperation | null {
-  if (!isCustomShaderRecord(value)) return null;
-  switch (value.op) {
-    case 'noise':
-      return {
-        op: 'noise',
-        scale: clampCustomShaderNumber(value.scale, 0.1, 40, 3),
-        amount: clampCustomShaderNumber(value.amount, -2, 2, 0.3),
-        octaves: Math.round(clampCustomShaderNumber(value.octaves, 1, 7, 4)),
-        seedOffset: Math.round(clampCustomShaderNumber(value.seedOffset, 0, 9999, 0)),
-      };
-    case 'wave':
-      return {
-        op: 'wave',
-        frequency: clampCustomShaderNumber(value.frequency, 0.1, 80, 8),
-        amplitude: clampCustomShaderNumber(value.amplitude, -2, 2, 0.2),
-        angle: clampCustomShaderNumber(value.angle, -360, 360, 0),
-        phase: clampCustomShaderNumber(value.phase, -Math.PI * 8, Math.PI * 8, 0),
-      };
-    case 'rings':
-      return {
-        op: 'rings',
-        frequency: clampCustomShaderNumber(value.frequency, 0.1, 80, 12),
-        amount: clampCustomShaderNumber(value.amount, -2, 2, 0.24),
-        centerX: clampCustomShaderNumber(value.centerX, -1, 1, 0),
-        centerY: clampCustomShaderNumber(value.centerY, -1, 1, 0),
-      };
-    case 'swirl':
-      return {
-        op: 'swirl',
-        amount: clampCustomShaderNumber(value.amount, -2, 2, 0.2),
-        radius: clampCustomShaderNumber(value.radius, 0.05, 4, 1.1),
-      };
-    case 'threshold':
-      return {
-        op: 'threshold',
-        value: clampCustomShaderNumber(value.value, 0, 1, 0.5),
-        softness: clampCustomShaderNumber(value.softness, 0, 1, 0.08),
-      };
-    case 'posterize':
-      return {
-        op: 'posterize',
-        steps: Math.round(clampCustomShaderNumber(value.steps, 2, 16, 4)),
-      };
-    case 'invert':
-      return {
-        op: 'invert',
-        amount: clampCustomShaderNumber(value.amount, 0, 1, 1),
-      };
-    case 'sourceLuma':
-      return {
-        op: 'sourceLuma',
-        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.45),
-      };
-    case 'edgeGlow':
-      return {
-        op: 'edgeGlow',
-        amount: clampCustomShaderNumber(value.amount, 0, 2, 0.35),
-        softness: clampCustomShaderNumber(value.softness, 0, 1, 0.18),
-      };
-    case 'chromaticShift':
-      return {
-        op: 'chromaticShift',
-        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.24),
-        angle: clampCustomShaderNumber(value.angle, -360, 360, 0),
-      };
-    case 'gradientMap':
-      return {
-        op: 'gradientMap',
-        amount: clampCustomShaderNumber(value.amount, 0, 1, 0.65),
-      };
-    default:
-      return null;
-  }
-}
-
-function normalizeCustomShaderPalette(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((color): color is string => typeof color === 'string' && CUSTOM_SHADER_HEX_COLOR_RE.test(color))
-    .slice(0, 8);
-}
-
-function normalizeCustomShaderProvenance(value: unknown): CustomShaderProvenance | undefined {
-  if (!isCustomShaderRecord(value)) return undefined;
-  if (!AI_SHADER_SPEC_SOURCES.includes(value.source as AiShaderSpecSource)) return undefined;
-  const model = typeof value.model === 'string' && value.model.trim() ? value.model.slice(0, 80) : undefined;
-  return {
-    source: value.source as AiShaderSpecSource,
-    ...(model ? { model } : {}),
-  };
 }
 
 function clampCustomShaderNumber(value: unknown, min: number, max: number, fallback: number) {

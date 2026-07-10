@@ -846,21 +846,18 @@ describe('documentCommands', () => {
 
   it('adds prompt-ready AI shaders as explicit input-driven effect nodes', () => {
     const result = addNodeToFillSource(
-      { kind: 'shader', shaderKind: 'customSpec', role: 'effect' },
+      { kind: 'shader', shaderKind: 'aiShader', role: 'effect' },
       { replaceEdgeId: 'e-fill-text' },
     );
-    const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'customSpec');
+    const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'aiShader');
 
     expect(result.selectedLayerId).toBeNull();
     expect(shaderNode).toMatchObject({
       name: 'AI Shader Effect',
-      shaderKind: 'customSpec',
+      shaderKind: 'aiShader',
       role: 'effect',
-      customShaderSpec: {
-        version: 2,
-        operations: expect.arrayContaining([expect.objectContaining({ op: 'noise' })]),
-      },
     });
+    expect(shaderNode?.shaderInstance).toBeUndefined();
     expect(result.doc.graph?.edges).toContainEqual(
       expect.objectContaining({
         fromId: 'fill-a',

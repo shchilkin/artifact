@@ -59,6 +59,49 @@ export class PostgresUsageRepository implements AiUsageRepository {
     const row = await this.findMonthlyUsage(userId, period);
     return row?.generation_count ?? 0;
   }
+
+  async reserveMonthlyGeneration(input: {
+    userId: string;
+    period: string;
+    generationLimit: number;
+  }): Promise<AiUsageMonthlyRow | null> {
+    const result = await this.client.query<AiUsageMonthlyRow>(
+      `
+        INSERT INTO ai_usage_monthly (
+          user_id,
+          period,
+          generation_limit,
+          generation_count,
+          estimated_cost
+        )
+        SELECT $1, $2, $3, 1, 0
+        WHERE $3 > 0
+        ON CONFLICT (user_id, period)
+        DO UPDATE SET
+          generation_limit = EXCLUDED.generation_limit,
+          generation_count = ai_usage_monthly.generation_count + 1,
+          updated_at = now()
+        WHERE ai_usage_monthly.generation_count < EXCLUDED.generation_limit
+        RETURNING ${usageColumns}
+      `,
+      [input.userId, input.period, input.generationLimit],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async releaseMonthlyGeneration(userId: string, period: string): Promise<AiUsageMonthlyRow | null> {
+    const result = await this.client.query<AiUsageMonthlyRow>(
+      `
+        UPDATE ai_usage_monthly
+        SET generation_count = GREATEST(0, generation_count - 1),
+            updated_at = now()
+        WHERE user_id = $1 AND period = $2
+        RETURNING ${usageColumns}
+      `,
+      [userId, period],
+    );
+    return result.rows[0] ?? null;
+  }
 }
 
 function requireSingleRow<Row>(rows: Row[], message: string): Row {
