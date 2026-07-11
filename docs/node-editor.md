@@ -169,8 +169,11 @@ Shader work follows the same single-purpose split:
   The AI shader inspector is presentational: `useAiShaderGeneration` owns auth,
   cancellation, XState transitions, and node-surface status, while
   `runAiShaderGeneration` owns the framework-independent create, validate,
-  repair, and commit sequence. Keep API and renderer calls out of the inspector
-  component so lifecycle tests do not require React.
+  repair, and commit sequence. `AiShaderInspectorModel` derives user-facing
+  summaries, actions, loading copy, and result status. Prompt, refinement, and
+  generated controls render as independent inspector sections. Keep API,
+  renderer calls, and product-state branching out of the composition component
+  so lifecycle and presentation-state tests do not require React.
   `Code Shader` is a shader authoring method: its definition stores a GLSL
   fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
