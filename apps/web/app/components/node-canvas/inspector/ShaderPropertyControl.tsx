@@ -6,13 +6,15 @@ export function ShaderPropertyControl({
   value,
   onChange,
   onRemove,
+  showUniformName = true,
 }: {
   property: ShaderPropertyDefinition;
   value: ShaderPropertyValue;
   onChange: (value: ShaderPropertyValue) => void;
   onRemove?: () => void;
+  showUniformName?: boolean;
 }) {
-  const label = `${property.label} · u_prop_${property.key}`;
+  const label = showUniformName ? `${property.label} · u_prop_${property.key}` : property.label;
   return (
     <div className="node-shader-property-control">
       <div>

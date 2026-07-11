@@ -60,6 +60,10 @@ Rules:
 - AI Shader candidates, browser compiler diagnostics, and repair lifecycle state
   stay outside the document. Commit only the browser-accepted `ShaderInstance`;
   keep the previous accepted instance on every failed attempt.
+- AI Shader refinement instructions and candidates are transient until the new
+  request passes browser acceptance. The accepted definition records lightweight
+  parent-request provenance; the replaced definition does not remain embedded
+  as hidden document history.
 - Seeded per-node variation belongs in `seedOffset` fields on seeded
   layer/node types: emoji fields, procedural sources, effect nodes, and repeat
   nodes. The document seed remains the global scene seed.

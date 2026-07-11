@@ -17,6 +17,7 @@ const shaderColumns = `
   idempotency_key,
   mode,
   prompt,
+  parent_request_id,
   status,
   response_json,
   provider_request_id,
@@ -42,13 +43,14 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
           idempotency_key,
           mode,
           prompt,
+          parent_request_id,
           status
         )
-        VALUES ($1, $2, $3, $4, $5, 'pending')
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
         ON CONFLICT (user_id, idempotency_key) DO NOTHING
         RETURNING ${shaderColumns}
       `,
-      [input.id, input.userId, input.idempotencyKey, input.mode, input.prompt],
+      [input.id, input.userId, input.idempotencyKey, input.mode, input.prompt, input.parentRequestId ?? null],
     );
     const inserted = result.rows[0];
     if (inserted) return { row: inserted, claimed: true };

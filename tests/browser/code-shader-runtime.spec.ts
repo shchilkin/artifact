@@ -1,6 +1,67 @@
 import { expect, test } from '@playwright/test';
 import type { ShaderPropertyDefinition } from '../../apps/web/app/types/config';
 
+test('preserves backdrop orientation through an identity Code Shader', async ({ page }) => {
+  await page.goto('/');
+
+  const corners = await page.evaluate(async () => {
+    const shaderRuntime = await import('/app/utils/render/customCodeShader.ts');
+    const backdrop = document.createElement('canvas');
+    backdrop.width = 8;
+    backdrop.height = 8;
+    const context = backdrop.getContext('2d')!;
+    context.fillStyle = '#ff0000';
+    context.fillRect(0, 0, 4, 4);
+    context.fillStyle = '#00ff00';
+    context.fillRect(4, 0, 4, 4);
+    context.fillStyle = '#0000ff';
+    context.fillRect(0, 4, 4, 4);
+    context.fillStyle = '#ffff00';
+    context.fillRect(4, 4, 4, 4);
+
+    const output = shaderRuntime.renderCustomCodeShaderNodeToCanvas(
+      {
+        shaderKind: 'customCode',
+        role: 'effect',
+        shaderInstance: {
+          definition: {
+            version: 1,
+            id: 'identity-orientation',
+            label: 'Identity orientation',
+            language: 'glsl-fragment',
+            code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+            properties: [],
+          },
+          values: {},
+        },
+        palette: [],
+        distortion: 0,
+        scale: 100,
+        seedOffset: 0,
+      } as never,
+      1171,
+      8,
+      8,
+      backdrop,
+    );
+    const outputContext = output.getContext('2d')!;
+    const read = (x: number, y: number) => Array.from(outputContext.getImageData(x, y, 1, 1).data);
+    return {
+      topLeft: read(1, 1),
+      topRight: read(6, 1),
+      bottomLeft: read(1, 6),
+      bottomRight: read(6, 6),
+    };
+  });
+
+  expect(corners).toEqual({
+    topLeft: [255, 0, 0, 255],
+    topRight: [0, 255, 0, 255],
+    bottomLeft: [0, 0, 255, 255],
+    bottomRight: [255, 255, 0, 255],
+  });
+});
+
 test('renders Code Shader output before releasing disposable WebGL contexts', async ({ page }) => {
   await page.goto('/');
 
@@ -90,15 +151,62 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
           return texture2D(u_backdrop, clamp(warpedUv, 0.0, 1.0));
         }`,
         [{ key: 'amount', label: 'Amount', type: 'number', default: 0.025, min: 0, max: 0.12, step: 0.001 }],
-        { requireBackdrop: true, requirePropertyUniforms: true },
+        {
+          requireBackdrop: true,
+          requirePropertyUniforms: true,
+          requirePropertyInfluence: true,
+          requireVisualVariation: true,
+        },
+      );
+      const transparentResult = shaderRuntime.compileCustomCodeShaderForDiagnostics(
+        `vec4 mainImage(vec2 uv) {
+          vec4 source = texture2D(u_backdrop, uv);
+          return vec4(source.rgb, 0.0);
+        }`,
+        [],
+        { requireBackdrop: true, requireVisualVariation: true },
+      );
+      const flatResult = shaderRuntime.compileCustomCodeShaderForDiagnostics(
+        `vec4 mainImage(vec2 uv) {
+          vec4 source = texture2D(u_backdrop, vec2(0.5));
+          return vec4(source.rgb, 1.0);
+        }`,
+        [],
+        { requireBackdrop: true, requireVisualVariation: true },
+      );
+      const inertProperty = shaderRuntime.compileCustomCodeShaderForDiagnostics(
+        `vec4 mainImage(vec2 uv) {
+          vec4 source = texture2D(u_backdrop, uv);
+          float unreachable = step(1000.0, u_prop_amount);
+          return vec4(source.rgb + unreachable, source.a);
+        }`,
+        [{ key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 1, step: 0.01 }],
+        { requireBackdrop: true, requirePropertyUniforms: true, requirePropertyInfluence: true },
+      );
+      const gatedControls = shaderRuntime.compileCustomCodeShaderForDiagnostics(
+        `vec4 mainImage(vec2 uv) {
+          vec4 source = texture2D(u_backdrop, uv);
+          vec3 tinted = source.rgb * u_prop_tint;
+          return vec4(mix(source.rgb, tinted, u_prop_enabled * u_prop_amount), source.a);
+        }`,
+        [
+          { key: 'amount', label: 'Amount', type: 'number', default: 0, min: 0, max: 1, step: 0.01 },
+          { key: 'enabled', label: 'Enabled', type: 'boolean', default: false },
+          { key: 'tint', label: 'Tint', type: 'color', default: '#ff66aa' },
+        ],
+        { requireBackdrop: true, requirePropertyUniforms: true, requirePropertyInfluence: true },
       );
       return {
         diagnostics,
         disabledPixel,
+        flatResult,
+        gatedControls,
         inactiveBackdrop,
         inactiveProperty,
+        inertProperty,
         pixel,
         releasedContexts,
+        transparentResult,
         warpControl,
         webGlContexts,
       };
@@ -124,9 +232,25 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
     message: 'Amount is not used by the final shader result.',
     stage: 'runtime-contract',
   });
+  expect(result.transparentResult).toEqual({
+    ok: false,
+    message: 'The shader result is fully transparent.',
+    stage: 'render',
+  });
+  expect(result.flatResult).toEqual({
+    ok: false,
+    message: 'The shader result is visually flat. Preserve visible detail from the connected image.',
+    stage: 'render',
+  });
+  expect(result.inertProperty).toEqual({
+    ok: false,
+    message: 'Amount does not visibly change the shader result.',
+    stage: 'runtime-contract',
+  });
+  expect(result.gatedControls).toEqual({ ok: true, message: null, stage: null });
   expect(result.warpControl).toEqual({ ok: true, message: null, stage: null });
-  expect(result.webGlContexts).toBe(6);
-  expect(result.releasedContexts).toBe(6);
+  expect(result.webGlContexts).toBe(10);
+  expect(result.releasedContexts).toBe(10);
 });
 
 test('runs an AI shader as a backdrop-aware graph effect with preview and output parity', async ({ page }) => {

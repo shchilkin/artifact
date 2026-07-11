@@ -60,9 +60,11 @@ Implemented:
 - OpenAI shader provider for `/api/ai/shaders`, enabled by
   `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
   `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
-  persist their result, log OpenAI request/token metadata, and consume monthly
-  quota exactly once after a successful OpenAI response. Explicit local
-  fallback requests remain quota-free.
+  persist their result, log OpenAI request/token metadata, and reserve monthly
+  quota once per OpenAI request. Generated candidates are accepted only after
+  browser validation and may receive one compiler-guided repair without a
+  second quota charge. Refinement creates a new quota-counted request linked to
+  an owner-accepted shader. Explicit local fallback requests remain quota-free.
 - Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.

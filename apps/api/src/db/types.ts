@@ -52,6 +52,7 @@ export interface AiShaderRequestRow {
   idempotency_key: string;
   mode: 'openai' | 'localFallback';
   prompt: string;
+  parent_request_id: string | null;
   status: AiShaderRequestStatus;
   response_json: JsonObject | null;
   provider_request_id: string | null;
@@ -130,6 +131,7 @@ export interface ClaimAiShaderRequestInput {
   idempotencyKey: string;
   mode: 'openai' | 'localFallback';
   prompt: string;
+  parentRequestId?: string | null;
 }
 
 export interface CompleteAiShaderRequestInput {

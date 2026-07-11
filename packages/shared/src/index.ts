@@ -79,7 +79,8 @@ export interface ShaderDefinitionProvenance {
   prompt?: string;
   model?: string;
   requestId?: string;
-  attempt?: 'initial' | 'repair' | 'localFallback';
+  parentRequestId?: string;
+  attempt?: 'initial' | 'repair' | 'refine' | 'refineRepair' | 'localFallback';
 }
 
 /** A reusable, serializable shader program. A graph node owns only an instance of this definition. */
@@ -129,13 +130,14 @@ export interface CreateAiShaderRequest {
   mode?: AiShaderRequestMode;
   idempotencyKey: string;
   fallbackForIdempotencyKey?: string;
+  refineFromRequestId?: string;
 }
 
 export interface AiShaderGenerationResponse {
   requestId: string;
   candidateRevision: 0 | 1;
   status: 'generated' | 'accepted';
-  attempt: 'initial' | 'repair' | 'localFallback';
+  attempt: 'initial' | 'repair' | 'refine' | 'refineRepair' | 'localFallback';
   prompt: string;
   instance: ShaderInstance;
   source: AiShaderSource;
@@ -232,6 +234,20 @@ export function validateShaderDefinition(value: unknown): string[] {
       errors.push(`Shader property ${normalized.key} is not used by the shader code.`);
     }
   });
+  const manifestKeys = new Set(
+    value.properties
+      .map(normalizeShaderPropertyDefinition)
+      .filter((property): property is ShaderPropertyDefinition => Boolean(property))
+      .map((property) => property.key),
+  );
+  const usedUniformKeys = new Set(
+    Array.from(executableCode.matchAll(/\bu_prop_([A-Za-z][A-Za-z0-9_]{0,39})\b/g), (match) => match[1]).filter(
+      (key): key is string => Boolean(key),
+    ),
+  );
+  for (const key of usedUniformKeys) {
+    if (!manifestKeys.has(key)) errors.push(`Shader uniform u_prop_${key} is missing from the property manifest.`);
+  }
   return errors;
 }
 
@@ -413,8 +429,13 @@ function normalizeShaderDefinitionProvenance(value: unknown): ShaderDefinitionPr
     prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
     model: typeof value.model === 'string' ? value.model.slice(0, 120) : undefined,
     requestId: typeof value.requestId === 'string' ? value.requestId.slice(0, 200) : undefined,
+    parentRequestId: typeof value.parentRequestId === 'string' ? value.parentRequestId.slice(0, 200) : undefined,
     attempt:
-      value.attempt === 'initial' || value.attempt === 'repair' || value.attempt === 'localFallback'
+      value.attempt === 'initial' ||
+      value.attempt === 'repair' ||
+      value.attempt === 'refine' ||
+      value.attempt === 'refineRepair' ||
+      value.attempt === 'localFallback'
         ? value.attempt
         : undefined,
   };

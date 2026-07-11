@@ -182,6 +182,37 @@ describe('ai generation client', () => {
     });
   });
 
+  it('creates a refinement candidate from an accepted shader request', async () => {
+    const { calls, fetcher } = captureJsonFetch({
+      requestId: 'shader-refined-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'refine',
+      prompt: 'Make it calmer',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      instance: generatedShaderInstance,
+    });
+
+    const result = await createAiShader(
+      {
+        prompt: 'Make it calmer',
+        mode: 'openai',
+        idempotencyKey: 'shader-refine-1',
+        refineFromRequestId: 'shader-accepted-1',
+      },
+      { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
+    );
+
+    expect(result.attempt).toBe('refine');
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      prompt: 'Make it calmer',
+      mode: 'openai',
+      idempotencyKey: 'shader-refine-1',
+      refineFromRequestId: 'shader-accepted-1',
+    });
+  });
+
   it('reports browser validation and requests the single repair by request id', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {

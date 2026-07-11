@@ -59,6 +59,8 @@ export interface CustomCodeShaderCompileResult {
 export interface CustomCodeShaderCompileRequirements {
   requireBackdrop?: boolean;
   requirePropertyUniforms?: boolean;
+  requirePropertyInfluence?: boolean;
+  requireVisualVariation?: boolean;
 }
 
 const aiShaderInfluenceCache = new Map<string, string | null>();
@@ -162,6 +164,10 @@ export function compileCustomCodeShaderForDiagnostics(
     if (inactiveUniform) return { ok: false, message: inactiveUniform, stage: 'runtime-contract' };
     const nonInfluentialInput = findRequiredNonInfluentialInput(gl, program, properties, requirements);
     if (nonInfluentialInput) return { ok: false, message: nonInfluentialInput, stage: 'runtime-contract' };
+    const visualFailure = findVisualOutputFailure(gl, program, properties, requirements);
+    if (visualFailure) return { ok: false, message: visualFailure, stage: 'render' };
+    const nonInfluentialProperty = findRequiredNonInfluentialProperty(gl, program, properties, requirements);
+    if (nonInfluentialProperty) return { ok: false, message: nonInfluentialProperty, stage: 'runtime-contract' };
     return { ok: true, message: null, stage: null };
   } catch {
     return { ok: false, message: 'Shader compilation failed in this browser.', stage: 'render' };
@@ -193,7 +199,12 @@ function readDiagnosticFrame(
   gl: WebGLRenderingContext,
   program: WebGLProgram,
   properties: ShaderPropertyDefinition[],
-  overrides: { backdrop?: [number, number, number, number]; property?: ShaderPropertyDefinition; value?: unknown } = {},
+  overrides: {
+    backdrop?: [number, number, number, number];
+    property?: ShaderPropertyDefinition;
+    value?: unknown;
+    values?: Record<string, unknown>;
+  } = {},
 ) {
   const buffer = gl.createBuffer();
   const texture = gl.createTexture();
@@ -229,7 +240,7 @@ function readDiagnosticFrame(
     gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), 0.5);
     gl.uniform1f(gl.getUniformLocation(program, 'u_has_backdrop'), 1);
     for (const property of properties) {
-      setSingleShaderPropertyUniform(gl, program, property, property.default);
+      setSingleShaderPropertyUniform(gl, program, property, overrides.values?.[property.key] ?? property.default);
     }
     if (overrides.property) {
       setSingleShaderPropertyUniform(gl, program, overrides.property, overrides.value ?? overrides.property.default);
@@ -247,7 +258,29 @@ function readDiagnosticFrame(
 
 function framesDiffer(first: Uint8Array | null, second: Uint8Array | null) {
   if (!first || !second || first.length !== second.length) return false;
-  return first.some((value, index) => value !== second[index]);
+  return first.some((value, index) => Math.abs(value - second[index]!) > 1);
+}
+
+function frameHasVisiblePixels(frame: Uint8Array | null) {
+  if (!frame) return false;
+  for (let offset = 3; offset < frame.length; offset += 4) {
+    if (frame[offset]! > 8) return true;
+  }
+  return false;
+}
+
+function frameHasSpatialVariation(frame: Uint8Array | null) {
+  if (!frame) return false;
+  const minimum = [255, 255, 255];
+  const maximum = [0, 0, 0];
+  for (let offset = 0; offset < frame.length; offset += 4) {
+    if (frame[offset + 3]! <= 8) continue;
+    for (let channel = 0; channel < 3; channel += 1) {
+      minimum[channel] = Math.min(minimum[channel]!, frame[offset + channel]!);
+      maximum[channel] = Math.max(maximum[channel]!, frame[offset + channel]!);
+    }
+  }
+  return maximum.some((value, channel) => value - minimum[channel]! > 4);
 }
 
 function findRequiredNonInfluentialInput(
@@ -264,13 +297,75 @@ function findRequiredNonInfluentialInput(
   return null;
 }
 
+function findVisualOutputFailure(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  properties: ShaderPropertyDefinition[],
+  requirements: CustomCodeShaderCompileRequirements,
+) {
+  if (!requirements.requireVisualVariation) return null;
+  const frame = readDiagnosticFrame(gl, program, properties, { backdrop: [31, 79, 149, 255] });
+  if (!frameHasVisiblePixels(frame)) return 'The shader result is fully transparent.';
+  if (!frameHasSpatialVariation(frame)) {
+    return 'The shader result is visually flat. Preserve visible detail from the connected image.';
+  }
+  return null;
+}
+
+function findRequiredNonInfluentialProperty(
+  gl: WebGLRenderingContext,
+  program: WebGLProgram,
+  properties: ShaderPropertyDefinition[],
+  requirements: CustomCodeShaderCompileRequirements,
+) {
+  if (!requirements.requirePropertyInfluence) return null;
+  for (const property of properties) {
+    const values = propertyDiagnosticValues(property);
+    const activeValues = propertyActivationValues(properties, property.key);
+    const frames = values.map((value) =>
+      readDiagnosticFrame(gl, program, properties, { property, value, values: activeValues }),
+    );
+    if (!frames.some((frame, index) => frames.slice(index + 1).some((candidate) => framesDiffer(frame, candidate)))) {
+      return `${property.label} does not visibly change the shader result.`;
+    }
+  }
+  return null;
+}
+
+function propertyActivationValues(properties: ShaderPropertyDefinition[], targetKey: string) {
+  return Object.fromEntries(
+    properties
+      .filter((property) => property.key !== targetKey)
+      .map((property) => {
+        if (property.type === 'boolean') return [property.key, true];
+        if (property.type === 'number') {
+          const midpoint = (property.min + property.max) / 2;
+          const activeValue = Math.abs(property.default) > 0.000001 ? property.default : midpoint || property.max;
+          return [property.key, activeValue];
+        }
+        return [property.key, property.default];
+      }),
+  );
+}
+
+function propertyDiagnosticValues(property: ShaderPropertyDefinition): unknown[] {
+  if (property.type === 'number') return [property.min, property.default, property.max];
+  if (property.type === 'boolean') return [false, true];
+  return ['#000000', property.default, '#ffffff'];
+}
+
 function validateAiShaderInfluence(gl: WebGLRenderingContext, program: WebGLProgram, definition: ShaderDefinition) {
   const cacheKey = JSON.stringify({ code: definition.code, properties: definition.properties });
   if (aiShaderInfluenceCache.has(cacheKey)) return aiShaderInfluenceCache.get(cacheKey) ?? null;
-  const message = findRequiredNonInfluentialInput(gl, program, definition.properties, {
-    requireBackdrop: true,
-    requirePropertyUniforms: true,
-  });
+  const message =
+    findRequiredNonInfluentialInput(gl, program, definition.properties, {
+      requireBackdrop: true,
+      requirePropertyUniforms: true,
+      requirePropertyInfluence: true,
+      requireVisualVariation: true,
+    }) ??
+    findVisualOutputFailure(gl, program, definition.properties, { requireVisualVariation: true }) ??
+    findRequiredNonInfluentialProperty(gl, program, definition.properties, { requirePropertyInfluence: true });
   aiShaderInfluenceCache.set(cacheKey, message);
   return message;
 }
@@ -323,7 +418,9 @@ function renderWithWebGl(
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     const source = chooseBackdrop(backdrop, width, height, seed);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 
     gl.uniform1i(gl.getUniformLocation(program, 'u_backdrop'), 0);
     gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);

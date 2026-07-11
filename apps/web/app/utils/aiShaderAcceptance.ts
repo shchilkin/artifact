@@ -23,6 +23,8 @@ export async function validateAndCommitAiShaderCandidate(
   const prepared = compile(candidate.instance.definition.code, candidate.instance.definition.properties, {
     requireBackdrop: true,
     requirePropertyUniforms: true,
+    requirePropertyInfluence: true,
+    requireVisualVariation: true,
   });
   if (!prepared.ok) {
     const validation = await report(

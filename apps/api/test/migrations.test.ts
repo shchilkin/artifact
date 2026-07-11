@@ -20,6 +20,7 @@ const migrationFiles = [
   '005_ai_shader_spec_requests.sql',
   '006_ai_shader_requests.sql',
   '007_ai_shader_validation_lifecycle.sql',
+  '008_ai_shader_refinement.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
@@ -31,6 +32,7 @@ const shaderLifecycleMigrationSql = readFileSync(
   resolve(migrationsDir, '007_ai_shader_validation_lifecycle.sql'),
   'utf8',
 );
+const shaderRefinementMigrationSql = readFileSync(resolve(migrationsDir, '008_ai_shader_refinement.sql'), 'utf8');
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -82,6 +84,8 @@ describe('AI generation migrations', () => {
     expect(shaderLifecycleMigrationSql).toContain("SET status = 'accepted'");
     expect(shaderLifecycleMigrationSql).toContain('repair_count integer NOT NULL DEFAULT 0');
     expect(shaderLifecycleMigrationSql).toContain('repair_count <= 1');
+    expect(shaderRefinementMigrationSql).toContain('parent_request_id text NULL');
+    expect(shaderRefinementMigrationSql).toContain('REFERENCES ai_shader_requests(id) ON DELETE SET NULL');
   });
 });
 

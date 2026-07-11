@@ -112,7 +112,13 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
   if (response.status !== 'generated' && response.status !== 'accepted') {
     throw new AiGenerationApiError('Generation API returned an invalid shader status.', 0, 'invalid_response');
   }
-  if (response.attempt !== 'initial' && response.attempt !== 'repair' && response.attempt !== 'localFallback') {
+  if (
+    response.attempt !== 'initial' &&
+    response.attempt !== 'repair' &&
+    response.attempt !== 'refine' &&
+    response.attempt !== 'refineRepair' &&
+    response.attempt !== 'localFallback'
+  ) {
     throw new AiGenerationApiError('Generation API returned an invalid shader attempt.', 0, 'invalid_response');
   }
   const prompt = ensureString(response.prompt, 'prompt');

@@ -227,11 +227,24 @@ export async function handleCreateShaderRequest(
   const idempotencyResult = validateShaderIdempotencyKey(body?.idempotencyKey);
   if (!idempotencyResult.ok) return errorJson(400, idempotencyResult.code, idempotencyResult.message);
 
+  const refineReference = validateOptionalShaderRequestId(body?.refineFromRequestId);
+  if (!refineReference.ok) return errorJson(400, refineReference.code, refineReference.message);
+  if (refineReference.requestId && modeResult.mode !== 'openai') {
+    return errorJson(400, 'invalid_shader_refine_mode', 'Shader refinement requires AI creation.');
+  }
+
   const existing = await deps.repositories.shaderRequests.findByIdempotencyKey(
     authResult.user.id,
     idempotencyResult.idempotencyKey,
   );
-  if (existing) return storedShaderResponse(existing, promptResult.prompt, modeResult.mode);
+  if (existing) {
+    return storedShaderResponse(existing, promptResult.prompt, modeResult.mode, refineReference.requestId);
+  }
+
+  const refinement = refineReference.requestId
+    ? await resolveShaderRefinement(refineReference.requestId, authResult.user.id, deps)
+    : { ok: true as const, value: null };
+  if (!refinement.ok) return refinement.response;
 
   if (modeResult.mode === 'localFallback') {
     const fallbackReference = validateShaderIdempotencyKey(body?.fallbackForIdempotencyKey);
@@ -252,6 +265,7 @@ export async function handleCreateShaderRequest(
     if (
       !openAiAttempt ||
       openAiAttempt.mode !== 'openai' ||
+      openAiAttempt.parent_request_id !== null ||
       openAiAttempt.status !== 'failed' ||
       openAiAttempt.prompt !== promptResult.prompt ||
       !openAiAttempt.error_code ||
@@ -270,8 +284,11 @@ export async function handleCreateShaderRequest(
     idempotencyKey: idempotencyResult.idempotencyKey,
     mode: modeResult.mode,
     prompt: promptResult.prompt,
+    parentRequestId: refineReference.requestId,
   });
-  if (!claimed.claimed) return storedShaderResponse(claimed.row, promptResult.prompt, modeResult.mode);
+  if (!claimed.claimed) {
+    return storedShaderResponse(claimed.row, promptResult.prompt, modeResult.mode, refineReference.requestId);
+  }
 
   if (modeResult.mode === 'openai' && !deps.shaderProvider) {
     const failure = {
@@ -304,7 +321,7 @@ export async function handleCreateShaderRequest(
     }
   }
 
-  const shaderResult = await createShader(promptResult.prompt, modeResult.mode, claimed.row.id, deps);
+  const shaderResult = await createShader(promptResult.prompt, modeResult.mode, claimed.row.id, refinement.value, deps);
   if (!shaderResult.ok) {
     await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
       ...shaderResult.failure,
@@ -312,11 +329,12 @@ export async function handleCreateShaderRequest(
     });
     return errorJson(shaderResult.failure.status, shaderResult.failure.code, shaderResult.failure.message);
   }
+  const attempt = modeResult.mode === 'localFallback' ? 'localFallback' : refinement.value ? 'refine' : 'initial';
   const responseBody: AiShaderGenerationResponse = {
     requestId: claimed.row.id,
     candidateRevision: 0,
     status: 'generated',
-    attempt: modeResult.mode === 'localFallback' ? 'localFallback' : 'initial',
+    attempt,
     prompt: promptResult.prompt,
     instance: {
       ...shaderResult.instance,
@@ -328,7 +346,8 @@ export async function handleCreateShaderRequest(
           prompt: promptResult.prompt,
           ...(shaderResult.model ? { model: shaderResult.model } : {}),
           requestId: claimed.row.id,
-          attempt: modeResult.mode === 'localFallback' ? 'localFallback' : 'initial',
+          ...(refineReference.requestId ? { parentRequestId: refineReference.requestId } : {}),
+          attempt,
         },
       },
     },
@@ -341,7 +360,7 @@ export async function handleCreateShaderRequest(
     providerRequestId: shaderResult.providerRequestId,
     providerUsageJson: shaderResult.usage ? toJsonObject(shaderResult.usage) : null,
   });
-  logInfo('shader_generated', {
+  logInfo(refinement.value ? 'shader_refine_generated' : 'shader_generated', {
     requestId: claimed.row.id,
     userId: authResult.user.id,
     source: shaderResult.source,
@@ -360,6 +379,7 @@ async function createShader(
   prompt: string,
   mode: AiShaderRequestMode,
   clientRequestId: string,
+  refinement: { instance: AiShaderGenerationResponse['instance']; parentRequestId: string } | null,
   deps: AiRouteDeps,
 ): Promise<
   | {
@@ -386,7 +406,11 @@ async function createShader(
 
   try {
     const model = deps.shaderProvider.defaultModel;
-    const result = await deps.shaderProvider.generateShader({ prompt, clientRequestId });
+    const result = await deps.shaderProvider.generateShader({
+      prompt,
+      clientRequestId,
+      ...(refinement ? { refine: { instance: refinement.instance, instruction: prompt } } : {}),
+    });
     return {
       ok: true,
       source: 'openai',
@@ -394,7 +418,12 @@ async function createShader(
         ...result.instance,
         definition: {
           ...result.instance.definition,
-          provenance: { source: 'openai', prompt, model },
+          provenance: {
+            source: 'openai',
+            prompt,
+            model,
+            ...(refinement ? { parentRequestId: refinement.parentRequestId, attempt: 'refine' as const } : {}),
+          },
         },
       },
       model,
@@ -561,7 +590,7 @@ export async function handleRepairShaderRequest(
     shaderRequest.repair_count === 1 &&
     (shaderRequest.status === 'generated' || shaderRequest.status === 'accepted')
   ) {
-    return storedGeneratedShaderResponse(shaderRequest, 'repair');
+    return storedGeneratedShaderResponse(shaderRequest);
   }
   if (shaderRequest.status === 'repairing') {
     return errorJson(409, 'shader_repair_in_progress', 'This shader is already being repaired.');
@@ -584,7 +613,7 @@ export async function handleRepairShaderRequest(
   } catch {
     const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
     if (current?.repair_count === 1 && (current.status === 'generated' || current.status === 'accepted')) {
-      return storedGeneratedShaderResponse(current, 'repair');
+      return storedGeneratedShaderResponse(current);
     }
     if (current?.status === 'repairing') {
       return errorJson(409, 'shader_repair_in_progress', 'This shader is already being repaired.');
@@ -599,6 +628,7 @@ export async function handleRepairShaderRequest(
       repair: { instance: failedInstance, diagnostic },
     });
     const model = deps.shaderProvider.defaultModel;
+    const repairedAttempt = failedResponse.attempt === 'refine' ? ('refineRepair' as const) : ('repair' as const);
     const instance = {
       ...result.instance,
       definition: {
@@ -608,7 +638,10 @@ export async function handleRepairShaderRequest(
           prompt: shaderRequest.prompt,
           model,
           requestId,
-          attempt: 'repair' as const,
+          ...(failedInstance.definition.provenance?.parentRequestId
+            ? { parentRequestId: failedInstance.definition.provenance.parentRequestId }
+            : {}),
+          attempt: repairedAttempt,
         },
       },
     };
@@ -616,7 +649,7 @@ export async function handleRepairShaderRequest(
       requestId,
       candidateRevision: 1,
       status: 'generated',
-      attempt: 'repair',
+      attempt: repairedAttempt,
       prompt: shaderRequest.prompt,
       instance,
       source: 'openai',
@@ -691,7 +724,6 @@ function sanitizeCompilerDiagnostic(value: unknown): AiShaderCompilerDiagnostic 
 
 function storedGeneratedShaderResponse(
   request: AiShaderRequestRow,
-  attempt: AiShaderGenerationResponse['attempt'],
 ): JsonResponse<AiShaderGenerationResponse | { code: string; message: string }> {
   if (!request.response_json)
     return errorJson(500, 'shader_response_missing', 'The saved shader response is unavailable.');
@@ -701,7 +733,7 @@ function storedGeneratedShaderResponse(
     requestId: request.id,
     candidateRevision: request.repair_count === 0 ? 0 : 1,
     status: request.status === 'accepted' ? 'accepted' : 'generated',
-    attempt,
+    attempt: body.attempt,
   });
 }
 
@@ -709,8 +741,9 @@ function storedShaderResponse(
   request: AiShaderRequestRow,
   prompt: string,
   mode: AiShaderRequestMode,
+  parentRequestId: string | null,
 ): JsonResponse<AiShaderGenerationResponse | { code: string; message: string }> {
-  if (request.prompt !== prompt || request.mode !== mode) {
+  if (request.prompt !== prompt || request.mode !== mode || request.parent_request_id !== parentRequestId) {
     return errorJson(409, 'idempotency_conflict', 'This request key was already used for another shader.');
   }
   if (request.status === 'pending' || request.status === 'repairing') {
@@ -733,10 +766,32 @@ function storedShaderResponse(
     userId: request.user_id,
     source: request.mode,
   });
-  return storedGeneratedShaderResponse(
-    request,
-    request.mode === 'localFallback' ? 'localFallback' : request.repair_count > 0 ? 'repair' : 'initial',
-  );
+  return storedGeneratedShaderResponse(request);
+}
+
+async function resolveShaderRefinement(requestId: string, userId: string, deps: AiRouteDeps) {
+  const source = await deps.repositories.shaderRequests.findByIdForUser(requestId, userId);
+  if (!source) {
+    return {
+      ok: false as const,
+      response: errorJson(404, 'shader_refine_source_not_found', 'The shader to refine was not found.'),
+    };
+  }
+  if (source.status !== 'accepted' || !source.response_json) {
+    return {
+      ok: false as const,
+      response: errorJson(409, 'shader_refine_not_available', 'Only an accepted shader can be refined.'),
+    };
+  }
+  const response = source.response_json as unknown as AiShaderGenerationResponse;
+  const instance = normalizeShaderInstance(response.instance, `${requestId}-refine-source`);
+  if (!instance) {
+    return {
+      ok: false as const,
+      response: errorJson(409, 'shader_refine_not_available', 'The accepted shader definition is unavailable.'),
+    };
+  }
+  return { ok: true as const, value: { instance, parentRequestId: requestId } };
 }
 
 function validateShaderMode(
@@ -758,6 +813,20 @@ function validateShaderIdempotencyKey(
     };
   }
   return { ok: true, idempotencyKey: value };
+}
+
+function validateOptionalShaderRequestId(
+  value: unknown,
+): { ok: true; requestId: string | null } | { ok: false; code: 'invalid_shader_refine_source'; message: string } {
+  if (value === undefined || value === null) return { ok: true, requestId: null };
+  if (typeof value !== 'string' || !/^[\x21-\x7e]{1,200}$/.test(value)) {
+    return {
+      ok: false,
+      code: 'invalid_shader_refine_source',
+      message: 'A valid accepted shader reference is required for refinement.',
+    };
+  }
+  return { ok: true, requestId: value };
 }
 
 export async function handleCreateGenerationRequest(

@@ -92,4 +92,17 @@ vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }`,
       }),
     ).toContain('Shader property amount is not used by the shader code.');
   });
+
+  it('rejects editable uniforms that are missing from the property manifest', () => {
+    expect(
+      validateShaderDefinition({
+        ...definition,
+        code: `vec4 mainImage(vec2 uv) {
+          vec4 source = texture2D(u_backdrop, uv);
+          return vec4(source.rgb * u_prop_missing, source.a);
+        }`,
+        properties: [],
+      }),
+    ).toContain('Shader uniform u_prop_missing is missing from the property manifest.');
+  });
 });

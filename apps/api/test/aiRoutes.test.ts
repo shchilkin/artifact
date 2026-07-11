@@ -323,6 +323,139 @@ describe('AI route handlers', () => {
     await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'accepted' });
   });
 
+  it('refines an owner accepted shader as a new quota-counted candidate', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    const generateShader = vi
+      .fn()
+      .mockResolvedValueOnce(providerShader('Original Shader'))
+      .mockResolvedValueOnce(providerShader('Refined Shader'));
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'water refraction', idempotencyKey: 'shader-original-1' },
+      deps,
+    );
+    await handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps);
+
+    const refined = await handleCreateShaderRequest(
+      { headers: {} },
+      {
+        prompt: 'Use calmer waves and preserve more source detail.',
+        idempotencyKey: 'shader-refine-1',
+        refineFromRequestId: 'job-1',
+      },
+      deps,
+    );
+
+    expect(refined).toMatchObject({
+      status: 200,
+      body: {
+        requestId: 'job-2',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'refine',
+        instance: {
+          definition: {
+            label: 'Refined Shader',
+            provenance: { attempt: 'refine', parentRequestId: 'job-1' },
+          },
+        },
+      },
+    });
+    expect(generateShader).toHaveBeenNthCalledWith(2, {
+      prompt: 'Use calmer waves and preserve more source detail.',
+      clientRequestId: 'job-2',
+      refine: {
+        instance: expect.objectContaining({
+          definition: expect.objectContaining({ label: 'Original Shader' }),
+        }),
+        instruction: 'Use calmer waves and preserve more source detail.',
+      },
+    });
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(2);
+  });
+
+  it('does not refine a missing, unaccepted, or foreign shader request', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    store.seedUser({ id: 'user-2', email: 'other@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'unaccepted shader', idempotencyKey: 'shader-unaccepted-1' },
+      deps,
+    );
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: 'refine it', idempotencyKey: 'shader-refine-blocked-1', refineFromRequestId: 'job-1' },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 409, body: { code: 'shader_refine_not_available' } });
+
+    await handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps);
+    deps.resolveAuth = async () => ({ authenticated: true, user: { id: 'user-2' } });
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: 'refine it', idempotencyKey: 'shader-refine-foreign-1', refineFromRequestId: 'job-1' },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 404, body: { code: 'shader_refine_source_not_found' } });
+  });
+
+  it('repairs a rejected refinement while preserving refinement provenance', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    const generateShader = vi
+      .fn()
+      .mockResolvedValueOnce(providerShader('Original Shader'))
+      .mockResolvedValueOnce(providerShader('Broken Refinement'))
+      .mockResolvedValueOnce(providerShader('Repaired Refinement'));
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'water refraction', idempotencyKey: 'shader-refine-repair-original' },
+      deps,
+    );
+    await handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps);
+    await handleCreateShaderRequest(
+      { headers: {} },
+      {
+        prompt: 'Make it calmer',
+        idempotencyKey: 'shader-refine-repair-candidate',
+        refineFromRequestId: 'job-1',
+      },
+      deps,
+    );
+    await handleValidateShaderRequest(
+      { headers: {} },
+      'job-2',
+      { candidateRevision: 0, outcome: 'rejected', diagnostic: { stage: 'render', message: 'flat output' } },
+      deps,
+    );
+
+    await expect(handleRepairShaderRequest({ headers: {} }, 'job-2', deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        attempt: 'refineRepair',
+        instance: {
+          definition: {
+            label: 'Repaired Refinement',
+            provenance: { attempt: 'refineRepair', parentRequestId: 'job-1' },
+          },
+        },
+      },
+    });
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(2);
+  });
+
   it('repairs one browser-rejected shader without consuming a second quota unit', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });

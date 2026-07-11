@@ -11,6 +11,7 @@ interface ShaderGenerationMachineContext {
 
 export type ShaderGenerationMachineEvent =
   | { type: 'CREATE_OPENAI' }
+  | { type: 'REFINE_OPENAI' }
   | { type: 'CANDIDATE_RECEIVED' }
   | { type: 'VALIDATION_PASSED'; message: string; source: AiShaderSource; model?: string }
   | { type: 'VALIDATION_REPAIRABLE'; message: string }
@@ -40,6 +41,12 @@ export const shaderGenerationMachine = setup({
     clear: assign({ message: null, source: null, model: undefined, fallbackAvailable: false }),
     startOpenAi: assign({
       message: 'Creating an editable shader.',
+      source: null,
+      model: undefined,
+      fallbackAvailable: false,
+    }),
+    startRefine: assign({
+      message: 'Refining the accepted shader.',
       source: null,
       model: undefined,
       fallbackAvailable: false,
@@ -74,8 +81,18 @@ export const shaderGenerationMachine = setup({
     UNEXPECTED_FAILED: { target: '.failed', actions: 'markMessage' },
   },
   states: {
-    idle: { on: { CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' } } },
+    idle: {
+      on: {
+        CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' },
+        REFINE_OPENAI: { target: 'creatingRefine', actions: 'startRefine' },
+      },
+    },
     creatingOpenAi: {
+      on: {
+        CANDIDATE_RECEIVED: { target: 'validating', actions: 'startValidation' },
+      },
+    },
+    creatingRefine: {
       on: {
         CANDIDATE_RECEIVED: { target: 'validating', actions: 'startValidation' },
       },
@@ -110,10 +127,16 @@ export const shaderGenerationMachine = setup({
         VALIDATION_FAILED: { target: 'failed', actions: 'markMessage' },
       },
     },
-    succeeded: { on: { CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' } } },
+    succeeded: {
+      on: {
+        CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' },
+        REFINE_OPENAI: { target: 'creatingRefine', actions: 'startRefine' },
+      },
+    },
     failed: {
       on: {
         CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' },
+        REFINE_OPENAI: { target: 'creatingRefine', actions: 'startRefine' },
         CREATE_FALLBACK: { target: 'creatingFallback', actions: 'startFallback' },
       },
     },

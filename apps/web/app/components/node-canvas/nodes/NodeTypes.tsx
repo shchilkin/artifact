@@ -508,6 +508,7 @@ function ShaderNodeAiEmptyOverlay({ hasPrompt, hasInput }: { hasPrompt: boolean;
 
 function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationStatus }) {
   const fallback = status === 'creatingFallback';
+  const refining = status === 'creatingRefine';
   const validating = status === 'validating';
   const repairing = status === 'repairing';
   const failed = status === 'failed';
@@ -533,9 +534,11 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
                 ? 'Repairing shader'
                 : validating
                   ? 'Checking shader'
-                  : fallback
-                    ? 'Making local draft'
-                    : 'Creating shader'}
+                  : refining
+                    ? 'Refining shader'
+                    : fallback
+                      ? 'Making local draft'
+                      : 'Creating shader'}
           </strong>
           <small>
             {failed
@@ -544,9 +547,11 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
                 ? 'One automatic repair'
                 : validating
                   ? 'Testing in this browser'
-                  : fallback
-                    ? 'Labeled local'
-                    : 'Setting it up'}
+                  : refining
+                    ? 'Keeping the current version'
+                    : fallback
+                      ? 'Labeled local'
+                      : 'Setting it up'}
           </small>
         </span>
       </div>

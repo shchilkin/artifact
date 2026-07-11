@@ -21,6 +21,10 @@ export interface ShaderGenerationRequest {
     instance: ShaderInstance;
     diagnostic: { stage: string; message: string; browser?: string };
   };
+  refine?: {
+    instance: ShaderInstance;
+    instruction: string;
+  };
 }
 
 export interface ShaderGenerationResult {
@@ -97,10 +101,15 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
                   { role: 'system', content: SHADER_REPAIR_SYSTEM_PROMPT },
                   { role: 'user', content: repairPrompt(request) },
                 ]
-              : [
-                  { role: 'system', content: SHADER_SYSTEM_PROMPT },
-                  { role: 'user', content: request.prompt },
-                ],
+              : request.refine
+                ? [
+                    { role: 'system', content: SHADER_REFINE_SYSTEM_PROMPT },
+                    { role: 'user', content: refinementPrompt(request) },
+                  ]
+                : [
+                    { role: 'system', content: SHADER_SYSTEM_PROMPT },
+                    { role: 'user', content: request.prompt },
+                  ],
             text: {
               format: {
                 type: 'json_schema',
@@ -154,10 +163,13 @@ Return code that defines vec4 mainImage(vec2 uv). Do not declare uniforms, write
 At most one loop is allowed. It must use the exact form for (int i = 0; i < N; i++) with N <= 32.
 Available built-in uniforms: sampler2D u_backdrop, vec2 u_resolution, float u_seed, float u_strength, float u_has_backdrop.
 Every editable property must be listed in properties and read in code as u_prop_<key>. Number and boolean properties are float uniforms; colors are vec3 uniforms.
-Use at most 8 useful properties. Do not emit unused properties, animation uniforms, JavaScript, HTML, WGSL, markdown, or commentary.`;
+Choose zero to 8 useful properties based on the effect. Add as many color controls as the effect genuinely needs and none when it does not need editable colors. Do not emit unused properties, animation uniforms, JavaScript, HTML, WGSL, markdown, or commentary.`;
 
 const SHADER_REPAIR_SYSTEM_PROMPT = `${SHADER_SYSTEM_PROMPT}
 Repair the supplied shader so it passes the reported browser validation failure. Preserve the original visual intent and useful editable controls. Return the complete corrected definition, never a patch or explanation.`;
+
+const SHADER_REFINE_SYSTEM_PROMPT = `${SHADER_SYSTEM_PROMPT}
+Refine the supplied accepted shader according to the user's instruction. Preserve parts the user did not ask to change, keep the connected source recognizable, and return the complete updated definition. Keep only controls that remain useful and visibly affect the result. Never return a patch or explanation.`;
 
 function repairPrompt(request: ShaderGenerationRequest) {
   if (!request.repair) return request.prompt;
@@ -165,6 +177,15 @@ function repairPrompt(request: ShaderGenerationRequest) {
     originalPrompt: request.prompt,
     failedDefinition: request.repair.instance.definition,
     compilerDiagnostic: request.repair.diagnostic,
+  });
+}
+
+function refinementPrompt(request: ShaderGenerationRequest) {
+  if (!request.refine) return request.prompt;
+  return JSON.stringify({
+    instruction: request.refine.instruction,
+    acceptedDefinition: request.refine.instance.definition,
+    currentValues: request.refine.instance.values,
   });
 }
 

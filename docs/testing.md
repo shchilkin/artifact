@@ -169,6 +169,10 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 - Cross-browser Code/AI Shader runtime coverage compiles with the production
   WebGL wrapper and compares graph preview pixels with output pixels in
   Chromium, Firefox, and WebKit.
+- AI Shader runtime diagnostics reject transparent or spatially flat frames,
+  backdrop-independent output, dead controls, and undeclared property uniforms.
+  Browser UI coverage refines an accepted shader, validates the candidate, and
+  commits parent provenance without exposing technical uniform names.
 - Mocked AI alpha QA covers an AI-enabled generation flow, generated image
   export, prompt provenance after reload, quota-exhausted access, and provider
   failure messaging without spending provider tokens.

@@ -176,10 +176,27 @@ Accepted definitions retain lightweight provenance with source, model, request
 id, and whether the accepted result was the initial generation, one repair, or
 an explicit local fallback. Compiler diagnostics and lifecycle state remain in
 API storage and never enter the document.
+An accepted AI Shader can be refined through a new owner-scoped shader request.
+The refinement stores the accepted request as `parent_request_id`, consumes one
+normal OpenAI quota unit, and sends the accepted definition plus the user's
+change instruction to the provider. It still passes through browser validation
+and at most one repair before replacing the current node instance. Refine and
+refine-repair provenance retain the parent request id; local fallback is not
+offered for a failed refinement because it cannot reproduce the accepted source
+definition faithfully.
+Browser acceptance also renders diagnostic frames. AI Shader candidates are
+rejected when they are fully transparent, spatially flat, unaffected by the
+connected backdrop, or expose a control that does not visibly change pixels
+within its declared range. Related controls are tested with the other manifest
+values placed in an active diagnostic state, so useful gated color and amount
+controls are not rejected merely because their defaults are disabled.
 AI Shader output is controlled by its saved definition, instance property
 values, built-in uniforms that the code actually reads, and effect-only
 opacity/blend settings. Preset-only palette, shape, placement, and texture
 controls stay hidden and do not participate in the generated shader contract.
+Generated controls are manifest-driven rather than palette-slot-driven. The
+definition may expose zero to eight number, toggle, or color controls, and every
+`u_prop_*` uniform must have exactly one manifest entry that affects the output.
 Custom code shader work uses the separate `customCode` shader kind. The graph
 node stores a Shader Instance containing a serializable Shader Definition and
 instance property values; the graph node owns the instance's explicit role. The

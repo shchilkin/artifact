@@ -192,7 +192,14 @@ describe('PostgresAiShaderRequestRepository', () => {
     ).resolves.toMatchObject({ claimed: true, row: { id: 'shader-request-1', status: 'pending' } });
 
     expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain('ON CONFLICT (user_id, idempotency_key) DO NOTHING');
-    expect(client.queries[0]?.params).toEqual(['shader-request-1', 'user-1', 'shader-idem-1', 'openai', 'water glass']);
+    expect(client.queries[0]?.params).toEqual([
+      'shader-request-1',
+      'user-1',
+      'shader-idem-1',
+      'openai',
+      'water glass',
+      null,
+    ]);
   });
 
   it('reads the winning row with a fresh query after an idempotency conflict', async () => {
@@ -343,6 +350,7 @@ function createShaderRow(overrides: Partial<AiShaderRequestRow> = {}): AiShaderR
     idempotency_key: 'shader-idem-1',
     mode: 'openai',
     prompt: 'water glass',
+    parent_request_id: null,
     status: 'pending',
     response_json: null,
     provider_request_id: null,

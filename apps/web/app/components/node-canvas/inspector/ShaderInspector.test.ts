@@ -89,6 +89,16 @@ describe('ShaderInspector metadata', () => {
     });
   });
 
+  it('runs refinement through generation and browser validation before success', () => {
+    const actor = createActor(shaderGenerationMachine).start();
+    actor.send({ type: 'REFINE_OPENAI' });
+    expect(actor.getSnapshot().matches('creatingRefine')).toBe(true);
+    actor.send({ type: 'CANDIDATE_RECEIVED' });
+    expect(actor.getSnapshot().matches('validating')).toBe(true);
+    actor.send({ type: 'VALIDATION_PASSED', message: 'Refined.', source: 'openai', model: 'gpt-5.5' });
+    expect(actor.getSnapshot().matches('succeeded')).toBe(true);
+  });
+
   it('describes AI shader empty state as a source-connected effect', () => {
     expect(aiShaderEmptyStatus(false, false)).toEqual({
       title: 'Connect source',

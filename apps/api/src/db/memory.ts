@@ -150,6 +150,7 @@ export class InMemoryApiStore {
       idempotency_key: input.idempotencyKey,
       mode: input.mode,
       prompt: input.prompt,
+      parent_request_id: input.parentRequestId ?? null,
       status: 'pending',
       response_json: null,
       provider_request_id: null,

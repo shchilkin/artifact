@@ -129,6 +129,42 @@ describe('createOpenAiShaderProvider', () => {
     });
   });
 
+  it('sends the accepted definition and user instruction for refinement', async () => {
+    const fetcher = vi.fn(async (...args: [string, RequestInit]) => {
+      expect(args).toHaveLength(2);
+      return jsonFetchResponse({ output_text: JSON.stringify(generatedShader) });
+    });
+    const provider = createOpenAiShaderProvider({ apiKey: 'test-key', fetch: fetcher });
+
+    await provider.generateShader({
+      prompt: 'Make the distortion calmer and keep more facial detail.',
+      clientRequestId: 'shader-refine-1',
+      refine: {
+        instance: {
+          definition: {
+            version: 1,
+            id: 'accepted-definition',
+            label: 'Accepted Shader',
+            language: 'glsl-fragment',
+            code: generatedShader.code,
+            properties: generatedShader.properties as never,
+          },
+          values: { amount: 0.03, tint: '#ff00aa' },
+        },
+        instruction: 'Make the distortion calmer and keep more facial detail.',
+      },
+    });
+
+    const firstFetchCall = fetcher.mock.calls[0];
+    if (!firstFetchCall) throw new Error('Expected OpenAI refinement call.');
+    const body = JSON.parse(String(firstFetchCall[1].body));
+    expect(body.input[0].content).toContain('Refine the supplied accepted shader');
+    expect(JSON.parse(body.input[1].content)).toMatchObject({
+      instruction: 'Make the distortion calmer and keep more facial detail.',
+      acceptedDefinition: { id: 'accepted-definition', label: 'Accepted Shader' },
+    });
+  });
+
   it('surfaces OpenAI API errors', async () => {
     const provider = createOpenAiShaderProvider({
       apiKey: 'test-key',
@@ -185,6 +221,27 @@ describe('createOpenAiShaderProvider', () => {
     await expect(
       provider.generateShader({ prompt: 'editable effect', clientRequestId: 'shader-unused-control' }),
     ).rejects.toThrow('Shader property amount is not used by the shader code.');
+  });
+
+  it('rejects generated uniforms that are missing from the control manifest', async () => {
+    const provider = createOpenAiShaderProvider({
+      apiKey: 'test-key',
+      fetch: async () =>
+        jsonFetchResponse({
+          output_text: JSON.stringify({
+            label: 'Missing Control',
+            code: `vec4 mainImage(vec2 uv) {
+              vec4 source = texture2D(u_backdrop, uv);
+              return vec4(source.rgb * u_prop_missing, source.a);
+            }`,
+            properties: [],
+          }),
+        }),
+    });
+
+    await expect(
+      provider.generateShader({ prompt: 'editable effect', clientRequestId: 'shader-missing-control' }),
+    ).rejects.toThrow('Shader uniform u_prop_missing is missing from the property manifest.');
   });
 
   it('rejects generated effects that ignore the connected source', async () => {
