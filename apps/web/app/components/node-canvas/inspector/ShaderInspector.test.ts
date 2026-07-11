@@ -59,6 +59,17 @@ describe('ShaderInspector metadata', () => {
     expect(blocked.getSnapshot().context.message).toBe('Quota reached.');
   });
 
+  it('validates a local fallback through its dedicated machine path', () => {
+    const actor = createActor(shaderGenerationMachine).start();
+    actor.send({ type: 'CREATE_OPENAI' });
+    actor.send({ type: 'UNEXPECTED_FAILED', message: 'Provider failed.', offerFallback: true });
+    actor.send({ type: 'CREATE_FALLBACK' });
+    actor.send({ type: 'FALLBACK_RECEIVED' });
+    expect(actor.getSnapshot().matches('validatingFallback')).toBe(true);
+    actor.send({ type: 'VALIDATION_PASSED', message: 'Local draft ready.', source: 'localFallback' });
+    expect(actor.getSnapshot().matches('succeeded')).toBe(true);
+  });
+
   it('does not succeed before browser validation and permits exactly one repair path', () => {
     const actor = createActor(shaderGenerationMachine).start();
     actor.send({ type: 'CREATE_OPENAI' });

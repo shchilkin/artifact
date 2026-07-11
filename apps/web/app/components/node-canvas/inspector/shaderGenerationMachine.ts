@@ -88,16 +88,19 @@ export const shaderGenerationMachine = setup({
       },
     },
     creatingOpenAi: {
+      tags: ['generating'],
       on: {
         CANDIDATE_RECEIVED: { target: 'validating', actions: 'startValidation' },
       },
     },
     creatingRefine: {
+      tags: ['generating'],
       on: {
         CANDIDATE_RECEIVED: { target: 'validating', actions: 'startValidation' },
       },
     },
     validating: {
+      tags: ['generating', 'validating'],
       on: {
         VALIDATION_PASSED: { target: 'succeeded', actions: 'markSuccess' },
         VALIDATION_REPAIRABLE: { target: 'repairing', actions: 'startRepair' },
@@ -105,23 +108,27 @@ export const shaderGenerationMachine = setup({
       },
     },
     repairing: {
+      tags: ['generating'],
       on: {
         REPAIR_RECEIVED: { target: 'validatingRepair', actions: 'startValidation' },
         REPAIR_FAILED: { target: 'failed', actions: 'markMessage' },
       },
     },
     validatingRepair: {
+      tags: ['generating', 'validating'],
       on: {
         VALIDATION_PASSED: { target: 'succeeded', actions: 'markSuccess' },
         VALIDATION_FAILED: { target: 'failed', actions: 'markMessage' },
       },
     },
     creatingFallback: {
+      tags: ['generating'],
       on: {
         FALLBACK_RECEIVED: { target: 'validatingFallback', actions: 'startValidation' },
       },
     },
     validatingFallback: {
+      tags: ['generating', 'validating'],
       on: {
         VALIDATION_PASSED: { target: 'succeeded', actions: 'markSuccess' },
         VALIDATION_FAILED: { target: 'failed', actions: 'markMessage' },

@@ -19,6 +19,7 @@ The node editor should not become a second document model.
 | Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
 | Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
 | Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| AI shader lifecycle | `inspector/useAiShaderGeneration.ts`, `inspector/aiShaderGenerationController.ts`, `inspector/shaderGenerationMachine.ts` |
 | Menus | `apps/web/app/components/node-canvas/menus/*` |
 | Graph helpers | `apps/web/app/utils/nodeGraph.ts` |
 
@@ -165,6 +166,11 @@ Shader work follows the same single-purpose split:
   connected source, before generation succeeds, or when the shader cannot run,
   its result layer is transparent and the graph keeps the upstream image
   unchanged.
+  The AI shader inspector is presentational: `useAiShaderGeneration` owns auth,
+  cancellation, XState transitions, and node-surface status, while
+  `runAiShaderGeneration` owns the framework-independent create, validate,
+  repair, and commit sequence. Keep API and renderer calls out of the inspector
+  component so lifecycle tests do not require React.
   `Code Shader` is a shader authoring method: its definition stores a GLSL
   fragment body that defines `mainImage(vec2 uv)` and receives
   `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
