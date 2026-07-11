@@ -149,7 +149,7 @@ async function assertAiAccess(apiBaseUrl: string) {
 }
 
 async function assertShaderRoute(apiBaseUrl: string) {
-  const invalidPromptResponse = await fetch(`${apiBaseUrl}/api/ai/shader-spec`, {
+  const invalidPromptResponse = await fetch(`${apiBaseUrl}/api/ai/shaders`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${DEV_TOKEN}`,
@@ -165,7 +165,7 @@ async function assertShaderRoute(apiBaseUrl: string) {
     throw new Error(`AI shader route check failed: ${JSON.stringify(invalidPromptBody)}`);
   }
 
-  const contractResponse = await fetch(`${apiBaseUrl}/api/ai/shader-spec`, {
+  const contractResponse = await fetch(`${apiBaseUrl}/api/ai/shaders`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${DEV_TOKEN}`,
@@ -174,12 +174,13 @@ async function assertShaderRoute(apiBaseUrl: string) {
     body: JSON.stringify({
       prompt: 'soft water texture',
       mode: 'localFallback',
+      idempotencyKey: 'local-ai-startup-contract-check',
     }),
   });
   const contractBody = await contractResponse.json().catch(() => null);
-  if (!contractResponse.ok || contractBody?.source !== 'localFallback' || !contractBody?.spec?.provenance?.source) {
+  if (contractResponse.status !== 400 || contractBody?.code !== 'invalid_fallback_reference') {
     throw new Error(
-      `AI shader route is running an old response contract. Restart the API. Response: ${JSON.stringify(contractBody)}`,
+      `AI shader route is running an unexpected response contract. Restart the API. Response: ${JSON.stringify(contractBody)}`,
     );
   }
 }
