@@ -12,7 +12,7 @@ Run these before cutting a public release:
 npm run release:verify
 npm run check
 npm run build
-npm run test:browser
+npm run test:browser:release
 ```
 
 Release notes are template-gated. Before committing a release, copy

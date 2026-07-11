@@ -14,7 +14,7 @@ npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
 npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
-npm run test:browser:release           # full browser gate with a fresh local dev server
+npm run test:browser:release           # full browser gate split across fresh local dev servers
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm run --silent fallow                # report-only code-quality baseline in JSON
@@ -208,11 +208,16 @@ the browser matrix for documentation-only pull requests; code, workflow,
 package, Playwright config, app, shared package, or browser-test changes still
 run the browser gate.
 
-Local release prep should use `npm run test:browser:release`. It sets
-`PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
-server instead of accidentally reusing a stale server from a previous failed
-run. Regular focused development commands may still reuse an existing local
-server when that is intentional.
+Local release prep should use `npm run test:browser:release`. It runs Chromium
+in bounded test groups, then Firefox, WebKit, and the mobile projects, with a
+fresh React Router dev server for every segment. This avoids stale-server reuse
+and keeps long local release runs from accumulating all renderer work in one
+dev-server process. Each segment permits one visible Playwright retry for
+transient browser or dev-server startup failures. Extra Playwright arguments keep the focused single-run
+behavior, for example `npm run test:browser:release -- --grep "AI shader"`.
+Regular focused development commands may still reuse an existing local server
+when that is intentional. CI continues to split the browser matrix by
+Playwright project.
 
 The v0.30 visual baseline deliberately does not start with broad golden
 screenshots. UI surfaces use layout, computed-style, readable-control, and
