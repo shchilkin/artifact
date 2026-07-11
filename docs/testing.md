@@ -14,7 +14,7 @@ npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
 npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
-npm run test:browser:release           # full browser gate with a fresh local dev server
+npm run test:browser:release           # full browser gate split across fresh local dev servers
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm run --silent fallow                # report-only code-quality baseline in JSON
@@ -163,6 +163,16 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 - AI Image node add flow exposes the account-gated source node, and anonymous
   browser-test access disables generation instead of hiding or breaking the
   rest of the editor.
+- AI Shader API coverage proves generated candidates are not accepted early,
+  browser rejection can trigger only one owner-scoped repair, repair reuses the
+  original quota reservation, and a second browser rejection is terminal.
+- Cross-browser Code/AI Shader runtime coverage compiles with the production
+  WebGL wrapper and compares graph preview pixels with output pixels in
+  Chromium, Firefox, and WebKit.
+- AI Shader runtime diagnostics reject transparent or spatially flat frames,
+  backdrop-independent output, dead controls, and undeclared property uniforms.
+  Browser UI coverage refines an accepted shader, validates the candidate, and
+  commits parent provenance without exposing technical uniform names.
 - Mocked AI alpha QA covers an AI-enabled generation flow, generated image
   export, prompt provenance after reload, quota-exhausted access, and provider
   failure messaging without spending provider tokens.
@@ -198,11 +208,16 @@ the browser matrix for documentation-only pull requests; code, workflow,
 package, Playwright config, app, shared package, or browser-test changes still
 run the browser gate.
 
-Local release prep should use `npm run test:browser:release`. It sets
-`PLAYWRIGHT_REUSE_SERVER=0` so Playwright starts a fresh React Router dev
-server instead of accidentally reusing a stale server from a previous failed
-run. Regular focused development commands may still reuse an existing local
-server when that is intentional.
+Local release prep should use `npm run test:browser:release`. It runs Chromium
+in bounded test groups, then Firefox, WebKit, and the mobile projects, with a
+fresh React Router dev server for every segment. This avoids stale-server reuse
+and keeps long local release runs from accumulating all renderer work in one
+dev-server process. Each segment permits one visible Playwright retry for
+transient browser or dev-server startup failures. Extra Playwright arguments keep the focused single-run
+behavior, for example `npm run test:browser:release -- --grep "AI shader"`.
+Regular focused development commands may still reuse an existing local server
+when that is intentional. CI continues to split the browser matrix by
+Playwright project.
 
 The v0.30 visual baseline deliberately does not start with broad golden
 screenshots. UI surfaces use layout, computed-style, readable-control, and

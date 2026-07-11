@@ -146,9 +146,11 @@ function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
       return (
         item.group === 'content' ||
         item.group === 'source' ||
+        item.group === 'shaderFill' ||
         item.action.kind === 'textPreset' ||
         item.action.kind === 'noisePreset' ||
-        item.action.kind === 'arrayPreset'
+        item.action.kind === 'arrayPreset' ||
+        item.action.kind === 'shader'
       );
     case 'effects':
       return item.action.kind === 'effect';
@@ -186,6 +188,7 @@ function addLibraryColorKind(item: AddLibraryItem) {
     case 'aiImage':
       return 'image';
     case 'noisePreset':
+    case 'shader':
       return 'noise';
     case 'arrayPreset':
     case 'repeat':
@@ -212,7 +215,9 @@ function addLibraryGroupColorKind(groupId: AddLibraryGroupId) {
     case 'content':
       return 'fill';
     case 'source':
+    case 'shaderFill':
     case 'material':
+    case 'primitive':
       return 'primitive';
     case 'texture':
       return 'noise';
@@ -262,6 +267,8 @@ function addLibraryResultLabel(item: AddLibraryItem) {
       return 'Adds 3D scene';
     case 'environment':
       return 'Adds environment node';
+    case 'shader':
+      return 'Adds shader fill';
   }
 }
 

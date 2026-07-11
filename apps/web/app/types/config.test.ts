@@ -13,9 +13,11 @@ import {
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
+  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
+  SHADER_KINDS,
 } from './config';
 
 function cloneableDocument(): CanvasDocument {
@@ -93,6 +95,71 @@ describe('makeTextLayer', () => {
   });
 });
 
+describe('shader kind scope', () => {
+  it('keeps AI custom specs in active shader fills', () => {
+    expect(SHADER_KINDS).toContain('aiShader');
+  });
+
+  it('keeps editable code shaders in active shader fills', () => {
+    expect(SHADER_KINDS).toContain('customCode');
+    expect(makeGraphShaderNode({ shaderKind: 'customCode' }).shaderInstance?.definition.code).toBe('');
+  });
+
+  it('normalizes shader palettes at the factory boundary', () => {
+    expect(makeGraphShaderNode({ shaderKind: 'waves', palette: ['#123', 'invalid'] }).palette).toEqual([
+      '#112233',
+      '#5033a6',
+    ]);
+  });
+
+  it('keeps tileless texture out of active shader fills until the future track is implemented', () => {
+    expect(SHADER_KINDS).not.toContain('tilelessTexture');
+  });
+});
+
+describe('cloneDocument shader state', () => {
+  it('deep-clones nested shader state for undo snapshots', () => {
+    const shader = makeGraphShaderNode({
+      id: 'shader-history',
+      shaderKind: 'aiShader',
+      palette: ['#111111', '#eeeeee'],
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'shader-history-definition',
+          label: 'AI Refraction',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.25, min: 0, max: 1, step: 0.01 }],
+          provenance: { source: 'openai', model: 'test-model' },
+        },
+        values: { amount: 0.25 },
+      },
+    });
+    const source: CanvasDocument = {
+      ...cloneableDocument(),
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [shader],
+      },
+    };
+
+    const cloned = cloneDocument(source);
+    const clonedShader = cloned.graph?.shaderNodes?.[0];
+    if (!clonedShader?.shaderInstance) throw new Error('Expected cloned shader state');
+    clonedShader.palette[0] = '#ff0000';
+    clonedShader.shaderInstance.definition.properties[0]!.label = 'Changed';
+    clonedShader.shaderInstance.values.amount = 0.9;
+
+    expect(shader.palette[0]).toBe('#111111');
+    expect(shader.shaderInstance?.definition.properties[0]?.label).toBe('Amount');
+    expect(shader.shaderInstance?.values.amount).toBe(0.25);
+  });
+});
+
 describe('makeEffectLayer', () => {
   it('returns a layer with kind: effect', () => {
     const layer = makeEffectLayer();
@@ -116,6 +183,9 @@ describe('makeEffectLayer', () => {
       'badStreamSmear',
       'badStreamChroma',
       'badStreamDarkness',
+      'pixelStretch',
+      'pixelStretchLength',
+      'pixelStretchAngle',
       'tintOp',
       'rays',
       'rayInt',
@@ -138,6 +208,11 @@ describe('makeEffectLayer', () => {
       'posterize',
       'indexedPalette',
       'indexedPaletteCount',
+      'gradientMap',
+      'channelMixer',
+      'channelRedMix',
+      'channelGreenMix',
+      'channelBlueMix',
       'filmBurn',
       'duotone',
       'halftone',
@@ -148,6 +223,14 @@ describe('makeEffectLayer', () => {
       'edgeCrush',
       'silhouetteCrush',
       'edgeDetect',
+      'bokehBlur',
+      'bokehThreshold',
+      'hatching',
+      'hatchScale',
+      'hatchAngle',
+      'gooeyMerge',
+      'gooeyRadius',
+      'gooeyThreshold',
       'gradMix',
       'gradAngle',
       'sepia',
@@ -167,6 +250,9 @@ describe('makeEffectLayer', () => {
       'splitToneAmt',
       'rippleAmt',
       'rippleFreq',
+      'patternRefraction',
+      'patternRefractionScale',
+      'patternRefractionAngle',
       'kaleidoscope',
       'squeezeX',
       'squeezeY',

@@ -19,9 +19,12 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   Layer,
 } from '../types/config';
+
+const SHADER_PASS_RENDER_VERSION = 'shader-definition-instance-v4';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
@@ -218,6 +221,30 @@ export function scene3DNodeRenderSig(node: GraphScene3DNode): string {
 /** Render-relevant fields for an environment map node. */
 export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
   return JSON.stringify([node.environmentSrc, node.environmentName, node.environmentMime, node.environmentBytes]);
+}
+
+/** Render-relevant fields for a procedural shader node. */
+export function shaderNodeRenderSig(node: GraphShaderNode): string {
+  const shaderInstanceRenderState = node.shaderInstance
+    ? [node.shaderInstance.definition.code, node.shaderInstance.definition.properties, node.shaderInstance.values]
+    : null;
+  return JSON.stringify([
+    SHADER_PASS_RENDER_VERSION,
+    node.shaderKind,
+    node.role,
+    node.palette,
+    node.distortion,
+    node.swirl,
+    node.grain,
+    node.scale,
+    node.rotation,
+    node.offsetX,
+    node.offsetY,
+    node.seedOffset,
+    node.opacity,
+    node.blendMode,
+    shaderInstanceRenderState,
+  ]);
 }
 
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */

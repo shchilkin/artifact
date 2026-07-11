@@ -12,6 +12,7 @@ import {
   type GraphMergeNode,
   type GraphRepeatNode,
   type GraphScene3DNode,
+  type GraphShaderNode,
   type GraphTransformNode,
   type Layer,
 } from '../types/config';
@@ -35,7 +36,8 @@ export type GraphUtilityNodeKind =
   | 'transform'
   | 'grimeShadow'
   | 'scene3d'
-  | 'environment';
+  | 'environment'
+  | 'shader';
 
 const GRAPH_UTILITY_NODE_SELECTORS = [
   { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
@@ -58,6 +60,10 @@ const GRAPH_UTILITY_NODE_SELECTORS = [
   {
     kind: 'environment',
     nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [],
+  },
+  {
+    kind: 'shader',
+    nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [],
   },
 ] satisfies Array<{
   kind: GraphUtilityNodeKind;
@@ -132,6 +138,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
     grimeShadowNodes: [],
     scene3dNodes: [],
     environmentNodes: [],
+    shaderNodes: [],
     areas: [],
   };
 }
@@ -454,6 +461,32 @@ export function updateEnvironmentNode(
   };
 }
 
+export function addShaderNode(
+  graph: CanvasGraph,
+  node: GraphShaderNode,
+  position: { x: number; y: number },
+): CanvasGraph {
+  return {
+    ...graph,
+    shaderNodes: [...(graph.shaderNodes ?? []), node],
+    positions: { ...graph.positions, [node.id]: position },
+  };
+}
+
+export function removeShaderNode(graph: CanvasGraph, id: string): CanvasGraph {
+  return {
+    ...removeGraphNodeReferences(graph, id),
+    shaderNodes: (graph.shaderNodes ?? []).filter((n) => n.id !== id),
+  };
+}
+
+export function updateShaderNode(graph: CanvasGraph, id: string, patch: Partial<GraphShaderNode>): CanvasGraph {
+  return {
+    ...graph,
+    shaderNodes: (graph.shaderNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  };
+}
+
 function uniqueNodeIds(ids: string[]): string[] {
   return [...new Set(ids.filter((id) => id.trim().length > 0))];
 }
@@ -661,6 +694,7 @@ export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] 
     ...(graph.grimeShadowNodes ?? []).map((node) => node.id),
     ...(graph.scene3dNodes ?? []).map((node) => node.id),
     ...(graph.environmentNodes ?? []).map((node) => node.id),
+    ...(graph.shaderNodes ?? []).map((node) => node.id),
     EXPORT_NODE_ID,
   ];
 }

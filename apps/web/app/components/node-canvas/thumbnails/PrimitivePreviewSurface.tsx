@@ -1,6 +1,12 @@
 import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
-import type { GraphMaterialNode, PrimitiveLayer } from '../../../types/config';
+import {
+  DEFAULT_MATERIAL_CONFIG,
+  type GraphMaterialNode,
+  type GraphShaderNode,
+  type MaterialConfig,
+  type PrimitiveLayer,
+} from '../../../types/config';
 import { LazyPrimitiveViewport3D } from '../../LazyViewport3D';
 import {
   defaultPrimitiveViewportState,
@@ -60,9 +66,10 @@ function SelectedPrimitivePreviewSurface({
     () => primitiveBackgroundPreviewTargetId(graph.edges, layer.id),
     [graph.edges, layer.id],
   );
-  const materialConfig = useMemo(() => primitiveMaterialConfig(graph, layer.id), [graph, layer.id]);
+  const materialSource = useMemo(() => primitiveMaterialSource(graph, layer.id), [graph, layer.id]);
   const materialTextures = useGeneratedMaterialTextureCanvases({
-    materialNode: materialConfig ?? null,
+    materialNode: materialSource.materialNode,
+    directTextureSourceId: materialSource.shaderNode?.id ?? null,
     doc,
     graph,
     imageCache,
@@ -96,7 +103,7 @@ function SelectedPrimitivePreviewSurface({
     <SelectedPrimitiveSurface
       layer={layer}
       bgPreviewTargetId={primitiveBgPreviewTargetId}
-      materialConfig={materialConfig}
+      materialConfig={materialSource.config}
       materialTextures={materialTextures}
       renderMode={effectiveRenderMode}
       viewState={effectiveViewState}
@@ -145,12 +152,35 @@ function primitiveBackgroundPreviewTargetId(
   return edges.find((edge) => edge.toId === layerId && edge.toPort === 'bg')?.fromId ?? null;
 }
 
-function primitiveMaterialConfig(
-  graph: { edges: { toId: string; toPort: string; fromId: string }[]; materialNodes?: GraphMaterialNode[] },
+function primitiveMaterialSource(
+  graph: {
+    edges: { toId: string; toPort: string; fromId: string }[];
+    materialNodes?: GraphMaterialNode[];
+    shaderNodes?: GraphShaderNode[];
+  },
   layerId: string,
 ) {
   const materialId = graph.edges.find((edge) => edge.toId === layerId && edge.toPort === 'material')?.fromId;
-  return materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
+  const materialNode = materialId ? (graph.materialNodes ?? []).find((node) => node.id === materialId) : undefined;
+  const shaderNode = materialId ? (graph.shaderNodes ?? []).find((node) => node.id === materialId) : undefined;
+  return {
+    materialNode: materialNode ?? null,
+    shaderNode: shaderNode ?? null,
+    config: materialNode ?? (shaderNode ? shaderMaterialConfig(shaderNode.id) : undefined),
+  };
+}
+
+function shaderMaterialConfig(shaderId: string): MaterialConfig {
+  return {
+    ...DEFAULT_MATERIAL_CONFIG,
+    materialPreset: 'matte',
+    materialBaseColor: '#ffffff',
+    materialAccentColor: '#ffffff',
+    materialRoughness: 0.32,
+    materialGrain: 0,
+    materialRelief: 0,
+    materialAlbedoName: shaderId,
+  };
 }
 
 function PrimitiveThumbnailSurface({
@@ -204,7 +234,7 @@ function SelectedPrimitiveSurface({
 }: {
   layer: PrimitiveLayer;
   bgPreviewTargetId: string | null;
-  materialConfig?: GraphMaterialNode;
+  materialConfig?: MaterialConfig;
   materialTextures?: ReturnType<typeof useGeneratedMaterialTextureCanvases>;
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
@@ -276,7 +306,9 @@ function PrimitiveCameraStrip({
 }) {
   return (
     <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
-      <span className="primitive-node-camera-hint">{primitiveCameraHint(locked, viewState)}</span>
+      <span className="primitive-node-camera-hint" aria-hidden="true">
+        {primitiveCameraHint(locked, viewState)}
+      </span>
       <div className="primitive-node-camera-actions">
         <PrimitiveCameraButton
           active={locked}
@@ -361,7 +393,7 @@ function PrimitiveViewportFrame({
 }: {
   layer: PrimitiveLayer;
   bgPreviewTargetId: string | null;
-  materialConfig?: GraphMaterialNode;
+  materialConfig?: MaterialConfig;
   materialTextures?: ReturnType<typeof useGeneratedMaterialTextureCanvases>;
   renderMode: PrimitiveRenderMode;
   viewState: PrimitiveViewportState;
@@ -372,7 +404,7 @@ function PrimitiveViewportFrame({
   return (
     <div className="node-primitive-live-frame">
       {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
+      <div className="node-primitive-live-viewport-layer" style={{ pointerEvents: interactive ? 'auto' : 'none' }}>
         <LazyPrimitiveViewport3D
           layer={layer}
           mode="node"

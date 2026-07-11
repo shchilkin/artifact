@@ -57,13 +57,21 @@ Implemented:
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
+- OpenAI shader provider for `/api/ai/shaders`, enabled by
+  `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
+  `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
+  persist their result, log OpenAI request/token metadata, and reserve monthly
+  quota once per OpenAI request. Generated candidates are accepted only after
+  browser validation and may receive one compiler-guided repair without a
+  second quota charge. Refinement creates a new quota-counted request linked to
+  an owner-accepted shader. Explicit local fallback requests remain quota-free.
 - Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
 - Authenticated generated-asset download route handler.
 - Worker job processor that marks jobs running, writes mock provider output to
   storage, creates generated asset records, and marks success/failure.
-- OpenAI and xAI provider adapters enabled by `OPENAI_API_KEY` and
+- OpenAI and xAI image provider adapters enabled by `OPENAI_API_KEY` and
   `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.
 - Credentialed CORS/preflight handling for configured frontend origins.
@@ -84,6 +92,21 @@ The API contract, DB shape, job lifecycle, and parallel implementation map are
 defined in [`../../docs/version-plans/v0.13-backend-contract.md`](../../docs/version-plans/v0.13-backend-contract.md).
 
 ## Local Compose Smoke Test
+
+For the quickest local AI Shader smoke test, run the self-contained local AI
+dev launcher from the repo root:
+
+```bash
+npm run dev:local-ai
+```
+
+It starts the API with memory-backed repositories and queues, starts the web
+app, sets the browser dev token, chooses free ports if `4000` or `5173` are
+busy, and uses `OPENAI_API_KEY` from the shell or macOS Keychain when available.
+This path does not require Postgres, Redis, or migrations. It runs the API in
+watch mode through Deno tasks, so edits in `apps/api/src` and
+`packages/shared/src` restart the backend after rebuilding the shared contract.
+It expects Deno 2.x to be available on `PATH`.
 
 Use the local Compose file to run the same infrastructure shape as the VPS API
 without deploying anything:

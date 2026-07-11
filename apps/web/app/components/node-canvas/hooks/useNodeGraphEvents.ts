@@ -118,17 +118,25 @@ function graphConnectionEndpoints(connection: Connection) {
   return { source: connection.source, target: connection.target };
 }
 
-function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
+export function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
   const targetPort = connection.targetHandle ?? 'in';
   const sourceIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.source);
+  const sourceIsShader = (graph.shaderNodes ?? []).some((node) => node.id === connection.source);
+  const sourceShader = (graph.shaderNodes ?? []).find((node) => node.id === connection.source);
   const targetIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.target);
+  const targetShader = (graph.shaderNodes ?? []).find((node) => node.id === connection.target);
+  if (targetPort === 'bg' && targetShader) return targetShader.role === 'effect' && !sourceIsMaterial;
   if ((MATERIAL_TEXTURE_INPUT_PORTS as readonly string[]).includes(targetPort)) {
-    return targetIsMaterial && !sourceIsMaterial;
+    const sourceReady =
+      !sourceShader ||
+      sourceShader.role === 'fill' ||
+      graph.edges.some((edge) => edge.toId === sourceShader.id && edge.toPort === 'bg');
+    return targetIsMaterial && !sourceIsMaterial && sourceReady;
   }
   if (targetPort === 'material') {
     const targetIsPrimitive = layers.some((layer) => layer.id === connection.target && layer.kind === 'primitive');
     const targetIsScene3D = (graph.scene3dNodes ?? []).some((node) => node.id === connection.target);
-    return sourceIsMaterial && (targetIsPrimitive || targetIsScene3D);
+    return (sourceIsMaterial || sourceIsShader) && (targetIsPrimitive || targetIsScene3D);
   }
   return !sourceIsMaterial;
 }

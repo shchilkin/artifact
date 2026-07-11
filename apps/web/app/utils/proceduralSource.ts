@@ -7,6 +7,7 @@ import { toNoiseTextureLayerConfig } from './render/workers/noiseTexture';
 import { renderNoiseTexture } from './render/workers/noiseTextureClient';
 
 const SOURCE_SIZE = 540;
+const SOURCE_RENDER_MAX = 1024;
 
 function degToRad(deg: number) {
   return (deg * Math.PI) / 180;
@@ -368,8 +369,7 @@ async function drawSourceLayerContent(
 ) {
   const { drawWidth, drawHeight } = sourceDrawSize(width, height, scale, layout);
   if (layer.kind === 'primitive') {
-    const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
-    const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const { renderWidth, renderHeight } = sourceRenderSize(drawWidth, drawHeight, scale);
     const { renderPrimitiveToCanvas } = await import('./primitiveRenderer');
     const threeCanvas = await renderPrimitiveToCanvas(
       layer,
@@ -391,8 +391,7 @@ async function drawSourceLayerContent(
     return;
   }
   if (layer.kind === 'model') {
-    const renderWidth = Math.min(Math.round(drawWidth * Math.max(scale, 1)), 1024);
-    const renderHeight = Math.min(Math.round(drawHeight * Math.max(scale, 1)), 1024);
+    const { renderWidth, renderHeight } = sourceRenderSize(drawWidth, drawHeight, scale);
     const { renderModelToCanvas } = await import('./modelRenderer');
     const threeCanvas = await renderModelToCanvas(
       layer,
@@ -412,5 +411,17 @@ function sourceDrawSize(width: number, height: number, scale: number, layout: 'd
   return {
     drawWidth: layout === 'full-frame' ? width / scale : SOURCE_SIZE,
     drawHeight: layout === 'full-frame' ? height / scale : SOURCE_SIZE,
+  };
+}
+
+function sourceRenderSize(drawWidth: number, drawHeight: number, scale: number) {
+  const targetWidth = Math.max(1, Math.round(drawWidth * Math.max(scale, 1)));
+  const targetHeight = Math.max(1, Math.round(drawHeight * Math.max(scale, 1)));
+  const longestSide = Math.max(targetWidth, targetHeight);
+  if (longestSide <= SOURCE_RENDER_MAX) return { renderWidth: targetWidth, renderHeight: targetHeight };
+  const downscale = SOURCE_RENDER_MAX / longestSide;
+  return {
+    renderWidth: Math.max(1, Math.round(targetWidth * downscale)),
+    renderHeight: Math.max(1, Math.round(targetHeight * downscale)),
   };
 }

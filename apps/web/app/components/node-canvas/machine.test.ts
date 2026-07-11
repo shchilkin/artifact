@@ -26,6 +26,12 @@ function startNodeCanvasActor() {
   return actor;
 }
 
+function startSelectedNodeCanvasActor(selectedNodeIds: string[]) {
+  const actor = createActor(nodeCanvasMachine, { input: { selectedNodeIds } });
+  actor.start();
+  return actor;
+}
+
 describe('nodeCanvasMachine overlay state', () => {
   it('opens and explicitly closes context menus', () => {
     const actor = startNodeCanvasActor();
@@ -75,6 +81,16 @@ describe('nodeCanvasMachine overlay state', () => {
     expect(actor.getSnapshot().context.contextMenu).toBeNull();
     expect(actor.getSnapshot().context.galleryNodeId).toBe('image-a');
 
+    actor.stop();
+  });
+
+  it('keeps selected node id references stable when validity filtering is a no-op', () => {
+    const actor = startSelectedNodeCanvasActor(['shader-a']);
+    const before = actor.getSnapshot().context.selectedNodeIds;
+
+    actor.send({ type: 'FILTER_INVALID_REFERENCES', validNodeIds: ['shader-a'], validEdgeIds: [] });
+
+    expect(actor.getSnapshot().context.selectedNodeIds).toBe(before);
     actor.stop();
   });
 });

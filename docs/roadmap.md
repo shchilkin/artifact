@@ -19,12 +19,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.39 has reached release-candidate prep as the Account Cloud Saves And
-  Production Auth release: Better Auth replaces Clerk, account-backed cloud
-  projects ship, large project assets sync separately from project manifests,
-  password recovery is available, production API deploys run migrations and
-  healthchecks, Vercel preview origins are supported, and Projects shows clearer
-  sync status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
+- v0.40 has reached release-candidate prep as the Shader Authoring And AI
+  Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
+  Code Shader and AI Shader nodes, browser validation/repair/refinement,
+  dynamic controls, transparent failure behavior, and preview/export parity.
+  See [`version-plans/v0.40.md`](./version-plans/v0.40.md) and
+  [`releases/v0.40.0.md`](./releases/v0.40.0.md).
+- v0.39 has completed the Account Cloud Saves And Production Auth release:
+  Better Auth, account-backed cloud projects, separate large-project asset
+  sync, password recovery, production API hardening, and clearer Projects sync
+  status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
   [`releases/v0.39.0.md`](./releases/v0.39.0.md).
 - v0.38 has reached release-candidate prep as the Editor UX, Import Safety, And
   Visual Identity release: editor chrome, Layers/Nodes workflow polish,
@@ -53,7 +57,7 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope after v0.39 should start from the deferred product
+- The next version scope after v0.40 should start from the deferred product
   tracks below, especially sharing permissions, S3-compatible asset storage,
   project history/versioning, public-surface polish, or a dedicated CI-policy
   pass if full-health complexity should become a permanent strict release gate.
@@ -95,11 +99,18 @@ Next deferred product tracks:
 Planned next:
 
 - The next version scope should be selected from the deferred product tracks
-  below after v0.39 release feedback, with a likely split between public share
+  below after v0.40 release feedback, with a likely split between public share
   links and ownership/security, S3-compatible cloud asset storage, project
   history/versioning, landing refresh, or CI-policy work.
 
 Recently shipped:
+
+- [`version-plans/v0.40.md`](./version-plans/v0.40.md) — Shader Authoring And
+  AI Shader Effects: explicit Shader Fill/Effect roles, curated procedural
+  shaders, definition-backed Code Shader and AI Shader nodes, generated
+  controls, browser validation/repair/refinement, transparent failure behavior,
+  preview/export parity, and a segmented local browser release gate. Release
+  notes are in [`releases/v0.40.0.md`](./releases/v0.40.0.md).
 
 - [`version-plans/v0.39.md`](./version-plans/v0.39.md) — Account Cloud Saves
   And Production Auth: Better Auth account flow, password recovery, cloud
@@ -258,6 +269,28 @@ Next strong candidates after v0.39:
 - **3D Material Authoring Follow-Up** — build on v0.37 with material map
   scale/rotation, channel packing, richer material examples, and broader WebGL
   coverage after the first PBR node settles.
+- **Shader Fills And Shader Effects** — keep shader work aligned with the
+  single-purpose node contract. Shader Fill nodes generate standalone raster
+  texture sources. Effect nodes own input-dependent shader-style transforms.
+  Material nodes describe PBR surface parameters, and scene nodes own 3D
+  lighting/camera composition.
+
+  Figma Shaders parity should stay split by dependency:
+
+  | Track | Covered or near-covered | Missing / follow-up |
+  | --- | --- | --- |
+  | Shader Fills | mesh gradient, moire, concentric patterns, water caustic, glowing wave, clouds/fractal noise via noise fields, nebula-like smoke/noise, pattern grids via dot grids | stronger named Clouds/Fractal/Nebula/Pattern Grid presets |
+  | Shader Effects | bloom, dither, halftone, pixelate, gradient map, channel mixer, bokeh blur, hatching, pattern refraction, pixel stretch, gooey merge, lens/warp families, colored-edge/outline building blocks, slice-shift-like glitch/tear effects, AI Shader Effect as a prompt-created input-dependent transform | deeper preset tuning and visual examples |
+  | Material Bridge | shader fill output can feed material texture-map inputs and primitive material inputs | polish texture-map controls, examples, export/browser parity coverage |
+  | AI Custom Shaders | prompt-ready `AI Shader Effect` requests a validated definition-backed GLSL `ShaderInstance`, rejects transparent/flat/backdrop-independent output and dead controls, supports owner-scoped refinement of accepted shaders, offers a labeled local fallback only after explicit user choice, and uses durable idempotency, timeout handling, monthly quota accounting, provider request IDs, token-usage logs, transparent empty/error output, and browser-tested preview/export parity | add generation history, reusable definition library/versioning, and monetary cost estimates/billing |
+  | Code Shaders | `Code Shader` stores a definition-backed GLSL program and per-node property values; fill/effect role is explicit, number/boolean/color manifest controls map to stable uniforms, old development documents migrate from `customShaderCode`, and WebGL/compile failures remain contained | program caching, browser-level dynamic-uniform coverage, richer point/gradient property types |
+  | Shader Authoring Model | Shader Definition and Shader Instance are distinct serialized concepts; AI and code share the same definition-backed runtime, presets remain curated renderers, and fill/effect are the only runtime roles | add reusable definition library/versioning and decide whether presets should gradually adopt the same manifest format |
+
+  Tileless/seamless texture generation remains a future Shader Fill track for
+  repeatable material maps. Rich custom GLSL/WGSL code editing remains an
+  advanced track beyond the current MVP because it needs better compilation
+  diagnostics, uniform editing, and sandboxing affordances. Prompt-to-shader
+  generation targets validated definition-backed GLSL. Shader animation is deferred: before adding it back, define whether animation belongs in shader nodes, effect nodes, a reusable control node, or export settings; then set performance budgets for live thumbnails, graph preview caches, and eventual video/sequence export.
 - **History Performance And Undo Memory Budget** — keep undo/redo responsive as
   node documents, 3D scene state, and local project payloads grow. Confirm the
   immutable document-update contract with tests, avoid unnecessary deep clones
@@ -275,6 +308,13 @@ Next strong candidates after v0.39:
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
   oversized-project recovery states.
+- **Reference Intelligence And Cover Discovery** — add a Cosmos/mymind-style
+  reference browser for existing cover art, backed by a TypeScript reference
+  catalog in the API workspace. The first slice should index MusicBrainz/Cover
+  Art Archive metadata into Postgres, expose fast search and saved references,
+  and keep reference images outside `CanvasDocument`; later slices can add
+  pgvector-based semantic search, palette/visual features, and AI chat tools
+  that suggest references from user requests.
 - **Font Catalog And Account Sync** — add deeper font discovery, saved font
   sets, and account-backed font/project continuity after the local font policy
   has been proven in release.
@@ -339,7 +379,8 @@ These can mostly stay browser-only and fit the current architecture:
   ratio and export scale.
 - More procedural texture/noise nodes with presets.
 - More primitive shapes, SVG-like primitives, and 3D sketch primitives.
-- More focused effect nodes and shader-style effects with stronger controls.
+- More focused effect nodes and shader-style sources with stronger controls,
+  split by role instead of folded into multi-purpose nodes.
 - Font import, improved font browsing, and possible external font catalog
   support.
 - Better text workflow, including typography presets, multi-font work, and text
@@ -459,6 +500,9 @@ These make the product easier to understand and market:
 - Procedural texture preset folders.
 - Project/case-study pages for the Artifact portfolio.
 - Future how-to / recipes pages explaining how covers were made.
+- Reference browser for existing cover-art inspiration: searchable
+  Cosmos/mymind-style visual grid, saved reference shelves or collections, clear
+  source links, and no default import of third-party covers into artwork.
 
 ### Platform / Full-Stack Candidates
 
@@ -495,6 +539,19 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
   store only stable cloud references in saved project records, and hydrate/cache
   those assets back into local IndexedDB when a cloud project opens. Next pass:
   progress UI, quota/cleanup rules, and optional S3-compatible storage.
+- Reference catalog and cover discovery: build a TypeScript-first backend
+  subsystem that imports MusicBrainz and Cover Art Archive dumps into Postgres,
+  exposes `/api/references/search` and saved-reference endpoints, and treats
+  covers as reference material rather than editable document assets by default.
+- Reference vector search: add pgvector-backed embeddings for reference covers,
+  starting with text/metadata embeddings and hybrid full-text/vector ranking,
+  then expanding to image or multimodal embeddings, palette features, and "more
+  like this" recommendations after the base catalog proves useful.
+- AI chat with reference tools: design chat as a separate backend layer that can
+  call typed tools such as reference search, saved-reference lookup, and current
+  project summaries. The chat should use the reference catalog to suggest
+  directions from user requests without baking reference data into the model or
+  into `CanvasDocument`.
 - Share modes beyond basic links: read-only share, remix/fork share,
   export-only share, and later collaboration modes.
 - Team/project collaboration.
@@ -726,9 +783,10 @@ in style boundaries.
 
 ### Documentation must stay aligned
 
-The architecture docs are much closer to the code now, but user-facing docs
-still need to become more task-oriented: first cover, layer workflow, nodes,
-effects, sources, repeaters, projects, export, and troubleshooting.
+The architecture and user-facing docs are much closer to the code now, but
+roadmap status, version plans, release notes, and workflow docs need regular
+cleanup after each focused release so old beta-era plans do not read like
+current scope.
 
 
 ## Improvement principles
@@ -742,30 +800,27 @@ effects, sources, repeaters, projects, export, and troubleshooting.
 
 ## Roadmap
 
-### Current release lines
+### Current Status
 
-Artifact now has two parallel release lines:
-
-- `v0.13.x-alpha`: private AI generation alpha. This line is for AI operations,
-  HTTPS/API smoke, quota/accounting, provider defaults, cleanup, and VPS/Coolify
-  deploy hardening.
-- `v0.14.x-beta`: editor/local-first beta. This line is for layer workflow,
-  onboarding, local project reliability, showcase/docs polish, and production
-  readiness for users who do not need AI access.
-
-Earlier `v0.2` through `v0.12` roadmap headings are release history, not active
-target buckets. Any unfinished work from those sections has been moved below
-into future versions or into the v0.14 editor beta.
+The active release baseline is `v0.40.0` release prep on the stacked shader
+release-candidate branch. Earlier `v0.2` through `v0.39` version plans are release history, not active
+target buckets. Their detailed acceptance criteria and validation notes live
+under `docs/version-plans/` and `docs/releases/`.
 
 Current shipped baseline:
 
 - Local-first document editing with stack and graph workflows.
-- Graph nodes for layer, merge, color, repeat, and export composition.
+- Graph nodes for layer, merge, color, repeat, mask, transform, material,
+  environment, 3D model, 3D scene, utility, and export composition.
 - Graph areas as serializable organization metadata with node overlays and
   layer-panel folder rows.
 - Focused effect presets, procedural noise/array sources, repeater presets, and
   per-node seed offsets for seeded emoji, sources, effects, and repeaters.
-- Blank-canvas entry points and first starter paths.
+- 3D model/environment assets, PBR material graph workflows, retro finishing
+  effects, Bad Stream block effects, and preview/export parity for the covered
+  graph paths.
+- Blank-canvas entry points, starter paths, examples, recipes, docs, and
+  Showcase recovery work.
 - Local project snapshots, imported image assets, and recovery copies in
   IndexedDB.
 - `.artifact.json` import/export and hydrated share-link behavior where local
@@ -775,17 +830,62 @@ Current shipped baseline:
   retries, diagnostics, and local asset import.
 - Account-backed cloud project saves that mirror local projects without
   replacing IndexedDB local-first editing.
-- Future local project package direction: custom-extension downloads that keep
-  the user's document and assets portable outside browser storage.
+- Separate cloud asset upload/reassembly for large projects, with v0.39's
+  local-volume storage as the first backend implementation.
+- Editable project packages and explicit font/package export policy for local
+  ownership outside browser storage.
 - Shared renderer facade, split renderer internals, render fixtures, browser
   smoke tests, thumbnail signatures, and node-editor performance tooling.
+- Fallow code-quality scripts, changed-code audit guidance, and the v0.32
+  zero-over-threshold complexity cleanup baseline.
+- v0.38/v0.39 editor chrome, import/open safety, cloud project status, local
+  project action clarity, shared primitive polish, visual identity refresh, and
+  responsive Layers/Nodes action surfaces.
+- v0.40 Shader Fill/Effect, Code Shader, and AI Shader authoring with explicit
+  roles, validated definition-backed runtime, editable controls, transparent
+  error behavior, refinement, and preview/export parity.
 
-Current near-term focus:
+### Active Candidate Tracks
 
-- [`v0.33`](./version-plans/v0.33.md): storage UX and capability hardening.
-  Keep Artifact local-first while making autosave, recovery, quota pressure,
-  project size, cleanup, and unsupported browser capabilities visible and
-  recoverable before larger asset-library or server-backed sharing work.
+The next version should be selected from one active candidate and turned into a
+dedicated version plan before implementation is called release scope:
+
+- **Reference Intelligence And Cover Discovery**: add a Cosmos/mymind-style
+  reference browser backed by a TypeScript reference catalog in the API
+  workspace. The first releasable slice should define import/search scope,
+  saved-reference semantics if they remain in scope, validation commands,
+  route/product polish, and a clear boundary that reference images stay outside
+  `CanvasDocument`.
+- **Public Share Links And Ownership**: build on v0.39 private cloud projects
+  with explicit sharing permissions, link tokens, ownership rules, and security
+  tests before public project links become available.
+- **Cloud Asset Storage Follow-Up**: move beyond v0.39 local-volume cloud asset
+  sync toward upload progress, cross-project asset deduplication,
+  quota/cleanup policy, S3-compatible object storage, and oversized-project
+  recovery states.
+- **3D Material Authoring Follow-Up**: material map scale/rotation, channel
+  packing, richer material examples, broader browser WebGL coverage, and
+  external HDRI/material marketplace evaluation.
+- **History Performance And Undo Memory Budget**: serialized memory budget,
+  fewer unnecessary deep clones, and patch/checkpoint evaluation for
+  high-frequency edits.
+- **Project Autosave History / Versions**: visible automatic save points,
+  named creative snapshots, restore/compare, and a clear split between
+  recovery, autosave, explicit save, and user-created copies.
+- **Whole-App Brand And Public Surface Refresh**: public routes, docs,
+  Showcase, account surfaces, and broader brand/site work after v0.39's
+  account/cloud-save core.
+- **Command Palette / Add Library Improvements**: faster repeated editor
+  actions, stronger keyboard behavior, recent/common items, and protected
+  search/drag states.
+- **Asset Library And Export History**: reusable local sources, exported
+  outputs, cutouts, generated assets, restore/compare, and migration boundaries
+  before deeper cloud sync.
+- **CI Policy For Fallow Full Health**: only if threshold ownership,
+  suppressions, and CI behavior are documented before making full-health
+  complexity a standing strict gate.
+
+### Historical Version Details
 
 ### v0.11: Layer Workflow And Onboarding
 
@@ -1124,22 +1224,30 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-The next product pass should start from `v0.18` planning now that `v0.17` has
-closed the creative-controls and Add Library gate. The v0.13 AI alpha can
-continue in parallel for operations and reliability work.
+Pick one active candidate track and write its version plan before broad
+implementation. Given the v0.39 baseline, the cleanest next candidates are
+public share links and ownership, cloud asset storage follow-up, Reference
+Intelligence, 3D material authoring follow-up, project history/versioning, or
+public-surface polish.
 
 Recommended order:
 
-1. Review the remaining product gaps from the editor, AI, showcase, and export
-   tracks.
-2. Pick one narrow `v0.18` theme with explicit non-goals.
+1. Decide whether the next release is account/cloud-share follow-up, reference
+   catalog discovery, editor/material polish, or project history.
+2. Pick one narrow version thesis with explicit non-goals.
 3. Write a version plan before moving implementation scope into the release.
+4. Add the lowest useful tests first, then run the validation commands listed
+   in that version plan before calling the slice done.
 
 ## Non-goals for now
 
-- Do not add backend persistence until the local document schema and asset
-  strategy are stable.
-- Do not add new AI product scope to the v0.15 editor clarity pass.
+- Do not treat any active candidate as release scope until it has a version
+  plan with a thesis, non-goals, acceptance criteria, and validation commands.
+- Do not broaden reference catalog work into vector search, AI chat, account
+  collections, or editable third-party cover imports without a separate plan.
+- Do not change document schema, graph traversal, renderer/export semantics, or
+  package export policy as incidental support work for public-route, account,
+  sharing, or catalog polish.
 - Do not add more effect parameters until the effect update checklist is automated or tested.
 - Do not make a second preview renderer for speed unless it is clearly labeled as draft-only.
 - Do not duplicate node controls in both sidebar and inspector without shared field definitions.
@@ -1153,6 +1261,6 @@ longer missing architecture documentation; it is product legibility and
 remaining edge coverage.
 
 The best path forward is to keep the architecture stable while making the app
-easier to enter: improve layer-first workflows, make docs task-oriented, keep
-one rendering truth, and add focused browser/visual coverage where regressions
-are most likely.
+easier to enter and easier to trust: improve layer-first workflows, finish the
+remaining UI-overhaul workstreams, keep one rendering truth, and add focused
+browser/visual coverage where regressions are most likely.

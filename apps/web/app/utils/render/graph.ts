@@ -10,19 +10,23 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   Layer,
+  MaterialConfig,
   MaterialTextureInputPort,
   ModelLayer,
   PrimitiveLayer,
 } from '../../types/config';
-import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
+import { DEFAULT_MATERIAL_CONFIG, MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
 import { lcg } from '../lcg';
 import type { SceneMaterialTextureCanvases } from '../modelRenderer';
 import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
-import { cloneCanvas, createCanvas, drawBackground, toCompositeOperation } from './canvas';
+import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
+import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
+import { renderShaderNodeToCanvas } from './shaderNodes';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
 const ENVIRONMENT_RENDER_MAX = 1024;
@@ -79,6 +83,23 @@ function findEnvironmentNode(graph: CanvasGraph, nodeId: string): GraphEnvironme
   return (graph.environmentNodes ?? []).find((node) => node.id === nodeId);
 }
 
+function findShaderNode(graph: CanvasGraph, nodeId: string): GraphShaderNode | undefined {
+  return (graph.shaderNodes ?? []).find((node) => node.id === nodeId);
+}
+
+function shaderMaterialConfig(sourceId: string): MaterialConfig {
+  return {
+    ...DEFAULT_MATERIAL_CONFIG,
+    materialPreset: 'matte',
+    materialBaseColor: '#ffffff',
+    materialAccentColor: '#ffffff',
+    materialRoughness: 0.32,
+    materialGrain: 0,
+    materialRelief: 0,
+    materialAlbedoName: sourceId,
+  };
+}
+
 function findLayer(doc: CanvasDocument, nodeId: string): Layer | undefined {
   return doc.layers.find((layer) => layer.id === nodeId);
 }
@@ -125,6 +146,10 @@ function throwIfRenderAborted(options: RenderOptions): void {
   const error = new Error('Render aborted');
   error.name = 'AbortError';
   throw error;
+}
+
+function normalizeRenderedCanvas(canvas: HTMLCanvasElement, W: number, H: number): HTMLCanvasElement {
+  return isDrawableCanvas(canvas) ? canvas : createCanvas(W, H);
 }
 
 function withGraphPrimitiveViewStates(doc: CanvasDocument, graph: CanvasGraph, options: RenderOptions): RenderOptions {
@@ -580,13 +605,23 @@ function applyMaterialPreviewNode(node: GraphMaterialNode, W: number, H: number)
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return canvas;
-  const gradient = ctx.createLinearGradient(0, 0, W, H);
-  gradient.addColorStop(0, node.materialAccentColor);
-  gradient.addColorStop(0.42, node.materialBaseColor);
-  gradient.addColorStop(0.68, node.materialAccentColor);
-  gradient.addColorStop(1, node.materialBaseColor);
-  ctx.fillStyle = gradient;
+  ctx.fillStyle = node.materialBaseColor;
   ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.22, 0.08 + node.materialClearcoat * 0.12);
+  ctx.fillStyle = node.materialAccentColor;
+  ctx.beginPath();
+  ctx.ellipse(W * 0.3, H * 0.24, W * 0.18, H * 0.11, -0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  const lighting = ctx.createLinearGradient(0, 0, 0, H);
+  lighting.addColorStop(0, 'rgba(255,255,255,0.1)');
+  lighting.addColorStop(0.45, 'rgba(255,255,255,0)');
+  lighting.addColorStop(1, 'rgba(0,0,0,0.14)');
+  ctx.fillStyle = lighting;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
   if (node.materialGrain > 0 || node.materialRelief > 0) {
     const alpha = Math.min(0.28, (node.materialGrain + node.materialRelief) / 520);
     ctx.globalAlpha = alpha;
@@ -673,6 +708,144 @@ async function renderMaterialGraphNode(nodeId: string, context: GraphNodeRenderC
   return applyMaterialPreviewNode(materialNode, context.W, context.H);
 }
 
+function byteClamp(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function unitClamp(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function pixelLuma(r: number, g: number, b: number) {
+  return (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
+}
+
+function imageIndex(width: number, height: number, x: number, y: number) {
+  const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(height - 1, Math.round(y)));
+  return (py * width + px) * 4;
+}
+
+function pixelLumaAt(image: ImageData, width: number, height: number, x: number, y: number) {
+  const index = imageIndex(width, height, x, y);
+  return pixelLuma(image.data[index] ?? 0, image.data[index + 1] ?? 0, image.data[index + 2] ?? 0);
+}
+
+function shaderLumaAt(shaderImage: ImageData, width: number, height: number, x: number, y: number) {
+  return pixelLumaAt(shaderImage, width, height, x, y);
+}
+
+function createBackdropAwareShaderCanvas(
+  backdrop: HTMLCanvasElement,
+  shader: HTMLCanvasElement,
+  shaderNode: GraphShaderNode,
+  W: number,
+  H: number,
+): HTMLCanvasElement {
+  const sourceCanvas = cloneCanvas(backdrop, W, H);
+  const shaderCanvas = cloneCanvas(shader, W, H);
+  const output = createCanvas(W, H);
+  const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })!;
+  const shaderCtx = shaderCanvas.getContext('2d', { willReadFrequently: true })!;
+  const outputCtx = output.getContext('2d', { willReadFrequently: true })!;
+  const sourceImage = sourceCtx.getImageData(0, 0, W, H);
+  const shaderImage = shaderCtx.getImageData(0, 0, W, H);
+  const outputImage = outputCtx.createImageData(W, H);
+  const distortionStrength = unitClamp(shaderNode.distortion / 100);
+  const displacement = Math.max(1, Math.min(W, H) * (0.006 + distortionStrength * 0.048));
+  const causticStrength = 0.16 + distortionStrength * 0.34;
+  const tintBase = 0.035 + distortionStrength * 0.085;
+
+  for (let index = 0; index < outputImage.data.length; index += 4) {
+    const pixel = index / 4;
+    const x = pixel % W;
+    const y = Math.floor(pixel / W);
+    const hr = shaderImage.data[index] ?? 0;
+    const hg = shaderImage.data[index + 1] ?? 0;
+    const hb = shaderImage.data[index + 2] ?? 0;
+    const shaderLuma = pixelLuma(hr, hg, hb);
+    const dx = shaderLumaAt(shaderImage, W, H, x + 1, y) - shaderLumaAt(shaderImage, W, H, x - 1, y);
+    const dy = shaderLumaAt(shaderImage, W, H, x, y + 1) - shaderLumaAt(shaderImage, W, H, x, y - 1);
+    const sourceIndex = imageIndex(W, H, x + dx * displacement, y + dy * displacement);
+    const sr = sourceImage.data[sourceIndex] ?? 0;
+    const sg = sourceImage.data[sourceIndex + 1] ?? 0;
+    const sb = sourceImage.data[sourceIndex + 2] ?? 0;
+    const sa = sourceImage.data[sourceIndex + 3] ?? 0;
+    const sourceDx = pixelLumaAt(sourceImage, W, H, x + 1, y) - pixelLumaAt(sourceImage, W, H, x - 1, y);
+    const sourceDy = pixelLumaAt(sourceImage, W, H, x, y + 1) - pixelLumaAt(sourceImage, W, H, x, y - 1);
+    const sourceEdge = unitClamp(Math.abs(sourceDx) + Math.abs(sourceDy));
+
+    const edge = unitClamp(Math.abs(dx) + Math.abs(dy));
+    const caustic =
+      (shaderLuma - 0.5) * causticStrength + edge * (0.18 + distortionStrength * 0.28) + sourceEdge * 0.08;
+    const tint = unitClamp(tintBase + edge * 0.12) * 0.68;
+
+    outputImage.data[index] = byteClamp(sr * (1 - tint) + hr * tint + caustic * 255);
+    outputImage.data[index + 1] = byteClamp(sg * (1 - tint) + hg * tint + caustic * 255);
+    outputImage.data[index + 2] = byteClamp(sb * (1 - tint) + hb * tint + caustic * 255);
+    outputImage.data[index + 3] = sa;
+  }
+
+  outputCtx.putImageData(outputImage, 0, 0);
+  return output;
+}
+
+function mixShaderPassWithBackdrop(
+  backdrop: HTMLCanvasElement,
+  processedBackdrop: HTMLCanvasElement,
+  strengthPercent: number,
+  blendMode: GraphShaderNode['blendMode'],
+  W: number,
+  H: number,
+) {
+  const strength = Math.max(0, Math.min(1, strengthPercent / 100));
+  if (strength <= 0.001) return cloneCanvas(backdrop, W, H);
+
+  const canvas = cloneCanvas(backdrop, W, H);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.save();
+  ctx.globalAlpha = strength;
+  ctx.globalCompositeOperation = toCompositeOperation(blendMode);
+  ctx.drawImage(processedBackdrop, 0, 0, W, H);
+  ctx.restore();
+  return canvas;
+}
+
+async function renderShaderGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const shaderNode = findShaderNode(context.graph, nodeId);
+  if (!shaderNode) return null;
+  const backdropId = findIncomingSource(context.graph, nodeId, 'bg');
+  if (shaderNode.shaderKind === 'customCode' || shaderNode.shaderKind === 'aiShader') {
+    const backdrop = shaderNode.role === 'effect' && backdropId ? await context.renderDependency(backdropId) : null;
+    throwIfRenderAborted(context.options);
+    const rendered = renderCustomCodeShaderNodeToCanvas(
+      shaderNode,
+      context.doc.global.seed,
+      context.W,
+      context.H,
+      backdrop,
+    );
+    return shaderNode.role === 'effect' && backdrop
+      ? mixShaderPassWithBackdrop(backdrop, rendered, shaderNode.opacity, shaderNode.blendMode, context.W, context.H)
+      : rendered;
+  }
+
+  const shader = renderShaderNodeToCanvas(shaderNode, context.doc.global.seed, context.W, context.H);
+  if (shaderNode.role === 'fill') return shader;
+  if (!backdropId) return createCanvas(context.W, context.H);
+  const backdrop = await context.renderDependency(backdropId);
+  throwIfRenderAborted(context.options);
+  const processedBackdrop = createBackdropAwareShaderCanvas(backdrop, shader, shaderNode, context.W, context.H);
+  return mixShaderPassWithBackdrop(
+    backdrop,
+    processedBackdrop,
+    shaderNode.opacity,
+    shaderNode.blendMode,
+    context.W,
+    context.H,
+  );
+}
+
 async function renderMaskGraphNode(nodeId: string, context: GraphNodeRenderContext) {
   const maskNode = findMaskNode(context.graph, nodeId);
   if (!maskNode) return null;
@@ -709,6 +882,8 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
   const environmentId = findIncomingSource(graph, nodeId, 'env');
   const backdropId = findIncomingSource(graph, nodeId, 'bg');
   const materialNode = materialId ? findMaterialNode(graph, materialId) : undefined;
+  const materialShaderNode = materialId ? findShaderNode(graph, materialId) : undefined;
+  const materialConfig = materialNode ?? (materialShaderNode ? shaderMaterialConfig(materialShaderNode.id) : undefined);
   const materialTextures = materialId ? await resolveMaterialTextureCanvases(materialId, context) : null;
   const environmentNode = environmentId ? findEnvironmentNode(graph, environmentId) : undefined;
   const environmentNodeSourceId = environmentId ? findIncomingSource(graph, environmentId, 'in') : null;
@@ -728,7 +903,7 @@ async function renderScene3DGraphNode(nodeId: string, context: GraphNodeRenderCo
     options.primitiveViewStates?.[sceneNode.id],
     {
       forceFallback: options.draft,
-      materialConfig: materialNode,
+      materialConfig,
       materialTextures,
       environmentCanvas,
       environmentSource: environmentNode?.environmentSrc ?? null,
@@ -741,6 +916,9 @@ async function resolveMaterialTextureCanvases(
   materialId: string,
   context: GraphNodeRenderContext,
 ): Promise<SceneMaterialTextureCanvases | null> {
+  if (findShaderNode(context.graph, materialId)) {
+    return { albedo: await context.renderDependency(materialId, { width: 512, height: 512 }) };
+  }
   const textures: SceneMaterialTextureCanvases = {};
   let hasTexture = false;
   for (const port of MATERIAL_TEXTURE_INPUT_PORTS) {
@@ -811,9 +989,11 @@ async function primitiveLayerRenderOptions(layer: Layer, context: GraphNodeRende
   if (layer.kind !== 'primitive') return graphLayerRenderOptions(layer, options);
   const materialId = findIncomingSource(graph, layer.id, 'material');
   const material = materialId ? findMaterialNode(graph, materialId) : undefined;
+  const materialShader = materialId ? findShaderNode(graph, materialId) : undefined;
+  const materialConfig = material ?? (materialShader ? shaderMaterialConfig(materialShader.id) : undefined);
   const materialTextures = materialId ? await resolveMaterialTextureCanvases(materialId, context) : null;
-  const primitiveMaterials = material
-    ? { ...(options.primitiveMaterials ?? {}), [layer.id]: material }
+  const primitiveMaterials = materialConfig
+    ? { ...(options.primitiveMaterials ?? {}), [layer.id]: materialConfig }
     : options.primitiveMaterials;
   const primitiveMaterialTextures = materialTextures
     ? { ...(options.primitiveMaterialTextures ?? {}), [layer.id]: materialTextures }
@@ -842,6 +1022,7 @@ const GRAPH_NODE_RENDERERS: GraphNodeRenderer[] = [
   renderMaskGraphNode,
   renderTransformGraphNode,
   renderGrimeShadowGraphNode,
+  renderShaderGraphNode,
   renderEnvironmentGraphNode,
   renderScene3DGraphNode,
 ];
@@ -886,7 +1067,7 @@ async function renderGraphNode(
   const sizedNodeCacheKey = W === rootSize.width && H === rootSize.height ? nodeCacheKey : `${nodeCacheKey}@${W}x${H}`;
   const cacheKey = cacheNamespace ? `${cacheNamespace}:${sizedNodeCacheKey}` : sizedNodeCacheKey;
   const cached = cache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
   const renderDependency = (dependencyId: string, size?: { width: number; height: number }) =>
     renderGraphNode(
       doc,
@@ -910,7 +1091,7 @@ async function renderGraphNode(
     imageCache,
     options,
     renderDependency,
-  });
+  }).then((canvas) => normalizeRenderedCanvas(canvas, W, H));
 
   cache.set(cacheKey, renderPromise);
   renderPromise.catch(() => {

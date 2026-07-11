@@ -5,14 +5,25 @@ import {
   type PostgresQueryClient as JobQueryClient,
   PostgresAiGenerationJobRepository,
 } from '../src/db/postgresJobs.js';
-import type { AiGenerationJobRow, AssetRow, JsonObject } from '../src/db/types.js';
+import {
+  PostgresAiShaderRequestRepository,
+  type PostgresQueryClient as ShaderQueryClient,
+} from '../src/db/postgresShaderRequests.js';
+import { PostgresUsageRepository, type PostgresQueryClient as UsageQueryClient } from '../src/db/postgresUsage.js';
+import type {
+  AiGenerationJobRow,
+  AiShaderRequestRow,
+  AiUsageMonthlyRow,
+  AssetRow,
+  JsonObject,
+} from '../src/db/types.js';
 
 interface RecordedQuery {
   sql: string;
   params: readonly unknown[];
 }
 
-class FakeQueryClient implements AssetQueryClient, JobQueryClient {
+class FakeQueryClient implements AssetQueryClient, JobQueryClient, ShaderQueryClient, UsageQueryClient {
   readonly queries: RecordedQuery[] = [];
   private readonly rows: unknown[][];
 
@@ -164,6 +175,127 @@ describe('PostgresAssetRepository', () => {
   });
 });
 
+describe('PostgresAiShaderRequestRepository', () => {
+  it('claims a request without replacing an existing idempotency key', async () => {
+    const row = createShaderRow();
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+
+    await expect(
+      repo.claim({
+        id: 'shader-request-1',
+        userId: 'user-1',
+        idempotencyKey: 'shader-idem-1',
+        mode: 'openai',
+        prompt: 'water glass',
+      }),
+    ).resolves.toMatchObject({ claimed: true, row: { id: 'shader-request-1', status: 'pending' } });
+
+    expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain('ON CONFLICT (user_id, idempotency_key) DO NOTHING');
+    expect(client.queries[0]?.params).toEqual([
+      'shader-request-1',
+      'user-1',
+      'shader-idem-1',
+      'openai',
+      'water glass',
+      null,
+    ]);
+  });
+
+  it('reads the winning row with a fresh query after an idempotency conflict', async () => {
+    const row = createShaderRow({ id: 'winner-request' });
+    const client = new FakeQueryClient([[], [row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+
+    await expect(
+      repo.claim({
+        id: 'loser-request',
+        userId: 'user-1',
+        idempotencyKey: 'shader-idem-1',
+        mode: 'openai',
+        prompt: 'water glass',
+      }),
+    ).resolves.toEqual({ row, claimed: false });
+
+    expect(client.queries).toHaveLength(2);
+    expect(normalizeSql(client.queries[1]?.sql ?? '')).toContain('WHERE user_id = $1 AND idempotency_key = $2');
+  });
+
+  it('stores a generated candidate without accepting it or changing its prior quota reservation', async () => {
+    const row = createShaderRow({ status: 'generated' });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+    const responseJson: JsonObject = { prompt: 'water glass', source: 'openai' };
+    const providerUsageJson: JsonObject = { inputTokens: 20, outputTokens: 40 };
+
+    await expect(
+      repo.markGenerated({
+        id: 'shader-request-1',
+        responseJson,
+        providerRequestId: 'req-openai-1',
+        providerUsageJson,
+      }),
+    ).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("WHERE id = $1 AND status = 'pending'");
+    expect(sql).not.toContain('ai_usage_monthly');
+    expect(sql).toContain("SET status = 'generated'");
+    expect(sql).toContain('completed_at = NULL');
+    expect(client.queries[0]?.params).toEqual(['shader-request-1', responseJson, 'req-openai-1', providerUsageJson]);
+  });
+
+  it('atomically starts only the first repair for a rejected shader', async () => {
+    const row = createShaderRow({ status: 'repairing', repair_count: 1 });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+
+    await expect(repo.beginRepair('shader-request-1')).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("status = 'client_rejected'");
+    expect(sql).toContain('repair_count = 0');
+    expect(sql).toContain('repair_count = repair_count + 1');
+  });
+
+  it('accepts only the exact candidate revision validated by the browser', async () => {
+    const row = createShaderRow({ status: 'accepted', repair_count: 1 });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+    const completedAt = new Date('2026-05-20T10:02:00.000Z');
+
+    await expect(repo.markAccepted('shader-request-1', 1, completedAt)).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("status = 'generated' AND repair_count = $3");
+    expect(client.queries[0]?.params).toEqual(['shader-request-1', completedAt, 1]);
+  });
+});
+
+describe('PostgresUsageRepository', () => {
+  it('reserves quota atomically only while the monthly limit has room', async () => {
+    const row = createUsageRow({ generation_count: 10 });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresUsageRepository(client);
+
+    await expect(
+      repo.reserveMonthlyGeneration({ userId: 'user-1', period: '2026-05', generationLimit: 10 }),
+    ).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain('WHERE ai_usage_monthly.generation_count < EXCLUDED.generation_limit');
+    expect(client.queries[0]?.params).toEqual(['user-1', '2026-05', 10]);
+  });
+
+  it('returns null when an atomic quota reservation cannot be made', async () => {
+    const repo = new PostgresUsageRepository(new FakeQueryClient([[]]));
+
+    await expect(
+      repo.reserveMonthlyGeneration({ userId: 'user-1', period: '2026-05', generationLimit: 10 }),
+    ).resolves.toBeNull();
+  });
+});
+
 function createJobRow(overrides: Partial<AiGenerationJobRow>): AiGenerationJobRow {
   const now = new Date('2026-05-20T10:00:00.000Z');
   return {
@@ -207,6 +339,41 @@ function createAssetRow(overrides: Partial<AssetRow>): AssetRow {
     metadata_json: {},
     created_at: new Date('2026-05-20T10:00:00.000Z'),
     deleted_at: null,
+    ...overrides,
+  };
+}
+
+function createShaderRow(overrides: Partial<AiShaderRequestRow> = {}): AiShaderRequestRow {
+  return {
+    id: 'shader-request-1',
+    user_id: 'user-1',
+    idempotency_key: 'shader-idem-1',
+    mode: 'openai',
+    prompt: 'water glass',
+    parent_request_id: null,
+    status: 'pending',
+    response_json: null,
+    provider_request_id: null,
+    provider_usage_json: null,
+    error_status: null,
+    error_code: null,
+    error_message: null,
+    compiler_diagnostic_json: null,
+    repair_count: 0,
+    created_at: new Date('2026-05-20T10:00:00.000Z'),
+    completed_at: null,
+    ...overrides,
+  };
+}
+
+function createUsageRow(overrides: Partial<AiUsageMonthlyRow> = {}): AiUsageMonthlyRow {
+  return {
+    user_id: 'user-1',
+    period: '2026-05',
+    generation_limit: 10,
+    generation_count: 1,
+    estimated_cost: '0',
+    updated_at: new Date('2026-05-20T10:00:00.000Z'),
     ...overrides,
   };
 }

@@ -18,6 +18,7 @@ import {
 } from './primitiveScene';
 
 const SOURCE_OVERSCAN = 1.22;
+const PRIMITIVE_RENDER_MAX = 1024;
 
 interface PrimitiveRenderOptions {
   forceFallback?: boolean;
@@ -52,7 +53,20 @@ function canvasHasPrimitiveContent(canvas: HTMLCanvasElement): boolean {
 
 export const primitiveRendererTestInternals = {
   canvasHasPrimitiveContent,
+  fitPrimitiveRenderSize,
 };
+
+function fitPrimitiveRenderSize(width: number, height: number, maxDimension = PRIMITIVE_RENDER_MAX) {
+  const safeWidth = Math.max(1, Math.round(width));
+  const safeHeight = Math.max(1, Math.round(height));
+  const longestSide = Math.max(safeWidth, safeHeight);
+  if (longestSide <= maxDimension) return { width: safeWidth, height: safeHeight };
+  const scale = maxDimension / longestSide;
+  return {
+    width: Math.max(1, Math.round(safeWidth * scale)),
+    height: Math.max(1, Math.round(safeHeight * scale)),
+  };
+}
 
 function drawFallbackPrimitive(
   canvas: HTMLCanvasElement,
@@ -153,12 +167,12 @@ export async function renderPrimitiveToCanvas(
     panX: 0,
     panY: 0,
   };
-  const renderWidth = viewState
-    ? offscreen.width
-    : Math.max(offscreen.width, Math.round(offscreen.width * SOURCE_OVERSCAN));
-  const renderHeight = viewState
-    ? offscreen.height
-    : Math.max(offscreen.height, Math.round(offscreen.height * SOURCE_OVERSCAN));
+  const renderSize = fitPrimitiveRenderSize(
+    viewState ? offscreen.width : Math.max(offscreen.width, Math.round(offscreen.width * SOURCE_OVERSCAN)),
+    viewState ? offscreen.height : Math.max(offscreen.height, Math.round(offscreen.height * SOURCE_OVERSCAN)),
+  );
+  const renderWidth = renderSize.width;
+  const renderHeight = renderSize.height;
   const renderCanvas = document.createElement('canvas');
   renderCanvas.width = renderWidth;
   renderCanvas.height = renderHeight;

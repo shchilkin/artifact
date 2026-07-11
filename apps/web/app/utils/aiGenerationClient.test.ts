@@ -3,11 +3,30 @@ import {
   AiGenerationApiError,
   cancelAiGenerationJob,
   createAiGenerationJob,
+  createAiShader,
   getAiGenerationAccess,
   getAiGenerationJob,
   parseAiGenerationAccessState,
   parseAiGenerationJob,
+  parseAiShaderGenerationResponse,
+  repairAiShader,
+  validateAiShader,
 } from './aiGenerationClient';
+
+const generatedShaderInstance = {
+  definition: {
+    version: 1,
+    id: 'water-refraction',
+    label: 'Water Refraction',
+    language: 'glsl-fragment',
+    code: `vec4 mainImage(vec2 uv) {
+      vec2 offset = vec2(sin(uv.y * 16.0), cos(uv.x * 14.0)) * u_prop_amount;
+      return texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
+    }`,
+    properties: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 }],
+  },
+  values: { amount: 0.02 },
+};
 
 const job = {
   id: 'job-1',
@@ -89,6 +108,156 @@ describe('parseAiGenerationAccessState', () => {
 });
 
 describe('ai generation client', () => {
+  it('parses and normalizes generated shader instances', () => {
+    const response = parseAiShaderGenerationResponse({
+      requestId: 'shader-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'initial',
+      prompt: 'water refraction',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      instance: generatedShaderInstance,
+    });
+
+    expect(response.prompt).toBe('water refraction');
+    expect(response.source).toBe('openai');
+    expect(response.model).toBe('gpt-5.5-mini');
+    expect(response.instance.definition.provenance).toEqual({
+      source: 'openai',
+      prompt: 'water refraction',
+      model: 'gpt-5.5-mini',
+      requestId: 'shader-1',
+      attempt: 'initial',
+    });
+    expect(response.instance.values).toEqual({ amount: 0.02 });
+  });
+
+  it('rejects shader responses with controls that the code does not read', () => {
+    expect(() =>
+      parseAiShaderGenerationResponse({
+        requestId: 'shader-1',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'initial',
+        prompt: 'water refraction',
+        source: 'openai',
+        instance: {
+          ...generatedShaderInstance,
+          definition: {
+            ...generatedShaderInstance.definition,
+            code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+          },
+        },
+      }),
+    ).toThrow(AiGenerationApiError);
+  });
+
+  it('creates shader instances through the AI shader endpoint', async () => {
+    const { calls, fetcher } = captureJsonFetch({
+      requestId: 'shader-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'initial',
+      prompt: 'neon waves',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      instance: generatedShaderInstance,
+    });
+
+    const result = await createAiShader(
+      { prompt: 'neon waves', mode: 'openai', idempotencyKey: 'shader-request-1' },
+      { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
+    );
+
+    expect(result.instance.definition.label).toBe('Water Refraction');
+    expect(result.source).toBe('openai');
+    expect(calls[0]?.url).toBe('https://api.example.test/api/ai/shaders');
+    expect(calls[0]?.init.method).toBe('POST');
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: 'Bearer account-token' });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      prompt: 'neon waves',
+      mode: 'openai',
+      idempotencyKey: 'shader-request-1',
+    });
+  });
+
+  it('creates a refinement candidate from an accepted shader request', async () => {
+    const { calls, fetcher } = captureJsonFetch({
+      requestId: 'shader-refined-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'refine',
+      prompt: 'Make it calmer',
+      source: 'openai',
+      model: 'gpt-5.5-mini',
+      instance: generatedShaderInstance,
+    });
+
+    const result = await createAiShader(
+      {
+        prompt: 'Make it calmer',
+        mode: 'openai',
+        idempotencyKey: 'shader-refine-1',
+        refineFromRequestId: 'shader-accepted-1',
+      },
+      { baseUrl: 'https://api.example.test/', bearerToken: 'account-token', fetcher },
+    );
+
+    expect(result.attempt).toBe('refine');
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      prompt: 'Make it calmer',
+      mode: 'openai',
+      idempotencyKey: 'shader-refine-1',
+      refineFromRequestId: 'shader-accepted-1',
+    });
+  });
+
+  it('reports browser validation and requests the single repair by request id', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith('/validation')) {
+        return jsonResponse({
+          requestId: 'shader-1',
+          candidateRevision: 0,
+          status: 'client_rejected',
+          repairAvailable: true,
+        });
+      }
+      return jsonResponse({
+        requestId: 'shader-1',
+        candidateRevision: 1,
+        status: 'generated',
+        attempt: 'repair',
+        prompt: 'water refraction',
+        source: 'openai',
+        model: 'gpt-5.5-mini',
+        instance: generatedShaderInstance,
+      });
+    };
+
+    await validateAiShader(
+      'shader-1',
+      0,
+      'rejected',
+      { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+      { baseUrl: 'https://api.example.test', fetcher },
+    );
+    const repaired = await repairAiShader('shader-1', { baseUrl: 'https://api.example.test', fetcher });
+
+    expect(calls.map((call) => call.url)).toEqual([
+      'https://api.example.test/api/ai/shaders/shader-1/validation',
+      'https://api.example.test/api/ai/shaders/shader-1/repair',
+    ]);
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      outcome: 'rejected',
+      candidateRevision: 0,
+      diagnostic: { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+    });
+    expect(repaired.attempt).toBe('repair');
+  });
+
   it('creates jobs with credentials and an idempotent request body', async () => {
     const { calls, fetcher } = captureJsonFetch(job);
 

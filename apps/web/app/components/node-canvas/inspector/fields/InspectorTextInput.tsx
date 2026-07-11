@@ -1,3 +1,4 @@
+import { stopNodeEvent } from '../../helpers';
 import { useSyncedTextFieldValue } from './useSyncedTextFieldValue';
 
 export function InspectorTextInput({
@@ -13,9 +14,13 @@ export function InspectorTextInput({
 
   return (
     <input
-      className="node-field"
+      className="node-field nodrag nopan nowheel"
       value={localValue}
       placeholder={placeholder}
+      onPointerDown={stopNodeEvent}
+      onMouseDown={stopNodeEvent}
+      onClick={stopNodeEvent}
+      onDoubleClick={stopNodeEvent}
       onChange={(e) => handleChange(e.target.value)}
     />
   );

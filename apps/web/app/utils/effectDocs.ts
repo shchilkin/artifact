@@ -238,6 +238,29 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
     description: 'Chip alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
     params: [{ key: 'silhouetteCrush', range: '0-100 silhouette border chipping' }],
   },
+  bokehBlur: {
+    description: 'Lens-like blur with highlight lift around brighter source pixels.',
+    params: [
+      { key: 'bokehBlur', range: '0-60px blur radius' },
+      { key: 'bokehThreshold', range: '0-100 highlight gate' },
+    ],
+  },
+  hatching: {
+    description: 'Tone-aware hatch linework over darker source regions.',
+    params: [
+      { key: 'hatching', range: '0-100 line mix' },
+      { key: 'hatchScale', range: '3-48px line spacing' },
+      { key: 'hatchAngle', range: '0-180 line angle' },
+    ],
+  },
+  gooeyMerge: {
+    description: 'Blur-and-threshold alpha merge for nearby visible source shapes.',
+    params: [
+      { key: 'gooeyMerge', range: '0-100 merge mix' },
+      { key: 'gooeyRadius', range: '1-80px alpha blur radius' },
+      { key: 'gooeyThreshold', range: '0-100 alpha threshold' },
+    ],
+  },
   gradientOverlay: {
     description: 'Directional two-color ramp blended over the source while preserving source alpha.',
     params: [
@@ -245,6 +268,32 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
       { key: 'gradA', range: 'hex start color' },
       { key: 'gradB', range: 'hex end color' },
       { key: 'gradAngle', range: '0-360 direction' },
+    ],
+  },
+  gradientMap: {
+    description: 'Map source luminance through a three-color ramp, then blend it back over the original.',
+    params: [
+      { key: 'gradientMap', range: '0-100 map mix' },
+      { key: 'gradientMapShadow', range: 'hex shadow color' },
+      { key: 'gradientMapMid', range: 'hex midtone color' },
+      { key: 'gradientMapHighlight', range: 'hex highlight color' },
+    ],
+  },
+  channelMixer: {
+    description: 'Crossfeed RGB channels into each other for matrix-like color separation.',
+    params: [
+      { key: 'channelMixer', range: '0-100 mixer mix' },
+      { key: 'channelRedMix', range: '-100-100 red channel crossfeed' },
+      { key: 'channelGreenMix', range: '-100-100 green channel crossfeed' },
+      { key: 'channelBlueMix', range: '-100-100 blue channel crossfeed' },
+    ],
+  },
+  patternRefraction: {
+    description: 'Refract the source through a repeating wave pattern.',
+    params: [
+      { key: 'patternRefraction', range: '0-100 refraction mix' },
+      { key: 'patternRefractionScale', range: '4-160px pattern scale' },
+      { key: 'patternRefractionAngle', range: '0-180 pattern angle' },
     ],
   },
   sepia: { description: 'Warm monochrome tone, classic darkroom look.', params: [{ key: 'sepia', range: '0-100' }] },
@@ -262,6 +311,14 @@ export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
   vhsTracking: {
     description: 'Horizontal band desync like VHS tape dropout.',
     params: [{ key: 'vhsTracking', range: '0-100' }],
+  },
+  pixelStretch: {
+    description: 'Directional source-pixel streaking for stretched scanline artifacts.',
+    params: [
+      { key: 'pixelStretch', range: '0-100 stretch mix' },
+      { key: 'pixelStretchLength', range: '1-160px sample length' },
+      { key: 'pixelStretchAngle', range: '0-180 stretch angle' },
+    ],
   },
   dither: {
     description: 'Bayer ordered dithering reduces the color palette visibly.',

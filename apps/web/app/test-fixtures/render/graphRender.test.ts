@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CanvasDocument, CanvasGraph } from '../../types/config';
+import type { CanvasDocument, CanvasGraph, Layer, ShaderInstance } from '../../types/config';
 import {
+  MATERIAL_TEXTURE_INPUT_PORTS,
+  type MaterialTextureInputPort,
   makeEffectLayer,
   makeFillLayer,
   makeGraphEnvironmentNode,
   makeGraphMaterialNode,
   makeGraphScene3DNode,
+  makeGraphShaderNode,
+  makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
+  SHADER_KINDS,
 } from '../../types/config';
+import { makeDefaultCodeShaderInstance } from '../../utils/customShaderCode';
 import { reorderDocumentLayers } from '../../utils/documentCommands';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { measureAlphaBounds } from '../../utils/render/alphaBounds';
@@ -17,16 +23,108 @@ import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
 import { allPixels, alphaBounds, centerPixel, pixelsEqual, samplePixel } from './fixtures';
 
-function graphDocument(graph: CanvasGraph): CanvasDocument {
+function graphDocument(graph: CanvasGraph, layers?: Layer[]): CanvasDocument {
   return {
     global: { bg: '#000000', seed: 1, aspect: '1:1' },
-    layers: [
+    layers: layers ?? [
       makeFillLayer({ id: 'red-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' }),
       makeFillLayer({ id: 'blue-fill', color: '#0000ff', opacity: 100, blendMode: 'normal' }),
     ],
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
   };
+}
+
+function codeShaderInstance(id: string, code: string): ShaderInstance {
+  const instance = makeDefaultCodeShaderInstance(id);
+  return { ...instance, definition: { ...instance.definition, code } };
+}
+
+function aiShaderInstance(id: string): ShaderInstance {
+  return {
+    definition: {
+      version: 1,
+      id: `${id}-definition`,
+      label: 'AI Refraction',
+      language: 'glsl-fragment',
+      code: `vec4 mainImage(vec2 uv) {
+        vec2 offset = vec2(sin(uv.y * 18.0), cos(uv.x * 16.0)) * 0.025;
+        vec4 source = texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
+        return vec4(mix(source.rgb, source.bgr * vec3(0.8, 1.08, 1.2), 0.42), source.a);
+      }`,
+      properties: [],
+      provenance: { source: 'openai', prompt: 'Refract and tint the connected artwork', model: 'test-model' },
+    },
+    values: {},
+  };
+}
+
+function uniquePixelCount(canvas: HTMLCanvasElement) {
+  const data = allPixels(canvas);
+  const colors = new Set<string>();
+  for (let i = 0; i < data.length; i += 4) {
+    colors.add(`${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`);
+    if (colors.size > 1) return colors.size;
+  }
+  return colors.size;
+}
+
+function hasVisiblePixels(canvas: HTMLCanvasElement) {
+  const data = allPixels(canvas);
+  for (let index = 3; index < data.length; index += 4) {
+    if ((data[index] ?? 0) > 8) return true;
+  }
+  return false;
+}
+
+function rgbDistance(a: number[], b: number[]) {
+  return (
+    Math.abs((a[0] ?? 0) - (b[0] ?? 0)) + Math.abs((a[1] ?? 0) - (b[1] ?? 0)) + Math.abs((a[2] ?? 0) - (b[2] ?? 0))
+  );
+}
+
+function averageRgbDistance(a: HTMLCanvasElement, b: HTMLCanvasElement) {
+  const aPixels = allPixels(a);
+  const bPixels = allPixels(b);
+  let total = 0;
+  let count = 0;
+  for (let index = 0; index < Math.min(aPixels.length, bPixels.length); index += 4) {
+    total += rgbDistance(
+      [aPixels[index] ?? 0, aPixels[index + 1] ?? 0, aPixels[index + 2] ?? 0],
+      [bPixels[index] ?? 0, bPixels[index + 1] ?? 0, bPixels[index + 2] ?? 0],
+    );
+    count += 1;
+  }
+  return count > 0 ? total / count : 0;
+}
+
+function createDetailedImageCache(src: string): Map<string, HTMLImageElement> {
+  const image = document.createElement('canvas');
+  image.width = 96;
+  image.height = 96;
+  const ctx = image.getContext('2d');
+  if (!ctx) throw new Error('getContext returned null');
+  const gradient = ctx.createLinearGradient(0, 0, image.width, image.height);
+  gradient.addColorStop(0, '#15182c');
+  gradient.addColorStop(0.5, '#e5d4ff');
+  gradient.addColorStop(1, '#221522');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, image.width, image.height);
+  ctx.fillStyle = '#fff3c7';
+  ctx.fillRect(12, 18, 48, 10);
+  ctx.fillStyle = '#17111f';
+  ctx.fillRect(44, 40, 36, 42);
+  ctx.fillStyle = '#8f5cff';
+  ctx.beginPath();
+  ctx.arc(72, 26, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  Object.defineProperties(image, {
+    naturalWidth: { value: image.width },
+    naturalHeight: { value: image.height },
+  });
+
+  return new Map([[src, image as unknown as HTMLImageElement]]);
 }
 
 function mergeGraph(): CanvasGraph {
@@ -82,6 +180,99 @@ describe('renderDocument graph mode', () => {
     });
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), options);
 
+    expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
+  });
+
+  it.each([
+    {
+      name: 'shader fill branch',
+      layers: [
+        makeSourceLayer('primitive', {
+          id: 'primitive-a',
+          name: 'Primitive A',
+          primitiveShape: 'sphere',
+          color: '#53231b',
+          accentColor: '#ffe0a3',
+        }),
+      ],
+      graph: {
+        edges: [
+          { id: 'e-shader-material', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+          {
+            id: 'e-material-primitive',
+            fromId: 'material-a',
+            fromPort: 'out',
+            toId: 'primitive-a',
+            toPort: 'material',
+          },
+          { id: 'e-primitive-export', fromId: 'primitive-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+        shaderNodes: [
+          makeGraphShaderNode({
+            id: 'shader-a',
+            shaderKind: 'waterCaustic',
+            palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
+            grain: 0,
+          }),
+        ],
+      } satisfies CanvasGraph,
+    },
+    {
+      name: 'input-dependent shader effect branch',
+      layers: [
+        makeFillLayer({ id: 'effect-source', color: '#2048ff', opacity: 100, blendMode: 'normal' }),
+        makeEffectLayer({
+          id: 'effect-a',
+          preset: 'gradientMap',
+          gradientMap: 100,
+          gradientMapShadow: '#041020',
+          gradientMapMid: '#3ce4b4',
+          gradientMapHighlight: '#ffe98a',
+        }),
+        makeSourceLayer('primitive', {
+          id: 'primitive-a',
+          name: 'Primitive A',
+          primitiveShape: 'sphere',
+          color: '#53231b',
+          accentColor: '#ffe0a3',
+        }),
+      ],
+      graph: {
+        edges: [
+          { id: 'e-source-effect', fromId: 'effect-source', fromPort: 'out', toId: 'effect-a', toPort: 'in' },
+          { id: 'e-effect-material', fromId: 'effect-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+          {
+            id: 'e-material-primitive',
+            fromId: 'material-a',
+            fromPort: 'out',
+            toId: 'primitive-a',
+            toPort: 'material',
+          },
+          { id: 'e-primitive-export', fromId: 'primitive-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+      } satisfies CanvasGraph,
+    },
+  ])('matches renderGraphTarget for shader material bridge export parity: $name', async ({ graph, layers }) => {
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 29, aspect: '1:1' },
+      layers,
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const options = { graphMode: 'graph' as const };
+
+    const documentCanvas = await renderDocument(doc, 96, 96, new Map(), options);
+    const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 96, new Map(), {});
+
+    expect(hasVisiblePixels(documentCanvas)).toBe(true);
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
   });
 
@@ -308,6 +499,964 @@ describe('renderGraphTarget', () => {
     expect(a).toBe(255);
   });
 
+  it('renders unconnected material node previews from the base albedo color', async () => {
+    const graph: CanvasGraph = {
+      edges: [],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      materialNodes: [
+        makeGraphMaterialNode({
+          id: 'material-a',
+          materialBaseColor: '#224466',
+          materialAccentColor: '#ff00ff',
+          materialGrain: 0,
+          materialRelief: 0,
+        }),
+      ],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, 'material-a', 32, 32, new Map(), { skipEffects: true });
+    const [r, g, b, a] = centerPixel(canvas);
+
+    expect(r).toBeLessThan(70);
+    expect(g).toBeGreaterThan(45);
+    expect(b).toBeGreaterThan(80);
+    expect(b).toBeGreaterThan(r);
+    expect(a).toBe(255);
+  });
+
+  it('renders shader nodes as standalone graph sources', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true });
+    const [, , , a] = centerPixel(canvas);
+
+    expect(a).toBe(255);
+    expect(new Set(Array.from(allPixels(canvas)))).not.toEqual(new Set([0, 255]));
+  });
+
+  it.each(
+    SHADER_KINDS.filter((shaderKind) => shaderKind !== 'aiShader' && shaderKind !== 'customCode'),
+  )('renders %s shader nodes with visible procedural pixels', async (shaderKind) => {
+    const graph: CanvasGraph = {
+      edges: [
+        { id: `e-${shaderKind}-export`, fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-a',
+          shaderKind,
+          palette: ['#0c1024', '#ff705f', '#79e3c5', '#f6c96f'],
+          grain: 0,
+        }),
+      ],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), { skipEffects: true });
+    const samples = [centerPixel(canvas), samplePixel(canvas, 4, 4)];
+
+    expect(samples.every((pixel) => pixel[3] === 255)).toBe(true);
+    expect(uniquePixelCount(canvas)).toBeGreaterThan(1);
+  });
+
+  it('keeps custom code fills transparent in the non-WebGL unit runtime', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-code-export', fromId: 'shader-code', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-code',
+          shaderKind: 'customCode',
+          grain: 0,
+          shaderInstance: codeShaderInstance(
+            'shader-code',
+            'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
+          ),
+        }),
+      ],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), { skipEffects: true });
+    const samples = [centerPixel(canvas), samplePixel(canvas, 4, 4)];
+
+    expect(samples.every((pixel) => pixel[3] === 0)).toBe(true);
+    expect(uniquePixelCount(canvas)).toBe(1);
+  });
+
+  it('keeps unconnected AI shader passes transparent instead of acting as fills', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'custom-shader',
+          shaderKind: 'aiShader',
+          grain: 0,
+          shaderInstance: aiShaderInstance('custom-shader'),
+        }),
+      ],
+    };
+    const canvas = await renderGraphTarget(graphDocument(graph), graph, EXPORT_NODE_ID, 64, 64, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(hasVisiblePixels(canvas)).toBe(false);
+    expect(centerPixel(canvas)[3]).toBe(0);
+  });
+
+  it('renders AI shader effects identically through document preview and export target', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-custom', fromId: base.id, fromPort: 'out', toId: 'custom-shader', toPort: 'bg' },
+        { id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'custom-shader',
+          shaderKind: 'aiShader',
+          grain: 0,
+          shaderInstance: aiShaderInstance('custom-shader'),
+        }),
+      ],
+    };
+    const doc = graphDocument(graph, [base]);
+    const options = { skipEffects: true as const };
+
+    const documentCanvas = await renderDocument(doc, 96, 64, new Map(), { ...options, graphMode: 'graph' });
+    const exportCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), options);
+
+    expect(pixelsEqual(allPixels(documentCanvas), allPixels(exportCanvas))).toBe(true);
+    expect(centerPixel(exportCanvas)).toEqual([26, 51, 85, 255]);
+  });
+
+  it('keeps AI shader fallback deterministic and preserves its backdrop', async () => {
+    const backdropShader = makeGraphShaderNode({
+      id: 'backdrop-shader',
+      shaderKind: 'waterCaustic',
+      palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
+      grain: 0,
+    });
+    const customShader = makeGraphShaderNode({
+      id: 'custom-shader',
+      shaderKind: 'aiShader',
+      grain: 0,
+      opacity: 72,
+      blendMode: 'screen',
+      shaderInstance: aiShaderInstance('custom-shader'),
+    });
+    const standaloneGraph: CanvasGraph = {
+      edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [customShader],
+    };
+    const backdropGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-backdrop-export', fromId: 'backdrop-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [backdropShader],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-backdrop-custom', fromId: 'backdrop-shader', fromPort: 'out', toId: 'custom-shader', toPort: 'bg' },
+        { id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [backdropShader, customShader],
+    };
+
+    const standalone = await renderGraphTarget(
+      graphDocument(standaloneGraph),
+      standaloneGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      { skipEffects: true },
+    );
+    const backdrop = await renderGraphTarget(
+      graphDocument(backdropGraph),
+      backdropGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      { skipEffects: true },
+    );
+    const firstPass = await renderGraphTarget(graphDocument(passGraph), passGraph, EXPORT_NODE_ID, 72, 72, new Map(), {
+      skipEffects: true,
+    });
+    const secondPass = await renderGraphTarget(graphDocument(passGraph), passGraph, EXPORT_NODE_ID, 72, 72, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(pixelsEqual(allPixels(firstPass), allPixels(secondPass))).toBe(true);
+    expect(pixelsEqual(allPixels(firstPass), allPixels(standalone))).toBe(false);
+    expect(pixelsEqual(allPixels(firstPass), allPixels(backdrop))).toBe(true);
+    expect(uniquePixelCount(firstPass)).toBeGreaterThan(1);
+  });
+
+  it('preserves the backdrop when WebGL is unavailable for a custom code effect', async () => {
+    const baseLayer = makeFillLayer({ id: 'base-fill', color: '#24334f', opacity: 100, blendMode: 'normal' });
+    const codeShader = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      opacity: 100,
+      blendMode: 'normal',
+      distortion: 100,
+      role: 'effect',
+      shaderInstance: codeShaderInstance(
+        'code-shader',
+        `vec4 mainImage(vec2 uv) {
+  vec4 base = texture2D(u_backdrop, uv);
+  return vec4(1.0 - base.r, base.g + uv.x * 0.25, base.b + uv.y * 0.25, base.a);
+}`,
+      ),
+    });
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-code', fromId: 'base-fill', fromPort: 'out', toId: 'code-shader', toPort: 'bg' },
+        { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [codeShader],
+    };
+
+    const base = await renderGraphTarget(
+      graphDocument(baseGraph, [baseLayer]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const pass = await renderGraphTarget(
+      graphDocument(passGraph, [baseLayer]),
+      passGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+
+    expect(pixelsEqual(allPixels(pass), allPixels(base))).toBe(true);
+    expect(uniquePixelCount(pass)).toBe(1);
+  });
+
+  it('keeps the connected backdrop when custom code shader output is transparent', async () => {
+    const baseLayer = makeFillLayer({ id: 'base-fill', color: '#230033', opacity: 100, blendMode: 'normal' });
+    const codeShader = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      opacity: 100,
+      blendMode: 'normal',
+      role: 'effect',
+      shaderInstance: codeShaderInstance('code-shader', ''),
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-code', fromId: 'base-fill', fromPort: 'out', toId: 'code-shader', toPort: 'bg' },
+        { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [codeShader],
+    };
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(baseGraph, [baseLayer]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const canvas = await renderGraphTarget(
+      graphDocument(graph, [baseLayer]),
+      graph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    expect(pixelsEqual(allPixels(canvas), allPixels(baseCanvas))).toBe(true);
+  });
+
+  it('exposes backdrop presence to custom code shader passes', async () => {
+    const baseLayer = makeFillLayer({ id: 'base-fill', color: '#203050', opacity: 100, blendMode: 'normal' });
+    const codeShader = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      opacity: 70,
+      blendMode: 'screen',
+      role: 'effect',
+      shaderInstance: codeShaderInstance(
+        'code-shader',
+        `vec4 mainImage(vec2 uv) {
+  vec4 base = texture2D(u_backdrop, uv);
+  vec3 fill = vec3(1.0, 0.15, 0.05);
+  vec3 pass = mix(base.rgb, vec3(0.1, 0.9, 1.0), 0.35);
+  return vec4(mix(fill, pass, u_has_backdrop), 1.0);
+}`,
+      ),
+    });
+    const standaloneGraph: CanvasGraph = {
+      edges: [{ id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [codeShader],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-code', fromId: 'base-fill', fromPort: 'out', toId: 'code-shader', toPort: 'bg' },
+        { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [codeShader],
+    };
+
+    const standalone = await renderGraphTarget(
+      graphDocument(standaloneGraph, [baseLayer]),
+      standaloneGraph,
+      EXPORT_NODE_ID,
+      40,
+      40,
+      new Map(),
+      { skipEffects: true },
+    );
+    const pass = await renderGraphTarget(
+      graphDocument(passGraph, [baseLayer]),
+      passGraph,
+      EXPORT_NODE_ID,
+      40,
+      40,
+      new Map(),
+      { skipEffects: true },
+    );
+
+    expect(averageRgbDistance(standalone, pass)).toBeGreaterThan(20);
+    expect(uniquePixelCount(pass)).toBe(1);
+  });
+
+  it('composites shader effect nodes over their required backdrop input', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-shader', fromId: base.id, fromPort: 'out', toId: 'shader-a', toPort: 'bg' },
+        { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-a',
+          shaderKind: 'staticRadialGradient',
+          role: 'effect',
+          palette: ['#ff2200', '#ff2200'],
+          grain: 0,
+          opacity: 45,
+          blendMode: 'source-over',
+        }),
+      ],
+    };
+    const doc = graphDocument(graph, [base]);
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const baseDoc = graphDocument(baseGraph, [base]);
+
+    const baseCanvas = await renderGraphTarget(baseDoc, baseGraph, EXPORT_NODE_ID, 48, 48, new Map(), {
+      skipEffects: true,
+    });
+    const shaderCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 48, 48, new Map(), { skipEffects: true });
+
+    expect(centerPixel(shaderCanvas)[3]).toBe(255);
+    expect(pixelsEqual(allPixels(baseCanvas), allPixels(shaderCanvas))).toBe(false);
+  });
+
+  it('samples the connected backdrop as shader pass input instead of replacing it', async () => {
+    const standaloneTopGraph: CanvasGraph = {
+      edges: [{ id: 'e-top-export', fromId: 'top-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'top-shader',
+          shaderKind: 'staticRadialGradient',
+          role: 'fill',
+          palette: ['#ff2200', '#ff2200'],
+          grain: 0,
+          opacity: 100,
+          blendMode: 'source-over',
+        }),
+      ],
+    };
+    const backdropGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-backdrop-export', fromId: 'backdrop-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'backdrop-shader',
+          shaderKind: 'waterCaustic',
+          palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
+          grain: 0,
+        }),
+      ],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-backdrop-top', fromId: 'backdrop-shader', fromPort: 'out', toId: 'top-shader', toPort: 'bg' },
+        { id: 'e-top-export', fromId: 'top-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [
+        ...(backdropGraph.shaderNodes ?? []),
+        makeGraphShaderNode({
+          id: 'top-shader',
+          shaderKind: 'staticRadialGradient',
+          role: 'effect',
+          palette: ['#ff2200', '#ff2200'],
+          grain: 0,
+          opacity: 100,
+          blendMode: 'source-over',
+        }),
+      ],
+    };
+
+    const standaloneTop = await renderGraphTarget(
+      graphDocument(standaloneTopGraph),
+      standaloneTopGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      { skipEffects: true },
+    );
+    const backdropOnly = await renderGraphTarget(
+      graphDocument(backdropGraph),
+      backdropGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      { skipEffects: true },
+    );
+    const pass = await renderGraphTarget(graphDocument(passGraph), passGraph, EXPORT_NODE_ID, 72, 72, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(pixelsEqual(allPixels(pass), allPixels(standaloneTop))).toBe(false);
+    expect(pixelsEqual(allPixels(pass), allPixels(backdropOnly))).toBe(false);
+    expect(uniquePixelCount(pass)).toBeGreaterThan(1);
+  });
+
+  it('keeps an AI shader backdrop unchanged when WebGL is unavailable', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const customShader = makeGraphShaderNode({
+      id: 'custom-water-pass',
+      shaderKind: 'aiShader',
+      grain: 0,
+      opacity: 100,
+      blendMode: 'screen',
+      shaderInstance: aiShaderInstance('custom-water-pass'),
+    });
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-custom', fromId: base.id, fromPort: 'out', toId: customShader.id, toPort: 'bg' },
+        { id: 'e-custom-export', fromId: customShader.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [customShader],
+    };
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(baseGraph, [base]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const pass = await renderGraphTarget(
+      graphDocument(passGraph, [base]),
+      passGraph,
+      EXPORT_NODE_ID,
+      72,
+      72,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+
+    expect(centerPixel(pass)[3]).toBe(255);
+    expect(hasVisiblePixels(pass)).toBe(true);
+    expect(pixelsEqual(allPixels(pass), allPixels(baseCanvas))).toBe(true);
+  });
+
+  it('preserves detailed image backdrops when AI shader WebGL is unavailable', async () => {
+    const imageSrc = 'test-cache://detailed-water-pass-input';
+    const imageLayer = makeImageLayer(imageSrc, {
+      id: 'image-input',
+      fit: 'cover',
+      opacity: 100,
+      blendMode: 'normal',
+    });
+    const shaderNode = makeGraphShaderNode({
+      id: 'ai-water-pass',
+      shaderKind: 'aiShader',
+      opacity: 100,
+      blendMode: 'normal',
+      distortion: 56,
+      grain: 12,
+      shaderInstance: aiShaderInstance('ai-water-pass'),
+    });
+    const imageGraph: CanvasGraph = {
+      edges: [{ id: 'e-image-export', fromId: imageLayer.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const standaloneShaderGraph: CanvasGraph = {
+      edges: [{ id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [shaderNode],
+    };
+    const passGraph: CanvasGraph = {
+      edges: [
+        { id: 'e-image-shader', fromId: imageLayer.id, fromPort: 'out', toId: shaderNode.id, toPort: 'bg' },
+        { id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [shaderNode],
+    };
+    const imageCache = createDetailedImageCache(imageSrc);
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(imageGraph, [imageLayer]),
+      imageGraph,
+      EXPORT_NODE_ID,
+      96,
+      96,
+      imageCache,
+      { skipEffects: true },
+    );
+    const standaloneShader = await renderGraphTarget(
+      graphDocument(standaloneShaderGraph),
+      standaloneShaderGraph,
+      EXPORT_NODE_ID,
+      96,
+      96,
+      imageCache,
+      { skipEffects: true },
+    );
+    const pass = await renderGraphTarget(
+      graphDocument(passGraph, [imageLayer]),
+      passGraph,
+      EXPORT_NODE_ID,
+      96,
+      96,
+      imageCache,
+      { skipEffects: true },
+    );
+
+    const passDelta = averageRgbDistance(pass, baseCanvas);
+    expect(passDelta).toBe(0);
+    expect(averageRgbDistance(standaloneShader, baseCanvas)).toBeGreaterThan(0);
+  });
+
+  it('keeps shader backdrop unchanged when shader pass opacity is zero', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-shader', fromId: base.id, fromPort: 'out', toId: 'shader-a', toPort: 'bg' },
+        { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', role: 'effect', opacity: 0, grain: 0 })],
+    };
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(baseGraph, [base]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const shaderCanvas = await renderGraphTarget(
+      graphDocument(graph, [base]),
+      graph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+
+    expect(pixelsEqual(allPixels(baseCanvas), allPixels(shaderCanvas))).toBe(true);
+  });
+
+  it('uses processed-backdrop semantics for shader passes with a connected backdrop', async () => {
+    const base = makeFillLayer({ id: 'base-fill', color: '#1a3355', opacity: 100, blendMode: 'normal' });
+    const shaderNode = makeGraphShaderNode({
+      id: 'shader-a',
+      shaderKind: 'staticRadialGradient',
+      role: 'effect',
+      palette: ['#ff2200', '#ff2200'],
+      grain: 0,
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-base-shader', fromId: base.id, fromPort: 'out', toId: 'shader-a', toPort: 'bg' },
+        { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [shaderNode],
+    };
+    const standaloneShaderGraph: CanvasGraph = {
+      edges: [{ id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      shaderNodes: [shaderNode],
+    };
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+
+    const baseCanvas = await renderGraphTarget(
+      graphDocument(baseGraph, [base]),
+      baseGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const shaderCanvas = await renderGraphTarget(
+      graphDocument(graph, [base]),
+      graph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+    const standaloneShaderCanvas = await renderGraphTarget(
+      graphDocument(standaloneShaderGraph),
+      standaloneShaderGraph,
+      EXPORT_NODE_ID,
+      48,
+      48,
+      new Map(),
+      {
+        skipEffects: true,
+      },
+    );
+
+    const [baseR, baseG, baseB] = centerPixel(baseCanvas);
+    const [shaderR, shaderG, shaderB, shaderA] = centerPixel(shaderCanvas);
+    const [standaloneR, standaloneG, standaloneB] = centerPixel(standaloneShaderCanvas);
+
+    expect(shaderA).toBe(255);
+    expect(rgbDistance([shaderR, shaderG, shaderB], [baseR, baseG, baseB])).toBeGreaterThan(0);
+    expect(rgbDistance([shaderR, shaderG, shaderB], [baseR, baseG, baseB])).toBeLessThan(
+      rgbDistance([standaloneR, standaloneG, standaloneB], [baseR, baseG, baseB]),
+    );
+    expect(pixelsEqual(allPixels(baseCanvas), allPixels(shaderCanvas))).toBe(false);
+  });
+
+  it('uses shader node output as a material texture input', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-shader-material', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
+      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
+    };
+    const doc = graphDocument(graph);
+
+    const canvas = await renderGraphTarget(doc, graph, 'material-a', 32, 32, new Map(), { skipEffects: true });
+    const [, , , a] = centerPixel(canvas);
+
+    expect(a).toBe(255);
+  });
+
+  it('uses shader node output directly as a primitive material texture', async () => {
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-a',
+      name: 'Primitive A',
+      primitiveShape: 'sphere',
+      color: '#cc2020',
+      accentColor: '#ff8080',
+    });
+    const baseGraph: CanvasGraph = {
+      edges: [{ id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const shaderGraph: CanvasGraph = {
+      ...baseGraph,
+      edges: [
+        ...baseGraph.edges,
+        { id: 'e-shader-primitive', fromId: 'shader-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+      ],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-a',
+          palette: ['#00ccff', '#ff00cc', '#f8ff00', '#101020'],
+          distortion: 80,
+          grain: 0,
+        }),
+      ],
+    };
+    const baseDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [primitive],
+      graph: baseGraph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+    const shaderDoc: CanvasDocument = { ...baseDoc, graph: shaderGraph };
+
+    const baseCanvas = await renderGraphTarget(baseDoc, baseGraph, EXPORT_NODE_ID, 96, 96, new Map(), {
+      skipEffects: true,
+    });
+    const shaderCanvas = await renderGraphTarget(shaderDoc, shaderGraph, EXPORT_NODE_ID, 96, 96, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(pixelsEqual(allPixels(shaderCanvas), allPixels(baseCanvas))).toBe(false);
+    expect(centerPixel(shaderCanvas)[3]).toBeGreaterThan(8);
+  });
+
+  it.each(
+    MATERIAL_TEXTURE_INPUT_PORTS,
+  )('routes shader fill output into primitive material %s texture slots', async (port: MaterialTextureInputPort) => {
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-a',
+      name: 'Primitive A',
+      primitiveShape: 'sphere',
+      color: '#9a281d',
+      accentColor: '#f7c26b',
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: `e-shader-material-${port}`, fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: port },
+        { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+        { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      materialNodes: [
+        makeGraphMaterialNode({
+          id: 'material-a',
+          materialPreset: 'chrome',
+          materialMetalness: 0.75,
+          materialRoughness: 0.22,
+        }),
+      ],
+      shaderNodes: [
+        makeGraphShaderNode({
+          id: 'shader-a',
+          shaderKind: 'moire',
+          palette: ['#06040a', '#f7e6ff', '#ff6ab7', '#50e3c2'],
+          grain: 0,
+        }),
+      ],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 13, aspect: '1:1' },
+      layers: [primitive],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 80, 80, new Map(), {});
+
+    expect(hasVisiblePixels(canvas)).toBe(true);
+  });
+
+  it.each(
+    MATERIAL_TEXTURE_INPUT_PORTS,
+  )('routes input-dependent effect output into primitive material %s texture slots', async (port: MaterialTextureInputPort) => {
+    const source = makeFillLayer({ id: 'effect-source', color: '#ff2020', opacity: 100, blendMode: 'normal' });
+    const effect = makeEffectLayer({
+      id: 'effect-a',
+      preset: 'gradientMap',
+      gradientMap: 100,
+      gradientMapShadow: '#001040',
+      gradientMapMid: '#21d4a8',
+      gradientMapHighlight: '#fff5a0',
+    });
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-a',
+      name: 'Primitive A',
+      primitiveShape: 'sphere',
+      color: '#885533',
+      accentColor: '#ffd36a',
+    });
+    const graph: CanvasGraph = {
+      edges: [
+        { id: 'e-source-effect', fromId: source.id, fromPort: 'out', toId: effect.id, toPort: 'in' },
+        { id: `e-effect-material-${port}`, fromId: effect.id, fromPort: 'out', toId: 'material-a', toPort: port },
+        { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+        { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 17, aspect: '1:1' },
+      layers: [source, effect, primitive],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 80, 80, new Map(), {});
+
+    expect(hasVisiblePixels(canvas)).toBe(true);
+  });
+
+  it('keeps input-dependent effects transparent when used without an upstream source', async () => {
+    const effect = makeEffectLayer({
+      id: 'effect-a',
+      preset: 'gradientMap',
+      gradientMap: 100,
+      gradientMapShadow: '#001040',
+      gradientMapMid: '#21d4a8',
+      gradientMapHighlight: '#fff5a0',
+    });
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-effect-export', fromId: effect.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 19, aspect: '1:1' },
+      layers: [effect],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), {});
+
+    expect(centerPixel(canvas)[3]).toBe(0);
+    expect(hasVisiblePixels(canvas)).toBe(false);
+  });
+
   it('classifies only readback-safe GPU effects as batchable', () => {
     expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40 }))).toBe(true);
     expect(isGpuOnlyEffectLayer(makeEffectLayer({ bloom: 40, maskAlpha: true }))).toBe(false);
@@ -354,6 +1503,29 @@ describe('renderGraphTarget', () => {
     expect(cachedUpstream).toBeDefined();
     expect(cache.entries.get('shared-session:red-fill')).toBe(cachedUpstream);
     expect(pixelsEqual(allPixels(cached), allPixels(uncached))).toBe(true);
+  });
+
+  it('treats zero-size cached node canvases as transparent fallbacks', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc = graphDocument(graph);
+    const zeroCanvas = document.createElement('canvas');
+    zeroCanvas.width = 0;
+    zeroCanvas.height = 0;
+    const cache: GraphRenderCache = {
+      namespace: 'zero-canvas-session',
+      entries: new Map([['zero-canvas-session:red-fill', Promise.resolve(zeroCanvas)]]),
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 24, new Map(), { skipEffects: true }, cache);
+
+    expect(canvas.width).toBe(32);
+    expect(canvas.height).toBe(24);
+    expect(centerPixel(canvas)[3]).toBe(0);
   });
 
   it('composites merge node inputs with merge opacity', async () => {
@@ -446,6 +1618,37 @@ describe('renderGraphTarget', () => {
     const bounds = alphaBounds(canvas);
     expect(bounds.width).toBeGreaterThan(300);
     expect(bounds.height).toBeGreaterThan(160);
+  });
+
+  it('keeps primitive sources proportioned inside non-square graph targets', async () => {
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-wide',
+      name: 'Wide Primitive',
+      primitiveShape: 'sphere',
+      color: '#cc2020',
+      accentColor: '#ff8080',
+    });
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const doc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 7, aspect: '16:9' },
+      layers: [primitive],
+      graph,
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const canvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 1920, 1080, new Map(), {
+      skipEffects: true,
+    });
+
+    const bounds = alphaBounds(canvas);
+    expect(bounds.width).toBeGreaterThan(480);
+    expect(bounds.height).toBeGreaterThan(480);
+    expect(bounds.width / bounds.height).toBeLessThan(1.35);
   });
 
   it('repeats an upstream source branch over an optional backdrop', async () => {

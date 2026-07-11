@@ -1,0 +1,9 @@
+ALTER TABLE ai_shader_spec_requests
+  RENAME TO ai_shader_requests;
+
+ALTER TABLE ai_shader_requests
+  RENAME CONSTRAINT ai_shader_spec_requests_user_id_idempotency_key_unique
+  TO ai_shader_requests_user_id_idempotency_key_unique;
+
+ALTER INDEX ai_shader_spec_requests_user_created_idx
+  RENAME TO ai_shader_requests_user_created_idx;

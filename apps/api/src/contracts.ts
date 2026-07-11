@@ -6,9 +6,30 @@ export type {
   AiGenerationSettings,
   AiProvider,
   AiQuotaSnapshot,
+  AiShaderCompilerDiagnostic,
+  AiShaderGenerationResponse,
+  AiShaderRequestMode,
+  AiShaderSource,
+  AiShaderValidationResponse,
   ApiHealthResponse,
+  CreateAiShaderRequest,
   CreateGenerationRequest,
   GenerationQueuePayload,
+  ShaderDefinition,
+  ShaderInstance,
+  ShaderPropertyDefinition,
+  ValidateAiShaderRequest,
 } from '@artifact/shared';
 
-export { AI_API_PATHS, AI_PROVIDERS } from '@artifact/shared';
+export {
+  AI_API_PATHS,
+  AI_PROVIDERS,
+  AI_SHADER_DIAGNOSTIC_MAX_LENGTH,
+  AI_SHADER_PROMPT_MAX_LENGTH,
+  normalizeShaderDefinition,
+  normalizeShaderInstance,
+  stripShaderCodeComments,
+  validateShaderCode,
+  validateShaderDefinition,
+  validateShaderInstance,
+} from '@artifact/shared';

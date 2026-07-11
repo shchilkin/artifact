@@ -17,11 +17,22 @@ const migrationFiles = [
   '002_users_email_nullable.sql',
   '003_active_generation_guard.sql',
   '004_better_auth_cloud_projects.sql',
+  '005_ai_shader_spec_requests.sql',
+  '006_ai_shader_requests.sql',
+  '007_ai_shader_validation_lifecycle.sql',
+  '008_ai_shader_refinement.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
 const activeGuardMigrationSql = readFileSync(resolve(migrationsDir, '003_active_generation_guard.sql'), 'utf8');
 const betterAuthMigrationSql = readFileSync(resolve(migrationsDir, '004_better_auth_cloud_projects.sql'), 'utf8');
+const shaderMigrationSql = readFileSync(resolve(migrationsDir, '005_ai_shader_spec_requests.sql'), 'utf8');
+const shaderRenameMigrationSql = readFileSync(resolve(migrationsDir, '006_ai_shader_requests.sql'), 'utf8');
+const shaderLifecycleMigrationSql = readFileSync(
+  resolve(migrationsDir, '007_ai_shader_validation_lifecycle.sql'),
+  'utf8',
+);
+const shaderRefinementMigrationSql = readFileSync(resolve(migrationsDir, '008_ai_shader_refinement.sql'), 'utf8');
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -61,6 +72,20 @@ describe('AI generation migrations', () => {
     expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS account');
     expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS verification');
     expect(betterAuthMigrationSql).toContain('CREATE TABLE IF NOT EXISTS cloud_projects');
+  });
+
+  it('stores shader requests with a per-user idempotency guard', () => {
+    expect(shaderMigrationSql).toContain('CREATE TABLE IF NOT EXISTS ai_shader_spec_requests');
+    expect(shaderMigrationSql).toContain('UNIQUE (user_id, idempotency_key)');
+    expect(shaderMigrationSql).toContain("status IN ('pending', 'succeeded', 'failed')");
+    expect(shaderRenameMigrationSql).toContain('RENAME TO ai_shader_requests');
+    expect(shaderRenameMigrationSql).toContain('RENAME CONSTRAINT');
+    expect(shaderLifecycleMigrationSql).toContain("'generated', 'client_rejected', 'repairing', 'accepted', 'failed'");
+    expect(shaderLifecycleMigrationSql).toContain("SET status = 'accepted'");
+    expect(shaderLifecycleMigrationSql).toContain('repair_count integer NOT NULL DEFAULT 0');
+    expect(shaderLifecycleMigrationSql).toContain('repair_count <= 1');
+    expect(shaderRefinementMigrationSql).toContain('parent_request_id text NULL');
+    expect(shaderRefinementMigrationSql).toContain('REFERENCES ai_shader_requests(id) ON DELETE SET NULL');
   });
 });
 

@@ -96,6 +96,11 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - merge nodes
 - color nodes
 - repeat nodes
+- mask, transform, and grime-shadow nodes
+- material nodes
+- shader nodes
+- environment-map nodes
+- 3D scene nodes
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
@@ -117,6 +122,103 @@ bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
 procedural sources, and future asset nodes can all repeat through the same
 render path once they produce canvas pixels.
+Shader nodes have an explicit persisted `fill` or `effect` role. Connection
+state does not switch render semantics. Fill nodes ignore image-input edges and
+create their own pixels; effect nodes require a `bg` dependency and return a
+transparent canvas when it is absent.
+Shader fill nodes render deterministic procedural raster textures through
+`apps/web/app/utils/render/shaderNodes.ts`. Preset shader fills can act as graph
+sources. Preset shader effects use the same procedural renderer but sample their
+required backdrop as input texture data: source luminance and detail shape the
+generated shader response before opacity and blend mode are applied as effect
+intensity. Their output can be
+composed directly, repeated, masked, or used as a material texture map.
+AI Shader uses the same definition-backed WebGL runtime as Code Shader through
+the `aiShader` shader kind, but it is always an input-dependent effect. If no
+source is connected or no generated `ShaderInstance` exists, graph rendering
+returns a transparent result layer. The graph compositor then preserves the
+upstream image. Definitions store GLSL, a typed property manifest, and
+provenance; instances store only the values for that manifest. Generated GLSL
+must sample `u_backdrop`, and controls map to `u_prop_<key>` uniforms.
+Prompt generation enters through the shared `/api/ai/shaders` contract. The
+default request path is OpenAI-backed and fails visibly if no provider is
+configured. A deterministic local shader generator is available only as an
+explicit user-confirmed fallback, and fallback definitions carry
+`localFallback` provenance. API calls create or update shader requests
+only, never participate in preview/export rendering.
+OpenAI shader generation is a two-phase operation. The API first stores and
+returns a `generated` candidate. The browser then compiles that exact definition
+with the production WebGL runtime and reports either `accepted` or a bounded,
+sanitized diagnostic. A rejected initial OpenAI candidate may enter one
+`client_rejected -> repairing -> generated` cycle; the repaired candidate must
+pass the same browser check. A second rejection is terminal. The editor does not
+write a candidate into `CanvasDocument` until the server records `accepted`, so
+the previous working shader remains visible through generation, validation,
+repair, and failure.
+Validation reports include the candidate revision (`0` for the initial result,
+`1` for its repair). Repository transitions compare that revision atomically so
+a delayed initial browser response cannot accept or reject the repaired result.
+Repair is authorized by the stored request owner and uses the server-stored
+prompt and failed definition. Browser input is limited to validation stage,
+short diagnostic text, and browser identification. Repair does not reserve a
+second user quota unit, and the request row limits `repair_count` to one.
+Repair retries are idempotent through the owner-scoped shader request id and its
+persisted lifecycle state; there is no separate client repair key.
+Each shader request carries a per-user idempotency key. The API stores the
+completed response and returns it for a repeated key without calling OpenAI or
+charging monthly quota again. OpenAI requests use a bounded timeout and record
+the provider request ID plus input/output token counts for operational tracing;
+the deterministic local fallback does not consume provider quota. Quota is
+reserved atomically before an OpenAI call so parallel requests cannot cross the
+monthly limit. A local fallback request must reference a previously failed
+OpenAI shader request for the same user.
+Accepted definitions retain lightweight provenance with source, model, request
+id, and whether the accepted result was the initial generation, one repair, or
+an explicit local fallback. Compiler diagnostics and lifecycle state remain in
+API storage and never enter the document.
+An accepted AI Shader can be refined through a new owner-scoped shader request.
+The refinement stores the accepted request as `parent_request_id`, consumes one
+normal OpenAI quota unit, and sends the accepted definition plus the user's
+change instruction to the provider. It still passes through browser validation
+and at most one repair before replacing the current node instance. Refine and
+refine-repair provenance retain the parent request id; local fallback is not
+offered for a failed refinement because it cannot reproduce the accepted source
+definition faithfully.
+Browser acceptance also renders diagnostic frames. AI Shader candidates are
+rejected when they are fully transparent, spatially flat, unaffected by the
+connected backdrop, or expose a control that does not visibly change pixels
+within its declared range. Related controls are tested with the other manifest
+values placed in an active diagnostic state, so useful gated color and amount
+controls are not rejected merely because their defaults are disabled.
+AI Shader output is controlled by its saved definition, instance property
+values, built-in uniforms that the code actually reads, and effect-only
+opacity/blend settings. Preset-only palette, shape, placement, and texture
+controls stay hidden and do not participate in the generated shader contract.
+Generated controls are manifest-driven rather than palette-slot-driven. The
+definition may expose zero to eight number, toggle, or color controls, and every
+`u_prop_*` uniform must have exactly one manifest entry that affects the output.
+Custom code shader work uses the separate `customCode` shader kind. The graph
+node stores a Shader Instance containing a serializable Shader Definition and
+instance property values; the graph node owns the instance's explicit role. The
+definition stores a GLSL fragment body that must
+define `mainImage(vec2 uv)`.
+The renderer wraps that body with the stable uniforms `u_backdrop`,
+`u_resolution`, `u_seed`, `u_strength`, and `u_has_backdrop`, plus manifest
+properties as `u_prop_<key>` uniforms; it does not execute JavaScript or mutate
+document state during compile/render. A fill receives a deterministic fallback
+texture for optional sampling and never consumes an upstream image. An effect
+receives its required upstream canvas directly; without it, output is
+transparent. Node opacity and blend mode control effect intensity.
+Browsers without WebGL or shaders that fail to compile return a transparent
+shader result layer. Code Shader fills therefore remain transparent, while
+effect nodes preserve their upstream image through the graph compositor.
+An empty Code Shader is different from a failed shader: it renders transparent
+until code is added. Code Shader loops use one fixed zero-based counter, advance
+by a positive constant, and are limited to 32 iterations so preview and export
+cannot accidentally schedule unbounded GPU work.
+Input-dependent visual transforms such as dithering, halftone, refraction,
+warps, ripple, and light-ray overlays remain effect nodes because they need an
+upstream canvas to sample.
 
 ### Rule
 
