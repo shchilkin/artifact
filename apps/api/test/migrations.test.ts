@@ -19,6 +19,7 @@ const migrationFiles = [
   '004_better_auth_cloud_projects.sql',
   '005_ai_shader_spec_requests.sql',
   '006_ai_shader_requests.sql',
+  '007_ai_shader_validation_lifecycle.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
@@ -26,6 +27,10 @@ const activeGuardMigrationSql = readFileSync(resolve(migrationsDir, '003_active_
 const betterAuthMigrationSql = readFileSync(resolve(migrationsDir, '004_better_auth_cloud_projects.sql'), 'utf8');
 const shaderMigrationSql = readFileSync(resolve(migrationsDir, '005_ai_shader_spec_requests.sql'), 'utf8');
 const shaderRenameMigrationSql = readFileSync(resolve(migrationsDir, '006_ai_shader_requests.sql'), 'utf8');
+const shaderLifecycleMigrationSql = readFileSync(
+  resolve(migrationsDir, '007_ai_shader_validation_lifecycle.sql'),
+  'utf8',
+);
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -73,6 +78,10 @@ describe('AI generation migrations', () => {
     expect(shaderMigrationSql).toContain("status IN ('pending', 'succeeded', 'failed')");
     expect(shaderRenameMigrationSql).toContain('RENAME TO ai_shader_requests');
     expect(shaderRenameMigrationSql).toContain('RENAME CONSTRAINT');
+    expect(shaderLifecycleMigrationSql).toContain("'generated', 'client_rejected', 'repairing', 'accepted', 'failed'");
+    expect(shaderLifecycleMigrationSql).toContain("SET status = 'accepted'");
+    expect(shaderLifecycleMigrationSql).toContain('repair_count integer NOT NULL DEFAULT 0');
+    expect(shaderLifecycleMigrationSql).toContain('repair_count <= 1');
   });
 });
 

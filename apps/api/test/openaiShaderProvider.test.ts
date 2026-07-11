@@ -91,6 +91,44 @@ describe('createOpenAiShaderProvider', () => {
     ).resolves.toMatchObject({ instance: { definition: { label: 'Neon Refraction' } } });
   });
 
+  it('sends the stored failed definition and cleaned browser diagnostic for repair', async () => {
+    const fetcher = vi.fn(async (...args: [string, RequestInit]) => {
+      expect(args).toHaveLength(2);
+      return jsonFetchResponse({ output_text: JSON.stringify(generatedShader) });
+    });
+    const provider = createOpenAiShaderProvider({ apiKey: 'test-key', fetch: fetcher });
+
+    await provider.generateShader({
+      prompt: 'neon refraction',
+      clientRequestId: 'shader-request-3-repair',
+      repair: {
+        instance: {
+          definition: {
+            version: 1,
+            id: 'failed-definition',
+            label: 'Failed Shader',
+            language: 'glsl-fragment',
+            code: generatedShader.code,
+            properties: generatedShader.properties as never,
+          },
+          values: { amount: 0.03, tint: '#ff00aa' },
+        },
+        diagnostic: { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+      },
+    });
+
+    const firstFetchCall = fetcher.mock.calls[0];
+    if (!firstFetchCall) throw new Error('Expected OpenAI repair fetch call.');
+    const body = JSON.parse(String(firstFetchCall[1].body));
+    expect(body.input[0].content).toContain('Repair the supplied shader');
+    const repairInput = JSON.parse(body.input[1].content);
+    expect(repairInput).toMatchObject({
+      originalPrompt: 'neon refraction',
+      failedDefinition: { id: 'failed-definition', label: 'Failed Shader' },
+      compilerDiagnostic: { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+    });
+  });
+
   it('surfaces OpenAI API errors', async () => {
     const provider = createOpenAiShaderProvider({
       apiKey: 'test-key',

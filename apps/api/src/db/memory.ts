@@ -157,6 +157,8 @@ export class InMemoryApiStore {
       error_status: null,
       error_code: null,
       error_message: null,
+      compiler_diagnostic_json: null,
+      repair_count: 0,
       created_at: new Date(),
       completed_at: null,
     };
@@ -172,21 +174,81 @@ export class InMemoryApiStore {
     );
   }
 
-  async completeShaderRequest(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
+  async findShaderByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null> {
+    const request = this.shaderRequests.get(id);
+    return request?.user_id === userId ? request : null;
+  }
+
+  async markShaderGenerated(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
     const request = this.shaderRequests.get(input.id);
     if (!request || request.status !== 'pending') {
       throw new Error(`Pending shader request not found: ${input.id}`);
     }
     const completed: AiShaderRequestRow = {
       ...request,
-      status: 'succeeded',
+      status: 'generated',
       response_json: input.responseJson,
       provider_request_id: input.providerRequestId ?? null,
       provider_usage_json: input.providerUsageJson ?? null,
-      completed_at: input.completedAt,
+      completed_at: null,
     };
     this.shaderRequests.set(request.id, completed);
     return completed;
+  }
+
+  async acceptShaderRequest(id: string, candidateRevision: number, completedAt: Date): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(id);
+    if (!request || request.status !== 'generated' || request.repair_count !== candidateRevision) {
+      throw new Error(`Generated shader request not found: ${id}`);
+    }
+    const accepted = { ...request, status: 'accepted' as const, completed_at: completedAt };
+    this.shaderRequests.set(id, accepted);
+    return accepted;
+  }
+
+  async rejectShaderRequest(input: import('./types.js').RejectAiShaderRequestInput): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(input.id);
+    if (!request || request.status !== 'generated' || request.repair_count !== input.candidateRevision) {
+      throw new Error(`Generated shader request not found: ${input.id}`);
+    }
+    const rejected: AiShaderRequestRow = {
+      ...request,
+      status: input.terminal ? 'failed' : 'client_rejected',
+      compiler_diagnostic_json: input.diagnosticJson,
+      error_status: input.terminal ? 422 : null,
+      error_code: input.terminal ? 'shader_browser_validation_failed' : null,
+      error_message: input.terminal ? 'The repaired shader did not pass browser validation.' : null,
+      completed_at: input.terminal ? input.completedAt : null,
+    };
+    this.shaderRequests.set(input.id, rejected);
+    return rejected;
+  }
+
+  async beginShaderRepair(id: string): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(id);
+    if (!request || request.status !== 'client_rejected' || request.repair_count !== 0) {
+      throw new Error(`Repairable shader request not found: ${id}`);
+    }
+    const repairing = { ...request, status: 'repairing' as const, repair_count: 1 };
+    this.shaderRequests.set(id, repairing);
+    return repairing;
+  }
+
+  async completeShaderRepair(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(input.id);
+    if (!request || request.status !== 'repairing' || request.repair_count !== 1) {
+      throw new Error(`Repairing shader request not found: ${input.id}`);
+    }
+    const generated: AiShaderRequestRow = {
+      ...request,
+      status: 'generated',
+      response_json: input.responseJson,
+      provider_request_id: input.providerRequestId ?? null,
+      provider_usage_json: { ...(request.provider_usage_json ?? {}), ...(input.providerUsageJson ?? {}) },
+      completed_at: null,
+    };
+    this.shaderRequests.set(input.id, generated);
+    return generated;
   }
 
   async failShaderRequest(
@@ -194,7 +256,7 @@ export class InMemoryApiStore {
     error: { status: number; code: string; message: string; completedAt: Date },
   ): Promise<AiShaderRequestRow> {
     const request = this.shaderRequests.get(id);
-    if (!request || request.status !== 'pending') {
+    if (!request || (request.status !== 'pending' && request.status !== 'repairing')) {
       throw new Error(`Pending shader request not found: ${id}`);
     }
     const failed: AiShaderRequestRow = {
@@ -397,7 +459,13 @@ export class InMemoryApiStore {
       shaderRequests: {
         claim: (input) => this.claimShaderRequest(input),
         findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderByIdempotencyKey(userId, idempotencyKey),
-        complete: (input) => this.completeShaderRequest(input),
+        findByIdForUser: (id, userId) => this.findShaderByIdForUser(id, userId),
+        markGenerated: (input) => this.markShaderGenerated(input),
+        markAccepted: (id, candidateRevision, completedAt) =>
+          this.acceptShaderRequest(id, candidateRevision, completedAt),
+        markClientRejected: (input) => this.rejectShaderRequest(input),
+        beginRepair: (id) => this.beginShaderRepair(id),
+        completeRepair: (input) => this.completeShaderRepair(input),
         markFailed: (id, error) => this.failShaderRequest(id, error),
       },
       assets: {

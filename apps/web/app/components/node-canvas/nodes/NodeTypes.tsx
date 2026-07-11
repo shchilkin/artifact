@@ -508,6 +508,8 @@ function ShaderNodeAiEmptyOverlay({ hasPrompt, hasInput }: { hasPrompt: boolean;
 
 function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationStatus }) {
   const fallback = status === 'creatingFallback';
+  const validating = status === 'validating';
+  const repairing = status === 'repairing';
   const failed = status === 'failed';
   return (
     <div
@@ -524,8 +526,28 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
           <span className="node-thumbnail-ai-spinner" aria-hidden="true" />
         )}
         <span>
-          <strong>{failed ? 'Could not create' : fallback ? 'Making local draft' : 'Creating shader'}</strong>
-          <small>{failed ? 'Choose next step' : fallback ? 'Labeled local' : 'Setting it up'}</small>
+          <strong>
+            {failed
+              ? 'Could not create'
+              : repairing
+                ? 'Repairing shader'
+                : validating
+                  ? 'Checking shader'
+                  : fallback
+                    ? 'Making local draft'
+                    : 'Creating shader'}
+          </strong>
+          <small>
+            {failed
+              ? 'Nothing was replaced'
+              : repairing
+                ? 'One automatic repair'
+                : validating
+                  ? 'Testing in this browser'
+                  : fallback
+                    ? 'Labeled local'
+                    : 'Setting it up'}
+          </small>
         </span>
       </div>
     </div>

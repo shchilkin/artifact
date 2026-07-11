@@ -2,6 +2,8 @@ export const AI_API_PATHS = {
   health: '/api/health',
   access: '/api/ai/access',
   shader: '/api/ai/shaders',
+  shaderValidation: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/validation`,
+  shaderRepair: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/repair`,
   generations: '/api/ai/generations',
   generation: (id: string) => `/api/ai/generations/${encodeURIComponent(id)}`,
   generationCancel: (id: string) => `/api/ai/generations/${encodeURIComponent(id)}/cancel`,
@@ -76,6 +78,8 @@ export interface ShaderDefinitionProvenance {
   source: 'manual' | 'openai' | 'localFallback';
   prompt?: string;
   model?: string;
+  requestId?: string;
+  attempt?: 'initial' | 'repair' | 'localFallback';
 }
 
 /** A reusable, serializable shader program. A graph node owns only an instance of this definition. */
@@ -100,6 +104,25 @@ export type AiShaderSource = (typeof AI_SHADER_SOURCES)[number];
 export const AI_SHADER_REQUEST_MODES = ['openai', 'localFallback'] as const;
 export type AiShaderRequestMode = (typeof AI_SHADER_REQUEST_MODES)[number];
 export const AI_SHADER_PROMPT_MAX_LENGTH = 500;
+export const AI_SHADER_DIAGNOSTIC_MAX_LENGTH = 1_200;
+
+export const AI_SHADER_LIFECYCLE_STATUSES = [
+  'generated',
+  'client_rejected',
+  'repairing',
+  'accepted',
+  'failed',
+] as const;
+export type AiShaderLifecycleStatus = (typeof AI_SHADER_LIFECYCLE_STATUSES)[number];
+
+export const AI_SHADER_VALIDATION_STAGES = ['compile', 'link', 'runtime-contract', 'render'] as const;
+export type AiShaderValidationStage = (typeof AI_SHADER_VALIDATION_STAGES)[number];
+
+export interface AiShaderCompilerDiagnostic {
+  stage: AiShaderValidationStage;
+  message: string;
+  browser?: string;
+}
 
 export interface CreateAiShaderRequest {
   prompt: string;
@@ -109,11 +132,28 @@ export interface CreateAiShaderRequest {
 }
 
 export interface AiShaderGenerationResponse {
+  requestId: string;
+  candidateRevision: 0 | 1;
+  status: 'generated' | 'accepted';
+  attempt: 'initial' | 'repair' | 'localFallback';
   prompt: string;
   instance: ShaderInstance;
   source: AiShaderSource;
   model?: string;
   warnings?: string[];
+}
+
+export interface ValidateAiShaderRequest {
+  candidateRevision: 0 | 1;
+  outcome: 'accepted' | 'rejected';
+  diagnostic?: AiShaderCompilerDiagnostic;
+}
+
+export interface AiShaderValidationResponse {
+  requestId: string;
+  candidateRevision: 0 | 1;
+  status: 'accepted' | 'client_rejected' | 'failed';
+  repairAvailable: boolean;
 }
 
 const CUSTOM_SHADER_HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -372,6 +412,11 @@ function normalizeShaderDefinitionProvenance(value: unknown): ShaderDefinitionPr
     source: value.source as ShaderDefinitionProvenance['source'],
     prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
     model: typeof value.model === 'string' ? value.model.slice(0, 120) : undefined,
+    requestId: typeof value.requestId === 'string' ? value.requestId.slice(0, 200) : undefined,
+    attempt:
+      value.attempt === 'initial' || value.attempt === 'repair' || value.attempt === 'localFallback'
+        ? value.attempt
+        : undefined,
   };
 }
 

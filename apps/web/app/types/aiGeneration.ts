@@ -4,11 +4,14 @@ export type {
   AiGenerationJobStatus,
   AiGenerationProvider,
   AiGenerationQuality,
+  AiShaderCompilerDiagnostic,
   AiShaderGenerationResponse,
   AiShaderRequestMode,
   AiShaderSource,
+  AiShaderValidationResponse,
   CreateAiGenerationRequest,
   CreateAiShaderRequest,
+  ValidateAiShaderRequest,
 } from '@artifact/shared';
 
 export {

@@ -163,6 +163,12 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 - AI Image node add flow exposes the account-gated source node, and anonymous
   browser-test access disables generation instead of hiding or breaking the
   rest of the editor.
+- AI Shader API coverage proves generated candidates are not accepted early,
+  browser rejection can trigger only one owner-scoped repair, repair reuses the
+  original quota reservation, and a second browser rejection is terminal.
+- Cross-browser Code/AI Shader runtime coverage compiles with the production
+  WebGL wrapper and compares graph preview pixels with output pixels in
+  Chromium, Firefox, and WebKit.
 - Mocked AI alpha QA covers an AI-enabled generation flow, generated image
   export, prompt provenance after reload, quota-exhausted access, and provider
   failure messaging without spending provider tokens.

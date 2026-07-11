@@ -107,7 +107,7 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
     }
   });
 
-  expect(result.diagnostics).toEqual({ ok: true, message: null });
+  expect(result.diagnostics).toEqual({ ok: true, message: null, stage: null });
   expect(result.pixel[3]).toBe(255);
   expect(result.pixel[0]).toBeGreaterThan(110);
   expect(result.pixel[0]).toBeLessThan(150);
@@ -117,12 +117,14 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
   expect(result.inactiveBackdrop).toEqual({
     ok: false,
     message: 'Use the connected image in the final shader result.',
+    stage: 'runtime-contract',
   });
   expect(result.inactiveProperty).toEqual({
     ok: false,
     message: 'Amount is not used by the final shader result.',
+    stage: 'runtime-contract',
   });
-  expect(result.warpControl).toEqual({ ok: true, message: null });
+  expect(result.warpControl).toEqual({ ok: true, message: null, stage: null });
   expect(result.webGlContexts).toBe(6);
   expect(result.releasedContexts).toBe(6);
 });
@@ -236,5 +238,5 @@ test('migrates legacy AI operations into a compilable backdrop-aware shader', as
     return compileCustomCodeShaderForDiagnostics(definition.code, definition.properties, { requireBackdrop: true });
   });
 
-  expect(result).toEqual({ ok: true, message: null });
+  expect(result).toEqual({ ok: true, message: null, stage: null });
 });

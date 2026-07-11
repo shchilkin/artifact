@@ -33,7 +33,15 @@ export type JobReadWriteRepository = Pick<
 
 export type ShaderRequestReadWriteRepository = Pick<
   AiShaderRequestRepository,
-  'claim' | 'findByIdempotencyKey' | 'complete' | 'markFailed'
+  | 'claim'
+  | 'findByIdempotencyKey'
+  | 'findByIdForUser'
+  | 'markGenerated'
+  | 'markAccepted'
+  | 'markClientRejected'
+  | 'beginRepair'
+  | 'completeRepair'
+  | 'markFailed'
 >;
 
 export type AssetReadWriteRepository = Pick<

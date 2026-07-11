@@ -14,6 +14,8 @@ import {
   handleCreateGenerationRequest,
   handleCreateShaderRequest,
   handleGetGenerationRequest,
+  handleRepairShaderRequest,
+  handleValidateShaderRequest,
 } from '../src/routes/ai.js';
 
 function createQueueSpy() {
@@ -279,6 +281,9 @@ describe('AI route handlers', () => {
     expect(response).toMatchObject({
       status: 200,
       body: {
+        requestId: 'job-1',
+        status: 'generated',
+        attempt: 'initial',
         prompt: 'neon waves',
         source: 'openai',
         model: 'gpt-5.5-mini',
@@ -295,6 +300,182 @@ describe('AI route handlers', () => {
       clientRequestId: 'job-1',
     });
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
+  });
+
+  it('does not accept a generated shader until the browser validates it', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'water refraction', idempotencyKey: 'shader-validation-1' },
+      deps,
+    );
+
+    await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'generated' });
+    await expect(
+      handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps),
+    ).resolves.toMatchObject({ status: 200, body: { status: 'accepted', repairAvailable: false } });
+    await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'accepted' });
+  });
+
+  it('repairs one browser-rejected shader without consuming a second quota unit', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    const generateShader = vi
+      .fn()
+      .mockResolvedValueOnce(providerShader('Broken Shader'))
+      .mockResolvedValueOnce(providerShader('Repaired Shader'));
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'risograph treatment', idempotencyKey: 'shader-repair-1' },
+      deps,
+    );
+
+    await expect(
+      handleValidateShaderRequest(
+        { headers: {} },
+        'job-1',
+        {
+          candidateRevision: 0,
+          outcome: 'rejected',
+          diagnostic: { stage: 'compile', message: ' ERROR: 0:12: invalid token\nignored line ', browser: 'WebKit' },
+        },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 200, body: { status: 'client_rejected', repairAvailable: true } });
+
+    const repaired = await handleRepairShaderRequest({ headers: {} }, 'job-1', deps);
+    expect(repaired).toMatchObject({
+      status: 200,
+      body: {
+        requestId: 'job-1',
+        status: 'generated',
+        attempt: 'repair',
+        instance: { definition: { label: 'Repaired Shader' } },
+      },
+    });
+    expect(generateShader).toHaveBeenNthCalledWith(2, {
+      prompt: 'risograph treatment',
+      clientRequestId: 'job-1-repair',
+      repair: {
+        instance: expect.objectContaining({ definition: expect.objectContaining({ label: 'Broken Shader' }) }),
+        diagnostic: { stage: 'compile', message: 'ERROR: 0:12: invalid token ignored line', browser: 'WebKit' },
+      },
+    });
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
+
+    await expect(
+      handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps),
+    ).resolves.toMatchObject({ status: 409, body: { code: 'shader_candidate_changed' } });
+    await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'generated',
+      repair_count: 1,
+    });
+
+    const repeated = await handleRepairShaderRequest({ headers: {} }, 'job-1', deps);
+    expect(repeated).toEqual(repaired);
+    expect(generateShader).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails terminally when the repaired shader is rejected by the browser', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'glass warp', idempotencyKey: 'shader-repair-terminal-1' },
+      deps,
+    );
+    await handleValidateShaderRequest(
+      { headers: {} },
+      'job-1',
+      { candidateRevision: 0, outcome: 'rejected', diagnostic: { stage: 'compile', message: 'first compile failure' } },
+      deps,
+    );
+    await handleRepairShaderRequest({ headers: {} }, 'job-1', deps);
+
+    await expect(
+      handleValidateShaderRequest(
+        { headers: {} },
+        'job-1',
+        { candidateRevision: 1, outcome: 'rejected', diagnostic: { stage: 'link', message: 'repair still fails' } },
+        deps,
+      ),
+    ).resolves.toMatchObject({ status: 200, body: { status: 'failed', repairAvailable: false } });
+    await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      repair_count: 1,
+      error_code: 'shader_browser_validation_failed',
+    });
+  });
+
+  it('does not start two provider repairs for concurrent retries', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    let finishRepair: (() => void) | undefined;
+    const generateShader = vi
+      .fn()
+      .mockResolvedValueOnce(providerShader('Broken Shader'))
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof providerShader>>((resolve) => {
+            finishRepair = () => resolve(providerShader('Repaired Shader'));
+          }),
+      );
+    deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'repair race', idempotencyKey: 'shader-repair-race-1' },
+      deps,
+    );
+    await handleValidateShaderRequest(
+      { headers: {} },
+      'job-1',
+      { candidateRevision: 0, outcome: 'rejected', diagnostic: { stage: 'compile', message: 'broken' } },
+      deps,
+    );
+
+    const firstRepair = handleRepairShaderRequest({ headers: {} }, 'job-1', deps);
+    await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(2));
+    await expect(handleRepairShaderRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 409,
+      body: { code: 'shader_repair_in_progress' },
+    });
+    finishRepair?.();
+    await expect(firstRepair).resolves.toMatchObject({ status: 200, body: { attempt: 'repair' } });
+    expect(generateShader).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not expose shader validation or repair requests owned by another user', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    store.seedUser({ id: 'user-2', email: 'other@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'private shader', idempotencyKey: 'shader-owner-1' },
+      deps,
+    );
+    deps.resolveAuth = async () => ({ authenticated: true, user: { id: 'user-2' } });
+
+    await expect(
+      handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps),
+    ).resolves.toMatchObject({ status: 404 });
+    await expect(handleRepairShaderRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({ status: 404 });
   });
 
   it('returns inspector-visible errors when the shader provider fails', async () => {

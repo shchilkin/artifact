@@ -9,6 +9,8 @@ import {
   parseAiGenerationAccessState,
   parseAiGenerationJob,
   parseAiShaderGenerationResponse,
+  repairAiShader,
+  validateAiShader,
 } from './aiGenerationClient';
 
 const generatedShaderInstance = {
@@ -108,6 +110,10 @@ describe('parseAiGenerationAccessState', () => {
 describe('ai generation client', () => {
   it('parses and normalizes generated shader instances', () => {
     const response = parseAiShaderGenerationResponse({
+      requestId: 'shader-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'initial',
       prompt: 'water refraction',
       source: 'openai',
       model: 'gpt-5.5-mini',
@@ -121,6 +127,8 @@ describe('ai generation client', () => {
       source: 'openai',
       prompt: 'water refraction',
       model: 'gpt-5.5-mini',
+      requestId: 'shader-1',
+      attempt: 'initial',
     });
     expect(response.instance.values).toEqual({ amount: 0.02 });
   });
@@ -128,6 +136,10 @@ describe('ai generation client', () => {
   it('rejects shader responses with controls that the code does not read', () => {
     expect(() =>
       parseAiShaderGenerationResponse({
+        requestId: 'shader-1',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'initial',
         prompt: 'water refraction',
         source: 'openai',
         instance: {
@@ -143,6 +155,10 @@ describe('ai generation client', () => {
 
   it('creates shader instances through the AI shader endpoint', async () => {
     const { calls, fetcher } = captureJsonFetch({
+      requestId: 'shader-1',
+      candidateRevision: 0,
+      status: 'generated',
+      attempt: 'initial',
       prompt: 'neon waves',
       source: 'openai',
       model: 'gpt-5.5-mini',
@@ -164,6 +180,51 @@ describe('ai generation client', () => {
       mode: 'openai',
       idempotencyKey: 'shader-request-1',
     });
+  });
+
+  it('reports browser validation and requests the single repair by request id', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith('/validation')) {
+        return jsonResponse({
+          requestId: 'shader-1',
+          candidateRevision: 0,
+          status: 'client_rejected',
+          repairAvailable: true,
+        });
+      }
+      return jsonResponse({
+        requestId: 'shader-1',
+        candidateRevision: 1,
+        status: 'generated',
+        attempt: 'repair',
+        prompt: 'water refraction',
+        source: 'openai',
+        model: 'gpt-5.5-mini',
+        instance: generatedShaderInstance,
+      });
+    };
+
+    await validateAiShader(
+      'shader-1',
+      0,
+      'rejected',
+      { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+      { baseUrl: 'https://api.example.test', fetcher },
+    );
+    const repaired = await repairAiShader('shader-1', { baseUrl: 'https://api.example.test', fetcher });
+
+    expect(calls.map((call) => call.url)).toEqual([
+      'https://api.example.test/api/ai/shaders/shader-1/validation',
+      'https://api.example.test/api/ai/shaders/shader-1/repair',
+    ]);
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      outcome: 'rejected',
+      candidateRevision: 0,
+      diagnostic: { stage: 'compile', message: 'invalid token', browser: 'WebKit' },
+    });
+    expect(repaired.attempt).toBe('repair');
   });
 
   it('creates jobs with credentials and an idempotent request body', async () => {

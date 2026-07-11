@@ -214,34 +214,54 @@ describe('PostgresAiShaderRequestRepository', () => {
     expect(normalizeSql(client.queries[1]?.sql ?? '')).toContain('WHERE user_id = $1 AND idempotency_key = $2');
   });
 
-  it('completes a pending OpenAI request without changing its prior quota reservation', async () => {
-    const row = createShaderRow({ status: 'succeeded' });
+  it('stores a generated candidate without accepting it or changing its prior quota reservation', async () => {
+    const row = createShaderRow({ status: 'generated' });
     const client = new FakeQueryClient([[row]]);
     const repo = new PostgresAiShaderRequestRepository(client);
-    const completedAt = new Date('2026-05-20T10:01:00.000Z');
     const responseJson: JsonObject = { prompt: 'water glass', source: 'openai' };
     const providerUsageJson: JsonObject = { inputTokens: 20, outputTokens: 40 };
 
     await expect(
-      repo.complete({
+      repo.markGenerated({
         id: 'shader-request-1',
         responseJson,
         providerRequestId: 'req-openai-1',
         providerUsageJson,
-        completedAt,
       }),
     ).resolves.toBe(row);
 
     const sql = normalizeSql(client.queries[0]?.sql ?? '');
     expect(sql).toContain("WHERE id = $1 AND status = 'pending'");
     expect(sql).not.toContain('ai_usage_monthly');
-    expect(client.queries[0]?.params).toEqual([
-      'shader-request-1',
-      responseJson,
-      'req-openai-1',
-      providerUsageJson,
-      completedAt,
-    ]);
+    expect(sql).toContain("SET status = 'generated'");
+    expect(sql).toContain('completed_at = NULL');
+    expect(client.queries[0]?.params).toEqual(['shader-request-1', responseJson, 'req-openai-1', providerUsageJson]);
+  });
+
+  it('atomically starts only the first repair for a rejected shader', async () => {
+    const row = createShaderRow({ status: 'repairing', repair_count: 1 });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+
+    await expect(repo.beginRepair('shader-request-1')).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("status = 'client_rejected'");
+    expect(sql).toContain('repair_count = 0');
+    expect(sql).toContain('repair_count = repair_count + 1');
+  });
+
+  it('accepts only the exact candidate revision validated by the browser', async () => {
+    const row = createShaderRow({ status: 'accepted', repair_count: 1 });
+    const client = new FakeQueryClient([[row]]);
+    const repo = new PostgresAiShaderRequestRepository(client);
+    const completedAt = new Date('2026-05-20T10:02:00.000Z');
+
+    await expect(repo.markAccepted('shader-request-1', 1, completedAt)).resolves.toBe(row);
+
+    const sql = normalizeSql(client.queries[0]?.sql ?? '');
+    expect(sql).toContain("status = 'generated' AND repair_count = $3");
+    expect(client.queries[0]?.params).toEqual(['shader-request-1', completedAt, 1]);
   });
 });
 
@@ -330,6 +350,8 @@ function createShaderRow(overrides: Partial<AiShaderRequestRow> = {}): AiShaderR
     error_status: null,
     error_code: null,
     error_message: null,
+    compiler_diagnostic_json: null,
+    repair_count: 0,
     created_at: new Date('2026-05-20T10:00:00.000Z'),
     completed_at: null,
     ...overrides,

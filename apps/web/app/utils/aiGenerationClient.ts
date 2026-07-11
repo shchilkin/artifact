@@ -4,8 +4,10 @@ import {
   type AiGenerationJob,
   type AiGenerationJobStatus,
   type AiGenerationProvider,
+  type AiShaderCompilerDiagnostic,
   type AiShaderGenerationResponse,
   type AiShaderSource,
+  type AiShaderValidationResponse,
   type CreateAiGenerationRequest,
   type CreateAiShaderRequest,
   isAiGenerationJobStatus,
@@ -103,6 +105,16 @@ export function parseAiGenerationAccessState(value: unknown): AiGenerationAccess
 
 export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerationResponse {
   const response = ensureObject(value);
+  const requestId = ensureString(response.requestId, 'requestId');
+  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
+    throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
+  }
+  if (response.status !== 'generated' && response.status !== 'accepted') {
+    throw new AiGenerationApiError('Generation API returned an invalid shader status.', 0, 'invalid_response');
+  }
+  if (response.attempt !== 'initial' && response.attempt !== 'repair' && response.attempt !== 'localFallback') {
+    throw new AiGenerationApiError('Generation API returned an invalid shader attempt.', 0, 'invalid_response');
+  }
   const prompt = ensureString(response.prompt, 'prompt');
   const source = ensureShaderSource(response.source);
   const validationErrors = validateShaderInstance(response.instance);
@@ -120,17 +132,47 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
     ? response.warnings.filter((warning): warning is string => typeof warning === 'string')
     : undefined;
   return {
+    requestId,
+    candidateRevision: response.candidateRevision,
+    status: response.status,
+    attempt: response.attempt,
     prompt,
     instance: {
       ...instance,
       definition: {
         ...instance.definition,
-        provenance: instance.definition.provenance ?? { source, prompt, ...(model ? { model } : {}) },
+        provenance: instance.definition.provenance ?? {
+          source,
+          prompt,
+          ...(model ? { model } : {}),
+          requestId,
+          attempt: response.attempt,
+        },
       },
     },
     source,
     ...(model ? { model } : {}),
     ...(warnings?.length ? { warnings } : {}),
+  };
+}
+
+export function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
+  const response = ensureObject(value);
+  const requestId = ensureString(response.requestId, 'requestId');
+  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
+    throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
+  }
+  if (response.status !== 'accepted' && response.status !== 'client_rejected' && response.status !== 'failed') {
+    throw new AiGenerationApiError('Generation API returned an invalid validation status.', 0, 'invalid_response');
+  }
+  if (typeof response.repairAvailable !== 'boolean') {
+    throw new AiGenerationApiError('Generation API returned an invalid repair status.', 0, 'invalid_response');
+  }
+  return {
+    requestId,
+    candidateRevision: response.candidateRevision,
+    status: response.status,
+    repairAvailable: response.repairAvailable,
   };
 }
 
@@ -192,6 +234,36 @@ export async function createAiShader(
       method: 'POST',
       body: JSON.stringify(request),
     },
+    options,
+  );
+  return parseAiShaderGenerationResponse(body);
+}
+
+export async function validateAiShader(
+  requestId: string,
+  candidateRevision: 0 | 1,
+  outcome: 'accepted' | 'rejected',
+  diagnostic: AiShaderCompilerDiagnostic | undefined,
+  options: AiGenerationClientOptions = {},
+): Promise<AiShaderValidationResponse> {
+  const body = await requestJson(
+    `/api/ai/shaders/${encodeURIComponent(requestId)}/validation`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ candidateRevision, outcome, ...(diagnostic ? { diagnostic } : {}) }),
+    },
+    options,
+  );
+  return parseAiShaderValidationResponse(body);
+}
+
+export async function repairAiShader(
+  requestId: string,
+  options: AiGenerationClientOptions = {},
+): Promise<AiShaderGenerationResponse> {
+  const body = await requestJson(
+    `/api/ai/shaders/${encodeURIComponent(requestId)}/repair`,
+    { method: 'POST', body: '{}' },
     options,
   );
   return parseAiShaderGenerationResponse(body);

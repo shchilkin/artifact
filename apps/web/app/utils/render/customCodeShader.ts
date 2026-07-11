@@ -53,6 +53,7 @@ void main() {
 export interface CustomCodeShaderCompileResult {
   ok: boolean;
   message: string | null;
+  stage: 'compile' | 'link' | 'runtime-contract' | 'render' | null;
 }
 
 export interface CustomCodeShaderCompileRequirements {
@@ -100,18 +101,18 @@ function linkProgram(gl: WebGLRenderingContext, vertexShader: WebGLShader, fragm
 
 function buildProgram(gl: WebGLRenderingContext, fragmentSource: string) {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, CUSTOM_CODE_VERTEX_SOURCE);
-  if (!vertex.shader) return { program: null, log: vertex.log };
+  if (!vertex.shader) return { program: null, log: vertex.log, stage: 'compile' as const };
 
   const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
   if (!fragment.shader) {
     gl.deleteShader(vertex.shader);
-    return { program: null, log: fragment.log };
+    return { program: null, log: fragment.log, stage: 'compile' as const };
   }
 
   const linked = linkProgram(gl, vertex.shader, fragment.shader);
   gl.deleteShader(vertex.shader);
   gl.deleteShader(fragment.shader);
-  return linked;
+  return { ...linked, stage: linked.program ? null : ('link' as const) };
 }
 
 function createWebGlContext(width: number, height: number) {
@@ -148,22 +149,22 @@ export function compileCustomCodeShaderForDiagnostics(
   requirements: CustomCodeShaderCompileRequirements = {},
 ): CustomCodeShaderCompileResult {
   const blockingIssue = validateCustomShaderCode(code).find((issue) => issue.severity === 'error');
-  if (blockingIssue) return { ok: false, message: blockingIssue.message };
+  if (blockingIssue) return { ok: false, message: blockingIssue.message, stage: 'runtime-contract' };
 
   const { gl } = createWebGlContext(16, 16);
-  if (!gl) return { ok: false, message: 'Shader preview is not available in this browser.' };
+  if (!gl) return { ok: false, message: 'Shader preview is not available in this browser.', stage: 'render' };
   let program: WebGLProgram | null = null;
   try {
     const built = buildProgram(gl, buildCustomCodeFragmentSource(code, properties));
     program = built.program;
-    if (!program) return { ok: false, message: cleanCompileLog(built.log) };
+    if (!program) return { ok: false, message: cleanCompileLog(built.log), stage: built.stage ?? 'compile' };
     const inactiveUniform = findRequiredInactiveUniform(gl, program, properties, requirements);
-    if (inactiveUniform) return { ok: false, message: inactiveUniform };
+    if (inactiveUniform) return { ok: false, message: inactiveUniform, stage: 'runtime-contract' };
     const nonInfluentialInput = findRequiredNonInfluentialInput(gl, program, properties, requirements);
-    if (nonInfluentialInput) return { ok: false, message: nonInfluentialInput };
-    return { ok: true, message: null };
+    if (nonInfluentialInput) return { ok: false, message: nonInfluentialInput, stage: 'runtime-contract' };
+    return { ok: true, message: null, stage: null };
   } catch {
-    return { ok: false, message: 'Shader compilation failed in this browser.' };
+    return { ok: false, message: 'Shader compilation failed in this browser.', stage: 'render' };
   } finally {
     if (program) gl.deleteProgram(program);
     releaseWebGlContext(gl);

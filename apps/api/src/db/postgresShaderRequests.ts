@@ -2,7 +2,9 @@ import type {
   AiShaderRequestRepository,
   AiShaderRequestRow,
   ClaimAiShaderRequestInput,
+  CompleteAiShaderRepairInput,
   CompleteAiShaderRequestInput,
+  RejectAiShaderRequestInput,
 } from './types.js';
 
 export interface PostgresQueryClient {
@@ -22,6 +24,8 @@ const shaderColumns = `
   error_status,
   error_code,
   error_message,
+  compiler_diagnostic_json,
+  repair_count,
   created_at,
   completed_at
 `;
@@ -68,27 +72,74 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
     return result.rows[0] ?? null;
   }
 
-  async complete(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
+  async findByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null> {
+    const result = await this.client.query<AiShaderRequestRow>(
+      `SELECT ${shaderColumns} FROM ai_shader_requests WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [id, userId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async markGenerated(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow> {
     const result = await this.client.query<AiShaderRequestRow>(
       `
         UPDATE ai_shader_requests
-        SET status = 'succeeded',
+        SET status = 'generated',
             response_json = $2::jsonb,
             provider_request_id = $3,
             provider_usage_json = $4::jsonb,
-            completed_at = $5
+            completed_at = NULL
         WHERE id = $1 AND status = 'pending'
         RETURNING ${shaderColumns}
       `,
-      [
-        input.id,
-        input.responseJson,
-        input.providerRequestId ?? null,
-        input.providerUsageJson ?? null,
-        input.completedAt,
-      ],
+      [input.id, input.responseJson, input.providerRequestId ?? null, input.providerUsageJson ?? null],
     );
     return requireRow(result.rows, `Pending shader request not found: ${input.id}`);
+  }
+
+  async markAccepted(id: string, candidateRevision: number, completedAt: Date): Promise<AiShaderRequestRow> {
+    const result = await this.client.query<AiShaderRequestRow>(
+      `UPDATE ai_shader_requests SET status = 'accepted', completed_at = $2
+       WHERE id = $1 AND status = 'generated' AND repair_count = $3 RETURNING ${shaderColumns}`,
+      [id, completedAt, candidateRevision],
+    );
+    return requireRow(result.rows, `Generated shader request not found: ${id}`);
+  }
+
+  async markClientRejected(input: RejectAiShaderRequestInput): Promise<AiShaderRequestRow> {
+    const nextStatus = input.terminal ? 'failed' : 'client_rejected';
+    const result = await this.client.query<AiShaderRequestRow>(
+      `UPDATE ai_shader_requests
+       SET status = $2, compiler_diagnostic_json = $3::jsonb,
+           error_status = CASE WHEN $2 = 'failed' THEN 422 ELSE NULL END,
+           error_code = CASE WHEN $2 = 'failed' THEN 'shader_browser_validation_failed' ELSE NULL END,
+           error_message = CASE WHEN $2 = 'failed' THEN 'The repaired shader did not pass browser validation.' ELSE NULL END,
+           completed_at = CASE WHEN $2 = 'failed' THEN $4 ELSE NULL END
+       WHERE id = $1 AND status = 'generated' AND repair_count = $5 RETURNING ${shaderColumns}`,
+      [input.id, nextStatus, input.diagnosticJson, input.completedAt, input.candidateRevision],
+    );
+    return requireRow(result.rows, `Generated shader request not found: ${input.id}`);
+  }
+
+  async beginRepair(id: string): Promise<AiShaderRequestRow> {
+    const result = await this.client.query<AiShaderRequestRow>(
+      `UPDATE ai_shader_requests SET status = 'repairing', repair_count = repair_count + 1
+       WHERE id = $1 AND status = 'client_rejected' AND repair_count = 0 RETURNING ${shaderColumns}`,
+      [id],
+    );
+    return requireRow(result.rows, `Repairable shader request not found: ${id}`);
+  }
+
+  async completeRepair(input: CompleteAiShaderRepairInput): Promise<AiShaderRequestRow> {
+    const result = await this.client.query<AiShaderRequestRow>(
+      `UPDATE ai_shader_requests
+       SET status = 'generated', response_json = $2::jsonb, provider_request_id = $3,
+           provider_usage_json = COALESCE(provider_usage_json, '{}'::jsonb) || COALESCE($4::jsonb, '{}'::jsonb),
+           completed_at = NULL
+       WHERE id = $1 AND status = 'repairing' AND repair_count = 1 RETURNING ${shaderColumns}`,
+      [input.id, input.responseJson, input.providerRequestId ?? null, input.providerUsageJson ?? null],
+    );
+    return requireRow(result.rows, `Repairing shader request not found: ${input.id}`);
   }
 
   async markFailed(
@@ -103,7 +154,7 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
             error_code = $3,
             error_message = $4,
             completed_at = $5
-        WHERE id = $1 AND status = 'pending'
+        WHERE id = $1 AND status IN ('pending', 'repairing')
         RETURNING ${shaderColumns}
       `,
       [id, error.status, error.code, error.message, error.completedAt],

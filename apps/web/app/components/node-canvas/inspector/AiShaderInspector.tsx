@@ -3,7 +3,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useArtifactAuth } from '../../../hooks/useArtifactAuth';
 import { AI_SHADER_PROMPT_MAX_LENGTH, type AiShaderRequestMode } from '../../../types/aiGeneration';
 import type { GraphShaderNode, ShaderPropertyValue } from '../../../types/config';
-import { AiGenerationApiError, createAiIdempotencyKey, createAiShader } from '../../../utils/aiGenerationClient';
+import {
+  AiGenerationApiError,
+  createAiIdempotencyKey,
+  createAiShader,
+  repairAiShader,
+} from '../../../utils/aiGenerationClient';
+import { validateAndCommitAiShaderCandidate } from '../../../utils/aiShaderAcceptance';
 import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
 import { useNodeCanvasActions } from '../context';
@@ -39,8 +45,14 @@ export function AiShaderInspector({
   const promptTooLong = prompt.length > AI_SHADER_PROMPT_MAX_LENGTH;
   const hasPrompt = prompt.trim().length >= 3;
   const hasResult = Boolean(definition?.code.trim() && provenance);
-  const generating = generationState.matches('creatingOpenAi') || generationState.matches('creatingFallback');
-  const fallbackOffered = generationState.matches('fallbackOffered');
+  const validating =
+    generationState.matches('validating') ||
+    generationState.matches('validatingRepair') ||
+    generationState.matches('validatingFallback');
+  const repairing = generationState.matches('repairing');
+  const generating =
+    generationState.matches('creatingOpenAi') || generationState.matches('creatingFallback') || validating || repairing;
+  const fallbackAvailable = generationState.context.fallbackAvailable;
   const generatingFallback = generationState.matches('creatingFallback');
   const canCreate = canCreateAiShader(prompt, sourceConnected, generating);
   const compileResult = useMemo(() => {
@@ -72,23 +84,31 @@ export function AiShaderInspector({
           }
         : message
           ? {
-              title: fallbackOffered || generationState.matches('failed') ? 'Could not create' : 'Shader ready',
+              title: fallbackAvailable || generationState.matches('failed') ? 'Could not create' : 'Shader ready',
               message,
-              tone: fallbackOffered || generationState.matches('failed') ? ('warning' as const) : ('success' as const),
+              tone:
+                fallbackAvailable || generationState.matches('failed') ? ('warning' as const) : ('success' as const),
             }
           : provenance
             ? {
-                title: provenance.source === 'localFallback' ? 'Local draft' : 'AI version',
+                title:
+                  provenance.source === 'localFallback'
+                    ? 'Local draft'
+                    : provenance.attempt === 'repair'
+                      ? 'AI version · repaired'
+                      : 'AI version',
                 message:
                   provenance.source === 'localFallback'
                     ? 'This local draft is clearly marked and can be tuned below.'
-                    : 'Created with AI. Tune the generated controls below.',
+                    : provenance.attempt === 'repair'
+                      ? 'Created with AI and repaired once after browser validation.'
+                      : 'Created with AI. Tune the generated controls below.',
                 tone: 'info' as const,
               }
             : null;
   const summary = generating
     ? 'creating'
-    : fallbackOffered
+    : fallbackAvailable
       ? 'choose next'
       : generationState.matches('failed') || compileFailed
         ? 'try again'
@@ -103,15 +123,19 @@ export function AiShaderInspector({
                 : 'empty';
   const primaryActionLabel = generationState.matches('creatingOpenAi')
     ? 'Creating...'
-    : fallbackOffered || generationState.matches('failed') || compileFailed
-      ? 'Try Again'
-      : promptTooLong
-        ? 'Shorten Prompt'
-        : !sourceConnected
-          ? 'Connect Source First'
-          : hasResult
-            ? 'Create New Version'
-            : 'Create with AI';
+    : validating
+      ? 'Checking...'
+      : repairing
+        ? 'Repairing...'
+        : fallbackAvailable || generationState.matches('failed') || compileFailed
+          ? 'Try Again'
+          : promptTooLong
+            ? 'Shorten Prompt'
+            : !sourceConnected
+              ? 'Connect Source First'
+              : hasResult
+                ? 'Create New Version'
+                : 'Create with AI';
 
   useEffect(
     () => () => {
@@ -145,41 +169,83 @@ export function AiShaderInspector({
           { baseUrl: apiBaseUrl, bearerToken, signal: controller.signal },
         );
         if (controller.signal.aborted) return;
-        const prepared = compileCustomCodeShaderForDiagnostics(
-          result.instance.definition.code,
-          result.instance.definition.properties,
-          { requireBackdrop: true, requirePropertyUniforms: true },
-        );
-        if (!prepared.ok) throw new GeneratedShaderCompileError(prepared.message);
-        onChange({
-          shaderKind: 'aiShader',
-          role: 'effect',
-          aiPrompt: result.prompt,
-          name: result.instance.definition.label,
-          shaderInstance: result.instance,
-        });
+        sendGeneration({ type: mode === 'localFallback' ? 'FALLBACK_RECEIVED' : 'CANDIDATE_RECEIVED' });
+        setShaderNodeGenerationStatus(shaderNode.id, 'validating');
+        let candidate = result;
+        const clientOptions = { baseUrl: apiBaseUrl, bearerToken, signal: controller.signal };
+        const commitCandidate = (accepted: typeof candidate) =>
+          onChange({
+            shaderKind: 'aiShader',
+            role: 'effect',
+            aiPrompt: accepted.prompt,
+            name: accepted.instance.definition.label,
+            shaderInstance: accepted.instance,
+          });
+        let acceptance = await validateAndCommitAiShaderCandidate(candidate, clientOptions, commitCandidate);
+
+        if (!acceptance.accepted) {
+          if (controller.signal.aborted) return;
+          if (!acceptance.repairAvailable || mode === 'localFallback') {
+            sendGeneration({
+              type: 'VALIDATION_FAILED',
+              message: browserValidationFailureMessage(mode, false),
+              offerFallback: mode === 'openai',
+            });
+            setShaderNodeGenerationStatus(shaderNode.id, 'failed');
+            return;
+          }
+
+          sendGeneration({ type: 'VALIDATION_REPAIRABLE', message: 'Repairing this result for your browser.' });
+          setShaderNodeGenerationStatus(shaderNode.id, 'repairing');
+          try {
+            candidate = await repairAiShader(candidate.requestId, {
+              baseUrl: apiBaseUrl,
+              bearerToken,
+              signal: controller.signal,
+            });
+          } catch (error) {
+            if (controller.signal.aborted) return;
+            sendGeneration({ type: 'REPAIR_FAILED', message: shaderRepairError(error), offerFallback: true });
+            setShaderNodeGenerationStatus(shaderNode.id, 'failed');
+            return;
+          }
+          sendGeneration({ type: 'REPAIR_RECEIVED' });
+          setShaderNodeGenerationStatus(shaderNode.id, 'validating');
+          acceptance = await validateAndCommitAiShaderCandidate(candidate, clientOptions, commitCandidate);
+          if (!acceptance.accepted) {
+            if (controller.signal.aborted) return;
+            sendGeneration({
+              type: 'VALIDATION_FAILED',
+              message: browserValidationFailureMessage(mode, true),
+              offerFallback: true,
+            });
+            setShaderNodeGenerationStatus(shaderNode.id, 'failed');
+            return;
+          }
+        }
+
+        if (controller.signal.aborted) return;
         const successMessage =
-          result.warnings?.join(' ') ??
-          (result.source === 'localFallback'
-            ? 'Made a local draft from this prompt. It stays labeled as local.'
-            : 'Made an editable shader from this prompt. You can tune it below.');
-        sendGeneration(
-          mode === 'localFallback'
-            ? { type: 'FALLBACK_DONE', message: successMessage, source: result.source, model: result.model }
-            : { type: 'OPENAI_DONE', message: successMessage, source: result.source, model: result.model },
-        );
+          candidate.attempt === 'repair'
+            ? 'Created with AI and repaired for this browser. You can tune it below.'
+            : candidate.source === 'localFallback'
+              ? 'Made a local draft from this prompt. It stays labeled as local.'
+              : 'Made an editable shader from this prompt. You can tune it below.';
+        sendGeneration({
+          type: 'VALIDATION_PASSED',
+          message: successMessage,
+          source: candidate.source,
+          model: candidate.model,
+        });
         setShaderNodeGenerationStatus(shaderNode.id, null);
       } catch (error) {
         if (controller.signal.aborted) return;
         const failure = shaderGenerationError(error, mode);
-        if (mode === 'localFallback') {
-          sendGeneration({ type: 'FALLBACK_FAILED', message: failure.message });
-        } else {
-          sendGeneration({
-            type: failure.offerFallback ? 'OPENAI_FAILED' : 'OPENAI_BLOCKED',
-            message: failure.message,
-          });
-        }
+        sendGeneration({
+          type: 'UNEXPECTED_FAILED',
+          message: failure.message,
+          offerFallback: mode === 'openai' && failure.offerFallback,
+        });
         setShaderNodeGenerationStatus(shaderNode.id, 'failed');
       } finally {
         if (requestRef.current === controller) requestRef.current = null;
@@ -215,7 +281,7 @@ export function AiShaderInspector({
         open={promptOpen}
         onToggle={() => setPromptOpen((open) => !open)}
       >
-        {!hasResult && !generating && !fallbackOffered && !generationState.matches('failed') ? (
+        {!hasResult && !generating && !fallbackAvailable && !generationState.matches('failed') ? (
           <ShaderStatusMessage {...aiShaderEmptyStatus(hasPrompt, sourceConnected)} tone="info" />
         ) : null}
         <InspectorTextArea
@@ -244,7 +310,7 @@ export function AiShaderInspector({
         >
           {primaryActionLabel}
         </button>
-        {fallbackOffered ? (
+        {fallbackAvailable ? (
           <button
             type="button"
             className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
@@ -259,12 +325,22 @@ export function AiShaderInspector({
             <span className="node-inspector-loading-dot" aria-hidden="true" />
             <div>
               <p className="node-inspector-loading-title">
-                {generatingFallback ? 'Making local draft' : 'Creating shader'}
+                {repairing
+                  ? 'Repairing shader'
+                  : validating
+                    ? 'Checking shader'
+                    : generatingFallback
+                      ? 'Making local draft'
+                      : 'Creating shader'}
               </p>
               <p className="node-inspector-loading-copy">
-                {generatingFallback
-                  ? 'Making an editable local version from this prompt.'
-                  : 'Creating the effect and its editable controls. This may take a few seconds.'}
+                {repairing
+                  ? 'Adjusting the result once so it works in this browser.'
+                  : validating
+                    ? 'Making sure the result works before replacing your current shader.'
+                    : generatingFallback
+                      ? 'Making an editable local version from this prompt.'
+                      : 'Creating the effect and its editable controls. This may take a few seconds.'}
               </p>
             </div>
           </div>
@@ -313,20 +389,7 @@ export function AiShaderInspector({
   );
 }
 
-class GeneratedShaderCompileError extends Error {
-  constructor(message: string | null) {
-    super(message ?? 'This result could not be prepared in this browser.');
-    this.name = 'GeneratedShaderCompileError';
-  }
-}
-
 function shaderGenerationError(error: unknown, mode: AiShaderRequestMode): { message: string; offerFallback: boolean } {
-  if (error instanceof GeneratedShaderCompileError) {
-    return {
-      message: 'The created result could not be prepared in this browser. Try a different prompt or create it again.',
-      offerFallback: false,
-    };
-  }
   if (error instanceof AiGenerationApiError) {
     switch (error.code) {
       case 'unauthenticated':
@@ -393,6 +456,20 @@ function shaderGenerationError(error: unknown, mode: AiShaderRequestMode): { mes
         : 'The local version could not be created. Try again.',
     offerFallback: false,
   };
+}
+
+function browserValidationFailureMessage(mode: AiShaderRequestMode, repaired: boolean) {
+  if (mode === 'localFallback') return 'The local draft did not work in this browser. Try a different prompt.';
+  return repaired
+    ? 'The repaired result still did not work in this browser. Your previous shader was kept.'
+    : 'The result did not work in this browser. Your previous shader was kept.';
+}
+
+function shaderRepairError(error: unknown) {
+  if (error instanceof AiGenerationApiError && error.code === 'shader_provider_timeout') {
+    return 'Repair took too long. Your previous shader was kept.';
+  }
+  return 'The result could not be repaired. Your previous shader was kept.';
 }
 
 function getAiApiDevToken() {

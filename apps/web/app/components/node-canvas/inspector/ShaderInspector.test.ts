@@ -48,14 +48,45 @@ describe('ShaderInspector metadata', () => {
   it('offers local fallback only for recoverable OpenAI failures', () => {
     const recoverable = createActor(shaderGenerationMachine).start();
     recoverable.send({ type: 'CREATE_OPENAI' });
-    recoverable.send({ type: 'OPENAI_FAILED', message: 'Provider failed.' });
-    expect(recoverable.getSnapshot().matches('fallbackOffered')).toBe(true);
+    recoverable.send({ type: 'UNEXPECTED_FAILED', message: 'Provider failed.', offerFallback: true });
+    expect(recoverable.getSnapshot().matches('failed')).toBe(true);
+    expect(recoverable.getSnapshot().context.fallbackAvailable).toBe(true);
 
     const blocked = createActor(shaderGenerationMachine).start();
     blocked.send({ type: 'CREATE_OPENAI' });
-    blocked.send({ type: 'OPENAI_BLOCKED', message: 'Quota reached.' });
+    blocked.send({ type: 'UNEXPECTED_FAILED', message: 'Quota reached.' });
     expect(blocked.getSnapshot().matches('failed')).toBe(true);
     expect(blocked.getSnapshot().context.message).toBe('Quota reached.');
+  });
+
+  it('does not succeed before browser validation and permits exactly one repair path', () => {
+    const actor = createActor(shaderGenerationMachine).start();
+    actor.send({ type: 'CREATE_OPENAI' });
+    actor.send({ type: 'CANDIDATE_RECEIVED' });
+    expect(actor.getSnapshot().matches('validating')).toBe(true);
+
+    actor.send({ type: 'VALIDATION_REPAIRABLE', message: 'Repairing.' });
+    expect(actor.getSnapshot().matches('repairing')).toBe(true);
+    actor.send({ type: 'REPAIR_RECEIVED' });
+    expect(actor.getSnapshot().matches('validatingRepair')).toBe(true);
+
+    actor.send({ type: 'VALIDATION_FAILED', message: 'Still invalid.' });
+    expect(actor.getSnapshot().matches('failed')).toBe(true);
+    actor.send({ type: 'REPAIR_RECEIVED' });
+    expect(actor.getSnapshot().matches('failed')).toBe(true);
+  });
+
+  it('leaves every active phase when an unexpected API failure occurs', () => {
+    const actor = createActor(shaderGenerationMachine).start();
+    actor.send({ type: 'CREATE_OPENAI' });
+    actor.send({ type: 'CANDIDATE_RECEIVED' });
+    actor.send({ type: 'UNEXPECTED_FAILED', message: 'Validation request failed.', offerFallback: true });
+
+    expect(actor.getSnapshot().matches('failed')).toBe(true);
+    expect(actor.getSnapshot().context).toMatchObject({
+      message: 'Validation request failed.',
+      fallbackAvailable: true,
+    });
   });
 
   it('describes AI shader empty state as a source-connected effect', () => {

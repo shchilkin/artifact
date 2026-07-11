@@ -6,12 +6,15 @@ import type {
   AiGenerationJobResponse,
   AiGenerationSettings,
   AiProvider,
+  AiShaderCompilerDiagnostic,
   AiShaderGenerationResponse,
   AiShaderRequestMode,
+  AiShaderValidationResponse,
   CreateAiShaderRequest,
   CreateGenerationRequest,
+  ValidateAiShaderRequest,
 } from '../contracts.js';
-import { AI_API_PATHS, AI_PROVIDERS } from '../contracts.js';
+import { AI_API_PATHS, AI_PROVIDERS, AI_SHADER_DIAGNOSTIC_MAX_LENGTH, normalizeShaderInstance } from '../contracts.js';
 import { isActiveGenerationJobExistsError } from '../db/errors.js';
 import type { ApiRepositories } from '../db/repositories.js';
 import type { AiGenerationJobRow, AiShaderRequestRow, AssetRow, JsonObject } from '../db/types.js';
@@ -50,7 +53,11 @@ type AiRouteHandler = (
   deps: AiRouteDeps,
   pathname: string,
 ) => Promise<JsonResponse<
-  AiAccessResponse | AiGenerationJobResponse | AiShaderGenerationResponse | { code: string; message: string }
+  | AiAccessResponse
+  | AiGenerationJobResponse
+  | AiShaderGenerationResponse
+  | AiShaderValidationResponse
+  | { code: string; message: string }
 > | null>;
 
 const AI_ROUTE_HANDLERS: Array<{
@@ -64,6 +71,16 @@ const AI_ROUTE_HANDLERS: Array<{
   {
     match: (method, pathname) => method === 'POST' && pathname === AI_API_PATHS.shader,
     handle: handleCreateShaderRoute,
+  },
+  {
+    match: (method, pathname) => method === 'POST' && shaderValidationIdFromPath(pathname) !== null,
+    handle: (request, deps, pathname) =>
+      handleValidateShaderRoute(request, shaderValidationIdFromPath(pathname) ?? '', deps),
+  },
+  {
+    match: (method, pathname) => method === 'POST' && shaderRepairIdFromPath(pathname) !== null,
+    handle: (request, deps, pathname) =>
+      handleRepairShaderRequest(request, shaderRepairIdFromPath(pathname) ?? '', deps),
   },
   {
     match: (method, pathname) => method === 'POST' && pathname === '/api/ai/generations',
@@ -85,7 +102,11 @@ export async function handleAiRequest(
   request: AiRouteRequest,
   deps: AiRouteDeps,
 ): Promise<JsonResponse<
-  AiAccessResponse | AiGenerationJobResponse | AiShaderGenerationResponse | { code: string; message: string }
+  | AiAccessResponse
+  | AiGenerationJobResponse
+  | AiShaderGenerationResponse
+  | AiShaderValidationResponse
+  | { code: string; message: string }
 > | null> {
   const method = request.method ?? 'GET';
   const pathname = new URL(request.url ?? '/', 'http://artifact.local').pathname;
@@ -96,6 +117,15 @@ export async function handleAiRequest(
 async function handleCreateShaderRoute(request: AiRouteRequest, deps: AiRouteDeps) {
   const body = await readCreateShaderBody(request);
   return body.ok ? handleCreateShaderRequest(request, body.value, deps) : body.response;
+}
+
+async function handleValidateShaderRoute(request: AiRouteRequest, requestId: string, deps: AiRouteDeps) {
+  try {
+    const body = await readJsonBody<ValidateAiShaderRequest>(request);
+    return handleValidateShaderRequest(request, requestId, body, deps);
+  } catch {
+    return errorJson(400, 'invalid_json', 'Request body must be valid JSON.');
+  }
 }
 
 async function handleCreateGenerationRoute(request: AiRouteRequest, deps: AiRouteDeps) {
@@ -135,6 +165,16 @@ function generationIdFromPath(pathname: string) {
 
 function cancelGenerationIdFromPath(pathname: string) {
   const match = /^\/api\/ai\/generations\/([^/]+)\/cancel$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+function shaderValidationIdFromPath(pathname: string) {
+  const match = /^\/api\/ai\/shaders\/([^/]+)\/validation$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+function shaderRepairIdFromPath(pathname: string) {
+  const match = /^\/api\/ai\/shaders\/([^/]+)\/repair$/.exec(pathname);
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
@@ -206,6 +246,8 @@ export async function handleCreateShaderRequest(
       'shader_provider_unavailable',
       'shader_provider_timeout',
       'shader_provider_failed',
+      'shader_repair_failed',
+      'shader_browser_validation_failed',
     ]);
     if (
       !openAiAttempt ||
@@ -271,19 +313,35 @@ export async function handleCreateShaderRequest(
     return errorJson(shaderResult.failure.status, shaderResult.failure.code, shaderResult.failure.message);
   }
   const responseBody: AiShaderGenerationResponse = {
+    requestId: claimed.row.id,
+    candidateRevision: 0,
+    status: 'generated',
+    attempt: modeResult.mode === 'localFallback' ? 'localFallback' : 'initial',
     prompt: promptResult.prompt,
-    instance: shaderResult.instance,
+    instance: {
+      ...shaderResult.instance,
+      definition: {
+        ...shaderResult.instance.definition,
+        provenance: {
+          ...shaderResult.instance.definition.provenance,
+          source: shaderResult.source,
+          prompt: promptResult.prompt,
+          ...(shaderResult.model ? { model: shaderResult.model } : {}),
+          requestId: claimed.row.id,
+          attempt: modeResult.mode === 'localFallback' ? 'localFallback' : 'initial',
+        },
+      },
+    },
     source: shaderResult.source,
     ...(shaderResult.model ? { model: shaderResult.model } : {}),
   };
-  await deps.repositories.shaderRequests.complete({
+  await deps.repositories.shaderRequests.markGenerated({
     id: claimed.row.id,
     responseJson: toJsonObject(responseBody),
     providerRequestId: shaderResult.providerRequestId,
     providerUsageJson: shaderResult.usage ? toJsonObject(shaderResult.usage) : null,
-    completedAt: deps.now?.() ?? new Date(),
   });
-  logInfo('ai_shader.generated', {
+  logInfo('shader_generated', {
     requestId: claimed.row.id,
     userId: authResult.user.id,
     source: shaderResult.source,
@@ -367,6 +425,286 @@ async function createShader(
   }
 }
 
+export async function handleValidateShaderRequest(
+  request: RequestLike,
+  requestId: string,
+  body: ValidateAiShaderRequest,
+  deps: AiRouteDeps,
+): Promise<JsonResponse<AiShaderValidationResponse | { code: string; message: string }>> {
+  const authResult = await authenticateCreateShader(request, deps);
+  if (!authResult.ok) return authResult.response;
+  const shaderRequest = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
+  if (!shaderRequest) return errorJson(404, 'shader_request_not_found', 'Shader request not found.');
+  if (
+    (body?.candidateRevision !== 0 && body?.candidateRevision !== 1) ||
+    body.candidateRevision !== shaderRequest.repair_count
+  ) {
+    return errorJson(409, 'shader_candidate_changed', 'A newer shader candidate is waiting for validation.');
+  }
+
+  if (body?.outcome === 'accepted') {
+    if (shaderRequest.status === 'accepted') {
+      return json(200, {
+        requestId,
+        candidateRevision: body.candidateRevision,
+        status: 'accepted',
+        repairAvailable: false,
+      });
+    }
+    if (shaderRequest.status !== 'generated') {
+      return errorJson(409, 'shader_validation_conflict', 'This shader is not waiting for browser validation.');
+    }
+    try {
+      await deps.repositories.shaderRequests.markAccepted(
+        requestId,
+        body.candidateRevision,
+        deps.now?.() ?? new Date(),
+      );
+    } catch {
+      const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
+      if (current?.status !== 'accepted' || current.repair_count !== body.candidateRevision) {
+        return errorJson(409, 'shader_candidate_changed', 'A newer shader candidate was already resolved.');
+      }
+    }
+    logInfo(shaderRequest.repair_count > 0 ? 'shader_repair_succeeded' : 'shader_accepted', {
+      requestId,
+      userId: authResult.user.id,
+      repairCount: shaderRequest.repair_count,
+      source: shaderRequest.mode,
+    });
+    return json(200, {
+      requestId,
+      candidateRevision: body.candidateRevision,
+      status: 'accepted',
+      repairAvailable: false,
+    });
+  }
+
+  if (body?.outcome !== 'rejected') {
+    return errorJson(400, 'invalid_shader_validation', 'Validation outcome must be accepted or rejected.');
+  }
+  const diagnostic = sanitizeCompilerDiagnostic(body.diagnostic);
+  if (!diagnostic) {
+    return errorJson(400, 'invalid_shader_diagnostic', 'A browser compiler diagnostic is required.');
+  }
+  if (shaderRequest.status === 'client_rejected') {
+    return json(200, {
+      requestId,
+      candidateRevision: body.candidateRevision,
+      status: 'client_rejected',
+      repairAvailable: shaderRequest.repair_count === 0,
+    });
+  }
+  if (shaderRequest.status === 'failed') {
+    return json(200, {
+      requestId,
+      candidateRevision: body.candidateRevision,
+      status: 'failed',
+      repairAvailable: false,
+    });
+  }
+  if (shaderRequest.status !== 'generated') {
+    return errorJson(409, 'shader_validation_conflict', 'This shader is not waiting for browser validation.');
+  }
+  const terminal = shaderRequest.mode !== 'openai' || shaderRequest.repair_count >= 1;
+  try {
+    await deps.repositories.shaderRequests.markClientRejected({
+      id: requestId,
+      candidateRevision: body.candidateRevision,
+      diagnosticJson: toJsonObject(diagnostic),
+      terminal,
+      completedAt: deps.now?.() ?? new Date(),
+    });
+  } catch {
+    const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
+    if (
+      (current?.status !== 'client_rejected' && current?.status !== 'failed') ||
+      current.repair_count !== body.candidateRevision
+    ) {
+      return errorJson(409, 'shader_candidate_changed', 'A newer shader candidate was already resolved.');
+    }
+    return json(200, {
+      requestId,
+      candidateRevision: body.candidateRevision,
+      status: current.status,
+      repairAvailable: current.status === 'client_rejected' && current.repair_count === 0,
+    });
+  }
+  logWarn(terminal && shaderRequest.repair_count > 0 ? 'shader_repair_failed' : 'shader_compile_rejected', {
+    requestId,
+    userId: authResult.user.id,
+    stage: diagnostic.stage,
+    browser: diagnostic.browser,
+    repairCount: shaderRequest.repair_count,
+  });
+  return json(200, {
+    requestId,
+    candidateRevision: body.candidateRevision,
+    status: terminal ? 'failed' : 'client_rejected',
+    repairAvailable: !terminal,
+  });
+}
+
+export async function handleRepairShaderRequest(
+  request: RequestLike,
+  requestId: string,
+  deps: AiRouteDeps,
+): Promise<JsonResponse<AiShaderGenerationResponse | { code: string; message: string }>> {
+  const authResult = await authenticateCreateShader(request, deps);
+  if (!authResult.ok) return authResult.response;
+  const shaderRequest = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
+  if (!shaderRequest) return errorJson(404, 'shader_request_not_found', 'Shader request not found.');
+  if (shaderRequest.mode !== 'openai') {
+    return errorJson(409, 'shader_repair_not_available', 'Local drafts are not repaired with OpenAI.');
+  }
+  if (
+    shaderRequest.repair_count === 1 &&
+    (shaderRequest.status === 'generated' || shaderRequest.status === 'accepted')
+  ) {
+    return storedGeneratedShaderResponse(shaderRequest, 'repair');
+  }
+  if (shaderRequest.status === 'repairing') {
+    return errorJson(409, 'shader_repair_in_progress', 'This shader is already being repaired.');
+  }
+  if (shaderRequest.status !== 'client_rejected' || shaderRequest.repair_count !== 0) {
+    return errorJson(409, 'shader_repair_not_available', 'This shader cannot be repaired again.');
+  }
+  if (!deps.shaderProvider || !shaderRequest.response_json || !shaderRequest.compiler_diagnostic_json) {
+    return errorJson(409, 'shader_repair_not_available', 'The failed shader details are unavailable.');
+  }
+  const failedResponse = shaderRequest.response_json as unknown as AiShaderGenerationResponse;
+  const failedInstance = normalizeShaderInstance(failedResponse.instance, `${requestId}-failed`);
+  const diagnostic = sanitizeCompilerDiagnostic(shaderRequest.compiler_diagnostic_json);
+  if (!failedInstance || !diagnostic) {
+    return errorJson(409, 'shader_repair_not_available', 'The failed shader details are unavailable.');
+  }
+
+  try {
+    await deps.repositories.shaderRequests.beginRepair(requestId);
+  } catch {
+    const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
+    if (current?.repair_count === 1 && (current.status === 'generated' || current.status === 'accepted')) {
+      return storedGeneratedShaderResponse(current, 'repair');
+    }
+    if (current?.status === 'repairing') {
+      return errorJson(409, 'shader_repair_in_progress', 'This shader is already being repaired.');
+    }
+    return errorJson(409, 'shader_repair_not_available', 'This shader cannot be repaired again.');
+  }
+  logInfo('shader_repairing', { requestId, userId: authResult.user.id, model: deps.shaderProvider.defaultModel });
+  try {
+    const result = await deps.shaderProvider.generateShader({
+      prompt: shaderRequest.prompt,
+      clientRequestId: `${requestId}-repair`,
+      repair: { instance: failedInstance, diagnostic },
+    });
+    const model = deps.shaderProvider.defaultModel;
+    const instance = {
+      ...result.instance,
+      definition: {
+        ...result.instance.definition,
+        provenance: {
+          source: 'openai' as const,
+          prompt: shaderRequest.prompt,
+          model,
+          requestId,
+          attempt: 'repair' as const,
+        },
+      },
+    };
+    const responseBody: AiShaderGenerationResponse = {
+      requestId,
+      candidateRevision: 1,
+      status: 'generated',
+      attempt: 'repair',
+      prompt: shaderRequest.prompt,
+      instance,
+      source: 'openai',
+      model,
+    };
+    await deps.repositories.shaderRequests.completeRepair({
+      id: requestId,
+      responseJson: toJsonObject(responseBody),
+      providerRequestId: result.requestId,
+      providerUsageJson: result.usage
+        ? toJsonObject({
+            repairInputTokens: result.usage.inputTokens ?? null,
+            repairOutputTokens: result.usage.outputTokens ?? null,
+            repairTotalTokens: result.usage.totalTokens ?? null,
+          })
+        : null,
+    });
+    logInfo('shader_repair_generated', {
+      requestId,
+      userId: authResult.user.id,
+      providerRequestId: result.requestId,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+    });
+    return json(200, responseBody);
+  } catch (error) {
+    const timedOut = isOpenAiShaderTimeoutError(error);
+    const failure = {
+      status: timedOut ? 504 : 502,
+      code: timedOut ? 'shader_provider_timeout' : 'shader_repair_failed',
+      message: timedOut ? 'Shader repair took too long. Try again.' : 'The shader could not be repaired.',
+    };
+    await deps.repositories.shaderRequests.markFailed(requestId, {
+      ...failure,
+      completedAt: deps.now?.() ?? new Date(),
+    });
+    logWarn('shader_repair_failed', {
+      requestId,
+      userId: authResult.user.id,
+      reason: error instanceof Error ? error.message : 'unknown_error',
+    });
+    return errorJson(failure.status, failure.code, failure.message);
+  }
+}
+
+function sanitizeCompilerDiagnostic(value: unknown): AiShaderCompilerDiagnostic | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const diagnostic = value as Record<string, unknown>;
+  if (!['compile', 'link', 'runtime-contract', 'render'].includes(String(diagnostic.stage))) return null;
+  if (typeof diagnostic.message !== 'string') return null;
+  const message = Array.from(diagnostic.message, (character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127 ? ' ' : character;
+  })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!message) return null;
+  const browser =
+    typeof diagnostic.browser === 'string'
+      ? diagnostic.browser
+          .replace(/[^\x20-\x7e]/g, '')
+          .trim()
+          .slice(0, 160)
+      : undefined;
+  return {
+    stage: diagnostic.stage as AiShaderCompilerDiagnostic['stage'],
+    message: message.slice(0, AI_SHADER_DIAGNOSTIC_MAX_LENGTH),
+    ...(browser ? { browser } : {}),
+  };
+}
+
+function storedGeneratedShaderResponse(
+  request: AiShaderRequestRow,
+  attempt: AiShaderGenerationResponse['attempt'],
+): JsonResponse<AiShaderGenerationResponse | { code: string; message: string }> {
+  if (!request.response_json)
+    return errorJson(500, 'shader_response_missing', 'The saved shader response is unavailable.');
+  const body = request.response_json as unknown as AiShaderGenerationResponse;
+  return json(200, {
+    ...body,
+    requestId: request.id,
+    candidateRevision: request.repair_count === 0 ? 0 : 1,
+    status: request.status === 'accepted' ? 'accepted' : 'generated',
+    attempt,
+  });
+}
+
 function storedShaderResponse(
   request: AiShaderRequestRow,
   prompt: string,
@@ -375,8 +713,11 @@ function storedShaderResponse(
   if (request.prompt !== prompt || request.mode !== mode) {
     return errorJson(409, 'idempotency_conflict', 'This request key was already used for another shader.');
   }
-  if (request.status === 'pending') {
+  if (request.status === 'pending' || request.status === 'repairing') {
     return errorJson(409, 'shader_request_in_progress', 'This shader is still being created. Try again shortly.');
+  }
+  if (request.status === 'client_rejected') {
+    return errorJson(409, 'shader_repair_required', 'This shader needs one browser-guided repair.');
   }
   if (request.status === 'failed') {
     return errorJson(
@@ -385,15 +726,17 @@ function storedShaderResponse(
       request.error_message ?? 'Shader generation failed. Try again.',
     );
   }
-  if (!request.response_json) {
+  if (!request.response_json)
     return errorJson(500, 'shader_response_missing', 'The saved shader response is unavailable.');
-  }
   logInfo('ai_shader.idempotency_hit', {
     requestId: request.id,
     userId: request.user_id,
     source: request.mode,
   });
-  return json(200, request.response_json as unknown as AiShaderGenerationResponse);
+  return storedGeneratedShaderResponse(
+    request,
+    request.mode === 'localFallback' ? 'localFallback' : request.repair_count > 0 ? 'repair' : 'initial',
+  );
 }
 
 function validateShaderMode(

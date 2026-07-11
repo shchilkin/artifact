@@ -146,6 +146,24 @@ configured. A deterministic local shader generator is available only as an
 explicit user-confirmed fallback, and fallback definitions carry
 `localFallback` provenance. API calls create or update shader requests
 only, never participate in preview/export rendering.
+OpenAI shader generation is a two-phase operation. The API first stores and
+returns a `generated` candidate. The browser then compiles that exact definition
+with the production WebGL runtime and reports either `accepted` or a bounded,
+sanitized diagnostic. A rejected initial OpenAI candidate may enter one
+`client_rejected -> repairing -> generated` cycle; the repaired candidate must
+pass the same browser check. A second rejection is terminal. The editor does not
+write a candidate into `CanvasDocument` until the server records `accepted`, so
+the previous working shader remains visible through generation, validation,
+repair, and failure.
+Validation reports include the candidate revision (`0` for the initial result,
+`1` for its repair). Repository transitions compare that revision atomically so
+a delayed initial browser response cannot accept or reject the repaired result.
+Repair is authorized by the stored request owner and uses the server-stored
+prompt and failed definition. Browser input is limited to validation stage,
+short diagnostic text, and browser identification. Repair does not reserve a
+second user quota unit, and the request row limits `repair_count` to one.
+Repair retries are idempotent through the owner-scoped shader request id and its
+persisted lifecycle state; there is no separate client repair key.
 Each shader request carries a per-user idempotency key. The API stores the
 completed response and returns it for a repeated key without calling OpenAI or
 charging monthly quota again. OpenAI requests use a bounded timeout and record
@@ -154,6 +172,10 @@ the deterministic local fallback does not consume provider quota. Quota is
 reserved atomically before an OpenAI call so parallel requests cannot cross the
 monthly limit. A local fallback request must reference a previously failed
 OpenAI shader request for the same user.
+Accepted definitions retain lightweight provenance with source, model, request
+id, and whether the accepted result was the initial generation, one repair, or
+an explicit local fallback. Compiler diagnostics and lifecycle state remain in
+API storage and never enter the document.
 AI Shader output is controlled by its saved definition, instance property
 values, built-in uniforms that the code actually reads, and effect-only
 opacity/blend settings. Preset-only palette, shape, placement, and texture

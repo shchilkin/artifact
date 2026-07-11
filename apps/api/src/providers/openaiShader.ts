@@ -17,6 +17,10 @@ interface FetchResponseLike {
 export interface ShaderGenerationRequest {
   prompt: string;
   clientRequestId: string;
+  repair?: {
+    instance: ShaderInstance;
+    diagnostic: { stage: string; message: string; browser?: string };
+  };
 }
 
 export interface ShaderGenerationResult {
@@ -88,10 +92,15 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
             model,
             max_output_tokens: 2_400,
             reasoning: { effort: 'low' },
-            input: [
-              { role: 'system', content: SHADER_SYSTEM_PROMPT },
-              { role: 'user', content: request.prompt },
-            ],
+            input: request.repair
+              ? [
+                  { role: 'system', content: SHADER_REPAIR_SYSTEM_PROMPT },
+                  { role: 'user', content: repairPrompt(request) },
+                ]
+              : [
+                  { role: 'system', content: SHADER_SYSTEM_PROMPT },
+                  { role: 'user', content: request.prompt },
+                ],
             text: {
               format: {
                 type: 'json_schema',
@@ -146,6 +155,18 @@ At most one loop is allowed. It must use the exact form for (int i = 0; i < N; i
 Available built-in uniforms: sampler2D u_backdrop, vec2 u_resolution, float u_seed, float u_strength, float u_has_backdrop.
 Every editable property must be listed in properties and read in code as u_prop_<key>. Number and boolean properties are float uniforms; colors are vec3 uniforms.
 Use at most 8 useful properties. Do not emit unused properties, animation uniforms, JavaScript, HTML, WGSL, markdown, or commentary.`;
+
+const SHADER_REPAIR_SYSTEM_PROMPT = `${SHADER_SYSTEM_PROMPT}
+Repair the supplied shader so it passes the reported browser validation failure. Preserve the original visual intent and useful editable controls. Return the complete corrected definition, never a patch or explanation.`;
+
+function repairPrompt(request: ShaderGenerationRequest) {
+  if (!request.repair) return request.prompt;
+  return JSON.stringify({
+    originalPrompt: request.prompt,
+    failedDefinition: request.repair.instance.definition,
+    compilerDiagnostic: request.repair.diagnostic,
+  });
+}
 
 function readGeneratedShader(body: OpenAiResponsesApiBody): GeneratedShaderPayload {
   const outputText = readOutputText(body);

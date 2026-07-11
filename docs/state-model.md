@@ -21,7 +21,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 | Gallery media view state | `mediaViewStates` | No | No | No | No |
 | Image assets/cache | `assetStore`, `useEditorAssets` | Asset payloads in IndexedDB; decoded cache is not | No | Yes, as render input | Yes when image loads |
 | Imported font assets/cache | `fontStore`, shared Font Library picker, renderer font loading | Font payloads in IndexedDB; `FontFace` cache is not | No | Yes, as render input for text | Yes for text thumbnails/output |
-| AI generation provenance/history | `ImageLayer.aiGeneration`, `ImageLayer.aiGenerationHistory` | Yes, lightweight prompt/job status and successful variant refs only | Yes when attached to a layer | Yes only through the selected `src` | UI status/history badge only until `src` changes |
+| AI generation provenance/history | Image generation fields and accepted `ShaderDefinition.provenance` | Yes, lightweight prompt/job or accepted shader provenance only | Yes when attached to a layer/node | Yes only through the selected asset or accepted shader | UI status/history badge only until accepted output changes |
 | Local projects and recovery copy | `useProjects`, `projectStore` | Yes, IndexedDB | No | Only when loaded | Project thumbnail only |
 | Storage/capability status | `useBrowserStorageStatus`, browser capability helpers | No | No | No | No |
 
@@ -57,6 +57,9 @@ Rules:
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
+- AI Shader candidates, browser compiler diagnostics, and repair lifecycle state
+  stay outside the document. Commit only the browser-accepted `ShaderInstance`;
+  keep the previous accepted instance on every failed attempt.
 - Seeded per-node variation belongs in `seedOffset` fields on seeded
   layer/node types: emoji fields, procedural sources, effect nodes, and repeat
   nodes. The document seed remains the global scene seed.

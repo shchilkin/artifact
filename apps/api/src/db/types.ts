@@ -8,7 +8,7 @@ export type DbNumeric = string;
 export type UserRole = 'user' | 'admin' | 'operator' | string;
 export type PlusStatus = 'none' | 'active' | 'trialing' | 'past_due' | 'cancelled' | string;
 export type AiGenerationJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'expired';
-export type AiShaderRequestStatus = 'pending' | 'succeeded' | 'failed';
+export type AiShaderRequestStatus = 'pending' | 'generated' | 'client_rejected' | 'repairing' | 'accepted' | 'failed';
 
 export interface UserRow {
   id: string;
@@ -59,6 +59,8 @@ export interface AiShaderRequestRow {
   error_status: number | null;
   error_code: string | null;
   error_message: string | null;
+  compiler_diagnostic_json: JsonObject | null;
+  repair_count: number;
   created_at: DbTimestamp;
   completed_at: DbTimestamp | null;
 }
@@ -135,7 +137,18 @@ export interface CompleteAiShaderRequestInput {
   responseJson: JsonObject;
   providerRequestId?: string | null;
   providerUsageJson?: JsonObject | null;
+}
+
+export interface RejectAiShaderRequestInput {
+  id: string;
+  candidateRevision: number;
+  diagnosticJson: JsonObject;
+  terminal: boolean;
   completedAt: Date;
+}
+
+export interface CompleteAiShaderRepairInput extends CompleteAiShaderRequestInput {
+  providerUsageJson?: JsonObject | null;
 }
 
 export interface CreateAssetInput {
@@ -197,7 +210,12 @@ export interface AiGenerationJobRepository {
 export interface AiShaderRequestRepository {
   claim(input: ClaimAiShaderRequestInput): Promise<{ row: AiShaderRequestRow; claimed: boolean }>;
   findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderRequestRow | null>;
-  complete(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow>;
+  findByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null>;
+  markGenerated(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow>;
+  markAccepted(id: string, candidateRevision: number, completedAt: Date): Promise<AiShaderRequestRow>;
+  markClientRejected(input: RejectAiShaderRequestInput): Promise<AiShaderRequestRow>;
+  beginRepair(id: string): Promise<AiShaderRequestRow>;
+  completeRepair(input: CompleteAiShaderRepairInput): Promise<AiShaderRequestRow>;
   markFailed(
     id: string,
     error: { status: number; code: string; message: string; completedAt: Date },

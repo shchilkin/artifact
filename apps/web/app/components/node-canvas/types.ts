@@ -251,7 +251,7 @@ export interface NodeCanvasActionsContextValue {
   setPrimitiveViewportActive: (id: string, active: boolean) => void;
 }
 
-export type ShaderNodeGenerationStatus = 'creatingOpenAi' | 'creatingFallback' | 'failed';
+export type ShaderNodeGenerationStatus = 'creatingOpenAi' | 'creatingFallback' | 'validating' | 'repairing' | 'failed';
 
 export type ContextMenuState =
   | { type: 'pane-add'; x: number; y: number; flowPos: { x: number; y: number } }
