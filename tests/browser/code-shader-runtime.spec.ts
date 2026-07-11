@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 import type { ShaderPropertyDefinition } from '../../apps/web/app/types/config';
+import { supportsWebGl } from './helpers';
 
 test('preserves backdrop orientation through an identity Code Shader', async ({ page }) => {
   await page.goto('/');
+  test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const corners = await page.evaluate(async () => {
     const shaderRuntime = await import('/app/utils/render/customCodeShader.ts');
@@ -64,6 +66,7 @@ test('preserves backdrop orientation through an identity Code Shader', async ({ 
 
 test('renders Code Shader output before releasing disposable WebGL contexts', async ({ page }) => {
   await page.goto('/');
+  test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
     const shaderRuntime = await import('/app/utils/render/customCodeShader.ts');
@@ -255,6 +258,7 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
 
 test('runs an AI shader as a backdrop-aware graph effect with preview and output parity', async ({ page }) => {
   await page.goto('/');
+  test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
     const { makeFillLayer, makeGraphShaderNode } = await import('/app/types/config.ts');
@@ -317,6 +321,7 @@ test('runs an AI shader as a backdrop-aware graph effect with preview and output
 
 test('migrates legacy AI operations into a compilable backdrop-aware shader', async ({ page }) => {
   await page.goto('/');
+  test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
     const { normalizeDocument } = await import('/app/utils/documentPersistence.ts');

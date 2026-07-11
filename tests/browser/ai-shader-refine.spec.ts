@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
+import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, supportsWebGl, switchToNodeView } from './helpers';
 
 const acceptedShader = {
   version: 1,
@@ -146,6 +146,7 @@ test('refines an accepted AI shader only after browser validation', async ({ pag
   });
 
   await gotoDocument(page, documentFixture);
+  test.skip(!(await supportsWebGl(page)), 'AI shader browser acceptance requires WebGL.');
   await switchToNodeView(page);
   await page.locator('.react-flow__node-shaderNode').click();
 

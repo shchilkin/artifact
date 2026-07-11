@@ -43,6 +43,10 @@ export function expectNoBrowserIssues(page: Page): void {
   expect(consoleIssues.get(page) ?? []).toEqual([]);
 }
 
+export async function supportsWebGl(page: Page): Promise<boolean> {
+  return page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl')));
+}
+
 export function documentUrl(doc: object): string {
   return `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
 }
