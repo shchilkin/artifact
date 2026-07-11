@@ -1,7 +1,7 @@
 {
   "name": "album-cover-utils",
   "private": true,
-  "version": "0.39.0",
+  "version": "0.40.0",
   "type": "module",
   "packageManager": "npm@11.12.1",
   "workspaces": [
@@ -20,6 +20,7 @@
     "dev:api": "npm --workspace @artifact/api run dev",
     "dev:infra": "docker compose -f docker-compose.local.yml up -d postgres redis",
     "dev:infra:down": "docker compose -f docker-compose.local.yml down",
+    "dev:local-ai": "deno task dev:local-ai",
     "dev:web": "npm --workspace @artifact/web run dev",
     "dev:worker": "npm --workspace @artifact/api run worker:dev",
     "build": "npm --workspace @artifact/web run build",
@@ -50,7 +51,7 @@
     "test:browser:firefox": "npm --workspace @artifact/web run test:browser:firefox --",
     "test:browser:webkit": "npm --workspace @artifact/web run test:browser:webkit --",
     "test:browser:mobile": "npm --workspace @artifact/web run test:browser:mobile --",
-    "test:browser:release": "npm --workspace @artifact/web run test:browser:release --",
+    "test:browser:release": "node scripts/run-browser-release.mjs",
     "test:browser:headed": "npm --workspace @artifact/web run test:browser -- --headed",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"

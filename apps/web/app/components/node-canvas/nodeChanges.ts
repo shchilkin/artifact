@@ -21,11 +21,38 @@ function hasSameMeasured(a: RFNode | undefined, b: RFNode | undefined) {
   ].every(([left, right]) => left === right);
 }
 
+function isStringSet(value: unknown): value is Set<string> {
+  return value instanceof Set && Array.from(value).every((item) => typeof item === 'string');
+}
+
+function hasSameStringSet(a: Set<string>, b: Set<string>) {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
+}
+
+function isConnectedPortData(value: unknown): value is { sources: Set<string>; targets: Set<string> } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { sources?: unknown; targets?: unknown };
+  return isStringSet(candidate.sources) && isStringSet(candidate.targets);
+}
+
+function hasSameDataValue(a: unknown, b: unknown) {
+  if (Object.is(a, b)) return true;
+  if (isConnectedPortData(a) && isConnectedPortData(b)) {
+    return hasSameStringSet(a.sources, b.sources) && hasSameStringSet(a.targets, b.targets);
+  }
+  return false;
+}
+
 function hasSameData(a: RFNode['data'], b: RFNode['data']) {
   const aKeys = Object.keys(a ?? {});
   const bKeys = Object.keys(b ?? {});
   if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => Object.is(a?.[key], b?.[key]));
+  return aKeys.every((key) => hasSameDataValue(a?.[key], b?.[key]));
 }
 
 function hasSameNodeShape(a: RFNode, b: RFNode) {

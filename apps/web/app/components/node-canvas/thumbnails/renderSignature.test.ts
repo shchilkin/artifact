@@ -5,10 +5,12 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeGraphMaterialNode,
+  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../../../types/config';
+import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
 import {
   colorNodeRenderSig,
   edgeRenderSig,
@@ -19,6 +21,7 @@ import {
   materialNodeRenderSig,
   mergeNodeRenderSig,
   repeatNodeRenderSig,
+  shaderNodeRenderSig,
   transformNodeRenderSig,
 } from '../../../utils/renderSignature';
 
@@ -183,6 +186,79 @@ describe('graph node render signatures', () => {
 
     expect(repeatNodeRenderSig(renamed)).toBe(repeatNodeRenderSig(base));
     expect(repeatNodeRenderSig(edited)).not.toBe(repeatNodeRenderSig(base));
+  });
+
+  it('ignores shader node identity and changes for procedural fields', () => {
+    const base = makeGraphShaderNode({ id: 'shader-1', name: 'Mesh Shader', distortion: 24 });
+    const renamed = { ...base, id: 'shader-2', name: 'Renamed shader' };
+    const edited = { ...base, distortion: 68 };
+    const composited = { ...base, opacity: 42 };
+    const custom = makeGraphShaderNode({
+      ...base,
+      shaderKind: 'aiShader',
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'ai-definition',
+          label: 'AI Refraction',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [
+            { key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 },
+          ],
+          provenance: { source: 'openai', prompt: 'Refraction', model: 'test-model' },
+        },
+        values: { amount: 0.02 },
+      },
+    });
+    const customEdited = {
+      ...custom,
+      shaderInstance: {
+        ...custom.shaderInstance!,
+        values: { amount: 0.06 },
+      },
+    };
+    const code = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('code-shader'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('code-shader').definition,
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+        },
+      },
+    });
+    const codeEdited = makeGraphShaderNode({
+      id: 'code-shader',
+      shaderKind: 'customCode',
+      shaderInstance: {
+        ...makeDefaultCodeShaderInstance('code-shader'),
+        definition: {
+          ...makeDefaultCodeShaderInstance('code-shader').definition,
+          code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+        },
+      },
+    });
+    const promptEdited = {
+      ...custom,
+      aiPrompt: 'A different prompt with the same rendered shader',
+      shaderInstance: {
+        ...custom.shaderInstance!,
+        definition: {
+          ...custom.shaderInstance!.definition,
+          label: 'Renamed result',
+          provenance: { source: 'openai' as const, prompt: 'Different prompt', model: 'another-model' },
+        },
+      },
+    };
+
+    expect(shaderNodeRenderSig(renamed)).toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(edited)).not.toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(composited)).not.toBe(shaderNodeRenderSig(base));
+    expect(shaderNodeRenderSig(customEdited)).not.toBe(shaderNodeRenderSig(custom));
+    expect(shaderNodeRenderSig(promptEdited)).toBe(shaderNodeRenderSig(custom));
+    expect(shaderNodeRenderSig(codeEdited)).not.toBe(shaderNodeRenderSig(code));
   });
 
   it('ignores mask node identity and changes for mask fields', () => {

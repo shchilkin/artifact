@@ -19,12 +19,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.39 has reached release-candidate prep as the Account Cloud Saves And
-  Production Auth release: Better Auth replaces Clerk, account-backed cloud
-  projects ship, large project assets sync separately from project manifests,
-  password recovery is available, production API deploys run migrations and
-  healthchecks, Vercel preview origins are supported, and Projects shows clearer
-  sync status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
+- v0.40 has reached release-candidate prep as the Shader Authoring And AI
+  Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
+  Code Shader and AI Shader nodes, browser validation/repair/refinement,
+  dynamic controls, transparent failure behavior, and preview/export parity.
+  See [`version-plans/v0.40.md`](./version-plans/v0.40.md) and
+  [`releases/v0.40.0.md`](./releases/v0.40.0.md).
+- v0.39 has completed the Account Cloud Saves And Production Auth release:
+  Better Auth, account-backed cloud projects, separate large-project asset
+  sync, password recovery, production API hardening, and clearer Projects sync
+  status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
   [`releases/v0.39.0.md`](./releases/v0.39.0.md).
 - v0.38 has reached release-candidate prep as the Editor UX, Import Safety, And
   Visual Identity release: editor chrome, Layers/Nodes workflow polish,
@@ -53,7 +57,7 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope after v0.39 should start from the deferred product
+- The next version scope after v0.40 should start from the deferred product
   tracks below, especially sharing permissions, S3-compatible asset storage,
   project history/versioning, public-surface polish, or a dedicated CI-policy
   pass if full-health complexity should become a permanent strict release gate.
@@ -95,11 +99,18 @@ Next deferred product tracks:
 Planned next:
 
 - The next version scope should be selected from the deferred product tracks
-  below after v0.39 release feedback, with a likely split between public share
+  below after v0.40 release feedback, with a likely split between public share
   links and ownership/security, S3-compatible cloud asset storage, project
   history/versioning, landing refresh, or CI-policy work.
 
 Recently shipped:
+
+- [`version-plans/v0.40.md`](./version-plans/v0.40.md) — Shader Authoring And
+  AI Shader Effects: explicit Shader Fill/Effect roles, curated procedural
+  shaders, definition-backed Code Shader and AI Shader nodes, generated
+  controls, browser validation/repair/refinement, transparent failure behavior,
+  preview/export parity, and a segmented local browser release gate. Release
+  notes are in [`releases/v0.40.0.md`](./releases/v0.40.0.md).
 
 - [`version-plans/v0.39.md`](./version-plans/v0.39.md) — Account Cloud Saves
   And Production Auth: Better Auth account flow, password recovery, cloud
@@ -258,6 +269,28 @@ Next strong candidates after v0.39:
 - **3D Material Authoring Follow-Up** — build on v0.37 with material map
   scale/rotation, channel packing, richer material examples, and broader WebGL
   coverage after the first PBR node settles.
+- **Shader Fills And Shader Effects** — keep shader work aligned with the
+  single-purpose node contract. Shader Fill nodes generate standalone raster
+  texture sources. Effect nodes own input-dependent shader-style transforms.
+  Material nodes describe PBR surface parameters, and scene nodes own 3D
+  lighting/camera composition.
+
+  Figma Shaders parity should stay split by dependency:
+
+  | Track | Covered or near-covered | Missing / follow-up |
+  | --- | --- | --- |
+  | Shader Fills | mesh gradient, moire, concentric patterns, water caustic, glowing wave, clouds/fractal noise via noise fields, nebula-like smoke/noise, pattern grids via dot grids | stronger named Clouds/Fractal/Nebula/Pattern Grid presets |
+  | Shader Effects | bloom, dither, halftone, pixelate, gradient map, channel mixer, bokeh blur, hatching, pattern refraction, pixel stretch, gooey merge, lens/warp families, colored-edge/outline building blocks, slice-shift-like glitch/tear effects, AI Shader Effect as a prompt-created input-dependent transform | deeper preset tuning and visual examples |
+  | Material Bridge | shader fill output can feed material texture-map inputs and primitive material inputs | polish texture-map controls, examples, export/browser parity coverage |
+  | AI Custom Shaders | prompt-ready `AI Shader Effect` requests a validated definition-backed GLSL `ShaderInstance`, rejects transparent/flat/backdrop-independent output and dead controls, supports owner-scoped refinement of accepted shaders, offers a labeled local fallback only after explicit user choice, and uses durable idempotency, timeout handling, monthly quota accounting, provider request IDs, token-usage logs, transparent empty/error output, and browser-tested preview/export parity | add generation history, reusable definition library/versioning, and monetary cost estimates/billing |
+  | Code Shaders | `Code Shader` stores a definition-backed GLSL program and per-node property values; fill/effect role is explicit, number/boolean/color manifest controls map to stable uniforms, old development documents migrate from `customShaderCode`, and WebGL/compile failures remain contained | program caching, browser-level dynamic-uniform coverage, richer point/gradient property types |
+  | Shader Authoring Model | Shader Definition and Shader Instance are distinct serialized concepts; AI and code share the same definition-backed runtime, presets remain curated renderers, and fill/effect are the only runtime roles | add reusable definition library/versioning and decide whether presets should gradually adopt the same manifest format |
+
+  Tileless/seamless texture generation remains a future Shader Fill track for
+  repeatable material maps. Rich custom GLSL/WGSL code editing remains an
+  advanced track beyond the current MVP because it needs better compilation
+  diagnostics, uniform editing, and sandboxing affordances. Prompt-to-shader
+  generation targets validated definition-backed GLSL. Shader animation is deferred: before adding it back, define whether animation belongs in shader nodes, effect nodes, a reusable control node, or export settings; then set performance budgets for live thumbnails, graph preview caches, and eventual video/sequence export.
 - **History Performance And Undo Memory Budget** — keep undo/redo responsive as
   node documents, 3D scene state, and local project payloads grow. Confirm the
   immutable document-update contract with tests, avoid unnecessary deep clones
@@ -346,7 +379,8 @@ These can mostly stay browser-only and fit the current architecture:
   ratio and export scale.
 - More procedural texture/noise nodes with presets.
 - More primitive shapes, SVG-like primitives, and 3D sketch primitives.
-- More focused effect nodes and shader-style effects with stronger controls.
+- More focused effect nodes and shader-style sources with stronger controls,
+  split by role instead of folded into multi-purpose nodes.
 - Font import, improved font browsing, and possible external font catalog
   support.
 - Better text workflow, including typography presets, multi-font work, and text
@@ -768,8 +802,8 @@ current scope.
 
 ### Current Status
 
-The active release baseline is `v0.39.0` release prep on `development`.
-Earlier `v0.2` through `v0.39` version plans are release history, not active
+The active release baseline is `v0.40.0` release prep on the stacked shader
+release-candidate branch. Earlier `v0.2` through `v0.39` version plans are release history, not active
 target buckets. Their detailed acceptance criteria and validation notes live
 under `docs/version-plans/` and `docs/releases/`.
 
@@ -807,6 +841,9 @@ Current shipped baseline:
 - v0.38/v0.39 editor chrome, import/open safety, cloud project status, local
   project action clarity, shared primitive polish, visual identity refresh, and
   responsive Layers/Nodes action surfaces.
+- v0.40 Shader Fill/Effect, Code Shader, and AI Shader authoring with explicit
+  roles, validated definition-backed runtime, editable controls, transparent
+  error behavior, refinement, and preview/export parity.
 
 ### Active Candidate Tracks
 

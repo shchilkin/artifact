@@ -8,6 +8,7 @@ import type {
   GraphMergeNode,
   GraphRepeatNode,
   GraphScene3DNode,
+  GraphShaderNode,
   GraphTransformNode,
   ImageLayer,
   Layer,
@@ -30,6 +31,7 @@ import {
   MergeInspector,
   RepeatInspector,
   Scene3DInspector,
+  ShaderInspector,
   TransformInspector,
 } from '../inspector';
 import type { NodeCanvasProps } from '../types';
@@ -49,6 +51,7 @@ interface NodePropertiesPanelProps
     | 'onUpdateGrimeShadowNode'
     | 'onUpdateScene3DNode'
     | 'onUpdateEnvironmentNode'
+    | 'onUpdateShaderNode'
     | 'onReplaceEnvironmentNodeFile'
     | 'onUpdateExportConfig'
     | 'onUpdateAspectRatio'
@@ -71,6 +74,7 @@ type SelectedNodeTarget =
   | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
   | { kind: 'scene3d'; node: GraphScene3DNode }
   | { kind: 'environment'; node: GraphEnvironmentNode }
+  | { kind: 'shader'; node: GraphShaderNode }
   | { kind: 'output' };
 
 type GraphUtilityInspectorTarget = Exclude<
@@ -177,6 +181,7 @@ const GRAPH_NODE_TARGET_FINDERS = [
   findGrimeShadowNodeTarget,
   findScene3DNodeTarget,
   findEnvironmentNodeTarget,
+  findShaderNodeTarget,
 ];
 
 function isSelectedNodeTarget(target: SelectedNodeTarget | null): target is SelectedNodeTarget {
@@ -226,6 +231,11 @@ function findScene3DNodeTarget(graph: CanvasGraph, selectedNodeId: string): Sele
 function findEnvironmentNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
   const node = (graph.environmentNodes ?? []).find((item) => item.id === selectedNodeId);
   return node ? { kind: 'environment', node } : null;
+}
+
+function findShaderNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
+  const node = (graph.shaderNodes ?? []).find((item) => item.id === selectedNodeId);
+  return node ? { kind: 'shader', node } : null;
 }
 
 function resolveSelectedNodeTarget(
@@ -455,6 +465,25 @@ function EnvironmentNodeInspector({
   );
 }
 
+function ShaderNodeInspector({
+  node,
+  graph,
+  onUpdateShaderNode,
+}: Pick<NodePropertiesPanelProps, 'onUpdateShaderNode'> & {
+  node: GraphShaderNode;
+  graph: CanvasGraph | undefined;
+}) {
+  return (
+    <ShaderInspector
+      key={node.id}
+      shaderNode={node}
+      sourceConnected={isPortConnected(graph, node.id, 'bg')}
+      onChange={(patch) => onUpdateShaderNode(node.id, patch)}
+      detached
+    />
+  );
+}
+
 function ExportNodeInspector({
   doc,
   exportBusy,
@@ -538,6 +567,7 @@ function SelectedNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -556,6 +586,7 @@ function SelectedNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onUpdateShaderNode'
   | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
@@ -582,6 +613,7 @@ function SelectedNodeInspector({
       onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
       onUpdateScene3DNode={onUpdateScene3DNode}
       onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+      onUpdateShaderNode={onUpdateShaderNode}
       onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
       onUpdateExportConfig={onUpdateExportConfig}
       onUpdateAspectRatio={onUpdateAspectRatio}
@@ -602,6 +634,7 @@ function GraphOrExportNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -618,6 +651,7 @@ function GraphOrExportNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onUpdateShaderNode'
   | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
@@ -638,6 +672,7 @@ function GraphOrExportNodeInspector({
         onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
         onUpdateScene3DNode={onUpdateScene3DNode}
         onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+        onUpdateShaderNode={onUpdateShaderNode}
         onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
       />
     );
@@ -663,6 +698,7 @@ function GraphUtilityNodeInspector({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onReplaceEnvironmentNodeFile,
 }: Pick<
   NodePropertiesPanelProps,
@@ -674,6 +710,7 @@ function GraphUtilityNodeInspector({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onUpdateShaderNode'
   | 'onReplaceEnvironmentNodeFile'
 > & {
   target: GraphUtilityInspectorTarget;
@@ -690,6 +727,7 @@ function GraphUtilityNodeInspector({
     onUpdateGrimeShadowNode,
     onUpdateScene3DNode,
     onUpdateEnvironmentNode,
+    onUpdateShaderNode,
     onReplaceEnvironmentNodeFile,
   });
 }
@@ -727,6 +765,9 @@ const GRAPH_UTILITY_INSPECTORS = {
       onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
     />
   ),
+  shader: ({ target, graph, onUpdateShaderNode }: GraphUtilityInspectorProps<'shader'>) => (
+    <ShaderNodeInspector node={target.node} graph={graph} onUpdateShaderNode={onUpdateShaderNode} />
+  ),
 };
 
 type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> = Pick<
@@ -739,6 +780,7 @@ type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> =
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onUpdateShaderNode'
   | 'onReplaceEnvironmentNodeFile'
 > & {
   target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
@@ -760,6 +802,7 @@ function NodePropertiesPanelContent({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -779,6 +822,7 @@ function NodePropertiesPanelContent({
   | 'onUpdateGrimeShadowNode'
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
+  | 'onUpdateShaderNode'
   | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
@@ -816,6 +860,7 @@ function NodePropertiesPanelContent({
               onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
               onUpdateScene3DNode={onUpdateScene3DNode}
               onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+              onUpdateShaderNode={onUpdateShaderNode}
               onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
               onUpdateExportConfig={onUpdateExportConfig}
               onUpdateAspectRatio={onUpdateAspectRatio}
@@ -846,6 +891,7 @@ export function NodePropertiesPanel({
   onUpdateGrimeShadowNode,
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
+  onUpdateShaderNode,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -879,6 +925,7 @@ export function NodePropertiesPanel({
           onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
           onUpdateScene3DNode={onUpdateScene3DNode}
           onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+          onUpdateShaderNode={onUpdateShaderNode}
           onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}

@@ -10,6 +10,7 @@ import {
   makeGraphMergeNode,
   makeGraphRepeatNode,
   makeGraphScene3DNode,
+  makeGraphShaderNode,
   makeGraphTransformNode,
   makeImageLayer,
   makeSourceLayer,
@@ -44,6 +45,7 @@ import {
   updateMaterialNodeInDocument,
   updateMergeNodeInDocument,
   updateRepeatNodeInDocument,
+  updateShaderNodeInDocument,
   updateTransformNodeInDocument,
 } from './documentCommands';
 import { EXPORT_NODE_ID } from './nodeGraph';
@@ -80,6 +82,7 @@ function makeGraph(): CanvasGraph {
       'repeat-a': { x: 756, y: 80 },
       'transform-a': { x: 810, y: 80 },
       'shadow-a': { x: 830, y: 80 },
+      'shader-a': { x: 840, y: 80 },
       [EXPORT_NODE_ID]: { x: 864, y: 80 },
     },
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a', opacity: 80 })],
@@ -88,6 +91,7 @@ function makeGraph(): CanvasGraph {
     materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
     transformNodes: [makeGraphTransformNode({ id: 'transform-a', rotation: 12 })],
     grimeShadowNodes: [makeGraphGrimeShadowNode({ id: 'shadow-a', grime: 24 })],
+    shaderNodes: [makeGraphShaderNode({ id: 'shader-a', distortion: 32 })],
   };
 }
 
@@ -840,6 +844,52 @@ describe('documentCommands', () => {
     });
   });
 
+  it('adds prompt-ready AI shaders as explicit input-driven effect nodes', () => {
+    const result = addNodeToFillSource(
+      { kind: 'shader', shaderKind: 'aiShader', role: 'effect' },
+      { replaceEdgeId: 'e-fill-text' },
+    );
+    const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'aiShader');
+
+    expect(result.selectedLayerId).toBeNull();
+    expect(shaderNode).toMatchObject({
+      name: 'AI Shader Effect',
+      shaderKind: 'aiShader',
+      role: 'effect',
+    });
+    expect(shaderNode?.shaderInstance).toBeUndefined();
+    expect(result.doc.graph?.edges).toContainEqual(
+      expect.objectContaining({
+        fromId: 'fill-a',
+        fromPort: 'out',
+        toId: shaderNode?.id,
+        toPort: 'bg',
+      }),
+    );
+    expect(result.doc.graph?.edges).toContainEqual(
+      expect.objectContaining({
+        fromId: shaderNode?.id,
+        fromPort: 'out',
+        toId: 'text-a',
+        toPort: 'bg',
+      }),
+    );
+  });
+
+  it('creates a code shader as an effect when inserted into an edge', () => {
+    const result = addNodeToFillSource(
+      { kind: 'shader', shaderKind: 'customCode', role: 'effect' },
+      { replaceEdgeId: 'e-fill-text' },
+    );
+    const shaderNode = result.doc.graph?.shaderNodes?.find((node) => node.shaderKind === 'customCode');
+
+    expect(shaderNode).toMatchObject({
+      name: 'Code Shader',
+      role: 'effect',
+      shaderInstance: { definition: { code: '' }, values: {} },
+    });
+  });
+
   it('does not remove a locked layer', () => {
     const doc = makeLockedFillDoc();
     const next = removeLayerFromDocument(doc, 'fill-a');
@@ -874,6 +924,9 @@ describe('documentCommands', () => {
     expect(updateGrimeShadowNodeInDocument(doc, 'shadow-a', { grime: 66 }).graph?.grimeShadowNodes?.[0]?.grime).toBe(
       66,
     );
+    expect(updateShaderNodeInDocument(doc, 'shader-a', { distortion: 70 }).graph?.shaderNodes?.[0]?.distortion).toBe(
+      70,
+    );
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');
     expect(updateGlobalInDocument(doc, { bg: '#ffffff' }).global.bg).toBe('#ffffff');
@@ -881,6 +934,17 @@ describe('documentCommands', () => {
     expect(setDocumentGraph(doc, graph).graph).toBe(graph);
     expect(doc.global.seed).toBe(12);
     expect(doc.export.scale).toBe(1);
+  });
+
+  it('removes the image input edge when a shader becomes a fill', () => {
+    const graph = makeGraph();
+    graph.edges.push({ id: 'e-fill-shader', fromId: 'fill-a', fromPort: 'out', toId: 'shader-a', toPort: 'bg' });
+    graph.shaderNodes = [makeGraphShaderNode({ id: 'shader-a', role: 'effect' })];
+
+    const next = updateShaderNodeInDocument(makeDoc(graph), 'shader-a', { role: 'fill' });
+
+    expect(next.graph?.shaderNodes?.[0]?.role).toBe('fill');
+    expect(next.graph?.edges.some((edge) => edge.toId === 'shader-a' && edge.toPort === 'bg')).toBe(false);
   });
 
   it('duplicates layers after the source and deep-clones emoji arrays', () => {

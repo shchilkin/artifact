@@ -1,8 +1,11 @@
 import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 
 import {
+  DEFAULT_MATERIAL_CONFIG,
   type GraphMaterialNode,
   type GraphScene3DNode,
+  type GraphShaderNode,
+  type MaterialConfig,
   type ModelLayer,
   type PrimitiveLayer,
 } from '../../../types/config';
@@ -70,6 +73,10 @@ function SelectedScene3DPreviewSurface({
 }) {
   const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const { updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
+  const materialSource = useMemo(
+    () => sceneMaterialSource(graph, scene3dNode.id, materialNode),
+    [graph, materialNode, scene3dNode.id],
+  );
   const generatedEnvironmentCanvas = useGeneratedEnvironmentCanvas({
     enabled: !environmentSource && Boolean(environmentPreviewTargetId),
     previewTargetId: environmentPreviewTargetId,
@@ -79,7 +86,8 @@ function SelectedScene3DPreviewSurface({
     primitiveViewStates,
   });
   const materialTextures = useGeneratedMaterialTextureCanvases({
-    materialNode,
+    materialNode: materialSource.materialNode,
+    directTextureSourceId: materialSource.shaderNode?.id ?? null,
     doc,
     graph,
     imageCache,
@@ -136,7 +144,7 @@ function SelectedScene3DPreviewSurface({
           <LazyModelViewport3D
             layer={modelLayer}
             sceneNode={scene3dNode}
-            materialConfig={materialNode ?? undefined}
+            materialConfig={materialSource.config}
             materialTextures={materialTextures}
             environmentCanvas={generatedEnvironmentCanvas}
             environmentSource={environmentSource ?? scene3dNode.environmentSrc ?? null}
@@ -158,6 +166,38 @@ function SelectedScene3DPreviewSurface({
       />
     </div>
   );
+}
+
+function sceneMaterialSource(
+  graph: {
+    edges: { toId: string; toPort: string; fromId: string }[];
+    shaderNodes?: GraphShaderNode[];
+  },
+  sceneId: string,
+  materialNode: GraphMaterialNode | null,
+) {
+  const materialSourceId = graph.edges.find((edge) => edge.toId === sceneId && edge.toPort === 'material')?.fromId;
+  const shaderNode = materialSourceId
+    ? (graph.shaderNodes ?? []).find((node) => node.id === materialSourceId)
+    : undefined;
+  return {
+    materialNode,
+    shaderNode: shaderNode ?? null,
+    config: materialNode ?? (shaderNode ? shaderMaterialConfig(shaderNode.id) : undefined),
+  };
+}
+
+function shaderMaterialConfig(shaderId: string): MaterialConfig {
+  return {
+    ...DEFAULT_MATERIAL_CONFIG,
+    materialPreset: 'matte',
+    materialBaseColor: '#ffffff',
+    materialAccentColor: '#ffffff',
+    materialRoughness: 0.32,
+    materialGrain: 0,
+    materialRelief: 0,
+    materialAlbedoName: shaderId,
+  };
 }
 
 function useGeneratedEnvironmentCanvas({

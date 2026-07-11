@@ -93,6 +93,52 @@ describe('sameNodeList', () => {
     expect(sameNodeList([first], [rebuilt])).toBe(true);
   });
 
+  it('treats rebuilt connected port sets with the same contents as unchanged', () => {
+    const first: RFNode = {
+      ...node,
+      data: {
+        connected: {
+          sources: new Set(['shader-a::fill']),
+          targets: new Set(['shader-b::backdrop']),
+        },
+      },
+    };
+    const rebuilt: RFNode = {
+      ...node,
+      data: {
+        connected: {
+          sources: new Set(['shader-a::fill']),
+          targets: new Set(['shader-b::backdrop']),
+        },
+      },
+    };
+
+    expect(sameNodeList([first], [rebuilt])).toBe(true);
+  });
+
+  it('detects changed connected port contents', () => {
+    const first: RFNode = {
+      ...node,
+      data: {
+        connected: {
+          sources: new Set(['shader-a::fill']),
+          targets: new Set(['shader-b::backdrop']),
+        },
+      },
+    };
+    const rebuilt: RFNode = {
+      ...node,
+      data: {
+        connected: {
+          sources: new Set(['shader-a::fill']),
+          targets: new Set(['shader-c::backdrop']),
+        },
+      },
+    };
+
+    expect(sameNodeList([first], [rebuilt])).toBe(false);
+  });
+
   it('detects real selection and data changes', () => {
     expect(sameNodeList([node], [{ ...node, selected: true }])).toBe(false);
     expect(sameNodeList([node], [{ ...node, data: { changed: true } }])).toBe(false);

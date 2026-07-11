@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { AI_SHADER_PROMPT_MAX_LENGTH } from '../types/aiGeneration';
 import {
   type CanvasDocument,
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
+  makeEffectLayer,
   makeFillLayer,
+  makeGraphMaterialNode,
+  makeGraphShaderNode,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -26,6 +30,7 @@ import {
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
+import { EXPORT_NODE_ID } from './nodeGraph';
 
 function encodeDoc(doc: unknown) {
   return JSON.stringify(doc);
@@ -50,6 +55,275 @@ describe('normalizeDocument', () => {
 
     expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(doc.layers[0]?.id).toBe('legacy-fill');
+  });
+
+  it('rejects documents created by a newer schema instead of downgrading them', () => {
+    expect(() =>
+      normalizeDocument({
+        schemaVersion: DOCUMENT_SCHEMA_VERSION + 1,
+        layers: [],
+      }),
+    ).toThrow(`Unsupported document schema version ${DOCUMENT_SCHEMA_VERSION + 1}`);
+  });
+
+  it('preserves supported shader kinds and normalizes legacy or unknown shader kinds', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          { id: 'shader-liquid', name: 'Liquid', shaderKind: 'liquidMetal' },
+          { id: 'shader-static-mesh', name: 'Static Mesh', shaderKind: 'staticMeshGradient', distortion: 44 },
+          { id: 'shader-border', name: 'Border', shaderKind: 'pulsingBorder' },
+          { id: 'shader-dither', name: 'Dither', shaderKind: 'imageDithering' },
+          { id: 'shader-warp', name: 'Warp', shaderKind: 'warp' },
+          { id: 'shader-rays', name: 'Rays', shaderKind: 'godRays' },
+          { id: 'shader-tileless', name: 'Tileless', shaderKind: 'tilelessTexture' },
+          { id: 'shader-unknown', name: 'Unknown', shaderKind: 'futureShader' },
+        ],
+      },
+    });
+
+    expect(doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('liquidMetal');
+    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({ opacity: 58, blendMode: 'screen' });
+    expect(doc.graph?.shaderNodes?.[1]?.shaderKind).toBe('meshGradient');
+    expect(doc.graph?.shaderNodes?.[1]?.distortion).toBe(0);
+    expect(doc.graph?.shaderNodes?.[2]?.shaderKind).toBe('borderRings');
+    expect(doc.graph?.shaderNodes?.[3]?.shaderKind).toBe('dotGrid');
+    expect(doc.graph?.shaderNodes?.[4]?.shaderKind).toBe('waves');
+    expect(doc.graph?.shaderNodes?.[5]?.shaderKind).toBe('smokeRing');
+    expect(doc.graph?.shaderNodes?.[6]?.shaderKind).toBe('tilelessTexture');
+    expect(doc.graph?.shaderNodes?.[7]?.shaderKind).toBe('meshGradient');
+  });
+
+  it('migrates old AI operation specs to a definition-backed local draft', () => {
+    const aiPrompt = 'x'.repeat(AI_SHADER_PROMPT_MAX_LENGTH + 1);
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-ai',
+            name: 'AI Shader',
+            shaderKind: 'customSpec',
+            role: 'fill',
+            aiPrompt,
+            customShaderSpec: {
+              version: 2,
+              palette: ['#000', 'not-a-color', '#ff00aa'],
+              base: 2,
+              contrast: 9,
+              operations: [
+                { op: 'noise', scale: 200, amount: 4, octaves: 99 },
+                { op: 'rawCode', code: 'while(true){}' },
+                { op: 'sourceLuma', amount: 0.45 },
+                { op: 'edgeGlow', amount: 0.5, softness: 0.12 },
+                { op: 'chromaticShift', amount: 0.25, angle: 42 },
+                { op: 'gradientMap', amount: 0.7 },
+                { op: 'posterize', steps: 999 },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const node = doc.graph?.shaderNodes?.[0];
+    expect(node?.shaderKind).toBe('aiShader');
+    expect(node?.role).toBe('effect');
+    expect(node?.aiPrompt).toBe(aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH));
+    expect(node).not.toHaveProperty('customShaderSpec');
+    expect(node?.shaderInstance).toMatchObject({
+      definition: {
+        language: 'glsl-fragment',
+        provenance: { source: 'localFallback', model: 'legacy-operation-migration' },
+        properties: [],
+      },
+      values: {},
+    });
+    const migratedCode = node?.shaderInstance?.definition.code ?? '';
+    expect(migratedCode).toContain('float tone = 1.00000000;');
+    expect(migratedCode).toContain('float contrast = 4.00000000;');
+    expect(migratedCode).toContain('legacyFbm(point * 40.00000000, 7.00000000');
+    expect(migratedCode).toContain('legacyLuma(source.rgb)');
+    expect(migratedCode).toContain('color.r = texture2D');
+    expect(migratedCode).toContain('mapped = 1.0');
+    expect(migratedCode).toContain('max(2.0, 16.00000000)');
+    expect(migratedCode).not.toContain('while(true)');
+  });
+
+  it('migrates legacy custom shader code into a shader definition instance', () => {
+    const doc = normalizeDocument({
+      schemaVersion: 1,
+      layers: [],
+      graph: {
+        edges: [{ id: 'e-source-shader', fromId: 'source', fromPort: 'out', toId: 'shader-code', toPort: 'bg' }],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-code',
+            name: 'Code Shader',
+            shaderKind: 'customCode',
+            customShaderCode: {
+              version: 3,
+              language: 'javascript',
+              code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+            },
+          },
+        ],
+      },
+    });
+
+    const node = doc.graph?.shaderNodes?.[0];
+    expect(doc.schemaVersion).toBe(3);
+    expect(node?.shaderKind).toBe('customCode');
+    expect(node?.role).toBe('effect');
+    expect(node?.shaderInstance).toMatchObject({
+      definition: {
+        id: 'shader-code-definition',
+        language: 'glsl-fragment',
+        code: 'vec4 mainImage(vec2 uv) { return vec4(uv, 0.0, 1.0); }',
+        properties: [],
+      },
+      values: {},
+    });
+    expect(node).not.toHaveProperty('customShaderCode');
+  });
+
+  it('normalizes shader definitions and instance values at the document boundary', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-definition',
+            name: 'Water Effect',
+            shaderKind: 'customCode',
+            role: 'effect',
+            shaderInstance: {
+              definition: {
+                version: 1,
+                id: 'water-effect',
+                label: 'Water Effect',
+                language: 'glsl-fragment',
+                code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+                properties: [
+                  { key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 1, step: 0.01 },
+                  { key: 'tint', label: 'Tint', type: 'color', default: '#55ccff' },
+                ],
+              },
+              values: { amount: 9, tint: 'invalid', ignored: true },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({
+      role: 'effect',
+      shaderInstance: {
+        definition: { id: 'water-effect' },
+        values: { amount: 1, tint: '#55ccff' },
+      },
+    });
+  });
+
+  it('normalizes malformed shader palettes without retaining removed color fields', () => {
+    const doc = normalizeDocument({
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-palette',
+            name: 'Imported shader',
+            shaderKind: 'waves',
+            palette: ['#123', 'invalid'],
+            colorA: '#ff0000',
+          },
+        ],
+      },
+    });
+
+    const shader = doc.graph?.shaderNodes?.[0];
+    expect(shader?.palette).toEqual(['#112233', '#5033a6']);
+    expect(shader).not.toHaveProperty('colorA');
+  });
+
+  it('round-trips AI custom shader nodes through artifact document JSON', () => {
+    const shaderNode = makeGraphShaderNode({
+      id: 'shader-ai',
+      name: 'AI Waves',
+      shaderKind: 'aiShader',
+      aiPrompt: 'neon waves',
+      shaderInstance: {
+        definition: {
+          version: 1,
+          id: 'shader-ai-definition',
+          label: 'AI Waves',
+          language: 'glsl-fragment',
+          code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
+          properties: [
+            { key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 },
+          ],
+          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+        },
+        values: { amount: 0.03 },
+      },
+    });
+    const serialized = serializeArtifactDocument({
+      global: { bg: 'transparent', seed: 1234, aspect: '16:9' },
+      layers: [],
+      graph: {
+        edges: [{ id: 'e-ai-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+        positions: { [shaderNode.id]: { x: 0, y: 80 }, [EXPORT_NODE_ID]: { x: 320, y: 80 } },
+        mergeNodes: [],
+        colorNodes: [],
+        shaderNodes: [shaderNode],
+      },
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+
+    const parsed = parseArtifactDocument(serialized);
+    const parsedNode = parsed?.graph?.shaderNodes?.[0];
+
+    expect(parsedNode).toMatchObject({
+      id: 'shader-ai',
+      name: 'AI Waves',
+      shaderKind: 'aiShader',
+      aiPrompt: 'neon waves',
+      shaderInstance: {
+        definition: {
+          id: 'shader-ai-definition',
+          label: 'AI Waves',
+          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+        },
+        values: { amount: 0.03 },
+      },
+    });
+    expect(parsed?.graph?.edges).toContainEqual({
+      id: 'e-ai-export',
+      fromId: 'shader-ai',
+      fromPort: 'out',
+      toId: EXPORT_NODE_ID,
+      toPort: 'in',
+    });
   });
 
   it('normalizes portable imported font assets without keeping invalid payloads', () => {
@@ -375,6 +649,7 @@ describe('normalizeDocument', () => {
       grimeShadowNodes: [],
       scene3dNodes: [],
       environmentNodes: [],
+      shaderNodes: [],
       areas: [],
       primitiveViewStates: undefined,
     });
@@ -578,6 +853,7 @@ describe('document serialization helpers', () => {
     expect(parsed?.graph?.colorNodes).toEqual([]);
     expect(parsed?.graph?.repeatNodes).toEqual([]);
     expect(parsed?.graph?.grimeShadowNodes).toEqual([]);
+    expect(parsed?.graph?.shaderNodes).toEqual([]);
     expect(parsed?.graph?.areas).toEqual([]);
   });
 
@@ -615,6 +891,26 @@ describe('document serialization helpers', () => {
         grimeShadowNodes: [],
         scene3dNodes: [],
         environmentNodes: [],
+        shaderNodes: [
+          {
+            id: 'shader-a',
+            name: 'Mesh Shader',
+            shaderKind: 'meshGradient',
+            role: 'fill',
+            aiPrompt: undefined,
+            palette: ['#101010', '#ff705f', '#8d5cff', '#79e3c5'],
+            distortion: 48,
+            swirl: 36,
+            grain: 14,
+            scale: 120,
+            rotation: 18,
+            offsetX: 4,
+            offsetY: -6,
+            seedOffset: 3,
+            opacity: 64,
+            blendMode: 'screen',
+          },
+        ],
         areas: [
           {
             id: 'area-main',
@@ -633,6 +929,86 @@ describe('document serialization helpers', () => {
 
     expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(parsed.graph).toEqual(graphDoc.graph);
+  });
+
+  it('round-trips shader material bridge graphs with shader effects and texture-map ports', () => {
+    const source = makeFillLayer({ id: 'shader-effect-source', color: '#2244ff', opacity: 100, blendMode: 'normal' });
+    const effect = makeEffectLayer({
+      id: 'shader-effect-a',
+      preset: 'patternRefraction',
+      patternRefraction: 72,
+      patternRefractionScale: 24,
+      patternRefractionAngle: 42,
+    });
+    const primitive = makeSourceLayer('primitive', {
+      id: 'primitive-a',
+      primitiveShape: 'sphere',
+      color: '#773322',
+      accentColor: '#ffd180',
+    });
+    const graphDoc: CanvasDocument = {
+      global: { bg: 'transparent', seed: 44, aspect: '1:1' },
+      layers: [source, effect, primitive],
+      graph: {
+        edges: [
+          { id: 'e-shader-albedo', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
+          { id: 'e-source-effect', fromId: source.id, fromPort: 'out', toId: effect.id, toPort: 'in' },
+          { id: 'e-effect-normal', fromId: effect.id, fromPort: 'out', toId: 'material-a', toPort: 'normal' },
+          { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
+          { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
+        ],
+        positions: {
+          'shader-a': { x: 0, y: 0 },
+          'material-a': { x: 260, y: 90 },
+          [primitive.id]: { x: 520, y: 90 },
+          __export__: { x: 780, y: 90 },
+        },
+        mergeNodes: [],
+        colorNodes: [],
+        materialNodes: [
+          makeGraphMaterialNode({
+            id: 'material-a',
+            materialPreset: 'plastic',
+            materialRoughness: 0.38,
+            materialMetalness: 0.12,
+          }),
+        ],
+        shaderNodes: [
+          makeGraphShaderNode({
+            id: 'shader-a',
+            shaderKind: 'waterCaustic',
+            palette: ['#041c2a', '#4df4d0', '#ffcf6b', '#ffffff'],
+            distortion: 54,
+            grain: 0,
+          }),
+        ],
+      },
+      export: { format: 'png', scale: 1, target: 'cover' },
+    };
+
+    const parsed = normalizeDocument(JSON.parse(serializeDocument(graphDoc)));
+    const parsedEffect = parsed.layers.find((layer) => layer.id === effect.id);
+
+    expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
+    expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
+    expect(parsed.graph?.materialNodes?.[0]).toMatchObject({
+      id: 'material-a',
+      materialPreset: 'plastic',
+      materialRoughness: 0.38,
+      materialMetalness: 0.12,
+    });
+    expect(parsed.graph?.shaderNodes?.[0]).toMatchObject({
+      id: 'shader-a',
+      shaderKind: 'waterCaustic',
+      distortion: 54,
+    });
+    expect(parsedEffect).toMatchObject({
+      id: effect.id,
+      preset: 'patternRefraction',
+      patternRefraction: 72,
+      patternRefractionScale: 24,
+      patternRefractionAngle: 42,
+    });
   });
 
   it('rejects invalid artifact document JSON without throwing', () => {

@@ -76,6 +76,108 @@ describe('transformEffectPixels', () => {
     expect(Array.from(result.data)).toEqual([255, 0, 0, 255, 0, 0, 255, 255]);
   });
 
+  it('maps visible pixels through a luminance gradient ramp', () => {
+    const result = transformEffectPixels({
+      width: 3,
+      height: 1,
+      data: new Uint8ClampedArray([0, 0, 0, 255, 128, 128, 128, 255, 255, 255, 255, 255]),
+      operations: [
+        {
+          type: 'gradientMap',
+          amount: 100,
+          shadow: '#0000ff',
+          mid: '#00ff00',
+          highlight: '#ff0000',
+        },
+      ],
+    });
+
+    expect(Array.from(result.data)).toEqual([0, 0, 255, 255, 1, 254, 0, 255, 255, 0, 0, 255]);
+  });
+
+  it('crossfeeds color channels while preserving alpha', () => {
+    const result = transformEffectPixels({
+      width: 1,
+      height: 1,
+      data: new Uint8ClampedArray([240, 60, 20, 128]),
+      operations: [{ type: 'channelMixer', amount: 100, redMix: 100, greenMix: 100, blueMix: 100 }],
+    });
+
+    expect(Array.from(result.data)).toEqual([60, 20, 240, 128]);
+  });
+
+  it('applies bokeh blur while preserving source alpha', () => {
+    const source = new Uint8ClampedArray([
+      0, 0, 0, 255, 255, 255, 255, 180, 0, 0, 0, 255, 0, 0, 0, 255, 40, 40, 40, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0,
+      0, 255, 0, 0, 0, 255,
+    ]);
+    const result = transformEffectPixels({
+      width: 3,
+      height: 3,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'bokehBlur', amount: 1, threshold: 60 }],
+    });
+
+    expect(result.data).not.toEqual(source);
+    expect(alphaValues(result.data)).toEqual([255, 180, 255, 255, 255, 255, 255, 255, 255]);
+  });
+
+  it('draws hatching over darker visible pixels', () => {
+    const source = new Uint8ClampedArray([30, 30, 30, 255, 220, 220, 220, 255, 30, 30, 30, 255]);
+    const result = transformEffectPixels({
+      width: 3,
+      height: 1,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'hatching', amount: 100, scale: 3, angle: 0 }],
+    });
+
+    expect(Math.min(result.data[0], result.data[8])).toBeLessThan(30);
+    expect(result.data[8] / source[8]).toBeLessThan(result.data[4] / source[4]);
+    expect(alphaValues(result.data)).toEqual([255, 255, 255]);
+  });
+
+  it('stretches source pixels in a direction while preserving visible alpha', () => {
+    const source = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255]);
+    const result = transformEffectPixels({
+      width: 3,
+      height: 1,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'pixelStretch', amount: 100, length: 2, angle: 0 }],
+    });
+
+    expect(result.data[4]).toBeGreaterThan(source[4]);
+    expect(alphaValues(result.data)).toEqual([255, 255, 255]);
+  });
+
+  it('refracts pixels through a pattern while preserving alpha', () => {
+    const source = new Uint8ClampedArray([
+      0, 0, 0, 255, 40, 0, 0, 255, 80, 0, 0, 255, 120, 0, 0, 255, 160, 0, 0, 255, 200, 0, 0, 255,
+    ]);
+    const result = transformEffectPixels({
+      width: 6,
+      height: 1,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'patternRefraction', amount: 100, scale: 4, angle: 45 }],
+    });
+
+    expect(result.data).not.toEqual(source);
+    expect(alphaValues(result.data)).toEqual([255, 255, 255, 255, 255, 255]);
+  });
+
+  it('merges nearby alpha regions with gooey thresholding', () => {
+    const source = new Uint8ClampedArray([220, 80, 40, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 80, 40, 255]);
+    const result = transformEffectPixels({
+      width: 5,
+      height: 1,
+      data: new Uint8ClampedArray(source),
+      operations: [{ type: 'gooeyMerge', amount: 100, radius: 2, threshold: 12 }],
+    });
+
+    expect(result.data[11]).toBeGreaterThan(0);
+    expect(result.data[3]).toBe(255);
+    expect(result.data[19]).toBe(255);
+  });
+
   it('hardens partial alpha for edge crush while preserving opaque pixels', () => {
     const result = transformEffectPixels({
       width: 2,

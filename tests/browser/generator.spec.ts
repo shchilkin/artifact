@@ -1837,7 +1837,7 @@ test('layer add library shows source previews and can add source presets', async
   await textRow.hover();
   await expect(menu.getByAltText('Text preview')).toBeVisible({ timeout: 15_000 });
 
-  await menu.getByRole('button', { name: 'Source', exact: true }).click();
+  await menu.getByLabel('Browse exact library groups').getByRole('button', { name: 'Sources', exact: true }).click();
   const aiRow = menu.locator('.add-library-row').filter({
     has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }),
   });
@@ -2390,7 +2390,10 @@ test('layers added after graph bootstrap connect into the export path', async ({
 test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.goto('/app?new=blank');
   await page.getByRole('button', { name: 'Add layer' }).click();
-  await page.getByRole('button', { name: /primitive/i }).click();
+  await page
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Primitive$/ }) })
+    .click();
   await expect(page.getByText('Camera framing is node-owned')).toBeVisible({ timeout: 15_000 });
 
   await switchToNodeView(page);
@@ -3681,7 +3684,10 @@ test('dropping a connection on empty canvas can add and connect a node', async (
 
   const menu = page.locator('.nadd-surface');
   await expect(menu).toBeVisible({ timeout: 15_000 });
-  await menu.getByRole('button', { name: /Fill/i }).click();
+  await menu
+    .locator('.add-library-row')
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Fill$/ }) })
+    .click();
 
   await expect.poll(async () => page.locator('.react-flow__node').count(), { timeout: 15_000 }).toBeGreaterThan(2);
   await expect.poll(async () => page.locator('.react-flow__edge').count(), { timeout: 15_000 }).toBeGreaterThan(1);

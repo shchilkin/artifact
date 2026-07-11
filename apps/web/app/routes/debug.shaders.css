@@ -1,0 +1,140 @@
+.shader-debug-page {
+  min-height: 100vh;
+  padding: 28px;
+  background: radial-gradient(circle at 18px 18px, rgba(86, 180, 210, 0.15) 2px, transparent 2px), #040303;
+  background-size: 28px 28px;
+  color: #f2e5d4;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.shader-debug-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 1500px;
+  margin: 0 auto 24px;
+  padding: 0 2px;
+}
+
+.shader-debug-header h1 {
+  margin: 0;
+  color: #f8efe5;
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.95;
+}
+
+.shader-debug-header p {
+  margin: 0;
+  color: rgba(242, 229, 212, 0.68);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.shader-debug-kicker {
+  margin-bottom: 10px;
+  color: #55d795;
+  letter-spacing: 0;
+}
+
+.shader-debug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(236px, 1fr));
+  gap: 14px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.shader-debug-section {
+  max-width: 1500px;
+  margin: 0 auto 34px;
+}
+
+.shader-debug-section__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.shader-debug-section__header h2,
+.shader-debug-section__header p {
+  margin: 0;
+}
+
+.shader-debug-section__header h2 {
+  color: #f8efe5;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.shader-debug-section__header p {
+  color: rgba(242, 229, 212, 0.58);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.shader-debug-card {
+  overflow: hidden;
+  border: 1px solid rgba(143, 97, 72, 0.56);
+  border-radius: 4px;
+  background: #0d0605;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+.shader-debug-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 360 / 224;
+  background: #050505;
+  border-bottom: 1px solid rgba(143, 97, 72, 0.42);
+}
+
+.shader-debug-card__meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  min-height: 72px;
+  padding: 14px 16px 16px;
+}
+
+.shader-debug-card__meta h2,
+.shader-debug-card__meta p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shader-debug-card__meta h2 {
+  margin: 0;
+  color: #f6e8d8;
+  font-size: 0.96rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.shader-debug-card__meta p {
+  margin: 0;
+  color: rgba(242, 229, 212, 0.52);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 680px) {
+  .shader-debug-page {
+    padding: 18px;
+  }
+
+  .shader-debug-header {
+    display: grid;
+    align-items: start;
+  }
+
+  .shader-debug-section__header {
+    display: grid;
+    align-items: start;
+  }
+}

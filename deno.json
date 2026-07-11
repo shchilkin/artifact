@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "api:dev-watch": "deno run --allow-env --allow-read=. --allow-run=npm,npx --allow-net apps/api/scripts/dev-watch.ts",
+    "dev:local-ai": "deno run --allow-env --allow-read=. --allow-run=npm,security --allow-net scripts/dev-local-ai.ts"
+  }
+}

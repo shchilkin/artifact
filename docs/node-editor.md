@@ -19,6 +19,7 @@ The node editor should not become a second document model.
 | Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
 | Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
 | Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| AI shader lifecycle | `inspector/useAiShaderGeneration.ts`, `inspector/aiShaderGenerationController.ts`, `inspector/shaderGenerationMachine.ts` |
 | Menus | `apps/web/app/components/node-canvas/menus/*` |
 | Graph helpers | `apps/web/app/utils/nodeGraph.ts` |
 
@@ -76,10 +77,151 @@ Current React Flow node types:
 | `mergeNode` | Combines two upstream inputs. |
 | `colorNode` | Applies non-layer color adjustment. |
 | `repeatNode` | Repeats any upstream source branch over an optional backdrop. |
+| `maskNode` | Cuts one source branch with a matte source. |
+| `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
+| `grimeShadowNode` | Builds a layered dirty shadow from upstream alpha. |
+| `materialNode` | Defines a reusable 3D material and texture-map inputs. |
+| `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Effect` / `AI Shader Effect` in the UI). |
+| `environmentNode` | Provides an environment map source for 3D scene lighting. |
+| `scene3dNode` | Renders a 3D scene from model, material, lighting, environment, and backdrop inputs. |
 | `exportNode` | Terminal output target. |
 
-Layer nodes map to `CanvasDocument.layers`. Merge, color, and repeat nodes live
-in `CanvasGraph`.
+Layer nodes map to `CanvasDocument.layers`. Graph-only utility, material,
+shader, environment, scene, and export nodes live in `CanvasGraph`.
+
+### Single-purpose node contract
+
+Nodes should have one primary reason to exist. A node may expose presets or
+variants when they are different flavors of the same role, but it should not
+silently combine unrelated roles.
+
+Use these boundaries:
+
+- **Source nodes** create pixels or assets: image, fill, noise, array, line
+  field, primitive/model source, shader fill, environment map.
+- **Process nodes** transform one upstream branch: effect, color, transform,
+  mask, grime shadow.
+- **Combine nodes** join multiple branches: merge and repeat-over-backdrop.
+- **Resource nodes** describe reusable non-image data for another node:
+  material and environment.
+- **Scene nodes** render a domain object from explicit inputs: 3D Scene owns
+  camera, lighting, scene material mode, environment strength, and backdrop
+  composition.
+- **Output nodes** define a render target and export path.
+
+When a node starts needing controls from two roles, split the roles instead of
+adding another mode. For example, a shader fill node may switch between mesh,
+marble, liquid, noise, water-surface, or tileable texture algorithms because
+each still produces one texture source. It should not also own 3D lighting,
+material scalar controls, export settings, or input-dependent image
+transforms. Those belong to Material, 3D Scene, Output, and Effect nodes.
+
+Exceptions must be explicit in docs and tests. A temporary MVP shortcut is
+acceptable only when it preserves serialized state clarity, render/export
+parity, and a clear migration path to separate nodes.
+
+### Shader definition, instance, and material boundary
+
+Shader work follows the same single-purpose split:
+
+- A **Shader Definition** is a serializable shader program with a property
+  manifest. A **Shader Instance** is a graph node using that definition with its
+  own property values and one explicit role (`fill` or `effect`). Definitions
+  may be authored from a built-in preset, code, or AI; those authoring methods
+  do not create additional runtime roles.
+- Shader roles never depend on connection state. A **Shader Fill** has no image
+  input and creates its own pixels. A **Shader Effect** requires one source
+  input and renders transparent when that input is missing.
+- The first definition-backed runtime supports number, boolean, and color
+  properties. Each property maps to a stable `u_prop_<key>` uniform and the
+  inspector is generated from the manifest rather than hard-coded sections.
+- Code Shader nodes persist a Shader Definition and instance values. Older
+  development documents with `customShaderCode` are normalized once into this
+  model and no longer retain the old field.
+
+- **Shader Fill / Effect** nodes are procedural raster shaders. Preset
+  shader fills generate pixels from their own parameters and document seed,
+  expose their output as a source texture, and do not require an upstream image.
+  Their colors are stored as an ordered `palette` array; each preset declares
+  how many colors it starts with and whether the user can add more.
+  The preset inspector exposes only shape and placement fields read by the
+  selected renderer; shared grain/variation controls remain available for
+  texture output, while irrelevant controls stay hidden.
+  When explicitly set to Effect, they sample the required upstream
+  branch as input texture data, use its luminance/detail to shape the generated
+  shader, and then apply the node's opacity and blend mode as pass intensity.
+  Opacity and blend mode are effect-only controls; fill mode outputs the generated
+  texture directly.
+  `AI Shader Effect` is prompt-ready and input-dependent. The API returns a
+  validated `ShaderInstance`: GLSL for `mainImage(vec2 uv)`, a manifest of
+  editable controls, their initial values, and OpenAI or local-fallback
+  provenance. Generated code must sample the connected `u_backdrop`; every
+  manifest control must be read through its `u_prop_<key>` uniform. The default
+  request goes to the configured OpenAI provider. If that fails, the inspector
+  offers a separate local draft and labels it `localFallback` instead of
+  silently substituting it. The fallback API request must reference the failed
+  OpenAI attempt. Prompts allow up to 500 characters and OpenAI
+  responses are capped at 2400 output tokens. The inspector shows only Prompt,
+  result status, and controls declared by the generated manifest. Without a
+  connected source, before generation succeeds, or when the shader cannot run,
+  its result layer is transparent and the graph keeps the upstream image
+  unchanged.
+  The AI shader inspector is presentational: `useAiShaderGeneration` owns auth,
+  cancellation, XState transitions, and node-surface status, while
+  `runAiShaderGeneration` owns the framework-independent create, validate,
+  repair, and commit sequence. `AiShaderInspectorModel` derives user-facing
+  summaries, actions, loading copy, and result status. Prompt, refinement, and
+  generated controls render as independent inspector sections. Keep API,
+  renderer calls, and product-state branching out of the composition component
+  so lifecycle and presentation-state tests do not require React.
+  `Code Shader` is a shader authoring method: its definition stores a GLSL
+  fragment body that defines `mainImage(vec2 uv)` and receives
+  `u_backdrop`, `u_resolution`, `u_seed`, `u_strength`, and
+  `u_has_backdrop` from the renderer.
+  Its inspector exposes manifest-defined controls plus Strength and Variation
+  only when the code reads the matching built-in uniform; an empty shader has
+  no inherited preset controls and stays transparent.
+  Its explicit role decides whether it generates a standalone texture or
+  processes a required `backdrop` branch. It must stay a shader node,
+  not a place for JavaScript, network access, material controls, or 3D scene
+  controls.
+- Built-in image transforms such as dithering, blur, and refraction remain
+  **Effect** nodes. Like Shader Effects, they require an upstream source branch;
+  unlike authored Shader Effects, their program and controls are maintained by
+  Artifact.
+- **Material** nodes describe PBR surface parameters and texture-map inputs:
+  `albedo`, `roughness`, `metalness`, `normal`, and `alpha`.
+- **Primitive** and **3D Scene** nodes consume a material or texture source while
+  keeping model, camera, view, lighting, and composition controls separate from
+  material authoring.
+
+Material texture-map ports may receive either a Shader Fill output directly or
+the output of an input-dependent Shader Effect / AI Shader Effect branch. The
+latter is valid only when the pass has an upstream source. This keeps the graph
+readable: `Shader Fill -> Material.albedo -> Primitive.material -> Output` for
+standalone textures, `Source -> Shader Effect -> Output` when a preset
+procedural shader transforms an image branch, or `Source -> AI Shader Effect
+-> Material.normal -> Primitive.material -> Output` when the map is derived from
+existing pixels.
+
+The Add Node library should keep this taxonomy visible:
+
+- **Sources** for imported/generated image branches and text/pattern bases.
+- **Shader Fills** for standalone procedural texture sources.
+- **Shader Effects** for input-dependent shader transforms such as `AI Shader Effect`.
+- **Effects** for input-dependent image transforms, even when browse sections
+  further split them by tone, warp, print, light, signal, texture, or graphic
+  family.
+- **Materials** for reusable PBR surface nodes and texture-map ports.
+- **3D / Primitive** for primitive/model source nodes, scene renderers, and
+  environment-map resources.
+- **Output** for the fixed graph terminal/export target. It is not currently an
+  add-library item because each graph owns one canonical output node.
+
+The `Shader Material` Add Node recipe is the canonical starter for the material
+bridge: it surfaces Shader Fill, Material, Primitive, and input-dependent shader
+effect nodes together while keeping the actual connections explicit in the
+graph.
 
 The v0.13 `AI Image` add-menu entry is intentionally layer-backed: it creates a
 normal image layer node named `AI Image`, then the image-node properties panel

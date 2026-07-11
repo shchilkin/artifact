@@ -8,6 +8,7 @@ export type DbNumeric = string;
 export type UserRole = 'user' | 'admin' | 'operator' | string;
 export type PlusStatus = 'none' | 'active' | 'trialing' | 'past_due' | 'cancelled' | string;
 export type AiGenerationJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'expired';
+export type AiShaderRequestStatus = 'pending' | 'generated' | 'client_rejected' | 'repairing' | 'accepted' | 'failed';
 
 export interface UserRow {
   id: string;
@@ -43,6 +44,26 @@ export interface AiGenerationJobRow {
   completed_at: DbTimestamp | null;
   cancelled_at: DbTimestamp | null;
   expires_at: DbTimestamp | null;
+}
+
+export interface AiShaderRequestRow {
+  id: string;
+  user_id: string;
+  idempotency_key: string;
+  mode: 'openai' | 'localFallback';
+  prompt: string;
+  parent_request_id: string | null;
+  status: AiShaderRequestStatus;
+  response_json: JsonObject | null;
+  provider_request_id: string | null;
+  provider_usage_json: JsonObject | null;
+  error_status: number | null;
+  error_code: string | null;
+  error_message: string | null;
+  compiler_diagnostic_json: JsonObject | null;
+  repair_count: number;
+  created_at: DbTimestamp;
+  completed_at: DbTimestamp | null;
 }
 
 export interface AssetRow {
@@ -104,6 +125,34 @@ export interface CreateAiGenerationJobInput {
   expiresAt?: Date | null;
 }
 
+export interface ClaimAiShaderRequestInput {
+  id: string;
+  userId: string;
+  idempotencyKey: string;
+  mode: 'openai' | 'localFallback';
+  prompt: string;
+  parentRequestId?: string | null;
+}
+
+export interface CompleteAiShaderRequestInput {
+  id: string;
+  responseJson: JsonObject;
+  providerRequestId?: string | null;
+  providerUsageJson?: JsonObject | null;
+}
+
+export interface RejectAiShaderRequestInput {
+  id: string;
+  candidateRevision: number;
+  diagnosticJson: JsonObject;
+  terminal: boolean;
+  completedAt: Date;
+}
+
+export interface CompleteAiShaderRepairInput extends CompleteAiShaderRequestInput {
+  providerUsageJson?: JsonObject | null;
+}
+
 export interface CreateAssetInput {
   id: string;
   userId: string;
@@ -160,6 +209,21 @@ export interface AiGenerationJobRepository {
   ): Promise<AiGenerationJobRow>;
 }
 
+export interface AiShaderRequestRepository {
+  claim(input: ClaimAiShaderRequestInput): Promise<{ row: AiShaderRequestRow; claimed: boolean }>;
+  findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderRequestRow | null>;
+  findByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null>;
+  markGenerated(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow>;
+  markAccepted(id: string, candidateRevision: number, completedAt: Date): Promise<AiShaderRequestRow>;
+  markClientRejected(input: RejectAiShaderRequestInput): Promise<AiShaderRequestRow>;
+  beginRepair(id: string): Promise<AiShaderRequestRow>;
+  completeRepair(input: CompleteAiShaderRepairInput): Promise<AiShaderRequestRow>;
+  markFailed(
+    id: string,
+    error: { status: number; code: string; message: string; completedAt: Date },
+  ): Promise<AiShaderRequestRow>;
+}
+
 export interface AssetRepository {
   create(input: CreateAssetInput): Promise<AssetRow>;
   findByIdForUser(id: string, userId: string): Promise<AssetRow | null>;
@@ -184,4 +248,10 @@ export interface CloudProjectRepository {
 export interface AiUsageRepository {
   findMonthlyUsage(userId: string, period: string): Promise<AiUsageMonthlyRow | null>;
   upsertMonthlyUsage(input: UpsertAiUsageMonthlyInput): Promise<AiUsageMonthlyRow>;
+  reserveMonthlyGeneration(input: {
+    userId: string;
+    period: string;
+    generationLimit: number;
+  }): Promise<AiUsageMonthlyRow | null>;
+  releaseMonthlyGeneration(userId: string, period: string): Promise<AiUsageMonthlyRow | null>;
 }

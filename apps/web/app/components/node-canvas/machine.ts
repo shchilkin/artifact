@@ -39,6 +39,13 @@ function expandedNodeIdAfterSelection(
   return next.includes(currentExpandedId) ? currentExpandedId : null;
 }
 
+function keepValidIds(current: string[], validIds: string[]) {
+  if (current.length === 0) return current;
+  const valid = new Set(validIds);
+  const next = current.filter((id) => valid.has(id));
+  return next.length === current.length ? current : next;
+}
+
 // ---------------------------------------------------------------------------
 // Machine
 // ---------------------------------------------------------------------------
@@ -145,8 +152,7 @@ export const nodeCanvasMachine = setup({
     filterInvalidRefs: assign({
       selectedNodeIds: ({ context, event }) => {
         if (event.type !== 'FILTER_INVALID_REFERENCES') return context.selectedNodeIds;
-        const valid = new Set(event.validNodeIds);
-        return context.selectedNodeIds.filter((id) => valid.has(id));
+        return keepValidIds(context.selectedNodeIds, event.validNodeIds);
       },
       selectedEdgeId: ({ context, event }) => {
         if (event.type !== 'FILTER_INVALID_REFERENCES') return context.selectedEdgeId;

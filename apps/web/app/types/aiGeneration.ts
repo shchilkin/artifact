@@ -4,10 +4,18 @@ export type {
   AiGenerationJobStatus,
   AiGenerationProvider,
   AiGenerationQuality,
+  AiShaderCompilerDiagnostic,
+  AiShaderGenerationResponse,
+  AiShaderRequestMode,
+  AiShaderSource,
+  AiShaderValidationResponse,
   CreateAiGenerationRequest,
+  CreateAiShaderRequest,
+  ValidateAiShaderRequest,
 } from '@artifact/shared';
 
 export {
+  AI_SHADER_PROMPT_MAX_LENGTH,
   isAiGenerationJobStatus,
   isAiGenerationProvider,
 } from '@artifact/shared';

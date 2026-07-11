@@ -1,4 +1,4 @@
-import type { EffectPreset, LayerKind, MaterialPreset } from '../types/config';
+import type { EffectPreset, LayerKind, MaterialPreset, ShaderKind, ShaderRole } from '../types/config';
 import type { ArrayPresetId } from './arrayPresets';
 import type { NoisePresetId } from './noisePresets';
 import type { RepeatPresetId } from './repeatPresets';
@@ -20,4 +20,5 @@ export type AddAction =
   | { kind: 'transform' }
   | { kind: 'grimeShadow' }
   | { kind: 'scene3d' }
-  | { kind: 'environment' };
+  | { kind: 'environment' }
+  | { kind: 'shader'; shaderKind?: ShaderKind; role: ShaderRole };
