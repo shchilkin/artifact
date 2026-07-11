@@ -49,6 +49,50 @@ CI should run:
 
 ## Manual QA
 
+### v0.40.0 Release Prep
+
+- Package metadata is bumped to `0.40.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.40.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.40 adds explicit Shader Fill and Shader Effect roles, definition-backed
+  Code Shader and AI Shader nodes, ordered palettes, dynamic controls, and
+  transparent empty/error output.
+- AI Shader generation uses authenticated OpenAI requests, browser acceptance,
+  one repair path, owner-scoped refinement, durable provenance/idempotency, and
+  an explicitly chosen labeled local fallback.
+- Code Shader compilation and WebGL failures stay contained; empty and failed
+  shaders remain transparent instead of destabilizing the graph or output.
+- Manual QA confirmed Shader Fill/Effect connections, Code Shader diagnostics,
+  AI create/validate/refine/fallback states, generated controls, and preservation
+  of the previous accepted result during replacement.
+- Manual QA confirmed the local AI launcher skips ports occupied through IPv4
+  or IPv6 before running its API health and contract checks.
+- `npm run release:verify` passed on 2026-07-11.
+- `npm run check` passed on 2026-07-11 with 11 existing Fast Refresh lint
+  warnings, 663 web tests passing, and 171 API tests passing with 2 skipped.
+- `npm run build` passed on 2026-07-11. The build still reports the existing
+  large `three-vendor` chunk, accepted for current 3D paths.
+- The segmented browser matrix completed on 2026-07-11 with `355 passed` and
+  `38 skipped` across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. No failed test required its available retry in the final release run;
+  the existing 3D preview timeout fallback was observed without failing its
+  render/export coverage.
+- `npm run perf:node-editor` passed on 2026-07-11 because v0.40 changes node
+  inspectors, thumbnails, graph rendering, and output behavior.
+- Accepted release risk: shader animation, timeline control, animated
+  thumbnails, and video/sequence export remain deferred until time ownership
+  and performance budgets are explicit.
+- Accepted release risk: custom and AI Shader Definitions remain embedded in
+  project documents; reusable preset storage, definition history/versioning,
+  marketplace, and community sharing remain future work.
+- Accepted release risk: AI Shader availability depends on provider access and
+  quota. Local drafts are deliberately limited, labeled, and require explicit
+  user choice after a recoverable provider failure.
+- Accepted release risk: long local WebGL browser runs can expose startup
+  flakes. The release runner isolates groups across fresh dev servers and keeps
+  one retry visible in Playwright output.
+
 ### v0.39.0 Release Prep
 
 - Package metadata is bumped to `0.39.0` in `package.json`,

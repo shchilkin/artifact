@@ -19,12 +19,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.39 has reached release-candidate prep as the Account Cloud Saves And
-  Production Auth release: Better Auth replaces Clerk, account-backed cloud
-  projects ship, large project assets sync separately from project manifests,
-  password recovery is available, production API deploys run migrations and
-  healthchecks, Vercel preview origins are supported, and Projects shows clearer
-  sync status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
+- v0.40 has reached release-candidate prep as the Shader Authoring And AI
+  Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
+  Code Shader and AI Shader nodes, browser validation/repair/refinement,
+  dynamic controls, transparent failure behavior, and preview/export parity.
+  See [`version-plans/v0.40.md`](./version-plans/v0.40.md) and
+  [`releases/v0.40.0.md`](./releases/v0.40.0.md).
+- v0.39 has completed the Account Cloud Saves And Production Auth release:
+  Better Auth, account-backed cloud projects, separate large-project asset
+  sync, password recovery, production API hardening, and clearer Projects sync
+  status. See [`version-plans/v0.39.md`](./version-plans/v0.39.md) and
   [`releases/v0.39.0.md`](./releases/v0.39.0.md).
 - v0.38 has reached release-candidate prep as the Editor UX, Import Safety, And
   Visual Identity release: editor chrome, Layers/Nodes workflow polish,
@@ -53,7 +57,7 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope after v0.39 should start from the deferred product
+- The next version scope after v0.40 should start from the deferred product
   tracks below, especially sharing permissions, S3-compatible asset storage,
   project history/versioning, public-surface polish, or a dedicated CI-policy
   pass if full-health complexity should become a permanent strict release gate.
@@ -95,11 +99,18 @@ Next deferred product tracks:
 Planned next:
 
 - The next version scope should be selected from the deferred product tracks
-  below after v0.39 release feedback, with a likely split between public share
+  below after v0.40 release feedback, with a likely split between public share
   links and ownership/security, S3-compatible cloud asset storage, project
   history/versioning, landing refresh, or CI-policy work.
 
 Recently shipped:
+
+- [`version-plans/v0.40.md`](./version-plans/v0.40.md) — Shader Authoring And
+  AI Shader Effects: explicit Shader Fill/Effect roles, curated procedural
+  shaders, definition-backed Code Shader and AI Shader nodes, generated
+  controls, browser validation/repair/refinement, transparent failure behavior,
+  preview/export parity, and a segmented local browser release gate. Release
+  notes are in [`releases/v0.40.0.md`](./releases/v0.40.0.md).
 
 - [`version-plans/v0.39.md`](./version-plans/v0.39.md) — Account Cloud Saves
   And Production Auth: Better Auth account flow, password recovery, cloud
@@ -791,8 +802,8 @@ current scope.
 
 ### Current Status
 
-The active release baseline is `v0.39.0` release prep on `development`.
-Earlier `v0.2` through `v0.39` version plans are release history, not active
+The active release baseline is `v0.40.0` release prep on the stacked shader
+release-candidate branch. Earlier `v0.2` through `v0.39` version plans are release history, not active
 target buckets. Their detailed acceptance criteria and validation notes live
 under `docs/version-plans/` and `docs/releases/`.
 
@@ -830,6 +841,9 @@ Current shipped baseline:
 - v0.38/v0.39 editor chrome, import/open safety, cloud project status, local
   project action clarity, shared primitive polish, visual identity refresh, and
   responsive Layers/Nodes action surfaces.
+- v0.40 Shader Fill/Effect, Code Shader, and AI Shader authoring with explicit
+  roles, validated definition-backed runtime, editable controls, transparent
+  error behavior, refinement, and preview/export parity.
 
 ### Active Candidate Tracks
 

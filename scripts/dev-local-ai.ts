@@ -180,7 +180,9 @@ async function assertShaderRoute(apiBaseUrl: string) {
   const contractBody = await contractResponse.json().catch(() => null);
   if (contractResponse.status !== 400 || contractBody?.code !== 'invalid_fallback_reference') {
     throw new Error(
-      `AI shader route is running an unexpected response contract. Restart the API. Response: ${JSON.stringify(contractBody)}`,
+      `AI shader route is running an unexpected response contract. Restart the API. Response: ${JSON.stringify(
+        contractBody,
+      )}`,
     );
   }
 }
@@ -207,9 +209,16 @@ async function findFreePort(preferredPort: number) {
   throw new Error(`No free port found near ${preferredPort}.`);
 }
 
-function canListen(port: number) {
+async function canListen(port: number) {
+  for (const hostname of ['127.0.0.1', '::']) {
+    if (!canListenOnHost(port, hostname)) return false;
+  }
+  return true;
+}
+
+function canListenOnHost(port: number, hostname: string) {
   try {
-    const listener = Deno.listen({ port, hostname: '127.0.0.1' });
+    const listener = Deno.listen({ port, hostname });
     listener.close();
     return true;
   } catch (error) {
