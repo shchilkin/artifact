@@ -20,33 +20,50 @@ export class OpenAiCostsClient {
     let page: string | null = null;
     let total = 0n;
     do {
-      const url = new URL(this.endpoint);
-      url.searchParams.set('start_time', String(Math.floor(input.from.getTime() / 1000)));
-      url.searchParams.set('end_time', String(Math.floor(input.to.getTime() / 1000)));
-      url.searchParams.set('bucket_width', '1d');
-      if (page) url.searchParams.set('page', page);
+      const url = createCostsUrl(this.endpoint, input, page);
       const response = await this.fetcher(url, {
         headers: { authorization: `Bearer ${this.apiKey}` },
       });
       const body = (await response.json()) as CostsResponse;
-      if (!response.ok) {
-        const message = body.error?.message;
-        throw new Error(
-          typeof message === 'string' ? message : `OpenAI Costs request failed with HTTP ${response.status}.`,
-        );
-      }
-      for (const bucket of body.data ?? []) {
-        for (const result of bucket.results ?? []) {
-          if (result.amount?.currency !== 'usd') continue;
-          const value = result.amount?.value;
-          if (typeof value !== 'string' && typeof value !== 'number') continue;
-          total += usdDecimalToMicroUsd(String(value));
-        }
-      }
-      page = typeof body.next_page === 'string' && body.next_page ? body.next_page : null;
+      assertSuccessfulResponse(response, body);
+      total += sumUsdCosts(body);
+      page = nextPage(body);
     } while (page);
     return { costMicroUsd: total.toString() };
   }
+}
+
+function createCostsUrl(endpoint: string, input: { from: Date; to: Date }, page: string | null) {
+  const url = new URL(endpoint);
+  url.searchParams.set('start_time', String(Math.floor(input.from.getTime() / 1000)));
+  url.searchParams.set('end_time', String(Math.floor(input.to.getTime() / 1000)));
+  url.searchParams.set('bucket_width', '1d');
+  if (page) url.searchParams.set('page', page);
+  return url;
+}
+
+function assertSuccessfulResponse(response: Response, body: CostsResponse) {
+  if (response.ok) return;
+  const message = body.error?.message;
+  throw new Error(typeof message === 'string' ? message : `OpenAI Costs request failed with HTTP ${response.status}.`);
+}
+
+function sumUsdCosts(body: CostsResponse) {
+  return (body.data ?? []).reduce(
+    (total, bucket) => total + (bucket.results ?? []).reduce((sum, result) => sum + usdAmount(result.amount), 0n),
+    0n,
+  );
+}
+
+function usdAmount(amount: { value?: unknown; currency?: unknown } | undefined) {
+  if (amount?.currency !== 'usd') return 0n;
+  return typeof amount.value === 'string' || typeof amount.value === 'number'
+    ? usdDecimalToMicroUsd(String(amount.value))
+    : 0n;
+}
+
+function nextPage(body: CostsResponse) {
+  return typeof body.next_page === 'string' && body.next_page ? body.next_page : null;
 }
 
 export function usdDecimalToMicroUsd(value: string) {

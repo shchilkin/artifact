@@ -461,59 +461,66 @@ async function createShader(
   }
 
   if (!deps.shaderProvider) throw new Error('Shader provider was not checked before generation.');
+  return requestProviderShader(prompt, clientRequestId, refinement, deps).catch((error) =>
+    providerShaderFailure(error, clientRequestId, deps),
+  );
+}
 
-  try {
-    const model = deps.shaderProvider.defaultModel;
-    const result = await deps.shaderProvider.generateShader({
-      prompt,
-      clientRequestId,
-      ...(refinement ? { refine: { instance: refinement.instance, instruction: prompt } } : {}),
-    });
-    return {
-      ok: true,
-      source: 'openai',
-      instance: {
-        ...result.instance,
-        definition: {
-          ...result.instance.definition,
-          provenance: {
-            source: 'openai',
-            prompt,
-            model,
-            ...(refinement ? { parentRequestId: refinement.parentRequestId, attempt: 'refine' as const } : {}),
-          },
+async function requestProviderShader(
+  prompt: string,
+  clientRequestId: string,
+  refinement: { instance: AiShaderGenerationResponse['instance']; parentRequestId: string } | null,
+  deps: AiRouteDeps,
+) {
+  const provider = deps.shaderProvider;
+  if (!provider) throw new Error('Shader provider was not checked before generation.');
+  const model = provider.defaultModel;
+  const result = await provider.generateShader({
+    prompt,
+    clientRequestId,
+    ...(refinement ? { refine: { instance: refinement.instance, instruction: prompt } } : {}),
+  });
+  return {
+    ok: true as const,
+    source: 'openai' as const,
+    instance: {
+      ...result.instance,
+      definition: {
+        ...result.instance.definition,
+        provenance: {
+          source: 'openai' as const,
+          prompt,
+          model,
+          ...(refinement ? { parentRequestId: refinement.parentRequestId, attempt: 'refine' as const } : {}),
         },
       },
-      model,
-      providerRequestId: result.requestId,
-      usage: result.usage,
-    };
-  } catch (error) {
-    const timedOut = isOpenAiShaderTimeoutError(error);
-    const failure = timedOut
-      ? {
-          status: 504,
-          code: 'shader_provider_timeout',
-          message: 'Shader generation took too long. Try again.',
-        }
-      : {
-          status: 502,
-          code: 'shader_provider_failed',
-          message: 'Shader generation failed. Try again or adjust the prompt.',
-        };
-    logWarn('ai_shader.provider_failed', {
-      requestId: clientRequestId,
-      provider: deps.shaderProvider.provider,
-      model: deps.shaderProvider.defaultModel,
-      code: failure.code,
-      reason: error instanceof Error ? error.message : 'unknown_error',
-    });
-    return {
-      ok: false,
-      failure,
-      ...(error instanceof OpenAiShaderResponseError ? { providerRequestId: error.requestId, usage: error.usage } : {}),
-    };
-  }
+    },
+    model,
+    providerRequestId: result.requestId,
+    usage: result.usage,
+  };
+}
+
+function providerShaderFailure(error: unknown, clientRequestId: string, deps: AiRouteDeps) {
+  const failure = isOpenAiShaderTimeoutError(error)
+    ? { status: 504, code: 'shader_provider_timeout', message: 'Shader generation took too long. Try again.' }
+    : {
+        status: 502,
+        code: 'shader_provider_failed',
+        message: 'Shader generation failed. Try again or adjust the prompt.',
+      };
+  logWarn('ai_shader.provider_failed', {
+    requestId: clientRequestId,
+    provider: deps.shaderProvider?.provider,
+    model: deps.shaderProvider?.defaultModel,
+    code: failure.code,
+    reason: error instanceof Error ? error.message : 'unknown_error',
+  });
+  return {
+    ok: false as const,
+    failure,
+    ...(error instanceof OpenAiShaderResponseError ? { providerRequestId: error.requestId, usage: error.usage } : {}),
+  };
 }
 
 export async function handleValidateShaderRequest(

@@ -1,13 +1,10 @@
 import { processGenerationJob } from './generationWorker.js';
 import { logInfo } from './logger.js';
 import { createApiRuntime } from './runtime.js';
-import { SafetyBudgetService } from './safetyBudgetService.js';
+import { createConfiguredSafetyBudgetService } from './safetyBudgetService.js';
 
 const { config, pool, repositories, queue, storage, providers } = createApiRuntime();
-const safetyBudget = new SafetyBudgetService(repositories.usageEvents, {
-  limitMicroUsd: BigInt(Math.round(config.aiSafetyBudgetUsd * 1_000_000)),
-  warningMicroUsd: BigInt(Math.round(config.aiSafetyBudgetUsd * 800_000)),
-});
+const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvents, config.aiSafetyBudgetUsd);
 
 const worker = queue.process(
   async (job) => {

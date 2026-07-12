@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 import { cleanupAiGenerationData } from '../src/cleanup.js';
 import { createPostgresRepositories } from '../src/db/postgres.js';
+import { adminTierAssignmentAuditInput } from './helpers/adminAudit.js';
 
 const testDatabaseUrl = process.env.API_TEST_DATABASE_URL;
 const integrationDescribe = testDatabaseUrl ? describe : describe.skip;
@@ -210,19 +211,9 @@ integrationDescribe('account tier Postgres integration', () => {
           to: new Date('2026-08-01T00:00:00.000Z'),
         }),
       ).resolves.toEqual({ costMicroUsd: '10800' });
-      await expect(
-        repositories.adminAudit.append({
-          id: 'audit-1',
-          adminUserId: 'admin-1',
-          targetUserId: 'user-1',
-          action: 'tier.assign',
-          entityType: 'tier_assignment',
-          entityId: 'assignment-1',
-          reason: 'Closed alpha access',
-          beforeJson: { tier: 'free' },
-          afterJson: { tier: 'creator' },
-        }),
-      ).resolves.toMatchObject({ id: 'audit-1' });
+      await expect(repositories.adminAudit.append(adminTierAssignmentAuditInput())).resolves.toMatchObject({
+        id: 'audit-1',
+      });
       await expect(
         repositories.reconciliations.upsert({
           id: 'reconciliation-1',

@@ -48,6 +48,17 @@ export class SafetyBudgetService {
   }
 }
 
+export function createConfiguredSafetyBudgetService(
+  usageEvents: AiUsageEventRepository,
+  budgetUsd: number,
+): SafetyBudgetService {
+  const limitMicroUsd = BigInt(Math.round(budgetUsd * 1_000_000));
+  return new SafetyBudgetService(usageEvents, {
+    limitMicroUsd,
+    warningMicroUsd: (limitMicroUsd * 4n) / 5n,
+  });
+}
+
 function utcMonthRange(now: Date) {
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));

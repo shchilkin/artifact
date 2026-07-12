@@ -260,21 +260,13 @@ export class InMemoryApiStore {
     const existing = this.usageEvents.get(input.id);
     if (existing) return existing;
     if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
-    const row: AiUsageEventRow = {
-      id: input.id,
-      operation_id: input.operationId ?? null,
-      user_id: input.userId,
-      feature: input.feature,
-      provider: input.provider,
-      model: input.model,
-      status: input.status,
-      provider_request_id: input.providerRequestId ?? null,
-      usage_json: normalizeProviderUsageMetrics(input.usage),
-      cost_micro_usd: normalizeMicroUsd(input.costMicroUsd),
-      pricing_version: requiredText(input.pricingVersion, 'pricingVersion'),
-      created_at: input.createdAt ?? new Date(),
-    };
+    const row = createUsageEventRow(input);
     this.usageEvents.set(row.id, row);
+    this.updateMonthlyProviderUsage(row);
+    return row;
+  }
+
+  private updateMonthlyProviderUsage(row: AiUsageEventRow) {
     const period = row.created_at.toISOString().slice(0, 7);
     const key = monthlyUsageKey(row.user_id, period);
     const current = this.monthlyUsage.get(key) ?? emptyMonthlyUsage(row.user_id, period, 0);
@@ -288,7 +280,6 @@ export class InMemoryApiStore {
       failed_call_count: current.failed_call_count + (row.status === 'failed' ? 1 : 0),
       updated_at: row.created_at,
     });
-    return row;
   }
 
   async sumUsageEventCost(input: { from: Date; to: Date; provider?: string }) {
@@ -976,6 +967,23 @@ export class InMemoryApiStore {
     if (!job) throw new Error(`Generation job not found: ${id}`);
     return job;
   }
+}
+
+function createUsageEventRow(input: CreateAiUsageEventInput): AiUsageEventRow {
+  return {
+    id: input.id,
+    operation_id: input.operationId ?? null,
+    user_id: input.userId,
+    feature: input.feature,
+    provider: input.provider,
+    model: input.model,
+    status: input.status,
+    provider_request_id: input.providerRequestId ?? null,
+    usage_json: normalizeProviderUsageMetrics(input.usage),
+    cost_micro_usd: normalizeMicroUsd(input.costMicroUsd),
+    pricing_version: requiredText(input.pricingVersion, 'pricingVersion'),
+    created_at: input.createdAt ?? new Date(),
+  };
 }
 
 function monthlyUsageKey(userId: string, period: string) {

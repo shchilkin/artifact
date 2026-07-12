@@ -4,43 +4,59 @@ const OPENAI_PRICING_VERSION = 'openai-2026-07-12';
 const XAI_PRICING_VERSION = 'xai-2026-07-12';
 const USD_TICKS_PER_MICRO_USD = 10_000n;
 
-export function priceProviderUsage(input: { provider: string; model: string; usage: ProviderUsageMetrics }): {
-  costMicroUsd: string;
-  pricingVersion: string;
-} {
+type PricingInput = { provider: string; model: string; usage: ProviderUsageMetrics };
+type PricingResult = { costMicroUsd: string; pricingVersion: string };
+type PricingRule = (input: PricingInput) => PricingResult | null;
+
+const PRICING_RULES: PricingRule[] = [priceOpenAiUsage, priceReportedXaiUsage, priceXaiImageUsage, priceMockUsage];
+
+export function priceProviderUsage(input: PricingInput): PricingResult {
+  for (const rule of PRICING_RULES) {
+    const result = rule(input);
+    if (result) return result;
+  }
+  throw new Error(`Unsupported provider pricing: ${input.provider}/${input.model}`);
+}
+
+function priceOpenAiUsage(input: PricingInput): PricingResult | null {
+  if (input.provider !== 'openai') return null;
   if (input.provider === 'openai' && input.model.startsWith('gpt-5.5')) {
     return tokenPrice(input.usage, { input: 20n, cached: 2n, output: 120n }, OPENAI_PRICING_VERSION);
   }
-  if (input.provider === 'openai' && input.model.startsWith('gpt-image-2')) {
+  if (input.model.startsWith('gpt-image-2')) {
     return tokenPrice(input.usage, { input: 20n, cached: 5n, output: 120n }, OPENAI_PRICING_VERSION);
   }
-  if (input.provider === 'xai' && input.usage.costUsdTicks !== undefined) {
-    const ticks = nonNegativeBigInt(input.usage.costUsdTicks, 'costUsdTicks');
-    return {
-      costMicroUsd: roundedDivide(ticks, USD_TICKS_PER_MICRO_USD).toString(),
-      pricingVersion: 'xai-reported-cost-v1',
-    };
-  }
-  if (input.provider === 'xai' && input.model === 'grok-imagine-image-quality') {
-    const count = BigInt(input.usage.imageCount ?? 1);
+  return null;
+}
+
+function priceReportedXaiUsage(input: PricingInput): PricingResult | null {
+  if (input.provider !== 'xai' || input.usage.costUsdTicks === undefined) return null;
+  const ticks = nonNegativeBigInt(input.usage.costUsdTicks, 'costUsdTicks');
+  return {
+    costMicroUsd: roundedDivide(ticks, USD_TICKS_PER_MICRO_USD).toString(),
+    pricingVersion: 'xai-reported-cost-v1',
+  };
+}
+
+function priceXaiImageUsage(input: PricingInput): PricingResult | null {
+  if (input.provider !== 'xai') return null;
+  const count = BigInt(input.usage.imageCount ?? 1);
+  if (input.model === 'grok-imagine-image-quality') {
     const perImage = input.usage.imageSize?.toLowerCase() === '2k' ? 70_000n : 50_000n;
     return { costMicroUsd: (count * perImage).toString(), pricingVersion: XAI_PRICING_VERSION };
   }
-  if (input.provider === 'xai' && input.model === 'grok-imagine-image') {
+  if (input.model === 'grok-imagine-image') {
     return {
-      costMicroUsd: (BigInt(input.usage.imageCount ?? 1) * 20_000n).toString(),
+      costMicroUsd: (count * 20_000n).toString(),
       pricingVersion: XAI_PRICING_VERSION,
     };
   }
-  if (
-    input.provider === 'openai-mock' ||
-    input.provider === 'xai-mock' ||
-    input.model.includes('mock-image') ||
-    input.model === 'mock-image-v1'
-  ) {
-    return { costMicroUsd: '0', pricingVersion: 'mock-v1' };
-  }
-  throw new Error(`Unsupported provider pricing: ${input.provider}/${input.model}`);
+  return null;
+}
+
+function priceMockUsage(input: PricingInput): PricingResult | null {
+  const isMock = input.provider.endsWith('-mock') || input.model.includes('mock-image');
+  return isMock ? { costMicroUsd: '0', pricingVersion: 'mock-v1' } : null;
 }
 
 function tokenPrice(

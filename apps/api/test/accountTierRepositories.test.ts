@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryApiStore } from '../src/db/memory.js';
+import { adminTierAssignmentAuditInput } from './helpers/adminAudit.js';
 
 describe('account tier repositories', () => {
   it('ensures Free access and reports legacy AI-enabled accounts without assigning Creator', async () => {
@@ -77,19 +78,10 @@ describe('account tier repositories', () => {
       cost_micro_usd: '10800',
     });
 
-    await expect(
-      repositories.adminAudit.append({
-        id: 'audit-1',
-        adminUserId: 'admin-1',
-        targetUserId: 'user-1',
-        action: 'tier.assign',
-        entityType: 'tier_assignment',
-        entityId: 'assignment-1',
-        reason: 'Closed alpha access',
-        beforeJson: { tier: 'free' },
-        afterJson: { tier: 'creator' },
-      }),
-    ).resolves.toMatchObject({ id: 'audit-1', reason: 'Closed alpha access' });
+    await expect(repositories.adminAudit.append(adminTierAssignmentAuditInput())).resolves.toMatchObject({
+      id: 'audit-1',
+      reason: 'Closed alpha access',
+    });
   });
 
   it('upserts one provider reconciliation per UTC day', async () => {

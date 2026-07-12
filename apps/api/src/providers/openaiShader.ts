@@ -107,20 +107,7 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
             model,
             max_output_tokens: 2_400,
             reasoning: { effort: 'low' },
-            input: request.repair
-              ? [
-                  { role: 'system', content: SHADER_REPAIR_SYSTEM_PROMPT },
-                  { role: 'user', content: repairPrompt(request) },
-                ]
-              : request.refine
-                ? [
-                    { role: 'system', content: SHADER_REFINE_SYSTEM_PROMPT },
-                    { role: 'user', content: refinementPrompt(request) },
-                  ]
-                : [
-                    { role: 'system', content: SHADER_SYSTEM_PROMPT },
-                    { role: 'user', content: request.prompt },
-                  ],
+            input: shaderConversation(request),
             text: {
               format: {
                 type: 'json_schema',
@@ -134,48 +121,8 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
         const body = (await response.json()) as OpenAiResponsesApiBody;
         const requestId = response.headers.get('x-request-id') ?? undefined;
         const usage = readUsage(body);
-        try {
-          assertResponseOk(response, body);
-        } catch (error) {
-          throw new OpenAiShaderResponseError(
-            error instanceof Error ? error.message : 'OpenAI shader request failed.',
-            requestId,
-            usage,
-          );
-        }
-        try {
-          const generated = readGeneratedShader(body);
-          const definition: ShaderDefinition = {
-            version: 1,
-            id: `${request.clientRequestId}-definition`,
-            label: generated.label,
-            language: 'glsl-fragment',
-            code: generated.code,
-            properties: generated.properties,
-          };
-          const validationErrors = [...validateShaderDefinition(definition), ...validateShaderCode(definition.code)];
-          if (!/\btexture2D\s*\(\s*u_backdrop\b/.test(stripShaderCodeComments(definition.code))) {
-            validationErrors.push('AI shader effects must sample the connected u_backdrop image.');
-          }
-          if (validationErrors.length > 0) {
-            const messages = validationErrors.map((error) => (typeof error === 'string' ? error : error.message));
-            throw new Error(`OpenAI shader did not match the contract: ${messages.join(' ')}`);
-          }
-          return {
-            instance: {
-              definition,
-              values: Object.fromEntries(definition.properties.map((property) => [property.key, property.default])),
-            },
-            requestId,
-            usage,
-          };
-        } catch (error) {
-          throw new OpenAiShaderResponseError(
-            error instanceof Error ? error.message : 'OpenAI shader response did not match the contract.',
-            requestId,
-            usage,
-          );
-        }
+        assertShaderResponseOk(response, body, requestId, usage);
+        return createShaderGenerationResult(request, body, requestId, usage);
       } catch (error) {
         if (controller.signal.aborted) throw new OpenAiShaderTimeoutError(timeoutMs);
         throw error;
@@ -184,6 +131,86 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
       }
     },
   };
+}
+
+function shaderConversation(request: ShaderGenerationRequest) {
+  if (request.repair) {
+    return [
+      { role: 'system', content: SHADER_REPAIR_SYSTEM_PROMPT },
+      { role: 'user', content: repairPrompt(request) },
+    ];
+  }
+  if (request.refine) {
+    return [
+      { role: 'system', content: SHADER_REFINE_SYSTEM_PROMPT },
+      { role: 'user', content: refinementPrompt(request) },
+    ];
+  }
+  return [
+    { role: 'system', content: SHADER_SYSTEM_PROMPT },
+    { role: 'user', content: request.prompt },
+  ];
+}
+
+function assertShaderResponseOk(
+  response: FetchResponseLike,
+  body: OpenAiResponsesApiBody,
+  requestId: string | undefined,
+  usage: ShaderGenerationResult['usage'],
+) {
+  try {
+    assertResponseOk(response, body);
+  } catch (error) {
+    throw shaderResponseError(error, 'OpenAI shader request failed.', requestId, usage);
+  }
+}
+
+function createShaderGenerationResult(
+  request: ShaderGenerationRequest,
+  body: OpenAiResponsesApiBody,
+  requestId: string | undefined,
+  usage: ShaderGenerationResult['usage'],
+): ShaderGenerationResult {
+  try {
+    const definition = createValidatedDefinition(request.clientRequestId, readGeneratedShader(body));
+    return {
+      instance: {
+        definition,
+        values: Object.fromEntries(definition.properties.map((property) => [property.key, property.default])),
+      },
+      requestId,
+      usage,
+    };
+  } catch (error) {
+    throw shaderResponseError(error, 'OpenAI shader response did not match the contract.', requestId, usage);
+  }
+}
+
+function createValidatedDefinition(clientRequestId: string, generated: GeneratedShaderPayload): ShaderDefinition {
+  const definition: ShaderDefinition = {
+    version: 1,
+    id: `${clientRequestId}-definition`,
+    label: generated.label,
+    language: 'glsl-fragment',
+    code: generated.code,
+    properties: generated.properties,
+  };
+  const validationErrors = [...validateShaderDefinition(definition), ...validateShaderCode(definition.code)];
+  if (!/\btexture2D\s*\(\s*u_backdrop\b/.test(stripShaderCodeComments(definition.code))) {
+    validationErrors.push('AI shader effects must sample the connected u_backdrop image.');
+  }
+  if (validationErrors.length === 0) return definition;
+  const messages = validationErrors.map((error) => (typeof error === 'string' ? error : error.message));
+  throw new Error(`OpenAI shader did not match the contract: ${messages.join(' ')}`);
+}
+
+function shaderResponseError(
+  error: unknown,
+  fallbackMessage: string,
+  requestId: string | undefined,
+  usage: ShaderGenerationResult['usage'],
+) {
+  return new OpenAiShaderResponseError(error instanceof Error ? error.message : fallbackMessage, requestId, usage);
 }
 
 const SHADER_SYSTEM_PROMPT = `Create one editable GLSL ES 1.00 fragment shader effect for Artifact.
