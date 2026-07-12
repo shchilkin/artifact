@@ -8,6 +8,13 @@ deployment boundary, but keeps operational UI and future usage analytics out of
 the editor bundle and allows the entire admin surface to receive an additional
 network-access boundary.
 
+Production serves the backoffice at `backoffice.artifact.shchilkin.dev` from a
+dedicated service on the same VPS as the Artifact API. Sharing a host does not
+merge their runtimes: the backoffice has its own container or service,
+configuration, health check, deployment step, and rollback boundary. The API
+explicitly allows the backoffice origin and configures Better Auth cookies and
+trusted origins for both Artifact clients.
+
 `apps/backoffice` will use the repository's React Router framework and Vite
 toolchain in SPA mode. It may reuse shared contracts and UI primitives, but it
 does not connect directly to Postgres. Reads and mutations go through
