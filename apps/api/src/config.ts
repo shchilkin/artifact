@@ -25,8 +25,6 @@ export interface ApiConfig {
   xAiImageModel: string;
   assetStorageDriver: 'local' | 's3';
   assetStorageDir: string;
-  monthlyGenerationLimit: number;
-  maxActiveJobsPerUser: number;
 }
 
 function requiredEnv(env: NodeJS.ProcessEnv, name: string) {
@@ -115,7 +113,5 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     xAiImageModel: env.XAI_IMAGE_MODEL ?? 'grok-imagine-image-quality',
     assetStorageDriver,
     assetStorageDir: env.ASSET_STORAGE_DIR ?? './storage',
-    monthlyGenerationLimit: numberEnv(env, 'AI_MONTHLY_GENERATION_LIMIT', 10),
-    maxActiveJobsPerUser: numberEnv(env, 'AI_MAX_ACTIVE_JOBS_PER_USER', 1),
   };
 }

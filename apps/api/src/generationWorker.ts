@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { AccountAccessService } from './accountAccessService.js';
 import type { AiGenerationSettings, AiProvider, GenerationQueuePayload } from './contracts.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiGenerationJobRow, JsonObject, JsonValue } from './db/types.js';
@@ -33,9 +34,11 @@ export async function processGenerationJob(
     return;
   }
   let storedStorageKey: string | null = null;
+  const access = new AccountAccessService(deps.repositories, { now: deps.now });
 
   try {
     const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
+    if (running.operation_id) await access.markRunning(running.operation_id);
     const provider = deps.providers.get(running.provider as AiProvider);
     logInfo('ai_generation.running', {
       jobId: running.id,
@@ -94,6 +97,7 @@ export async function processGenerationJob(
       metadataJson: createGeneratedAssetMetadata(running, result, completedAt),
     });
     await deps.repositories.jobs.markSucceeded(running.id, assetId, completedAt);
+    if (running.operation_id) await commitUsableOperation(access, running.operation_id, running);
     logInfo('ai_generation.succeeded', { jobId: running.id, userId: running.user_id, assetId });
   } catch (error) {
     if (storedStorageKey) {
@@ -113,7 +117,35 @@ export async function processGenerationJob(
       providerUsageJson: null,
       estimatedCost: null,
     });
+    if (job.operation_id) await access.release(job.operation_id, 'failed', failure.code);
   }
+}
+
+async function commitUsableOperation(
+  access: AccountAccessService,
+  operationId: string,
+  job: Pick<AiGenerationJobRow, 'id' | 'user_id'>,
+) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await access.commit(operationId);
+      return;
+    } catch (error) {
+      lastError = error;
+      logWarn('ai_generation.accounting_commit_retry', {
+        jobId: job.id,
+        userId: job.user_id,
+        operationId,
+        attempt,
+      });
+    }
+  }
+  logError('ai_generation.accounting_commit_failed', lastError, {
+    jobId: job.id,
+    userId: job.user_id,
+    operationId,
+  });
 }
 
 function validateProviderResult(result: ImageGenerationResult, maxOutputBytes: number) {

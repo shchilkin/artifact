@@ -11,7 +11,6 @@
     "dev:node-watch": "node scripts/dev-watch.mjs",
     "dev:once": "npm --workspace @artifact/shared run build && tsx src/server.ts",
     "export:job-image": "node scripts/export-job-image.mjs",
-    "grant:ai": "node scripts/grant-ai-access.mjs",
     "migrate": "node scripts/migrate.mjs",
     "migrate:account-tiers:dry-run": "npm --workspace @artifact/shared run build && tsx src/accountTierMigrationCli.ts",
     "smoke": "node scripts/smoke.mjs",

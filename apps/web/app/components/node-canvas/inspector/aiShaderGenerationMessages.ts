@@ -26,6 +26,7 @@ const SHADER_ERROR_MESSAGES: Record<string, ErrorMessageFactory> = {
   not_enabled: fixedFailure('AI creation is not available for this account.'),
   ai_disabled: fixedFailure('AI creation is not available for this account.'),
   provider_disabled: fixedFailure('AI creation is not available for this account.'),
+  tier_ai_unavailable: fixedFailure('AI creation is not included for this account.'),
   shader_provider_unavailable: fixedFailure(
     'AI creation is not connected here. Try again after setup, or make a local version.',
     true,
@@ -35,6 +36,8 @@ const SHADER_ERROR_MESSAGES: Record<string, ErrorMessageFactory> = {
   prompt_too_long: fixedFailure(`Shorten the prompt to ${AI_SHADER_PROMPT_MAX_LENGTH} characters or fewer.`),
   rate_limited: fixedFailure('Too many requests. Wait a moment, then try again.'),
   quota_exceeded: fixedFailure('The monthly AI creation limit has been reached.'),
+  allowance_exhausted: fixedFailure('The monthly AI creation allowance has been used.'),
+  operation_in_progress: fixedFailure('Another AI creation is still running. Wait a moment, then try again.'),
   shader_provider_timeout: fixedFailure('Creation took too long. Try again.', true),
   shader_request_in_progress: fixedFailure('This shader is already being created. Wait a moment, then try again.'),
   invalid_response: fixedFailure('Creation returned an incomplete result. Try again.', true),

@@ -131,6 +131,7 @@ export interface AdminAuditEventRow {
 
 export interface AiGenerationJobRow {
   id: string;
+  operation_id: string | null;
   user_id: string;
   provider: string;
   model: string;
@@ -156,6 +157,7 @@ export interface AiGenerationJobRow {
 
 export interface AiShaderRequestRow {
   id: string;
+  operation_id: string | null;
   user_id: string;
   idempotency_key: string;
   mode: 'openai' | 'localFallback';
@@ -204,6 +206,12 @@ export interface AiUsageMonthlyRow {
   period: string;
   generation_limit: number;
   generation_count: number;
+  committed_generation_count: number;
+  reserved_generation_count: number;
+  provider_cost_micro_usd: DbNumeric;
+  input_tokens: DbNumeric;
+  output_tokens: DbNumeric;
+  failed_call_count: number;
   estimated_cost: DbNumeric;
   updated_at: DbTimestamp;
 }
@@ -245,6 +253,17 @@ export interface CreateAiOperationInput {
   idempotencyKey: string;
   reservationPeriod: string;
   reservedGenerations: 0 | 1;
+}
+
+export interface ReserveAiOperationInput extends CreateAiOperationInput {
+  generationLimit: number;
+}
+
+export interface ReleaseAiOperationInput {
+  id: string;
+  status: Extract<AiOperationStatus, 'failed' | 'cancelled' | 'expired'>;
+  errorCode?: string | null;
+  completedAt: Date;
 }
 
 export interface CreateAiUsageEventInput {
@@ -308,6 +327,7 @@ export interface UpsertAuthenticatedUserInput {
 
 export interface CreateAiGenerationJobInput {
   id: string;
+  operationId?: string | null;
   userId: string;
   provider: string;
   model: string;
@@ -320,6 +340,7 @@ export interface CreateAiGenerationJobInput {
 
 export interface ClaimAiShaderRequestInput {
   id: string;
+  operationId?: string | null;
   userId: string;
   idempotencyKey: string;
   mode: 'openai' | 'localFallback';
@@ -396,12 +417,16 @@ export interface AccountTierRepository {
 }
 
 export interface AiOperationRepository {
+  findById(id: string): Promise<AiOperationRow | null>;
   findByIdempotencyKey(
     userId: string,
     feature: AiOperationFeature,
     idempotencyKey: string,
   ): Promise<AiOperationRow | null>;
-  claim(input: CreateAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean }>;
+  reserve(input: ReserveAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean } | null>;
+  markRunning(id: string, startedAt: Date): Promise<AiOperationRow>;
+  markSucceeded(id: string, completedAt: Date): Promise<AiOperationRow>;
+  release(input: ReleaseAiOperationInput): Promise<AiOperationRow>;
 }
 
 export interface AiUsageEventRepository {
@@ -437,6 +462,7 @@ export interface AiGenerationJobRepository {
 
 export interface AiShaderRequestRepository {
   claim(input: ClaimAiShaderRequestInput): Promise<{ row: AiShaderRequestRow; claimed: boolean }>;
+  attachOperation(id: string, operationId: string): Promise<AiShaderRequestRow>;
   findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderRequestRow | null>;
   findByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null>;
   markGenerated(input: CompleteAiShaderRequestInput): Promise<AiShaderRequestRow>;

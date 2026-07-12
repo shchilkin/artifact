@@ -20,58 +20,65 @@ const operation: AiOperationRow = {
 
 describe('PostgresAiOperationRepository', () => {
   it('claims a reserved operation with a per-feature idempotency guard', async () => {
-    const client = createFakeQueryClient([[operation]]);
+    const client = createFakeQueryClient([[], [operation]]);
     const repository = new PostgresAiOperationRepository(client);
 
     await expect(
-      repository.claim({
+      repository.reserve({
         id: 'operation-1',
         userId: 'user-1',
         feature: 'shader_create',
         idempotencyKey: 'idem-1',
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
+        generationLimit: 20,
       }),
     ).resolves.toEqual({ row: operation, claimed: true });
 
-    expect(client.calls[0]?.sql).toContain('ON CONFLICT (user_id, feature, idempotency_key) DO NOTHING');
+    expect(client.calls[1]?.sql).toContain('INSERT INTO ai_usage_monthly');
+    expect(client.calls[1]?.sql).toContain('committed_generation_count');
   });
 
   it('returns the winning operation after an idempotency conflict', async () => {
-    const client = createFakeQueryClient([[], [operation]]);
+    const client = createFakeQueryClient([[operation]]);
     const repository = new PostgresAiOperationRepository(client);
 
     await expect(
-      repository.claim({
+      repository.reserve({
         id: 'operation-retry',
         userId: 'user-1',
         feature: 'shader_create',
         idempotencyKey: 'idem-1',
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
+        generationLimit: 20,
       }),
     ).resolves.toEqual({ row: operation, claimed: false });
   });
 
   it('rejects an idempotency key reused with a different operation payload', async () => {
-    const client = createFakeQueryClient([[], [operation]]);
+    const client = createFakeQueryClient([[operation]]);
     const repository = new PostgresAiOperationRepository(client);
 
     await expect(
-      repository.claim({
+      repository.reserve({
         id: 'operation-conflict',
         userId: 'user-1',
         feature: 'shader_create',
         idempotencyKey: 'idem-1',
         reservationPeriod: '2026-08',
         reservedGenerations: 1,
+        generationLimit: 20,
       }),
     ).rejects.toThrow('Idempotency key reused with different AI operation input: idem-1');
   });
 
   it('maps the active-operation index to a domain error', async () => {
+    let queryCount = 0;
     const client: PostgresQueryClient = {
       query: async () => {
+        queryCount += 1;
+        if (queryCount === 1) return { rows: [] };
         throw Object.assign(new Error('duplicate active operation'), {
           code: '23505',
           constraint: ACTIVE_AI_OPERATION_INDEX,
@@ -81,13 +88,14 @@ describe('PostgresAiOperationRepository', () => {
     const repository = new PostgresAiOperationRepository(client);
 
     await expect(
-      repository.claim({
+      repository.reserve({
         id: 'operation-2',
         userId: 'user-1',
         feature: 'image_create',
         idempotencyKey: 'idem-2',
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
+        generationLimit: 20,
       }),
     ).rejects.toBeInstanceOf(ActiveAiOperationExistsError);
   });

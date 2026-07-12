@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { AccountAllowanceSnapshot, AiOperationFeature } from '@artifact/shared';
+import { type AccountAccessDenialCode, AccountAccessService } from '../accountAccessService.js';
 import { computeAiAccessResponse, type RequestLike, type RequestUserResolution } from '../auth.js';
 import type {
   AiAccessResponse,
@@ -6,6 +8,7 @@ import type {
   AiGenerationJobResponse,
   AiGenerationSettings,
   AiProvider,
+  AiQuotaSnapshot,
   AiShaderCompilerDiagnostic,
   AiShaderGenerationResponse,
   AiShaderRequestMode,
@@ -26,7 +29,7 @@ import {
   type ShaderGenerationProvider,
 } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
-import { checkOneActiveJob, createQuotaSnapshot, getMonthlyQuotaPeriod, type MonthlyQuotaCheck } from '../quota.js';
+import type { MonthlyQuotaCheck } from '../quota.js';
 import type { InMemoryRateLimiter } from '../rateLimit.js';
 import { generateLocalShaderInstanceFromPrompt, validateShaderPrompt } from '../shaderGenerator.js';
 
@@ -40,12 +43,11 @@ export interface AiRouteDeps {
   queue: GenerationQueue;
   providers: ProviderRegistry;
   resolveAuth(request: RequestLike): Promise<RequestUserResolution>;
-  monthlyGenerationLimit: number;
-  maxActiveJobsPerUser: number;
   createRateLimiter?: InMemoryRateLimiter;
   shaderProvider?: ShaderGenerationProvider;
   now?: () => Date;
   createId?: () => string;
+  createOperationId?: () => string;
 }
 
 type AiRouteHandler = (
@@ -184,30 +186,22 @@ export async function handleAccessRequest(
 ): Promise<JsonResponse<AiAccessResponse>> {
   const auth = await deps.resolveAuth(request);
   const user = auth.authenticated ? await ensureAuthenticatedUser(auth, deps) : null;
+  const allowance = user && !user.disabled_at ? await createAccountAccessService(deps).getAllowance(user.id) : null;
   logInfo('ai_generation.access_checked', {
     authenticated: auth.authenticated,
     reason: auth.authenticated ? undefined : auth.reason,
     userId: auth.authenticated ? auth.user.id : undefined,
-    aiEnabled: Boolean(user?.ai_enabled && !user.disabled_at),
+    tier: allowance?.tier,
   });
-  const period = getMonthlyQuotaPeriod(deps.now?.());
-  const quota = auth.authenticated
-    ? createQuotaSnapshot(
-        period,
-        deps.monthlyGenerationLimit,
-        await deps.repositories.usage.countMonthlyGenerations(auth.user.id, period),
-      )
-    : undefined;
+  const quota = allowance ? quotaFromAllowance(allowance) : undefined;
 
-  return json(
-    200,
-    computeAiAccessResponse({
-      auth,
-      aiEnabled: Boolean(user?.ai_enabled && !user.disabled_at),
-      providers: user?.ai_enabled ? providerNames(deps.providers) : [],
-      quota,
-    }),
-  );
+  const response = computeAiAccessResponse({
+    auth,
+    aiEnabled: Boolean(allowance?.providerAiEnabled && !user?.disabled_at),
+    providers: allowance?.providerAiEnabled ? providerNames(deps.providers) : [],
+    quota,
+  });
+  return json(200, { ...response, ...(allowance ? { tier: allowance.tier } : {}) });
 }
 
 export async function handleCreateShaderRequest(
@@ -275,9 +269,6 @@ export async function handleCreateShaderRequest(
     }
   }
 
-  const rateLimitResponse = createShaderRateLimitResponse(authResult.user.id, deps);
-  if (rateLimitResponse) return rateLimitResponse;
-
   const claimed = await deps.repositories.shaderRequests.claim({
     id: deps.createId?.() ?? randomUUID(),
     userId: authResult.user.id,
@@ -288,6 +279,19 @@ export async function handleCreateShaderRequest(
   });
   if (!claimed.claimed) {
     return storedShaderResponse(claimed.row, promptResult.prompt, modeResult.mode, refineReference.requestId);
+  }
+
+  if (modeResult.mode === 'openai') {
+    const rateLimitResponse = createShaderRateLimitResponse(authResult.user.id, deps);
+    if (rateLimitResponse) {
+      await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
+        status: rateLimitResponse.status,
+        code: 'rate_limited',
+        message: 'Too many AI requests. Try again shortly.',
+        completedAt: deps.now?.() ?? new Date(),
+      });
+      return rateLimitResponse;
+    }
   }
 
   if (modeResult.mode === 'openai' && !deps.shaderProvider) {
@@ -303,15 +307,16 @@ export async function handleCreateShaderRequest(
     return errorJson(failure.status, failure.code, failure.message);
   }
 
-  const period = getMonthlyQuotaPeriod(deps.now?.());
+  let operationId: string | null = null;
   if (modeResult.mode === 'openai') {
-    const reserved = await deps.repositories.usage.reserveMonthlyGeneration({
+    const feature: AiOperationFeature = refinement.value ? 'shader_refine' : 'shader_create';
+    const reserved = await createAccountAccessService(deps).reserve({
       userId: authResult.user.id,
-      period,
-      generationLimit: deps.monthlyGenerationLimit,
+      feature,
+      idempotencyKey: idempotencyResult.idempotencyKey,
     });
-    if (!reserved) {
-      const failure = { status: 429, code: 'quota_exceeded', message: 'Monthly generation quota used.' };
+    if (!reserved.ok) {
+      const failure = accountAccessDenial(reserved.code, 'shader');
       await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
         ...failure,
         completedAt: deps.now?.() ?? new Date(),
@@ -319,6 +324,9 @@ export async function handleCreateShaderRequest(
       logWarn('ai_shader.create_denied', { userId: authResult.user.id, reason: failure.code });
       return errorJson(failure.status, failure.code, failure.message);
     }
+    operationId = reserved.operation.id;
+    await deps.repositories.shaderRequests.attachOperation(claimed.row.id, operationId);
+    await createAccountAccessService(deps).markRunning(operationId);
   }
 
   const shaderResult = await createShader(promptResult.prompt, modeResult.mode, claimed.row.id, refinement.value, deps);
@@ -327,6 +335,9 @@ export async function handleCreateShaderRequest(
       ...shaderResult.failure,
       completedAt: deps.now?.() ?? new Date(),
     });
+    if (operationId) {
+      await createAccountAccessService(deps).release(operationId, 'failed', shaderResult.failure.code);
+    }
     return errorJson(shaderResult.failure.status, shaderResult.failure.code, shaderResult.failure.message);
   }
   const attempt = modeResult.mode === 'localFallback' ? 'localFallback' : refinement.value ? 'refine' : 'initial';
@@ -473,6 +484,7 @@ export async function handleValidateShaderRequest(
 
   if (body?.outcome === 'accepted') {
     if (shaderRequest.status === 'accepted') {
+      if (shaderRequest.operation_id) await createAccountAccessService(deps).commit(shaderRequest.operation_id);
       return json(200, {
         requestId,
         candidateRevision: body.candidateRevision,
@@ -489,11 +501,13 @@ export async function handleValidateShaderRequest(
         body.candidateRevision,
         deps.now?.() ?? new Date(),
       );
+      if (shaderRequest.operation_id) await createAccountAccessService(deps).commit(shaderRequest.operation_id);
     } catch {
       const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
       if (current?.status !== 'accepted' || current.repair_count !== body.candidateRevision) {
         return errorJson(409, 'shader_candidate_changed', 'A newer shader candidate was already resolved.');
       }
+      if (current.operation_id) await createAccountAccessService(deps).commit(current.operation_id);
     }
     logInfo(shaderRequest.repair_count > 0 ? 'shader_repair_succeeded' : 'shader_accepted', {
       requestId,
@@ -525,6 +539,13 @@ export async function handleValidateShaderRequest(
     });
   }
   if (shaderRequest.status === 'failed') {
+    if (shaderRequest.operation_id) {
+      await createAccountAccessService(deps).release(
+        shaderRequest.operation_id,
+        'failed',
+        shaderRequest.error_code ?? 'shader_failed',
+      );
+    }
     return json(200, {
       requestId,
       candidateRevision: body.candidateRevision,
@@ -544,6 +565,13 @@ export async function handleValidateShaderRequest(
       terminal,
       completedAt: deps.now?.() ?? new Date(),
     });
+    if (terminal && shaderRequest.operation_id) {
+      await createAccountAccessService(deps).release(
+        shaderRequest.operation_id,
+        'failed',
+        'shader_browser_validation_failed',
+      );
+    }
   } catch {
     const current = await deps.repositories.shaderRequests.findByIdForUser(requestId, authResult.user.id);
     if (
@@ -686,6 +714,9 @@ export async function handleRepairShaderRequest(
       ...failure,
       completedAt: deps.now?.() ?? new Date(),
     });
+    if (shaderRequest.operation_id) {
+      await createAccountAccessService(deps).release(shaderRequest.operation_id, 'failed', failure.code);
+    }
     logWarn('shader_repair_failed', {
       requestId,
       userId: authResult.user.id,
@@ -837,15 +868,15 @@ export async function handleCreateGenerationRequest(
   const prepared = await prepareCreateGeneration(request, body, deps);
   if (!prepared.ok) return prepared.response;
 
-  const { provider, model, quotaCheck, user } = prepared;
+  const { provider, model, operationId, quotaCheck, user } = prepared;
   const created = await createGenerationJob(body, prepared, deps);
   if (!created.ok) {
-    await deps.repositories.usage.releaseMonthlyGeneration(user.id, quotaCheck.quota.period);
+    await createAccountAccessService(deps).release(operationId, 'failed', 'job_create_failed');
     return created.response;
   }
 
   const job = created.job;
-  const enqueued = await enqueueGenerationJob(job, user.id, quotaCheck.quota.period, deps);
+  const enqueued = await enqueueGenerationJob(job, user.id, operationId, deps);
   if (!enqueued.ok) return enqueued.response;
 
   logInfo('ai_generation.queued', {
@@ -864,6 +895,7 @@ type CreateGenerationPrepared = {
   provider: AiProvider;
   model: string;
   quotaCheck: MonthlyQuotaCheck;
+  operationId: string;
   user: AuthenticatedUserRow;
 };
 
@@ -880,9 +912,9 @@ async function authenticateCreateShader(
   }
 
   const user = await ensureAuthenticatedUser(auth, deps);
-  if (!user?.ai_enabled || user.disabled_at) {
-    logWarn('ai_shader.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
-    return { ok: false, response: errorJson(403, 'not_enabled', 'AI shader generation is not enabled for this user.') };
+  if (!user || user.disabled_at) {
+    logWarn('ai_shader.create_denied', { userId: auth.user.id, reason: 'account_disabled' });
+    return { ok: false, response: errorJson(403, 'account_disabled', 'This account cannot start AI work.') };
   }
   return { ok: true, user };
 }
@@ -904,12 +936,13 @@ async function prepareCreateGeneration(
   const existing = await existingGenerationResponse(authResult.user.id, body.idempotencyKey, deps);
   if (existing) return { ok: false, response: existing };
 
-  const capacityResult = await ensureCreateGenerationCapacity(authResult.user.id, deps);
+  const capacityResult = await ensureCreateGenerationCapacity(authResult.user.id, body.idempotencyKey, deps);
   if (!capacityResult.ok) return capacityResult;
 
   return {
     ok: true,
     model: requestResult.model,
+    operationId: capacityResult.operationId,
     provider: requestResult.provider,
     quotaCheck: capacityResult.quotaCheck,
     user: authResult.user,
@@ -929,9 +962,9 @@ async function authenticateCreateGeneration(
   }
 
   const user = await ensureAuthenticatedUser(auth, deps);
-  if (!user?.ai_enabled || user.disabled_at) {
-    logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'not_enabled' });
-    return { ok: false, response: errorJson(403, 'not_enabled', 'AI generation is not enabled for this user.') };
+  if (!user || user.disabled_at) {
+    logWarn('ai_generation.create_denied', { userId: auth.user.id, reason: 'account_disabled' });
+    return { ok: false, response: errorJson(403, 'account_disabled', 'This account cannot start AI work.') };
   }
   return { ok: true, user };
 }
@@ -953,58 +986,69 @@ function createGenerationRequestInfo(
 
 async function ensureCreateGenerationCapacity(
   userId: string,
+  idempotencyKey: string,
   deps: AiRouteDeps,
 ): Promise<
-  { ok: true; quotaCheck: MonthlyQuotaCheck } | { ok: false; response: JsonResponse<{ code: string; message: string }> }
+  | { ok: true; operationId: string; quotaCheck: MonthlyQuotaCheck }
+  | { ok: false; response: JsonResponse<{ code: string; message: string }> }
 > {
   const rateLimitResponse = createGenerationRateLimitResponse(userId, deps);
   if (rateLimitResponse) return { ok: false, response: rateLimitResponse };
-  const activeCheck = await checkOneActiveJob({
-    activeJobReader: deps.repositories.jobs,
-    maxActiveJobs: deps.maxActiveJobsPerUser,
+  const reserved = await createAccountAccessService(deps).reserve({
     userId,
+    feature: 'image_create',
+    idempotencyKey,
   });
-  if (!activeCheck.allowed) {
-    logWarn('ai_generation.create_denied', { userId, reason: 'active_job_exists' });
-    return {
-      ok: false,
-      response: errorJson(409, 'active_job_exists', 'Wait for the active generation job to finish.'),
-    };
-  }
-
-  const period = getMonthlyQuotaPeriod(deps.now?.());
-  const reserved = await deps.repositories.usage.reserveMonthlyGeneration({
-    userId,
-    period,
-    generationLimit: deps.monthlyGenerationLimit,
-  });
-  if (!reserved) {
-    logWarn('ai_generation.create_denied', { userId, reason: 'quota_exceeded' });
-    return { ok: false, response: errorJson(429, 'quota_exceeded', 'Monthly generation quota used.') };
-  }
+  if (!reserved.ok) return { ok: false, response: accountAccessDenialResponse(reserved.code, 'image') };
   const quotaCheck: MonthlyQuotaCheck = {
     allowed: true,
-    quota: createQuotaSnapshot(period, deps.monthlyGenerationLimit, reserved.generation_count),
+    quota: quotaFromAllowance(reserved.allowance),
   };
 
-  return { ok: true, quotaCheck };
+  return { ok: true, operationId: reserved.operation.id, quotaCheck };
 }
 
 async function existingGenerationResponse(userId: string, idempotencyKey: string, deps: AiRouteDeps) {
   const existing = await deps.repositories.jobs.findByIdempotencyKey(userId, idempotencyKey);
   if (!existing) return null;
   logInfo('ai_generation.idempotency_hit', { jobId: existing.id, userId, status: existing.status });
-  const period = getMonthlyQuotaPeriod(deps.now?.());
-  const quota = createQuotaSnapshot(
-    period,
-    deps.monthlyGenerationLimit,
-    await deps.repositories.usage.countMonthlyGenerations(userId, period),
-  );
+  const quota = quotaFromAllowance(await createAccountAccessService(deps).getAllowance(userId));
   return json(200, await toJobResponseForUser(existing, userId, deps.repositories, quota));
 }
 
+function createAccountAccessService(deps: AiRouteDeps) {
+  return new AccountAccessService(deps.repositories, {
+    now: deps.now,
+    createId: deps.createOperationId,
+  });
+}
+
+function quotaFromAllowance(allowance: AccountAllowanceSnapshot): AiQuotaSnapshot {
+  return {
+    period: allowance.period,
+    limit: allowance.limit,
+    used: allowance.committed + allowance.reserved,
+    remaining: allowance.remaining,
+  };
+}
+
+function accountAccessDenial(code: AccountAccessDenialCode, feature: 'image' | 'shader') {
+  if (code === 'tier_ai_unavailable') {
+    return { status: 403, code, message: `Your account tier cannot create AI ${feature}s.` };
+  }
+  if (code === 'allowance_exhausted') {
+    return { status: 429, code, message: 'Monthly AI allowance used.' };
+  }
+  return { status: 409, code, message: 'Wait for the active AI operation to finish.' };
+}
+
+function accountAccessDenialResponse(code: AccountAccessDenialCode, feature: 'image' | 'shader') {
+  const denial = accountAccessDenial(code, feature);
+  return errorJson(denial.status, denial.code, denial.message);
+}
+
 function createGenerationRateLimitResponse(userId: string, deps: AiRouteDeps) {
-  const rate = deps.createRateLimiter?.check(`generation:create:user:${userId}`);
+  const rate = deps.createRateLimiter?.check(`ai:start:user:${userId}`);
   if (!rate || rate.allowed) return null;
   logWarn('ai_generation.create_denied', { userId, reason: 'rate_limited' });
   return json(
@@ -1015,7 +1059,7 @@ function createGenerationRateLimitResponse(userId: string, deps: AiRouteDeps) {
 }
 
 function createShaderRateLimitResponse(userId: string, deps: AiRouteDeps) {
-  const rate = deps.createRateLimiter?.check(`shader:create:user:${userId}`);
+  const rate = deps.createRateLimiter?.check(`ai:start:user:${userId}`);
   if (!rate || rate.allowed) return null;
   logWarn('ai_shader.create_denied', { userId, reason: 'rate_limited' });
   return json(
@@ -1037,6 +1081,7 @@ async function createGenerationJob(
       ok: true,
       job: await deps.repositories.jobs.create({
         id: deps.createId?.() ?? randomUUID(),
+        operationId: prepared.operationId,
         userId: prepared.user.id,
         provider: prepared.provider,
         model: prepared.model,
@@ -1061,7 +1106,7 @@ async function createGenerationJob(
 async function enqueueGenerationJob(
   job: AiGenerationJobRow,
   userId: string,
-  period: string,
+  operationId: string,
   deps: AiRouteDeps,
 ): Promise<{ ok: true } | { ok: false; response: JsonResponse<{ code: string; message: string }> }> {
   try {
@@ -1078,7 +1123,7 @@ async function enqueueGenerationJob(
       message: 'Generation queue is unavailable. Try again later.',
       retryable: true,
     });
-    await deps.repositories.usage.releaseMonthlyGeneration(userId, period);
+    await createAccountAccessService(deps).release(operationId, 'failed', 'queue_enqueue_failed');
     return {
       ok: false,
       response: errorJson(503, 'queue_unavailable', 'Generation queue is unavailable. Try again later.'),
@@ -1124,14 +1169,10 @@ export async function handleCancelGenerationRequest(
     return errorJson(409, 'invalid_job_state', 'Only queued or running jobs can be cancelled.');
   }
 
-  return json(
-    200,
-    await toJobResponseForUser(
-      await deps.repositories.jobs.markCancelled(job.id, deps.now?.() ?? new Date()),
-      auth.user.id,
-      deps.repositories,
-    ),
-  );
+  const cancelled = await deps.repositories.jobs.markCancelled(job.id, deps.now?.() ?? new Date());
+  if (job.operation_id) await createAccountAccessService(deps).release(job.operation_id, 'cancelled', 'user_cancelled');
+
+  return json(200, await toJobResponseForUser(cancelled, auth.user.id, deps.repositories));
 }
 
 function validateCreateGenerationRequest(

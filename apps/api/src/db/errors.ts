@@ -1,9 +1,13 @@
 export const ACTIVE_GENERATION_JOB_INDEX = 'ai_generation_jobs_one_active_per_user_idx';
 export const ACTIVE_AI_OPERATION_INDEX = 'ai_operations_one_active_per_user_idx';
+export const AI_OPERATION_IDEMPOTENCY_CONSTRAINT = 'ai_operations_user_feature_idempotency_unique';
 
 export class ActiveAiOperationExistsError extends Error {
-  constructor(readonly userId: string) {
-    super(`Active AI operation already exists for user: ${userId}`);
+  constructor(
+    readonly userId: string,
+    options?: ErrorOptions,
+  ) {
+    super(`Active AI operation already exists for user: ${userId}`, options);
     this.name = 'ActiveAiOperationExistsError';
   }
 }
@@ -57,6 +61,10 @@ export function isCloudProjectOwnershipConflictError(error: unknown): error is C
   return error instanceof CloudProjectOwnershipConflictError;
 }
 
+export function isActiveAiOperationExistsError(error: unknown): error is ActiveAiOperationExistsError {
+  return error instanceof ActiveAiOperationExistsError;
+}
+
 export function isActiveGenerationJobUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const pgError = error as { code?: unknown; constraint?: unknown };
@@ -67,4 +75,10 @@ export function isActiveAiOperationUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const pgError = error as { code?: unknown; constraint?: unknown };
   return pgError.code === '23505' && pgError.constraint === ACTIVE_AI_OPERATION_INDEX;
+}
+
+export function isAiOperationIdempotencyUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const pgError = error as { code?: unknown; constraint?: unknown };
+  return pgError.code === '23505' && pgError.constraint === AI_OPERATION_IDEMPOTENCY_CONSTRAINT;
 }

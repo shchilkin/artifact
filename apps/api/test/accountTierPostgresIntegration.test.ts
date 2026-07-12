@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
+import { cleanupAiGenerationData } from '../src/cleanup.js';
 import { createPostgresRepositories } from '../src/db/postgres.js';
 
 const testDatabaseUrl = process.env.API_TEST_DATABASE_URL;
@@ -101,25 +102,60 @@ integrationDescribe('account tier Postgres integration', () => {
       ).rejects.toThrow('Quota grant reversal exceeds remaining grant amount: grant-1');
 
       await expect(
-        repositories.operations.claim({
+        repositories.operations.reserve({
           id: 'operation-1',
           userId: 'user-1',
           feature: 'shader_create',
           idempotencyKey: 'operation-idem-1',
           reservationPeriod: '2026-07',
           reservedGenerations: 1,
+          generationLimit: 20,
         }),
       ).resolves.toMatchObject({ claimed: true, row: { status: 'reserved' } });
       await expect(
-        repositories.operations.claim({
+        repositories.operations.reserve({
           id: 'operation-2',
           userId: 'user-1',
           feature: 'image_create',
           idempotencyKey: 'operation-idem-2',
           reservationPeriod: '2026-07',
           reservedGenerations: 1,
+          generationLimit: 20,
         }),
       ).rejects.toThrow('Active AI operation already exists for user: user-1');
+      await repositories.operations.markRunning('operation-1', new Date('2026-07-12T10:01:00.000Z'));
+      await repositories.operations.markSucceeded('operation-1', new Date('2026-07-12T10:02:00.000Z'));
+      await repositories.operations.markSucceeded('operation-1', new Date('2026-07-12T10:02:00.000Z'));
+      await expect(
+        client.query(
+          `SELECT committed_generation_count, reserved_generation_count
+           FROM ai_usage_monthly WHERE user_id = 'user-1' AND period = '2026-07'`,
+        ),
+      ).resolves.toMatchObject({ rows: [{ committed_generation_count: 1, reserved_generation_count: 0 }] });
+
+      await expect(
+        repositories.operations.reserve({
+          id: 'operation-2',
+          userId: 'user-1',
+          feature: 'image_create',
+          idempotencyKey: 'operation-idem-2',
+          reservationPeriod: '2026-07',
+          reservedGenerations: 1,
+          generationLimit: 20,
+        }),
+      ).resolves.toMatchObject({ claimed: true, row: { status: 'reserved' } });
+      await repositories.operations.release({
+        id: 'operation-2',
+        status: 'failed',
+        errorCode: 'provider_failed',
+        completedAt: new Date('2026-07-12T10:03:00.000Z'),
+      });
+      await expect(
+        client.query(
+          `SELECT committed_generation_count, reserved_generation_count
+           FROM ai_usage_monthly WHERE user_id = 'user-1' AND period = '2026-07'`,
+        ),
+      ).resolves.toMatchObject({ rows: [{ committed_generation_count: 1, reserved_generation_count: 0 }] });
 
       await expect(
         repositories.usageEvents.append({
@@ -160,6 +196,105 @@ integrationDescribe('account tier Postgres integration', () => {
           syncedAt: new Date('2026-07-12T05:00:00.000Z'),
         }),
       ).resolves.toMatchObject({ provider_cost_micro_usd: '11000' });
+    } finally {
+      await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      client.release();
+    }
+  });
+
+  it('expires an abandoned shader operation and releases its allowance', async () => {
+    if (!pool) throw new Error('API_TEST_DATABASE_URL is required for this test.');
+    const schema = `artifact_operation_cleanup_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const client = await pool.connect();
+    try {
+      await client.query(`CREATE SCHEMA ${schema}`);
+      await client.query(`SET search_path TO ${schema}`);
+      for (const file of readdirSync(migrationsDir)
+        .filter((name) => name.endsWith('.sql'))
+        .sort()) {
+        await client.query(readFileSync(resolve(migrationsDir, file), 'utf8'));
+      }
+      await client.query(`INSERT INTO users (id, email, role) VALUES ('user-cleanup', 'cleanup@example.com', 'user')`);
+
+      const repositories = createPostgresRepositories(client);
+      await repositories.operations.reserve({
+        id: 'operation-cleanup',
+        userId: 'user-cleanup',
+        feature: 'shader_create',
+        idempotencyKey: 'operation-cleanup-idem',
+        reservationPeriod: '2026-07',
+        reservedGenerations: 1,
+        generationLimit: 20,
+      });
+      await repositories.shaderRequests.claim({
+        id: 'shader-cleanup',
+        operationId: 'operation-cleanup',
+        userId: 'user-cleanup',
+        idempotencyKey: 'shader-cleanup-idem',
+        mode: 'openai',
+        prompt: 'water',
+        parentRequestId: null,
+      });
+      await client.query(
+        `UPDATE ai_operations SET created_at = '2026-07-01T00:00:00.000Z' WHERE id = 'operation-cleanup'`,
+      );
+
+      await expect(
+        cleanupAiGenerationData(client, {
+          now: new Date('2026-07-02T00:00:00.000Z'),
+          dryRun: false,
+          staleActiveOperationMs: 60 * 60 * 1000,
+        }),
+      ).resolves.toMatchObject({ expiredOperationIds: ['operation-cleanup'] });
+      await expect(repositories.operations.findById('operation-cleanup')).resolves.toMatchObject({
+        status: 'expired',
+        error_code: 'operation_expired',
+      });
+      await expect(
+        repositories.shaderRequests.findByIdForUser('shader-cleanup', 'user-cleanup'),
+      ).resolves.toMatchObject({
+        status: 'failed',
+        error_code: 'operation_expired',
+      });
+      await expect(repositories.usage.findMonthlyUsage('user-cleanup', '2026-07')).resolves.toMatchObject({
+        committed_generation_count: 0,
+        reserved_generation_count: 0,
+      });
+
+      await repositories.operations.reserve({
+        id: 'operation-recover',
+        userId: 'user-cleanup',
+        feature: 'shader_create',
+        idempotencyKey: 'operation-recover-idem',
+        reservationPeriod: '2026-07',
+        reservedGenerations: 1,
+        generationLimit: 20,
+      });
+      await repositories.shaderRequests.claim({
+        id: 'shader-recover',
+        operationId: 'operation-recover',
+        userId: 'user-cleanup',
+        idempotencyKey: 'shader-recover-idem',
+        mode: 'openai',
+        prompt: 'glass',
+        parentRequestId: null,
+      });
+      await repositories.shaderRequests.markGenerated({ id: 'shader-recover', responseJson: { ok: true } });
+      await repositories.shaderRequests.markAccepted('shader-recover', 0, new Date('2026-07-02T00:01:00.000Z'));
+
+      await expect(
+        cleanupAiGenerationData(client, {
+          now: new Date('2026-07-02T00:02:00.000Z'),
+          dryRun: false,
+        }),
+      ).resolves.toMatchObject({ reconciledOperationIds: ['operation-recover'] });
+      await expect(repositories.operations.findById('operation-recover')).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      await expect(repositories.usage.findMonthlyUsage('user-cleanup', '2026-07')).resolves.toMatchObject({
+        committed_generation_count: 1,
+        reserved_generation_count: 0,
+      });
     } finally {
       await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       client.release();

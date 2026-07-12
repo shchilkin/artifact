@@ -2,8 +2,6 @@
   "$schema": "https://turborepo.dev/schema.json",
   "globalDependencies": [".env", ".env.example", "apps/api/.env", "apps/api/.env.example"],
   "globalEnv": [
-    "AI_MAX_ACTIVE_JOBS_PER_USER",
-    "AI_MONTHLY_GENERATION_LIMIT",
     "API_DATABASE_DRIVER",
     "API_QUEUE_DRIVER",
     "ASSET_STORAGE_DRIVER",

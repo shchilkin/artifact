@@ -31,20 +31,24 @@ describe('account tier repositories', () => {
       reservedGenerations: 1 as const,
     };
 
-    await expect(operations.claim(input)).resolves.toMatchObject({ claimed: true, row: { id: 'operation-1' } });
-    await expect(operations.claim({ ...input, id: 'operation-retry' })).resolves.toMatchObject({
+    await expect(operations.reserve({ ...input, generationLimit: 20 })).resolves.toMatchObject({
+      claimed: true,
+      row: { id: 'operation-1' },
+    });
+    await expect(operations.reserve({ ...input, id: 'operation-retry', generationLimit: 20 })).resolves.toMatchObject({
       claimed: false,
       row: { id: 'operation-1' },
     });
     await expect(
-      operations.claim({ ...input, id: 'operation-conflict', reservationPeriod: '2026-08' }),
+      operations.reserve({ ...input, id: 'operation-conflict', reservationPeriod: '2026-08', generationLimit: 20 }),
     ).rejects.toThrow('Idempotency key reused with different AI operation input: idem-1');
     await expect(
-      operations.claim({
+      operations.reserve({
         ...input,
         id: 'operation-2',
         feature: 'image_create',
         idempotencyKey: 'idem-2',
+        generationLimit: 20,
       }),
     ).rejects.toThrow('Active AI operation already exists for user: user-1');
   });

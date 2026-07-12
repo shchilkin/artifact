@@ -22,6 +22,7 @@ const migrationFiles = [
   '007_ai_shader_validation_lifecycle.sql',
   '008_ai_shader_refinement.sql',
   '009_account_tiers_and_usage_foundation.sql',
+  '010_backfill_ai_operation_accounting.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
@@ -38,6 +39,10 @@ const accountTierMigrationSql = readFileSync(
   resolve(migrationsDir, '009_account_tiers_and_usage_foundation.sql'),
   'utf8',
 );
+const operationAccountingBackfillSql = readFileSync(
+  resolve(migrationsDir, '010_backfill_ai_operation_accounting.sql'),
+  'utf8',
+);
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -45,6 +50,11 @@ afterAll(async () => {
 });
 
 describe('AI generation migrations', () => {
+  it('backfills legacy generation counts into committed operation accounting', () => {
+    expect(operationAccountingBackfillSql).toContain('committed_generation_count');
+    expect(operationAccountingBackfillSql).toContain('GREATEST(committed_generation_count, generation_count)');
+    expect(operationAccountingBackfillSql).toContain('reserved_generation_count = 0');
+  });
   it('tracks applied production migrations with checksums under an advisory lock', () => {
     expect(migrateScript).toContain('schema_migrations');
     expect(migrateScript).toContain('pg_advisory_lock');

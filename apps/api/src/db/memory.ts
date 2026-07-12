@@ -39,6 +39,8 @@ import type {
   ProviderReconciliationRow,
   QuotaGrantReversalRow,
   QuotaGrantRow,
+  ReleaseAiOperationInput,
+  ReserveAiOperationInput,
   TierAssignmentRow,
   UpsertAuthenticatedUserInput,
   UpsertCloudProjectInput,
@@ -76,6 +78,20 @@ export class InMemoryApiStore {
       disabled_at: null,
     };
     this.users.set(row.id, row);
+    return row;
+  }
+
+  seedAccountAccess(userId: string, tier: AccountAccessRow['tier']): AccountAccessRow {
+    if (!this.users.has(userId)) throw new Error(`User not found: ${userId}`);
+    const now = new Date();
+    const row: AccountAccessRow = {
+      user_id: userId,
+      tier,
+      version: 0,
+      created_at: now,
+      updated_at: now,
+    };
+    this.accountAccess.set(userId, row);
     return row;
   }
 
@@ -123,7 +139,11 @@ export class InMemoryApiStore {
     );
   }
 
-  async claimOperation(input: CreateAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean }> {
+  async findOperationById(id: string): Promise<AiOperationRow | null> {
+    return this.operations.get(id) ?? null;
+  }
+
+  async reserveOperation(input: ReserveAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean } | null> {
     const existing = await this.findOperationByIdempotencyKey(input.userId, input.feature, input.idempotencyKey);
     if (existing) {
       assertOperationRetry(existing, input);
@@ -134,6 +154,11 @@ export class InMemoryApiStore {
         operation.user_id === input.userId && (operation.status === 'reserved' || operation.status === 'running'),
     );
     if (active) throw new ActiveAiOperationExistsError(input.userId);
+    const usageKey = monthlyUsageKey(input.userId, input.reservationPeriod);
+    const usage =
+      this.monthlyUsage.get(usageKey) ??
+      emptyMonthlyUsage(input.userId, input.reservationPeriod, input.generationLimit);
+    if (usage.committed_generation_count + usage.reserved_generation_count >= input.generationLimit) return null;
     const now = new Date();
     const row: AiOperationRow = {
       id: input.id,
@@ -148,8 +173,87 @@ export class InMemoryApiStore {
       started_at: null,
       completed_at: null,
     };
+    this.monthlyUsage.set(usageKey, {
+      ...usage,
+      generation_limit: input.generationLimit,
+      generation_count: usage.committed_generation_count + usage.reserved_generation_count + input.reservedGenerations,
+      reserved_generation_count: usage.reserved_generation_count + input.reservedGenerations,
+      updated_at: now,
+    });
     this.operations.set(row.id, row);
     return { row, claimed: true };
+  }
+
+  async markOperationRunning(id: string, startedAt: Date): Promise<AiOperationRow> {
+    const operation = this.requireOperation(id);
+    if (operation.status === 'running') return operation;
+    if (operation.status !== 'reserved') throw new Error(`AI operation cannot start from ${operation.status}: ${id}`);
+    const running = { ...operation, status: 'running' as const, started_at: startedAt };
+    this.operations.set(id, running);
+    return running;
+  }
+
+  async markOperationSucceeded(id: string, completedAt: Date): Promise<AiOperationRow> {
+    const operation = this.requireOperation(id);
+    if (operation.status === 'succeeded') return operation;
+    if (operation.status !== 'reserved' && operation.status !== 'running') {
+      throw new Error(`AI operation cannot succeed from ${operation.status}: ${id}`);
+    }
+    this.commitOperationUsage(operation, completedAt);
+    const succeeded = { ...operation, status: 'succeeded' as const, completed_at: completedAt };
+    this.operations.set(id, succeeded);
+    return succeeded;
+  }
+
+  async releaseOperation(input: ReleaseAiOperationInput): Promise<AiOperationRow> {
+    const operation = this.requireOperation(input.id);
+    if (operation.status === input.status) return operation;
+    if (operation.status !== 'reserved' && operation.status !== 'running') {
+      throw new Error(`AI operation cannot release from ${operation.status}: ${input.id}`);
+    }
+    this.releaseOperationUsage(operation, input.completedAt);
+    const released = {
+      ...operation,
+      status: input.status,
+      error_code: input.errorCode ?? null,
+      completed_at: input.completedAt,
+    };
+    this.operations.set(input.id, released);
+    return released;
+  }
+
+  private requireOperation(id: string): AiOperationRow {
+    const operation = this.operations.get(id);
+    if (!operation) throw new Error(`AI operation not found: ${id}`);
+    return operation;
+  }
+
+  private commitOperationUsage(operation: AiOperationRow, updatedAt: Date) {
+    const key = monthlyUsageKey(operation.user_id, operation.reservation_period);
+    const usage = this.monthlyUsage.get(key);
+    if (!usage) throw new Error(`Monthly usage not found: ${operation.user_id}:${operation.reservation_period}`);
+    const reserved = Math.max(0, usage.reserved_generation_count - operation.reserved_generations);
+    const committed = usage.committed_generation_count + operation.reserved_generations;
+    this.monthlyUsage.set(key, {
+      ...usage,
+      generation_count: committed + reserved,
+      committed_generation_count: committed,
+      reserved_generation_count: reserved,
+      updated_at: updatedAt,
+    });
+  }
+
+  private releaseOperationUsage(operation: AiOperationRow, updatedAt: Date) {
+    const key = monthlyUsageKey(operation.user_id, operation.reservation_period);
+    const usage = this.monthlyUsage.get(key);
+    if (!usage) throw new Error(`Monthly usage not found: ${operation.user_id}:${operation.reservation_period}`);
+    const reserved = Math.max(0, usage.reserved_generation_count - operation.reserved_generations);
+    this.monthlyUsage.set(key, {
+      ...usage,
+      generation_count: usage.committed_generation_count + reserved,
+      reserved_generation_count: reserved,
+      updated_at: updatedAt,
+    });
   }
 
   async appendUsageEvent(input: CreateAiUsageEventInput): Promise<AiUsageEventRow> {
@@ -413,6 +517,7 @@ export class InMemoryApiStore {
     if (existing) return { row: existing, claimed: false };
     const row: AiShaderRequestRow = {
       id: input.id,
+      operation_id: input.operationId ?? null,
       user_id: input.userId,
       idempotency_key: input.idempotencyKey,
       mode: input.mode,
@@ -440,6 +545,16 @@ export class InMemoryApiStore {
         (request) => request.user_id === userId && request.idempotency_key === idempotencyKey,
       ) ?? null
     );
+  }
+
+  async attachShaderOperation(id: string, operationId: string): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(id);
+    if (!request || (request.operation_id !== null && request.operation_id !== operationId)) {
+      throw new Error(`Shader request operation could not be attached: ${id}`);
+    }
+    const attached = { ...request, operation_id: operationId };
+    this.shaderRequests.set(id, attached);
+    return attached;
   }
 
   async findShaderByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null> {
@@ -638,6 +753,13 @@ export class InMemoryApiStore {
       period: input.period,
       generation_limit: input.generationLimit,
       generation_count: (existing?.generation_count ?? 0) + (input.generationCountDelta ?? 0),
+      committed_generation_count:
+        (existing?.committed_generation_count ?? existing?.generation_count ?? 0) + (input.generationCountDelta ?? 0),
+      reserved_generation_count: existing?.reserved_generation_count ?? 0,
+      provider_cost_micro_usd: existing?.provider_cost_micro_usd ?? '0',
+      input_tokens: existing?.input_tokens ?? '0',
+      output_tokens: existing?.output_tokens ?? '0',
+      failed_call_count: existing?.failed_call_count ?? 0,
       estimated_cost: addNumericStrings(existing?.estimated_cost ?? '0', input.estimatedCostDelta ?? '0'),
       updated_at: new Date(),
     };
@@ -665,6 +787,7 @@ export class InMemoryApiStore {
     const released = {
       ...existing,
       generation_count: Math.max(0, existing.generation_count - 1),
+      committed_generation_count: Math.max(0, existing.committed_generation_count - 1),
       updated_at: new Date(),
     };
     this.monthlyUsage.set(monthlyUsageKey(userId, period), released);
@@ -724,9 +847,13 @@ export class InMemoryApiStore {
         sumQuotaAdjustments: (userId, period) => this.sumQuotaAdjustments(userId, period),
       },
       operations: {
+        findById: (id) => this.findOperationById(id),
         findByIdempotencyKey: (userId, feature, idempotencyKey) =>
           this.findOperationByIdempotencyKey(userId, feature, idempotencyKey),
-        claim: (input) => this.claimOperation(input),
+        reserve: (input) => this.reserveOperation(input),
+        markRunning: (id, startedAt) => this.markOperationRunning(id, startedAt),
+        markSucceeded: (id, completedAt) => this.markOperationSucceeded(id, completedAt),
+        release: (input) => this.releaseOperation(input),
       },
       usageEvents: {
         append: (input) => this.appendUsageEvent(input),
@@ -749,6 +876,7 @@ export class InMemoryApiStore {
       },
       shaderRequests: {
         claim: (input) => this.claimShaderRequest(input),
+        attachOperation: (id, operationId) => this.attachShaderOperation(id, operationId),
         findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderByIdempotencyKey(userId, idempotencyKey),
         findByIdForUser: (id, userId) => this.findShaderByIdForUser(id, userId),
         markGenerated: (input) => this.markShaderGenerated(input),
@@ -791,6 +919,7 @@ export class InMemoryApiStore {
     const now = new Date();
     const row: AiGenerationJobRow = {
       id: input.id,
+      operation_id: input.operationId ?? null,
       user_id: input.userId,
       provider: input.provider,
       model: input.model,
@@ -826,6 +955,23 @@ export class InMemoryApiStore {
 
 function monthlyUsageKey(userId: string, period: string) {
   return `${userId}:${period}`;
+}
+
+function emptyMonthlyUsage(userId: string, period: string, generationLimit: number): AiUsageMonthlyRow {
+  return {
+    user_id: userId,
+    period,
+    generation_limit: generationLimit,
+    generation_count: 0,
+    committed_generation_count: 0,
+    reserved_generation_count: 0,
+    provider_cost_micro_usd: '0',
+    input_tokens: '0',
+    output_tokens: '0',
+    failed_call_count: 0,
+    estimated_cost: '0',
+    updated_at: new Date(),
+  };
 }
 
 function addNumericStrings(a: string, b: string) {

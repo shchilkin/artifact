@@ -68,7 +68,7 @@ export async function checkMonthlyQuota(options: CheckMonthlyQuotaOptions): Prom
   const quota = createQuotaSnapshot(period, options.limit, used);
 
   return {
-    allowed: quota.remaining > 0,
+    allowed: quota.remaining !== null && quota.remaining > 0,
     quota,
   };
 }

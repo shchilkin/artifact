@@ -24,13 +24,34 @@ const verifyJwtBearerToken = createJwtBearerVerifier({
   audience: config.authJwtAudience,
 });
 
-if (config.devBearerToken && store) {
-  store.seedUser({
-    id: 'dev-user',
-    email: 'dev@artifact.local',
-    role: 'admin',
-    aiEnabled: true,
-    plusStatus: 'active',
+if (config.devBearerToken) await seedDevelopmentAccount();
+
+async function seedDevelopmentAccount() {
+  if (store) {
+    store.seedUser({
+      id: 'dev-user',
+      email: 'dev@artifact.local',
+      role: 'admin',
+      aiEnabled: true,
+      plusStatus: 'active',
+    });
+    store.seedAccountAccess('dev-user', 'founder');
+    return;
+  }
+
+  await repositories.users.upsertFromAuth({ id: 'dev-user', email: 'dev@artifact.local' });
+  const access = await repositories.accountTiers.ensureAccess('dev-user');
+  if (access.tier === 'founder') return;
+  const assignmentId = `dev-user-founder-assignment-${access.version}`;
+  await repositories.accountTiers.assignTier({
+    id: assignmentId,
+    userId: 'dev-user',
+    expectedTier: access.tier,
+    expectedVersion: access.version,
+    newTier: 'founder',
+    reason: 'Local development account',
+    adminUserId: 'dev-user',
+    idempotencyKey: assignmentId,
   });
 }
 
@@ -91,8 +112,6 @@ async function resolveApiResponse(req: IncomingMessage) {
       providers,
       shaderProvider,
       createRateLimiter,
-      monthlyGenerationLimit: config.monthlyGenerationLimit,
-      maxActiveJobsPerUser: config.maxActiveJobsPerUser,
       resolveAuth,
     })) ??
     (await handleAssetRequest(req, {

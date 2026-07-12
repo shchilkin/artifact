@@ -44,6 +44,7 @@ export type JobReadWriteRepository = Pick<
 export type ShaderRequestReadWriteRepository = Pick<
   AiShaderRequestRepository,
   | 'claim'
+  | 'attachOperation'
   | 'findByIdempotencyKey'
   | 'findByIdForUser'
   | 'markGenerated'

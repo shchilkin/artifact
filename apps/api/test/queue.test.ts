@@ -22,4 +22,27 @@ describe('createInMemoryGenerationQueue', () => {
       'Cannot enqueue into a closed queue',
     );
   });
+
+  it('processes up to the configured concurrency', async () => {
+    const queue = createInMemoryGenerationQueue();
+    const releases: Array<() => void> = [];
+    const handler = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releases.push(resolve);
+        }),
+    );
+    const worker = queue.process(handler, { concurrency: 2 });
+
+    await queue.enqueue({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    await queue.enqueue({ jobId: 'job-2', userId: 'user-1' }, { jobId: 'job-2' });
+    await queue.enqueue({ jobId: 'job-3', userId: 'user-1' }, { jobId: 'job-3' });
+
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+    releases.shift()?.();
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(3));
+
+    for (const release of releases) release();
+    await worker.close();
+  });
 });

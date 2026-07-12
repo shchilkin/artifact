@@ -21,8 +21,6 @@ x-artifact-api-env: &artifact-api-env
   XAI_IMAGE_MODEL: ${XAI_IMAGE_MODEL:-grok-imagine-image-quality}
   ASSET_STORAGE_DRIVER: local
   ASSET_STORAGE_DIR: /var/lib/artifact/generated-assets
-  AI_MONTHLY_GENERATION_LIMIT: ${AI_MONTHLY_GENERATION_LIMIT:-10}
-  AI_MAX_ACTIVE_JOBS_PER_USER: ${AI_MAX_ACTIVE_JOBS_PER_USER:-1}
 
 services:
   postgres:

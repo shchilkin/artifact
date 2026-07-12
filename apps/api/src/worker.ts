@@ -4,13 +4,16 @@ import { createApiRuntime } from './runtime.js';
 
 const { config, pool, repositories, queue, storage, providers } = createApiRuntime();
 
-const worker = queue.process(async (job) => {
-  await processGenerationJob(job, {
-    repositories,
-    providers,
-    storage,
-  });
-});
+const worker = queue.process(
+  async (job) => {
+    await processGenerationJob(job, {
+      repositories,
+      providers,
+      storage,
+    });
+  },
+  { concurrency: 2 },
+);
 
 logInfo('worker.started', {
   redisUrlConfigured: Boolean(config.redisUrl),

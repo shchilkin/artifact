@@ -521,9 +521,9 @@ export interface AiGenerationAsset {
 
 export interface AiGenerationQuotaSnapshot {
   period: string;
-  limit: number;
+  limit: number | null;
   used: number;
-  remaining: number;
+  remaining: number | null;
 }
 
 export interface AiGenerationJobError {
@@ -550,7 +550,14 @@ export interface AiGenerationJob {
 export interface AiGenerationAccessState {
   authenticated: boolean;
   enabled: boolean;
-  disabledReason?: 'anonymous' | 'invalid_session' | 'not_enabled' | 'quota_exhausted' | 'maintenance';
+  tier?: AccountTier;
+  disabledReason?:
+    | 'anonymous'
+    | 'invalid_session'
+    | 'tier_ai_unavailable'
+    | 'allowance_exhausted'
+    | 'operation_in_progress'
+    | 'maintenance';
   user?: {
     id: string;
     email?: string;

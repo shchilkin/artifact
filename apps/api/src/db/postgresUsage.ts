@@ -9,6 +9,12 @@ const usageColumns = `
   period,
   generation_limit,
   generation_count,
+  committed_generation_count,
+  reserved_generation_count,
+  provider_cost_micro_usd,
+  input_tokens,
+  output_tokens,
+  failed_call_count,
   estimated_cost,
   updated_at
 `;

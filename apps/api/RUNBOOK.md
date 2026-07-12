@@ -101,12 +101,16 @@ checksums; if a previously applied migration file changes, startup fails instead
 of silently applying drift. The migration runner owns the transaction for each
 file, so SQL migration files must not include `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
-After a user signs up, grant the intended account user AI access from the API
-container only when they should receive private-alpha generation access:
+New verified accounts start on the Free tier. The legacy `grant:ai` command has
+been removed because `ai_enabled` no longer grants provider-backed AI access.
+Before the Admin API lands, inspect the intended tier cutover with:
 
 ```bash
-npm run grant:ai -- user_xxx user@example.com
+npm run migrate:account-tiers:dry-run
 ```
+
+Do not hand-edit `account_access` in production. Creator and Founder assignment
+will move through the audited Admin API and backoffice flow.
 
 ## Required Environment
 
@@ -147,8 +151,6 @@ XAI_IMAGE_MODEL=grok-imagine-image-quality
 ASSET_STORAGE_DRIVER=local
 ASSET_STORAGE_DIR=/var/lib/artifact/generated-assets
 
-AI_MONTHLY_GENERATION_LIMIT=10
-AI_MAX_ACTIVE_JOBS_PER_USER=1
 ```
 
 Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
@@ -157,17 +159,16 @@ prefer Better Auth bearer tokens or real bearer tokens verified by
 
 For Better Auth-backed browser accounts, set `VITE_AUTH_API_BASE_URL` in the
 root `.env` to the API origin. Better Auth sign-in identifies the browser user
-and enables cloud project saves. AI generation still requires a matching
-`users.id` row with `ai_enabled=true`; use the Better Auth user id as the
-database id when granting private alpha access. The API creates or refreshes a
-disabled `users` row automatically after a session verifies, so granting access
-is a separate operator step:
+and enables cloud project saves. The API creates or refreshes the matching
+`users` row and `account_access` defaults it to Free. Provider-backed AI access
+comes from the explicit Account Tier, not `ai_enabled` or `plus_status`.
 
 ```bash
-npm --workspace @artifact/api run grant:ai -- user_xxx user@example.com
+FOUNDER_ACCOUNT_ID=user_xxx npm --workspace @artifact/api run migrate:account-tiers:dry-run
 ```
 
-The email argument is optional; the Better Auth user id is the durable key.
+The Better Auth user id is the durable account key. The command above reports
+the intended cutover and does not mutate production data.
 
 ## Cloud Project Assets
 
@@ -354,6 +355,8 @@ npm --workspace @artifact/api run cleanup:ai:start -- --apply
 
 The command:
 
+- commits active operations that already have a usable job or accepted shader;
+- expires abandoned AI operations and releases their reserved Generation;
 - marks stale `queued` / `running` jobs as `expired`;
 - soft-deletes generated asset rows that are not referenced by any generation
   job;
@@ -402,8 +405,9 @@ npm run dev:worker
 npm run dev:web
 ```
 
-The Compose database is initialized with the v0.13 migration and a local
-`dev-user` with AI access. The root `.env` can expose
+The Compose database is initialized with a local `dev-user`; when
+`API_DEV_BEARER_TOKEN` is configured, API startup assigns that account the
+Founder tier explicitly. The root `.env` can expose
 `VITE_AI_API_DEV_TOKEN=dev-token` so the browser calls the local API as that
 seeded user without signing in. Leave that Vite dev token empty to test the
 Better Auth sign-in flow instead.

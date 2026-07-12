@@ -47,9 +47,8 @@ Implemented:
   dev bearer-token fallback.
 - Better Auth email/password sessions with bearer-token API compatibility.
 - Better Auth password recovery emails through Resend.
-- First-login user provisioning with AI disabled by default, plus
-  `npm --workspace @artifact/api run grant:ai -- <auth-user-id> [email]` for private
-  alpha entitlement.
+- First-login user provisioning on the Free tier. Creator and Founder
+  assignment will use the audited Admin API.
 - Authenticated cloud project save/list/delete routes.
 - Authenticated cloud project asset upload route that keeps large image, font,
   model, and environment payloads outside project JSON.

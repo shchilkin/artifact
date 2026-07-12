@@ -177,7 +177,7 @@ function stringClaim(value: unknown) {
 
 export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAccessResponse {
   const { aiEnabled, auth, maintenance = false, providers = [], quota } = options;
-  const quotaExhausted = quota ? quota.remaining <= 0 : false;
+  const quotaExhausted = quota ? quota.remaining !== null && quota.remaining <= 0 : false;
   const enabled = auth.authenticated && aiEnabled && !maintenance && !quotaExhausted;
 
   let disabledReason: AiAccessResponse['disabledReason'];
@@ -185,8 +185,8 @@ export function computeAiAccessResponse(options: ComputeAiAccessOptions): AiAcce
     if (maintenance) disabledReason = 'maintenance';
     else if (!auth.authenticated)
       disabledReason = auth.reason === 'invalid_credentials' ? 'invalid_session' : 'anonymous';
-    else if (!aiEnabled) disabledReason = 'not_enabled';
-    else if (quotaExhausted) disabledReason = 'quota_exhausted';
+    else if (!aiEnabled) disabledReason = 'tier_ai_unavailable';
+    else if (quotaExhausted) disabledReason = 'allowance_exhausted';
   }
 
   return {

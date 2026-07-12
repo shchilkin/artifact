@@ -32,6 +32,9 @@ const DISABLED_REASON_MESSAGES: Partial<Record<string, string>> = {
   invalid_session: 'Account session could not be verified.',
   not_enabled: 'AI access is not enabled for this account.',
   quota_exhausted: 'Monthly AI quota used.',
+  tier_ai_unavailable: 'AI creation is not included for this account.',
+  allowance_exhausted: 'Monthly AI allowance used.',
+  operation_in_progress: 'Another AI creation is still running.',
   maintenance: 'AI generation is temporarily unavailable.',
 };
 const DISABLED_REASON_TITLES: Record<string, string> = {
@@ -39,6 +42,9 @@ const DISABLED_REASON_TITLES: Record<string, string> = {
   invalid_session: 'Account verification failed',
   not_enabled: 'AI access is not enabled',
   quota_exhausted: 'Monthly AI quota used',
+  tier_ai_unavailable: 'AI creation is not included',
+  allowance_exhausted: 'Monthly AI allowance used',
+  operation_in_progress: 'AI creation in progress',
   maintenance: 'AI generation is paused',
 };
 const DISABLED_REASON_BODIES: Record<string, string> = {
@@ -46,6 +52,9 @@ const DISABLED_REASON_BODIES: Record<string, string> = {
   invalid_session: 'The API could not verify this browser session. Sign out, sign in, and try again.',
   not_enabled: 'Your account needs AI access before it can create images.',
   quota_exhausted: 'Your monthly generation limit is used for this account.',
+  tier_ai_unavailable: 'This account can keep editing without provider-backed AI creation.',
+  allowance_exhausted: 'This account has used its AI creations for the current month.',
+  operation_in_progress: 'Wait for the current AI creation to finish before starting another.',
   maintenance: 'Generation is temporarily unavailable while the service is being maintained.',
 };
 const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
@@ -463,7 +472,11 @@ function authSummaryText({
 }
 
 function quotaSummary(access: AiGenerationAccessState | null) {
-  return access?.quota ? `${access.quota.remaining}/${access.quota.limit} ${access.quota.period}` : null;
+  return access?.quota ? `${quotaAmountLabel(access.quota)} ${access.quota.period}` : null;
+}
+
+function quotaAmountLabel(quota: NonNullable<AiGenerationAccessState['quota']>) {
+  return quota.limit === null ? `${quota.used} used` : `${quota.remaining}/${quota.limit}`;
 }
 
 function AiDeveloperDiagnostics({
@@ -891,7 +904,7 @@ function GenerationSubmitButton({
 function GenerationMeta({ access, status }: { access: AiGenerationAccessState | null; status: string | null }) {
   return (
     <div className="ai-generation-meta" id="ai-generation-status">
-      <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
+      <span>{access?.quota ? quotaAmountLabel(access.quota) : 'AI'}</span>
       <span>{status}</span>
     </div>
   );
