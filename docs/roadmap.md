@@ -310,7 +310,9 @@ Next strong candidates after v0.39:
   provider-cost reconciliation. The first release keeps Tier Policy fixed in
   server code; a later slice should make versioned tier capabilities and
   allowances configurable without a code deploy, with validation, audit
-  history, and safe rollback.
+  history, and safe rollback. Account suspension controls remain outside the
+  first backoffice release until moderation or support workflows require them;
+  the existing disabled-account state remains a technical reserve.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
