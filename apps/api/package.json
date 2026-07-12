@@ -12,6 +12,8 @@
     "dev:once": "npm --workspace @artifact/shared run build && tsx src/server.ts",
     "export:job-image": "node scripts/export-job-image.mjs",
     "migrate": "node scripts/migrate.mjs",
+    "reconcile:openai-costs": "tsx src/reconcileOpenAiCostsCli.ts",
+    "reconcile:openai-costs:start": "node dist/reconcileOpenAiCostsCli.js",
     "migrate:account-tiers:dry-run": "npm --workspace @artifact/shared run build && tsx src/accountTierMigrationCli.ts",
     "smoke": "node scripts/smoke.mjs",
     "start": "node dist/server.js",

@@ -24,6 +24,7 @@ export function createMockImageProvider(options: MockImageProviderOptions): Imag
         height: 1024,
         usage: {
           estimatedCostUsd: 0,
+          metrics: { imageCount: 1 },
           metadata: {
             mock: true,
             promptLength: request.prompt.length,

@@ -55,7 +55,9 @@ describe('Postgres AI accounting repositories', () => {
       { inputTokens: 120, outputTokens: 340 },
       '10800',
       'openai-2026-07-01',
+      null,
     ]);
+    expect(client.calls[0]?.sql).toContain('INSERT INTO ai_usage_monthly');
   });
 
   it('appends an immutable admin audit event', async () => {

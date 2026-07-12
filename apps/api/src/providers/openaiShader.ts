@@ -67,6 +67,17 @@ export class OpenAiShaderTimeoutError extends Error {
   }
 }
 
+export class OpenAiShaderResponseError extends Error {
+  constructor(
+    message: string,
+    readonly requestId?: string,
+    readonly usage?: ShaderGenerationResult['usage'],
+  ) {
+    super(message);
+    this.name = 'OpenAiShaderResponseError';
+  }
+}
+
 export function isOpenAiShaderTimeoutError(error: unknown): error is OpenAiShaderTimeoutError {
   return error instanceof OpenAiShaderTimeoutError;
 }
@@ -121,32 +132,50 @@ export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions)
           }),
         });
         const body = (await response.json()) as OpenAiResponsesApiBody;
-        assertResponseOk(response, body);
-        const generated = readGeneratedShader(body);
-        const definition: ShaderDefinition = {
-          version: 1,
-          id: `${request.clientRequestId}-definition`,
-          label: generated.label,
-          language: 'glsl-fragment',
-          code: generated.code,
-          properties: generated.properties,
-        };
-        const validationErrors = [...validateShaderDefinition(definition), ...validateShaderCode(definition.code)];
-        if (!/\btexture2D\s*\(\s*u_backdrop\b/.test(stripShaderCodeComments(definition.code))) {
-          validationErrors.push('AI shader effects must sample the connected u_backdrop image.');
+        const requestId = response.headers.get('x-request-id') ?? undefined;
+        const usage = readUsage(body);
+        try {
+          assertResponseOk(response, body);
+        } catch (error) {
+          throw new OpenAiShaderResponseError(
+            error instanceof Error ? error.message : 'OpenAI shader request failed.',
+            requestId,
+            usage,
+          );
         }
-        if (validationErrors.length > 0) {
-          const messages = validationErrors.map((error) => (typeof error === 'string' ? error : error.message));
-          throw new Error(`OpenAI shader did not match the contract: ${messages.join(' ')}`);
+        try {
+          const generated = readGeneratedShader(body);
+          const definition: ShaderDefinition = {
+            version: 1,
+            id: `${request.clientRequestId}-definition`,
+            label: generated.label,
+            language: 'glsl-fragment',
+            code: generated.code,
+            properties: generated.properties,
+          };
+          const validationErrors = [...validateShaderDefinition(definition), ...validateShaderCode(definition.code)];
+          if (!/\btexture2D\s*\(\s*u_backdrop\b/.test(stripShaderCodeComments(definition.code))) {
+            validationErrors.push('AI shader effects must sample the connected u_backdrop image.');
+          }
+          if (validationErrors.length > 0) {
+            const messages = validationErrors.map((error) => (typeof error === 'string' ? error : error.message));
+            throw new Error(`OpenAI shader did not match the contract: ${messages.join(' ')}`);
+          }
+          return {
+            instance: {
+              definition,
+              values: Object.fromEntries(definition.properties.map((property) => [property.key, property.default])),
+            },
+            requestId,
+            usage,
+          };
+        } catch (error) {
+          throw new OpenAiShaderResponseError(
+            error instanceof Error ? error.message : 'OpenAI shader response did not match the contract.',
+            requestId,
+            usage,
+          );
         }
-        return {
-          instance: {
-            definition,
-            values: Object.fromEntries(definition.properties.map((property) => [property.key, property.default])),
-          },
-          requestId: response.headers.get('x-request-id') ?? undefined,
-          usage: readUsage(body),
-        };
       } catch (error) {
         if (controller.signal.aborted) throw new OpenAiShaderTimeoutError(timeoutMs);
         throw error;

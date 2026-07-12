@@ -23,14 +23,18 @@ import type { ApiRepositories } from '../db/repositories.js';
 import type { AiGenerationJobRow, AiShaderRequestRow, AssetRow, JsonObject } from '../db/types.js';
 import { errorJson, type JsonResponse, json, readJsonBody } from '../http.js';
 import { logInfo, logWarn } from '../logger.js';
+import { priceProviderUsage } from '../providerPricing.js';
 import {
   isOpenAiShaderTimeoutError,
+  OpenAiShaderResponseError,
   type ProviderRegistry,
   type ShaderGenerationProvider,
 } from '../providers/index.js';
+import { ProviderUsageService } from '../providerUsageService.js';
 import type { GenerationQueue } from '../queue.js';
 import type { MonthlyQuotaCheck } from '../quota.js';
 import type { InMemoryRateLimiter } from '../rateLimit.js';
+import { SafetyBudgetService } from '../safetyBudgetService.js';
 import { generateLocalShaderInstanceFromPrompt, validateShaderPrompt } from '../shaderGenerator.js';
 
 export interface AiRouteRequest extends RequestLike, AsyncIterable<Buffer> {
@@ -48,6 +52,8 @@ export interface AiRouteDeps {
   now?: () => Date;
   createId?: () => string;
   createOperationId?: () => string;
+  createUsageId?: () => string;
+  safetyBudget?: SafetyBudgetService;
 }
 
 type AiRouteHandler = (
@@ -201,7 +207,14 @@ export async function handleAccessRequest(
     providers: allowance?.providerAiEnabled ? providerNames(deps.providers) : [],
     quota,
   });
-  return json(200, { ...response, ...(allowance ? { tier: allowance.tier } : {}) });
+  const budget = user && !user.disabled_at ? await createSafetyBudgetService(deps).check() : null;
+  return json(200, {
+    ...response,
+    ...(budget && !budget.allowed && response.enabled
+      ? { enabled: false, disabledReason: budget.code, providers: [] }
+      : {}),
+    ...(allowance ? { tier: allowance.tier } : {}),
+  });
 }
 
 export async function handleCreateShaderRequest(
@@ -233,6 +246,11 @@ export async function handleCreateShaderRequest(
   );
   if (existing) {
     return storedShaderResponse(existing, promptResult.prompt, modeResult.mode, refineReference.requestId);
+  }
+
+  if (modeResult.mode === 'openai') {
+    const budgetResponse = await safetyBudgetDenialResponse(deps);
+    if (budgetResponse) return budgetResponse;
   }
 
   const refinement = refineReference.requestId
@@ -308,11 +326,11 @@ export async function handleCreateShaderRequest(
   }
 
   let operationId: string | null = null;
+  const operationFeature: AiOperationFeature = refinement.value ? 'shader_refine' : 'shader_create';
   if (modeResult.mode === 'openai') {
-    const feature: AiOperationFeature = refinement.value ? 'shader_refine' : 'shader_create';
     const reserved = await createAccountAccessService(deps).reserve({
       userId: authResult.user.id,
-      feature,
+      feature: operationFeature,
       idempotencyKey: idempotencyResult.idempotencyKey,
     });
     if (!reserved.ok) {
@@ -331,6 +349,18 @@ export async function handleCreateShaderRequest(
 
   const shaderResult = await createShader(promptResult.prompt, modeResult.mode, claimed.row.id, refinement.value, deps);
   if (!shaderResult.ok) {
+    if (modeResult.mode === 'openai') {
+      await createProviderUsageService(deps).record({
+        operationId,
+        userId: authResult.user.id,
+        feature: operationFeature,
+        provider: deps.shaderProvider?.provider ?? 'openai',
+        model: deps.shaderProvider?.defaultModel ?? 'gpt-5.5',
+        status: 'failed',
+        providerRequestId: shaderResult.providerRequestId,
+        usage: shaderResult.usage,
+      });
+    }
     await deps.repositories.shaderRequests.markFailed(claimed.row.id, {
       ...shaderResult.failure,
       completedAt: deps.now?.() ?? new Date(),
@@ -365,6 +395,18 @@ export async function handleCreateShaderRequest(
     source: shaderResult.source,
     ...(shaderResult.model ? { model: shaderResult.model } : {}),
   };
+  if (modeResult.mode === 'openai') {
+    await createProviderUsageService(deps).record({
+      operationId,
+      userId: authResult.user.id,
+      feature: operationFeature,
+      provider: 'openai',
+      model: shaderResult.model ?? deps.shaderProvider?.defaultModel ?? 'gpt-5.5',
+      status: 'succeeded',
+      providerRequestId: shaderResult.providerRequestId,
+      usage: shaderResult.usage,
+    });
+  }
   await deps.repositories.shaderRequests.markGenerated({
     id: claimed.row.id,
     responseJson: toJsonObject(responseBody),
@@ -401,7 +443,12 @@ async function createShader(
       providerRequestId?: string;
       usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
     }
-  | { ok: false; failure: { status: number; code: string; message: string } }
+  | {
+      ok: false;
+      failure: { status: number; code: string; message: string };
+      providerRequestId?: string;
+      usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+    }
 > {
   if (mode === 'localFallback') {
     const instance = generateLocalShaderInstanceFromPrompt(prompt);
@@ -461,7 +508,11 @@ async function createShader(
       code: failure.code,
       reason: error instanceof Error ? error.message : 'unknown_error',
     });
-    return { ok: false, failure };
+    return {
+      ok: false,
+      failure,
+      ...(error instanceof OpenAiShaderResponseError ? { providerRequestId: error.requestId, usage: error.usage } : {}),
+    };
   }
 }
 
@@ -629,6 +680,8 @@ export async function handleRepairShaderRequest(
   if (!deps.shaderProvider || !shaderRequest.response_json || !shaderRequest.compiler_diagnostic_json) {
     return errorJson(409, 'shader_repair_not_available', 'The failed shader details are unavailable.');
   }
+  const budgetResponse = await safetyBudgetDenialResponse(deps);
+  if (budgetResponse) return budgetResponse;
   const failedResponse = shaderRequest.response_json as unknown as AiShaderGenerationResponse;
   const failedInstance = normalizeShaderInstance(failedResponse.instance, `${requestId}-failed`);
   const diagnostic = sanitizeCompilerDiagnostic(shaderRequest.compiler_diagnostic_json);
@@ -649,6 +702,7 @@ export async function handleRepairShaderRequest(
     return errorJson(409, 'shader_repair_not_available', 'This shader cannot be repaired again.');
   }
   logInfo('shader_repairing', { requestId, userId: authResult.user.id, model: deps.shaderProvider.defaultModel });
+  let providerUsageRecorded = false;
   try {
     const result = await deps.shaderProvider.generateShader({
       prompt: shaderRequest.prompt,
@@ -683,6 +737,17 @@ export async function handleRepairShaderRequest(
       source: 'openai',
       model,
     };
+    await createProviderUsageService(deps).record({
+      operationId: shaderRequest.operation_id,
+      userId: authResult.user.id,
+      feature: failedResponse.attempt === 'refine' ? 'shader_refine' : 'shader_create',
+      provider: deps.shaderProvider.provider,
+      model,
+      status: 'succeeded',
+      providerRequestId: result.requestId,
+      usage: result.usage,
+    });
+    providerUsageRecorded = true;
     await deps.repositories.shaderRequests.completeRepair({
       id: requestId,
       responseJson: toJsonObject(responseBody),
@@ -710,6 +775,18 @@ export async function handleRepairShaderRequest(
       code: timedOut ? 'shader_provider_timeout' : 'shader_repair_failed',
       message: timedOut ? 'Shader repair took too long. Try again.' : 'The shader could not be repaired.',
     };
+    if (!providerUsageRecorded) {
+      await createProviderUsageService(deps).record({
+        operationId: shaderRequest.operation_id,
+        userId: authResult.user.id,
+        feature: failedResponse.attempt === 'refine' ? 'shader_refine' : 'shader_create',
+        provider: deps.shaderProvider.provider,
+        model: deps.shaderProvider.defaultModel,
+        status: 'failed',
+        providerRequestId: error instanceof OpenAiShaderResponseError ? error.requestId : undefined,
+        usage: error instanceof OpenAiShaderResponseError ? error.usage : undefined,
+      });
+    }
     await deps.repositories.shaderRequests.markFailed(requestId, {
       ...failure,
       completedAt: deps.now?.() ?? new Date(),
@@ -936,6 +1013,9 @@ async function prepareCreateGeneration(
   const existing = await existingGenerationResponse(authResult.user.id, body.idempotencyKey, deps);
   if (existing) return { ok: false, response: existing };
 
+  const budgetResponse = await safetyBudgetDenialResponse(deps);
+  if (budgetResponse) return { ok: false, response: budgetResponse };
+
   const capacityResult = await ensureCreateGenerationCapacity(authResult.user.id, body.idempotencyKey, deps);
   if (!capacityResult.ok) return capacityResult;
 
@@ -981,6 +1061,14 @@ function createGenerationRequestInfo(
   const provider = requestCheck.provider;
   const providerAdapter = deps.providers.get(provider);
   const model = body.model?.trim() || providerAdapter.defaultModel;
+  try {
+    priceProviderUsage({ provider, model, usage: {} });
+  } catch {
+    return {
+      ok: false,
+      response: errorJson(400, 'unsupported_provider_model', 'This provider model is not available.'),
+    };
+  }
   return { ok: true, provider, model };
 }
 
@@ -1021,6 +1109,29 @@ function createAccountAccessService(deps: AiRouteDeps) {
     now: deps.now,
     createId: deps.createOperationId,
   });
+}
+
+function createProviderUsageService(deps: AiRouteDeps) {
+  return new ProviderUsageService(deps.repositories.usageEvents, {
+    now: deps.now,
+    createId: deps.createUsageId,
+  });
+}
+
+function createSafetyBudgetService(deps: AiRouteDeps) {
+  return deps.safetyBudget ?? new SafetyBudgetService(deps.repositories.usageEvents, { now: deps.now });
+}
+
+async function safetyBudgetDenialResponse(deps: AiRouteDeps) {
+  const budget = await createSafetyBudgetService(deps).check();
+  if (budget.snapshot.state === 'warning') {
+    logWarn('ai_budget.warning', {
+      period: budget.snapshot.period,
+      spentMicroUsd: budget.snapshot.spentMicroUsd,
+      limitMicroUsd: budget.snapshot.limitMicroUsd,
+    });
+  }
+  return budget.allowed ? null : errorJson(503, 'ai_budget_exhausted', 'AI creation is temporarily unavailable.');
 }
 
 function quotaFromAllowance(allowance: AccountAllowanceSnapshot): AiQuotaSnapshot {

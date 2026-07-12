@@ -12,12 +12,17 @@ import { handleHealthRequest } from './routes/health.js';
 import { handleProjectAssetRequest } from './routes/projectAssets.js';
 import { handleProjectRequest } from './routes/projects.js';
 import { createApiRuntime } from './runtime.js';
+import { SafetyBudgetService } from './safetyBudgetService.js';
 
 const { config, store, pool, repositories, queue, storage, providers, shaderProvider } = createApiRuntime();
 const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
 const betterAuth = createArtifactBetterAuth(config, pool);
 const betterAuthHandler = betterAuth ? toNodeHandler(betterAuth) : null;
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
+const safetyBudget = new SafetyBudgetService(repositories.usageEvents, {
+  limitMicroUsd: BigInt(Math.round(config.aiSafetyBudgetUsd * 1_000_000)),
+  warningMicroUsd: BigInt(Math.round(config.aiSafetyBudgetUsd * 800_000)),
+});
 const verifyJwtBearerToken = createJwtBearerVerifier({
   secret: config.authJwtSecret,
   issuer: config.authJwtIssuer,
@@ -112,6 +117,7 @@ async function resolveApiResponse(req: IncomingMessage) {
       providers,
       shaderProvider,
       createRateLimiter,
+      safetyBudget,
       resolveAuth,
     })) ??
     (await handleAssetRequest(req, {

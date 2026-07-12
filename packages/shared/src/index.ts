@@ -557,6 +557,7 @@ export interface AiGenerationAccessState {
     | 'tier_ai_unavailable'
     | 'allowance_exhausted'
     | 'operation_in_progress'
+    | 'ai_budget_exhausted'
     | 'maintenance';
   user?: {
     id: string;

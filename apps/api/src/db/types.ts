@@ -278,6 +278,7 @@ export interface CreateAiUsageEventInput {
   usage: ProviderUsageMetrics;
   costMicroUsd: DbNumeric;
   pricingVersion: string;
+  createdAt?: Date;
 }
 
 export interface ProviderUsageMetrics {
@@ -287,6 +288,11 @@ export interface ProviderUsageMetrics {
   imageCount?: number;
   imageSize?: string;
   imageQuality?: string;
+  costUsdTicks?: string;
+}
+
+export interface AiUsageCostSummary {
+  costMicroUsd: DbNumeric;
 }
 
 export interface CreateProviderReconciliationInput {
@@ -431,6 +437,7 @@ export interface AiOperationRepository {
 
 export interface AiUsageEventRepository {
   append(input: CreateAiUsageEventInput): Promise<AiUsageEventRow>;
+  sumCost(input: { from: Date; to: Date; provider?: string }): Promise<AiUsageCostSummary>;
 }
 
 export interface AdminAuditRepository {

@@ -112,6 +112,35 @@ function providerShader(label = 'Provider Shader') {
 }
 
 describe('AI route handlers', () => {
+  it('stops new provider work at the global safety budget before reserving quota', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+    await deps.repositories.usageEvents.append({
+      id: 'budget-spend-1',
+      userId: 'user-1',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 503,
+      body: { code: 'ai_budget_exhausted' },
+    });
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      body: { enabled: false, disabledReason: 'ai_budget_exhausted', providers: [] },
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(
+      deps.repositories.operations.findByIdempotencyKey('user-1', 'image_create', 'request-1'),
+    ).resolves.toBeNull();
+  });
+
   it('shares one start rate limit across image and shader generation', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', aiEnabled: true });
@@ -202,6 +231,39 @@ describe('AI route handlers', () => {
         quota: { period: '2026-05', limit: 20, used: 2, remaining: 18 },
       },
     });
+  });
+
+  it('keeps the tier denial for a Free account when the global budget is stopped', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'free-user' });
+    store.seedUser({ id: 'spender' });
+    await deps.repositories.usageEvents.append({
+      id: 'budget-spend-free-test',
+      userId: 'spender',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+    deps.resolveAuth = async () => ({ authenticated: true, user: { id: 'free-user' } });
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      body: { enabled: false, disabledReason: 'tier_ai_unavailable' },
+    });
+  });
+
+  it('rejects models without a pricing contract before queueing provider work', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+
+    await expect(
+      handleCreateGenerationRequest({ headers: {} }, { ...createBody, model: 'future-unpriced-model' }, deps),
+    ).resolves.toMatchObject({ status: 400, body: { code: 'unsupported_provider_model' } });
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('requires a configured OpenAI shader provider by default', async () => {

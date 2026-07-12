@@ -80,6 +80,39 @@ function createProvider(
 }
 
 describe('processGenerationJob', () => {
+  it('does not call the provider when the global safety budget is exhausted', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store, true);
+    const repositories = store.repositories();
+    await repositories.usageEvents.append({
+      id: 'budget-spend-1',
+      userId: 'user-1',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+    const provider = createProvider({});
+
+    await processGenerationJob(createQueueJob(), {
+      repositories,
+      providers: createProviderRegistry([provider]),
+      storage: createStorage(),
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
+    });
+
+    expect(provider.generateImage).not.toHaveBeenCalled();
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'ai_budget_exhausted',
+      retryable: false,
+    });
+  });
+
   it('marks queued jobs as succeeded and creates a generated asset', async () => {
     const store = new InMemoryApiStore();
     await seedQueuedJob(store, true);
@@ -143,6 +176,7 @@ describe('processGenerationJob', () => {
       repositories: store.repositories(),
       providers: createProviderRegistry([provider]),
       storage: createStorage(),
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
     });
 
     await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
@@ -152,6 +186,9 @@ describe('processGenerationJob', () => {
       retryable: true,
     });
     await expect(store.repositories().operations.findById('operation-1')).resolves.toMatchObject({ status: 'failed' });
+    await expect(store.repositories().usage.findMonthlyUsage('user-1', '2026-05')).resolves.toMatchObject({
+      failed_call_count: 1,
+    });
     await expect(
       new AccountAccessService(store.repositories(), {
         now: () => new Date('2026-05-20T10:01:00.000Z'),

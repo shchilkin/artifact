@@ -23,7 +23,7 @@ interface XAiImageResponse {
     mime_type?: unknown;
     revised_prompt?: unknown;
   }>;
-  usage?: unknown;
+  usage?: { cost_in_usd_ticks?: unknown };
   error?: {
     message?: unknown;
     code?: unknown;
@@ -68,6 +68,13 @@ export function createXAiImageProvider(options: XAiImageProviderOptions): ImageG
         width: dimensions.width,
         height: dimensions.height,
         usage: {
+          providerRequestId: response.headers.get('x-request-id') ?? undefined,
+          metrics: {
+            imageCount: 1,
+            imageSize: resolution,
+            imageQuality: request.settings.quality,
+            costUsdTicks: integerString(body.usage?.cost_in_usd_ticks),
+          },
           metadata: {
             requestId: response.headers.get('x-request-id'),
             revisedPrompt: body.data?.[0]?.revised_prompt,
@@ -83,6 +90,12 @@ export function createXAiImageProvider(options: XAiImageProviderOptions): ImageG
       };
     },
   };
+}
+
+function integerString(value: unknown) {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return String(value);
+  if (typeof value === 'string' && /^\d+$/.test(value)) return value;
+  return undefined;
 }
 
 function assertXAiResponseOk(response: FetchResponseLike, body: XAiImageResponse) {

@@ -4,8 +4,11 @@ import type { AiGenerationSettings, AiProvider, GenerationQueuePayload } from '.
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiGenerationJobRow, JsonObject, JsonValue } from './db/types.js';
 import { logError, logInfo, logWarn } from './logger.js';
+import { priceProviderUsage } from './providerPricing.js';
 import type { ImageGenerationResult, ProviderRegistry } from './providers/index.js';
+import { ProviderUsageService } from './providerUsageService.js';
 import type { QueueJob } from './queue.js';
+import { SafetyBudgetService } from './safetyBudgetService.js';
 import type { AssetStorage } from './storage/index.js';
 
 export interface GenerationWorkerDeps {
@@ -15,6 +18,8 @@ export interface GenerationWorkerDeps {
   maxOutputBytes?: number;
   now?: () => Date;
   createId?: () => string;
+  createUsageId?: () => string;
+  safetyBudget?: SafetyBudgetService;
 }
 
 const DEFAULT_MAX_OUTPUT_BYTES = 20 * 1024 * 1024;
@@ -34,12 +39,40 @@ export async function processGenerationJob(
     return;
   }
   let storedStorageKey: string | null = null;
+  let providerCall: { provider: string; model: string } | null = null;
+  let usageRecorded = false;
   const access = new AccountAccessService(deps.repositories, { now: deps.now });
+  const usage = new ProviderUsageService(deps.repositories.usageEvents, {
+    now: deps.now,
+    createId: deps.createUsageId,
+  });
 
   try {
     const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
     if (running.operation_id) await access.markRunning(running.operation_id);
     const provider = deps.providers.get(running.provider as AiProvider);
+    try {
+      priceProviderUsage({ provider: provider.provider, model: running.model, usage: {} });
+    } catch {
+      throw new GenerationWorkerError(
+        'unsupported_provider_model',
+        'The queued provider model has no pricing contract.',
+        false,
+      );
+    }
+    const budget = await (
+      deps.safetyBudget ?? new SafetyBudgetService(deps.repositories.usageEvents, { now: deps.now })
+    ).check();
+    if (budget.snapshot.state === 'warning') {
+      logWarn('ai_budget.warning', {
+        period: budget.snapshot.period,
+        spentMicroUsd: budget.snapshot.spentMicroUsd,
+        limitMicroUsd: budget.snapshot.limitMicroUsd,
+      });
+    }
+    if (!budget.allowed) {
+      throw new GenerationWorkerError('ai_budget_exhausted', 'AI creation is temporarily unavailable.', false);
+    }
     logInfo('ai_generation.running', {
       jobId: running.id,
       userId: running.user_id,
@@ -51,6 +84,7 @@ export async function processGenerationJob(
       provider: provider.provider,
       model: running.model,
     });
+    providerCall = { provider: provider.provider, model: running.model };
     const result = await provider.generateImage({
       jobId: running.id,
       userId: running.user_id,
@@ -59,6 +93,17 @@ export async function processGenerationJob(
       prompt: running.prompt,
       settings: running.settings_json as unknown as AiGenerationSettings,
     });
+    await usage.record({
+      operationId: running.operation_id,
+      userId: running.user_id,
+      feature: 'image_create',
+      provider: result.provider,
+      model: result.model,
+      status: 'succeeded',
+      providerRequestId: result.usage?.providerRequestId,
+      usage: result.usage?.metrics,
+    });
+    usageRecorded = true;
     logInfo('ai_generation.provider_response', {
       jobId: running.id,
       provider: result.provider,
@@ -100,6 +145,18 @@ export async function processGenerationJob(
     if (running.operation_id) await commitUsableOperation(access, running.operation_id, running);
     logInfo('ai_generation.succeeded', { jobId: running.id, userId: running.user_id, assetId });
   } catch (error) {
+    if (providerCall && !usageRecorded) {
+      await usage
+        .record({
+          operationId: job.operation_id,
+          userId: job.user_id,
+          feature: 'image_create',
+          provider: providerCall.provider,
+          model: providerCall.model,
+          status: 'failed',
+        })
+        .catch((usageError) => logError('ai_generation.usage_record_failed', usageError, { jobId: job.id }));
+    }
     if (storedStorageKey) {
       await deps.storage.deleteImage(storedStorageKey).catch(() => undefined);
     }

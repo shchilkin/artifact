@@ -170,8 +170,46 @@ integrationDescribe('account tier Postgres integration', () => {
           usage: { inputTokens: 120, outputTokens: 340 },
           costMicroUsd: '10800',
           pricingVersion: 'openai-2026-07-01',
+          createdAt: new Date('2026-07-12T10:04:00.000Z'),
         }),
       ).resolves.toMatchObject({ cost_micro_usd: '10800' });
+      await expect(
+        repositories.usageEvents.append({
+          id: 'usage-1',
+          operationId: 'operation-1',
+          userId: 'user-1',
+          feature: 'shader_create',
+          provider: 'openai',
+          model: 'gpt-5.5',
+          status: 'succeeded',
+          providerRequestId: 'req-1',
+          usage: { inputTokens: 120, outputTokens: 340 },
+          costMicroUsd: '10800',
+          pricingVersion: 'openai-2026-07-01',
+          createdAt: new Date('2026-07-12T10:04:00.000Z'),
+        }),
+      ).resolves.toMatchObject({ id: 'usage-1' });
+      await expect(
+        client.query(
+          `SELECT provider_cost_micro_usd, input_tokens, output_tokens, failed_call_count
+           FROM ai_usage_monthly WHERE user_id = 'user-1' AND period = '2026-07'`,
+        ),
+      ).resolves.toMatchObject({
+        rows: [
+          {
+            provider_cost_micro_usd: '10800',
+            input_tokens: '120',
+            output_tokens: '340',
+            failed_call_count: 0,
+          },
+        ],
+      });
+      await expect(
+        repositories.usageEvents.sumCost({
+          from: new Date('2026-07-01T00:00:00.000Z'),
+          to: new Date('2026-08-01T00:00:00.000Z'),
+        }),
+      ).resolves.toEqual({ costMicroUsd: '10800' });
       await expect(
         repositories.adminAudit.append({
           id: 'audit-1',

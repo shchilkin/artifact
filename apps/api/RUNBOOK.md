@@ -142,16 +142,24 @@ EMAIL_REPLY_TO=
 API_BULL_BOARD_ENABLED=false
 
 OPENAI_API_KEY=
+OPENAI_ADMIN_KEY=
 OPENAI_IMAGE_MODEL=gpt-image-2
 OPENAI_SHADER_MODEL=gpt-5.5
 OPENAI_SHADER_TIMEOUT_MS=20000
 XAI_API_KEY=
 XAI_IMAGE_MODEL=grok-imagine-image-quality
 
+AI_SAFETY_BUDGET_USD=30
+
 ASSET_STORAGE_DRIVER=local
 ASSET_STORAGE_DIR=/var/lib/artifact/generated-assets
 
 ```
+
+`OPENAI_ADMIN_KEY` is only used by `npm --workspace @artifact/api run reconcile:openai-costs`.
+Run it daily after midnight UTC to import the previous completed UTC day's
+OpenAI organization cost. Keep this key server-side and separate from
+`OPENAI_API_KEY`.
 
 Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
 prefer Better Auth bearer tokens or real bearer tokens verified by

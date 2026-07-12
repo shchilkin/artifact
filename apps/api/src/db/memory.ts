@@ -257,7 +257,8 @@ export class InMemoryApiStore {
   }
 
   async appendUsageEvent(input: CreateAiUsageEventInput): Promise<AiUsageEventRow> {
-    if (this.usageEvents.has(input.id)) throw new Error(`Usage event already exists: ${input.id}`);
+    const existing = this.usageEvents.get(input.id);
+    if (existing) return existing;
     if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
     const row: AiUsageEventRow = {
       id: input.id,
@@ -271,10 +272,33 @@ export class InMemoryApiStore {
       usage_json: normalizeProviderUsageMetrics(input.usage),
       cost_micro_usd: normalizeMicroUsd(input.costMicroUsd),
       pricing_version: requiredText(input.pricingVersion, 'pricingVersion'),
-      created_at: new Date(),
+      created_at: input.createdAt ?? new Date(),
     };
     this.usageEvents.set(row.id, row);
+    const period = row.created_at.toISOString().slice(0, 7);
+    const key = monthlyUsageKey(row.user_id, period);
+    const current = this.monthlyUsage.get(key) ?? emptyMonthlyUsage(row.user_id, period, 0);
+    const inputTokens = Number(row.usage_json.inputTokens ?? 0);
+    const outputTokens = Number(row.usage_json.outputTokens ?? 0);
+    this.monthlyUsage.set(key, {
+      ...current,
+      provider_cost_micro_usd: (BigInt(current.provider_cost_micro_usd) + BigInt(row.cost_micro_usd)).toString(),
+      input_tokens: (BigInt(current.input_tokens) + BigInt(inputTokens)).toString(),
+      output_tokens: (BigInt(current.output_tokens) + BigInt(outputTokens)).toString(),
+      failed_call_count: current.failed_call_count + (row.status === 'failed' ? 1 : 0),
+      updated_at: row.created_at,
+    });
     return row;
+  }
+
+  async sumUsageEventCost(input: { from: Date; to: Date; provider?: string }) {
+    let total = 0n;
+    for (const event of this.usageEvents.values()) {
+      if (event.created_at < input.from || event.created_at >= input.to) continue;
+      if (input.provider && event.provider !== input.provider) continue;
+      total += BigInt(event.cost_micro_usd);
+    }
+    return { costMicroUsd: total.toString() };
   }
 
   async appendAdminAuditEvent(input: CreateAdminAuditEventInput): Promise<AdminAuditEventRow> {
@@ -857,6 +881,7 @@ export class InMemoryApiStore {
       },
       usageEvents: {
         append: (input) => this.appendUsageEvent(input),
+        sumCost: (input) => this.sumUsageEventCost(input),
       },
       adminAudit: {
         append: (input) => this.appendAdminAuditEvent(input),
