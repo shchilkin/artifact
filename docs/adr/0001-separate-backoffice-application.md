@@ -7,3 +7,17 @@ own runtime configuration, release checks, and browser tests. This adds a
 deployment boundary, but keeps operational UI and future usage analytics out of
 the editor bundle and allows the entire admin surface to receive an additional
 network-access boundary.
+
+The first backoffice release contains four operational views:
+
+1. **Overview** shows account counts by tier, monthly Generations, provider
+   spend, failures, and Safety Budget health.
+2. **Accounts** provides account search and shows tier, monthly allowance
+   usage, and registration metadata.
+3. **Account Detail** supports Tier Assignments and Quota Grants and shows their
+   audit history alongside monthly usage.
+4. **Provider Usage** breaks down tokens, cost, status, provider, and model and
+   supports reconciliation against provider totals.
+
+These views do not expose Creative Content such as prompts, shader code,
+generated assets, or project documents.
