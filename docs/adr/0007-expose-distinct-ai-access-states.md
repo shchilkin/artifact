@@ -17,3 +17,15 @@ availability as distinct user-facing states rather than one generic AI error.
 
 API responses use stable machine-readable denial reasons so every AI surface
 can render the same state and avoid inferring access from message text.
+
+The initial denial contract is:
+
+- `403 ai_tier_required` when the account has no provider-backed AI access;
+- `429 generation_allowance_exhausted` with `resetAt` when the monthly account
+  allowance is exhausted;
+- `429 ai_rate_limited` with `retryAfter` for short-window request limits;
+- `503 ai_budget_exhausted` when the global Safety Budget has stopped new work;
+- `503 ai_provider_unavailable` for temporary provider failures.
+
+Human-readable response messages are not API identifiers and may change without
+requiring clients to reinterpret access state.
