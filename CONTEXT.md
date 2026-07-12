@@ -62,7 +62,7 @@ _Avoid_: Disabled account, anonymous user
 
 **Creator Tier**:
 An Account Tier with an allowance of 20 successful Generations per calendar
-month.
+month measured in UTC.
 _Avoid_: Plus, AI-enabled user
 
 **User Role**:
@@ -113,10 +113,11 @@ _Avoid_: Subscription, payment status, AI toggle
 
 **Quota Grant**:
 An auditable adjustment that adds a specific number of Generations to one
-account's allowance for one calendar month. It does not change the Account Tier
-or Tier Policy, does not roll over, and requires a reason plus the responsible
-Admin and timestamp. Used and remaining values are derived rather than edited;
-mistakes are corrected with a compensating record instead of deleting history.
+account's allowance for one UTC calendar month. It does not change the Account
+Tier or Tier Policy, does not roll over, and requires a reason plus the
+responsible Admin and timestamp. Used and remaining values are derived rather
+than edited; mistakes are corrected with a compensating record instead of
+deleting history.
 _Avoid_: Tier change, usage reset, manual remaining balance
 
 **Creative Content**:
