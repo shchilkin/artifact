@@ -111,6 +111,14 @@ release, Tier Assignments are made manually by an authorized backoffice user;
 billing is not a source of assignments.
 _Avoid_: Subscription, payment status, AI toggle
 
+**Quota Grant**:
+An auditable adjustment that adds a specific number of Generations to one
+account's allowance for one calendar month. It does not change the Account Tier
+or Tier Policy, does not roll over, and requires a reason plus the responsible
+Admin and timestamp. Used and remaining values are derived rather than edited;
+mistakes are corrected with a compensating record instead of deleting history.
+_Avoid_: Tier change, usage reset, manual remaining balance
+
 **Creative Content**:
 The prompts, shader code, generated assets, and project documents created or
 supplied by an Artifact user. Creative Content is not Provider Usage and is not

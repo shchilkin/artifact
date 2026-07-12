@@ -306,10 +306,11 @@ Next strong candidates after v0.39:
   security tests before public project links become available.
 - **Account Tiers And Backoffice** — add a separate admin-only backoffice,
   auditable Free/Creator/Founder Tier Assignments, per-user Generation usage,
-  append-only provider Usage Events, and provider-cost reconciliation. The
-  first release keeps Tier Policy fixed in server code; a later slice should
-  make versioned tier capabilities and allowances configurable without a code
-  deploy, with validation, audit history, and safe rollback.
+  month-specific audited Quota Grants, append-only provider Usage Events, and
+  provider-cost reconciliation. The first release keeps Tier Policy fixed in
+  server code; a later slice should make versioned tier capabilities and
+  allowances configurable without a code deploy, with validation, audit
+  history, and safe rollback.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
