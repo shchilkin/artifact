@@ -14,5 +14,12 @@ the Admin operation. Repeating a completed request returns its original result
 and does not create another grant. Client-side pending controls improve the
 interaction but never replace server-side concurrency and idempotency checks.
 
+A Quota Grant is always positive. Corrections create an immutable Quota Grant
+Reversal linked to the original grant, with its own reason and audit record. A
+reversal cannot exceed the original amount. If committed usage already exceeds
+the resulting allowance, prior results remain valid, remaining allowance is
+reported as zero, and new Generations are rejected until allowance becomes
+available.
+
 A successful mutation response includes the updated account summary and the
 new audit record so the backoffice can reconcile its visible state immediately.

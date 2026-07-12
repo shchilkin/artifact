@@ -116,9 +116,16 @@ An auditable adjustment that adds a specific number of Generations to one
 account's allowance for one UTC calendar month. It does not change the Account
 Tier or Tier Policy, does not roll over, and requires a reason plus the
 responsible Admin and timestamp. Used and remaining values are derived rather
-than edited; mistakes are corrected with a compensating record instead of
+than edited; mistakes are corrected with a Quota Grant Reversal instead of
 deleting history.
 _Avoid_: Tier change, usage reset, manual remaining balance
+
+**Quota Grant Reversal**:
+An auditable negative adjustment linked to one Quota Grant that corrects all or
+part of that grant without editing or deleting it. A reversal cannot exceed the
+original grant. If the account already used the reversed allowance, existing
+results remain available and new Generations stop until allowance is available.
+_Avoid_: Negative grant, usage deletion, result revocation
 
 **Creative Content**:
 The prompts, shader code, generated assets, and project documents created or
