@@ -3,9 +3,12 @@ import { toNodeHandler } from 'better-auth/node';
 import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { createArtifactBetterAuth } from './betterAuth.js';
 import { createBullBoardHandler } from './bullBoard.js';
+import { createPostgresRepositories } from './db/postgres.js';
+import type { ApiRepositories } from './db/repositories.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
 import { logError, logInfo } from './logger.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
+import { handleAdminRequest } from './routes/admin.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
 import { handleHealthRequest } from './routes/health.js';
@@ -99,6 +102,22 @@ const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
     verifyBearerToken: verifyApiBearerToken,
   });
 
+async function runInTransaction<T>(operation: (transactionRepositories: ApiRepositories) => Promise<T>): Promise<T> {
+  if (!pool) return operation(repositories);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await operation(createPostgresRepositories(client));
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function resolveApiResponse(req: IncomingMessage) {
   return (
     handleHealthRequest(req, {
@@ -108,6 +127,12 @@ async function resolveApiResponse(req: IncomingMessage) {
       providers: providers.list().map((provider) => provider.provider),
       bullBoardEnabled: Boolean(bullBoard),
     }) ??
+    (await handleAdminRequest(req, {
+      repositories,
+      safetyBudget,
+      resolveAuth,
+      runInTransaction,
+    })) ??
     (await handleAiRequest(req, {
       repositories,
       queue,

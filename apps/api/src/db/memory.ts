@@ -15,7 +15,11 @@ import {
 import type { ApiRepositories } from './repositories.js';
 import type {
   AccountAccessRow,
+  AdminAccountDetailRow,
+  AdminAccountRow,
   AdminAuditEventRow,
+  AdminOverviewRow,
+  AdminUsageQuery,
   AiGenerationJobRow,
   AiOperationRow,
   AiShaderRequestRow,
@@ -97,6 +101,14 @@ export class InMemoryApiStore {
 
   async findById(id: string): Promise<UserRow | null> {
     return this.users.get(id) ?? null;
+  }
+
+  async setUserRole(id: string, role: UserRow['role']): Promise<UserRow> {
+    const user = this.users.get(id);
+    if (!user) throw new Error(`User not found: ${id}`);
+    const updated = { ...user, role, updated_at: new Date() };
+    this.users.set(id, updated);
+    return updated;
   }
 
   async findAccountAccess(userId: string): Promise<AccountAccessRow | null> {
@@ -333,6 +345,106 @@ export class InMemoryApiStore {
     return row;
   }
 
+  async getAdminOverview(period: string): Promise<AdminOverviewRow> {
+    monthlyPeriod(period);
+    const overview: AdminOverviewRow = {
+      free_count: 0,
+      creator_count: 0,
+      founder_count: 0,
+      committed_generation_count: 0,
+      reserved_generation_count: 0,
+      provider_cost_micro_usd: '0',
+      input_tokens: '0',
+      output_tokens: '0',
+      failed_call_count: 0,
+    };
+    for (const user of this.users.values()) {
+      const tier = this.accountAccess.get(user.id)?.tier ?? 'free';
+      overview[`${tier}_count`] += 1;
+      const usage = this.monthlyUsage.get(monthlyUsageKey(user.id, period));
+      if (!usage) continue;
+      overview.committed_generation_count += usage.committed_generation_count;
+      overview.reserved_generation_count += usage.reserved_generation_count;
+      overview.provider_cost_micro_usd = addIntegerStrings(
+        overview.provider_cost_micro_usd,
+        usage.provider_cost_micro_usd,
+      );
+      overview.input_tokens = addIntegerStrings(overview.input_tokens, usage.input_tokens);
+      overview.output_tokens = addIntegerStrings(overview.output_tokens, usage.output_tokens);
+      overview.failed_call_count += usage.failed_call_count;
+    }
+    return overview;
+  }
+
+  async listAdminAccounts(input: { period: string; search?: string; limit: number; offset: number }) {
+    monthlyPeriod(input.period);
+    const search = input.search?.trim().toLowerCase();
+    const accounts = Array.from(this.users.values())
+      .filter((user) => !search || user.id.toLowerCase().includes(search) || user.email?.toLowerCase().includes(search))
+      .sort((left, right) => right.created_at.getTime() - left.created_at.getTime() || left.id.localeCompare(right.id))
+      .map((user) => this.adminAccountRow(user, input.period));
+    return { rows: accounts.slice(input.offset, input.offset + input.limit), total: accounts.length };
+  }
+
+  async getAdminAccount(userId: string, period: string): Promise<AdminAccountDetailRow | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    return {
+      account: this.adminAccountRow(user, period),
+      assignments: Array.from(this.tierAssignments.values())
+        .filter((row) => row.user_id === userId)
+        .sort(newestFirst),
+      grants: Array.from(this.quotaGrants.values())
+        .filter((row) => row.user_id === userId)
+        .sort(newestFirst),
+      reversals: Array.from(this.quotaGrantReversals.values())
+        .filter((row) => this.quotaGrants.get(row.grant_id)?.user_id === userId)
+        .sort(newestFirst),
+      audits: Array.from(this.adminAuditEvents.values())
+        .filter((row) => row.target_user_id === userId)
+        .sort(newestFirst),
+    };
+  }
+
+  async listAdminUsage(input: AdminUsageQuery) {
+    const rows = Array.from(this.usageEvents.values())
+      .filter((row) => !input.userId || row.user_id === input.userId)
+      .filter((row) => !input.provider || row.provider === input.provider)
+      .filter((row) => !input.status || row.status === input.status)
+      .sort(newestFirst);
+    return { rows: rows.slice(input.offset, input.offset + input.limit), total: rows.length };
+  }
+
+  async listAdminReconciliations(limit: number) {
+    return Array.from(this.reconciliations.values())
+      .sort(
+        (left, right) => right.usage_date.localeCompare(left.usage_date) || left.provider.localeCompare(right.provider),
+      )
+      .slice(0, limit);
+  }
+
+  private adminAccountRow(user: UserRow, period: string): AdminAccountRow {
+    const access = this.accountAccess.get(user.id) ?? {
+      tier: 'free' as const,
+      version: 0,
+      updated_at: user.updated_at,
+    };
+    const usage = this.monthlyUsage.get(monthlyUsageKey(user.id, period)) ?? emptyMonthlyUsage(user.id, period, 0);
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tier: access.tier,
+      tier_version: access.version,
+      committed_generation_count: usage.committed_generation_count,
+      reserved_generation_count: usage.reserved_generation_count,
+      provider_cost_micro_usd: usage.provider_cost_micro_usd,
+      failed_call_count: usage.failed_call_count,
+      created_at: user.created_at,
+      updated_at: access.updated_at > user.updated_at ? access.updated_at : user.updated_at,
+    };
+  }
+
   async assignTier(input: CreateTierAssignmentInput): Promise<{ row: TierAssignmentRow; assigned: boolean }> {
     const existing = Array.from(this.tierAssignments.values()).find(
       (assignment) =>
@@ -390,6 +502,10 @@ export class InMemoryApiStore {
     };
     this.quotaGrants.set(row.id, row);
     return { row, created: true };
+  }
+
+  async findQuotaGrant(id: string): Promise<QuotaGrantRow | null> {
+    return this.quotaGrants.get(id) ?? null;
   }
 
   async createQuotaGrantReversal(
@@ -851,6 +967,7 @@ export class InMemoryApiStore {
       users: {
         findById: (id) => this.findById(id),
         upsertFromAuth: (input) => this.upsertUserFromAuth(input),
+        setRole: (id, role) => this.setUserRole(id, role),
       },
       accountTiers: {
         findAccess: (userId) => this.findAccountAccess(userId),
@@ -859,6 +976,7 @@ export class InMemoryApiStore {
         assignTier: (input) => this.assignTier(input),
         createQuotaGrant: (input) => this.createQuotaGrant(input),
         createQuotaGrantReversal: (input) => this.createQuotaGrantReversal(input),
+        findQuotaGrant: (id) => this.findQuotaGrant(id),
         sumQuotaAdjustments: (userId, period) => this.sumQuotaAdjustments(userId, period),
       },
       operations: {
@@ -876,6 +994,13 @@ export class InMemoryApiStore {
       },
       adminAudit: {
         append: (input) => this.appendAdminAuditEvent(input),
+      },
+      adminRead: {
+        getOverview: (period) => this.getAdminOverview(period),
+        listAccounts: (input) => this.listAdminAccounts(input),
+        getAccount: (userId, period) => this.getAdminAccount(userId, period),
+        listUsage: (input) => this.listAdminUsage(input),
+        listReconciliations: (limit) => this.listAdminReconciliations(limit),
       },
       reconciliations: {
         upsert: (input) => this.upsertProviderReconciliation(input),
@@ -1009,6 +1134,14 @@ function emptyMonthlyUsage(userId: string, period: string, generationLimit: numb
 
 function addNumericStrings(a: string, b: string) {
   return String(Number(a) + Number(b));
+}
+
+function addIntegerStrings(a: string, b: string) {
+  return (BigInt(a) + BigInt(b)).toString();
+}
+
+function newestFirst<T extends { created_at: Date }>(left: T, right: T) {
+  return right.created_at.getTime() - left.created_at.getTime();
 }
 
 function positiveInteger(value: number, label: string): number {

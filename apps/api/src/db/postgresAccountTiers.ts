@@ -278,6 +278,10 @@ export class PostgresAccountTierRepository implements AccountTierRepository {
     return { granted: Number(row.granted), reversed: Number(row.reversed) };
   }
 
+  async findQuotaGrant(id: string): Promise<QuotaGrantRow | null> {
+    return this.findQuotaGrantById(id);
+  }
+
   private async findTierAssignmentByIdempotency(
     adminUserId: string,
     idempotencyKey: string,

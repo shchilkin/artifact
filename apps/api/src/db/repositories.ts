@@ -1,6 +1,7 @@
 import type {
   AccountTierRepository,
   AdminAuditRepository,
+  AdminReadRepository,
   AiGenerationJobRepository,
   AiOperationRepository,
   AiShaderRequestRepository,
@@ -18,6 +19,7 @@ export interface ApiRepositories {
   operations: AiOperationRepository;
   usageEvents: AiUsageEventRepository;
   adminAudit: AdminAuditRepository;
+  adminRead: AdminReadRepository;
   reconciliations: ProviderReconciliationRepository;
   jobs: JobReadWriteRepository;
   shaderRequests: ShaderRequestReadWriteRepository;
@@ -26,7 +28,7 @@ export interface ApiRepositories {
   usage: UsageReadWriteRepository;
 }
 
-export type UserReadWriteRepository = Pick<UserRepository, 'findById' | 'upsertFromAuth'>;
+export type UserReadWriteRepository = Pick<UserRepository, 'findById' | 'upsertFromAuth' | 'setRole'>;
 
 export type JobReadWriteRepository = Pick<
   AiGenerationJobRepository,

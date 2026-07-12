@@ -295,6 +295,61 @@ export interface AiUsageCostSummary {
   costMicroUsd: DbNumeric;
 }
 
+export interface AdminOverviewRow {
+  free_count: number;
+  creator_count: number;
+  founder_count: number;
+  committed_generation_count: number;
+  reserved_generation_count: number;
+  provider_cost_micro_usd: DbNumeric;
+  input_tokens: DbNumeric;
+  output_tokens: DbNumeric;
+  failed_call_count: number;
+}
+
+export interface AdminAccountRow {
+  id: string;
+  email: string | null;
+  role: UserRole;
+  tier: AccountTier;
+  tier_version: number;
+  committed_generation_count: number;
+  reserved_generation_count: number;
+  provider_cost_micro_usd: DbNumeric;
+  failed_call_count: number;
+  created_at: DbTimestamp;
+  updated_at: DbTimestamp;
+}
+
+export interface AdminAccountDetailRow {
+  account: AdminAccountRow;
+  assignments: TierAssignmentRow[];
+  grants: QuotaGrantRow[];
+  reversals: QuotaGrantReversalRow[];
+  audits: AdminAuditEventRow[];
+}
+
+export interface AdminUsageQuery {
+  userId?: string;
+  provider?: string;
+  status?: AiUsageEventStatus;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminReadRepository {
+  getOverview(period: string): Promise<AdminOverviewRow>;
+  listAccounts(input: {
+    period: string;
+    search?: string;
+    limit: number;
+    offset: number;
+  }): Promise<{ rows: AdminAccountRow[]; total: number }>;
+  getAccount(userId: string, period: string): Promise<AdminAccountDetailRow | null>;
+  listUsage(input: AdminUsageQuery): Promise<{ rows: AiUsageEventRow[]; total: number }>;
+  listReconciliations(limit: number): Promise<ProviderReconciliationRow[]>;
+}
+
 export interface CreateProviderReconciliationInput {
   id: string;
   provider: string;
@@ -408,6 +463,7 @@ export interface UserRepository {
   create(input: CreateUserInput): Promise<UserRow>;
   upsertFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow>;
   setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow>;
+  setRole(id: string, role: UserRole): Promise<UserRow>;
 }
 
 export interface AccountTierRepository {
@@ -419,6 +475,7 @@ export interface AccountTierRepository {
   createQuotaGrantReversal(
     input: CreateQuotaGrantReversalInput,
   ): Promise<{ row: QuotaGrantReversalRow; created: boolean }>;
+  findQuotaGrant(id: string): Promise<QuotaGrantRow | null>;
   sumQuotaAdjustments(userId: string, period: string): Promise<{ granted: number; reversed: number }>;
 }
 

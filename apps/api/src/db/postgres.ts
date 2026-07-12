@@ -1,4 +1,5 @@
 import { PostgresAccountTierRepository } from './postgresAccountTiers.js';
+import { PostgresAdminReadRepository } from './postgresAdminRead.js';
 import {
   PostgresAdminAuditRepository,
   PostgresAiUsageEventRepository,
@@ -24,6 +25,7 @@ export function createPostgresRepositories(client: PostgresQueryClient): ApiRepo
     operations: new PostgresAiOperationRepository(client),
     usageEvents: new PostgresAiUsageEventRepository(client),
     adminAudit: new PostgresAdminAuditRepository(client),
+    adminRead: new PostgresAdminReadRepository(client),
     reconciliations: new PostgresProviderReconciliationRepository(client),
     jobs: new PostgresAiGenerationJobRepository(client),
     shaderRequests: new PostgresAiShaderRequestRepository(client),

@@ -115,4 +115,15 @@ describe('PostgresAccountTierRepository', () => {
       }),
     ).rejects.toThrow('Quota grant not found: missing-grant');
   });
+
+  it('finds the target grant before returning an audited reversal response', async () => {
+    const grant = { id: 'grant-1', user_id: 'user-1', amount: 8, reversed_amount: 3 } as QuotaGrantRow;
+    const client = createFakeQueryClient([[grant]]);
+    const repository = new PostgresAccountTierRepository(client);
+
+    await expect(repository.findQuotaGrant('grant-1')).resolves.toEqual(grant);
+
+    expect(client.calls[0]?.sql).toContain('FROM quota_grants WHERE id = $1');
+    expect(client.calls[0]?.values).toEqual(['grant-1']);
+  });
 });

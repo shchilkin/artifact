@@ -86,4 +86,16 @@ describe('PostgresUserRepository', () => {
     ]);
     expect(client.calls[0]?.sql).toContain('updated_at = now()');
   });
+
+  it('assigns the server-managed Admin role by exact account id', async () => {
+    const admin = { ...user, role: 'admin' };
+    const client = createFakeQueryClient([[admin]]);
+    const repository = new PostgresUserRepository(client);
+
+    await expect(repository.setRole('user-1', 'admin')).resolves.toEqual(admin);
+
+    expect(client.calls[0]?.values).toEqual(['user-1', 'admin']);
+    expect(client.calls[0]?.sql).toContain('SET role = $2');
+    expect(client.calls[0]?.sql).toContain('WHERE id = $1');
+  });
 });

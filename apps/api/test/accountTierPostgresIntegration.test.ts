@@ -225,6 +225,32 @@ integrationDescribe('account tier Postgres integration', () => {
           syncedAt: new Date('2026-07-12T05:00:00.000Z'),
         }),
       ).resolves.toMatchObject({ provider_cost_micro_usd: '11000' });
+      await expect(repositories.adminRead.getOverview('2026-07')).resolves.toMatchObject({
+        free_count: 1,
+        creator_count: 1,
+        founder_count: 0,
+        committed_generation_count: 1,
+        provider_cost_micro_usd: '10800',
+      });
+      await expect(
+        repositories.adminRead.listAccounts({ period: '2026-07', search: 'user@example.com', limit: 10, offset: 0 }),
+      ).resolves.toMatchObject({
+        total: 1,
+        rows: [{ id: 'user-1', tier: 'creator', committed_generation_count: 1 }],
+      });
+      await expect(repositories.adminRead.getAccount('user-1', '2026-07')).resolves.toMatchObject({
+        account: { id: 'user-1', tier: 'creator' },
+        assignments: [{ id: 'assignment-1' }],
+        grants: [{ id: 'grant-1', reversed_amount: 4 }],
+        reversals: [{ id: 'reversal-1' }],
+        audits: [{ id: 'audit-1' }],
+      });
+      await expect(
+        repositories.adminRead.listUsage({ userId: 'user-1', provider: 'openai', limit: 10, offset: 0 }),
+      ).resolves.toMatchObject({ total: 1, rows: [{ id: 'usage-1', cost_micro_usd: '10800' }] });
+      await expect(repositories.adminRead.listReconciliations(10)).resolves.toMatchObject([
+        { id: 'reconciliation-1', provider_cost_micro_usd: '11000' },
+      ]);
     } finally {
       await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       client.release();

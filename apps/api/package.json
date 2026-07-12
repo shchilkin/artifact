@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && tsc -p tsconfig.build.json",
+    "bootstrap:admin": "npm --workspace @artifact/shared run build && tsx src/adminBootstrapCli.ts",
     "cleanup:ai": "tsx src/cleanupCli.ts",
     "cleanup:ai:start": "node dist/cleanupCli.js",
     "dev": "deno task --config ../../deno.json api:dev-watch",
