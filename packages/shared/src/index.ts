@@ -13,6 +13,39 @@ export const AI_API_PATHS = {
 export const AI_GENERATION_PROVIDERS = ['openai', 'xai'] as const;
 export type AiGenerationProvider = (typeof AI_GENERATION_PROVIDERS)[number];
 
+export const ACCOUNT_TIERS = ['free', 'creator', 'founder'] as const;
+export type AccountTier = (typeof ACCOUNT_TIERS)[number];
+
+export const AI_OPERATION_FEATURES = ['image_create', 'shader_create', 'shader_refine'] as const;
+export type AiOperationFeature = (typeof AI_OPERATION_FEATURES)[number];
+
+export const AI_OPERATION_STATUSES = ['reserved', 'running', 'succeeded', 'failed', 'cancelled', 'expired'] as const;
+export type AiOperationStatus = (typeof AI_OPERATION_STATUSES)[number];
+
+export const AI_USAGE_EVENT_STATUSES = ['succeeded', 'failed'] as const;
+export type AiUsageEventStatus = (typeof AI_USAGE_EVENT_STATUSES)[number];
+
+export const PROVIDER_RECONCILIATION_STATUSES = ['pending', 'succeeded', 'failed'] as const;
+export type ProviderReconciliationStatus = (typeof PROVIDER_RECONCILIATION_STATUSES)[number];
+
+export interface AccountTierPolicy {
+  providerAiEnabled: boolean;
+  monthlyGenerationLimit: number | null;
+}
+
+export interface AccountAllowanceSnapshot {
+  tier: AccountTier;
+  period: string;
+  providerAiEnabled: boolean;
+  baseLimit: number | null;
+  granted: number;
+  reversed: number;
+  limit: number | null;
+  committed: number;
+  reserved: number;
+  remaining: number | null;
+}
+
 export const AI_GENERATION_JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'cancelled', 'expired'] as const;
 export type AiGenerationJobStatus = (typeof AI_GENERATION_JOB_STATUSES)[number];
 

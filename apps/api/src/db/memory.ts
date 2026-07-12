@@ -1,17 +1,45 @@
-import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } from './errors.js';
+import { normalizeMicroUsd, normalizeProviderUsageMetrics, requiredText } from './accountingValues.js';
+import {
+  AccountTierVersionConflictError,
+  ActiveAiOperationExistsError,
+  ActiveGenerationJobExistsError,
+  CloudProjectOwnershipConflictError,
+  QuotaGrantReversalExceededError,
+} from './errors.js';
+import {
+  assertOperationRetry,
+  assertQuotaGrantRetry,
+  assertQuotaGrantReversalRetry,
+  assertTierAssignmentRetry,
+} from './idempotencyInputs.js';
 import type { ApiRepositories } from './repositories.js';
 import type {
+  AccountAccessRow,
+  AdminAuditEventRow,
   AiGenerationJobRow,
+  AiOperationRow,
   AiShaderRequestRow,
+  AiUsageEventRow,
   AiUsageMonthlyRow,
   AssetRow,
   ClaimAiShaderRequestInput,
   CloudProjectRow,
   CompleteAiShaderRequestInput,
+  CreateAdminAuditEventInput,
   CreateAiGenerationJobInput,
+  CreateAiOperationInput,
+  CreateAiUsageEventInput,
   CreateAssetInput,
+  CreateProviderReconciliationInput,
+  CreateQuotaGrantInput,
+  CreateQuotaGrantReversalInput,
+  CreateTierAssignmentInput,
   CreateUserInput,
   JsonObject,
+  ProviderReconciliationRow,
+  QuotaGrantReversalRow,
+  QuotaGrantRow,
+  TierAssignmentRow,
   UpsertAuthenticatedUserInput,
   UpsertCloudProjectInput,
   UserRow,
@@ -19,6 +47,14 @@ import type {
 
 export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
+  private readonly accountAccess = new Map<string, AccountAccessRow>();
+  private readonly operations = new Map<string, AiOperationRow>();
+  private readonly usageEvents = new Map<string, AiUsageEventRow>();
+  private readonly adminAuditEvents = new Map<string, AdminAuditEventRow>();
+  private readonly reconciliations = new Map<string, ProviderReconciliationRow>();
+  private readonly tierAssignments = new Map<string, TierAssignmentRow>();
+  private readonly quotaGrants = new Map<string, QuotaGrantRow>();
+  private readonly quotaGrantReversals = new Map<string, QuotaGrantReversalRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
   private readonly shaderRequests = new Map<string, AiShaderRequestRow>();
   private readonly assets = new Map<string, AssetRow>();
@@ -45,6 +81,237 @@ export class InMemoryApiStore {
 
   async findById(id: string): Promise<UserRow | null> {
     return this.users.get(id) ?? null;
+  }
+
+  async findAccountAccess(userId: string): Promise<AccountAccessRow | null> {
+    return this.accountAccess.get(userId) ?? null;
+  }
+
+  async ensureAccountAccess(userId: string): Promise<AccountAccessRow> {
+    const existing = this.accountAccess.get(userId);
+    if (existing) return existing;
+    if (!this.users.has(userId)) throw new Error(`User not found: ${userId}`);
+    const now = new Date();
+    const row: AccountAccessRow = {
+      user_id: userId,
+      tier: 'free',
+      version: 0,
+      created_at: now,
+      updated_at: now,
+    };
+    this.accountAccess.set(userId, row);
+    return row;
+  }
+
+  async listLegacyAiEnabledUsers() {
+    return Array.from(this.users.values())
+      .filter((user) => user.ai_enabled)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((user) => ({ userId: user.id, email: user.email }));
+  }
+
+  async findOperationByIdempotencyKey(
+    userId: string,
+    feature: CreateAiOperationInput['feature'],
+    idempotencyKey: string,
+  ): Promise<AiOperationRow | null> {
+    return (
+      Array.from(this.operations.values()).find(
+        (operation) =>
+          operation.user_id === userId && operation.feature === feature && operation.idempotency_key === idempotencyKey,
+      ) ?? null
+    );
+  }
+
+  async claimOperation(input: CreateAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean }> {
+    const existing = await this.findOperationByIdempotencyKey(input.userId, input.feature, input.idempotencyKey);
+    if (existing) {
+      assertOperationRetry(existing, input);
+      return { row: existing, claimed: false };
+    }
+    const active = Array.from(this.operations.values()).find(
+      (operation) =>
+        operation.user_id === input.userId && (operation.status === 'reserved' || operation.status === 'running'),
+    );
+    if (active) throw new ActiveAiOperationExistsError(input.userId);
+    const now = new Date();
+    const row: AiOperationRow = {
+      id: input.id,
+      user_id: input.userId,
+      feature: input.feature,
+      status: 'reserved',
+      idempotency_key: input.idempotencyKey,
+      reservation_period: input.reservationPeriod,
+      reserved_generations: input.reservedGenerations,
+      error_code: null,
+      created_at: now,
+      started_at: null,
+      completed_at: null,
+    };
+    this.operations.set(row.id, row);
+    return { row, claimed: true };
+  }
+
+  async appendUsageEvent(input: CreateAiUsageEventInput): Promise<AiUsageEventRow> {
+    if (this.usageEvents.has(input.id)) throw new Error(`Usage event already exists: ${input.id}`);
+    if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
+    const row: AiUsageEventRow = {
+      id: input.id,
+      operation_id: input.operationId ?? null,
+      user_id: input.userId,
+      feature: input.feature,
+      provider: input.provider,
+      model: input.model,
+      status: input.status,
+      provider_request_id: input.providerRequestId ?? null,
+      usage_json: normalizeProviderUsageMetrics(input.usage),
+      cost_micro_usd: normalizeMicroUsd(input.costMicroUsd),
+      pricing_version: requiredText(input.pricingVersion, 'pricingVersion'),
+      created_at: new Date(),
+    };
+    this.usageEvents.set(row.id, row);
+    return row;
+  }
+
+  async appendAdminAuditEvent(input: CreateAdminAuditEventInput): Promise<AdminAuditEventRow> {
+    if (this.adminAuditEvents.has(input.id)) throw new Error(`Admin audit event already exists: ${input.id}`);
+    if (!this.users.has(input.adminUserId)) throw new Error(`Admin user not found: ${input.adminUserId}`);
+    const row: AdminAuditEventRow = {
+      id: input.id,
+      admin_user_id: input.adminUserId,
+      target_user_id: input.targetUserId ?? null,
+      action: requiredText(input.action, 'action'),
+      entity_type: requiredText(input.entityType, 'entityType'),
+      entity_id: requiredText(input.entityId, 'entityId'),
+      reason: requiredText(input.reason, 'reason'),
+      before_json: input.beforeJson ?? null,
+      after_json: input.afterJson ?? null,
+      created_at: new Date(),
+    };
+    this.adminAuditEvents.set(row.id, row);
+    return row;
+  }
+
+  async upsertProviderReconciliation(input: CreateProviderReconciliationInput): Promise<ProviderReconciliationRow> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.usageDate)) throw new Error('usageDate must use YYYY-MM-DD');
+    const key = `${input.provider}:${input.usageDate}`;
+    const existing = this.reconciliations.get(key);
+    const row: ProviderReconciliationRow = {
+      id: existing?.id ?? input.id,
+      provider: requiredText(input.provider, 'provider'),
+      usage_date: input.usageDate,
+      status: input.status,
+      provider_cost_micro_usd:
+        input.providerCostMicroUsd === null || input.providerCostMicroUsd === undefined
+          ? null
+          : normalizeMicroUsd(input.providerCostMicroUsd),
+      internal_cost_micro_usd: normalizeMicroUsd(input.internalCostMicroUsd),
+      error_code: input.errorCode ?? null,
+      synced_at: input.syncedAt ?? null,
+      created_at: existing?.created_at ?? new Date(),
+    };
+    this.reconciliations.set(key, row);
+    return row;
+  }
+
+  async assignTier(input: CreateTierAssignmentInput): Promise<{ row: TierAssignmentRow; assigned: boolean }> {
+    const existing = Array.from(this.tierAssignments.values()).find(
+      (assignment) =>
+        assignment.admin_user_id === input.adminUserId && assignment.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertTierAssignmentRetry(existing, input);
+      return { row: existing, assigned: false };
+    }
+    const access = await this.ensureAccountAccess(input.userId);
+    if (access.tier !== input.expectedTier || access.version !== input.expectedVersion) {
+      throw new AccountTierVersionConflictError(input.userId);
+    }
+    const reason = requiredText(input.reason, 'reason');
+    const now = new Date();
+    const row: TierAssignmentRow = {
+      id: input.id,
+      user_id: input.userId,
+      previous_tier: access.tier,
+      new_tier: input.newTier,
+      reason,
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: now,
+    };
+    this.accountAccess.set(input.userId, {
+      ...access,
+      tier: input.newTier,
+      version: access.version + 1,
+      updated_at: now,
+    });
+    this.tierAssignments.set(row.id, row);
+    return { row, assigned: true };
+  }
+
+  async createQuotaGrant(input: CreateQuotaGrantInput): Promise<{ row: QuotaGrantRow; created: boolean }> {
+    const existing = Array.from(this.quotaGrants.values()).find(
+      (grant) => grant.admin_user_id === input.adminUserId && grant.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertQuotaGrantRetry(existing, input);
+      return { row: existing, created: false };
+    }
+    if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
+    const row: QuotaGrantRow = {
+      id: input.id,
+      user_id: input.userId,
+      period: monthlyPeriod(input.period),
+      amount: positiveInteger(input.amount, 'amount'),
+      reversed_amount: 0,
+      reason: requiredText(input.reason, 'reason'),
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: new Date(),
+    };
+    this.quotaGrants.set(row.id, row);
+    return { row, created: true };
+  }
+
+  async createQuotaGrantReversal(
+    input: CreateQuotaGrantReversalInput,
+  ): Promise<{ row: QuotaGrantReversalRow; created: boolean }> {
+    const existing = Array.from(this.quotaGrantReversals.values()).find(
+      (reversal) => reversal.admin_user_id === input.adminUserId && reversal.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertQuotaGrantReversalRetry(existing, input);
+      return { row: existing, created: false };
+    }
+    const grant = this.quotaGrants.get(input.grantId);
+    if (!grant) throw new Error(`Quota grant not found: ${input.grantId}`);
+    const amount = positiveInteger(input.amount, 'amount');
+    if (grant.reversed_amount + amount > grant.amount) throw new QuotaGrantReversalExceededError(grant.id);
+    const row: QuotaGrantReversalRow = {
+      id: input.id,
+      grant_id: grant.id,
+      amount,
+      reason: requiredText(input.reason, 'reason'),
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: new Date(),
+    };
+    this.quotaGrants.set(grant.id, { ...grant, reversed_amount: grant.reversed_amount + amount });
+    this.quotaGrantReversals.set(row.id, row);
+    return { row, created: true };
+  }
+
+  async sumQuotaAdjustments(userId: string, period: string): Promise<{ granted: number; reversed: number }> {
+    const grants = Array.from(this.quotaGrants.values()).filter(
+      (grant) => grant.user_id === userId && grant.period === period,
+    );
+    const grantIds = new Set(grants.map((grant) => grant.id));
+    return {
+      granted: grants.reduce((sum, grant) => sum + grant.amount, 0),
+      reversed: Array.from(this.quotaGrantReversals.values())
+        .filter((reversal) => grantIds.has(reversal.grant_id))
+        .reduce((sum, reversal) => sum + reversal.amount, 0),
+    };
   }
 
   async upsertUserFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow> {
@@ -447,6 +714,29 @@ export class InMemoryApiStore {
         findById: (id) => this.findById(id),
         upsertFromAuth: (input) => this.upsertUserFromAuth(input),
       },
+      accountTiers: {
+        findAccess: (userId) => this.findAccountAccess(userId),
+        ensureAccess: (userId) => this.ensureAccountAccess(userId),
+        listLegacyAiEnabledUsers: () => this.listLegacyAiEnabledUsers(),
+        assignTier: (input) => this.assignTier(input),
+        createQuotaGrant: (input) => this.createQuotaGrant(input),
+        createQuotaGrantReversal: (input) => this.createQuotaGrantReversal(input),
+        sumQuotaAdjustments: (userId, period) => this.sumQuotaAdjustments(userId, period),
+      },
+      operations: {
+        findByIdempotencyKey: (userId, feature, idempotencyKey) =>
+          this.findOperationByIdempotencyKey(userId, feature, idempotencyKey),
+        claim: (input) => this.claimOperation(input),
+      },
+      usageEvents: {
+        append: (input) => this.appendUsageEvent(input),
+      },
+      adminAudit: {
+        append: (input) => this.appendAdminAuditEvent(input),
+      },
+      reconciliations: {
+        upsert: (input) => this.upsertProviderReconciliation(input),
+      },
       jobs: {
         create: (input) => this.createGenerationJob(input),
         findByIdForUser: (id, userId) => this.findGenerationJobByIdForUser(id, userId),
@@ -540,4 +830,14 @@ function monthlyUsageKey(userId: string, period: string) {
 
 function addNumericStrings(a: string, b: string) {
   return String(Number(a) + Number(b));
+}
+
+function positiveInteger(value: number, label: string): number {
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`${label} must be a positive integer`);
+  return value;
+}
+
+function monthlyPeriod(value: string): string {
+  if (!/^\d{4}-\d{2}$/.test(value)) throw new Error('period must use YYYY-MM');
+  return value;
 }

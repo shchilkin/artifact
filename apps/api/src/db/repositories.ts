@@ -1,14 +1,24 @@
 import type {
+  AccountTierRepository,
+  AdminAuditRepository,
   AiGenerationJobRepository,
+  AiOperationRepository,
   AiShaderRequestRepository,
+  AiUsageEventRepository,
   AiUsageRepository,
   AssetRepository,
   CloudProjectRepository,
+  ProviderReconciliationRepository,
   UserRepository,
 } from './types.js';
 
 export interface ApiRepositories {
   users: UserReadWriteRepository;
+  accountTiers: AccountTierRepository;
+  operations: AiOperationRepository;
+  usageEvents: AiUsageEventRepository;
+  adminAudit: AdminAuditRepository;
+  reconciliations: ProviderReconciliationRepository;
   jobs: JobReadWriteRepository;
   shaderRequests: ShaderRequestReadWriteRepository;
   assets: AssetReadWriteRepository;

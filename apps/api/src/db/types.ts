@@ -1,3 +1,11 @@
+import type {
+  AccountTier,
+  AiOperationFeature,
+  AiOperationStatus,
+  AiUsageEventStatus,
+  ProviderReconciliationStatus,
+} from '@artifact/shared';
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
@@ -19,6 +27,106 @@ export interface UserRow {
   created_at: DbTimestamp;
   updated_at: DbTimestamp;
   disabled_at: DbTimestamp | null;
+}
+
+export interface AccountAccessRow {
+  user_id: string;
+  tier: AccountTier;
+  version: number;
+  created_at: DbTimestamp;
+  updated_at: DbTimestamp;
+}
+
+export interface LegacyAiEnabledUser {
+  userId: string;
+  email: string | null;
+}
+
+export interface TierAssignmentRow {
+  id: string;
+  user_id: string;
+  previous_tier: AccountTier;
+  new_tier: AccountTier;
+  reason: string;
+  admin_user_id: string;
+  idempotency_key: string;
+  created_at: DbTimestamp;
+}
+
+export interface QuotaGrantRow {
+  id: string;
+  user_id: string;
+  period: string;
+  amount: number;
+  reversed_amount: number;
+  reason: string;
+  admin_user_id: string;
+  idempotency_key: string;
+  created_at: DbTimestamp;
+}
+
+export interface QuotaGrantReversalRow {
+  id: string;
+  grant_id: string;
+  amount: number;
+  reason: string;
+  admin_user_id: string;
+  idempotency_key: string;
+  created_at: DbTimestamp;
+}
+
+export interface AiOperationRow {
+  id: string;
+  user_id: string;
+  feature: AiOperationFeature;
+  status: AiOperationStatus;
+  idempotency_key: string;
+  reservation_period: string;
+  reserved_generations: number;
+  error_code: string | null;
+  created_at: DbTimestamp;
+  started_at: DbTimestamp | null;
+  completed_at: DbTimestamp | null;
+}
+
+export interface AiUsageEventRow {
+  id: string;
+  operation_id: string | null;
+  user_id: string;
+  feature: AiOperationFeature;
+  provider: string;
+  model: string;
+  status: AiUsageEventStatus;
+  provider_request_id: string | null;
+  usage_json: JsonObject;
+  cost_micro_usd: DbNumeric;
+  pricing_version: string;
+  created_at: DbTimestamp;
+}
+
+export interface ProviderReconciliationRow {
+  id: string;
+  provider: string;
+  usage_date: string;
+  status: ProviderReconciliationStatus;
+  provider_cost_micro_usd: DbNumeric | null;
+  internal_cost_micro_usd: DbNumeric;
+  error_code: string | null;
+  synced_at: DbTimestamp | null;
+  created_at: DbTimestamp;
+}
+
+export interface AdminAuditEventRow {
+  id: string;
+  admin_user_id: string;
+  target_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  reason: string;
+  before_json: JsonObject | null;
+  after_json: JsonObject | null;
+  created_at: DbTimestamp;
 }
 
 export interface AiGenerationJobRow {
@@ -98,6 +206,91 @@ export interface AiUsageMonthlyRow {
   generation_count: number;
   estimated_cost: DbNumeric;
   updated_at: DbTimestamp;
+}
+
+export interface CreateTierAssignmentInput {
+  id: string;
+  userId: string;
+  expectedTier: AccountTier;
+  expectedVersion: number;
+  newTier: AccountTier;
+  reason: string;
+  adminUserId: string;
+  idempotencyKey: string;
+}
+
+export interface CreateQuotaGrantInput {
+  id: string;
+  userId: string;
+  period: string;
+  amount: number;
+  reason: string;
+  adminUserId: string;
+  idempotencyKey: string;
+}
+
+export interface CreateQuotaGrantReversalInput {
+  id: string;
+  grantId: string;
+  amount: number;
+  reason: string;
+  adminUserId: string;
+  idempotencyKey: string;
+}
+
+export interface CreateAiOperationInput {
+  id: string;
+  userId: string;
+  feature: AiOperationFeature;
+  idempotencyKey: string;
+  reservationPeriod: string;
+  reservedGenerations: 0 | 1;
+}
+
+export interface CreateAiUsageEventInput {
+  id: string;
+  operationId?: string | null;
+  userId: string;
+  feature: AiOperationFeature;
+  provider: string;
+  model: string;
+  status: AiUsageEventStatus;
+  providerRequestId?: string | null;
+  usage: ProviderUsageMetrics;
+  costMicroUsd: DbNumeric;
+  pricingVersion: string;
+}
+
+export interface ProviderUsageMetrics {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+  imageCount?: number;
+  imageSize?: string;
+  imageQuality?: string;
+}
+
+export interface CreateProviderReconciliationInput {
+  id: string;
+  provider: string;
+  usageDate: string;
+  status: ProviderReconciliationStatus;
+  providerCostMicroUsd?: DbNumeric | null;
+  internalCostMicroUsd: DbNumeric;
+  errorCode?: string | null;
+  syncedAt?: Date | null;
+}
+
+export interface CreateAdminAuditEventInput {
+  id: string;
+  adminUserId: string;
+  targetUserId?: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  reason: string;
+  beforeJson?: JsonObject | null;
+  afterJson?: JsonObject | null;
 }
 
 export interface CreateUserInput {
@@ -188,6 +381,39 @@ export interface UserRepository {
   create(input: CreateUserInput): Promise<UserRow>;
   upsertFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow>;
   setAiEnabled(id: string, aiEnabled: boolean): Promise<UserRow>;
+}
+
+export interface AccountTierRepository {
+  findAccess(userId: string): Promise<AccountAccessRow | null>;
+  ensureAccess(userId: string): Promise<AccountAccessRow>;
+  listLegacyAiEnabledUsers(): Promise<LegacyAiEnabledUser[]>;
+  assignTier(input: CreateTierAssignmentInput): Promise<{ row: TierAssignmentRow; assigned: boolean }>;
+  createQuotaGrant(input: CreateQuotaGrantInput): Promise<{ row: QuotaGrantRow; created: boolean }>;
+  createQuotaGrantReversal(
+    input: CreateQuotaGrantReversalInput,
+  ): Promise<{ row: QuotaGrantReversalRow; created: boolean }>;
+  sumQuotaAdjustments(userId: string, period: string): Promise<{ granted: number; reversed: number }>;
+}
+
+export interface AiOperationRepository {
+  findByIdempotencyKey(
+    userId: string,
+    feature: AiOperationFeature,
+    idempotencyKey: string,
+  ): Promise<AiOperationRow | null>;
+  claim(input: CreateAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean }>;
+}
+
+export interface AiUsageEventRepository {
+  append(input: CreateAiUsageEventInput): Promise<AiUsageEventRow>;
+}
+
+export interface AdminAuditRepository {
+  append(input: CreateAdminAuditEventInput): Promise<AdminAuditEventRow>;
+}
+
+export interface ProviderReconciliationRepository {
+  upsert(input: CreateProviderReconciliationInput): Promise<ProviderReconciliationRow>;
 }
 
 export interface AiGenerationJobRepository {

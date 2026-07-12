@@ -21,6 +21,7 @@ const migrationFiles = [
   '006_ai_shader_requests.sql',
   '007_ai_shader_validation_lifecycle.sql',
   '008_ai_shader_refinement.sql',
+  '009_account_tiers_and_usage_foundation.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
@@ -33,6 +34,10 @@ const shaderLifecycleMigrationSql = readFileSync(
   'utf8',
 );
 const shaderRefinementMigrationSql = readFileSync(resolve(migrationsDir, '008_ai_shader_refinement.sql'), 'utf8');
+const accountTierMigrationSql = readFileSync(
+  resolve(migrationsDir, '009_account_tiers_and_usage_foundation.sql'),
+  'utf8',
+);
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -86,6 +91,24 @@ describe('AI generation migrations', () => {
     expect(shaderLifecycleMigrationSql).toContain('repair_count <= 1');
     expect(shaderRefinementMigrationSql).toContain('parent_request_id text NULL');
     expect(shaderRefinementMigrationSql).toContain('REFERENCES ai_shader_requests(id) ON DELETE SET NULL');
+  });
+
+  it('creates the account tier, operation, usage, reconciliation, and admin audit foundation', () => {
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS account_access');
+    expect(accountTierMigrationSql).toContain("tier IN ('free', 'creator', 'founder')");
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS tier_assignments');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS quota_grants');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS quota_grant_reversals');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS ai_operations');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS ai_usage_events');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS provider_reconciliations');
+    expect(accountTierMigrationSql).toContain('CREATE TABLE IF NOT EXISTS admin_audit_events');
+    expect(accountTierMigrationSql).toContain('cost_micro_usd bigint');
+    expect(accountTierMigrationSql).toContain('pricing_version text');
+    expect(accountTierMigrationSql).toContain('INSERT INTO account_access (user_id, tier)');
+    expect(accountTierMigrationSql).toContain("SELECT id, 'free'");
+    expect(accountTierMigrationSql).not.toContain('prompt');
+    expect(accountTierMigrationSql).not.toContain('shader_code');
   });
 });
 
