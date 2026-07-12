@@ -5,6 +5,8 @@ availability as distinct user-facing states rather than one generic AI error.
 
 - Free accounts can discover AI capabilities but cannot start them. The UI
   explains that Creator access is required and does not enter a loading state.
+  The first release does not show Upgrade, checkout, or Request Access actions;
+  access requests remain a future workflow rather than a non-functional CTA.
 - Creator accounts see their remaining successful Generations out of 20 and
   the next UTC reset date near AI actions.
 - Founder accounts see that AI access is active without an "unlimited" claim or
