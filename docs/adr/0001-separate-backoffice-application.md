@@ -8,6 +8,13 @@ deployment boundary, but keeps operational UI and future usage analytics out of
 the editor bundle and allows the entire admin surface to receive an additional
 network-access boundary.
 
+`apps/backoffice` will use the repository's React Router framework and Vite
+toolchain in SPA mode. It may reuse shared contracts and UI primitives, but it
+does not connect directly to Postgres. Reads and mutations go through
+`/api/admin/*`, where the API authenticates the Better Auth session and checks
+the Admin role for every request. The workspace has its own development,
+build, check, and focused browser-test commands.
+
 The first backoffice release contains four operational views:
 
 1. **Overview** shows account counts by tier, monthly Generations, provider
