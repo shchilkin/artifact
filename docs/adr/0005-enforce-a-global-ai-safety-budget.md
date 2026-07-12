@@ -14,6 +14,12 @@ shows current spend, warning state, and stopped state, but cannot change the
 budget. A later operational-policy feature may add audited configuration
 without requiring a deployment.
 
+The initial closed-alpha Safety Budget is USD 30 per calendar month, with the
+warning state beginning at USD 24. The OpenAI project budget may remain at USD
+10 as an earlier provider-side notification threshold; it is not treated as
+the application's enforcement boundary because OpenAI project budgets are soft
+thresholds rather than hard spending caps.
+
 This boundary favors predictable cost containment over uninterrupted AI access.
 Provider totals can arrive later than internal Usage Events, so reconciliation
 must surface unattributed or delayed spend instead of silently treating the
