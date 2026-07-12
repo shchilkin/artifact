@@ -51,6 +51,11 @@ The product access level assigned to an account. It determines available
 capabilities and usage allowances, independently of administrative authority.
 _Avoid_: Plan role, user role, permission level
 
+**Tier Policy**:
+The versioned rules that map an Account Tier to product capabilities and usage
+allowances. It is distinct from a Tier Assignment for one account.
+_Avoid_: User override, subscription status
+
 **Free Tier**:
 The default Account Tier with no access to provider-backed AI capabilities.
 _Avoid_: Disabled account, anonymous user
