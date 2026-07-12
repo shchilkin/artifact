@@ -13,3 +13,12 @@ indefinitely, as are Tier Assignment and Quota Grant audit records. The schema
 must support retention from its first release even if the scheduled purge or
 archive job ships later. Creative Content is not copied into usage records or
 aggregates.
+
+Each Usage Event stores normalized provider usage without Creative Content:
+provider, model, product feature, status, provider request identifier, relevant
+input and output token counts, and image size or quality where they affect
+pricing. Estimated cost is stored as an integer number of micro-USD together
+with the pricing version or effective date used for the calculation. Historical
+events are never repriced when provider prices change; new pricing applies only
+to new events. Reconciliation differences remain explicit rather than mutating
+past event costs.
