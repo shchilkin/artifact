@@ -22,3 +22,11 @@ with the pricing version or effective date used for the calculation. Historical
 events are never repriced when provider prices change; new pricing applies only
 to new events. Reconciliation differences remain explicit rather than mutating
 past event costs.
+
+Internal usage becomes visible as soon as a provider call completes. A
+server-side daily job imports OpenAI aggregate usage for the previous completed
+UTC day and records the reconciliation difference and last successful sync
+time. An Admin may request a rate-limited refresh from the backoffice, but the
+OpenAI Admin API credential remains only in API or worker environment
+configuration and is never exposed to the browser. Reconciliation failures are
+visible to Admins and retried without blocking user Generations.
