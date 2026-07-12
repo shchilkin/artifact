@@ -105,3 +105,9 @@ The auditable decision that sets an account's Account Tier. During the initial
 release, Tier Assignments are made manually by an authorized backoffice user;
 billing is not a source of assignments.
 _Avoid_: Subscription, payment status, AI toggle
+
+**Creative Content**:
+The prompts, shader code, generated assets, and project documents created or
+supplied by an Artifact user. Creative Content is not Provider Usage and is not
+part of the backoffice account-management view.
+_Avoid_: Usage detail, admin metadata
