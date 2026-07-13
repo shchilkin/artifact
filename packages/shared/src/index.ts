@@ -28,6 +28,170 @@ export type AiUsageEventStatus = (typeof AI_USAGE_EVENT_STATUSES)[number];
 export const PROVIDER_RECONCILIATION_STATUSES = ['pending', 'succeeded', 'failed'] as const;
 export type ProviderReconciliationStatus = (typeof PROVIDER_RECONCILIATION_STATUSES)[number];
 
+export const ADMIN_API_PATHS = {
+  overview: '/api/admin/overview',
+  accounts: '/api/admin/accounts',
+  account: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}`,
+  accountTier: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}/tier`,
+  accountQuotaGrants: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}/quota-grants`,
+  quotaGrantReversals: (grantId: string) => `/api/admin/quota-grants/${encodeURIComponent(grantId)}/reversals`,
+  usage: '/api/admin/usage',
+  reconciliations: '/api/admin/reconciliations',
+} as const;
+
+export interface AdminPage {
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface AdminAccountSummary {
+  id: string;
+  email: string | null;
+  role: string;
+  tier: AccountTier;
+  tierVersion: number;
+  generations: { committed: number; reserved: number };
+  providerCostMicroUsd: string;
+  failedCalls: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSafetyBudgetSnapshot {
+  period: string;
+  state: 'normal' | 'warning' | 'stopped';
+  spentMicroUsd: string;
+  warningMicroUsd: string;
+  limitMicroUsd: string;
+}
+
+export interface AdminOverviewResponse {
+  period: string;
+  accounts: { free: number; creator: number; founder: number; total: number };
+  generations: { committed: number; reserved: number };
+  providerUsage: {
+    costMicroUsd: string;
+    inputTokens: string;
+    outputTokens: string;
+    failedCalls: number;
+  };
+  safetyBudget: AdminSafetyBudgetSnapshot;
+}
+
+export interface AdminAccountsResponse {
+  accounts: AdminAccountSummary[];
+  page: AdminPage;
+}
+
+export interface AdminTierAssignment {
+  id: string;
+  previousTier: AccountTier;
+  newTier: AccountTier;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminQuotaGrant {
+  id: string;
+  period: string;
+  amount: number;
+  reversedAmount: number;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminQuotaGrantReversal {
+  id: string;
+  grantId: string;
+  amount: number;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminAuditEvent {
+  id: string;
+  adminUserId: string;
+  targetUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  reason: string;
+  before: unknown;
+  after: unknown;
+  createdAt: string;
+}
+
+export interface AdminAccountDetailResponse {
+  account: AdminAccountSummary;
+  tierAssignments: AdminTierAssignment[];
+  quotaGrants: AdminQuotaGrant[];
+  quotaGrantReversals: AdminQuotaGrantReversal[];
+  audit: AdminAuditEvent[];
+}
+
+export interface AdminUsageEvent {
+  id: string;
+  operationId: string | null;
+  userId: string;
+  feature: AiOperationFeature;
+  provider: string;
+  model: string;
+  status: AiUsageEventStatus;
+  providerRequestId: string | null;
+  usage: Record<string, unknown>;
+  costMicroUsd: string;
+  pricingVersion: string;
+  createdAt: string;
+}
+
+export interface AdminUsageResponse {
+  usage: AdminUsageEvent[];
+  page: AdminPage;
+}
+
+export interface AdminProviderReconciliation {
+  id: string;
+  provider: string;
+  usageDate: string;
+  status: ProviderReconciliationStatus;
+  providerCostMicroUsd: string | null;
+  internalCostMicroUsd: string;
+  errorCode: string | null;
+  syncedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminReconciliationsResponse {
+  reconciliations: AdminProviderReconciliation[];
+}
+
+export interface AdminMutationMetadata {
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface AdminAssignTierRequest extends AdminMutationMetadata {
+  tier: AccountTier;
+  expectedTier: AccountTier;
+  expectedVersion: number;
+}
+
+export interface AdminQuotaGrantRequest extends AdminMutationMetadata {
+  period: string;
+  amount: number;
+}
+
+export interface AdminQuotaGrantReversalRequest extends AdminMutationMetadata {
+  amount: number;
+}
+
+export type AdminAccountMutationResponse = AdminAccountDetailResponse & { created: boolean };
+
 export interface AccountTierPolicy {
   providerAiEnabled: boolean;
   monthlyGenerationLimit: number | null;
