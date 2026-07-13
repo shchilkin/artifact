@@ -29,9 +29,10 @@ const refinedShader = {
   id: 'refined-water-definition',
   label: 'Calm Water',
   code: `vec4 mainImage(vec2 uv) {
-    vec2 offset = vec2(sin(uv.y * 8.0), cos(uv.x * 7.0)) * u_prop_waveAmount;
-    vec4 source = texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
-    return vec4(mix(source.rgb, source.rgb * u_prop_highlight, 0.2), source.a);
+    vec4 source = texture2D(u_backdrop, uv);
+    float bands = smoothstep(0.35, 0.65, fract((uv.x + uv.y) * 6.0 + u_prop_waveAmount * 20.0));
+    vec3 highlighted = mix(source.rgb, u_prop_highlight, 0.45);
+    return vec4(mix(source.rgb, highlighted, bands), source.a);
   }`,
   properties: [
     {
