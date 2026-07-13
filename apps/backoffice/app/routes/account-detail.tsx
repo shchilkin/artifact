@@ -1,7 +1,7 @@
 import type { AccountTier, AdminAccountDetailResponse, AdminAuditEvent, AdminQuotaGrant } from '@artifact/shared';
 import { useState } from 'react';
 import { Link, useFetcher, useLocation } from 'react-router';
-import { AdminRouteError } from '../components/RouteState';
+import { AccountRouteError } from '../components/RouteState';
 import { ControlSection, DataTable, Metric, MutationNotice, PageHeader, StatusBadge } from '../components/Ui';
 import { AdminApiError, adminApi, currentUtcPeriod, readPositiveInteger } from '../lib/adminApi';
 import { formatMicroUsd, formatTimestamp } from '../lib/format';
@@ -337,4 +337,4 @@ function ReversalControl({ grantId, maximum }: { grantId: string; maximum: numbe
   );
 }
 
-export const ErrorBoundary = AdminRouteError;
+export const ErrorBoundary = AccountRouteError;

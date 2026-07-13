@@ -32,12 +32,12 @@ const adminErrorRenderers: Partial<Record<number, AdminErrorRenderer>> = {
   ),
   404: () => (
     <RouteState
-      kind="empty"
-      title="Account not found"
-      message="The account may have been removed or the link may be out of date."
+      kind="error"
+      title="Admin API route unavailable"
+      message="The deployed account service does not expose this backoffice route yet."
       action={
-        <Link className="quiet-button" to="/accounts">
-          Back to accounts
+        <Link className="quiet-button" to="/">
+          Back to overview
         </Link>
       }
     />
@@ -100,6 +100,24 @@ export function AdminRouteError({ error }: { error: unknown }) {
       }
     />
   );
+}
+
+export function AccountRouteError({ error }: { error: unknown }) {
+  if (error instanceof AdminApiError && error.status === 404) {
+    return (
+      <RouteState
+        kind="empty"
+        title="Account not found"
+        message="The account may have been removed or the link may be out of date."
+        action={
+          <Link className="quiet-button" to="/accounts">
+            Back to accounts
+          </Link>
+        }
+      />
+    );
+  }
+  return <AdminRouteError error={error} />;
 }
 
 function renderKnownAdminError(error: unknown, returnTo: string) {

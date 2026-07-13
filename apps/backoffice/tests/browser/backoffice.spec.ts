@@ -119,6 +119,40 @@ test('shows a recoverable server error', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
 
+test('does not present a missing admin API route as a missing account', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'not_found',
+        message: 'Not found.',
+      }),
+    }),
+  );
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Admin API route unavailable' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Account not found' })).toHaveCount(0);
+});
+
+test('shows a missing-account state only on account detail routes', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'admin_account_not_found',
+        message: 'Account not found.',
+      }),
+    }),
+  );
+  await page.goto('/accounts/missing-account?period=2026-07');
+  await expect(page.getByRole('heading', { name: 'Account not found' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to accounts' })).toBeVisible();
+});
+
 test('shows a clear message when the account service cannot be reached', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/**', (route) => route.abort('connectionrefused'));
