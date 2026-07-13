@@ -79,7 +79,7 @@ GitHub Actions builds the image from `docker/backoffice.Dockerfile` and
 publishes immutable references alongside the backend images:
 
 ```text
-ghcr.io/shchilkin/album-cover-utils/artifact-backoffice:sha-<shortsha>
+ghcr.io/shchilkin/artifact/artifact-backoffice:sha-<shortsha>
 ```
 
 Use the SHA tag or workflow digest in Coolify, never `latest`. Create the
@@ -89,7 +89,7 @@ backoffice as a separate image-based service on the same VPS as the API:
 domain:       backoffice.artifact.shchilkin.dev
 container:    8080
 health path:  /healthz
-image:        ghcr.io/shchilkin/album-cover-utils/artifact-backoffice:sha-<shortsha>
+image:        ghcr.io/shchilkin/artifact/artifact-backoffice:sha-<shortsha>
 ```
 
 The production API origin is baked into the browser bundle at build time and

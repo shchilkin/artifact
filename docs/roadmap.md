@@ -316,7 +316,12 @@ Next strong candidates after v0.39:
   first backoffice release until moderation or support workflows require them;
   the existing disabled-account state remains a technical reserve. A later
   product slice may add a Creator access-request workflow once there is a real
-  review and response channel.
+  review and response channel. After the v0.41 SPA deployment is stable, move
+  the backoffice to a normal React Router SSR runtime so authentication and
+  Admin route loading happen before protected UI renders. Treat this as a
+  separate infrastructure release with a Node container, SSR-specific
+  security/hydration tests, and an explicit Coolify rollback path rather than
+  changing the runtime during v0.41 rollout.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
