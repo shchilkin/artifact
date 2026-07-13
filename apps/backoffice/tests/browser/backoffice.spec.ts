@@ -119,6 +119,15 @@ test('shows a recoverable server error', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
 
+test('shows a clear message when the account service cannot be reached', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', (route) => route.abort('connectionrefused'));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Data could not be loaded' })).toBeVisible();
+  await expect(page.getByText('Could not connect to the Artifact account service.')).toBeVisible();
+  await expect(page.getByText('Failed to fetch')).toHaveCount(0);
+});
+
 test('keeps a tier conflict visible beside the account control', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/**', async (route) => {

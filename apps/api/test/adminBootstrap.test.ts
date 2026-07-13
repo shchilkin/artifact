@@ -52,4 +52,22 @@ describe('Admin bootstrap', () => {
     });
     await expect(bootstrapFirstAdmin(input)).resolves.toMatchObject({ changed: false, audit: null });
   });
+
+  it('syncs a Better Auth account before assigning the first Admin', async () => {
+    const store = new InMemoryApiStore();
+    const repositories = store.repositories();
+
+    await expect(
+      bootstrapFirstAdmin({
+        repositories,
+        userId: 'auth-account',
+        confirmedUserId: 'auth-account',
+        confirmed: true,
+        findAuthenticatedUser: async () => ({ id: 'auth-account', email: 'admin@example.com' }),
+      }),
+    ).resolves.toMatchObject({
+      changed: true,
+      user: { id: 'auth-account', email: 'admin@example.com', role: 'admin' },
+    });
+  });
 });

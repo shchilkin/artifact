@@ -92,7 +92,7 @@ export function AdminRouteError({ error }: { error: unknown }) {
     <RouteState
       kind="error"
       title="Data could not be loaded"
-      message={error instanceof Error ? error.message : 'The service did not complete the request.'}
+      message={error instanceof AdminApiError ? error.message : 'The account service did not complete the request.'}
       action={
         <button className="primary-button" type="button" onClick={() => window.location.reload()}>
           Try again

@@ -8,7 +8,14 @@ documents.
 
 ## Local Development
 
-Run the API and backoffice in separate terminals:
+Start local infrastructure and apply migrations once:
+
+```bash
+npm run dev:infra
+DATABASE_URL=postgres://artifact:artifact@127.0.0.1:5432/artifact npm --workspace @artifact/api run migrate
+```
+
+Then run the API and backoffice in separate terminals:
 
 ```bash
 npm run dev:api
@@ -26,6 +33,12 @@ VITE_BACKOFFICE_API_BASE_URL=http://127.0.0.1:4000 npm run dev:backoffice
 Use an Artifact account whose Better Auth user record has `role=admin`. The
 first Admin is assigned through the audited bootstrap CLI described in
 [`admin-api.md`](./admin-api.md), not through the browser application.
+The bootstrap command now accepts the ID of an existing Better Auth account and
+creates its domain account record when needed.
+
+If ports `5432` or `6379` are already occupied, set
+`ARTIFACT_POSTGRES_PORT`/`ARTIFACT_REDIS_PORT` for Compose and use the same
+ports in `DATABASE_URL`/`REDIS_URL` when starting the API.
 
 ## Routes
 

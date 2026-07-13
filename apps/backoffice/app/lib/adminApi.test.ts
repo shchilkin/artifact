@@ -54,6 +54,14 @@ describe('adminApi', () => {
     );
   });
 
+  it('turns network failures into a stable service message', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    await expect(adminApi.overview('2026-07')).rejects.toEqual(
+      new AdminApiError(503, 'admin_service_unreachable', 'Could not connect to the Artifact account service.'),
+    );
+  });
+
   it('validates period and positive integer helpers deterministically', () => {
     expect(currentUtcPeriod(new Date('2026-07-13T10:00:00.000Z'))).toBe('2026-07');
     expect(readPositiveInteger('4')).toBe(4);

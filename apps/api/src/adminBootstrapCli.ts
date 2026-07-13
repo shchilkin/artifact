@@ -19,6 +19,12 @@ try {
     userId: args.userId,
     confirmedUserId: args.confirmedUserId,
     confirmed: args.confirmed,
+    findAuthenticatedUser: async (userId) => {
+      const authUser = await client.query<{ id: string; email: string }>('SELECT id, email FROM "user" WHERE id = $1', [
+        userId,
+      ]);
+      return authUser.rows[0] ?? null;
+    },
   });
   await client.query('COMMIT');
   console.log(

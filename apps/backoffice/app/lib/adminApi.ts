@@ -31,29 +31,43 @@ interface RequestOptions {
 }
 
 async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await fetchAdminResponse(path, options);
+  const payload = await readPayload(response);
+  if (!response.ok) throw adminResponseError(response, payload);
+  return payload as T;
+}
+
+async function fetchAdminResponse(path: string, options: RequestOptions) {
   const token = readAuthBearerToken();
-  const response = await fetch(`${getBackofficeApiBaseUrl()}${path}`, {
+  try {
+    return await fetch(`${getBackofficeApiBaseUrl()}${path}`, createRequestInit(options, token));
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
+    throw new AdminApiError(503, 'admin_service_unreachable', 'Could not connect to the Artifact account service.');
+  }
+}
+
+function createRequestInit(options: RequestOptions, token: string | null): RequestInit {
+  const headers = new Headers({ accept: 'application/json' });
+  if (options.body !== undefined) headers.set('content-type', 'application/json');
+  if (token) headers.set('authorization', `Bearer ${token}`);
+  const request: RequestInit = {
     method: options.method ?? 'GET',
     credentials: 'include',
     signal: options.signal,
-    headers: {
-      accept: 'application/json',
-      ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
-  });
+    headers,
+  };
+  if (options.body !== undefined) request.body = JSON.stringify(options.body);
+  return request;
+}
 
-  const payload = await readPayload(response);
-  if (!response.ok) {
-    const error = payload as { code?: unknown; message?: unknown };
-    throw new AdminApiError(
-      response.status,
-      typeof error.code === 'string' ? error.code : 'admin_request_failed',
-      typeof error.message === 'string' ? error.message : 'The request could not be completed.',
-    );
-  }
-  return payload as T;
+function adminResponseError(response: Response, payload: unknown) {
+  const error = payload as { code?: unknown; message?: unknown };
+  return new AdminApiError(
+    response.status,
+    typeof error.code === 'string' ? error.code : 'admin_request_failed',
+    typeof error.message === 'string' ? error.message : 'The request could not be completed.',
+  );
 }
 
 async function readPayload(response: Response) {
