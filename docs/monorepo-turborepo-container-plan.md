@@ -406,7 +406,7 @@ AUTH_JWT_AUDIENCE=<optional>
 CLERK_SECRET_KEY=<optional-if-using-clerk>
 CLERK_JWT_KEY=<optional-if-using-clerk>
 CLERK_AUTHORIZED_PARTIES=https://<vercel-or-web-origin>
-API_DEV_BEARER_TOKEN=<local-or-admin-only-dev-token-if-needed>
+# API_DEV_BEARER_TOKEN is local-only and must remain unset in production.
 
 OPENAI_API_KEY=<optional-provider-key>
 OPENAI_IMAGE_MODEL=gpt-image-2

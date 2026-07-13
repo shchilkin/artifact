@@ -82,6 +82,15 @@ function webOriginsEnv(env: NodeJS.ProcessEnv) {
   return origins.length > 0 ? origins : [fallbackOrigin];
 }
 
+function devBearerTokenEnv(env: NodeJS.ProcessEnv) {
+  const token = env.API_DEV_BEARER_TOKEN?.trim();
+  if (!token) return undefined;
+  if (env.NODE_ENV === 'production') {
+    throw new Error('API_DEV_BEARER_TOKEN must not be set in production');
+  }
+  return token;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const assetStorageDriver = enumEnv(env, 'ASSET_STORAGE_DRIVER', 'local', ['local', 's3'], 'local or s3');
   const databaseDriver = enumEnv(env, 'API_DATABASE_DRIVER', 'memory', ['memory', 'postgres'], 'memory or postgres');
@@ -105,7 +114,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     emailFrom: env.EMAIL_FROM,
     emailReplyTo: env.EMAIL_REPLY_TO,
     passwordResetLogUrl: booleanEnv(env, 'PASSWORD_RESET_LOG_URL', env.NODE_ENV !== 'production'),
-    devBearerToken: env.API_DEV_BEARER_TOKEN,
+    devBearerToken: devBearerTokenEnv(env),
     bullBoardEnabled: booleanEnv(env, 'API_BULL_BOARD_ENABLED', false),
     openAiApiKey: env.OPENAI_API_KEY,
     openAiAdminKey: env.OPENAI_ADMIN_KEY,

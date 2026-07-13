@@ -10,7 +10,6 @@ x-artifact-api-env: &artifact-api-env
   AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a long random JWT fallback secret}
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
   AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
-  API_DEV_BEARER_TOKEN: ${API_DEV_BEARER_TOKEN:-}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set a long random Better Auth secret}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set the public Better Auth URL}
   OPENAI_API_KEY: ${OPENAI_API_KEY:?Set the OpenAI API key}

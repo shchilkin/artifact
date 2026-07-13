@@ -161,9 +161,11 @@ Run it daily after midnight UTC to import the previous completed UTC day's
 OpenAI organization cost. Keep this key server-side and separate from
 `OPENAI_API_KEY`.
 
-Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
-prefer Better Auth bearer tokens or real bearer tokens verified by
-`AUTH_JWT_SECRET` and optional issuer / audience checks.
+Local development can keep `API_DEV_BEARER_TOKEN=dev-token`. Production rejects
+any non-empty `API_DEV_BEARER_TOKEN` during configuration loading and must use
+Better Auth sessions or bearer tokens verified by `AUTH_JWT_SECRET` and
+optional issuer / audience checks. Do not add the development token to Coolify
+environment variables.
 
 For Better Auth-backed browser accounts, set `VITE_AUTH_API_BASE_URL` in the
 root `.env` to the API origin. Better Auth sign-in identifies the browser user
@@ -413,9 +415,9 @@ npm run dev:worker
 npm run dev:web
 ```
 
-The Compose database is initialized with a local `dev-user`; when
-`API_DEV_BEARER_TOKEN` is configured, API startup assigns that account the
-Founder tier explicitly. The root `.env` can expose
+The local Compose database is initialized with a `dev-user`; when
+`API_DEV_BEARER_TOKEN` is configured outside production, API startup assigns
+that account the Founder tier explicitly. The root `.env` can expose
 `VITE_AI_API_DEV_TOKEN=dev-token` so the browser calls the local API as that
 seeded user without signing in. Leave that Vite dev token empty to test the
 Better Auth sign-in flow instead.
