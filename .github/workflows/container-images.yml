@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/container-images.yml"
+      - "apps/backoffice/**"
       - "apps/api/**"
       - "docker/**"
       - "package.json"
@@ -24,6 +25,7 @@ on:
       - "v*"
     paths:
       - ".github/workflows/container-images.yml"
+      - "apps/backoffice/**"
       - "apps/api/**"
       - "docker/**"
       - "package.json"
@@ -60,6 +62,9 @@ jobs:
           - name: Bull Board
             image: artifact-bull-board
             dockerfile: docker/bull-board.Dockerfile
+          - name: Backoffice
+            image: artifact-backoffice
+            dockerfile: docker/backoffice.Dockerfile
 
     steps:
       - name: Checkout

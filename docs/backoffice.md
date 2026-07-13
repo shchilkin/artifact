@@ -67,14 +67,54 @@ The browser suite covers normal desktop navigation, denied access, optimistic
 concurrency conflicts, and mobile layout without page-level horizontal
 overflow.
 
-## Production Boundary
+## Production Deployment
 
-The production SPA is built into `apps/backoffice/build/client`. Deployment is
-a separate VPS service at `backoffice.artifact.shchilkin.dev`, behind both
-Cloudflare Access and Better Auth Admin authorization. Production must set
-`VITE_BACKOFFICE_API_BASE_URL` to the API origin and configure that origin in
-API CORS, Better Auth trusted origins, and cookie settings.
+The production SPA is built into `apps/backoffice/build/client` and served by
+an unprivileged Nginx container on port `8080`. The container provides
+`/healthz`, immutable caching for hashed assets, no-cache navigation responses,
+and an `index.html` fallback for React Router paths such as `/accounts` and
+`/usage`.
+
+GitHub Actions builds the image from `docker/backoffice.Dockerfile` and
+publishes immutable references alongside the backend images:
+
+```text
+ghcr.io/shchilkin/album-cover-utils/artifact-backoffice:sha-<shortsha>
+```
+
+Use the SHA tag or workflow digest in Coolify, never `latest`. Create the
+backoffice as a separate image-based service on the same VPS as the API:
+
+```text
+domain:       backoffice.artifact.shchilkin.dev
+container:    8080
+health path:  /healthz
+image:        ghcr.io/shchilkin/album-cover-utils/artifact-backoffice:sha-<shortsha>
+```
+
+The production API origin is baked into the browser bundle at build time and
+defaults to `https://api.artifact.shchilkin.dev`. A source build can override
+the public value with the `VITE_BACKOFFICE_API_BASE_URL` Docker build argument.
+Setting a Vite variable only at container runtime has no effect on an already
+built SPA.
 
 Do not put OpenAI keys, database credentials, Admin bootstrap credentials, or
-Cloudflare service tokens in `VITE_*` variables. Browser-visible configuration
-contains only the API origin.
+Cloudflare service tokens in build arguments or `VITE_*` variables.
+Browser-visible configuration contains only the public API origin.
+
+Before exposing the service:
+
+1. Add `https://backoffice.artifact.shchilkin.dev` to API `WEB_ORIGINS`; the
+   same allow-list drives credentialed CORS and Better Auth trusted origins.
+2. Keep `BETTER_AUTH_URL=https://api.artifact.shchilkin.dev/api/auth` and
+   `API_DEV_BEARER_TOKEN` unset in production.
+3. Protect the full backoffice hostname with a Cloudflare Access Allow policy
+   for the founder email and no Bypass policy.
+4. Keep Better Auth Admin authorization enabled for every `/api/admin/*`
+   request; Cloudflare Access is an additional boundary, not a replacement.
+
+Deploy the API first when its schema or Admin contract changed, wait for
+`/api/health`, then deploy the matching backoffice image and verify sign-in,
+overview, account detail, and usage routes. The backoffice is stateless, so
+rollback means restoring its previous immutable image reference. Database and
+provider-usage rollback procedures remain owned by the API runbook.

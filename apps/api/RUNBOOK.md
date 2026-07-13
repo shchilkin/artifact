@@ -120,7 +120,7 @@ Minimum VPS-like configuration:
 NODE_ENV=production
 PORT=4000
 WEB_ORIGIN=https://your-vercel-domain.example
-WEB_ORIGINS=https://your-vercel-domain.example,https://your-preview-domain.vercel.app
+WEB_ORIGINS=https://your-vercel-domain.example,https://backoffice.artifact.shchilkin.dev,https://your-preview-domain.vercel.app
 
 API_DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://artifact:change-me@127.0.0.1:5432/artifact
@@ -131,7 +131,6 @@ REDIS_URL=redis://127.0.0.1:6379
 AUTH_JWT_SECRET=change-me-long-random-secret
 AUTH_JWT_ISSUER=
 AUTH_JWT_AUDIENCE=
-API_DEV_BEARER_TOKEN=
 BETTER_AUTH_SECRET=change-me-long-random-secret
 BETTER_AUTH_URL=https://your-api-domain.example/api/auth
 PASSWORD_RESET_LOG_URL=false
