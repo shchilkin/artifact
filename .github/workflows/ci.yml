@@ -10,6 +10,10 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -192,3 +196,165 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  container-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.container_files.outputs.should_run }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect container-relevant changes
+        id: container_files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base="HEAD^"
+            fi
+          fi
+
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+          fi
+
+          changed="$(git diff --name-only "$base" HEAD || true)"
+          echo "$changed"
+
+          if echo "$changed" | grep -Eq '^(\.github/workflows/(ci|container-images)\.yml|docker/|docker-compose\.coolify\.yml|apps/(api|backoffice)/|packages/|package\.json|package-lock\.json|turbo\.json)$'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  container-images:
+    name: container (${{ matrix.name }})
+    needs: [quality, browser-changes, browser, container-changes]
+    if: |
+      always() &&
+      needs.quality.result == 'success' &&
+      needs.container-changes.outputs.should_run == 'true' &&
+      (
+        needs.browser-changes.outputs.should_run != 'true' ||
+        needs.browser.result == 'success'
+      )
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: API
+            image: artifact-api
+            dockerfile: docker/api.Dockerfile
+          - name: Worker
+            image: artifact-worker
+            dockerfile: docker/worker.Dockerfile
+          - name: Bull Board
+            image: artifact-bull-board
+            dockerfile: docker/bull-board.Dockerfile
+          - name: Backoffice
+            image: artifact-backoffice
+            dockerfile: docker/backoffice.Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile
+        id: dockerfile
+        run: |
+          if [ -f "${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Skipping ${{ matrix.name }} image::${{ matrix.dockerfile }} does not exist yet."
+          fi
+
+      - name: Set image namespace
+        id: image
+        if: steps.dockerfile.outputs.exists == 'true'
+        run: |
+          echo "namespace=$(echo "ghcr.io/${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to push
+        id: publish
+        if: steps.dockerfile.outputs.exists == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ] && { [ "$REF_NAME" = "development" ] || [ "$REF_NAME" = "main" ]; }; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.publish.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Collect image metadata
+        id: meta
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.namespace }}/${{ matrix.image }}
+          flavor: |
+            latest=false
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build image
+        id: build
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: ${{ steps.publish.outputs.enabled == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max,ignore-error=true
+
+      - name: Summarize built image
+        if: steps.dockerfile.outputs.exists == 'true'
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dockerfile: \`${{ matrix.dockerfile }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed: \`${{ steps.publish.outputs.enabled }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tags:" >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.meta.outputs.tags }}' | sed 's/^/- `/' | sed 's/$/`/' >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.build.outputs.digest }}" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Digest: \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summarize skipped image
+        if: steps.dockerfile.outputs.exists != 'true'
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Skipped because \`${{ matrix.dockerfile }}\` is not present in this branch." >> "$GITHUB_STEP_SUMMARY"

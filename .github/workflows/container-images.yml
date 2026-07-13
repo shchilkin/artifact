@@ -8,19 +8,7 @@ on:
         required: false
         type: boolean
         default: false
-  pull_request:
-    paths:
-      - ".github/workflows/container-images.yml"
-      - "apps/backoffice/**"
-      - "apps/api/**"
-      - "docker/**"
-      - "package.json"
-      - "package-lock.json"
-      - "packages/**"
-      - "turbo.json"
   push:
-    branches:
-      - "**"
     tags:
       - "v*"
     paths:
