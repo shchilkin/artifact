@@ -3,7 +3,7 @@ import type { ShaderPropertyDefinition } from '../../apps/web/app/types/config';
 import { supportsWebGl } from './helpers';
 
 test('preserves backdrop orientation through an identity Code Shader', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/offline.html');
   test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const corners = await page.evaluate(async () => {
@@ -65,7 +65,7 @@ test('preserves backdrop orientation through an identity Code Shader', async ({ 
 });
 
 test('renders Code Shader output before releasing disposable WebGL contexts', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/offline.html');
   test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
@@ -257,7 +257,7 @@ test('renders Code Shader output before releasing disposable WebGL contexts', as
 });
 
 test('runs an AI shader as a backdrop-aware graph effect with preview and output parity', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/offline.html');
   test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
@@ -320,7 +320,7 @@ test('runs an AI shader as a backdrop-aware graph effect with preview and output
 });
 
 test('migrates legacy AI operations into a compilable backdrop-aware shader', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/offline.html');
   test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
