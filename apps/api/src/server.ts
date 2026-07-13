@@ -3,34 +3,60 @@ import { toNodeHandler } from 'better-auth/node';
 import { createJwtBearerVerifier, resolveRequestUser } from './auth.js';
 import { createArtifactBetterAuth } from './betterAuth.js';
 import { createBullBoardHandler } from './bullBoard.js';
+import { createPostgresRepositories } from './db/postgres.js';
+import type { ApiRepositories } from './db/repositories.js';
 import { applyCorsHeaders, errorJson, writeApiResponse } from './http.js';
 import { logError, logInfo } from './logger.js';
 import { createInMemoryRateLimiter } from './rateLimit.js';
+import { handleAdminRequest } from './routes/admin.js';
 import { handleAiRequest } from './routes/ai.js';
 import { handleAssetRequest } from './routes/assets.js';
 import { handleHealthRequest } from './routes/health.js';
 import { handleProjectAssetRequest } from './routes/projectAssets.js';
 import { handleProjectRequest } from './routes/projects.js';
 import { createApiRuntime } from './runtime.js';
+import { createConfiguredSafetyBudgetService } from './safetyBudgetService.js';
 
 const { config, store, pool, repositories, queue, storage, providers, shaderProvider } = createApiRuntime();
 const bullBoard = config.bullBoardEnabled ? createBullBoardHandler(queue) : null;
 const betterAuth = createArtifactBetterAuth(config, pool);
 const betterAuthHandler = betterAuth ? toNodeHandler(betterAuth) : null;
 const createRateLimiter = createInMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
+const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvents, config.aiSafetyBudgetUsd);
 const verifyJwtBearerToken = createJwtBearerVerifier({
   secret: config.authJwtSecret,
   issuer: config.authJwtIssuer,
   audience: config.authJwtAudience,
 });
 
-if (config.devBearerToken && store) {
-  store.seedUser({
-    id: 'dev-user',
-    email: 'dev@artifact.local',
-    role: 'admin',
-    aiEnabled: true,
-    plusStatus: 'active',
+if (config.devBearerToken) await seedDevelopmentAccount();
+
+async function seedDevelopmentAccount() {
+  if (store) {
+    store.seedUser({
+      id: 'dev-user',
+      email: 'dev@artifact.local',
+      role: 'admin',
+      aiEnabled: true,
+      plusStatus: 'active',
+    });
+    store.seedAccountAccess('dev-user', 'founder');
+    return;
+  }
+
+  await repositories.users.upsertFromAuth({ id: 'dev-user', email: 'dev@artifact.local' });
+  const access = await repositories.accountTiers.ensureAccess('dev-user');
+  if (access.tier === 'founder') return;
+  const assignmentId = `dev-user-founder-assignment-${access.version}`;
+  await repositories.accountTiers.assignTier({
+    id: assignmentId,
+    userId: 'dev-user',
+    expectedTier: access.tier,
+    expectedVersion: access.version,
+    newTier: 'founder',
+    reason: 'Local development account',
+    adminUserId: 'dev-user',
+    idempotencyKey: assignmentId,
   });
 }
 
@@ -76,6 +102,22 @@ const resolveAuth = (request: Parameters<typeof resolveRequestUser>[0]) =>
     verifyBearerToken: verifyApiBearerToken,
   });
 
+async function runInTransaction<T>(operation: (transactionRepositories: ApiRepositories) => Promise<T>): Promise<T> {
+  if (!pool) return operation(repositories);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await operation(createPostgresRepositories(client));
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function resolveApiResponse(req: IncomingMessage) {
   return (
     handleHealthRequest(req, {
@@ -85,14 +127,19 @@ async function resolveApiResponse(req: IncomingMessage) {
       providers: providers.list().map((provider) => provider.provider),
       bullBoardEnabled: Boolean(bullBoard),
     }) ??
+    (await handleAdminRequest(req, {
+      repositories,
+      safetyBudget,
+      resolveAuth,
+      runInTransaction,
+    })) ??
     (await handleAiRequest(req, {
       repositories,
       queue,
       providers,
       shaderProvider,
       createRateLimiter,
-      monthlyGenerationLimit: config.monthlyGenerationLimit,
-      maxActiveJobsPerUser: config.maxActiveJobsPerUser,
+      safetyBudget,
       resolveAuth,
     })) ??
     (await handleAssetRequest(req, {

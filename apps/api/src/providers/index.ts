@@ -1,4 +1,5 @@
 import type { AiGenerationSettings, AiProvider } from '../contracts.js';
+import type { ProviderUsageMetrics } from '../db/types.js';
 
 export interface ImageGenerationRequest {
   jobId: string;
@@ -18,6 +19,8 @@ export interface ImageGenerationResult {
   height: number;
   usage?: {
     estimatedCostUsd?: number;
+    providerRequestId?: string;
+    metrics: ProviderUsageMetrics;
     metadata?: Record<string, unknown>;
   };
   raw?: unknown;
@@ -61,6 +64,7 @@ export { createOpenAiImageProvider } from './openai.js';
 export {
   createOpenAiShaderProvider,
   isOpenAiShaderTimeoutError,
+  OpenAiShaderResponseError,
   OpenAiShaderTimeoutError,
   type ShaderGenerationProvider,
   type ShaderGenerationResult,

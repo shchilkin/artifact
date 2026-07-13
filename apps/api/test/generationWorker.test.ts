@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AccountAccessService } from '../src/accountAccessService.js';
 import type { GenerationQueuePayload } from '../src/contracts.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
 import { processGenerationJob } from '../src/generationWorker.js';
@@ -21,10 +22,21 @@ function createQueueJob(): QueueJob<GenerationQueuePayload> {
   };
 }
 
-async function seedQueuedJob(store: InMemoryApiStore) {
+async function seedQueuedJob(store: InMemoryApiStore, withOperation = false) {
   store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+  let operationId: string | null = null;
+  if (withOperation) {
+    store.seedAccountAccess('user-1', 'creator');
+    const reservation = await new AccountAccessService(store.repositories(), {
+      now: () => new Date('2026-05-20T10:00:00.000Z'),
+      createId: () => 'operation-1',
+    }).reserve({ userId: 'user-1', feature: 'image_create', idempotencyKey: 'request-1' });
+    if (!reservation.ok) throw new Error('Expected image operation reservation.');
+    operationId = reservation.operation.id;
+  }
   return store.createGenerationJob({
     id: 'job-1',
+    operationId,
     userId: 'user-1',
     provider: 'openai',
     model: 'openai-mock-image',
@@ -68,9 +80,42 @@ function createProvider(
 }
 
 describe('processGenerationJob', () => {
+  it('does not call the provider when the global safety budget is exhausted', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store, true);
+    const repositories = store.repositories();
+    await repositories.usageEvents.append({
+      id: 'budget-spend-1',
+      userId: 'user-1',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+    const provider = createProvider({});
+
+    await processGenerationJob(createQueueJob(), {
+      repositories,
+      providers: createProviderRegistry([provider]),
+      storage: createStorage(),
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
+    });
+
+    expect(provider.generateImage).not.toHaveBeenCalled();
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'ai_budget_exhausted',
+      retryable: false,
+    });
+  });
+
   it('marks queued jobs as succeeded and creates a generated asset', async () => {
     const store = new InMemoryApiStore();
-    await seedQueuedJob(store);
+    await seedQueuedJob(store, true);
     const storage = createStorage();
 
     await processGenerationJob(createQueueJob(), {
@@ -103,11 +148,22 @@ describe('processGenerationJob', () => {
         mimeType: 'image/svg+xml',
       }),
     );
+    await expect(store.repositories().operations.findById('operation-1')).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    await expect(
+      new AccountAccessService(store.repositories(), {
+        now: () => new Date('2026-05-20T10:01:00.000Z'),
+      }).getAllowance('user-1'),
+    ).resolves.toMatchObject({
+      committed: 1,
+      reserved: 0,
+    });
   });
 
   it('marks jobs as failed when provider generation fails', async () => {
     const store = new InMemoryApiStore();
-    await seedQueuedJob(store);
+    await seedQueuedJob(store, true);
     const provider: ImageGenerationProvider = {
       provider: 'openai',
       defaultModel: 'openai-mock-image',
@@ -120,6 +176,7 @@ describe('processGenerationJob', () => {
       repositories: store.repositories(),
       providers: createProviderRegistry([provider]),
       storage: createStorage(),
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
     });
 
     await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
@@ -128,6 +185,48 @@ describe('processGenerationJob', () => {
       error_message: 'provider exploded',
       retryable: true,
     });
+    await expect(store.repositories().operations.findById('operation-1')).resolves.toMatchObject({ status: 'failed' });
+    await expect(store.repositories().usage.findMonthlyUsage('user-1', '2026-05')).resolves.toMatchObject({
+      failed_call_count: 1,
+    });
+    await expect(
+      new AccountAccessService(store.repositories(), {
+        now: () => new Date('2026-05-20T10:01:00.000Z'),
+      }).getAllowance('user-1'),
+    ).resolves.toMatchObject({
+      committed: 0,
+      reserved: 0,
+      remaining: 20,
+    });
+  });
+
+  it('retries accounting without rolling back a usable generated result', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store, true);
+    const storage = createStorage();
+    const repositories = store.repositories();
+    const markSucceeded = vi
+      .fn(repositories.operations.markSucceeded)
+      .mockRejectedValueOnce(new Error('temporary accounting failure'));
+
+    await processGenerationJob(createQueueJob(), {
+      repositories: {
+        ...repositories,
+        operations: { ...repositories.operations, markSucceeded },
+      },
+      providers: createProviderRegistry([createMockImageProvider({ provider: 'openai' })]),
+      storage,
+      createId: () => 'asset-1',
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
+    });
+
+    expect(markSucceeded).toHaveBeenCalledTimes(2);
+    expect(storage.deleteImage).not.toHaveBeenCalled();
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'succeeded',
+      output_asset_id: 'asset-1',
+    });
+    await expect(repositories.operations.findById('operation-1')).resolves.toMatchObject({ status: 'succeeded' });
   });
 
   it('rejects invalid provider output without writing storage', async () => {

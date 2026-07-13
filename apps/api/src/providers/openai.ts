@@ -22,7 +22,11 @@ interface OpenAiImageResponse {
     b64_json?: unknown;
     revised_prompt?: unknown;
   }>;
-  usage?: unknown;
+  usage?: {
+    input_tokens?: unknown;
+    output_tokens?: unknown;
+    input_tokens_details?: { cached_tokens?: unknown };
+  };
   error?: {
     message?: unknown;
     code?: unknown;
@@ -66,6 +70,15 @@ export function createOpenAiImageProvider(options: OpenAiImageProviderOptions): 
         width: dimensions.width,
         height: dimensions.height,
         usage: {
+          providerRequestId: response.headers.get('x-request-id') ?? undefined,
+          metrics: {
+            inputTokens: finiteInteger(body.usage?.input_tokens),
+            outputTokens: finiteInteger(body.usage?.output_tokens),
+            cachedInputTokens: finiteInteger(body.usage?.input_tokens_details?.cached_tokens),
+            imageCount: 1,
+            imageSize: size,
+            imageQuality: qualityForSetting(request.settings.quality),
+          },
           metadata: {
             requestId: response.headers.get('x-request-id'),
             revisedPrompt: body.data?.[0]?.revised_prompt,
@@ -78,6 +91,10 @@ export function createOpenAiImageProvider(options: OpenAiImageProviderOptions): 
       };
     },
   };
+}
+
+function finiteInteger(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
 function assertOpenAiResponseOk(response: FetchResponseLike, body: OpenAiImageResponse) {

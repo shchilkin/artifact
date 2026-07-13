@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import { AccountAccessService } from './accountAccessService.js';
 import type { AiGenerationSettings, AiProvider, GenerationQueuePayload } from './contracts.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiGenerationJobRow, JsonObject, JsonValue } from './db/types.js';
 import { logError, logInfo, logWarn } from './logger.js';
+import { priceProviderUsage } from './providerPricing.js';
 import type { ImageGenerationResult, ProviderRegistry } from './providers/index.js';
+import { ProviderUsageService } from './providerUsageService.js';
 import type { QueueJob } from './queue.js';
+import { SafetyBudgetService } from './safetyBudgetService.js';
 import type { AssetStorage } from './storage/index.js';
 
 export interface GenerationWorkerDeps {
@@ -14,6 +18,8 @@ export interface GenerationWorkerDeps {
   maxOutputBytes?: number;
   now?: () => Date;
   createId?: () => string;
+  createUsageId?: () => string;
+  safetyBudget?: SafetyBudgetService;
 }
 
 const DEFAULT_MAX_OUTPUT_BYTES = 20 * 1024 * 1024;
@@ -32,22 +38,80 @@ export async function processGenerationJob(
     });
     return;
   }
-  let storedStorageKey: string | null = null;
+  const access = new AccountAccessService(deps.repositories, { now: deps.now });
+  const usage = new ProviderUsageService(deps.repositories.usageEvents, {
+    now: deps.now,
+    createId: deps.createUsageId,
+  });
 
   try {
-    const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
-    const provider = deps.providers.get(running.provider as AiProvider);
-    logInfo('ai_generation.running', {
-      jobId: running.id,
-      userId: running.user_id,
-      provider: provider.provider,
-      model: running.model,
+    await runGeneration(job, deps, access, usage);
+  } catch (error) {
+    await failGeneration(job, deps, access, error);
+  }
+}
+
+async function runGeneration(
+  job: AiGenerationJobRow,
+  deps: GenerationWorkerDeps,
+  access: AccountAccessService,
+  usage: ProviderUsageService,
+) {
+  const running = await prepareGeneration(job, deps, access);
+  const provider = deps.providers.get(running.provider as AiProvider);
+  assertPricedProvider(provider.provider, running.model);
+  await assertBudgetAvailable(deps);
+  logProviderRequest(running, provider.provider);
+  const result = await generateAndRecordUsage(running, provider, usage);
+  validateProviderResult(result, deps.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES);
+  await persistGeneration(running, result, deps, access);
+}
+
+async function prepareGeneration(job: AiGenerationJobRow, deps: GenerationWorkerDeps, access: AccountAccessService) {
+  const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
+  if (running.operation_id) await access.markRunning(running.operation_id);
+  return running;
+}
+
+function assertPricedProvider(provider: string, model: string) {
+  try {
+    priceProviderUsage({ provider, model, usage: {} });
+  } catch {
+    throw new GenerationWorkerError(
+      'unsupported_provider_model',
+      'The queued provider model has no pricing contract.',
+      false,
+    );
+  }
+}
+
+async function assertBudgetAvailable(deps: GenerationWorkerDeps) {
+  const service = deps.safetyBudget ?? new SafetyBudgetService(deps.repositories.usageEvents, { now: deps.now });
+  const budget = await service.check();
+  if (budget.snapshot.state === 'warning') {
+    logWarn('ai_budget.warning', {
+      period: budget.snapshot.period,
+      spentMicroUsd: budget.snapshot.spentMicroUsd,
+      limitMicroUsd: budget.snapshot.limitMicroUsd,
     });
-    logInfo('ai_generation.provider_request', {
-      jobId: running.id,
-      provider: provider.provider,
-      model: running.model,
-    });
+  }
+  if (!budget.allowed) {
+    throw new GenerationWorkerError('ai_budget_exhausted', 'AI creation is temporarily unavailable.', false);
+  }
+}
+
+function logProviderRequest(running: AiGenerationJobRow, provider: string) {
+  const context = { jobId: running.id, userId: running.user_id, provider, model: running.model };
+  logInfo('ai_generation.running', context);
+  logInfo('ai_generation.provider_request', context);
+}
+
+async function generateAndRecordUsage(
+  running: AiGenerationJobRow,
+  provider: ReturnType<ProviderRegistry['get']>,
+  usage: ProviderUsageService,
+) {
+  try {
     const result = await provider.generateImage({
       jobId: running.id,
       userId: running.user_id,
@@ -55,6 +119,16 @@ export async function processGenerationJob(
       model: running.model,
       prompt: running.prompt,
       settings: running.settings_json as unknown as AiGenerationSettings,
+    });
+    await usage.record({
+      operationId: running.operation_id,
+      userId: running.user_id,
+      feature: 'image_create',
+      provider: result.provider,
+      model: result.model,
+      status: 'succeeded',
+      providerRequestId: result.usage?.providerRequestId,
+      usage: result.usage?.metrics,
     });
     logInfo('ai_generation.provider_response', {
       jobId: running.id,
@@ -65,23 +139,43 @@ export async function processGenerationJob(
       height: result.height,
       sizeBytes: result.bytes.byteLength,
     });
-    validateProviderResult(result, deps.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES);
-    const assetId = deps.createId?.() ?? randomUUID();
-    const stored = await deps.storage.writeImage({
-      assetId,
-      bytes: result.bytes,
-      mimeType: result.mimeType,
-    });
-    storedStorageKey = stored.storageKey;
-    logInfo('ai_generation.asset_written', {
-      jobId: running.id,
-      assetId,
-      storageKey: stored.storageKey,
-      mimeType: stored.mimeType,
-      sizeBytes: stored.sizeBytes,
-    });
-    const completedAt = deps.now?.() ?? new Date();
+    return result;
+  } catch (error) {
+    await recordFailedUsage(running, provider.provider, usage);
+    throw error;
+  }
+}
 
+async function recordFailedUsage(running: AiGenerationJobRow, provider: string, usage: ProviderUsageService) {
+  await usage
+    .record({
+      operationId: running.operation_id,
+      userId: running.user_id,
+      feature: 'image_create',
+      provider,
+      model: running.model,
+      status: 'failed',
+    })
+    .catch((error) => logError('ai_generation.usage_record_failed', error, { jobId: running.id }));
+}
+
+async function persistGeneration(
+  running: AiGenerationJobRow,
+  result: ImageGenerationResult,
+  deps: GenerationWorkerDeps,
+  access: AccountAccessService,
+) {
+  const assetId = deps.createId?.() ?? randomUUID();
+  const stored = await deps.storage.writeImage({ assetId, bytes: result.bytes, mimeType: result.mimeType });
+  logInfo('ai_generation.asset_written', {
+    jobId: running.id,
+    assetId,
+    storageKey: stored.storageKey,
+    mimeType: stored.mimeType,
+    sizeBytes: stored.sizeBytes,
+  });
+  try {
+    const completedAt = deps.now?.() ?? new Date();
     await deps.repositories.assets.create({
       id: assetId,
       userId: running.user_id,
@@ -94,26 +188,62 @@ export async function processGenerationJob(
       metadataJson: createGeneratedAssetMetadata(running, result, completedAt),
     });
     await deps.repositories.jobs.markSucceeded(running.id, assetId, completedAt);
+    if (running.operation_id) await commitUsableOperation(access, running.operation_id, running);
     logInfo('ai_generation.succeeded', { jobId: running.id, userId: running.user_id, assetId });
   } catch (error) {
-    if (storedStorageKey) {
-      await deps.storage.deleteImage(storedStorageKey).catch(() => undefined);
-    }
-    const failure = classifyGenerationFailure(error);
-    logError('ai_generation.failed', error, {
-      jobId: job.id,
-      userId: job.user_id,
-      code: failure.code,
-      retryable: failure.retryable,
-    });
-    await deps.repositories.jobs.markFailed(job.id, {
-      code: failure.code,
-      message: failure.message,
-      retryable: failure.retryable,
-      providerUsageJson: null,
-      estimatedCost: null,
-    });
+    await deps.storage.deleteImage(stored.storageKey).catch(() => undefined);
+    throw error;
   }
+}
+
+async function failGeneration(
+  job: AiGenerationJobRow,
+  deps: GenerationWorkerDeps,
+  access: AccountAccessService,
+  error: unknown,
+) {
+  const failure = classifyGenerationFailure(error);
+  logError('ai_generation.failed', error, {
+    jobId: job.id,
+    userId: job.user_id,
+    code: failure.code,
+    retryable: failure.retryable,
+  });
+  await deps.repositories.jobs.markFailed(job.id, {
+    code: failure.code,
+    message: failure.message,
+    retryable: failure.retryable,
+    providerUsageJson: null,
+    estimatedCost: null,
+  });
+  if (job.operation_id) await access.release(job.operation_id, 'failed', failure.code);
+}
+
+async function commitUsableOperation(
+  access: AccountAccessService,
+  operationId: string,
+  job: Pick<AiGenerationJobRow, 'id' | 'user_id'>,
+) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await access.commit(operationId);
+      return;
+    } catch (error) {
+      lastError = error;
+      logWarn('ai_generation.accounting_commit_retry', {
+        jobId: job.id,
+        userId: job.user_id,
+        operationId,
+        attempt,
+      });
+    }
+  }
+  logError('ai_generation.accounting_commit_failed', lastError, {
+    jobId: job.id,
+    userId: job.user_id,
+    operationId,
+  });
 }
 
 function validateProviderResult(result: ImageGenerationResult, maxOutputBytes: number) {

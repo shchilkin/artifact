@@ -13,6 +13,7 @@ export interface PostgresQueryClient {
 
 const shaderColumns = `
   id,
+  operation_id,
   user_id,
   idempotency_key,
   mode,
@@ -39,6 +40,7 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
       `
         INSERT INTO ai_shader_requests (
           id,
+          operation_id,
           user_id,
           idempotency_key,
           mode,
@@ -46,11 +48,19 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
           parent_request_id,
           status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
         ON CONFLICT (user_id, idempotency_key) DO NOTHING
         RETURNING ${shaderColumns}
       `,
-      [input.id, input.userId, input.idempotencyKey, input.mode, input.prompt, input.parentRequestId ?? null],
+      [
+        input.id,
+        input.operationId ?? null,
+        input.userId,
+        input.idempotencyKey,
+        input.mode,
+        input.prompt,
+        input.parentRequestId ?? null,
+      ],
     );
     const inserted = result.rows[0];
     if (inserted) return { row: inserted, claimed: true };
@@ -59,6 +69,19 @@ export class PostgresAiShaderRequestRepository implements AiShaderRequestReposit
     const existing = await this.findByIdempotencyKey(input.userId, input.idempotencyKey);
     if (!existing) throw new Error(`Shader request conflict could not be read: ${input.id}`);
     return { row: existing, claimed: false };
+  }
+
+  async attachOperation(id: string, operationId: string): Promise<AiShaderRequestRow> {
+    const result = await this.client.query<AiShaderRequestRow>(
+      `
+        UPDATE ai_shader_requests
+        SET operation_id = $2
+        WHERE id = $1 AND (operation_id IS NULL OR operation_id = $2)
+        RETURNING ${shaderColumns}
+      `,
+      [id, operationId],
+    );
+    return requireRow(result.rows, `Shader request operation could not be attached: ${id}`);
   }
 
   async findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiShaderRequestRow | null> {

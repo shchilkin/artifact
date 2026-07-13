@@ -13,6 +13,7 @@ export interface PostgresQueryClient {
 
 const jobColumns = `
   id,
+  operation_id,
   user_id,
   provider,
   model,
@@ -46,6 +47,7 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
         `
           INSERT INTO ai_generation_jobs (
             id,
+            operation_id,
             user_id,
             provider,
             model,
@@ -56,11 +58,12 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
             status,
             expires_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, 'queued', $9)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, 'queued', $10)
           RETURNING ${jobColumns}
         `,
         [
           input.id,
+          input.operationId ?? null,
           input.userId,
           input.provider,
           input.model,

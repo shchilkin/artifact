@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AccountAccessService } from '../src/accountAccessService.js';
 import type { RequestUserResolution } from '../src/auth.js';
 import type { GenerationQueuePayload } from '../src/contracts.js';
 import { ActiveGenerationJobExistsError } from '../src/db/errors.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
+import type { CreateUserInput } from '../src/db/types.js';
 import { createMockImageProvider, createProviderRegistry, OpenAiShaderTimeoutError } from '../src/providers/index.js';
 import type { GenerationQueue, QueueJob } from '../src/queue.js';
 import { createInMemoryRateLimiter } from '../src/rateLimit.js';
@@ -36,8 +38,16 @@ function createQueueSpy() {
   return { enqueue, queue };
 }
 
+class AiRouteTestStore extends InMemoryApiStore {
+  override seedUser(input: CreateUserInput) {
+    const user = super.seedUser(input);
+    if (input.aiEnabled) this.seedAccountAccess(input.id, 'creator');
+    return user;
+  }
+}
+
 function createDeps(auth: RequestUserResolution = { authenticated: true, user: { id: 'user-1' } }) {
-  const store = new InMemoryApiStore();
+  const store = new AiRouteTestStore();
   const { enqueue, queue } = createQueueSpy();
   let nextId = 0;
   const deps: AiRouteDeps = {
@@ -45,13 +55,17 @@ function createDeps(auth: RequestUserResolution = { authenticated: true, user: {
     queue,
     providers: createProviderRegistry([createMockImageProvider({ provider: 'openai' })]),
     resolveAuth: async () => auth,
-    monthlyGenerationLimit: 10,
-    maxActiveJobsPerUser: 1,
     createRateLimiter: createInMemoryRateLimiter({ limit: 10, windowMs: 60_000, now: () => 0 }),
     now: () => new Date('2026-05-20T10:00:00.000Z'),
     createId: () => `job-${++nextId}`,
   };
   return { deps, enqueue, store };
+}
+
+function accountAccess(store: InMemoryApiStore) {
+  return new AccountAccessService(store.repositories(), {
+    now: () => new Date('2026-05-20T10:00:00.000Z'),
+  });
 }
 
 class ReadableStreamRequest implements AsyncIterable<Buffer> {
@@ -98,6 +112,58 @@ function providerShader(label = 'Provider Shader') {
 }
 
 describe('AI route handlers', () => {
+  it('stops new provider work at the global safety budget before reserving quota', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+    await deps.repositories.usageEvents.append({
+      id: 'budget-spend-1',
+      userId: 'user-1',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 503,
+      body: { code: 'ai_budget_exhausted' },
+    });
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      body: { enabled: false, disabledReason: 'ai_budget_exhausted', providers: [] },
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    await expect(
+      deps.repositories.operations.findByIdempotencyKey('user-1', 'image_create', 'request-1'),
+    ).resolves.toBeNull();
+  });
+
+  it('shares one start rate limit across image and shader generation', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+    const limiter = createInMemoryRateLimiter({ limit: 1, windowMs: 60_000, now: () => 0 });
+    deps.createRateLimiter = limiter;
+
+    await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
+      status: 201,
+    });
+    expect(limiter.snapshot().get('ai:start:user:user-1')).toEqual({ count: 1, resetAt: 60_000 });
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: 'neon waves', idempotencyKey: 'shared-rate-shader-1' },
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 429,
+      body: { code: 'rate_limited' },
+    });
+  });
+
   it('returns anonymous access state without failing auth', async () => {
     const { deps } = createDeps({ authenticated: false, reason: 'missing_credentials' });
 
@@ -134,7 +200,7 @@ describe('AI route handlers', () => {
       status: 200,
       body: {
         authenticated: true,
-        disabledReason: 'not_enabled',
+        disabledReason: 'tier_ai_unavailable',
         enabled: false,
         user: { id: 'auth-user-1', email: 'me@example.com' },
       },
@@ -162,9 +228,42 @@ describe('AI route handlers', () => {
       body: {
         authenticated: true,
         enabled: true,
-        quota: { period: '2026-05', limit: 10, used: 2, remaining: 8 },
+        quota: { period: '2026-05', limit: 20, used: 2, remaining: 18 },
       },
     });
+  });
+
+  it('keeps the tier denial for a Free account when the global budget is stopped', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'free-user' });
+    store.seedUser({ id: 'spender' });
+    await deps.repositories.usageEvents.append({
+      id: 'budget-spend-free-test',
+      userId: 'spender',
+      feature: 'shader_create',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      status: 'succeeded',
+      usage: {},
+      costMicroUsd: '30000000',
+      pricingVersion: 'test-v1',
+      createdAt: new Date('2026-05-20T09:00:00.000Z'),
+    });
+    deps.resolveAuth = async () => ({ authenticated: true, user: { id: 'free-user' } });
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      body: { enabled: false, disabledReason: 'tier_ai_unavailable' },
+    });
+  });
+
+  it('rejects models without a pricing contract before queueing provider work', async () => {
+    const { deps, enqueue, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+
+    await expect(
+      handleCreateGenerationRequest({ headers: {} }, { ...createBody, model: 'future-unpriced-model' }, deps),
+    ).resolves.toMatchObject({ status: 400, body: { code: 'unsupported_provider_model' } });
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('requires a configured OpenAI shader provider by default', async () => {
@@ -317,10 +416,12 @@ describe('AI route handlers', () => {
     );
 
     await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'generated' });
+    await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 0, reserved: 1 });
     await expect(
       handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps),
     ).resolves.toMatchObject({ status: 200, body: { status: 'accepted', repairAvailable: false } });
     await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'accepted' });
+    await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 1, reserved: 0 });
   });
 
   it('refines an owner accepted shader as a new quota-counted candidate', async () => {
@@ -550,6 +651,7 @@ describe('AI route handlers', () => {
       repair_count: 1,
       error_code: 'shader_browser_validation_failed',
     });
+    await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 0, reserved: 0 });
   });
 
   it('does not start two provider repairs for concurrent retries', async () => {
@@ -668,6 +770,8 @@ describe('AI route handlers', () => {
   it('returns an idempotent OpenAI shader result without charging or calling the provider twice', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    const limiter = createInMemoryRateLimiter({ limit: 1, windowMs: 60_000, now: () => 0 });
+    deps.createRateLimiter = limiter;
     const generateShader = vi.fn(async () => providerShader('One Result'));
     deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
     const body = { prompt: 'invert softly', idempotencyKey: 'shader-idempotent-1' };
@@ -677,6 +781,7 @@ describe('AI route handlers', () => {
 
     expect(second).toEqual(first);
     expect(generateShader).toHaveBeenCalledTimes(1);
+    expect(limiter.snapshot().get('ai:start:user:user-1')).toEqual({ count: 1, resetAt: 60_000 });
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
   });
 
@@ -705,10 +810,9 @@ describe('AI route handlers', () => {
     expect(generateShader).toHaveBeenCalledTimes(1);
   });
 
-  it('atomically blocks parallel shader requests at the monthly quota boundary', async () => {
+  it('atomically blocks parallel shader requests with the cross-feature operation guard', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.monthlyGenerationLimit = 1;
     let finishProvider: (() => void) | undefined;
     const generateShader = vi.fn(
       () =>
@@ -731,7 +835,7 @@ describe('AI route handlers', () => {
         { prompt: 'second shader', idempotencyKey: 'shader-quota-race-2' },
         deps,
       ),
-    ).resolves.toMatchObject({ status: 429, body: { code: 'quota_exceeded' } });
+    ).resolves.toMatchObject({ status: 409, body: { code: 'operation_in_progress' } });
 
     finishProvider?.();
     await expect(firstRequest).resolves.toMatchObject({ status: 200 });
@@ -745,19 +849,19 @@ describe('AI route handlers', () => {
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
-      generationLimit: 10,
-      generationCountDelta: 10,
+      generationLimit: 20,
+      generationCountDelta: 20,
     });
     const generateShader = vi.fn();
     deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
 
     await expect(
       handleCreateShaderRequest({ headers: {} }, { prompt: 'neon waves', idempotencyKey: 'shader-over-quota-1' }, deps),
-    ).resolves.toMatchObject({ status: 429, body: { code: 'quota_exceeded' } });
+    ).resolves.toMatchObject({ status: 429, body: { code: 'allowance_exhausted' } });
     expect(generateShader).not.toHaveBeenCalled();
   });
 
-  it('returns a distinct timeout error and keeps the provider-call reservation', async () => {
+  it('returns a distinct timeout error and releases the provider-call reservation', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
     deps.shaderProvider = {
@@ -774,7 +878,7 @@ describe('AI route handlers', () => {
       status: 504,
       body: { code: 'shader_provider_timeout', message: 'Shader generation took too long. Try again.' },
     });
-    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
   });
 
   it('rejects local fallback requests without a failed OpenAI attempt', async () => {
@@ -805,8 +909,8 @@ describe('AI route handlers', () => {
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
-      generationLimit: 10,
-      generationCountDelta: 10,
+      generationLimit: 20,
+      generationCountDelta: 20,
     });
     await handleCreateShaderRequest(
       { headers: {} },
@@ -857,17 +961,17 @@ describe('AI route handlers', () => {
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
-      generationLimit: 10,
-      generationCountDelta: 10,
+      generationLimit: 20,
+      generationCountDelta: 20,
     });
 
     await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
       status: 200,
       body: {
         authenticated: true,
-        disabledReason: 'quota_exhausted',
+        disabledReason: 'allowance_exhausted',
         enabled: false,
-        quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+        quota: { period: '2026-05', limit: 20, used: 20, remaining: 0 },
       },
     });
   });
@@ -891,7 +995,7 @@ describe('AI route handlers', () => {
         id: 'job-1',
         status: 'queued',
         provider: 'openai',
-        quota: { used: 1, remaining: 9 },
+        quota: { used: 1, remaining: 19 },
       },
     });
     expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
@@ -903,15 +1007,15 @@ describe('AI route handlers', () => {
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
-      generationLimit: 10,
-      generationCountDelta: 9,
+      generationLimit: 20,
+      generationCountDelta: 19,
     });
 
     await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
       status: 201,
       body: {
         id: 'job-1',
-        quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+        quota: { period: '2026-05', limit: 20, used: 20, remaining: 0 },
       },
     });
     expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
@@ -923,15 +1027,15 @@ describe('AI route handlers', () => {
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
-      generationLimit: 10,
-      generationCountDelta: 10,
+      generationLimit: 20,
+      generationCountDelta: 20,
     });
 
     await expect(handleCreateGenerationRequest({ headers: {} }, createBody, deps)).resolves.toMatchObject({
       status: 429,
       body: {
-        code: 'quota_exceeded',
-        message: 'Monthly generation quota used.',
+        code: 'allowance_exhausted',
+        message: 'Monthly AI allowance used.',
       },
     });
     expect(enqueue).not.toHaveBeenCalled();
@@ -946,7 +1050,7 @@ describe('AI route handlers', () => {
       status: 200,
       body: {
         id: 'job-1',
-        quota: { used: 1, remaining: 9 },
+        quota: { used: 1, remaining: 19 },
       },
     });
     expect(enqueue).toHaveBeenCalledTimes(1);
@@ -961,7 +1065,7 @@ describe('AI route handlers', () => {
       handleCreateGenerationRequest({ headers: {} }, { ...createBody, idempotencyKey: 'request-2' }, deps),
     ).resolves.toMatchObject({
       status: 409,
-      body: { code: 'active_job_exists' },
+      body: { code: 'operation_in_progress' },
     });
   });
 
@@ -1084,6 +1188,7 @@ describe('AI route handlers', () => {
         completedAt: '2026-05-20T10:00:00.000Z',
       },
     });
+    await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 0, reserved: 0 });
   });
 
   it('rejects cancellation after a generation is no longer active', async () => {

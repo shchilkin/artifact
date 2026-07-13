@@ -94,6 +94,21 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production' })).toMatchObject({ passwordResetLogUrl: false });
   });
 
+  it('allows the development bearer token only outside production', () => {
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'development', API_DEV_BEARER_TOKEN: ' dev-token ' })).toMatchObject({
+      devBearerToken: 'dev-token',
+    });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: '' })).toMatchObject({
+      devBearerToken: undefined,
+    });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: '   ' })).toMatchObject({
+      devBearerToken: undefined,
+    });
+    expect(() => loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: 'dev-token' })).toThrow(
+      'API_DEV_BEARER_TOKEN must not be set in production',
+    );
+  });
+
   it('parses multiple web origins for Vercel production and preview deployments', () => {
     expect(
       loadConfig({

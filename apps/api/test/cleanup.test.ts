@@ -19,6 +19,8 @@ class FakeQueryClient implements CleanupQueryClient {
 
 const now = new Date('2026-05-22T09:00:00.000Z');
 const cleanupRows = () => [
+  [{ id: 'operation-reconciled' }],
+  [{ id: 'operation-expired' }],
   [{ id: 'job-expired' }],
   [
     { id: 'asset-orphan', storage_key: 'generated/orphan.png' },
@@ -46,6 +48,8 @@ describe('cleanupAiGenerationData', () => {
       }),
     ).resolves.toEqual({
       dryRun: true,
+      reconciledOperationIds: ['operation-reconciled'],
+      expiredOperationIds: ['operation-expired'],
       expiredJobIds: ['job-expired'],
       softDeletedAssetIds: ['asset-orphan', 'project-asset-orphan'],
       storageKeysDeleted: [],
@@ -53,10 +57,12 @@ describe('cleanupAiGenerationData', () => {
     });
 
     expect(storage.deleteImage).not.toHaveBeenCalled();
-    expect(client.calls[0]?.sql).toContain('SELECT id');
-    expect(client.calls[1]?.sql).toContain('SELECT id, storage_key');
-    expect(client.calls[1]?.sql).toContain('cloud_projects');
-    expect(client.calls[1]?.sql).toContain('artifact-cloud-asset://');
+    expect(client.calls[0]?.sql).toContain("jobs.status = 'succeeded'");
+    expect(client.calls[1]?.sql).toContain('FROM ai_operations');
+    expect(client.calls[2]?.sql).toContain('SELECT id');
+    expect(client.calls[3]?.sql).toContain('SELECT id, storage_key');
+    expect(client.calls[3]?.sql).toContain('cloud_projects');
+    expect(client.calls[3]?.sql).toContain('artifact-cloud-asset://');
   });
 
   it('expires stale jobs, soft-deletes orphan assets, and deletes local files when applied', async () => {
@@ -72,6 +78,8 @@ describe('cleanupAiGenerationData', () => {
       }),
     ).resolves.toEqual({
       dryRun: false,
+      reconciledOperationIds: ['operation-reconciled'],
+      expiredOperationIds: ['operation-expired'],
       expiredJobIds: ['job-expired'],
       softDeletedAssetIds: ['asset-orphan', 'project-asset-orphan'],
       storageKeysDeleted: [
@@ -89,8 +97,13 @@ describe('cleanupAiGenerationData', () => {
     expect(storage.deleteImage).toHaveBeenNthCalledWith(3, 'generated/deleted.png');
     expect(storage.deleteImage).toHaveBeenNthCalledWith(4, 'generated/project-deleted.png');
     expect(storage.deleteImage).toHaveBeenNthCalledWith(5, 'generated/missing.png');
-    expect(client.calls[0]?.sql).toContain('UPDATE ai_generation_jobs');
-    expect(client.calls[1]?.sql).toContain('UPDATE assets');
-    expect(client.calls[1]?.sql).toContain('cloud_projects');
+    expect(client.calls[0]?.sql).toContain("SET status = 'succeeded'");
+    expect(client.calls[0]?.sql).toContain('committed_generation_count');
+    expect(client.calls[1]?.sql).toContain("SET status = 'expired'");
+    expect(client.calls[1]?.sql).toContain('reserved_generation_count');
+    expect(client.calls[1]?.sql).toContain('ai_shader_requests');
+    expect(client.calls[2]?.sql).toContain('UPDATE ai_generation_jobs');
+    expect(client.calls[3]?.sql).toContain('UPDATE assets');
+    expect(client.calls[3]?.sql).toContain('cloud_projects');
   });
 });

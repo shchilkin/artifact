@@ -1,17 +1,51 @@
-import { ActiveGenerationJobExistsError, CloudProjectOwnershipConflictError } from './errors.js';
+import { normalizeMicroUsd, normalizeProviderUsageMetrics, requiredText } from './accountingValues.js';
+import {
+  AccountTierVersionConflictError,
+  ActiveAiOperationExistsError,
+  ActiveGenerationJobExistsError,
+  CloudProjectOwnershipConflictError,
+  QuotaGrantReversalExceededError,
+} from './errors.js';
+import {
+  assertOperationRetry,
+  assertQuotaGrantRetry,
+  assertQuotaGrantReversalRetry,
+  assertTierAssignmentRetry,
+} from './idempotencyInputs.js';
 import type { ApiRepositories } from './repositories.js';
 import type {
+  AccountAccessRow,
+  AdminAccountDetailRow,
+  AdminAccountRow,
+  AdminAuditEventRow,
+  AdminOverviewRow,
+  AdminUsageQuery,
   AiGenerationJobRow,
+  AiOperationRow,
   AiShaderRequestRow,
+  AiUsageEventRow,
   AiUsageMonthlyRow,
   AssetRow,
   ClaimAiShaderRequestInput,
   CloudProjectRow,
   CompleteAiShaderRequestInput,
+  CreateAdminAuditEventInput,
   CreateAiGenerationJobInput,
+  CreateAiOperationInput,
+  CreateAiUsageEventInput,
   CreateAssetInput,
+  CreateProviderReconciliationInput,
+  CreateQuotaGrantInput,
+  CreateQuotaGrantReversalInput,
+  CreateTierAssignmentInput,
   CreateUserInput,
   JsonObject,
+  ProviderReconciliationRow,
+  QuotaGrantReversalRow,
+  QuotaGrantRow,
+  ReleaseAiOperationInput,
+  ReserveAiOperationInput,
+  TierAssignmentRow,
   UpsertAuthenticatedUserInput,
   UpsertCloudProjectInput,
   UserRow,
@@ -19,6 +53,14 @@ import type {
 
 export class InMemoryApiStore {
   private readonly users = new Map<string, UserRow>();
+  private readonly accountAccess = new Map<string, AccountAccessRow>();
+  private readonly operations = new Map<string, AiOperationRow>();
+  private readonly usageEvents = new Map<string, AiUsageEventRow>();
+  private readonly adminAuditEvents = new Map<string, AdminAuditEventRow>();
+  private readonly reconciliations = new Map<string, ProviderReconciliationRow>();
+  private readonly tierAssignments = new Map<string, TierAssignmentRow>();
+  private readonly quotaGrants = new Map<string, QuotaGrantRow>();
+  private readonly quotaGrantReversals = new Map<string, QuotaGrantReversalRow>();
   private readonly jobs = new Map<string, AiGenerationJobRow>();
   private readonly shaderRequests = new Map<string, AiShaderRequestRow>();
   private readonly assets = new Map<string, AssetRow>();
@@ -43,8 +85,468 @@ export class InMemoryApiStore {
     return row;
   }
 
+  seedAccountAccess(userId: string, tier: AccountAccessRow['tier']): AccountAccessRow {
+    if (!this.users.has(userId)) throw new Error(`User not found: ${userId}`);
+    const now = new Date();
+    const row: AccountAccessRow = {
+      user_id: userId,
+      tier,
+      version: 0,
+      created_at: now,
+      updated_at: now,
+    };
+    this.accountAccess.set(userId, row);
+    return row;
+  }
+
   async findById(id: string): Promise<UserRow | null> {
     return this.users.get(id) ?? null;
+  }
+
+  async setUserRole(id: string, role: UserRow['role']): Promise<UserRow> {
+    const user = this.users.get(id);
+    if (!user) throw new Error(`User not found: ${id}`);
+    const updated = { ...user, role, updated_at: new Date() };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async findAccountAccess(userId: string): Promise<AccountAccessRow | null> {
+    return this.accountAccess.get(userId) ?? null;
+  }
+
+  async ensureAccountAccess(userId: string): Promise<AccountAccessRow> {
+    const existing = this.accountAccess.get(userId);
+    if (existing) return existing;
+    if (!this.users.has(userId)) throw new Error(`User not found: ${userId}`);
+    const now = new Date();
+    const row: AccountAccessRow = {
+      user_id: userId,
+      tier: 'free',
+      version: 0,
+      created_at: now,
+      updated_at: now,
+    };
+    this.accountAccess.set(userId, row);
+    return row;
+  }
+
+  async listLegacyAiEnabledUsers() {
+    return Array.from(this.users.values())
+      .filter((user) => user.ai_enabled)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((user) => ({ userId: user.id, email: user.email }));
+  }
+
+  async findOperationByIdempotencyKey(
+    userId: string,
+    feature: CreateAiOperationInput['feature'],
+    idempotencyKey: string,
+  ): Promise<AiOperationRow | null> {
+    return (
+      Array.from(this.operations.values()).find(
+        (operation) =>
+          operation.user_id === userId && operation.feature === feature && operation.idempotency_key === idempotencyKey,
+      ) ?? null
+    );
+  }
+
+  async findOperationById(id: string): Promise<AiOperationRow | null> {
+    return this.operations.get(id) ?? null;
+  }
+
+  async reserveOperation(input: ReserveAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean } | null> {
+    const existing = await this.findOperationByIdempotencyKey(input.userId, input.feature, input.idempotencyKey);
+    if (existing) {
+      assertOperationRetry(existing, input);
+      return { row: existing, claimed: false };
+    }
+    const active = Array.from(this.operations.values()).find(
+      (operation) =>
+        operation.user_id === input.userId && (operation.status === 'reserved' || operation.status === 'running'),
+    );
+    if (active) throw new ActiveAiOperationExistsError(input.userId);
+    const usageKey = monthlyUsageKey(input.userId, input.reservationPeriod);
+    const usage =
+      this.monthlyUsage.get(usageKey) ??
+      emptyMonthlyUsage(input.userId, input.reservationPeriod, input.generationLimit);
+    if (usage.committed_generation_count + usage.reserved_generation_count >= input.generationLimit) return null;
+    const now = new Date();
+    const row: AiOperationRow = {
+      id: input.id,
+      user_id: input.userId,
+      feature: input.feature,
+      status: 'reserved',
+      idempotency_key: input.idempotencyKey,
+      reservation_period: input.reservationPeriod,
+      reserved_generations: input.reservedGenerations,
+      error_code: null,
+      created_at: now,
+      started_at: null,
+      completed_at: null,
+    };
+    this.monthlyUsage.set(usageKey, {
+      ...usage,
+      generation_limit: input.generationLimit,
+      generation_count: usage.committed_generation_count + usage.reserved_generation_count + input.reservedGenerations,
+      reserved_generation_count: usage.reserved_generation_count + input.reservedGenerations,
+      updated_at: now,
+    });
+    this.operations.set(row.id, row);
+    return { row, claimed: true };
+  }
+
+  async markOperationRunning(id: string, startedAt: Date): Promise<AiOperationRow> {
+    const operation = this.requireOperation(id);
+    if (operation.status === 'running') return operation;
+    if (operation.status !== 'reserved') throw new Error(`AI operation cannot start from ${operation.status}: ${id}`);
+    const running = { ...operation, status: 'running' as const, started_at: startedAt };
+    this.operations.set(id, running);
+    return running;
+  }
+
+  async markOperationSucceeded(id: string, completedAt: Date): Promise<AiOperationRow> {
+    const operation = this.requireOperation(id);
+    if (operation.status === 'succeeded') return operation;
+    if (operation.status !== 'reserved' && operation.status !== 'running') {
+      throw new Error(`AI operation cannot succeed from ${operation.status}: ${id}`);
+    }
+    this.commitOperationUsage(operation, completedAt);
+    const succeeded = { ...operation, status: 'succeeded' as const, completed_at: completedAt };
+    this.operations.set(id, succeeded);
+    return succeeded;
+  }
+
+  async releaseOperation(input: ReleaseAiOperationInput): Promise<AiOperationRow> {
+    const operation = this.requireOperation(input.id);
+    if (operation.status === input.status) return operation;
+    if (operation.status !== 'reserved' && operation.status !== 'running') {
+      throw new Error(`AI operation cannot release from ${operation.status}: ${input.id}`);
+    }
+    this.releaseOperationUsage(operation, input.completedAt);
+    const released = {
+      ...operation,
+      status: input.status,
+      error_code: input.errorCode ?? null,
+      completed_at: input.completedAt,
+    };
+    this.operations.set(input.id, released);
+    return released;
+  }
+
+  private requireOperation(id: string): AiOperationRow {
+    const operation = this.operations.get(id);
+    if (!operation) throw new Error(`AI operation not found: ${id}`);
+    return operation;
+  }
+
+  private commitOperationUsage(operation: AiOperationRow, updatedAt: Date) {
+    const key = monthlyUsageKey(operation.user_id, operation.reservation_period);
+    const usage = this.monthlyUsage.get(key);
+    if (!usage) throw new Error(`Monthly usage not found: ${operation.user_id}:${operation.reservation_period}`);
+    const reserved = Math.max(0, usage.reserved_generation_count - operation.reserved_generations);
+    const committed = usage.committed_generation_count + operation.reserved_generations;
+    this.monthlyUsage.set(key, {
+      ...usage,
+      generation_count: committed + reserved,
+      committed_generation_count: committed,
+      reserved_generation_count: reserved,
+      updated_at: updatedAt,
+    });
+  }
+
+  private releaseOperationUsage(operation: AiOperationRow, updatedAt: Date) {
+    const key = monthlyUsageKey(operation.user_id, operation.reservation_period);
+    const usage = this.monthlyUsage.get(key);
+    if (!usage) throw new Error(`Monthly usage not found: ${operation.user_id}:${operation.reservation_period}`);
+    const reserved = Math.max(0, usage.reserved_generation_count - operation.reserved_generations);
+    this.monthlyUsage.set(key, {
+      ...usage,
+      generation_count: usage.committed_generation_count + reserved,
+      reserved_generation_count: reserved,
+      updated_at: updatedAt,
+    });
+  }
+
+  async appendUsageEvent(input: CreateAiUsageEventInput): Promise<AiUsageEventRow> {
+    const existing = this.usageEvents.get(input.id);
+    if (existing) return existing;
+    if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
+    const row = createUsageEventRow(input);
+    this.usageEvents.set(row.id, row);
+    this.updateMonthlyProviderUsage(row);
+    return row;
+  }
+
+  private updateMonthlyProviderUsage(row: AiUsageEventRow) {
+    const period = row.created_at.toISOString().slice(0, 7);
+    const key = monthlyUsageKey(row.user_id, period);
+    const current = this.monthlyUsage.get(key) ?? emptyMonthlyUsage(row.user_id, period, 0);
+    const inputTokens = Number(row.usage_json.inputTokens ?? 0);
+    const outputTokens = Number(row.usage_json.outputTokens ?? 0);
+    this.monthlyUsage.set(key, {
+      ...current,
+      provider_cost_micro_usd: (BigInt(current.provider_cost_micro_usd) + BigInt(row.cost_micro_usd)).toString(),
+      input_tokens: (BigInt(current.input_tokens) + BigInt(inputTokens)).toString(),
+      output_tokens: (BigInt(current.output_tokens) + BigInt(outputTokens)).toString(),
+      failed_call_count: current.failed_call_count + (row.status === 'failed' ? 1 : 0),
+      updated_at: row.created_at,
+    });
+  }
+
+  async sumUsageEventCost(input: { from: Date; to: Date; provider?: string }) {
+    let total = 0n;
+    for (const event of this.usageEvents.values()) {
+      if (event.created_at < input.from || event.created_at >= input.to) continue;
+      if (input.provider && event.provider !== input.provider) continue;
+      total += BigInt(event.cost_micro_usd);
+    }
+    return { costMicroUsd: total.toString() };
+  }
+
+  async appendAdminAuditEvent(input: CreateAdminAuditEventInput): Promise<AdminAuditEventRow> {
+    if (this.adminAuditEvents.has(input.id)) throw new Error(`Admin audit event already exists: ${input.id}`);
+    if (!this.users.has(input.adminUserId)) throw new Error(`Admin user not found: ${input.adminUserId}`);
+    const row: AdminAuditEventRow = {
+      id: input.id,
+      admin_user_id: input.adminUserId,
+      target_user_id: input.targetUserId ?? null,
+      action: requiredText(input.action, 'action'),
+      entity_type: requiredText(input.entityType, 'entityType'),
+      entity_id: requiredText(input.entityId, 'entityId'),
+      reason: requiredText(input.reason, 'reason'),
+      before_json: input.beforeJson ?? null,
+      after_json: input.afterJson ?? null,
+      created_at: new Date(),
+    };
+    this.adminAuditEvents.set(row.id, row);
+    return row;
+  }
+
+  async upsertProviderReconciliation(input: CreateProviderReconciliationInput): Promise<ProviderReconciliationRow> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.usageDate)) throw new Error('usageDate must use YYYY-MM-DD');
+    const key = `${input.provider}:${input.usageDate}`;
+    const existing = this.reconciliations.get(key);
+    const row: ProviderReconciliationRow = {
+      id: existing?.id ?? input.id,
+      provider: requiredText(input.provider, 'provider'),
+      usage_date: input.usageDate,
+      status: input.status,
+      provider_cost_micro_usd:
+        input.providerCostMicroUsd === null || input.providerCostMicroUsd === undefined
+          ? null
+          : normalizeMicroUsd(input.providerCostMicroUsd),
+      internal_cost_micro_usd: normalizeMicroUsd(input.internalCostMicroUsd),
+      error_code: input.errorCode ?? null,
+      synced_at: input.syncedAt ?? null,
+      created_at: existing?.created_at ?? new Date(),
+    };
+    this.reconciliations.set(key, row);
+    return row;
+  }
+
+  async getAdminOverview(period: string): Promise<AdminOverviewRow> {
+    monthlyPeriod(period);
+    const overview: AdminOverviewRow = {
+      free_count: 0,
+      creator_count: 0,
+      founder_count: 0,
+      committed_generation_count: 0,
+      reserved_generation_count: 0,
+      provider_cost_micro_usd: '0',
+      input_tokens: '0',
+      output_tokens: '0',
+      failed_call_count: 0,
+    };
+    for (const user of this.users.values()) {
+      const tier = this.accountAccess.get(user.id)?.tier ?? 'free';
+      overview[`${tier}_count`] += 1;
+      const usage = this.monthlyUsage.get(monthlyUsageKey(user.id, period));
+      if (!usage) continue;
+      overview.committed_generation_count += usage.committed_generation_count;
+      overview.reserved_generation_count += usage.reserved_generation_count;
+      overview.provider_cost_micro_usd = addIntegerStrings(
+        overview.provider_cost_micro_usd,
+        usage.provider_cost_micro_usd,
+      );
+      overview.input_tokens = addIntegerStrings(overview.input_tokens, usage.input_tokens);
+      overview.output_tokens = addIntegerStrings(overview.output_tokens, usage.output_tokens);
+      overview.failed_call_count += usage.failed_call_count;
+    }
+    return overview;
+  }
+
+  async listAdminAccounts(input: { period: string; search?: string; limit: number; offset: number }) {
+    monthlyPeriod(input.period);
+    const search = input.search?.trim().toLowerCase();
+    const accounts = Array.from(this.users.values())
+      .filter((user) => !search || user.id.toLowerCase().includes(search) || user.email?.toLowerCase().includes(search))
+      .sort((left, right) => right.created_at.getTime() - left.created_at.getTime() || left.id.localeCompare(right.id))
+      .map((user) => this.adminAccountRow(user, input.period));
+    return { rows: accounts.slice(input.offset, input.offset + input.limit), total: accounts.length };
+  }
+
+  async getAdminAccount(userId: string, period: string): Promise<AdminAccountDetailRow | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    return {
+      account: this.adminAccountRow(user, period),
+      assignments: Array.from(this.tierAssignments.values())
+        .filter((row) => row.user_id === userId)
+        .sort(newestFirst),
+      grants: Array.from(this.quotaGrants.values())
+        .filter((row) => row.user_id === userId)
+        .sort(newestFirst),
+      reversals: Array.from(this.quotaGrantReversals.values())
+        .filter((row) => this.quotaGrants.get(row.grant_id)?.user_id === userId)
+        .sort(newestFirst),
+      audits: Array.from(this.adminAuditEvents.values())
+        .filter((row) => row.target_user_id === userId)
+        .sort(newestFirst),
+    };
+  }
+
+  async listAdminUsage(input: AdminUsageQuery) {
+    const rows = Array.from(this.usageEvents.values())
+      .filter((row) => !input.userId || row.user_id === input.userId)
+      .filter((row) => !input.provider || row.provider === input.provider)
+      .filter((row) => !input.status || row.status === input.status)
+      .sort(newestFirst);
+    return { rows: rows.slice(input.offset, input.offset + input.limit), total: rows.length };
+  }
+
+  async listAdminReconciliations(limit: number) {
+    return Array.from(this.reconciliations.values())
+      .sort(
+        (left, right) => right.usage_date.localeCompare(left.usage_date) || left.provider.localeCompare(right.provider),
+      )
+      .slice(0, limit);
+  }
+
+  private adminAccountRow(user: UserRow, period: string): AdminAccountRow {
+    const access = this.accountAccess.get(user.id) ?? {
+      tier: 'free' as const,
+      version: 0,
+      updated_at: user.updated_at,
+    };
+    const usage = this.monthlyUsage.get(monthlyUsageKey(user.id, period)) ?? emptyMonthlyUsage(user.id, period, 0);
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tier: access.tier,
+      tier_version: access.version,
+      committed_generation_count: usage.committed_generation_count,
+      reserved_generation_count: usage.reserved_generation_count,
+      provider_cost_micro_usd: usage.provider_cost_micro_usd,
+      failed_call_count: usage.failed_call_count,
+      created_at: user.created_at,
+      updated_at: access.updated_at > user.updated_at ? access.updated_at : user.updated_at,
+    };
+  }
+
+  async assignTier(input: CreateTierAssignmentInput): Promise<{ row: TierAssignmentRow; assigned: boolean }> {
+    const existing = Array.from(this.tierAssignments.values()).find(
+      (assignment) =>
+        assignment.admin_user_id === input.adminUserId && assignment.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertTierAssignmentRetry(existing, input);
+      return { row: existing, assigned: false };
+    }
+    const access = await this.ensureAccountAccess(input.userId);
+    if (access.tier !== input.expectedTier || access.version !== input.expectedVersion) {
+      throw new AccountTierVersionConflictError(input.userId);
+    }
+    const reason = requiredText(input.reason, 'reason');
+    const now = new Date();
+    const row: TierAssignmentRow = {
+      id: input.id,
+      user_id: input.userId,
+      previous_tier: access.tier,
+      new_tier: input.newTier,
+      reason,
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: now,
+    };
+    this.accountAccess.set(input.userId, {
+      ...access,
+      tier: input.newTier,
+      version: access.version + 1,
+      updated_at: now,
+    });
+    this.tierAssignments.set(row.id, row);
+    return { row, assigned: true };
+  }
+
+  async createQuotaGrant(input: CreateQuotaGrantInput): Promise<{ row: QuotaGrantRow; created: boolean }> {
+    const existing = Array.from(this.quotaGrants.values()).find(
+      (grant) => grant.admin_user_id === input.adminUserId && grant.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertQuotaGrantRetry(existing, input);
+      return { row: existing, created: false };
+    }
+    if (!this.users.has(input.userId)) throw new Error(`User not found: ${input.userId}`);
+    const row: QuotaGrantRow = {
+      id: input.id,
+      user_id: input.userId,
+      period: monthlyPeriod(input.period),
+      amount: positiveInteger(input.amount, 'amount'),
+      reversed_amount: 0,
+      reason: requiredText(input.reason, 'reason'),
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: new Date(),
+    };
+    this.quotaGrants.set(row.id, row);
+    return { row, created: true };
+  }
+
+  async findQuotaGrant(id: string): Promise<QuotaGrantRow | null> {
+    return this.quotaGrants.get(id) ?? null;
+  }
+
+  async createQuotaGrantReversal(
+    input: CreateQuotaGrantReversalInput,
+  ): Promise<{ row: QuotaGrantReversalRow; created: boolean }> {
+    const existing = Array.from(this.quotaGrantReversals.values()).find(
+      (reversal) => reversal.admin_user_id === input.adminUserId && reversal.idempotency_key === input.idempotencyKey,
+    );
+    if (existing) {
+      assertQuotaGrantReversalRetry(existing, input);
+      return { row: existing, created: false };
+    }
+    const grant = this.quotaGrants.get(input.grantId);
+    if (!grant) throw new Error(`Quota grant not found: ${input.grantId}`);
+    const amount = positiveInteger(input.amount, 'amount');
+    if (grant.reversed_amount + amount > grant.amount) throw new QuotaGrantReversalExceededError(grant.id);
+    const row: QuotaGrantReversalRow = {
+      id: input.id,
+      grant_id: grant.id,
+      amount,
+      reason: requiredText(input.reason, 'reason'),
+      admin_user_id: input.adminUserId,
+      idempotency_key: input.idempotencyKey,
+      created_at: new Date(),
+    };
+    this.quotaGrants.set(grant.id, { ...grant, reversed_amount: grant.reversed_amount + amount });
+    this.quotaGrantReversals.set(row.id, row);
+    return { row, created: true };
+  }
+
+  async sumQuotaAdjustments(userId: string, period: string): Promise<{ granted: number; reversed: number }> {
+    const grants = Array.from(this.quotaGrants.values()).filter(
+      (grant) => grant.user_id === userId && grant.period === period,
+    );
+    const grantIds = new Set(grants.map((grant) => grant.id));
+    return {
+      granted: grants.reduce((sum, grant) => sum + grant.amount, 0),
+      reversed: Array.from(this.quotaGrantReversals.values())
+        .filter((reversal) => grantIds.has(reversal.grant_id))
+        .reduce((sum, reversal) => sum + reversal.amount, 0),
+    };
   }
 
   async upsertUserFromAuth(input: UpsertAuthenticatedUserInput): Promise<UserRow> {
@@ -146,6 +648,7 @@ export class InMemoryApiStore {
     if (existing) return { row: existing, claimed: false };
     const row: AiShaderRequestRow = {
       id: input.id,
+      operation_id: input.operationId ?? null,
       user_id: input.userId,
       idempotency_key: input.idempotencyKey,
       mode: input.mode,
@@ -173,6 +676,16 @@ export class InMemoryApiStore {
         (request) => request.user_id === userId && request.idempotency_key === idempotencyKey,
       ) ?? null
     );
+  }
+
+  async attachShaderOperation(id: string, operationId: string): Promise<AiShaderRequestRow> {
+    const request = this.shaderRequests.get(id);
+    if (!request || (request.operation_id !== null && request.operation_id !== operationId)) {
+      throw new Error(`Shader request operation could not be attached: ${id}`);
+    }
+    const attached = { ...request, operation_id: operationId };
+    this.shaderRequests.set(id, attached);
+    return attached;
   }
 
   async findShaderByIdForUser(id: string, userId: string): Promise<AiShaderRequestRow | null> {
@@ -371,6 +884,13 @@ export class InMemoryApiStore {
       period: input.period,
       generation_limit: input.generationLimit,
       generation_count: (existing?.generation_count ?? 0) + (input.generationCountDelta ?? 0),
+      committed_generation_count:
+        (existing?.committed_generation_count ?? existing?.generation_count ?? 0) + (input.generationCountDelta ?? 0),
+      reserved_generation_count: existing?.reserved_generation_count ?? 0,
+      provider_cost_micro_usd: existing?.provider_cost_micro_usd ?? '0',
+      input_tokens: existing?.input_tokens ?? '0',
+      output_tokens: existing?.output_tokens ?? '0',
+      failed_call_count: existing?.failed_call_count ?? 0,
       estimated_cost: addNumericStrings(existing?.estimated_cost ?? '0', input.estimatedCostDelta ?? '0'),
       updated_at: new Date(),
     };
@@ -398,6 +918,7 @@ export class InMemoryApiStore {
     const released = {
       ...existing,
       generation_count: Math.max(0, existing.generation_count - 1),
+      committed_generation_count: Math.max(0, existing.committed_generation_count - 1),
       updated_at: new Date(),
     };
     this.monthlyUsage.set(monthlyUsageKey(userId, period), released);
@@ -446,6 +967,43 @@ export class InMemoryApiStore {
       users: {
         findById: (id) => this.findById(id),
         upsertFromAuth: (input) => this.upsertUserFromAuth(input),
+        setRole: (id, role) => this.setUserRole(id, role),
+      },
+      accountTiers: {
+        findAccess: (userId) => this.findAccountAccess(userId),
+        ensureAccess: (userId) => this.ensureAccountAccess(userId),
+        listLegacyAiEnabledUsers: () => this.listLegacyAiEnabledUsers(),
+        assignTier: (input) => this.assignTier(input),
+        createQuotaGrant: (input) => this.createQuotaGrant(input),
+        createQuotaGrantReversal: (input) => this.createQuotaGrantReversal(input),
+        findQuotaGrant: (id) => this.findQuotaGrant(id),
+        sumQuotaAdjustments: (userId, period) => this.sumQuotaAdjustments(userId, period),
+      },
+      operations: {
+        findById: (id) => this.findOperationById(id),
+        findByIdempotencyKey: (userId, feature, idempotencyKey) =>
+          this.findOperationByIdempotencyKey(userId, feature, idempotencyKey),
+        reserve: (input) => this.reserveOperation(input),
+        markRunning: (id, startedAt) => this.markOperationRunning(id, startedAt),
+        markSucceeded: (id, completedAt) => this.markOperationSucceeded(id, completedAt),
+        release: (input) => this.releaseOperation(input),
+      },
+      usageEvents: {
+        append: (input) => this.appendUsageEvent(input),
+        sumCost: (input) => this.sumUsageEventCost(input),
+      },
+      adminAudit: {
+        append: (input) => this.appendAdminAuditEvent(input),
+      },
+      adminRead: {
+        getOverview: (period) => this.getAdminOverview(period),
+        listAccounts: (input) => this.listAdminAccounts(input),
+        getAccount: (userId, period) => this.getAdminAccount(userId, period),
+        listUsage: (input) => this.listAdminUsage(input),
+        listReconciliations: (limit) => this.listAdminReconciliations(limit),
+      },
+      reconciliations: {
+        upsert: (input) => this.upsertProviderReconciliation(input),
       },
       jobs: {
         create: (input) => this.createGenerationJob(input),
@@ -459,6 +1017,7 @@ export class InMemoryApiStore {
       },
       shaderRequests: {
         claim: (input) => this.claimShaderRequest(input),
+        attachOperation: (id, operationId) => this.attachShaderOperation(id, operationId),
         findByIdempotencyKey: (userId, idempotencyKey) => this.findShaderByIdempotencyKey(userId, idempotencyKey),
         findByIdForUser: (id, userId) => this.findShaderByIdForUser(id, userId),
         markGenerated: (input) => this.markShaderGenerated(input),
@@ -501,6 +1060,7 @@ export class InMemoryApiStore {
     const now = new Date();
     const row: AiGenerationJobRow = {
       id: input.id,
+      operation_id: input.operationId ?? null,
       user_id: input.userId,
       provider: input.provider,
       model: input.model,
@@ -534,10 +1094,62 @@ export class InMemoryApiStore {
   }
 }
 
+function createUsageEventRow(input: CreateAiUsageEventInput): AiUsageEventRow {
+  return {
+    id: input.id,
+    operation_id: input.operationId ?? null,
+    user_id: input.userId,
+    feature: input.feature,
+    provider: input.provider,
+    model: input.model,
+    status: input.status,
+    provider_request_id: input.providerRequestId ?? null,
+    usage_json: normalizeProviderUsageMetrics(input.usage),
+    cost_micro_usd: normalizeMicroUsd(input.costMicroUsd),
+    pricing_version: requiredText(input.pricingVersion, 'pricingVersion'),
+    created_at: input.createdAt ?? new Date(),
+  };
+}
+
 function monthlyUsageKey(userId: string, period: string) {
   return `${userId}:${period}`;
 }
 
+function emptyMonthlyUsage(userId: string, period: string, generationLimit: number): AiUsageMonthlyRow {
+  return {
+    user_id: userId,
+    period,
+    generation_limit: generationLimit,
+    generation_count: 0,
+    committed_generation_count: 0,
+    reserved_generation_count: 0,
+    provider_cost_micro_usd: '0',
+    input_tokens: '0',
+    output_tokens: '0',
+    failed_call_count: 0,
+    estimated_cost: '0',
+    updated_at: new Date(),
+  };
+}
+
 function addNumericStrings(a: string, b: string) {
   return String(Number(a) + Number(b));
+}
+
+function addIntegerStrings(a: string, b: string) {
+  return (BigInt(a) + BigInt(b)).toString();
+}
+
+function newestFirst<T extends { created_at: Date }>(left: T, right: T) {
+  return right.created_at.getTime() - left.created_at.getTime();
+}
+
+function positiveInteger(value: number, label: string): number {
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`${label} must be a positive integer`);
+  return value;
+}
+
+function monthlyPeriod(value: string): string {
+  if (!/^\d{4}-\d{2}$/.test(value)) throw new Error('period must use YYYY-MM');
+  return value;
 }

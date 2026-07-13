@@ -20,9 +20,10 @@ Completed in the first slice:
 - Turborepo is installed with API-scoped build/typecheck/test scripts.
 - `@artifact/api` has production `build`, `start`, and `worker:start` scripts
   that emit and run compiled `dist` output.
-- Dedicated API, worker, and Bull Board Dockerfiles exist under `docker/`.
-- GitHub Actions has an additive container image workflow for API, worker, and
-  Bull Board images.
+- Dedicated API, worker, Bull Board, and backoffice Dockerfiles exist under
+  `docker/`.
+- GitHub Actions has an additive container image workflow for API, worker,
+  Bull Board, and backoffice images.
 - Docker context excludes local agent/cache/build artifacts and env secrets.
 
 Completed in the web relocation slice:
@@ -125,6 +126,8 @@ packages/
 
 docker/
   api.Dockerfile
+  backoffice.Dockerfile
+  backoffice.nginx.conf
   worker.Dockerfile
   bull-board.Dockerfile
 
@@ -347,6 +350,7 @@ Suggested services:
 
 ```text
 web       -> Vercel, not Coolify, unless a VPS web fallback is desired
+backoffice -> Coolify container, public only behind Cloudflare Access
 api       -> Coolify container, public behind domain/proxy
 worker    -> Coolify container, private long-running process
 bullboard -> Coolify container or API route, private/admin protected
@@ -357,8 +361,9 @@ storage   -> local volume first, object storage later
 
 ### Coolify Service Image References
 
-Configure API, worker, and Bull Board as image-based services, not Git/source
-build services. For one release, all three should point at the same pushed ref:
+Configure API, worker, Bull Board, and backoffice as image-based services, not
+Git/source build services. For one release, all four should point at the same
+pushed ref:
 
 ```text
 api image:
@@ -369,6 +374,9 @@ worker image:
 
 bullboard image:
   ghcr.io/<owner>/<repo>/artifact-bull-board:sha-<shortsha>
+
+backoffice image:
+  ghcr.io/<owner>/<repo>/artifact-backoffice:sha-<shortsha>
 ```
 
 Use the lowercase owner/repo path shown in the GitHub workflow summary. If
@@ -380,9 +388,11 @@ ghcr.io/<owner>/<repo>/artifact-api@sha256:<digest>
 ```
 
 The API service should be public behind the Coolify proxy and healthchecked at
-`/api/health`. The worker should be private, long-running, and not exposed over
-HTTP. Bull Board should be private/admin-only; either expose it through a
-protected internal domain/VPN, or keep it disabled until auth/proxy protection
+`/api/health`. Backoffice listens on `8080`, is healthchecked at `/healthz`, and
+must sit behind Cloudflare Access plus API-side Admin authorization. The worker
+should be private, long-running, and not exposed over HTTP. Bull Board should
+be private/admin-only; either expose it through a protected internal domain/VPN,
+or keep it disabled until auth/proxy protection
 is configured.
 
 ### Runtime Environment Expectations
@@ -406,7 +416,7 @@ AUTH_JWT_AUDIENCE=<optional>
 CLERK_SECRET_KEY=<optional-if-using-clerk>
 CLERK_JWT_KEY=<optional-if-using-clerk>
 CLERK_AUTHORIZED_PARTIES=https://<vercel-or-web-origin>
-API_DEV_BEARER_TOKEN=<local-or-admin-only-dev-token-if-needed>
+# API_DEV_BEARER_TOKEN is local-only and must remain unset in production.
 
 OPENAI_API_KEY=<optional-provider-key>
 OPENAI_IMAGE_MODEL=gpt-image-2
@@ -443,8 +453,9 @@ Service-specific notes:
 Deploy one immutable image set at a time:
 
 1. Pick the GitHub workflow run and record the `sha-<shortsha>` tag or digest
-   for `artifact-api`, `artifact-worker`, and `artifact-bull-board`.
-2. Confirm Coolify can pull all three images with the configured GHCR registry
+   for `artifact-api`, `artifact-worker`, `artifact-bull-board`, and
+   `artifact-backoffice`.
+2. Confirm Coolify can pull all four images with the configured GHCR registry
    credentials before changing running services.
 3. Pause or scale down the worker so no generation job is mid-write during a
    schema migration.
@@ -458,7 +469,9 @@ Deploy one immutable image set at a time:
    repeated restarts.
 7. Deploy or re-enable Bull Board last, then confirm the queue view points at
    the same Redis instance.
-8. Run the API smoke flow and one AI generation smoke test before moving the
+8. Deploy backoffice after the API is healthy, verify `/healthz`, and smoke-test
+   sign-in plus a direct React Router path such as `/usage`.
+9. Run the API smoke flow and one AI generation smoke test before moving the
    Vercel web app or announcing the release.
 
 Migration scripts must be forward-safe for the old worker during the short

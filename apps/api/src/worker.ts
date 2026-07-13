@@ -1,16 +1,22 @@
 import { processGenerationJob } from './generationWorker.js';
 import { logInfo } from './logger.js';
 import { createApiRuntime } from './runtime.js';
+import { createConfiguredSafetyBudgetService } from './safetyBudgetService.js';
 
 const { config, pool, repositories, queue, storage, providers } = createApiRuntime();
+const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvents, config.aiSafetyBudgetUsd);
 
-const worker = queue.process(async (job) => {
-  await processGenerationJob(job, {
-    repositories,
-    providers,
-    storage,
-  });
-});
+const worker = queue.process(
+  async (job) => {
+    await processGenerationJob(job, {
+      repositories,
+      providers,
+      storage,
+      safetyBudget,
+    });
+  },
+  { concurrency: 2 },
+);
 
 logInfo('worker.started', {
   redisUrlConfigured: Boolean(config.redisUrl),
