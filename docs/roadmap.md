@@ -321,7 +321,10 @@ Next strong candidates after v0.39:
   Admin route loading happen before protected UI renders. Treat this as a
   separate infrastructure release with a Node container, SSR-specific
   security/hydration tests, and an explicit Coolify rollback path rather than
-  changing the runtime during v0.41 rollout.
+  changing the runtime during v0.41 rollout. Also move Vercel production
+  deployment behind the same post-CI release gate instead of relying on the
+  GitHub App auto-deploy path, so production web publishes only after quality,
+  browser, and container checks have passed.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
