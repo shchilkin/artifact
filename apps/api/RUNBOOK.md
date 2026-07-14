@@ -73,8 +73,25 @@ persist to disk`, redeploy the current compose config before investigating queue
 workers; old containers may still have the default RDB snapshot settings.
 
 Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
-`bull-board` only behind an admin-only domain or Coolify protection; it is an
-operator surface, not a public app feature.
+`bull-board` only behind its dedicated operator domain. The compose file adds a
+service-specific Traefik Basic Auth middleware, so set
+`BULL_BOARD_BASIC_AUTH_USERS` to an htpasswd entry before deployment. For
+example, generate the value with `htpasswd -nbB <username> <password>`. Keep the
+plain password in a password manager and store only the generated htpasswd
+entry in Coolify. Because the label reads an environment variable, disable
+Coolify's **Escape special characters in labels** option for this Compose
+resource. Do not enable Coolify's application-wide Basic Auth: that would also
+protect the public API service.
+
+After deployment, verify the boundary rather than only container health:
+
+```bash
+curl -I https://<bull-board-domain>/admin/queues
+curl -u '<username>:<password>' -I https://<bull-board-domain>/admin/queues
+```
+
+The first request must return `401`; the authenticated request must return
+`200`. Bull Board is an operator surface, not a public app feature.
 
 The API and Bull Board services define container healthchecks against
 `http://127.0.0.1:4000/api/health`; the Bull Board check also verifies that the

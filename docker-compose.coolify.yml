@@ -114,6 +114,9 @@ services:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
     expose:
       - '4000'
+    labels:
+      - 'traefik.http.middlewares.artifact-bull-board-auth.basicauth.users=${BULL_BOARD_BASIC_AUTH_USERS:?Set the Bull Board htpasswd credentials}'
+      - 'coolify.traefik.middlewares=artifact-bull-board-auth'
     healthcheck:
       test: ['CMD', 'node', 'dist/healthcheck.js', 'bull-board']
       interval: 30s
