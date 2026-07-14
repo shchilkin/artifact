@@ -126,6 +126,7 @@ test('shows an occupied AI slot as busy instead of a shader failure', async ({ p
   });
 
   await gotoDocument(page, documentFixture);
+  test.skip(!(await supportsWebGl(page)), 'AI shader creation requires WebGL.');
   await switchToNodeView(page);
   await page.locator('.react-flow__node-shaderNode').click();
   await page.getByRole('button', { name: 'Create New Version' }).click();
