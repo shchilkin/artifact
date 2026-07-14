@@ -67,8 +67,8 @@ function createDeps(
     now: () => new Date('2026-05-20T10:00:00.000Z'),
     createId: () => `job-${++nextId}`,
   };
-  setProcessor((job) =>
-    processGenerationJob(job, {
+  setProcessor(async (job) => {
+    await processGenerationJob(job, {
       repositories: deps.repositories,
       providers: deps.providers,
       shaderProvider: deps.shaderProvider,
@@ -78,8 +78,8 @@ function createDeps(
         deleteImage: vi.fn(),
       },
       now: deps.now,
-    }),
-  );
+    });
+  });
   return { deps, enqueue, store };
 }
 

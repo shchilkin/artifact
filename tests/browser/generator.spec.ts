@@ -3343,6 +3343,17 @@ test.describe('AI generated image export and polling flows', () => {
 
     await expectGeneratedImageLayer(page, prompt);
   });
+
+  test('AI generation resumes polling after a temporary connection failure', async ({ page }) => {
+    const prompt = 'reconnected neon portrait';
+    await mockEnabledAiAccess(page, { used: 4, remaining: 6 });
+    await failFirstGenerationStatusFetch(page);
+    await mockPolledAiGeneration(page, prompt);
+
+    await generateAiImageFromSidebar(page, prompt);
+
+    await expectGeneratedImageLayer(page, prompt);
+  });
 });
 
 test.describe('AI quota access flow', () => {
@@ -4014,6 +4025,23 @@ async function mockPolledAiGeneration(page: Page, expectedPrompt: string) {
     }
 
     await route.fallback();
+  });
+}
+
+async function failFirstGenerationStatusFetch(page: Page) {
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    let failed = false;
+    window.fetch = async (...args: Parameters<typeof window.fetch>) => {
+      const [input, init] = args;
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      if (!failed && method === 'GET' && url.includes('/api/ai/generations/browser-ai-polled-job')) {
+        failed = true;
+        throw new TypeError('Failed to fetch');
+      }
+      return originalFetch(...args);
+    };
   });
 }
 

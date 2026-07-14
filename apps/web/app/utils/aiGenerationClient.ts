@@ -219,13 +219,14 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 async function requestJson(path: string, init: RequestInit, options: AiGenerationClientOptions): Promise<unknown> {
   const fetcher = options.fetcher ?? fetch;
   const token = options.bearerToken ?? options.devToken;
+  const requestInit = disableGetCaching(init);
   const response = await fetcher(endpoint(options.baseUrl, path), {
     credentials: 'include',
-    ...init,
+    ...requestInit,
     headers: {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
+      ...requestInit.headers,
     },
     signal: options.signal,
   });
@@ -237,6 +238,12 @@ async function requestJson(path: string, init: RequestInit, options: AiGeneratio
     throw new AiGenerationApiError(message, response.status, code);
   }
   return body;
+}
+
+function disableGetCaching(init: RequestInit): RequestInit {
+  const method = (init.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' || init.cache !== undefined) return init;
+  return { ...init, cache: 'no-store' };
 }
 
 export async function createAiGenerationJob(
@@ -315,18 +322,35 @@ async function awaitShaderCandidate(
       );
     }
     await waitForShaderPoll(Math.min(options.pollIntervalMs ?? 1_000, remainingMs), options.signal);
-    const body = await requestJson(
-      `/api/ai/shaders/${encodeURIComponent(current.requestId)}`,
-      { method: 'GET' },
-      options,
-    );
-    current = parseAiShaderRequestResponse(body);
+    const next = await pollShaderRequest(current.requestId, options);
+    if (next) current = next;
   }
   if (current.status === 'failed') throw new AiGenerationApiError(current.message, 200, current.code);
   if (current.status === 'client_rejected') {
     throw new AiGenerationApiError('This shader is waiting for browser-guided repair.', 409, 'shader_repair_required');
   }
   return current;
+}
+
+async function pollShaderRequest(requestId: string, options: AiGenerationClientOptions) {
+  try {
+    const body = await requestJson(`/api/ai/shaders/${encodeURIComponent(requestId)}`, { method: 'GET' }, options);
+    return parseAiShaderRequestResponse(body);
+  } catch (error) {
+    if (!isRetryableAiPollingError(error)) throw error;
+    return undefined;
+  }
+}
+
+export function isRetryableAiPollingError(error: unknown) {
+  if (isAbortError(error)) return false;
+  if (error instanceof TypeError) return true;
+  if (!(error instanceof AiGenerationApiError)) return false;
+  return error.status === 408 || error.status === 425 || error.status === 429 || error.status >= 500;
+}
+
+function isAbortError(error: unknown) {
+  return typeof DOMException !== 'undefined' && error instanceof DOMException && error.name === 'AbortError';
 }
 
 function waitForShaderPoll(delayMs: number, signal?: AbortSignal) {

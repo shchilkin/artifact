@@ -47,6 +47,7 @@ export function writeApiResponse(res: ServerResponse, response: ApiResponse<unkn
 function writeJsonResponse(res: ServerResponse, response: JsonResponse<unknown>) {
   res.writeHead(response.status, {
     'content-type': 'application/json',
+    'cache-control': 'no-store',
     ...response.headers,
   });
   res.end(JSON.stringify(response.body));

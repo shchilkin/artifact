@@ -3,6 +3,7 @@ import { AccountAccessService } from './accountAccessService.js';
 import type { AiGenerationSettings, AiProvider, GenerationQueuePayload } from './contracts.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiGenerationJobRow, JsonObject, JsonValue } from './db/types.js';
+import type { GenerationWorkerResult } from './generationWorkerResult.js';
 import { logError, logInfo, logWarn } from './logger.js';
 import { priceProviderUsage } from './providerPricing.js';
 import type { ImageGenerationResult, ProviderRegistry } from './providers/index.js';
@@ -29,10 +30,9 @@ const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'im
 export async function processGenerationJob(
   queueJob: QueueJob<GenerationQueuePayload>,
   deps: GenerationWorkerDeps,
-): Promise<void> {
+): Promise<GenerationWorkerResult> {
   if (queueJob.data.kind === 'shader') {
-    await processShaderJob(queueJob.data.requestId, queueJob.data.userId, deps);
-    return;
+    return processShaderJob(queueJob.data.requestId, queueJob.data.userId, deps);
   }
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
   if (!job || (job.status !== 'queued' && job.status !== 'running')) {
@@ -41,7 +41,7 @@ export async function processGenerationJob(
       userId: queueJob.data.userId,
       reason: job ? `status_${job.status}` : 'not_found',
     });
-    return;
+    return { status: 'skipped' };
   }
   const access = new AccountAccessService(deps.repositories, { now: deps.now });
   const usage = new ProviderUsageService(deps.repositories.usageEvents, {
@@ -51,8 +51,10 @@ export async function processGenerationJob(
 
   try {
     await runGeneration(job, deps, access, usage);
+    return { status: 'succeeded' };
   } catch (error) {
-    await failGeneration(job, deps, access, error);
+    const failure = await failGeneration(job, deps, access, error);
+    return { status: 'failed', code: failure.code };
   }
 }
 
@@ -223,6 +225,7 @@ async function failGeneration(
     estimatedCost: null,
   });
   if (job.operation_id) await access.release(job.operation_id, 'failed', failure.code);
+  return failure;
 }
 
 async function commitUsableOperation(
