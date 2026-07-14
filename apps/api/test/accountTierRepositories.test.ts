@@ -30,6 +30,7 @@ describe('account tier repositories', () => {
       idempotencyKey: 'idem-1',
       reservationPeriod: '2026-07',
       reservedGenerations: 1 as const,
+      maxActiveOperations: 1,
     };
 
     await expect(operations.reserve({ ...input, generationLimit: 20 })).resolves.toMatchObject({

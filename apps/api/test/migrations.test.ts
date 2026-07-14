@@ -23,6 +23,8 @@ const migrationFiles = [
   '008_ai_shader_refinement.sql',
   '009_account_tiers_and_usage_foundation.sql',
   '010_backfill_ai_operation_accounting.sql',
+  '011_tier_active_operation_limits.sql',
+  '012_ai_operation_validation_wait.sql',
 ];
 const migrateScript = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../scripts/migrate.mjs'), 'utf8');
 const initialMigrationSql = readFileSync(resolve(migrationsDir, '001_initial_ai_generation.sql'), 'utf8');
@@ -43,6 +45,11 @@ const operationAccountingBackfillSql = readFileSync(
   resolve(migrationsDir, '010_backfill_ai_operation_accounting.sql'),
   'utf8',
 );
+const tierActiveOperationLimitsSql = readFileSync(
+  resolve(migrationsDir, '011_tier_active_operation_limits.sql'),
+  'utf8',
+);
+const operationValidationWaitSql = readFileSync(resolve(migrationsDir, '012_ai_operation_validation_wait.sql'), 'utf8');
 const pool = testDatabaseUrl ? new Pool({ connectionString: testDatabaseUrl }) : null;
 
 afterAll(async () => {
@@ -54,6 +61,20 @@ describe('AI generation migrations', () => {
     expect(operationAccountingBackfillSql).toContain('committed_generation_count');
     expect(operationAccountingBackfillSql).toContain('GREATEST(committed_generation_count, generation_count)');
     expect(operationAccountingBackfillSql).toContain('reserved_generation_count = 0');
+  });
+
+  it('replaces the one-active-operation constraint with a lookup index for tier limits', () => {
+    expect(tierActiveOperationLimitsSql).toContain('DROP INDEX IF EXISTS ai_operations_one_active_per_user_idx');
+    expect(tierActiveOperationLimitsSql).toContain('DROP INDEX IF EXISTS ai_generation_jobs_one_active_per_user_idx');
+    expect(tierActiveOperationLimitsSql).toContain('CREATE INDEX IF NOT EXISTS ai_operations_active_per_user_idx');
+    expect(tierActiveOperationLimitsSql).toContain('CREATE INDEX IF NOT EXISTS ai_generation_jobs_active_per_user_idx');
+    expect(tierActiveOperationLimitsSql).not.toContain('CREATE UNIQUE INDEX');
+  });
+
+  it('moves generated shaders out of active provider-operation capacity', () => {
+    expect(operationValidationWaitSql).toContain("'awaiting_validation'");
+    expect(operationValidationWaitSql).toContain("shaders.status IN ('generated', 'client_rejected')");
+    expect(operationValidationWaitSql).toContain("operations.status = 'running'");
   });
   it('tracks applied production migrations with checksums under an advisory lock', () => {
     expect(migrateScript).toContain('schema_migrations');

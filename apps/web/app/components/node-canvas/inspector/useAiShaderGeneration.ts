@@ -22,6 +22,7 @@ import {
   shaderGenerationSuccessMessage,
   shaderRepairError,
 } from './aiShaderGenerationMessages';
+import { beginAiShaderRequest, finishAiShaderRequest } from './aiShaderRequestGate';
 import { canCreateAiShader } from './ShaderInspectorModel';
 import { type ShaderGenerationMachineEvent, shaderGenerationMachine } from './shaderGenerationMachine';
 
@@ -67,6 +68,7 @@ export function useAiShaderGeneration({
   const generatingFallback = state.matches('creatingFallback');
   const generating = state.hasTag('generating');
   const fallbackAvailable = state.context.fallbackAvailable;
+  const blocked = state.matches('blocked');
   const canCreate = canCreateAiShader(prompt, sourceConnected, generating);
   const sourceRequestId = shaderNode.shaderInstance?.definition.provenance?.requestId;
 
@@ -114,11 +116,11 @@ export function useAiShaderGeneration({
       const intent = prepareGenerationIntent(mode, refinementInstruction, prompt, canCreate, canRefine);
       if (!intent) return false;
 
-      const controller = new AbortController();
+      const controller = beginAiShaderRequest(requestRef);
+      if (!controller) return false;
       const idempotencyKey = createAiIdempotencyKey('shader');
       const start = generationStart(intent);
       rememberOpenAiRequestKey(openAiRequestKeyRef, intent, idempotencyKey);
-      requestRef.current = controller;
       applyCompletion(start);
 
       try {
@@ -134,7 +136,7 @@ export function useAiShaderGeneration({
       } catch (error) {
         return applyCompletion(generationErrorCompletion(error, intent, controller.signal));
       } finally {
-        if (requestRef.current === controller) requestRef.current = null;
+        finishAiShaderRequest(requestRef, controller);
       }
     },
     [
@@ -161,6 +163,7 @@ export function useAiShaderGeneration({
     generatingFallback,
     generating,
     fallbackAvailable,
+    blocked,
     canCreate,
     canRefine,
     create: (mode: AiShaderRequestMode = 'openai') => run(mode),
@@ -317,6 +320,13 @@ function generationErrorCompletion(
 ): GenerationCompletion | null {
   if (signal.aborted) return null;
   const failure = shaderGenerationError(error, intent.mode);
+  if (failure.blocked) {
+    return {
+      accepted: false,
+      event: { type: 'OPERATION_BLOCKED', message: failure.message },
+      status: 'blocked',
+    };
+  }
   return failedGeneration({
     type: 'UNEXPECTED_FAILED',
     message: failure.message,

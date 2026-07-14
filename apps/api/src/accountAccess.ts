@@ -1,9 +1,9 @@
 import type { AccountAllowanceSnapshot, AccountTier, AccountTierPolicy } from '@artifact/shared';
 
 const TIER_POLICIES: Readonly<Record<AccountTier, AccountTierPolicy>> = {
-  free: { providerAiEnabled: false, monthlyGenerationLimit: 0 },
-  creator: { providerAiEnabled: true, monthlyGenerationLimit: 20 },
-  founder: { providerAiEnabled: true, monthlyGenerationLimit: null },
+  free: { providerAiEnabled: false, monthlyGenerationLimit: 0, maxActiveOperations: 0 },
+  creator: { providerAiEnabled: true, monthlyGenerationLimit: 20, maxActiveOperations: 3 },
+  founder: { providerAiEnabled: true, monthlyGenerationLimit: null, maxActiveOperations: 15 },
 };
 
 export interface CalculateAccountAllowanceInput {

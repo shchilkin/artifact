@@ -14,6 +14,7 @@ export interface AiShaderInspectorViewModelInput {
   compileMessage?: string;
   generationMessage: string | null;
   fallbackAvailable: boolean;
+  blocked: boolean;
   failed: boolean;
   provenance?: ShaderDefinitionProvenance;
   generating: boolean;
@@ -82,6 +83,13 @@ function compileFailureStatus(message?: string): AiShaderInspectorStatus {
 }
 
 function generationStatus(input: AiShaderInspectorViewModelInput): AiShaderInspectorStatus {
+  if (input.blocked) {
+    return {
+      title: 'Another creation is running',
+      message: input.generationMessage ?? '',
+      tone: 'info',
+    };
+  }
   const failed = input.fallbackAvailable || input.failed;
   return {
     title: failed ? 'Could not create' : 'Shader ready',
@@ -124,6 +132,7 @@ function aiShaderInspectorSummary(input: AiShaderInspectorViewModelInput): strin
   return firstMatching(
     [
       { when: input.generating, value: 'creating' },
+      { when: input.blocked, value: 'wait' },
       { when: input.fallbackAvailable, value: 'choose next' },
       { when: input.failed || input.compileFailed, value: 'try again' },
       { when: input.promptTooLong, value: 'too long' },
@@ -142,7 +151,7 @@ function aiShaderPrimaryActionLabel(input: AiShaderInspectorViewModelInput): str
       { when: input.refining, value: 'Refining...' },
       { when: input.validating, value: 'Checking...' },
       { when: input.repairing, value: 'Repairing...' },
-      { when: input.fallbackAvailable || input.failed || input.compileFailed, value: 'Try Again' },
+      { when: input.blocked || input.fallbackAvailable || input.failed || input.compileFailed, value: 'Try Again' },
       { when: input.promptTooLong, value: 'Shorten Prompt' },
       { when: !input.sourceConnected, value: 'Connect Source First' },
       { when: input.hasResult, value: 'Create New Version' },

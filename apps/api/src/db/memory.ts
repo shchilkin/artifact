@@ -2,7 +2,6 @@ import { normalizeMicroUsd, normalizeProviderUsageMetrics, requiredText } from '
 import {
   AccountTierVersionConflictError,
   ActiveAiOperationExistsError,
-  ActiveGenerationJobExistsError,
   CloudProjectOwnershipConflictError,
   QuotaGrantReversalExceededError,
 } from './errors.js';
@@ -161,11 +160,11 @@ export class InMemoryApiStore {
       assertOperationRetry(existing, input);
       return { row: existing, claimed: false };
     }
-    const active = Array.from(this.operations.values()).find(
+    const activeCount = Array.from(this.operations.values()).filter(
       (operation) =>
         operation.user_id === input.userId && (operation.status === 'reserved' || operation.status === 'running'),
-    );
-    if (active) throw new ActiveAiOperationExistsError(input.userId);
+    ).length;
+    if (activeCount >= input.maxActiveOperations) throw new ActiveAiOperationExistsError(input.userId);
     const usageKey = monthlyUsageKey(input.userId, input.reservationPeriod);
     const usage =
       this.monthlyUsage.get(usageKey) ??
@@ -199,16 +198,29 @@ export class InMemoryApiStore {
   async markOperationRunning(id: string, startedAt: Date): Promise<AiOperationRow> {
     const operation = this.requireOperation(id);
     if (operation.status === 'running') return operation;
-    if (operation.status !== 'reserved') throw new Error(`AI operation cannot start from ${operation.status}: ${id}`);
+    if (operation.status !== 'reserved' && operation.status !== 'awaiting_validation') {
+      throw new Error(`AI operation cannot start from ${operation.status}: ${id}`);
+    }
     const running = { ...operation, status: 'running' as const, started_at: startedAt };
     this.operations.set(id, running);
     return running;
   }
 
+  async markOperationAwaitingValidation(id: string): Promise<AiOperationRow> {
+    const operation = this.requireOperation(id);
+    if (operation.status === 'awaiting_validation') return operation;
+    if (operation.status !== 'running') {
+      throw new Error(`AI operation cannot await validation from ${operation.status}: ${id}`);
+    }
+    const awaitingValidation = { ...operation, status: 'awaiting_validation' as const };
+    this.operations.set(id, awaitingValidation);
+    return awaitingValidation;
+  }
+
   async markOperationSucceeded(id: string, completedAt: Date): Promise<AiOperationRow> {
     const operation = this.requireOperation(id);
     if (operation.status === 'succeeded') return operation;
-    if (operation.status !== 'reserved' && operation.status !== 'running') {
+    if (!['reserved', 'running', 'awaiting_validation'].includes(operation.status)) {
       throw new Error(`AI operation cannot succeed from ${operation.status}: ${id}`);
     }
     this.commitOperationUsage(operation, completedAt);
@@ -220,7 +232,8 @@ export class InMemoryApiStore {
   async releaseOperation(input: ReleaseAiOperationInput): Promise<AiOperationRow> {
     const operation = this.requireOperation(input.id);
     if (operation.status === input.status) return operation;
-    if (operation.status !== 'reserved' && operation.status !== 'running') {
+    if (['succeeded', 'failed', 'cancelled', 'expired'].includes(operation.status)) return operation;
+    if (!['reserved', 'running', 'awaiting_validation'].includes(operation.status)) {
       throw new Error(`AI operation cannot release from ${operation.status}: ${input.id}`);
     }
     this.releaseOperationUsage(operation, input.completedAt);
@@ -985,6 +998,7 @@ export class InMemoryApiStore {
           this.findOperationByIdempotencyKey(userId, feature, idempotencyKey),
         reserve: (input) => this.reserveOperation(input),
         markRunning: (id, startedAt) => this.markOperationRunning(id, startedAt),
+        markAwaitingValidation: (id) => this.markOperationAwaitingValidation(id),
         markSucceeded: (id, completedAt) => this.markOperationSucceeded(id, completedAt),
         release: (input) => this.releaseOperation(input),
       },
@@ -1053,10 +1067,6 @@ export class InMemoryApiStore {
 
   async createGenerationJob(input: CreateAiGenerationJobInput): Promise<AiGenerationJobRow> {
     if (this.jobs.has(input.id)) throw new Error(`Generation job already exists: ${input.id}`);
-    const activeJob = Array.from(this.jobs.values()).find(
-      (job) => job.user_id === input.userId && (job.status === 'queued' || job.status === 'running'),
-    );
-    if (activeJob) throw new ActiveGenerationJobExistsError(input.userId);
     const now = new Date();
     const row: AiGenerationJobRow = {
       id: input.id,

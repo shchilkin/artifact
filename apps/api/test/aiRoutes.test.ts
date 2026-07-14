@@ -415,13 +415,44 @@ describe('AI route handlers', () => {
       deps,
     );
 
-    await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'generated' });
+    const generatedRequest = await store.findShaderByIdForUser('job-1', 'user-1');
+    expect(generatedRequest).toMatchObject({ status: 'generated' });
+    if (!generatedRequest?.operation_id) throw new Error('Expected generated shader operation.');
+    await expect(store.findOperationById(generatedRequest.operation_id)).resolves.toMatchObject({
+      status: 'awaiting_validation',
+    });
     await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 0, reserved: 1 });
     await expect(
       handleValidateShaderRequest({ headers: {} }, 'job-1', { candidateRevision: 0, outcome: 'accepted' }, deps),
     ).resolves.toMatchObject({ status: 200, body: { status: 'accepted', repairAvailable: false } });
     await expect(store.findShaderByIdForUser('job-1', 'user-1')).resolves.toMatchObject({ status: 'accepted' });
     await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({ committed: 1, reserved: 0 });
+  });
+
+  it('accepts new provider work while earlier shaders await browser validation', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    deps.shaderProvider = {
+      provider: 'openai',
+      defaultModel: 'gpt-5.5-mini',
+      generateShader: vi.fn(async () => providerShader()),
+    };
+
+    for (let index = 0; index < 4; index += 1) {
+      await expect(
+        handleCreateShaderRequest(
+          { headers: {} },
+          { prompt: `shader ${index}`, idempotencyKey: `shader-validation-wait-${index}` },
+          deps,
+        ),
+      ).resolves.toMatchObject({ status: 200, body: { status: 'generated' } });
+    }
+
+    await expect(accountAccess(store).getAllowance('user-1')).resolves.toMatchObject({
+      committed: 0,
+      reserved: 4,
+      remaining: 16,
+    });
   });
 
   it('refines an owner accepted shader as a new quota-counted candidate', async () => {
@@ -810,37 +841,39 @@ describe('AI route handlers', () => {
     expect(generateShader).toHaveBeenCalledTimes(1);
   });
 
-  it('atomically blocks parallel shader requests with the cross-feature operation guard', async () => {
+  it('allows three parallel Creator shaders and atomically blocks the fourth', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    let finishProvider: (() => void) | undefined;
+    const finishProviders: Array<() => void> = [];
     const generateShader = vi.fn(
       () =>
         new Promise<ReturnType<typeof providerShader>>((resolve) => {
-          finishProvider = () => resolve(providerShader('Reserved Result'));
+          finishProviders.push(() => resolve(providerShader('Reserved Result')));
         }),
     );
     deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
 
-    const firstRequest = handleCreateShaderRequest(
-      { headers: {} },
-      { prompt: 'first shader', idempotencyKey: 'shader-quota-race-1' },
-      deps,
+    const acceptedRequests = ['first', 'second', 'third'].map((label, index) =>
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: `${label} shader`, idempotencyKey: `shader-quota-race-${index + 1}` },
+        deps,
+      ),
     );
-    await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(3));
 
     await expect(
       handleCreateShaderRequest(
         { headers: {} },
-        { prompt: 'second shader', idempotencyKey: 'shader-quota-race-2' },
+        { prompt: 'fourth shader', idempotencyKey: 'shader-quota-race-4' },
         deps,
       ),
     ).resolves.toMatchObject({ status: 409, body: { code: 'operation_in_progress' } });
 
-    finishProvider?.();
-    await expect(firstRequest).resolves.toMatchObject({ status: 200 });
-    expect(generateShader).toHaveBeenCalledTimes(1);
-    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
+    for (const finishProvider of finishProviders) finishProvider();
+    await expect(Promise.all(acceptedRequests)).resolves.toHaveLength(3);
+    expect(generateShader).toHaveBeenCalledTimes(3);
+    await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(3);
   });
 
   it('does not call OpenAI after the monthly quota is exhausted', async () => {
@@ -1056,7 +1089,7 @@ describe('AI route handlers', () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('blocks a second active non-idempotent job', async () => {
+  it('allows multiple active image jobs within the Creator operation limit', async () => {
     const { deps, store } = createDeps();
     store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
     await handleCreateGenerationRequest({ headers: {} }, createBody, deps);
@@ -1064,9 +1097,10 @@ describe('AI route handlers', () => {
     await expect(
       handleCreateGenerationRequest({ headers: {} }, { ...createBody, idempotencyKey: 'request-2' }, deps),
     ).resolves.toMatchObject({
-      status: 409,
-      body: { code: 'operation_in_progress' },
+      status: 201,
+      body: { id: 'job-2' },
     });
+    await expect(store.countActiveJobs('user-1')).resolves.toBe(2);
   });
 
   it('maps repository active-job conflicts from concurrent creates', async () => {

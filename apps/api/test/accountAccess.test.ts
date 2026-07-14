@@ -6,7 +6,13 @@ describe('account access policy', () => {
     expect(getAccountTierPolicy('free')).toEqual({
       providerAiEnabled: false,
       monthlyGenerationLimit: 0,
+      maxActiveOperations: 0,
     });
+  });
+
+  it('defines active AI operation limits per tier', () => {
+    expect(getAccountTierPolicy('creator')).toMatchObject({ maxActiveOperations: 3 });
+    expect(getAccountTierPolicy('founder')).toMatchObject({ maxActiveOperations: 15 });
   });
 
   it('derives Creator remaining allowance from policy, grants, reversals, committed work, and reservations', () => {

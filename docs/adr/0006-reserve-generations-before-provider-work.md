@@ -14,16 +14,23 @@ Each user action carries an idempotency key. Repeating the same action with the
 same key returns or resumes its existing operation rather than reserving or
 consuming another Generation.
 
+Shader operations move from `running` to `awaiting_validation` after provider
+work finishes. Browser compilation can still commit, reject, or repair the
+reserved Generation, but this client-side validation wait does not consume an
+active provider-operation slot. Repair moves the operation back to `running`
+only while provider work is in flight.
+
 Automatic shader repair calls remain Provider Usage and are recorded as their
 own Usage Events, but they belong to the original user operation and do not
 reserve or consume another Generation. Reservation state changes and expiry are
 auditable so abandoned jobs can be recovered without manually editing used or
 remaining balances.
 
-The closed-alpha operational limits are shared across image and shader
-features: one active provider-backed AI operation per account, ten operation
-starts per account per rolling minute, and two concurrent provider calls per
-worker. Creator and Founder use the same operational limits. These values are
-server configuration rather than Tier Policy and may be tuned without changing
-product allowances. A queued operation keeps only its existing Generation
+The active-operation limit is shared across image and shader features and is
+part of Tier Policy: Free accepts 0 active provider-backed operations, Creator
+accepts 3, and Founder accepts 15. PostgreSQL serializes reservations per user
+before checking active capacity and monthly allowance, so concurrent requests
+cannot cross either limit. Ten operation starts per rolling minute and two
+concurrent provider calls per worker remain operational safeguards independent
+of Tier Policy. A queued operation keeps only its existing Generation
 reservation.

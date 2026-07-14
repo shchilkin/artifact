@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 import { cleanupAiGenerationData } from '../src/cleanup.js';
+import { ActiveAiOperationExistsError } from '../src/db/errors.js';
 import { createPostgresRepositories } from '../src/db/postgres.js';
 import { adminTierAssignmentAuditInput } from './helpers/adminAudit.js';
 
@@ -17,6 +18,62 @@ afterAll(async () => {
 });
 
 integrationDescribe('account tier Postgres integration', () => {
+  it('atomically accepts only three concurrent Creator operation reservations', async () => {
+    if (!pool) throw new Error('API_TEST_DATABASE_URL is required for this test.');
+    const schema = `artifact_operation_limit_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const clients = await Promise.all(Array.from({ length: 4 }, () => pool.connect()));
+    try {
+      await clients[0].query(`CREATE SCHEMA ${schema}`);
+      await clients[0].query(`SET search_path TO ${schema}`);
+      for (const file of readdirSync(migrationsDir)
+        .filter((name) => name.endsWith('.sql'))
+        .sort()) {
+        await clients[0].query(readFileSync(resolve(migrationsDir, file), 'utf8'));
+      }
+      await clients[0].query(`INSERT INTO users (id, email, role) VALUES ('user-1', 'user@example.com', 'user')`);
+      await Promise.all(clients.slice(1).map((client) => client.query(`SET search_path TO ${schema}`)));
+
+      const reservations = await Promise.allSettled(
+        clients.map((client, index) =>
+          createPostgresRepositories(client).operations.reserve({
+            id: `operation-${index + 1}`,
+            userId: 'user-1',
+            feature: index % 2 === 0 ? 'shader_create' : 'image_create',
+            idempotencyKey: `operation-idem-${index + 1}`,
+            reservationPeriod: '2026-07',
+            reservedGenerations: 1,
+            generationLimit: 20,
+            maxActiveOperations: 3,
+          }),
+        ),
+      );
+
+      const accepted = reservations.filter((result) => result.status === 'fulfilled');
+      const rejected = reservations.filter((result) => result.status === 'rejected');
+      expect(accepted).toHaveLength(3);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]).toMatchObject({ reason: expect.any(ActiveAiOperationExistsError) });
+      await expect(
+        clients[0].query(
+          `SELECT
+             COUNT(*) FILTER (WHERE status IN ('reserved', 'running'))::int AS active_operations
+           FROM ai_operations
+           WHERE user_id = 'user-1'`,
+        ),
+      ).resolves.toMatchObject({ rows: [{ active_operations: 3 }] });
+      await expect(
+        clients[0].query(
+          `SELECT reserved_generation_count
+           FROM ai_usage_monthly
+           WHERE user_id = 'user-1' AND period = '2026-07'`,
+        ),
+      ).resolves.toMatchObject({ rows: [{ reserved_generation_count: 3 }] });
+    } finally {
+      await clients[0].query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      for (const client of clients) client.release();
+    }
+  });
+
   it('persists the v0.41 account, operation, usage, and audit foundation atomically', async () => {
     if (!pool) throw new Error('API_TEST_DATABASE_URL is required for this test.');
     const schema = `artifact_account_tiers_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -111,6 +168,7 @@ integrationDescribe('account tier Postgres integration', () => {
           reservationPeriod: '2026-07',
           reservedGenerations: 1,
           generationLimit: 20,
+          maxActiveOperations: 1,
         }),
       ).resolves.toMatchObject({ claimed: true, row: { status: 'reserved' } });
       await expect(
@@ -122,9 +180,29 @@ integrationDescribe('account tier Postgres integration', () => {
           reservationPeriod: '2026-07',
           reservedGenerations: 1,
           generationLimit: 20,
+          maxActiveOperations: 1,
         }),
       ).rejects.toThrow('Active AI operation already exists for user: user-1');
       await repositories.operations.markRunning('operation-1', new Date('2026-07-12T10:01:00.000Z'));
+      await repositories.operations.markAwaitingValidation('operation-1');
+      await expect(
+        repositories.operations.reserve({
+          id: 'operation-validation-does-not-block',
+          userId: 'user-1',
+          feature: 'shader_create',
+          idempotencyKey: 'operation-validation-does-not-block',
+          reservationPeriod: '2026-07',
+          reservedGenerations: 1,
+          generationLimit: 20,
+          maxActiveOperations: 1,
+        }),
+      ).resolves.toMatchObject({ claimed: true, row: { status: 'reserved' } });
+      await repositories.operations.release({
+        id: 'operation-validation-does-not-block',
+        status: 'cancelled',
+        errorCode: 'test_cleanup',
+        completedAt: new Date('2026-07-12T10:01:30.000Z'),
+      });
       await repositories.operations.markSucceeded('operation-1', new Date('2026-07-12T10:02:00.000Z'));
       await repositories.operations.markSucceeded('operation-1', new Date('2026-07-12T10:02:00.000Z'));
       await expect(
@@ -143,6 +221,7 @@ integrationDescribe('account tier Postgres integration', () => {
           reservationPeriod: '2026-07',
           reservedGenerations: 1,
           generationLimit: 20,
+          maxActiveOperations: 1,
         }),
       ).resolves.toMatchObject({ claimed: true, row: { status: 'reserved' } });
       await repositories.operations.release({
@@ -280,6 +359,7 @@ integrationDescribe('account tier Postgres integration', () => {
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 1,
       });
       await repositories.shaderRequests.claim({
         id: 'shader-cleanup',
@@ -324,6 +404,7 @@ integrationDescribe('account tier Postgres integration', () => {
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 1,
       });
       await repositories.shaderRequests.claim({
         id: 'shader-recover',

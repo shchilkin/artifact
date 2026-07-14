@@ -39,7 +39,13 @@ export function AiShaderPromptSection({
       onToggle={() => setOpen((value) => !value)}
     >
       <AiShaderEmptyStatus
-        visible={showAiShaderEmptyStatus(hasResult, generation.generating, generation.fallbackAvailable, failed)}
+        visible={showAiShaderEmptyStatus(
+          hasResult,
+          generation.generating,
+          generation.fallbackAvailable,
+          failed,
+          generation.blocked,
+        )}
         hasPrompt={hasPrompt}
         sourceConnected={sourceConnected}
       />
@@ -60,8 +66,14 @@ export function AiShaderPromptSection({
   );
 }
 
-function showAiShaderEmptyStatus(hasResult: boolean, generating: boolean, fallbackAvailable: boolean, failed: boolean) {
-  return !hasResult && !generating && !fallbackAvailable && !failed;
+function showAiShaderEmptyStatus(
+  hasResult: boolean,
+  generating: boolean,
+  fallbackAvailable: boolean,
+  failed: boolean,
+  blocked: boolean,
+) {
+  return !hasResult && !generating && !fallbackAvailable && !failed && !blocked;
 }
 
 function AiShaderEmptyStatus({

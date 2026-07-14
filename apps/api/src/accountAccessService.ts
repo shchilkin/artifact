@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AccountAllowanceSnapshot, AiOperationFeature } from '@artifact/shared';
-import { calculateAccountAllowance } from './accountAccess.js';
+import { calculateAccountAllowance, getAccountTierPolicy } from './accountAccess.js';
 import { isActiveAiOperationExistsError } from './db/errors.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiOperationRow, ReleaseAiOperationInput } from './db/types.js';
@@ -52,6 +52,7 @@ export class AccountAccessService {
     if (allowance.remaining !== null && allowance.remaining <= 0) {
       return { ok: false, code: 'allowance_exhausted', allowance };
     }
+    const policy = getAccountTierPolicy(allowance.tier);
     try {
       const reservation = await this.repositories.operations.reserve({
         id: this.options.createId?.() ?? randomUUID(),
@@ -61,6 +62,7 @@ export class AccountAccessService {
         reservationPeriod: allowance.period,
         reservedGenerations: 1,
         generationLimit: allowance.limit ?? UNBOUNDED_GENERATION_LIMIT,
+        maxActiveOperations: policy.maxActiveOperations,
       });
       if (!reservation)
         return { ok: false, code: 'allowance_exhausted', allowance: await this.getAllowance(input.userId) };
@@ -80,6 +82,10 @@ export class AccountAccessService {
 
   markRunning(operationId: string) {
     return this.repositories.operations.markRunning(operationId, this.options.now?.() ?? new Date());
+  }
+
+  markAwaitingValidation(operationId: string) {
+    return this.repositories.operations.markAwaitingValidation(operationId);
   }
 
   commit(operationId: string) {
