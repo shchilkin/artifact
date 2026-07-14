@@ -182,6 +182,53 @@ describe('ai generation client', () => {
     });
   });
 
+  it('polls an asynchronously queued shader until the candidate is ready', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const responses = [
+      { requestId: 'shader-queued-1', candidateRevision: 0, status: 'pending' },
+      {
+        requestId: 'shader-queued-1',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'initial',
+        prompt: 'water glass',
+        source: 'openai',
+        model: 'gpt-5.5-mini',
+        instance: generatedShaderInstance,
+      },
+    ];
+    const fetcher = async (url: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      return jsonResponse(responses.shift());
+    };
+
+    const result = await createAiShader(
+      { prompt: 'water glass', idempotencyKey: 'shader-queued-request-1' },
+      { baseUrl: 'https://api.example.test', fetcher, pollIntervalMs: 0 },
+    );
+
+    expect(result.status).toBe('generated');
+    expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ['POST', 'https://api.example.test/api/ai/shaders'],
+      ['GET', 'https://api.example.test/api/ai/shaders/shader-queued-1'],
+    ]);
+  });
+
+  it('stops polling when queued shader work takes too long', async () => {
+    const { fetcher } = captureJsonFetch({
+      requestId: 'shader-stuck-1',
+      candidateRevision: 0,
+      status: 'pending',
+    });
+
+    await expect(
+      createAiShader(
+        { prompt: 'water glass', idempotencyKey: 'shader-stuck-request-1' },
+        { fetcher, pollTimeoutMs: 0 },
+      ),
+    ).rejects.toMatchObject({ status: 504, code: 'shader_request_timeout' });
+  });
+
   it('creates a refinement candidate from an accepted shader request', async () => {
     const { calls, fetcher } = captureJsonFetch({
       requestId: 'shader-refined-1',

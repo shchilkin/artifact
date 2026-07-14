@@ -2,6 +2,7 @@ export const AI_API_PATHS = {
   health: '/api/health',
   access: '/api/ai/access',
   shader: '/api/ai/shaders',
+  shaderRequest: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}`,
   shaderValidation: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/validation`,
   shaderRepair: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/repair`,
   generations: '/api/ai/generations',
@@ -350,6 +351,21 @@ export interface AiShaderGenerationResponse {
   model?: string;
   warnings?: string[];
 }
+
+export type AiShaderRequestResponse =
+  | AiShaderGenerationResponse
+  | {
+      requestId: string;
+      candidateRevision: 0 | 1;
+      status: 'pending' | 'repairing' | 'client_rejected';
+    }
+  | {
+      requestId: string;
+      candidateRevision: 0 | 1;
+      status: 'failed';
+      code: string;
+      message: string;
+    };
 
 export interface ValidateAiShaderRequest {
   candidateRevision: 0 | 1;
@@ -756,10 +772,9 @@ export interface ApiHealthResponse {
   bullBoardEnabled: boolean;
 }
 
-export interface GenerationQueuePayload {
-  jobId: string;
-  userId: string;
-}
+export type GenerationQueuePayload =
+  | { kind: 'image'; jobId: string; userId: string }
+  | { kind: 'shader'; requestId: string; userId: string };
 
 export type AiProvider = AiGenerationProvider;
 export type AiJobStatus = AiGenerationJobStatus;

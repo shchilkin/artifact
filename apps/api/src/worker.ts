@@ -3,7 +3,7 @@ import { logInfo } from './logger.js';
 import { createApiRuntime } from './runtime.js';
 import { createConfiguredSafetyBudgetService } from './safetyBudgetService.js';
 
-const { config, pool, repositories, queue, storage, providers } = createApiRuntime();
+const { config, pool, repositories, queue, storage, providers, shaderProvider } = createApiRuntime();
 const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvents, config.aiSafetyBudgetUsd);
 
 const worker = queue.process(
@@ -11,6 +11,7 @@ const worker = queue.process(
     await processGenerationJob(job, {
       repositories,
       providers,
+      shaderProvider,
       storage,
       safetyBudget,
     });

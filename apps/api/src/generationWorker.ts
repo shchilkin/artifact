@@ -9,9 +9,10 @@ import type { ImageGenerationResult, ProviderRegistry } from './providers/index.
 import { ProviderUsageService } from './providerUsageService.js';
 import type { QueueJob } from './queue.js';
 import { SafetyBudgetService } from './safetyBudgetService.js';
+import { processShaderJob, type ShaderWorkerDeps } from './shaderWorker.js';
 import type { AssetStorage } from './storage/index.js';
 
-export interface GenerationWorkerDeps {
+export interface GenerationWorkerDeps extends ShaderWorkerDeps {
   repositories: ApiRepositories;
   providers: ProviderRegistry;
   storage: AssetStorage;
@@ -29,8 +30,12 @@ export async function processGenerationJob(
   queueJob: QueueJob<GenerationQueuePayload>,
   deps: GenerationWorkerDeps,
 ): Promise<void> {
+  if (queueJob.data.kind === 'shader') {
+    await processShaderJob(queueJob.data.requestId, queueJob.data.userId, deps);
+    return;
+  }
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
-  if (!job || job.status !== 'queued') {
+  if (!job || (job.status !== 'queued' && job.status !== 'running')) {
     logWarn('ai_generation.worker_skipped', {
       jobId: queueJob.data.jobId,
       userId: queueJob.data.userId,
@@ -68,6 +73,7 @@ async function runGeneration(
 }
 
 async function prepareGeneration(job: AiGenerationJobRow, deps: GenerationWorkerDeps, access: AccountAccessService) {
+  if (job.status === 'running') return job;
   const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
   if (running.operation_id) await access.markRunning(running.operation_id);
   return running;

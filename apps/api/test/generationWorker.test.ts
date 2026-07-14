@@ -15,7 +15,7 @@ function createQueueJob(): QueueJob<GenerationQueuePayload> {
   return {
     id: 'job-1',
     name: 'ai-generation',
-    data: { jobId: 'job-1', userId: 'user-1' },
+    data: { kind: 'image', jobId: 'job-1', userId: 'user-1' },
     attemptsMade: 1,
     createdAt: new Date('2026-05-20T10:00:00.000Z'),
     status: 'running',
@@ -159,6 +159,29 @@ describe('processGenerationJob', () => {
       committed: 1,
       reserved: 0,
     });
+  });
+
+  it('resumes a running job recovered by the queue after a worker restart', async () => {
+    const store = new InMemoryApiStore();
+    await seedQueuedJob(store, true);
+    const repositories = store.repositories();
+    await repositories.jobs.markRunning('job-1', new Date('2026-05-20T10:00:30.000Z'));
+    await repositories.operations.markRunning('operation-1', new Date('2026-05-20T10:00:30.000Z'));
+
+    await processGenerationJob(createQueueJob(), {
+      repositories,
+      providers: createProviderRegistry([createMockImageProvider({ provider: 'openai' })]),
+      storage: createStorage(),
+      createId: () => 'asset-1',
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
+    });
+
+    await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
+      status: 'succeeded',
+      output_asset_id: 'asset-1',
+      attempt_count: 1,
+    });
+    await expect(repositories.operations.findById('operation-1')).resolves.toMatchObject({ status: 'succeeded' });
   });
 
   it('marks jobs as failed when provider generation fails', async () => {

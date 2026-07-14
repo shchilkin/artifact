@@ -9,6 +9,7 @@ export type {
   AiShaderCompilerDiagnostic,
   AiShaderGenerationResponse,
   AiShaderRequestMode,
+  AiShaderRequestResponse,
   AiShaderSource,
   AiShaderValidationResponse,
   ApiHealthResponse,

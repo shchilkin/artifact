@@ -5,6 +5,7 @@ import type { GenerationQueuePayload } from '../src/contracts.js';
 import { ActiveGenerationJobExistsError } from '../src/db/errors.js';
 import { InMemoryApiStore } from '../src/db/memory.js';
 import type { CreateUserInput } from '../src/db/types.js';
+import { processGenerationJob } from '../src/generationWorker.js';
 import { createMockImageProvider, createProviderRegistry, OpenAiShaderTimeoutError } from '../src/providers/index.js';
 import type { GenerationQueue, QueueJob } from '../src/queue.js';
 import { createInMemoryRateLimiter } from '../src/rateLimit.js';
@@ -16,26 +17,30 @@ import {
   handleCreateGenerationRequest,
   handleCreateShaderRequest,
   handleGetGenerationRequest,
+  handleGetShaderRequest,
   handleRepairShaderRequest,
   handleValidateShaderRequest,
 } from '../src/routes/ai.js';
 
-function createQueueSpy() {
-  const enqueue = vi.fn(
-    async (payload: GenerationQueuePayload): Promise<QueueJob<GenerationQueuePayload>> => ({
-      id: payload.jobId,
+function createQueueSpy(processShaders = true) {
+  let processor: ((job: QueueJob<GenerationQueuePayload>) => Promise<void>) | undefined;
+  const enqueue = vi.fn(async (payload: GenerationQueuePayload): Promise<QueueJob<GenerationQueuePayload>> => {
+    const job: QueueJob<GenerationQueuePayload> = {
+      id: payload.kind === 'image' ? payload.jobId : payload.requestId,
       name: 'ai-generation',
       data: payload,
       attemptsMade: 0,
       createdAt: new Date('2026-05-20T10:00:00.000Z'),
       status: 'queued',
-    }),
-  );
+    };
+    if (processShaders && payload.kind === 'shader') await processor?.(job);
+    return job;
+  });
   const queue: GenerationQueue = {
     enqueue,
     process: () => ({ close: async () => undefined }),
   };
-  return { enqueue, queue };
+  return { enqueue, queue, setProcessor: (next: typeof processor) => (processor = next) };
 }
 
 class AiRouteTestStore extends InMemoryApiStore {
@@ -46,9 +51,12 @@ class AiRouteTestStore extends InMemoryApiStore {
   }
 }
 
-function createDeps(auth: RequestUserResolution = { authenticated: true, user: { id: 'user-1' } }) {
+function createDeps(
+  auth: RequestUserResolution = { authenticated: true, user: { id: 'user-1' } },
+  processShaders = true,
+) {
   const store = new AiRouteTestStore();
-  const { enqueue, queue } = createQueueSpy();
+  const { enqueue, queue, setProcessor } = createQueueSpy(processShaders);
   let nextId = 0;
   const deps: AiRouteDeps = {
     repositories: store.repositories(),
@@ -59,7 +67,28 @@ function createDeps(auth: RequestUserResolution = { authenticated: true, user: {
     now: () => new Date('2026-05-20T10:00:00.000Z'),
     createId: () => `job-${++nextId}`,
   };
+  setProcessor((job) =>
+    processGenerationJob(job, {
+      repositories: deps.repositories,
+      providers: deps.providers,
+      shaderProvider: deps.shaderProvider,
+      storage: {
+        writeImage: vi.fn(),
+        readImage: vi.fn(),
+        deleteImage: vi.fn(),
+      },
+      now: deps.now,
+    }),
+  );
   return { deps, enqueue, store };
+}
+
+function createShaderDeps(label = 'Provider Shader', processShaders = true) {
+  const result = createDeps({ authenticated: true, user: { id: 'user-1' } }, processShaders);
+  result.store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+  const generateShader = vi.fn(async () => providerShader(label));
+  result.deps.shaderProvider = { provider: 'openai', defaultModel: 'gpt-5.5-mini', generateShader };
+  return { ...result, generateShader };
 }
 
 function accountAccess(store: InMemoryApiStore) {
@@ -327,7 +356,10 @@ describe('AI route handlers', () => {
     expect(response.status).toBe(200);
     if (!('instance' in response.body)) throw new Error('Expected shader response.');
     expect(response.body.instance.definition.code).toContain('texture2D(u_backdrop');
-    expect(enqueue).not.toHaveBeenCalled();
+    expect(enqueue).toHaveBeenCalledWith(
+      { kind: 'shader', requestId: 'job-2', userId: 'user-1' },
+      { jobId: 'shader-job-2-0', name: 'shader_create' },
+    );
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
   });
 
@@ -401,14 +433,52 @@ describe('AI route handlers', () => {
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(1);
   });
 
+  it('returns owner-scoped shader status after queue processing', async () => {
+    const { deps } = createShaderDeps('Queued Shader');
+
+    await handleCreateShaderRequest(
+      { headers: {} },
+      { prompt: 'queued waves', idempotencyKey: 'shader-status-1' },
+      deps,
+    );
+
+    await expect(handleGetShaderRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 200,
+      body: { requestId: 'job-1', status: 'generated', instance: { definition: { label: 'Queued Shader' } } },
+    });
+    deps.resolveAuth = async () => ({ authenticated: true, user: { id: 'user-2' } });
+    await expect(handleGetShaderRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 404,
+      body: { code: 'shader_request_not_found' },
+    });
+  });
+
+  it('returns pending status until the shader worker processes the queued request', async () => {
+    const { deps, enqueue, generateShader } = createShaderDeps('Queued Shader', false);
+
+    await expect(
+      handleCreateShaderRequest(
+        { headers: {} },
+        { prompt: 'queued waves', idempotencyKey: 'shader-status-pending-1' },
+        deps,
+      ),
+    ).resolves.toMatchObject({
+      status: 202,
+      body: { requestId: 'job-1', candidateRevision: 0, status: 'pending' },
+    });
+    expect(enqueue).toHaveBeenCalledWith(
+      { kind: 'shader', requestId: 'job-1', userId: 'user-1' },
+      { jobId: 'shader-job-1-0', name: 'shader_create' },
+    );
+    await expect(handleGetShaderRequest({ headers: {} }, 'job-1', deps)).resolves.toMatchObject({
+      status: 200,
+      body: { requestId: 'job-1', candidateRevision: 0, status: 'pending' },
+    });
+    expect(generateShader).not.toHaveBeenCalled();
+  });
+
   it('does not accept a generated shader until the browser validates it', async () => {
-    const { deps, store } = createDeps();
-    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderProvider = {
-      provider: 'openai',
-      defaultModel: 'gpt-5.5-mini',
-      generateShader: vi.fn(async () => providerShader()),
-    };
+    const { deps, store } = createShaderDeps();
     await handleCreateShaderRequest(
       { headers: {} },
       { prompt: 'water refraction', idempotencyKey: 'shader-validation-1' },
@@ -430,13 +500,7 @@ describe('AI route handlers', () => {
   });
 
   it('accepts new provider work while earlier shaders await browser validation', async () => {
-    const { deps, store } = createDeps();
-    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderProvider = {
-      provider: 'openai',
-      defaultModel: 'gpt-5.5-mini',
-      generateShader: vi.fn(async () => providerShader()),
-    };
+    const { deps, store } = createShaderDeps();
 
     for (let index = 0; index < 4; index += 1) {
       await expect(
@@ -649,13 +713,7 @@ describe('AI route handlers', () => {
   });
 
   it('fails terminally when the repaired shader is rejected by the browser', async () => {
-    const { deps, store } = createDeps();
-    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderProvider = {
-      provider: 'openai',
-      defaultModel: 'gpt-5.5-mini',
-      generateShader: vi.fn(async () => providerShader()),
-    };
+    const { deps, store } = createShaderDeps();
     await handleCreateShaderRequest(
       { headers: {} },
       { prompt: 'glass warp', idempotencyKey: 'shader-repair-terminal-1' },
@@ -832,8 +890,8 @@ describe('AI route handlers', () => {
     const firstRequest = handleCreateShaderRequest({ headers: {} }, body, deps);
     await vi.waitFor(() => expect(generateShader).toHaveBeenCalledTimes(1));
     await expect(handleCreateShaderRequest({ headers: {} }, body, deps)).resolves.toMatchObject({
-      status: 409,
-      body: { code: 'shader_request_in_progress' },
+      status: 202,
+      body: { status: 'pending', requestId: 'job-1' },
     });
 
     finishProvider?.();
@@ -932,13 +990,7 @@ describe('AI route handlers', () => {
   });
 
   it('does not authorize fallback when OpenAI was blocked before the provider call', async () => {
-    const { deps, store } = createDeps();
-    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
-    deps.shaderProvider = {
-      provider: 'openai',
-      defaultModel: 'gpt-5.5-mini',
-      generateShader: vi.fn(async () => providerShader()),
-    };
+    const { deps, store } = createShaderDeps();
     await store.upsertMonthlyUsage({
       userId: 'user-1',
       period: '2026-05',
@@ -1031,7 +1083,10 @@ describe('AI route handlers', () => {
         quota: { used: 1, remaining: 19 },
       },
     });
-    expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    expect(enqueue).toHaveBeenCalledWith(
+      { kind: 'image', jobId: 'job-1', userId: 'user-1' },
+      { jobId: 'job-1', name: 'image_create' },
+    );
   });
 
   it('allows the final monthly generation and returns an exhausted quota snapshot', async () => {
@@ -1051,7 +1106,10 @@ describe('AI route handlers', () => {
         quota: { period: '2026-05', limit: 20, used: 20, remaining: 0 },
       },
     });
-    expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    expect(enqueue).toHaveBeenCalledWith(
+      { kind: 'image', jobId: 'job-1', userId: 'user-1' },
+      { jobId: 'job-1', name: 'image_create' },
+    );
   });
 
   it('rejects generation creation when the monthly quota is exhausted', async () => {
@@ -1147,7 +1205,10 @@ describe('AI route handlers', () => {
     });
     await expect(store.countMonthlyGenerations('user-1', '2026-05')).resolves.toBe(0);
     await expect(store.countActiveJobs('user-1')).resolves.toBe(0);
-    expect(enqueue).toHaveBeenCalledWith({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    expect(enqueue).toHaveBeenCalledWith(
+      { kind: 'image', jobId: 'job-1', userId: 'user-1' },
+      { jobId: 'job-1', name: 'image_create' },
+    );
   });
 
   it('reads an existing generation job for the owner', async () => {

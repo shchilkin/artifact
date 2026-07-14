@@ -1076,7 +1076,8 @@ Private-alpha merge gate:
 - [ ] Post-merge follow-up: harden AI accounting before broader beta access.
   Current safeguards use atomic monthly reservations and tier-specific active
   operation limits across image and shader work: Free 0, Creator 3, Founder 15.
-  Queue enqueue failures refund quota, and same-user reservations are serialized
+  Image create plus shader create/refine/repair now execute through the shared
+  BullMQ worker queue and expose named jobs in Bull Board. Queue enqueue failures refund quota, and same-user reservations are serialized
   in PostgreSQL before capacity is checked. Before opening access beyond the
   private alpha, verify provider throughput, queue depth, and timeout behavior
   under the higher accepted-operation capacity.
