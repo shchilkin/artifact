@@ -109,7 +109,7 @@ async function selectRecoverableOperationIds(client: CleanupQueryClient, limit: 
     `
       SELECT operations.id
       FROM ai_operations AS operations
-      WHERE operations.status IN ('reserved', 'running')
+      WHERE operations.status IN ('reserved', 'running', 'awaiting_validation')
         AND (
           EXISTS (
             SELECT 1 FROM ai_generation_jobs AS jobs
@@ -137,7 +137,7 @@ async function reconcileUsableOperations(client: CleanupQueryClient, now: Date, 
         WHERE operations.id IN (
           SELECT candidates.id
           FROM ai_operations AS candidates
-          WHERE candidates.status IN ('reserved', 'running')
+          WHERE candidates.status IN ('reserved', 'running', 'awaiting_validation')
             AND (
               EXISTS (
                 SELECT 1 FROM ai_generation_jobs AS jobs
@@ -151,7 +151,7 @@ async function reconcileUsableOperations(client: CleanupQueryClient, now: Date, 
           ORDER BY candidates.created_at ASC
           LIMIT $2
         )
-          AND operations.status IN ('reserved', 'running')
+          AND operations.status IN ('reserved', 'running', 'awaiting_validation')
         RETURNING operations.id, operations.user_id, operations.reservation_period, operations.reserved_generations
       ), usage_updated AS (
         UPDATE ai_usage_monthly AS usage
@@ -181,7 +181,7 @@ async function selectStaleActiveOperationIds(client: CleanupQueryClient, cutoff:
     `
       SELECT id
       FROM ai_operations
-      WHERE status IN ('reserved', 'running')
+      WHERE status IN ('reserved', 'running', 'awaiting_validation')
         AND COALESCE(started_at, created_at) < $1
       ORDER BY COALESCE(started_at, created_at) ASC
       LIMIT $2
@@ -202,12 +202,12 @@ async function expireStaleActiveOperations(client: CleanupQueryClient, cutoff: D
         WHERE id IN (
           SELECT id
           FROM ai_operations
-          WHERE status IN ('reserved', 'running')
+          WHERE status IN ('reserved', 'running', 'awaiting_validation')
             AND COALESCE(started_at, created_at) < $1
           ORDER BY COALESCE(started_at, created_at) ASC
           LIMIT $3
         )
-          AND status IN ('reserved', 'running')
+          AND status IN ('reserved', 'running', 'awaiting_validation')
         RETURNING id, user_id, reservation_period, reserved_generations
       ), usage_updated AS (
         UPDATE ai_usage_monthly AS usage

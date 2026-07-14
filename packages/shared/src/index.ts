@@ -19,7 +19,15 @@ export type AccountTier = (typeof ACCOUNT_TIERS)[number];
 export const AI_OPERATION_FEATURES = ['image_create', 'shader_create', 'shader_refine'] as const;
 export type AiOperationFeature = (typeof AI_OPERATION_FEATURES)[number];
 
-export const AI_OPERATION_STATUSES = ['reserved', 'running', 'succeeded', 'failed', 'cancelled', 'expired'] as const;
+export const AI_OPERATION_STATUSES = [
+  'reserved',
+  'running',
+  'awaiting_validation',
+  'succeeded',
+  'failed',
+  'cancelled',
+  'expired',
+] as const;
 export type AiOperationStatus = (typeof AI_OPERATION_STATUSES)[number];
 
 export const AI_USAGE_EVENT_STATUSES = ['succeeded', 'failed'] as const;
@@ -195,6 +203,7 @@ export type AdminAccountMutationResponse = AdminAccountDetailResponse & { create
 export interface AccountTierPolicy {
   providerAiEnabled: boolean;
   monthlyGenerationLimit: number | null;
+  maxActiveOperations: number;
 }
 
 export interface AccountAllowanceSnapshot {

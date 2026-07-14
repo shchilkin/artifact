@@ -257,6 +257,7 @@ export interface CreateAiOperationInput {
 
 export interface ReserveAiOperationInput extends CreateAiOperationInput {
   generationLimit: number;
+  maxActiveOperations: number;
 }
 
 export interface ReleaseAiOperationInput {
@@ -488,6 +489,7 @@ export interface AiOperationRepository {
   ): Promise<AiOperationRow | null>;
   reserve(input: ReserveAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean } | null>;
   markRunning(id: string, startedAt: Date): Promise<AiOperationRow>;
+  markAwaitingValidation(id: string): Promise<AiOperationRow>;
   markSucceeded(id: string, completedAt: Date): Promise<AiOperationRow>;
   release(input: ReleaseAiOperationInput): Promise<AiOperationRow>;
 }

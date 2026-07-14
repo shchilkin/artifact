@@ -8,6 +8,7 @@ import { AiGenerationApiError } from '../../../utils/aiGenerationClient';
 interface ShaderGenerationFailureMessage {
   message: string;
   offerFallback: boolean;
+  blocked: boolean;
 }
 
 type ErrorMessageFactory = (mode: AiShaderRequestMode) => ShaderGenerationFailureMessage;
@@ -17,6 +18,7 @@ const fixedFailure =
   () => ({
     message,
     offerFallback,
+    blocked: false,
   });
 
 const SHADER_ERROR_MESSAGES: Record<string, ErrorMessageFactory> = {
@@ -37,7 +39,11 @@ const SHADER_ERROR_MESSAGES: Record<string, ErrorMessageFactory> = {
   rate_limited: fixedFailure('Too many requests. Wait a moment, then try again.'),
   quota_exceeded: fixedFailure('The monthly AI creation limit has been reached.'),
   allowance_exhausted: fixedFailure('The monthly AI creation allowance has been used.'),
-  operation_in_progress: fixedFailure('Another AI creation is still running. Wait a moment, then try again.'),
+  operation_in_progress: () => ({
+    message: 'Another AI creation is still running. Wait for it to finish, then try again.',
+    offerFallback: false,
+    blocked: true,
+  }),
   shader_provider_timeout: fixedFailure('Creation took too long. Try again.', true),
   shader_request_in_progress: fixedFailure('This shader is already being created. Wait a moment, then try again.'),
   invalid_response: fixedFailure('Creation returned an incomplete result. Try again.', true),
@@ -59,20 +65,25 @@ function providerFailure(mode: AiShaderRequestMode): ShaderGenerationFailureMess
     ? {
         message: 'Could not create this shader. Try again, or make a local draft from the same prompt.',
         offerFallback: true,
+        blocked: false,
       }
-    : { message: 'The local version could not be created. Try a simpler prompt.', offerFallback: false };
+    : {
+        message: 'The local version could not be created. Try a simpler prompt.',
+        offerFallback: false,
+        blocked: false,
+      };
 }
 
 function statusFailure(status: number): ShaderGenerationFailureMessage {
   return status >= 500
-    ? { message: 'Could not create this shader right now. Try again.', offerFallback: true }
-    : { message: 'Check the prompt and try again.', offerFallback: false };
+    ? { message: 'Could not create this shader right now. Try again.', offerFallback: true, blocked: false }
+    : { message: 'Check the prompt and try again.', offerFallback: false, blocked: false };
 }
 
 function unknownFailure(mode: AiShaderRequestMode): ShaderGenerationFailureMessage {
   return mode === 'openai'
-    ? { message: 'Could not create this shader. Try again.', offerFallback: false }
-    : { message: 'The local version could not be created. Try again.', offerFallback: false };
+    ? { message: 'Could not create this shader. Try again.', offerFallback: false, blocked: false }
+    : { message: 'The local version could not be created. Try again.', offerFallback: false, blocked: false };
 }
 
 export function browserValidationFailureMessage(mode: AiShaderRequestMode, repaired: boolean) {

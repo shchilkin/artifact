@@ -80,6 +80,27 @@ describe('AccountAccessService', () => {
     await expect(service.getAllowance('user-1')).resolves.toMatchObject({ reserved: 1, remaining: 19 });
   });
 
+  it('does not count browser shader validation as active provider work', async () => {
+    const { repositories, service } = await createTieredService('creator');
+    const generated = await service.reserve({
+      userId: 'user-1',
+      feature: 'shader_create',
+      idempotencyKey: 'shader-awaiting-validation',
+    });
+    if (!generated.ok) throw new Error('Expected a shader reservation.');
+
+    await service.markRunning(generated.operation.id);
+    await service.markAwaitingValidation(generated.operation.id);
+
+    await expect(repositories.operations.findById(generated.operation.id)).resolves.toMatchObject({
+      status: 'awaiting_validation',
+    });
+    await expect(
+      service.reserve({ userId: 'user-1', feature: 'shader_create', idempotencyKey: 'next-shader' }),
+    ).resolves.toMatchObject({ ok: true, claimed: true });
+    await expect(service.getAllowance('user-1')).resolves.toMatchObject({ committed: 0, reserved: 2, remaining: 18 });
+  });
+
   it('keeps Founder product allowance unbounded while tracking committed usage', async () => {
     const { service } = await createTieredService('founder');
     const reserved = await service.reserve({ userId: 'user-1', feature: 'image_create', idempotencyKey: 'image-1' });
@@ -94,5 +115,30 @@ describe('AccountAccessService', () => {
       reserved: 0,
       remaining: null,
     });
+  });
+
+  it.each([
+    ['creator', 3],
+    ['founder', 15],
+  ] as const)('allows %s to reserve up to %i active operations', async (tier, limit) => {
+    const { service } = await createTieredService(tier);
+
+    for (let index = 0; index < limit; index += 1) {
+      await expect(
+        service.reserve({
+          userId: 'user-1',
+          feature: index % 2 === 0 ? 'shader_create' : 'image_create',
+          idempotencyKey: `operation-${index}`,
+        }),
+      ).resolves.toMatchObject({ ok: true, claimed: true });
+    }
+
+    await expect(
+      service.reserve({
+        userId: 'user-1',
+        feature: 'shader_refine',
+        idempotencyKey: 'over-active-limit',
+      }),
+    ).resolves.toMatchObject({ ok: false, code: 'operation_in_progress' });
   });
 });

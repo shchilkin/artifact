@@ -511,6 +511,7 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
   const refining = status === 'creatingRefine';
   const validating = status === 'validating';
   const repairing = status === 'repairing';
+  const blocked = status === 'blocked';
   const failed = status === 'failed';
   return (
     <div
@@ -530,28 +531,32 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
           <strong>
             {failed
               ? 'Could not create'
-              : repairing
-                ? 'Repairing shader'
-                : validating
-                  ? 'Checking shader'
-                  : refining
-                    ? 'Refining shader'
-                    : fallback
-                      ? 'Making local draft'
-                      : 'Creating shader'}
+              : blocked
+                ? 'Another creation is running'
+                : repairing
+                  ? 'Repairing shader'
+                  : validating
+                    ? 'Checking shader'
+                    : refining
+                      ? 'Refining shader'
+                      : fallback
+                        ? 'Making local draft'
+                        : 'Creating shader'}
           </strong>
           <small>
             {failed
               ? 'Nothing was replaced'
-              : repairing
-                ? 'One automatic repair'
-                : validating
-                  ? 'Testing in this browser'
-                  : refining
-                    ? 'Keeping the current version'
-                    : fallback
-                      ? 'Labeled local'
-                      : 'Setting it up'}
+              : blocked
+                ? 'Try again when it finishes'
+                : repairing
+                  ? 'One automatic repair'
+                  : validating
+                    ? 'Testing in this browser'
+                    : refining
+                      ? 'Keeping the current version'
+                      : fallback
+                        ? 'Labeled local'
+                        : 'Setting it up'}
           </small>
         </span>
       </div>

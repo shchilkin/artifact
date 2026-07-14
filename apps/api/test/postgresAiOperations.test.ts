@@ -20,7 +20,7 @@ const operation: AiOperationRow = {
 
 describe('PostgresAiOperationRepository', () => {
   it('claims a reserved operation with a per-feature idempotency guard', async () => {
-    const client = createFakeQueryClient([[], [operation]]);
+    const client = createFakeQueryClient([[], [], [], [operation], []]);
     const repository = new PostgresAiOperationRepository(client);
 
     await expect(
@@ -32,11 +32,15 @@ describe('PostgresAiOperationRepository', () => {
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 3,
       }),
     ).resolves.toEqual({ row: operation, claimed: true });
 
-    expect(client.calls[1]?.sql).toContain('INSERT INTO ai_usage_monthly');
-    expect(client.calls[1]?.sql).toContain('committed_generation_count');
+    expect(client.calls[1]?.sql).toBe('BEGIN');
+    expect(client.calls[2]?.sql).toContain('pg_advisory_xact_lock');
+    expect(client.calls[3]?.sql).toContain('INSERT INTO ai_usage_monthly');
+    expect(client.calls[3]?.sql).toContain('committed_generation_count');
+    expect(client.calls[4]?.sql).toBe('COMMIT');
   });
 
   it('returns the winning operation after an idempotency conflict', async () => {
@@ -52,6 +56,7 @@ describe('PostgresAiOperationRepository', () => {
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 3,
       }),
     ).resolves.toEqual({ row: operation, claimed: false });
   });
@@ -69,6 +74,7 @@ describe('PostgresAiOperationRepository', () => {
         reservationPeriod: '2026-08',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 3,
       }),
     ).rejects.toThrow('Idempotency key reused with different AI operation input: idem-1');
   });
@@ -78,11 +84,13 @@ describe('PostgresAiOperationRepository', () => {
     const client: PostgresQueryClient = {
       query: async () => {
         queryCount += 1;
-        if (queryCount === 1) return { rows: [] };
-        throw Object.assign(new Error('duplicate active operation'), {
-          code: '23505',
-          constraint: ACTIVE_AI_OPERATION_INDEX,
-        });
+        if (queryCount === 4) {
+          throw Object.assign(new Error('duplicate active operation'), {
+            code: '23505',
+            constraint: ACTIVE_AI_OPERATION_INDEX,
+          });
+        }
+        return { rows: [] };
       },
     };
     const repository = new PostgresAiOperationRepository(client);
@@ -96,7 +104,51 @@ describe('PostgresAiOperationRepository', () => {
         reservationPeriod: '2026-07',
         reservedGenerations: 1,
         generationLimit: 20,
+        maxActiveOperations: 3,
       }),
     ).rejects.toBeInstanceOf(ActiveAiOperationExistsError);
+  });
+
+  it('maps an exhausted tier operation limit to a domain error', async () => {
+    const client = createFakeQueryClient([[], [], [], [{ reservation_result: 'active_limit_exhausted' }], [], []]);
+    const repository = new PostgresAiOperationRepository(client);
+
+    await expect(
+      repository.reserve({
+        id: 'operation-4',
+        userId: 'user-1',
+        feature: 'shader_refine',
+        idempotencyKey: 'idem-4',
+        reservationPeriod: '2026-07',
+        reservedGenerations: 1,
+        generationLimit: 20,
+        maxActiveOperations: 3,
+      }),
+    ).rejects.toBeInstanceOf(ActiveAiOperationExistsError);
+
+    expect(client.calls[2]?.sql).toContain('pg_advisory_xact_lock');
+    expect(client.calls[3]?.sql).toContain("active_operation.status IN ('reserved', 'running')");
+    expect(client.calls[3]?.values?.[7]).toBe(3);
+    expect(client.calls[5]?.sql).toBe('ROLLBACK');
+  });
+
+  it('keeps cleanup terminal status when a late client release races expiry', async () => {
+    const expiredOperation = {
+      ...operation,
+      status: 'expired' as const,
+      error_code: 'operation_expired',
+      completed_at: new Date('2026-07-12T16:00:00.000Z'),
+    };
+    const client = createFakeQueryClient([[], [expiredOperation]]);
+    const repository = new PostgresAiOperationRepository(client);
+
+    await expect(
+      repository.release({
+        id: operation.id,
+        status: 'failed',
+        errorCode: 'shader_browser_validation_failed',
+        completedAt: new Date('2026-07-12T16:01:00.000Z'),
+      }),
+    ).resolves.toEqual(expiredOperation);
   });
 });

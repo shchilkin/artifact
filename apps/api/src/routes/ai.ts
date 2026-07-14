@@ -413,6 +413,7 @@ export async function handleCreateShaderRequest(
     providerRequestId: shaderResult.providerRequestId,
     providerUsageJson: shaderResult.usage ? toJsonObject(shaderResult.usage) : null,
   });
+  if (operationId) await createAccountAccessService(deps).markAwaitingValidation(operationId);
   logInfo(refinement.value ? 'shader_refine_generated' : 'shader_generated', {
     requestId: claimed.row.id,
     userId: authResult.user.id,
@@ -708,6 +709,7 @@ export async function handleRepairShaderRequest(
     }
     return errorJson(409, 'shader_repair_not_available', 'This shader cannot be repaired again.');
   }
+  if (shaderRequest.operation_id) await createAccountAccessService(deps).markRunning(shaderRequest.operation_id);
   logInfo('shader_repairing', { requestId, userId: authResult.user.id, model: deps.shaderProvider.defaultModel });
   let providerUsageRecorded = false;
   try {
@@ -767,6 +769,9 @@ export async function handleRepairShaderRequest(
           })
         : null,
     });
+    if (shaderRequest.operation_id) {
+      await createAccountAccessService(deps).markAwaitingValidation(shaderRequest.operation_id);
+    }
     logInfo('shader_repair_generated', {
       requestId,
       userId: authResult.user.id,
@@ -1157,7 +1162,7 @@ function accountAccessDenial(code: AccountAccessDenialCode, feature: 'image' | '
   if (code === 'allowance_exhausted') {
     return { status: 429, code, message: 'Monthly AI allowance used.' };
   }
-  return { status: 409, code, message: 'Wait for the active AI operation to finish.' };
+  return { status: 409, code, message: 'Your active AI creation limit is reached. Wait for one to finish.' };
 }
 
 function accountAccessDenialResponse(code: AccountAccessDenialCode, feature: 'image' | 'shader') {

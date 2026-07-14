@@ -7,6 +7,7 @@ const baseInput: AiShaderInspectorViewModelInput = {
   compileFailed: false,
   generationMessage: null,
   fallbackAvailable: false,
+  blocked: false,
   failed: false,
   generating: false,
   creatingOpenAi: false,
@@ -75,6 +76,23 @@ describe('AiShaderInspectorModel', () => {
     expect(view({ compileFailed: true, compileMessage: 'Uniform is missing.' })).toMatchObject({
       summary: 'try again',
       status: { title: 'Could not prepare this result', message: 'Uniform is missing.', tone: 'warning' },
+    });
+  });
+
+  it('describes an occupied AI slot without marking the shader as failed', () => {
+    expect(
+      view({
+        generationMessage: 'Another AI creation is still running.',
+        blocked: true,
+      }),
+    ).toMatchObject({
+      summary: 'wait',
+      primaryActionLabel: 'Try Again',
+      status: {
+        title: 'Another creation is running',
+        message: 'Another AI creation is still running.',
+        tone: 'info',
+      },
     });
   });
 

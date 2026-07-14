@@ -18,6 +18,7 @@ export type ShaderGenerationMachineEvent =
   | { type: 'REPAIR_RECEIVED' }
   | { type: 'VALIDATION_FAILED'; message: string; offerFallback?: boolean }
   | { type: 'REPAIR_FAILED'; message: string; offerFallback?: boolean }
+  | { type: 'OPERATION_BLOCKED'; message: string }
   | { type: 'CREATE_FALLBACK' }
   | { type: 'FALLBACK_RECEIVED' }
   | { type: 'UNEXPECTED_FAILED'; message: string; offerFallback?: boolean }
@@ -79,6 +80,7 @@ export const shaderGenerationMachine = setup({
   on: {
     RESET: { target: '.idle', actions: 'clear' },
     UNEXPECTED_FAILED: { target: '.failed', actions: 'markMessage' },
+    OPERATION_BLOCKED: { target: '.blocked', actions: 'markMessage' },
   },
   states: {
     idle: {
@@ -135,6 +137,12 @@ export const shaderGenerationMachine = setup({
       },
     },
     succeeded: {
+      on: {
+        CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' },
+        REFINE_OPENAI: { target: 'creatingRefine', actions: 'startRefine' },
+      },
+    },
+    blocked: {
       on: {
         CREATE_OPENAI: { target: 'creatingOpenAi', actions: 'startOpenAi' },
         REFINE_OPENAI: { target: 'creatingRefine', actions: 'startRefine' },

@@ -111,6 +111,30 @@ const documentFixture = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
+test('shows an occupied AI slot as busy instead of a shader failure', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.route('**/api/ai/shaders', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'operation_in_progress',
+        message: 'Another AI creation is still running.',
+      }),
+    });
+  });
+
+  await gotoDocument(page, documentFixture);
+  await switchToNodeView(page);
+  await page.locator('.react-flow__node-shaderNode').click();
+  await page.getByRole('button', { name: 'Create New Version' }).click();
+
+  await expect(page.getByText('Another creation is running').first()).toBeVisible();
+  await expect(page.getByText('Could not create')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+});
+
 test('refines an accepted AI shader only after browser validation', async ({ page }) => {
   await setupBrowserTestPage(page);
   let createBody: Record<string, unknown> | null = null;

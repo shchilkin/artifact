@@ -59,6 +59,18 @@ describe('ShaderInspector metadata', () => {
     expect(blocked.getSnapshot().context.message).toBe('Quota reached.');
   });
 
+  it('keeps a busy account separate from shader failure', () => {
+    const actor = createActor(shaderGenerationMachine).start();
+    actor.send({ type: 'CREATE_OPENAI' });
+    actor.send({ type: 'OPERATION_BLOCKED', message: 'Another AI creation is still running.' });
+
+    expect(actor.getSnapshot().matches('blocked')).toBe(true);
+    expect(actor.getSnapshot().context).toMatchObject({
+      message: 'Another AI creation is still running.',
+      fallbackAvailable: false,
+    });
+  });
+
   it('validates a local fallback through its dedicated machine path', () => {
     const actor = createActor(shaderGenerationMachine).start();
     actor.send({ type: 'CREATE_OPENAI' });
