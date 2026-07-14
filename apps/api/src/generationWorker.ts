@@ -35,7 +35,7 @@ export async function processGenerationJob(
     return;
   }
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
-  if (!job || job.status !== 'queued') {
+  if (!job || (job.status !== 'queued' && job.status !== 'running')) {
     logWarn('ai_generation.worker_skipped', {
       jobId: queueJob.data.jobId,
       userId: queueJob.data.userId,
@@ -73,6 +73,7 @@ async function runGeneration(
 }
 
 async function prepareGeneration(job: AiGenerationJobRow, deps: GenerationWorkerDeps, access: AccountAccessService) {
+  if (job.status === 'running') return job;
   const running = await deps.repositories.jobs.markRunning(job.id, deps.now?.() ?? new Date());
   if (running.operation_id) await access.markRunning(running.operation_id);
   return running;
