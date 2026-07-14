@@ -85,7 +85,7 @@ export function isOpenAiShaderTimeoutError(error: unknown): error is OpenAiShade
 export function createOpenAiShaderProvider(options: OpenAiShaderProviderOptions): ShaderGenerationProvider {
   const endpoint = options.endpoint ?? 'https://api.openai.com/v1/responses';
   const fetcher = options.fetch ?? fetch;
-  const timeoutMs = options.timeoutMs ?? 20_000;
+  const timeoutMs = options.timeoutMs ?? 90_000;
 
   return {
     provider: 'openai',

@@ -21,10 +21,14 @@ describe('aiGenerationStatus', () => {
 
   it('maps status labels and details with error messages taking priority', () => {
     expect(getAiGenerationStatusLabel(undefined)).toBeNull();
+    expect(getAiGenerationStatusLabel(generation('queued'))).toBe('Waiting');
     expect(getAiGenerationStatusLabel(generation('running'))).toBe('Generating');
+    expect(getAiGenerationStatusLabel(generation('importing'))).toBe('Finishing');
     expect(getAiGenerationStatusLabel(generation('succeeded'))).toBe('Ready');
     expect(getAiGenerationStatusDetail(undefined)).toBeNull();
-    expect(getAiGenerationStatusDetail(generation('queued'))).toBe('Waiting for worker');
+    expect(getAiGenerationStatusDetail(generation('queued'))).toBe('Your creation will start shortly');
+    expect(getAiGenerationStatusDetail(generation('running'))).toBe('Creating your image');
+    expect(getAiGenerationStatusDetail(generation('importing'))).toBe('Preparing your image');
     expect(getAiGenerationStatusDetail(generation('failed', { errorMessage: 'provider unavailable' }))).toBe(
       'provider unavailable',
     );

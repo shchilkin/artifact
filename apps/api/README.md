@@ -58,7 +58,7 @@ Implemented:
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
 - Queued OpenAI shader provider for `/api/ai/shaders`, enabled by
   `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
-  `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
+  `OPENAI_SHADER_TIMEOUT_MS` overrides (90 seconds by default). Requests require an idempotency key,
   persist their result, log OpenAI request/token metadata, and reserve monthly
   quota once per OpenAI request. Generated candidates are accepted only after
   browser validation and may receive one compiler-guided repair without a
