@@ -8,13 +8,14 @@ const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvent
 
 const worker = queue.process(
   async (job) => {
-    await processGenerationJob(job, {
+    const result = await processGenerationJob(job, {
       repositories,
       providers,
       shaderProvider,
       storage,
       safetyBudget,
     });
+    if (result.status === 'failed') throw new Error(`AI operation failed: ${result.code}`);
   },
   { concurrency: 2 },
 );

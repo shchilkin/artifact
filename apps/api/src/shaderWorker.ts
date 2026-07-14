@@ -8,6 +8,7 @@ import { normalizeShaderInstance } from '@artifact/shared';
 import { AccountAccessService } from './accountAccessService.js';
 import type { ApiRepositories } from './db/repositories.js';
 import type { AiShaderRequestRow, JsonObject } from './db/types.js';
+import type { GenerationWorkerResult } from './generationWorkerResult.js';
 import { logError, logInfo, logWarn } from './logger.js';
 import {
   isOpenAiShaderTimeoutError,
@@ -26,9 +27,16 @@ export interface ShaderWorkerDeps {
   safetyBudget?: SafetyBudgetService;
 }
 
-export async function processShaderJob(requestId: string, userId: string, deps: ShaderWorkerDeps): Promise<void> {
+export async function processShaderJob(
+  requestId: string,
+  userId: string,
+  deps: ShaderWorkerDeps,
+): Promise<GenerationWorkerResult> {
   const request = await deps.repositories.shaderRequests.findByIdForUser(requestId, userId);
-  if (!isProcessableRequest(request)) return logSkippedRequest(requestId, userId, request);
+  if (!isProcessableRequest(request)) {
+    logSkippedRequest(requestId, userId, request);
+    return { status: 'skipped' };
+  }
 
   const access = new AccountAccessService(deps.repositories, { now: deps.now });
   const usage = new ProviderUsageService(deps.repositories.usageEvents, {
@@ -38,8 +46,10 @@ export async function processShaderJob(requestId: string, userId: string, deps: 
 
   try {
     await runShaderJob(request, deps, access, usage);
+    return { status: 'succeeded' };
   } catch (error) {
-    await failShader(request, deps, access, usage, error);
+    const failure = await failShader(request, deps, access, usage, error);
+    return { status: 'failed', code: failure.code };
   }
 }
 
@@ -253,6 +263,7 @@ async function failShader(
   });
   if (request.operation_id) await access.release(request.operation_id, 'failed', failure.code);
   logError('ai_shader.worker_failed', error, { requestId: request.id, userId: request.user_id, code: failure.code });
+  return failure;
 }
 
 async function recordFailedUsage(

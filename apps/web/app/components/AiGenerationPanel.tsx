@@ -13,6 +13,7 @@ import {
   createAiGenerationJob,
   getAiGenerationAccess,
   getAiGenerationJob,
+  isRetryableAiPollingError,
 } from '../utils/aiGenerationClient';
 import {
   getAiGenerationStatusDetail,
@@ -1150,6 +1151,7 @@ type JobPollingState = {
   stopped: boolean;
   timeout: number | undefined;
   controller: AbortController | null;
+  retryCount: number;
 };
 
 function runJobPolling(args: JobPollingRunnerArgs) {
@@ -1158,6 +1160,7 @@ function runJobPolling(args: JobPollingRunnerArgs) {
     stopped: false,
     timeout: undefined,
     controller: null,
+    retryCount: 0,
   };
   logAiPanelDebug('job_poll.start', {
     jobId: args.activeJobId,
@@ -1168,7 +1171,8 @@ function runJobPolling(args: JobPollingRunnerArgs) {
 }
 
 function scheduleJobPoll(state: JobPollingState, args: JobPollingRunnerArgs) {
-  state.timeout = window.setTimeout(() => pollActiveJob(state, args), 1500);
+  const retryDelay = Math.min(1500 * 2 ** Math.max(0, state.retryCount - 1), 10_000);
+  state.timeout = window.setTimeout(() => pollActiveJob(state, args), retryDelay);
 }
 
 function pollActiveJob(state: JobPollingState, args: JobPollingRunnerArgs) {
@@ -1194,6 +1198,7 @@ function fetchPolledJob(
 
 function handlePolledJob(nextJob: AiGenerationJob, state: JobPollingState, args: JobPollingRunnerArgs) {
   if (state.stopped) return;
+  state.retryCount = 0;
   logAiPanelDebug('job_poll.result', {
     jobId: nextJob.id,
     status: nextJob.status,
@@ -1212,10 +1217,19 @@ function scheduleNextPollIfActive(nextJob: AiGenerationJob, state: JobPollingSta
   if (jobIsActive(nextJob)) scheduleJobPoll(state, args);
 }
 
-function handleJobPollError(error: unknown, state: JobPollingState, { setMessage }: JobPollingRunnerArgs) {
+function handleJobPollError(error: unknown, state: JobPollingState, args: JobPollingRunnerArgs) {
   if (state.stopped) return;
   if (state.controller?.signal.aborted) return;
-  setMessage(errorMessage(error));
+  if (isRetryableAiPollingError(error)) {
+    state.retryCount += 1;
+    logAiPanelDebug('job_poll.retry', {
+      jobId: args.activeJobId,
+      attempt: state.retryCount,
+    });
+    scheduleJobPoll(state, args);
+    return;
+  }
+  args.setMessage(errorMessage(error));
 }
 
 function stopJobPolling(state: JobPollingState) {

@@ -22,6 +22,14 @@ function createQueueJob(): QueueJob<GenerationQueuePayload> {
   };
 }
 
+function createShaderQueueJob(): QueueJob<GenerationQueuePayload> {
+  return {
+    ...createQueueJob(),
+    id: 'shader-shader-1-0',
+    data: { kind: 'shader', requestId: 'shader-1', userId: 'user-1' },
+  };
+}
+
 async function seedQueuedJob(store: InMemoryApiStore, withOperation = false) {
   store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
   let operationId: string | null = null;
@@ -195,13 +203,14 @@ describe('processGenerationJob', () => {
       }),
     };
 
-    await processGenerationJob(createQueueJob(), {
+    const result = await processGenerationJob(createQueueJob(), {
       repositories: store.repositories(),
       providers: createProviderRegistry([provider]),
       storage: createStorage(),
       now: () => new Date('2026-05-20T10:01:00.000Z'),
     });
 
+    expect(result).toEqual({ status: 'failed', code: 'provider_error' });
     await expect(store.findGenerationJobByIdForUser('job-1', 'user-1')).resolves.toMatchObject({
       status: 'failed',
       error_code: 'provider_error',
@@ -220,6 +229,38 @@ describe('processGenerationJob', () => {
       committed: 0,
       reserved: 0,
       remaining: 20,
+    });
+  });
+
+  it('returns a failed worker outcome when shader generation fails', async () => {
+    const store = new InMemoryApiStore();
+    store.seedUser({ id: 'user-1', email: 'me@example.com', aiEnabled: true });
+    await store.repositories().shaderRequests.claim({
+      id: 'shader-1',
+      userId: 'user-1',
+      idempotencyKey: 'shader-request-1',
+      mode: 'openai',
+      prompt: 'water refraction',
+    });
+
+    const result = await processGenerationJob(createShaderQueueJob(), {
+      repositories: store.repositories(),
+      providers: createProviderRegistry([createMockImageProvider({ provider: 'openai' })]),
+      shaderProvider: {
+        provider: 'openai',
+        defaultModel: 'gpt-5.5-mini',
+        generateShader: vi.fn(async () => {
+          throw new Error('shader provider exploded');
+        }),
+      },
+      storage: createStorage(),
+      now: () => new Date('2026-05-20T10:01:00.000Z'),
+    });
+
+    expect(result).toEqual({ status: 'failed', code: 'shader_provider_failed' });
+    await expect(store.findShaderByIdForUser('shader-1', 'user-1')).resolves.toMatchObject({
+      status: 'failed',
+      error_code: 'shader_provider_failed',
     });
   });
 
