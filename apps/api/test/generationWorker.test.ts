@@ -15,7 +15,7 @@ function createQueueJob(): QueueJob<GenerationQueuePayload> {
   return {
     id: 'job-1',
     name: 'ai-generation',
-    data: { jobId: 'job-1', userId: 'user-1' },
+    data: { kind: 'image', jobId: 'job-1', userId: 'user-1' },
     attemptsMade: 1,
     createdAt: new Date('2026-05-20T10:00:00.000Z'),
     status: 'running',

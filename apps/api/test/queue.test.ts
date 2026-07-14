@@ -7,7 +7,7 @@ describe('createInMemoryGenerationQueue', () => {
     const handler = vi.fn(async () => undefined);
     const worker = queue.process(handler);
 
-    await queue.enqueue({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    await queue.enqueue({ kind: 'image', jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
     await vi.waitFor(() => expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: 'job-1' })));
 
     await worker.close();
@@ -18,7 +18,7 @@ describe('createInMemoryGenerationQueue', () => {
 
     await queue.close?.();
 
-    await expect(queue.enqueue({ jobId: 'job-1', userId: 'user-1' })).rejects.toThrow(
+    await expect(queue.enqueue({ kind: 'image', jobId: 'job-1', userId: 'user-1' })).rejects.toThrow(
       'Cannot enqueue into a closed queue',
     );
   });
@@ -34,9 +34,9 @@ describe('createInMemoryGenerationQueue', () => {
     );
     const worker = queue.process(handler, { concurrency: 2 });
 
-    await queue.enqueue({ jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
-    await queue.enqueue({ jobId: 'job-2', userId: 'user-1' }, { jobId: 'job-2' });
-    await queue.enqueue({ jobId: 'job-3', userId: 'user-1' }, { jobId: 'job-3' });
+    await queue.enqueue({ kind: 'image', jobId: 'job-1', userId: 'user-1' }, { jobId: 'job-1' });
+    await queue.enqueue({ kind: 'image', jobId: 'job-2', userId: 'user-1' }, { jobId: 'job-2' });
+    await queue.enqueue({ kind: 'image', jobId: 'job-3', userId: 'user-1' }, { jobId: 'job-3' });
 
     await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
     releases.shift()?.();

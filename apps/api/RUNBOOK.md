@@ -298,7 +298,15 @@ Poll the returned job id:
 curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/generations/<job-id>
 ```
 
-If the job stays queued, check that the worker process is running and points at
+Shader create/refine and repair requests use the same queue. Their POST routes
+return `202` while work is pending; poll the returned request id until the
+response contains `status: "generated"` or `status: "failed"`:
+
+```bash
+curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/shaders/<request-id>
+```
+
+If an image or shader job stays queued, check that the worker process is running and points at
 the same `DATABASE_URL` and `REDIS_URL` as the API.
 
 You can run the same flow with the bundled smoke script after the API and
@@ -352,7 +360,8 @@ http://127.0.0.1:4000/admin/queues
 ```
 
 Bull Board is for queue debugging only. It should not be exposed publicly during
-the private alpha.
+the private alpha. The `ai-generation` queue contains named image and shader
+jobs, including shader create, refine, and browser-guided repair work.
 
 ## Cleanup
 

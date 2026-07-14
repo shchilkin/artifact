@@ -56,20 +56,25 @@ Implemented:
 - BullMQ/Redis generation queue adapter behind `API_QUEUE_DRIVER=bullmq`.
 - Mock image provider.
 - OpenAI Image API provider adapter enabled when `OPENAI_API_KEY` is set.
-- OpenAI shader provider for `/api/ai/shaders`, enabled by
+- Queued OpenAI shader provider for `/api/ai/shaders`, enabled by
   `OPENAI_API_KEY` with `OPENAI_SHADER_MODEL` and
   `OPENAI_SHADER_TIMEOUT_MS` overrides. Requests require an idempotency key,
   persist their result, log OpenAI request/token metadata, and reserve monthly
   quota once per OpenAI request. Generated candidates are accepted only after
   browser validation and may receive one compiler-guided repair without a
-  second quota charge. Refinement creates a new quota-counted request linked to
-  an owner-accepted shader. Explicit local fallback requests remain quota-free.
+  second quota charge. Create, refine, repair, and explicit local fallback work
+  all run through the shared `ai-generation` worker queue; the API returns a
+  request id and clients poll `GET /api/ai/shaders/:id` with a bounded client
+  wait instead of an indefinite loading state. Refinement creates a
+  new quota-counted request linked to an owner-accepted shader. Explicit local
+  fallback requests remain quota-free.
 - Local asset storage adapter for generated files and cloud project assets.
 - Mock-backed access, generation-create, generation-status, and
   generation-cancel route handlers.
 - Authenticated generated-asset download route handler.
-- Worker job processor that marks jobs running, writes mock provider output to
-  storage, creates generated asset records, and marks success/failure.
+- Worker job processor that dispatches image and shader jobs, owns provider
+  calls and usage accounting, writes generated image assets, and persists
+  shader candidates for browser validation.
 - OpenAI and xAI image provider adapters enabled by `OPENAI_API_KEY` and
   `XAI_API_KEY`.
 - Provider output validation and storage cleanup around failed asset writes.

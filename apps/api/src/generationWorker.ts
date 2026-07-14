@@ -9,9 +9,10 @@ import type { ImageGenerationResult, ProviderRegistry } from './providers/index.
 import { ProviderUsageService } from './providerUsageService.js';
 import type { QueueJob } from './queue.js';
 import { SafetyBudgetService } from './safetyBudgetService.js';
+import { processShaderJob, type ShaderWorkerDeps } from './shaderWorker.js';
 import type { AssetStorage } from './storage/index.js';
 
-export interface GenerationWorkerDeps {
+export interface GenerationWorkerDeps extends ShaderWorkerDeps {
   repositories: ApiRepositories;
   providers: ProviderRegistry;
   storage: AssetStorage;
@@ -29,6 +30,10 @@ export async function processGenerationJob(
   queueJob: QueueJob<GenerationQueuePayload>,
   deps: GenerationWorkerDeps,
 ): Promise<void> {
+  if (queueJob.data.kind === 'shader') {
+    await processShaderJob(queueJob.data.requestId, queueJob.data.userId, deps);
+    return;
+  }
   const job = await deps.repositories.jobs.findByIdForUser(queueJob.data.jobId, queueJob.data.userId);
   if (!job || job.status !== 'queued') {
     logWarn('ai_generation.worker_skipped', {
