@@ -706,6 +706,51 @@ td code {
   font-size: 13px;
 }
 
+.operation-recovery-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 18px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.operation-recovery-summary > div {
+  display: flex;
+  min-width: 0;
+  min-height: 78px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.operation-recovery-summary > div:first-child {
+  padding-left: 0;
+}
+
+.operation-recovery-summary > div:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.operation-recovery-summary dt {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.operation-recovery-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .paired-fields > label {
   flex: 1;
 }
@@ -966,6 +1011,23 @@ td code {
   .overview-columns,
   .account-control-grid {
     grid-template-columns: 1fr;
+  }
+
+  .operation-recovery-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .operation-recovery-summary > div,
+  .operation-recovery-summary > div:first-child,
+  .operation-recovery-summary > div:last-child {
+    min-height: 64px;
+    padding: 12px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .operation-recovery-summary > div:last-child {
+    border-bottom: 0;
   }
 
   .filter-bar,

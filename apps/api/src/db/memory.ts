@@ -20,6 +20,7 @@ import type {
   AdminOverviewRow,
   AdminUsageQuery,
   AiGenerationJobRow,
+  AiOperationReconciliationResult,
   AiOperationRow,
   AiShaderRequestRow,
   AiUsageEventRow,
@@ -42,6 +43,7 @@ import type {
   ProviderReconciliationRow,
   QuotaGrantReversalRow,
   QuotaGrantRow,
+  ReconcileAiOperationsInput,
   ReleaseAiOperationInput,
   ReserveAiOperationInput,
   TierAssignmentRow,
@@ -254,6 +256,90 @@ export class InMemoryApiStore {
     return released;
   }
 
+  async reconcileOperations(input: ReconcileAiOperationsInput): Promise<AiOperationReconciliationResult> {
+    const active = Array.from(this.operations.values()).filter((operation) =>
+      ['reserved', 'running', 'awaiting_validation'].includes(operation.status),
+    );
+    const recoverable = active
+      .filter((operation) => this.operationHasUsableResult(operation.id))
+      .sort((left, right) => left.created_at.getTime() - right.created_at.getTime())
+      .slice(0, input.limit);
+    const expirable = active
+      .filter((operation) => !this.operationHasUsableResult(operation.id))
+      .filter((operation) => (operation.started_at ?? operation.created_at) < input.staleBefore)
+      .sort(
+        (left, right) =>
+          (left.started_at ?? left.created_at).getTime() - (right.started_at ?? right.created_at).getTime(),
+      )
+      .slice(0, input.limit);
+
+    if (input.dryRun) {
+      return {
+        recoveredOperationIds: recoverable.map((operation) => operation.id),
+        expiredOperationIds: expirable.map((operation) => operation.id),
+      };
+    }
+
+    const recoveredOperationIds: string[] = [];
+    for (const operation of recoverable) {
+      await this.markOperationSucceeded(operation.id, input.now);
+      recoveredOperationIds.push(operation.id);
+    }
+    const expiredOperationIds: string[] = [];
+    for (const operation of expirable) {
+      await this.releaseOperation({
+        id: operation.id,
+        status: 'expired',
+        errorCode: 'operation_expired',
+        completedAt: input.now,
+      });
+      this.expireOperationChildren(operation.id, input.now);
+      expiredOperationIds.push(operation.id);
+    }
+    return { recoveredOperationIds, expiredOperationIds };
+  }
+
+  private operationHasUsableResult(operationId: string) {
+    return (
+      Array.from(this.jobs.values()).some(
+        (job) => job.operation_id === operationId && job.status === 'succeeded' && job.output_asset_id !== null,
+      ) ||
+      Array.from(this.shaderRequests.values()).some(
+        (request) =>
+          request.operation_id === operationId && request.status === 'accepted' && request.response_json !== null,
+      )
+    );
+  }
+
+  private expireOperationChildren(operationId: string, completedAt: Date) {
+    for (const [id, job] of this.jobs) {
+      if (job.operation_id !== operationId || (job.status !== 'queued' && job.status !== 'running')) continue;
+      this.jobs.set(id, {
+        ...job,
+        status: 'expired',
+        error_code: job.error_code ?? 'operation_expired',
+        error_message: job.error_message ?? 'Generation operation expired during cleanup.',
+        retryable: false,
+        completed_at: completedAt,
+      });
+    }
+    for (const [id, request] of this.shaderRequests) {
+      if (
+        request.operation_id !== operationId ||
+        !['pending', 'generated', 'client_rejected', 'repairing'].includes(request.status)
+      )
+        continue;
+      this.shaderRequests.set(id, {
+        ...request,
+        status: 'failed',
+        error_status: 504,
+        error_code: request.error_code ?? 'operation_expired',
+        error_message: request.error_message ?? 'Shader operation expired before completion.',
+        completed_at: completedAt,
+      });
+    }
+  }
+
   private requireOperation(id: string): AiOperationRow {
     const operation = this.operations.get(id);
     if (!operation) throw new Error(`AI operation not found: ${id}`);
@@ -337,10 +423,30 @@ export class InMemoryApiStore {
       reason: requiredText(input.reason, 'reason'),
       before_json: input.beforeJson ?? null,
       after_json: input.afterJson ?? null,
-      created_at: new Date(),
+      created_at: input.createdAt ?? new Date(),
     };
     this.adminAuditEvents.set(row.id, row);
     return row;
+  }
+
+  async lockAdminAction(action: string): Promise<void> {
+    requiredText(action, 'action');
+  }
+
+  async findAdminAuditByActionEntity(action: string, entityId: string): Promise<AdminAuditEventRow | null> {
+    return (
+      Array.from(this.adminAuditEvents.values())
+        .filter((event) => event.action === action && event.entity_id === entityId)
+        .sort(newestFirst)[0] ?? null
+    );
+  }
+
+  async findLatestAdminAuditByAction(action: string): Promise<AdminAuditEventRow | null> {
+    return (
+      Array.from(this.adminAuditEvents.values())
+        .filter((event) => event.action === action)
+        .sort(newestFirst)[0] ?? null
+    );
   }
 
   async upsertProviderReconciliation(input: CreateProviderReconciliationInput): Promise<ProviderReconciliationRow> {
@@ -1009,6 +1115,7 @@ export class InMemoryApiStore {
         markAwaitingValidation: (id) => this.markOperationAwaitingValidation(id),
         markSucceeded: (id, completedAt) => this.markOperationSucceeded(id, completedAt),
         release: (input) => this.releaseOperation(input),
+        reconcile: (input) => this.reconcileOperations(input),
       },
       usageEvents: {
         append: (input) => this.appendUsageEvent(input),
@@ -1016,6 +1123,9 @@ export class InMemoryApiStore {
       },
       adminAudit: {
         append: (input) => this.appendAdminAuditEvent(input),
+        lockAction: (action) => this.lockAdminAction(action),
+        findByActionEntity: (action, entityId) => this.findAdminAuditByActionEntity(action, entityId),
+        findLatestByAction: (action) => this.findLatestAdminAuditByAction(action),
       },
       adminRead: {
         getOverview: (period) => this.getAdminOverview(period),

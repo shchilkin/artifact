@@ -20,15 +20,21 @@ function postRequest(url: string, body: unknown) {
   };
 }
 
-function deps(store: InMemoryApiStore, auth: RequestUserResolution, createId?: () => string) {
+function deps(
+  store: InMemoryApiStore,
+  auth: RequestUserResolution,
+  createId?: () => string,
+  now = () => new Date('2026-07-12T12:00:00.000Z'),
+) {
   const repositories = store.repositories();
   return {
     repositories,
     safetyBudget: new SafetyBudgetService(repositories.usageEvents, {
-      now: () => new Date('2026-07-12T12:00:00.000Z'),
+      now,
     }),
     resolveAuth: async () => auth,
     createId,
+    now,
   };
 }
 
@@ -61,6 +67,43 @@ async function seededStore() {
     internalCostMicroUsd: '10800',
   });
   return store;
+}
+
+async function seedReconcilableOperations(store: InMemoryApiStore) {
+  const repositories = store.repositories();
+  await repositories.operations.reserve({
+    id: 'operation-recoverable',
+    userId: 'creator-1',
+    feature: 'image_create',
+    idempotencyKey: 'recoverable-image',
+    reservationPeriod: '2026-07',
+    reservedGenerations: 1,
+    generationLimit: 20,
+    maxActiveOperations: 3,
+  });
+  await repositories.jobs.create({
+    id: 'job-recoverable',
+    operationId: 'operation-recoverable',
+    userId: 'creator-1',
+    provider: 'openai',
+    model: 'gpt-image-2',
+    prompt: 'omitted',
+    settingsJson: {},
+    idempotencyKey: 'recoverable-image',
+  });
+  await repositories.jobs.markSucceeded('job-recoverable', 'asset-recoverable', new Date('2026-07-12T10:00:00.000Z'));
+
+  await repositories.operations.reserve({
+    id: 'operation-expirable',
+    userId: 'creator-1',
+    feature: 'shader_create',
+    idempotencyKey: 'expirable-shader',
+    reservationPeriod: '2026-07',
+    reservedGenerations: 1,
+    generationLimit: 20,
+    maxActiveOperations: 3,
+  });
+  await repositories.operations.markRunning('operation-expirable', new Date('2026-07-11T01:00:00.000Z'));
 }
 
 const adminAuth: RequestUserResolution = {
@@ -161,6 +204,82 @@ describe('Admin API read routes', () => {
     expect(reconciliations).toMatchObject({
       status: 200,
       body: { reconciliations: [{ id: 'reconciliation-1', providerCostMicroUsd: '11000' }] },
+    });
+  });
+
+  it('previews recoverable and stale AI operations without mutating them', async () => {
+    const store = await seededStore();
+    await seedReconcilableOperations(store);
+
+    const response = await handleAdminRequest(
+      request('/api/admin/ai-operations/reconciliation'),
+      deps(store, adminAuth),
+    );
+
+    expect(response).toMatchObject({
+      status: 200,
+      body: {
+        mode: 'preview',
+        repeated: false,
+        checkedAt: '2026-07-12T12:00:00.000Z',
+        staleBefore: '2026-07-12T06:00:00.000Z',
+        recoveredOperationIds: ['operation-recoverable'],
+        expiredOperationIds: ['operation-expirable'],
+      },
+    });
+    await expect(store.repositories().operations.findById('operation-recoverable')).resolves.toMatchObject({
+      status: 'reserved',
+    });
+    await expect(store.repositories().operations.findById('operation-expirable')).resolves.toMatchObject({
+      status: 'running',
+    });
+  });
+
+  it('applies operation recovery once and rate-limits a different immediate retry', async () => {
+    const store = await seededStore();
+    await seedReconcilableOperations(store);
+    const body = { reason: 'Recover completed production work', idempotencyKey: 'operation-recovery-1' };
+    const first = await handleAdminRequest(
+      postRequest('/api/admin/ai-operations/reconciliation', body),
+      deps(store, adminAuth, () => 'reconciliation-audit-1'),
+    );
+    const retry = await handleAdminRequest(
+      postRequest('/api/admin/ai-operations/reconciliation', body),
+      deps(store, adminAuth, () => 'reconciliation-audit-retry'),
+    );
+    const tooSoon = await handleAdminRequest(
+      postRequest('/api/admin/ai-operations/reconciliation', {
+        reason: 'Check for another stuck operation',
+        idempotencyKey: 'operation-recovery-2',
+      }),
+      deps(store, adminAuth, () => 'reconciliation-audit-2'),
+    );
+
+    expect(first).toMatchObject({
+      status: 200,
+      body: {
+        mode: 'applied',
+        repeated: false,
+        recoveredOperationIds: ['operation-recoverable'],
+        expiredOperationIds: ['operation-expirable'],
+      },
+    });
+    expect(retry).toMatchObject({ status: 200, body: { mode: 'applied', repeated: true } });
+    expect(tooSoon).toMatchObject({
+      status: 429,
+      body: { code: 'admin_operation_reconciliation_rate_limited' },
+    });
+    await expect(store.repositories().operations.findById('operation-recoverable')).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    await expect(store.repositories().operations.findById('operation-expirable')).resolves.toMatchObject({
+      status: 'expired',
+      error_code: 'operation_expired',
+    });
+    await expect(store.repositories().usage.findMonthlyUsage('creator-1', '2026-07')).resolves.toMatchObject({
+      committed_generation_count: 1,
+      reserved_generation_count: 0,
+      generation_count: 1,
     });
   });
 

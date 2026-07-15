@@ -1,8 +1,21 @@
-import type { AdminProviderReconciliation, AdminUsageEvent } from '@artifact/shared';
-import { Form, Link, useLocation } from 'react-router';
+import type {
+  AdminAiOperationReconciliationResponse,
+  AdminProviderReconciliation,
+  AdminUsageEvent,
+} from '@artifact/shared';
+import { useState } from 'react';
+import { Form, Link, useFetcher, useLocation } from 'react-router';
 import { AdminRouteError } from '../components/RouteState';
-import { DataTable, Metric, PageHeader, Pagination, StatusBadge } from '../components/Ui';
-import { adminApi } from '../lib/adminApi';
+import {
+  ControlSection,
+  DataTable,
+  Metric,
+  MutationNotice,
+  PageHeader,
+  Pagination,
+  StatusBadge,
+} from '../components/Ui';
+import { AdminApiError, adminApi } from '../lib/adminApi';
 import { formatFeature, formatInteger, formatMicroUsd, formatTimestamp } from '../lib/format';
 import { emptyTableState } from '../lib/tableState';
 import type { Route } from './+types/usage';
@@ -28,6 +41,12 @@ const reconciliationColumns = [
   { key: 'synced', label: 'Synced' },
 ] as const;
 
+interface OperationRecoveryMutationResult {
+  ok: boolean;
+  message: string;
+  code?: string;
+}
+
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
   const filters = {
@@ -37,11 +56,28 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     limit: readPageValue(url.searchParams.get('limit'), 25),
     offset: readPageValue(url.searchParams.get('offset'), 0),
   };
-  const [usage, reconciliations] = await Promise.all([
+  const [usage, reconciliations, operationReconciliation] = await Promise.all([
     adminApi.usage(filters, request.signal),
     adminApi.reconciliations(30, request.signal),
+    adminApi.operationReconciliation(request.signal),
   ]);
-  return { usage, reconciliations };
+  return { usage, reconciliations, operationReconciliation };
+}
+
+export async function clientAction({ request }: Route.ClientActionArgs): Promise<OperationRecoveryMutationResult> {
+  const form = await request.formData();
+  const reason = formText(form, 'reason').trim();
+  const idempotencyKey = formText(form, 'idempotencyKey').trim();
+  if (!reason || !idempotencyKey) {
+    return { ok: false, code: 'invalid_request', message: 'Add a reason before running recovery.' };
+  }
+  try {
+    const result = await adminApi.reconcileOperations({ reason, idempotencyKey });
+    return { ok: true, message: operationRecoveryMessage(result) };
+  } catch (error) {
+    if (error instanceof AdminApiError) return { ok: false, code: error.code, message: error.message };
+    throw error;
+  }
 }
 
 export default function UsageRoute({ loaderData }: Route.ComponentProps) {
@@ -87,6 +123,8 @@ export default function UsageRoute({ loaderData }: Route.ComponentProps) {
         <Metric label="Failures" value={String(summary.failed)} detail="current page" />
       </section>
 
+      <OperationRecovery reconciliation={loaderData.operationReconciliation} />
+
       <section className="table-section" aria-labelledby="usage-table-title">
         <div className="section-heading compact">
           <div>
@@ -131,6 +169,63 @@ export default function UsageRoute({ loaderData }: Route.ComponentProps) {
       </section>
     </div>
   );
+}
+
+function OperationRecovery({ reconciliation }: { reconciliation: AdminAiOperationReconciliationResponse }) {
+  const fetcher = useFetcher<typeof clientAction>();
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const pending = fetcher.state !== 'idle';
+  return (
+    <ControlSection
+      eyebrow="AI operations"
+      title="Operation recovery"
+      copy="Finalize completed AI results that were not recorded and close abandoned requests older than six hours."
+      badge={reconciliation.nextAllowedAt ? <StatusBadge value="recently checked" /> : undefined}
+    >
+      <dl className="operation-recovery-summary" aria-label="Operation recovery preview">
+        <div>
+          <dt>Ready to finalize</dt>
+          <dd>{formatInteger(reconciliation.recoveredOperationIds.length)}</dd>
+        </div>
+        <div>
+          <dt>Ready to close</dt>
+          <dd>{formatInteger(reconciliation.expiredOperationIds.length)}</dd>
+        </div>
+        <div>
+          <dt>Checked</dt>
+          <dd>{formatTimestamp(reconciliation.checkedAt)}</dd>
+        </div>
+      </dl>
+      <fetcher.Form method="post" onSubmit={() => setIdempotencyKey(crypto.randomUUID())}>
+        <input name="idempotencyKey" type="hidden" value={idempotencyKey} />
+        <label>
+          <span>Reason</span>
+          <textarea name="reason" placeholder="Why is manual recovery needed?" required disabled={pending} />
+        </label>
+        <button className="primary-button" type="submit" disabled={pending}>
+          {pending ? 'Recovering...' : 'Recover operations'}
+        </button>
+      </fetcher.Form>
+      <MutationNotice result={fetcher.data} />
+    </ControlSection>
+  );
+}
+
+function operationRecoveryMessage(result: AdminAiOperationReconciliationResponse) {
+  if (result.repeated) return 'This recovery request was already applied.';
+  const recovered = result.recoveredOperationIds.length;
+  const expired = result.expiredOperationIds.length;
+  if (recovered === 0 && expired === 0) return 'No unfinished operations needed recovery.';
+  return `Finalized ${recovered} completed ${pluralize(recovered, 'result')} and closed ${expired} abandoned ${pluralize(expired, 'request')}.`;
+}
+
+function pluralize(count: number, singular: string) {
+  return count === 1 ? singular : `${singular}s`;
+}
+
+function formText(form: FormData, name: string) {
+  const value = form.get(name);
+  return typeof value === 'string' ? value : '';
 }
 
 function numericMetric(value: unknown) {

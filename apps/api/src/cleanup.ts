@@ -1,3 +1,4 @@
+import { PostgresAiOperationRepository } from './db/postgresAiOperations.js';
 import type { AssetStorage } from './storage/index.js';
 
 export interface CleanupQueryClient {
@@ -61,13 +62,12 @@ export async function cleanupAiGenerationData(
     now.getTime() - (options.deletedAssetFileMs ?? DEFAULT_DELETED_ASSET_FILE_MS),
   );
 
-  const reconciledOperationIds = dryRun
-    ? await selectRecoverableOperationIds(client, limit)
-    : await reconcileUsableOperations(client, now, limit);
-
-  const expiredOperationIds = dryRun
-    ? await selectStaleActiveOperationIds(client, staleActiveOperationCutoff, limit)
-    : await expireStaleActiveOperations(client, staleActiveOperationCutoff, now, limit);
+  const operationReconciliation = await new PostgresAiOperationRepository(client).reconcile({
+    now,
+    staleBefore: staleActiveOperationCutoff,
+    limit,
+    dryRun,
+  });
 
   const expiredJobIds = dryRun
     ? await selectStaleActiveJobIds(client, staleActiveJobCutoff, limit)
@@ -95,161 +95,13 @@ export async function cleanupAiGenerationData(
 
   return {
     dryRun,
-    reconciledOperationIds,
-    expiredOperationIds,
+    reconciledOperationIds: operationReconciliation.recoveredOperationIds,
+    expiredOperationIds: operationReconciliation.expiredOperationIds,
     expiredJobIds,
     softDeletedAssetIds: softDeletedAssets.map((asset) => asset.id),
     storageKeysDeleted,
     orphanStorageKeysDeleted,
   };
-}
-
-async function selectRecoverableOperationIds(client: CleanupQueryClient, limit: number) {
-  const result = await client.query<IdRow>(
-    `
-      SELECT operations.id
-      FROM ai_operations AS operations
-      WHERE operations.status IN ('reserved', 'running', 'awaiting_validation')
-        AND (
-          EXISTS (
-            SELECT 1 FROM ai_generation_jobs AS jobs
-            WHERE jobs.operation_id = operations.id AND jobs.status = 'succeeded'
-          )
-          OR EXISTS (
-            SELECT 1 FROM ai_shader_requests AS shaders
-            WHERE shaders.operation_id = operations.id AND shaders.status = 'accepted'
-          )
-        )
-      ORDER BY operations.created_at ASC
-      LIMIT $1
-    `,
-    [limit],
-  );
-  return result.rows.map((row) => row.id);
-}
-
-async function reconcileUsableOperations(client: CleanupQueryClient, now: Date, limit: number) {
-  const result = await client.query<IdRow>(
-    `
-      WITH transitioned AS (
-        UPDATE ai_operations AS operations
-        SET status = 'succeeded', completed_at = $1
-        WHERE operations.id IN (
-          SELECT candidates.id
-          FROM ai_operations AS candidates
-          WHERE candidates.status IN ('reserved', 'running', 'awaiting_validation')
-            AND (
-              EXISTS (
-                SELECT 1 FROM ai_generation_jobs AS jobs
-                WHERE jobs.operation_id = candidates.id AND jobs.status = 'succeeded'
-              )
-              OR EXISTS (
-                SELECT 1 FROM ai_shader_requests AS shaders
-                WHERE shaders.operation_id = candidates.id AND shaders.status = 'accepted'
-              )
-            )
-          ORDER BY candidates.created_at ASC
-          LIMIT $2
-        )
-          AND operations.status IN ('reserved', 'running', 'awaiting_validation')
-        RETURNING operations.id, operations.user_id, operations.reservation_period, operations.reserved_generations
-      ), usage_updated AS (
-        UPDATE ai_usage_monthly AS usage
-        SET committed_generation_count = usage.committed_generation_count + transitioned.reserved_generations,
-            reserved_generation_count = GREATEST(
-              0,
-              usage.reserved_generation_count - transitioned.reserved_generations
-            ),
-            generation_count = usage.committed_generation_count
-              + transitioned.reserved_generations
-              + GREATEST(0, usage.reserved_generation_count - transitioned.reserved_generations),
-            updated_at = $1
-        FROM transitioned
-        WHERE usage.user_id = transitioned.user_id
-          AND usage.period = transitioned.reservation_period
-        RETURNING usage.user_id
-      )
-      SELECT id FROM transitioned
-    `,
-    [now, limit],
-  );
-  return result.rows.map((row) => row.id);
-}
-
-async function selectStaleActiveOperationIds(client: CleanupQueryClient, cutoff: Date, limit: number) {
-  const result = await client.query<IdRow>(
-    `
-      SELECT id
-      FROM ai_operations
-      WHERE status IN ('reserved', 'running', 'awaiting_validation')
-        AND COALESCE(started_at, created_at) < $1
-      ORDER BY COALESCE(started_at, created_at) ASC
-      LIMIT $2
-    `,
-    [cutoff, limit],
-  );
-  return result.rows.map((row) => row.id);
-}
-
-async function expireStaleActiveOperations(client: CleanupQueryClient, cutoff: Date, now: Date, limit: number) {
-  const result = await client.query<IdRow>(
-    `
-      WITH transitioned AS (
-        UPDATE ai_operations
-        SET status = 'expired',
-            error_code = COALESCE(error_code, 'operation_expired'),
-            completed_at = $2
-        WHERE id IN (
-          SELECT id
-          FROM ai_operations
-          WHERE status IN ('reserved', 'running', 'awaiting_validation')
-            AND COALESCE(started_at, created_at) < $1
-          ORDER BY COALESCE(started_at, created_at) ASC
-          LIMIT $3
-        )
-          AND status IN ('reserved', 'running', 'awaiting_validation')
-        RETURNING id, user_id, reservation_period, reserved_generations
-      ), usage_updated AS (
-        UPDATE ai_usage_monthly AS usage
-        SET reserved_generation_count = GREATEST(
-              0,
-              usage.reserved_generation_count - transitioned.reserved_generations
-            ),
-            generation_count = usage.committed_generation_count
-              + GREATEST(0, usage.reserved_generation_count - transitioned.reserved_generations),
-            updated_at = $2
-        FROM transitioned
-        WHERE usage.user_id = transitioned.user_id
-          AND usage.period = transitioned.reservation_period
-        RETURNING usage.user_id
-      ), jobs_expired AS (
-        UPDATE ai_generation_jobs AS jobs
-        SET status = 'expired',
-            error_code = COALESCE(jobs.error_code, 'operation_expired'),
-            error_message = COALESCE(jobs.error_message, 'Generation operation expired during cleanup.'),
-            retryable = false,
-            completed_at = $2
-        FROM transitioned
-        WHERE jobs.operation_id = transitioned.id
-          AND jobs.status IN ('queued', 'running')
-        RETURNING jobs.id
-      ), shaders_failed AS (
-        UPDATE ai_shader_requests AS shaders
-        SET status = 'failed',
-            error_status = 504,
-            error_code = COALESCE(shaders.error_code, 'operation_expired'),
-            error_message = COALESCE(shaders.error_message, 'Shader operation expired before completion.'),
-            completed_at = $2
-        FROM transitioned
-        WHERE shaders.operation_id = transitioned.id
-          AND shaders.status IN ('pending', 'generated', 'client_rejected', 'repairing')
-        RETURNING shaders.id
-      )
-      SELECT id FROM transitioned
-    `,
-    [cutoff, now, limit],
-  );
-  return result.rows.map((row) => row.id);
 }
 
 async function selectStaleActiveJobIds(client: CleanupQueryClient, cutoff: Date, limit: number) {

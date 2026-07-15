@@ -160,4 +160,56 @@ describe('PostgresAiOperationRepository', () => {
       }),
     ).resolves.toEqual(expiredOperation);
   });
+
+  it('previews recoverable results separately from stale operations without usable output', async () => {
+    const staleBefore = new Date('2026-07-12T10:00:00.000Z');
+    const client = createFakeQueryClient([[{ id: 'operation-recoverable' }], [{ id: 'operation-expirable' }]]);
+    const repository = new PostgresAiOperationRepository(client);
+
+    await expect(
+      repository.reconcile({
+        now: new Date('2026-07-12T16:00:00.000Z'),
+        staleBefore,
+        limit: 100,
+        dryRun: true,
+      }),
+    ).resolves.toEqual({
+      recoveredOperationIds: ['operation-recoverable'],
+      expiredOperationIds: ['operation-expirable'],
+    });
+
+    expect(client.calls[0]?.sql).toContain("jobs.status = 'succeeded'");
+    expect(client.calls[0]?.sql).toContain('jobs.output_asset_id IS NOT NULL');
+    expect(client.calls[0]?.sql).toContain("shaders.status = 'accepted'");
+    expect(client.calls[0]?.sql).toContain('shaders.response_json IS NOT NULL');
+    expect(client.calls[0]?.values).toEqual([100]);
+    expect(client.calls[1]?.sql).toContain('AND NOT (');
+    expect(client.calls[1]?.sql).toContain("jobs.status = 'succeeded'");
+    expect(client.calls[1]?.sql).toContain('jobs.output_asset_id IS NOT NULL');
+    expect(client.calls[1]?.sql).toContain("shaders.status = 'accepted'");
+    expect(client.calls[1]?.sql).toContain('shaders.response_json IS NOT NULL');
+    expect(client.calls[1]?.values).toEqual([staleBefore, 100]);
+  });
+
+  it('reconciles quota accounting and closes child records when applying recovery', async () => {
+    const now = new Date('2026-07-12T16:00:00.000Z');
+    const staleBefore = new Date('2026-07-12T10:00:00.000Z');
+    const client = createFakeQueryClient([[{ id: 'operation-recoverable' }], [{ id: 'operation-expirable' }]]);
+    const repository = new PostgresAiOperationRepository(client);
+
+    await expect(repository.reconcile({ now, staleBefore, limit: 100, dryRun: false })).resolves.toEqual({
+      recoveredOperationIds: ['operation-recoverable'],
+      expiredOperationIds: ['operation-expirable'],
+    });
+
+    expect(client.calls[0]?.sql).toContain("SET status = 'succeeded'");
+    expect(client.calls[0]?.sql).toContain('committed_generation_count');
+    expect(client.calls[0]?.sql).toContain('reserved_generation_count');
+    expect(client.calls[0]?.values).toEqual([now, 100]);
+    expect(client.calls[1]?.sql).toContain("SET status = 'expired'");
+    expect(client.calls[1]?.sql).toContain('UPDATE ai_generation_jobs');
+    expect(client.calls[1]?.sql).toContain('UPDATE ai_shader_requests');
+    expect(client.calls[1]?.sql).toContain('reserved_generation_count');
+    expect(client.calls[1]?.values).toEqual([staleBefore, now, 100]);
+  });
 });

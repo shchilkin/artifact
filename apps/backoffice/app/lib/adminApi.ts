@@ -3,6 +3,8 @@ import {
   type AdminAccountDetailResponse,
   type AdminAccountMutationResponse,
   type AdminAccountsResponse,
+  type AdminAiOperationReconciliationRequest,
+  type AdminAiOperationReconciliationResponse,
   type AdminAssignTierRequest,
   type AdminOverviewResponse,
   type AdminQuotaGrantRequest,
@@ -115,6 +117,15 @@ export const adminApi = {
   },
   reconciliations(limit = 30, signal?: AbortSignal) {
     return requestJson<AdminReconciliationsResponse>(withQuery(ADMIN_API_PATHS.reconciliations, { limit }), { signal });
+  },
+  operationReconciliation(signal?: AbortSignal) {
+    return requestJson<AdminAiOperationReconciliationResponse>(ADMIN_API_PATHS.operationReconciliation, { signal });
+  },
+  reconcileOperations(input: AdminAiOperationReconciliationRequest) {
+    return requestJson<AdminAiOperationReconciliationResponse>(ADMIN_API_PATHS.operationReconciliation, {
+      method: 'POST',
+      body: input,
+    });
   },
   assignTier(userId: string, input: AdminAssignTierRequest) {
     return requestJson<AdminAccountMutationResponse>(ADMIN_API_PATHS.accountTier(userId), {

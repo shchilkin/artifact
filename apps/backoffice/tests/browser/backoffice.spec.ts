@@ -186,6 +186,19 @@ test('keeps a tier conflict visible beside the account control', async ({ page }
   await expect(page.getByText('Account tier changed since it was loaded.')).toBeVisible();
 });
 
+test('previews and applies AI operation recovery with an audit reason', async ({ page }) => {
+  await page.goto('/usage');
+  await expect(page.getByRole('heading', { name: 'Operation recovery' })).toBeVisible();
+  const summary = page.locator('.operation-recovery-summary > div').filter({ hasText: 'Ready to finalize' });
+  await expect(summary.getByText('1', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Reason').fill('Finalize completed production results');
+  await page.getByRole('button', { name: 'Recover operations' }).click();
+
+  await expect(page.getByText('Change saved')).toBeVisible();
+  await expect(page.getByText('Finalized 1 completed result and closed 1 abandoned request.')).toBeVisible();
+});
+
 test('mobile navigation and controls fit without horizontal page overflow', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chromium');
   await page.goto('/accounts/creator-1?period=2026-07');
@@ -283,6 +296,21 @@ async function fulfillAdminRead(route: Route) {
             createdAt: '2026-07-12T02:00:00.000Z',
           },
         ],
+      }),
+    });
+  }
+  if (url.pathname === '/api/admin/ai-operations/reconciliation') {
+    const applied = route.request().method() === 'POST';
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        mode: applied ? 'applied' : 'preview',
+        repeated: false,
+        checkedAt: '2026-07-15T10:00:00.000Z',
+        staleBefore: '2026-07-15T04:00:00.000Z',
+        recoveredOperationIds: ['operation-1'],
+        expiredOperationIds: ['operation-2'],
+        nextAllowedAt: applied ? '2026-07-15T10:05:00.000Z' : null,
       }),
     });
   }

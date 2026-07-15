@@ -372,6 +372,19 @@ export interface CreateAdminAuditEventInput {
   reason: string;
   beforeJson?: JsonObject | null;
   afterJson?: JsonObject | null;
+  createdAt?: Date;
+}
+
+export interface ReconcileAiOperationsInput {
+  now: Date;
+  staleBefore: Date;
+  limit: number;
+  dryRun: boolean;
+}
+
+export interface AiOperationReconciliationResult {
+  recoveredOperationIds: string[];
+  expiredOperationIds: string[];
 }
 
 export interface CreateUserInput {
@@ -493,6 +506,7 @@ export interface AiOperationRepository {
   markAwaitingValidation(id: string): Promise<AiOperationRow>;
   markSucceeded(id: string, completedAt: Date): Promise<AiOperationRow>;
   release(input: ReleaseAiOperationInput): Promise<AiOperationRow>;
+  reconcile(input: ReconcileAiOperationsInput): Promise<AiOperationReconciliationResult>;
 }
 
 export interface AiUsageEventRepository {
@@ -502,6 +516,9 @@ export interface AiUsageEventRepository {
 
 export interface AdminAuditRepository {
   append(input: CreateAdminAuditEventInput): Promise<AdminAuditEventRow>;
+  lockAction(action: string): Promise<void>;
+  findByActionEntity(action: string, entityId: string): Promise<AdminAuditEventRow | null>;
+  findLatestByAction(action: string): Promise<AdminAuditEventRow | null>;
 }
 
 export interface ProviderReconciliationRepository {

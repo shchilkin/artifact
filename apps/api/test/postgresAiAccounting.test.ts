@@ -90,7 +90,27 @@ describe('Postgres AI accounting repositories', () => {
       'Closed alpha access',
       { tier: 'free' },
       { tier: 'creator' },
+      null,
     ]);
+  });
+
+  it('serializes operation recovery and reads its idempotency and cooldown audit records', async () => {
+    const row = {
+      id: 'audit-1',
+      action: 'ai_operations.reconcile',
+      entity_id: 'recovery-1',
+    } as AdminAuditEventRow;
+    const client = createFakeQueryClient([[], [row], [row]]);
+    const repository = new PostgresAdminAuditRepository(client);
+
+    await repository.lockAction('ai_operations.reconcile');
+    await expect(repository.findByActionEntity('ai_operations.reconcile', 'recovery-1')).resolves.toBe(row);
+    await expect(repository.findLatestByAction('ai_operations.reconcile')).resolves.toBe(row);
+
+    expect(client.calls[0]?.sql).toContain('pg_advisory_xact_lock');
+    expect(client.calls[0]?.values).toEqual(['admin-action:ai_operations.reconcile']);
+    expect(client.calls[1]?.values).toEqual(['ai_operations.reconcile', 'recovery-1']);
+    expect(client.calls[2]?.values).toEqual(['ai_operations.reconcile']);
   });
 
   it('upserts provider reconciliation by provider and UTC day', async () => {

@@ -5,9 +5,11 @@ import {
 } from './errors.js';
 import { assertOperationRetry } from './idempotencyInputs.js';
 import type {
+  AiOperationReconciliationResult,
   AiOperationRepository,
   AiOperationRow,
   CreateAiOperationInput,
+  ReconcileAiOperationsInput,
   ReleaseAiOperationInput,
   ReserveAiOperationInput,
 } from './types.js';
@@ -297,6 +299,148 @@ export class PostgresAiOperationRepository implements AiOperationRepository {
     throw new Error(`AI operation has status ${operation.status}, expected ${input.status}: ${input.id}`);
   }
 
+  async reconcile(input: ReconcileAiOperationsInput): Promise<AiOperationReconciliationResult> {
+    const recoveredOperationIds = input.dryRun
+      ? await this.selectRecoverableOperationIds(input.limit)
+      : await this.recoverUsableOperations(input.now, input.limit);
+    const expiredOperationIds = input.dryRun
+      ? await this.selectExpirableOperationIds(input.staleBefore, input.limit)
+      : await this.expireStaleOperations(input.staleBefore, input.now, input.limit);
+    return { recoveredOperationIds, expiredOperationIds };
+  }
+
+  private async selectRecoverableOperationIds(limit: number) {
+    const result = await this.client.query<{ id: string }>(
+      `
+        SELECT operations.id
+        FROM ai_operations AS operations
+        WHERE operations.status IN ('reserved', 'running', 'awaiting_validation')
+          AND ${usableResultExistsSql('operations')}
+        ORDER BY operations.created_at ASC
+        LIMIT $1
+      `,
+      [limit],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
+  private async recoverUsableOperations(now: Date, limit: number) {
+    const result = await this.client.query<{ id: string }>(
+      `
+        WITH transitioned AS (
+          UPDATE ai_operations AS operations
+          SET status = 'succeeded', completed_at = $1
+          WHERE operations.id IN (
+            SELECT candidates.id
+            FROM ai_operations AS candidates
+            WHERE candidates.status IN ('reserved', 'running', 'awaiting_validation')
+              AND ${usableResultExistsSql('candidates')}
+            ORDER BY candidates.created_at ASC
+            LIMIT $2
+          )
+            AND operations.status IN ('reserved', 'running', 'awaiting_validation')
+          RETURNING operations.id, operations.user_id, operations.reservation_period, operations.reserved_generations
+        ), usage_updated AS (
+          UPDATE ai_usage_monthly AS usage
+          SET committed_generation_count = usage.committed_generation_count + transitioned.reserved_generations,
+              reserved_generation_count = GREATEST(
+                0,
+                usage.reserved_generation_count - transitioned.reserved_generations
+              ),
+              generation_count = usage.committed_generation_count
+                + transitioned.reserved_generations
+                + GREATEST(0, usage.reserved_generation_count - transitioned.reserved_generations),
+              updated_at = $1
+          FROM transitioned
+          WHERE usage.user_id = transitioned.user_id
+            AND usage.period = transitioned.reservation_period
+          RETURNING usage.user_id
+        )
+        SELECT id FROM transitioned
+      `,
+      [now, limit],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
+  private async selectExpirableOperationIds(staleBefore: Date, limit: number) {
+    const result = await this.client.query<{ id: string }>(
+      `
+        SELECT operations.id
+        FROM ai_operations AS operations
+        WHERE operations.status IN ('reserved', 'running', 'awaiting_validation')
+          AND COALESCE(operations.started_at, operations.created_at) < $1
+          AND NOT ${usableResultExistsSql('operations')}
+        ORDER BY COALESCE(operations.started_at, operations.created_at) ASC
+        LIMIT $2
+      `,
+      [staleBefore, limit],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
+  private async expireStaleOperations(staleBefore: Date, now: Date, limit: number) {
+    const result = await this.client.query<{ id: string }>(
+      `
+        WITH transitioned AS (
+          UPDATE ai_operations AS operations
+          SET status = 'expired',
+              error_code = COALESCE(operations.error_code, 'operation_expired'),
+              completed_at = $2
+          WHERE operations.id IN (
+            SELECT candidates.id
+            FROM ai_operations AS candidates
+            WHERE candidates.status IN ('reserved', 'running', 'awaiting_validation')
+              AND COALESCE(candidates.started_at, candidates.created_at) < $1
+              AND NOT ${usableResultExistsSql('candidates')}
+            ORDER BY COALESCE(candidates.started_at, candidates.created_at) ASC
+            LIMIT $3
+          )
+            AND operations.status IN ('reserved', 'running', 'awaiting_validation')
+          RETURNING operations.id, operations.user_id, operations.reservation_period, operations.reserved_generations
+        ), usage_updated AS (
+          UPDATE ai_usage_monthly AS usage
+          SET reserved_generation_count = GREATEST(
+                0,
+                usage.reserved_generation_count - transitioned.reserved_generations
+              ),
+              generation_count = usage.committed_generation_count
+                + GREATEST(0, usage.reserved_generation_count - transitioned.reserved_generations),
+              updated_at = $2
+          FROM transitioned
+          WHERE usage.user_id = transitioned.user_id
+            AND usage.period = transitioned.reservation_period
+          RETURNING usage.user_id
+        ), jobs_expired AS (
+          UPDATE ai_generation_jobs AS jobs
+          SET status = 'expired',
+              error_code = COALESCE(jobs.error_code, 'operation_expired'),
+              error_message = COALESCE(jobs.error_message, 'Generation operation expired during cleanup.'),
+              retryable = false,
+              completed_at = $2
+          FROM transitioned
+          WHERE jobs.operation_id = transitioned.id
+            AND jobs.status IN ('queued', 'running')
+          RETURNING jobs.id
+        ), shaders_failed AS (
+          UPDATE ai_shader_requests AS shaders
+          SET status = 'failed',
+              error_status = 504,
+              error_code = COALESCE(shaders.error_code, 'operation_expired'),
+              error_message = COALESCE(shaders.error_message, 'Shader operation expired before completion.'),
+              completed_at = $2
+          FROM transitioned
+          WHERE shaders.operation_id = transitioned.id
+            AND shaders.status IN ('pending', 'generated', 'client_rejected', 'repairing')
+          RETURNING shaders.id
+        )
+        SELECT id FROM transitioned
+      `,
+      [staleBefore, now, limit],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
   private async requireStatus(id: string, status: AiOperationRow['status']): Promise<AiOperationRow> {
     const operation = await this.findById(id);
     if (!operation) throw new Error(`AI operation not found: ${id}`);
@@ -304,6 +448,23 @@ export class PostgresAiOperationRepository implements AiOperationRepository {
       throw new Error(`AI operation has status ${operation.status}, expected ${status}: ${id}`);
     return operation;
   }
+}
+
+function usableResultExistsSql(operationAlias: string) {
+  return `(
+    EXISTS (
+      SELECT 1 FROM ai_generation_jobs AS jobs
+      WHERE jobs.operation_id = ${operationAlias}.id
+        AND jobs.status = 'succeeded'
+        AND jobs.output_asset_id IS NOT NULL
+    )
+    OR EXISTS (
+      SELECT 1 FROM ai_shader_requests AS shaders
+      WHERE shaders.operation_id = ${operationAlias}.id
+        AND shaders.status = 'accepted'
+        AND shaders.response_json IS NOT NULL
+    )
+  )`;
 }
 
 function isTerminalStatus(status: AiOperationRow['status']) {

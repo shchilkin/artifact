@@ -48,6 +48,7 @@ export const ADMIN_API_PATHS = {
   quotaGrantReversals: (grantId: string) => `/api/admin/quota-grants/${encodeURIComponent(grantId)}/reversals`,
   usage: '/api/admin/usage',
   reconciliations: '/api/admin/reconciliations',
+  operationReconciliation: '/api/admin/ai-operations/reconciliation',
 } as const;
 
 export interface AdminPage {
@@ -181,10 +182,22 @@ export interface AdminReconciliationsResponse {
   reconciliations: AdminProviderReconciliation[];
 }
 
+export interface AdminAiOperationReconciliationResponse {
+  mode: 'preview' | 'applied';
+  repeated: boolean;
+  checkedAt: string;
+  staleBefore: string;
+  recoveredOperationIds: string[];
+  expiredOperationIds: string[];
+  nextAllowedAt: string | null;
+}
+
 export interface AdminMutationMetadata {
   reason: string;
   idempotencyKey: string;
 }
+
+export type AdminAiOperationReconciliationRequest = AdminMutationMetadata;
 
 export interface AdminAssignTierRequest extends AdminMutationMetadata {
   tier: AccountTier;
