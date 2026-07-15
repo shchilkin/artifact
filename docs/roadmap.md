@@ -19,10 +19,12 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.41 is implementation-ready as the Account Tiers And Backoffice release:
-  explicit Free/Creator/Founder access, auditable allowances and provider
-  usage, a global Safety Budget, and a separate admin-only backoffice. See
-  [`version-plans/v0.41.md`](./version-plans/v0.41.md).
+- v0.41 has reached release-candidate prep as the Account Tiers And Backoffice
+  release: explicit Free/Creator/Founder access, auditable allowances and
+  provider usage, a global Safety Budget, a separate admin-only backoffice, and
+  one coordinated production release workflow. See
+  [`version-plans/v0.41.md`](./version-plans/v0.41.md) and
+  [`releases/v0.41.0.md`](./releases/v0.41.0.md).
 - v0.40 has reached release-candidate prep as the Shader Authoring And AI
   Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
   Code Shader and AI Shader nodes, browser validation/repair/refinement,
@@ -61,8 +63,8 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The selected next version after v0.40 is v0.41 Account Tiers And Backoffice.
-  Other deferred product tracks remain candidates after that bounded release.
+- The next product version after v0.41 remains unselected. Deferred product and
+  infrastructure tracks below remain candidates after this bounded release.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -73,6 +75,11 @@ Current planning status:
   clear discovery-versus-release boundary.
 
 Next deferred product tracks:
+
+- **Dependency Advisory Remediation** — immediately after the v0.41 deployment,
+  triage and remediate the current 14 npm audit advisories by reachable runtime
+  impact and package ownership. Upgrade or replace root causes with focused
+  tests; do not hide findings with audit exceptions or inline suppressions.
 
 - 3D Material Nodes follow-up work remains focused on deeper material authoring:
   map scale/rotation, richer example packs, broader browser WebGL coverage, and
@@ -98,12 +105,13 @@ Next deferred product tracks:
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
-Planned next:
+Release candidate:
 
 - [`version-plans/v0.41.md`](./version-plans/v0.41.md) — Account Tiers And
   Backoffice: explicit AI entitlements, safe Generation accounting, provider
-  cost reconciliation, a global Safety Budget, and a separate admin-only
-  operational application.
+  cost reconciliation, a global Safety Budget, a separate admin-only
+  operational application, and exact-SHA production promotion. Release notes
+  are in [`releases/v0.41.0.md`](./releases/v0.41.0.md).
 
 Recently shipped:
 
@@ -306,22 +314,20 @@ Next strong candidates after v0.39:
 - **Server-backed Share Links And Ownership** — build on v0.39 private cloud
   projects with explicit sharing permissions, link tokens, ownership rules, and
   security tests before public project links become available.
-- **Account Tiers And Backoffice** — add a separate admin-only backoffice,
-  auditable Free/Creator/Founder Tier Assignments, per-user Generation usage,
-  month-specific audited Quota Grants, append-only provider Usage Events, and
-  provider-cost reconciliation. The first release keeps Tier Policy fixed in
-  server code; a later slice should make versioned tier capabilities and
-  allowances configurable without a code deploy, with validation, audit
-  history, and safe rollback. Account suspension controls remain outside the
-  first backoffice release until moderation or support workflows require them;
-  the existing disabled-account state remains a technical reserve. A later
-  product slice may add a Creator access-request workflow once there is a real
-  review and response channel. After the v0.41 SPA deployment is stable, move
-  the backoffice to a normal React Router SSR runtime so authentication and
-  Admin route loading happen before protected UI renders. Treat this as a
-  separate infrastructure release with a Node container, SSR-specific
-  security/hydration tests, and an explicit Coolify rollback path rather than
-  changing the runtime during v0.41 rollout.
+- **Account Tiers And Backoffice Follow-Up** — make versioned tier capabilities
+  and allowances configurable without a code deploy, with validation, audit
+  history, and safe rollback. Add Cloudflare Access in front of the backoffice,
+  an audited Admin reconciliation trigger, and remove the physical legacy
+  entitlement columns after the production observation window. Account
+  suspension controls remain outside the first backoffice release until
+  moderation or support workflows require them; the existing disabled-account
+  state remains a technical reserve. A later product slice may add a Creator
+  access-request workflow once there is a real review and response channel.
+  After the v0.41 SPA deployment is stable, move the backoffice to a normal
+  React Router SSR runtime so authentication and Admin route loading happen
+  before protected UI renders. Treat this as a separate infrastructure release
+  with a Node container, SSR-specific security/hydration tests, and an explicit
+  Coolify rollback path rather than changing the runtime during v0.41 rollout.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
