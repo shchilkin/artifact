@@ -236,17 +236,62 @@ jobs:
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
+  container-gate:
+    name: container gate
+    needs: [quality, browser-changes, browser, container-changes]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.gate.outputs.should_build }}
+
+    steps:
+      - name: Verify container build prerequisites
+        id: gate
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          BROWSER_CHANGES_RESULT: ${{ needs.browser-changes.result }}
+          BROWSER_REQUIRED: ${{ needs.browser-changes.outputs.should_run }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+          CONTAINER_CHANGES_RESULT: ${{ needs.container-changes.result }}
+          CONTAINER_REQUIRED: ${{ needs.container-changes.outputs.should_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fail_gate() {
+            echo "::error title=Container gate blocked::$1"
+            exit 1
+          }
+
+          if [ "$QUALITY_RESULT" != "success" ]; then
+            fail_gate "Quality result was '$QUALITY_RESULT'."
+          fi
+
+          if [ "$BROWSER_CHANGES_RESULT" != "success" ]; then
+            fail_gate "Browser change detection result was '$BROWSER_CHANGES_RESULT'."
+          fi
+
+          if [ "$CONTAINER_CHANGES_RESULT" != "success" ]; then
+            fail_gate "Container change detection result was '$CONTAINER_CHANGES_RESULT'."
+          fi
+
+          if [ "$BROWSER_REQUIRED" = "true" ] && [ "$BROWSER_RESULT" != "success" ]; then
+            fail_gate "Required browser matrix result was '$BROWSER_RESULT'."
+          fi
+
+          if [ "$CONTAINER_REQUIRED" != "true" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "No container-relevant changes were detected." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "Quality and required browser checks passed. Container builds may start." >> "$GITHUB_STEP_SUMMARY"
+
   container-images:
     name: container (${{ matrix.name }})
-    needs: [quality, browser-changes, browser, container-changes]
-    if: |
-      always() &&
-      needs.quality.result == 'success' &&
-      needs.container-changes.outputs.should_run == 'true' &&
-      (
-        needs.browser-changes.outputs.should_run != 'true' ||
-        needs.browser.result == 'success'
-      )
+    needs: container-gate
+    if: needs.container-gate.outputs.should_build == 'true'
     runs-on: ubuntu-latest
 
     strategy:

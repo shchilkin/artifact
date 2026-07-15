@@ -327,11 +327,21 @@ signal with less maintenance cost than component snapshots.
 
 ## CI
 
-CI has two jobs:
+CI separates validation from artifact building:
 
-- Fast quality/build: format check, lint, typecheck, unit/render tests, and production build.
-- Browser smoke: installs Playwright Chromium, Firefox, and WebKit and runs
-  `npm run test:browser`.
+- Fast quality/build runs format check, lint, typecheck, unit/render tests, and
+  the production build.
+- Browser change detection starts the Playwright matrix for code and workflow
+  changes. Chromium, Firefox, WebKit, mobile Chromium, and mobile WebKit run in
+  parallel.
+- Container change detection feeds a non-matrix container gate. The gate fails
+  when quality or a required browser matrix fails, skips cleanly when no
+  container-relevant files changed, and only then expands the API, Worker, Bull
+  Board, and Backoffice image matrix.
+
+Container jobs build without publishing on pull requests. Pushes to
+`development` and `main` publish the verified images to GHCR after the gate
+passes.
 
 If a deployment environment cannot provide Chromium/WebGL, explicitly waive the
 browser job in release notes instead of silently removing coverage.

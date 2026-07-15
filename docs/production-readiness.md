@@ -31,6 +31,10 @@ CI should run:
 - GitHub JavaScript actions should run with the Node 24 action runtime opt-in
   (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) so release checks do not carry
   the Node.js 20 action-runtime deprecation warning.
+- Container images should be built only after the explicit container gate has
+  confirmed the fast quality job, change detectors, and any required browser
+  matrix. The image matrix must depend on that gate rather than combining
+  matrix results and detector outputs in its own job-level condition.
 
 ## Branch And Release Flow
 
