@@ -8,6 +8,7 @@ describe('health route', () => {
       handleHealthRequest(
         { method: 'GET', url: AI_API_PATHS.health },
         {
+          buildSha: '0123456789abcdef0123456789abcdef01234567',
           databaseDriver: 'postgres',
           queueDriver: 'bullmq',
           storageDriver: 'local',
@@ -20,6 +21,8 @@ describe('health route', () => {
       body: {
         ok: true,
         service: 'artifact-api',
+        buildSha: '0123456789abcdef0123456789abcdef01234567',
+        contractVersion: 1,
         databaseDriver: 'postgres',
         queueDriver: 'bullmq',
         storageDriver: 'local',
@@ -34,6 +37,7 @@ describe('health route', () => {
       handleHealthRequest(
         { method: 'POST', url: AI_API_PATHS.health },
         {
+          buildSha: 'development',
           databaseDriver: 'memory',
           queueDriver: 'memory',
           storageDriver: 'local',

@@ -11,6 +11,8 @@ export const AI_API_PATHS = {
   assetFile: (id: string) => `/api/assets/${encodeURIComponent(id)}/file`,
 } as const;
 
+export const ARTIFACT_API_CONTRACT_VERSION = 1 as const;
+
 export const AI_GENERATION_PROVIDERS = ['openai', 'xai'] as const;
 export type AiGenerationProvider = (typeof AI_GENERATION_PROVIDERS)[number];
 
@@ -765,6 +767,8 @@ export interface AiErrorResponse {
 export interface ApiHealthResponse {
   ok: true;
   service: 'artifact-api';
+  buildSha: string;
+  contractVersion: typeof ARTIFACT_API_CONTRACT_VERSION;
   databaseDriver: 'memory' | 'postgres';
   queueDriver: 'memory' | 'bullmq';
   storageDriver: 'local' | 's3';

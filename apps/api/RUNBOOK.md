@@ -38,7 +38,9 @@ backend stack:
 - Compose file: `docker-compose.coolify.yml`
 - Services: `api`, `worker`, `bull-board`, `postgres`, `redis`
 - Build context: repository root
-- Branch: `development`
+- Branch: `main` for the production resource. The CI deploy action pins the
+  exact verified commit before every deployment; the branch is only the source
+  repository default.
 - Postgres image: `postgres:18-alpine`
 
 This shape intentionally keeps the app processes and infrastructure inside the
@@ -100,6 +102,56 @@ writes, and local generated-asset storage where each container depends on them.
 Coolify/Traefik will not route public traffic while the resource is unhealthy,
 so if the public API domain returns `503 no available server`, check the API,
 worker, Postgres, and Redis container health first.
+
+## CI-Controlled Production Deployment
+
+Production deployment is a manual action in `.github/workflows/release.yml`.
+Choose `deploy-production` from `main`. The workflow uses one shared production
+lock and does not begin any deployment until release metadata, quality, build,
+browser, and Fallow gates have passed.
+
+The deployment sequence is:
+
+1. Build the Vercel production artifact and deploy it to a staged URL without
+   assigning production domains.
+2. Verify that the staged web response is non-empty HTML reporting the exact
+   verified commit SHA.
+3. Disable Coolify source auto-deploy, pin the Compose application to the exact
+   verified commit SHA, set `ARTIFACT_BUILD_SHA`, and start the deployment.
+4. Wait for Coolify to finish, then require the public API health response to
+   report that same SHA and the expected API contract version.
+5. Optionally run one authenticated provider-backed AI smoke test.
+6. Promote the already-verified Vercel deployment and require the production
+   web domain to report the same commit SHA.
+
+Configure these values on the `production-release` GitHub Environment:
+
+| Kind | Name | Purpose |
+| --- | --- | --- |
+| Variable | `COOLIFY_APPLICATION_UUID` | Compose application controlled by the deployment |
+| Variable | `COOLIFY_BASE_URL` | Coolify origin, with or without `/api/v1` |
+| Variable | `PRODUCTION_API_URL` | Public API origin used for revision verification |
+| Variable | `PRODUCTION_WEB_URL` | Public Artifact web origin |
+| Variable | `VERCEL_ORG_ID` | Vercel team or account identifier |
+| Variable | `VERCEL_PROJECT_ID` | Artifact Vercel project identifier |
+| Secret | `COOLIFY_API_TOKEN` | Scoped token allowed to update and deploy the application |
+| Secret | `VERCEL_TOKEN` | Token allowed to build, deploy, and promote the project |
+| Secret | `PRODUCTION_API_SMOKE_TOKEN` | Optional authenticated AI smoke token |
+
+Automatic Vercel production deployment from `main` is disabled in
+`vercel.json`; pull-request preview deployments remain enabled. Coolify source
+auto-deploy is also disabled by the production action. This makes the Release
+workflow the only intended production writer.
+
+This is the safe transitional source-deploy phase: Coolify still builds the
+repository on the VPS, but only from the CI-verified SHA. The next infrastructure
+step is to publish immutable service images in GitHub Actions and make Coolify
+pull those image digests without compiling source on the server.
+
+For rollback, promote the previous Vercel deployment, pin Coolify to the last
+known-good commit, and deploy it through the same controlled path. Database
+migrations must remain backward compatible across that rollback window; do not
+assume reverting application code reverses a migration.
 
 For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for

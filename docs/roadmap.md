@@ -1022,6 +1022,14 @@ Research and architecture tasks:
   required `packages: write` publishing permission, read-only Coolify package
   pulls, shared API/worker/BullMQ/Postgres/storage env, migration-before-deploy
   order, and rollback by previous tag or digest.
+- [x] Standardize the transitional production deployment through the manual
+  Release workflow: all quality and browser gates finish before deployment,
+  Vercel is staged before promotion, Coolify is pinned to the exact verified
+  commit, the public API proves its build SHA and contract version, the staged
+  and promoted web deployments prove their build SHA, and concurrent production
+  deploys share one lock. This removes independent
+  Vercel/Coolify writers while immutable pull-only service images remain the
+  next infrastructure step.
 - [ ] Run the monorepo/Turborepo migration as a dedicated infrastructure track:
   introduce workspaces, add Turborepo task orchestration, move the web app into
   `apps/web`, extract stable shared contracts, build dedicated service

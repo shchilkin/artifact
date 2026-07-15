@@ -6,6 +6,15 @@ const requiredEnv = {
 };
 
 describe('loadConfig', () => {
+  it('exposes deployment metadata without making local development depend on CI', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({ buildSha: 'development' });
+    expect(
+      loadConfig({ ...requiredEnv, ARTIFACT_BUILD_SHA: ' 0123456789abcdef0123456789abcdef01234567 ' }),
+    ).toMatchObject({
+      buildSha: '0123456789abcdef0123456789abcdef01234567',
+    });
+  });
+
   it('defaults to the in-memory database driver for local development', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       databaseDriver: 'memory',
