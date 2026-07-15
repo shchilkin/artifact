@@ -8,18 +8,6 @@ on:
         required: false
         type: boolean
         default: false
-  push:
-    tags:
-      - "v*"
-    paths:
-      - ".github/workflows/container-images.yml"
-      - "apps/backoffice/**"
-      - "apps/api/**"
-      - "docker/**"
-      - "package.json"
-      - "package-lock.json"
-      - "packages/**"
-      - "turbo.json"
 
 permissions:
   contents: read
@@ -33,8 +21,32 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  quality:
+    name: Manual image quality gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality gate
+        run: npm run check
+
+      - name: Production build
+        run: npm run build:ci
+
   build:
     name: Build ${{ matrix.name }}
+    needs: quality
     runs-on: ubuntu-latest
 
     strategy:
@@ -78,16 +90,9 @@ jobs:
         id: publish
         if: steps.dockerfile.outputs.exists == 'true'
         env:
-          EVENT_NAME: ${{ github.event_name }}
           PUSH_IMAGES: ${{ inputs['push-images'] || 'false' }}
-          REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$PUSH_IMAGES" = "true" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_NAME" = "push" ] && [ "$REF_TYPE" = "tag" ] && [[ "$REF_NAME" == v* ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_NAME" = "push" ] && { [ "$REF_NAME" = "development" ] || [ "$REF_NAME" = "main" ]; }; then
+          if [ "$PUSH_IMAGES" = "true" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"

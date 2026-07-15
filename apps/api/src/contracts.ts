@@ -27,6 +27,7 @@ export {
   AI_PROVIDERS,
   AI_SHADER_DIAGNOSTIC_MAX_LENGTH,
   AI_SHADER_PROMPT_MAX_LENGTH,
+  ARTIFACT_API_CONTRACT_VERSION,
   normalizeShaderDefinition,
   normalizeShaderInstance,
   stripShaderCodeComments,

@@ -121,6 +121,7 @@ async function runInTransaction<T>(operation: (transactionRepositories: ApiRepos
 async function resolveApiResponse(req: IncomingMessage) {
   return (
     handleHealthRequest(req, {
+      buildSha: config.buildSha,
       databaseDriver: config.databaseDriver,
       queueDriver: config.queueDriver,
       storageDriver: config.assetStorageDriver,

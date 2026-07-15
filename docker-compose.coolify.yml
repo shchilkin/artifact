@@ -1,5 +1,6 @@
 x-artifact-api-env: &artifact-api-env
   NODE_ENV: production
+  ARTIFACT_BUILD_SHA: ${ARTIFACT_BUILD_SHA:-development}
   PORT: 4000
   WEB_ORIGIN: ${WEB_ORIGIN:?Set the primary public Vercel/frontend origin}
   WEB_ORIGINS: ${WEB_ORIGINS:-}

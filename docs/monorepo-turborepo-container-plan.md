@@ -334,6 +334,14 @@ workflow, or delete-package permissions.
 
 ## Coolify/VPS Deploy Shape
 
+The current transitional production path is CI-controlled but still
+source-built. The Release workflow waits for every release gate, stages Vercel,
+sets Coolify's `git_commit_sha` to the verified full SHA, disables source
+auto-deploy, waits for completion, and verifies the public API-reported build
+SHA before promoting Vercel. This is the required bridge until the pull-only
+image phase below is complete; it prevents revision drift but does not remove
+VPS compilation cost.
+
 Coolify should own runtime configuration, not compilation:
 
 - Pull prebuilt image tags from GitHub Container Registry or the selected

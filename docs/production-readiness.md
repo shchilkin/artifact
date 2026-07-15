@@ -35,15 +35,30 @@ CI should run:
 ## Branch And Release Flow
 
 - `development` is the integration and release-candidate branch.
-- `main` is reserved as the future production release branch. Production tags
-  and GitHub Releases should be created from `main` after the release candidate
-  has passed review and has been promoted there.
+- `main` is the production release branch. Production tags, GitHub Releases,
+  and production deployments must use a reviewed commit already promoted from
+  `development`.
 - `.github/workflows/release.yml` is the manual production release workflow. It
   runs the release gate, verifies release metadata, and then can create a tag,
-  create a draft GitHub Release, or publish an existing draft depending on the
-  selected action.
+  manage a GitHub Release, or execute the gated production deployment depending
+  on the selected action.
 - The `production-release` GitHub Environment should require maintainer
-  approval before any workflow action that creates tags or publishes releases.
+  approval before any workflow action that creates tags, publishes releases,
+  or changes production.
+- `deploy-production` is the only intended production writer. It stages Vercel,
+  pins and deploys Coolify at the verified commit, verifies the public API build
+  SHA and contract, optionally runs a real AI smoke, then promotes the staged
+  web deployment and verifies its reported build SHA. Automatic Vercel
+  production deployments from `development` and `main` are disabled;
+  pull-request previews remain enabled.
+- Production deployments use a shared concurrency lock, so two versions cannot
+  mutate Vercel or Coolify at the same time.
+- The release Fallow gate blocks findings introduced by the release diff. Older
+  findings remain in the report and are paid down separately; they are not
+  hidden with inline suppressions.
+- Until the web deployment is promoted, the new API briefly serves the previous
+  web revision. API and database changes in this deployment path must therefore
+  remain backward compatible for at least one web release.
 - Pull requests remain the normal place to validate release candidates. Do not
   tag or publish a release from a dirty local worktree or from free-form notes.
 

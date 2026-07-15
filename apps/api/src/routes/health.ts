@@ -1,7 +1,8 @@
-import { AI_API_PATHS, type AiProvider, type ApiHealthResponse } from '../contracts.js';
+import { AI_API_PATHS, type AiProvider, type ApiHealthResponse, ARTIFACT_API_CONTRACT_VERSION } from '../contracts.js';
 import { type JsonResponse, json } from '../http.js';
 
 export interface HealthRouteDeps {
+  buildSha: string;
   databaseDriver: ApiHealthResponse['databaseDriver'];
   queueDriver: ApiHealthResponse['queueDriver'];
   storageDriver: ApiHealthResponse['storageDriver'];
@@ -19,6 +20,8 @@ export function handleHealthRequest(
   return json(200, {
     ok: true,
     service: 'artifact-api',
+    buildSha: deps.buildSha,
+    contractVersion: ARTIFACT_API_CONTRACT_VERSION,
     databaseDriver: deps.databaseDriver,
     queueDriver: deps.queueDriver,
     storageDriver: deps.storageDriver,

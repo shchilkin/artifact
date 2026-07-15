@@ -1,4 +1,5 @@
 export interface ApiConfig {
+  buildSha: string;
   port: number;
   webOrigin: string;
   webOrigins: string[];
@@ -98,6 +99,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const webOrigins = webOriginsEnv(env);
 
   return {
+    buildSha: env.ARTIFACT_BUILD_SHA?.trim() || 'development',
     port: numberEnv(env, 'PORT', 4000),
     webOrigin: webOrigins[0] ?? 'http://localhost:5173',
     webOrigins,

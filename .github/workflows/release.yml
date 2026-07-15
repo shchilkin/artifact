@@ -17,6 +17,12 @@ on:
           - tag-and-create-draft
           - create-draft
           - publish-draft
+          - deploy-production
+      run_ai_smoke:
+        description: "Run one provider-backed AI generation before promoting the web deployment"
+        required: false
+        type: boolean
+        default: false
       fallow-base:
         description: "Base branch for the changed-code Fallow release audit"
         required: false
@@ -27,7 +33,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ inputs.version }}
+  group: ${{ inputs.action == 'deploy-production' && 'production-deploy' || format('release-{0}', inputs.version) }}
   cancel-in-progress: false
 
 env:
@@ -59,7 +65,7 @@ jobs:
           set -euo pipefail
 
           case "${{ inputs.action }}" in
-            verify|tag-and-create-draft)
+            verify|tag-and-create-draft|deploy-production)
               tag_policy=()
               ;;
             create-draft|publish-draft)
@@ -88,12 +94,12 @@ jobs:
       - name: Fallow release audit
         env:
           FALLOW_AGENT_SOURCE: github_actions
-        run: npm run --silent fallow:audit -- --base origin/${{ inputs.fallow-base }} --gate all
+        run: npm run --silent fallow:audit -- --base origin/${{ inputs.fallow-base }} --gate new-only
 
   release:
     name: Production release action
     needs: gate
-    if: inputs.action != 'verify'
+    if: inputs.action == 'tag-and-create-draft' || inputs.action == 'create-draft' || inputs.action == 'publish-draft'
     runs-on: ubuntu-latest
     environment: production-release
 
@@ -153,3 +159,110 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "v${{ inputs.version }}" --draft=false --latest
+
+  deploy-production:
+    name: Deploy production from verified commit
+    needs: gate
+    if: inputs.action == 'deploy-production'
+    runs-on: ubuntu-latest
+    environment: production-release
+    permissions:
+      contents: read
+    env:
+      COOLIFY_APPLICATION_UUID: ${{ vars.COOLIFY_APPLICATION_UUID }}
+      COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      DEPLOY_SHA: ${{ github.sha }}
+      EXPECTED_API_CONTRACT_VERSION: "1"
+      PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL }}
+      PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
+      VERCEL_CLI_VERSION: "54.21.1"
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout verified commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Production deploys must run from main. Current ref: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+
+      - name: Pull Vercel production settings
+        run: vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
+
+      - name: Build staged web deployment
+        run: vercel build --prod --token="${VERCEL_TOKEN}"
+
+      - name: Deploy staged web without production domains
+        shell: bash
+        run: |
+          set -euo pipefail
+          staged_url="$(vercel deploy --prebuilt --prod --skip-domain --yes --no-color --meta "artifactBuildSha=${DEPLOY_SHA}" --token="${VERCEL_TOKEN}")"
+          if [[ ! "${staged_url}" =~ ^https:// ]]; then
+            echo "Vercel did not return a deployment URL: ${staged_url}" >&2
+            exit 1
+          fi
+          echo "STAGED_WEB_URL=${staged_url}" >> "${GITHUB_ENV}"
+
+      - name: Verify staged web deployment
+        env:
+          VERIFY_TARGET: web
+        run: WEB_DEPLOYMENT_URL="${STAGED_WEB_URL}" node scripts/deploy/verify-production.mjs
+
+      - name: Deploy VPS stack from the verified commit
+        id: coolify
+        run: node scripts/deploy/coolify.mjs
+
+      - name: Verify production API revision and contract
+        env:
+          VERIFY_TARGET: api
+        run: node scripts/deploy/verify-production.mjs
+
+      - name: Run provider-backed AI smoke test
+        if: inputs.run_ai_smoke
+        env:
+          API_SMOKE_BASE_URL: ${{ vars.PRODUCTION_API_URL }}
+          API_SMOKE_PROVIDER: openai
+          API_SMOKE_TIMEOUT_MS: "120000"
+          API_SMOKE_TOKEN: ${{ secrets.PRODUCTION_API_SMOKE_TOKEN }}
+        run: node apps/api/scripts/smoke.mjs
+
+      - name: Promote staged web deployment
+        run: vercel promote "${STAGED_WEB_URL}" --yes --token="${VERCEL_TOKEN}"
+
+      - name: Verify production web domain
+        env:
+          VERIFY_TARGET: web
+          WEB_DEPLOYMENT_URL: ${{ vars.PRODUCTION_WEB_URL }}
+        run: node scripts/deploy/verify-production.mjs
+
+      - name: Summarize production deployment
+        shell: bash
+        run: |
+          echo "### Production deployment" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit: \`${DEPLOY_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Coolify deployment: \`${{ steps.coolify.outputs.deployment-uuid }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Staged Vercel deployment: ${STAGED_WEB_URL}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Production web: ${PRODUCTION_WEB_URL}" >> "${GITHUB_STEP_SUMMARY}"
