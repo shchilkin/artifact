@@ -45,4 +45,19 @@ describe('production deployment configuration', () => {
     assert.doesNotMatch(workflow, /^\s{2}push:/m);
     assert.match(workflow, /build:\n[\s\S]*?needs: quality/);
   });
+
+  it('expands the CI container matrix only after the explicit prerequisite gate', async () => {
+    const workflow = await readFile(new URL('.github/workflows/ci.yml', root), 'utf8');
+    const gateStart = workflow.indexOf('  container-gate:');
+    const matrixStart = workflow.indexOf('  container-images:');
+
+    assert.ok(gateStart >= 0, 'CI must define a non-matrix container gate');
+    assert.ok(matrixStart > gateStart, 'The container matrix must follow the prerequisite gate');
+    assert.match(workflow, /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, container-changes\]/);
+    assert.match(workflow, /should_build: \$\{\{ steps\.gate\.outputs\.should_build \}\}/);
+    assert.match(
+      workflow,
+      /container-images:\n[\s\S]*?needs: container-gate\n\s+if: needs\.container-gate\.outputs\.should_build == 'true'/,
+    );
+  });
 });
