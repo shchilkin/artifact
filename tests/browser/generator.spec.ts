@@ -3354,28 +3354,34 @@ test.describe('AI generated image export and polling flows', () => {
   });
 });
 
-test.describe('AI quota access flow', () => {
+test.describe('AI allowance access flow', () => {
   test.skip(
     ({ browserName }) => browserName === 'webkit',
     'WebKit full-suite navigation flakes on this mocked AI flow.',
   );
 
-  test('AI quota exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
+  test('AI allowance exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
     await mockAiAccess(page, {
       authenticated: true,
       enabled: false,
-      disabledReason: 'quota_exhausted',
+      disabledReason: 'allowance_exhausted',
       providers: ['openai'],
-      quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+      quota: {
+        period: '2026-05',
+        limit: 10,
+        used: 10,
+        remaining: 0,
+        resetAt: '2026-06-01T00:00:00.000Z',
+      },
       user: { id: 'dev-user', role: 'admin' },
     });
 
     await page.goto('/app?new=blank');
     await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
 
-    await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI quota used');
+    await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI allowance used');
     await expect(page.locator('.ai-generation-access-banner')).toContainText(
-      'Your monthly generation limit is used for this account.',
+      'This account has used its AI creations for the current month. The allowance renews June 1.',
     );
     await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
   });
