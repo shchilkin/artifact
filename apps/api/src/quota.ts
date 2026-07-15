@@ -42,6 +42,15 @@ export function getMonthlyQuotaPeriod(now: Date = new Date()): string {
   return `${year}-${month}`;
 }
 
+export function getMonthlyQuotaResetAt(period: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!match) throw new Error('period must use YYYY-MM format');
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) throw new Error('period month must be between 01 and 12');
+  return new Date(Date.UTC(year, month, 1)).toISOString();
+}
+
 function normalizeNonNegativeInteger(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be a non-negative number`);

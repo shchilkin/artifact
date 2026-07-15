@@ -3095,9 +3095,7 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-props-panel')).toContainText('AI Image');
   await expect(page.locator('.node-props-panel')).toContainText('Account required for AI');
-  await expect(page.locator('.node-props-panel')).toContainText(
-    'This feature uses AI. To use AI features, create an account.',
-  );
+  await expect(page.locator('.node-props-panel')).toContainText('Sign in to create with AI.');
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
   await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
   await expect(page.locator('.ai-generation-dev-diagnostics')).toHaveCount(0);
@@ -3356,28 +3354,34 @@ test.describe('AI generated image export and polling flows', () => {
   });
 });
 
-test.describe('AI quota access flow', () => {
+test.describe('AI allowance access flow', () => {
   test.skip(
     ({ browserName }) => browserName === 'webkit',
     'WebKit full-suite navigation flakes on this mocked AI flow.',
   );
 
-  test('AI quota exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
+  test('AI allowance exhaustion shows a banner instead of inactive generation controls', async ({ page }) => {
     await mockAiAccess(page, {
       authenticated: true,
       enabled: false,
-      disabledReason: 'quota_exhausted',
+      disabledReason: 'allowance_exhausted',
       providers: ['openai'],
-      quota: { period: '2026-05', limit: 10, used: 10, remaining: 0 },
+      quota: {
+        period: '2026-05',
+        limit: 10,
+        used: 10,
+        remaining: 0,
+        resetAt: '2026-06-01T00:00:00.000Z',
+      },
       user: { id: 'dev-user', role: 'admin' },
     });
 
     await page.goto('/app?new=blank');
     await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
 
-    await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI quota used');
+    await expect(page.locator('.ai-generation-access-banner')).toContainText('Monthly AI allowance used');
     await expect(page.locator('.ai-generation-access-banner')).toContainText(
-      'Your monthly generation limit is used for this account.',
+      'This account has used its AI creations for the current month. The allowance renews June 1.',
     );
     await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
   });

@@ -257,7 +257,40 @@ describe('AI route handlers', () => {
       body: {
         authenticated: true,
         enabled: true,
-        quota: { period: '2026-05', limit: 20, used: 2, remaining: 18 },
+        tier: 'creator',
+        quota: {
+          period: '2026-05',
+          limit: 20,
+          used: 2,
+          remaining: 18,
+          resetAt: '2026-06-01T00:00:00.000Z',
+        },
+        operations: { active: 0, limit: 3, remaining: 3 },
+      },
+    });
+  });
+
+  it('reports active operation capacity before another creation is submitted', async () => {
+    const { deps, store } = createDeps();
+    store.seedUser({ id: 'user-1', aiEnabled: true });
+    const access = accountAccess(store);
+
+    for (const idempotencyKey of ['active-1', 'active-2', 'active-3']) {
+      await expect(
+        access.reserve({ userId: 'user-1', feature: 'image_create', idempotencyKey }),
+      ).resolves.toMatchObject({ ok: true });
+    }
+
+    await expect(handleAccessRequest({ headers: {} }, deps)).resolves.toMatchObject({
+      status: 200,
+      body: {
+        authenticated: true,
+        enabled: false,
+        disabledReason: 'operation_in_progress',
+        tier: 'creator',
+        quota: { limit: 20, used: 3, remaining: 17 },
+        operations: { active: 3, limit: 3, remaining: 0 },
+        providers: [],
       },
     });
   });

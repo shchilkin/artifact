@@ -19,6 +19,15 @@ const operation: AiOperationRow = {
 };
 
 describe('PostgresAiOperationRepository', () => {
+  it('counts the same active statuses used by capacity reservation', async () => {
+    const client = createFakeQueryClient([[{ count: '2' }]]);
+    const repository = new PostgresAiOperationRepository(client);
+
+    await expect(repository.countActiveForUser('user-1')).resolves.toBe(2);
+    expect(client.calls[0]?.sql).toContain("status IN ('reserved', 'running')");
+    expect(client.calls[0]?.values).toEqual(['user-1']);
+  });
+
   it('claims a reserved operation with a per-feature idempotency guard', async () => {
     const client = createFakeQueryClient([[], [], [], [operation], []]);
     const repository = new PostgresAiOperationRepository(client);

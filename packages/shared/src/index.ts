@@ -715,6 +715,13 @@ export interface AiGenerationQuotaSnapshot {
   limit: number | null;
   used: number;
   remaining: number | null;
+  resetAt?: string;
+}
+
+export interface AiGenerationOperationSnapshot {
+  active: number;
+  limit: number;
+  remaining: number;
 }
 
 export interface AiGenerationJobError {
@@ -756,6 +763,7 @@ export interface AiGenerationAccessState {
     role?: string;
   };
   quota?: AiGenerationQuotaSnapshot;
+  operations?: AiGenerationOperationSnapshot;
   providers?: AiGenerationProvider[];
 }
 
