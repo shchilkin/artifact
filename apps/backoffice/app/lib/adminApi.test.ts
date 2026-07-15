@@ -62,6 +62,50 @@ describe('adminApi', () => {
     );
   });
 
+  it('previews and applies AI operation recovery through the dedicated admin endpoint', async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            mode: 'preview',
+            repeated: false,
+            checkedAt: '2026-07-15T10:00:00.000Z',
+            staleBefore: '2026-07-15T04:00:00.000Z',
+            recoveredOperationIds: ['operation-1'],
+            expiredOperationIds: [],
+            nextAllowedAt: null,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await adminApi.operationReconciliation();
+    await adminApi.reconcileOperations({
+      reason: 'Recover a completed result',
+      idempotencyKey: 'operation-recovery-1',
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:4000/api/admin/ai-operations/reconciliation',
+      expect.objectContaining({ credentials: 'include', method: 'GET' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:4000/api/admin/ai-operations/reconciliation',
+      expect.objectContaining({
+        credentials: 'include',
+        method: 'POST',
+        body: JSON.stringify({
+          reason: 'Recover a completed result',
+          idempotencyKey: 'operation-recovery-1',
+        }),
+      }),
+    );
+  });
+
   it('validates period and positive integer helpers deterministically', () => {
     expect(currentUtcPeriod(new Date('2026-07-13T10:00:00.000Z'))).toBe('2026-07');
     expect(readPositiveInteger('4')).toBe(4);

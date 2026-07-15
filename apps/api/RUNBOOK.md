@@ -417,6 +417,34 @@ jobs, including shader create, refine, and browser-guided repair work.
 
 ## Cleanup
 
+### Admin operation recovery
+
+Use **Operation recovery** on the backoffice `/usage` route when Bull Board or
+the client shows a completed image/shader result whose Artifact operation is
+still active, or when an abandoned operation continues to reserve account
+capacity. The page loads a read-only preview before any mutation.
+
+Before applying recovery:
+
+1. Confirm the matching queue job and operation ID in Bull Board or API logs.
+2. Review the preview counts and affected IDs returned by the Admin API.
+3. Enter a concrete operational reason and apply once.
+4. Reload the affected Artifact project and verify that the operation is
+   terminal and account capacity is available.
+
+The Admin action finalizes active operations that already have a usable image
+or accepted shader. It closes active operations older than six hours only when
+they have no usable result. Generation reservations are committed or released
+in the same database transition. Each apply is Admin-authorized, audited,
+idempotent, and rate-limited to one new attempt every five minutes.
+
+This action does not reconcile OpenAI cost, call a provider, inspect Creative
+Content, remove asset files, or perform general storage cleanup. Daily provider
+cost reconciliation remains a separate process, and the CLI below remains the
+broader maintenance tool.
+
+### Full cleanup CLI
+
 The AI cleanup command is intentionally manual for the private alpha. It is safe
 to run as a dry run first, inspect the JSON summary, then apply the same command
 when the candidates look right.
@@ -461,8 +489,10 @@ npm --workspace @artifact/api run cleanup:ai -- \
 ```
 
 Only run `--apply` against the intended `DATABASE_URL` and `ASSET_STORAGE_DIR`.
-For private alpha, run cleanup after investigating stuck jobs in Bull Board or
-before freeing old generated files on the VPS.
+For private alpha, use backoffice operation recovery for lifecycle-only repair.
+Run the full cleanup CLI after investigating stuck jobs in Bull Board when asset
+or filesystem cleanup is also required, or before freeing old generated files
+on the VPS.
 
 ## Operational Notes
 

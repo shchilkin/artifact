@@ -48,12 +48,36 @@ ports in `DATABASE_URL`/`REDIS_URL` when starting the API.
   provider-cost metadata.
 - `/accounts/:userId` provides audited Tier Assignment, Quota Grant, and Quota
   Grant Reversal controls.
-- `/usage` shows metadata-only Provider Usage Events and daily reconciliation.
+- `/usage` shows metadata-only Provider Usage Events, daily provider-cost
+  reconciliation, and manual AI operation recovery.
 - `/sign-in` uses the existing Better Auth email/password account flow.
 
 Mutations require a reason and an idempotency key. Tier Assignment also sends
 the expected Tier and version so concurrent changes fail with a visible stable
 conflict instead of overwriting newer state.
+
+## AI Operation Recovery
+
+The Operation Recovery section on `/usage` repairs Artifact's own operation
+lifecycle. It is separate from daily provider-cost reconciliation and does not
+contact OpenAI or import billing totals.
+
+The preview is read-only. It lists operation IDs that can be finalized because
+they already have a usable image result or an accepted shader, plus stale
+operation IDs that have no usable result and can be closed. Applying recovery:
+
+- commits the reserved Generation for recovered usable results;
+- releases the reserved Generation for abandoned operations older than six
+  hours;
+- closes matching queued/running image jobs and unfinished shader requests;
+- records the Admin, reason, idempotency key, affected IDs, and timestamp in
+  the immutable Admin audit log; and
+- enforces a five-minute cooldown between new recovery attempts while allowing
+  an identical idempotent retry to return the original result.
+
+The Admin response and audit record contain IDs and counts only. Prompts,
+shader source, generated assets, and project documents remain outside the
+backoffice boundary.
 
 ## Validation
 
@@ -63,9 +87,9 @@ npm run build:backoffice
 npm run test:browser:backoffice
 ```
 
-The browser suite covers normal desktop navigation, denied access, optimistic
-concurrency conflicts, and mobile layout without page-level horizontal
-overflow.
+The browser suite covers normal desktop navigation, operation recovery,
+denied access, optimistic concurrency conflicts, and mobile layout without
+page-level horizontal overflow.
 
 ## Production Deployment
 

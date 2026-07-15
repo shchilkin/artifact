@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { ACCOUNT_TIERS, type AccountTier, type AiUsageEventStatus } from '@artifact/shared';
+import {
+  ACCOUNT_TIERS,
+  type AccountTier,
+  type AdminAiOperationReconciliationResponse,
+  type AiUsageEventStatus,
+} from '@artifact/shared';
 import type { RequestLike, RequestUserResolution } from '../auth.js';
 import {
   AccountTierVersionConflictError,
@@ -22,6 +27,12 @@ import { getMonthlyQuotaPeriod } from '../quota.js';
 import type { SafetyBudgetService } from '../safetyBudgetService.js';
 
 const MAX_PAGE_SIZE = 100;
+const OPERATION_RECONCILIATION_PATH = '/api/admin/ai-operations/reconciliation';
+const OPERATION_RECONCILIATION_ACTION = 'ai_operations.reconcile';
+const OPERATION_RECONCILIATION_ENTITY = 'ai_operation_reconciliation';
+const OPERATION_RECONCILIATION_STALE_MS = 6 * 60 * 60 * 1_000;
+const OPERATION_RECONCILIATION_COOLDOWN_MS = 5 * 60 * 1_000;
+const OPERATION_RECONCILIATION_LIMIT = 100;
 
 export interface AdminRouteRequest extends RequestLike {
   method?: string;
@@ -34,6 +45,7 @@ export interface AdminRouteDeps {
   safetyBudget: SafetyBudgetService;
   resolveAuth(request: RequestLike): Promise<RequestUserResolution>;
   createId?: () => string;
+  now?: () => Date;
   runInTransaction?<T>(operation: (repositories: ApiRepositories) => Promise<T>): Promise<T>;
 }
 
@@ -66,6 +78,7 @@ async function dispatchAdminRead(url: URL, deps: AdminRouteDeps) {
   if (url.pathname === '/api/admin/accounts') return accountsResponse(url, deps);
   if (url.pathname === '/api/admin/usage') return usageResponse(url, deps);
   if (url.pathname === '/api/admin/reconciliations') return reconciliationsResponse(url, deps);
+  if (url.pathname === OPERATION_RECONCILIATION_PATH) return operationReconciliationPreviewResponse(deps);
 
   const accountId = accountIdFromPath(url.pathname);
   return accountId ? accountResponse(accountId, url, deps) : null;
@@ -83,6 +96,9 @@ async function dispatchAdminMutation(
   if (grantAccountId) return createQuotaGrantResponse(request, grantAccountId, adminUserId, deps);
   const reversalGrantId = quotaReversalGrantIdFromPath(pathname);
   if (reversalGrantId) return createQuotaReversalResponse(request, reversalGrantId, adminUserId, deps);
+  if (pathname === OPERATION_RECONCILIATION_PATH) {
+    return applyOperationReconciliationResponse(request, adminUserId, deps);
+  }
   return null;
 }
 
@@ -165,6 +181,147 @@ async function reconciliationsResponse(url: URL, deps: AdminRouteDeps) {
   const limit = boundedInteger(url.searchParams.get('limit'), 30, 1, MAX_PAGE_SIZE);
   const rows = await deps.repositories.adminRead.listReconciliations(limit);
   return json(200, { reconciliations: rows.map(reconciliationResponse) });
+}
+
+async function operationReconciliationPreviewResponse(deps: AdminRouteDeps) {
+  const now = deps.now?.() ?? new Date();
+  const staleBefore = new Date(now.getTime() - OPERATION_RECONCILIATION_STALE_MS);
+  const [result, latestAudit] = await Promise.all([
+    deps.repositories.operations.reconcile({
+      now,
+      staleBefore,
+      limit: OPERATION_RECONCILIATION_LIMIT,
+      dryRun: true,
+    }),
+    deps.repositories.adminAudit.findLatestByAction(OPERATION_RECONCILIATION_ACTION),
+  ]);
+  return json(200, operationReconciliationResponse('preview', false, now, staleBefore, result, latestAudit));
+}
+
+async function applyOperationReconciliationResponse(
+  request: AdminRouteRequest,
+  adminUserId: string,
+  deps: AdminRouteDeps,
+) {
+  const body = await readAdminBody(request);
+  if (!body.ok) return body.response;
+  const mutation = readMutationMetadata(body.value);
+  if (!mutation) {
+    return errorJson(400, 'invalid_request', 'Reason and idempotency key are required.');
+  }
+
+  return runMutation(deps, async (repositories) => {
+    await repositories.adminAudit.lockAction(OPERATION_RECONCILIATION_ACTION);
+
+    const existing = await repositories.adminAudit.findByActionEntity(
+      OPERATION_RECONCILIATION_ACTION,
+      mutation.idempotencyKey,
+    );
+    if (existing) return json(200, reconciliationResponseFromAudit(existing));
+
+    const now = deps.now?.() ?? new Date();
+    const latestAudit = await repositories.adminAudit.findLatestByAction(OPERATION_RECONCILIATION_ACTION);
+    const nextAllowedAt = nextOperationReconciliationAt(latestAudit);
+    if (nextAllowedAt && nextAllowedAt.getTime() > now.getTime()) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((nextAllowedAt.getTime() - now.getTime()) / 1_000));
+      return json(
+        429,
+        {
+          code: 'admin_operation_reconciliation_rate_limited',
+          message: 'Operation recovery was run recently. Wait a moment, then try again.',
+          retryAfterSeconds,
+          nextAllowedAt: nextAllowedAt.toISOString(),
+        },
+        { 'retry-after': String(retryAfterSeconds) },
+      );
+    }
+
+    const staleBefore = new Date(now.getTime() - OPERATION_RECONCILIATION_STALE_MS);
+    const preview = await repositories.operations.reconcile({
+      now,
+      staleBefore,
+      limit: OPERATION_RECONCILIATION_LIMIT,
+      dryRun: true,
+    });
+    const result = await repositories.operations.reconcile({
+      now,
+      staleBefore,
+      limit: OPERATION_RECONCILIATION_LIMIT,
+      dryRun: false,
+    });
+    const response = operationReconciliationResponse('applied', false, now, staleBefore, result, {
+      created_at: now,
+    });
+    const auditId = deps.createId?.() ?? randomUUID();
+    await repositories.adminAudit.append({
+      id: auditId,
+      adminUserId,
+      action: OPERATION_RECONCILIATION_ACTION,
+      entityType: OPERATION_RECONCILIATION_ENTITY,
+      entityId: mutation.idempotencyKey,
+      reason: mutation.reason,
+      beforeJson: {
+        checkedAt: now.toISOString(),
+        staleBefore: staleBefore.toISOString(),
+        recoveredOperationIds: preview.recoveredOperationIds,
+        expiredOperationIds: preview.expiredOperationIds,
+      },
+      afterJson: { ...response },
+      createdAt: now,
+    });
+    return json(200, response);
+  });
+}
+
+function operationReconciliationResponse(
+  mode: AdminAiOperationReconciliationResponse['mode'],
+  repeated: boolean,
+  now: Date,
+  staleBefore: Date,
+  result: { recoveredOperationIds: string[]; expiredOperationIds: string[] },
+  latestAudit: Pick<AdminAuditEventRow, 'created_at'> | null,
+): AdminAiOperationReconciliationResponse {
+  const nextAllowedAt = nextOperationReconciliationAt(latestAudit);
+  return {
+    mode,
+    repeated,
+    checkedAt: now.toISOString(),
+    staleBefore: staleBefore.toISOString(),
+    recoveredOperationIds: result.recoveredOperationIds,
+    expiredOperationIds: result.expiredOperationIds,
+    nextAllowedAt: nextAllowedAt && nextAllowedAt.getTime() > now.getTime() ? nextAllowedAt.toISOString() : null,
+  };
+}
+
+function reconciliationResponseFromAudit(audit: AdminAuditEventRow): AdminAiOperationReconciliationResponse {
+  const after = audit.after_json;
+  if (
+    after?.mode !== 'applied' ||
+    typeof after.checkedAt !== 'string' ||
+    typeof after.staleBefore !== 'string' ||
+    !isStringArray(after.recoveredOperationIds) ||
+    !isStringArray(after.expiredOperationIds) ||
+    (after.nextAllowedAt !== null && typeof after.nextAllowedAt !== 'string')
+  ) {
+    throw new Error(`Invalid operation reconciliation audit payload: ${audit.id}`);
+  }
+  return {
+    mode: 'applied',
+    repeated: true,
+    checkedAt: after.checkedAt,
+    staleBefore: after.staleBefore,
+    recoveredOperationIds: after.recoveredOperationIds,
+    expiredOperationIds: after.expiredOperationIds,
+    nextAllowedAt: after.nextAllowedAt,
+  };
+}
+
+function nextOperationReconciliationAt(audit: Pick<AdminAuditEventRow, 'created_at'> | null) {
+  return audit ? new Date(audit.created_at.getTime() + OPERATION_RECONCILIATION_COOLDOWN_MS) : null;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
 async function assignTierResponse(

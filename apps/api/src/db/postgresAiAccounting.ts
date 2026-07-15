@@ -117,9 +117,10 @@ export class PostgresAdminAuditRepository implements AdminAuditRepository {
           entity_id,
           reason,
           before_json,
-          after_json
+          after_json,
+          created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, COALESCE($10, now()))
         RETURNING *
       `,
       [
@@ -132,9 +133,44 @@ export class PostgresAdminAuditRepository implements AdminAuditRepository {
         requiredText(input.reason, 'reason'),
         input.beforeJson ?? null,
         input.afterJson ?? null,
+        input.createdAt ?? null,
       ],
     );
     return requireSingleRow(result.rows, `Admin audit event was not appended: ${input.id}`);
+  }
+
+  async lockAction(action: string): Promise<void> {
+    await this.client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [
+      `admin-action:${requiredText(action, 'action')}`,
+    ]);
+  }
+
+  async findByActionEntity(action: string, entityId: string): Promise<AdminAuditEventRow | null> {
+    const result = await this.client.query<AdminAuditEventRow>(
+      `
+        SELECT *
+        FROM admin_audit_events
+        WHERE action = $1 AND entity_id = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [requiredText(action, 'action'), requiredText(entityId, 'entityId')],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async findLatestByAction(action: string): Promise<AdminAuditEventRow | null> {
+    const result = await this.client.query<AdminAuditEventRow>(
+      `
+        SELECT *
+        FROM admin_audit_events
+        WHERE action = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [requiredText(action, 'action')],
+    );
+    return result.rows[0] ?? null;
   }
 }
 
