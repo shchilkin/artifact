@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AccountAllowanceSnapshot, AiOperationFeature } from '@artifact/shared';
+import { getAccountTierPolicy } from '../accountAccess.js';
 import { type AccountAccessDenialCode, AccountAccessService } from '../accountAccessService.js';
 import { computeAiAccessResponse, type RequestLike, type RequestUserResolution } from '../auth.js';
 import type {
@@ -27,7 +28,7 @@ import { logInfo, logWarn } from '../logger.js';
 import { priceProviderUsage } from '../providerPricing.js';
 import { type ProviderRegistry, type ShaderGenerationProvider } from '../providers/index.js';
 import type { GenerationQueue } from '../queue.js';
-import type { MonthlyQuotaCheck } from '../quota.js';
+import { getMonthlyQuotaResetAt, type MonthlyQuotaCheck } from '../quota.js';
 import type { InMemoryRateLimiter } from '../rateLimit.js';
 import { SafetyBudgetService } from '../safetyBudgetService.js';
 import { validateShaderPrompt } from '../shaderGenerator.js';
@@ -206,6 +207,7 @@ export async function handleAccessRequest(
     tier: allowance?.tier,
   });
   const quota = allowance ? quotaFromAllowance(allowance) : undefined;
+  const operations = allowance && user ? await operationSnapshot(user.id, allowance, deps.repositories) : undefined;
 
   const response = computeAiAccessResponse({
     auth,
@@ -214,12 +216,14 @@ export async function handleAccessRequest(
     quota,
   });
   const budget = user && !user.disabled_at ? await createSafetyBudgetService(deps).check() : null;
+  const budgetDisabledReason = budget && !budget.allowed && response.enabled ? budget.code : undefined;
+  const operationsBlocked = Boolean(!budgetDisabledReason && response.enabled && operations?.remaining === 0);
   return json(200, {
     ...response,
-    ...(budget && !budget.allowed && response.enabled
-      ? { enabled: false, disabledReason: budget.code, providers: [] }
-      : {}),
+    ...(budgetDisabledReason ? { enabled: false, disabledReason: budgetDisabledReason, providers: [] } : {}),
+    ...(operationsBlocked ? { enabled: false, disabledReason: 'operation_in_progress' as const, providers: [] } : {}),
     ...(allowance ? { tier: allowance.tier } : {}),
+    ...(operations ? { operations } : {}),
   });
 }
 
@@ -971,7 +975,14 @@ function quotaFromAllowance(allowance: AccountAllowanceSnapshot): AiQuotaSnapsho
     limit: allowance.limit,
     used: allowance.committed + allowance.reserved,
     remaining: allowance.remaining,
+    resetAt: getMonthlyQuotaResetAt(allowance.period),
   };
+}
+
+async function operationSnapshot(userId: string, allowance: AccountAllowanceSnapshot, repositories: ApiRepositories) {
+  const active = await repositories.operations.countActiveForUser(userId);
+  const limit = getAccountTierPolicy(allowance.tier).maxActiveOperations;
+  return { active, limit, remaining: Math.max(0, limit - active) };
 }
 
 function accountAccessDenial(code: AccountAccessDenialCode, feature: 'image' | 'shader') {

@@ -92,9 +92,23 @@ describe('parseAiGenerationAccessState', () => {
         authenticated: true,
         enabled: true,
         providers: ['openai', 'xai'],
-        quota: { period: '2026-05', limit: 10, used: 2, remaining: 8 },
+        tier: 'creator',
+        quota: {
+          period: '2026-05',
+          limit: 10,
+          used: 2,
+          remaining: 8,
+          resetAt: '2026-06-01T00:00:00.000Z',
+        },
+        operations: { active: 1, limit: 3, remaining: 2 },
       }),
-    ).toMatchObject({ authenticated: true, enabled: true });
+    ).toMatchObject({
+      authenticated: true,
+      enabled: true,
+      tier: 'creator',
+      quota: { remaining: 8, resetAt: '2026-06-01T00:00:00.000Z' },
+      operations: { active: 1, limit: 3, remaining: 2 },
+    });
   });
 
   it('rejects invalid provider lists', () => {
@@ -103,6 +117,16 @@ describe('parseAiGenerationAccessState', () => {
         authenticated: true,
         enabled: true,
         providers: ['openai', 'surprise'],
+      }),
+    ).toThrow(AiGenerationApiError);
+  });
+
+  it('rejects invalid operation capacity', () => {
+    expect(() =>
+      parseAiGenerationAccessState({
+        authenticated: true,
+        enabled: true,
+        operations: { active: 'one', limit: 3, remaining: 2 },
       }),
     ).toThrow(AiGenerationApiError);
   });

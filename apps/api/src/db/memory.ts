@@ -154,6 +154,13 @@ export class InMemoryApiStore {
     return this.operations.get(id) ?? null;
   }
 
+  async countActiveOperationsForUser(userId: string): Promise<number> {
+    return Array.from(this.operations.values()).filter(
+      (operation) =>
+        operation.user_id === userId && (operation.status === 'reserved' || operation.status === 'running'),
+    ).length;
+  }
+
   async reserveOperation(input: ReserveAiOperationInput): Promise<{ row: AiOperationRow; claimed: boolean } | null> {
     const existing = await this.findOperationByIdempotencyKey(input.userId, input.feature, input.idempotencyKey);
     if (existing) {
@@ -994,6 +1001,7 @@ export class InMemoryApiStore {
       },
       operations: {
         findById: (id) => this.findOperationById(id),
+        countActiveForUser: (userId) => this.countActiveOperationsForUser(userId),
         findByIdempotencyKey: (userId, feature, idempotencyKey) =>
           this.findOperationByIdempotencyKey(userId, feature, idempotencyKey),
         reserve: (input) => this.reserveOperation(input),

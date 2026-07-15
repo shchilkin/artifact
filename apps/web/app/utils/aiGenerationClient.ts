@@ -103,7 +103,36 @@ export function parseAiGenerationAccessState(value: unknown): AiGenerationAccess
   if (Array.isArray(access.providers)) {
     for (const provider of access.providers) ensureProvider(provider);
   }
+  if (access.quota !== undefined) ensureAccessQuota(access.quota);
+  if (access.operations !== undefined) ensureAccessOperations(access.operations);
   return access as unknown as AiGenerationAccessState;
+}
+
+function ensureAccessQuota(value: unknown) {
+  const quota = ensureObject(value);
+  ensureString(quota.period, 'quota.period');
+  ensureNullableNonNegativeInteger(quota.limit, 'quota.limit');
+  ensureNonNegativeInteger(quota.used, 'quota.used');
+  ensureNullableNonNegativeInteger(quota.remaining, 'quota.remaining');
+  if (quota.resetAt !== undefined) ensureString(quota.resetAt, 'quota.resetAt');
+}
+
+function ensureAccessOperations(value: unknown) {
+  const operations = ensureObject(value);
+  ensureNonNegativeInteger(operations.active, 'operations.active');
+  ensureNonNegativeInteger(operations.limit, 'operations.limit');
+  ensureNonNegativeInteger(operations.remaining, 'operations.remaining');
+}
+
+function ensureNullableNonNegativeInteger(value: unknown, field: string) {
+  if (value === null) return;
+  ensureNonNegativeInteger(value, field);
+}
+
+function ensureNonNegativeInteger(value: unknown, field: string) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new AiGenerationApiError(`Generation API response has invalid ${field}.`, 0, 'invalid_response');
+  }
 }
 
 export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerationResponse {

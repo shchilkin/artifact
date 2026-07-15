@@ -53,6 +53,18 @@ export class PostgresAiOperationRepository implements AiOperationRepository {
     return result.rows[0] ?? null;
   }
 
+  async countActiveForUser(userId: string): Promise<number> {
+    const result = await this.client.query<{ count: string | number }>(
+      `
+        SELECT COUNT(*) AS count
+        FROM ai_operations
+        WHERE user_id = $1 AND status IN ('reserved', 'running')
+      `,
+      [userId],
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
   async findByIdempotencyKey(
     userId: string,
     feature: CreateAiOperationInput['feature'],

@@ -111,8 +111,31 @@ const documentFixture = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
+async function mockCreatorAiAccess(page: Parameters<typeof setupBrowserTestPage>[0]) {
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        enabled: true,
+        tier: 'creator',
+        quota: {
+          period: '2026-07',
+          limit: 20,
+          used: 2,
+          remaining: 18,
+          resetAt: '2026-08-01T00:00:00.000Z',
+        },
+        operations: { active: 0, limit: 3, remaining: 3 },
+        providers: ['openai'],
+      }),
+    });
+  });
+}
+
 test('shows an occupied AI slot as busy instead of a shader failure', async ({ page }) => {
   await setupBrowserTestPage(page);
+  await mockCreatorAiAccess(page);
   await page.route('**/api/ai/shaders', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     await route.fulfill({
@@ -138,6 +161,7 @@ test('shows an occupied AI slot as busy instead of a shader failure', async ({ p
 
 test('refines an accepted AI shader only after browser validation', async ({ page }) => {
   await setupBrowserTestPage(page);
+  await mockCreatorAiAccess(page);
   let createBody: Record<string, unknown> | null = null;
   await page.route('**/api/ai/shaders', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
@@ -175,6 +199,7 @@ test('refines an accepted AI shader only after browser validation', async ({ pag
   test.skip(!(await supportsWebGl(page)), 'AI shader browser acceptance requires WebGL.');
   await switchToNodeView(page);
   await page.locator('.react-flow__node-shaderNode').click();
+  await expect(page.getByText('Creator · 18 of 20 left · 0 of 3 active')).toBeVisible();
 
   const refineInput = page.getByPlaceholder('Describe what to change while keeping the current effect');
   await expect(refineInput).toBeVisible();

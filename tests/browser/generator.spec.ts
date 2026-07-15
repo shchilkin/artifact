@@ -3095,9 +3095,7 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.node-props-panel')).toContainText('AI Image');
   await expect(page.locator('.node-props-panel')).toContainText('Account required for AI');
-  await expect(page.locator('.node-props-panel')).toContainText(
-    'This feature uses AI. To use AI features, create an account.',
-  );
+  await expect(page.locator('.node-props-panel')).toContainText('Sign in to create with AI.');
   await expect(page.locator('.ai-generation-panel')).toBeVisible();
   await expect(page.locator('.ai-generation-access-banner')).toBeVisible();
   await expect(page.locator('.ai-generation-dev-diagnostics')).toHaveCount(0);

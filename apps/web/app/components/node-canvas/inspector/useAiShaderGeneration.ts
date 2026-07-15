@@ -1,6 +1,6 @@
 import { useMachine } from '@xstate/react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useArtifactAuth } from '../../../hooks/useArtifactAuth';
+import { useCallback, useEffect, useRef } from 'react';
+import { useAiGenerationAccess } from '../../../features/ai-access/useAiGenerationAccess';
 import type {
   AiShaderGenerationResponse,
   AiShaderRequestMode,
@@ -8,7 +8,6 @@ import type {
 } from '../../../types/aiGeneration';
 import type { GraphShaderNode } from '../../../types/config';
 import { createAiIdempotencyKey } from '../../../utils/aiGenerationClient';
-import { getArtifactAiApiBaseUrl } from '../../../utils/apiBaseUrl';
 import { useNodeCanvasActions } from '../context';
 import type { ShaderNodeGenerationStatus } from '../types';
 import {
@@ -58,10 +57,10 @@ export function useAiShaderGeneration({
   const [state, send] = useMachine(shaderGenerationMachine);
   const requestRef = useRef<AbortController | null>(null);
   const openAiRequestKeyRef = useRef<string | null>(null);
-  const auth = useArtifactAuth();
+  const aiAccess = useAiGenerationAccess();
+  const aiAccessEnabled = aiAccess.status === 'ready' && aiAccess.access.enabled;
+  const { baseUrl, getBearerToken, refresh: refreshAiAccess } = aiAccess;
   const { setShaderNodeGenerationStatus } = useNodeCanvasActions();
-  const apiBaseUrl = useMemo(() => getArtifactAiApiBaseUrl(), []);
-  const devToken = useMemo(() => getAiApiDevToken(), []);
   const validating = state.hasTag('validating');
   const repairing = state.matches('repairing');
   const refining = state.matches('creatingRefine');
@@ -70,6 +69,7 @@ export function useAiShaderGeneration({
   const fallbackAvailable = state.context.fallbackAvailable;
   const blocked = state.matches('blocked');
   const canCreate = canCreateAiShader(prompt, sourceConnected, generating);
+  const canCreateWithAi = canCreate && aiAccessEnabled;
   const sourceRequestId = shaderNode.shaderInstance?.definition.provenance?.requestId;
 
   const cancelAndReset = useCallback(() => {
@@ -90,8 +90,9 @@ export function useAiShaderGeneration({
   );
 
   const canRefine = useCallback(
-    (instruction: string) => Boolean(sourceRequestId) && canCreateAiShader(instruction, sourceConnected, generating),
-    [generating, sourceConnected, sourceRequestId],
+    (instruction: string) =>
+      aiAccessEnabled && Boolean(sourceRequestId) && canCreateAiShader(instruction, sourceConnected, generating),
+    [aiAccessEnabled, generating, sourceConnected, sourceRequestId],
   );
 
   const applyCompletion = useCallback(
@@ -113,7 +114,13 @@ export function useAiShaderGeneration({
 
   const run = useCallback(
     async (mode: AiShaderRequestMode, refinementInstruction?: string) => {
-      const intent = prepareGenerationIntent(mode, refinementInstruction, prompt, canCreate, canRefine);
+      const intent = prepareGenerationIntent(
+        mode,
+        refinementInstruction,
+        prompt,
+        mode === 'openai' ? canCreateWithAi : canCreate,
+        canRefine,
+      );
       if (!intent) return false;
 
       const controller = beginAiShaderRequest(requestRef);
@@ -124,8 +131,8 @@ export function useAiShaderGeneration({
       applyCompletion(start);
 
       try {
-        const bearerToken = await resolveBearerToken(devToken, auth.signedIn, auth.getToken);
-        const clientOptions = { baseUrl: apiBaseUrl, bearerToken, signal: controller.signal };
+        const bearerToken = await getBearerToken();
+        const clientOptions = { baseUrl, bearerToken, signal: controller.signal };
         const result = await runAiShaderGeneration({
           request: buildShaderRequest(intent, idempotencyKey, openAiRequestKeyRef.current, sourceRequestId),
           clientOptions,
@@ -137,18 +144,19 @@ export function useAiShaderGeneration({
         return applyCompletion(generationErrorCompletion(error, intent, controller.signal));
       } finally {
         finishAiShaderRequest(requestRef, controller);
+        if (mode === 'openai') refreshAiAccess();
       }
     },
     [
-      apiBaseUrl,
       applyCompletion,
-      auth.getToken,
-      auth.signedIn,
+      baseUrl,
       canCreate,
+      canCreateWithAi,
       canRefine,
-      devToken,
+      getBearerToken,
       onChange,
       prompt,
+      refreshAiAccess,
       shaderNode.aiPrompt,
       sourceRequestId,
       updateGenerationPhase,
@@ -165,7 +173,9 @@ export function useAiShaderGeneration({
     fallbackAvailable,
     blocked,
     canCreate,
+    canCreateWithAi,
     canRefine,
+    aiAccess,
     create: (mode: AiShaderRequestMode = 'openai') => run(mode),
     refine: (instruction: string) => run('openai', instruction),
     cancelAndReset,
@@ -226,16 +236,6 @@ function addRefinementReference(
   sourceRequestId: string | undefined,
 ) {
   if (isRefinement && sourceRequestId) request.refineFromRequestId = sourceRequestId;
-}
-
-async function resolveBearerToken(
-  devToken: string | undefined,
-  signedIn: boolean,
-  getToken: () => Promise<string | null>,
-) {
-  if (devToken) return devToken;
-  if (!signedIn) return undefined;
-  return (await getToken()) ?? undefined;
 }
 
 function commitCandidate(
@@ -336,8 +336,4 @@ function generationErrorCompletion(
 
 function offerFallback(intent: GenerationIntent) {
   return intent.mode === 'openai' && !intent.isRefinement;
-}
-
-function getAiApiDevToken() {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_AI_API_DEV_TOKEN;
 }

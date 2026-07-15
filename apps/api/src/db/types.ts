@@ -482,6 +482,7 @@ export interface AccountTierRepository {
 
 export interface AiOperationRepository {
   findById(id: string): Promise<AiOperationRow | null>;
+  countActiveForUser(userId: string): Promise<number>;
   findByIdempotencyKey(
     userId: string,
     feature: AiOperationFeature,
