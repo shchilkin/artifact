@@ -6,6 +6,7 @@ import {
   type AiGenerationProvider,
   type AiShaderCompilerDiagnostic,
   type AiShaderGenerationResponse,
+  type AiShaderRequestResponse,
   type AiShaderSource,
   type AiShaderValidationResponse,
   type CreateAiGenerationRequest,
@@ -38,6 +39,8 @@ export interface AiGenerationClientOptions {
   bearerToken?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
+  pollIntervalMs?: number;
+  pollTimeoutMs?: number;
 }
 
 function endpoint(baseUrl: string | undefined, path: string) {
@@ -100,15 +103,40 @@ export function parseAiGenerationAccessState(value: unknown): AiGenerationAccess
   if (Array.isArray(access.providers)) {
     for (const provider of access.providers) ensureProvider(provider);
   }
+  if (access.quota !== undefined) ensureAccessQuota(access.quota);
+  if (access.operations !== undefined) ensureAccessOperations(access.operations);
   return access as unknown as AiGenerationAccessState;
 }
 
-export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerationResponse {
-  const response = ensureObject(value);
-  const requestId = ensureString(response.requestId, 'requestId');
-  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
-    throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
+function ensureAccessQuota(value: unknown) {
+  const quota = ensureObject(value);
+  ensureString(quota.period, 'quota.period');
+  ensureNullableNonNegativeInteger(quota.limit, 'quota.limit');
+  ensureNonNegativeInteger(quota.used, 'quota.used');
+  ensureNullableNonNegativeInteger(quota.remaining, 'quota.remaining');
+  if (quota.resetAt !== undefined) ensureString(quota.resetAt, 'quota.resetAt');
+}
+
+function ensureAccessOperations(value: unknown) {
+  const operations = ensureObject(value);
+  ensureNonNegativeInteger(operations.active, 'operations.active');
+  ensureNonNegativeInteger(operations.limit, 'operations.limit');
+  ensureNonNegativeInteger(operations.remaining, 'operations.remaining');
+}
+
+function ensureNullableNonNegativeInteger(value: unknown, field: string) {
+  if (value === null) return;
+  ensureNonNegativeInteger(value, field);
+}
+
+function ensureNonNegativeInteger(value: unknown, field: string) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new AiGenerationApiError(`Generation API response has invalid ${field}.`, 0, 'invalid_response');
   }
+}
+
+export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerationResponse {
+  const { response, requestId, candidateRevision } = parseShaderResponseEnvelope(value);
   if (response.status !== 'generated' && response.status !== 'accepted') {
     throw new AiGenerationApiError('Generation API returned an invalid shader status.', 0, 'invalid_response');
   }
@@ -139,7 +167,7 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
     : undefined;
   return {
     requestId,
-    candidateRevision: response.candidateRevision,
+    candidateRevision,
     status: response.status,
     attempt: response.attempt,
     prompt,
@@ -162,12 +190,28 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
   };
 }
 
-export function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
-  const response = ensureObject(value);
-  const requestId = ensureString(response.requestId, 'requestId');
-  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
-    throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
+function parseAiShaderRequestResponse(value: unknown): AiShaderRequestResponse {
+  const { response, requestId, candidateRevision } = parseShaderResponseEnvelope(value);
+  if (response.status === 'generated' || response.status === 'accepted') {
+    return parseAiShaderGenerationResponse(response);
   }
+  if (response.status === 'failed') {
+    return {
+      requestId,
+      candidateRevision,
+      status: 'failed',
+      code: ensureString(response.code, 'code'),
+      message: ensureString(response.message, 'message'),
+    };
+  }
+  if (response.status !== 'pending' && response.status !== 'repairing' && response.status !== 'client_rejected') {
+    throw new AiGenerationApiError('Generation API returned an invalid shader status.', 0, 'invalid_response');
+  }
+  return { requestId, candidateRevision, status: response.status };
+}
+
+export function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
+  const { response, requestId, candidateRevision } = parseShaderResponseEnvelope(value);
   if (response.status !== 'accepted' && response.status !== 'client_rejected' && response.status !== 'failed') {
     throw new AiGenerationApiError('Generation API returned an invalid validation status.', 0, 'invalid_response');
   }
@@ -176,10 +220,19 @@ export function parseAiShaderValidationResponse(value: unknown): AiShaderValidat
   }
   return {
     requestId,
-    candidateRevision: response.candidateRevision,
+    candidateRevision,
     status: response.status,
     repairAvailable: response.repairAvailable,
   };
+}
+
+function parseShaderResponseEnvelope(value: unknown) {
+  const response = ensureObject(value);
+  const requestId = ensureString(response.requestId, 'requestId');
+  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
+    throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
+  }
+  return { response, requestId, candidateRevision: response.candidateRevision };
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {
@@ -195,13 +248,14 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 async function requestJson(path: string, init: RequestInit, options: AiGenerationClientOptions): Promise<unknown> {
   const fetcher = options.fetcher ?? fetch;
   const token = options.bearerToken ?? options.devToken;
+  const requestInit = disableGetCaching(init);
   const response = await fetcher(endpoint(options.baseUrl, path), {
     credentials: 'include',
-    ...init,
+    ...requestInit,
     headers: {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
+      ...requestInit.headers,
     },
     signal: options.signal,
   });
@@ -213,6 +267,12 @@ async function requestJson(path: string, init: RequestInit, options: AiGeneratio
     throw new AiGenerationApiError(message, response.status, code);
   }
   return body;
+}
+
+function disableGetCaching(init: RequestInit): RequestInit {
+  const method = (init.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' || init.cache !== undefined) return init;
+  return { ...init, cache: 'no-store' };
 }
 
 export async function createAiGenerationJob(
@@ -242,7 +302,7 @@ export async function createAiShader(
     },
     options,
   );
-  return parseAiShaderGenerationResponse(body);
+  return awaitShaderCandidate(parseAiShaderRequestResponse(body), options);
 }
 
 export async function validateAiShader(
@@ -272,7 +332,70 @@ export async function repairAiShader(
     { method: 'POST', body: '{}' },
     options,
   );
-  return parseAiShaderGenerationResponse(body);
+  return awaitShaderCandidate(parseAiShaderRequestResponse(body), options);
+}
+
+async function awaitShaderCandidate(
+  initial: AiShaderRequestResponse,
+  options: AiGenerationClientOptions,
+): Promise<AiShaderGenerationResponse> {
+  let current = initial;
+  const deadline = Date.now() + Math.max(0, options.pollTimeoutMs ?? 120_000);
+  while (current.status === 'pending' || current.status === 'repairing') {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      throw new AiGenerationApiError(
+        'Creation is taking longer than expected. Try again in a moment.',
+        504,
+        'shader_request_timeout',
+      );
+    }
+    await waitForShaderPoll(Math.min(options.pollIntervalMs ?? 1_000, remainingMs), options.signal);
+    const next = await pollShaderRequest(current.requestId, options);
+    if (next) current = next;
+  }
+  if (current.status === 'failed') throw new AiGenerationApiError(current.message, 200, current.code);
+  if (current.status === 'client_rejected') {
+    throw new AiGenerationApiError('This shader is waiting for browser-guided repair.', 409, 'shader_repair_required');
+  }
+  return current;
+}
+
+async function pollShaderRequest(requestId: string, options: AiGenerationClientOptions) {
+  try {
+    const body = await requestJson(`/api/ai/shaders/${encodeURIComponent(requestId)}`, { method: 'GET' }, options);
+    return parseAiShaderRequestResponse(body);
+  } catch (error) {
+    if (!isRetryableAiPollingError(error)) throw error;
+    return undefined;
+  }
+}
+
+export function isRetryableAiPollingError(error: unknown) {
+  if (isAbortError(error)) return false;
+  if (error instanceof TypeError) return true;
+  if (!(error instanceof AiGenerationApiError)) return false;
+  return error.status === 408 || error.status === 425 || error.status === 429 || error.status >= 500;
+}
+
+function isAbortError(error: unknown) {
+  return typeof DOMException !== 'undefined' && error instanceof DOMException && error.name === 'AbortError';
+}
+
+function waitForShaderPoll(delayMs: number, signal?: AbortSignal) {
+  if (signal?.aborted) return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'));
+  return new Promise<void>((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    };
+    const timeout = globalThis.setTimeout(finish, Math.max(0, delayMs));
+    const abort = () => {
+      globalThis.clearTimeout(timeout);
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 export async function getAiGenerationAccess(options: AiGenerationClientOptions = {}): Promise<AiGenerationAccessState> {

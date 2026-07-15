@@ -1,5 +1,6 @@
 x-artifact-api-env: &artifact-api-env
   NODE_ENV: production
+  ARTIFACT_BUILD_SHA: ${ARTIFACT_BUILD_SHA:-development}
   PORT: 4000
   WEB_ORIGIN: ${WEB_ORIGIN:?Set the primary public Vercel/frontend origin}
   WEB_ORIGINS: ${WEB_ORIGINS:-}
@@ -10,19 +11,16 @@ x-artifact-api-env: &artifact-api-env
   AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a long random JWT fallback secret}
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
   AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
-  API_DEV_BEARER_TOKEN: ${API_DEV_BEARER_TOKEN:-}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set a long random Better Auth secret}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set the public Better Auth URL}
   OPENAI_API_KEY: ${OPENAI_API_KEY:?Set the OpenAI API key}
   OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-gpt-image-2}
   OPENAI_SHADER_MODEL: ${OPENAI_SHADER_MODEL:-gpt-5.5}
-  OPENAI_SHADER_TIMEOUT_MS: ${OPENAI_SHADER_TIMEOUT_MS:-20000}
+  OPENAI_SHADER_TIMEOUT_MS: ${OPENAI_SHADER_TIMEOUT_MS:-90000}
   XAI_API_KEY: ${XAI_API_KEY:-}
   XAI_IMAGE_MODEL: ${XAI_IMAGE_MODEL:-grok-imagine-image-quality}
   ASSET_STORAGE_DRIVER: local
   ASSET_STORAGE_DIR: /var/lib/artifact/generated-assets
-  AI_MONTHLY_GENERATION_LIMIT: ${AI_MONTHLY_GENERATION_LIMIT:-10}
-  AI_MAX_ACTIVE_JOBS_PER_USER: ${AI_MAX_ACTIVE_JOBS_PER_USER:-1}
 
 services:
   postgres:
@@ -117,6 +115,9 @@ services:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
     expose:
       - '4000'
+    labels:
+      - 'traefik.http.middlewares.artifact-bull-board-auth.basicauth.users=${BULL_BOARD_BASIC_AUTH_USERS:?Set the Bull Board htpasswd credentials}'
+      - 'coolify.traefik.middlewares=artifact-bull-board-auth'
     healthcheck:
       test: ['CMD', 'node', 'dist/healthcheck.js', 'bull-board']
       interval: 30s

@@ -5,7 +5,7 @@ import type { Route } from './+types/root';
 import './index.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
 import { GOOGLE_FONT_STYLESHEET_URL } from './types/config';
-import { logAppBuildInfo } from './utils/appBuildInfo';
+import { getAppBuildInfo, logAppBuildInfo } from './utils/appBuildInfo';
 import { registerArtifactServiceWorker } from './utils/pwaRegistration';
 
 // Default title/description — route-level meta() overrides these via <Meta />
@@ -18,6 +18,8 @@ export const meta: MetaFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const build = getAppBuildInfo();
+
   return (
     <html lang="en">
       <head>
@@ -26,6 +28,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#ff6a5f" />
+        <meta name="artifact-build-sha" content={build.commitHash} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Artifact" />
         {/* OG */}

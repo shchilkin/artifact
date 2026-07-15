@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { checkMonthlyQuota, checkOneActiveJob, getMonthlyQuotaPeriod } from '../src/quota.js';
+import { checkMonthlyQuota, checkOneActiveJob, getMonthlyQuotaPeriod, getMonthlyQuotaResetAt } from '../src/quota.js';
 
 describe('quota helpers', () => {
   it('uses UTC monthly periods', () => {
     expect(getMonthlyQuotaPeriod(new Date('2026-05-31T23:59:59.000Z'))).toBe('2026-05');
+    expect(getMonthlyQuotaResetAt('2026-05')).toBe('2026-06-01T00:00:00.000Z');
+    expect(getMonthlyQuotaResetAt('2026-12')).toBe('2027-01-01T00:00:00.000Z');
   });
 
   it('checks monthly quota from an injected reader', async () => {

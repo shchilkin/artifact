@@ -29,9 +29,10 @@ const refinedShader = {
   id: 'refined-water-definition',
   label: 'Calm Water',
   code: `vec4 mainImage(vec2 uv) {
-    vec2 offset = vec2(sin(uv.y * 8.0), cos(uv.x * 7.0)) * u_prop_waveAmount;
-    vec4 source = texture2D(u_backdrop, clamp(uv + offset, 0.0, 1.0));
-    return vec4(mix(source.rgb, source.rgb * u_prop_highlight, 0.2), source.a);
+    vec4 source = texture2D(u_backdrop, uv);
+    float bands = smoothstep(0.35, 0.65, fract((uv.x + uv.y) * 6.0 + u_prop_waveAmount * 20.0));
+    vec3 highlighted = mix(source.rgb, u_prop_highlight, 0.45);
+    return vec4(mix(source.rgb, highlighted, bands), source.a);
   }`,
   properties: [
     {
@@ -110,8 +111,57 @@ const documentFixture = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
+async function mockCreatorAiAccess(page: Parameters<typeof setupBrowserTestPage>[0]) {
+  await page.route('**/api/ai/access', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        enabled: true,
+        tier: 'creator',
+        quota: {
+          period: '2026-07',
+          limit: 20,
+          used: 2,
+          remaining: 18,
+          resetAt: '2026-08-01T00:00:00.000Z',
+        },
+        operations: { active: 0, limit: 3, remaining: 3 },
+        providers: ['openai'],
+      }),
+    });
+  });
+}
+
+test('shows an occupied AI slot as busy instead of a shader failure', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await mockCreatorAiAccess(page);
+  await page.route('**/api/ai/shaders', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'operation_in_progress',
+        message: 'Another AI creation is still running.',
+      }),
+    });
+  });
+
+  await gotoDocument(page, documentFixture);
+  test.skip(!(await supportsWebGl(page)), 'AI shader creation requires WebGL.');
+  await switchToNodeView(page);
+  await page.locator('.react-flow__node-shaderNode').click();
+  await page.getByRole('button', { name: 'Create New Version' }).click();
+
+  await expect(page.getByText('Another creation is running').first()).toBeVisible();
+  await expect(page.getByText('Could not create')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+});
+
 test('refines an accepted AI shader only after browser validation', async ({ page }) => {
   await setupBrowserTestPage(page);
+  await mockCreatorAiAccess(page);
   let createBody: Record<string, unknown> | null = null;
   await page.route('**/api/ai/shaders', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
@@ -149,6 +199,7 @@ test('refines an accepted AI shader only after browser validation', async ({ pag
   test.skip(!(await supportsWebGl(page)), 'AI shader browser acceptance requires WebGL.');
   await switchToNodeView(page);
   await page.locator('.react-flow__node-shaderNode').click();
+  await expect(page.getByText('Creator · 18 of 20 left · 0 of 3 active')).toBeVisible();
 
   const refineInput = page.getByPlaceholder('Describe what to change while keeping the current effect');
   await expect(refineInput).toBeVisible();

@@ -38,7 +38,9 @@ backend stack:
 - Compose file: `docker-compose.coolify.yml`
 - Services: `api`, `worker`, `bull-board`, `postgres`, `redis`
 - Build context: repository root
-- Branch: `development`
+- Branch: `main` for the production resource. The CI deploy action pins the
+  exact verified commit before every deployment; the branch is only the source
+  repository default.
 - Postgres image: `postgres:18-alpine`
 
 This shape intentionally keeps the app processes and infrastructure inside the
@@ -73,8 +75,25 @@ persist to disk`, redeploy the current compose config before investigating queue
 workers; old containers may still have the default RDB snapshot settings.
 
 Expose the `api` service publicly on port `4000`. Keep `worker` private. Expose
-`bull-board` only behind an admin-only domain or Coolify protection; it is an
-operator surface, not a public app feature.
+`bull-board` only behind its dedicated operator domain. The compose file adds a
+service-specific Traefik Basic Auth middleware, so set
+`BULL_BOARD_BASIC_AUTH_USERS` to an htpasswd entry before deployment. For
+example, generate the value with `htpasswd -nbB <username> <password>`. Keep the
+plain password in a password manager and store only the generated htpasswd
+entry in Coolify. Because the label reads an environment variable, disable
+Coolify's **Escape special characters in labels** option for this Compose
+resource. Do not enable Coolify's application-wide Basic Auth: that would also
+protect the public API service.
+
+After deployment, verify the boundary rather than only container health:
+
+```bash
+curl -I https://<bull-board-domain>/admin/queues
+curl -u '<username>:<password>' -I https://<bull-board-domain>/admin/queues
+```
+
+The first request must return `401`; the authenticated request must return
+`200`. Bull Board is an operator surface, not a public app feature.
 
 The API and Bull Board services define container healthchecks against
 `http://127.0.0.1:4000/api/health`; the Bull Board check also verifies that the
@@ -83,6 +102,56 @@ writes, and local generated-asset storage where each container depends on them.
 Coolify/Traefik will not route public traffic while the resource is unhealthy,
 so if the public API domain returns `503 no available server`, check the API,
 worker, Postgres, and Redis container health first.
+
+## CI-Controlled Production Deployment
+
+Production deployment is a manual action in `.github/workflows/release.yml`.
+Choose `deploy-production` from `main`. The workflow uses one shared production
+lock and does not begin any deployment until release metadata, quality, build,
+browser, and Fallow gates have passed.
+
+The deployment sequence is:
+
+1. Build the Vercel production artifact and deploy it to a staged URL without
+   assigning production domains.
+2. Verify that the staged web response is non-empty HTML reporting the exact
+   verified commit SHA.
+3. Disable Coolify source auto-deploy, pin the Compose application to the exact
+   verified commit SHA, set `ARTIFACT_BUILD_SHA`, and start the deployment.
+4. Wait for Coolify to finish, then require the public API health response to
+   report that same SHA and the expected API contract version.
+5. Optionally run one authenticated provider-backed AI smoke test.
+6. Promote the already-verified Vercel deployment and require the production
+   web domain to report the same commit SHA.
+
+Configure these values on the `production-release` GitHub Environment:
+
+| Kind | Name | Purpose |
+| --- | --- | --- |
+| Variable | `COOLIFY_APPLICATION_UUID` | Compose application controlled by the deployment |
+| Variable | `COOLIFY_BASE_URL` | Coolify origin, with or without `/api/v1` |
+| Variable | `PRODUCTION_API_URL` | Public API origin used for revision verification |
+| Variable | `PRODUCTION_WEB_URL` | Public Artifact web origin |
+| Variable | `VERCEL_ORG_ID` | Vercel team or account identifier |
+| Variable | `VERCEL_PROJECT_ID` | Artifact Vercel project identifier |
+| Secret | `COOLIFY_API_TOKEN` | Scoped token allowed to update and deploy the application |
+| Secret | `VERCEL_TOKEN` | Token allowed to build, deploy, and promote the project |
+| Secret | `PRODUCTION_API_SMOKE_TOKEN` | Optional authenticated AI smoke token |
+
+Automatic Vercel production deployment from `main` is disabled in
+`vercel.json`; pull-request preview deployments remain enabled. Coolify source
+auto-deploy is also disabled by the production action. This makes the Release
+workflow the only intended production writer.
+
+This is the safe transitional source-deploy phase: Coolify still builds the
+repository on the VPS, but only from the CI-verified SHA. The next infrastructure
+step is to publish immutable service images in GitHub Actions and make Coolify
+pull those image digests without compiling source on the server.
+
+For rollback, promote the previous Vercel deployment, pin Coolify to the last
+known-good commit, and deploy it through the same controlled path. Database
+migrations must remain backward compatible across that rollback window; do not
+assume reverting application code reverses a migration.
 
 For Better Auth browser accounts, set `BETTER_AUTH_SECRET` and
 `BETTER_AUTH_URL`. The URL should point at the public auth endpoint, for
@@ -101,12 +170,16 @@ checksums; if a previously applied migration file changes, startup fails instead
 of silently applying drift. The migration runner owns the transaction for each
 file, so SQL migration files must not include `BEGIN`, `COMMIT`, or `ROLLBACK`.
 
-After a user signs up, grant the intended account user AI access from the API
-container only when they should receive private-alpha generation access:
+New verified accounts start on the Free tier. The legacy `grant:ai` command has
+been removed because `ai_enabled` no longer grants provider-backed AI access.
+Before the Admin API lands, inspect the intended tier cutover with:
 
 ```bash
-npm run grant:ai -- user_xxx user@example.com
+npm run migrate:account-tiers:dry-run
 ```
+
+Do not hand-edit `account_access` in production. Creator and Founder assignment
+will move through the audited Admin API and backoffice flow.
 
 ## Required Environment
 
@@ -116,7 +189,7 @@ Minimum VPS-like configuration:
 NODE_ENV=production
 PORT=4000
 WEB_ORIGIN=https://your-vercel-domain.example
-WEB_ORIGINS=https://your-vercel-domain.example,https://your-preview-domain.vercel.app
+WEB_ORIGINS=https://your-vercel-domain.example,https://backoffice.artifact.shchilkin.dev,https://your-preview-domain.vercel.app
 
 API_DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://artifact:change-me@127.0.0.1:5432/artifact
@@ -127,7 +200,6 @@ REDIS_URL=redis://127.0.0.1:6379
 AUTH_JWT_SECRET=change-me-long-random-secret
 AUTH_JWT_ISSUER=
 AUTH_JWT_AUDIENCE=
-API_DEV_BEARER_TOKEN=
 BETTER_AUTH_SECRET=change-me-long-random-secret
 BETTER_AUTH_URL=https://your-api-domain.example/api/auth
 PASSWORD_RESET_LOG_URL=false
@@ -138,36 +210,43 @@ EMAIL_REPLY_TO=
 API_BULL_BOARD_ENABLED=false
 
 OPENAI_API_KEY=
+OPENAI_ADMIN_KEY=
 OPENAI_IMAGE_MODEL=gpt-image-2
 OPENAI_SHADER_MODEL=gpt-5.5
-OPENAI_SHADER_TIMEOUT_MS=20000
+OPENAI_SHADER_TIMEOUT_MS=90000
 XAI_API_KEY=
 XAI_IMAGE_MODEL=grok-imagine-image-quality
+
+AI_SAFETY_BUDGET_USD=30
 
 ASSET_STORAGE_DRIVER=local
 ASSET_STORAGE_DIR=/var/lib/artifact/generated-assets
 
-AI_MONTHLY_GENERATION_LIMIT=10
-AI_MAX_ACTIVE_JOBS_PER_USER=1
 ```
 
-Local development can keep `API_DEV_BEARER_TOKEN=dev-token`; production should
-prefer Better Auth bearer tokens or real bearer tokens verified by
-`AUTH_JWT_SECRET` and optional issuer / audience checks.
+`OPENAI_ADMIN_KEY` is only used by `npm --workspace @artifact/api run reconcile:openai-costs`.
+Run it daily after midnight UTC to import the previous completed UTC day's
+OpenAI organization cost. Keep this key server-side and separate from
+`OPENAI_API_KEY`.
+
+Local development can keep `API_DEV_BEARER_TOKEN=dev-token`. Production rejects
+any non-empty `API_DEV_BEARER_TOKEN` during configuration loading and must use
+Better Auth sessions or bearer tokens verified by `AUTH_JWT_SECRET` and
+optional issuer / audience checks. Do not add the development token to Coolify
+environment variables.
 
 For Better Auth-backed browser accounts, set `VITE_AUTH_API_BASE_URL` in the
 root `.env` to the API origin. Better Auth sign-in identifies the browser user
-and enables cloud project saves. AI generation still requires a matching
-`users.id` row with `ai_enabled=true`; use the Better Auth user id as the
-database id when granting private alpha access. The API creates or refreshes a
-disabled `users` row automatically after a session verifies, so granting access
-is a separate operator step:
+and enables cloud project saves. The API creates or refreshes the matching
+`users` row and `account_access` defaults it to Free. Provider-backed AI access
+comes from the explicit Account Tier, not `ai_enabled` or `plus_status`.
 
 ```bash
-npm --workspace @artifact/api run grant:ai -- user_xxx user@example.com
+FOUNDER_ACCOUNT_ID=user_xxx npm --workspace @artifact/api run migrate:account-tiers:dry-run
 ```
 
-The email argument is optional; the Better Auth user id is the durable key.
+The Better Auth user id is the durable account key. The command above reports
+the intended cutover and does not mutate production data.
 
 ## Cloud Project Assets
 
@@ -271,7 +350,15 @@ Poll the returned job id:
 curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/generations/<job-id>
 ```
 
-If the job stays queued, check that the worker process is running and points at
+Shader create/refine and repair requests use the same queue. Their POST routes
+return `202` while work is pending; poll the returned request id until the
+response contains `status: "generated"` or `status: "failed"`:
+
+```bash
+curl -H 'Authorization: Bearer dev-token' http://127.0.0.1:4000/api/ai/shaders/<request-id>
+```
+
+If an image or shader job stays queued, check that the worker process is running and points at
 the same `DATABASE_URL` and `REDIS_URL` as the API.
 
 You can run the same flow with the bundled smoke script after the API and
@@ -325,9 +412,38 @@ http://127.0.0.1:4000/admin/queues
 ```
 
 Bull Board is for queue debugging only. It should not be exposed publicly during
-the private alpha.
+the private alpha. The `ai-generation` queue contains named image and shader
+jobs, including shader create, refine, and browser-guided repair work.
 
 ## Cleanup
+
+### Admin operation recovery
+
+Use **Operation recovery** on the backoffice `/usage` route when Bull Board or
+the client shows a completed image/shader result whose Artifact operation is
+still active, or when an abandoned operation continues to reserve account
+capacity. The page loads a read-only preview before any mutation.
+
+Before applying recovery:
+
+1. Confirm the matching queue job and operation ID in Bull Board or API logs.
+2. Review the preview counts and affected IDs returned by the Admin API.
+3. Enter a concrete operational reason and apply once.
+4. Reload the affected Artifact project and verify that the operation is
+   terminal and account capacity is available.
+
+The Admin action finalizes active operations that already have a usable image
+or accepted shader. It closes active operations older than six hours only when
+they have no usable result. Generation reservations are committed or released
+in the same database transition. Each apply is Admin-authorized, audited,
+idempotent, and rate-limited to one new attempt every five minutes.
+
+This action does not reconcile OpenAI cost, call a provider, inspect Creative
+Content, remove asset files, or perform general storage cleanup. Daily provider
+cost reconciliation remains a separate process, and the CLI below remains the
+broader maintenance tool.
+
+### Full cleanup CLI
 
 The AI cleanup command is intentionally manual for the private alpha. It is safe
 to run as a dry run first, inspect the JSON summary, then apply the same command
@@ -354,6 +470,8 @@ npm --workspace @artifact/api run cleanup:ai:start -- --apply
 
 The command:
 
+- commits active operations that already have a usable job or accepted shader;
+- expires abandoned AI operations and releases their reserved Generation;
 - marks stale `queued` / `running` jobs as `expired`;
 - soft-deletes generated asset rows that are not referenced by any generation
   job;
@@ -371,8 +489,10 @@ npm --workspace @artifact/api run cleanup:ai -- \
 ```
 
 Only run `--apply` against the intended `DATABASE_URL` and `ASSET_STORAGE_DIR`.
-For private alpha, run cleanup after investigating stuck jobs in Bull Board or
-before freeing old generated files on the VPS.
+For private alpha, use backoffice operation recovery for lifecycle-only repair.
+Run the full cleanup CLI after investigating stuck jobs in Bull Board when asset
+or filesystem cleanup is also required, or before freeing old generated files
+on the VPS.
 
 ## Operational Notes
 
@@ -402,8 +522,9 @@ npm run dev:worker
 npm run dev:web
 ```
 
-The Compose database is initialized with the v0.13 migration and a local
-`dev-user` with AI access. The root `.env` can expose
+The local Compose database is initialized with a `dev-user`; when
+`API_DEV_BEARER_TOKEN` is configured outside production, API startup assigns
+that account the Founder tier explicitly. The root `.env` can expose
 `VITE_AI_API_DEV_TOKEN=dev-token` so the browser calls the local API as that
 seeded user without signing in. Leave that Vite dev token empty to test the
 Better Auth sign-in flow instead.

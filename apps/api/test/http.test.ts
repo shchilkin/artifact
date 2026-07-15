@@ -1,5 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyCorsHeaders, isAllowedWebOrigin } from '../src/http.js';
+import { applyCorsHeaders, isAllowedWebOrigin, json, writeApiResponse } from '../src/http.js';
+
+describe('writeApiResponse', () => {
+  it('prevents intermediaries from caching JSON API state by default', () => {
+    const res = { writeHead: vi.fn(), end: vi.fn() };
+
+    writeApiResponse(res as unknown as Parameters<typeof writeApiResponse>[0], json(200, { status: 'running' }));
+
+    expect(res.writeHead).toHaveBeenCalledWith(200, {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+    });
+  });
+});
 
 describe('applyCorsHeaders', () => {
   it('allows credentialed requests from the configured web origin', () => {

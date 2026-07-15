@@ -8,6 +8,12 @@ const usage: AiUsageMonthlyRow = {
   period: '2026-05',
   generation_limit: 10,
   generation_count: 2,
+  committed_generation_count: 2,
+  reserved_generation_count: 0,
+  provider_cost_micro_usd: '0',
+  input_tokens: '0',
+  output_tokens: '0',
+  failed_call_count: 0,
   estimated_cost: '0.14',
   updated_at: new Date('2026-05-20T10:00:00.000Z'),
 };

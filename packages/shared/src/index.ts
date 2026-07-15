@@ -2,6 +2,7 @@ export const AI_API_PATHS = {
   health: '/api/health',
   access: '/api/ai/access',
   shader: '/api/ai/shaders',
+  shaderRequest: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}`,
   shaderValidation: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/validation`,
   shaderRepair: (id: string) => `/api/ai/shaders/${encodeURIComponent(id)}/repair`,
   generations: '/api/ai/generations',
@@ -10,8 +11,229 @@ export const AI_API_PATHS = {
   assetFile: (id: string) => `/api/assets/${encodeURIComponent(id)}/file`,
 } as const;
 
+export const ARTIFACT_API_CONTRACT_VERSION = 1 as const;
+
 export const AI_GENERATION_PROVIDERS = ['openai', 'xai'] as const;
 export type AiGenerationProvider = (typeof AI_GENERATION_PROVIDERS)[number];
+
+export const ACCOUNT_TIERS = ['free', 'creator', 'founder'] as const;
+export type AccountTier = (typeof ACCOUNT_TIERS)[number];
+
+export const AI_OPERATION_FEATURES = ['image_create', 'shader_create', 'shader_refine'] as const;
+export type AiOperationFeature = (typeof AI_OPERATION_FEATURES)[number];
+
+export const AI_OPERATION_STATUSES = [
+  'reserved',
+  'running',
+  'awaiting_validation',
+  'succeeded',
+  'failed',
+  'cancelled',
+  'expired',
+] as const;
+export type AiOperationStatus = (typeof AI_OPERATION_STATUSES)[number];
+
+export const AI_USAGE_EVENT_STATUSES = ['succeeded', 'failed'] as const;
+export type AiUsageEventStatus = (typeof AI_USAGE_EVENT_STATUSES)[number];
+
+export const PROVIDER_RECONCILIATION_STATUSES = ['pending', 'succeeded', 'failed'] as const;
+export type ProviderReconciliationStatus = (typeof PROVIDER_RECONCILIATION_STATUSES)[number];
+
+export const ADMIN_API_PATHS = {
+  overview: '/api/admin/overview',
+  accounts: '/api/admin/accounts',
+  account: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}`,
+  accountTier: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}/tier`,
+  accountQuotaGrants: (userId: string) => `/api/admin/accounts/${encodeURIComponent(userId)}/quota-grants`,
+  quotaGrantReversals: (grantId: string) => `/api/admin/quota-grants/${encodeURIComponent(grantId)}/reversals`,
+  usage: '/api/admin/usage',
+  reconciliations: '/api/admin/reconciliations',
+  operationReconciliation: '/api/admin/ai-operations/reconciliation',
+} as const;
+
+export interface AdminPage {
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface AdminAccountSummary {
+  id: string;
+  email: string | null;
+  role: string;
+  tier: AccountTier;
+  tierVersion: number;
+  generations: { committed: number; reserved: number };
+  providerCostMicroUsd: string;
+  failedCalls: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSafetyBudgetSnapshot {
+  period: string;
+  state: 'normal' | 'warning' | 'stopped';
+  spentMicroUsd: string;
+  warningMicroUsd: string;
+  limitMicroUsd: string;
+}
+
+export interface AdminOverviewResponse {
+  period: string;
+  accounts: { free: number; creator: number; founder: number; total: number };
+  generations: { committed: number; reserved: number };
+  providerUsage: {
+    costMicroUsd: string;
+    inputTokens: string;
+    outputTokens: string;
+    failedCalls: number;
+  };
+  safetyBudget: AdminSafetyBudgetSnapshot;
+}
+
+export interface AdminAccountsResponse {
+  accounts: AdminAccountSummary[];
+  page: AdminPage;
+}
+
+export interface AdminTierAssignment {
+  id: string;
+  previousTier: AccountTier;
+  newTier: AccountTier;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminQuotaGrant {
+  id: string;
+  period: string;
+  amount: number;
+  reversedAmount: number;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminQuotaGrantReversal {
+  id: string;
+  grantId: string;
+  amount: number;
+  reason: string;
+  adminUserId: string;
+  createdAt: string;
+}
+
+export interface AdminAuditEvent {
+  id: string;
+  adminUserId: string;
+  targetUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  reason: string;
+  before: unknown;
+  after: unknown;
+  createdAt: string;
+}
+
+export interface AdminAccountDetailResponse {
+  account: AdminAccountSummary;
+  tierAssignments: AdminTierAssignment[];
+  quotaGrants: AdminQuotaGrant[];
+  quotaGrantReversals: AdminQuotaGrantReversal[];
+  audit: AdminAuditEvent[];
+}
+
+export interface AdminUsageEvent {
+  id: string;
+  operationId: string | null;
+  userId: string;
+  feature: AiOperationFeature;
+  provider: string;
+  model: string;
+  status: AiUsageEventStatus;
+  providerRequestId: string | null;
+  usage: Record<string, unknown>;
+  costMicroUsd: string;
+  pricingVersion: string;
+  createdAt: string;
+}
+
+export interface AdminUsageResponse {
+  usage: AdminUsageEvent[];
+  page: AdminPage;
+}
+
+export interface AdminProviderReconciliation {
+  id: string;
+  provider: string;
+  usageDate: string;
+  status: ProviderReconciliationStatus;
+  providerCostMicroUsd: string | null;
+  internalCostMicroUsd: string;
+  errorCode: string | null;
+  syncedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminReconciliationsResponse {
+  reconciliations: AdminProviderReconciliation[];
+}
+
+export interface AdminAiOperationReconciliationResponse {
+  mode: 'preview' | 'applied';
+  repeated: boolean;
+  checkedAt: string;
+  staleBefore: string;
+  recoveredOperationIds: string[];
+  expiredOperationIds: string[];
+  nextAllowedAt: string | null;
+}
+
+export interface AdminMutationMetadata {
+  reason: string;
+  idempotencyKey: string;
+}
+
+export type AdminAiOperationReconciliationRequest = AdminMutationMetadata;
+
+export interface AdminAssignTierRequest extends AdminMutationMetadata {
+  tier: AccountTier;
+  expectedTier: AccountTier;
+  expectedVersion: number;
+}
+
+export interface AdminQuotaGrantRequest extends AdminMutationMetadata {
+  period: string;
+  amount: number;
+}
+
+export interface AdminQuotaGrantReversalRequest extends AdminMutationMetadata {
+  amount: number;
+}
+
+export type AdminAccountMutationResponse = AdminAccountDetailResponse & { created: boolean };
+
+export interface AccountTierPolicy {
+  providerAiEnabled: boolean;
+  monthlyGenerationLimit: number | null;
+  maxActiveOperations: number;
+}
+
+export interface AccountAllowanceSnapshot {
+  tier: AccountTier;
+  period: string;
+  providerAiEnabled: boolean;
+  baseLimit: number | null;
+  granted: number;
+  reversed: number;
+  limit: number | null;
+  committed: number;
+  reserved: number;
+  remaining: number | null;
+}
 
 export const AI_GENERATION_JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'cancelled', 'expired'] as const;
 export type AiGenerationJobStatus = (typeof AI_GENERATION_JOB_STATUSES)[number];
@@ -144,6 +366,21 @@ export interface AiShaderGenerationResponse {
   model?: string;
   warnings?: string[];
 }
+
+export type AiShaderRequestResponse =
+  | AiShaderGenerationResponse
+  | {
+      requestId: string;
+      candidateRevision: 0 | 1;
+      status: 'pending' | 'repairing' | 'client_rejected';
+    }
+  | {
+      requestId: string;
+      candidateRevision: 0 | 1;
+      status: 'failed';
+      code: string;
+      message: string;
+    };
 
 export interface ValidateAiShaderRequest {
   candidateRevision: 0 | 1;
@@ -488,8 +725,15 @@ export interface AiGenerationAsset {
 
 export interface AiGenerationQuotaSnapshot {
   period: string;
-  limit: number;
+  limit: number | null;
   used: number;
+  remaining: number | null;
+  resetAt?: string;
+}
+
+export interface AiGenerationOperationSnapshot {
+  active: number;
+  limit: number;
   remaining: number;
 }
 
@@ -517,13 +761,22 @@ export interface AiGenerationJob {
 export interface AiGenerationAccessState {
   authenticated: boolean;
   enabled: boolean;
-  disabledReason?: 'anonymous' | 'invalid_session' | 'not_enabled' | 'quota_exhausted' | 'maintenance';
+  tier?: AccountTier;
+  disabledReason?:
+    | 'anonymous'
+    | 'invalid_session'
+    | 'tier_ai_unavailable'
+    | 'allowance_exhausted'
+    | 'operation_in_progress'
+    | 'ai_budget_exhausted'
+    | 'maintenance';
   user?: {
     id: string;
     email?: string;
     role?: string;
   };
   quota?: AiGenerationQuotaSnapshot;
+  operations?: AiGenerationOperationSnapshot;
   providers?: AiGenerationProvider[];
 }
 
@@ -535,6 +788,8 @@ export interface AiErrorResponse {
 export interface ApiHealthResponse {
   ok: true;
   service: 'artifact-api';
+  buildSha: string;
+  contractVersion: typeof ARTIFACT_API_CONTRACT_VERSION;
   databaseDriver: 'memory' | 'postgres';
   queueDriver: 'memory' | 'bullmq';
   storageDriver: 'local' | 's3';
@@ -542,10 +797,9 @@ export interface ApiHealthResponse {
   bullBoardEnabled: boolean;
 }
 
-export interface GenerationQueuePayload {
-  jobId: string;
-  userId: string;
-}
+export type GenerationQueuePayload =
+  | { kind: 'image'; jobId: string; userId: string }
+  | { kind: 'shader'; requestId: string; userId: string };
 
 export type AiProvider = AiGenerationProvider;
 export type AiJobStatus = AiGenerationJobStatus;

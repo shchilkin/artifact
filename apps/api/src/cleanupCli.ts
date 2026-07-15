@@ -23,6 +23,7 @@ try {
     assetStorage: storage,
     listLocalStorageKeys: () => storage.listGeneratedImageKeys(),
     limit: numberArg('--limit', 100),
+    staleActiveOperationMs: hoursArg('--stale-active-hours', 6),
     staleActiveJobMs: hoursArg('--stale-active-hours', 6),
     orphanAssetMs: hoursArg('--orphan-asset-hours', 24),
     deletedAssetFileMs: daysArg('--deleted-asset-file-days', 7),

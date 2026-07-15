@@ -1,16 +1,24 @@
 import { processGenerationJob } from './generationWorker.js';
 import { logInfo } from './logger.js';
 import { createApiRuntime } from './runtime.js';
+import { createConfiguredSafetyBudgetService } from './safetyBudgetService.js';
 
-const { config, pool, repositories, queue, storage, providers } = createApiRuntime();
+const { config, pool, repositories, queue, storage, providers, shaderProvider } = createApiRuntime();
+const safetyBudget = createConfiguredSafetyBudgetService(repositories.usageEvents, config.aiSafetyBudgetUsd);
 
-const worker = queue.process(async (job) => {
-  await processGenerationJob(job, {
-    repositories,
-    providers,
-    storage,
-  });
-});
+const worker = queue.process(
+  async (job) => {
+    const result = await processGenerationJob(job, {
+      repositories,
+      providers,
+      shaderProvider,
+      storage,
+      safetyBudget,
+    });
+    if (result.status === 'failed') throw new Error(`AI operation failed: ${result.code}`);
+  },
+  { concurrency: 2 },
+);
 
 logInfo('worker.started', {
   redisUrlConfigured: Boolean(config.redisUrl),

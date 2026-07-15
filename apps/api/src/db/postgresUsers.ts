@@ -82,6 +82,20 @@ export class PostgresUserRepository implements UserRepository {
     );
     return requireSingleRow(result.rows, `User not found: ${id}`);
   }
+
+  async setRole(id: string, role: UserRow['role']): Promise<UserRow> {
+    const result = await this.client.query<UserRow>(
+      `
+        UPDATE users
+        SET role = $2,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING ${userColumns}
+      `,
+      [id, role],
+    );
+    return requireSingleRow(result.rows, `User not found: ${id}`);
+  }
 }
 
 function requireSingleRow<Row>(rows: Row[], message: string): Row {

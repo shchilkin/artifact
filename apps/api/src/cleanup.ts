@@ -1,3 +1,4 @@
+import { PostgresAiOperationRepository } from './db/postgresAiOperations.js';
 import type { AssetStorage } from './storage/index.js';
 
 export interface CleanupQueryClient {
@@ -8,6 +9,7 @@ export interface AiCleanupOptions {
   now?: Date;
   dryRun?: boolean;
   limit?: number;
+  staleActiveOperationMs?: number;
   staleActiveJobMs?: number;
   orphanAssetMs?: number;
   deletedAssetFileMs?: number;
@@ -17,6 +19,8 @@ export interface AiCleanupOptions {
 
 export interface AiCleanupSummary {
   dryRun: boolean;
+  reconciledOperationIds: string[];
+  expiredOperationIds: string[];
   expiredJobIds: string[];
   softDeletedAssetIds: string[];
   storageKeysDeleted: string[];
@@ -37,6 +41,7 @@ interface StorageKeyRow {
 }
 
 const DEFAULT_LIMIT = 100;
+const DEFAULT_STALE_ACTIVE_OPERATION_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_STALE_ACTIVE_JOB_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_ORPHAN_ASSET_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DELETED_ASSET_FILE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -48,11 +53,21 @@ export async function cleanupAiGenerationData(
   const now = options.now ?? new Date();
   const dryRun = options.dryRun ?? true;
   const limit = normalizeLimit(options.limit ?? DEFAULT_LIMIT);
+  const staleActiveOperationCutoff = new Date(
+    now.getTime() - (options.staleActiveOperationMs ?? DEFAULT_STALE_ACTIVE_OPERATION_MS),
+  );
   const staleActiveJobCutoff = new Date(now.getTime() - (options.staleActiveJobMs ?? DEFAULT_STALE_ACTIVE_JOB_MS));
   const orphanAssetCutoff = new Date(now.getTime() - (options.orphanAssetMs ?? DEFAULT_ORPHAN_ASSET_MS));
   const deletedAssetFileCutoff = new Date(
     now.getTime() - (options.deletedAssetFileMs ?? DEFAULT_DELETED_ASSET_FILE_MS),
   );
+
+  const operationReconciliation = await new PostgresAiOperationRepository(client).reconcile({
+    now,
+    staleBefore: staleActiveOperationCutoff,
+    limit,
+    dryRun,
+  });
 
   const expiredJobIds = dryRun
     ? await selectStaleActiveJobIds(client, staleActiveJobCutoff, limit)
@@ -80,6 +95,8 @@ export async function cleanupAiGenerationData(
 
   return {
     dryRun,
+    reconciledOperationIds: operationReconciliation.recoveredOperationIds,
+    expiredOperationIds: operationReconciliation.expiredOperationIds,
     expiredJobIds,
     softDeletedAssetIds: softDeletedAssets.map((asset) => asset.id),
     storageKeysDeleted,
@@ -119,6 +136,7 @@ async function expireStaleActiveJobs(client: CleanupQueryClient, cutoff: Date, n
         ORDER BY queued_at ASC
         LIMIT $3
       )
+        AND status IN ('queued', 'running')
       RETURNING id
     `,
     [cutoff, now, limit],

@@ -19,6 +19,12 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.41 has reached release-candidate prep as the Account Tiers And Backoffice
+  release: explicit Free/Creator/Founder access, auditable allowances and
+  provider usage, a global Safety Budget, a separate admin-only backoffice, and
+  one coordinated production release workflow. See
+  [`version-plans/v0.41.md`](./version-plans/v0.41.md) and
+  [`releases/v0.41.0.md`](./releases/v0.41.0.md).
 - v0.40 has reached release-candidate prep as the Shader Authoring And AI
   Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
   Code Shader and AI Shader nodes, browser validation/repair/refinement,
@@ -57,10 +63,8 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next version scope after v0.40 should start from the deferred product
-  tracks below, especially sharing permissions, S3-compatible asset storage,
-  project history/versioning, public-surface polish, or a dedicated CI-policy
-  pass if full-health complexity should become a permanent strict release gate.
+- The next product version after v0.41 remains unselected. Deferred product and
+  infrastructure tracks below remain candidates after this bounded release.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -71,6 +75,11 @@ Current planning status:
   clear discovery-versus-release boundary.
 
 Next deferred product tracks:
+
+- **Dependency Advisory Remediation** — immediately after the v0.41 deployment,
+  triage and remediate the current 14 npm audit advisories by reachable runtime
+  impact and package ownership. Upgrade or replace root causes with focused
+  tests; do not hide findings with audit exceptions or inline suppressions.
 
 - 3D Material Nodes follow-up work remains focused on deeper material authoring:
   map scale/rotation, richer example packs, broader browser WebGL coverage, and
@@ -96,12 +105,13 @@ Next deferred product tracks:
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
-Planned next:
+Release candidate:
 
-- The next version scope should be selected from the deferred product tracks
-  below after v0.40 release feedback, with a likely split between public share
-  links and ownership/security, S3-compatible cloud asset storage, project
-  history/versioning, landing refresh, or CI-policy work.
+- [`version-plans/v0.41.md`](./version-plans/v0.41.md) — Account Tiers And
+  Backoffice: explicit AI entitlements, safe Generation accounting, provider
+  cost reconciliation, a global Safety Budget, a separate admin-only
+  operational application, and exact-SHA production promotion. Release notes
+  are in [`releases/v0.41.0.md`](./releases/v0.41.0.md).
 
 Recently shipped:
 
@@ -304,6 +314,20 @@ Next strong candidates after v0.39:
 - **Server-backed Share Links And Ownership** — build on v0.39 private cloud
   projects with explicit sharing permissions, link tokens, ownership rules, and
   security tests before public project links become available.
+- **Account Tiers And Backoffice Follow-Up** — make versioned tier capabilities
+  and allowances configurable without a code deploy, with validation, audit
+  history, and safe rollback. Add Cloudflare Access in front of the backoffice,
+  an audited Admin reconciliation trigger, and remove the physical legacy
+  entitlement columns after the production observation window. Account
+  suspension controls remain outside the first backoffice release until
+  moderation or support workflows require them; the existing disabled-account
+  state remains a technical reserve. A later product slice may add a Creator
+  access-request workflow once there is a real review and response channel.
+  After the v0.41 SPA deployment is stable, move the backoffice to a normal
+  React Router SSR runtime so authentication and Admin route loading happen
+  before protected UI renders. Treat this as a separate infrastructure release
+  with a Node container, SSR-specific security/hydration tests, and an explicit
+  Coolify rollback path rather than changing the runtime during v0.41 rollout.
 - **Cloud Asset Storage Follow-Up** — v0.39 ships initial local-volume cloud
   asset sync. Follow-up scope remains upload progress, cross-project asset
   deduplication, quota/cleanup policy, S3-compatible object storage, and richer
@@ -1004,6 +1028,14 @@ Research and architecture tasks:
   required `packages: write` publishing permission, read-only Coolify package
   pulls, shared API/worker/BullMQ/Postgres/storage env, migration-before-deploy
   order, and rollback by previous tag or digest.
+- [x] Standardize the transitional production deployment through the manual
+  Release workflow: all quality and browser gates finish before deployment,
+  Vercel is staged before promotion, Coolify is pinned to the exact verified
+  commit, the public API proves its build SHA and contract version, the staged
+  and promoted web deployments prove their build SHA, and concurrent production
+  deploys share one lock. This removes independent
+  Vercel/Coolify writers while immutable pull-only service images remain the
+  next infrastructure step.
 - [ ] Run the monorepo/Turborepo migration as a dedicated infrastructure track:
   introduce workspaces, add Turborepo task orchestration, move the web app into
   `apps/web`, extract stable shared contracts, build dedicated service
@@ -1056,13 +1088,13 @@ Private-alpha merge gate:
 - [ ] Post-merge follow-up: provider/defaults research and prebuilt container
   deploys can land after the private alpha merge if the blockers above pass.
 - [ ] Post-merge follow-up: harden AI accounting before broader beta access.
-  Current private-alpha safeguards are acceptable because the database enforces
-  one active generation per user, queue enqueue failures refund quota, and the
-  active-job migration self-expires old duplicate active rows before creating
-  the guard index. Before increasing concurrency or opening access beyond the
-  private alpha, move quota consumption into an atomic database operation and
-  make concurrent same-idempotency-key requests return the existing job instead
-  of occasionally surfacing `active_job_exists`.
+  Current safeguards use atomic monthly reservations and tier-specific active
+  operation limits across image and shader work: Free 0, Creator 3, Founder 15.
+  Image create plus shader create/refine/repair now execute through the shared
+  BullMQ worker queue and expose named jobs in Bull Board. Queue enqueue failures refund quota, and same-user reservations are serialized
+  in PostgreSQL before capacity is checked. Before opening access beyond the
+  private alpha, verify provider throughput, queue depth, and timeout behavior
+  under the higher accepted-operation capacity.
 - [ ] Post-merge follow-up: monorepo/Turborepo workspace migration can be done
   in parallel tracks after the private alpha merge decision, following
   [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md).

@@ -1,14 +1,26 @@
 import type {
+  AccountTierRepository,
+  AdminAuditRepository,
+  AdminReadRepository,
   AiGenerationJobRepository,
+  AiOperationRepository,
   AiShaderRequestRepository,
+  AiUsageEventRepository,
   AiUsageRepository,
   AssetRepository,
   CloudProjectRepository,
+  ProviderReconciliationRepository,
   UserRepository,
 } from './types.js';
 
 export interface ApiRepositories {
   users: UserReadWriteRepository;
+  accountTiers: AccountTierRepository;
+  operations: AiOperationRepository;
+  usageEvents: AiUsageEventRepository;
+  adminAudit: AdminAuditRepository;
+  adminRead: AdminReadRepository;
+  reconciliations: ProviderReconciliationRepository;
   jobs: JobReadWriteRepository;
   shaderRequests: ShaderRequestReadWriteRepository;
   assets: AssetReadWriteRepository;
@@ -16,7 +28,7 @@ export interface ApiRepositories {
   usage: UsageReadWriteRepository;
 }
 
-export type UserReadWriteRepository = Pick<UserRepository, 'findById' | 'upsertFromAuth'>;
+export type UserReadWriteRepository = Pick<UserRepository, 'findById' | 'upsertFromAuth' | 'setRole'>;
 
 export type JobReadWriteRepository = Pick<
   AiGenerationJobRepository,
@@ -34,6 +46,7 @@ export type JobReadWriteRepository = Pick<
 export type ShaderRequestReadWriteRepository = Pick<
   AiShaderRequestRepository,
   | 'claim'
+  | 'attachOperation'
   | 'findByIdempotencyKey'
   | 'findByIdForUser'
   | 'markGenerated'

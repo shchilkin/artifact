@@ -68,6 +68,7 @@ describe('PostgresAiGenerationJobRepository', () => {
     expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain('INSERT INTO ai_generation_jobs');
     expect(client.queries[0]?.params).toEqual([
       'job-1',
+      null,
       'user-1',
       'openai',
       'image-model',
@@ -194,6 +195,7 @@ describe('PostgresAiShaderRequestRepository', () => {
     expect(normalizeSql(client.queries[0]?.sql ?? '')).toContain('ON CONFLICT (user_id, idempotency_key) DO NOTHING');
     expect(client.queries[0]?.params).toEqual([
       'shader-request-1',
+      null,
       'user-1',
       'shader-idem-1',
       'openai',
@@ -300,6 +302,7 @@ function createJobRow(overrides: Partial<AiGenerationJobRow>): AiGenerationJobRo
   const now = new Date('2026-05-20T10:00:00.000Z');
   return {
     id: 'job',
+    operation_id: null,
     user_id: 'user',
     provider: 'openai',
     model: 'image-model',
@@ -346,6 +349,7 @@ function createAssetRow(overrides: Partial<AssetRow>): AssetRow {
 function createShaderRow(overrides: Partial<AiShaderRequestRow> = {}): AiShaderRequestRow {
   return {
     id: 'shader-request-1',
+    operation_id: null,
     user_id: 'user-1',
     idempotency_key: 'shader-idem-1',
     mode: 'openai',
@@ -372,6 +376,12 @@ function createUsageRow(overrides: Partial<AiUsageMonthlyRow> = {}): AiUsageMont
     period: '2026-05',
     generation_limit: 10,
     generation_count: 1,
+    committed_generation_count: 1,
+    reserved_generation_count: 0,
+    provider_cost_micro_usd: '0',
+    input_tokens: '0',
+    output_tokens: '0',
+    failed_call_count: 0,
     estimated_cost: '0',
     updated_at: new Date('2026-05-20T10:00:00.000Z'),
     ...overrides,

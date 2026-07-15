@@ -1,4 +1,9 @@
 import { useState } from 'react';
+import {
+  aiAccessReasonBody,
+  aiAccessReasonTitle,
+  aiAccessUsageLabel,
+} from '../../../features/ai-access/aiAccessPresentation';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import type { GraphShaderNode, ShaderPropertyValue } from '../../../types/config';
 import type { AiShaderInspectorStatus, AiShaderInspectorViewModel } from './AiShaderInspectorModel';
@@ -38,8 +43,15 @@ export function AiShaderPromptSection({
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
+      <AiShaderAccessStatus generation={generation} />
       <AiShaderEmptyStatus
-        visible={showAiShaderEmptyStatus(hasResult, generation.generating, generation.fallbackAvailable, failed)}
+        visible={showAiShaderEmptyStatus(
+          hasResult,
+          generation.generating,
+          generation.fallbackAvailable,
+          failed,
+          generation.blocked,
+        )}
         hasPrompt={hasPrompt}
         sourceConnected={sourceConnected}
       />
@@ -60,8 +72,14 @@ export function AiShaderPromptSection({
   );
 }
 
-function showAiShaderEmptyStatus(hasResult: boolean, generating: boolean, fallbackAvailable: boolean, failed: boolean) {
-  return !hasResult && !generating && !fallbackAvailable && !failed;
+function showAiShaderEmptyStatus(
+  hasResult: boolean,
+  generating: boolean,
+  fallbackAvailable: boolean,
+  failed: boolean,
+  blocked: boolean,
+) {
+  return !hasResult && !generating && !fallbackAvailable && !failed && !blocked;
 }
 
 function AiShaderEmptyStatus({
@@ -82,12 +100,78 @@ function AiShaderPrimaryAction({ generation, label }: { generation: AiShaderGene
     <button
       type="button"
       className="node-inspector-action nodrag nopan nowheel"
-      disabled={generation.generating || !generation.canCreate}
+      disabled={generation.generating || !generation.canCreateWithAi}
       onClick={() => void generation.create('openai')}
     >
       {label}
     </button>
   );
+}
+
+function AiShaderAccessStatus({ generation }: { generation: AiShaderGeneration }) {
+  const check = generation.aiAccess;
+  if (check.status === 'checking') {
+    return (
+      <ShaderStatusMessage title="Checking AI access" message="Confirming what this account can create." tone="info" />
+    );
+  }
+  if (check.status === 'error') {
+    return (
+      <>
+        <ShaderStatusMessage title="Could not check AI access" message={check.error} tone="warning" />
+        <AiShaderAccessAction label="Try Again" onClick={check.refresh} />
+      </>
+    );
+  }
+  if (check.access.enabled) {
+    return <p className="node-inspector-access-summary">{enabledAccessSummary(check.access)}</p>;
+  }
+  const reason = check.access.disabledReason;
+  return (
+    <>
+      <ShaderStatusMessage
+        title={aiAccessReasonTitle(reason)}
+        message={aiAccessReasonBody(reason, check.access)}
+        tone="info"
+      />
+      <AiShaderDisabledAccessAction generation={generation} reason={reason} />
+    </>
+  );
+}
+
+function AiShaderDisabledAccessAction({
+  generation,
+  reason,
+}: {
+  generation: AiShaderGeneration;
+  reason: string | undefined;
+}) {
+  if ((reason === 'anonymous' || reason === 'invalid_session') && generation.aiAccess.authConfigured) {
+    return <AiShaderAccessAction label="Sign In" onClick={generation.aiAccess.openSignIn} />;
+  }
+  if (reason === 'operation_in_progress') {
+    return <AiShaderAccessAction label="Check Again" onClick={generation.aiAccess.refresh} />;
+  }
+  return null;
+}
+
+function AiShaderAccessAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+function enabledAccessSummary(access: NonNullable<AiShaderGeneration['aiAccess']['access']>) {
+  const tier = access.tier ? `${access.tier[0]?.toUpperCase()}${access.tier.slice(1)}` : 'AI ready';
+  const usage = aiAccessUsageLabel(access);
+  const capacity = access.operations ? `${access.operations.active} of ${access.operations.limit} active` : null;
+  return [tier, usage, capacity].filter(Boolean).join(' · ');
 }
 
 function AiShaderFallbackAction({ generation, visible }: { generation: AiShaderGeneration; visible: boolean }) {

@@ -6,6 +6,7 @@ import {
   createAiShader,
   getAiGenerationAccess,
   getAiGenerationJob,
+  isRetryableAiPollingError,
   parseAiGenerationAccessState,
   parseAiGenerationJob,
   parseAiShaderGenerationResponse,
@@ -91,9 +92,23 @@ describe('parseAiGenerationAccessState', () => {
         authenticated: true,
         enabled: true,
         providers: ['openai', 'xai'],
-        quota: { period: '2026-05', limit: 10, used: 2, remaining: 8 },
+        tier: 'creator',
+        quota: {
+          period: '2026-05',
+          limit: 10,
+          used: 2,
+          remaining: 8,
+          resetAt: '2026-06-01T00:00:00.000Z',
+        },
+        operations: { active: 1, limit: 3, remaining: 2 },
       }),
-    ).toMatchObject({ authenticated: true, enabled: true });
+    ).toMatchObject({
+      authenticated: true,
+      enabled: true,
+      tier: 'creator',
+      quota: { remaining: 8, resetAt: '2026-06-01T00:00:00.000Z' },
+      operations: { active: 1, limit: 3, remaining: 2 },
+    });
   });
 
   it('rejects invalid provider lists', () => {
@@ -105,9 +120,26 @@ describe('parseAiGenerationAccessState', () => {
       }),
     ).toThrow(AiGenerationApiError);
   });
+
+  it('rejects invalid operation capacity', () => {
+    expect(() =>
+      parseAiGenerationAccessState({
+        authenticated: true,
+        enabled: true,
+        operations: { active: 'one', limit: 3, remaining: 2 },
+      }),
+    ).toThrow(AiGenerationApiError);
+  });
 });
 
 describe('ai generation client', () => {
+  it('retries temporary polling failures but not authentication or cancellation errors', () => {
+    expect(isRetryableAiPollingError(new TypeError('Failed to fetch'))).toBe(true);
+    expect(isRetryableAiPollingError(new AiGenerationApiError('Unavailable', 503))).toBe(true);
+    expect(isRetryableAiPollingError(new AiGenerationApiError('Unauthorized', 401))).toBe(false);
+    expect(isRetryableAiPollingError(new DOMException('Aborted', 'AbortError'))).toBe(false);
+  });
+
   it('parses and normalizes generated shader instances', () => {
     const response = parseAiShaderGenerationResponse({
       requestId: 'shader-1',
@@ -180,6 +212,84 @@ describe('ai generation client', () => {
       mode: 'openai',
       idempotencyKey: 'shader-request-1',
     });
+  });
+
+  it('polls an asynchronously queued shader until the candidate is ready', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const responses = [
+      { requestId: 'shader-queued-1', candidateRevision: 0, status: 'pending' },
+      {
+        requestId: 'shader-queued-1',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'initial',
+        prompt: 'water glass',
+        source: 'openai',
+        model: 'gpt-5.5-mini',
+        instance: generatedShaderInstance,
+      },
+    ];
+    const fetcher = async (url: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      return jsonResponse(responses.shift());
+    };
+
+    const result = await createAiShader(
+      { prompt: 'water glass', idempotencyKey: 'shader-queued-request-1' },
+      { baseUrl: 'https://api.example.test', fetcher, pollIntervalMs: 0 },
+    );
+
+    expect(result.status).toBe('generated');
+    expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ['POST', 'https://api.example.test/api/ai/shaders'],
+      ['GET', 'https://api.example.test/api/ai/shaders/shader-queued-1'],
+    ]);
+    expect(calls[1]?.init.cache).toBe('no-store');
+  });
+
+  it('keeps polling a queued shader after a temporary status request failure', async () => {
+    const responses: Array<Response | Error> = [
+      jsonResponse({ requestId: 'shader-queued-1', candidateRevision: 0, status: 'pending' }),
+      new TypeError('Failed to fetch'),
+      jsonResponse({
+        requestId: 'shader-queued-1',
+        candidateRevision: 0,
+        status: 'generated',
+        attempt: 'initial',
+        prompt: 'water glass',
+        source: 'openai',
+        model: 'gpt-5.5-mini',
+        instance: generatedShaderInstance,
+      }),
+    ];
+    const fetcher = async () => {
+      const next = responses.shift();
+      if (next instanceof Error) throw next;
+      if (!next) throw new Error('Unexpected extra request');
+      return next;
+    };
+
+    await expect(
+      createAiShader(
+        { prompt: 'water glass', idempotencyKey: 'shader-queued-request-1' },
+        { fetcher, pollIntervalMs: 0 },
+      ),
+    ).resolves.toMatchObject({ status: 'generated', requestId: 'shader-queued-1' });
+  });
+
+  it('stops polling when queued shader work takes too long', async () => {
+    const { fetcher } = captureJsonFetch({
+      requestId: 'shader-stuck-1',
+      candidateRevision: 0,
+      status: 'pending',
+    });
+
+    await expect(
+      createAiShader(
+        { prompt: 'water glass', idempotencyKey: 'shader-stuck-request-1' },
+        { fetcher, pollTimeoutMs: 0 },
+      ),
+    ).rejects.toMatchObject({ status: 504, code: 'shader_request_timeout' });
   });
 
   it('creates a refinement candidate from an accepted shader request', async () => {
@@ -340,16 +450,21 @@ describe('ai generation client', () => {
   });
 
   it('reads jobs by id', async () => {
-    const calls: string[] = [];
-    const fetcher = async (url: RequestInfo | URL) => {
-      calls.push(String(url));
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = async (url: RequestInfo | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
       return jsonResponse({ ...job, status: 'succeeded' });
     };
 
     const result = await getAiGenerationJob('job/id', { fetcher });
 
     expect(result.status).toBe('succeeded');
-    expect(calls).toEqual(['/api/ai/generations/job%2Fid']);
+    expect(calls).toEqual([
+      {
+        url: '/api/ai/generations/job%2Fid',
+        init: expect.objectContaining({ method: 'GET', cache: 'no-store' }),
+      },
+    ]);
   });
 
   it('cancels jobs through the cancel endpoint', async () => {

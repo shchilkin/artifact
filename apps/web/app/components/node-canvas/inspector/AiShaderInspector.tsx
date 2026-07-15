@@ -33,6 +33,7 @@ export function AiShaderInspector({
     compileMessage: aiShaderCompileMessage(compileResult),
     generationMessage: generationState.context.message,
     fallbackAvailable: generation.fallbackAvailable,
+    blocked: generation.blocked,
     failed: generationState.matches('failed'),
     provenance,
     generating: generation.generating,

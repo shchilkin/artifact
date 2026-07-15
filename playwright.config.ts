@@ -13,6 +13,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 960 },
     colorScheme: 'dark',
     reducedMotion: 'reduce',
+    serviceWorkers: 'block',
   },
   projects: [
     {

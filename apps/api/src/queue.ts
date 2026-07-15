@@ -24,9 +24,13 @@ export interface QueueEnqueueOptions {
   name?: string;
 }
 
+export interface QueueProcessOptions {
+  concurrency?: number;
+}
+
 export interface QueuePort<TPayload> {
   enqueue(payload: TPayload, options?: QueueEnqueueOptions): Promise<QueueJob<TPayload>>;
-  process(handler: (job: QueueJob<TPayload>) => Promise<void>): QueueWorker;
+  process(handler: (job: QueueJob<TPayload>) => Promise<void>, options?: QueueProcessOptions): QueueWorker;
   close?(): Promise<void>;
 }
 
@@ -44,6 +48,8 @@ class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
   private processor?: (job: QueueJob<TPayload>) => Promise<void>;
   private closed = false;
   private idSequence = 0;
+  private activeCount = 0;
+  private concurrency = 1;
 
   async enqueue(payload: TPayload, options: QueueEnqueueOptions = {}): Promise<QueueJob<TPayload>> {
     if (this.closed) throw new Error('Cannot enqueue into a closed queue');
@@ -63,11 +69,12 @@ class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
     return snapshotJob(job);
   }
 
-  process(handler: (job: QueueJob<TPayload>) => Promise<void>): QueueWorker {
+  process(handler: (job: QueueJob<TPayload>) => Promise<void>, options: QueueProcessOptions = {}): QueueWorker {
     if (this.closed) throw new Error('Cannot process a closed queue');
     if (this.processor) throw new Error('Queue processor is already registered');
 
     this.processor = handler;
+    this.concurrency = normalizeConcurrency(options.concurrency);
     this.drain();
 
     return {
@@ -88,22 +95,26 @@ class InMemoryQueue<TPayload> implements QueuePort<TPayload> {
     const processor = this.processor;
     if (!processor || this.closed) return;
 
-    const next = this.pending.shift();
-    if (!next) return;
+    while (this.activeCount < this.concurrency) {
+      const next = this.pending.shift();
+      if (!next) return;
 
-    next.status = 'running';
-    next.attemptsMade += 1;
+      this.activeCount += 1;
+      next.status = 'running';
+      next.attemptsMade += 1;
 
-    void processor(snapshotJob(next))
-      .then(() => {
-        next.status = 'succeeded';
-      })
-      .catch(() => {
-        next.status = 'failed';
-      })
-      .finally(() => {
-        this.drain();
-      });
+      void processor(snapshotJob(next))
+        .then(() => {
+          next.status = 'succeeded';
+        })
+        .catch(() => {
+          next.status = 'failed';
+        })
+        .finally(() => {
+          this.activeCount -= 1;
+          this.drain();
+        });
+    }
   }
 
   private nextJobId() {
@@ -146,14 +157,17 @@ class BullMqGenerationQueue implements QueuePort<GenerationQueuePayload> {
     return bullJobSnapshot(job, 'queued');
   }
 
-  process(handler: (job: QueueJob<GenerationQueuePayload>) => Promise<void>): QueueWorker {
+  process(
+    handler: (job: QueueJob<GenerationQueuePayload>) => Promise<void>,
+    options: QueueProcessOptions = {},
+  ): QueueWorker {
     const connection = new Redis(this.connection.options);
     const worker = new BullWorker<GenerationQueuePayload, void, string>(
       this.queueName,
       async (job) => {
         await handler(bullJobSnapshot(job, 'running'));
       },
-      { connection },
+      { connection, concurrency: normalizeConcurrency(options.concurrency) },
     );
 
     return {
@@ -172,6 +186,12 @@ class BullMqGenerationQueue implements QueuePort<GenerationQueuePayload> {
   bullBoardQueue() {
     return this.queue;
   }
+}
+
+function normalizeConcurrency(value: number | undefined) {
+  if (value === undefined) return 1;
+  if (!Number.isInteger(value) || value < 1) throw new Error('Queue concurrency must be a positive integer');
+  return value;
 }
 
 function snapshotJob<TPayload>(job: MutableQueueJob<TPayload>): QueueJob<TPayload> {

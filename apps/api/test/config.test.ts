@@ -6,6 +6,15 @@ const requiredEnv = {
 };
 
 describe('loadConfig', () => {
+  it('exposes deployment metadata without making local development depend on CI', () => {
+    expect(loadConfig(requiredEnv)).toMatchObject({ buildSha: 'development' });
+    expect(
+      loadConfig({ ...requiredEnv, ARTIFACT_BUILD_SHA: ' 0123456789abcdef0123456789abcdef01234567 ' }),
+    ).toMatchObject({
+      buildSha: '0123456789abcdef0123456789abcdef01234567',
+    });
+  });
+
   it('defaults to the in-memory database driver for local development', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       databaseDriver: 'memory',
@@ -94,6 +103,21 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production' })).toMatchObject({ passwordResetLogUrl: false });
   });
 
+  it('allows the development bearer token only outside production', () => {
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'development', API_DEV_BEARER_TOKEN: ' dev-token ' })).toMatchObject({
+      devBearerToken: 'dev-token',
+    });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: '' })).toMatchObject({
+      devBearerToken: undefined,
+    });
+    expect(loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: '   ' })).toMatchObject({
+      devBearerToken: undefined,
+    });
+    expect(() => loadConfig({ ...requiredEnv, NODE_ENV: 'production', API_DEV_BEARER_TOKEN: 'dev-token' })).toThrow(
+      'API_DEV_BEARER_TOKEN must not be set in production',
+    );
+  });
+
   it('parses multiple web origins for Vercel production and preview deployments', () => {
     expect(
       loadConfig({
@@ -127,7 +151,7 @@ describe('loadConfig', () => {
   it('keeps the OpenAI shader model separate from the image model', () => {
     expect(loadConfig(requiredEnv)).toMatchObject({
       openAiShaderModel: 'gpt-5.5',
-      openAiShaderTimeoutMs: 20_000,
+      openAiShaderTimeoutMs: 90_000,
     });
     expect(
       loadConfig({ ...requiredEnv, OPENAI_SHADER_MODEL: 'gpt-5.5-mini', OPENAI_SHADER_TIMEOUT_MS: '15000' }),

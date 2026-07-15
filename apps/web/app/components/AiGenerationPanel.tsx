@@ -1,4 +1,10 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  aiAccessReasonBody,
+  aiAccessReasonMessage,
+  aiAccessReasonTitle,
+  aiAccessUsageLabel,
+} from '../features/ai-access/aiAccessPresentation';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import type {
   AiGenerationAccessState,
@@ -13,6 +19,7 @@ import {
   createAiGenerationJob,
   getAiGenerationAccess,
   getAiGenerationJob,
+  isRetryableAiPollingError,
 } from '../utils/aiGenerationClient';
 import {
   getAiGenerationStatusDetail,
@@ -27,27 +34,6 @@ const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
 const AI_DEBUG_STORAGE_KEY = 'artifact-debug-ai';
 const AI_DEBUG_ENABLED_VALUES = new Set(['1', 'true', 'ai', 'all']);
-const DISABLED_REASON_MESSAGES: Partial<Record<string, string>> = {
-  anonymous: 'Account required.',
-  invalid_session: 'Account session could not be verified.',
-  not_enabled: 'AI access is not enabled for this account.',
-  quota_exhausted: 'Monthly AI quota used.',
-  maintenance: 'AI generation is temporarily unavailable.',
-};
-const DISABLED_REASON_TITLES: Record<string, string> = {
-  anonymous: 'Account required for AI',
-  invalid_session: 'Account verification failed',
-  not_enabled: 'AI access is not enabled',
-  quota_exhausted: 'Monthly AI quota used',
-  maintenance: 'AI generation is paused',
-};
-const DISABLED_REASON_BODIES: Record<string, string> = {
-  anonymous: 'This feature uses AI. To use AI features, create an account.',
-  invalid_session: 'The API could not verify this browser session. Sign out, sign in, and try again.',
-  not_enabled: 'Your account needs AI access before it can create images.',
-  quota_exhausted: 'Your monthly generation limit is used for this account.',
-  maintenance: 'Generation is temporarily unavailable while the service is being maintained.',
-};
 const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
   anonymous: 'Create account',
   invalid_session: 'Sign in again',
@@ -77,6 +63,10 @@ function jobIsActive(job: AiGenerationJob | null) {
   return job?.status === 'queued' || job?.status === 'running';
 }
 
+function jobIsTerminal(job: AiGenerationJob | null) {
+  return Boolean(job && ['succeeded', 'failed', 'cancelled', 'expired'].includes(job.status));
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof AiGenerationApiError) return apiErrorMessage(error);
   if (isFetchFailure(error)) return 'AI API is not reachable. Start the local API server and try again.';
@@ -94,21 +84,11 @@ function isFetchFailure(error: unknown) {
 }
 
 function disabledReasonMessage(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  if (!reason) return null;
-  if (DISABLED_REASON_MESSAGES[reason]) return DISABLED_REASON_MESSAGES[reason];
-  return reason ?? null;
+  return aiAccessReasonMessage(reason);
 }
 
 function disabledReasonTitle(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  return (reason && DISABLED_REASON_TITLES[reason]) || 'AI generation unavailable';
-}
-
-function disabledReasonBody(reason: AiGenerationAccessState['disabledReason'] | string | null | undefined) {
-  return (
-    (reason && DISABLED_REASON_BODIES[reason]) ||
-    disabledReasonMessage(reason) ||
-    'Generation is not available right now.'
-  );
+  return aiAccessReasonTitle(reason);
 }
 
 function firstDefined<T>(...values: Array<T | undefined>) {
@@ -463,7 +443,11 @@ function authSummaryText({
 }
 
 function quotaSummary(access: AiGenerationAccessState | null) {
-  return access?.quota ? `${access.quota.remaining}/${access.quota.limit} ${access.quota.period}` : null;
+  return access?.quota ? `${quotaAmountLabel(access.quota)} ${access.quota.period}` : null;
+}
+
+function quotaAmountLabel(quota: NonNullable<AiGenerationAccessState['quota']>) {
+  return quota.limit === null ? `${quota.used} used` : `${quota.remaining}/${quota.limit}`;
 }
 
 function AiDeveloperDiagnostics({
@@ -711,7 +695,7 @@ function accessBannerBody(
   accessCheck: AccessCheckState,
   authSignedIn: boolean,
 ) {
-  if (access) return disabledReasonBody(accessBlockReason);
+  if (access) return aiAccessReasonBody(accessBlockReason, access);
   return accessCheck.state === 'failed'
     ? failedAccessCheckMessage(accessBlockReason, accessCheck.message)
     : checkingAccessMessage(authSignedIn);
@@ -891,7 +875,7 @@ function GenerationSubmitButton({
 function GenerationMeta({ access, status }: { access: AiGenerationAccessState | null; status: string | null }) {
   return (
     <div className="ai-generation-meta" id="ai-generation-status">
-      <span>{access?.quota ? `${access.quota.remaining}/${access.quota.limit}` : 'AI'}</span>
+      <span>{aiAccessUsageLabel(access) ?? 'AI'}</span>
       <span>{status}</span>
     </div>
   );
@@ -1129,6 +1113,7 @@ type JobPollingRunnerArgs = {
   onGenerationStateChangeRef: {
     current: AiGenerationPanelProps['onGenerationStateChange'];
   };
+  onJobTerminal: () => void;
   setJob: Dispatch<SetStateAction<AiGenerationJob | null>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
 };
@@ -1137,6 +1122,7 @@ type JobPollingState = {
   stopped: boolean;
   timeout: number | undefined;
   controller: AbortController | null;
+  retryCount: number;
 };
 
 function runJobPolling(args: JobPollingRunnerArgs) {
@@ -1145,6 +1131,7 @@ function runJobPolling(args: JobPollingRunnerArgs) {
     stopped: false,
     timeout: undefined,
     controller: null,
+    retryCount: 0,
   };
   logAiPanelDebug('job_poll.start', {
     jobId: args.activeJobId,
@@ -1155,7 +1142,8 @@ function runJobPolling(args: JobPollingRunnerArgs) {
 }
 
 function scheduleJobPoll(state: JobPollingState, args: JobPollingRunnerArgs) {
-  state.timeout = window.setTimeout(() => pollActiveJob(state, args), 1500);
+  const retryDelay = Math.min(1500 * 2 ** Math.max(0, state.retryCount - 1), 10_000);
+  state.timeout = window.setTimeout(() => pollActiveJob(state, args), retryDelay);
 }
 
 function pollActiveJob(state: JobPollingState, args: JobPollingRunnerArgs) {
@@ -1181,6 +1169,7 @@ function fetchPolledJob(
 
 function handlePolledJob(nextJob: AiGenerationJob, state: JobPollingState, args: JobPollingRunnerArgs) {
   if (state.stopped) return;
+  state.retryCount = 0;
   logAiPanelDebug('job_poll.result', {
     jobId: nextJob.id,
     status: nextJob.status,
@@ -1188,6 +1177,7 @@ function handlePolledJob(nextJob: AiGenerationJob, state: JobPollingState, args:
   });
   args.onGenerationStateChangeRef.current?.(generationMetadataFromJob(nextJob));
   args.setJob(nextJob);
+  if (jobIsTerminal(nextJob)) args.onJobTerminal();
   scheduleNextPollIfActive(nextJob, state, args);
 }
 
@@ -1199,10 +1189,19 @@ function scheduleNextPollIfActive(nextJob: AiGenerationJob, state: JobPollingSta
   if (jobIsActive(nextJob)) scheduleJobPoll(state, args);
 }
 
-function handleJobPollError(error: unknown, state: JobPollingState, { setMessage }: JobPollingRunnerArgs) {
+function handleJobPollError(error: unknown, state: JobPollingState, args: JobPollingRunnerArgs) {
   if (state.stopped) return;
   if (state.controller?.signal.aborted) return;
-  setMessage(errorMessage(error));
+  if (isRetryableAiPollingError(error)) {
+    state.retryCount += 1;
+    logAiPanelDebug('job_poll.retry', {
+      jobId: args.activeJobId,
+      attempt: state.retryCount,
+    });
+    scheduleJobPoll(state, args);
+    return;
+  }
+  args.setMessage(errorMessage(error));
 }
 
 function stopJobPolling(state: JobPollingState) {
@@ -1520,6 +1519,7 @@ export function AiGenerationPanel({
     if (!authSignedIn) return undefined;
     return (await withTimeout(getAuthToken(), 8_000, tokenTimeoutError)) ?? undefined;
   }, [authSignedIn, devToken, getAuthToken]);
+  const handleJobTerminal = useCallback(() => setAccessCheckNonce((current) => current + 1), []);
 
   useEffect(() => {
     getBearerTokenRef.current = getBearerToken;
@@ -1555,11 +1555,12 @@ export function AiGenerationPanel({
       activeJobStatus: activeJob.status,
       baseUrl,
       getBearerTokenRef,
+      onJobTerminal: handleJobTerminal,
       onGenerationStateChangeRef,
       setJob,
       setMessage,
     });
-  }, [activeJob.id, activeJob.status, baseUrl]);
+  }, [activeJob.id, activeJob.status, baseUrl, handleJobTerminal]);
 
   useEffect(() => {
     return runAssetImport({

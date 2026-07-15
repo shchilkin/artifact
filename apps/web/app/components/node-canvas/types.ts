@@ -257,6 +257,7 @@ export type ShaderNodeGenerationStatus =
   | 'creatingFallback'
   | 'validating'
   | 'repairing'
+  | 'blocked'
   | 'failed';
 
 export type ContextMenuState =

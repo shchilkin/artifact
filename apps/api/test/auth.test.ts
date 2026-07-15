@@ -37,7 +37,7 @@ describe('auth helpers', () => {
       }),
     ).toMatchObject({
       authenticated: true,
-      disabledReason: 'quota_exhausted',
+      disabledReason: 'allowance_exhausted',
       enabled: false,
       user: { id: 'user-1' },
     });
