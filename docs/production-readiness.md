@@ -68,6 +68,52 @@ CI should run:
 
 ## Manual QA
 
+### v0.41.0 Release Prep
+
+- Package metadata is bumped to `0.41.0` in `package.json`,
+  `apps/web/package.json`, and `package-lock.json`.
+- `docs/releases/v0.41.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.41 adds explicit Free, Creator, and Founder tiers, atomic cross-feature AI
+  operation accounting, audited quota grants, provider-cost attribution, and a
+  global Safety Budget.
+- v0.41 adds the separate admin-only backoffice, Better Auth role enforcement,
+  account and usage views, tier/quota controls, audit metadata, and no access to
+  prompts, generated assets, shader source, or project documents.
+- v0.41 adds one manual release workflow that gates the exact commit, stages
+  Vercel, pins Coolify to the same SHA, verifies the public API revision and AI
+  contract, and only then promotes the web deployment.
+- Production QA confirmed the backoffice domain and TLS, trusted origin/CORS
+  behavior, signed-out and Admin flows, account list/detail views, Founder
+  assignment, tier/quota controls, and Bull Board visibility.
+- `npm run check` passed: deploy tests 16 passed, web tests 674 passed, API
+  tests 261 passed with 5 skipped, plus lint, formatting, and type checks.
+- `npm run build` passed for the web and backoffice applications.
+- `npm run test:browser:release` passed with 357 passed and 39 skipped tests
+  across Chromium, Firefox, WebKit, mobile Chromium, and mobile WebKit.
+- `npm run test:e2e:backoffice:run` passed with 18 passed and 2 skipped tests.
+- `npm run perf:node-editor` is not required because v0.41 does not change graph
+  traversal, rendering, thumbnail scheduling, or node-canvas hot paths.
+- Accepted release risk: Cloudflare Access is deferred. Every backoffice data
+  read and mutation still requires Better Auth Admin authorization.
+- Accepted release risk: the backoffice remains a React Router SPA. SSR needs a
+  separate Node runtime, cookie-forwarding review, hydration tests, and rollback
+  boundary.
+- Accepted release risk: provider reconciliation has a daily import and a
+  server-only manual CLI; an audited Admin UI/API trigger remains follow-up.
+- Accepted release risk: legacy entitlement columns remain for rollback
+  compatibility but no longer influence access decisions. Their removal is a
+  verified follow-up migration.
+- Accepted release risk: Coolify still builds exact verified source revisions;
+  immutable images and digest-only deployment remain follow-up infrastructure
+  work.
+- Accepted release risk: `npm audit` reports 14 dependency advisories. A
+  dedicated post-release remediation pass is recorded in the roadmap without
+  adding suppressions.
+- Accepted release risk: four transient browser scenarios passed on retry in
+  the full release matrix. They remain visible in the gate rather than being
+  hidden or ignored.
+
 ### v0.40.0 Release Prep
 
 - Package metadata is bumped to `0.40.0` in `package.json`,
