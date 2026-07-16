@@ -212,6 +212,8 @@ jobs:
         run: vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
 
       - name: Build staged web deployment
+        env:
+          VITE_APP_COMMIT: ${{ github.sha }}
         run: vercel build --prod --token="${VERCEL_TOKEN}"
 
       - name: Deploy staged web without production domains
@@ -226,9 +228,16 @@ jobs:
           echo "STAGED_WEB_URL=${staged_url}" >> "${GITHUB_ENV}"
 
       - name: Verify staged web deployment
+        shell: bash
         env:
           VERIFY_TARGET: web
-        run: WEB_DEPLOYMENT_URL="${STAGED_WEB_URL}" node scripts/deploy/verify-production.mjs
+        run: |
+          set -euo pipefail
+          staged_html="$(mktemp)"
+          trap 'rm -f "${staged_html}"' EXIT
+          vercel curl / --deployment "${STAGED_WEB_URL}" --yes --token="${VERCEL_TOKEN}" -- \
+            --silent --show-error --fail --location --output "${staged_html}"
+          WEB_DEPLOYMENT_HTML_PATH="${staged_html}" node scripts/deploy/verify-production.mjs
 
       - name: Deploy VPS stack from the verified commit
         id: coolify
