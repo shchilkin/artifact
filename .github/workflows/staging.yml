@@ -1,0 +1,185 @@
+name: Staging
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [development]
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Optional full development commit SHA to redeploy or roll back to"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  deploy-staging:
+    name: Deploy verified development revision
+    if: >-
+      vars.STAGING_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_WEB_URL }}
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      COOLIFY_APPLICATION_UUID: ${{ vars.COOLIFY_APPLICATION_UUID }}
+      COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+      COOLIFY_GIT_BRANCH: development
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      DEPLOYMENT_API_URL: ${{ vars.STAGING_API_URL }}
+      DEPLOYMENT_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || inputs.revision || github.sha }}
+      EXPECTED_API_CONTRACT_VERSION: "1"
+      VERCEL_CLI_VERSION: "54.21.1"
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout verified development revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || inputs.revision || github.sha }}
+
+      - name: Validate revision and staging configuration
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ "${SELECTED_REF}" != "development" ]; then
+            echo "Manual staging deploys must be dispatched from development." >&2
+            exit 1
+          fi
+
+          git fetch origin development
+          if ! git merge-base --is-ancestor "${DEPLOY_SHA}" origin/development; then
+            echo "Staging revision must belong to development: ${DEPLOY_SHA}" >&2
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "${DEPLOY_SHA}" ]; then
+            echo "Checked-out revision does not match DEPLOY_SHA." >&2
+            exit 1
+          fi
+
+          required=(
+            COOLIFY_APPLICATION_UUID
+            COOLIFY_BASE_URL
+            COOLIFY_TOKEN
+            DEPLOYMENT_API_URL
+            DEPLOYMENT_WEB_URL
+            VERCEL_ORG_ID
+            VERCEL_PROJECT_ID
+            VERCEL_TOKEN
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing staging GitHub Environment setting: ${name}" >&2
+              exit 1
+            fi
+          done
+
+          if [[ ! "${DEPLOYMENT_WEB_URL}" =~ ^https://[^/]+/?$ ]]; then
+            echo "STAGING_WEB_URL must be an HTTPS origin without a path." >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+
+      - name: Pull development preview settings
+        run: vercel pull --yes --environment=preview --git-branch=development
+
+      - name: Build staged web deployment
+        env:
+          VITE_APP_COMMIT: ${{ env.DEPLOY_SHA }}
+        run: vercel build
+
+      - name: Deploy web without the stable staging alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          staged_url="$(vercel deploy --prebuilt --target=preview --skip-domain --yes --no-color --meta "artifactBuildSha=${DEPLOY_SHA}")"
+          if [[ ! "${staged_url}" =~ ^https:// ]]; then
+            echo "Vercel did not return a deployment URL: ${staged_url}" >&2
+            exit 1
+          fi
+          echo "STAGED_WEB_URL=${staged_url}" >> "${GITHUB_ENV}"
+
+      - name: Verify staged web deployment
+        shell: bash
+        env:
+          VERIFY_TARGET: web
+        run: |
+          set -euo pipefail
+          staged_html="$(mktemp)"
+          trap 'rm -f "${staged_html}"' EXIT
+          vercel curl --yes / --deployment "${STAGED_WEB_URL}" -- \
+            --silent --show-error --fail --location --output "${staged_html}"
+          WEB_DEPLOYMENT_HTML_PATH="${staged_html}" node scripts/deploy/verify-production.mjs
+
+      - name: Deploy staging VPS stack from the verified commit
+        id: coolify
+        run: node scripts/deploy/coolify.mjs
+
+      - name: Verify staging API revision and contract
+        env:
+          PRODUCTION_API_URL: ${{ vars.STAGING_API_URL }}
+          VERIFY_TARGET: api
+        run: node scripts/deploy/verify-production.mjs
+
+      - name: Point the stable staging alias at the verified web deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging_host="${DEPLOYMENT_WEB_URL#https://}"
+          staging_host="${staging_host%/}"
+          vercel alias set "${STAGED_WEB_URL}" "${staging_host}"
+
+      - name: Verify stable staging web domain
+        shell: bash
+        env:
+          VERIFY_TARGET: web
+        run: |
+          set -euo pipefail
+          staged_html="$(mktemp)"
+          trap 'rm -f "${staged_html}"' EXIT
+          vercel curl --yes / --deployment "${DEPLOYMENT_WEB_URL}" -- \
+            --silent --show-error --fail --location --output "${staged_html}"
+          WEB_DEPLOYMENT_HTML_PATH="${staged_html}" node scripts/deploy/verify-production.mjs
+
+      - name: Summarize staging deployment
+        shell: bash
+        run: |
+          echo "### Staging deployment" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit: \`${DEPLOY_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Coolify deployment: \`${{ steps.coolify.outputs.deployment-uuid }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Staged Vercel deployment: ${STAGED_WEB_URL}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Stable staging web: ${DEPLOYMENT_WEB_URL}" >> "${GITHUB_STEP_SUMMARY}"
