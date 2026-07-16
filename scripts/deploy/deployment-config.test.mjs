@@ -57,11 +57,9 @@ describe('production deployment configuration', () => {
     assert.ok(buildStep, 'Release workflow must build the staged Vercel deployment');
     assert.match(buildStep, /VITE_APP_COMMIT: \$\{\{ github\.sha \}\}/);
     assert.ok(verifyStep, 'Release workflow must verify the staged Vercel deployment');
-    assert.match(
-      verifyStep,
-      /vercel curl --yes --token="\$\{VERCEL_TOKEN\}" \/ --deployment "\$\{STAGED_WEB_URL\}" --/,
-    );
-    assert.doesNotMatch(verifyStep, /vercel curl \/[^\n]*--token/);
+    assert.match(releaseWorkflow, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/);
+    assert.match(verifyStep, /vercel curl --yes \/ --deployment "\$\{STAGED_WEB_URL\}" --/);
+    assert.doesNotMatch(verifyStep, /--token/);
     assert.match(verifyStep, /WEB_DEPLOYMENT_HTML_PATH=/);
   });
 
