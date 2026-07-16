@@ -105,11 +105,12 @@ async function waitForDeployment({ apiBaseUrl, deploymentUuid, fetchImpl, maxWai
   throw new Error(`Coolify deployment ${deploymentUuid} did not finish within ${maxWaitMs}ms`);
 }
 
-async function pinApplicationRevision({ apiBaseUrl, applicationUuid, fetchImpl, sha, token }) {
+async function pinApplicationRevision({ apiBaseUrl, applicationUuid, branch, fetchImpl, sha, token }) {
   const applicationUrl = new URL(`applications/${encodeURIComponent(applicationUuid)}`, apiBaseUrl);
   await requestJson(fetchImpl, applicationUrl, token, {
     method: 'PATCH',
     body: JSON.stringify({
+      git_branch: branch,
       git_commit_sha: sha,
       is_auto_deploy_enabled: false,
     }),
@@ -140,6 +141,7 @@ function assertCompletedCommit(expectedSha, completed, deploymentUuid) {
 export async function deployCoolifyApplication({
   applicationUuid,
   baseUrl,
+  branch,
   fetchImpl = fetch,
   maxWaitMs = 30 * 60_000,
   pollIntervalMs = 10_000,
@@ -148,6 +150,7 @@ export async function deployCoolifyApplication({
   token,
 }) {
   const apiBaseUrl = normalizeApiBaseUrl(baseUrl);
+  const normalizedBranch = required(branch, 'COOLIFY_GIT_BRANCH');
   const normalizedToken = required(token, 'COOLIFY_TOKEN');
   const normalizedUuid = required(applicationUuid, 'COOLIFY_APPLICATION_UUID');
   const normalizedSha = assertFullSha(sha);
@@ -155,6 +158,7 @@ export async function deployCoolifyApplication({
   await pinApplicationRevision({
     apiBaseUrl,
     applicationUuid: normalizedUuid,
+    branch: normalizedBranch,
     fetchImpl,
     sha: normalizedSha,
     token: normalizedToken,
@@ -206,6 +210,7 @@ async function main() {
   const result = await deployCoolifyApplication({
     applicationUuid: process.env.COOLIFY_APPLICATION_UUID,
     baseUrl: process.env.COOLIFY_BASE_URL,
+    branch: process.env.COOLIFY_GIT_BRANCH,
     sha: process.env.DEPLOY_SHA,
     token: process.env.COOLIFY_TOKEN,
   });
