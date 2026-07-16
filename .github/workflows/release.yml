@@ -171,6 +171,7 @@ jobs:
     env:
       COOLIFY_APPLICATION_UUID: ${{ vars.COOLIFY_APPLICATION_UUID }}
       COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+      COOLIFY_GIT_BRANCH: main
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
       DEPLOY_SHA: ${{ github.sha }}
       EXPECTED_API_CONTRACT_VERSION: "1"

@@ -50,6 +50,7 @@ describe('deployCoolifyApplication', () => {
 
     const result = await deployCoolifyApplication({
       baseUrl: 'https://coolify.example/api/v1',
+      branch: 'main',
       token: 'secret-token',
       applicationUuid: 'app-1',
       sha: SHA,
@@ -65,6 +66,7 @@ describe('deployCoolifyApplication', () => {
     });
     assert.equal(requests[0].url, 'https://coolify.example/api/v1/applications/app-1');
     assert.deepEqual(JSON.parse(requests[0].init.body), {
+      git_branch: 'main',
       git_commit_sha: SHA,
       is_auto_deploy_enabled: false,
     });
@@ -78,6 +80,7 @@ describe('deployCoolifyApplication', () => {
 
     await deployCoolifyApplication({
       baseUrl: 'https://coolify.example',
+      branch: 'main',
       token: 'secret-token',
       applicationUuid: 'app-1',
       sha: SHA,
@@ -96,6 +99,7 @@ describe('deployCoolifyApplication', () => {
     await assert.rejects(
       deployCoolifyApplication({
         baseUrl: 'https://coolify.example',
+        branch: 'main',
         token: 'secret-token',
         applicationUuid: 'app-1',
         sha: SHA,
@@ -118,6 +122,7 @@ describe('deployCoolifyApplication', () => {
     await assert.rejects(
       deployCoolifyApplication({
         baseUrl: 'https://coolify.example',
+        branch: 'main',
         token: 'secret-token',
         applicationUuid: 'app-1',
         sha: SHA,
