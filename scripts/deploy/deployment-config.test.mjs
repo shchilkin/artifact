@@ -39,6 +39,45 @@ describe('production deployment configuration', () => {
     assert.ok(verifyApi < promoteWeb, 'Vercel must be promoted only after the API passes verification');
   });
 
+  it('requires the release tag to exist before production deployment', async () => {
+    const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
+
+    assert.match(
+      releaseWorkflow,
+      /create-draft\|publish-draft\|deploy-production\)\n\s+tag_policy=\(--require-existing-tag\)/,
+    );
+    assert.doesNotMatch(releaseWorkflow, /verify\|tag-and-create-draft\|deploy-production\)/);
+  });
+
+  it('embeds the verified commit and authenticates staged Vercel verification', async () => {
+    const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
+    const buildStep = releaseWorkflow.match(/- name: Build staged web deployment\n([\s\S]*?)(?=\n\s+- name:)/)?.[1];
+    const verifyStep = releaseWorkflow.match(/- name: Verify staged web deployment\n([\s\S]*?)(?=\n\s+- name:)/)?.[1];
+
+    assert.ok(buildStep, 'Release workflow must build the staged Vercel deployment');
+    assert.match(buildStep, /VITE_APP_COMMIT: \$\{\{ github\.sha \}\}/);
+    assert.match(releaseWorkflow, /COOLIFY_GIT_BRANCH: main/);
+    assert.ok(verifyStep, 'Release workflow must verify the staged Vercel deployment');
+    assert.match(releaseWorkflow, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/);
+    assert.match(verifyStep, /vercel curl --yes \/ --deployment "\$\{STAGED_WEB_URL\}" --/);
+    assert.doesNotMatch(verifyStep, /--token/);
+    assert.match(verifyStep, /WEB_DEPLOYMENT_HTML_PATH=/);
+  });
+
+  it('runs source-dependent browser checks in dev and production navigation against a preview', async () => {
+    const releaseRunner = await readFile(new URL('scripts/run-browser-release.mjs', root), 'utf8');
+    const playwrightConfig = await readFile(new URL('playwright.config.ts', root), 'utf8');
+
+    assert.match(releaseRunner, /npm, \['run', 'build', '--workspace', '@artifact\/web'\]/);
+    assert.match(releaseRunner, /serverMode: 'dev'/);
+    assert.match(releaseRunner, /label: 'WebKit production navigation'/);
+    assert.match(releaseRunner, /serverMode: 'preview'/);
+    assert.match(releaseRunner, /PLAYWRIGHT_WEB_SERVER_MODE: segment\.serverMode/);
+    assert.match(releaseRunner, /--grep-invert/);
+    assert.match(playwrightConfig, /PLAYWRIGHT_WEB_SERVER_MODE === 'preview'/);
+    assert.match(playwrightConfig, /vite preview --outDir build\/client/);
+  });
+
   it('keeps standalone image publishing manual and behind its quality job', async () => {
     const workflow = await readFile(new URL('.github/workflows/container-images.yml', root), 'utf8');
 

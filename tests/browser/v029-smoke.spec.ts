@@ -53,10 +53,10 @@ test('showcase loads the project wall and opens a tile in the editor', async ({ 
   const wall = page.getByRole('region', { name: 'Made in Artifact project wall' });
   await expect(wall).toBeVisible();
 
-  const tiles = wall.getByRole('button', { name: /Open .+ in editor/ });
+  const tiles = wall.getByRole('link', { name: /Open .+ in editor/ });
   await expect.poll(async () => tiles.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(4);
 
-  await tiles.first().scrollIntoViewIfNeeded();
+  await expect(tiles.first()).toHaveAttribute('href', /^\/app\?doc=/);
   await tiles.first().click();
   await expect(page).toHaveURL(/\/app(?:\?|$)/, { timeout: 10_000 });
 

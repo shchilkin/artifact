@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const useProductionPreview = process.env.PLAYWRIGHT_WEB_SERVER_MODE === 'preview';
+
 export default defineConfig({
   testDir: './tests/browser',
   timeout: 60_000,
@@ -43,7 +45,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: '../../node_modules/.bin/react-router dev --host 127.0.0.1 --port 4173 --strictPort',
+    command: useProductionPreview
+      ? '../../node_modules/.bin/vite preview --outDir build/client --host 127.0.0.1 --port 4173 --strictPort'
+      : '../../node_modules/.bin/react-router dev --host 127.0.0.1 --port 4173 --strictPort',
     cwd: './apps/web',
     env: {
       ...process.env,

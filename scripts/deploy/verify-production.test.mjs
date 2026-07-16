@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { retryVerification, verifyProductionApi, verifyWebDeployment } from './verify-production.mjs';
+import {
+  retryVerification,
+  verifyProductionApi,
+  verifyWebDeployment,
+  verifyWebHtmlFile,
+} from './verify-production.mjs';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 
@@ -90,6 +98,24 @@ describe('production deployment verification', () => {
       }),
       /Web build .* does not match requested commit/,
     );
+  });
+
+  it('verifies authenticated staged HTML captured by vercel curl', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'artifact-staged-web-'));
+    const htmlPath = join(directory, 'index.html');
+    try {
+      await writeFile(
+        htmlPath,
+        `<!doctype html><html><head><meta name="artifact-build-sha" content="${SHA.slice(0, 12)}"></head></html>`,
+      );
+
+      assert.deepEqual(await verifyWebHtmlFile({ expectedSha: SHA, htmlPath }), {
+        source: 'vercel-curl',
+        buildSha: SHA.slice(0, 12),
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('retries transient propagation failures before succeeding', async () => {

@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
-import { useNavigate } from 'react-router';
 import { Footer } from '../components/Footer';
 import { SiteNav } from '../components/SiteNav';
 import { ActionButton } from '../components/ui/ActionButton';
@@ -182,7 +181,6 @@ function distributeColumns(items: ShowcaseItem[], colCount: number): ShowcaseIte
 }
 
 export default function Showcase() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<ShowcaseItem[]>(initialItems);
   const [generating, setGenerating] = useState(false);
   const [columnCount, setColumnCount] = useState(() =>
@@ -245,10 +243,6 @@ export default function Showcase() {
     return () => observer.disconnect();
   }, [handleGenerateMore]);
 
-  function openInEditor(item: ShowcaseItem) {
-    navigate(`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`);
-  }
-
   const columns = useMemo(() => distributeColumns(items, columnCount), [items, columnCount]);
 
   return (
@@ -275,7 +269,11 @@ export default function Showcase() {
             {columns.map((col, ci) => (
               <div key={ci} className="showcase-mosaic__col">
                 {col.map((item) => (
-                  <ShowcaseTile key={item.id} item={item} onOpen={() => openInEditor(item)} />
+                  <ShowcaseTile
+                    key={item.id}
+                    item={item}
+                    href={`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`}
+                  />
                 ))}
               </div>
             ))}
@@ -305,22 +303,21 @@ export default function Showcase() {
 
 interface ShowcaseTileProps {
   item: ShowcaseItem;
-  onOpen: () => void;
+  href: string;
 }
 
-function ShowcaseTile({ item, onOpen }: ShowcaseTileProps) {
+function ShowcaseTile({ item, href }: ShowcaseTileProps) {
   const [aw, ah] = ASPECT_SIZES[item.aspect];
   const aspectStyle = { aspectRatio: `${aw} / ${ah}` };
 
   return (
-    <motion.button
-      type="button"
+    <motion.a
+      href={href}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={`showcase-tile showcase-tile--${item.aspect.replace(':', 'x')}`}
       aria-label={`Open ${item.name} in editor`}
-      onClick={onOpen}
     >
       <div className="showcase-tile__frame" style={aspectStyle}>
         {item.thumbnail ? (
@@ -336,6 +333,6 @@ function ShowcaseTile({ item, onOpen }: ShowcaseTileProps) {
           <span className="showcase-tile__cta">Open in editor</span>
         </div>
       </div>
-    </motion.button>
+    </motion.a>
   );
 }

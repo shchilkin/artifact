@@ -50,9 +50,9 @@ CI should run:
   approval before any workflow action that creates tags, publishes releases,
   or changes production.
 - `deploy-production` is the only intended production writer. It stages Vercel,
-  pins and deploys Coolify at the verified commit, verifies the public API build
-  SHA and contract, optionally runs a real AI smoke, then promotes the staged
-  web deployment and verifies its reported build SHA. Automatic Vercel
+  pins Coolify to the production branch and verified commit, verifies the public
+  API build SHA and contract, optionally runs a real AI smoke, then promotes the
+  staged web deployment and verifies its reported build SHA. Automatic Vercel
   production deployments from `development` and `main` are disabled;
   pull-request previews remain enabled.
 - Production deployments use a shared concurrency lock, so two versions cannot

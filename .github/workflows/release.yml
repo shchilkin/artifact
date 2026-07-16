@@ -65,10 +65,10 @@ jobs:
           set -euo pipefail
 
           case "${{ inputs.action }}" in
-            verify|tag-and-create-draft|deploy-production)
+            verify|tag-and-create-draft)
               tag_policy=()
               ;;
-            create-draft|publish-draft)
+            create-draft|publish-draft|deploy-production)
               tag_policy=(--require-existing-tag)
               ;;
             *)
@@ -171,6 +171,7 @@ jobs:
     env:
       COOLIFY_APPLICATION_UUID: ${{ vars.COOLIFY_APPLICATION_UUID }}
       COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+      COOLIFY_GIT_BRANCH: main
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
       DEPLOY_SHA: ${{ github.sha }}
       EXPECTED_API_CONTRACT_VERSION: "1"
@@ -212,6 +213,8 @@ jobs:
         run: vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
 
       - name: Build staged web deployment
+        env:
+          VITE_APP_COMMIT: ${{ github.sha }}
         run: vercel build --prod --token="${VERCEL_TOKEN}"
 
       - name: Deploy staged web without production domains
@@ -226,9 +229,16 @@ jobs:
           echo "STAGED_WEB_URL=${staged_url}" >> "${GITHUB_ENV}"
 
       - name: Verify staged web deployment
+        shell: bash
         env:
           VERIFY_TARGET: web
-        run: WEB_DEPLOYMENT_URL="${STAGED_WEB_URL}" node scripts/deploy/verify-production.mjs
+        run: |
+          set -euo pipefail
+          staged_html="$(mktemp)"
+          trap 'rm -f "${staged_html}"' EXIT
+          vercel curl --yes / --deployment "${STAGED_WEB_URL}" -- \
+            --silent --show-error --fail --location --output "${staged_html}"
+          WEB_DEPLOYMENT_HTML_PATH="${staged_html}" node scripts/deploy/verify-production.mjs
 
       - name: Deploy VPS stack from the verified commit
         id: coolify
