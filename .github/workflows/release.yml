@@ -235,7 +235,7 @@ jobs:
           set -euo pipefail
           staged_html="$(mktemp)"
           trap 'rm -f "${staged_html}"' EXIT
-          vercel curl / --deployment "${STAGED_WEB_URL}" --yes --token="${VERCEL_TOKEN}" -- \
+          vercel curl --yes --token="${VERCEL_TOKEN}" / --deployment "${STAGED_WEB_URL}" -- \
             --silent --show-error --fail --location --output "${staged_html}"
           WEB_DEPLOYMENT_HTML_PATH="${staged_html}" node scripts/deploy/verify-production.mjs
 
