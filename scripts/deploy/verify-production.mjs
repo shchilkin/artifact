@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { runCli } from './cli.mjs';
 import { commitsMatch } from './coolify.mjs';
 
@@ -107,6 +108,13 @@ export async function verifyWebDeployment({ expectedSha, fetchImpl = fetch, webU
   return { status: response.status, contentType, buildSha };
 }
 
+export async function verifyWebHtmlFile({ expectedSha, htmlPath }) {
+  const body = await readFile(required(htmlPath, 'WEB_DEPLOYMENT_HTML_PATH'), 'utf8');
+  assertNonemptyBody(body);
+  const buildSha = assertExpectedWebRevision(body, expectedSha);
+  return { source: 'vercel-curl', buildSha };
+}
+
 function createVerifier() {
   const attempts = positiveInteger(process.env.VERIFY_ATTEMPTS, 'VERIFY_ATTEMPTS', 12);
   const intervalMs = positiveInteger(process.env.VERIFY_INTERVAL_MS, 'VERIFY_INTERVAL_MS', 5_000);
@@ -137,11 +145,15 @@ async function verifyApiFromEnvironment(verify) {
 }
 
 async function verifyWebFromEnvironment(verify) {
+  const expectedSha = required(process.env.DEPLOY_SHA, 'DEPLOY_SHA');
+  const htmlPath = process.env.WEB_DEPLOYMENT_HTML_PATH?.trim();
   const result = await verify(() =>
-    verifyWebDeployment({
-      expectedSha: required(process.env.DEPLOY_SHA, 'DEPLOY_SHA'),
-      webUrl: process.env.WEB_DEPLOYMENT_URL,
-    }),
+    htmlPath
+      ? verifyWebHtmlFile({ expectedSha, htmlPath })
+      : verifyWebDeployment({
+          expectedSha,
+          webUrl: process.env.WEB_DEPLOYMENT_URL,
+        }),
   );
   console.log(JSON.stringify({ event: 'production.web_verified', ...result }));
 }

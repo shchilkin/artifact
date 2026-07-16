@@ -49,6 +49,18 @@ describe('production deployment configuration', () => {
     assert.doesNotMatch(releaseWorkflow, /verify\|tag-and-create-draft\|deploy-production\)/);
   });
 
+  it('embeds the verified commit and authenticates staged Vercel verification', async () => {
+    const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
+    const buildStep = releaseWorkflow.match(/- name: Build staged web deployment\n([\s\S]*?)(?=\n\s+- name:)/)?.[1];
+    const verifyStep = releaseWorkflow.match(/- name: Verify staged web deployment\n([\s\S]*?)(?=\n\s+- name:)/)?.[1];
+
+    assert.ok(buildStep, 'Release workflow must build the staged Vercel deployment');
+    assert.match(buildStep, /VITE_APP_COMMIT: \$\{\{ github\.sha \}\}/);
+    assert.ok(verifyStep, 'Release workflow must verify the staged Vercel deployment');
+    assert.match(verifyStep, /vercel curl \/ --deployment "\$\{STAGED_WEB_URL\}"/);
+    assert.match(verifyStep, /WEB_DEPLOYMENT_HTML_PATH=/);
+  });
+
   it('keeps standalone image publishing manual and behind its quality job', async () => {
     const workflow = await readFile(new URL('.github/workflows/container-images.yml', root), 'utf8');
 
