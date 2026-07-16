@@ -39,6 +39,13 @@ CI should run:
 ## Branch And Release Flow
 
 - `development` is the integration and release-candidate branch.
+- A successful `CI` workflow on `development` triggers
+  `.github/workflows/staging.yml`. The staging workflow deploys the exact CI
+  revision to a dedicated Coolify application and a Vercel Preview build,
+  verifies both revisions, and moves the stable staging alias only after the
+  API passes. Manual runs can redeploy an older SHA only when it is still an
+  ancestor of `development`. The job remains safely disabled until the
+  repository variable `STAGING_ENABLED` is set to `true`.
 - `main` is the production release branch. Production tags, GitHub Releases,
   and production deployments must use a reviewed commit already promoted from
   `development`.
@@ -57,6 +64,10 @@ CI should run:
   pull-request previews remain enabled.
 - Production deployments use a shared concurrency lock, so two versions cannot
   mutate Vercel or Coolify at the same time.
+- Staging uses its own non-cancelling concurrency lock and a separate `staging`
+  GitHub Environment. Staging and production credentials, stateful services,
+  hostnames, and Coolify application UUIDs must not be shared. See
+  [`deployment.md`](./deployment.md).
 - The release Fallow gate blocks findings introduced by the release diff. Older
   findings remain in the report and are paid down separately; they are not
   hidden with inline suppressions.

@@ -5,16 +5,16 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import {
   retryVerification,
-  verifyProductionApi,
+  verifyDeploymentApi,
   verifyWebDeployment,
   verifyWebHtmlFile,
 } from './verify-production.mjs';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 
-describe('production deployment verification', () => {
+describe('deployment verification', () => {
   it('accepts an API with the requested build and contract', async () => {
-    const result = await verifyProductionApi({
+    const result = await verifyDeploymentApi({
       apiUrl: 'https://api.example',
       expectedSha: SHA,
       expectedContractVersion: 1,
@@ -30,7 +30,7 @@ describe('production deployment verification', () => {
 
   it('rejects a healthy but stale API', async () => {
     await assert.rejects(
-      verifyProductionApi({
+      verifyDeploymentApi({
         apiUrl: 'https://api.example',
         expectedSha: SHA,
         expectedContractVersion: 1,
@@ -50,7 +50,7 @@ describe('production deployment verification', () => {
 
   it('rejects an incompatible API contract', async () => {
     await assert.rejects(
-      verifyProductionApi({
+      verifyDeploymentApi({
         apiUrl: 'https://api.example',
         expectedSha: SHA,
         expectedContractVersion: 2,

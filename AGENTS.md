@@ -41,6 +41,8 @@ primitive controls, read the current docs:
   coverage scope, acceptance criteria, validation, and QA.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known
   risks, and feature intake split.
+- `docs/deployment.md` — staging/production environments, exact-SHA deployment,
+  required GitHub settings, promotion flow, and rollback boundaries.
 - `docs/release-template.md` — mandatory release notes template and release
   checklist. All releases must use this template before tag or GitHub Release
   publication.

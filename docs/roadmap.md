@@ -15,6 +15,7 @@ Related architecture docs:
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`version-planning.md`](./version-planning.md)
 - [`production-readiness.md`](./production-readiness.md)
+- [`deployment.md`](./deployment.md)
 - [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
 Current planning status:
@@ -25,6 +26,11 @@ Current planning status:
   production release workflow. See
   [`version-plans/v0.41.md`](./version-plans/v0.41.md) and
   [`releases/v0.41.0.md`](./releases/v0.41.0.md).
+- Post-v0.41 deployment infrastructure now treats `development` as a permanent
+  staging source: successful CI deploys one exact revision to dedicated Vercel
+  and Coolify staging boundaries before the stable staging alias moves.
+  Production remains a manual, tag-gated promotion from `main`. See
+  [`deployment.md`](./deployment.md).
 - v0.40 has reached release-candidate prep as the Shader Authoring And AI
   Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
   Code Shader and AI Shader nodes, browser validation/repair/refinement,
