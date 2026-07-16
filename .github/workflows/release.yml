@@ -65,10 +65,10 @@ jobs:
           set -euo pipefail
 
           case "${{ inputs.action }}" in
-            verify|tag-and-create-draft|deploy-production)
+            verify|tag-and-create-draft)
               tag_policy=()
               ;;
-            create-draft|publish-draft)
+            create-draft|publish-draft|deploy-production)
               tag_policy=(--require-existing-tag)
               ;;
             *)
