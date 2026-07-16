@@ -39,6 +39,16 @@ describe('production deployment configuration', () => {
     assert.ok(verifyApi < promoteWeb, 'Vercel must be promoted only after the API passes verification');
   });
 
+  it('requires the release tag to exist before production deployment', async () => {
+    const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
+
+    assert.match(
+      releaseWorkflow,
+      /create-draft\|publish-draft\|deploy-production\)\n\s+tag_policy=\(--require-existing-tag\)/,
+    );
+    assert.doesNotMatch(releaseWorkflow, /verify\|tag-and-create-draft\|deploy-production\)/);
+  });
+
   it('keeps standalone image publishing manual and behind its quality job', async () => {
     const workflow = await readFile(new URL('.github/workflows/container-images.yml', root), 'utf8');
 
