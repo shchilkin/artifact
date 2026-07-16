@@ -19,10 +19,10 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.41 has reached release-candidate prep as the Account Tiers And Backoffice
-  release: explicit Free/Creator/Founder access, auditable allowances and
-  provider usage, a global Safety Budget, a separate admin-only backoffice, and
-  one coordinated production release workflow. See
+- v0.41 has completed the Account Tiers And Backoffice release: explicit
+  Free/Creator/Founder access, auditable allowances and provider usage, a global
+  Safety Budget, a separate admin-only backoffice, and one coordinated
+  production release workflow. See
   [`version-plans/v0.41.md`](./version-plans/v0.41.md) and
   [`releases/v0.41.0.md`](./releases/v0.41.0.md).
 - v0.40 has reached release-candidate prep as the Shader Authoring And AI
@@ -105,15 +105,13 @@ Next deferred product tracks:
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
-Release candidate:
+Recently shipped:
 
 - [`version-plans/v0.41.md`](./version-plans/v0.41.md) — Account Tiers And
   Backoffice: explicit AI entitlements, safe Generation accounting, provider
   cost reconciliation, a global Safety Budget, a separate admin-only
   operational application, and exact-SHA production promotion. Release notes
   are in [`releases/v0.41.0.md`](./releases/v0.41.0.md).
-
-Recently shipped:
 
 - [`version-plans/v0.40.md`](./version-plans/v0.40.md) — Shader Authoring And
   AI Shader Effects: explicit Shader Fill/Effect roles, curated procedural
