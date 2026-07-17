@@ -58,6 +58,8 @@ describe('deployment configuration', () => {
     assert.match(stagingWorkflow, /COOLIFY_GIT_BRANCH: development/);
     assert.match(stagingWorkflow, /DEPLOY_SHA: \$\{\{ github\.event\.workflow_run\.head_sha/);
     assert.match(stagingWorkflow, /git merge-base --is-ancestor "\$\{DEPLOY_SHA\}" origin\/development/);
+    assert.match(stagingWorkflow, /vercel deploy --prebuilt --target=preview/);
+    assert.doesNotMatch(stagingWorkflow, /--target=preview[^\n]*--skip-domain/);
     assert.ok(stagedWeb < deployVps, 'Vercel must be staged before the staging VPS changes');
     assert.ok(deployVps < verifyApi, 'The staging API must be checked after the VPS changes');
     assert.ok(verifyApi < pointAlias, 'The stable staging alias must move only after API verification');

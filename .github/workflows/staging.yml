@@ -125,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          staged_url="$(vercel deploy --prebuilt --target=preview --skip-domain --yes --no-color --meta "artifactBuildSha=${DEPLOY_SHA}")"
+          staged_url="$(vercel deploy --prebuilt --target=preview --yes --no-color --meta "artifactBuildSha=${DEPLOY_SHA}")"
           if [[ ! "${staged_url}" =~ ^https:// ]]; then
             echo "Vercel did not return a deployment URL: ${staged_url}" >&2
             exit 1
