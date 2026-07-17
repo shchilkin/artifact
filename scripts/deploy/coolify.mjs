@@ -75,10 +75,24 @@ async function upsertBuildSha({ apiBaseUrl, applicationUuid, fetchImpl, sha, tok
     value: sha,
     is_preview: false,
     is_literal: true,
+    is_shown_once: false,
   });
-  const method = variables.some((variable) => variable?.key === 'ARTIFACT_BUILD_SHA' && variable?.is_preview !== true)
-    ? 'PATCH'
-    : 'POST';
+  const existing = variables.find(
+    (variable) => variable?.key === 'ARTIFACT_BUILD_SHA' && variable?.is_preview !== true,
+  );
+  if (existing?.is_shown_once === true) {
+    const variableUuid = required(existing.uuid, 'ARTIFACT_BUILD_SHA environment variable UUID');
+    await requestJson(
+      fetchImpl,
+      new URL(
+        `applications/${encodeURIComponent(applicationUuid)}/envs/${encodeURIComponent(variableUuid)}`,
+        apiBaseUrl,
+      ),
+      token,
+      { method: 'DELETE' },
+    );
+  }
+  const method = existing && existing.is_shown_once !== true ? 'PATCH' : 'POST';
   await requestJson(fetchImpl, envUrl, token, { method, body: payload });
 }
 

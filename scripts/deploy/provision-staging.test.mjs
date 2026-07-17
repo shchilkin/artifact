@@ -76,6 +76,8 @@ describe('provisionStaging', () => {
     assert.ok(envBodies.some((variable) => variable.key === 'POSTGRES_PASSWORD'));
     assert.ok(envBodies.some((variable) => variable.key === 'OPENAI_API_KEY' && variable.value === 'openai-secret'));
     assert.ok(envBodies.every((variable) => variable.is_literal === true));
+    assert.equal(envBodies.find((variable) => variable.key === 'ARTIFACT_BUILD_SHA').is_shown_once, false);
+    assert.equal(envBodies.find((variable) => variable.key === 'OPENAI_API_KEY').is_shown_once, true);
   });
 
   it('reuses an existing staging application without rotating generated credentials', async () => {
@@ -91,8 +93,12 @@ describe('provisionStaging', () => {
       if (path.endsWith('/applications/staging-app/envs') && method === 'GET') {
         return jsonResponse([
           ...generatedKeys.map((key) => ({ key, is_preview: false })),
-          { key: 'WEB_ORIGIN', is_preview: false },
+          { uuid: 'web-origin-env', key: 'WEB_ORIGIN', is_preview: false, is_shown_once: true },
+          { uuid: 'openai-env', key: 'OPENAI_API_KEY', is_preview: false, is_shown_once: true },
         ]);
+      }
+      if (path.endsWith('/applications/staging-app/envs/web-origin-env') && method === 'DELETE') {
+        return jsonResponse({ message: 'Environment variable deleted.' });
       }
       if (path.endsWith('/applications/staging-app/envs') && (method === 'POST' || method === 'PATCH')) {
         return jsonResponse({}, 201);
@@ -105,8 +111,14 @@ describe('provisionStaging', () => {
     assert.equal(result.created, false);
     const updatedKeys = requests.filter((request) => request.body?.key).map((request) => request.body.key);
     assert.ok(updatedKeys.includes('WEB_ORIGIN'));
-    assert.ok(updatedKeys.includes('OPENAI_API_KEY'));
+    assert.ok(!updatedKeys.includes('OPENAI_API_KEY'));
     assert.ok(generatedKeys.every((key) => !updatedKeys.includes(key)));
     assert.ok(!requests.some((request) => request.path.endsWith('/applications/public')));
+    assert.ok(
+      requests.some(
+        (request) =>
+          request.path.endsWith('/applications/staging-app/envs/web-origin-env') && request.method === 'DELETE',
+      ),
+    );
   });
 });

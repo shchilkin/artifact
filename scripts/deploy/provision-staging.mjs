@@ -145,10 +145,10 @@ function generatedVariables(randomValue) {
   const bullBoardPassword = randomValue();
   const bullBoardDigest = createHash('sha1').update(bullBoardPassword).digest('base64');
   return [
-    { key: 'POSTGRES_PASSWORD', value: randomValue() },
-    { key: 'AUTH_JWT_SECRET', value: randomValue() },
-    { key: 'BETTER_AUTH_SECRET', value: randomValue() },
-    { key: 'BULL_BOARD_BASIC_AUTH_USERS', value: `artifact-staging:{SHA}${bullBoardDigest}` },
+    { key: 'POSTGRES_PASSWORD', value: randomValue(), sensitive: true },
+    { key: 'AUTH_JWT_SECRET', value: randomValue(), sensitive: true },
+    { key: 'BETTER_AUTH_SECRET', value: randomValue(), sensitive: true },
+    { key: 'BULL_BOARD_BASIC_AUTH_USERS', value: `artifact-staging:{SHA}${bullBoardDigest}`, sensitive: true },
   ];
 }
 
@@ -158,9 +158,21 @@ async function upsertVariables({ apiBaseUrl, applicationUuid, fetchImpl, variabl
   if (!Array.isArray(existing)) throw new Error('Coolify environment list response must be an array');
 
   for (const variable of variables) {
-    const method = existing.some((candidate) => candidate?.key === variable.key && candidate?.is_preview !== true)
-      ? 'PATCH'
-      : 'POST';
+    const current = existing.find((candidate) => candidate?.key === variable.key && candidate?.is_preview !== true);
+    if (current?.is_shown_once === true && variable.sensitive === true) continue;
+    if (current?.is_shown_once === true) {
+      const variableUuid = required(current.uuid, `${variable.key} environment variable UUID`);
+      await requestJson(
+        fetchImpl,
+        new URL(
+          `applications/${encodeURIComponent(applicationUuid)}/envs/${encodeURIComponent(variableUuid)}`,
+          apiBaseUrl,
+        ),
+        token,
+        { method: 'DELETE' },
+      );
+    }
+    const method = current && current.is_shown_once !== true ? 'PATCH' : 'POST';
     await requestJson(fetchImpl, url, token, {
       method,
       body: JSON.stringify({
@@ -168,7 +180,7 @@ async function upsertVariables({ apiBaseUrl, applicationUuid, fetchImpl, variabl
         value: variable.value,
         is_preview: false,
         is_literal: true,
-        is_shown_once: true,
+        is_shown_once: variable.sensitive === true,
       }),
     });
   }
@@ -246,7 +258,7 @@ export async function provisionStaging({
     { key: 'POSTGRES_DB', value: 'artifact_staging' },
     { key: 'POSTGRES_USER', value: 'artifact_staging' },
     { key: 'BETTER_AUTH_URL', value: normalizedApiUrl },
-    { key: 'OPENAI_API_KEY', value: normalizedOpenAiApiKey },
+    { key: 'OPENAI_API_KEY', value: normalizedOpenAiApiKey, sensitive: true },
   ];
   await upsertVariables({
     apiBaseUrl,
