@@ -54,7 +54,10 @@ Environment variables:
 
 - `COOLIFY_APPLICATION_UUID`
 - `COOLIFY_BASE_URL`
+- `COOLIFY_TEMPLATE_APPLICATION_UUID` (the production Coolify application used
+  only to select the same project and server)
 - `STAGING_API_URL`
+- `STAGING_QUEUE_URL`
 - `STAGING_WEB_URL`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
@@ -62,7 +65,15 @@ Environment variables:
 Secrets:
 
 - `COOLIFY_API_TOKEN`
+- `OPENAI_API_KEY`
 - `VERCEL_TOKEN`
+
+Run `Provision staging infrastructure` once with `confirm` enabled. The
+idempotent workflow creates or reconciles the `artifact-staging` application,
+uses a dedicated Coolify `staging` environment, and generates separate
+Postgres, JWT, Better Auth, and queue-dashboard credentials. Save the returned
+application UUID as `COOLIFY_APPLICATION_UUID`; leave `STAGING_ENABLED=false`
+until the first deployment and public verification succeed.
 
 Configure Vercel Preview environment variables specifically for the
 `development` branch. In particular, browser API/auth URLs must target the
