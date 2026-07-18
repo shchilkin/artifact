@@ -20,6 +20,18 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.42 through v0.48 form the active UI-system rewrite program: shared UI
+  Foundation and dual-theme proof, Backoffice migration, Artifact product
+  surfaces, editor workflows, inspectors, canvas chrome, and final conformance
+  plus legacy removal. See [`editor-design-system.md`](./editor-design-system.md)
+  and the corresponding plans under [`version-plans/`](./version-plans/).
+- v0.49 is the rescheduled AI-Assisted Creation release: authenticated
+  full-screen Chat, editable Creative Directions and Compositions, durable Runs,
+  revision-bound Change Sets, adaptive image generation, and an explicitly
+  invoked Context Assistant for Layers and Nodes. AI feature work remains
+  paused until the v0.48 conformance gate closes. See
+  [`version-plans/v0.49.md`](./version-plans/v0.49.md) and
+  [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
   patch. Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes
   could discard the pointer location and rebuild existing graph positions and
@@ -96,9 +108,9 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next planned product version after the bounded v0.41 patches is v0.42 UI
-  Foundation And Cross-Product Proof. Deferred product and infrastructure
-  tracks below remain candidates for later milestones.
+- Deferred product and infrastructure tracks below remain candidates after the
+  bounded UI-system program and v0.49 AI release unless promoted through a
+  separate version plan.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence

@@ -53,6 +53,25 @@ primitive controls, read the current docs:
 These docs are the source of truth for architecture work. If this file conflicts
 with them, follow the docs and update this file.
 
+## Agent skills
+
+### Issue tracker
+
+Work is tracked in GitHub Issues for `shchilkin/artifact`. External pull
+requests are not a triage request surface. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the repository's five canonical triage roles, including
+`ready-for-agent` for fully specified autonomous work. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository with domain language in `CONTEXT.md` and
+architectural decisions in `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Preferred agent skills
 
 Use the repo skill profile in `docs/agent-skills.md` when choosing among global

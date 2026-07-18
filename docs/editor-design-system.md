@@ -255,6 +255,92 @@ have a style-guide specimen, focused browser coverage, and no renderer, graph,
 export, persistence, or document-schema semantic changes unless that is the
 explicit release thesis.
 
+## Full UI Rewrite Boundary
+
+The accepted full UI rewrite is a closed migration of every user-visible
+Artifact Web and Backoffice surface onto the shared UI Foundation, the Artifact
+Design System, or the Backoffice UI System. It includes tokens, primitives,
+composed product patterns, route and application shells, forms, tables, Chat,
+editor chrome, responsive states, accessibility behavior, and visual
+conformance.
+
+The rewrite preserves product and creative-system semantics. It does not
+redesign the renderer, graph rules, `CanvasDocument`, persistence, APIs, auth,
+routing contracts, or business rules. Product behavior may change only when a
+visible interaction cannot meet the accepted accessibility or state contract
+without a focused, explicitly approved correction.
+
+The migration is complete only when every inventoried visible surface is
+represented by the new system or is an explicitly approved non-goal. There is
+no open-ended legacy bucket. Obsolete primitives, compatibility aliases, and
+local CSS are removed only after their replacement surface has a live specimen
+and conformance coverage.
+
+## Full UI Rewrite Sequence
+
+The rewrite proceeds through independently verifiable waves while unrelated
+feature work, including further AI Chat work, remains paused:
+
+1. Establish the UI Foundation package, Theme Contract, both Product Themes,
+   and the Artifact and Backoffice Foundation Matrix routes.
+2. Prove the system through Artifact Chat and one narrow Backoffice slice.
+3. Migrate all Backoffice routes and operational states.
+4. Migrate Artifact public shells, projects, docs, and route-level surfaces.
+5. Migrate Artifact editor commands, forms, overlays, rows, panels, and
+   inspectors.
+6. Migrate node-canvas, preview, and 3D chrome without changing their product or
+   rendering semantics.
+7. Close the inventory, remove superseded UI code and aliases, and pass the
+   cross-application conformance gate before AI Chat feature work resumes.
+
+The rewrite is planned as a sequence of releases under one UI-system program,
+not as one oversized version. Each release must have one thesis, one primary
+surface or risk boundary, explicit acceptance criteria, and its own validation
+gate. The current AI-Assisted Creation release remains paused and will be
+rescheduled after the final UI-system migration gate. Milestones and issues are
+published only after the release boundaries, ticket granularity, and blocking
+edges have been approved.
+
+The accepted release sequence is:
+
+- **v0.42 — UI Foundation And Cross-Product Proof**: waves 1 and 2.
+- **v0.43 — Backoffice UI System**: wave 3.
+- **v0.44 — Artifact Product Surfaces**: wave 4.
+- **v0.45 — Artifact Editor Workflows**: editor shell, commands, Layers, and Add
+  Library from wave 5.
+- **v0.46 — Artifact Inspector System**: property fields and inspector surfaces
+  from wave 5.
+- **v0.47 — Artifact Canvas Chrome**: wave 6.
+- **v0.48 — UI Conformance And Legacy Removal**: wave 7.
+- **v0.49 — AI-Assisted Creation**: the paused AI release resumes only after
+  the v0.48 gate.
+
+Each UI-system milestone should contain four to eight implementation issues.
+Every issue must fit one fresh implementation context, produce an independently
+verifiable result, and name the acceptance criterion it closes. If a milestone
+needs more than eight such issues or gains a second visual critique loop, split
+the release instead of expanding the milestone. Release-gate and documentation
+work may be represented by a dedicated closing issue inside that limit.
+
+The accepted cross-release blocking edges are:
+
+- v0.42 blocks every later UI-system release.
+- v0.43 Backoffice and v0.44 Artifact Product Surfaces may be implemented in
+  parallel after v0.42, although public tags remain numerically ordered.
+- v0.44 blocks v0.45 because editor workflows consume the proven Artifact Theme
+  and product-pattern contracts.
+- v0.45 blocks v0.46 and v0.47 because inspectors and canvas chrome both
+  consume the proven editor control and overlay patterns. Their implementation
+  may proceed in parallel after that frontier, although tags remain numerically
+  ordered.
+- v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
+- v0.48 blocks v0.49 AI-Assisted Creation.
+
+Within each milestone, establish its inventory and prerequisite contract first,
+allow independent migration slices to work from that frontier, and keep the
+release-gate issue blocked by every slice it validates. Do not add dependencies
+between slices that do not genuinely gate one another.
+
 ## Future Coverage Queue
 
 The temporary v0.30 inventory has been folded into this permanent queue. If a
