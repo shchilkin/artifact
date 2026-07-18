@@ -11,6 +11,7 @@ describe('UI Foundation Theme Contract', () => {
       '--ui-command-text-transform',
       '--ui-command-height',
       '--ui-command-height-compact',
+      '--ui-command-target-size',
       '--ui-command-padding-inline',
       '--ui-command-gap',
       '--ui-command-radius',

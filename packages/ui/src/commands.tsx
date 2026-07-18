@@ -1,19 +1,41 @@
 import type { ComponentPropsWithRef, MouseEventHandler, ReactNode } from 'react';
+import { Link, type LinkProps } from 'react-router';
 import { commandClassName } from './command-class-name';
 
 export type CommandVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 export type CommandSize = 'default' | 'compact';
 
 export interface ButtonProps extends ComponentPropsWithRef<'button'> {
+  loading?: boolean;
   size?: CommandSize;
   variant?: CommandVariant;
 }
 
-export function Button({ className, size = 'default', type = 'button', variant = 'secondary', ...props }: ButtonProps) {
-  return <button type={type} className={commandClassName(variant, className, size)} {...props} />;
+export function Button({
+  children,
+  className,
+  disabled,
+  loading = false,
+  size = 'default',
+  type = 'button',
+  variant = 'secondary',
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      {...props}
+      aria-busy={loading || undefined}
+      type={type}
+      className={commandClassName(variant, className, size)}
+      disabled={disabled || loading}
+    >
+      {loading ? <span className="ui-command__progress" aria-hidden="true" /> : null}
+      {children}
+    </button>
+  );
 }
 
-export interface ButtonLinkProps extends ComponentPropsWithRef<'a'> {
+export interface ButtonLinkProps extends LinkProps {
   disabled?: boolean;
   size?: CommandSize;
   variant?: CommandVariant;
@@ -37,12 +59,12 @@ export function ButtonLink({
   };
 
   return (
-    <a
+    <Link
+      {...props}
       aria-disabled={disabled || undefined}
       className={commandClassName(variant, className, size)}
       onClick={handleClick}
       tabIndex={disabled ? -1 : tabIndex}
-      {...props}
     />
   );
 }

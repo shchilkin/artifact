@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { Button, ButtonLink, COMMAND_FOUNDATION_SPECIMEN_IDS, FoundationCommandMatrix, IconButton } from './index';
 
@@ -13,14 +14,25 @@ describe('UI Foundation commands', () => {
 
   it('removes a disabled ButtonLink from keyboard navigation', () => {
     const markup = renderToStaticMarkup(
-      <ButtonLink href="/projects" disabled>
-        Projects
-      </ButtonLink>,
+      <MemoryRouter>
+        <ButtonLink to="/projects" disabled>
+          Projects
+        </ButtonLink>
+      </MemoryRouter>,
     );
 
     expect(markup).toContain('aria-disabled="true"');
     expect(markup).toContain('tabindex="-1"');
     expect(markup).toContain('href="/projects"');
+  });
+
+  it('keeps the label available while a loading Button blocks repeat activation', () => {
+    const markup = renderToStaticMarkup(<Button loading>Saving</Button>);
+
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('disabled=""');
+    expect(markup).toContain('class="ui-command__progress" aria-hidden="true"');
+    expect(markup).toContain('Saving');
   });
 
   it('requires an accessible name for IconButton while hiding its glyph', () => {
@@ -31,14 +43,20 @@ describe('UI Foundation commands', () => {
   });
 
   it('publishes one deterministic command specimen set for both Product Themes', () => {
-    const markup = renderToStaticMarkup(<FoundationCommandMatrix />);
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <FoundationCommandMatrix />
+      </MemoryRouter>,
+    );
 
     expect(COMMAND_FOUNDATION_SPECIMEN_IDS).toEqual([
       'button-primary',
       'button-secondary',
       'button-quiet',
       'button-danger',
+      'button-active',
       'button-disabled',
+      'button-loading',
       'button-link-primary',
       'button-link-disabled',
       'icon-button-default',

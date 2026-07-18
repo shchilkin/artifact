@@ -1,72 +1,30 @@
+import { COMMAND_FOUNDATION_SPECIMEN_IDS, UI_FOUNDATION_THEME_TOKENS } from '@artifact/ui';
 import { expect, test } from '@playwright/test';
-
-const commandSpecimenIds = [
-  'button-primary',
-  'button-secondary',
-  'button-quiet',
-  'button-danger',
-  'button-disabled',
-  'button-link-primary',
-  'button-link-disabled',
-  'icon-button-default',
-  'icon-button-primary',
-  'icon-button-danger',
-  'icon-button-disabled',
-] as const;
-
-const requiredThemeTokens = [
-  '--ui-command-font-family',
-  '--ui-command-font-size',
-  '--ui-command-font-weight',
-  '--ui-command-letter-spacing',
-  '--ui-command-text-transform',
-  '--ui-command-height',
-  '--ui-command-height-compact',
-  '--ui-command-padding-inline',
-  '--ui-command-gap',
-  '--ui-command-radius',
-  '--ui-command-surface',
-  '--ui-command-surface-hover',
-  '--ui-command-surface-active',
-  '--ui-command-text',
-  '--ui-command-text-hover',
-  '--ui-command-border',
-  '--ui-command-border-hover',
-  '--ui-command-accent',
-  '--ui-command-accent-hover',
-  '--ui-command-accent-contrast',
-  '--ui-command-danger',
-  '--ui-command-danger-surface',
-  '--ui-focus-ring',
-  '--ui-focus-offset',
-  '--ui-disabled-opacity',
-  '--ui-motion-fast',
-  '--ui-ease-out',
-  '--ui-brand-field',
-  '--ui-brand-frame',
-  '--ui-brand-signal',
-  '--ui-brand-shadow',
-] as const;
 
 test('Artifact exposes the shared command Foundation Matrix in its Product Theme', async ({ page }) => {
   await page.goto('/docs/style-guide');
 
   const matrix = page.locator('[data-foundation-section="commands"]');
   await expect(matrix).toBeVisible();
-  await expect(matrix.locator('[data-foundation-specimen]')).toHaveCount(commandSpecimenIds.length);
+  await expect(matrix.locator('[data-foundation-specimen]')).toHaveCount(COMMAND_FOUNDATION_SPECIMEN_IDS.length);
   expect(
     await matrix
       .locator('[data-foundation-specimen]')
       .evaluateAll((items) => items.map((item) => item.getAttribute('data-foundation-specimen'))),
-  ).toEqual(commandSpecimenIds);
+  ).toEqual(COMMAND_FOUNDATION_SPECIMEN_IDS);
 
   const missingTokens = await matrix.evaluate((element, tokens) => {
     const styles = getComputedStyle(element);
     return tokens.filter((token) => styles.getPropertyValue(token).trim().length === 0);
-  }, requiredThemeTokens);
+  }, UI_FOUNDATION_THEME_TOKENS);
   expect(missingTokens).toEqual([]);
 
   await expect(matrix.getByRole('button', { name: 'Unavailable' })).toBeDisabled();
+  await expect(matrix.getByRole('button', { name: 'Saving' })).toHaveAttribute('aria-busy', 'true');
+  await expect(matrix.locator('[data-foundation-specimen="button-active"] .ui-command')).toHaveAttribute(
+    'data-active',
+    'true',
+  );
   await expect(matrix.getByRole('link', { name: 'Locked link' })).toHaveAttribute('aria-disabled', 'true');
   await expect(matrix.getByRole('button', { name: 'Preview command specimen' })).toBeVisible();
 
@@ -76,7 +34,8 @@ test('Artifact exposes the shared command Foundation Matrix in its Product Theme
   expect(page.url()).toBe(urlBeforeDisabledClick);
 
   const primary = matrix.getByRole('button', { name: 'Create' });
-  await primary.focus();
+  expect(await focusFirstFoundationCommandWithKeyboard(page)).toBe('button-primary');
+  await expect(primary).toBeFocused();
   const fingerprint = await primary.evaluate((button) => {
     const styles = getComputedStyle(button);
     return {
@@ -98,3 +57,14 @@ test('Artifact exposes the shared command Foundation Matrix in its Product Theme
     })),
   ).toEqual(expect.objectContaining({ clientWidth: 390, scrollWidth: 390 }));
 });
+
+async function focusFirstFoundationCommandWithKeyboard(page: import('@playwright/test').Page) {
+  for (let step = 0; step < 20; step += 1) {
+    await page.keyboard.press('Tab');
+    const specimen = await page.evaluate(() =>
+      document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),
+    );
+    if (specimen) return specimen;
+  }
+  return null;
+}

@@ -1,10 +1,5 @@
-import { Button, type ButtonProps } from '@artifact/ui';
-import { Link, type LinkProps } from 'react-router';
-import {
-  type ActionButtonVariant,
-  actionButtonClassName,
-  actionButtonCompatibilityClassName,
-} from './actionButtonClassName';
+import { Button, ButtonLink, type ButtonLinkProps, type ButtonProps } from '@artifact/ui';
+import { type ActionButtonVariant, actionButtonCompatibilityClassName } from './actionButtonClassName';
 import './action-button.css';
 
 interface SharedActionProps {
@@ -15,6 +10,8 @@ export function ActionButton({ className, variant = 'secondary', ...props }: But
   return <Button className={actionButtonCompatibilityClassName({ className, variant })} variant={variant} {...props} />;
 }
 
-export function ActionLink({ className, variant = 'secondary', ...props }: LinkProps & SharedActionProps) {
-  return <Link className={actionButtonClassName({ className, variant })} {...props} />;
+export function ActionLink({ className, variant = 'secondary', ...props }: ButtonLinkProps & SharedActionProps) {
+  return (
+    <ButtonLink className={actionButtonCompatibilityClassName({ className, variant })} variant={variant} {...props} />
+  );
 }

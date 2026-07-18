@@ -6,6 +6,7 @@
   --ui-command-text-transform: uppercase;
   --ui-command-height: var(--control-h-default);
   --ui-command-height-compact: var(--control-h-compact);
+  --ui-command-target-size: 44px;
   --ui-command-padding-inline: var(--control-pad-x-default);
   --ui-command-gap: var(--space-2);
   --ui-command-radius: var(--control-radius);

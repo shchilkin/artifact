@@ -22,16 +22,22 @@ export function FoundationCommandMatrix() {
       <CommandSpecimen id="button-danger" label="Button / danger">
         <Button variant="danger">Delete</Button>
       </CommandSpecimen>
+      <CommandSpecimen id="button-active" label="Button / active">
+        <Button data-active="true">Selected</Button>
+      </CommandSpecimen>
       <CommandSpecimen id="button-disabled" label="Button / disabled">
         <Button disabled>Unavailable</Button>
       </CommandSpecimen>
+      <CommandSpecimen id="button-loading" label="Button / loading">
+        <Button loading>Saving</Button>
+      </CommandSpecimen>
       <CommandSpecimen id="button-link-primary" label="ButtonLink / primary">
-        <ButtonLink href="#foundation-command-matrix" variant="primary">
+        <ButtonLink to="#foundation-command-matrix" variant="primary">
           View commands
         </ButtonLink>
       </CommandSpecimen>
       <CommandSpecimen id="button-link-disabled" label="ButtonLink / disabled">
-        <ButtonLink href="#foundation-command-matrix" disabled>
+        <ButtonLink to="#foundation-command-matrix" disabled>
           Locked link
         </ButtonLink>
       </CommandSpecimen>

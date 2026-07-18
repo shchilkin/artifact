@@ -6,6 +6,7 @@ export const UI_FOUNDATION_THEME_TOKENS = [
   '--ui-command-text-transform',
   '--ui-command-height',
   '--ui-command-height-compact',
+  '--ui-command-target-size',
   '--ui-command-padding-inline',
   '--ui-command-gap',
   '--ui-command-radius',
