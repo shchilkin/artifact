@@ -1,4 +1,4 @@
-import { FoundationCommandMatrix, FoundationFieldMatrix } from '@artifact/ui';
+import { FoundationCommandMatrix, FoundationFeedbackMatrix, FoundationFieldMatrix } from '@artifact/ui';
 import './style-guide.css';
 
 export function meta() {
@@ -38,6 +38,15 @@ export default function StyleGuideRoute() {
           <p>Field, Input, Textarea, and NativeSelect share accessible associations and native form behavior.</p>
         </div>
         <FoundationFieldMatrix />
+      </section>
+
+      <section className="backoffice-style-guide__section" aria-labelledby="foundation-feedback-title">
+        <div className="backoffice-style-guide__section-heading">
+          <p className="eyebrow">UI Foundation</p>
+          <h2 id="foundation-feedback-title">Feedback and async-state matrix</h2>
+          <p>Notices, loading placeholders, and progress share announcement and reduced-motion behavior.</p>
+        </div>
+        <FoundationFeedbackMatrix />
       </section>
     </main>
   );

@@ -82,12 +82,16 @@ Concrete Theme Contract values remain product-owned:
 The first command tracer exports `Button`, `ButtonLink`, and `IconButton`. The
 field tracer exports `Field`, `Input`, `Textarea`, and `NativeSelect`; `Field`
 owns label, hint, and error association while the controls retain native HTML
-props, refs, and form behavior. `FoundationCommandMatrix` and
-`FoundationFieldMatrix` are the shared deterministic specimen sets mounted by
-Artifact `/docs/style-guide` and Backoffice `/style-guide`. Both surfaces must
-render the same `data-foundation-specimen` identifiers while their computed
-typography, density, geometry, and color continue to come from their distinct
-Product Themes.
+props, refs, and form behavior. The feedback tracer exports `InlineNotice`,
+`Skeleton`, and `ProgressIndicator`. Notices distinguish calm status updates
+from urgent danger alerts, skeletons are silent unless given an announcement
+label, and progress exposes determinate values only when a value is known.
+`FoundationCommandMatrix`, `FoundationFieldMatrix`, and
+`FoundationFeedbackMatrix` are the shared deterministic specimen sets mounted
+by Artifact `/docs/style-guide` and Backoffice `/style-guide`. Both surfaces
+must render the same `data-foundation-specimen` identifiers while their
+computed typography, density, geometry, motion, and color continue to come
+from their distinct Product Themes.
 
 Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
 compatibility wrappers during the expand phase. They delegate anatomy and

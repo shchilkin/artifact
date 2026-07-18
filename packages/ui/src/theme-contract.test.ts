@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UI_FOUNDATION_THEME_TOKENS } from './index';
 
 describe('UI Foundation Theme Contract', () => {
-  it('publishes the command, field, and Brand Signature roles required by both Product Themes', () => {
+  it('publishes the command, field, feedback, async-state, and Brand Signature roles required by both Product Themes', () => {
     expect(UI_FOUNDATION_THEME_TOKENS).toEqual([
       '--ui-command-font-family',
       '--ui-command-font-size',
@@ -49,6 +49,33 @@ describe('UI Foundation Theme Contract', () => {
       '--ui-field-hint-text',
       '--ui-field-error-text',
       '--ui-field-error-border',
+      '--ui-feedback-font-family',
+      '--ui-feedback-font-size',
+      '--ui-feedback-line-height',
+      '--ui-feedback-radius',
+      '--ui-feedback-padding-block',
+      '--ui-feedback-padding-inline',
+      '--ui-feedback-info-surface',
+      '--ui-feedback-info-border',
+      '--ui-feedback-info-text',
+      '--ui-feedback-success-surface',
+      '--ui-feedback-success-border',
+      '--ui-feedback-success-text',
+      '--ui-feedback-warning-surface',
+      '--ui-feedback-warning-border',
+      '--ui-feedback-warning-text',
+      '--ui-feedback-danger-surface',
+      '--ui-feedback-danger-border',
+      '--ui-feedback-danger-text',
+      '--ui-skeleton-surface',
+      '--ui-skeleton-highlight',
+      '--ui-skeleton-radius',
+      '--ui-skeleton-line-height',
+      '--ui-skeleton-block-height',
+      '--ui-progress-height',
+      '--ui-progress-surface',
+      '--ui-progress-fill',
+      '--ui-progress-radius',
       '--ui-focus-ring',
       '--ui-focus-offset',
       '--ui-disabled-opacity',

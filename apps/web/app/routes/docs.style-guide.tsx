@@ -1,4 +1,4 @@
-import { FoundationCommandMatrix, FoundationFieldMatrix } from '@artifact/ui';
+import { FoundationCommandMatrix, FoundationFeedbackMatrix, FoundationFieldMatrix } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
 import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
@@ -368,11 +368,12 @@ export default function DocsStyleGuide() {
         <StyleSection
           kicker="02 / UI Foundation"
           title="Foundation Matrix"
-          body="Shared command and field anatomy rendered through the Artifact Product Theme."
+          body="Shared command, field, feedback, and async-state anatomy rendered through the Artifact Product Theme."
         >
           <div className="style-guide-foundation-stack">
             <FoundationCommandMatrix />
             <FoundationFieldMatrix />
+            <FoundationFeedbackMatrix />
           </div>
         </StyleSection>
 

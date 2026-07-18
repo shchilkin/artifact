@@ -1,5 +1,6 @@
 import {
   COMMAND_FOUNDATION_SPECIMEN_IDS,
+  FEEDBACK_FOUNDATION_SPECIMEN_IDS,
   FIELD_FOUNDATION_SPECIMEN_IDS,
   UI_FOUNDATION_THEME_TOKENS,
 } from '@artifact/ui';
@@ -111,4 +112,40 @@ test('Backoffice exposes the same associated Foundation fields with native state
   expect(await focusSelect.evaluate((select) => getComputedStyle(select).outlineStyle)).not.toBe('none');
 
   await expectMobileFieldGeometry(page, matrix);
+});
+
+test('Backoffice exposes the same feedback semantics and reduced-motion async states', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/style-guide');
+
+  const matrix = page.locator('[data-foundation-section="feedback"]');
+  await expect(matrix).toBeVisible();
+  await expect(matrix.locator('[data-foundation-specimen]')).toHaveCount(FEEDBACK_FOUNDATION_SPECIMEN_IDS.length);
+  expect(
+    await matrix
+      .locator('[data-foundation-specimen]')
+      .evaluateAll((items) => items.map((item) => item.getAttribute('data-foundation-specimen'))),
+  ).toEqual(FEEDBACK_FOUNDATION_SPECIMEN_IDS);
+
+  await expect(matrix.locator('[data-foundation-specimen="notice-info"] [role="status"]')).toBeVisible();
+  await expect(matrix.locator('[data-foundation-specimen="notice-success"] [role="status"]')).toBeVisible();
+  await expect(matrix.locator('[data-foundation-specimen="notice-warning"] [role="status"]')).toBeVisible();
+  await expect(matrix.locator('[data-foundation-specimen="notice-danger"] [role="alert"]')).toBeVisible();
+  await expect(matrix.getByRole('status', { name: 'Loading project preview' })).toBeVisible();
+
+  const indeterminate = matrix.getByRole('progressbar', { name: 'Rendering preview' });
+  await expect(indeterminate).toHaveAttribute('aria-busy', 'true');
+  await expect(indeterminate).not.toHaveAttribute('aria-valuenow');
+  await expect(matrix.getByRole('progressbar', { name: 'Exporting document' })).toHaveAttribute('aria-valuenow', '72');
+
+  await expect(matrix.locator('[data-foundation-specimen="skeleton-line"] .ui-skeleton').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  );
+  await expect(indeterminate.locator('.ui-progress-indicator__value')).toHaveCSS('animation-name', 'none');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
+    0,
+  );
 });

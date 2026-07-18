@@ -244,6 +244,25 @@ until the migration is complete.
 - **Anti-patterns**: custom select for decoration, options that require long
   explanatory copy, hidden labels.
 
+### Feedback and async state
+
+- **Foundation contract**: use `InlineNotice` for bounded feedback,
+  `Skeleton` for unavailable visual structure, and `ProgressIndicator` for
+  work whose progress is known or unknown.
+- **Notice semantics**: `info`, `success`, and `warning` are polite status
+  updates by default; `danger` is an alert. Callers may override the native
+  live-region role when urgency depends on the workflow rather than color.
+- **Skeleton semantics**: decorative skeletons stay hidden from assistive
+  technology. Supply `label` only when the skeleton itself must announce a
+  loading status; do not announce every placeholder in a group.
+- **Progress semantics**: `label` is required. Omit `value` for indeterminate
+  work; pass `value` and optional `max` only when real progress is available.
+- **Motion**: shimmer and indeterminate travel stop under reduced motion while
+  the waiting state remains visibly distinguishable.
+- **Anti-patterns**: success-colored errors, fake progress percentages,
+  multiple competing live regions, and CSS spinners without an accessible
+  state owner.
+
 ### Card
 
 - **Anatomy**: frame, optional media, title, metadata, action.

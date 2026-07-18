@@ -10,6 +10,16 @@ export {
   type IconButtonProps,
 } from './commands';
 export {
+  InlineNotice,
+  type InlineNoticeProps,
+  type InlineNoticeVariant,
+  ProgressIndicator,
+  type ProgressIndicatorProps,
+  Skeleton,
+  type SkeletonProps,
+  type SkeletonShape,
+} from './feedback';
+export {
   Field,
   type FieldProps,
   Input,
@@ -24,6 +34,11 @@ export {
   COMMAND_FOUNDATION_SPECIMEN_IDS,
   type CommandFoundationSpecimenId,
 } from './foundation-command-specimens';
+export { FoundationFeedbackMatrix } from './foundation-feedback-matrix';
+export {
+  FEEDBACK_FOUNDATION_SPECIMEN_IDS,
+  type FeedbackFoundationSpecimenId,
+} from './foundation-feedback-specimens';
 export { FoundationFieldMatrix } from './foundation-field-matrix';
 export {
   FIELD_FOUNDATION_SPECIMEN_IDS,
