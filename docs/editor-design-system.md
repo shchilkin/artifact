@@ -86,12 +86,16 @@ props, refs, and form behavior. The feedback tracer exports `InlineNotice`,
 `Skeleton`, and `ProgressIndicator`. Notices distinguish calm status updates
 from urgent danger alerts, skeletons are silent unless given an announcement
 label, and progress exposes determinate values only when a value is known.
-`FoundationCommandMatrix`, `FoundationFieldMatrix`, and
-`FoundationFeedbackMatrix` are the shared deterministic specimen sets mounted
-by Artifact `/docs/style-guide` and Backoffice `/style-guide`. Both surfaces
-must render the same `data-foundation-specimen` identifiers while their
-computed typography, density, geometry, motion, and color continue to come
-from their distinct Product Themes.
+The overlay tracer exports compound `Tooltip` and `Popover` APIs backed by
+Radix mechanics. UI Foundation owns their portal, collision, dismissal, focus,
+return-focus, structural CSS, and reduced-motion behavior; Product Themes own
+their semantic appearance. `FoundationCommandMatrix`, `FoundationFieldMatrix`,
+`FoundationFeedbackMatrix`, and `FoundationOverlayMatrix` are the shared
+deterministic specimen sets mounted by Artifact `/docs/style-guide` and
+Backoffice `/style-guide`. Both surfaces must render the same
+`data-foundation-specimen` identifiers while their computed typography,
+density, geometry, motion, and color continue to come from their distinct
+Product Themes.
 
 Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
 compatibility wrappers during the expand phase. They delegate anatomy and

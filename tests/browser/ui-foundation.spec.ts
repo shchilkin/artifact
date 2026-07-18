@@ -8,6 +8,7 @@ import { expect, test } from '@playwright/test';
 import {
   expectDescriptionsToResolve,
   expectMobileFieldGeometry,
+  expectOverlayMatrixBehavior,
   focusFoundationSpecimenWithKeyboard,
 } from './uiFoundationTestHelpers';
 
@@ -139,4 +140,16 @@ test('Artifact exposes shared feedback semantics and reduced-motion async states
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
     0,
   );
+});
+
+test('Artifact exposes shared Tooltip and Popover mechanics in its Product Theme', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/docs/style-guide');
+
+  await expectOverlayMatrixBehavior(page, {
+    popoverFontFamily: 'Barlow Condensed',
+    popoverRadius: '4px',
+    tooltipFontFamily: 'Space Mono',
+    tooltipRadius: '3px',
+  });
 });

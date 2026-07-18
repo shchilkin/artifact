@@ -8,6 +8,7 @@ import { expect, test } from '@playwright/test';
 import {
   expectDescriptionsToResolve,
   expectMobileFieldGeometry,
+  expectOverlayMatrixBehavior,
   focusFoundationSpecimenWithKeyboard,
 } from '../../../../tests/browser/uiFoundationTestHelpers';
 
@@ -148,4 +149,16 @@ test('Backoffice exposes the same feedback semantics and reduced-motion async st
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
     0,
   );
+});
+
+test('Backoffice exposes the same Tooltip and Popover mechanics in its Product Theme', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/style-guide');
+
+  await expectOverlayMatrixBehavior(page, {
+    popoverFontFamily: 'Inter',
+    popoverRadius: '5px',
+    tooltipFontFamily: 'Inter',
+    tooltipRadius: '4px',
+  });
 });

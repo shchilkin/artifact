@@ -281,6 +281,10 @@ until the migration is complete.
 ### Modal
 
 - **Anatomy**: overlay, surface, title, description, body, actions, close.
+- **Foundation Popover contract**: compose `Popover`, `PopoverTrigger`, and
+  `PopoverContent`; use `PopoverClose` for explicit close actions. Preserve
+  default initial focus, Escape and outside dismissal, collision handling, and
+  focus return unless a documented product interaction requires an override.
 - **Variants**: dialog, sheet, anchored menu when a full modal is not needed.
 - **States**: closed, opening, open, closing, error, loading.
 - **Accessibility**: focus trap, escape close when safe, labelled dialog,
@@ -289,6 +293,19 @@ until the migration is complete.
   panels when inline space is not enough.
 - **Anti-patterns**: modal as the first solution, hidden close path, long
   scrolling forms inside small dialogs.
+
+### Tooltip
+
+- **Foundation contract**: compose `Tooltip`, `TooltipTrigger`, and
+  `TooltipContent` inside `TooltipProvider`; use `asChild` so the real command
+  remains the keyboard and pointer trigger.
+- **Accessibility**: tooltip text supplements a trigger's visible or
+  programmatic accessible name. It never supplies or replaces that name.
+- **Usage**: short, non-interactive clarification for an icon, compact command,
+  or unfamiliar term.
+- **Anti-patterns**: essential instructions available only on hover,
+  interactive controls inside a tooltip, long product documentation, and
+  unnamed icon buttons whose tooltip is treated as their label.
 
 ### Tabs
 

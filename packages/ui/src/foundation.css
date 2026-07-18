@@ -294,6 +294,51 @@
   animation: ui-progress-indeterminate 1.05s var(--ui-ease-out) infinite;
 }
 
+.ui-tooltip-content,
+.ui-popover-content {
+  box-sizing: border-box;
+  z-index: 10000;
+  border: 1px solid;
+  transform-origin: var(--radix-popper-transform-origin);
+  animation: ui-overlay-enter var(--ui-motion-fast) var(--ui-ease-out);
+}
+
+.ui-tooltip-content {
+  max-width: min(var(--ui-tooltip-max-width), calc(100vw - 24px), var(--radix-tooltip-content-available-width));
+  border-color: var(--ui-tooltip-border);
+  border-radius: var(--ui-tooltip-radius);
+  background: var(--ui-tooltip-surface);
+  box-shadow: var(--ui-tooltip-shadow);
+  padding: var(--ui-tooltip-padding-block) var(--ui-tooltip-padding-inline);
+  color: var(--ui-tooltip-text);
+  font-family: var(--ui-tooltip-font-family);
+  font-size: var(--ui-tooltip-font-size);
+  line-height: var(--ui-tooltip-line-height);
+  overflow-wrap: anywhere;
+}
+
+.ui-popover-content {
+  width: min(var(--ui-popover-width), calc(100vw - 24px));
+  max-width: min(calc(100vw - 24px), var(--radix-popover-content-available-width));
+  max-height: min(70vh, var(--radix-popover-content-available-height));
+  overflow: auto;
+  border-color: var(--ui-popover-border);
+  border-radius: var(--ui-popover-radius);
+  outline: none;
+  background: var(--ui-popover-surface);
+  box-shadow: var(--ui-popover-shadow);
+  padding: var(--ui-popover-padding);
+  color: var(--ui-popover-text);
+  font-family: var(--ui-popover-font-family);
+  font-size: var(--ui-popover-font-size);
+  line-height: var(--ui-popover-line-height);
+}
+
+.ui-tooltip-content[data-state="closed"],
+.ui-popover-content[data-state="closed"] {
+  animation-name: ui-overlay-exit;
+}
+
 @keyframes ui-command-progress {
   to {
     transform: rotate(360deg);
@@ -349,6 +394,11 @@
   flex-basis: 240px;
 }
 
+.ui-foundation-specimen--overlay {
+  min-height: 164px;
+  flex-basis: 220px;
+}
+
 .ui-foundation-feedback-stack {
   display: grid;
   width: 100%;
@@ -357,6 +407,31 @@
 
 .ui-foundation-skeleton-short {
   width: 68%;
+}
+
+.ui-foundation-popover-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.ui-foundation-popover-title,
+.ui-foundation-popover-copy {
+  margin: 0;
+}
+
+.ui-foundation-popover-title {
+  font-weight: 700;
+}
+
+.ui-foundation-popover-copy {
+  opacity: 0.82;
+}
+
+.ui-foundation-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 @keyframes ui-skeleton-shimmer {
@@ -375,6 +450,30 @@
   }
 }
 
+@keyframes ui-overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes ui-overlay-exit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.98) translateY(2px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-command {
     transition: none;
@@ -389,7 +488,9 @@
   }
 
   .ui-skeleton,
-  .ui-progress-indicator--indeterminate .ui-progress-indicator__value {
+  .ui-progress-indicator--indeterminate .ui-progress-indicator__value,
+  .ui-tooltip-content,
+  .ui-popover-content {
     animation: none;
   }
 

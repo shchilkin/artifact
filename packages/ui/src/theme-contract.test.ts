@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UI_FOUNDATION_THEME_TOKENS } from './index';
 
 describe('UI Foundation Theme Contract', () => {
-  it('publishes the command, field, feedback, async-state, and Brand Signature roles required by both Product Themes', () => {
+  it('publishes the command, field, feedback, async-state, overlay, and Brand Signature roles required by both Product Themes', () => {
     expect(UI_FOUNDATION_THEME_TOKENS).toEqual([
       '--ui-command-font-family',
       '--ui-command-font-size',
@@ -76,6 +76,27 @@ describe('UI Foundation Theme Contract', () => {
       '--ui-progress-surface',
       '--ui-progress-fill',
       '--ui-progress-radius',
+      '--ui-tooltip-font-family',
+      '--ui-tooltip-font-size',
+      '--ui-tooltip-line-height',
+      '--ui-tooltip-surface',
+      '--ui-tooltip-text',
+      '--ui-tooltip-border',
+      '--ui-tooltip-radius',
+      '--ui-tooltip-shadow',
+      '--ui-tooltip-padding-block',
+      '--ui-tooltip-padding-inline',
+      '--ui-tooltip-max-width',
+      '--ui-popover-font-family',
+      '--ui-popover-font-size',
+      '--ui-popover-line-height',
+      '--ui-popover-surface',
+      '--ui-popover-text',
+      '--ui-popover-border',
+      '--ui-popover-radius',
+      '--ui-popover-shadow',
+      '--ui-popover-padding',
+      '--ui-popover-width',
       '--ui-focus-ring',
       '--ui-focus-offset',
       '--ui-disabled-opacity',

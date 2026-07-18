@@ -44,4 +44,27 @@ export {
   FIELD_FOUNDATION_SPECIMEN_IDS,
   type FieldFoundationSpecimenId,
 } from './foundation-field-specimens';
+export { FoundationOverlayMatrix } from './foundation-overlay-matrix';
+export {
+  OVERLAY_FOUNDATION_SPECIMEN_IDS,
+  type OverlayFoundationSpecimenId,
+} from './foundation-overlay-specimens';
+export {
+  Popover,
+  PopoverClose,
+  type PopoverCloseProps,
+  PopoverContent,
+  type PopoverContentProps,
+  type PopoverProps,
+  PopoverTrigger,
+  type PopoverTriggerProps,
+  Tooltip,
+  TooltipContent,
+  type TooltipContentProps,
+  type TooltipProps,
+  TooltipProvider,
+  type TooltipProviderProps,
+  TooltipTrigger,
+  type TooltipTriggerProps,
+} from './overlays';
 export { UI_FOUNDATION_THEME_TOKENS, type UiFoundationThemeToken } from './theme-contract';
