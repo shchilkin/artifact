@@ -1,0 +1,33 @@
+.artifact-product-theme {
+  --ui-command-font-family: var(--font-mono);
+  --ui-command-font-size: var(--control-font-size-md);
+  --ui-command-font-weight: 700;
+  --ui-command-letter-spacing: var(--control-letter-spacing);
+  --ui-command-text-transform: uppercase;
+  --ui-command-height: var(--control-h-default);
+  --ui-command-height-compact: var(--control-h-compact);
+  --ui-command-padding-inline: var(--control-pad-x-default);
+  --ui-command-gap: var(--space-2);
+  --ui-command-radius: var(--control-radius);
+  --ui-command-surface: color-mix(in oklch, var(--accent-primary) 9%, transparent);
+  --ui-command-surface-hover: transparent;
+  --ui-command-surface-active: var(--surface-control-selected);
+  --ui-command-text: var(--accent-primary);
+  --ui-command-text-hover: var(--text-primary);
+  --ui-command-border: color-mix(in oklch, var(--accent-primary) 52%, var(--line-default));
+  --ui-command-border-hover: var(--text-primary);
+  --ui-command-accent: var(--accent-primary);
+  --ui-command-accent-hover: var(--text-primary);
+  --ui-command-accent-contrast: var(--surface-app);
+  --ui-command-danger: var(--state-danger);
+  --ui-command-danger-surface: color-mix(in oklch, var(--state-danger) 10%, transparent);
+  --ui-focus-ring: var(--focus-ring);
+  --ui-focus-offset: var(--focus-ring-offset);
+  --ui-disabled-opacity: var(--state-disabled-opacity);
+  --ui-motion-fast: var(--motion-fast);
+  --ui-ease-out: var(--ease-out);
+  --ui-brand-field: var(--brand-mark-field);
+  --ui-brand-frame: var(--brand-mark-frame);
+  --ui-brand-signal: var(--brand-mark-signal);
+  --ui-brand-shadow: var(--brand-mark-shadow);
+}

@@ -1,0 +1,64 @@
+.backoffice-style-guide {
+  width: min(1180px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 56px 36px 80px;
+}
+
+.backoffice-style-guide__header {
+  display: grid;
+  max-width: 760px;
+  gap: 12px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.backoffice-style-guide__header h1,
+.backoffice-style-guide__section-heading h2 {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.08;
+}
+
+.backoffice-style-guide__header h1 {
+  font-size: clamp(36px, 7vw, 68px);
+  font-weight: 680;
+  letter-spacing: -0.04em;
+}
+
+.backoffice-style-guide__header > p:last-child,
+.backoffice-style-guide__section-heading > p:last-child {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--muted);
+}
+
+.backoffice-style-guide__section {
+  display: grid;
+  gap: 24px;
+  padding-top: 40px;
+}
+
+.backoffice-style-guide__section-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.backoffice-style-guide__section-heading h2 {
+  font-size: 26px;
+  font-weight: 650;
+}
+
+@media (max-width: 640px) {
+  .backoffice-style-guide {
+    padding: 32px 18px 56px;
+  }
+
+  .backoffice-style-guide__header {
+    padding-bottom: 24px;
+  }
+
+  .backoffice-style-guide__section {
+    padding-top: 32px;
+  }
+}

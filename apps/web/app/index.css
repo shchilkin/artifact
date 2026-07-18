@@ -1,5 +1,7 @@
 @import "tailwindcss";
+@import "@artifact/ui/foundation.css";
 @import "./styles/tokens.css";
+@import "./styles/ui-foundation-theme.css";
 
 @theme {
   --color-bg: oklch(8% 0.012 42);

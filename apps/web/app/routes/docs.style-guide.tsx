@@ -1,3 +1,4 @@
+import { FoundationCommandMatrix } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
 import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
@@ -365,7 +366,15 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="02 / Base primitives"
+          kicker="02 / UI Foundation"
+          title="Foundation Matrix"
+          body="The shared command anatomy and states rendered through the Artifact Product Theme."
+        >
+          <FoundationCommandMatrix />
+        </StyleSection>
+
+        <StyleSection
+          kicker="03 / Base primitives"
           title="Controls"
           body="Base primitives live in components/ui and should replace repeated local button, search, badge, and toolbar chrome."
         >
@@ -445,7 +454,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="03 / Editor states"
+          kicker="04 / Editor states"
           title="Layer rows"
           body="Layer states must stay visually distinct: selected, hidden, locked, and selected plus hidden are treated as product states."
         >
@@ -475,7 +484,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="04 / Graph states"
+          kicker="05 / Graph states"
           title="Node frames"
           body="Node shells and frames preserve canvas readability through selected, output-path, muted, handles, and delete-disabled states."
           wide
@@ -534,7 +543,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="05 / Add Library"
+          kicker="06 / Add Library"
           title="Creation surface"
           body="Add Library remains a key editor primitive. The style guide keeps search, rows, detail preview, and tags visible in one place."
           wide
@@ -552,7 +561,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="06 / Inspector"
+          kicker="07 / Inspector"
           title="Target and fields"
           body="Inspector primitives combine compact labels, readable values, badges, and explicit status notes."
         >
@@ -567,7 +576,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="07 / Panels"
+          kicker="08 / Panels"
           title="Properties rail"
           body="The properties panel assembles target summaries, guardrails, and inspector controls into the right-rail surface."
           wide

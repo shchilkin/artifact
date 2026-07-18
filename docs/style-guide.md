@@ -1,9 +1,13 @@
 # Artifact Style Guide
 
 This is the project style guide for UI work. Read it before implementing,
-refactoring, or reviewing user-facing UI. The live specimen route is
-`/docs/style-guide`; the token source is `apps/web/app/styles/tokens.css`; shared
-UI components live in `apps/web/app/components/ui/*`.
+refactoring, or reviewing user-facing UI. The live Artifact specimen route is
+`/docs/style-guide`; the cross-product Foundation Matrix also appears in
+Backoffice at `/style-guide`. Artifact tokens live in
+`apps/web/app/styles/tokens.css`, its UI Foundation Theme Contract mapping lives
+in `apps/web/app/styles/ui-foundation-theme.css`, cross-product primitives live
+in `packages/ui`, and Artifact-specific UI components live in
+`apps/web/app/components/ui/*`.
 
 This document follows a standard design-system shape: principles, tokens,
 component contracts, layout rules, content style, and implementation rules. It
@@ -49,6 +53,9 @@ geometry that is not a reusable UI rule.
 ### Token Source
 
 - CSS tokens: `apps/web/app/styles/tokens.css`
+- UI Foundation Theme mapping:
+  `apps/web/app/styles/ui-foundation-theme.css`
+- UI Foundation semantic contract: `packages/ui/src/theme-contract.ts`
 - Live token specimens: `/docs/style-guide`
 - Feature CSS may define feature-specific aliases, but it should map back to
   semantic tokens when possible.

@@ -1,3 +1,6 @@
+@import "@artifact/ui/foundation.css";
+@import "./ui-foundation-theme.css";
+
 :root {
   color-scheme: dark;
   --bg: #100d0c;

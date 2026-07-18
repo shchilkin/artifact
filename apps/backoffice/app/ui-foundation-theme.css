@@ -1,0 +1,33 @@
+.backoffice-product-theme {
+  --ui-command-font-family: var(--sans);
+  --ui-command-font-size: 13px;
+  --ui-command-font-weight: 650;
+  --ui-command-letter-spacing: 0;
+  --ui-command-text-transform: none;
+  --ui-command-height: 42px;
+  --ui-command-height-compact: 34px;
+  --ui-command-padding-inline: 14px;
+  --ui-command-gap: 8px;
+  --ui-command-radius: 5px;
+  --ui-command-surface: transparent;
+  --ui-command-surface-hover: var(--surface-raised);
+  --ui-command-surface-active: var(--surface-soft);
+  --ui-command-text: var(--text);
+  --ui-command-text-hover: var(--text);
+  --ui-command-border: var(--border-strong);
+  --ui-command-border-hover: var(--text);
+  --ui-command-accent: var(--accent);
+  --ui-command-accent-hover: var(--accent-hover);
+  --ui-command-accent-contrast: var(--bg);
+  --ui-command-danger: var(--danger);
+  --ui-command-danger-surface: color-mix(in srgb, var(--danger) 10%, transparent);
+  --ui-focus-ring: 2px solid var(--focus);
+  --ui-focus-offset: 3px;
+  --ui-disabled-opacity: 0.48;
+  --ui-motion-fast: 140ms;
+  --ui-ease-out: ease-out;
+  --ui-brand-field: var(--bg);
+  --ui-brand-frame: var(--text);
+  --ui-brand-signal: var(--accent);
+  --ui-brand-shadow: color-mix(in srgb, var(--accent) 20%, transparent);
+}

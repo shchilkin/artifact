@@ -65,10 +65,39 @@ an additional route state, not a replacement for category color.
 
 ## Shared Primitive Ladder
 
+### UI Foundation Package
+
+Cross-product primitives live in `packages/ui` and are consumed as source by
+both React Router applications. UI Foundation owns React anatomy, accessible
+defaults, structural/state CSS, and the canonical semantic property list in
+`packages/ui/src/theme-contract.ts`.
+
+Concrete Theme Contract values remain product-owned:
+
+- Artifact maps the contract in
+  `apps/web/app/styles/ui-foundation-theme.css`.
+- Backoffice maps the contract in
+  `apps/backoffice/app/ui-foundation-theme.css`.
+
+The first command tracer exports `Button`, `ButtonLink`, and `IconButton`.
+`FoundationCommandMatrix` is the shared deterministic specimen set mounted by
+Artifact `/docs/style-guide` and Backoffice `/style-guide`. Both surfaces must
+render the same `data-foundation-specimen` identifiers while their computed
+typography, density, geometry, and color continue to come from their distinct
+Product Themes.
+
+Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
+compatibility wrappers during the expand phase. They delegate anatomy and
+defaults to UI Foundation while preserving legacy class names needed by current
+consumer-specific layout CSS. Removing those compatibility selectors belongs
+to the final contract phase, not the first tracer.
+
 ### Base UI Primitives
 
-These live under `apps/web/app/components/ui/*` and should be reused across
-public and editor surfaces:
+Artifact-specific primitives live under `apps/web/app/components/ui/*` and
+should be reused across public and editor surfaces. The command wrappers at
+this tier consume UI Foundation; the remaining primitives stay product-owned
+until their scheduled extraction or migration:
 
 - `ActionButton` / `ActionLink`
 - `IconButton`
