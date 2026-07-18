@@ -114,8 +114,10 @@ describe('deployment configuration', () => {
     );
     assert.match(releaseRunner, /serverMode: 'preview'/);
     assert.match(releaseRunner, /PLAYWRIGHT_WEB_SERVER_MODE: segment\.serverMode/);
+    assert.match(releaseRunner, /PLAYWRIGHT_WEB_SERVER_PORT: webServerPort/);
     assert.match(releaseRunner, /--grep-invert/);
     assert.match(playwrightConfig, /PLAYWRIGHT_WEB_SERVER_MODE === 'preview'/);
+    assert.match(playwrightConfig, /PLAYWRIGHT_WEB_SERVER_PORT \?\? '4173'/);
     assert.match(playwrightConfig, /vite preview --outDir build\/client/);
   });
 

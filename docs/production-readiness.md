@@ -79,6 +79,46 @@ CI should run:
 
 ## Manual QA
 
+### v0.42.0 Release Prep
+
+- Package metadata is bumped to `0.42.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.42.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.42 adds the internal source-owned `@artifact/ui` workspace, one semantic
+  Theme Contract, distinct Artifact and Backoffice Product Themes, and their
+  shared Artifact Brand Signature.
+- The accepted v1 Foundation primitives are shown through the same
+  package-owned Foundation Matrix in Artifact `/docs/style-guide` and
+  Backoffice `/style-guide`.
+- The existing Artifact AI Generation composer and Backoffice sign-in are the
+  two proof consumers; AI Chat capability and broad UI migration remain
+  deferred.
+- Clean-base validation passed on 2026-07-22: release verification, formatting,
+  lint, type checking, 25 deployment tests, 20 UI Foundation tests, 677 Web
+  tests, 261 passing API tests with 5 skipped, 9 Backoffice tests, and both Web
+  and Backoffice production builds.
+- The full browser release gate completed with 406 passed and 49 intentionally
+  skipped tests across Artifact Chromium, Firefox, WebKit, mobile Chromium,
+  mobile WebKit, and Backoffice desktop/mobile Chromium.
+- One Chromium GLB/EXR clean-context test used its available retry because its
+  helper still opened hard-coded port `4173` while the isolated gate ran on
+  `4174`. After the helper was bound to Playwright's configured `baseURL`, that
+  scenario passed 1/1 with retries disabled.
+- The build retains 11 existing Fast Refresh warnings and the existing large
+  Three.js vendor-chunk warning; neither is introduced by v0.42.
+- `npm run perf:node-editor` is not required because v0.42 does not change
+  graph traversal, rendering, thumbnail scheduling, or node-canvas hot paths.
+- Accepted release risk: most surfaces still use local or legacy CSS and are
+  intentionally split across v0.43-v0.48.
+- Accepted release risk: compatibility wrappers and compatible selectors remain
+  until the v0.48 zero-caller conformance gate.
+- Accepted release risk: the conformance gate is not a full visual-regression
+  suite or complete WCAG certification.
+- Accepted release risk: `@artifact/ui` is an internal source-consumed
+  workspace, not a published public package.
+
 ### v0.41.3 Release Prep And Evidence
 
 - Package metadata is bumped to `0.41.3` in the root, web, backoffice, and lock
@@ -212,7 +252,6 @@ CI should run:
 - Accepted release risk: already-exported packages that omitted GLB/EXR bytes
   cannot reconstruct those absent payloads; users must reopen a source browser
   store or choose the original files once before exporting a corrected package.
-
 ### v0.41.0 Release Prep
 
 - Package metadata is bumped to `0.41.0` in `package.json`,

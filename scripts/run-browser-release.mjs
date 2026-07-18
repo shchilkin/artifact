@@ -2,9 +2,11 @@ import { spawnSync } from 'node:child_process';
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const forwardedArgs = process.argv.slice(2);
+const webServerPort = process.env.PLAYWRIGHT_WEB_SERVER_PORT ?? '4173';
+const webServerBaseUrl = `http://127.0.0.1:${webServerPort}`;
 const browserBuildEnv = {
   ...process.env,
-  VITE_AI_API_BASE_URL: 'http://127.0.0.1:4173',
+  VITE_AI_API_BASE_URL: webServerBaseUrl,
   VITE_AUTH_API_BASE_URL: '',
 };
 
@@ -69,6 +71,7 @@ for (const segment of segments) {
     env: {
       ...browserBuildEnv,
       PLAYWRIGHT_REUSE_SERVER: '0',
+      PLAYWRIGHT_WEB_SERVER_PORT: webServerPort,
       PLAYWRIGHT_WEB_SERVER_MODE: segment.serverMode,
     },
     stdio: 'inherit',

@@ -20,11 +20,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.42 through v0.48 form the active UI-system rewrite program: shared UI
-  Foundation and dual-theme proof, Backoffice migration, Artifact product
-  surfaces, editor workflows, inspectors, canvas chrome, and final conformance
-  plus legacy removal. See [`editor-design-system.md`](./editor-design-system.md)
-  and the corresponding plans under [`version-plans/`](./version-plans/).
+- v0.42 has reached release-candidate prep with the shared UI Foundation,
+  distinct Artifact and Backoffice Product Themes, two live Foundation Matrix
+  routes, the existing Artifact AI Generation composer, Backoffice sign-in,
+  and a cross-product release gate.
+  v0.43 through v0.48 remain the active bounded migration program for
+  Backoffice, Artifact product surfaces, editor workflows, inspectors, canvas
+  chrome, final conformance, and legacy removal. See
+  [`editor-design-system.md`](./editor-design-system.md),
+  [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
+  [`releases/v0.42.0.md`](./releases/v0.42.0.md).
 - v0.49 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
   revision-bound Change Sets, adaptive image generation, and an explicitly
