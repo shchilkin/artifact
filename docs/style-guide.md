@@ -220,6 +220,9 @@ until the migration is complete.
 ### Input
 
 - **Anatomy**: label, field, value, optional hint, optional error.
+- **Foundation contract**: compose `Field` with `Input` or `Textarea`; `Field`
+  owns label, hint, and error association, while the control preserves native
+  HTML props, refs, and form behavior.
 - **Variants**: text input, search field, textarea, color input.
 - **States**: default, hover, focus-visible, disabled, error, readonly.
 - **Accessibility**: every input has an accessible name; error text is tied to
@@ -231,6 +234,8 @@ until the migration is complete.
 ### Select
 
 - **Anatomy**: label, trigger, value, menu, options.
+- **Foundation contract**: compose `Field` with `NativeSelect`; use the native
+  element until product requirements justify custom selection mechanics.
 - **Variants**: native select first; custom select only when keyboard behavior
   or menu styling requires it.
 - **States**: default, hover, focus-visible, disabled, error.

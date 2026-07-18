@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UI_FOUNDATION_THEME_TOKENS } from './index';
 
 describe('UI Foundation Theme Contract', () => {
-  it('publishes the command and Brand Signature roles required by both Product Themes', () => {
+  it('publishes the command, field, and Brand Signature roles required by both Product Themes', () => {
     expect(UI_FOUNDATION_THEME_TOKENS).toEqual([
       '--ui-command-font-family',
       '--ui-command-font-size',
@@ -27,6 +27,28 @@ describe('UI Foundation Theme Contract', () => {
       '--ui-command-accent-contrast',
       '--ui-command-danger',
       '--ui-command-danger-surface',
+      '--ui-field-font-family',
+      '--ui-field-label-font-size',
+      '--ui-field-label-font-weight',
+      '--ui-field-label-letter-spacing',
+      '--ui-field-label-text-transform',
+      '--ui-field-control-font-size',
+      '--ui-field-gap',
+      '--ui-field-control-height',
+      '--ui-field-textarea-min-height',
+      '--ui-field-control-padding-inline',
+      '--ui-field-control-padding-block',
+      '--ui-field-control-radius',
+      '--ui-field-control-surface',
+      '--ui-field-control-readonly-surface',
+      '--ui-field-control-text',
+      '--ui-field-control-placeholder',
+      '--ui-field-control-border',
+      '--ui-field-control-border-hover',
+      '--ui-field-label-text',
+      '--ui-field-hint-text',
+      '--ui-field-error-text',
+      '--ui-field-error-border',
       '--ui-focus-ring',
       '--ui-focus-offset',
       '--ui-disabled-opacity',

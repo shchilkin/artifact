@@ -47,26 +47,26 @@ a {
 }
 
 button,
-input,
-select,
-textarea {
+input:not(.ui-field-control),
+select:not(.ui-field-control),
+textarea:not(.ui-field-control) {
   color: inherit;
   font: inherit;
 }
 
 button,
 a,
-input,
-select,
-textarea {
+input:not(.ui-field-control),
+select:not(.ui-field-control),
+textarea:not(.ui-field-control) {
   outline: none;
 }
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+input:not(.ui-field-control):focus-visible,
+select:not(.ui-field-control):focus-visible,
+textarea:not(.ui-field-control):focus-visible {
   box-shadow:
     0 0 0 2px var(--bg),
     0 0 0 4px var(--focus);
@@ -327,16 +327,16 @@ th,
   align-items: end;
 }
 
-label {
+label:not(.ui-field__label) {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 7px;
 }
 
-input,
-select,
-textarea {
+input:not(.ui-field-control),
+select:not(.ui-field-control),
+textarea:not(.ui-field-control) {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -345,20 +345,20 @@ textarea {
   background: var(--surface);
 }
 
-textarea {
+textarea:not(.ui-field-control) {
   min-height: 86px;
   resize: vertical;
 }
 
-input::placeholder,
-textarea::placeholder {
+input:not(.ui-field-control)::placeholder,
+textarea:not(.ui-field-control)::placeholder {
   color: #94867e;
   opacity: 1;
 }
 
-input:hover,
-select:hover,
-textarea:hover {
+input:not(.ui-field-control):hover,
+select:not(.ui-field-control):hover,
+textarea:not(.ui-field-control):hover {
   border-color: var(--muted);
 }
 

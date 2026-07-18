@@ -1,4 +1,4 @@
-import { FoundationCommandMatrix } from '@artifact/ui';
+import { FoundationCommandMatrix, FoundationFieldMatrix } from '@artifact/ui';
 import './style-guide.css';
 
 export function meta() {
@@ -29,6 +29,15 @@ export default function StyleGuideRoute() {
           <p>Button, ButtonLink, and IconButton share accessible anatomy while retaining Backoffice presentation.</p>
         </div>
         <FoundationCommandMatrix />
+      </section>
+
+      <section className="backoffice-style-guide__section" aria-labelledby="foundation-fields-title">
+        <div className="backoffice-style-guide__section-heading">
+          <p className="eyebrow">UI Foundation</p>
+          <h2 id="foundation-fields-title">Field matrix</h2>
+          <p>Field, Input, Textarea, and NativeSelect share accessible associations and native form behavior.</p>
+        </div>
+        <FoundationFieldMatrix />
       </section>
     </main>
   );

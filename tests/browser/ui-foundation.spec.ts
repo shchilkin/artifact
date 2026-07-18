@@ -1,4 +1,8 @@
-import { COMMAND_FOUNDATION_SPECIMEN_IDS, UI_FOUNDATION_THEME_TOKENS } from '@artifact/ui';
+import {
+  COMMAND_FOUNDATION_SPECIMEN_IDS,
+  FIELD_FOUNDATION_SPECIMEN_IDS,
+  UI_FOUNDATION_THEME_TOKENS,
+} from '@artifact/ui';
 import { expect, test } from '@playwright/test';
 
 test('Artifact exposes the shared command Foundation Matrix in its Product Theme', async ({ page }) => {
@@ -58,6 +62,36 @@ test('Artifact exposes the shared command Foundation Matrix in its Product Theme
   ).toEqual(expect.objectContaining({ clientWidth: 390, scrollWidth: 390 }));
 });
 
+test('Artifact exposes associated Foundation fields with keyboard focus and native states', async ({ page }) => {
+  await page.goto('/docs/style-guide');
+
+  const matrix = page.locator('[data-foundation-section="fields"]');
+  await expect(matrix).toBeVisible();
+  await expect(matrix.locator('[data-foundation-specimen]')).toHaveCount(FIELD_FOUNDATION_SPECIMEN_IDS.length);
+  expect(
+    await matrix
+      .locator('[data-foundation-specimen]')
+      .evaluateAll((items) => items.map((item) => item.getAttribute('data-foundation-specimen'))),
+  ).toEqual(FIELD_FOUNDATION_SPECIMEN_IDS);
+
+  const errorInput = matrix.getByLabel('Release title');
+  await expect(errorInput).toHaveAttribute('aria-invalid', 'true');
+  await expect(errorInput).toHaveAttribute('aria-errormessage', /.+/);
+  await expectDescriptionsToResolve(errorInput, page);
+  await expect(matrix.getByLabel('Published slug')).toBeDisabled();
+  await expect(matrix.getByLabel('Document ID')).toHaveAttribute('readonly', '');
+
+  expect(await focusFoundationSpecimenWithKeyboard(page, 'input-focus')).toBe('input-focus');
+  const focusInput = matrix.getByLabel('Artist');
+  await expect(focusInput).toBeFocused();
+  const fingerprint = await focusInput.evaluate((input) => {
+    const styles = getComputedStyle(input);
+    return { fontFamily: styles.fontFamily, outlineStyle: styles.outlineStyle };
+  });
+  expect(fingerprint.fontFamily).toContain('Space Mono');
+  expect(fingerprint.outlineStyle).not.toBe('none');
+});
+
 async function focusFirstFoundationCommandWithKeyboard(page: import('@playwright/test').Page) {
   for (let step = 0; step < 20; step += 1) {
     await page.keyboard.press('Tab');
@@ -67,4 +101,26 @@ async function focusFirstFoundationCommandWithKeyboard(page: import('@playwright
     if (specimen) return specimen;
   }
   return null;
+}
+
+async function focusFoundationSpecimenWithKeyboard(page: import('@playwright/test').Page, target: string) {
+  for (let step = 0; step < 40; step += 1) {
+    await page.keyboard.press('Tab');
+    const specimen = await page.evaluate(() =>
+      document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),
+    );
+    if (specimen === target) return specimen;
+  }
+  return null;
+}
+
+async function expectDescriptionsToResolve(
+  locator: import('@playwright/test').Locator,
+  page: import('@playwright/test').Page,
+) {
+  const describedBy = await locator.getAttribute('aria-describedby');
+  expect(describedBy).toBeTruthy();
+  for (const id of describedBy?.split(/\s+/) ?? []) {
+    await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
+  }
 }

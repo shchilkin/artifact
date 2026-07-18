@@ -24,6 +24,11 @@
   min-width: 0;
 }
 
+.style-guide-foundation-stack {
+  display: grid;
+  gap: 24px;
+}
+
 .style-guide-section-content--wide {
   display: grid;
   gap: 18px;

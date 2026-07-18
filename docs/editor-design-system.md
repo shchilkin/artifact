@@ -79,8 +79,11 @@ Concrete Theme Contract values remain product-owned:
 - Backoffice maps the contract in
   `apps/backoffice/app/ui-foundation-theme.css`.
 
-The first command tracer exports `Button`, `ButtonLink`, and `IconButton`.
-`FoundationCommandMatrix` is the shared deterministic specimen set mounted by
+The first command tracer exports `Button`, `ButtonLink`, and `IconButton`. The
+field tracer exports `Field`, `Input`, `Textarea`, and `NativeSelect`; `Field`
+owns label, hint, and error association while the controls retain native HTML
+props, refs, and form behavior. `FoundationCommandMatrix` and
+`FoundationFieldMatrix` are the shared deterministic specimen sets mounted by
 Artifact `/docs/style-guide` and Backoffice `/style-guide`. Both surfaces must
 render the same `data-foundation-specimen` identifiers while their computed
 typography, density, geometry, and color continue to come from their distinct
@@ -89,8 +92,10 @@ Product Themes.
 Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
 compatibility wrappers during the expand phase. They delegate anatomy and
 defaults to UI Foundation while preserving legacy class names needed by current
-consumer-specific layout CSS. Removing those compatibility selectors belongs
-to the final contract phase, not the first tracer.
+consumer-specific layout CSS. Artifact's existing product `Input`, Chat fields,
+and Backoffice forms remain unchanged until their scheduled consumer migration
+issues. Removing compatibility selectors belongs to the final contract phase,
+not the first tracers.
 
 ### Base UI Primitives
 

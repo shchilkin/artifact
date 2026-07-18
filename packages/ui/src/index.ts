@@ -9,9 +9,24 @@ export {
   IconButton,
   type IconButtonProps,
 } from './commands';
+export {
+  Field,
+  type FieldProps,
+  Input,
+  type InputProps,
+  NativeSelect,
+  type NativeSelectProps,
+  Textarea,
+  type TextareaProps,
+} from './fields';
 export { FoundationCommandMatrix } from './foundation-command-matrix';
 export {
   COMMAND_FOUNDATION_SPECIMEN_IDS,
   type CommandFoundationSpecimenId,
 } from './foundation-command-specimens';
+export { FoundationFieldMatrix } from './foundation-field-matrix';
+export {
+  FIELD_FOUNDATION_SPECIMEN_IDS,
+  type FieldFoundationSpecimenId,
+} from './foundation-field-specimens';
 export { UI_FOUNDATION_THEME_TOKENS, type UiFoundationThemeToken } from './theme-contract';
