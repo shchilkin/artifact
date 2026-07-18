@@ -900,6 +900,18 @@ dedicated version plan before implementation is called release scope:
 - **Project Autosave History / Versions**: visible automatic save points,
   named creative snapshots, restore/compare, and a clear split between
   recovery, autosave, explicit save, and user-created copies.
+- **Artifact Doctor / Document Recovery**: diagnose, migrate, and repair old or
+  partially invalid Artifact documents without silently flattening or
+  overwriting the source file. The product should expose the same recovery
+  engine through two entry points: an import-time flow when opening an old
+  `.artifact.json` or project package, and a dedicated Doctor page where a user
+  can inspect a file, review detected schema, asset, graph, and layer problems,
+  preview the repair plan, and download or open a repaired copy. Repairs should
+  be deterministic and auditable, preserve recoverable unknown data where
+  possible, report anything dropped or substituted, and keep the original file
+  unchanged. A future version plan must separate automatic safe migrations from
+  explicit best-effort salvage and define fixtures for every supported legacy
+  schema before this becomes release scope.
 - **Whole-App Brand And Public Surface Refresh**: public routes, docs,
   Showcase, account surfaces, and broader brand/site work after v0.39's
   account/cloud-save core.
