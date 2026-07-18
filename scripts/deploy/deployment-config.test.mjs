@@ -101,13 +101,17 @@ describe('deployment configuration', () => {
     assert.match(verifyStep, /WEB_DEPLOYMENT_HTML_PATH=/);
   });
 
-  it('runs source-dependent browser checks in dev and production navigation against a preview', async () => {
+  it('runs cross-product browser checks in dev and production navigation against a preview', async () => {
     const releaseRunner = await readFile(new URL('scripts/run-browser-release.mjs', root), 'utf8');
     const playwrightConfig = await readFile(new URL('playwright.config.ts', root), 'utf8');
 
     assert.match(releaseRunner, /npm, \['run', 'build', '--workspace', '@artifact\/web'\]/);
     assert.match(releaseRunner, /serverMode: 'dev'/);
     assert.match(releaseRunner, /label: 'WebKit production navigation'/);
+    assert.match(
+      releaseRunner,
+      /\{ label: 'Backoffice UI', script: 'test:browser:backoffice', args: \[\], serverMode: 'preview' \}/,
+    );
     assert.match(releaseRunner, /serverMode: 'preview'/);
     assert.match(releaseRunner, /PLAYWRIGHT_WEB_SERVER_MODE: segment\.serverMode/);
     assert.match(releaseRunner, /--grep-invert/);

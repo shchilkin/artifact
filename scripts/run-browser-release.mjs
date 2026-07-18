@@ -46,6 +46,7 @@ const releaseSegments = [
     serverMode: 'preview',
   },
   { label: 'Mobile Chromium and WebKit', script: 'test:browser:mobile', args: [], serverMode: 'dev' },
+  { label: 'Backoffice UI', script: 'test:browser:backoffice', args: [], serverMode: 'preview' },
 ];
 
 const segments = forwardedArgs.length
