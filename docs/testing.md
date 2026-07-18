@@ -93,7 +93,8 @@ markup.
 | --- | --- |
 | `apps/web/app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
 | `apps/web/app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
-| `apps/web/app/utils/documentAssets.test.ts` | imported image/font dependency inventory, portable document hydration/storage boundaries, storage-unavailable fallback |
+| `apps/web/app/utils/documentAssets.test.ts` | imported image/font/model/environment dependency inventory, portable document hydration/storage boundaries, stable 3D asset ids, storage-unavailable fallback |
+| `apps/web/app/utils/documentPackage.test.ts` | editable package manifest, schema-v3 serialization, clean-storage asset restoration, and legacy missing-3D-payload compatibility |
 | `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
 | `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
 | `apps/web/app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
@@ -146,6 +147,12 @@ stable WebGL context.
 ### Browser tests
 
 Use Playwright for behavior that Node/Vitest cannot honestly exercise.
+
+`tests/browser/v036-3d-model-retro.spec.ts` includes the editable-package 3D
+portability regression: UI export with embedded GLB and EXR payloads, import in
+a new browser context with empty localStorage/IndexedDB, stable model/environment
+refs, preserved graph/scene settings, and a nonblank 3D Scene output without
+fallback badges.
 
 **Location:** `tests/browser/`
 

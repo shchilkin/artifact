@@ -286,6 +286,37 @@ Tradeoff:
   queue state such as queued/running/progress/error details belongs in API or UI
   state, not in the saved document.
 
+## 3D model and environment persistence decision
+
+Imported GLB/GLTF models and HDR/EXR environment maps follow the same
+local-first boundary as imported images. Active documents keep stable
+`artifact-model://...` and `artifact-env://...` references, while binary
+payloads and metadata live in their dedicated IndexedDB stores.
+
+Rules:
+
+- Model payloads, MIME type, file label, byte count, and created timestamp live
+  in `modelAssetStore`; environment payloads and the same metadata live in
+  `envAssetStore`.
+- `.artifact.json` and editable `.artifact` project-package export must hydrate
+  model and environment refs through `preparePortableDocument`, alongside image
+  and font assets. Package export must not maintain a narrower asset list.
+- The project-package manifest records original refs, embedding status, name,
+  MIME type, and byte count for model and environment dependencies. The
+  portable document carries `modelAssets` and `envAssets` only across the file
+  boundary.
+- Import stores embedded assets under their packaged ids before restoring the
+  document refs, then strips `modelAssets` and `envAssets` from active state.
+  This keeps refs stable across a clean-browser round trip and avoids duplicate
+  temporary IndexedDB records.
+- Legacy packages without embedded 3D payloads remain importable. Their local
+  refs stay unresolved so the existing model/environment unavailable states can
+  explain the missing assets and offer replacement instead of silently
+  substituting package data that does not exist.
+- Data URLs are package-boundary payloads, not runtime resource handles. Three.js
+  objects, decoded textures, PMREM targets, renderers, and any temporary object
+  URLs stay outside `CanvasDocument` and retain their existing disposal paths.
+
 ## Font persistence decision
 
 Imported font payloads follow the same local-first shape as imported images, but

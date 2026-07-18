@@ -77,10 +77,14 @@ async function saveEnvironmentAsset(
     id: randomStorageId(),
     createdAt: new Date().toISOString(),
   };
+  return persistEnvironmentAsset(stored);
+}
+
+async function persistEnvironmentAsset(asset: StoredEnvironmentAsset): Promise<StoredEnvironmentAsset> {
   await withEnvironmentStore('readwrite', (store) => {
-    store.put(stored);
+    store.put(asset);
   });
-  return stored;
+  return asset;
 }
 
 async function saveEnvironmentDataUrlAsset(
@@ -195,23 +199,18 @@ export async function hydrateDocumentEnvironmentAssets(
 }
 
 export interface StorePortableEnvironmentAssetOptions {
-  saveEnvironmentAsset?: typeof saveEnvironmentAsset;
+  saveEnvironmentAsset?: typeof persistEnvironmentAsset;
 }
 
 export async function storePortableEnvironmentAssets(
   doc: CanvasDocument,
   options: StorePortableEnvironmentAssetOptions = {},
 ): Promise<CanvasDocument> {
-  const saveAsset = options.saveEnvironmentAsset ?? saveEnvironmentAsset;
+  const saveAsset = options.saveEnvironmentAsset ?? persistEnvironmentAsset;
   if (!doc.envAssets?.length) return doc;
   const refsByDataUrl = new Map<string, string>();
   for (const asset of doc.envAssets) {
-    const stored = await saveAsset({
-      dataUrl: asset.dataUrl,
-      mime: asset.mime,
-      bytes: asset.bytes,
-      label: asset.label,
-    });
+    const stored = await saveAsset(asset);
     refsByDataUrl.set(asset.dataUrl, environmentUriFromId(stored.id));
   }
   const storedDoc = await mapDocumentEnvironmentSources(doc, async (source) => refsByDataUrl.get(source) ?? source);

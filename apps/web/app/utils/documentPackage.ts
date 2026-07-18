@@ -1,23 +1,30 @@
-import type { CanvasDocument, PortableFontAsset, TextLayer } from '../types/config';
+import type {
+  CanvasDocument,
+  PortableEnvironmentAsset,
+  PortableFontAsset,
+  PortableModelAsset,
+  TextLayer,
+} from '../types/config';
 import { DOCUMENT_SCHEMA_VERSION } from '../types/config';
 import { getBundledFontRegistryItem, isBundledFontName } from '../types/typography';
+import { isAssetUri, type StoreDocumentImageAssetOptions } from './assetStore';
 import {
-  type HydrateDocumentImageAssetOptions,
-  hydrateDocumentImageAssets,
-  isAssetUri,
-  type StoreDocumentImageAssetOptions,
-} from './assetStore';
-import { inspectDocumentDependencies, storePortableDocumentAssets } from './documentAssets';
+  inspectDocumentDependencies,
+  type PreparePortableDocumentOptions,
+  preparePortableDocument,
+  storePortableDocumentAssets,
+} from './documentAssets';
 import { normalizeDocument } from './documentPersistence';
+import { environmentUriFromId } from './envAssetStore';
 import {
   fontIdFromUri,
-  type HydrateDocumentFontAssetOptions,
   hydrateDocumentFontAssets,
   isFontUri,
   loadImportedFontAsset,
   type StoreDocumentFontAssetOptions,
   stripDocumentFontAssets,
 } from './fontStore';
+import { modelUriFromId } from './modelAssetStore';
 
 export const ARTIFACT_PROJECT_PACKAGE_KIND = 'artifact-project-package';
 const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
@@ -58,6 +65,23 @@ export interface ProjectPackageImageInventory {
   remainingLocalRefs: string[];
 }
 
+export interface ProjectPackageBinaryAssetInventoryItem {
+  ref: string;
+  id?: string;
+  name?: string;
+  mime?: string;
+  bytes?: number;
+  createdAt?: string;
+  embedded: boolean;
+}
+
+export interface ProjectPackageBinaryAssetInventory {
+  importedRefs: string[];
+  embeddedPayloads: number;
+  remainingLocalRefs: string[];
+  assets: ProjectPackageBinaryAssetInventoryItem[];
+}
+
 export interface ProjectPackageManifest {
   kind: typeof ARTIFACT_PROJECT_PACKAGE_KIND;
   version: typeof ARTIFACT_PROJECT_PACKAGE_VERSION;
@@ -68,6 +92,8 @@ export interface ProjectPackageManifest {
   editableTextPolicy: 'original-text-plus-font-metadata';
   visualFallbackPolicy: 'raster-snapshot-preferred-svg-outlines-explicit-only';
   images: ProjectPackageImageInventory;
+  models?: ProjectPackageBinaryAssetInventory;
+  environments?: ProjectPackageBinaryAssetInventory;
   fonts: ProjectPackageFontInventoryItem[];
   hasGraphExportTarget: boolean;
   missingGraphExportTarget: boolean;
@@ -79,9 +105,7 @@ export interface ArtifactProjectPackage {
   document: CanvasDocument;
 }
 
-export interface PrepareArtifactProjectPackageOptions
-  extends HydrateDocumentImageAssetOptions,
-    HydrateDocumentFontAssetOptions {
+export interface PrepareArtifactProjectPackageOptions extends PreparePortableDocumentOptions {
   includeFontFiles?: boolean;
   fontEmbeddingMode?: ProjectPackageFontEmbeddingMode;
   now?: Date;
@@ -103,6 +127,74 @@ function imageSources(doc: CanvasDocument) {
   return doc.layers.flatMap((layer) =>
     layer.kind === 'image' ? [layer.src, ...(layer.aiGenerationHistory?.map((variant) => variant.src) ?? [])] : [],
   );
+}
+
+interface BinaryAssetSourceMetadata {
+  name?: string;
+  mime?: string;
+  bytes?: number;
+}
+
+interface PortableBinaryAsset {
+  id: string;
+  label: string;
+  mime: string;
+  bytes: number;
+  createdAt: string;
+}
+
+function modelSources(doc: CanvasDocument) {
+  return doc.layers.flatMap((layer) =>
+    layer.kind === 'model'
+      ? [[layer.modelSrc, { name: layer.modelName, mime: layer.modelMime, bytes: layer.modelBytes }] as const]
+      : [],
+  );
+}
+
+function environmentSources(doc: CanvasDocument) {
+  return [...(doc.graph?.environmentNodes ?? []), ...(doc.graph?.scene3dNodes ?? [])].flatMap((node) =>
+    node.environmentSrc
+      ? [
+          [
+            node.environmentSrc,
+            { name: node.environmentName, mime: node.environmentMime, bytes: node.environmentBytes },
+          ] as const,
+        ]
+      : [],
+  );
+}
+
+function buildBinaryAssetInventory(
+  importedRefs: string[],
+  remainingLocalRefs: string[],
+  sourceMetadata: Map<string, BinaryAssetSourceMetadata>,
+  portableAssets: readonly PortableBinaryAsset[],
+  uriFromId: (id: string) => string,
+): ProjectPackageBinaryAssetInventory {
+  const assetsByRef = new Map(portableAssets.map((asset) => [uriFromId(asset.id), asset]));
+  const assets = importedRefs.map((ref) => {
+    const asset = assetsByRef.get(ref);
+    const metadata = sourceMetadata.get(ref);
+    return {
+      ref,
+      ...(asset?.id ? { id: asset.id } : {}),
+      ...(asset?.label || metadata?.name ? { name: asset?.label ?? metadata?.name } : {}),
+      ...(asset?.mime || metadata?.mime ? { mime: asset?.mime ?? metadata?.mime } : {}),
+      ...((asset?.bytes ?? metadata?.bytes) ? { bytes: asset?.bytes ?? metadata?.bytes } : {}),
+      ...(asset?.createdAt ? { createdAt: asset.createdAt } : {}),
+      embedded: Boolean(asset),
+    } satisfies ProjectPackageBinaryAssetInventoryItem;
+  });
+  return {
+    importedRefs,
+    embeddedPayloads: assets.filter((asset) => asset.embedded).length,
+    remainingLocalRefs,
+    assets,
+  };
+}
+
+function binarySourceMetadata(entries: ReadonlyArray<readonly [string, BinaryAssetSourceMetadata]>) {
+  return new Map(entries);
 }
 
 function textLayersByFont(doc: CanvasDocument) {
@@ -295,6 +387,20 @@ export function buildArtifactProjectPackageManifest(
       embeddedPayloads: packageInventory.portableImagePayloads.length,
       remainingLocalRefs: packagedImageSources.filter(isAssetUri),
     },
+    models: buildBinaryAssetInventory(
+      sourceInventory.importedModelRefs,
+      packageInventory.importedModelRefs,
+      binarySourceMetadata(modelSources(sourceDoc)),
+      packageDoc.modelAssets ?? ([] satisfies PortableModelAsset[]),
+      modelUriFromId,
+    ),
+    environments: buildBinaryAssetInventory(
+      sourceInventory.importedEnvironmentRefs,
+      packageInventory.importedEnvironmentRefs,
+      binarySourceMetadata(environmentSources(sourceDoc)),
+      packageDoc.envAssets ?? ([] satisfies PortableEnvironmentAsset[]),
+      environmentUriFromId,
+    ),
     fonts: buildFontInventory(sourceDoc, metadataById, mode),
     hasGraphExportTarget: sourceInventory.hasGraphExportTarget,
     missingGraphExportTarget: sourceInventory.missingGraphExportTarget,
@@ -308,13 +414,13 @@ export async function prepareArtifactProjectPackage(
   const mode: ProjectPackageFontEmbeddingMode =
     options.fontEmbeddingMode ?? (options.includeFontFiles ? 'explicit-font-files' : 'license-aware');
   const metadataById = await collectFontMetadata(doc, options.loadFontAsset ?? loadImportedFontAsset);
-  const imagePortableDoc = await hydrateDocumentImageAssets(doc, options);
+  const portableDoc = await preparePortableDocument(doc, options);
   const packageDoc =
     mode === 'explicit-font-files'
-      ? await hydrateDocumentFontAssets(imagePortableDoc, options)
+      ? await hydrateDocumentFontAssets(portableDoc, options)
       : mode === 'license-aware'
-        ? await hydrateLicenseAwareFontAssets(imagePortableDoc, options)
-        : stripDocumentFontAssets(imagePortableDoc);
+        ? await hydrateLicenseAwareFontAssets(portableDoc, options)
+        : stripDocumentFontAssets(portableDoc);
 
   return {
     artifactPackage: 'project',

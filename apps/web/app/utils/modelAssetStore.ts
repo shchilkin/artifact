@@ -70,10 +70,14 @@ async function saveModelAsset(asset: Omit<PortableModelAsset, 'id' | 'createdAt'
     id: randomStorageId(),
     createdAt: new Date().toISOString(),
   };
+  return persistModelAsset(stored);
+}
+
+async function persistModelAsset(asset: StoredModelAsset): Promise<StoredModelAsset> {
   await withModelStore('readwrite', (store) => {
-    store.put(stored);
+    store.put(asset);
   });
-  return stored;
+  return asset;
 }
 
 async function saveModelDataUrlAsset(dataUrl: string, label = 'Imported model'): Promise<StoredModelAsset> {
@@ -163,23 +167,18 @@ export async function hydrateDocumentModelAssets(
 }
 
 export interface StorePortableModelAssetOptions {
-  saveModelAsset?: typeof saveModelAsset;
+  saveModelAsset?: typeof persistModelAsset;
 }
 
 export async function storePortableModelAssets(
   doc: CanvasDocument,
   options: StorePortableModelAssetOptions = {},
 ): Promise<CanvasDocument> {
-  const saveAsset = options.saveModelAsset ?? saveModelAsset;
+  const saveAsset = options.saveModelAsset ?? persistModelAsset;
   if (!doc.modelAssets?.length) return doc;
   const refsByDataUrl = new Map<string, string>();
   for (const asset of doc.modelAssets) {
-    const stored = await saveAsset({
-      dataUrl: asset.dataUrl,
-      mime: asset.mime,
-      bytes: asset.bytes,
-      label: asset.label,
-    });
+    const stored = await saveAsset(asset);
     refsByDataUrl.set(asset.dataUrl, modelUriFromId(stored.id));
   }
   const storedDoc = await mapDocumentModelSources(doc, async (source) => refsByDataUrl.get(source) ?? source);
