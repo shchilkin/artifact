@@ -83,7 +83,8 @@ _Avoid_: Admin tier, owner role
 
 **Generation**:
 A user-initiated AI operation that produces a usable result, such as creating
-an image, creating a shader, or refining a shader. Provider failures and
+an image, creating a shader, refining a shader, or completing a Run. One Run is
+one Generation regardless of its internal provider calls; provider failures and
 automatic repair attempts are not additional Generations.
 _Avoid_: API call, provider request, token spend
 
@@ -132,3 +133,78 @@ The prompts, shader code, generated assets, and project documents created or
 supplied by an Artifact user. Creative Content is not Provider Usage and is not
 part of the backoffice account-management view.
 _Avoid_: Usage detail, admin metadata
+
+## AI-Assisted Creation
+
+These terms describe how people create and revise Artifact work through a
+conversation without losing the editable document model.
+
+**Project**:
+A creative workspace that owns related documents, assets, chats, and their
+history. A Project may contain several derived outputs rather than one current
+canvas.
+_Avoid_: Chat, document, local snapshot
+
+**Chat Mode**:
+A full-workspace conversational mode for creating Creative Directions,
+Compositions, and revisions without operating the layer or node editors
+directly.
+_Avoid_: Chat popup, AI panel
+
+**Context Assistant**:
+An explicitly opened assistant that proposes changes within a visible scope of
+the current document in the Layers or Nodes mode.
+_Avoid_: Chat Mode, proactive assistant
+
+**Creative Direction**:
+An editable early-stage artifact that captures references, palette, typography,
+composition ideas, and generated studies before a final-format design exists.
+_Avoid_: Final cover, generated composition
+
+**Composition**:
+An editable artifact intended as a concrete output such as an album cover,
+poster, single artwork, or adaptation.
+_Avoid_: Moodboard, Creative Direction
+
+**Document Intent**:
+The declared creative purpose of a document, initially either Creative
+Direction or Composition. Intent changes how Artifact presents the document,
+not how its pixels are rendered.
+_Avoid_: Render mode, file format
+
+**Derived Artifact**:
+A new editable document created from another document while preserving the
+source as an independent artifact.
+_Avoid_: Overwrite, revision
+
+**Editable Artifact**:
+A structured Artifact document whose layers, nodes, effects, text, and source
+assets can be changed. Generated raster content remains a replaceable image
+source rather than becoming independently editable objects.
+_Avoid_: Fully editable image, flattened result
+
+**Document Setup**:
+An editable arrangement of document settings, layers, nodes, connections,
+effects, text, and asset-generation sources proposed for a creative request.
+_Avoid_: Generated image, preset
+
+**Change Set**:
+A proposed group of document changes anchored to a specific document revision.
+It remains separate from the current document until the user applies it.
+_Avoid_: Prompt result, direct mutation
+
+**Change Preview**:
+An interactive visualization of a Change Set that shows the resulting artwork
+and the affected document structure before application.
+_Avoid_: Change log, JSON diff
+
+**Run**:
+The durable execution of one user request, from interpretation through setup,
+asset generation, and preview. One successful Run consumes one Generation even
+when it uses several internal provider calls.
+_Avoid_: Provider request, chat message, job
+
+**Context Thread**:
+A durable assistant conversation attached to one document and an explicit
+selection, area, or whole-document scope.
+_Avoid_: Project chat, global conversation
