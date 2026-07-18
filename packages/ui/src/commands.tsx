@@ -1,5 +1,5 @@
 import type { ComponentPropsWithRef, MouseEventHandler, ReactNode } from 'react';
-import { Link, type LinkProps } from 'react-router';
+import { Link } from 'react-router';
 import { commandClassName } from './command-class-name';
 
 export type CommandVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
@@ -35,11 +35,11 @@ export function Button({
   );
 }
 
-export interface ButtonLinkProps extends LinkProps {
+export type ButtonLinkProps = ComponentPropsWithRef<typeof Link> & {
   disabled?: boolean;
   size?: CommandSize;
   variant?: CommandVariant;
-}
+};
 
 export function ButtonLink({
   className,

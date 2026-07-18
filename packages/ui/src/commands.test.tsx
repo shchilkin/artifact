@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -23,6 +24,19 @@ describe('UI Foundation commands', () => {
 
     expect(markup).toContain('aria-disabled="true"');
     expect(markup).toContain('tabindex="-1"');
+    expect(markup).toContain('href="/projects"');
+  });
+
+  it('accepts an anchor ref through the routing-aware ButtonLink contract', () => {
+    const ref = createRef<HTMLAnchorElement>();
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <ButtonLink ref={ref} to="/projects">
+          Projects
+        </ButtonLink>
+      </MemoryRouter>,
+    );
+
     expect(markup).toContain('href="/projects"');
   });
 
