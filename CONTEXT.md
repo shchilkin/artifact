@@ -132,3 +132,50 @@ The prompts, shader code, generated assets, and project documents created or
 supplied by an Artifact user. Creative Content is not Provider Usage and is not
 part of the backoffice account-management view.
 _Avoid_: Usage detail, admin metadata
+
+## UI Systems
+
+These terms distinguish the shared interaction foundation from the visual and
+product-specific systems used by Artifact and Backoffice.
+
+**UI Foundation**:
+The cross-application contract for accessible interaction mechanics, control
+states, and semantic theming shared by Artifact and Backoffice.
+_Avoid_: Universal design system, shared visual theme
+
+**Theme Contract**:
+The semantic visual roles that every product theme must provide to UI
+Foundation primitives without prescribing their concrete appearance.
+_Avoid_: Shared theme, token palette
+
+**Product Theme**:
+An application's concrete visual interpretation of the Theme Contract,
+including typography, density, color values, geometry, and elevation.
+_Avoid_: Skin, CSS overrides
+
+**Brand Signature**:
+The small set of identity marks shared by Artifact products, including the
+brand mark, related warm-dark color DNA, and the flare accent.
+_Avoid_: Shared visual theme, identical styling
+
+**Artifact Design System**:
+The visual language and product patterns for Artifact's creative workspace,
+including Chat, Layers, Nodes, and public creative surfaces.
+_Avoid_: Main UI, frontend styles
+
+**Backoffice UI System**:
+The visual language and operational patterns for account, usage, and
+administrative workflows in Backoffice.
+_Avoid_: Admin skin, Artifact theme
+
+**Source-Owned Primitive**:
+A UI Foundation React component whose source, API, accessibility contract,
+structural CSS, state styling, and maintenance lifecycle belong to this
+repository. Product Themes supply its concrete semantic token values, even when
+external scaffolding such as shadcn helped bootstrap the component.
+_Avoid_: shadcn component, vendor component
+
+**Foundation Matrix**:
+The shared live specimen set that renders every UI Foundation primitive and its
+required interaction states in both the Artifact and Backoffice Product Themes.
+_Avoid_: Component gallery, one-theme style guide
