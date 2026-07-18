@@ -1,9 +1,10 @@
 import { OVERLAY_FOUNDATION_SPECIMEN_IDS } from '@artifact/ui';
 import { expect, type Locator, type Page } from '@playwright/test';
+import { pressForwardTab } from './helpers';
 
 export async function focusFoundationSpecimenWithKeyboard(page: Page, target: string) {
   for (let step = 0; step < 40; step += 1) {
-    await page.keyboard.press('Tab');
+    await pressForwardTab(page);
     const specimen = await page.evaluate(() =>
       document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),
     );
