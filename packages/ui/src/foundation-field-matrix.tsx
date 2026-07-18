@@ -58,6 +58,14 @@ export function FoundationFieldMatrix() {
           </NativeSelect>
         </Field>
       </FieldSpecimen>
+      <FieldSpecimen id="native-select-focus" label="NativeSelect / keyboard focus">
+        <Field label="Preview density">
+          <NativeSelect defaultValue="balanced">
+            <option value="balanced">Balanced</option>
+            <option value="compact">Compact</option>
+          </NativeSelect>
+        </Field>
+      </FieldSpecimen>
       <FieldSpecimen id="native-select-error" label="NativeSelect / error">
         <Field label="Aspect ratio" error="Choose an aspect ratio.">
           <NativeSelect defaultValue="">

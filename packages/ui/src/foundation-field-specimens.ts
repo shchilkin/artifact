@@ -9,6 +9,7 @@ export const FIELD_FOUNDATION_SPECIMEN_IDS = [
   'textarea-disabled',
   'textarea-readonly',
   'native-select-default',
+  'native-select-focus',
   'native-select-error',
   'native-select-disabled',
 ] as const;

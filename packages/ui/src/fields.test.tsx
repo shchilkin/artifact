@@ -65,6 +65,7 @@ describe('UI Foundation fields', () => {
       'textarea-disabled',
       'textarea-readonly',
       'native-select-default',
+      'native-select-focus',
       'native-select-error',
       'native-select-disabled',
     ]);

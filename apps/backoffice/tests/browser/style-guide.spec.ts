@@ -4,6 +4,11 @@ import {
   UI_FOUNDATION_THEME_TOKENS,
 } from '@artifact/ui';
 import { expect, test } from '@playwright/test';
+import {
+  expectDescriptionsToResolve,
+  expectMobileFieldGeometry,
+  focusFoundationSpecimenWithKeyboard,
+} from '../../../../tests/browser/uiFoundationTestHelpers';
 
 test('Backoffice exposes the same command Foundation Matrix in its Product Theme', async ({ page }) => {
   const apiRequests: string[] = [];
@@ -41,7 +46,7 @@ test('Backoffice exposes the same command Foundation Matrix in its Product Theme
   expect(page.url()).toBe(urlBeforeDisabledClick);
 
   const primary = matrix.getByRole('button', { name: 'Create' });
-  expect(await focusFirstFoundationCommandWithKeyboard(page)).toBe('button-primary');
+  expect(await focusFoundationSpecimenWithKeyboard(page, 'button-primary')).toBe('button-primary');
   await expect(primary).toBeFocused();
   const fingerprint = await primary.evaluate((button) => {
     const styles = getComputedStyle(button);
@@ -100,43 +105,10 @@ test('Backoffice exposes the same associated Foundation fields with native state
   expect(fingerprint.fontFamily).toContain('Inter');
   expect(fingerprint.outlineStyle).not.toBe('none');
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  const dimensions = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(dimensions.scrollWidth).toBe(dimensions.clientWidth);
+  expect(await focusFoundationSpecimenWithKeyboard(page, 'native-select-focus')).toBe('native-select-focus');
+  const focusSelect = matrix.getByLabel('Preview density');
+  await expect(focusSelect).toBeFocused();
+  expect(await focusSelect.evaluate((select) => getComputedStyle(select).outlineStyle)).not.toBe('none');
+
+  await expectMobileFieldGeometry(page, matrix);
 });
-
-async function focusFirstFoundationCommandWithKeyboard(page: import('@playwright/test').Page) {
-  for (let step = 0; step < 10; step += 1) {
-    await page.keyboard.press('Tab');
-    const specimen = await page.evaluate(() =>
-      document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),
-    );
-    if (specimen) return specimen;
-  }
-  return null;
-}
-
-async function focusFoundationSpecimenWithKeyboard(page: import('@playwright/test').Page, target: string) {
-  for (let step = 0; step < 40; step += 1) {
-    await page.keyboard.press('Tab');
-    const specimen = await page.evaluate(() =>
-      document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),
-    );
-    if (specimen === target) return specimen;
-  }
-  return null;
-}
-
-async function expectDescriptionsToResolve(
-  locator: import('@playwright/test').Locator,
-  page: import('@playwright/test').Page,
-) {
-  const describedBy = await locator.getAttribute('aria-describedby');
-  expect(describedBy).toBeTruthy();
-  for (const id of describedBy?.split(/\s+/) ?? []) {
-    await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
-  }
-}
