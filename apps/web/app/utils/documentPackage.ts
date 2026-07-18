@@ -172,25 +172,54 @@ function buildBinaryAssetInventory(
   uriFromId: (id: string) => string,
 ): ProjectPackageBinaryAssetInventory {
   const assetsByRef = new Map(portableAssets.map((asset) => [uriFromId(asset.id), asset]));
-  const assets = importedRefs.map((ref) => {
-    const asset = assetsByRef.get(ref);
-    const metadata = sourceMetadata.get(ref);
-    return {
-      ref,
-      ...(asset?.id ? { id: asset.id } : {}),
-      ...(asset?.label || metadata?.name ? { name: asset?.label ?? metadata?.name } : {}),
-      ...(asset?.mime || metadata?.mime ? { mime: asset?.mime ?? metadata?.mime } : {}),
-      ...((asset?.bytes ?? metadata?.bytes) ? { bytes: asset?.bytes ?? metadata?.bytes } : {}),
-      ...(asset?.createdAt ? { createdAt: asset.createdAt } : {}),
-      embedded: Boolean(asset),
-    } satisfies ProjectPackageBinaryAssetInventoryItem;
-  });
+  const assets = importedRefs.map((ref) =>
+    makeBinaryAssetInventoryItem(ref, assetsByRef.get(ref), sourceMetadata.get(ref)),
+  );
   return {
     importedRefs,
     embeddedPayloads: assets.filter((asset) => asset.embedded).length,
     remainingLocalRefs,
     assets,
   };
+}
+
+function makeBinaryAssetInventoryItem(
+  ref: string,
+  asset: PortableBinaryAsset | undefined,
+  metadata: BinaryAssetSourceMetadata | undefined,
+): ProjectPackageBinaryAssetInventoryItem {
+  return {
+    ref,
+    ...binaryAssetId(asset),
+    ...binaryAssetName(asset, metadata),
+    ...binaryAssetMime(asset, metadata),
+    ...binaryAssetBytes(asset, metadata),
+    ...binaryAssetCreatedAt(asset),
+    embedded: Boolean(asset),
+  };
+}
+
+function binaryAssetId(asset: PortableBinaryAsset | undefined) {
+  return asset?.id ? { id: asset.id } : {};
+}
+
+function binaryAssetName(asset: PortableBinaryAsset | undefined, metadata: BinaryAssetSourceMetadata | undefined) {
+  if (!asset?.label && !metadata?.name) return {};
+  return { name: asset?.label ?? metadata?.name };
+}
+
+function binaryAssetMime(asset: PortableBinaryAsset | undefined, metadata: BinaryAssetSourceMetadata | undefined) {
+  if (!asset?.mime && !metadata?.mime) return {};
+  return { mime: asset?.mime ?? metadata?.mime };
+}
+
+function binaryAssetBytes(asset: PortableBinaryAsset | undefined, metadata: BinaryAssetSourceMetadata | undefined) {
+  const bytes = asset?.bytes ?? metadata?.bytes;
+  return bytes ? { bytes } : {};
+}
+
+function binaryAssetCreatedAt(asset: PortableBinaryAsset | undefined) {
+  return asset?.createdAt ? { createdAt: asset.createdAt } : {};
 }
 
 function binarySourceMetadata(entries: ReadonlyArray<readonly [string, BinaryAssetSourceMetadata]>) {

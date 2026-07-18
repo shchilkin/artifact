@@ -329,6 +329,38 @@ describe('documentPackage', () => {
     expect(imported.envAssets).toBeUndefined();
   });
 
+  it('omits empty metadata from unresolved 3D asset inventory items', () => {
+    const sourceDoc = doc({
+      layers: [
+        makeSourceLayer('model', {
+          modelSrc: modelRef,
+          modelName: '',
+          modelMime: '',
+          modelBytes: 0,
+        }),
+      ],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+        environmentNodes: [
+          makeGraphEnvironmentNode({
+            environmentSrc: environmentRef,
+            environmentName: '',
+            environmentMime: '',
+            environmentBytes: 0,
+          }),
+        ],
+      },
+    });
+
+    const manifest = buildArtifactProjectPackageManifest(sourceDoc, sourceDoc);
+
+    expect(manifest.models.assets).toEqual([{ ref: modelRef, embedded: false }]);
+    expect(manifest.environments.assets).toEqual([{ ref: environmentRef, embedded: false }]);
+  });
+
   it('keeps legacy packages without embedded 3D payloads importable and reports unresolved refs', async () => {
     const legacyPackage = parseArtifactProjectPackage(
       JSON.stringify({
