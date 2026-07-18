@@ -100,10 +100,16 @@ Product Themes.
 Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
 compatibility wrappers during the expand phase. They delegate anatomy and
 defaults to UI Foundation while preserving legacy class names needed by current
-consumer-specific layout CSS. Artifact's existing product `Input`, Chat fields,
-and Backoffice forms remain unchanged until their scheduled consumer migration
-issues. Removing compatibility selectors belongs to the final contract phase,
-not the first tracers.
+consumer-specific layout CSS. The existing Artifact AI Generation composer is
+the first composed product consumer: its prompt, provider and quality fields,
+submit/loading and recovery commands, and feedback/progress states use UI
+Foundation directly while generation, accounting, and asset-import behavior
+remain product-owned. Backoffice sign-in is the second proof consumer: its
+email and password fields, submit/pending command, and authentication error use
+UI Foundation while the safe return path, autofill semantics, and auth client
+behavior remain product-owned. Other product forms remain scheduled
+consumer-migration work. Removing compatibility selectors belongs to the final
+contract phase, not the first tracers.
 
 ### Base UI Primitives
 

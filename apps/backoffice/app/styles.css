@@ -121,8 +121,8 @@ button:disabled {
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 1px solid var(--accent);
-  color: var(--accent);
+  border: 1px solid var(--ui-brand-signal);
+  color: var(--ui-brand-signal);
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 700;
@@ -899,14 +899,6 @@ td code {
   flex-direction: column;
   gap: 15px;
   margin: 30px 0 24px;
-}
-
-.form-error {
-  margin: 0;
-  padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--border));
-  color: var(--danger);
-  font-size: 13px;
 }
 
 @keyframes skeleton-pulse {
