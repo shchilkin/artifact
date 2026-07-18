@@ -177,14 +177,14 @@ export async function storePortableDocumentAssets(
     storedDoc = stripDocumentFontAssets(storedDoc);
   }
   try {
-    storedDoc = await storeDocumentModelAssets(storedDoc, options);
     storedDoc = await storePortableModelAssets(storedDoc, options);
+    storedDoc = await storeDocumentModelAssets(storedDoc, options);
   } catch {
     storedDoc = stripDocumentModelAssets(storedDoc);
   }
   try {
-    storedDoc = await storeDocumentEnvironmentAssets(storedDoc, options);
-    return await storePortableEnvironmentAssets(storedDoc, options);
+    storedDoc = await storePortableEnvironmentAssets(storedDoc, options);
+    return await storeDocumentEnvironmentAssets(storedDoc, options);
   } catch {
     return stripDocumentEnvironmentAssets(storedDoc);
   }

@@ -79,6 +79,27 @@ CI should run:
 
 ## Manual QA
 
+### v0.41.1 Release Prep
+
+- Package metadata is bumped to `0.41.1` in `package.json`, web/backoffice
+  package metadata, and `package-lock.json`.
+- `docs/releases/v0.41.1.md` is prepared from the release template without a
+  visible internal checklist.
+- The patch embeds imported GLB/GLTF and HDR/EXR payloads in editable `.artifact`
+  packages, records their manifest metadata, and restores stable refs in a
+  clean browser storage context.
+- Legacy package format v1/document schema v3 files without embedded 3D
+  payloads remain importable and retain unresolved refs for the existing model
+  and environment missing-asset states.
+- Focused unit and Chromium clean-context round-trip coverage passed. Full
+  release-gate results are recorded in `docs/releases/v0.41.1.md`.
+- `npm run perf:node-editor` is not required because this patch changes package
+  persistence boundaries and does not change graph traversal, thumbnail
+  scheduling, renderer hot paths, or node-canvas interactions.
+- Accepted release risk: already-exported packages that omitted GLB/EXR bytes
+  cannot reconstruct those absent payloads; users must reopen a source browser
+  store or choose the original files once before exporting a corrected package.
+
 ### v0.41.0 Release Prep
 
 - Package metadata is bumped to `0.41.0` in `package.json`,
