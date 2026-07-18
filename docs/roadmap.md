@@ -20,6 +20,12 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.42 is selected as the AI-Assisted Creation release: authenticated
+  full-screen Chat, editable Creative Directions and Compositions, durable Runs,
+  revision-bound Change Sets, adaptive image generation, and an explicitly
+  invoked Context Assistant for Layers and Nodes. See
+  [`version-plans/v0.42.md`](./version-plans/v0.42.md) and
+  [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - v0.41 has completed the Account Tiers And Backoffice release: explicit
   Free/Creator/Founder access, auditable allowances and provider usage, a global
   Safety Budget, a separate admin-only backoffice, and one coordinated
@@ -69,8 +75,8 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next product version after v0.41 remains unselected. Deferred product and
-  infrastructure tracks below remain candidates after this bounded release.
+- Deferred product and infrastructure tracks below remain candidates after the
+  bounded v0.42 release.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -575,11 +581,13 @@ These likely need a VPS/backend, database, object storage, auth, or billing:
   starting with text/metadata embeddings and hybrid full-text/vector ranking,
   then expanding to image or multimodal embeddings, palette features, and "more
   like this" recommendations after the base catalog proves useful.
-- AI chat with reference tools: design chat as a separate backend layer that can
-  call typed tools such as reference search, saved-reference lookup, and current
-  project summaries. The chat should use the reference catalog to suggest
-  directions from user requests without baking reference data into the model or
-  into `CanvasDocument`.
+- AI-assisted creation: add full-screen Chat Mode plus an explicitly invoked
+  Context Assistant for Layers and Nodes. Both surfaces produce revision-bound,
+  editable Project documents and use typed tools such as reference search,
+  saved-reference lookup, and current Project summaries without baking
+  reference data into the model or `CanvasDocument`. The accepted MVP domain,
+  interaction, persistence, and Change Set contract lives in
+  [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - Share modes beyond basic links: read-only share, remix/fork share,
   export-only share, and later collaboration modes.
 - Team/project collaboration.
