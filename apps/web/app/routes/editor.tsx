@@ -23,6 +23,7 @@ import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config
 import { ARTIFACT_PROJECT_PACKAGE_MIME } from '../utils/documentPackage';
 import { ARTIFACT_FILE_MIME } from '../utils/documentPersistence';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
+import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
 import { getStarterDocument } from '../utils/starterDocuments';
 import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
 import { useEditorPanels } from './editor/useEditorPanels';
@@ -31,6 +32,7 @@ import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
 const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
+const MAX_MODEL_BYTES = 50 * 1024 * 1024;
 
 type DropPreviewKind = 'document' | 'file' | 'image';
 
@@ -121,6 +123,7 @@ export default function Editor() {
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
+  const [modelFileError, setModelFileError] = useState<string | null>(null);
   const [aiPanelRequested, setAiPanelRequested] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -221,6 +224,31 @@ export default function Editor() {
       }
     },
     [updateEnvironmentNode],
+  );
+  const handleReplaceModelLayerFile = useCallback(
+    async (id: string, file: File) => {
+      setModelFileError(null);
+      if (!isSupportedModelFile(file)) {
+        setModelFileError('Use a GLB model.');
+        return;
+      }
+      if (file.size > MAX_MODEL_BYTES) {
+        setModelFileError(`Model too large — max ${MAX_MODEL_BYTES / 1024 / 1024}MB`);
+        return;
+      }
+      try {
+        const asset = await saveModelFileAsset(file);
+        updateLayer(id, {
+          modelSrc: modelUriFromId(asset.id),
+          modelName: asset.label,
+          modelMime: asset.mime,
+          modelBytes: asset.bytes,
+        });
+      } catch {
+        setModelFileError('Could not read model.');
+      }
+    },
+    [updateLayer],
   );
   const {
     effectivePrimitiveViewStates,
@@ -536,6 +564,7 @@ export default function Editor() {
                   onUpdateScene3DNode={updateScene3DNode}
                   onUpdateEnvironmentNode={updateEnvironmentNode}
                   onUpdateShaderNode={updateShaderNode}
+                  onReplaceModelLayerFile={handleReplaceModelLayerFile}
                   onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
@@ -562,9 +591,9 @@ export default function Editor() {
             }}
           />
 
-          {(dropError || exportError || documentFileError || environmentFileError) && (
+          {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
             <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
-              {dropError ?? exportError ?? documentFileError ?? environmentFileError}
+              {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </p>
           )}
           <BottomBar {...bottomBarProps} />

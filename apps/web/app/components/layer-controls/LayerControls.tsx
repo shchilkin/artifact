@@ -5,7 +5,15 @@
  * this component. Field ranges and option lists are imported from fieldDefs
  * so that control behavior never drifts between surfaces.
  */
-import { type Dispatch, type ReactNode, type SetStateAction, useState } from 'react';
+import {
+  type ChangeEvent,
+  type Dispatch,
+  type ReactNode,
+  type RefObject,
+  type SetStateAction,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   type EmojiLayer,
@@ -1047,7 +1055,51 @@ function LineFieldStructureControls({
   );
 }
 
-function ModelStructureControls({ layer }: { layer: SourceLayer }) {
+function ModelFileAction({
+  hasModel,
+  inputRef,
+  onLoadFile,
+}: {
+  hasModel: boolean;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadFile?: (file: File) => void;
+}) {
+  if (!onLoadFile) return null;
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (file) onLoadFile(file);
+  };
+  return (
+    <>
+      <button
+        className="node-inspector-action nodrag nopan nowheel"
+        type="button"
+        onClick={() => inputRef.current?.click()}
+      >
+        {hasModel ? 'Replace model' : 'Load GLB'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".glb,model/gltf-binary,application/octet-stream"
+        className="node-hidden-file-input"
+        onChange={handleFileChange}
+        tabIndex={-1}
+      />
+    </>
+  );
+}
+
+function ModelStructureControls({
+  layer,
+  inputRef,
+  onLoadFile,
+}: {
+  layer: SourceLayer;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadFile?: (file: File) => void;
+}) {
   if (layer.kind !== 'model') return null;
   return (
     <>
@@ -1063,6 +1115,7 @@ function ModelStructureControls({ layer }: { layer: SourceLayer }) {
         <InspectorLabel>Size</InspectorLabel>
         <p className="node-inspector-note">{Math.max(0, Math.round(layer.modelBytes / 1024))} KB</p>
       </div>
+      <ModelFileAction hasModel={Boolean(layer.modelSrc)} inputRef={inputRef} onLoadFile={onLoadFile} />
     </>
   );
 }
@@ -1071,16 +1124,21 @@ function SourceStructureControls({
   layer,
   surface,
   onChange,
+  modelFileInputRef,
+  onLoadModelFile,
 }: {
   layer: SourceLayer;
   surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
+  modelFileInputRef: RefObject<HTMLInputElement | null>;
+  onLoadModelFile?: (file: File) => void;
 }) {
   if (layer.kind === 'primitive')
     return <PrimitiveStructureControls layer={layer as PrimitiveLayer} surface={surface} onChange={onChange} />;
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
-  if (layer.kind === 'model') return <ModelStructureControls layer={layer} />;
+  if (layer.kind === 'model')
+    return <ModelStructureControls layer={layer} inputRef={modelFileInputRef} onLoadFile={onLoadModelFile} />;
   return <ArrayStructureControls layer={layer} onChange={onChange} />;
 }
 
@@ -1093,6 +1151,8 @@ function SourceLayerControls({
   setScaleLocked,
   surface,
   onChange,
+  modelFileInputRef,
+  onLoadModelFile,
 }: {
   layer: SourceLayer;
   sectionClassName: string;
@@ -1102,6 +1162,8 @@ function SourceLayerControls({
   setScaleLocked: SetScaleLocked;
   surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
+  modelFileInputRef: RefObject<HTMLInputElement | null>;
+  onLoadModelFile?: (file: File) => void;
 }) {
   return (
     <div className={sectionClassName}>
@@ -1126,7 +1188,13 @@ function SourceLayerControls({
         open={openSection === 'structure'}
         onToggle={() => toggleOpenSection(setOpenSection, 'structure', 'style')}
       >
-        <SourceStructureControls layer={layer} surface={surface} onChange={onChange} />
+        <SourceStructureControls
+          layer={layer}
+          surface={surface}
+          onChange={onChange}
+          modelFileInputRef={modelFileInputRef}
+          onLoadModelFile={onLoadModelFile}
+        />
       </InspectorSection>
       <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
     </div>
@@ -1161,15 +1229,18 @@ export function LayerControls({
   detached = false,
   showAiGenerationProvenance = true,
   surface = 'nodes',
+  onLoadModelFile,
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
   surface?: LayerControlsSurface;
+  onLoadModelFile?: (file: File) => void;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<LayerControlSection>('content');
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
   const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
   const renderProps = {
     layer,
@@ -1185,7 +1256,15 @@ export function LayerControls({
 
   if (renderBasicLayerControls) return renderBasicLayerControls(renderProps);
   if (SOURCE_LAYER_KINDS.has(layer.kind))
-    return <SourceLayerControls {...renderProps} layer={layer as SourceLayer} surface={surface} />;
+    return (
+      <SourceLayerControls
+        {...renderProps}
+        layer={layer as SourceLayer}
+        surface={surface}
+        modelFileInputRef={modelFileInputRef}
+        onLoadModelFile={onLoadModelFile}
+      />
+    );
   return <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />;
 }
 

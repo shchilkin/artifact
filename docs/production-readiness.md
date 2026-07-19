@@ -79,6 +79,42 @@ CI should run:
 
 ## Manual QA
 
+### v0.41.2 Release Prep
+
+- Package metadata is bumped to `0.41.2` in the root, web, backoffice, and lock
+  files.
+- `docs/releases/v0.41.2.md` is prepared from the release template.
+- A legacy package whose GLB bytes were never embedded now reports `Model asset
+  missing`; invalid GLB data continues to report `Model load failed`.
+- The model inspector can store a replacement GLB under a new stable
+  `artifact-model://` reference while preserving the existing model layer ID,
+  graph connections, and scene settings.
+- Focused Chromium coverage imports a package with empty browser storage,
+  confirms the missing state, reattaches a valid GLB, resolves it from
+  IndexedDB, and waits for a rendered model frame.
+- The existing v0.41.1 GLB/EXR export-to-clean-context regression remains in
+  the release browser gate.
+- `npm run check`, `npm run build`, and `npm run test:browser:release` passed
+  locally on 2026-07-19. The browser gate completed with 363 passed and 45
+  skipped tests.
+- The merged `development` revision
+  `29716f3f6c61d05e594c67f8be5ac900b96c44c3` passed CI run `29695020188` and
+  exact-SHA staging run `29695651534`. One unrelated WebKit editor-startup
+  flake passed when the failed job was rerun without a code change.
+- The Fallow changed-code gate passes with no introduced dead code, complexity
+  findings, or clone groups. Inherited findings remain visible for separate
+  trace-backed cleanup.
+- `npm run perf:node-editor` is not required because the patch does not change
+  graph traversal, rendering algorithms, thumbnail scheduling, or hot gesture
+  paths.
+- Accepted release risk: packages that never contained the GLB still require
+  the original file once; absent bytes cannot be reconstructed.
+- Accepted release risk: the reported `skull.glb` itself was not available for
+  parser testing. The recovery regression uses a valid minimal GLB, so any
+  model-specific extension or decoder issue requires the original asset.
+- Production promotion, tag, deployment, and GitHub Release publication remain
+  pending.
+
 ### v0.41.1 Release Prep
 
 - Package metadata is bumped to `0.41.1` in `package.json`, web/backoffice

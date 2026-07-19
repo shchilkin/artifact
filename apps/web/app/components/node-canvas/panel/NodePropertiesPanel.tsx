@@ -52,6 +52,7 @@ interface NodePropertiesPanelProps
     | 'onUpdateScene3DNode'
     | 'onUpdateEnvironmentNode'
     | 'onUpdateShaderNode'
+    | 'onReplaceModelLayerFile'
     | 'onReplaceEnvironmentNodeFile'
     | 'onUpdateExportConfig'
     | 'onUpdateAspectRatio'
@@ -267,11 +268,20 @@ function buildSelectedTargetSummary(
   return buildGraphTargetSummary(target, { surface: 'nodes', graph });
 }
 
+function modelFileLoader(
+  layer: Layer,
+  onReplaceModelLayerFile?: (id: string, file: File) => void,
+): ((file: File) => void) | undefined {
+  if (layer.kind !== 'model' || !onReplaceModelLayerFile) return undefined;
+  return (file) => onReplaceModelLayerFile(layer.id, file);
+}
+
 function LayerNodeInspector({
   layer,
   doc,
   onUpdateLayer,
-}: Pick<NodePropertiesPanelProps, 'doc' | 'onUpdateLayer'> & {
+  onReplaceModelLayerFile,
+}: Pick<NodePropertiesPanelProps, 'doc' | 'onUpdateLayer' | 'onReplaceModelLayerFile'> & {
   layer: Layer;
 }) {
   return (
@@ -309,6 +319,7 @@ function LayerNodeInspector({
         key={layer.id}
         layer={layer}
         onChange={(patch) => onUpdateLayer(layer.id, patch)}
+        onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
         detached
         showAiGenerationProvenance={false}
       />
@@ -568,6 +579,7 @@ function SelectedNodeInspector({
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
   onUpdateShaderNode,
+  onReplaceModelLayerFile,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -587,6 +599,7 @@ function SelectedNodeInspector({
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
   | 'onUpdateShaderNode'
+  | 'onReplaceModelLayerFile'
   | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
@@ -596,7 +609,14 @@ function SelectedNodeInspector({
 }) {
   if (!target) return null;
   if (target.kind === 'layer')
-    return <LayerNodeInspector layer={target.layer} doc={doc} onUpdateLayer={onUpdateLayer} />;
+    return (
+      <LayerNodeInspector
+        layer={target.layer}
+        doc={doc}
+        onUpdateLayer={onUpdateLayer}
+        onReplaceModelLayerFile={onReplaceModelLayerFile}
+      />
+    );
   if (target.kind === 'color') {
     return <ColorNodeInspector node={target.node} onUpdateColorNode={onUpdateColorNode} />;
   }
@@ -803,6 +823,7 @@ function NodePropertiesPanelContent({
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
   onUpdateShaderNode,
+  onReplaceModelLayerFile,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -823,6 +844,7 @@ function NodePropertiesPanelContent({
   | 'onUpdateScene3DNode'
   | 'onUpdateEnvironmentNode'
   | 'onUpdateShaderNode'
+  | 'onReplaceModelLayerFile'
   | 'onReplaceEnvironmentNodeFile'
   | 'onUpdateExportConfig'
   | 'onUpdateAspectRatio'
@@ -861,6 +883,7 @@ function NodePropertiesPanelContent({
               onUpdateScene3DNode={onUpdateScene3DNode}
               onUpdateEnvironmentNode={onUpdateEnvironmentNode}
               onUpdateShaderNode={onUpdateShaderNode}
+              onReplaceModelLayerFile={onReplaceModelLayerFile}
               onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
               onUpdateExportConfig={onUpdateExportConfig}
               onUpdateAspectRatio={onUpdateAspectRatio}
@@ -892,6 +915,7 @@ export function NodePropertiesPanel({
   onUpdateScene3DNode,
   onUpdateEnvironmentNode,
   onUpdateShaderNode,
+  onReplaceModelLayerFile,
   onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
@@ -926,6 +950,7 @@ export function NodePropertiesPanel({
           onUpdateScene3DNode={onUpdateScene3DNode}
           onUpdateEnvironmentNode={onUpdateEnvironmentNode}
           onUpdateShaderNode={onUpdateShaderNode}
+          onReplaceModelLayerFile={onReplaceModelLayerFile}
           onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
           onUpdateExportConfig={onUpdateExportConfig}
           onUpdateAspectRatio={onUpdateAspectRatio}
