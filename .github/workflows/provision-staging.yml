@@ -1,0 +1,73 @@
+name: Provision staging infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Create or reconcile the isolated Coolify staging application"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-provision
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    if: inputs.confirm
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+      COOLIFY_TEMPLATE_APPLICATION_UUID: ${{ vars.COOLIFY_TEMPLATE_APPLICATION_UUID }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+      STAGING_QUEUE_URL: ${{ vars.STAGING_QUEUE_URL }}
+      STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate provisioning inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            COOLIFY_BASE_URL
+            COOLIFY_TEMPLATE_APPLICATION_UUID
+            COOLIFY_TOKEN
+            OPENAI_API_KEY
+            STAGING_API_URL
+            STAGING_QUEUE_URL
+            STAGING_WEB_URL
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing staging provisioning setting: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Create or reconcile Coolify staging
+        id: provision
+        run: node scripts/deploy/provision-staging.mjs
+
+      - name: Summarize
+        shell: bash
+        run: |
+          echo "### Coolify staging infrastructure" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Application UUID: \`${{ steps.provision.outputs.application-uuid }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Created now: \`${{ steps.provision.outputs.created }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Next: save the UUID as the staging environment variable \`COOLIFY_APPLICATION_UUID\`." >> "${GITHUB_STEP_SUMMARY}"

@@ -1,6 +1,8 @@
 import { Buffer } from 'node:buffer';
-import { statSync } from 'node:fs';
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { readFileSync, statSync } from 'node:fs';
+import { type Browser, expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
+import { DataTexture, FloatType, RGBAFormat } from 'three';
+import { EXRExporter, NO_COMPRESSION } from 'three/addons/exporters/EXRExporter.js';
 
 import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
 
@@ -259,6 +261,23 @@ test('v0.36 3D model scene and retro effect graph renders and exports', async ({
   expect(statSync(artifactPath).size).toBeGreaterThan(1024);
 });
 
+test('project package restores embedded GLB and EXR assets in a clean browser context', async ({
+  browser,
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', '3D project-package portability runs once in Chromium.');
+
+  const sourceDocument = await makePortable3DSourceDocument();
+  await gotoDocument(page, sourceDocument);
+  const sourceRefs = await waitForStored3DRefs(page);
+  await switchToNodeView(page);
+  await expectSceneOutput(page);
+
+  const { packageJson, projectPackage } = await downloadProjectPackage(page);
+  expectPackaged3DAssets(projectPackage, sourceRefs);
+  await expectCleanContext3DRoundTrip(browser, packageJson, sourceRefs, testInfo);
+});
+
 test('v0.37 material node feeds a 3D scene material slot', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D scene material smoke runs once in Chromium.');
 
@@ -388,16 +407,140 @@ test('v0.36 3D scene viewport edits are undoable', async ({ page }, testInfo) =>
   await expect.poll(() => storedSceneRotationY(page), { timeout: 15_000 }).toBe(initialRotationY);
 });
 
+type Stored3DRefs = Awaited<ReturnType<typeof waitForStored3DRefs>>;
+type Stored3DAssets = Awaited<ReturnType<typeof waitForStored3DAssets>>;
+
+async function makePortable3DSourceDocument() {
+  const sourceDocument = structuredClone(v036Retro3DDocument);
+  const modelDataUrl = makeTinyGlbModelDataUrl();
+  const environmentDataUrl = await makeTinyExrEnvironmentDataUrl();
+  const modelLayer = sourceDocument.layers.find((layer) => layer.id === 'v036-model');
+  if (!modelLayer || modelLayer.kind !== 'model') throw new Error('3D model fixture is unavailable');
+  modelLayer.modelSrc = modelDataUrl;
+  modelLayer.modelName = 'portable-triangle.glb';
+  modelLayer.modelMime = 'model/gltf-binary';
+  modelLayer.modelBytes = Buffer.byteLength(modelDataUrl);
+
+  const environmentNode = sourceDocument.graph.environmentNodes[0];
+  if (!environmentNode) throw new Error('Environment fixture is unavailable');
+  environmentNode.environmentSrc = environmentDataUrl;
+  environmentNode.environmentName = 'portable-studio.exr';
+  environmentNode.environmentMime = 'image/x-exr';
+  environmentNode.environmentBytes = Buffer.byteLength(environmentDataUrl);
+
+  const sceneNode = sourceDocument.graph.scene3dNodes[0];
+  if (!sceneNode) throw new Error('3D scene fixture is unavailable');
+  sceneNode.environmentStrength = 85;
+  return sourceDocument;
+}
+
+async function downloadProjectPackage(page: Page) {
+  const packageDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Share link or download editable files' }).click();
+  await page.getByRole('menuitem', { name: 'Download package + assets', exact: true }).click();
+  const download = await packageDownload;
+  const packagePath = await download.path();
+  if (!packagePath) throw new Error('Downloaded project package is unavailable');
+  const packageJson = readFileSync(packagePath, 'utf8');
+  return { packageJson, projectPackage: JSON.parse(packageJson) };
+}
+
+function expectPackaged3DAssets(projectPackage: unknown, sourceRefs: Stored3DRefs) {
+  expect(projectPackage).toMatchObject({
+    document: {
+      modelAssets: [
+        {
+          id: sourceRefs.modelRef.replace('artifact-model://', ''),
+          label: 'portable-triangle.glb',
+          mime: 'model/gltf-binary',
+          dataUrl: expect.stringMatching(/^data:model\/gltf-binary;base64,/),
+        },
+      ],
+      envAssets: [
+        {
+          id: sourceRefs.environmentRef.replace('artifact-env://', ''),
+          label: 'portable-studio.exr',
+          mime: 'image/x-exr',
+          dataUrl: expect.stringMatching(/^data:image\/x-exr;base64,/),
+        },
+      ],
+    },
+    manifest: {
+      models: {
+        importedRefs: [sourceRefs.modelRef],
+        embeddedPayloads: 1,
+        remainingLocalRefs: [],
+      },
+      environments: {
+        importedRefs: [sourceRefs.environmentRef],
+        embeddedPayloads: 1,
+        remainingLocalRefs: [],
+      },
+    },
+  });
+}
+
+function expectRestored3DAssets(restored: Stored3DAssets, sourceRefs: Stored3DRefs) {
+  expect(restored.model).toMatchObject({
+    id: sourceRefs.modelRef.replace('artifact-model://', ''),
+    label: 'portable-triangle.glb',
+    mime: 'model/gltf-binary',
+  });
+  expect(restored.model?.dataUrl).toMatch(/^data:model\/gltf-binary;base64,/);
+  expect(restored.environment).toMatchObject({
+    id: sourceRefs.environmentRef.replace('artifact-env://', ''),
+    label: 'portable-studio.exr',
+    mime: 'image/x-exr',
+  });
+  expect(restored.environment?.dataUrl).toMatch(/^data:image\/x-exr;base64,/);
+  expect(restored.document).toMatchObject({
+    modelRef: sourceRefs.modelRef,
+    environmentRef: sourceRefs.environmentRef,
+    environmentStrength: 85,
+    hasModelPayloadField: false,
+    hasEnvironmentPayloadField: false,
+    edgeIds: expect.arrayContaining(['e-v036-env-scene', 'e-v036-model-scene', 'e-v036-edge-export']),
+  });
+}
+
+async function expectCleanContext3DRoundTrip(
+  browser: Browser,
+  packageJson: string,
+  sourceRefs: Stored3DRefs,
+  testInfo: TestInfo,
+) {
+  const cleanContext = await browser.newContext({
+    baseURL: 'http://127.0.0.1:4173',
+    colorScheme: 'dark',
+    reducedMotion: 'reduce',
+    serviceWorkers: 'block',
+    viewport: { width: 1440, height: 960 },
+  });
+  const cleanPage = await cleanContext.newPage();
+  await setupBrowserTestPage(cleanPage);
+  try {
+    await openProjectPackage(cleanPage, packageJson);
+    const restored = await waitForStored3DAssets(cleanPage, sourceRefs);
+    expectRestored3DAssets(restored, sourceRefs);
+    await switchToNodeView(cleanPage);
+    await expectSceneOutput(cleanPage);
+    await expect(cleanPage.getByText('Model load failed')).toHaveCount(0);
+    await expect(cleanPage.getByText('Env map unavailable')).toHaveCount(0);
+    await testInfo.attach('clean-context-3d-package-roundtrip', {
+      body: await cleanPage.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    });
+    expectNoBrowserIssues(cleanPage);
+  } finally {
+    await cleanContext.close();
+  }
+}
+
 function makeTinyGltfModelDataUrl() {
-  const binary = Buffer.alloc(44);
-  const vertices = [-0.8, -0.5, 0, 0.8, -0.5, 0, 0, 0.7, 0];
-  vertices.forEach((value, index) => binary.writeFloatLE(value, index * 4));
-  [0, 1, 2].forEach((value, index) => binary.writeUInt16LE(value, 36 + index * 2));
+  const geometry = makeTinyTriangleGeometry();
+  const { binary } = geometry;
   const gltf = {
-    asset: { version: '2.0' },
-    scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{ mesh: 0 }],
+    ...makeTinyTriangleGltf(geometry),
     meshes: [
       {
         primitives: [{ attributes: { POSITION: 0 }, indices: 1, material: 0 }],
@@ -413,6 +556,38 @@ function makeTinyGltfModelDataUrl() {
       },
     ],
     buffers: [{ uri: `data:application/octet-stream;base64,${binary.toString('base64')}`, byteLength: binary.length }],
+  };
+  return `data:application/octet-stream;base64,${Buffer.from(JSON.stringify(gltf)).toString('base64')}`;
+}
+
+function makeTinyGlbModelDataUrl() {
+  const geometry = makeTinyTriangleGeometry();
+  const { binary } = geometry;
+  const gltf = makeTinyTriangleGltf(geometry);
+  const json = Buffer.from(JSON.stringify(gltf));
+  const jsonChunk = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);
+  const binaryChunk = Buffer.concat([binary, Buffer.alloc((4 - (binary.length % 4)) % 4)]);
+  const glb = Buffer.alloc(12 + 8 + jsonChunk.length + 8 + binaryChunk.length);
+  glb.writeUInt32LE(0x46546c67, 0);
+  glb.writeUInt32LE(2, 4);
+  glb.writeUInt32LE(glb.length, 8);
+  glb.writeUInt32LE(jsonChunk.length, 12);
+  glb.writeUInt32LE(0x4e4f534a, 16);
+  jsonChunk.copy(glb, 20);
+  const binaryHeaderOffset = 20 + jsonChunk.length;
+  glb.writeUInt32LE(binaryChunk.length, binaryHeaderOffset);
+  glb.writeUInt32LE(0x004e4942, binaryHeaderOffset + 4);
+  binaryChunk.copy(glb, binaryHeaderOffset + 8);
+  return `data:model/gltf-binary;base64,${glb.toString('base64')}`;
+}
+
+function makeTinyTriangleGeometry() {
+  const binary = Buffer.alloc(44);
+  const vertices = [-0.8, -0.5, 0, 0.8, -0.5, 0, 0, 0.7, 0];
+  vertices.forEach((value, index) => binary.writeFloatLE(value, index * 4));
+  [0, 1, 2].forEach((value, index) => binary.writeUInt16LE(value, 36 + index * 2));
+  return {
+    binary,
     bufferViews: [
       { buffer: 0, byteOffset: 0, byteLength: 36, target: 34962 },
       { buffer: 0, byteOffset: 36, byteLength: 6, target: 34963 },
@@ -429,7 +604,138 @@ function makeTinyGltfModelDataUrl() {
       { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' },
     ],
   };
-  return `data:application/octet-stream;base64,${Buffer.from(JSON.stringify(gltf)).toString('base64')}`;
+}
+
+function makeTinyTriangleGltf({ binary, bufferViews, accessors }: ReturnType<typeof makeTinyTriangleGeometry>) {
+  return {
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }],
+    buffers: [{ byteLength: binary.length }],
+    bufferViews,
+    accessors,
+  };
+}
+
+async function makeTinyExrEnvironmentDataUrl() {
+  const width = 8;
+  const height = 4;
+  const pixels = new Float32Array(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    const x = index % width;
+    const y = Math.floor(index / width);
+    pixels[index * 4] = 0.15 + x / width;
+    pixels[index * 4 + 1] = 0.1 + y / height;
+    pixels[index * 4 + 2] = 0.35 + (width - x) / width;
+    pixels[index * 4 + 3] = 1;
+  }
+  const texture = new DataTexture(pixels, width, height, RGBAFormat, FloatType);
+  try {
+    const bytes = await new EXRExporter().parse(texture, { compression: NO_COMPRESSION, type: FloatType });
+    return `data:image/x-exr;base64,${Buffer.from(bytes).toString('base64')}`;
+  } finally {
+    texture.dispose();
+  }
+}
+
+async function waitForStored3DRefs(page: Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return {
+            modelRef: doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '',
+            environmentRef: doc.graph?.environmentNodes?.[0]?.environmentSrc ?? '',
+          };
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({
+      modelRef: expect.stringMatching(/^artifact-model:\/\//),
+      environmentRef: expect.stringMatching(/^artifact-env:\/\//),
+    });
+  return page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return {
+      modelRef: doc.layers.find((layer: { id: string }) => layer.id === 'v036-model').modelSrc as string,
+      environmentRef: doc.graph.environmentNodes[0].environmentSrc as string,
+    };
+  });
+}
+
+async function openProjectPackage(page: Page, packageJson: string) {
+  await page.goto('/app?new=blank');
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeVisible({ timeout: 20_000 });
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'portable-3d-assets.artifact',
+    mimeType: 'application/vnd.artifact.project+json',
+    buffer: Buffer.from(packageJson),
+  });
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+}
+
+async function waitForStored3DAssets(page: Page, refs: { modelRef: string; environmentRef: string }) {
+  const readState = () =>
+    page.evaluate(async (assetRefs) => {
+      const readAsset = (databaseName: string, storeName: string, id: string) =>
+        new Promise<Record<string, unknown> | null>((resolve, reject) => {
+          const request = indexedDB.open(databaseName);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const database = request.result;
+            const transaction = database.transaction(storeName, 'readonly');
+            const getRequest = transaction.objectStore(storeName).get(id);
+            getRequest.onerror = () => reject(getRequest.error);
+            getRequest.onsuccess = () => resolve((getRequest.result as Record<string, unknown> | undefined) ?? null);
+            transaction.oncomplete = () => database.close();
+          };
+        });
+      const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+      const modelRef = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '';
+      const environmentRef = doc.graph?.environmentNodes?.[0]?.environmentSrc ?? '';
+      return {
+        model: await readAsset(
+          'artifact-local-model-assets',
+          'models',
+          assetRefs.modelRef.replace('artifact-model://', ''),
+        ),
+        environment: await readAsset(
+          'artifact-local-environment-assets',
+          'environments',
+          assetRefs.environmentRef.replace('artifact-env://', ''),
+        ),
+        document: {
+          modelRef,
+          environmentRef,
+          environmentStrength: doc.graph?.scene3dNodes?.[0]?.environmentStrength,
+          edgeIds: doc.graph?.edges?.map((edge: { id: string }) => edge.id) ?? [],
+          hasModelPayloadField: Object.hasOwn(doc, 'modelAssets'),
+          hasEnvironmentPayloadField: Object.hasOwn(doc, 'envAssets'),
+        },
+      };
+    }, refs);
+  await expect
+    .poll(
+      async () => {
+        const state = await readState();
+        return Boolean(state.model && state.environment && state.document.modelRef && state.document.environmentRef);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  return readState();
+}
+
+async function expectSceneOutput(page: Page) {
+  const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
+  await expect(outputCanvas).toBeVisible({ timeout: 20_000 });
+  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 25_000 }).toBe(true);
 }
 
 function canvasHasVisiblePixels(element: Element): boolean {

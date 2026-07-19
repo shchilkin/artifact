@@ -4,18 +4,22 @@ import { describe, it } from 'node:test';
 
 const root = new URL('../../', import.meta.url);
 
-describe('production deployment configuration', () => {
+describe('deployment configuration', () => {
   it('keeps the CI contract expectation aligned with the shared API contract', async () => {
-    const [releaseWorkflow, sharedContract] = await Promise.all([
+    const [releaseWorkflow, stagingWorkflow, sharedContract] = await Promise.all([
       readFile(new URL('.github/workflows/release.yml', root), 'utf8'),
+      readFile(new URL('.github/workflows/staging.yml', root), 'utf8'),
       readFile(new URL('packages/shared/src/index.ts', root), 'utf8'),
     ]);
-    const workflowVersion = releaseWorkflow.match(/EXPECTED_API_CONTRACT_VERSION: "(\d+)"/)?.[1];
+    const releaseVersion = releaseWorkflow.match(/EXPECTED_API_CONTRACT_VERSION: "(\d+)"/)?.[1];
+    const stagingVersion = stagingWorkflow.match(/EXPECTED_API_CONTRACT_VERSION: "(\d+)"/)?.[1];
     const sharedVersion = sharedContract.match(/ARTIFACT_API_CONTRACT_VERSION = (\d+) as const/)?.[1];
 
-    assert.ok(workflowVersion, 'Release workflow must declare EXPECTED_API_CONTRACT_VERSION');
+    assert.ok(releaseVersion, 'Release workflow must declare EXPECTED_API_CONTRACT_VERSION');
+    assert.ok(stagingVersion, 'Staging workflow must declare EXPECTED_API_CONTRACT_VERSION');
     assert.ok(sharedVersion, 'Shared package must declare ARTIFACT_API_CONTRACT_VERSION');
-    assert.equal(workflowVersion, sharedVersion);
+    assert.equal(releaseVersion, sharedVersion);
+    assert.equal(stagingVersion, sharedVersion);
   });
 
   it('keeps automatic Vercel production deploys disabled for release branches', async () => {
@@ -37,6 +41,39 @@ describe('production deployment configuration', () => {
     assert.ok(stagedWeb < deployVps, 'Vercel must be staged before the VPS changes');
     assert.ok(deployVps < verifyApi, 'The public API must be checked after the VPS changes');
     assert.ok(verifyApi < promoteWeb, 'Vercel must be promoted only after the API passes verification');
+  });
+
+  it('deploys only successful development CI revisions to staging and switches the stable alias last', async () => {
+    const stagingWorkflow = await readFile(new URL('.github/workflows/staging.yml', root), 'utf8');
+    const stagedWeb = stagingWorkflow.indexOf('Deploy web without the stable staging alias');
+    const deployVps = stagingWorkflow.indexOf('Deploy staging VPS stack from the verified commit');
+    const verifyApi = stagingWorkflow.indexOf('Verify staging API revision and contract');
+    const pointAlias = stagingWorkflow.indexOf('Point the stable staging alias at the verified web deployment');
+
+    assert.match(stagingWorkflow, /workflow_run:\n\s+workflows: \[CI\]/);
+    assert.match(stagingWorkflow, /branches: \[development\]/);
+    assert.match(stagingWorkflow, /vars\.STAGING_ENABLED == 'true'/);
+    assert.match(stagingWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+    assert.match(stagingWorkflow, /environment:\n\s+name: staging/);
+    assert.match(stagingWorkflow, /COOLIFY_GIT_BRANCH: development/);
+    assert.match(stagingWorkflow, /DEPLOY_SHA: \$\{\{ github\.event\.workflow_run\.head_sha/);
+    assert.match(stagingWorkflow, /git merge-base --is-ancestor "\$\{DEPLOY_SHA\}" origin\/development/);
+    assert.match(stagingWorkflow, /vercel deploy --prebuilt --target=preview/);
+    assert.doesNotMatch(stagingWorkflow, /--target=preview[^\n]*--skip-domain/);
+    assert.ok(stagedWeb < deployVps, 'Vercel must be staged before the staging VPS changes');
+    assert.ok(deployVps < verifyApi, 'The staging API must be checked after the VPS changes');
+    assert.ok(verifyApi < pointAlias, 'The stable staging alias must move only after API verification');
+  });
+
+  it('keeps staging and production writes serialized independently', async () => {
+    const [releaseWorkflow, stagingWorkflow] = await Promise.all([
+      readFile(new URL('.github/workflows/release.yml', root), 'utf8'),
+      readFile(new URL('.github/workflows/staging.yml', root), 'utf8'),
+    ]);
+
+    assert.match(releaseWorkflow, /group: \$\{\{ inputs\.action == 'deploy-production' && 'production-deploy'/);
+    assert.match(stagingWorkflow, /group: staging-deploy/);
+    assert.match(stagingWorkflow, /cancel-in-progress: false/);
   });
 
   it('requires the release tag to exist before production deployment', async () => {

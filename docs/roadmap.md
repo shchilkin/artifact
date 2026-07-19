@@ -15,16 +15,29 @@ Related architecture docs:
 - [`improvement-plan.md`](./improvement-plan.md)
 - [`version-planning.md`](./version-planning.md)
 - [`production-readiness.md`](./production-readiness.md)
+- [`deployment.md`](./deployment.md)
 - [`monorepo-turborepo-container-plan.md`](./monorepo-turborepo-container-plan.md)
 
 Current planning status:
 
+- v0.41.1 is the validated release candidate for the bounded project-package
+  portability patch discovered while checking v0.41.0: editable `.artifact`
+  packages hydrated imported images and fonts but left local GLB/GLTF and
+  HDR/EXR refs unresolved. The patch embeds and restores those 3D payloads
+  without changing document schema, graph traversal, renderer behavior, or the
+  v0.41 account/backoffice scope. See
+  [`releases/v0.41.1.md`](./releases/v0.41.1.md).
 - v0.41 has completed the Account Tiers And Backoffice release: explicit
   Free/Creator/Founder access, auditable allowances and provider usage, a global
   Safety Budget, a separate admin-only backoffice, and one coordinated
   production release workflow. See
   [`version-plans/v0.41.md`](./version-plans/v0.41.md) and
   [`releases/v0.41.0.md`](./releases/v0.41.0.md).
+- Post-v0.41 deployment infrastructure now treats `development` as a permanent
+  staging source: successful CI deploys one exact revision to dedicated Vercel
+  and Coolify staging boundaries before the stable staging alias moves.
+  Production remains a manual, tag-gated promotion from `main`. See
+  [`deployment.md`](./deployment.md).
 - v0.40 has reached release-candidate prep as the Shader Authoring And AI
   Shader Effects release: explicit Shader Fill/Effect roles, definition-backed
   Code Shader and AI Shader nodes, browser validation/repair/refinement,
@@ -894,6 +907,18 @@ dedicated version plan before implementation is called release scope:
 - **Project Autosave History / Versions**: visible automatic save points,
   named creative snapshots, restore/compare, and a clear split between
   recovery, autosave, explicit save, and user-created copies.
+- **Artifact Doctor / Document Recovery**: diagnose, migrate, and repair old or
+  partially invalid Artifact documents without silently flattening or
+  overwriting the source file. The product should expose the same recovery
+  engine through two entry points: an import-time flow when opening an old
+  `.artifact.json` or project package, and a dedicated Doctor page where a user
+  can inspect a file, review detected schema, asset, graph, and layer problems,
+  preview the repair plan, and download or open a repaired copy. Repairs should
+  be deterministic and auditable, preserve recoverable unknown data where
+  possible, report anything dropped or substituted, and keep the original file
+  unchanged. A future version plan must separate automatic safe migrations from
+  explicit best-effort salvage and define fixtures for every supported legacy
+  schema before this becomes release scope.
 - **Whole-App Brand And Public Surface Refresh**: public routes, docs,
   Showcase, account surfaces, and broader brand/site work after v0.39's
   account/cloud-save core.

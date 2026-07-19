@@ -220,20 +220,10 @@ describe('documentAssets', () => {
     expect(saveAssetDataUrl).toHaveBeenCalledWith(imageDataUrl);
     expect(saveAssetDataUrl).toHaveBeenCalledWith(materialImageDataUrl);
     expect(saveFontAsset).toHaveBeenCalledWith(fontAsset);
-    expect(saveModelDataUrl).toHaveBeenCalledWith(modelDataUrl, 'Imported model');
-    expect(saveModelAsset).toHaveBeenCalledWith({
-      dataUrl: modelDataUrl,
-      mime: 'model/gltf-binary',
-      bytes: 512,
-      label: 'skull.glb',
-    });
-    expect(saveEnvironmentDataUrl).toHaveBeenCalledWith(environmentDataUrl, 'Imported environment');
-    expect(saveEnvironmentAsset).toHaveBeenCalledWith({
-      dataUrl: environmentDataUrl,
-      mime: 'image/x-exr',
-      bytes: 1024,
-      label: 'studio.exr',
-    });
+    expect(saveModelDataUrl).not.toHaveBeenCalled();
+    expect(saveModelAsset).toHaveBeenCalledWith(modelAsset);
+    expect(saveEnvironmentDataUrl).not.toHaveBeenCalled();
+    expect(saveEnvironmentAsset).toHaveBeenCalledWith(environmentAsset);
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageRef });
     expect(stored.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
     expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelRef });

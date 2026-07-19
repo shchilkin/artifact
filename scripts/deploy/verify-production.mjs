@@ -43,8 +43,8 @@ async function readJson(response, label) {
 }
 
 function assertHealthyApiResponse(response, body) {
-  if (!response.ok) throw new Error(`Production API health check failed with ${response.status}`);
-  if (body.ok !== true) throw new Error('Production API health response did not include ok=true');
+  if (!response.ok) throw new Error(`Deployment API health check failed with ${response.status}`);
+  if (body.ok !== true) throw new Error('Deployment API health response did not include ok=true');
 }
 
 function assertExpectedApiRevision(body, expectedSha) {
@@ -59,15 +59,19 @@ function assertExpectedApiContract(body, expectedContractVersion) {
   );
 }
 
-export async function verifyProductionApi({ apiUrl, expectedContractVersion, expectedSha, fetchImpl = fetch }) {
-  const healthUrl = new URL('/api/health', required(apiUrl, 'PRODUCTION_API_URL'));
+export async function verifyDeploymentApi({ apiUrl, expectedContractVersion, expectedSha, fetchImpl = fetch }) {
+  const healthUrl = new URL('/api/health', required(apiUrl, 'DEPLOYMENT_API_URL'));
   const response = await fetchImpl(healthUrl, { headers: { accept: 'application/json' } });
-  const body = await readJson(response, 'Production API health check');
+  const body = await readJson(response, 'Deployment API health check');
   assertHealthyApiResponse(response, body);
   assertExpectedApiRevision(body, expectedSha);
   assertExpectedApiContract(body, expectedContractVersion);
   return { buildSha: body.buildSha, contractVersion: body.contractVersion };
 }
+
+// Keep the original export as a compatibility boundary for release scripts and
+// older checked-out revisions used by manual rollback.
+export const verifyProductionApi = verifyDeploymentApi;
 
 function assertSuccessfulWebResponse(response) {
   if (!response.ok) throw new Error(`Web deployment check failed with ${response.status}`);
@@ -135,13 +139,13 @@ async function verifyApiFromEnvironment(verify) {
     'EXPECTED_API_CONTRACT_VERSION',
   );
   const result = await verify(() =>
-    verifyProductionApi({
-      apiUrl: process.env.PRODUCTION_API_URL,
+    verifyDeploymentApi({
+      apiUrl: process.env.DEPLOYMENT_API_URL ?? process.env.PRODUCTION_API_URL,
       expectedContractVersion,
       expectedSha: required(process.env.DEPLOY_SHA, 'DEPLOY_SHA'),
     }),
   );
-  console.log(JSON.stringify({ event: 'production.api_verified', ...result }));
+  console.log(JSON.stringify({ event: 'deployment.api_verified', ...result }));
 }
 
 async function verifyWebFromEnvironment(verify) {
@@ -152,10 +156,10 @@ async function verifyWebFromEnvironment(verify) {
       ? verifyWebHtmlFile({ expectedSha, htmlPath })
       : verifyWebDeployment({
           expectedSha,
-          webUrl: process.env.WEB_DEPLOYMENT_URL,
+          webUrl: process.env.DEPLOYMENT_WEB_URL ?? process.env.WEB_DEPLOYMENT_URL,
         }),
   );
-  console.log(JSON.stringify({ event: 'production.web_verified', ...result }));
+  console.log(JSON.stringify({ event: 'deployment.web_verified', ...result }));
 }
 
 async function main() {

@@ -39,6 +39,13 @@ CI should run:
 ## Branch And Release Flow
 
 - `development` is the integration and release-candidate branch.
+- A successful `CI` workflow on `development` triggers
+  `.github/workflows/staging.yml`. The staging workflow deploys the exact CI
+  revision to a dedicated Coolify application and a Vercel Preview build,
+  verifies both revisions, and moves the stable staging alias only after the
+  API passes. Manual runs can redeploy an older SHA only when it is still an
+  ancestor of `development`. The job remains safely disabled until the
+  repository variable `STAGING_ENABLED` is set to `true`.
 - `main` is the production release branch. Production tags, GitHub Releases,
   and production deployments must use a reviewed commit already promoted from
   `development`.
@@ -57,6 +64,10 @@ CI should run:
   pull-request previews remain enabled.
 - Production deployments use a shared concurrency lock, so two versions cannot
   mutate Vercel or Coolify at the same time.
+- Staging uses its own non-cancelling concurrency lock and a separate `staging`
+  GitHub Environment. Staging and production credentials, stateful services,
+  hostnames, and Coolify application UUIDs must not be shared. See
+  [`deployment.md`](./deployment.md).
 - The release Fallow gate blocks findings introduced by the release diff. Older
   findings remain in the report and are paid down separately; they are not
   hidden with inline suppressions.
@@ -67,6 +78,33 @@ CI should run:
   tag or publish a release from a dirty local worktree or from free-form notes.
 
 ## Manual QA
+
+### v0.41.1 Release Prep
+
+- Package metadata is bumped to `0.41.1` in `package.json`, web/backoffice
+  package metadata, and `package-lock.json`.
+- `docs/releases/v0.41.1.md` is prepared from the release template without a
+  visible internal checklist.
+- The patch embeds imported GLB/GLTF and HDR/EXR payloads in editable `.artifact`
+  packages, records their manifest metadata, and restores stable refs in a
+  clean browser storage context.
+- Legacy package format v1/document schema v3 files without embedded 3D
+  payloads remain importable and retain unresolved refs for the existing model
+  and environment missing-asset states.
+- Focused unit and Chromium clean-context round-trip coverage passed, including
+  a manual round trip with a 2.9 MB GLB and 6.1 MB EXR.
+- The full release browser gate passed on 2026-07-19 with 354 passed and 47
+  skipped tests across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. Quality, type, format, build, release metadata, and changed-code
+  Fallow gates passed.
+- The exact `development` release-candidate SHA passed staging web/API revision
+  and contract verification before the stable staging alias moved.
+- `npm run perf:node-editor` is not required because this patch changes package
+  persistence boundaries and does not change graph traversal, thumbnail
+  scheduling, renderer hot paths, or node-canvas interactions.
+- Accepted release risk: already-exported packages that omitted GLB/EXR bytes
+  cannot reconstruct those absent payloads; users must reopen a source browser
+  store or choose the original files once before exporting a corrected package.
 
 ### v0.41.0 Release Prep
 
