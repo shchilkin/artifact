@@ -91,8 +91,14 @@ CI should run:
 - Legacy package format v1/document schema v3 files without embedded 3D
   payloads remain importable and retain unresolved refs for the existing model
   and environment missing-asset states.
-- Focused unit and Chromium clean-context round-trip coverage passed. Full
-  release-gate results are recorded in `docs/releases/v0.41.1.md`.
+- Focused unit and Chromium clean-context round-trip coverage passed, including
+  a manual round trip with a 2.9 MB GLB and 6.1 MB EXR.
+- The full release browser gate passed on 2026-07-19 with 354 passed and 47
+  skipped tests across Chromium, Firefox, WebKit, mobile Chromium, and mobile
+  WebKit. Quality, type, format, build, release metadata, and changed-code
+  Fallow gates passed.
+- The exact `development` release-candidate SHA passed staging web/API revision
+  and contract verification before the stable staging alias moved.
 - `npm run perf:node-editor` is not required because this patch changes package
   persistence boundaries and does not change graph traversal, thumbnail
   scheduling, renderer hot paths, or node-canvas interactions.
