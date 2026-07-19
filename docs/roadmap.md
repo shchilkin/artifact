@@ -20,12 +20,12 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.41.1 is the validated release candidate for the bounded project-package
-  portability patch discovered while checking v0.41.0: editable `.artifact`
-  packages hydrated imported images and fonts but left local GLB/GLTF and
-  HDR/EXR refs unresolved. The patch embeds and restores those 3D payloads
-  without changing document schema, graph traversal, renderer behavior, or the
-  v0.41 account/backoffice scope. See
+- v0.41.1 was released on 2026-07-19 as the bounded project-package portability
+  patch discovered while checking v0.41.0: editable `.artifact` packages
+  hydrated imported images and fonts but left local GLB/GLTF and HDR/EXR refs
+  unresolved. The patch embeds and restores those 3D payloads without changing
+  document schema, graph traversal, renderer behavior, or the v0.41
+  account/backoffice scope. See
   [`releases/v0.41.1.md`](./releases/v0.41.1.md).
 - v0.41 has completed the Account Tiers And Backoffice release: explicit
   Free/Creator/Founder access, auditable allowances and provider usage, a global
