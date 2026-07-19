@@ -98,9 +98,11 @@ CI should run:
   locally on 2026-07-19. The browser gate completed with 363 passed and 45
   skipped tests.
 - The merged `development` revision
-  `29716f3f6c61d05e594c67f8be5ac900b96c44c3` passed CI run `29695020188` and
-  exact-SHA staging run `29695651534`. One unrelated WebKit editor-startup
-  flake passed when the failed job was rerun without a code change.
+  `29716f3f6c61d05e594c67f8be5ac900b96c44c3` passed CI run `29695020188`. One
+  unrelated WebKit editor-startup flake passed when the failed job was rerun
+  without a code change. The final release-candidate revision
+  `964f27cc47b82bb1f3c835ff26af47a6c85c0f0b` passed CI run `29696591528` and
+  exact-SHA staging run `29696846674`.
 - The Fallow changed-code gate passes with no introduced dead code, complexity
   findings, or clone groups. Inherited findings remain visible for separate
   trace-backed cleanup.
@@ -112,8 +114,22 @@ CI should run:
 - Accepted release risk: the reported `skull.glb` itself was not available for
   parser testing. The recovery regression uses a valid minimal GLB, so any
   model-specific extension or decoder issue requires the original asset.
-- Production promotion, tag, deployment, and GitHub Release publication remain
-  pending.
+- Promotion PR #193 merged `development` to `main` as production commit
+  `fec4393521417b4799c665ab767a8c61b3bd9c56` after the full CI matrix passed.
+- Release run `29698295659` passed metadata, quality, build, full browser, and
+  Fallow gates before creating tag `v0.41.2` and the draft GitHub Release. The
+  tag dereferences to the production commit above.
+- Production run `29698861299` repeated the full release gate, verified staged
+  Vercel deployment `artifact-6s4s0viv7-shchilkins-projects.vercel.app`,
+  completed Coolify deployment `j7olbao4asw34f5y7x6luhy7` from the same SHA,
+  verified API contract version 1 and the exact API revision, promoted the web
+  deployment, and verified the production web domain returned that exact SHA.
+- The release browser gate retained the Chromium export -> empty browser
+  context -> import -> IndexedDB resolution -> rendered 3D Scene regression
+  for embedded GLB and EXR payloads, alongside the missing-model and in-place
+  replacement regressions added in v0.41.2.
+- Publication run `29699554852` passed the full release gate again and published
+  `v0.41.2` as the latest GitHub Release on 2026-07-19.
 
 ### v0.41.1 Release Prep
 

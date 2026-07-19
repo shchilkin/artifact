@@ -20,12 +20,14 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.41.2 is a validated release candidate for legacy 3D package recovery. It
-  distinguishes absent model payloads from invalid GLB data and lets the user
-  reattach the original model without rebuilding the node graph. The merged
-  `development` revision passed the full CI gate and exact-SHA staging
-  verification. It remains a bounded v0.41 patch and does not change the
-  planned v0.42 UI Foundation And Cross-Product Proof milestone. See
+- v0.41.2 was released on 2026-07-19 as the bounded legacy 3D package recovery
+  patch. It distinguishes absent model payloads from invalid GLB data and lets
+  the user reattach the original model without rebuilding the node graph. Tag
+  `v0.41.2` resolves to production commit
+  `fec4393521417b4799c665ab767a8c61b3bd9c56`; the coordinated deployment
+  verified that exact revision in staged web, Coolify/API, and the promoted
+  production web domain. It does not change the planned v0.42 UI Foundation
+  And Cross-Product Proof milestone. See
   [`releases/v0.41.2.md`](./releases/v0.41.2.md).
 - v0.41.1 was released on 2026-07-19 as the bounded project-package portability
   patch discovered while checking v0.41.0: editable `.artifact` packages
