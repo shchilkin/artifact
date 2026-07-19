@@ -97,6 +97,10 @@ CI should run:
 - `npm run check`, `npm run build`, and `npm run test:browser:release` passed
   locally on 2026-07-19. The browser gate completed with 363 passed and 45
   skipped tests.
+- The merged `development` revision
+  `29716f3f6c61d05e594c67f8be5ac900b96c44c3` passed CI run `29695020188` and
+  exact-SHA staging run `29695651534`. One unrelated WebKit editor-startup
+  flake passed when the failed job was rerun without a code change.
 - The Fallow changed-code gate passes with no introduced dead code, complexity
   findings, or clone groups. Inherited findings remain visible for separate
   trace-backed cleanup.
@@ -108,8 +112,8 @@ CI should run:
 - Accepted release risk: the reported `skull.glb` itself was not available for
   parser testing. The recovery regression uses a valid minimal GLB, so any
   model-specific extension or decoder issue requires the original asset.
-- Merge, staging verification, production promotion, tag, and GitHub Release
-  publication remain pending.
+- Production promotion, tag, deployment, and GitHub Release publication remain
+  pending.
 
 ### v0.41.1 Release Prep
 
