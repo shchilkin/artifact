@@ -20,6 +20,12 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.41.2 is a release candidate for legacy 3D package recovery. It
+  distinguishes absent model payloads from invalid GLB data and lets the user
+  reattach the original model without rebuilding the node graph. It remains a
+  bounded v0.41 patch and does not change the planned v0.42 UI Foundation And
+  Cross-Product Proof milestone. See
+  [`releases/v0.41.2.md`](./releases/v0.41.2.md).
 - v0.41.1 was released on 2026-07-19 as the bounded project-package portability
   patch discovered while checking v0.41.0: editable `.artifact` packages
   hydrated imported images and fonts but left local GLB/GLTF and HDR/EXR refs
@@ -76,8 +82,9 @@ Current planning status:
   fixed, the `node-canvas.css` / Tailwind boundary is documented, and
   storage/render risks are recorded without pulling product work into the
   release.
-- The next product version after v0.41 remains unselected. Deferred product and
-  infrastructure tracks below remain candidates after this bounded release.
+- The next planned product version after the bounded v0.41 patches is v0.42 UI
+  Foundation And Cross-Product Proof. Deferred product and infrastructure
+  tracks below remain candidates for later milestones.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence

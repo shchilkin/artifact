@@ -148,6 +148,7 @@ export function NodeCanvas({
   onImageFileDrop,
   onFilesDrop,
   onFileDragPreviewChange,
+  onReplaceModelLayerFile,
   onReplaceEnvironmentNodeFile,
   onDeleteNodes,
   onDuplicateLayer,
@@ -653,6 +654,7 @@ export function NodeCanvas({
             onUpdateScene3DNode={onUpdateScene3DNode}
             onUpdateEnvironmentNode={onUpdateEnvironmentNode}
             onUpdateShaderNode={onUpdateShaderNode}
+            onReplaceModelLayerFile={onReplaceModelLayerFile}
             onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}

@@ -278,6 +278,54 @@ test('project package restores embedded GLB and EXR assets in a clean browser co
   await expectCleanContext3DRoundTrip(browser, packageJson, sourceRefs, testInfo);
 });
 
+test('legacy project package without an embedded GLB reports a missing model asset', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Missing model package recovery runs once in Chromium.');
+
+  const modelNode = await openLegacyMissingModelNode(page);
+  await expect(modelNode.getByText('Model load failed')).toHaveCount(0);
+});
+
+test('missing packaged model can be replaced without changing its graph connections', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Missing model replacement runs once in Chromium.');
+
+  const modelNode = await openLegacyMissingModelNode(page);
+  await modelNode.click();
+
+  const properties = page.locator('.node-props-panel-open');
+  await properties.getByRole('button', { name: /^Model 1961 KB/ }).click();
+  const chooserPromise = page.waitForEvent('filechooser');
+  await properties.getByRole('button', { name: 'Replace model' }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'replacement-skull.glb',
+    mimeType: 'model/gltf-binary',
+    buffer: modelDataUrlBuffer(makeTinyGlbModelDataUrl()),
+  });
+
+  await expect(modelNode.getByText('Model asset missing')).toHaveCount(0, { timeout: 20_000 });
+  await expect(modelNode.locator('canvas').first()).toHaveCSS('opacity', '1', { timeout: 20_000 });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        const model = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model');
+        return {
+          modelName: model?.modelName,
+          modelRef: model?.modelSrc,
+          edgeStillConnected: doc.graph?.edges?.some(
+            (edge: { fromId: string; toId: string; toPort: string }) =>
+              edge.fromId === 'v036-model' && edge.toId === 'v036-scene' && edge.toPort === 'model',
+          ),
+        };
+      }),
+    )
+    .toEqual({
+      modelName: 'replacement-skull.glb',
+      modelRef: expect.stringMatching(/^artifact-model:\/\//),
+      edgeStillConnected: true,
+    });
+});
+
 test('v0.37 material node feeds a 3D scene material slot', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D scene material smoke runs once in Chromium.');
 
@@ -434,6 +482,47 @@ async function makePortable3DSourceDocument() {
   return sourceDocument;
 }
 
+function makeLegacyMissingModelPackage() {
+  const legacyDocument = structuredClone(v036Retro3DDocument);
+  const modelLayer = legacyDocument.layers.find((layer) => layer.id === 'v036-model');
+  if (!modelLayer || modelLayer.kind !== 'model') throw new Error('3D model fixture is unavailable');
+  modelLayer.modelSrc = 'artifact-model://legacy-missing-model';
+  modelLayer.modelName = 'legacy-skull.glb';
+  modelLayer.modelMime = 'model/gltf-binary';
+  modelLayer.modelBytes = 2_008_530;
+
+  const environmentNode = legacyDocument.graph.environmentNodes[0];
+  if (environmentNode) {
+    environmentNode.environmentSrc = '';
+    environmentNode.environmentName = 'No environment';
+    environmentNode.environmentBytes = 0;
+  }
+
+  return JSON.stringify({
+    artifactPackage: 'project',
+    manifest: {
+      kind: 'artifact-project-package',
+      version: 1,
+      createdAt: '2026-07-18T15:54:42.399Z',
+      documentSchemaVersion: 3,
+      images: { importedRefs: [], embeddedPayloads: 0, remainingLocalRefs: [] },
+      fonts: [],
+      hasGraphExportTarget: true,
+      missingGraphExportTarget: false,
+    },
+    document: legacyDocument,
+  });
+}
+
+async function openLegacyMissingModelNode(page: Page) {
+  await openProjectPackage(page, makeLegacyMissingModelPackage());
+  await switchToNodeView(page);
+
+  const modelNode = page.locator('.react-flow__node[data-id="v036-model"]');
+  await expect(modelNode.getByText('Model asset missing')).toBeVisible({ timeout: 20_000 });
+  return modelNode;
+}
+
 async function downloadProjectPackage(page: Page) {
   const packageDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Share link or download editable files' }).click();
@@ -579,6 +668,12 @@ function makeTinyGlbModelDataUrl() {
   glb.writeUInt32LE(0x004e4942, binaryHeaderOffset + 4);
   binaryChunk.copy(glb, binaryHeaderOffset + 8);
   return `data:model/gltf-binary;base64,${glb.toString('base64')}`;
+}
+
+function modelDataUrlBuffer(dataUrl: string) {
+  const payload = dataUrl.split(',', 2)[1];
+  if (!payload) throw new Error('Model data URL fixture is unavailable');
+  return Buffer.from(payload, 'base64');
 }
 
 function makeTinyTriangleGeometry() {

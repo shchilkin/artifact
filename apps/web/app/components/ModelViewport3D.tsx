@@ -17,6 +17,7 @@ import {
   loadScene3DSourceObject,
   loadSceneEnvironmentCanvas,
   loadSceneEnvironmentMap,
+  ModelAssetUnavailableError,
   normalizeModelRoot,
   type SceneEnvironmentMap,
   type SceneMaterialTextureCanvases,
@@ -167,9 +168,10 @@ function replaceSceneLights(
   return lights;
 }
 
-function sourceLoadStatus(layer: ModelLayer | PrimitiveLayer) {
+function sourceLoadStatus(layer: ModelLayer | PrimitiveLayer, failure: 'unavailable' | 'invalid') {
   if (layer.kind === 'primitive') return 'Primitive load failed';
-  return layer.modelSrc ? 'Model load failed' : 'Missing model';
+  if (!layer.modelSrc || failure === 'unavailable') return 'Model asset missing';
+  return 'Model load failed';
 }
 
 function disposeSceneEnvironment(environmentMap: SceneEnvironmentMap | null) {
@@ -236,7 +238,7 @@ export function ModelViewport3D({
   const [sceneRevision, setSceneRevision] = useState(0);
   const [hasRenderedFrame, setHasRenderedFrame] = useState(false);
   const [webglUnavailable, setWebglUnavailable] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<'unavailable' | 'invalid' | null>(null);
   const [environmentFailed, setEnvironmentFailed] = useState(false);
   const [autoRotateVisible, setAutoRotateVisible] = useState(false);
   const modelSignature = sourceLayerSignature(layer);
@@ -422,7 +424,7 @@ export function ModelViewport3D({
 
     let cancelled = false;
     setWebglUnavailable(false);
-    setLoadFailed(false);
+    setLoadFailure(null);
     setEnvironmentFailed(false);
     hasRenderedFrameRef.current = false;
     setHasRenderedFrame(false);
@@ -441,8 +443,8 @@ export function ModelViewport3D({
         applyLiveSceneSettings(renderer, scene, rootObject, sceneNodeRef.current, environmentMapRef.current);
         applyViewState(viewStateRef.current);
       })
-      .catch(() => {
-        if (!cancelled) setLoadFailed(true);
+      .catch((error: unknown) => {
+        if (!cancelled) setLoadFailure(error instanceof ModelAssetUnavailableError ? 'unavailable' : 'invalid');
       });
 
     return () => {
@@ -572,8 +574,8 @@ export function ModelViewport3D({
   const locked = !!viewState.locked;
   const viewportStatus = webglUnavailable
     ? 'WebGL unavailable'
-    : loadFailed
-      ? sourceLoadStatus(layer)
+    : loadFailure
+      ? sourceLoadStatus(layer, loadFailure)
       : !hasRenderedFrame
         ? 'Loading 3D model'
         : null;
@@ -626,7 +628,7 @@ export function ModelViewport3D({
           {environmentFailed && <span className="model-viewport-status-badge">Env map unavailable</span>}
         </div>
       )}
-      {(webglUnavailable || loadFailed) && (
+      {(webglUnavailable || loadFailure) && (
         <div className="node-primitive-webgl-fallback" aria-live="polite">
           {webglUnavailable ? '3D preview unavailable' : '3D source preview unavailable'}
         </div>
