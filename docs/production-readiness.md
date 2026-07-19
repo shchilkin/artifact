@@ -99,6 +99,15 @@ CI should run:
   Fallow gates passed.
 - The exact `development` release-candidate SHA passed staging web/API revision
   and contract verification before the stable staging alias moved.
+- Tag `v0.41.1` resolves to production commit
+  `355c15602178bcdcdf7d1c685e676a53dd4f2c32`. The coordinated production
+  deployment verified that exact web and API revision before promoting the web
+  domain.
+- A public production-origin Chromium smoke exported the embedded GLB/EXR
+  package, imported it in a second browser context with empty storage, resolved
+  both stable asset refs from restored IndexedDB payloads, and rendered the 3D
+  Scene without model or environment fallback.
+- The GitHub Release was published on 2026-07-19 after production verification.
 - `npm run perf:node-editor` is not required because this patch changes package
   persistence boundaries and does not change graph traversal, thumbnail
   scheduling, renderer hot paths, or node-canvas interactions.
