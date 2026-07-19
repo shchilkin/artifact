@@ -65,7 +65,10 @@ async function downsampleDataUrl(src: string, mimeHint: string): Promise<string>
 export function useEditorAssets(
   doc: CanvasDocument,
   onImportImage: (src: string, position?: { x: number; y: number }) => void,
-  onImportModel?: (asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>) => void,
+  onImportModel?: (
+    asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>,
+    position?: { x: number; y: number },
+  ) => void,
   onImportEnvironment?: (
     asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
     position?: { x: number; y: number },
@@ -152,12 +155,15 @@ export function useEditorAssets(
         }
         try {
           const asset = await saveModelFileAsset(file);
-          onImportModel({
-            modelSrc: modelUriFromId(asset.id),
-            modelName: asset.label,
-            modelMime: asset.mime,
-            modelBytes: asset.bytes,
-          });
+          onImportModel(
+            {
+              modelSrc: modelUriFromId(asset.id),
+              modelName: asset.label,
+              modelMime: asset.mime,
+              modelBytes: asset.bytes,
+            },
+            position,
+          );
         } catch {
           showDropError('Could not read model');
         }
