@@ -1,7 +1,7 @@
 {
   "name": "@artifact/backoffice",
   "private": true,
-  "version": "0.41.1",
+  "version": "0.41.2",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",

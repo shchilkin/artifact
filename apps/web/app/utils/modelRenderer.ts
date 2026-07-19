@@ -21,6 +21,13 @@ import {
   degToRad,
 } from './primitiveScene';
 
+export class ModelAssetUnavailableError extends Error {
+  constructor() {
+    super('Model asset is unavailable');
+    this.name = 'ModelAssetUnavailableError';
+  }
+}
+
 const MODEL_FIT_SIZE = 1.9;
 const MODEL_FIT_RADIUS = 0.92;
 const MATERIAL_TEXTURE_SIZE = 160;
@@ -588,7 +595,7 @@ export async function loadScene3DSourceObject(
     root = createPrimitiveSceneObject(layer);
   } else {
     const resolvedSource = await resolveModelSource(layer.modelSrc);
-    if (!resolvedSource) throw new Error('Model asset is unavailable');
+    if (!resolvedSource) throw new ModelAssetUnavailableError();
     const buffer = await modelSourceToArrayBuffer(resolvedSource);
     root = await parseGltfScene(buffer);
     applyModelFallbackMaterials(root, layer);
