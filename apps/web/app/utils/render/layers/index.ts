@@ -1,4 +1,3 @@
-import { drawFillLayer, drawTextLayer as drawSharedTextLayer } from '@shchilkin/artifact-runtime/rendering';
 import type { Filter } from 'pixi.js';
 import type { PrimitiveViewportState } from '../../../components/PrimitiveViewportState';
 import type {
@@ -19,15 +18,7 @@ import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
-import {
-  applyDotGrain,
-  applyEmboss,
-  applyGlitchEffect,
-  applyGrain,
-  applyLinocut,
-  applyMatte,
-  applyScanlines,
-} from './textureEffects';
+import { applyDotGrain, applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
@@ -96,6 +87,32 @@ async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
   return measurePerformancePhase(measureName, task, layer.id);
 }
 
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [''];
+}
+
+function drawFillLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: FillLayer) {
+  ctx.save();
+  ctx.globalAlpha = layer.opacity / 100;
+  ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
+  ctx.fillStyle = layer.color;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 function drawEmojiLayer(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -156,7 +173,29 @@ function drawEmojiLayer(
 }
 
 function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: TextLayer, scale: number) {
-  drawSharedTextLayer(ctx, W, H, layer, scale, getCanvasFontStack(layer.font));
+  if (!layer.content.trim()) return;
+  const fontSize = layer.size * scale;
+  const fontStack = getCanvasFontStack(layer.font);
+
+  ctx.save();
+  ctx.font = `${fontSize}px ${fontStack}`; // must be set before wrapText uses measureText
+  const lines = layer.content.split('\n').flatMap((part) => wrapText(ctx, part.trim() || ' ', W * 0.92));
+
+  ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
+  ctx.globalAlpha = layer.opacity / 100;
+  ctx.fillStyle = layer.color;
+  ctx.textAlign = layer.align as CanvasTextAlign;
+  ctx.textBaseline = 'middle';
+  ctx.translate(W * layer.x, H * layer.y);
+  ctx.rotate((layer.rotation * Math.PI) / 180);
+  ctx.scale(layer.scaleX, layer.scaleY);
+
+  const maxWidth = W * 0.92;
+  const lineH = fontSize * 1.25;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH, maxWidth);
+  });
+  ctx.restore();
 }
 
 function drawImageLayer(
@@ -255,6 +294,33 @@ function applyRayEffect(ctx: CanvasRenderingContext2D, W: number, H: number, lay
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
+  }
+  ctx.restore();
+}
+
+function glitchFillStyle(index: number, opacity: number): string {
+  return index % 2 === 0 ? `rgba(0,210,255,${opacity})` : `rgba(255,0,200,${opacity})`;
+}
+
+function applyGlitchEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  scale: number,
+  rng: () => number,
+) {
+  if (layer.glitch <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < layer.glitch; i++) {
+    const y = rng() * H;
+    const h = (1 + rng() * 3) * scale;
+    const x = rng() * W * 0.3;
+    const w = W * (0.3 + rng() * 0.7);
+    const opacity = 0.12 + rng() * 0.25;
+    ctx.fillStyle = glitchFillStyle(i, opacity);
+    ctx.fillRect(x, y, w, h);
   }
   ctx.restore();
 }

@@ -1,9 +1,38 @@
 import type { EffectLayer } from '../../../types/config';
-
-export { applyGlitchEffect, applyGrain, applyScanlines } from '@shchilkin/artifact-runtime/rendering';
-
 import { lcg } from '../../lcg';
 import { createCanvas } from '../canvas';
+
+export function applyScanlines(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
+  if (layer.scanlines <= 0) return;
+
+  const lineH = Math.max(1, Math.round((layer.scanlineWidth ?? 1) * scale));
+  const gap = Math.max(1, Math.round(scale));
+  const step = lineH + gap;
+  ctx.fillStyle = `rgba(0,0,0,${layer.scanlines / 100})`;
+  for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
+}
+
+export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
+  if (layer.grain <= 0) return;
+
+  const grainRng = lcg(seed * 3331);
+  const offscreen = createCanvas(W, H);
+  const octx = offscreen.getContext('2d')!;
+  const imageData = octx.createImageData(W, H);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (grainRng() - 0.5) * layer.grain * 3;
+    const v = 128 + noise;
+    data[i] = data[i + 1] = data[i + 2] = v;
+    data[i + 3] = Math.min(255, Math.abs(noise) * 2);
+  }
+  octx.putImageData(imageData, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(offscreen, 0, 0);
+  ctx.restore();
+}
 
 export function applyDotGrain(
   ctx: CanvasRenderingContext2D,
