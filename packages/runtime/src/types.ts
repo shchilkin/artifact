@@ -76,6 +76,8 @@ export interface ArtifactRuntimeGraph {
 
 export type ArtifactRuntimeRenderMode = 'stack' | 'linear-graph';
 
+export type ArtifactRuntimeCapabilityStatus = 'ready' | 'unresolved-fonts' | 'unsupported';
+
 export type ArtifactRuntimeCapabilityCode =
   | 'invalid-graph'
   | 'missing-font'
@@ -91,11 +93,18 @@ export interface ArtifactRuntimeCapabilityIssue {
   layerId?: string;
 }
 
+export interface ArtifactRuntimeUnresolvedFont {
+  ref: string;
+  layerIds: string[];
+}
+
 export interface ArtifactRuntimeCapabilityReport {
   supported: boolean;
+  status: ArtifactRuntimeCapabilityStatus;
   mode: ArtifactRuntimeRenderMode;
   layerOrder: string[];
   requiredFonts: string[];
+  unresolvedFonts: ArtifactRuntimeUnresolvedFont[];
   issues: ArtifactRuntimeCapabilityIssue[];
 }
 
