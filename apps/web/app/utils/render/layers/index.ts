@@ -18,15 +18,7 @@ import { drawSourceLayer } from '../../proceduralSource';
 import { cloneCanvas, createCanvas, maskCanvasToAlpha, REF, toCompositeOperation } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
-import {
-  applyDotGrain,
-  applyEmboss,
-  applyGlitchEffect,
-  applyGrain,
-  applyLinocut,
-  applyMatte,
-  applyScanlines,
-} from './textureEffects';
+import { applyDotGrain, applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
@@ -302,6 +294,33 @@ function applyRayEffect(ctx: CanvasRenderingContext2D, W: number, H: number, lay
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
+  }
+  ctx.restore();
+}
+
+function glitchFillStyle(index: number, opacity: number): string {
+  return index % 2 === 0 ? `rgba(0,210,255,${opacity})` : `rgba(255,0,200,${opacity})`;
+}
+
+function applyGlitchEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  scale: number,
+  rng: () => number,
+) {
+  if (layer.glitch <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < layer.glitch; i++) {
+    const y = rng() * H;
+    const h = (1 + rng() * 3) * scale;
+    const x = rng() * W * 0.3;
+    const w = W * (0.3 + rng() * 0.7);
+    const opacity = 0.12 + rng() * 0.25;
+    ctx.fillStyle = glitchFillStyle(i, opacity);
+    ctx.fillRect(x, y, w, h);
   }
   ctx.restore();
 }

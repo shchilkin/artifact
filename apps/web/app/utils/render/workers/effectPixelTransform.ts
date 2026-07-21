@@ -1,4 +1,3 @@
-import { applyChromaticAberration } from '@shchilkin/artifact-runtime/rendering';
 import { lcg } from '../../lcg';
 
 export type EffectPixelTransformOp =
@@ -210,6 +209,40 @@ function infraredPixel(r: number, g: number, b: number, amount: number) {
     g: Math.min(255, Math.round(g * (1 - amount * 0.65))),
     b: Math.min(255, Math.round(b * (1 - amount * 0.3) + amount * 22)),
   };
+}
+
+function applyChromaticAberration(data: Uint8ClampedArray, width: number, height: number, amountValue: number) {
+  if (amountValue <= 0) return;
+  const amount = Math.round(amountValue);
+  const cx = width / 2;
+  const cy = height / 2;
+  const copy = new Uint8ClampedArray(data);
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      applyChromaticAberrationPixel(data, copy, width, height, x, y, { amount, cx, cy, maxDist });
+    }
+  }
+}
+
+function applyChromaticAberrationPixel(
+  data: Uint8ClampedArray,
+  copy: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  params: { amount: number; cx: number; cy: number; maxDist: number },
+) {
+  const i = pixelIndex(width, x, y);
+  const dx = (x - params.cx) / params.maxDist;
+  const dy = (y - params.cy) / params.maxDist;
+  const rx = Math.min(width - 1, Math.max(0, Math.round(x + dx * params.amount)));
+  const ry = Math.min(height - 1, Math.max(0, Math.round(y + dy * params.amount)));
+  const bx = Math.min(width - 1, Math.max(0, Math.round(x - dx * params.amount)));
+  const by = Math.min(height - 1, Math.max(0, Math.round(y - dy * params.amount)));
+  data[i] = copy[pixelIndex(width, rx, ry)];
+  data[i + 2] = copy[pixelIndex(width, bx, by) + 2];
 }
 
 function applyDitherPass(data: Uint8ClampedArray, width: number, height: number, amount: number) {

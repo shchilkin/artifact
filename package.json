@@ -8,7 +8,6 @@
     "apps/api",
     "apps/backoffice",
     "apps/web",
-    "packages/runtime",
     "packages/shared"
   ],
   "scripts": {
@@ -31,7 +30,6 @@
     "build:api": "npm --workspace @artifact/api run build",
     "build:ci": "npm --workspace @artifact/web run build:ci",
     "build:shared": "npm --workspace @artifact/shared run build",
-    "build:runtime": "npm --workspace @shchilkin/artifact-runtime run build",
     "check": "npm run format:check && npm run lint && npm run typecheck:shared && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm test && npm run test:api && npm run test:backoffice",
     "check:backoffice": "npm --workspace @artifact/backoffice run check",
     "format": "biome check --write .",
@@ -48,7 +46,6 @@
     "typecheck:backoffice": "npm --workspace @artifact/backoffice run typecheck",
     "typecheck:api": "npm --workspace @artifact/api run typecheck",
     "typecheck:shared": "npm --workspace @artifact/shared run typecheck",
-    "typecheck:runtime": "npm --workspace @shchilkin/artifact-runtime run typecheck",
     "test": "npm --workspace @artifact/web run test",
     "test:backoffice": "npm --workspace @artifact/backoffice run test",
     "test:api": "npm --workspace @artifact/api run test",
