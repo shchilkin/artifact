@@ -1,3 +1,4 @@
+import { buildArtifactGpuEffectFilters, gpuRenderToCanvas } from './gpu.js';
 import { parseArtifactRuntimeProject } from './project.js';
 import {
   applyChromaticAberration,
@@ -24,7 +25,7 @@ import type {
 const EXPORT_NODE_ID = '__export__';
 const REFERENCE_SIZE = 540;
 const SUPPORTED_LAYER_KINDS = new Set(['effect', 'emoji', 'fill', 'image', 'text']);
-const SUPPORTED_EFFECT_PRESETS = new Set(['ca', 'glitch', 'grain', 'scanlines']);
+const SUPPORTED_EFFECT_PRESETS = new Set(['ca', 'glitch', 'grain', 'noiseWarp', 'scanlines', 'tear', 'vortex']);
 const UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES = [
   'badStream',
   'rgbSplit',
@@ -34,9 +35,6 @@ const UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES = [
   'rays',
   'rayInt',
   'morphAmt',
-  'tearAmt',
-  'noiseWarp',
-  'vortex',
   'barrel',
   'mirror',
   'dataMosh',
@@ -114,6 +112,7 @@ type RuntimeLayer = Record<string, unknown> & {
   kind: string;
   maxSz?: number;
   minSz?: number;
+  noiseWarp?: number;
   opacity?: number;
   preset?: string;
   rotation?: number;
@@ -124,7 +123,10 @@ type RuntimeLayer = Record<string, unknown> & {
   seedOffset?: number;
   size?: number;
   src?: string;
+  tearAmt?: number;
+  tearSize?: number;
   visible?: boolean;
+  vortex?: number;
   x?: number;
   y?: number;
 };
@@ -353,7 +355,8 @@ async function ensureFontLoaded(fontFamily: string, size: number) {
   }
 }
 
-function applyEffect(
+async function applyEffect(
+  canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -366,13 +369,18 @@ function applyEffect(
   applyScanlines(context, width, height, layer, scale);
   applyGrain(context, width, height, layer, effectSeed);
   const ca = Number(layer.ca ?? 0);
-  if (ca <= 0) return;
-  const imageData = context.getImageData(0, 0, width, height);
-  applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale));
-  context.putImageData(imageData, 0, 0);
+  if (ca > 0) {
+    const imageData = context.getImageData(0, 0, width, height);
+    applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale));
+    context.putImageData(imageData, 0, 0);
+  }
+  const filters = buildArtifactGpuEffectFilters(layer, effectSeed);
+  if (filters.length === 0) return canvas;
+  return await gpuRenderToCanvas({ filters, height, onUnavailable: 'throw', source: canvas, width });
 }
 
 interface RuntimeLayerRenderContext {
+  canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
   fontOptions: AnalyzeArtifactRuntimeProjectOptions;
   height: number;
@@ -383,7 +391,10 @@ interface RuntimeLayerRenderContext {
   width: number;
 }
 
-type RuntimeLayerRenderer = (layer: RuntimeLayer, render: RuntimeLayerRenderContext) => void | Promise<void>;
+type RuntimeLayerRenderer = (
+  layer: RuntimeLayer,
+  render: RuntimeLayerRenderContext,
+) => HTMLCanvasElement | void | Promise<HTMLCanvasElement | void>;
 
 const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = {
   fill(layer, { context, height, width }) {
@@ -402,14 +413,14 @@ const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = 
     await ensureFontLoaded(family, Number(layer.size ?? 64) * scale);
     drawTextLayer(context, width, height, layer, scale, family);
   },
-  effect(layer, { context, height, scale, seed, width }) {
-    applyEffect(context, width, height, layer, seed, scale);
+  effect(layer, { canvas, context, height, scale, seed, width }) {
+    return applyEffect(canvas, context, width, height, layer, seed, scale);
   },
 };
 
 async function renderRuntimeLayer(layer: RuntimeLayer, render: RuntimeLayerRenderContext) {
   const renderer = layer.visible === false ? undefined : RUNTIME_LAYER_RENDERERS[layer.kind];
-  await renderer?.(layer, render);
+  return (await renderer?.(layer, render)) ?? render.canvas;
 }
 
 function positiveDimension(value: number) {
@@ -452,7 +463,7 @@ export async function renderArtifactRuntimeProject(
   const orderedLayers = orderLayers(project, report);
   const imageCache = new Map<string, HTMLImageElement>();
   await resolveImages(orderedLayers, imageCache);
-  const renderCanvas = createRenderCanvas(options.canvas, width, height);
+  let renderCanvas = createRenderCanvas(options.canvas, width, height);
   const context = renderCanvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Artifact Runtime could not create a 2D context.');
   context.clearRect(0, 0, width, height);
@@ -462,8 +473,11 @@ export async function renderArtifactRuntimeProject(
   const scale = width / REFERENCE_SIZE;
 
   for (const layer of orderedLayers) {
-    await renderRuntimeLayer(layer, {
-      context,
+    const layerContext = renderCanvas.getContext('2d', { willReadFrequently: true });
+    if (!layerContext) throw new Error('Artifact Runtime could not create a 2D context.');
+    renderCanvas = await renderRuntimeLayer(layer, {
+      canvas: renderCanvas,
+      context: layerContext,
       fontOptions: options,
       height,
       imageCache,

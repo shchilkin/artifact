@@ -19,6 +19,27 @@ function project(layers: Array<Record<string, unknown>>, graph?: Record<string, 
   };
 }
 
+function viberProject(fontRef: string) {
+  return project(
+    [
+      { id: 'fill', kind: 'fill', color: '#5e30eb' },
+      { id: 'warp', kind: 'effect', preset: 'noiseWarp', noiseWarp: 100 },
+      { id: 'vortex', kind: 'effect', preset: 'vortex', vortex: 20 },
+      { id: 'tear', kind: 'effect', preset: 'tear', tearAmt: 4, tearSize: 4 },
+      { id: 'title', kind: 'text', font: fontRef, content: 'VIBER' },
+    ],
+    {
+      edges: [
+        { fromId: 'fill', toId: 'warp' },
+        { fromId: 'warp', toId: 'vortex' },
+        { fromId: 'vortex', toId: 'tear' },
+        { fromId: 'tear', toId: 'title' },
+        { fromId: 'title', toId: '__export__' },
+      ],
+    },
+  );
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -64,37 +85,23 @@ describe('full-document capability analysis', () => {
     expect(report.layerOrder).toEqual(['bottom', 'top']);
   });
 
-  it('reports the exact blockers in the retained Viber graph', () => {
+  it('accepts the retained Viber effects and reports only the unresolved font', () => {
     const fontRef = 'artifact-font://viber';
-    const report = analyzeArtifactRuntimeProject(
-      project(
-        [
-          { id: 'fill', kind: 'fill', color: '#5e30eb' },
-          { id: 'warp', kind: 'effect', preset: 'noiseWarp', noiseWarp: 100 },
-          { id: 'vortex', kind: 'effect', preset: 'vortex', vortex: 20 },
-          { id: 'tear', kind: 'effect', preset: 'tear', tearAmt: 4 },
-          { id: 'title', kind: 'text', font: fontRef, content: 'VIBER' },
-        ],
-        {
-          edges: [
-            { fromId: 'fill', toId: 'warp' },
-            { fromId: 'warp', toId: 'vortex' },
-            { fromId: 'vortex', toId: 'tear' },
-            { fromId: 'tear', toId: 'title' },
-            { fromId: 'title', toId: '__export__' },
-          ],
-        },
-      ),
-    );
+    const report = analyzeArtifactRuntimeProject(viberProject(fontRef));
 
     expect(report.supported).toBe(false);
     expect(report.requiredFonts).toEqual([fontRef]);
-    expect(report.issues.map((issue) => issue.code)).toEqual([
-      'unsupported-effect',
-      'unsupported-effect',
-      'unsupported-effect',
-      'missing-font',
-    ]);
+    expect(report.issues.map((issue) => issue.code)).toEqual(['missing-font']);
+  });
+
+  it('accepts the retained Viber graph with an explicit host font mapping', () => {
+    const fontRef = 'artifact-font://viber';
+    const report = analyzeArtifactRuntimeProject(viberProject(fontRef), {
+      fontFamilies: { [fontRef]: '"Portfolio Pixel", monospace' },
+    });
+
+    expect(report.supported).toBe(true);
+    expect(report.issues).toEqual([]);
   });
 
   it('accepts an explicit host mapping for metadata-only fonts', () => {
@@ -119,12 +126,12 @@ describe('full-document capability analysis', () => {
 
   it('reports active unsupported effect behavior even when the preset label is supported', () => {
     const report = analyzeArtifactRuntimeProject(
-      project([{ id: 'grain', kind: 'effect', preset: 'grain', grain: 20, noiseWarp: 10 }]),
+      project([{ id: 'grain', kind: 'effect', preset: 'grain', barrel: 10, grain: 20 }]),
     );
 
     expect(report.supported).toBe(false);
     expect(report.issues).toEqual([expect.objectContaining({ code: 'unsupported-effect', layerId: 'grain' })]);
-    expect(report.issues[0]?.message).toContain('noiseWarp');
+    expect(report.issues[0]?.message).toContain('barrel');
   });
 
   it('reports every unsupported graph node by id', () => {

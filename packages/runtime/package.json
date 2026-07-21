@@ -1,6 +1,6 @@
 {
   "name": "@shchilkin/artifact-runtime",
-  "version": "0.2.0-alpha.1",
+  "version": "0.2.0-alpha.2",
   "description": "Experimental browser runtime for portable Artifact projects",
   "type": "module",
   "sideEffects": false,
@@ -15,12 +15,19 @@
     "./rendering": {
       "types": "./dist/rendering.d.ts",
       "default": "./dist/rendering.js"
+    },
+    "./gpu": {
+      "types": "./dist/gpu.d.ts",
+      "default": "./dist/gpu.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "pixi.js": "^7.4.3"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

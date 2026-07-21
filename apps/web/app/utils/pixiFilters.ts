@@ -1,3 +1,4 @@
+import { createNoiseWarpFilter, createTearFilter, createVortexFilter } from '@shchilkin/artifact-runtime/gpu';
 import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
@@ -36,69 +37,6 @@ void main() {
   float wx = sin(norm.y * f + t * 3.1) * cos(norm.x * f * 0.7 + t * 1.7);
   float wy = cos(norm.x * f + t * 2.3) * sin(norm.y * f * 0.8 + t * 0.8);
   vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
-
-const TEAR_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uChunkH;
-uniform float uSeed;
-
-float hash(float n) {
-  return fract(sin(n * 127.1 + uSeed * 0.01) * 43758.5453);
-}
-
-void main() {
-  ${NORM_UV}
-  float chunkId    = floor(norm.y / uChunkH);
-  float active     = step(0.7, hash(chunkId));
-  float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
-  vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
-  gl_FragColor     = ${SAMPLE('warped')};
-}`;
-
-const NOISE_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uSeed;
-
-float h21(vec2 p) {
-  p = fract(p * vec2(234.34, 435.345));
-  p += dot(p, p + 34.23);
-  return fract(p.x * p.y);
-}
-
-float smooth21(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(h21(i), h21(i + vec2(1,0)), f.x),
-    mix(h21(i + vec2(0,1)), h21(i + vec2(1,1)), f.x),
-    f.y
-  );
-}
-
-void main() {
-  ${NORM_UV}
-  vec2 seed2 = vec2(uSeed * 0.001, uSeed * 0.0007);
-  float ox = smooth21(norm * 4.0 + seed2)         - 0.5;
-  float oy = smooth21(norm * 4.0 + seed2 + 100.0) - 0.5;
-  ox += (smooth21(norm * 9.0 + seed2 * 2.0) - 0.5) * 0.4;
-  oy += (smooth21(norm * 9.0 + seed2 * 2.0 + 50.0) - 0.5) * 0.4;
-  vec2 warped = clamp(norm + vec2(ox, oy) * uIntensity, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
-
-const VORTEX_FRAG = `${HEADER}
-uniform float uIntensity;
-
-void main() {
-  ${NORM_UV}
-  vec2  c    = norm - 0.5;
-  float dist = length(c);
-  float angle = atan(c.y, c.x);
-  angle += uIntensity * max(0.0, 1.0 - dist * 2.2);
-  vec2 warped = clamp(0.5 + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 
@@ -394,7 +332,7 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
       uResY: canvasH,
     }),
   );
-  addFilter(filters, cfg.noiseWarp, () => f(NOISE_FRAG, { uIntensity: cfg.noiseWarp * 0.0008, uSeed: seed }));
+  addFilter(filters, cfg.noiseWarp, () => createNoiseWarpFilter(cfg.noiseWarp, seed));
   addFilter(filters, cfg.morphAmt, () =>
     f(MORPH_FRAG, {
       uIntensity: cfg.morphAmt * 0.05,
@@ -402,15 +340,9 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
       uSeed: seed,
     }),
   );
-  addFilter(filters, cfg.vortex, () => f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
+  addFilter(filters, cfg.vortex, () => createVortexFilter(cfg.vortex));
   addFilter(filters, cfg.barrel, () => f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
-  addFilter(filters, cfg.tearAmt, () =>
-    f(TEAR_FRAG, {
-      uIntensity: cfg.tearAmt * 0.007,
-      uChunkH: cfg.tearSize / 1000,
-      uSeed: seed,
-    }),
-  );
+  addFilter(filters, cfg.tearAmt, () => createTearFilter(cfg.tearAmt, cfg.tearSize, seed));
   addFilter(filters, cfg.pixelate, () =>
     f(PIXELATE_FRAG, {
       uBlocks: Math.max(2, Math.round(refSize / cfg.pixelate)),
