@@ -79,7 +79,7 @@ CI should run:
 
 ## Manual QA
 
-### v0.41.3 Release Prep
+### v0.41.3 Release Prep And Evidence
 
 - Package metadata is bumped to `0.41.3` in the root, web, backoffice, and lock
   files.
@@ -101,7 +101,21 @@ CI should run:
 - Earlier staging run `29856189068` verified the isolated candidate Vercel
   build but stopped safely before changing the stable alias because Coolify
   followed the then-newer `development` tip. PR #199 removed that tree
-  divergence; exact-tip staging must pass before production promotion.
+  divergence. PR #200 then merged release candidate
+  `228ca86c172101006f4c96f9ecf0d642f159051f` into `development`; CI run
+  `29864747932` and exact-SHA staging run `29865477926` passed before the stable
+  staging alias moved.
+- Promotion PR #201 merged the candidate into `main` as production commit
+  `099cd87fac427cc37c101b9dfd20ce209d7def7c`. The tagged tree was rechecked
+  without `packages/runtime`, an `@artifact/runtime` workspace or dependency,
+  Runtime lockfile entries, or Runtime build wiring.
+- Release run `29867015440` passed the full gate and created annotated tag
+  `v0.41.3` plus the draft GitHub Release. Production run `29868440803` repeated
+  the full gate, verified the staged web deployment, Coolify/API revision and
+  contract version 1, promoted the web deployment, and verified both production
+  surfaces reported the exact production commit. Publish run `29869952126`
+  passed the final full gate and published `v0.41.3` as the latest release on
+  2026-07-21.
 - `npm run perf:node-editor` is not required because the patch changes the
   completed model-drop command, not per-frame dragging, graph traversal,
   rendering, or thumbnail scheduling.
