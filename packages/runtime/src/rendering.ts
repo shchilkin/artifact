@@ -5,6 +5,236 @@ export interface TextureEffectLayer {
   scanlineWidth?: number;
 }
 
+interface DrawableLayer {
+  blendMode?: string;
+  opacity?: number;
+}
+
+interface FillLayerLike extends DrawableLayer {
+  color?: string;
+}
+
+interface EmojiLayerLike extends DrawableLayer {
+  density?: number;
+  emojis?: string[];
+  maxSz?: number;
+  minSz?: number;
+}
+
+interface TextLayerLike extends DrawableLayer {
+  align?: string;
+  color?: string;
+  content?: string;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  size?: number;
+  x?: number;
+  y?: number;
+}
+
+interface ImageLayerLike extends DrawableLayer {
+  fit?: string;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  x?: number;
+  y?: number;
+}
+
+const REFERENCE_SIZE = 540;
+
+export function loadRuntimeImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = 'async';
+    if (!src.startsWith('data:') && !src.startsWith('blob:')) image.crossOrigin = 'anonymous';
+    image.addEventListener('load', () => resolve(image), { once: true });
+    image.addEventListener('error', () => reject(new Error(`Artifact Runtime could not load image ${src}.`)), {
+      once: true,
+    });
+    image.src = src;
+  });
+}
+
+export function drawDocumentBackground(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  background: string,
+) {
+  if (background === 'transparent') {
+    context.clearRect(0, 0, width, height);
+    return;
+  }
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.sqrt(centerX * centerX + centerY * centerY);
+  const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+  gradient.addColorStop(0, 'rgba(65,0,90,0.3)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.65)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+}
+
+function compositeOperation(blendMode: string | undefined): GlobalCompositeOperation {
+  return (blendMode && blendMode !== 'normal' ? blendMode : 'source-over') as GlobalCompositeOperation;
+}
+
+function opacityValue(opacity: number | undefined): number {
+  return (opacity ?? 100) / 100;
+}
+
+function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (context.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [''];
+}
+
+export function drawFillLayer(context: CanvasRenderingContext2D, width: number, height: number, layer: FillLayerLike) {
+  context.save();
+  context.globalAlpha = opacityValue(layer.opacity);
+  context.globalCompositeOperation = compositeOperation(layer.blendMode);
+  context.fillStyle = layer.color ?? '#000000';
+  context.fillRect(0, 0, width, height);
+  context.restore();
+}
+
+export function drawEmojiLayer(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  layer: EmojiLayerLike,
+  rng: () => number,
+  scale: number,
+) {
+  const emojis = layer.emojis ?? [];
+  const density = layer.density ?? 0;
+  if (emojis.length === 0 || density <= 0) return;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const minSize = layer.minSz ?? 44;
+  const maxSize = layer.maxSz ?? 106;
+  const items = Array.from({ length: density }, () => {
+    const x = rng() * width;
+    const y = rng() * height;
+    const size = (minSize + rng() * (maxSize - minSize)) * scale;
+    const rotation = (rng() - 0.5) * 1.2;
+    const opacity = 0.6 + rng() * 0.4;
+    const emoji = emojis[Math.floor(rng() * emojis.length)];
+    const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+    return { distance, emoji, opacity, rotation, size, x, y };
+  }).sort((a, b) => b.distance - a.distance);
+
+  context.save();
+  context.globalAlpha = opacityValue(layer.opacity);
+  context.globalCompositeOperation = compositeOperation(layer.blendMode);
+  for (const item of items) {
+    context.save();
+    context.translate(item.x, item.y);
+    context.rotate(item.rotation);
+    context.font = `${item.size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = 'white';
+    context.globalAlpha = item.opacity;
+    context.fillText(item.emoji, 0, 0);
+    context.restore();
+  }
+  context.restore();
+}
+
+export function drawTextLayer(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  layer: TextLayerLike,
+  scale: number,
+  fontStack: string,
+) {
+  const content = layer.content ?? '';
+  if (!content.trim()) return;
+  const fontSize = (layer.size ?? 64) * scale;
+  context.save();
+  context.font = `${fontSize}px ${fontStack}`;
+  const lines = content.split('\n').flatMap((part) => wrapText(context, part.trim() || ' ', width * 0.92));
+  context.globalCompositeOperation = compositeOperation(layer.blendMode);
+  context.globalAlpha = opacityValue(layer.opacity);
+  context.fillStyle = layer.color ?? '#ffffff';
+  context.textAlign = (layer.align ?? 'center') as CanvasTextAlign;
+  context.textBaseline = 'middle';
+  context.translate(width * (layer.x ?? 0.5), height * (layer.y ?? 0.5));
+  context.rotate(((layer.rotation ?? 0) * Math.PI) / 180);
+  context.scale(layer.scaleX ?? 1, layer.scaleY ?? 1);
+  const maxWidth = width * 0.92;
+  const lineHeight = fontSize * 1.25;
+  lines.forEach((line, index) => {
+    context.fillText(line, 0, (index - (lines.length - 1) / 2) * lineHeight, maxWidth);
+  });
+  context.restore();
+}
+
+export function drawImageLayer(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  layer: ImageLayerLike,
+  image: HTMLImageElement | null,
+) {
+  if (!image?.naturalWidth) return;
+  context.save();
+  context.globalCompositeOperation = compositeOperation(layer.blendMode);
+  context.globalAlpha = opacityValue(layer.opacity);
+  const x = width * (layer.x ?? 0.5);
+  const y = height * (layer.y ?? 0.5);
+  const rotation = ((layer.rotation ?? 0) * Math.PI) / 180;
+  const scaleX = layer.scaleX ?? 1;
+  const scaleY = layer.scaleY ?? 1;
+  const drawFittedImage = (scale: number) => {
+    const drawWidth = image.naturalWidth * scale * scaleX;
+    const drawHeight = image.naturalHeight * scale * scaleY;
+    context.translate(x, y);
+    context.rotate(rotation);
+    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+  };
+
+  if (layer.fit === 'cover') {
+    drawFittedImage(Math.max(width / image.naturalWidth, height / image.naturalHeight));
+  } else if (layer.fit === 'contain') {
+    drawFittedImage(Math.min(width / image.naturalWidth, height / image.naturalHeight));
+  } else if (layer.fit === 'tile') {
+    const pattern = context.createPattern(image, 'repeat');
+    if (pattern) {
+      const tileWidth = image.naturalWidth * (width / REFERENCE_SIZE) * scaleX;
+      const tileHeight = image.naturalHeight * (height / REFERENCE_SIZE) * scaleY;
+      pattern.setTransform(new DOMMatrix().scale(tileWidth / image.naturalWidth, tileHeight / image.naturalHeight));
+      context.fillStyle = pattern;
+      context.fillRect(0, 0, width, height);
+    }
+  } else {
+    const baseScale = width / REFERENCE_SIZE;
+    const drawWidth = image.naturalWidth * baseScale * scaleX;
+    const drawHeight = image.naturalHeight * baseScale * scaleY;
+    context.translate(x, y);
+    context.rotate(rotation);
+    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+  }
+  context.restore();
+}
+
 function pixelIndex(width: number, x: number, y: number) {
   return (y * width + x) * 4;
 }

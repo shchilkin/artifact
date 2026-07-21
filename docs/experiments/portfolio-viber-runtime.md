@@ -173,6 +173,9 @@ flattened raster plate. Keep that work separate from this accepted experiment:
 it must define supported layer kinds, asset and font resolution, graph order,
 unsupported-node behavior, and performance budgets before implementation.
 
+The bounded contract and first implementation spike are tracked in
+[`full-document-runtime.md`](./full-document-runtime.md).
+
 Do not publish the alpha merely because the first cover works. Keep the packed
 `0.1.0-alpha.3` consumer until a second real cover tests whether the current
 API is reusable; then decide whether to publish, revise, or replace it with the

@@ -43,11 +43,71 @@ export interface ArtifactRuntimeProject {
   document: {
     schemaVersion: number;
     global: {
+      bg?: string;
       seed: number;
       aspect?: string;
     };
     layers: Array<Record<string, unknown>>;
+    graph?: ArtifactRuntimeGraph;
   };
+}
+
+export interface ArtifactRuntimeGraphEdge {
+  id?: string;
+  fromId: string;
+  toId: string;
+  fromPort?: string;
+  toPort?: string;
+}
+
+export interface ArtifactRuntimeGraph {
+  edges: ArtifactRuntimeGraphEdge[];
+  mergeNodes?: unknown[];
+  colorNodes?: unknown[];
+  repeatNodes?: unknown[];
+  materialNodes?: unknown[];
+  maskNodes?: unknown[];
+  transformNodes?: unknown[];
+  grimeShadowNodes?: unknown[];
+  scene3dNodes?: unknown[];
+  environmentNodes?: unknown[];
+  shaderNodes?: unknown[];
+}
+
+export type ArtifactRuntimeRenderMode = 'stack' | 'linear-graph';
+
+export type ArtifactRuntimeCapabilityCode =
+  | 'invalid-graph'
+  | 'missing-font'
+  | 'missing-image'
+  | 'unsupported-effect'
+  | 'unsupported-graph-node'
+  | 'unsupported-layer-kind';
+
+export interface ArtifactRuntimeCapabilityIssue {
+  code: ArtifactRuntimeCapabilityCode;
+  graphNodeId?: string;
+  message: string;
+  layerId?: string;
+}
+
+export interface ArtifactRuntimeCapabilityReport {
+  supported: boolean;
+  mode: ArtifactRuntimeRenderMode;
+  layerOrder: string[];
+  requiredFonts: string[];
+  issues: ArtifactRuntimeCapabilityIssue[];
+}
+
+export interface AnalyzeArtifactRuntimeProjectOptions {
+  fontFamilies?: Readonly<Record<string, string>>;
+}
+
+export interface RenderArtifactRuntimeProjectOptions extends AnalyzeArtifactRuntimeProjectOptions {
+  canvas: HTMLCanvasElement;
+  project: unknown;
+  width: number;
+  height: number;
 }
 
 export interface ArtifactRuntimePlayer {

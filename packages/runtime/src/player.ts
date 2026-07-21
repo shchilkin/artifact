@@ -1,6 +1,13 @@
 import { getEffectLayers, parseArtifactRuntimeProject } from './project.js';
 import { evaluateMotionTrack, validateMotionRecipe } from './recipe.js';
-import { applyChromaticAberration, applyGlitchEffect, applyGrain, applyScanlines, lcg } from './rendering.js';
+import {
+  applyChromaticAberration,
+  applyGlitchEffect,
+  applyGrain,
+  applyScanlines,
+  lcg,
+  loadRuntimeImage,
+} from './rendering.js';
 import type {
   ArtifactEffectLayer,
   ArtifactRuntimePlayer,
@@ -11,16 +18,6 @@ import type {
 
 const DEFAULT_FPS = 24;
 const DEFAULT_MAX_RENDER_SIZE = 640;
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.addEventListener('load', () => resolve(image), { once: true });
-    image.addEventListener('error', () => reject(new Error(`Artifact Runtime could not load ${url}.`)), { once: true });
-    image.src = url;
-  });
-}
 
 function wrapTime(timeSeconds: number, durationSeconds: number) {
   return ((timeSeconds % durationSeconds) + durationSeconds) % durationSeconds;
@@ -35,7 +32,7 @@ export async function createArtifactRuntimePlayer(
 ): Promise<ArtifactRuntimePlayer> {
   const project = parseArtifactRuntimeProject(options.project);
   validateMotionRecipe(options.recipe, project);
-  const image = await loadImage(options.baseImageUrl);
+  const image = await loadRuntimeImage(options.baseImageUrl);
   const player = new RasterEffectsPlayer(options, project.document.global.seed, getEffectLayers(project), image);
   player.resize(options.canvas.clientWidth || image.naturalWidth, options.canvas.clientHeight || image.naturalHeight);
   player.seek(0);
