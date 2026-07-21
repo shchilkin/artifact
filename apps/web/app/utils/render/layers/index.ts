@@ -1,3 +1,4 @@
+import { drawFillLayer, drawTextLayer as drawSharedTextLayer } from '@shchilkin/artifact-runtime/rendering';
 import type { Filter } from 'pixi.js';
 import type { PrimitiveViewportState } from '../../../components/PrimitiveViewportState';
 import type {
@@ -95,32 +96,6 @@ async function measureLayerRender<T>(layer: Layer, task: () => Promise<T>) {
   return measurePerformancePhase(measureName, task, layer.id);
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length > 0 ? lines : [''];
-}
-
-function drawFillLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: FillLayer) {
-  ctx.save();
-  ctx.globalAlpha = layer.opacity / 100;
-  ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
-  ctx.fillStyle = layer.color;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-}
-
 function drawEmojiLayer(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -181,29 +156,7 @@ function drawEmojiLayer(
 }
 
 function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: TextLayer, scale: number) {
-  if (!layer.content.trim()) return;
-  const fontSize = layer.size * scale;
-  const fontStack = getCanvasFontStack(layer.font);
-
-  ctx.save();
-  ctx.font = `${fontSize}px ${fontStack}`; // must be set before wrapText uses measureText
-  const lines = layer.content.split('\n').flatMap((part) => wrapText(ctx, part.trim() || ' ', W * 0.92));
-
-  ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
-  ctx.globalAlpha = layer.opacity / 100;
-  ctx.fillStyle = layer.color;
-  ctx.textAlign = layer.align as CanvasTextAlign;
-  ctx.textBaseline = 'middle';
-  ctx.translate(W * layer.x, H * layer.y);
-  ctx.rotate((layer.rotation * Math.PI) / 180);
-  ctx.scale(layer.scaleX, layer.scaleY);
-
-  const maxWidth = W * 0.92;
-  const lineH = fontSize * 1.25;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH, maxWidth);
-  });
-  ctx.restore();
+  drawSharedTextLayer(ctx, W, H, layer, scale, getCanvasFontStack(layer.font));
 }
 
 function drawImageLayer(

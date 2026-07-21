@@ -23,6 +23,21 @@ export function parseArtifactRuntimeProject(value: unknown): ArtifactRuntimeProj
   if (!isRecord(document.global) || typeof document.global.seed !== 'number' || !Array.isArray(document.layers)) {
     throw new Error('Artifact Runtime received an invalid document payload.');
   }
+  const hasValidLayers = document.layers.every(
+    (layer) => isRecord(layer) && typeof layer.id === 'string' && typeof layer.kind === 'string',
+  );
+  if (!hasValidLayers) {
+    throw new Error('Artifact Runtime received an invalid layer payload.');
+  }
+  if (document.graph !== undefined) {
+    if (!isRecord(document.graph) || !Array.isArray(document.graph.edges)) {
+      throw new Error('Artifact Runtime received an invalid graph payload.');
+    }
+    const hasValidEdges = document.graph.edges.every(
+      (edge) => isRecord(edge) && typeof edge.fromId === 'string' && typeof edge.toId === 'string',
+    );
+    if (!hasValidEdges) throw new Error('Artifact Runtime received an invalid graph edge.');
+  }
 
   return parsed as unknown as ArtifactRuntimeProject;
 }
