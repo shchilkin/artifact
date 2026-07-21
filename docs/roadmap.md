@@ -1267,7 +1267,12 @@ Current status: the local release gate for `v0.17.0` has passed with
 These ideas are promising but should not block editor reliability:
 
 - Voice/music visualizer nodes using uploaded audio or microphone input.
-- Animated noise/effects and possibly video export.
+- The bounded
+  [Portfolio Viber Runtime Experiment](./experiments/portfolio-viber-runtime.md)
+  proved animated effects outside the editor. Next, define full document
+  playback so an external host can render real layers from a portable
+  `.artifact` file without a pre-flattened raster plate. Keep editor motion
+  authoring and video export outside that renderer milestone.
 - Background removal for imported images. Research candidates first, including
   local/browser execution, VPS-hosted open models, and commercial APIs, then pick
   based on quality, latency, privacy, file-size, and cost. The product model

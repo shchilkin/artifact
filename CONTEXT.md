@@ -1,5 +1,38 @@
 # Artifact Domain Language
 
+## Artifact Runtime
+
+A framework-independent library that renders and plays a serialized Artifact
+composition outside the editor. Host applications and UI adapters control the
+runtime without owning Artifact's rendering semantics.
+
+The first validation may receive a host-owned Motion Recipe without changing
+CanvasDocument or adding motion-authoring UI to the editor. If playback proves
+useful, durable motion authoring remains a separate product decision.
+
+The `0.1.0-alpha.3` prototype implements one explicitly bounded
+`raster-base-effects` mode. It uses a host-owned raster plate for visual and
+font parity, reads effect-layer identity and seed from a portable project, and
+applies canonical Grain, Scanlines, Glitch, and Chromatic Aberration primitives. It is evidence for the
+runtime boundary, not complete CanvasDocument playback.
+
+The accepted follow-up direction is full document playback: a host such as the
+portfolio should be able to pass a portable `.artifact` file to the runtime and
+receive a rendered composition without supplying a flattened raster plate.
+That work is a new renderer milestone, not an expansion of the accepted alpha
+experiment.
+
+_Avoid_: React player, portfolio renderer, complete document player (for the
+alpha prototype)
+
+## Motion Recipe
+
+A host-owned description of time-based overrides for stable layer IDs in one
+Artifact document. A Motion Recipe controls presentation without becoming part
+of CanvasDocument during the portfolio experiment.
+
+_Avoid_: Artifact timeline, automatic effect animation, document migration
+
 ## Shader Authoring
 
 ### Shader Definition
