@@ -2,13 +2,14 @@
 
 ## Artifact Runtime
 
-A framework-independent library that renders and plays a serialized Artifact
-composition outside the editor. Host applications and UI adapters control the
-runtime without owning Artifact's rendering semantics.
+A framework-independent library that renders a serialized Artifact Composition
+outside the editor as Mixed Media Artwork. The Runtime evaluates the Artwork's
+motion while host applications control presentation policy without owning
+Artifact's rendering semantics or choreography.
 
-The first validation may receive a host-owned Motion Recipe without changing
-CanvasDocument or adding motion-authoring UI to the editor. If playback proves
-useful, durable motion authoring remains a separate product decision.
+The first validation may receive an Artwork-owned Motion Recipe sidecar without
+changing CanvasDocument or adding motion-authoring UI to the editor. If motion
+proves useful, durable authoring remains a separate product decision.
 
 The `0.1.0-alpha.3` prototype implements one explicitly bounded
 `raster-base-effects` mode. It uses a host-owned raster plate for visual and
@@ -25,13 +26,139 @@ experiment.
 _Avoid_: React player, portfolio renderer, complete document player (for the
 alpha prototype)
 
+## Artifact Composition
+
+A visual document authored in Artifact. A Composition may represent a cover,
+poster, scene, visual, or another kind of artwork without changing its core
+identity when presented in a different context.
+
+## Mixed Media Artwork
+
+A live presentation of an Artifact Composition in which static and procedural
+layers remain active instead of being reduced to one flat image. A Mixed Media
+Artwork may change over time without requiring viewer input.
+
+## Mixed Media Artwork Session
+
+The active Runtime lifecycle for one presented Mixed Media Artwork. A Session
+may start, pause, seek, resize, and end without redefining the Artwork as a
+player or media file.
+
+_Avoid_: Artifact Runtime Player, treating the Artwork itself as a Session
+
+## Interactive Artwork
+
+A Mixed Media Artwork whose presentation responds to viewer input or host
+state. Interactivity is optional and may be added after time-based motion has
+already made the artwork dynamic.
+
+## Interactive Cover
+
+An Interactive Artwork in a cover-specific context such as the portfolio.
+Interactive Cover is a use of Artifact Runtime, not a document type inside
+Artifact.
+
+_Avoid_: interactive document type, cover runtime, requiring viewer input for
+all Mixed Media Artwork
+
 ## Motion Recipe
 
-A host-owned description of time-based overrides for stable layer IDs in one
-Artifact document. A Motion Recipe controls presentation without becoming part
-of CanvasDocument during the portfolio experiment.
+An Artwork-owned description of time-based overrides for stable layer IDs in
+one Artifact Composition. A Motion Recipe travels with the Artwork even when it
+is authored or stored outside the Artifact editor during an experiment.
 
-_Avoid_: Artifact timeline, automatic effect animation, document migration
+Recipe compatibility is semantic: stable layer identity, expected layer kind,
+Runtime Profile, and Motion Control support must agree. A Composition checksum
+may record provenance but does not make every visual edit incompatible.
+
+_Avoid_: Artifact timeline, automatic effect animation, document migration,
+using an exact package checksum as the only compatibility contract
+
+## Motion Control
+
+A typed, versioned control exposed by a Runtime Profile for animating one kind
+of layer. A Motion Control may correspond to a persisted Composition property
+or to deterministic procedural behavior, such as the phase of an emoji field.
+Using a Motion Control does not mutate the Artifact Composition.
+
+Motion Control names are semantic and namespaced by behavior, such as
+`transform.*`, `emoji.*`, and `effect.*`. They do not expose abbreviated or
+internal CanvasDocument property names as the Runtime interface.
+
+The first Runtime Profile defines Motion Controls as relative modulation of the
+authored Composition baseline. Recipes describe offsets, rotations, multipliers,
+or procedural phase instead of repeating absolute layer values.
+
+_Avoid_: arbitrary runtime callbacks, undocumented virtual layer properties,
+duplicating authored baseline values in a Motion Recipe
+
+## Motion Source
+
+A deterministic time-based value generator connected to a Motion Control by a
+Motion Recipe. The first Runtime Profile recognizes authored keyframes, periodic
+oscillation, and seeded noise. Equal Composition, Recipe, and time inputs must
+produce equal Motion Source values.
+
+_Avoid_: arbitrary expressions, unseeded randomness, host callbacks as motion
+
+## Temporal Mode
+
+Artwork-owned choreography timing. A Motion Recipe declares a duration and
+either loops or plays once and holds its final state. Hosts decide whether and
+when playback runs, but do not redefine the Artwork's Temporal Mode.
+
+## Neutral Frame
+
+The authored Artifact Composition with no relative motion applied. Every Motion
+Recipe begins at its Neutral Frame; a looping Recipe also returns to it at the
+loop boundary. Static and reduced-motion presentation use this state.
+
+## Presentation Policy
+
+Host-owned decisions about when and how Mixed Media Artwork runs, including
+autoplay, pause, reduced motion, visibility, and quality. Presentation Policy
+does not redefine the Artwork's choreography.
+
+Render cadence is Presentation Policy. Choreography time remains continuous;
+the host may cap rendered frames without changing motion meaning. An Artwork may
+deliberately quantize an individual Motion Source for a stepped visual rhythm.
+
+_Avoid_: treating accidental low frame rate as authored motion
+
+## Artwork Parameter
+
+A named, meaningful value through which Mixed Media Artwork may respond to its
+environment, such as energy, focus, or intensity. Artwork Parameters belong to
+the Artwork's interface and do not expose raw device or browser events.
+
+## Interaction Binding
+
+A host-owned mapping from application input, such as pointer movement, scroll,
+audio, or a camera signal, to one or more Artwork Parameters. Different hosts
+may bind different inputs without changing the Artwork's choreography.
+
+_Avoid_: raw DOM events in Artifact Runtime, device-specific Artwork Parameters
+
+## Faithful Rendering
+
+Rendering an Artifact Composition without silently omitting, flattening, or
+replacing authored layers and behavior. If Artifact Runtime cannot preserve the
+Composition's meaning, it reports that limitation so the host can use an
+explicit fallback.
+
+_Avoid_: best-effort rendering presented as parity, hidden runtime variants
+
+## Runtime Profile
+
+A named and versioned set of Artifact Composition capabilities that Artifact
+Runtime can render faithfully. A Composition outside the selected profile
+remains valid Artifact work but requires another profile or an explicit host
+fallback.
+
+The first profile covers mixed-media 2D compositions. It does not include 3D
+models, environments, or other 3D scene behavior.
+
+_Avoid_: implying that one Runtime build supports every Artifact capability
 
 ## Shader Authoring
 

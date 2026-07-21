@@ -176,6 +176,13 @@ unsupported-node behavior, and performance budgets before implementation.
 The bounded contract and first implementation spike are tracked in
 [`full-document-runtime.md`](./full-document-runtime.md).
 
+The broader product direction is tracked in
+[`mixed-media-artwork.md`](./mixed-media-artwork.md). It reframes playback as
+Mixed Media Artwork: the Composition remains universal, choreography belongs to
+the Artwork, and the host owns only presentation policy. Until Artifact has
+motion authoring, that choreography may live in a manually tuned sidecar beside
+the portable Composition.
+
 Do not publish the alpha merely because the first cover works. Keep the packed
 `0.1.0-alpha.3` consumer until a second real cover tests whether the current
 API is reusable; then decide whether to publish, revise, or replace it with the
