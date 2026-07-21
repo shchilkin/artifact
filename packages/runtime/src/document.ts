@@ -125,6 +125,8 @@ type RuntimeLayer = Record<string, unknown> & {
   opacity?: number;
   preset?: string;
   rotation?: number;
+  runtimeEmojiDrift?: number;
+  runtimeEmojiPhase?: number;
   scaleX?: number;
   scaleY?: number;
   scanlines?: number;
@@ -412,6 +414,11 @@ async function resolveImages(layers: RuntimeLayer[], cache: Map<string, HTMLImag
   );
 }
 
+function cloneProject(project: ArtifactRuntimeProject): ArtifactRuntimeProject {
+  if (typeof structuredClone === 'function') return structuredClone(project);
+  return JSON.parse(JSON.stringify(project)) as ArtifactRuntimeProject;
+}
+
 async function ensureFontLoaded(fontFamily: string, size: number) {
   if (typeof document === 'undefined' || !('fonts' in document)) return;
   try {
@@ -476,11 +483,10 @@ const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = 
   image(layer, { context, height, imageCache, width }) {
     drawImageLayer(context, width, height, layer, imageCache.get(String(layer.src)) ?? null);
   },
-  async text(layer, render) {
+  text(layer, render) {
     const { context, height, scale, width } = render;
     const family = fontFamilyForLayer(layer, render.fontOptions);
     if (!family) throw new ArtifactRuntimeUnsupportedError(render.report);
-    await ensureFontLoaded(family, Number(layer.size ?? 64) * scale);
     drawTextLayer(context, width, height, layer, scale, family);
   },
   effect(layer, { canvas, context, height, scale, seed, width }) {
@@ -522,43 +528,155 @@ function orderLayers(project: ArtifactRuntimeProject, report: ArtifactRuntimeCap
   return report.layerOrder.map((id) => layersById.get(id)).filter((layer): layer is RuntimeLayer => !!layer);
 }
 
-export async function renderArtifactRuntimeProject(
-  options: RenderArtifactRuntimeProjectOptions,
-): Promise<ArtifactRuntimeCapabilityReport> {
-  const project: ArtifactRuntimeProject = parseArtifactRuntimeProject(options.project);
+export interface PreparedArtifactRuntimeProject {
+  readonly project: ArtifactRuntimeProject;
+  readonly report: ArtifactRuntimeCapabilityReport;
+  readonly orderedLayerIds: readonly string[];
+  readonly fontOptions: AnalyzeArtifactRuntimeProjectOptions;
+  readonly imageCache: Map<string, HTMLImageElement>;
+}
+
+export async function prepareArtifactRuntimeProject(
+  value: unknown,
+  options: AnalyzeArtifactRuntimeProjectOptions = {},
+): Promise<PreparedArtifactRuntimeProject> {
+  const project = cloneProject(parseArtifactRuntimeProject(value));
   const report = analyzeArtifactRuntimeProject(project, options);
   if (!report.supported) throw new ArtifactRuntimeUnsupportedError(report);
-  const width = positiveDimension(options.width);
-  const height = positiveDimension(options.height);
   const orderedLayers = orderLayers(project, report);
   const imageCache = new Map<string, HTMLImageElement>();
   await resolveImages(orderedLayers, imageCache);
+  const fonts = new Map<string, number>();
+  for (const layer of orderedLayers) {
+    if (layer.kind !== 'text') continue;
+    const family = fontFamilyForLayer(layer, options);
+    if (family) fonts.set(family, Math.max(fonts.get(family) ?? 0, Number(layer.size ?? 64)));
+  }
+  await Promise.all([...fonts].map(([family, size]) => ensureFontLoaded(family, size)));
+  return {
+    project,
+    report,
+    orderedLayerIds: orderedLayers.map((layer) => layer.id),
+    fontOptions: { ...options },
+    imageCache,
+  };
+}
+
+export function releasePreparedArtifactRuntimeProject(prepared: PreparedArtifactRuntimeProject) {
+  for (const image of prepared.imageCache.values()) {
+    try {
+      image.src = '';
+    } catch {
+      // A decoded image may already have been detached by the browser.
+    }
+  }
+  prepared.imageCache.clear();
+}
+
+function orderPreparedLayers(
+  prepared: PreparedArtifactRuntimeProject,
+  layers: Array<Record<string, unknown>>,
+): RuntimeLayer[] {
+  const layersById = new Map(layers.filter(isRuntimeLayer).map((layer) => [layer.id, layer]));
+  return prepared.orderedLayerIds.map((id) => layersById.get(id)).filter((layer): layer is RuntimeLayer => !!layer);
+}
+
+export interface RenderPreparedArtifactRuntimeProjectOptions {
+  canvas: HTMLCanvasElement;
+  height: number;
+  layers?: Array<Record<string, unknown>>;
+  prefixCache?: {
+    entries: Map<string, HTMLCanvasElement>;
+    maxEntries: number;
+    throughLayerId: string;
+  };
+  prepared: PreparedArtifactRuntimeProject;
+  shouldCommit?: () => boolean;
+  width: number;
+}
+
+export async function renderPreparedArtifactRuntimeProject(
+  options: RenderPreparedArtifactRuntimeProjectOptions,
+): Promise<ArtifactRuntimeCapabilityReport> {
+  const { prepared } = options;
+  const width = positiveDimension(options.width);
+  const height = positiveDimension(options.height);
+  const orderedLayers = orderPreparedLayers(prepared, options.layers ?? prepared.project.document.layers);
+  const cacheThroughIndex = options.prefixCache
+    ? orderedLayers.findIndex((layer) => layer.id === options.prefixCache?.throughLayerId)
+    : -1;
+  const cacheKey =
+    cacheThroughIndex >= 0
+      ? JSON.stringify({
+          background: prepared.project.document.global.bg,
+          height,
+          layers: orderedLayers.slice(0, cacheThroughIndex + 1),
+          mode: prepared.report.mode,
+          seed: prepared.project.document.global.seed,
+          width,
+        })
+      : null;
+  const cachedPrefix = cacheKey ? options.prefixCache?.entries.get(cacheKey) : undefined;
   let renderCanvas = createRenderCanvas(options.canvas, width, height);
+  let startLayerIndex = 0;
   const context = renderCanvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Artifact Runtime could not create a 2D context.');
   context.clearRect(0, 0, width, height);
-  if (report.mode === 'stack' && typeof project.document.global.bg === 'string') {
-    drawDocumentBackground(context, width, height, project.document.global.bg);
+  if (cachedPrefix) {
+    context.drawImage(cachedPrefix, 0, 0, width, height);
+    startLayerIndex = cacheThroughIndex + 1;
+    options.prefixCache?.entries.delete(cacheKey as string);
+    options.prefixCache?.entries.set(cacheKey as string, cachedPrefix);
+  } else if (prepared.report.mode === 'stack' && typeof prepared.project.document.global.bg === 'string') {
+    drawDocumentBackground(context, width, height, prepared.project.document.global.bg);
   }
   const scale = width / REFERENCE_SIZE;
 
-  for (const layer of orderedLayers) {
+  for (let index = startLayerIndex; index < orderedLayers.length; index += 1) {
+    const layer = orderedLayers[index];
     const layerContext = renderCanvas.getContext('2d', { willReadFrequently: true });
     if (!layerContext) throw new Error('Artifact Runtime could not create a 2D context.');
     renderCanvas = await renderRuntimeLayer(layer, {
       canvas: renderCanvas,
       context: layerContext,
-      fontOptions: options,
+      fontOptions: prepared.fontOptions,
       height,
-      imageCache,
-      report,
+      imageCache: prepared.imageCache,
+      report: prepared.report,
       scale,
-      seed: project.document.global.seed,
+      seed: prepared.project.document.global.seed,
       width,
     });
+    if (cacheKey && options.prefixCache && index === cacheThroughIndex) {
+      const cached = createRenderCanvas(options.canvas, width, height);
+      const cachedContext = cached.getContext('2d');
+      if (!cachedContext) throw new Error('Artifact Runtime could not create a prefix-cache context.');
+      cachedContext.drawImage(renderCanvas, 0, 0, width, height);
+      options.prefixCache.entries.set(cacheKey, cached);
+      while (options.prefixCache.entries.size > options.prefixCache.maxEntries) {
+        const oldest = options.prefixCache.entries.keys().next().value;
+        if (oldest === undefined) break;
+        options.prefixCache.entries.delete(oldest);
+      }
+    }
   }
 
-  commitRenderCanvas(options.canvas, renderCanvas, width, height);
+  if (options.shouldCommit?.() !== false) commitRenderCanvas(options.canvas, renderCanvas, width, height);
+  return prepared.report;
+}
 
-  return report;
+export async function renderArtifactRuntimeProject(
+  options: RenderArtifactRuntimeProjectOptions,
+): Promise<ArtifactRuntimeCapabilityReport> {
+  const prepared = await prepareArtifactRuntimeProject(options.project, options);
+  try {
+    return await renderPreparedArtifactRuntimeProject({
+      canvas: options.canvas,
+      height: options.height,
+      prepared,
+      width: options.width,
+    });
+  } finally {
+    releasePreparedArtifactRuntimeProject(prepared);
+  }
 }

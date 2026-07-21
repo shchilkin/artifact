@@ -19,6 +19,8 @@ interface EmojiLayerLike extends DrawableLayer {
   emojis?: string[];
   maxSz?: number;
   minSz?: number;
+  runtimeEmojiDrift?: number;
+  runtimeEmojiPhase?: number;
 }
 
 interface TextLayerLike extends DrawableLayer {
@@ -128,6 +130,8 @@ export function drawEmojiLayer(
   const centerY = height / 2;
   const minSize = layer.minSz ?? 44;
   const maxSize = layer.maxSz ?? 106;
+  const phase = (layer.runtimeEmojiPhase ?? 0) * Math.PI * 2;
+  const drift = layer.runtimeEmojiDrift ?? 0;
   const items = Array.from({ length: density }, () => {
     const x = rng() * width;
     const y = rng() * height;
@@ -143,9 +147,22 @@ export function drawEmojiLayer(
   context.globalAlpha = opacityValue(layer.opacity);
   context.globalCompositeOperation = compositeOperation(layer.blendMode);
   for (const item of items) {
+    let x = item.x;
+    let y = item.y;
+    let rotation = item.rotation;
+    if (phase !== 0 || drift !== 0) {
+      const relativeX = item.x - centerX;
+      const relativeY = item.y - centerY;
+      const phaseCos = Math.cos(phase);
+      const phaseSin = Math.sin(phase);
+      const driftAngle = (item.x / Math.max(1, width) + item.y / Math.max(1, height) + item.size / 997) * Math.PI * 2;
+      x = centerX + relativeX * phaseCos - relativeY * phaseSin + Math.cos(driftAngle + phase) * drift * width;
+      y = centerY + relativeX * phaseSin + relativeY * phaseCos + Math.sin(driftAngle + phase) * drift * height;
+      rotation += phase * 0.08;
+    }
     context.save();
-    context.translate(item.x, item.y);
-    context.rotate(item.rotation);
+    context.translate(x, y);
+    context.rotate(rotation);
     context.font = `${item.size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';

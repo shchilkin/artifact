@@ -20,6 +20,107 @@ export interface MotionRecipe {
   tracks: MotionTrack[];
 }
 
+export const MIXED_MEDIA_2D_PROFILE = 'mixed-media-2d@1' as const;
+
+export type MixedMediaRuntimeProfile = typeof MIXED_MEDIA_2D_PROFILE;
+export type MixedMediaTemporalMode = 'loop' | 'once';
+export type MixedMediaMotionControl =
+  | 'transform.translateX'
+  | 'transform.translateY'
+  | 'transform.rotate'
+  | 'transform.scale'
+  | 'transform.opacity'
+  | 'emoji.phase'
+  | 'emoji.drift'
+  | 'effect.grain.intensity'
+  | 'effect.glitch.intensity'
+  | 'effect.noiseWarp.intensity'
+  | 'effect.vortex.intensity'
+  | 'effect.tear.intensity'
+  | 'effect.scanlines.intensity'
+  | 'effect.chromaticAberration.intensity';
+
+export interface MixedMediaKeyframeSource {
+  type: 'keyframes';
+  keyframes: MotionKeyframe[];
+}
+
+export interface MixedMediaOscillatorSource {
+  type: 'oscillator';
+  frequencyHz: number;
+}
+
+export interface MixedMediaSeededNoiseSource {
+  type: 'seeded-noise';
+  seed: number;
+  frequencyHz: number;
+}
+
+export type MixedMediaMotionSource =
+  | MixedMediaKeyframeSource
+  | MixedMediaOscillatorSource
+  | MixedMediaSeededNoiseSource;
+
+export interface MixedMediaMotionTrack {
+  id: string;
+  target: {
+    layerId: string;
+    layerKind: string;
+  };
+  control: MixedMediaMotionControl;
+  source: MixedMediaMotionSource;
+  range: {
+    min: number;
+    max: number;
+  };
+  stepFps?: number;
+}
+
+export interface MixedMediaMotionRecipe {
+  kind: 'artifact-motion-recipe';
+  schemaVersion: 1;
+  profile: MixedMediaRuntimeProfile;
+  compositionSha256: string;
+  timeline: {
+    durationSeconds: number;
+    mode: MixedMediaTemporalMode;
+  };
+  tracks: MixedMediaMotionTrack[];
+}
+
+export type MixedMediaRecipeIssueCode =
+  | 'duplicate-target-control'
+  | 'duplicate-track-id'
+  | 'invalid-range'
+  | 'invalid-recipe'
+  | 'invalid-source'
+  | 'missing-layer'
+  | 'neutral-frame-violation'
+  | 'unsupported-control'
+  | 'unsupported-profile'
+  | 'wrong-layer-kind';
+
+export interface MixedMediaRecipeIssue {
+  code: MixedMediaRecipeIssueCode;
+  message: string;
+  trackId?: string;
+}
+
+export interface MixedMediaRecipeProvenance {
+  expectedSha256: string;
+  actualSha256?: string;
+  status: 'match' | 'mismatch' | 'unverified';
+}
+
+export interface MixedMediaRecipeCompatibilityReport {
+  compatible: boolean;
+  issues: MixedMediaRecipeIssue[];
+  profile: MixedMediaRuntimeProfile;
+  provenance: MixedMediaRecipeProvenance;
+}
+
+export type EvaluatedMotionByLayer = Map<string, Partial<Record<MixedMediaMotionControl, number>>>;
+
 export interface ArtifactEffectLayer {
   [key: string]: unknown;
   id: string;
@@ -117,6 +218,37 @@ export interface RenderArtifactRuntimeProjectOptions extends AnalyzeArtifactRunt
   project: unknown;
   width: number;
   height: number;
+}
+
+export interface MixedMediaArtworkFrameDiagnostics {
+  choreographyTime: number;
+  renderDurationMs: number;
+  width: number;
+  height: number;
+}
+
+export interface MixedMediaArtworkSession {
+  readonly capabilityReport: ArtifactRuntimeCapabilityReport;
+  readonly compatibilityReport: MixedMediaRecipeCompatibilityReport;
+  readonly currentTime: number;
+  readonly isRunning: boolean;
+  start(): void;
+  pause(): void;
+  seek(timeSeconds: number): Promise<void>;
+  resize(width: number, height: number): Promise<void>;
+  destroy(): void;
+}
+
+export interface CreateMixedMediaArtworkOptions extends AnalyzeArtifactRuntimeProjectOptions {
+  canvas: HTMLCanvasElement;
+  composition: unknown;
+  compositionSha256?: string;
+  maxRenderSize?: number;
+  motionRecipe: MixedMediaMotionRecipe;
+  onFrame?: (diagnostics: MixedMediaArtworkFrameDiagnostics) => void;
+  onRenderError?: (error: unknown) => void;
+  pixelRatio?: number;
+  profile: MixedMediaRuntimeProfile;
 }
 
 export interface ArtifactRuntimePlayer {

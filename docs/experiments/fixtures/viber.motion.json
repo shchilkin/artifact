@@ -1,0 +1,130 @@
+{
+  "kind": "artifact-motion-recipe",
+  "schemaVersion": 1,
+  "profile": "mixed-media-2d@1",
+  "compositionSha256": "720f4094feb258227346a02cbf20a4787ff120f7aaf450c64f06684686c643b8",
+  "timeline": {
+    "durationSeconds": 8,
+    "mode": "loop"
+  },
+  "tracks": [
+    {
+      "id": "portrait-sway-x",
+      "target": { "layerId": "layer-1780509986923-502", "layerKind": "image" },
+      "control": "transform.translateX",
+      "source": { "type": "oscillator", "frequencyHz": 0.125 },
+      "range": { "min": -0.012, "max": 0.012 }
+    },
+    {
+      "id": "portrait-breathe-y",
+      "target": { "layerId": "layer-1780509986923-502", "layerKind": "image" },
+      "control": "transform.translateY",
+      "source": { "type": "seeded-noise", "seed": 1780509986, "frequencyHz": 0.5 },
+      "range": { "min": -0.007, "max": 0.007 }
+    },
+    {
+      "id": "portrait-tilt",
+      "target": { "layerId": "layer-1780509986923-502", "layerKind": "image" },
+      "control": "transform.rotate",
+      "source": { "type": "oscillator", "frequencyHz": 0.25 },
+      "range": { "min": -0.45, "max": 0.45 }
+    },
+    {
+      "id": "emoji-phase",
+      "target": { "layerId": "layer-1780509501549-384", "layerKind": "emoji" },
+      "control": "emoji.phase",
+      "source": { "type": "oscillator", "frequencyHz": 0.125 },
+      "range": { "min": -0.012, "max": 0.012 },
+      "stepFps": 12
+    },
+    {
+      "id": "emoji-drift",
+      "target": { "layerId": "layer-1780509501549-384", "layerKind": "emoji" },
+      "control": "emoji.drift",
+      "source": { "type": "seeded-noise", "seed": 1780509501, "frequencyHz": 0.5 },
+      "range": { "min": -0.014, "max": 0.014 },
+      "stepFps": 12
+    },
+    {
+      "id": "grain-breathe",
+      "target": { "layerId": "layer-1780509546581-404", "layerKind": "effect" },
+      "control": "effect.grain.intensity",
+      "source": { "type": "oscillator", "frequencyHz": 0.25 },
+      "range": { "min": 0.88, "max": 1.12 },
+      "stepFps": 12
+    },
+    {
+      "id": "warp-drift",
+      "target": { "layerId": "layer-1780509791460-474", "layerKind": "effect" },
+      "control": "effect.noiseWarp.intensity",
+      "source": { "type": "seeded-noise", "seed": 1780509791, "frequencyHz": 0.25 },
+      "range": { "min": 0.9, "max": 1.1 },
+      "stepFps": 12
+    },
+    {
+      "id": "vortex-breathe",
+      "target": { "layerId": "layer-1780509850760-482", "layerKind": "effect" },
+      "control": "effect.vortex.intensity",
+      "source": { "type": "oscillator", "frequencyHz": 0.125 },
+      "range": { "min": 0.9, "max": 1.1 },
+      "stepFps": 12
+    },
+    {
+      "id": "scanline-pulse",
+      "target": { "layerId": "layer-1780509894426-491", "layerKind": "effect" },
+      "control": "effect.scanlines.intensity",
+      "source": { "type": "oscillator", "frequencyHz": 0.25 },
+      "range": { "min": 0.86, "max": 1.14 },
+      "stepFps": 12
+    },
+    {
+      "id": "chromatic-pulse",
+      "target": { "layerId": "layer-1780509923809-501", "layerKind": "effect" },
+      "control": "effect.chromaticAberration.intensity",
+      "source": { "type": "oscillator", "frequencyHz": 0.25 },
+      "range": { "min": 0.82, "max": 1.18 },
+      "stepFps": 12
+    },
+    {
+      "id": "glitch-impulses",
+      "target": { "layerId": "layer-1780509662261-414", "layerKind": "effect" },
+      "control": "effect.glitch.intensity",
+      "source": {
+        "type": "keyframes",
+        "keyframes": [
+          { "offset": 0, "value": 0 },
+          { "offset": 0.03, "value": -0.8 },
+          { "offset": 0.2, "value": -0.8 },
+          { "offset": 0.215, "value": 1 },
+          { "offset": 0.235, "value": -0.8 },
+          { "offset": 0.67, "value": -0.8 },
+          { "offset": 0.685, "value": 0.72 },
+          { "offset": 0.705, "value": -0.8 },
+          { "offset": 0.97, "value": -0.8 },
+          { "offset": 1, "value": 0 }
+        ]
+      },
+      "range": { "min": 0, "max": 2 },
+      "stepFps": 12
+    },
+    {
+      "id": "tear-impulse",
+      "target": { "layerId": "layer-1780509870977-483", "layerKind": "effect" },
+      "control": "effect.tear.intensity",
+      "source": {
+        "type": "keyframes",
+        "keyframes": [
+          { "offset": 0, "value": 0 },
+          { "offset": 0.05, "value": -0.65 },
+          { "offset": 0.51, "value": -0.65 },
+          { "offset": 0.525, "value": 0.9 },
+          { "offset": 0.55, "value": -0.65 },
+          { "offset": 0.95, "value": -0.65 },
+          { "offset": 1, "value": 0 }
+        ]
+      },
+      "range": { "min": 0, "max": 2 },
+      "stepFps": 12
+    }
+  ]
+}

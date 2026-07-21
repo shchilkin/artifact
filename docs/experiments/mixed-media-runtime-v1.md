@@ -1,5 +1,9 @@
 # Mixed Media Runtime v1 implementation handoff
 
+Implementation evidence for the accepted vertical slice is recorded in
+[`mixed-media-runtime-v1-status.md`](./mixed-media-runtime-v1-status.md). This
+document remains the product and domain contract.
+
 ## Status
 
 Confirmed implementation contract from the Mixed Media Artwork grilling session
@@ -242,4 +246,3 @@ After Viber conformance, inventory the retained 17-layer `Sochnaya i vlazhnaya`
 Composition. Expand `mixed-media-2d` only through canonical renderer parity and
 faithful capability support. Its lack of a font dependency makes it the first
 candidate for public document-backed Mixed Media Artwork.
-

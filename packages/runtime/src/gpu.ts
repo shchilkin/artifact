@@ -129,6 +129,7 @@ let sharedRenderer: Renderer | null = null;
 let sharedRendererSize = { height: 0, width: 0 };
 let gpuUnavailable = false;
 let renderQueue: Promise<unknown> = Promise.resolve();
+let resourceLeases = 0;
 const GPU_RENDER_MEASURE = 'artifact:gpu-render';
 const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
 const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
@@ -188,6 +189,20 @@ function disposeSharedRenderer() {
   }
   sharedRenderer = null;
   sharedRendererSize = { height: 0, width: 0 };
+}
+
+export function retainArtifactGpuResources() {
+  resourceLeases += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    resourceLeases = Math.max(0, resourceLeases - 1);
+    if (resourceLeases === 0) {
+      disposeSharedRenderer();
+      gpuUnavailable = false;
+    }
+  };
 }
 
 function getSharedRenderer(width: number, height: number) {

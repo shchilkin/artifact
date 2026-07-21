@@ -1,5 +1,8 @@
 import { index, type RouteConfig, route } from '@react-router/dev/routes';
 
+const developmentRoutes =
+  process.env.NODE_ENV === 'production' ? [] : [route('dev/motion-lab', 'routes/dev.motion-lab.tsx')];
+
 export default [
   index('routes/home.tsx'),
   route('app', 'routes/editor.tsx'),
@@ -14,4 +17,5 @@ export default [
   route('docs/reference/:nodeId', 'routes/docs.reference-detail.tsx'),
   route('docs/style-guide', 'routes/docs.style-guide.tsx'),
   route('debug/shaders', 'routes/debug.shaders.tsx'),
+  ...developmentRoutes,
 ] satisfies RouteConfig;

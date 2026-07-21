@@ -1,10 +1,12 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-plugin-tsconfig-paths';
+import { MOTION_LAB_VIBER_PROJECT_PATH } from './app/motionLabFixture';
 
 function readGitValue(command: string, fallback: string) {
   try {
@@ -34,7 +36,6 @@ const appCommit =
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
   process.env.GITHUB_SHA?.slice(0, 12) ??
   readGitValue('git rev-parse --short=12 HEAD', 'unknown');
-
 export default defineConfig({
   envDir: '../..',
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
@@ -47,6 +48,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./app', import.meta.url)),
     },
     dedupe: ['react', 'react-dom'],
+  },
+  server: {
+    fs: {
+      allow: [fileURLToPath(new URL('../..', import.meta.url)), dirname(MOTION_LAB_VIBER_PROJECT_PATH)],
+    },
   },
   build: {
     // App chunks are kept below the default warning threshold. Three.js is

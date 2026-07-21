@@ -272,6 +272,8 @@ Already represented in `/docs/style-guide`:
 
 High-priority follow-up specimens:
 
+- development-only Motion Lab file, transport, track-editor, diagnostics, and
+  error states while the Mixed Media Runtime experiment remains active
 - Add Library preview loading/ready states
 - AI generation panel disabled, empty, loading, and error states
 - bottom command bar default, compact, and mobile states
