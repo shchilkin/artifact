@@ -379,17 +379,26 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   );
 
   const addModelFromAsset = useCallback(
-    (asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>) => {
+    (
+      asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>,
+      nodePosition?: { x: number; y: number },
+    ) => {
       const layer = createModelLayerFromAsset({
         src: asset.modelSrc,
         name: asset.modelName,
         mime: asset.modelMime,
         bytes: asset.modelBytes,
       });
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument(
+        (current) =>
+          nodeModeEnabled
+            ? addLooseLayerNodeToDocument(current, layer, nodePosition)
+            : addLayerToDocument(current, layer),
+        'snapshot',
+      );
       setSelectedLayerId(layer.id);
     },
-    [updateDocument],
+    [nodeModeEnabled, updateDocument],
   );
 
   const addEnvironmentFromAsset = useCallback(

@@ -79,6 +79,38 @@ CI should run:
 
 ## Manual QA
 
+### v0.41.3 Release Prep
+
+- Package metadata is bumped to `0.41.3` in the root, web, backoffice, and lock
+  files.
+- `docs/releases/v0.41.3.md` is prepared from the release template.
+- PR #199 restored the `development` product tree to the post-v0.41.2 baseline
+  plus the model-drop fix. The release candidate contains no `packages/runtime`
+  directory, `@artifact/runtime` workspace, lockfile entry, or Runtime build
+  wiring.
+- Model drops in Nodes retain the pointer position and no longer rebuild the
+  existing graph as a linear layer stack.
+- Focused Chromium coverage records the existing graph edges and positions,
+  drops a minimal GLB, and verifies the old graph is unchanged while the new
+  model appears near the drop point.
+- `npm run release:verify`, `npm run check`, `npm run build`, and
+  `npm run test:browser:release` passed locally on 2026-07-21. The browser gate
+  completed with 364 passed and 47 skipped tests. The focused 3D Chromium file
+  passed all 11 tests on a clean rerun after one cold-start duplicate-React
+  diagnostic in the existing render/export smoke.
+- Earlier staging run `29856189068` verified the isolated candidate Vercel
+  build but stopped safely before changing the stable alias because Coolify
+  followed the then-newer `development` tip. PR #199 removed that tree
+  divergence; exact-tip staging must pass before production promotion.
+- `npm run perf:node-editor` is not required because the patch changes the
+  completed model-drop command, not per-frame dragging, graph traversal,
+  rendering, or thumbnail scheduling.
+- Accepted release risk: layouts already rewritten and saved by an older
+  version cannot be reconstructed automatically.
+- Accepted release risk: `npm ci` reports 15 inherited dependency advisories
+  (3 low, 3 moderate, and 9 high). The patch changes no dependencies and keeps
+  remediation in the existing dedicated maintenance track.
+
 ### v0.41.2 Release Prep
 
 - Package metadata is bumped to `0.41.2` in the root, web, backoffice, and lock

@@ -20,6 +20,14 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.41.3 is an isolated patch candidate for model-drop graph stability.
+  Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes could
+  discard the pointer location and rebuild existing graph positions and edges
+  as a linear layer stack. The patch preserves the custom graph and inserts the
+  model as a loose node at the drop point. PR #199 restored the product tree to
+  the post-v0.41.2 boundary plus this fix; the experimental Artifact Runtime
+  package and renderer work remain on their dedicated branch and are absent
+  from this release. See [`releases/v0.41.3.md`](./releases/v0.41.3.md).
 - v0.41.2 was released on 2026-07-19 as the bounded legacy 3D package recovery
   patch. It distinguishes absent model payloads from invalid GLB data and lets
   the user reattach the original model without rebuilding the node graph. Tag
