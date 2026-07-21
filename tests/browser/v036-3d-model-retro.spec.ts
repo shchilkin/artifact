@@ -427,6 +427,73 @@ test('v0.36 unsupported model drops explain the accepted formats', async ({ page
   await expect(page.getByText('EXR/HDR environments')).toBeVisible();
 });
 
+test('v0.36 dropped GLB preserves the graph and lands at the drop point', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'GLB drop ordering regression runs once in Chromium.');
+
+  await gotoDocument(page, v036Retro3DDocument);
+  await switchToNodeView(page);
+
+  const graphBefore = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return { edges: doc.graph?.edges, positions: doc.graph?.positions };
+  });
+  const canvas = page.locator('.react-flow');
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  const canvasBox = await canvas.boundingBox();
+  expect(canvasBox).not.toBeNull();
+  if (!canvasBox) throw new Error('Node canvas bounds are unavailable');
+  const dropPoint = {
+    x: canvasBox.x + canvasBox.width * 0.52,
+    y: canvasBox.y + canvasBox.height * 0.46,
+  };
+  const dataTransfer = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File([new Uint8Array([103, 108, 84, 70, 2, 0, 0, 0, 12, 0, 0, 0])], 'dropped-skull.glb', {
+        type: 'model/gltf-binary',
+      }),
+    );
+    return transfer;
+  });
+
+  await canvas.dispatchEvent('dragenter', { clientX: dropPoint.x, clientY: dropPoint.y, dataTransfer });
+  await canvas.dispatchEvent('dragover', { clientX: dropPoint.x, clientY: dropPoint.y, dataTransfer });
+  await canvas.dispatchEvent('drop', { clientX: dropPoint.x, clientY: dropPoint.y, dataTransfer });
+
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+          return (
+            doc.layers?.find((layer: { modelName?: string }) => layer.modelName === 'dropped-skull.glb')?.id ?? null
+          );
+        }),
+      { timeout: 15_000 },
+    )
+    .not.toBeNull();
+  const importedModelId = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return doc.layers?.find((layer: { modelName?: string }) => layer.modelName === 'dropped-skull.glb')?.id as string;
+  });
+  const graphAfter = await page.evaluate(() => {
+    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+    return { edges: doc.graph?.edges, positions: doc.graph?.positions };
+  });
+
+  expect(graphAfter.edges).toEqual(graphBefore.edges);
+  for (const [id, position] of Object.entries(graphBefore.positions ?? {})) {
+    expect(graphAfter.positions?.[id]).toEqual(position);
+  }
+  const importedNode = page.locator(`.react-flow__node[data-id="${importedModelId}"]`);
+  await expect(importedNode).toBeVisible({ timeout: 15_000 });
+  const importedBox = await importedNode.boundingBox();
+  expect(importedBox).not.toBeNull();
+  if (!importedBox) throw new Error('Imported model node bounds are unavailable');
+  expect(Math.abs(importedBox.x - dropPoint.x)).toBeLessThan(140);
+  expect(Math.abs(importedBox.y - dropPoint.y)).toBeLessThan(140);
+});
+
 test('v0.36 3D scene viewport edits are undoable', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D viewport gesture regression runs once in Chromium.');
 
