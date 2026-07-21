@@ -4,6 +4,7 @@ import {
   applyGlitchEffect,
   applyGrain,
   applyScanlines,
+  drawDocumentBackground,
   drawEmojiLayer,
   drawFillLayer,
   drawImageLayer,
@@ -24,6 +25,66 @@ const EXPORT_NODE_ID = '__export__';
 const REFERENCE_SIZE = 540;
 const SUPPORTED_LAYER_KINDS = new Set(['effect', 'emoji', 'fill', 'image', 'text']);
 const SUPPORTED_EFFECT_PRESETS = new Set(['ca', 'glitch', 'grain', 'scanlines']);
+const UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES = [
+  'badStream',
+  'rgbSplit',
+  'retroResolution',
+  'dotGrain',
+  'tintOp',
+  'rays',
+  'rayInt',
+  'morphAmt',
+  'tearAmt',
+  'noiseWarp',
+  'vortex',
+  'barrel',
+  'mirror',
+  'dataMosh',
+  'interlace',
+  'pixelate',
+  'hueShift',
+  'vignette',
+  'bloom',
+  'posterize',
+  'indexedPalette',
+  'gradientMap',
+  'channelMixer',
+  'filmBurn',
+  'duotone',
+  'halftone',
+  'risoShift',
+  'blurAmt',
+  'threshold',
+  'edgeCrush',
+  'silhouetteCrush',
+  'pixelStretch',
+  'edgeDetect',
+  'bokehBlur',
+  'hatching',
+  'gooeyMerge',
+  'gradMix',
+  'sepia',
+  'neonGlow',
+  'zoomBlur',
+  'vhsTracking',
+  'dither',
+  'infrared',
+  'waveAmt',
+  'matte',
+  'overprint',
+  'solarize',
+  'bleachBypass',
+  'cyanotype',
+  'splitToneAmt',
+  'rippleAmt',
+  'patternRefraction',
+  'kaleidoscope',
+  'emboss',
+  'linocut',
+  'fog',
+  'speedLines',
+] as const;
+const UNSUPPORTED_NONZERO_EFFECT_PROPERTIES = ['squeezeX', 'squeezeY'] as const;
 const GRAPH_NODE_COLLECTIONS = [
   'mergeNodes',
   'colorNodes',
@@ -82,12 +143,18 @@ function isRuntimeLayer(layer: Record<string, unknown>): layer is RuntimeLayer {
   return typeof layer.id === 'string' && typeof layer.kind === 'string';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function reportUnsupportedGraphCollections(graph: ArtifactRuntimeGraph, issues: ArtifactRuntimeCapabilityIssue[]) {
   for (const collection of GRAPH_NODE_COLLECTIONS) {
-    if ((graph[collection]?.length ?? 0) > 0) {
+    for (const [index, node] of (graph[collection] ?? []).entries()) {
+      const graphNodeId = isRecord(node) && typeof node.id === 'string' ? node.id : `${collection}[${index}]`;
       issues.push({
         code: 'unsupported-graph-node',
-        message: `Graph collection ${collection} is not supported by full-document alpha playback.`,
+        graphNodeId,
+        message: `Graph node ${graphNodeId} in ${collection} is not supported by full-document alpha playback.`,
       });
     }
   }
@@ -177,17 +244,31 @@ interface LayerCapabilityContext {
 }
 
 function reportEffectCapability(layer: RuntimeLayer, context: LayerCapabilityContext) {
-  if (SUPPORTED_EFFECT_PRESETS.has(String(layer.preset))) return;
-  context.issues.push({
-    code: 'unsupported-effect',
-    layerId: layer.id,
-    message: `Effect ${String(layer.preset)} is not supported by full-document alpha playback.`,
-  });
+  const blockers = [
+    ...(layer.maskAlpha === true ? ['maskAlpha'] : []),
+    ...UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES.filter((property) => Number(layer[property] ?? 0) > 0),
+    ...UNSUPPORTED_NONZERO_EFFECT_PROPERTIES.filter((property) => Number(layer[property] ?? 0) !== 0),
+  ];
+  if (!SUPPORTED_EFFECT_PRESETS.has(String(layer.preset))) blockers.unshift(`preset:${String(layer.preset)}`);
+  if (blockers.length > 0) {
+    context.issues.push({
+      code: 'unsupported-effect',
+      layerId: layer.id,
+      message: `Effect layer ${layer.id} uses unsupported behavior: ${blockers.join(', ')}.`,
+    });
+  }
 }
 
 function reportImageCapability(layer: RuntimeLayer, context: LayerCapabilityContext) {
-  if (typeof layer.src === 'string' && layer.src.length > 0) return;
-  context.issues.push({ code: 'missing-image', layerId: layer.id, message: `Image layer ${layer.id} has no source.` });
+  if (typeof layer.src === 'string' && layer.src.length > 0 && !layer.src.startsWith('artifact-asset://')) return;
+  context.issues.push({
+    code: 'missing-image',
+    layerId: layer.id,
+    message:
+      typeof layer.src === 'string' && layer.src.startsWith('artifact-asset://')
+        ? `Image layer ${layer.id} contains unresolved local asset ${layer.src}.`
+        : `Image layer ${layer.id} has no source.`,
+  });
 }
 
 function reportTextCapability(layer: RuntimeLayer, context: LayerCapabilityContext) {
@@ -336,6 +417,24 @@ function positiveDimension(value: number) {
   return Math.max(1, Math.round(value));
 }
 
+function createRenderCanvas(target: HTMLCanvasElement, width: number, height: number): HTMLCanvasElement {
+  const ownerDocument = target.ownerDocument ?? (typeof document === 'undefined' ? undefined : document);
+  const canvas = ownerDocument?.createElement('canvas') ?? target;
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+function commitRenderCanvas(target: HTMLCanvasElement, rendered: HTMLCanvasElement, width: number, height: number) {
+  if (target === rendered) return;
+  const context = target.getContext('2d');
+  if (!context) throw new Error('Artifact Runtime could not create a target 2D context.');
+  target.width = width;
+  target.height = height;
+  context.clearRect(0, 0, width, height);
+  context.drawImage(rendered, 0, 0);
+}
+
 function orderLayers(project: ArtifactRuntimeProject, report: ArtifactRuntimeCapabilityReport): RuntimeLayer[] {
   const layers = project.document.layers.filter(isRuntimeLayer);
   const layersById = new Map(layers.map((layer) => [layer.id, layer]));
@@ -350,15 +449,16 @@ export async function renderArtifactRuntimeProject(
   if (!report.supported) throw new ArtifactRuntimeUnsupportedError(report);
   const width = positiveDimension(options.width);
   const height = positiveDimension(options.height);
-  const context = options.canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Artifact Runtime could not create a 2D context.');
-  options.canvas.width = width;
-  options.canvas.height = height;
-  context.clearRect(0, 0, width, height);
-
   const orderedLayers = orderLayers(project, report);
-  const imageCache = options.imageCache ?? new Map<string, HTMLImageElement>();
+  const imageCache = new Map<string, HTMLImageElement>();
   await resolveImages(orderedLayers, imageCache);
+  const renderCanvas = createRenderCanvas(options.canvas, width, height);
+  const context = renderCanvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Artifact Runtime could not create a 2D context.');
+  context.clearRect(0, 0, width, height);
+  if (report.mode === 'stack' && typeof project.document.global.bg === 'string') {
+    drawDocumentBackground(context, width, height, project.document.global.bg);
+  }
   const scale = width / REFERENCE_SIZE;
 
   for (const layer of orderedLayers) {
@@ -373,6 +473,8 @@ export async function renderArtifactRuntimeProject(
       width,
     });
   }
+
+  commitRenderCanvas(options.canvas, renderCanvas, width, height);
 
   return report;
 }

@@ -48,12 +48,35 @@ export function loadRuntimeImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.decoding = 'async';
+    if (!src.startsWith('data:') && !src.startsWith('blob:')) image.crossOrigin = 'anonymous';
     image.addEventListener('load', () => resolve(image), { once: true });
     image.addEventListener('error', () => reject(new Error(`Artifact Runtime could not load image ${src}.`)), {
       once: true,
     });
     image.src = src;
   });
+}
+
+export function drawDocumentBackground(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  background: string,
+) {
+  if (background === 'transparent') {
+    context.clearRect(0, 0, width, height);
+    return;
+  }
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.sqrt(centerX * centerX + centerY * centerY);
+  const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+  gradient.addColorStop(0, 'rgba(65,0,90,0.3)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.65)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
 }
 
 function compositeOperation(blendMode: string | undefined): GlobalCompositeOperation {

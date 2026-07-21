@@ -86,6 +86,7 @@ export type ArtifactRuntimeCapabilityCode =
 
 export interface ArtifactRuntimeCapabilityIssue {
   code: ArtifactRuntimeCapabilityCode;
+  graphNodeId?: string;
   message: string;
   layerId?: string;
 }
@@ -107,7 +108,6 @@ export interface RenderArtifactRuntimeProjectOptions extends AnalyzeArtifactRunt
   project: unknown;
   width: number;
   height: number;
-  imageCache?: Map<string, HTMLImageElement>;
 }
 
 export interface ArtifactRuntimePlayer {

@@ -57,6 +57,11 @@ suitable for fallback decisions and diagnostics. `renderArtifactRuntimeProject`
 is strict and throws `ArtifactRuntimeUnsupportedError` with the same report if
 the document cannot be rendered faithfully.
 
+Rendering is transactional in a browser context: assets are decoded first,
+the document is drawn to a temporary canvas, and the caller-owned canvas is
+replaced only after the complete render succeeds. A failed asset or draw keeps
+the previous host frame intact.
+
 The host owns the canvas, selected dimensions, fallback UI, and redistribution
 rights for supplied fonts. The runtime owns package validation, graph order,
 image decoding, deterministic seeds, drawing, and errors.
@@ -65,7 +70,8 @@ image decoding, deterministic seeds, drawing, and errors.
 
 The supported static renderer uses the same public `rendering` module already
 consumed by the Artifact web app for shared texture effects. Fill drawing is
-also shared in this slice, as is text layout and drawing. Emoji and image
+also shared in this slice, as are the canonical stack background and text
+layout and drawing. Emoji and image
 primitives currently mirror the editor implementation and must move fully
 behind the shared module before a publishable full-document release. Until
 that extraction and parity test are complete, this is an implementation spike
