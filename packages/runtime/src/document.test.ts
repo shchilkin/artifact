@@ -19,56 +19,6 @@ function project(layers: Array<Record<string, unknown>>, graph?: Record<string, 
   };
 }
 
-const EMBEDDED_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+Xdu0AAAAAElFTkSuQmCC';
-
-function retainedViberCompatibilityFixture(fontRef: string) {
-  return project(
-    [
-      { id: 'layer-1780509438366-378', kind: 'fill', color: '#5e30eb' },
-      { id: 'layer-1780509501549-384', kind: 'emoji', emojis: ['💬'], density: 4, seedOffset: 0 },
-      { id: 'layer-1780509662261-414', kind: 'effect', preset: 'glitch', glitch: 24 },
-      { id: 'layer-1780509546581-404', kind: 'effect', preset: 'grain', grain: 100 },
-      { id: 'layer-1780509791460-474', kind: 'effect', preset: 'noiseWarp', noiseWarp: 100 },
-      { id: 'layer-1780509850760-482', kind: 'effect', preset: 'vortex', vortex: 20 },
-      { id: 'layer-1780509870977-483', kind: 'effect', preset: 'tear', tearAmt: 4, tearSize: 4 },
-      {
-        id: 'layer-1780509894426-491',
-        kind: 'effect',
-        preset: 'scanlines',
-        scanlines: 38,
-        scanlineWidth: 4,
-      },
-      { id: 'layer-1780509923809-501', kind: 'effect', preset: 'ca', ca: 27 },
-      { id: 'layer-1780509986923-502', kind: 'image', src: EMBEDDED_PIXEL, fit: 'cover' },
-      { id: 'layer-1780510006294-503', kind: 'image', src: EMBEDDED_PIXEL, fit: 'free' },
-      { id: 'layer-1780510134656-504', kind: 'text', font: fontRef, content: 'ВАЙБЕР' },
-      { id: 'layer-1780510290907', kind: 'text', font: fontRef, content: 'Вялый Джо' },
-      { id: 'layer-1780510394158', kind: 'text', font: fontRef, content: 'Вялый Джо' },
-      { id: 'layer-1780510224343', kind: 'text', font: fontRef, content: 'ВАЙБЕР' },
-    ],
-    {
-      edges: [
-        { fromId: 'layer-1780509438366-378', toId: 'layer-1780509501549-384' },
-        { fromId: 'layer-1780509501549-384', toId: 'layer-1780509662261-414' },
-        { fromId: 'layer-1780509662261-414', toId: 'layer-1780509546581-404' },
-        { fromId: 'layer-1780509546581-404', toId: 'layer-1780509791460-474' },
-        { fromId: 'layer-1780509791460-474', toId: 'layer-1780509850760-482' },
-        { fromId: 'layer-1780509850760-482', toId: 'layer-1780509870977-483' },
-        { fromId: 'layer-1780509870977-483', toId: 'layer-1780509894426-491' },
-        { fromId: 'layer-1780509894426-491', toId: 'layer-1780509923809-501' },
-        { fromId: 'layer-1780509923809-501', toId: 'layer-1780509986923-502' },
-        { fromId: 'layer-1780509986923-502', toId: 'layer-1780510006294-503' },
-        { fromId: 'layer-1780510006294-503', toId: 'layer-1780510224343' },
-        { fromId: 'layer-1780510224343', toId: 'layer-1780510134656-504' },
-        { fromId: 'layer-1780510134656-504', toId: 'layer-1780510290907' },
-        { fromId: 'layer-1780510290907', toId: 'layer-1780510394158' },
-        { fromId: 'layer-1780510394158', toId: '__export__' },
-      ],
-    },
-  );
-}
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -114,37 +64,37 @@ describe('full-document capability analysis', () => {
     expect(report.layerOrder).toEqual(['bottom', 'top']);
   });
 
-  it('accepts the retained Viber effects and reports only the unresolved font', () => {
+  it('reports the exact blockers in the retained Viber graph', () => {
     const fontRef = 'artifact-font://viber';
-    const report = analyzeArtifactRuntimeProject(retainedViberCompatibilityFixture(fontRef));
+    const report = analyzeArtifactRuntimeProject(
+      project(
+        [
+          { id: 'fill', kind: 'fill', color: '#5e30eb' },
+          { id: 'warp', kind: 'effect', preset: 'noiseWarp', noiseWarp: 100 },
+          { id: 'vortex', kind: 'effect', preset: 'vortex', vortex: 20 },
+          { id: 'tear', kind: 'effect', preset: 'tear', tearAmt: 4 },
+          { id: 'title', kind: 'text', font: fontRef, content: 'VIBER' },
+        ],
+        {
+          edges: [
+            { fromId: 'fill', toId: 'warp' },
+            { fromId: 'warp', toId: 'vortex' },
+            { fromId: 'vortex', toId: 'tear' },
+            { fromId: 'tear', toId: 'title' },
+            { fromId: 'title', toId: '__export__' },
+          ],
+        },
+      ),
+    );
 
     expect(report.supported).toBe(false);
-    expect(report.status).toBe('unresolved-fonts');
     expect(report.requiredFonts).toEqual([fontRef]);
-    expect(report.unresolvedFonts).toEqual([
-      {
-        ref: fontRef,
-        layerIds: ['layer-1780510134656-504', 'layer-1780510290907', 'layer-1780510394158', 'layer-1780510224343'],
-      },
-    ]);
     expect(report.issues.map((issue) => issue.code)).toEqual([
-      'missing-font',
-      'missing-font',
-      'missing-font',
+      'unsupported-effect',
+      'unsupported-effect',
+      'unsupported-effect',
       'missing-font',
     ]);
-  });
-
-  it('accepts the retained Viber graph with an explicit host font mapping', () => {
-    const fontRef = 'artifact-font://viber';
-    const report = analyzeArtifactRuntimeProject(retainedViberCompatibilityFixture(fontRef), {
-      fontFamilies: { [fontRef]: '"Portfolio Pixel", monospace' },
-    });
-
-    expect(report.supported).toBe(true);
-    expect(report.status).toBe('ready');
-    expect(report.unresolvedFonts).toEqual([]);
-    expect(report.issues).toEqual([]);
   });
 
   it('accepts an explicit host mapping for metadata-only fonts', () => {
@@ -169,45 +119,12 @@ describe('full-document capability analysis', () => {
 
   it('reports active unsupported effect behavior even when the preset label is supported', () => {
     const report = analyzeArtifactRuntimeProject(
-      project([{ id: 'grain', kind: 'effect', preset: 'grain', barrel: 10, grain: 20 }]),
+      project([{ id: 'grain', kind: 'effect', preset: 'grain', grain: 20, noiseWarp: 10 }]),
     );
 
     expect(report.supported).toBe(false);
-    expect(report.status).toBe('unsupported');
-    expect(report.unresolvedFonts).toEqual([]);
     expect(report.issues).toEqual([expect.objectContaining({ code: 'unsupported-effect', layerId: 'grain' })]);
-    expect(report.issues[0]?.message).toContain('barrel');
-  });
-
-  it('rejects incomplete Viber GPU effect parameters instead of accepting partial output', () => {
-    const missingAmount = analyzeArtifactRuntimeProject(project([{ id: 'warp', kind: 'effect', preset: 'noiseWarp' }]));
-    const invalidTearSize = analyzeArtifactRuntimeProject(
-      project([{ id: 'tear', kind: 'effect', preset: 'tear', tearAmt: 4, tearSize: 0 }]),
-    );
-
-    expect(missingAmount.status).toBe('unsupported');
-    expect(missingAmount.issues[0]?.message).toContain('noiseWarp');
-    expect(invalidTearSize.status).toBe('unsupported');
-    expect(invalidTearSize.issues[0]?.message).toContain('tearSize');
-  });
-
-  it('does not classify an unidentifiable missing font as an aggregate unresolved-font result', () => {
-    const report = analyzeArtifactRuntimeProject(
-      project([
-        { id: 'known-font', kind: 'text', font: 'artifact-font://known' },
-        { id: 'missing-ref', kind: 'text' },
-      ]),
-    );
-
-    expect(report.status).toBe('unsupported');
-    expect(report.unresolvedFonts).toEqual([{ ref: 'artifact-font://known', layerIds: ['known-font'] }]);
-  });
-
-  it('rejects an empty font reference instead of advertising a resolvable font aggregate', () => {
-    const report = analyzeArtifactRuntimeProject(project([{ id: 'empty-font', kind: 'text', font: '' }]));
-
-    expect(report.status).toBe('unsupported');
-    expect(report.unresolvedFonts).toEqual([]);
+    expect(report.issues[0]?.message).toContain('noiseWarp');
   });
 
   it('reports every unsupported graph node by id', () => {

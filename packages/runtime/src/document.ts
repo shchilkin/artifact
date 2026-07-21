@@ -18,23 +18,13 @@ import type {
   ArtifactRuntimeCapabilityReport,
   ArtifactRuntimeGraph,
   ArtifactRuntimeProject,
-  ArtifactRuntimeUnresolvedFont,
   RenderArtifactRuntimeProjectOptions,
 } from './types.js';
 
 const EXPORT_NODE_ID = '__export__';
 const REFERENCE_SIZE = 540;
 const SUPPORTED_LAYER_KINDS = new Set(['effect', 'emoji', 'fill', 'image', 'text']);
-const SUPPORTED_EFFECT_PRESETS = new Set(['ca', 'glitch', 'grain', 'noiseWarp', 'scanlines', 'tear', 'vortex']);
-const EFFECT_PRIMARY_PROPERTIES: Readonly<Record<string, string>> = {
-  ca: 'ca',
-  glitch: 'glitch',
-  grain: 'grain',
-  noiseWarp: 'noiseWarp',
-  scanlines: 'scanlines',
-  tear: 'tearAmt',
-  vortex: 'vortex',
-};
+const SUPPORTED_EFFECT_PRESETS = new Set(['ca', 'glitch', 'grain', 'scanlines']);
 const UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES = [
   'badStream',
   'rgbSplit',
@@ -44,6 +34,9 @@ const UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES = [
   'rays',
   'rayInt',
   'morphAmt',
+  'tearAmt',
+  'noiseWarp',
+  'vortex',
   'barrel',
   'mirror',
   'dataMosh',
@@ -121,7 +114,6 @@ type RuntimeLayer = Record<string, unknown> & {
   kind: string;
   maxSz?: number;
   minSz?: number;
-  noiseWarp?: number;
   opacity?: number;
   preset?: string;
   rotation?: number;
@@ -132,10 +124,7 @@ type RuntimeLayer = Record<string, unknown> & {
   seedOffset?: number;
   size?: number;
   src?: string;
-  tearAmt?: number;
-  tearSize?: number;
   visible?: boolean;
-  vortex?: number;
   x?: number;
   y?: number;
 };
@@ -254,33 +243,13 @@ interface LayerCapabilityContext {
   requiredFonts: Set<string>;
 }
 
-function isFiniteNonNegativeNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
-}
-
-function effectParameterBlockers(layer: RuntimeLayer, preset: string): string[] {
-  const primaryProperty = EFFECT_PRIMARY_PROPERTIES[preset];
-  const primaryValue = primaryProperty ? layer[primaryProperty] : undefined;
-  const blockers = isFiniteNonNegativeNumber(primaryValue) ? [] : [primaryProperty ?? `preset:${preset}`];
-  if (preset !== 'tear' || !isFiniteNonNegativeNumber(primaryValue) || primaryValue === 0) return blockers;
-  if (typeof layer.tearSize !== 'number' || !Number.isFinite(layer.tearSize) || layer.tearSize <= 0) {
-    blockers.push('tearSize');
-  }
-  return blockers;
-}
-
 function reportEffectCapability(layer: RuntimeLayer, context: LayerCapabilityContext) {
-  const preset = String(layer.preset);
   const blockers = [
     ...(layer.maskAlpha === true ? ['maskAlpha'] : []),
     ...UNSUPPORTED_POSITIVE_EFFECT_PROPERTIES.filter((property) => Number(layer[property] ?? 0) > 0),
     ...UNSUPPORTED_NONZERO_EFFECT_PROPERTIES.filter((property) => Number(layer[property] ?? 0) !== 0),
   ];
-  if (!SUPPORTED_EFFECT_PRESETS.has(preset)) {
-    blockers.unshift(`preset:${preset}`);
-  } else {
-    blockers.push(...effectParameterBlockers(layer, preset));
-  }
+  if (!SUPPORTED_EFFECT_PRESETS.has(String(layer.preset))) blockers.unshift(`preset:${String(layer.preset)}`);
   if (blockers.length > 0) {
     context.issues.push({
       code: 'unsupported-effect',
@@ -340,39 +309,6 @@ function reportLayerCapabilities(
   LAYER_CAPABILITY_REPORTERS[layer.kind]?.(layer, { issues, options, requiredFonts });
 }
 
-function collectUnresolvedFonts(
-  layers: RuntimeLayer[],
-  issues: ArtifactRuntimeCapabilityIssue[],
-): ArtifactRuntimeUnresolvedFont[] {
-  const unresolvedLayerIds = new Set(
-    issues.flatMap((issue) => (issue.code === 'missing-font' && issue.layerId ? [issue.layerId] : [])),
-  );
-  const layerIdsByRef = new Map<string, string[]>();
-  for (const layer of layers) {
-    if (!unresolvedLayerIds.has(layer.id) || typeof layer.font !== 'string' || layer.font.length === 0) continue;
-    const layerIds = layerIdsByRef.get(layer.font) ?? [];
-    layerIds.push(layer.id);
-    layerIdsByRef.set(layer.font, layerIds);
-  }
-  return [...layerIdsByRef].map(([ref, layerIds]) => ({ ref, layerIds }));
-}
-
-function capabilityStatus(
-  issues: ArtifactRuntimeCapabilityIssue[],
-  unresolvedFonts: ArtifactRuntimeUnresolvedFont[],
-): ArtifactRuntimeCapabilityReport['status'] {
-  if (issues.length === 0) return 'ready';
-  const unresolvedLayerCount = unresolvedFonts.reduce((count, font) => count + font.layerIds.length, 0);
-  if (
-    unresolvedFonts.length > 0 &&
-    unresolvedLayerCount === issues.length &&
-    issues.every((issue) => issue.code === 'missing-font')
-  ) {
-    return 'unresolved-fonts';
-  }
-  return 'unsupported';
-}
-
 export function analyzeArtifactRuntimeProject(
   value: unknown,
   options: AnalyzeArtifactRuntimeProjectOptions = {},
@@ -390,15 +326,11 @@ export function analyzeArtifactRuntimeProject(
     reportLayerCapabilities(layer, options, requiredFonts, issues);
   }
 
-  const unresolvedFonts = collectUnresolvedFonts(layers, issues);
-
   return {
     supported: issues.length === 0,
-    status: capabilityStatus(issues, unresolvedFonts),
     mode: project.document.graph ? 'linear-graph' : 'stack',
     layerOrder,
     requiredFonts: [...requiredFonts],
-    unresolvedFonts,
     issues,
   };
 }
@@ -421,8 +353,7 @@ async function ensureFontLoaded(fontFamily: string, size: number) {
   }
 }
 
-async function applyEffect(
-  canvas: HTMLCanvasElement,
+function applyEffect(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -435,22 +366,13 @@ async function applyEffect(
   applyScanlines(context, width, height, layer, scale);
   applyGrain(context, width, height, layer, effectSeed);
   const ca = Number(layer.ca ?? 0);
-  if (ca > 0) {
-    const imageData = context.getImageData(0, 0, width, height);
-    applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale));
-    context.putImageData(imageData, 0, 0);
-  }
-  if (![layer.noiseWarp, layer.vortex, layer.tearAmt].some((value) => typeof value === 'number' && value > 0)) {
-    return canvas;
-  }
-  const { buildArtifactGpuEffectFilters, gpuRenderToCanvas } = await import('./gpu.js');
-  const filters = buildArtifactGpuEffectFilters(layer, effectSeed);
-  if (filters.length === 0) return canvas;
-  return await gpuRenderToCanvas({ filters, height, onUnavailable: 'throw', source: canvas, width });
+  if (ca <= 0) return;
+  const imageData = context.getImageData(0, 0, width, height);
+  applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale));
+  context.putImageData(imageData, 0, 0);
 }
 
 interface RuntimeLayerRenderContext {
-  canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
   fontOptions: AnalyzeArtifactRuntimeProjectOptions;
   height: number;
@@ -461,10 +383,7 @@ interface RuntimeLayerRenderContext {
   width: number;
 }
 
-type RuntimeLayerRenderer = (
-  layer: RuntimeLayer,
-  render: RuntimeLayerRenderContext,
-) => HTMLCanvasElement | void | Promise<HTMLCanvasElement | void>;
+type RuntimeLayerRenderer = (layer: RuntimeLayer, render: RuntimeLayerRenderContext) => void | Promise<void>;
 
 const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = {
   fill(layer, { context, height, width }) {
@@ -483,14 +402,14 @@ const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = 
     await ensureFontLoaded(family, Number(layer.size ?? 64) * scale);
     drawTextLayer(context, width, height, layer, scale, family);
   },
-  effect(layer, { canvas, context, height, scale, seed, width }) {
-    return applyEffect(canvas, context, width, height, layer, seed, scale);
+  effect(layer, { context, height, scale, seed, width }) {
+    applyEffect(context, width, height, layer, seed, scale);
   },
 };
 
 async function renderRuntimeLayer(layer: RuntimeLayer, render: RuntimeLayerRenderContext) {
   const renderer = layer.visible === false ? undefined : RUNTIME_LAYER_RENDERERS[layer.kind];
-  return (await renderer?.(layer, render)) ?? render.canvas;
+  await renderer?.(layer, render);
 }
 
 function positiveDimension(value: number) {
@@ -533,7 +452,7 @@ export async function renderArtifactRuntimeProject(
   const orderedLayers = orderLayers(project, report);
   const imageCache = new Map<string, HTMLImageElement>();
   await resolveImages(orderedLayers, imageCache);
-  let renderCanvas = createRenderCanvas(options.canvas, width, height);
+  const renderCanvas = createRenderCanvas(options.canvas, width, height);
   const context = renderCanvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Artifact Runtime could not create a 2D context.');
   context.clearRect(0, 0, width, height);
@@ -543,11 +462,8 @@ export async function renderArtifactRuntimeProject(
   const scale = width / REFERENCE_SIZE;
 
   for (const layer of orderedLayers) {
-    const layerContext = renderCanvas.getContext('2d', { willReadFrequently: true });
-    if (!layerContext) throw new Error('Artifact Runtime could not create a 2D context.');
-    renderCanvas = await renderRuntimeLayer(layer, {
-      canvas: renderCanvas,
-      context: layerContext,
+    await renderRuntimeLayer(layer, {
+      context,
       fontOptions: options,
       height,
       imageCache,

@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@artifact/shared": "0.0.0",
-    "@shchilkin/artifact-runtime": "0.2.0-alpha.2",
+    "@shchilkin/artifact-runtime": "0.2.0-alpha.1",
     "@react-router/node": "^7.14.2",
     "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.10.2",

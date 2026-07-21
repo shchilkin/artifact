@@ -40,7 +40,6 @@
     "prepare": "husky",
     "preview": "npm --workspace @artifact/web run preview",
     "release:verify": "node scripts/verify-release.mjs",
-    "verify:runtime-viber": "node scripts/verify-runtime-viber.mjs",
     "turbo:build": "turbo run build --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",
     "turbo:check": "turbo run build typecheck test --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",
     "turbo:dev": "turbo run dev --filter=@artifact/api --filter=@artifact/web",
