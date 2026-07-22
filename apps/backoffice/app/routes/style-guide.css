@@ -2,14 +2,14 @@
   width: min(1180px, 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 56px 36px 80px;
+  padding: var(--space-12) var(--space-8);
 }
 
 .backoffice-style-guide__header {
   display: grid;
   max-width: 760px;
-  gap: 12px;
-  padding-bottom: 32px;
+  gap: var(--space-3);
+  padding-bottom: var(--space-8);
   border-bottom: 1px solid var(--border);
 }
 
@@ -35,13 +35,13 @@
 
 .backoffice-style-guide__section {
   display: grid;
-  gap: 24px;
-  padding-top: 40px;
+  gap: var(--space-6);
+  padding-top: var(--space-12);
 }
 
 .backoffice-style-guide__section-heading {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .backoffice-style-guide__section-heading h2 {
@@ -59,17 +59,17 @@
 .operational-shell-specimen__topbar {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) auto minmax(120px, 1fr);
-  gap: 16px;
+  gap: var(--space-4);
   align-items: center;
   min-height: 72px;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
 }
 
 .operational-shell-specimen__brand {
   display: inline-flex;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -88,7 +88,7 @@
 
 .operational-shell-specimen__nav {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .operational-shell-specimen__nav [aria-current="page"] {
@@ -98,14 +98,14 @@
 .operational-shell-specimen__workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, 0.65fr);
-  gap: 18px;
+  gap: var(--space-4);
   align-items: center;
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 .operational-shell-specimen__workspace strong {
   display: block;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   font-size: 24px;
 }
 
@@ -121,12 +121,12 @@
 .operational-route-state {
   min-width: 0;
   min-height: 190px;
-  padding: 18px;
+  padding: var(--space-4);
   background: var(--surface);
 }
 
 .operational-route-state h3 {
-  margin: 24px 0 8px;
+  margin: var(--space-6) 0 var(--space-2);
   font-size: 17px;
 }
 
@@ -139,24 +139,24 @@
 .operational-route-state--loading {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .operational-route-state__loading-title {
   height: 44px;
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 .operational-pattern-grid {
   display: grid;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .operational-pattern-specimen {
   display: grid;
   min-width: 0;
-  gap: 18px;
-  padding: 22px;
+  gap: var(--space-4);
+  padding: var(--space-6);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -168,22 +168,22 @@
 
 .operational-page-heading-specimen {
   display: flex;
-  gap: 20px;
+  gap: var(--space-4);
   align-items: start;
   justify-content: space-between;
-  padding-bottom: 18px;
+  padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 
 .operational-page-heading-specimen strong {
   display: block;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   font-size: 26px;
 }
 
 .operational-page-heading-specimen p:last-child {
   max-width: 60ch;
-  margin: 6px 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--muted);
 }
 
@@ -197,7 +197,7 @@
 
 .operational-form-specimen {
   display: grid;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 @media (max-width: 980px) {
@@ -208,15 +208,15 @@
 
 @media (max-width: 640px) {
   .backoffice-style-guide {
-    padding: 32px 18px 56px;
+    padding: var(--space-8) var(--space-4) var(--space-12);
   }
 
   .backoffice-style-guide__header {
-    padding-bottom: 24px;
+    padding-bottom: var(--space-6);
   }
 
   .backoffice-style-guide__section {
-    padding-top: 32px;
+    padding-top: var(--space-8);
   }
 
   .operational-shell-specimen__topbar {
@@ -240,6 +240,6 @@
   }
 
   .operational-pattern-specimen {
-    padding: 16px;
+    padding: var(--space-4);
   }
 }

@@ -1,10 +1,21 @@
 import { InlineNotice } from '@artifact/ui';
+import { useEffect, useRef } from 'react';
 
 export function MutationNotice({ result }: { result: { ok: boolean; message: string; code?: string } | undefined }) {
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const hasRendered = useRef(false);
+
+  useEffect(() => {
+    if (hasRendered.current && result) {
+      noticeRef.current?.focus();
+    }
+    hasRendered.current = true;
+  }, [result]);
+
   if (!result) return null;
   const view = mutationNoticeView(result);
   return (
-    <InlineNotice className="mutation-notice" variant={view.variant}>
+    <InlineNotice ref={noticeRef} className="mutation-notice" tabIndex={-1} variant={view.variant}>
       <strong>{view.title}</strong>
       <span>{result.message}</span>
     </InlineNotice>

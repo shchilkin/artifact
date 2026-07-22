@@ -199,7 +199,12 @@ test('Backoffice documents reduced specimens for every operational data and muta
     'tabindex',
     '0',
   );
-  await expect(page.getByRole('status').filter({ hasText: 'Change saved' })).toBeVisible();
+  await expect(page.getByText('The audited account change is recorded.')).toBeVisible();
+  const recoveryPending = page.getByRole('button', { name: 'Recovering...' });
+  await expect(recoveryPending).toBeDisabled();
+  await expect(recoveryPending).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByText('This recovery request was already applied.')).toBeVisible();
+  await expect(page.getByText('Operation recovery was run recently. Wait a moment, then try again.')).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(

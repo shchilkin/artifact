@@ -200,6 +200,26 @@ export function OperationalDataSpecimens() {
             </Field>
             <Button variant="primary">Recover operations</Button>
           </div>
+          <div className="operational-form-specimen" data-operational-state="recovery-pending">
+            <Field label="Recovery reason while pending">
+              <Textarea disabled defaultValue="Finalize completed production results" rows={2} />
+            </Field>
+            <Button disabled loading variant="primary">
+              Recovering...
+            </Button>
+          </div>
+          <div data-operational-state="recovery-repeated">
+            <MutationNotice result={{ ok: true, message: 'This recovery request was already applied.' }} />
+          </div>
+          <div data-operational-state="recovery-failure">
+            <MutationNotice
+              result={{
+                ok: false,
+                code: 'admin_operation_reconciliation_rate_limited',
+                message: 'Operation recovery was run recently. Wait a moment, then try again.',
+              }}
+            />
+          </div>
         </ControlSection>
       </article>
     </div>

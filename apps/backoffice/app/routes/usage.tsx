@@ -18,6 +18,7 @@ import {
 import { AdminRouteError } from '../components/RouteState';
 import { AdminApiError, adminApi } from '../lib/adminApi';
 import { formatFeature, formatInteger, formatMicroUsd, formatTimestamp } from '../lib/format';
+import { readPageValue } from '../lib/pageParams';
 import { emptyTableState } from '../lib/tableState';
 import type { Route } from './+types/usage';
 
@@ -303,12 +304,6 @@ function differenceText(providerCost: string | null, difference: number) {
 
 function differenceClassName(difference: number) {
   return difference === 0 ? '' : 'warning-text';
-}
-
-function readPageValue(value: string | null, fallback: number) {
-  if (value === null) return fallback;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export const ErrorBoundary = AdminRouteError;

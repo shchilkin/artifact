@@ -225,6 +225,40 @@ test('contains the account directory table in a keyboard-scrollable mobile regio
   );
 });
 
+test('shows deterministic loading and error states for the account directory', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  let releaseAccounts: (() => void) | undefined;
+  const accountsReady = new Promise<void>((resolve) => {
+    releaseAccounts = resolve;
+  });
+  await page.route('**/api/admin/accounts?**', async (route) => {
+    await accountsReady;
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ accounts: [account], page: { limit: 25, offset: 0, total: 1, hasMore: false } }),
+    });
+  });
+
+  const navigation = page.goto('/accounts?period=2026-07');
+  await expect(page.getByRole('status', { name: 'Loading Artifact Backoffice' })).toBeVisible();
+  releaseAccounts?.();
+  await navigation;
+  await expect(page.getByRole('heading', { name: 'Account access' })).toBeVisible();
+
+  await page.unroute('**/api/admin/accounts?**');
+  await page.route('**/api/admin/accounts?**', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'admin_request_failed', message: 'Account directory is temporarily unavailable.' }),
+    }),
+  );
+  await page.goto('/accounts?period=2026-07');
+  await expect(page.getByRole('heading', { name: 'Data could not be loaded' })).toBeVisible();
+  await expect(page.getByText('Account directory is temporarily unavailable.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try again' })).toHaveClass(/\bui-command\b/);
+});
+
 test('shows a recoverable server error', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/**', (route) =>
@@ -311,7 +345,9 @@ test('keeps a tier conflict visible beside the account control', async ({ page }
   await tier.selectOption('free');
   await reason.fill('End closed alpha access');
   await submit.click();
-  await expect(page.getByRole('alert')).toHaveClass(/\bui-inline-notice\b/);
+  const conflict = page.getByRole('alert');
+  await expect(conflict).toHaveClass(/\bui-inline-notice\b/);
+  await expect(conflict).toBeFocused();
   await expect(page.getByText('Account changed elsewhere')).toBeVisible();
   await expect(page.getByText('Account tier changed since it was loaded.')).toBeVisible();
 });
@@ -343,7 +379,9 @@ test('submits quota grants and reversals through Foundation controls with audite
   await grantAmount.fill('7');
   await grantReason.fill('Support a launch campaign');
   await grantSubmit.click();
-  await expect(page.getByRole('status').filter({ hasText: '7 generations added for 2026-07.' })).toBeVisible();
+  const grantResult = page.getByRole('status').filter({ hasText: '7 generations added for 2026-07.' });
+  await expect(grantResult).toBeVisible();
+  await expect(grantResult).toBeFocused();
 
   const reversalAmount = page.getByLabel('Amount to reverse');
   const reversalReason = page.getByLabel('Reversal reason');
@@ -354,7 +392,9 @@ test('submits quota grants and reversals through Foundation controls with audite
   await reversalAmount.fill('1');
   await reversalReason.fill('Correct duplicate allowance');
   await reversalSubmit.click();
-  await expect(page.getByRole('status').filter({ hasText: '1 granted generations reversed.' })).toBeVisible();
+  const reversalResult = page.getByRole('status').filter({ hasText: '1 granted generations reversed.' });
+  await expect(reversalResult).toBeVisible();
+  await expect(reversalResult).toBeFocused();
 
   expect(mutationBodies).toHaveLength(2);
   expect(mutationBodies[0]).toMatchObject({ amount: 7, period: '2026-07', reason: 'Support a launch campaign' });
@@ -381,8 +421,85 @@ test('previews and applies AI operation recovery with an audit reason', async ({
   await reason.fill('Finalize completed production results');
   await recovery.click();
 
-  await expect(page.getByRole('status').filter({ hasText: 'Change saved' })).toHaveClass(/\bui-inline-notice\b/);
+  const result = page.getByRole('status').filter({ hasText: 'Change saved' });
+  await expect(result).toHaveClass(/\bui-inline-notice\b/);
+  await expect(result).toBeFocused();
   await expect(page.getByText('Finalized 1 completed result and closed 1 abandoned request.')).toBeVisible();
+});
+
+test('keeps recovery pending and reports an idempotent repeated result', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  let recoveryRequestBody: Record<string, unknown> | undefined;
+  let releaseRecovery: (() => void) | undefined;
+  const recoveryReady = new Promise<void>((resolve) => {
+    releaseRecovery = resolve;
+  });
+  await page.route('**/api/admin/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/admin/ai-operations/reconciliation' && route.request().method() === 'POST') {
+      recoveryRequestBody = JSON.parse(route.request().postData() ?? '{}');
+      await recoveryReady;
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          mode: 'applied',
+          repeated: true,
+          checkedAt: '2026-07-15T10:00:00.000Z',
+          staleBefore: '2026-07-15T04:00:00.000Z',
+          recoveredOperationIds: ['operation-1'],
+          expiredOperationIds: ['operation-2'],
+          nextAllowedAt: '2026-07-15T10:05:00.000Z',
+        }),
+      });
+      return;
+    }
+    await fulfillAdminRead(route);
+  });
+
+  await page.goto('/usage');
+  await page.getByLabel('Reason').fill('Retry the same audited recovery');
+  await page.getByRole('button', { name: 'Recover operations' }).click();
+  const pending = page.getByRole('button', { name: 'Recovering...' });
+  await expect(pending).toBeDisabled();
+  await expect(pending).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByLabel('Reason')).toBeDisabled();
+
+  releaseRecovery?.();
+  const repeated = page.getByRole('status').filter({ hasText: 'This recovery request was already applied.' });
+  await expect(repeated).toBeVisible();
+  await expect(repeated).toBeFocused();
+  expect(recoveryRequestBody).toMatchObject({ reason: 'Retry the same audited recovery' });
+  expect(recoveryRequestBody?.idempotencyKey).toEqual(expect.any(String));
+});
+
+test('keeps a failed recovery visible beside the audited control', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/admin/ai-operations/reconciliation' && route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'admin_operation_reconciliation_rate_limited',
+          message: 'Operation recovery was run recently. Wait a moment, then try again.',
+          retryAfterSeconds: 60,
+          nextAllowedAt: '2026-07-15T10:05:00.000Z',
+        }),
+      });
+      return;
+    }
+    await fulfillAdminRead(route);
+  });
+
+  await page.goto('/usage');
+  await page.getByLabel('Reason').fill('Resolve unfinished production operations');
+  await page.getByRole('button', { name: 'Recover operations' }).click();
+  const failure = page
+    .getByRole('alert')
+    .filter({ hasText: 'Operation recovery was run recently. Wait a moment, then try again.' });
+  await expect(failure).toHaveClass(/\bui-inline-notice--danger\b/);
+  await expect(failure).toBeFocused();
 });
 
 test('preserves provider-ledger filters when paging from the default page size', async ({ page }) => {

@@ -4,6 +4,7 @@ import { DataTable, PageHeader, Pagination, StatusBadge } from '../components/ba
 import { AdminRouteError } from '../components/RouteState';
 import { adminApi, currentUtcPeriod } from '../lib/adminApi';
 import { formatMicroUsd, formatTimestamp } from '../lib/format';
+import { readPageValue } from '../lib/pageParams';
 import { emptyTableState } from '../lib/tableState';
 import type { Route } from './+types/accounts';
 
@@ -100,12 +101,6 @@ export default function AccountsRoute({ loaderData }: Route.ComponentProps) {
       </section>
     </div>
   );
-}
-
-function readPageValue(value: string | null, fallback: number) {
-  if (value === null) return fallback;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export const ErrorBoundary = AdminRouteError;
