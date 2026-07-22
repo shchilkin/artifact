@@ -168,6 +168,14 @@ The visual language and operational patterns for account, usage, and
 administrative workflows in Backoffice.
 _Avoid_: Admin skin, Artifact theme
 
+**Operational Pattern**:
+A Backoffice-owned composition of UI Foundation primitives for recurring admin
+work such as route states, period and search filters, metrics, status labels,
+dense tables, pagination, audited mutations, and recovery. Operational Patterns
+may be shared by Backoffice routes and its style guide, but do not belong in UI
+Foundation or the Artifact Design System.
+_Avoid_: Shared primitive, generic admin component, Artifact workspace pattern
+
 **Source-Owned Primitive**:
 A UI Foundation React component whose source, API, accessibility contract,
 structural CSS, state styling, and maintenance lifecycle belong to this

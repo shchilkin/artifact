@@ -4,6 +4,11 @@ import {
   FoundationFieldMatrix,
   FoundationOverlayMatrix,
 } from '@artifact/ui';
+import {
+  OperationalDataSpecimens,
+  OperationalRouteStateSpecimens,
+  OperationalShellSpecimen,
+} from '../components/OperationalSpecimens';
 import './style-guide.css';
 
 export function meta() {
@@ -61,6 +66,17 @@ export default function StyleGuideRoute() {
           <p>Anchored help and interactive disclosure share keyboard, focus, dismissal, and collision mechanics.</p>
         </div>
         <FoundationOverlayMatrix />
+      </section>
+
+      <section className="backoffice-style-guide__section" aria-labelledby="operational-patterns-title">
+        <div className="backoffice-style-guide__section-heading">
+          <p className="eyebrow">Backoffice UI System</p>
+          <h2 id="operational-patterns-title">Operational shell and route states</h2>
+          <p>Compact navigation and explicit service states keep routine account operations clear and recoverable.</p>
+        </div>
+        <OperationalShellSpecimen />
+        <OperationalRouteStateSpecimens />
+        <OperationalDataSpecimens />
       </section>
     </main>
   );

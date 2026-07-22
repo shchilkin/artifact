@@ -79,6 +79,34 @@ CI should run:
 
 ## Manual QA
 
+### v0.43.0 Release Prep
+
+- Package metadata is bumped to `0.43.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.43.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.43 migrates every current Backoffice route and operational state onto the
+  UI Foundation and Backoffice-owned operational patterns without changing
+  account, authorization, quota, usage, recovery, routing, or API behavior.
+- The live Backoffice `/style-guide` documents the Foundation Matrix plus shell,
+  route-state, page, metric, filtering, table, pagination, audited mutation,
+  and operation-recovery patterns.
+- Focused Backoffice validation passes with 11 unit tests and 58 browser tests
+  passing plus 2 viewport-specific skips across desktop and mobile Chromium.
+- The full local release gate passed on 2026-07-22 with 432 browser tests
+  passing, 49 intentionally skipped, and one successful retry. The retry was
+  the pre-existing Firefox AI image reload scenario and is outside the
+  Backoffice v0.43 change surface.
+- `npm run perf:node-editor` is not required because v0.43 does not change graph
+  traversal, rendering, thumbnail scheduling, or node-canvas hot paths.
+- Accepted release risk: Backoffice remains a React Router SPA; SSR remains a
+  separately planned infrastructure boundary.
+- Accepted release risk: the conformance gate is focused behavior and layout
+  coverage, not a complete visual-regression suite or WCAG certification.
+- Accepted release risk: Artifact product and editor surfaces remain bounded to
+  v0.44-v0.48 rather than entering the Backoffice release.
+
 ### v0.42.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.42.0` in `package.json`,
