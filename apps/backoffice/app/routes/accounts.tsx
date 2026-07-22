@@ -1,8 +1,10 @@
-import { Form, Link, useLocation } from 'react-router';
+import { Button, ButtonLink, Field, Input } from '@artifact/ui';
+import { Form, useLocation } from 'react-router';
+import { DataTable, PageHeader, Pagination, StatusBadge } from '../components/backoffice-ui';
 import { AdminRouteError } from '../components/RouteState';
-import { DataTable, PageHeader, Pagination, StatusBadge } from '../components/Ui';
 import { adminApi, currentUtcPeriod } from '../lib/adminApi';
 import { formatMicroUsd, formatTimestamp } from '../lib/format';
+import { readPageValue } from '../lib/pageParams';
 import { emptyTableState } from '../lib/tableState';
 import type { Route } from './+types/accounts';
 
@@ -40,17 +42,15 @@ export default function AccountsRoute({ loaderData }: Route.ComponentProps) {
         summary="Search identity metadata, review monthly usage, and open audited access controls."
       />
       <Form className="filter-bar" method="get" role="search">
-        <label className="search-field">
-          <span>Search accounts</span>
-          <input defaultValue={searchParams.get('q') ?? ''} name="q" placeholder="Email or account ID" type="search" />
-        </label>
-        <label>
-          <span>UTC period</span>
-          <input defaultValue={searchParams.get('period') ?? currentUtcPeriod()} name="period" type="month" />
-        </label>
-        <button className="primary-button" type="submit">
+        <Field className="search-field" label="Search accounts">
+          <Input defaultValue={searchParams.get('q') ?? ''} name="q" placeholder="Email or account ID" type="search" />
+        </Field>
+        <Field label="UTC period">
+          <Input defaultValue={searchParams.get('period') ?? currentUtcPeriod()} name="period" type="month" />
+        </Field>
+        <Button variant="primary" type="submit">
           Search
-        </button>
+        </Button>
       </Form>
 
       <section className="table-section" aria-labelledby="accounts-table-title">
@@ -62,6 +62,7 @@ export default function AccountsRoute({ loaderData }: Route.ComponentProps) {
         </div>
         <DataTable
           columns={accountColumns}
+          label="Account directory table"
           empty={emptyTableState(
             loaderData.accounts.length,
             'No accounts found',
@@ -85,9 +86,13 @@ export default function AccountsRoute({ loaderData }: Route.ComponentProps) {
               <td className={account.failedCalls > 0 ? 'danger-text' : ''}>{account.failedCalls}</td>
               <td>{formatTimestamp(account.updatedAt)}</td>
               <td>
-                <Link className="row-link" to={`/accounts/${encodeURIComponent(account.id)}${location.search}`}>
+                <ButtonLink
+                  size="compact"
+                  variant="quiet"
+                  to={`/accounts/${encodeURIComponent(account.id)}${location.search}`}
+                >
                   Open
-                </Link>
+                </ButtonLink>
               </td>
             </tr>
           ))}
@@ -96,11 +101,6 @@ export default function AccountsRoute({ loaderData }: Route.ComponentProps) {
       </section>
     </div>
   );
-}
-
-function readPageValue(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export const ErrorBoundary = AdminRouteError;

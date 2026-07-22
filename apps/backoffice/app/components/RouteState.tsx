@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router';
+import { Button, ButtonLink, Skeleton } from '@artifact/ui';
+import { useLocation } from 'react-router';
 import { AdminApiError } from '../lib/adminApi';
 
 type RouteStateKind = 'denied' | 'empty' | 'error' | 'loading' | 'signed-out';
@@ -12,9 +13,9 @@ const adminErrorRenderers: Partial<Record<number, AdminErrorRenderer>> = {
       title="Sign in to continue"
       message="Use an Artifact account with Admin access."
       action={
-        <Link className="primary-button" to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>
+        <ButtonLink variant="primary" to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>
           Sign in
-        </Link>
+        </ButtonLink>
       }
     />
   ),
@@ -24,9 +25,9 @@ const adminErrorRenderers: Partial<Record<number, AdminErrorRenderer>> = {
       title="Admin access required"
       message="This account is signed in, but it is not allowed to open Artifact operations."
       action={
-        <Link className="quiet-button" to="/sign-in">
+        <ButtonLink variant="quiet" to="/sign-in">
           Use another account
-        </Link>
+        </ButtonLink>
       }
     />
   ),
@@ -36,9 +37,9 @@ const adminErrorRenderers: Partial<Record<number, AdminErrorRenderer>> = {
       title="Admin API route unavailable"
       message="The deployed account service does not expose this backoffice route yet."
       action={
-        <Link className="quiet-button" to="/">
+        <ButtonLink variant="quiet" to="/">
           Back to overview
-        </Link>
+        </ButtonLink>
       }
     />
   ),
@@ -70,16 +71,16 @@ export function RouteState({
 
 export function RouteSkeleton({ label = 'Loading account data' }: { label?: string }) {
   return (
-    <div className="page-skeleton" aria-label={label} aria-busy="true">
-      <div className="skeleton-line wide" />
-      <div className="skeleton-line" />
+    <div className="page-skeleton" aria-busy="true">
+      <Skeleton className="skeleton-line wide" label={label} shape="block" />
+      <Skeleton className="skeleton-line" />
       <div className="skeleton-grid">
-        <div />
-        <div />
-        <div />
-        <div />
+        <Skeleton shape="block" />
+        <Skeleton shape="block" />
+        <Skeleton shape="block" />
+        <Skeleton shape="block" />
       </div>
-      <div className="skeleton-table" />
+      <Skeleton className="skeleton-table" shape="block" />
     </div>
   );
 }
@@ -94,9 +95,9 @@ export function AdminRouteError({ error }: { error: unknown }) {
       title="Data could not be loaded"
       message={error instanceof AdminApiError ? error.message : 'The account service did not complete the request.'}
       action={
-        <button className="primary-button" type="button" onClick={() => window.location.reload()}>
+        <Button variant="primary" onClick={() => window.location.reload()}>
           Try again
-        </button>
+        </Button>
       }
     />
   );
@@ -110,9 +111,9 @@ export function AccountRouteError({ error }: { error: unknown }) {
         title="Account not found"
         message="The account may have been removed or the link may be out of date."
         action={
-          <Link className="quiet-button" to="/accounts">
+          <ButtonLink variant="quiet" to="/accounts">
             Back to accounts
-          </Link>
+          </ButtonLink>
         }
       />
     );

@@ -162,3 +162,54 @@ test('Backoffice exposes the same Tooltip and Popover mechanics in its Product T
     tooltipRadius: '4px',
   });
 });
+
+test('Backoffice documents its operational shell and route states at desktop and mobile widths', async ({ page }) => {
+  await page.goto('/style-guide');
+
+  const patterns = page.getByRole('region', { name: 'Operational shell and route states' });
+  await expect(patterns).toBeVisible();
+  await expect(patterns.getByRole('navigation', { name: 'Backoffice specimen' })).toBeVisible();
+  await expect(patterns.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(patterns.getByRole('button', { name: 'Sign out specimen' })).toBeDisabled();
+
+  await expect(patterns.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
+  await expect(patterns.getByRole('heading', { name: 'Admin access required' })).toBeVisible();
+  await expect(patterns.getByRole('heading', { name: 'No matching records' })).toBeVisible();
+  await expect(patterns.getByRole('heading', { name: 'Data could not be loaded' })).toBeVisible();
+  await expect(patterns.getByRole('status', { name: 'Loading account data' })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
+    0,
+  );
+  const undersizedCommands = await patterns
+    .locator('.ui-command')
+    .evaluateAll((commands) => commands.filter((command) => command.getBoundingClientRect().height < 44).length);
+  expect(undersizedCommands).toBe(0);
+});
+
+test('Backoffice documents reduced specimens for every operational data and mutation pattern', async ({ page }) => {
+  await page.goto('/style-guide');
+
+  await expect(page.getByRole('heading', { name: 'Page framing and metrics' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Filtering, tables, and pagination' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Audited mutation controls' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Operation recovery' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 4, name: 'Change access specimen' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 4, name: 'Recovery preview specimen' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Operational account table specimen' })).toHaveAttribute(
+    'tabindex',
+    '0',
+  );
+  await expect(page.getByText('The audited account change is recorded.')).toBeVisible();
+  const recoveryPending = page.getByRole('button', { name: 'Recovering...' });
+  await expect(recoveryPending).toBeDisabled();
+  await expect(recoveryPending).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByText('This recovery request was already applied.')).toBeVisible();
+  await expect(page.getByText('Operation recovery was run recently. Wait a moment, then try again.')).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+});

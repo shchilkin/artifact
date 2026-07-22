@@ -1,5 +1,6 @@
+import { ProgressIndicator } from '@artifact/ui';
+import { Metric, PageHeader, PeriodField, StatusBadge } from '../components/backoffice-ui';
 import { AdminRouteError } from '../components/RouteState';
-import { Metric, PageHeader, PeriodField, StatusBadge } from '../components/Ui';
 import { adminApi, currentUtcPeriod } from '../lib/adminApi';
 import { formatInteger, formatMicroUsd } from '../lib/format';
 import type { Route } from './+types/overview';
@@ -71,9 +72,7 @@ export default function OverviewRoute({ loaderData }: Route.ComponentProps) {
             </div>
             <StatusBadge value={budget.state} />
           </div>
-          <div className="budget-track" aria-label={`${budgetPercent.toFixed(0)} percent of safety budget used`}>
-            <span style={{ width: `${budgetPercent}%` }} />
-          </div>
+          <ProgressIndicator className="budget-track" label="Safety budget used" value={budgetPercent} />
           <dl className="budget-legend">
             <div>
               <dt>Warning</dt>

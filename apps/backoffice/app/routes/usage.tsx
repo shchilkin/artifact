@@ -3,9 +3,9 @@ import type {
   AdminProviderReconciliation,
   AdminUsageEvent,
 } from '@artifact/shared';
+import { Button, Field, Input, NativeSelect, Textarea } from '@artifact/ui';
 import { useState } from 'react';
 import { Form, Link, useFetcher, useLocation } from 'react-router';
-import { AdminRouteError } from '../components/RouteState';
 import {
   ControlSection,
   DataTable,
@@ -14,9 +14,11 @@ import {
   PageHeader,
   Pagination,
   StatusBadge,
-} from '../components/Ui';
+} from '../components/backoffice-ui';
+import { AdminRouteError } from '../components/RouteState';
 import { AdminApiError, adminApi } from '../lib/adminApi';
 import { formatFeature, formatInteger, formatMicroUsd, formatTimestamp } from '../lib/format';
+import { readPageValue } from '../lib/pageParams';
 import { emptyTableState } from '../lib/tableState';
 import type { Route } from './+types/usage';
 
@@ -92,25 +94,22 @@ export default function UsageRoute({ loaderData }: Route.ComponentProps) {
         summary="Metadata-only call history and daily reconciliation. Prompts, shader code, assets, and projects are not available here."
       />
       <Form className="filter-bar usage-filters" method="get">
-        <label className="search-field">
-          <span>Account ID</span>
-          <input defaultValue={params.get('userId') ?? ''} name="userId" placeholder="All accounts" />
-        </label>
-        <label>
-          <span>Provider</span>
-          <input defaultValue={params.get('provider') ?? ''} name="provider" placeholder="All providers" />
-        </label>
-        <label>
-          <span>Status</span>
-          <select defaultValue={params.get('status') ?? ''} name="status">
+        <Field className="search-field" label="Account ID">
+          <Input defaultValue={params.get('userId') ?? ''} name="userId" placeholder="All accounts" />
+        </Field>
+        <Field label="Provider">
+          <Input defaultValue={params.get('provider') ?? ''} name="provider" placeholder="All providers" />
+        </Field>
+        <Field label="Status">
+          <NativeSelect defaultValue={params.get('status') ?? ''} name="status">
             <option value="">All statuses</option>
             <option value="succeeded">Succeeded</option>
             <option value="failed">Failed</option>
-          </select>
-        </label>
-        <button className="primary-button" type="submit">
+          </NativeSelect>
+        </Field>
+        <Button variant="primary" type="submit">
           Apply
-        </button>
+        </Button>
       </Form>
 
       <section className="metric-strip compact-metrics" aria-label="Visible usage totals">
@@ -134,6 +133,7 @@ export default function UsageRoute({ loaderData }: Route.ComponentProps) {
         </div>
         <DataTable
           columns={usageColumns}
+          label="Provider calls table"
           empty={emptyTableState(
             loaderData.usage.usage.length,
             'No usage events',
@@ -156,6 +156,7 @@ export default function UsageRoute({ loaderData }: Route.ComponentProps) {
         </div>
         <DataTable
           columns={reconciliationColumns}
+          label="Reconciliation table"
           empty={emptyTableState(
             loaderData.reconciliations.reconciliations.length,
             'No reconciliation runs',
@@ -198,15 +199,14 @@ function OperationRecovery({ reconciliation }: { reconciliation: AdminAiOperatio
       </dl>
       <fetcher.Form method="post" onSubmit={() => setIdempotencyKey(crypto.randomUUID())}>
         <input name="idempotencyKey" type="hidden" value={idempotencyKey} />
-        <label>
-          <span>Reason</span>
-          <textarea name="reason" placeholder="Why is manual recovery needed?" required disabled={pending} />
-        </label>
-        <button className="primary-button" type="submit" disabled={pending}>
+        <Field label="Reason">
+          <Textarea name="reason" placeholder="Why is manual recovery needed?" required disabled={pending} />
+        </Field>
+        <Button loading={pending} variant="primary" type="submit">
           {pending ? 'Recovering...' : 'Recover operations'}
-        </button>
+        </Button>
       </fetcher.Form>
-      <MutationNotice result={fetcher.data} />
+      <MutationNotice result={pending ? undefined : fetcher.data} />
     </ControlSection>
   );
 }
@@ -304,11 +304,6 @@ function differenceText(providerCost: string | null, difference: number) {
 
 function differenceClassName(difference: number) {
   return difference === 0 ? '' : 'warning-text';
-}
-
-function readPageValue(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export const ErrorBoundary = AdminRouteError;
