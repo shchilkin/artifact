@@ -137,6 +137,12 @@ test('renders denied access without exposing operational data', async ({ page })
 test('renders shell and route-state actions through the UI Foundation command contract', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveClass(/\bui-command\b/);
+  const navigation = page.getByRole('navigation', { name: 'Backoffice' });
+  const overview = navigation.getByRole('link', { name: 'Overview' });
+  const navigationGeometry = await navigation.evaluate((element) => element.getBoundingClientRect().toJSON());
+  const overviewGeometry = await overview.evaluate((element) => element.getBoundingClientRect().toJSON());
+  expect(Math.abs(overviewGeometry.top - navigationGeometry.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(overviewGeometry.bottom - navigationGeometry.bottom)).toBeLessThanOrEqual(1);
 
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/**', (route) =>
@@ -344,7 +350,8 @@ test('keeps a tier conflict visible beside the account control', async ({ page }
   await expect(submit).toHaveClass(/\bui-command\b/);
   await tier.selectOption('free');
   await reason.fill('End closed alpha access');
-  await submit.click();
+  await submit.focus();
+  await submit.press('Enter');
   const conflict = page.getByRole('alert');
   await expect(conflict).toHaveClass(/\bui-inline-notice\b/);
   await expect(conflict).toBeFocused();
@@ -378,7 +385,8 @@ test('submits quota grants and reversals through Foundation controls with audite
   await expect(grantSubmit).toHaveClass(/\bui-command\b/);
   await grantAmount.fill('7');
   await grantReason.fill('Support a launch campaign');
-  await grantSubmit.click();
+  await grantSubmit.focus();
+  await grantSubmit.press('Enter');
   const grantResult = page.getByRole('status').filter({ hasText: '7 generations added for 2026-07.' });
   await expect(grantResult).toBeVisible();
   await expect(grantResult).toBeFocused();
@@ -391,7 +399,8 @@ test('submits quota grants and reversals through Foundation controls with audite
   await expect(reversalSubmit).toHaveClass(/\bui-command\b/);
   await reversalAmount.fill('1');
   await reversalReason.fill('Correct duplicate allowance');
-  await reversalSubmit.click();
+  await reversalSubmit.focus();
+  await reversalSubmit.press('Enter');
   const reversalResult = page.getByRole('status').filter({ hasText: '1 granted generations reversed.' });
   await expect(reversalResult).toBeVisible();
   await expect(reversalResult).toBeFocused();
@@ -402,6 +411,45 @@ test('submits quota grants and reversals through Foundation controls with audite
   expect(
     mutationBodies.every((body) => typeof body.idempotencyKey === 'string' && body.idempotencyKey.length > 0),
   ).toBe(true);
+});
+
+test('keeps the focused result when a quota grant becomes fully reversed', async ({ page }) => {
+  let fullyReversed = false;
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/admin/quota-grants/grant-1/reversals' && route.request().method() === 'POST') {
+      fullyReversed = true;
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ created: true }) });
+      return;
+    }
+    if (url.pathname === '/api/admin/accounts/creator-1') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...accountDetail,
+          quotaGrants: accountDetail.quotaGrants.map((grant) => ({
+            ...grant,
+            reversedAmount: fullyReversed ? grant.amount : grant.reversedAmount,
+          })),
+        }),
+      });
+      return;
+    }
+    await fulfillAdminRead(route);
+  });
+
+  await page.goto('/accounts/creator-1?period=2026-07');
+  await page.getByLabel('Amount to reverse').fill('4');
+  await page.getByLabel('Reversal reason').fill('Remove the remaining duplicate allowance');
+  const submit = page.getByRole('button', { name: 'Reverse' });
+  await submit.focus();
+  await submit.press('Enter');
+
+  const result = page.getByRole('status').filter({ hasText: '4 granted generations reversed.' });
+  await expect(result).toBeVisible();
+  await expect(result).toBeFocused();
+  await expect(page.getByText('Fully reversed')).toBeVisible();
 });
 
 test('previews and applies AI operation recovery with an audit reason', async ({ page }) => {
@@ -430,6 +478,7 @@ test('previews and applies AI operation recovery with an audit reason', async ({
 test('keeps recovery pending and reports an idempotent repeated result', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   let recoveryRequestBody: Record<string, unknown> | undefined;
+  let recoveryCount = 0;
   let releaseRecovery: (() => void) | undefined;
   const recoveryReady = new Promise<void>((resolve) => {
     releaseRecovery = resolve;
@@ -438,12 +487,13 @@ test('keeps recovery pending and reports an idempotent repeated result', async (
     const url = new URL(route.request().url());
     if (url.pathname === '/api/admin/ai-operations/reconciliation' && route.request().method() === 'POST') {
       recoveryRequestBody = JSON.parse(route.request().postData() ?? '{}');
-      await recoveryReady;
+      recoveryCount += 1;
+      if (recoveryCount > 1) await recoveryReady;
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
           mode: 'applied',
-          repeated: true,
+          repeated: recoveryCount > 1,
           checkedAt: '2026-07-15T10:00:00.000Z',
           staleBefore: '2026-07-15T04:00:00.000Z',
           recoveredOperationIds: ['operation-1'],
@@ -457,12 +507,19 @@ test('keeps recovery pending and reports an idempotent repeated result', async (
   });
 
   await page.goto('/usage');
+  await page.getByLabel('Reason').fill('Run the audited recovery');
+  await page.getByRole('button', { name: 'Recover operations' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Finalized 1 completed result and closed 1 abandoned request.' }),
+  ).toBeFocused();
+
   await page.getByLabel('Reason').fill('Retry the same audited recovery');
   await page.getByRole('button', { name: 'Recover operations' }).click();
   const pending = page.getByRole('button', { name: 'Recovering...' });
   await expect(pending).toBeDisabled();
   await expect(pending).toHaveAttribute('aria-busy', 'true');
   await expect(page.getByLabel('Reason')).toBeDisabled();
+  await expect(page.getByText('Finalized 1 completed result and closed 1 abandoned request.')).toHaveCount(0);
 
   releaseRecovery?.();
   const repeated = page.getByRole('status').filter({ hasText: 'This recovery request was already applied.' });

@@ -152,6 +152,7 @@ export function OperationalDataSpecimens() {
         <h3>Audited mutation controls</h3>
         <ControlSection
           eyebrow="Account tier"
+          headingLevel={4}
           title="Change access specimen"
           copy="Changes remain attributable and preserve current usage."
           badge={<StatusBadge value="creator" />}
@@ -177,6 +178,7 @@ export function OperationalDataSpecimens() {
         <h3>Operation recovery</h3>
         <ControlSection
           eyebrow="AI operations"
+          headingLevel={4}
           title="Recovery preview specimen"
           copy="Review recoverable results before applying an audited correction."
         >

@@ -195,6 +195,8 @@ test('Backoffice documents reduced specimens for every operational data and muta
   await expect(page.getByRole('heading', { name: 'Filtering, tables, and pagination' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Audited mutation controls' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Operation recovery' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 4, name: 'Change access specimen' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 4, name: 'Recovery preview specimen' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Operational account table specimen' })).toHaveAttribute(
     'tabindex',
     '0',

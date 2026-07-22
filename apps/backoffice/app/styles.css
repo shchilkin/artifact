@@ -141,6 +141,8 @@ a:not(.ui-command):focus-visible {
 .nav-link {
   position: relative;
   display: inline-flex;
+  height: auto;
+  align-self: stretch;
   align-items: center;
   min-height: 44px;
   padding: 0 18px;
@@ -328,7 +330,7 @@ th,
   margin-bottom: 18px;
 }
 
-.section-heading h2 {
+.section-heading :is(h2, h3, h4) {
   margin: 3px 0 0;
   font-size: 19px;
   font-weight: 650;
@@ -681,9 +683,8 @@ td code {
   min-width: 360px;
 }
 
-.reversal-form .mutation-notice {
-  grid-column: 1 / -1;
-  margin: 0;
+.reversal-control > .mutation-notice {
+  margin-top: 8px;
 }
 
 .compact-metrics {

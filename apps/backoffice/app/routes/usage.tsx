@@ -206,7 +206,7 @@ function OperationRecovery({ reconciliation }: { reconciliation: AdminAiOperatio
           {pending ? 'Recovering...' : 'Recover operations'}
         </Button>
       </fetcher.Form>
-      <MutationNotice result={fetcher.data} />
+      <MutationNotice result={pending ? undefined : fetcher.data} />
     </ControlSection>
   );
 }

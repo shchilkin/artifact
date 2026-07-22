@@ -219,11 +219,7 @@ function QuotaGrantRow({ grant }: { grant: AdminQuotaGrant }) {
       <td>{grant.reason}</td>
       <td>{formatTimestamp(grant.createdAt)}</td>
       <td>
-        {remaining > 0 ? (
-          <ReversalControl grantId={grant.id} maximum={remaining} />
-        ) : (
-          <span className="muted">Fully reversed</span>
-        )}
+        <ReversalControl grantId={grant.id} maximum={remaining} />
       </td>
     </tr>
   );
@@ -278,7 +274,7 @@ function TierControl({ account }: { account: AdminAccountDetailResponse }) {
           {pending ? 'Saving' : 'Change tier'}
         </Button>
       </fetcher.Form>
-      <MutationNotice result={fetcher.data} />
+      <MutationNotice result={pending ? undefined : fetcher.data} />
     </ControlSection>
   );
 }
@@ -311,7 +307,7 @@ function GrantControl({ period }: { period: string }) {
           {pending ? 'Saving' : 'Add quota'}
         </Button>
       </fetcher.Form>
-      <MutationNotice result={fetcher.data} />
+      <MutationNotice result={pending ? undefined : fetcher.data} />
     </ControlSection>
   );
 }
@@ -321,21 +317,27 @@ function ReversalControl({ grantId, maximum }: { grantId: string; maximum: numbe
   const [key, setKey] = useState(() => crypto.randomUUID());
   const pending = fetcher.state !== 'idle';
   return (
-    <fetcher.Form className="reversal-form" method="post" onSubmit={() => setKey(crypto.randomUUID())}>
-      <input name="intent" type="hidden" value="reverse-quota" />
-      <input name="grantId" type="hidden" value={grantId} />
-      <input name="idempotencyKey" type="hidden" value={key} />
-      <Field label="Amount to reverse">
-        <Input max={maximum} min="1" name="amount" placeholder="Amount" required type="number" />
-      </Field>
-      <Field label="Reversal reason">
-        <Input name="reason" placeholder="Reason" required />
-      </Field>
-      <Button loading={pending} variant="quiet" type="submit">
-        Reverse
-      </Button>
-      <MutationNotice result={fetcher.data} />
-    </fetcher.Form>
+    <div className="reversal-control">
+      {maximum > 0 ? (
+        <fetcher.Form className="reversal-form" method="post" onSubmit={() => setKey(crypto.randomUUID())}>
+          <input name="intent" type="hidden" value="reverse-quota" />
+          <input name="grantId" type="hidden" value={grantId} />
+          <input name="idempotencyKey" type="hidden" value={key} />
+          <Field label="Amount to reverse">
+            <Input max={maximum} min="1" name="amount" placeholder="Amount" required type="number" />
+          </Field>
+          <Field label="Reversal reason">
+            <Input name="reason" placeholder="Reason" required />
+          </Field>
+          <Button loading={pending} variant="quiet" type="submit">
+            Reverse
+          </Button>
+        </fetcher.Form>
+      ) : (
+        <span className="muted">Fully reversed</span>
+      )}
+      <MutationNotice result={pending ? undefined : fetcher.data} />
+    </div>
   );
 }
 
