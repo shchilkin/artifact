@@ -107,6 +107,12 @@ For roadmap work, do not infer acceptance criteria only from the issue or from
 old roadmap headings. Read `docs/version-planning.md` and the active version
 plan first:
 
+- v0.42 UI Foundation and cross-product proof release candidate:
+  `docs/version-plans/v0.42.md`
+- v0.43-v0.48 staged Backoffice and Artifact UI-system rewrite:
+  `docs/version-plans/v0.43.md` through `docs/version-plans/v0.48.md`
+- v0.49 AI-assisted creation after the UI-system gate:
+  `docs/version-plans/v0.49.md`
 - v0.31 code quality and Fallow integration:
   `docs/version-plans/v0.31.md`
 - v0.30 editor visual baseline and design-system foundation:

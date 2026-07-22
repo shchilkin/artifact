@@ -111,7 +111,7 @@
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
-  animation: ui-command-progress 720ms linear infinite;
+  animation: ui-command-progress var(--ui-motion-command-progress) linear infinite;
 }
 
 .ui-field {
@@ -266,7 +266,7 @@
   background-position: 140% 0;
   background-repeat: no-repeat;
   background-size: 60% 100%;
-  animation: ui-skeleton-shimmer 1.35s var(--ui-ease-out) infinite;
+  animation: ui-skeleton-shimmer var(--ui-motion-skeleton) var(--ui-ease-out) infinite;
 }
 
 .ui-skeleton--line {
@@ -295,13 +295,13 @@
 
 .ui-progress-indicator--indeterminate .ui-progress-indicator__value {
   width: 42%;
-  animation: ui-progress-indeterminate 1.05s var(--ui-ease-out) infinite;
+  animation: ui-progress-indeterminate var(--ui-motion-progress) var(--ui-ease-out) infinite;
 }
 
 .ui-tooltip-content,
 .ui-popover-content {
   box-sizing: border-box;
-  z-index: 10000;
+  z-index: var(--ui-layer-overlay);
   border: 1px solid;
   transform-origin: var(--radix-popper-transform-origin);
   animation: ui-overlay-enter var(--ui-motion-fast) var(--ui-ease-out);
@@ -406,7 +406,7 @@
 .ui-foundation-feedback-stack {
   display: grid;
   width: 100%;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ui-foundation-skeleton-short {

@@ -95,8 +95,12 @@
   --ui-focus-ring: var(--focus-ring);
   --ui-focus-offset: var(--focus-ring-offset);
   --ui-disabled-opacity: var(--state-disabled-opacity);
+  --ui-motion-command-progress: 720ms;
+  --ui-motion-skeleton: 1.35s;
+  --ui-motion-progress: 1.05s;
   --ui-motion-fast: var(--motion-fast);
   --ui-ease-out: var(--ease-out);
+  --ui-layer-overlay: 10000;
   --ui-brand-field: var(--brand-mark-field);
   --ui-brand-frame: var(--brand-mark-frame);
   --ui-brand-signal: var(--brand-mark-signal);
