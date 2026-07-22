@@ -79,7 +79,7 @@ CI should run:
 
 ## Manual QA
 
-### v0.42.0 Release Prep
+### v0.42.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.42.0` in `package.json`,
   `apps/web/package.json`, `apps/backoffice/package.json`, and
@@ -118,6 +118,21 @@ CI should run:
   suite or complete WCAG certification.
 - Accepted release risk: `@artifact/ui` is an internal source-consumed
   workspace, not a published public package.
+- PR #204 merged the completed release candidate into `development` as
+  `b7bd23c1e9114a4e53b1360f0c7eed9b90ffb8b2`. Post-merge CI run `29931759354`
+  and exact-SHA staging run `29934035680` passed before the stable staging
+  surfaces moved to that revision.
+- Promotion PR #205 passed CI run `29934375688` and merged the verified tree
+  into `main` as production commit
+  `1380d98fa6f748a008bd353a6a523fa370fadb8b`.
+- Release run `29936331375` passed the full gate and created annotated tag
+  `v0.42.0` plus the draft GitHub Release. Production run `29937964396` repeated
+  the full gate, verified the staged Vercel deployment, deployed and verified
+  the Coolify/API revision and contract version 1, promoted the web deployment,
+  and verified the production web domain reported the same commit.
+- Publish run `29939502145` passed the final full gate and published `v0.42.0`
+  as the latest release on 2026-07-22. All seven delivery issues and milestone
+  #4 are closed.
 
 ### v0.41.3 Release Prep And Evidence
 
