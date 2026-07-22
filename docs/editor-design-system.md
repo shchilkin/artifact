@@ -65,10 +65,58 @@ an additional route state, not a replacement for category color.
 
 ## Shared Primitive Ladder
 
+### UI Foundation Package
+
+Cross-product primitives live in `packages/ui` and are consumed as source by
+both React Router applications. UI Foundation owns React anatomy, accessible
+defaults, structural/state CSS, and the canonical semantic property list in
+`packages/ui/src/theme-contract.ts`.
+
+Concrete Theme Contract values remain product-owned:
+
+- Artifact maps the contract in
+  `apps/web/app/styles/ui-foundation-theme.css`.
+- Backoffice maps the contract in
+  `apps/backoffice/app/ui-foundation-theme.css`.
+
+The first command tracer exports `Button`, `ButtonLink`, and `IconButton`. The
+field tracer exports `Field`, `Input`, `Textarea`, and `NativeSelect`; `Field`
+owns label, hint, and error association while the controls retain native HTML
+props, refs, and form behavior. The feedback tracer exports `InlineNotice`,
+`Skeleton`, and `ProgressIndicator`. Notices distinguish calm status updates
+from urgent danger alerts, skeletons are silent unless given an announcement
+label, and progress exposes determinate values only when a value is known.
+The overlay tracer exports compound `Tooltip` and `Popover` APIs backed by
+Radix mechanics. UI Foundation owns their portal, collision, dismissal, focus,
+return-focus, structural CSS, and reduced-motion behavior; Product Themes own
+their semantic appearance. `FoundationCommandMatrix`, `FoundationFieldMatrix`,
+`FoundationFeedbackMatrix`, and `FoundationOverlayMatrix` are the shared
+deterministic specimen sets mounted by Artifact `/docs/style-guide` and
+Backoffice `/style-guide`. Both surfaces must render the same
+`data-foundation-specimen` identifiers while their computed typography,
+density, geometry, motion, and color continue to come from their distinct
+Product Themes.
+
+Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
+compatibility wrappers during the expand phase. They delegate anatomy and
+defaults to UI Foundation while preserving legacy class names needed by current
+consumer-specific layout CSS. The existing Artifact AI Generation composer is
+the first composed product consumer: its prompt, provider and quality fields,
+submit/loading and recovery commands, and feedback/progress states use UI
+Foundation directly while generation, accounting, and asset-import behavior
+remain product-owned. Backoffice sign-in is the second proof consumer: its
+email and password fields, submit/pending command, and authentication error use
+UI Foundation while the safe return path, autofill semantics, and auth client
+behavior remain product-owned. Other product forms remain scheduled
+consumer-migration work. Removing compatibility selectors belongs to the final
+contract phase, not the first tracers.
+
 ### Base UI Primitives
 
-These live under `apps/web/app/components/ui/*` and should be reused across
-public and editor surfaces:
+Artifact-specific primitives live under `apps/web/app/components/ui/*` and
+should be reused across public and editor surfaces. The command wrappers at
+this tier consume UI Foundation; the remaining primitives stay product-owned
+until their scheduled extraction or migration:
 
 - `ActionButton` / `ActionLink`
 - `IconButton`
@@ -254,6 +302,93 @@ Do not try to migrate the whole editor in one sweep. Each extraction pass should
 have a style-guide specimen, focused browser coverage, and no renderer, graph,
 export, persistence, or document-schema semantic changes unless that is the
 explicit release thesis.
+
+## Full UI Rewrite Boundary
+
+The accepted full UI rewrite is a closed migration of every user-visible
+Artifact Web and Backoffice surface onto the shared UI Foundation, the Artifact
+Design System, or the Backoffice UI System. It includes tokens, primitives,
+composed product patterns, route and application shells, forms, tables, Chat,
+editor chrome, responsive states, accessibility behavior, and visual
+conformance.
+
+The rewrite preserves product and creative-system semantics. It does not
+redesign the renderer, graph rules, `CanvasDocument`, persistence, APIs, auth,
+routing contracts, or business rules. Product behavior may change only when a
+visible interaction cannot meet the accepted accessibility or state contract
+without a focused, explicitly approved correction.
+
+The migration is complete only when every inventoried visible surface is
+represented by the new system or is an explicitly approved non-goal. There is
+no open-ended legacy bucket. Obsolete primitives, compatibility aliases, and
+local CSS are removed only after their replacement surface has a live specimen
+and conformance coverage.
+
+## Full UI Rewrite Sequence
+
+The rewrite proceeds through independently verifiable waves while unrelated
+feature work, including further AI Chat work, remains paused:
+
+1. Establish the UI Foundation package, Theme Contract, both Product Themes,
+   and the Artifact and Backoffice Foundation Matrix routes.
+2. Prove the system through the existing Artifact AI Generation composer and
+   one narrow Backoffice slice without resuming AI Chat feature work.
+3. Migrate all Backoffice routes and operational states.
+4. Migrate Artifact public shells, projects, docs, and route-level surfaces.
+5. Migrate Artifact editor commands, forms, overlays, rows, panels, and
+   inspectors.
+6. Migrate node-canvas, preview, and 3D chrome without changing their product or
+   rendering semantics.
+7. Close the inventory, remove superseded UI code and aliases, and pass the
+   cross-application conformance gate before AI Chat feature work resumes.
+
+The rewrite is planned as a sequence of releases under one UI-system program,
+not as one oversized version. Each release must have one thesis, one primary
+surface or risk boundary, explicit acceptance criteria, and its own validation
+gate. The current AI-Assisted Creation release remains paused and will be
+rescheduled after the final UI-system migration gate. Milestones and issues are
+published only after the release boundaries, ticket granularity, and blocking
+edges have been approved.
+
+The accepted release sequence is:
+
+- **v0.42 — UI Foundation And Cross-Product Proof**: waves 1 and 2.
+- **v0.43 — Backoffice UI System**: wave 3.
+- **v0.44 — Artifact Product Surfaces**: wave 4.
+- **v0.45 — Artifact Editor Workflows**: editor shell, commands, Layers, and Add
+  Library from wave 5.
+- **v0.46 — Artifact Inspector System**: property fields and inspector surfaces
+  from wave 5.
+- **v0.47 — Artifact Canvas Chrome**: wave 6.
+- **v0.48 — UI Conformance And Legacy Removal**: wave 7.
+- **v0.49 — AI-Assisted Creation**: the paused AI release resumes only after
+  the v0.48 gate.
+
+Each UI-system milestone should contain four to eight implementation issues.
+Every issue must fit one fresh implementation context, produce an independently
+verifiable result, and name the acceptance criterion it closes. If a milestone
+needs more than eight such issues or gains a second visual critique loop, split
+the release instead of expanding the milestone. Release-gate and documentation
+work may be represented by a dedicated closing issue inside that limit.
+
+The accepted cross-release blocking edges are:
+
+- v0.42 blocks every later UI-system release.
+- v0.43 Backoffice and v0.44 Artifact Product Surfaces may be implemented in
+  parallel after v0.42, although public tags remain numerically ordered.
+- v0.44 blocks v0.45 because editor workflows consume the proven Artifact Theme
+  and product-pattern contracts.
+- v0.45 blocks v0.46 and v0.47 because inspectors and canvas chrome both
+  consume the proven editor control and overlay patterns. Their implementation
+  may proceed in parallel after that frontier, although tags remain numerically
+  ordered.
+- v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
+- v0.48 blocks v0.49 AI-Assisted Creation.
+
+Within each milestone, establish its inventory and prerequisite contract first,
+allow independent migration slices to work from that frontier, and keep the
+release-gate issue blocked by every slice it validates. Do not add dependencies
+between slices that do not genuinely gate one another.
 
 ## Future Coverage Queue
 

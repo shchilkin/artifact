@@ -21,7 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const build = getAppBuildInfo();
 
   return (
-    <html lang="en">
+    <html lang="en" className="artifact-product-theme">
       <head>
         <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

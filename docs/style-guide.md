@@ -1,9 +1,13 @@
 # Artifact Style Guide
 
 This is the project style guide for UI work. Read it before implementing,
-refactoring, or reviewing user-facing UI. The live specimen route is
-`/docs/style-guide`; the token source is `apps/web/app/styles/tokens.css`; shared
-UI components live in `apps/web/app/components/ui/*`.
+refactoring, or reviewing user-facing UI. The live Artifact specimen route is
+`/docs/style-guide`; the cross-product Foundation Matrix also appears in
+Backoffice at `/style-guide`. Artifact tokens live in
+`apps/web/app/styles/tokens.css`, its UI Foundation Theme Contract mapping lives
+in `apps/web/app/styles/ui-foundation-theme.css`, cross-product primitives live
+in `packages/ui`, and Artifact-specific UI components live in
+`apps/web/app/components/ui/*`.
 
 This document follows a standard design-system shape: principles, tokens,
 component contracts, layout rules, content style, and implementation rules. It
@@ -49,6 +53,9 @@ geometry that is not a reusable UI rule.
 ### Token Source
 
 - CSS tokens: `apps/web/app/styles/tokens.css`
+- UI Foundation Theme mapping:
+  `apps/web/app/styles/ui-foundation-theme.css`
+- UI Foundation semantic contract: `packages/ui/src/theme-contract.ts`
 - Live token specimens: `/docs/style-guide`
 - Feature CSS may define feature-specific aliases, but it should map back to
   semantic tokens when possible.
@@ -213,6 +220,9 @@ until the migration is complete.
 ### Input
 
 - **Anatomy**: label, field, value, optional hint, optional error.
+- **Foundation contract**: compose `Field` with `Input` or `Textarea`; `Field`
+  owns label, hint, and error association, while the control preserves native
+  HTML props, refs, and form behavior.
 - **Variants**: text input, search field, textarea, color input.
 - **States**: default, hover, focus-visible, disabled, error, readonly.
 - **Accessibility**: every input has an accessible name; error text is tied to
@@ -224,6 +234,8 @@ until the migration is complete.
 ### Select
 
 - **Anatomy**: label, trigger, value, menu, options.
+- **Foundation contract**: compose `Field` with `NativeSelect`; use the native
+  element until product requirements justify custom selection mechanics.
 - **Variants**: native select first; custom select only when keyboard behavior
   or menu styling requires it.
 - **States**: default, hover, focus-visible, disabled, error.
@@ -231,6 +243,25 @@ until the migration is complete.
 - **Usage**: blend modes, aspect ratios, export format, finite option sets.
 - **Anti-patterns**: custom select for decoration, options that require long
   explanatory copy, hidden labels.
+
+### Feedback and async state
+
+- **Foundation contract**: use `InlineNotice` for bounded feedback,
+  `Skeleton` for unavailable visual structure, and `ProgressIndicator` for
+  work whose progress is known or unknown.
+- **Notice semantics**: `info`, `success`, and `warning` are polite status
+  updates by default; `danger` is an alert. Callers may override the native
+  live-region role when urgency depends on the workflow rather than color.
+- **Skeleton semantics**: decorative skeletons stay hidden from assistive
+  technology. Supply `label` only when the skeleton itself must announce a
+  loading status; do not announce every placeholder in a group.
+- **Progress semantics**: `label` is required. Omit `value` for indeterminate
+  work; pass `value` and optional `max` only when real progress is available.
+- **Motion**: shimmer and indeterminate travel stop under reduced motion while
+  the waiting state remains visibly distinguishable.
+- **Anti-patterns**: success-colored errors, fake progress percentages,
+  multiple competing live regions, and CSS spinners without an accessible
+  state owner.
 
 ### Card
 
@@ -250,6 +281,10 @@ until the migration is complete.
 ### Modal
 
 - **Anatomy**: overlay, surface, title, description, body, actions, close.
+- **Foundation Popover contract**: compose `Popover`, `PopoverTrigger`, and
+  `PopoverContent`; use `PopoverClose` for explicit close actions. Preserve
+  default initial focus, Escape and outside dismissal, collision handling, and
+  focus return unless a documented product interaction requires an override.
 - **Variants**: dialog, sheet, anchored menu when a full modal is not needed.
 - **States**: closed, opening, open, closing, error, loading.
 - **Accessibility**: focus trap, escape close when safe, labelled dialog,
@@ -258,6 +293,19 @@ until the migration is complete.
   panels when inline space is not enough.
 - **Anti-patterns**: modal as the first solution, hidden close path, long
   scrolling forms inside small dialogs.
+
+### Tooltip
+
+- **Foundation contract**: compose `Tooltip`, `TooltipTrigger`, and
+  `TooltipContent` inside `TooltipProvider`; use `asChild` so the real command
+  remains the keyboard and pointer trigger.
+- **Accessibility**: tooltip text supplements a trigger's visible or
+  programmatic accessible name. It never supplies or replaces that name.
+- **Usage**: short, non-interactive clarification for an icon, compact command,
+  or unfamiliar term.
+- **Anti-patterns**: essential instructions available only on hover,
+  interactive controls inside a tooltip, long product documentation, and
+  unnamed icon buttons whose tooltip is treated as their label.
 
 ### Tabs
 

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { IconButton as FoundationIconButton, type IconButtonProps as FoundationIconButtonProps } from '@artifact/ui';
 
 import { cn } from '@/lib/utils';
 
@@ -7,9 +7,7 @@ import './primitives.css';
 type IconButtonVariant = 'secondary' | 'primary' | 'danger';
 type IconButtonSize = 'default' | 'compact';
 
-interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: ReactNode;
-  label: string;
+interface IconButtonProps extends Omit<FoundationIconButtonProps, 'size' | 'variant'> {
   size?: IconButtonSize;
   variant?: IconButtonVariant;
 }
@@ -24,19 +22,20 @@ export function IconButton({
   ...props
 }: IconButtonProps) {
   return (
-    <button
-      type={type}
+    <FoundationIconButton
       className={cn(
         'artifact-icon-button',
         size === 'compact' && 'artifact-icon-button--compact',
         variant !== 'secondary' && `artifact-icon-button--${variant}`,
         className,
       )}
-      aria-label={label}
+      icon={icon}
+      label={label}
+      size={size}
       title={label}
+      type={type}
+      variant={variant}
       {...props}
-    >
-      {icon}
-    </button>
+    />
   );
 }

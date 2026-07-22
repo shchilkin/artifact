@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const useProductionPreview = process.env.PLAYWRIGHT_WEB_SERVER_MODE === 'preview';
+const webServerPort = process.env.PLAYWRIGHT_WEB_SERVER_PORT ?? '4173';
+const webServerBaseUrl = `http://127.0.0.1:${webServerPort}`;
 
 export default defineConfig({
   testDir: './tests/browser',
@@ -10,7 +12,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: webServerBaseUrl,
     trace: 'on-first-retry',
     viewport: { width: 1440, height: 960 },
     colorScheme: 'dark',
@@ -46,15 +48,15 @@ export default defineConfig({
   ],
   webServer: {
     command: useProductionPreview
-      ? '../../node_modules/.bin/vite preview --outDir build/client --host 127.0.0.1 --port 4173 --strictPort'
-      : '../../node_modules/.bin/react-router dev --host 127.0.0.1 --port 4173 --strictPort',
+      ? `../../node_modules/.bin/vite preview --outDir build/client --host 127.0.0.1 --port ${webServerPort} --strictPort`
+      : `../../node_modules/.bin/react-router dev --host 127.0.0.1 --port ${webServerPort} --strictPort`,
     cwd: './apps/web',
     env: {
       ...process.env,
-      VITE_AI_API_BASE_URL: 'http://127.0.0.1:4173',
+      VITE_AI_API_BASE_URL: webServerBaseUrl,
       VITE_AUTH_API_BASE_URL: '',
     },
-    url: 'http://127.0.0.1:4173',
+    url: webServerBaseUrl,
     reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_REUSE_SERVER !== '0',
     timeout: 120_000,
   },
