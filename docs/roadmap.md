@@ -20,11 +20,13 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.42 has reached release-candidate prep with the shared UI Foundation,
-  distinct Artifact and Backoffice Product Themes, two live Foundation Matrix
-  routes, the existing Artifact AI Generation composer, Backoffice sign-in,
-  and a cross-product release gate.
-  v0.43 through v0.48 remain the active bounded migration program for
+- v0.42 was released on 2026-07-22 with the shared UI Foundation, distinct
+  Artifact and Backoffice Product Themes, two live Foundation Matrix routes,
+  the existing Artifact AI Generation composer, Backoffice sign-in, and a
+  cross-product release gate. Tag `v0.42.0` resolves to production commit
+  `1380d98fa6f748a008bd353a6a523fa370fadb8b`; exact-SHA staging, production API,
+  and production web verification passed before publication. v0.43 through
+  v0.48 remain the active bounded migration program for
   Backoffice, Artifact product surfaces, editor workflows, inspectors, canvas
   chrome, final conformance, and legacy removal. See
   [`editor-design-system.md`](./editor-design-system.md),
