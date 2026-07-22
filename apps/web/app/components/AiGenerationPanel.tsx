@@ -1,3 +1,4 @@
+import { Button, Field, InlineNotice, NativeSelect, ProgressIndicator, Textarea } from '@artifact/ui';
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   aiAccessReasonBody,
@@ -28,7 +29,6 @@ import {
 } from '../utils/aiGenerationStatus';
 import { getArtifactAiApiBaseUrl } from '../utils/apiBaseUrl';
 import { getAppBuildInfo } from '../utils/appBuildInfo';
-import { ActionButton } from './ui/ActionButton';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
@@ -779,9 +779,9 @@ function hasGenerationRecoveryAction(canRetryGeneration: boolean, canRecoverGene
 function RetryGenerationButton({ enabled, onRetryGeneration }: { enabled: boolean; onRetryGeneration: () => void }) {
   if (!enabled) return null;
   return (
-    <button type="button" className="ai-generation-action" onClick={onRetryGeneration}>
+    <Button size="compact" className="ai-generation-action" onClick={onRetryGeneration}>
       Retry Prompt
-    </button>
+    </Button>
   );
 }
 
@@ -794,9 +794,9 @@ function RecoverGenerationButton({
 }) {
   if (!enabled) return null;
   return (
-    <button type="button" className="ai-generation-action" onClick={onRecoverGeneration}>
+    <Button size="compact" className="ai-generation-action" onClick={onRecoverGeneration}>
       Recover Asset
-    </button>
+    </Button>
   );
 }
 
@@ -823,30 +823,36 @@ function GenerationControls({
 }) {
   return (
     <>
-      <textarea
-        data-ai-generation-prompt
-        value={prompt}
-        onChange={(event) => setPrompt(event.target.value)}
-        placeholder="Prompt"
-        rows={3}
-        disabled={!accessEnabled || busy}
-        aria-describedby={!accessEnabled ? 'ai-generation-status' : undefined}
-      />
+      <Field className="ai-generation-prompt-field" label="Prompt">
+        <Textarea
+          data-ai-generation-prompt
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder="Describe the image to create"
+          rows={3}
+          disabled={!accessEnabled || busy}
+          aria-describedby={!accessEnabled ? 'ai-generation-status' : undefined}
+        />
+      </Field>
       <div className="ai-generation-grid">
-        <select value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
-          {providers.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <select value={quality} onChange={(event) => setQuality(event.target.value as AiGenerationQuality)}>
-          {QUALITY_OPTIONS.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
+        <Field label="Provider">
+          <NativeSelect value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
+            {providers.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field label="Quality">
+          <NativeSelect value={quality} onChange={(event) => setQuality(event.target.value as AiGenerationQuality)}>
+            {QUALITY_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
       </div>
     </>
   );
@@ -865,18 +871,49 @@ function GenerationSubmitButton({
   canGenerate: boolean;
   onGenerate: () => void;
 }) {
+  const loading = busy || jobIsActive(job);
   return (
-    <ActionButton className="ai-generation-submit" onClick={onGenerate} disabled={!canGenerate} variant="primary">
-      {busy || jobIsActive(job) ? '...' : submitLabel}
-    </ActionButton>
+    <Button
+      className="ai-generation-submit"
+      onClick={onGenerate}
+      disabled={!canGenerate}
+      loading={loading}
+      variant="primary"
+    >
+      {submitLabel}
+    </Button>
   );
 }
 
-function GenerationMeta({ access, status }: { access: AiGenerationAccessState | null; status: string | null }) {
+function GenerationFeedback({
+  busy,
+  job,
+  status,
+}: {
+  busy: boolean;
+  job: AiGenerationJob | null;
+  status: string | null;
+}) {
+  if (!status) return null;
+  const loading = busy || jobIsActive(job);
+  return (
+    <InlineNotice className="ai-generation-feedback" variant={generationFeedbackVariant(job, loading)}>
+      <span>{status}</span>
+      {loading ? <ProgressIndicator label={status} /> : null}
+    </InlineNotice>
+  );
+}
+
+function generationFeedbackVariant(job: AiGenerationJob | null, loading: boolean) {
+  if (job?.status === 'failed' || (!job && !loading)) return 'danger' as const;
+  if (job?.status === 'succeeded') return 'success' as const;
+  return 'info' as const;
+}
+
+function GenerationMeta({ access }: { access: AiGenerationAccessState | null }) {
   return (
     <div className="ai-generation-meta" id="ai-generation-status">
       <span>{aiAccessUsageLabel(access) ?? 'AI'}</span>
-      <span>{status}</span>
     </div>
   );
 }
@@ -1716,7 +1753,8 @@ export function AiGenerationPanel({
         canGenerate={canGenerate}
         onGenerate={handleGenerate}
       />
-      <GenerationMeta access={access} status={status} />
+      <GenerationFeedback busy={busy} job={job} status={status} />
+      <GenerationMeta access={access} />
     </div>
   );
 }

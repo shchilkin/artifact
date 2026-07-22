@@ -325,7 +325,8 @@ feature work, including further AI Chat work, remains paused:
 
 1. Establish the UI Foundation package, Theme Contract, both Product Themes,
    and the Artifact and Backoffice Foundation Matrix routes.
-2. Prove the system through Artifact Chat and one narrow Backoffice slice.
+2. Prove the system through the existing Artifact AI Generation composer and
+   one narrow Backoffice slice without resuming AI Chat feature work.
 3. Migrate all Backoffice routes and operational states.
 4. Migrate Artifact public shells, projects, docs, and route-level surfaces.
 5. Migrate Artifact editor commands, forms, overlays, rows, panels, and

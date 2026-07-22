@@ -3102,6 +3102,27 @@ test('AI image node can be added and explains account-gated access', async ({ pa
   await expect(page.locator('[data-ai-generation-prompt]')).toHaveCount(0);
 });
 
+test('AI generation composer consumes the Artifact UI Foundation', async ({ page }) => {
+  await mockEnabledAiAccess(page);
+  await page.goto('/app?new=blank');
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
+
+  const panel = page.locator('.ai-generation-panel');
+  const prompt = panel.getByRole('textbox', { name: 'Prompt' });
+  const provider = panel.getByRole('combobox', { name: 'Provider' });
+  const quality = panel.getByRole('combobox', { name: 'Quality' });
+  const submit = panel.getByRole('button', { name: 'Generate' });
+
+  await expect(prompt).toHaveClass(/ui-textarea/);
+  await expect(provider).toHaveClass(/ui-native-select/);
+  await expect(quality).toHaveClass(/ui-native-select/);
+  await expect(submit).toHaveClass(/ui-command/);
+  await expect(submit).toBeDisabled();
+
+  await prompt.fill('grainy red cassette cover');
+  await expect(submit).toBeEnabled();
+});
+
 test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
   await mockAiAccess(page, {
     authenticated: false,
@@ -3416,6 +3437,7 @@ test.describe('AI provider failure flow', () => {
     const panel = await generateAiImageFromSidebar(page, 'failed noisy cover');
 
     await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
+    await expect(panel.locator('.ai-generation-feedback')).toHaveClass(/ui-inline-notice--danger/);
     await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
     await expect(panel.locator('.ai-generation-diagnostics')).toContainText('provider_unavailable');
     await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
