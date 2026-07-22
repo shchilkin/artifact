@@ -1,7 +1,7 @@
 {
   "name": "@artifact/web",
   "private": true,
-  "version": "0.41.3",
+  "version": "0.42.0",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@artifact/shared": "0.0.0",
+    "@artifact/ui": "0.0.0",
     "@react-router/node": "^7.14.2",
     "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.10.2",

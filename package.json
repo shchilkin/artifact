@@ -1,14 +1,15 @@
 {
   "name": "album-cover-utils",
   "private": true,
-  "version": "0.41.3",
+  "version": "0.42.0",
   "type": "module",
   "packageManager": "npm@11.12.1",
   "workspaces": [
     "apps/api",
     "apps/backoffice",
     "apps/web",
-    "packages/shared"
+    "packages/shared",
+    "packages/ui"
   ],
   "scripts": {
     "favicon": "npm --workspace @artifact/web run favicon",
@@ -30,7 +31,7 @@
     "build:api": "npm --workspace @artifact/api run build",
     "build:ci": "npm --workspace @artifact/web run build:ci",
     "build:shared": "npm --workspace @artifact/shared run build",
-    "check": "npm run format:check && npm run lint && npm run typecheck:shared && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm test && npm run test:api && npm run test:backoffice",
+    "check": "npm run format:check && npm run lint && npm run typecheck:shared && npm run typecheck:ui && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm run test:ui && npm test && npm run test:api && npm run test:backoffice",
     "check:backoffice": "npm --workspace @artifact/backoffice run check",
     "format": "biome check --write .",
     "format:check": "biome check .",
@@ -46,7 +47,9 @@
     "typecheck:backoffice": "npm --workspace @artifact/backoffice run typecheck",
     "typecheck:api": "npm --workspace @artifact/api run typecheck",
     "typecheck:shared": "npm --workspace @artifact/shared run typecheck",
+    "typecheck:ui": "npm --workspace @artifact/ui run typecheck",
     "test": "npm --workspace @artifact/web run test",
+    "test:ui": "npm --workspace @artifact/ui run test",
     "test:backoffice": "npm --workspace @artifact/backoffice run test",
     "test:api": "npm --workspace @artifact/api run test",
     "test:coverage": "npm run test:coverage:web && npm run test:coverage:api",

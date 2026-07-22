@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Button, Field, InlineNotice, Input } from '@artifact/ui';
+import { type FormEvent, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../lib/authClient';
 
@@ -12,7 +13,7 @@ export default function SignInRoute() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
     setError(null);
@@ -37,22 +38,16 @@ export default function SignInRoute() {
         <h1 id="sign-in-title">Sign in</h1>
         <p className="page-summary">Account access and provider usage are available to Artifact Admins only.</p>
         <form className="sign-in-form" onSubmit={(event) => void submit(event)}>
-          <label>
-            <span>Email</span>
-            <input autoComplete="email" autoFocus name="email" required type="email" />
-          </label>
-          <label>
-            <span>Password</span>
-            <input autoComplete="current-password" name="password" required type="password" />
-          </label>
-          {error ? (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <button className="primary-button" disabled={pending} type="submit">
+          <Field label="Email">
+            <Input autoComplete="email" autoFocus name="email" required type="email" />
+          </Field>
+          <Field label="Password">
+            <Input autoComplete="current-password" name="password" required type="password" />
+          </Field>
+          {error ? <InlineNotice variant="danger">{error}</InlineNotice> : null}
+          <Button loading={pending} type="submit" variant="primary">
             {pending ? 'Signing in' : 'Sign in'}
-          </button>
+          </Button>
         </form>
         <a className="back-link" href="https://artifact.shchilkin.dev/app">
           Return to Artifact

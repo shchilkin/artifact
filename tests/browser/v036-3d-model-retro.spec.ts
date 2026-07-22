@@ -665,8 +665,12 @@ async function expectCleanContext3DRoundTrip(
   sourceRefs: Stored3DRefs,
   testInfo: TestInfo,
 ) {
+  const baseURL = testInfo.project.use.baseURL;
+  if (typeof baseURL !== 'string') {
+    throw new Error('The 3D package round-trip test requires a configured Playwright baseURL.');
+  }
   const cleanContext = await browser.newContext({
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL,
     colorScheme: 'dark',
     reducedMotion: 'reduce',
     serviceWorkers: 'block',

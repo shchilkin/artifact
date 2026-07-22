@@ -43,6 +43,11 @@ export function expectNoBrowserIssues(page: Page): void {
   expect(consoleIssues.get(page) ?? []).toEqual([]);
 }
 
+export async function pressForwardTab(page: Page): Promise<void> {
+  const shortcut = page.context().browser()?.browserType().name() === 'webkit' ? 'Alt+Tab' : 'Tab';
+  await page.keyboard.press(shortcut);
+}
+
 export async function supportsWebGl(page: Page): Promise<boolean> {
   return page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl')));
 }
