@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 
 import { PublicPageLayout } from '../components/PublicPageLayout';
+import { ProductPageHeader } from '../components/product-surfaces/ProductPageHeader';
 
 const DOCS_NAV_ITEMS = [
   {
@@ -47,12 +48,12 @@ export function DocsShell({
   return (
     <PublicPageLayout className="docs-page docs-page--sectioned">
       <div className="docs-shell">
-        <aside className="docs-sidebar" aria-label="Docs navigation">
+        <aside className="docs-sidebar">
           <Link to="/docs" className="docs-sidebar__brand">
             <span>Artifact</span>
             <strong>Docs</strong>
           </Link>
-          <nav className="docs-sidebar__nav">
+          <nav className="docs-sidebar__nav" aria-label="Docs navigation">
             {DOCS_NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.href}
@@ -69,11 +70,13 @@ export function DocsShell({
           </nav>
         </aside>
         <main className="docs-main">
-          <section className="docs-hero" aria-labelledby="docs-page-title">
-            <span className="docs-guide-section__eyebrow">{eyebrow}</span>
-            <h1 id="docs-page-title">{title}</h1>
-            <p>{deck}</p>
-          </section>
+          <ProductPageHeader
+            className="docs-hero"
+            deck={deck}
+            eyebrow={eyebrow}
+            title={title}
+            titleId="docs-page-title"
+          />
           {children}
         </main>
       </div>

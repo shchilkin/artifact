@@ -4,7 +4,11 @@ const consoleIssues = new WeakMap<Page, string[]>();
 
 export async function setupBrowserTestPage(
   page: Page,
-  options: { captureNodeDragWarnings?: boolean } = {},
+  options: {
+    captureNodeDragWarnings?: boolean;
+    ignoreExpectedHttp400?: boolean;
+    ignoreExpectedHttp404?: boolean;
+  } = {},
 ): Promise<void> {
   const issues: string[] = [];
   consoleIssues.set(page, issues);
@@ -23,6 +27,8 @@ export async function setupBrowserTestPage(
   page.on('console', (message) => {
     const text = message.text();
     if (isBenignBrowserTestIssue(text)) return;
+    if (options.ignoreExpectedHttp400 && /Failed to load resource:.*status of 400/.test(text)) return;
+    if (options.ignoreExpectedHttp404 && /Failed to load resource:.*status of 404/.test(text)) return;
     if (message.type() === 'error' && /clerk\.accounts\.dev/.test(text) && /Failed to fetch/.test(text)) return;
     if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
     if (

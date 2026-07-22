@@ -1,7 +1,9 @@
+import { Button, Field, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
-import { Link, useSearchParams } from 'react-router';
-import { SiteNav } from '../components/SiteNav';
+import { useSearchParams } from 'react-router';
+import { PublicPageLayout } from '../components/PublicPageLayout';
+import { ActionLink } from '../components/ui/ActionButton';
 import { resetArtifactPassword } from '../utils/authClient';
 
 export const meta: MetaFunction = () => [
@@ -59,46 +61,43 @@ export default function ResetPasswordRoute() {
   );
 
   return (
-    <main className="auth-route min-h-screen bg-bg text-text">
-      <SiteNav solid />
-      <section className="auth-page-shell" aria-labelledby="reset-password-title">
-        <div className="auth-page-panel">
+    <PublicPageLayout className="auth-route product-route-layout">
+      <main className="auth-page-shell" aria-labelledby="reset-password-title">
+        <section className="auth-page-panel">
           <p className="auth-page-kicker">Artifact account</p>
           <h1 id="reset-password-title">Choose new password</h1>
           <p className="auth-page-copy">Use a fresh password for your cloud projects and account workspace.</p>
 
-          <form className="auth-page-form" onSubmit={handleSubmit}>
-            <label>
-              <span>New password</span>
-              <input autoComplete="new-password" disabled={disabled} name="password" required type="password" />
-            </label>
-            <label>
-              <span>Confirm password</span>
-              <input autoComplete="new-password" disabled={disabled} name="confirmPassword" required type="password" />
-            </label>
+          <form aria-label="Reset password" className="auth-page-form" onSubmit={handleSubmit}>
+            <Field label="New password">
+              <Input autoComplete="new-password" disabled={disabled} name="password" required type="password" />
+            </Field>
+            <Field label="Confirm password">
+              <Input autoComplete="new-password" disabled={disabled} name="confirmPassword" required type="password" />
+            </Field>
 
             {error ? (
-              <p className="auth-page-message auth-page-message-error" role="alert">
+              <InlineNotice className="auth-page-message" variant="danger">
                 {error}
-              </p>
+              </InlineNotice>
             ) : null}
             {success ? (
-              <p className="auth-page-message auth-page-message-success" role="status">
+              <InlineNotice className="auth-page-message" variant="success">
                 Password updated. You can now sign in with the new password.
-              </p>
+              </InlineNotice>
             ) : null}
 
-            <button className="auth-page-submit" disabled={disabled} type="submit">
+            <Button className="auth-page-submit" disabled={disabled} loading={pending} type="submit" variant="primary">
               {pending ? 'Updating' : 'Update password'}
-            </button>
+            </Button>
           </form>
 
-          <Link className="auth-page-link" to="/app">
+          <ActionLink className="auth-page-link" to="/app" variant="quiet">
             Return to editor
-          </Link>
-        </div>
-      </section>
-    </main>
+          </ActionLink>
+        </section>
+      </main>
+    </PublicPageLayout>
   );
 }
 

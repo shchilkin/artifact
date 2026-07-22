@@ -96,9 +96,10 @@ export async function generateThumbnail(
   if (!inflight) {
     inflight = renderThumbnailDataUrl(doc, imageCache, cacheKey, dimensions.width, dimensions.height);
     thumbnailDataUrlInflightCache.set(cacheKey, inflight);
-    inflight.finally(() => {
+    const clearInflight = () => {
       if (thumbnailDataUrlInflightCache.get(cacheKey) === inflight) thumbnailDataUrlInflightCache.delete(cacheKey);
-    });
+    };
+    void inflight.then(clearInflight, clearInflight);
   }
 
   return inflight;

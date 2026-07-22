@@ -1,8 +1,7 @@
 import { useReducedMotion } from 'framer-motion';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
-import { Footer } from '../components/Footer';
-import { SiteNav } from '../components/SiteNav';
+import { PublicPageLayout } from '../components/PublicPageLayout';
 import { ActionLink } from '../components/ui/ActionButton';
 import {
   type CanvasDocument,
@@ -434,8 +433,7 @@ export default function Home() {
   }, [step, prefersReducedMotion]);
 
   return (
-    <div className="flex flex-col min-h-dvh bg-bg">
-      <SiteNav solid />
+    <PublicPageLayout className="product-discovery-route">
       <div className="landing-grain" aria-hidden="true" />
 
       <main className="home-main">
@@ -454,9 +452,7 @@ export default function Home() {
           <HomeStageCopy ctaRef={ctaRef} ctaVisible={ctaVisible} step={step} onStepRef={registerStepRef} />
         </div>
       </main>
-
-      <Footer />
-    </div>
+    </PublicPageLayout>
   );
 }
 
@@ -534,6 +530,7 @@ function HomeCanvasFrame({
         width={CANVAS_PX}
         height={CANVAS_PX}
         aria-label="Album cover preview composing layer by layer"
+        role="img"
       />
       <canvas
         ref={canvasBRef}

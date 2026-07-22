@@ -20,12 +20,20 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.43 is a locally verified release candidate for the Backoffice UI System
-  release; promotion is pending. Every current Backoffice route and operational
-  state now consumes the shared UI Foundation or a Backoffice-owned
-  Operational Pattern, with live specimens and focused desktop/mobile browser
-  coverage. Artifact product and editor migration remains bounded to
-  v0.44-v0.48. See [`version-plans/v0.43.md`](./version-plans/v0.43.md) and
+- v0.44 is a locally verified release candidate for the Artifact Product
+  Surfaces release. Every non-editor Artifact route now uses the Artifact
+  Design System or is an approved non-goal; the public shell, recovery,
+  discovery, Projects, Docs, and learning surfaces have focused desktop/mobile
+  coverage, and `/debug/shaders` is removed. Editor migration remains bounded
+  to v0.45-v0.48. See
+  [`version-plans/v0.44.md`](./version-plans/v0.44.md) and
+  [`releases/v0.44.0.md`](./releases/v0.44.0.md).
+- v0.43 was released on 2026-07-22 as the Backoffice UI System release. Every
+  current Backoffice route and operational state consumes the shared UI
+  Foundation or a Backoffice-owned Operational Pattern, with live specimens and
+  focused desktop/mobile browser coverage. Tag `v0.43.0` resolves to production
+  commit `d220752`. See
+  [`version-plans/v0.43.md`](./version-plans/v0.43.md) and
   [`releases/v0.43.0.md`](./releases/v0.43.0.md).
 - v0.42 was released on 2026-07-22 with the shared UI Foundation, distinct
   Artifact and Backoffice Product Themes, two live Foundation Matrix routes,

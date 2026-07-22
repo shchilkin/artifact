@@ -5,6 +5,7 @@ import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
 import { ActionButton } from './ui/ActionButton';
 import { actionButtonClassName } from './ui/actionButtonClassName';
+import { IconButton } from './ui/IconButton';
 
 const LINKS = [
   { to: '/projects', label: 'Projects' },
@@ -88,18 +89,20 @@ function DesktopNavLinks({ compact, auth }: { compact?: boolean; auth: ReturnTyp
 function MobileNavToggle({ compact, open, onToggle }: { compact?: boolean; open: boolean; onToggle: () => void }) {
   if (compact) return null;
   return (
-    <button
-      type="button"
+    <IconButton
       className="site-nav-mobile-toggle"
       onClick={onToggle}
-      aria-label={mobileToggleLabel(open)}
+      label={mobileToggleLabel(open)}
+      icon={
+        <span className="site-nav-mobile-toggle__icon">
+          {mobileToggleBarClasses(open).map((className, index) => (
+            <MobileNavToggleBar key={index} className={className} />
+          ))}
+        </span>
+      }
       aria-expanded={open}
       aria-controls="mobile-nav-menu"
-    >
-      {mobileToggleBarClasses(open).map((className, index) => (
-        <MobileNavToggleBar key={index} className={className} />
-      ))}
-    </button>
+    />
   );
 }
 
@@ -135,8 +138,9 @@ function MobileNavMenu({
 }) {
   if (!open || compact) return null;
   return (
-    <motion.div
+    <motion.nav
       id="mobile-nav-menu"
+      aria-label="Mobile navigation"
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
@@ -159,7 +163,7 @@ function MobileNavMenu({
       </NavLink>
       <GitHubNavLink className="site-nav-mobile-link" />
       <AccountButton auth={auth} />
-    </motion.div>
+    </motion.nav>
   );
 }
 

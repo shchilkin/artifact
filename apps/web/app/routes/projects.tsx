@@ -1,9 +1,11 @@
+import { InlineNotice, Skeleton } from '@artifact/ui';
 import { useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { useNavigate } from 'react-router';
 
 import { ProjectsList } from '../components/ProjectsPanel';
-import { SiteNav } from '../components/SiteNav';
+import { PublicPageLayout } from '../components/PublicPageLayout';
+import { ProductPageHeader } from '../components/product-surfaces/ProductPageHeader';
 import { ActionLink } from '../components/ui/ActionButton';
 import { useProjects } from '../hooks/useProjects';
 import {
@@ -30,7 +32,9 @@ export default function ProjectsRoute() {
   const {
     projects,
     recoveryDraft,
+    loading,
     storageError,
+    projectSyncStates,
     maxProjects,
     deleteProject,
     saveProjectToCloud,
@@ -62,41 +66,41 @@ export default function ProjectsRoute() {
   };
 
   return (
-    <main className="projects-route min-h-screen bg-bg text-text">
-      <SiteNav solid />
-      <section className="projects-page-shell">
+    <PublicPageLayout className="projects-route">
+      <main className="projects-page-shell">
         <ProjectsPageHeader />
         <ProjectsPageContext viewModel={viewModel} />
         <ProjectsPageWarning message={viewModel.warning} />
         <ProjectsPageLibrary
           activeProjectId={viewModel.activeProjectId}
           hasSavedItems={viewModel.hasSavedItems}
+          loading={loading}
           projects={projects}
+          projectSyncStates={projectSyncStates}
           recoveryDraft={recoveryDraft}
           onDelete={handleDeleteProject}
           onDeleteRecoveryDraft={deleteRecoveryDraft}
           onSaveToCloud={saveProjectToCloud}
           onLoad={handleOpenProject}
         />
-      </section>
-    </main>
+      </main>
+    </PublicPageLayout>
   );
 }
 
 function ProjectsPageHeader() {
   return (
-    <header className="projects-page-header" aria-labelledby="projects-page-title">
-      <div className="projects-page-kicker">Local workspace</div>
-      <div className="projects-page-title-row">
-        <div>
-          <h1 id="projects-page-title">Projects</h1>
-          <p>Open saved work from this browser or recover a previous draft.</p>
-        </div>
+    <ProductPageHeader
+      className="projects-page-header"
+      eyebrow="Local workspace"
+      title="Projects"
+      deck="Open saved work from this browser or recover a previous draft."
+      actions={
         <ActionLink to="/app?new=blank" variant="primary">
           New project
         </ActionLink>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -113,44 +117,56 @@ function ProjectsPageContext({ viewModel }: { viewModel: ReturnType<typeof proje
 function ProjectsPageWarning({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="projects-page-warning" role="status">
+    <InlineNotice className="projects-page-warning" variant="warning">
       {message}
-    </div>
+    </InlineNotice>
   );
 }
 
 function ProjectsPageLibrary({
   activeProjectId,
   hasSavedItems,
+  loading,
   onDelete,
   onDeleteRecoveryDraft,
   onSaveToCloud,
   onLoad,
   projects,
+  projectSyncStates,
   recoveryDraft,
 }: {
   activeProjectId: string | null;
   hasSavedItems: boolean;
+  loading: boolean;
   onDelete: (id: string) => void;
   onDeleteRecoveryDraft: () => void;
   onSaveToCloud: (project: SavedProject) => void;
   onLoad: (project: SavedProject) => void;
   projects: SavedProject[];
+  projectSyncStates: ReturnType<typeof useProjects>['projectSyncStates'];
   recoveryDraft: SavedProject | null;
 }) {
   return (
     <section className="projects-page-library" aria-label="Local projects">
-      <ProjectsList
-        hasSavedItems={hasSavedItems}
-        projects={projects}
-        activeProjectId={activeProjectId}
-        recoveryDraft={recoveryDraft}
-        loadMode="card"
-        onDelete={onDelete}
-        onDeleteRecoveryDraft={onDeleteRecoveryDraft}
-        onSaveToCloud={onSaveToCloud}
-        onLoad={onLoad}
-      />
+      {loading ? (
+        <div className="projects-page-loading" role="status" aria-label="Loading project library">
+          <Skeleton shape="block" />
+          <Skeleton shape="block" />
+        </div>
+      ) : (
+        <ProjectsList
+          hasSavedItems={hasSavedItems}
+          projects={projects}
+          activeProjectId={activeProjectId}
+          recoveryDraft={recoveryDraft}
+          projectSyncStates={projectSyncStates}
+          loadMode="card"
+          onDelete={onDelete}
+          onDeleteRecoveryDraft={onDeleteRecoveryDraft}
+          onSaveToCloud={onSaveToCloud}
+          onLoad={onLoad}
+        />
+      )}
     </section>
   );
 }

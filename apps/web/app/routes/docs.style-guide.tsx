@@ -32,6 +32,7 @@ import { NodePropertiesPanel } from '../components/node-canvas/panel/NodePropert
 import '@xyflow/react/dist/style.css';
 import '../components/node-canvas/node-canvas.css';
 import { PublicPageLayout } from '../components/PublicPageLayout';
+import { ProductSurfaceSpecimens } from '../components/product-surfaces/ProductSurfaceSpecimens';
 import { ActionButton } from '../components/ui/ActionButton';
 import { Badge } from '../components/ui/Badge';
 import {
@@ -384,7 +385,15 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="03 / Base primitives"
+          kicker="03 / Product surfaces"
+          title="Artifact route patterns"
+          body="Public navigation, recovery, artwork, projects, and learning surfaces share one tactile route language."
+        >
+          <ProductSurfaceSpecimens />
+        </StyleSection>
+
+        <StyleSection
+          kicker="04 / Base primitives"
           title="Controls"
           body="Base primitives live in components/ui and should replace repeated local button, search, badge, and toolbar chrome."
         >

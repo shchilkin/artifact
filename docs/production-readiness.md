@@ -79,6 +79,47 @@ CI should run:
 
 ## Manual QA
 
+### v0.44.0 Release Prep
+
+- Package metadata is bumped to `0.44.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.44.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.44 migrates every non-editor Artifact product route onto the Artifact
+  Design System while preserving auth, routing, project persistence, starter,
+  renderer, graph, export, and AI behavior.
+- The public shell, home, Showcase, examples, Projects, Docs, reference, and
+  Nodes learning surface now use shared product patterns and UI Foundation
+  controls for commands, fields, feedback, and overlays.
+- The Artifact `/docs/style-guide` contains deterministic reduced specimens for
+  public shell, recovery, artwork, project-library, Docs navigation, reference,
+  and learning patterns.
+- `/debug/shaders`, its route registration, route component, and standalone CSS
+  are removed; shader runtime coverage remains in the normal release gate.
+- `npm run check` passed on 2026-07-23 with 20 UI Foundation tests, 677 Web
+  tests, 261 passing API tests with 5 skipped, and 11 Backoffice tests, plus
+  formatting, lint, deployment tests, and type checking.
+- `npm run build` passed for Web and Backoffice. The build retains the existing
+  11 Fast Refresh warnings and large Three.js vendor-chunk warning.
+- The complete browser release gate passed with 454 tests passing and 49
+  intentional skips across Artifact Chromium, Firefox, WebKit, mobile Chromium,
+  mobile WebKit, and Backoffice desktop/mobile Chromium. One existing WebKit
+  Tooltip/Popover focus scenario passed on retry; every v0.44-specific scenario
+  passed without retry.
+- Manual visual QA covered home, Showcase, Projects, Docs, and password recovery
+  at desktop and mobile widths, plus the live Product Surface Pattern specimens.
+- `npm run perf:node-editor` is not required because v0.44 changes no graph
+  traversal, render algorithm, render signature, thumbnail queue, or node-canvas
+  interaction path. Showcase only gains rejected-promise cleanup around its
+  existing thumbnail generation call.
+- Accepted release risk: focused conformance and representative visual review
+  are not a complete visual-regression suite or WCAG certification.
+- Accepted release risk: compatibility wrappers and legacy aliases remain until
+  v0.48, while editor surfaces remain intentionally sequenced across v0.45-v0.47.
+- Accepted release risk: the existing WebKit Tooltip/Popover focus scenario
+  required its available retry in the final local release gate.
+
 ### v0.43.0 Release Prep
 
 - Package metadata is bumped to `0.43.0` in `package.json`,

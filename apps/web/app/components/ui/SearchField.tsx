@@ -1,6 +1,8 @@
+import { Input } from '@artifact/ui';
 import { forwardRef, type InputHTMLAttributes } from 'react';
 
 import { cn } from '@/lib/utils';
+import { IconButton } from './IconButton';
 
 import './primitives.css';
 
@@ -16,21 +18,20 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
 ) {
   const hasValue = typeof value === 'string' ? value.length > 0 : Boolean(value);
   return (
-    <label className={cn('artifact-search-field', className)}>
+    <div className={cn('artifact-search-field', className)} role="search">
       <span className="artifact-search-icon" aria-hidden="true">
         ⌕
       </span>
-      <input ref={ref} className={cn('artifact-search-input', inputClassName)} type="search" value={value} {...props} />
+      <Input ref={ref} className={cn('artifact-search-input', inputClassName)} type="search" value={value} {...props} />
       {onClear && hasValue && (
-        <button
-          type="button"
+        <IconButton
+          icon="×"
+          label="Clear search"
+          size="compact"
           className={cn('artifact-search-clear', clearClassName)}
           onClick={onClear}
-          aria-label="Clear search"
-        >
-          ×
-        </button>
+        />
       )}
-    </label>
+    </div>
   );
 });
