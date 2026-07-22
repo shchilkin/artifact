@@ -1,8 +1,16 @@
 import type { AccountTier, AdminAccountDetailResponse, AdminAuditEvent, AdminQuotaGrant } from '@artifact/shared';
+import { Button, ButtonLink, Field, Input, NativeSelect, Textarea } from '@artifact/ui';
 import { useState } from 'react';
-import { Link, useFetcher, useLocation } from 'react-router';
+import { useFetcher, useLocation } from 'react-router';
+import {
+  ControlSection,
+  DataTable,
+  Metric,
+  MutationNotice,
+  PageHeader,
+  StatusBadge,
+} from '../components/backoffice-ui';
 import { AccountRouteError } from '../components/RouteState';
-import { ControlSection, DataTable, Metric, MutationNotice, PageHeader, StatusBadge } from '../components/Ui';
 import { AdminApiError, adminApi, currentUtcPeriod, readPositiveInteger } from '../lib/adminApi';
 import { formatMicroUsd, formatTimestamp } from '../lib/format';
 import { emptyTableState } from '../lib/tableState';
@@ -123,9 +131,9 @@ export default function AccountDetailRoute({ loaderData }: Route.ComponentProps)
   const netGrant = loaderData.quotaGrants.reduce((total, grant) => total + grant.amount - grant.reversedAmount, 0);
   return (
     <div className="page">
-      <Link className="back-link" to={`/accounts?period=${period}`}>
+      <ButtonLink size="compact" variant="quiet" to={`/accounts?period=${period}`}>
         Back to accounts
-      </Link>
+      </ButtonLink>
       <PageHeader
         eyebrow="Operations / account detail"
         title={account.email ?? 'Account without email'}
@@ -162,6 +170,7 @@ export default function AccountDetailRoute({ loaderData }: Route.ComponentProps)
         </div>
         <DataTable
           columns={quotaColumns}
+          label="Quota grants table"
           empty={emptyTableState(
             loaderData.quotaGrants.length,
             'No quota grants',
@@ -183,6 +192,7 @@ export default function AccountDetailRoute({ loaderData }: Route.ComponentProps)
         </div>
         <DataTable
           columns={auditColumns}
+          label="Admin changes table"
           empty={emptyTableState(
             loaderData.audit.length,
             'No admin changes',
@@ -254,21 +264,19 @@ function TierControl({ account }: { account: AdminAccountDetailResponse }) {
         <input name="expectedTier" type="hidden" value={account.account.tier} />
         <input name="expectedVersion" type="hidden" value={account.account.tierVersion} />
         <input name="idempotencyKey" type="hidden" value={key} />
-        <label>
-          <span>New tier</span>
-          <select defaultValue={account.account.tier} name="tier">
+        <Field label="New tier">
+          <NativeSelect defaultValue={account.account.tier} name="tier">
             <option value="free">Free</option>
             <option value="creator">Creator</option>
             <option value="founder">Founder</option>
-          </select>
-        </label>
-        <label>
-          <span>Reason for tier change</span>
-          <textarea name="reason" placeholder="Why is access changing?" required rows={3} />
-        </label>
-        <button className="primary-button" disabled={pending} type="submit">
+          </NativeSelect>
+        </Field>
+        <Field label="Reason for tier change">
+          <Textarea name="reason" placeholder="Why is access changing?" required rows={3} />
+        </Field>
+        <Button loading={pending} variant="primary" type="submit">
           {pending ? 'Saving' : 'Change tier'}
-        </button>
+        </Button>
       </fetcher.Form>
       <MutationNotice result={fetcher.data} />
     </ControlSection>
@@ -289,22 +297,19 @@ function GrantControl({ period }: { period: string }) {
         <input name="intent" type="hidden" value="grant-quota" />
         <input name="idempotencyKey" type="hidden" value={key} />
         <div className="paired-fields">
-          <label>
-            <span>Period</span>
-            <input defaultValue={period} name="period" required type="month" />
-          </label>
-          <label>
-            <span>Generations</span>
-            <input min="1" name="amount" required type="number" />
-          </label>
+          <Field label="Period">
+            <Input defaultValue={period} name="period" required type="month" />
+          </Field>
+          <Field label="Generations">
+            <Input min="1" name="amount" required type="number" />
+          </Field>
         </div>
-        <label>
-          <span>Reason for quota grant</span>
-          <textarea name="reason" placeholder="Why is this allowance needed?" required rows={3} />
-        </label>
-        <button className="primary-button" disabled={pending} type="submit">
+        <Field label="Reason for quota grant">
+          <Textarea name="reason" placeholder="Why is this allowance needed?" required rows={3} />
+        </Field>
+        <Button loading={pending} variant="primary" type="submit">
           {pending ? 'Saving' : 'Add quota'}
-        </button>
+        </Button>
       </fetcher.Form>
       <MutationNotice result={fetcher.data} />
     </ControlSection>
@@ -314,24 +319,21 @@ function GrantControl({ period }: { period: string }) {
 function ReversalControl({ grantId, maximum }: { grantId: string; maximum: number }) {
   const fetcher = useFetcher<typeof clientAction>();
   const [key, setKey] = useState(() => crypto.randomUUID());
+  const pending = fetcher.state !== 'idle';
   return (
     <fetcher.Form className="reversal-form" method="post" onSubmit={() => setKey(crypto.randomUUID())}>
       <input name="intent" type="hidden" value="reverse-quota" />
       <input name="grantId" type="hidden" value={grantId} />
       <input name="idempotencyKey" type="hidden" value={key} />
-      <input
-        aria-label="Amount to reverse"
-        max={maximum}
-        min="1"
-        name="amount"
-        placeholder="Amount"
-        required
-        type="number"
-      />
-      <input aria-label="Reversal reason" name="reason" placeholder="Reason" required />
-      <button className="quiet-button" disabled={fetcher.state !== 'idle'} type="submit">
+      <Field label="Amount to reverse">
+        <Input max={maximum} min="1" name="amount" placeholder="Amount" required type="number" />
+      </Field>
+      <Field label="Reversal reason">
+        <Input name="reason" placeholder="Reason" required />
+      </Field>
+      <Button loading={pending} variant="quiet" type="submit">
         Reverse
-      </button>
+      </Button>
       <MutationNotice result={fetcher.data} />
     </fetcher.Form>
   );

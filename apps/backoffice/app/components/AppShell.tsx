@@ -1,3 +1,4 @@
+import { Button, commandClassName, ProgressIndicator } from '@artifact/ui';
 import { NavLink, Outlet, useNavigate, useNavigation } from 'react-router';
 import { authClient, clearAuthBearerToken } from '../lib/authClient';
 
@@ -36,7 +37,9 @@ export function AppShell() {
           {navigationItems.map((item) => (
             <NavLink
               key={item.to}
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              className={({ isActive }) =>
+                commandClassName('quiet', isActive ? 'nav-link active' : 'nav-link', 'compact')
+              }
               end={item.end}
               to={item.to}
             >
@@ -44,11 +47,16 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <button className="quiet-button sign-out" type="button" onClick={() => void signOut()}>
+        <Button className="sign-out" size="compact" variant="quiet" onClick={() => void signOut()}>
           Sign out
-        </button>
+        </Button>
       </header>
-      <div className={navigation.state === 'idle' ? 'load-rail' : 'load-rail active'} aria-hidden="true" />
+      {navigation.state === 'idle' ? null : (
+        <ProgressIndicator
+          className="load-rail"
+          label={navigation.state === 'loading' ? 'Refreshing data' : 'Saving change'}
+        />
+      )}
       <div className="navigation-status" aria-live="polite">
         {navigation.state === 'loading' ? 'Refreshing data' : navigation.state === 'submitting' ? 'Saving change' : ''}
       </div>

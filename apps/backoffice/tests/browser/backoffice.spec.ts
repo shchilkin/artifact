@@ -69,6 +69,54 @@ test('shows the operational overview and all four primary views', async ({ page 
   await expect(page.getByRole('heading', { name: 'Reconciliation' })).toBeVisible();
 });
 
+test('submits the overview UTC period by keyboard through Foundation controls', async ({ page }) => {
+  const requestedPeriods: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/admin/overview') requestedPeriods.push(url.searchParams.get('period') ?? '');
+  });
+
+  await page.goto('/?period=2026-07');
+  const period = page.getByLabel('UTC period');
+  await expect(period).toHaveClass(/\bui-field-control\b/);
+  await expect(page.getByRole('button', { name: 'Apply' })).toHaveClass(/\bui-command\b/);
+
+  await period.fill('2026-06');
+  await period.press('Enter');
+
+  await expect(page).toHaveURL(/period=2026-06/);
+  expect(requestedPeriods).toContain('2026-06');
+  await expect(page.getByRole('heading', { name: 'Monthly pulse' })).toBeVisible();
+  await expect(page.getByText('$10.00 spent')).toBeVisible();
+});
+
+test('clamps the Safety Budget progress while preserving over-limit operational values', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/overview?**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        period: '2026-07',
+        accounts: { free: 0, creator: 0, founder: 0, total: 0 },
+        generations: { committed: 0, reserved: 0 },
+        providerUsage: { costMicroUsd: '0', inputTokens: '0', outputTokens: '0', failedCalls: 0 },
+        safetyBudget: {
+          period: '2026-07',
+          state: 'stopped',
+          spentMicroUsd: '36000000',
+          warningMicroUsd: '24000000',
+          limitMicroUsd: '30000000',
+        },
+      }),
+    }),
+  );
+
+  await page.goto('/?period=2026-07');
+  await expect(page.getByRole('progressbar', { name: 'Safety budget used' })).toHaveAttribute('aria-valuenow', '100');
+  await expect(page.getByText('$36.00 spent')).toBeVisible();
+  await expect(page.getByText('Remaining').locator('..').getByText('$0.00', { exact: true })).toBeVisible();
+});
+
 test('renders denied access without exposing operational data', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/**', (route) =>
@@ -86,6 +134,25 @@ test('renders denied access without exposing operational data', async ({ page })
   await expect(page.getByText('Creator accounts')).toHaveCount(0);
 });
 
+test('renders shell and route-state actions through the UI Foundation command contract', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveClass(/\bui-command\b/);
+
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'admin_access_denied',
+        message: 'Admin access is required.',
+      }),
+    }),
+  );
+  await page.goto('/accounts');
+  await expect(page.getByRole('link', { name: 'Use another account' })).toHaveClass(/\bui-command\b/);
+});
+
 test('shows an empty account search without losing the filters', async ({ page }) => {
   await page.unroute('**/api/admin/**');
   await page.route('**/api/admin/accounts?**', (route) =>
@@ -100,6 +167,62 @@ test('shows an empty account search without losing the filters', async ({ page }
   await page.goto('/accounts?q=missing%40example.com&period=2026-07');
   await expect(page.getByText('No accounts found')).toBeVisible();
   await expect(page.getByLabel('Search accounts')).toHaveValue('missing@example.com');
+});
+
+test('preserves account filters through Foundation search and pagination controls', async ({ page }) => {
+  const accountRequests: string[] = [];
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/accounts?**', (route) => {
+    const url = new URL(route.request().url());
+    accountRequests.push(url.search);
+    const limit = Number(url.searchParams.get('limit') ?? 25);
+    const offset = Number(url.searchParams.get('offset') ?? 0);
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accounts: [account],
+        page: { limit, offset, total: 51, hasMore: offset + limit < 51 },
+      }),
+    });
+  });
+
+  await page.goto('/accounts?q=creator&period=2026-07&limit=25&offset=0');
+  const search = page.getByLabel('Search accounts');
+  const period = page.getByLabel('UTC period');
+  await expect(search).toHaveClass(/\bui-field-control\b/);
+  await expect(period).toHaveClass(/\bui-field-control\b/);
+  await expect(page.getByRole('button', { name: 'Search' })).toHaveClass(/\bui-command\b/);
+
+  await search.fill('creator@example.com');
+  await search.press('Enter');
+  await expect(page).toHaveURL(/q=creator%40example.com/);
+  await expect(page).not.toHaveURL(/offset=/);
+
+  const next = page.getByRole('link', { name: 'Next' });
+  await expect(next).toHaveClass(/\bui-command\b/);
+  await next.focus();
+  await next.press('Enter');
+  await expect(page).toHaveURL(/q=creator%40example.com/);
+  await expect(page).toHaveURL(/period=2026-07/);
+  await expect(page).toHaveURL(/limit=25/);
+  await expect(page).toHaveURL(/offset=25/);
+  expect(accountRequests.some((request) => request.includes('offset=25'))).toBe(true);
+});
+
+test('contains the account directory table in a keyboard-scrollable mobile region', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/accounts?period=2026-07');
+
+  const tableRegion = page.getByRole('region', { name: 'Account directory table' });
+  await expect(tableRegion).toHaveAttribute('tabindex', '0');
+  const geometry = await tableRegion.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
 });
 
 test('shows a recoverable server error', async ({ page }) => {
@@ -179,11 +302,66 @@ test('keeps a tier conflict visible beside the account control', async ({ page }
     await fulfillAdminRead(route);
   });
   await page.goto('/accounts/creator-1?period=2026-07');
-  await page.getByRole('combobox', { name: 'New tier' }).selectOption('free');
-  await page.getByLabel('Reason for tier change').fill('End closed alpha access');
-  await page.getByRole('button', { name: 'Change tier' }).click();
+  const tier = page.getByRole('combobox', { name: 'New tier' });
+  const reason = page.getByLabel('Reason for tier change');
+  const submit = page.getByRole('button', { name: 'Change tier' });
+  await expect(tier).toHaveClass(/\bui-field-control\b/);
+  await expect(reason).toHaveClass(/\bui-field-control\b/);
+  await expect(submit).toHaveClass(/\bui-command\b/);
+  await tier.selectOption('free');
+  await reason.fill('End closed alpha access');
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveClass(/\bui-inline-notice\b/);
   await expect(page.getByText('Account changed elsewhere')).toBeVisible();
   await expect(page.getByText('Account tier changed since it was loaded.')).toBeVisible();
+});
+
+test('submits quota grants and reversals through Foundation controls with audited reasons', async ({ page }) => {
+  const mutationBodies: Array<Record<string, unknown>> = [];
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      mutationBodies.push(JSON.parse(route.request().postData() ?? '{}'));
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ ...accountDetail, created: true }),
+      });
+      return;
+    }
+    await fulfillAdminRead(route);
+  });
+
+  await page.goto('/accounts/creator-1?period=2026-07');
+  const grantPeriod = page.getByLabel('Period');
+  const grantAmount = page.getByLabel('Generations');
+  const grantReason = page.getByLabel('Reason for quota grant');
+  const grantSubmit = page.getByRole('button', { name: 'Add quota' });
+  await expect(grantPeriod).toHaveClass(/\bui-field-control\b/);
+  await expect(grantAmount).toHaveClass(/\bui-field-control\b/);
+  await expect(grantReason).toHaveClass(/\bui-field-control\b/);
+  await expect(grantSubmit).toHaveClass(/\bui-command\b/);
+  await grantAmount.fill('7');
+  await grantReason.fill('Support a launch campaign');
+  await grantSubmit.click();
+  await expect(page.getByRole('status').filter({ hasText: '7 generations added for 2026-07.' })).toBeVisible();
+
+  const reversalAmount = page.getByLabel('Amount to reverse');
+  const reversalReason = page.getByLabel('Reversal reason');
+  const reversalSubmit = page.getByRole('button', { name: 'Reverse' });
+  await expect(reversalAmount).toHaveClass(/\bui-field-control\b/);
+  await expect(reversalReason).toHaveClass(/\bui-field-control\b/);
+  await expect(reversalSubmit).toHaveClass(/\bui-command\b/);
+  await reversalAmount.fill('1');
+  await reversalReason.fill('Correct duplicate allowance');
+  await reversalSubmit.click();
+  await expect(page.getByRole('status').filter({ hasText: '1 granted generations reversed.' })).toBeVisible();
+
+  expect(mutationBodies).toHaveLength(2);
+  expect(mutationBodies[0]).toMatchObject({ amount: 7, period: '2026-07', reason: 'Support a launch campaign' });
+  expect(mutationBodies[1]).toMatchObject({ amount: 1, reason: 'Correct duplicate allowance' });
+  expect(
+    mutationBodies.every((body) => typeof body.idempotencyKey === 'string' && body.idempotencyKey.length > 0),
+  ).toBe(true);
 });
 
 test('previews and applies AI operation recovery with an audit reason', async ({ page }) => {
@@ -192,11 +370,50 @@ test('previews and applies AI operation recovery with an audit reason', async ({
   const summary = page.locator('.operation-recovery-summary > div').filter({ hasText: 'Ready to finalize' });
   await expect(summary.getByText('1', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Reason').fill('Finalize completed production results');
-  await page.getByRole('button', { name: 'Recover operations' }).click();
+  await expect(page.getByLabel('Account ID')).toHaveClass(/\bui-field-control\b/);
+  await expect(page.getByRole('textbox', { name: 'Provider', exact: true })).toHaveClass(/\bui-field-control\b/);
+  await expect(page.getByRole('combobox', { name: 'Status', exact: true })).toHaveClass(/\bui-field-control\b/);
+  await expect(page.getByRole('button', { name: 'Apply' })).toHaveClass(/\bui-command\b/);
+  const reason = page.getByLabel('Reason');
+  const recovery = page.getByRole('button', { name: 'Recover operations' });
+  await expect(reason).toHaveClass(/\bui-field-control\b/);
+  await expect(recovery).toHaveClass(/\bui-command\b/);
+  await reason.fill('Finalize completed production results');
+  await recovery.click();
 
-  await expect(page.getByText('Change saved')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Change saved' })).toHaveClass(/\bui-inline-notice\b/);
   await expect(page.getByText('Finalized 1 completed result and closed 1 abandoned request.')).toBeVisible();
+});
+
+test('preserves provider-ledger filters when paging from the default page size', async ({ page }) => {
+  await page.unroute('**/api/admin/**');
+  await page.route('**/api/admin/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/admin/usage') {
+      const limit = Number(url.searchParams.get('limit') ?? 25);
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          usage: [],
+          page: { limit, offset, total: 51, hasMore: offset + limit < 51 },
+        }),
+      });
+      return;
+    }
+    await fulfillAdminRead(route);
+  });
+
+  await page.goto('/usage?userId=creator-1&provider=openai&status=failed');
+  const next = page.getByRole('link', { name: 'Next' });
+  await expect(next).toHaveClass(/\bui-command\b/);
+  await next.focus();
+  await next.press('Enter');
+  await expect(page).toHaveURL(/userId=creator-1/);
+  await expect(page).toHaveURL(/provider=openai/);
+  await expect(page).toHaveURL(/status=failed/);
+  await expect(page).toHaveURL(/limit=25/);
+  await expect(page).toHaveURL(/offset=25/);
 });
 
 test('mobile navigation and controls fit without horizontal page overflow', async ({ page }, testInfo) => {
