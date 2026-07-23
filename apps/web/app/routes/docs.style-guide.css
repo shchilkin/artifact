@@ -350,6 +350,28 @@
   height: 560px;
 }
 
+.style-guide-add-library-state-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: min(100%, 760px);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.style-guide-add-library-state {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.style-guide-add-library-state > span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-command);
+  text-transform: uppercase;
+}
+
 .style-guide-editor-command-bar {
   display: flex;
   width: 100%;
@@ -469,5 +491,9 @@
 
   .style-guide-add-library-surface {
     height: 540px;
+  }
+
+  .style-guide-add-library-state-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

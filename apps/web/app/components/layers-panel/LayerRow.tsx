@@ -6,6 +6,7 @@ import type {
 import { memo } from 'react';
 import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
+import { EditorRowFrame } from '../editor-workflow/EditorRowFrame';
 import { getLayerIcon } from './layerDisplayItems';
 import type { LayerDropPosition } from './useLayerDragReorder';
 import type { LayerSelectionModifiers } from './useLayerSelection';
@@ -317,9 +318,16 @@ export const LayerRow = memo(function LayerRow({
   });
 
   return (
-    <div
+    <EditorRowFrame
       draggable={!layer.locked}
+      role="option"
       aria-selected={selected}
+      selected={selected}
+      isHidden={!layer.visible}
+      isLocked={layer.locked}
+      nested={nested}
+      editing={editing}
+      dropPosition={dragOverPosition}
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
@@ -365,6 +373,6 @@ export const LayerRow = memo(function LayerRow({
         </div>
       </div>
       <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
-    </div>
+    </EditorRowFrame>
   );
 });

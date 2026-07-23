@@ -5,10 +5,11 @@ import {
   FoundationOverlayMatrix,
 } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
-import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
+import { type ComponentProps, type CSSProperties, type ReactNode, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
-import type { AddLibraryAction } from '../components/add-library/addLibraryModel';
+import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
+import { ADD_LIBRARY_ITEMS, type AddLibraryAction } from '../components/add-library/addLibraryModel';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
 import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
@@ -154,6 +155,12 @@ const styleArea: GraphArea = {
   color: '#ff705f',
   nodeIds: ['style-layer-selected'],
 };
+
+const styleGuideAddLibraryItem = ADD_LIBRARY_ITEMS.find((item) => item.id === 'layer:fill')!;
+const STYLE_GUIDE_READY_PREVIEW =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23e56b56"/%3E%3C/svg%3E';
+const STYLE_GUIDE_FALLBACK_PREVIEW =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23231f1d"/%3E%3Cpath d="M0 0L200 200M200 0L0 200" stroke="%236b625c" stroke-width="12"/%3E%3C/svg%3E';
 
 const targetSummary = buildLayerTargetSummary(layers[2] as Layer, {
   surface: 'layers',
@@ -631,6 +638,15 @@ export default function DocsStyleGuide() {
               autoFocusSearch={false}
             />
           </div>
+          <div className="style-guide-add-library-state-grid" aria-label="Add Library preview state specimens">
+            <AddLibraryPreviewSpecimen label="Loading" state={{ status: 'loading' }} />
+            <AddLibraryPreviewSpecimen label="Ready" state={{ status: 'ready', url: STYLE_GUIDE_READY_PREVIEW }} />
+            <AddLibraryPreviewSpecimen
+              label="Fallback"
+              state={{ status: 'fallback', url: STYLE_GUIDE_FALLBACK_PREVIEW }}
+            />
+            <AddLibraryPreviewSpecimen label="Failed" state={{ status: 'failed' }} />
+          </div>
         </StyleSection>
 
         <StyleSection
@@ -658,6 +674,21 @@ export default function DocsStyleGuide() {
         </StyleSection>
       </main>
     </PublicPageLayout>
+  );
+}
+
+function AddLibraryPreviewSpecimen({
+  label,
+  state,
+}: {
+  label: string;
+  state: ComponentProps<typeof AddLibraryPreview>['state'];
+}) {
+  return (
+    <div className="style-guide-add-library-state">
+      <span>{label}</span>
+      <AddLibraryPreview item={styleGuideAddLibraryItem} state={state} />
+    </div>
   );
 }
 

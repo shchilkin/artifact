@@ -81,6 +81,10 @@ test('style guide renders live editor command, notice, organization, and creatio
   await expect(page.locator('.style-guide-layer-organization .layer-area-folder')).toBeVisible();
   await expect(page.locator('.style-guide-add-library-surface .add-library-row').first()).toBeVisible();
   await expect(page.locator('.style-guide-add-library-surface .add-library-preview-frame')).toBeVisible();
+  await expect(page.locator('.style-guide-add-library-state [data-preview-state="loading"]')).toHaveCount(1);
+  await expect(page.locator('.style-guide-add-library-state [data-preview-state="ready"]')).toHaveCount(1);
+  await expect(page.locator('.style-guide-add-library-state [data-preview-state="fallback"]')).toHaveCount(1);
+  await expect(page.locator('.style-guide-add-library-state [data-preview-state="failed"]')).toHaveCount(1);
 
   const overflow = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,

@@ -1,5 +1,4 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@artifact/ui';
-import { type CSSProperties, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { EffectPreset, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
@@ -7,7 +6,7 @@ import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
 import { useAddLibraryMobileSheet } from '../add-library/useAddLibraryMobileSheet';
-import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '../ui/sheet';
+import { EditorOverlayFrame } from '../editor-workflow/EditorOverlayFrame';
 
 type LayerAddActionHandler = (action: AddLibraryAction) => void;
 
@@ -123,38 +122,18 @@ export function LayerAddMenu({
     />
   );
 
-  if (mobileSheet) {
-    return (
-      <Sheet open={isAddMenuOpen} onOpenChange={setIsAddMenuOpen}>
-        <SheetTrigger asChild>{trigger}</SheetTrigger>
-        <SheetContent
-          side="bottom"
-          className="add-library-surface add-library-layer-menu add-library-mobile"
-          style={{ '--artifact-sheet-height': '78vh' } as CSSProperties}
-        >
-          <SheetTitle className="sr-only">Add layer</SheetTitle>
-          <SheetDescription className="sr-only">
-            Search layers, sources, and effects to add to the composition.
-          </SheetDescription>
-          {isAddMenuOpen ? content : null}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <Popover open={isAddMenuOpen} onOpenChange={setIsAddMenuOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="bottom"
-        sideOffset={4}
-        collisionPadding={8}
-        className="add-library-surface add-library-layer-menu"
-        onWheelCapture={(event) => event.stopPropagation()}
-      >
-        {isAddMenuOpen ? content : null}
-      </PopoverContent>
-    </Popover>
+    <EditorOverlayFrame
+      open={isAddMenuOpen}
+      onOpenChange={setIsAddMenuOpen}
+      mobile={mobileSheet}
+      mobileHeight="78vh"
+      title="Add layer"
+      description="Search layers, sources, and effects to add to the composition."
+      className={`add-library-surface add-library-layer-menu${mobileSheet ? ' add-library-mobile' : ''}`}
+      trigger={trigger}
+    >
+      {content}
+    </EditorOverlayFrame>
   );
 }

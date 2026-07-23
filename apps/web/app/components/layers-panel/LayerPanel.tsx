@@ -14,6 +14,7 @@ import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
+import { EditorRowFrame } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
@@ -234,7 +235,12 @@ export function LayerPanel({
         onStartAiImage={onStartAiImage}
       />
 
-      <div className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div
+        className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        role="listbox"
+        aria-label="Layer stack"
+        aria-multiselectable="true"
+      >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
@@ -569,10 +575,11 @@ function Scene3DLayerRow({
   const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
   const environment = getSceneEnvironmentNode(doc.graph, scene.id);
   return (
-    <div
-      role="button"
+    <EditorRowFrame
+      role="option"
       tabIndex={0}
       aria-selected={selected}
+      selected={selected}
       data-layer-id={scene.id}
       className={`layer-row layer-row-kind-primitive flex items-center gap-2 px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50'
@@ -611,6 +618,6 @@ function Scene3DLayerRow({
           env
         </span>
       )}
-    </div>
+    </EditorRowFrame>
   );
 }

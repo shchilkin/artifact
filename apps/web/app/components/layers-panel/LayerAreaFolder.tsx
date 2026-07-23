@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
+import { EditorOrganizationGroup } from '../editor-workflow/EditorOrganizationGroup';
 import { GraphHelperRow } from './GraphHelperRow';
 import type { LayerRowProps } from './LayerRow';
 import { LayerRow } from './LayerRow';
@@ -234,8 +235,12 @@ export function LayerAreaFolder(props: LayerAreaFolderProps) {
   const areaStyle = { '--layer-area-color': area.color } as CSSProperties;
 
   return (
-    <div
+    <EditorOrganizationGroup
       className={`layer-area-folder${collapsed ? ' layer-area-folder-collapsed' : ''}`}
+      label={`${area.name} layer folder`}
+      collapsed={collapsed}
+      editing={editingArea}
+      empty={layers.length === 0 && graphHelpers.length === 0}
       data-area-collapsed={collapsed ? 'true' : 'false'}
       style={areaStyle}
     >
@@ -258,6 +263,6 @@ export function LayerAreaFolder(props: LayerAreaFolderProps) {
       />
       <p className="layer-area-folder-note">Organizes nodes only. Render order stays unchanged.</p>
       <LayerAreaContents {...props} />
-    </div>
+    </EditorOrganizationGroup>
   );
 }

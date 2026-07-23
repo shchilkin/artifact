@@ -69,15 +69,22 @@ const PREVIEW_DOCUMENT_BUILDERS: Record<string, PreviewDocumentBuilder> = {
   color: makeUtilityPreviewDocument,
 };
 
-export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
+export function AddLibraryPreview({
+  item,
+  state: controlledState,
+}: {
+  item: AddLibraryItem;
+  state?: AddLibraryPreviewState;
+}) {
   const [preview, setPreview] = useState<{ itemId: string; state: AddLibraryPreviewState }>({
     itemId: item.id,
     state: { status: 'loading' },
   });
   const previewKind = useMemo(() => previewKindForItem(item), [item]);
-  const previewState = preview.itemId === item.id ? preview.state : { status: 'loading' as const };
+  const previewState = controlledState ?? (preview.itemId === item.id ? preview.state : { status: 'loading' as const });
 
   useEffect(() => {
+    if (controlledState) return;
     let cancelled = false;
     resolveAddLibraryPreviewState(item, {
       renderCanonical: renderAddLibraryItemPreview,
@@ -88,7 +95,7 @@ export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
     return () => {
       cancelled = true;
     };
-  }, [item]);
+  }, [controlledState, item]);
 
   return (
     <PreviewFrame

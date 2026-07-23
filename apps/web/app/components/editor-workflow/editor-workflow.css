@@ -2,6 +2,15 @@
   min-width: 0;
 }
 
+.editor-row-frame,
+.editor-organization-group {
+  min-width: 0;
+}
+
+.editor-overlay-frame {
+  min-width: 0;
+}
+
 .editor-workflow-notice {
   display: flex;
   flex: 0 0 auto;
