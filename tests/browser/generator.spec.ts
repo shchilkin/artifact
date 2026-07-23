@@ -3725,8 +3725,12 @@ test('dragging a node away from its area separates the node', async ({ page }) =
   await switchToNodeView(page);
 
   const { nodeBox } = await getVisibleNoiseNodeBox(page);
+  const start = { x: nodeBox.x + 48, y: nodeBox.y + 22 };
+  const canvasBox = await visibleBoundingBox(page.locator('.react-flow').first());
+  const targetY = Math.min(start.y + 320, canvasBox.y + canvasBox.height - 24);
+  expect(targetY - start.y).toBeGreaterThan(80);
 
-  await dragMouseFromPoint(page, { x: nodeBox.x + 48, y: nodeBox.y + 22 }, { x: 0, y: 498 }, 10);
+  await dragMouseFromPoint(page, start, { x: 0, y: targetY - start.y }, 10);
 
   await expectStoredAreaNodeIds(page, ['area-fill']);
 });
