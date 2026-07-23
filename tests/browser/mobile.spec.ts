@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import {
   documentUrl,
   editorDocumentFixture,
@@ -89,6 +89,19 @@ test('mobile nodes chrome keeps toolbar and bottom actions separated', async ({ 
   }
 });
 
+test('node add library responds to mobile viewport changes', async ({ page }) => {
+  await page.goto(documentUrl(layeredFillDocument));
+  await switchToNodeView(page);
+
+  await page.getByRole('button', { name: 'Add node' }).click();
+  const menu = page.locator('.add-library-node-menu');
+  await expect(menu).toHaveClass(/artifact-sheet-content-bottom/);
+
+  await page.setViewportSize({ width: 800, height: 900 });
+  await expect(menu).toHaveClass(/artifact-floating-menu-content/);
+  await expect(menu).not.toHaveClass(/artifact-sheet-content-bottom/);
+});
+
 test('mobile layer row context menu stays inside the viewport', async ({ page }) => {
   await openLayeredFillDocument(page);
   await hoverFirstLayerRow(page);
@@ -107,14 +120,25 @@ test('mobile layer row context menu stays inside the viewport', async ({ page })
   expect(menuBox.bottom).toBeGreaterThan(menuBox.top);
 });
 
-test('mobile layer add menu stays inside the viewport', async ({ page }) => {
+test('mobile layer add menu uses a focus-restoring bottom sheet without horizontal overflow', async ({ page }) => {
   await openLayeredFillDocument(page);
 
-  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const trigger = page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' });
+  await trigger.click();
   const menu = page.locator('.add-library-layer-menu');
   await expect(menu).toBeVisible({ timeout: 15_000 });
+  await expect(menu).toHaveClass(/artifact-sheet-content-bottom/);
+  await expect(page.getByLabel('Search layers and effects')).toBeFocused();
 
-  await expectFloatingMenuInsideViewport(menu);
+  const layout = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('mobile layer rows keep insert controls out of row actions', async ({ page }) => {
@@ -132,24 +156,4 @@ async function hoverFirstLayerRow(page: Page) {
   const firstRow = page.locator('.layer-row').first();
   await firstRow.hover();
   return firstRow;
-}
-
-async function expectFloatingMenuInsideViewport(menu: Locator) {
-  const menuBox = await menu.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    return {
-      left: box.left,
-      right: box.right,
-      top: box.top,
-      bottom: box.bottom,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-    };
-  });
-
-  expect(menuBox.left).toBeGreaterThanOrEqual(7);
-  expect(menuBox.right).toBeLessThanOrEqual(menuBox.viewportWidth - 7);
-  expect(menuBox.top).toBeGreaterThanOrEqual(7);
-  expect(menuBox.bottom).toBeLessThanOrEqual(menuBox.viewportHeight - 7);
-  expect(menuBox.bottom).toBeGreaterThan(menuBox.top);
 }

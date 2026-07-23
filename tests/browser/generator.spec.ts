@@ -1187,7 +1187,7 @@ async function startBlankEditor(page: Page) {
 async function openPixelateNodeAddMenu(page: Page) {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
-  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+  const pixelateMenuRow = page.getByRole('option', { name: /^▦ Pixelate/ });
   await expect(pixelateMenuRow).toContainText('Drag');
   return pixelateMenuRow;
 }
@@ -1699,6 +1699,28 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
     ]);
 });
 
+test('layer rows support keyboard selection with selection modifiers', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
+  const bottomFillRow = await getVisibleLayerRow(page, 'Bottom fill');
+
+  const topFillSelection = topFillRow.getByRole('checkbox', { name: 'Select Top fill layer' });
+  const bottomFillSelection = bottomFillRow.getByRole('checkbox', { name: 'Select Bottom fill layer' });
+
+  await topFillSelection.focus();
+  await topFillSelection.press('Enter');
+  await expect(topFillRow).toHaveAttribute('data-editor-row-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('data-editor-row-selected', 'false');
+
+  await bottomFillSelection.focus();
+  await page.keyboard.down('Control');
+  await page.keyboard.press('Space');
+  await page.keyboard.up('Control');
+  await expect(topFillRow).toHaveAttribute('data-editor-row-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('data-editor-row-selected', 'true');
+});
+
 test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {
   await gotoDocument(page, layeredFillDocument);
 
@@ -1809,6 +1831,35 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+});
+
+test('layer add library detail pane inserts the selected item', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await menu.getByRole('button', { name: 'Add Fill' }).click();
+
+  await expect(page.getByRole('button', { name: 'Fill', exact: true })).toHaveCount(1, { timeout: 15_000 });
+  await expectStoredLayerSummaries(page, [
+    { name: 'Bottom fill', kind: 'fill' },
+    { name: 'Top fill', kind: 'fill' },
+    { name: 'Fill', kind: 'fill' },
+  ]);
+});
+
+test('layer add library dismisses with Escape and returns focus to its trigger', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const trigger = page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' });
+  await trigger.click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeFocused();
+
+  await search.press('Escape');
+
+  await expect(page.locator('.add-library-layer-menu')).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('layer add library shows source previews and can add source presets', async ({ page }) => {
@@ -2620,6 +2671,14 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
     rightNodeId: 'bottom-fill',
   });
   await expectLayerCanvasToHavePixels(page);
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expectStoredGraphLayerOrder(page, {
+    layerIds: ['bottom-fill', 'top-fill'],
+    graphEdges: ['bottom-fill->top-fill', 'top-fill->__export__'],
+    leftNodeId: 'bottom-fill',
+    rightNodeId: 'top-fill',
+  });
 });
 
 test('layer drag reorder uses the final drop row even after stale dragover state', async ({ page }) => {
@@ -2865,11 +2924,11 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
-  await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^T Text/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^◧ Image/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^T Text/ })).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('ai image');
-  await expect(page.getByRole('button', { name: /^◧ AI Image/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^◧ AI Image/ })).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('split tone');
   await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
@@ -2881,7 +2940,7 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▦ Pixelate/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▦ Pixelate/ }));
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
@@ -2894,7 +2953,7 @@ test('node add menu can add Bad Stream with compression controls', async ({ page
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'bad stream', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Bad Stream preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▧ Bad Stream/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▧ Bad Stream/ }));
 
   const badStreamNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Bad Stream' }).first();
   await expect(badStreamNode).toBeVisible({ timeout: 15_000 });
@@ -2910,7 +2969,7 @@ test('node add menu can add Macroblocks as a focused Bad Stream block', async ({
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'macroblocks', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Macroblocks preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▦ Macroblocks/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▦ Macroblocks/ }));
 
   const macroblocksNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Macroblocks' }).first();
   await expect(macroblocksNode).toBeVisible({ timeout: 15_000 });
@@ -2925,7 +2984,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'poster type');
   await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^T Poster Type/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^T Poster Type/ }));
 
   const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
   await expect(posterNode).toBeVisible({ timeout: 15_000 });
@@ -2974,7 +3033,7 @@ test('v0.35 graph nodes mount and select without recursive React updates', async
 test('node add menu can add material nodes with previews and inspector controls', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'material', { waitForExportNode: true });
-  const materialMenuRow = page.getByRole('button', { name: /^◒ PBR Material/ });
+  const materialMenuRow = page.getByRole('option', { name: /^◒ PBR Material/ });
   await expect(materialMenuRow).toBeVisible({ timeout: 15_000 });
   await materialMenuRow.hover();
   await expect(page.locator('.add-library-node-menu img[alt="PBR Material preview"]')).toBeVisible({ timeout: 15_000 });
@@ -3057,7 +3116,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
   let graphState = await waitForPixelateEdgeInsertion(page, 4_000);
   if (!graphState.pixelateId) {
     await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
-    pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+    pixelateMenuRow = page.getByRole('option', { name: /^▦ Pixelate/ });
     await expect(pixelateMenuRow).toContainText('Drag');
     await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
     graphState = await waitForPixelateEdgeInsertion(page, 15_000);
@@ -3089,7 +3148,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
   await page.goto('/app?new=blank');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^◧ AI Image/ }));
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
@@ -3133,7 +3192,7 @@ test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
 
   await page.goto('/app?new=blank&debug=ai');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^◧ AI Image/ }));
 
   const panel = page.locator('.node-props-panel');
   const diagnostics = panel.locator('.ai-generation-dev-diagnostics');
@@ -3608,6 +3667,11 @@ test('layers can create areas from multi-selected rows', async ({ page }) => {
   await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
   await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expectStoredAreaNodeIds(page, ['layer-area-backdrop', 'layer-area-type'], { containing: true });
+
+  const selectionActions = page.locator('.layer-selection-actions');
+  await expect(selectionActions.getByRole('button', { name: 'Remove from area' })).toBeVisible();
+  await selectionActions.getByRole('button', { name: 'Clear selection' }).click();
+  await expect(selectionActions).toBeHidden();
 });
 
 test('layer area folders can be renamed', async ({ page }) => {
@@ -3661,8 +3725,12 @@ test('dragging a node away from its area separates the node', async ({ page }) =
   await switchToNodeView(page);
 
   const { nodeBox } = await getVisibleNoiseNodeBox(page);
+  const start = { x: nodeBox.x + 48, y: nodeBox.y + 22 };
+  const canvasBox = await visibleBoundingBox(page.locator('.react-flow').first());
+  const targetY = Math.min(start.y + 320, canvasBox.y + canvasBox.height - 24);
+  expect(targetY - start.y).toBeGreaterThan(80);
 
-  await dragMouseFromPoint(page, { x: nodeBox.x + 48, y: nodeBox.y + 22 }, { x: 0, y: 498 }, 10);
+  await dragMouseFromPoint(page, start, { x: 0, y: targetY - start.y }, 10);
 
   await expectStoredAreaNodeIds(page, ['area-fill']);
 });

@@ -16,10 +16,14 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<typeof Dial
   return <DialogPrimitive.Overlay className={cn('artifact-dialog-overlay', className)} {...props} />;
 }
 
-function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+interface DialogContentProps extends React.ComponentProps<typeof DialogPrimitive.Content> {
+  overlayClassName?: string;
+}
+
+function DialogContent({ className, children, overlayClassName, ...props }: DialogContentProps) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content className={cn('artifact-dialog-content', className)} {...props}>
         {children}
       </DialogPrimitive.Content>

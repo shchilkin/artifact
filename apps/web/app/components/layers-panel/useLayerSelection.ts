@@ -1,4 +1,3 @@
-import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Layer } from '../../types/config';
 
@@ -80,7 +79,7 @@ export function useLayerSelection({
   }, [layers, selectedLayerId, selectedLayerIds]);
 
   const handleSelectLayer = useCallback(
-    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+    (id: string, event: LayerSelectionModifiers) => {
       const result = computeNextLayerSelection({
         id,
         orderedLayerIds: displayLayers.map((layer) => layer.id),

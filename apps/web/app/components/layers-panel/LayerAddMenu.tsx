@@ -1,15 +1,14 @@
-import { useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useState } from 'react';
 import type { EffectPreset, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
+import { preserveScopedAddLibraryEscape } from '../add-library/addLibraryEscape';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
-import { useAddLibraryFloatingMenu } from '../add-library/useAddLibraryFloatingMenu';
+import { useAddLibraryMobileSheet } from '../add-library/useAddLibraryMobileSheet';
+import { EditorOverlayFrame } from '../editor-workflow/EditorOverlayFrame';
 
-const LAYER_ADD_MENU_W = 540;
-const LAYER_ADD_MENU_H = 560;
 type LayerAddActionHandler = (action: AddLibraryAction) => void;
 
 export function LayerAddMenu({
@@ -29,14 +28,9 @@ export function LayerAddMenu({
   onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
-  const {
-    anchorRef: addMenuAnchorRef,
-    close: closeAddMenu,
-    menuRef: addMenuRef,
-    menuStyle: addMenuStyle,
-    open: isAddMenuOpen,
-    toggle: toggleAddMenu,
-  } = useAddLibraryFloatingMenu({ width: LAYER_ADD_MENU_W, height: LAYER_ADD_MENU_H });
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const mobileSheet = useAddLibraryMobileSheet();
+  const closeAddMenu = useCallback(() => setIsAddMenuOpen(false), []);
 
   const handleAddLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
@@ -114,25 +108,34 @@ export function LayerAddMenu({
     ],
   );
 
+  const trigger = (
+    <button type="button" className="layer-add-button" aria-label="Add layer">
+      + ADD
+    </button>
+  );
+  const content = (
+    <AddLibraryPanel
+      surface="layers"
+      searchLabel="Search layers and effects"
+      placeholder="Add layer…"
+      onAdd={handleAddLibraryAction}
+      onClose={closeAddMenu}
+    />
+  );
+
   return (
-    <div ref={addMenuAnchorRef} className="relative">
-      <button className="layer-add-button" onClick={toggleAddMenu} aria-label="Add layer">
-        + ADD
-      </button>
-      {isAddMenuOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div ref={addMenuRef} className="add-library-surface add-library-layer-menu" style={addMenuStyle}>
-            <AddLibraryPanel
-              surface="layers"
-              searchLabel="Search layers and effects"
-              placeholder="Add layer…"
-              onAdd={handleAddLibraryAction}
-              onClose={closeAddMenu}
-            />
-          </div>,
-          document.body,
-        )}
-    </div>
+    <EditorOverlayFrame
+      open={isAddMenuOpen}
+      onOpenChange={setIsAddMenuOpen}
+      onEscapeKeyDown={preserveScopedAddLibraryEscape}
+      mobile={mobileSheet}
+      mobileHeight="78vh"
+      title="Add layer"
+      description="Search layers, sources, and effects to add to the composition."
+      className={`add-library-surface add-library-layer-menu${mobileSheet ? ' add-library-mobile' : ''}`}
+      trigger={trigger}
+    >
+      {content}
+    </EditorOverlayFrame>
   );
 }

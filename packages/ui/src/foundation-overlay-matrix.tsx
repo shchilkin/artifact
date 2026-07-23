@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Button, IconButton } from './commands';
 import type { OverlayFoundationSpecimenId } from './foundation-overlay-specimens';
 import {
@@ -29,31 +29,18 @@ export function FoundationOverlayMatrix() {
           </Tooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-open" label="Tooltip / open">
-          <Tooltip open>
-            <TooltipTrigger asChild>
-              <Button variant="secondary">Export help</Button>
-            </TooltipTrigger>
-            <TooltipContent>Exports use the current document size.</TooltipContent>
-          </Tooltip>
+          <StaticOpenTooltip id="ui-foundation-tooltip-open" label="Export help">
+            Exports use the current document size.
+          </StaticOpenTooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-keyboard" label="Tooltip / keyboard">
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button variant="quiet">Keyboard help</Button>
-            </TooltipTrigger>
-            <TooltipContent>Press Enter to run the focused command.</TooltipContent>
-          </Tooltip>
+          <KeyboardTooltipSpecimen />
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-long-content" label="Tooltip / long content">
-          <Tooltip open>
-            <TooltipTrigger asChild>
-              <Button variant="quiet">Format details</Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              PNG preserves transparency. JPEG produces a smaller opaque file and is better suited to photographic
-              artwork.
-            </TooltipContent>
-          </Tooltip>
+          <StaticOpenTooltip id="ui-foundation-tooltip-long-content" label="Format details">
+            PNG preserves transparency. JPEG produces a smaller opaque file and is better suited to photographic
+            artwork.
+          </StaticOpenTooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-closed" label="Popover / closed and dismissal">
           <Popover>
@@ -66,14 +53,9 @@ export function FoundationOverlayMatrix() {
           </Popover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-open" label="Popover / open">
-          <Popover open>
-            <PopoverTrigger asChild>
-              <Button variant="secondary">Current export</Button>
-            </PopoverTrigger>
-            <PopoverContent aria-label="Current export" onOpenAutoFocus={(event) => event.preventDefault()}>
-              <PopoverBody title="PNG export" copy="2400 × 2400 · transparent background" />
-            </PopoverContent>
-          </Popover>
+          <StaticOpenPopover label="Current export">
+            <PopoverBody title="PNG export" copy="2400 × 2400 · transparent background" />
+          </StaticOpenPopover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-keyboard" label="Popover / keyboard and focus return">
           <Popover>
@@ -92,25 +74,62 @@ export function FoundationOverlayMatrix() {
           </Popover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-long-content" label="Popover / long content">
-          <Popover open>
-            <PopoverTrigger asChild>
-              <Button variant="secondary">Storage details</Button>
-            </PopoverTrigger>
-            <PopoverContent
-              aria-label="Storage details"
-              align="start"
-              onOpenAutoFocus={(event) => event.preventDefault()}
-              side="right"
-            >
-              <PopoverBody
-                title="Local project storage"
-                copy="Projects and imported assets stay in this browser until you export a portable document or clear local site data."
-              />
-            </PopoverContent>
-          </Popover>
+          <StaticOpenPopover label="Storage details">
+            <PopoverBody
+              title="Local project storage"
+              copy="Projects and imported assets stay in this browser until you export a portable document or clear local site data."
+            />
+          </StaticOpenPopover>
         </OverlaySpecimen>
       </div>
     </TooltipProvider>
+  );
+}
+
+function KeyboardTooltipSpecimen() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip delayDuration={0} open={open}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="quiet"
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false);
+          }}
+        >
+          Keyboard help
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Press Enter to run the focused command.</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function StaticOpenTooltip({ children, id, label }: { children: ReactNode; id: string; label: string }) {
+  return (
+    <div className="ui-foundation-open-tooltip">
+      <Button variant="quiet" aria-describedby={id}>
+        {label}
+      </Button>
+      <div id={id} className="ui-tooltip-content" data-state="open" role="tooltip">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StaticOpenPopover({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="ui-foundation-open-popover">
+      <Button variant="secondary" aria-haspopup="dialog" aria-expanded="true">
+        {label}
+      </Button>
+      <div className="ui-popover-content" data-state="open" role="dialog" aria-label={label}>
+        {children}
+      </div>
+    </div>
   );
 }
 

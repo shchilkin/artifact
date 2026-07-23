@@ -615,7 +615,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="sidebar sidebar-layers-list">
+      <aside className="sidebar sidebar-layers-list" aria-label="Layers">
         <MobileActionBar content={mobileActionBar} />
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

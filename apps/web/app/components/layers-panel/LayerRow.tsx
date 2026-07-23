@@ -6,8 +6,16 @@ import type {
 import { memo } from 'react';
 import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
+import {
+  EditorRowActions,
+  EditorRowFrame,
+  EditorRowLeading,
+  EditorRowMetadata,
+  EditorRowPrimary,
+} from '../editor-workflow/EditorRowFrame';
 import { getLayerIcon } from './layerDisplayItems';
 import type { LayerDropPosition } from './useLayerDragReorder';
+import type { LayerSelectionModifiers } from './useLayerSelection';
 
 export interface LayerRowProps {
   layer: Layer;
@@ -16,7 +24,7 @@ export interface LayerRowProps {
   dragOverPosition: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
-  onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
@@ -27,6 +35,36 @@ export interface LayerRowProps {
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
+}
+
+export function LayerSelectionControl({
+  label,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  selected: boolean;
+  onSelect: (event: LayerSelectionModifiers) => void;
+}) {
+  return (
+    <input
+      className="layer-row-selection-control sr-only"
+      type="checkbox"
+      checked={selected}
+      readOnly
+      aria-label={label}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(event);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect(event);
+      }}
+    />
+  );
 }
 
 function getImageAiHistoryState(layer: ImageLayer) {
@@ -316,9 +354,15 @@ export const LayerRow = memo(function LayerRow({
   });
 
   return (
-    <div
+    <EditorRowFrame
       draggable={!layer.locked}
-      aria-selected={selected}
+      role="listitem"
+      selected={selected}
+      isHidden={!layer.visible}
+      isLocked={layer.locked}
+      nested={nested}
+      editing={editing}
+      dropPosition={dragOverPosition}
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
@@ -338,12 +382,18 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      tabIndex={0}
       className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
-      <LayerDragHandle layer={layer} onDragStart={onDragStart} />
-      <LayerKindBadge layer={layer} />
-      <div className="layer-row-main">
+      <EditorRowLeading>
+        <LayerSelectionControl
+          label={`Select ${layer.name} layer`}
+          selected={selected}
+          onSelect={(event) => onSelect(layer.id, event)}
+        />
+        <LayerDragHandle layer={layer} onDragStart={onDragStart} />
+        <LayerKindBadge layer={layer} />
+      </EditorRowLeading>
+      <EditorRowPrimary>
         <LayerNameEditor
           layer={layer}
           editing={editing}
@@ -351,14 +401,16 @@ export const LayerRow = memo(function LayerRow({
           onStartEditing={onStartEditing}
           onFinishRename={onFinishRename}
         />
-        <div className="layer-row-meta">
-          <LayerStatusMeta layer={layer} />
-          <LayerAiBadges layer={layer} />
-          <LayerLockedBadge layer={layer} />
-          <LayerAreaChip areas={areas} nested={nested} />
-        </div>
-      </div>
-      <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
-    </div>
+      </EditorRowPrimary>
+      <EditorRowMetadata className="layer-row-meta">
+        <LayerStatusMeta layer={layer} />
+        <LayerAiBadges layer={layer} />
+        <LayerLockedBadge layer={layer} />
+        <LayerAreaChip areas={areas} nested={nested} />
+      </EditorRowMetadata>
+      <EditorRowActions>
+        <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
+      </EditorRowActions>
+    </EditorRowFrame>
   );
 });

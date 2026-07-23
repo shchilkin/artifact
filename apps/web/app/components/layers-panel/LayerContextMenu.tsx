@@ -1,12 +1,14 @@
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
+import { EditorOverlayFrame } from '../editor-workflow/EditorOverlayFrame';
 import { clampPopupPosition } from '../node-canvas/helpers';
-import { FloatingMenu } from '../ui/floating-menu';
 import { MenuDivider, MenuItem } from '../ui/MenuItem';
 
 export interface LayerContextMenuState {
   x: number;
   y: number;
   ids: string[];
+  returnFocusTarget: HTMLElement | null;
 }
 
 export function LayerContextMenu({
@@ -36,6 +38,20 @@ export function LayerContextMenu({
   onRenameLayer: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef(true);
+  const menuX = contextMenu?.x;
+  const menuY = contextMenu?.y;
+
+  useEffect(() => {
+    if (menuX === undefined || menuY === undefined) return;
+    restoreFocusRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [menuX, menuY]);
+
   if (!contextMenu) return null;
   const selectedLayers = selectedContextLayers(contextMenu.ids, layers);
   const singleLayer = selectedLayers.length === 1 ? selectedLayers[0] : null;
@@ -45,21 +61,58 @@ export function LayerContextMenu({
   const menuWidth = 196;
   const menuHeight = 16 + layerContextMenuItemCount(singleLayer, graphAreas.length, hasSelectedAreaMembership) * 46;
   const menuPosition = clampPopupPosition(contextMenu.x, contextMenu.y, menuWidth, menuHeight);
+  const close = (restoreFocus: boolean) => {
+    onClose();
+    if (restoreFocus && contextMenu.returnFocusTarget?.isConnected) {
+      queueMicrotask(() => contextMenu.returnFocusTarget?.focus());
+    }
+  };
 
-  const run = (action: () => void) => {
+  const run = (action: () => void, restoreFocus = true) => {
     action();
     onClose();
+    if (restoreFocus && contextMenu.returnFocusTarget?.isConnected) {
+      queueMicrotask(() => contextMenu.returnFocusTarget?.focus());
+    }
+  };
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? []);
+    if (items.length === 0) return;
+    event.preventDefault();
+    const activeIndex = items.indexOf(document.activeElement as HTMLElement);
+    const nextIndex =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : event.key === 'ArrowUp'
+            ? (activeIndex - 1 + items.length) % items.length
+            : (activeIndex + 1) % items.length;
+    items[nextIndex]?.focus();
   };
 
   return (
-    <FloatingMenu
-      x={menuPosition.left}
-      y={menuPosition.top}
+    <EditorOverlayFrame
+      variant="floating"
+      open
+      onOpenChange={(open) => {
+        if (!open) close(restoreFocusRef.current);
+      }}
+      contentRef={menuRef}
+      position={{ x: menuPosition.left, y: menuPosition.top }}
       className="artifact-menu layer-context-menu"
       style={{ width: menuWidth, padding: '4px 0' }}
-      onOpenChange={(open) => {
-        if (!open) onClose();
+      title="Layer actions"
+      description="Edit the selected layers or organize them in an area."
+      onEscapeKeyDown={() => {
+        restoreFocusRef.current = true;
       }}
+      onPointerDownOutside={() => {
+        restoreFocusRef.current = false;
+      }}
+      onKeyDown={handleMenuKeyDown}
       role="menu"
     >
       <LayerEditMenuItems
@@ -83,7 +136,7 @@ export function LayerContextMenu({
         onRemoveSelectionFromAreas={onRemoveSelectionFromAreas}
         onRun={run}
       />
-    </FloatingMenu>
+    </EditorOverlayFrame>
   );
 }
 
@@ -112,14 +165,14 @@ function LayerEditMenuItems({
   onDuplicateLayers: (ids: string[]) => void;
   onRemoveLayers: (ids: string[]) => void;
   onRenameLayer: (id: string) => void;
-  onRun: (action: () => void) => void;
+  onRun: (action: () => void, restoreFocus?: boolean) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
   singleLayer: Layer | null;
 }) {
   return (
     <>
       {singleLayer && (
-        <MenuItem role="menuitem" label="Rename" onClick={() => onRun(() => onRenameLayer(singleLayer.id))} />
+        <MenuItem role="menuitem" label="Rename" onClick={() => onRun(() => onRenameLayer(singleLayer.id), false)} />
       )}
       <MenuItem
         role="menuitem"
