@@ -163,6 +163,12 @@ test('Layers Add Library keeps the keyboard-active option inside the visible res
       return optionBox.y >= listBox.y && optionBox.y + optionBox.height <= listBox.y + listBox.height;
     })
     .toBe(true);
+
+  const firstOption = page.getByRole('option').first();
+  await firstOption.dispatchEvent('pointerover', { pointerType: 'mouse' });
+  await expect(search).toHaveAttribute('aria-activedescendant', activeId!);
+  await firstOption.hover();
+  await expect(search).toHaveAttribute('aria-activedescendant', (await firstOption.getAttribute('id'))!);
 });
 
 test('Nodes Add Library returns focus to the Add node command after dismissal', async ({ page }) => {

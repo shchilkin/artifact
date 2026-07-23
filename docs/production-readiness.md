@@ -94,21 +94,39 @@ CI should run:
 - The browser release runner now exercises the responsive public-shell contract
   against the built production preview instead of relying only on development
   server CSS ordering.
+- Add Library rows now follow actual pointer movement instead of incidental
+  pointer entry caused by programmatic scrolling, so keyboard
+  `aria-activedescendant` and `aria-selected` state remain aligned.
 - `npm run release:verify -- --version 0.45.1`, `npm run check`, and
   `npm run build` passed on 2026-07-23. The check includes 20 UI Foundation
   tests, 682 Web tests, 261 passing API tests with 5 skipped, 11 Backoffice
   tests, and 25 deployment tests, plus formatting, lint, and all type checks.
 - The complete browser release gate scheduled 542 scenarios across Artifact
   Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
-  desktop/mobile Chromium: 491 completed successfully and 51 were intentional
-  skips.
+  desktop/mobile Chromium: 490 completed without retry, 2 WebKit scenarios
+  passed on retry, and 50 were intentional skips. The v0.45.1 public-shell and
+  Firefox release-gate regressions passed without retry.
 - `npm run perf:node-editor` is not required because this patch changes no
   graph traversal, renderer algorithm or signature, thumbnail queue, or canvas
   interaction hot path.
 - Accepted release risk: the focused production-preview checks are not a
   complete visual-regression suite or WCAG certification.
-- Delivery is tracked by issue
-  [#220](https://github.com/shchilkin/artifact/issues/220) and milestone
+- Accepted release risk: two existing WebKit scenarios passed on retry after
+  local dev-server navigation and browser-context teardown delays.
+- Promotion CI
+  [30027375492](https://github.com/shchilkin/artifact/actions/runs/30027375492)
+  exposed the Firefox Add Library input-modality race before merge or tag
+  creation. Issue
+  [#226](https://github.com/shchilkin/artifact/issues/226) tracks the bounded
+  fix. The focused regression passes 10 consecutive Firefox runs locally, and
+  the complete browser release gate passed again with the same 542-scenario
+  distribution: 490 without retry, 2 existing WebKit scenarios on retry, and
+  50 intentional skips. The Site Navigation, locked-node, and Add Library
+  Firefox regressions passed without retry.
+- Delivery is tracked by issues
+  [#220](https://github.com/shchilkin/artifact/issues/220) and
+  [#223](https://github.com/shchilkin/artifact/issues/223), and
+  [#226](https://github.com/shchilkin/artifact/issues/226), and milestone
   [`v0.45.1 Site Navigation Hotfix`](https://github.com/shchilkin/artifact/milestone/10).
 
 ### v0.45.0 Release Prep And Evidence

@@ -797,7 +797,7 @@ function AddLibrarySectionRows({
             active={itemIndex === activeIndex}
             optionId={`${resultListId}-option-${itemIndex}`}
             draggable={draggable}
-            onPointerEnter={() => onActivateItem(itemIndex)}
+            onPointerMove={() => onActivateItem(itemIndex)}
             onAdd={onAdd}
           />
         );
@@ -894,14 +894,14 @@ function AddLibraryRow({
   active,
   optionId,
   draggable,
-  onPointerEnter,
+  onPointerMove,
   onAdd,
 }: {
   item: AddLibraryItem;
   active: boolean;
   optionId: string;
   draggable: boolean;
-  onPointerEnter: () => void;
+  onPointerMove: () => void;
   onAdd: (item: AddLibraryItem) => void;
 }) {
   const group = ADD_LIBRARY_GROUPS.find((entry) => entry.id === item.group);
@@ -916,7 +916,7 @@ function AddLibraryRow({
       data-add-color-kind={colorKind}
       data-add-kind={item.group}
       draggable={draggable}
-      onPointerEnter={onPointerEnter}
+      onPointerMove={onPointerMove}
       onDragStart={(event) => {
         if (!draggable) return;
         const serialized = serializeAddLibraryAction(item.action);
