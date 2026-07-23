@@ -164,12 +164,12 @@ Next deferred product tracks:
 - Server-backed Share Links remains deferred until local asset/project cleanup,
   quota pressure, project-size behavior, and account ownership rules are
   clearer after the first private cloud-save release.
-- Landing refresh remains deferred until it has its own focused plan and
-  critique/prototype gate.
-- Whole-app design polish is split: v0.38 pulls the editor-first chrome,
-  import, Layers/Nodes, local project action, and visual identity polish into a
-  bounded release; public pages, docs, Showcase, and a broader brand/site
-  refresh remain future scope with their own critique/prototype gate.
+- The landing and public-surface refresh shipped as the bounded v0.44 Product
+  Surfaces release after the shared Foundation and Product Theme were proven.
+- Whole-app design polish remains sequenced rather than open-ended: v0.38
+  established the earlier editor baseline, v0.44 completes public pages, Docs,
+  Showcase, and account surfaces, and v0.45-v0.48 own the remaining editor
+  migration and conformance work.
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
@@ -336,7 +336,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.39:
+Future candidates outside the active v0.45-v0.49 sequence:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -417,10 +417,6 @@ Next strong candidates after v0.39:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Whole-App Brand And Public Surface Refresh** — run a dedicated
-  critique/prototype pass across public routes, docs, Showcase, account
-  surfaces, and shared primitives after v0.39 lands the account/cloud-save core.
-
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and

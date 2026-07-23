@@ -34,13 +34,19 @@
   min-width: 0;
 }
 
-.showcase-tile__error.ui-inline-notice {
+.showcase-tile__error {
   position: absolute;
   inset: var(--space-3);
   display: flex;
   align-items: flex-end;
-  border-style: dashed;
+  border: 1px dashed var(--state-warning);
   background: color-mix(in oklch, var(--state-warning) 8%, var(--surface-card));
+  color: var(--state-warning);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-meta);
+  padding: var(--space-3);
+  text-transform: uppercase;
 }
 
 .showcase-loading {
