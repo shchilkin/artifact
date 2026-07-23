@@ -122,6 +122,24 @@ CI should run:
   the v0.48 zero-caller conformance gate.
 - Accepted release risk: the build retains the existing Fast Refresh warnings
   and large Three.js vendor-chunk warning.
+- PR #216 merged the completed release candidate into `development` as
+  `a5651d1788f485ecc26435e81e85317db48acd57`. Post-merge CI run
+  `30006882531` and exact-SHA staging run `30007685879` passed; staging
+  verified Vercel, Coolify deployment `t10cu6qc4g176hvea9qquorq`, and API
+  contract version 1 at that revision.
+- Promotion PR #217 passed CI run `30008002474` and merged the staged tree into
+  `main` as production commit
+  `09fa42c369361ee0ecb0aa0ba8f18058fa107678`.
+- Tag-and-draft run `30008772764` passed the full gate and created annotated
+  tag `v0.45.0` at that exact production commit. Production run `30010672645`
+  repeated the full gate, promoted verified Vercel deployment
+  `dpl_GVGxUNNzWENogY1LnSdAjTx78FtM`, deployed Coolify revision
+  `zqbf0kch52ls6pcedug46iiu`, verified API contract version 1, and confirmed the
+  production web domain reported the same build SHA.
+- Publish run `30012689936` passed the final full gate and published
+  [`v0.45.0`](https://github.com/shchilkin/artifact/releases/tag/v0.45.0) as
+  the latest release on 2026-07-23. All five delivery issues and milestone #7
+  are closed.
 
 ### v0.44.0 Release Prep And Evidence
 
