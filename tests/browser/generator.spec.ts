@@ -1705,17 +1705,20 @@ test('layer rows support keyboard selection with selection modifiers', async ({ 
   const topFillRow = await getVisibleLayerRow(page, 'Top fill');
   const bottomFillRow = await getVisibleLayerRow(page, 'Bottom fill');
 
-  await topFillRow.focus();
-  await topFillRow.press('Enter');
-  await expect(topFillRow).toHaveAttribute('aria-selected', 'true');
-  await expect(bottomFillRow).toHaveAttribute('aria-selected', 'false');
+  const topFillSelection = topFillRow.getByRole('checkbox', { name: 'Select Top fill layer' });
+  const bottomFillSelection = bottomFillRow.getByRole('checkbox', { name: 'Select Bottom fill layer' });
 
-  await bottomFillRow.focus();
+  await topFillSelection.focus();
+  await topFillSelection.press('Enter');
+  await expect(topFillRow).toHaveAttribute('data-editor-row-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('data-editor-row-selected', 'false');
+
+  await bottomFillSelection.focus();
   await page.keyboard.down('Control');
   await page.keyboard.press('Space');
   await page.keyboard.up('Control');
-  await expect(topFillRow).toHaveAttribute('aria-selected', 'true');
-  await expect(bottomFillRow).toHaveAttribute('aria-selected', 'true');
+  await expect(topFillRow).toHaveAttribute('data-editor-row-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('data-editor-row-selected', 'true');
 });
 
 test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {

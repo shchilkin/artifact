@@ -1777,6 +1777,11 @@ input[type="range"] {
   background: color-mix(in oklch, var(--surface-hover) 72%, var(--panel-bg)) !important;
 }
 
+.layer-row:has(.layer-row-selection-control:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
 .layer-row.bg-accent-dim,
 .layer-row-selected {
   background: color-mix(in oklch, var(--surface-selected) 62%, var(--panel-bg)) !important;
@@ -3064,6 +3069,13 @@ input[type="range"] {
 
 .layer-area-action-menu button:last-child {
   border-bottom: 0;
+}
+
+.layer-area-action-menu__item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
 }
 
 .layer-area-folder {

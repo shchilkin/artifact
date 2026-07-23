@@ -31,6 +31,36 @@ export interface LayerRowProps {
   onRemoveLayer: (id: string) => void;
 }
 
+export function LayerSelectionControl({
+  label,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  selected: boolean;
+  onSelect: (event: LayerSelectionModifiers) => void;
+}) {
+  return (
+    <input
+      className="layer-row-selection-control sr-only"
+      type="checkbox"
+      checked={selected}
+      readOnly
+      aria-label={label}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(event);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect(event);
+      }}
+    />
+  );
+}
+
 function getImageAiHistoryState(layer: ImageLayer) {
   const historyCount = layer.aiGenerationHistory?.length ?? 0;
   const rawIndex = layer.aiGenerationHistoryIndex ?? historyCount - 1;
@@ -320,8 +350,7 @@ export const LayerRow = memo(function LayerRow({
   return (
     <EditorRowFrame
       draggable={!layer.locked}
-      role="option"
-      aria-selected={selected}
+      role="listitem"
       selected={selected}
       isHidden={!layer.visible}
       isLocked={layer.locked}
@@ -342,19 +371,18 @@ export const LayerRow = memo(function LayerRow({
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
-        event.preventDefault();
-        onSelect(layer.id, event);
-      }}
       onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(event) => {
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      tabIndex={0}
       className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
     >
+      <LayerSelectionControl
+        label={`Select ${layer.name} layer`}
+        selected={selected}
+        onSelect={(event) => onSelect(layer.id, event)}
+      />
       <LayerDragHandle layer={layer} onDragStart={onDragStart} />
       <LayerKindBadge layer={layer} />
       <div className="layer-row-main">

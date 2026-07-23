@@ -4,6 +4,7 @@ import type { ArrayPresetId } from '../../utils/arrayPresets';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import type { TextPresetId } from '../../utils/textPresets';
 import { AddLibraryPanel } from '../add-library/AddLibraryPanel';
+import { preserveScopedAddLibraryEscape } from '../add-library/addLibraryEscape';
 import type { AddLibraryAction } from '../add-library/addLibraryModel';
 import { useAddLibraryMobileSheet } from '../add-library/useAddLibraryMobileSheet';
 import { EditorOverlayFrame } from '../editor-workflow/EditorOverlayFrame';
@@ -126,6 +127,7 @@ export function LayerAddMenu({
     <EditorOverlayFrame
       open={isAddMenuOpen}
       onOpenChange={setIsAddMenuOpen}
+      onEscapeKeyDown={preserveScopedAddLibraryEscape}
       mobile={mobileSheet}
       mobileHeight="78vh"
       title="Add layer"

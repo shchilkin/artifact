@@ -1,5 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type {
   AspectRatio,
   CanvasDocument,
@@ -14,13 +14,15 @@ import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
+import { EditorCommandGroup } from '../editor-workflow/EditorCommandGroup';
 import { EditorRowFrame } from '../editor-workflow/EditorRowFrame';
+import { ActionButton } from '../ui/ActionButton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
-import { LayerRow } from './LayerRow';
+import { LayerRow, LayerSelectionControl } from './LayerRow';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { type LayerSelectionModifiers, useLayerSelection } from './useLayerSelection';
@@ -97,20 +99,7 @@ export function LayerPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
-  const [showAreaMenu, setShowAreaMenu] = useState(false);
   const [contextMenu, setContextMenu] = useState<LayerContextMenuState | null>(null);
-  const areaButtonRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showAreaMenu) return;
-    function handleOutside(event: MouseEvent) {
-      if (areaButtonRef.current && !areaButtonRef.current.contains(event.target as Node)) {
-        setShowAreaMenu(false);
-      }
-    }
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showAreaMenu]);
 
   const displayLayers = useMemo(
     () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
@@ -145,9 +134,12 @@ export function LayerPanel({
     (id: string, event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
       const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
+      const returnFocusTarget =
+        event.currentTarget.closest('.layer-row')?.querySelector<HTMLElement>('.layer-row-selection-control') ??
+        event.currentTarget;
       setSelectedLayerIds(new Set(activeIds));
       onSelectLayer(id);
-      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds });
+      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds, returnFocusTarget });
     },
     [onSelectLayer, selectedActionLayerIds, setSelectedLayerIds],
   );
@@ -193,7 +185,6 @@ export function LayerPanel({
     (ids: string[]) => {
       if (ids.length === 0) return;
       onCreateAreaFromLayers(ids);
-      setShowAreaMenu(false);
       setContextMenu(null);
     },
     [onCreateAreaFromLayers],
@@ -203,7 +194,6 @@ export function LayerPanel({
     (areaId: string, ids: string[]) => {
       if (ids.length === 0) return;
       onAddLayersToArea(areaId, ids);
-      setShowAreaMenu(false);
       setContextMenu(null);
     },
     [onAddLayersToArea],
@@ -214,7 +204,6 @@ export function LayerPanel({
       const removableIds = ids.filter((id) => areasByLayerId.has(id));
       if (removableIds.length === 0) return;
       onRemoveLayersFromAreas(removableIds);
-      setShowAreaMenu(false);
       setContextMenu(null);
     },
     [areasByLayerId, onRemoveLayersFromAreas],
@@ -237,17 +226,13 @@ export function LayerPanel({
 
       <div
         className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-        role="listbox"
+        role="list"
         aria-label="Layer stack"
-        aria-multiselectable="true"
       >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
           graphAreas={graphAreas}
-          showAreaMenu={showAreaMenu}
-          areaButtonRef={areaButtonRef}
-          onToggleAreaMenu={() => setShowAreaMenu((value) => !value)}
           onCreateAreaFromSelection={handleCreateAreaFromSelection}
           onAddSelectionToArea={handleAddSelectionToArea}
         />
@@ -386,49 +371,39 @@ function LayerPanelEmptyState({ visible }: { visible: boolean }) {
 function LayerSelectionActions({
   selectedActionLayerIds,
   graphAreas,
-  showAreaMenu,
-  areaButtonRef,
-  onToggleAreaMenu,
   onCreateAreaFromSelection,
   onAddSelectionToArea,
 }: {
   selectedActionLayerIds: string[];
   graphAreas: GraphArea[];
-  showAreaMenu: boolean;
-  areaButtonRef: React.RefObject<HTMLDivElement | null>;
-  onToggleAreaMenu: () => void;
   onCreateAreaFromSelection: (ids: string[]) => void;
   onAddSelectionToArea: (areaId: string, ids: string[]) => void;
 }) {
   if (selectedActionLayerIds.length <= 1) return null;
   return (
-    <div className="layer-selection-actions">
+    <EditorCommandGroup className="layer-selection-actions" label="Selected layer actions">
       <span>{selectedActionLayerIds.length} selected</span>
-      <button type="button" onClick={() => onCreateAreaFromSelection(selectedActionLayerIds)}>
+      <ActionButton variant="quiet" onClick={() => onCreateAreaFromSelection(selectedActionLayerIds)}>
         Area
-      </button>
+      </ActionButton>
       {graphAreas.length > 0 && (
-        <div ref={areaButtonRef} className="relative">
-          <button type="button" onClick={onToggleAreaMenu}>
-            Add
-          </button>
-          {showAreaMenu && (
-            <div className="layer-area-action-menu">
-              {graphAreas.map((area) => (
-                <button
-                  key={area.id}
-                  type="button"
-                  onClick={() => onAddSelectionToArea(area.id, selectedActionLayerIds)}
-                >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <ActionButton variant="quiet">Add</ActionButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="layer-area-dropdown-menu">
+            {graphAreas.map((area) => (
+              <DropdownMenuItem key={area.id} onSelect={() => onAddSelectionToArea(area.id, selectedActionLayerIds)}>
+                <span className="layer-area-action-menu__item">
                   <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
                   {area.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
-    </div>
+    </EditorCommandGroup>
   );
 }
 
@@ -576,22 +551,19 @@ function Scene3DLayerRow({
   const environment = getSceneEnvironmentNode(doc.graph, scene.id);
   return (
     <EditorRowFrame
-      role="option"
-      tabIndex={0}
-      aria-selected={selected}
+      role="listitem"
       selected={selected}
       data-layer-id={scene.id}
       className={`layer-row layer-row-kind-primitive flex items-center gap-2 px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${
         selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50'
       }`}
       onClick={() => onSelectLayer(scene.id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelectLayer(scene.id);
-        }
-      }}
     >
+      <LayerSelectionControl
+        label={`Select ${scene.name} scene layer`}
+        selected={selected}
+        onSelect={() => onSelectLayer(scene.id)}
+      />
       <span className="layer-row-drag-handle text-dim text-[10px] flex-shrink-0" aria-hidden="true">
         ·
       </span>

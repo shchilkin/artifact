@@ -266,12 +266,21 @@ export function useNodeContextMenus({
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
   const pendingConnectionStartRef = useRef<ReturnType<typeof pendingConnectStart>>(null);
   const deferredConnectMenuFrameRef = useRef<number | null>(null);
+  const contextMenuReturnFocusRef = useRef<HTMLElement | null>(null);
 
-  const closeContextMenu = useCallback(() => {
-    cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
-    pendingConnectionStartRef.current = null;
-    send({ type: 'CONTEXT_MENU_CLOSED' });
-  }, [send]);
+  const closeContextMenu = useCallback(
+    (restoreFocus = true) => {
+      const returnFocusTarget = contextMenuReturnFocusRef.current;
+      contextMenuReturnFocusRef.current = null;
+      cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+      pendingConnectionStartRef.current = null;
+      send({ type: 'CONTEXT_MENU_CLOSED' });
+      if (restoreFocus && returnFocusTarget) {
+        window.requestAnimationFrame(() => returnFocusTarget.focus());
+      }
+    },
+    [send],
+  );
 
   useEffect(() => () => cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef), []);
 
@@ -299,12 +308,12 @@ export function useNodeContextMenus({
 
     const closeForOutsidePointer = (event: PointerEvent) => {
       if (isInsideMenu(event.target)) return;
-      closeContextMenu();
+      closeContextMenu(false);
     };
 
     const closeForOutsideContextMenu = (event: MouseEvent) => {
       if (isInsideMenu(event.target)) return;
-      closeContextMenu();
+      closeContextMenu(false);
     };
 
     const closeForEscape = (event: KeyboardEvent) => {
@@ -317,12 +326,13 @@ export function useNodeContextMenus({
     document.addEventListener('pointerdown', closeForOutsidePointer, true);
     document.addEventListener('contextmenu', closeForOutsideContextMenu, true);
     document.addEventListener('keydown', closeForEscape);
-    window.addEventListener('blur', closeContextMenu);
+    const closeForWindowBlur = () => closeContextMenu(false);
+    window.addEventListener('blur', closeForWindowBlur);
     return () => {
       document.removeEventListener('pointerdown', closeForOutsidePointer, true);
       document.removeEventListener('contextmenu', closeForOutsideContextMenu, true);
       document.removeEventListener('keydown', closeForEscape);
-      window.removeEventListener('blur', closeContextMenu);
+      window.removeEventListener('blur', closeForWindowBlur);
     };
   }, [closeContextMenu, contextMenu, contextMenuRef]);
 
@@ -333,6 +343,7 @@ export function useNodeContextMenus({
     const anchor = addNodeMenuAnchor(buttonRect, surfaceRect);
     const screenPoint = addNodeMenuScreenPoint(buttonRect, surfaceRect);
     const flowPos = rfInstanceRef.current?.screenToFlowPosition(screenPoint) ?? { x: 0, y: 0 };
+    contextMenuReturnFocusRef.current = addNodeButtonRef.current;
     send({
       type: 'CONTEXT_MENU_OPENED',
       menu: { type: 'pane-add', x: anchor.x, y: anchor.y, flowPos },
@@ -343,6 +354,7 @@ export function useNodeContextMenus({
     (e: MouseEvent | React.MouseEvent) => {
       e.preventDefault();
       cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+      contextMenuReturnFocusRef.current = canvasSurfaceRef.current;
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
@@ -352,7 +364,7 @@ export function useNodeContextMenus({
         menu: { type: 'pane-add', x: e.clientX, y: e.clientY, flowPos },
       });
     },
-    [send, rfInstanceRef],
+    [canvasSurfaceRef, send, rfInstanceRef],
   );
 
   const onNodeContextMenu = useCallback(
@@ -360,6 +372,7 @@ export function useNodeContextMenus({
       e.preventDefault();
       e.stopPropagation();
       cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+      contextMenuReturnFocusRef.current = canvasSurfaceRef.current;
       const isMerge = isGraphUtilityNode(graphRef.current, node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
@@ -374,7 +387,7 @@ export function useNodeContextMenus({
         },
       });
     },
-    [graphRef, send],
+    [canvasSurfaceRef, graphRef, send],
   );
 
   const onEdgeContextMenu = useCallback(
@@ -382,6 +395,7 @@ export function useNodeContextMenus({
       e.preventDefault();
       e.stopPropagation();
       cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+      contextMenuReturnFocusRef.current = canvasSurfaceRef.current;
       const flowPos = rfInstanceRef.current?.screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
@@ -403,7 +417,7 @@ export function useNodeContextMenus({
         },
       });
     },
-    [send, rfInstanceRef],
+    [canvasSurfaceRef, send, rfInstanceRef],
   );
 
   const onConnectStart = useCallback(
@@ -426,10 +440,12 @@ export function useNodeContextMenus({
         (point) => rfInstanceRef.current?.screenToFlowPosition(point) ?? { x: 0, y: 0 },
       );
       pendingConnectionStartRef.current = null;
-      if (menu) openDeferredConnectAddMenu(send, menu, deferredConnectMenuFrameRef);
-      else cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
+      if (menu) {
+        contextMenuReturnFocusRef.current = canvasSurfaceRef.current;
+        openDeferredConnectAddMenu(send, menu, deferredConnectMenuFrameRef);
+      } else cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
     },
-    [send, rfInstanceRef],
+    [canvasSurfaceRef, send, rfInstanceRef],
   );
 
   const handleAddFromMenu = useCallback(

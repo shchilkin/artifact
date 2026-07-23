@@ -11,7 +11,11 @@ import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
 import { ADD_LIBRARY_ITEMS, type AddLibraryAction } from '../components/add-library/addLibraryModel';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
+import { EditorCommandBar } from '../components/editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
+import { EditorOrganizationGroup } from '../components/editor-workflow/EditorOrganizationGroup';
+import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
+import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { LogoGlyph } from '../components/LogoGlyph';
 import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
@@ -144,6 +148,16 @@ const layers: Layer[] = [
     locked: true,
     kind: 'fill',
     color: '#88402f',
+    opacity: 100,
+    blendMode: 'normal',
+  },
+  {
+    id: 'style-layer-long-name',
+    name: 'Very long imported source title that must stay readable without widening the editor rail',
+    visible: true,
+    locked: false,
+    kind: 'fill',
+    color: '#2d6e67',
     opacity: 100,
     blendMode: 'normal',
   },
@@ -447,7 +461,7 @@ export default function DocsStyleGuide() {
               </SegmentedControl>
             </Specimen>
             <Specimen label="Editor command groups and notices" stack>
-              <div className="style-guide-editor-command-bar" role="toolbar" aria-label="Editor command groups">
+              <EditorCommandBar className="style-guide-editor-command-bar" label="Editor command groups">
                 <EditorCommandGroup label="History commands">
                   <ActionButton variant="quiet">New</ActionButton>
                   <ActionButton variant="quiet" disabled>
@@ -460,12 +474,21 @@ export default function DocsStyleGuide() {
                     Export
                   </ActionButton>
                 </EditorCommandGroup>
-              </div>
+              </EditorCommandBar>
               <EditorWorkflowNotice
                 title="Document ready"
                 action={<IconButton label="Dismiss document notice" icon="×" size="compact" />}
               >
                 Imported source is ready to edit.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice variant="warning" title="Hidden output">
+                One selected layer is hidden and will not appear in export.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice variant="danger" title="Source unavailable">
+                The source preview could not be loaded. Choose a replacement to continue.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice aria-busy="true" title="Saving recovery copy">
+                Saving the current document before opening the imported file.
               </EditorWorkflowNotice>
             </Specimen>
             <Specimen label="Tabs dialogs sheets menus" stack>
@@ -561,6 +584,42 @@ export default function DocsStyleGuide() {
               onRemoveNodesFromArea={noop}
             />
           </div>
+          <div className="style-guide-workflow-state-grid" aria-label="Editor row and organization contract states">
+            <EditorRowFrame
+              className="style-guide-workflow-contract-state"
+              selected
+              editing
+              aria-label="Editing selected row"
+            >
+              <strong>Editing row</strong>
+              <span>Selected, keyboard focused, rename active</span>
+            </EditorRowFrame>
+            <EditorRowFrame
+              className="style-guide-workflow-contract-state"
+              dropPosition="before"
+              aria-label="Row drop target"
+            >
+              <strong>Drop target</strong>
+              <span>Reorder insertion before row</span>
+            </EditorRowFrame>
+            <EditorOrganizationGroup
+              className="style-guide-workflow-contract-state"
+              label="Collapsed organization group"
+              collapsed
+            >
+              <strong>Collapsed area</strong>
+              <span>Children summarized</span>
+            </EditorOrganizationGroup>
+            <EditorOrganizationGroup
+              className="style-guide-workflow-contract-state"
+              label="Empty organization group"
+              collapsed={false}
+              empty
+            >
+              <strong>Empty area</strong>
+              <span>Ready to receive layers</span>
+            </EditorOrganizationGroup>
+          </div>
         </StyleSection>
 
         <StyleSection
@@ -623,7 +682,16 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="06 / Add Library"
+          kicker="06 / Workflow matrix"
+          title="Editor workflow states"
+          body="Command, row, organization, notice, and overlay patterns expose their full interaction state vocabulary."
+          wide
+        >
+          <WorkflowPatternStateMatrix />
+        </StyleSection>
+
+        <StyleSection
+          kicker="07 / Add Library"
           title="Creation surface"
           body="Add Library remains a key editor primitive. The style guide keeps search, rows, detail preview, and tags visible in one place."
           wide
@@ -636,6 +704,9 @@ export default function DocsStyleGuide() {
               onAdd={handleAddLibrary}
               onClose={noop}
               autoFocusSearch={false}
+              initialFavoriteIds={['layer:text']}
+              initialRecentIds={['effect:grain', 'layer:fill']}
+              persistActivity={false}
             />
           </div>
           <div className="style-guide-add-library-state-grid" aria-label="Add Library preview state specimens">
@@ -650,7 +721,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="07 / Inspector"
+          kicker="08 / Inspector"
           title="Target and fields"
           body="Inspector primitives combine compact labels, readable values, badges, and explicit status notes."
         >
@@ -665,7 +736,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="08 / Panels"
+          kicker="09 / Panels"
           title="Properties rail"
           body="The properties panel assembles target summaries, guardrails, and inspector controls into the right-rail surface."
           wide
@@ -732,6 +803,240 @@ function Specimen({ label, children, stack = false }: { label: string; children:
     <div className="style-guide-specimen">
       <div className="style-guide-specimen-label">{label}</div>
       <div className={`style-guide-specimen-body${stack ? ' style-guide-specimen-body--stack' : ''}`}>{children}</div>
+    </div>
+  );
+}
+
+const COMMAND_PATTERN_STATES = [
+  'default',
+  'compact',
+  'mobile',
+  'disabled-command',
+  'loading-command',
+  'active-menu-trigger',
+  'count-status-badge',
+  'overflowed-group',
+] as const;
+
+const ROW_PATTERN_STATES = [
+  'default',
+  'selected',
+  'hidden',
+  'locked',
+  'selected-hidden',
+  'disabled',
+  'nested',
+  'editing',
+  'dragging',
+  'drop-before',
+  'drop-after',
+  'keyboard-active',
+  'long-name',
+] as const;
+
+const ORGANIZATION_PATTERN_STATES = [
+  'expanded',
+  'collapsed',
+  'empty',
+  'selected-content',
+  'hidden-content',
+  'editing-name',
+  'disabled-action',
+  'drag-over',
+  'narrow',
+] as const;
+
+const NOTICE_PATTERN_STATES = [
+  'informational',
+  'warning',
+  'error',
+  'success-recovered',
+  'busy',
+  'actionable',
+  'dismissible',
+  'multiline',
+  'narrow',
+] as const;
+
+const OVERLAY_PATTERN_STATES = [
+  'closed',
+  'open',
+  'keyboard-opened',
+  'pointer-opened',
+  'busy',
+  'disabled-item',
+  'nested-scope',
+  'collision-adjusted',
+  'mobile-sheet',
+] as const;
+
+function stateLabel(state: string) {
+  return state.replaceAll('-', ' ');
+}
+
+function WorkflowPatternStateMatrix() {
+  return (
+    <div className="style-guide-workflow-matrix" aria-label="Editor workflow pattern state matrix">
+      <WorkflowPatternGroup label="EditorCommandBar">
+        {COMMAND_PATTERN_STATES.map((state) => (
+          <div key={state} className="style-guide-workflow-state" data-editor-specimen={`command-${state}`}>
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <EditorCommandBar
+              className="style-guide-workflow-state__surface"
+              label={`${stateLabel(state)} command bar`}
+              density={state === 'compact' ? 'compact' : 'default'}
+              mobile={state === 'mobile'}
+              overflowed={state === 'overflowed-group'}
+            >
+              <EditorCommandGroup label={`${stateLabel(state)} commands`}>
+                <ActionButton
+                  variant="quiet"
+                  disabled={state === 'disabled-command'}
+                  loading={state === 'loading-command'}
+                  data-state={state === 'active-menu-trigger' ? 'open' : undefined}
+                >
+                  Command
+                </ActionButton>
+                {state === 'count-status-badge' ? <Badge variant="selected">3 selected</Badge> : null}
+                {state === 'overflowed-group' ? (
+                  <>
+                    <ActionButton variant="quiet">Share</ActionButton>
+                    <ActionButton variant="quiet">Projects</ActionButton>
+                    <ActionButton variant="primary">Export</ActionButton>
+                  </>
+                ) : null}
+              </EditorCommandGroup>
+            </EditorCommandBar>
+          </div>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorRowFrame">
+        {ROW_PATTERN_STATES.map((state) => (
+          <EditorRowFrame
+            key={state}
+            className="style-guide-workflow-state style-guide-workflow-state--row"
+            data-editor-specimen={`row-${state}`}
+            selected={state === 'selected' || state === 'selected-hidden'}
+            isHidden={state === 'hidden' || state === 'selected-hidden'}
+            isLocked={state === 'locked'}
+            disabled={state === 'disabled'}
+            nested={state === 'nested'}
+            editing={state === 'editing'}
+            dragging={state === 'dragging'}
+            dropPosition={state === 'drop-before' ? 'before' : state === 'drop-after' ? 'after' : null}
+            keyboardActive={state === 'keyboard-active'}
+          >
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <span>
+              {state === 'long-name'
+                ? 'Very long imported layer name that remains inside the editor rail'
+                : 'Layer row'}
+            </span>
+          </EditorRowFrame>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorOrganizationGroup">
+        {ORGANIZATION_PATTERN_STATES.map((state) => (
+          <EditorOrganizationGroup
+            key={state}
+            className="style-guide-workflow-state"
+            data-editor-specimen={`organization-${state}`}
+            label={`${stateLabel(state)} organization group`}
+            collapsed={state === 'collapsed'}
+            empty={state === 'empty'}
+            selectedContent={state === 'selected-content'}
+            hiddenContent={state === 'hidden-content'}
+            editing={state === 'editing-name'}
+            disabled={state === 'disabled-action'}
+            dragOver={state === 'drag-over'}
+            narrow={state === 'narrow'}
+          >
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <span>Area group</span>
+          </EditorOrganizationGroup>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorWorkflowNotice">
+        {NOTICE_PATTERN_STATES.map((state) => (
+          <div key={state} className="style-guide-workflow-state" data-editor-specimen={`notice-${state}`}>
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <EditorWorkflowNotice
+              className={state === 'narrow' ? 'style-guide-workflow-notice--narrow' : undefined}
+              variant={
+                state === 'warning'
+                  ? 'warning'
+                  : state === 'error'
+                    ? 'danger'
+                    : state === 'success-recovered'
+                      ? 'success'
+                      : 'info'
+              }
+              aria-busy={state === 'busy' ? 'true' : undefined}
+              action={
+                state === 'actionable' ? (
+                  <ActionButton variant="quiet">Retry</ActionButton>
+                ) : state === 'dismissible' ? (
+                  <IconButton label="Dismiss notice specimen" icon="×" size="compact" />
+                ) : undefined
+              }
+            >
+              {state === 'multiline'
+                ? 'The imported source is ready. Its original dimensions are preserved, and you can replace it from the selected layer.'
+                : state === 'success-recovered'
+                  ? 'Local storage is available again.'
+                  : 'Editor notice'}
+            </EditorWorkflowNotice>
+          </div>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorOverlayFrame">
+        {OVERLAY_PATTERN_STATES.map((state) => (
+          <EditorOverlayContractState key={state} state={state} />
+        ))}
+      </WorkflowPatternGroup>
+    </div>
+  );
+}
+
+function WorkflowPatternGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="style-guide-workflow-pattern-group" aria-label={`${label} state specimens`}>
+      <h3>{label}</h3>
+      <div className="style-guide-workflow-pattern-grid">{children}</div>
+    </section>
+  );
+}
+
+function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_STATES)[number] }) {
+  const [open, setOpen] = useState(false);
+  const label = stateLabel(state);
+  return (
+    <div className="style-guide-workflow-state" data-editor-specimen={`overlay-${state}`}>
+      <span className="style-guide-workflow-state__label">{label}</span>
+      <EditorOverlayFrame
+        open={open}
+        onOpenChange={setOpen}
+        busy={state === 'busy'}
+        mobile={state === 'mobile-sheet'}
+        title={`${label} overlay`}
+        description="Choose an editor action."
+        trigger={<ActionButton variant="secondary">Open {label}</ActionButton>}
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>{label}</strong>
+          <span>{state === 'nested-scope' ? 'Effects / Texture / Grain' : 'Choose an editor action.'}</span>
+          <ActionButton variant="quiet" disabled={state === 'disabled-item'}>
+            Secondary action
+          </ActionButton>
+          <ActionButton variant="primary" onClick={() => setOpen(false)}>
+            Done
+          </ActionButton>
+        </div>
+      </EditorOverlayFrame>
     </div>
   );
 }
@@ -810,8 +1115,50 @@ function OverlayPrimitiveSpecimens() {
           </SheetContent>
         </Sheet>
         <FloatingMenuSpecimen />
+        <EditorOverlaySpecimens />
       </div>
     </div>
+  );
+}
+
+function EditorOverlaySpecimens() {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  return (
+    <>
+      <EditorOverlayFrame
+        open={popoverOpen}
+        onOpenChange={setPopoverOpen}
+        title="Editor popover specimen"
+        description="Choose an item from the anchored editor menu."
+        trigger={<ActionButton variant="secondary">Open editor popover</ActionButton>}
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>Add source</strong>
+          <span>Choose an item or dismiss this menu.</span>
+          <ActionButton variant="primary" onClick={() => setPopoverOpen(false)}>
+            Done
+          </ActionButton>
+        </div>
+      </EditorOverlayFrame>
+      <EditorOverlayFrame
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        mobile
+        title="Editor mobile sheet specimen"
+        description="Choose an item from the mobile editor menu."
+        trigger={<ActionButton variant="secondary">Open editor mobile sheet</ActionButton>}
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>Add on mobile</strong>
+          <span>Search and choose an item.</span>
+          <ActionButton variant="primary" onClick={() => setSheetOpen(false)}>
+            Done
+          </ActionButton>
+        </div>
+      </EditorOverlayFrame>
+    </>
   );
 }
 

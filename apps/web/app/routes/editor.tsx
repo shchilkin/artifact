@@ -1,9 +1,10 @@
 import { AnimatePresence } from 'framer-motion';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
@@ -11,7 +12,7 @@ import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
 import { ActionButton } from '../components/ui/ActionButton';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog';
+import { DialogClose } from '../components/ui/dialog';
 import { IconButton } from '../components/ui/IconButton';
 import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
@@ -674,86 +675,72 @@ function DocumentImportConfirm({
   onConfirm: () => void;
   pendingImport: PendingDocumentImport | null;
 }) {
-  const returnFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!pendingImport || typeof document === 'undefined') return;
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  }, [pendingImport]);
-
   if (!pendingImport) return null;
 
-  const closeImport = () => {
-    onCancel();
-    queueMicrotask(() => returnFocusRef.current?.focus());
-  };
-
   return (
-    <Dialog modal={false} open onOpenChange={(open) => !open && !busy && closeImport()}>
-      <DialogContent
-        className="document-import-confirm"
-        overlayClassName="document-import-confirm__overlay"
-        onEscapeKeyDown={(event) => {
-          if (busy) event.preventDefault();
-        }}
-        onPointerDownOutside={(event) => {
-          if (busy) event.preventDefault();
-        }}
-      >
-        <div className="document-import-confirm__header">
-          <DialogTitle className="document-import-confirm__title">Open artifact file</DialogTitle>
-          <DialogClose asChild>
-            <IconButton
-              className="document-import-confirm__close"
-              label="Cancel import"
-              icon={<span aria-hidden="true">×</span>}
-              disabled={busy}
-            />
-          </DialogClose>
+    <EditorOverlayFrame
+      variant="dialog"
+      open
+      busy={busy}
+      onOpenChange={(open) => !open && onCancel()}
+      title="Open artifact file"
+      description="Review the dropped Artifact document before it replaces the current canvas."
+      className="document-import-confirm"
+      overlayClassName="document-import-confirm__overlay"
+    >
+      <div className="document-import-confirm__header">
+        <h2 className="document-import-confirm__title">Open artifact file</h2>
+        <DialogClose asChild>
+          <IconButton
+            className="document-import-confirm__close"
+            label="Cancel import"
+            icon={<span aria-hidden="true">×</span>}
+            disabled={busy}
+          />
+        </DialogClose>
+      </div>
+      <ImportFileTypeRail />
+      <div className="document-import-confirm__zone">
+        <span className="document-import-confirm__zone-mark">⇧</span>
+        <span className="document-import-confirm__eyebrow">{importKindLabel(pendingImport.fileKind)}</span>
+        <div className="document-import-confirm__file" aria-label="Artifact file">
+          <span className="document-import-confirm__file-name">{pendingImport.fileName}</span>
+          <span>{formatFileSize(pendingImport.fileSize)}</span>
         </div>
-        <ImportFileTypeRail />
-        <div className="document-import-confirm__zone">
-          <span className="document-import-confirm__zone-mark">⇧</span>
-          <span className="document-import-confirm__eyebrow">{importKindLabel(pendingImport.fileKind)}</span>
-          <div className="document-import-confirm__file" aria-label="Artifact file">
-            <span className="document-import-confirm__file-name">{pendingImport.fileName}</span>
-            <span>{formatFileSize(pendingImport.fileSize)}</span>
+        <dl className="document-import-confirm__meta" aria-label="Dropped document summary">
+          <div>
+            <dt>Aspect</dt>
+            <dd>{pendingImport.aspect}</dd>
           </div>
-          <dl className="document-import-confirm__meta" aria-label="Dropped document summary">
-            <div>
-              <dt>Aspect</dt>
-              <dd>{pendingImport.aspect}</dd>
-            </div>
-            <div>
-              <dt>Layers</dt>
-              <dd>{pendingImport.layerCount}</dd>
-            </div>
-            <div>
-              <dt>Graph</dt>
-              <dd>{pendingImport.hasGraph ? 'YES' : 'NO'}</dd>
-            </div>
-          </dl>
-        </div>
-        <DialogDescription className="document-import-confirm__body">
-          Current work will be saved as a recovery copy before this file replaces the canvas.
-        </DialogDescription>
-        <div className="document-import-confirm__actions">
-          <DialogClose asChild>
-            <ActionButton variant="quiet" disabled={busy}>
-              CANCEL
-            </ActionButton>
-          </DialogClose>
-          <ActionButton
-            className="export-btn"
-            variant="primary"
-            onClick={onConfirm}
-            loading={busy}
-            aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
-          >
-            {busy ? 'SAVING' : 'OPEN FILE'}
+          <div>
+            <dt>Layers</dt>
+            <dd>{pendingImport.layerCount}</dd>
+          </div>
+          <div>
+            <dt>Graph</dt>
+            <dd>{pendingImport.hasGraph ? 'YES' : 'NO'}</dd>
+          </div>
+        </dl>
+      </div>
+      <p className="document-import-confirm__body">
+        Current work will be saved as a recovery copy before this file replaces the canvas.
+      </p>
+      <div className="document-import-confirm__actions">
+        <DialogClose asChild>
+          <ActionButton variant="quiet" disabled={busy}>
+            CANCEL
           </ActionButton>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogClose>
+        <ActionButton
+          className="export-btn"
+          variant="primary"
+          onClick={onConfirm}
+          loading={busy}
+          aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
+        >
+          {busy ? 'SAVING' : 'OPEN FILE'}
+        </ActionButton>
+      </div>
+    </EditorOverlayFrame>
   );
 }

@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useMemo } from 'react';
 import type { AddAction } from '../../../utils/addActions';
 import { AddLibraryPanel } from '../../add-library/AddLibraryPanel';
+import { preserveScopedAddLibraryEscape } from '../../add-library/addLibraryEscape';
 import {
   ADD_LIBRARY_ACTION_MIME,
   type AddLibraryAction,
@@ -67,6 +68,7 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
           side="bottom"
           className="add-library-surface add-library-node-menu nadd-surface add-library-mobile nadd-mobile"
           style={{ '--artifact-sheet-height': '82vh' } as CSSProperties}
+          onEscapeKeyDown={preserveScopedAddLibraryEscape}
           onWheelCapture={(event) => event.stopPropagation()}
         >
           <SheetTitle className="sr-only">Add node</SheetTitle>
@@ -87,6 +89,7 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
       className="add-library-surface add-library-node-menu nadd-surface"
       style={{ width: MENU_W }}
       onOpenChange={(open) => !open && onClose()}
+      onEscapeKeyDown={preserveScopedAddLibraryEscape}
       onWheelCapture={(event) => event.stopPropagation()}
     >
       {content}

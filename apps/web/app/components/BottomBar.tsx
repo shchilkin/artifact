@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { EditorCommandBar } from './editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from './editor-workflow/EditorCommandGroup';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
@@ -55,7 +56,7 @@ export function BottomBar({
   }, [onCopyLink]);
 
   return (
-    <div className="bottom-bar" role="toolbar" aria-label="Editor actions">
+    <EditorCommandBar className="bottom-bar" label="Editor actions">
       <EditorCommandGroup className="bottom-history-group" label="Document history">
         <ActionButton
           onClick={onNewBlank}
@@ -141,7 +142,7 @@ export function BottomBar({
           {exportBusy ? '…' : 'EXPORT'}
         </ActionButton>
       </EditorCommandGroup>
-    </div>
+    </EditorCommandBar>
   );
 }
 
