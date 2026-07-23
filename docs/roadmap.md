@@ -24,9 +24,9 @@ Current planning status:
   the mobile-only public navigation trigger from leaking onto desktop when
   production CSS chunks load in a different order, preserves the mobile menu
   contract, and adds a production-preview public-shell segment to the browser
-  release gate. Issue #220 and milestone #10 track the patch. Authentication,
-  routing, editor state, rendering, persistence, export, Backoffice behavior,
-  and AI scope remain unchanged. See
+  release gate. Issues #220 and #223 and milestone #10 track the patch and its
+  release-gate stabilization. Authentication, routing, editor state, rendering,
+  persistence, export, Backoffice behavior, and AI scope remain unchanged. See
   [`version-plans/v0.45.md`](./version-plans/v0.45.md) and
   [`releases/v0.45.1.md`](./releases/v0.45.1.md).
 - v0.45 was released on 2026-07-23 as the Artifact Editor Workflows release.

@@ -1230,7 +1230,7 @@ async function selectUnconnectedTopFillNode(page: Page) {
   await switchToNodeView(page);
   const orphanNode = page.locator('.react-flow__node').filter({ hasText: 'Unconnected top fill' });
   await expect(orphanNode).toBeVisible({ timeout: 15_000 });
-  await orphanNode.click();
+  await selectGraphNodeById(page, 'graph-unconnected-fill');
   return orphanNode;
 }
 

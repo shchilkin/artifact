@@ -100,15 +100,19 @@ CI should run:
   tests, and 25 deployment tests, plus formatting, lint, and all type checks.
 - The complete browser release gate scheduled 542 scenarios across Artifact
   Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
-  desktop/mobile Chromium: 491 completed successfully and 51 were intentional
-  skips.
+  desktop/mobile Chromium: 490 completed without retry, 2 WebKit scenarios
+  passed on retry, and 50 were intentional skips. The v0.45.1 public-shell and
+  Firefox release-gate regressions passed without retry.
 - `npm run perf:node-editor` is not required because this patch changes no
   graph traversal, renderer algorithm or signature, thumbnail queue, or canvas
   interaction hot path.
 - Accepted release risk: the focused production-preview checks are not a
   complete visual-regression suite or WCAG certification.
-- Delivery is tracked by issue
-  [#220](https://github.com/shchilkin/artifact/issues/220) and milestone
+- Accepted release risk: two existing WebKit scenarios passed on retry after
+  local dev-server navigation and browser-context teardown delays.
+- Delivery is tracked by issues
+  [#220](https://github.com/shchilkin/artifact/issues/220) and
+  [#223](https://github.com/shchilkin/artifact/issues/223), and milestone
   [`v0.45.1 Site Navigation Hotfix`](https://github.com/shchilkin/artifact/milestone/10).
 
 ### v0.45.0 Release Prep And Evidence
