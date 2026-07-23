@@ -83,10 +83,15 @@ test('mobile Layers commands and Add Library filters keep 44px targets and reada
   for (const filter of [
     page.locator('.add-library-intent').first(),
     page.locator('.add-library-browse-item').first(),
-    page.locator('.add-library-recipe').first(),
   ]) {
     await expectMinimumTarget(filter);
   }
+
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
+  await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Add node' }).click();
+  await expectMinimumTarget(page.locator('.add-library-recipe').first());
 });
 
 test('layer context menu supports Home End Escape and returns focus to row selection', async ({ page }) => {

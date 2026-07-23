@@ -2967,6 +2967,8 @@ input[type="range"] {
   .add-library-intent,
   .add-library-browse-item,
   .add-library-recipe {
+    min-width: var(--touch);
+    height: var(--touch);
     min-height: var(--touch);
   }
 }
