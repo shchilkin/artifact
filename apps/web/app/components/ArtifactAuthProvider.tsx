@@ -1,3 +1,4 @@
+import { Field, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArtifactAuthContext, type ArtifactAuthState, anonymousAuth } from '../hooks/useArtifactAuth';
 import {
@@ -7,6 +8,9 @@ import {
   readAuthBearerToken,
   requestArtifactPasswordReset,
 } from '../utils/authClient';
+import { ActionButton } from './ui/ActionButton';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
+import { IconButton } from './ui/IconButton';
 
 type AccountMode = 'recover' | 'sign-in' | 'sign-up';
 
@@ -82,8 +86,6 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const initialFocus = dialogRef.current?.querySelector<HTMLElement>('[data-account-initial-focus]');
-    initialFocus?.focus();
     return () => previousFocus?.focus();
   }, []);
 
@@ -145,63 +147,54 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
     [mode, onAuthenticated, onClose],
   );
 
-  const handleDialogKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLElement>) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (event.key === 'Tab') trapDialogFocus(event, dialogRef.current);
-    },
-    [onClose],
-  );
-
   return (
-    <div className="account-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
         ref={dialogRef}
-        aria-labelledby="account-modal-title"
-        aria-describedby="account-modal-body"
         className="account-modal"
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(event) => event.stopPropagation()}
-        onKeyDown={handleDialogKeyDown}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          dialogRef.current?.querySelector<HTMLElement>('[data-account-initial-focus]')?.focus();
+        }}
       >
         <div className="account-modal-header">
           <div>
             <p className="account-modal-kicker">Artifact account</p>
-            <h2 id="account-modal-title">{accountModeTitle[mode]}</h2>
-            <p className="account-modal-body" id="account-modal-body">
-              {accountModeBody[mode]}
-            </p>
+            <DialogTitle className="account-modal-title">{accountModeTitle[mode]}</DialogTitle>
+            <DialogDescription className="account-modal-body">{accountModeBody[mode]}</DialogDescription>
           </div>
-          <button className="account-modal-close" type="button" onClick={onClose} aria-label="Close account panel">
-            x
-          </button>
+          <DialogClose asChild>
+            <IconButton className="account-modal-close" label="Close account panel" icon="×" />
+          </DialogClose>
         </div>
 
         <div className="account-mode-tabs" role="group" aria-label="Account mode">
-          <button className={mode === 'sign-in' ? 'active' : ''} type="button" onClick={() => updateMode('sign-in')}>
+          <ActionButton
+            aria-pressed={mode === 'sign-in'}
+            className={mode === 'sign-in' ? 'active' : ''}
+            onClick={() => updateMode('sign-in')}
+            variant="quiet"
+          >
             Sign in
-          </button>
-          <button className={mode === 'sign-up' ? 'active' : ''} type="button" onClick={() => updateMode('sign-up')}>
+          </ActionButton>
+          <ActionButton
+            aria-pressed={mode === 'sign-up'}
+            className={mode === 'sign-up' ? 'active' : ''}
+            onClick={() => updateMode('sign-up')}
+            variant="quiet"
+          >
             Create
-          </button>
+          </ActionButton>
         </div>
 
-        <form className="account-form" onSubmit={handleSubmit}>
+        <form aria-label={accountModeTitle[mode]} className="account-form" onSubmit={handleSubmit}>
           {mode === 'sign-up' ? (
-            <label>
-              <span>Name</span>
-              <input autoComplete="name" name="name" placeholder="Artist name" />
-            </label>
+            <Field label="Name">
+              <Input autoComplete="name" name="name" placeholder="Artist name" />
+            </Field>
           ) : null}
-          <label>
-            <span>Email</span>
-            <input
+          <Field label="Email">
+            <Input
               autoComplete="email"
               data-account-initial-focus
               name="email"
@@ -209,83 +202,60 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
               required
               type="email"
             />
-          </label>
+          </Field>
           {mode !== 'recover' ? (
-            <label>
-              <span>Password</span>
-              <input
+            <Field label="Password">
+              <Input
                 autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
                 name="password"
                 required
                 type="password"
               />
-            </label>
+            </Field>
           ) : null}
           {mode === 'sign-up' ? (
-            <label>
-              <span>Confirm password</span>
-              <input autoComplete="new-password" name="confirmPassword" required type="password" />
-            </label>
+            <Field label="Confirm password">
+              <Input autoComplete="new-password" name="confirmPassword" required type="password" />
+            </Field>
           ) : null}
 
           {mode === 'sign-in' ? (
-            <button className="account-inline-action" type="button" onClick={() => updateMode('recover')}>
+            <ActionButton
+              className="account-inline-action"
+              size="compact"
+              onClick={() => updateMode('recover')}
+              variant="quiet"
+            >
               Forgot password?
-            </button>
+            </ActionButton>
           ) : null}
 
           {error ? (
-            <p className="account-form-error" role="alert">
+            <InlineNotice className="account-form-error" variant="danger">
               {error}
-            </p>
+            </InlineNotice>
           ) : null}
           {notice ? (
-            <p className="account-form-notice" role="status">
+            <InlineNotice className="account-form-notice" variant="success">
               {notice}
-            </p>
+            </InlineNotice>
           ) : null}
 
-          <button className="account-submit" disabled={pending} type="submit">
+          <ActionButton className="account-submit" loading={pending} type="submit" variant="primary">
             {pending ? 'Working' : mode === 'recover' ? 'Send reset link' : accountModeTitle[mode]}
-          </button>
+          </ActionButton>
           {mode === 'recover' ? (
-            <button className="account-secondary-action" type="button" onClick={() => updateMode('sign-in')}>
+            <ActionButton className="account-secondary-action" onClick={() => updateMode('sign-in')} variant="quiet">
               Back to sign in
-            </button>
+            </ActionButton>
           ) : null}
         </form>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function passwordResetRedirectUrl() {
   if (typeof window === 'undefined') return '/reset-password';
   return new URL('/reset-password', window.location.origin).toString();
-}
-
-function trapDialogFocus(event: React.KeyboardEvent<HTMLElement>, dialog: HTMLElement | null) {
-  if (!dialog) return;
-  const focusableElements = Array.from(
-    dialog.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((element) => element.offsetParent !== null);
-
-  if (focusableElements.length === 0) return;
-
-  const first = focusableElements[0];
-  const last = focusableElements[focusableElements.length - 1];
-  const activeElement = document.activeElement;
-
-  if (event.shiftKey && activeElement === first) {
-    event.preventDefault();
-    last.focus();
-    return;
-  }
-
-  if (!event.shiftKey && activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
 }

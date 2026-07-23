@@ -5,14 +5,14 @@ import { SiteNav } from './SiteNav';
 export function PublicPageLayout({
   children,
   navSolid = true,
-  className = 'min-h-dvh bg-bg flex flex-col',
+  className,
 }: {
   children: ReactNode;
   navSolid?: boolean;
   className?: string;
 }) {
   return (
-    <div className={className}>
+    <div className={['product-route-layout', className].filter(Boolean).join(' ')}>
       <SiteNav solid={navSolid} />
       {children}
       <Footer />

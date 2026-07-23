@@ -54,7 +54,7 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_AI_API_BASE_URL: webServerBaseUrl,
-      VITE_AUTH_API_BASE_URL: '',
+      VITE_AUTH_API_BASE_URL: process.env.VITE_AUTH_API_BASE_URL ?? '',
     },
     url: webServerBaseUrl,
     reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_REUSE_SERVER !== '0',

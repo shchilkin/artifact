@@ -78,6 +78,7 @@ export function useProjects() {
   const auth = useArtifactAuth();
   const [projects, setProjects] = useState<SavedProject[]>(loadFromStorage);
   const [recoveryDraft, setRecoveryDraft] = useState<SavedProject | null>(null);
+  const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [projectSyncStates, setProjectSyncStates] = useState<ProjectCloudSyncStates>({});
   const mountedRef = useRef(true);
@@ -94,7 +95,7 @@ export function useProjects() {
 
   useEffect(() => {
     mountedRef.current = true;
-    listStoredProjects()
+    const projectsRequest = listStoredProjects()
       .then((items) => {
         if (mountedRef.current) setProjects(items);
         void refreshOutdatedProjectThumbnails(items, mountedRef, setProjects, setStorageError);
@@ -102,7 +103,7 @@ export function useProjects() {
       .catch((error) => {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load projects');
       });
-    loadStoredPreBlankDraft()
+    const recoveryRequest = loadStoredPreBlankDraft()
       .then((draft) => {
         return recoveryDraftProject(draft);
       })
@@ -112,6 +113,9 @@ export function useProjects() {
       .catch((error) => {
         setMountedStorageError(mountedRef.current, setStorageError, error, 'Unable to load recovery copy');
       });
+    void Promise.allSettled([projectsRequest, recoveryRequest]).then(() => {
+      if (mountedRef.current) setLoading(false);
+    });
     return () => {
       mountedRef.current = false;
     };
@@ -223,6 +227,7 @@ export function useProjects() {
   }, []);
 
   return {
+    loading,
     projects,
     recoveryDraft,
     storageError,

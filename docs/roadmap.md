@@ -20,12 +20,20 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.43 is a locally verified release candidate for the Backoffice UI System
-  release; promotion is pending. Every current Backoffice route and operational
-  state now consumes the shared UI Foundation or a Backoffice-owned
-  Operational Pattern, with live specimens and focused desktop/mobile browser
-  coverage. Artifact product and editor migration remains bounded to
-  v0.44-v0.48. See [`version-plans/v0.43.md`](./version-plans/v0.43.md) and
+- v0.44 is a locally verified release candidate for the Artifact Product
+  Surfaces release. Every non-editor Artifact route now uses the Artifact
+  Design System or is an approved non-goal; the public shell, recovery,
+  discovery, Projects, Docs, and learning surfaces have focused desktop/mobile
+  coverage, and `/debug/shaders` is removed. Editor migration remains bounded
+  to v0.45-v0.48. See
+  [`version-plans/v0.44.md`](./version-plans/v0.44.md) and
+  [`releases/v0.44.0.md`](./releases/v0.44.0.md).
+- v0.43 was released on 2026-07-22 as the Backoffice UI System release. Every
+  current Backoffice route and operational state consumes the shared UI
+  Foundation or a Backoffice-owned Operational Pattern, with live specimens and
+  focused desktop/mobile browser coverage. Tag `v0.43.0` resolves to production
+  commit `d220752`. See
+  [`version-plans/v0.43.md`](./version-plans/v0.43.md) and
   [`releases/v0.43.0.md`](./releases/v0.43.0.md).
 - v0.42 was released on 2026-07-22 with the shared UI Foundation, distinct
   Artifact and Backoffice Product Themes, two live Foundation Matrix routes,
@@ -156,12 +164,12 @@ Next deferred product tracks:
 - Server-backed Share Links remains deferred until local asset/project cleanup,
   quota pressure, project-size behavior, and account ownership rules are
   clearer after the first private cloud-save release.
-- Landing refresh remains deferred until it has its own focused plan and
-  critique/prototype gate.
-- Whole-app design polish is split: v0.38 pulls the editor-first chrome,
-  import, Layers/Nodes, local project action, and visual identity polish into a
-  bounded release; public pages, docs, Showcase, and a broader brand/site
-  refresh remain future scope with their own critique/prototype gate.
+- The landing and public-surface refresh shipped as the bounded v0.44 Product
+  Surfaces release after the shared Foundation and Product Theme were proven.
+- Whole-app design polish remains sequenced rather than open-ended: v0.38
+  established the earlier editor baseline, v0.44 completes public pages, Docs,
+  Showcase, and account surfaces, and v0.45-v0.48 own the remaining editor
+  migration and conformance work.
 - Showcase / How-to split remains deferred until the showcase wall and docs
   bridge need a dedicated learning surface.
 
@@ -328,7 +336,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Next strong candidates after v0.39:
+Future candidates outside the active v0.45-v0.49 sequence:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -409,10 +417,6 @@ Next strong candidates after v0.39:
   sources, generated outputs, cutouts, exported artwork, named creative
   snapshots, and restore/compare flows before cloud sync makes the local data
   model harder to migrate.
-- **Whole-App Brand And Public Surface Refresh** — run a dedicated
-  critique/prototype pass across public routes, docs, Showcase, account
-  surfaces, and shared primitives after v0.39 lands the account/cloud-save core.
-
 ## Product summary
 
 Artifact is a browser-based, local-first creative editor for indie musicians and
@@ -884,10 +888,14 @@ current scope.
 
 ### Current Status
 
-The active release baseline is `v0.40.0` release prep on the stacked shader
-release-candidate branch. Earlier `v0.2` through `v0.39` version plans are release history, not active
-target buckets. Their detailed acceptance criteria and validation notes live
-under `docs/version-plans/` and `docs/releases/`.
+The active release baseline is the locally verified `v0.44.0` Product Surfaces
+candidate. v0.42 established the shared UI Foundation, v0.43 proved the
+Backoffice UI System, and v0.44 completes the non-editor Artifact product
+surfaces. Editor migration remains sequenced through v0.45-v0.48; new
+AI-assisted creation resumes only after that gate in v0.49. Earlier version
+plans are release history, not active target buckets. Their detailed acceptance
+criteria and validation notes live under `docs/version-plans/` and
+`docs/releases/`.
 
 Current shipped baseline:
 
@@ -927,10 +935,11 @@ Current shipped baseline:
   roles, validated definition-backed runtime, editable controls, transparent
   error behavior, refinement, and preview/export parity.
 
-### Active Candidate Tracks
+### Future Candidate Tracks
 
-The next version should be selected from one active candidate and turned into a
-dedicated version plan before implementation is called release scope:
+The accepted v0.45-v0.49 sequence remains the active release path. The ideas
+below are future candidates only and require a dedicated version plan before
+implementation is called release scope:
 
 - **Reference Intelligence And Cover Discovery**: add a Cosmos/mymind-style
   reference browser backed by a TypeScript reference catalog in the API
@@ -966,9 +975,6 @@ dedicated version plan before implementation is called release scope:
   unchanged. A future version plan must separate automatic safe migrations from
   explicit best-effort salvage and define fixtures for every supported legacy
   schema before this becomes release scope.
-- **Whole-App Brand And Public Surface Refresh**: public routes, docs,
-  Showcase, account surfaces, and broader brand/site work after v0.39's
-  account/cloud-save core.
 - **Command Palette / Add Library Improvements**: faster repeated editor
   actions, stronger keyboard behavior, recent/common items, and protected
   search/drag states.
@@ -1326,20 +1332,16 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Pick one active candidate track and write its version plan before broad
-implementation. Given the v0.39 baseline, the cleanest next candidates are
-public share links and ownership, cloud asset storage follow-up, Reference
-Intelligence, 3D material authoring follow-up, project history/versioning, or
-public-surface polish.
+After v0.44, execute the already-planned editor UI-system sequence before
+starting a new candidate track.
 
 Recommended order:
 
-1. Decide whether the next release is account/cloud-share follow-up, reference
-   catalog discovery, editor/material polish, or project history.
-2. Pick one narrow version thesis with explicit non-goals.
-3. Write a version plan before moving implementation scope into the release.
-4. Add the lowest useful tests first, then run the validation commands listed
-   in that version plan before calling the slice done.
+1. Deliver the v0.45 editor shell, command bars, Layers, and Add Library slice.
+2. Continue with inspector composition in v0.46 and node-canvas, preview, and 3D
+   chrome in v0.47.
+3. Close compatibility aliases and cross-app conformance in v0.48.
+4. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
 
 ## Non-goals for now
 

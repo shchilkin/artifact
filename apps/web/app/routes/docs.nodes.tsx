@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
+import { ActionButton } from '../components/ui/ActionButton';
+import { SearchField } from '../components/ui/SearchField';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -1017,15 +1019,16 @@ function NodePosterTuneButton({
 }) {
   if (!hasParams) return null;
   return (
-    <button
-      type="button"
+    <ActionButton
       className="docs-poster__tune"
       aria-expanded={controlsOpen}
       aria-controls={controlsId}
       onClick={onToggle}
+      size="compact"
+      variant="quiet"
     >
       {controlsOpen ? 'Hide controls' : 'Tune preview'}
-    </button>
+    </ActionButton>
   );
 }
 
@@ -1244,15 +1247,14 @@ function DocsSearchPanel({
           {docsSearchCount(hasActiveSearch, matchingItems.length, filteredItems.length)}
         </span>
       </div>
-      <label className="docs-search-box">
-        <span className="sr-only">Search docs</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search effects, export, fonts, nodes..."
-        />
-      </label>
+      <SearchField
+        aria-label="Search docs"
+        className="docs-search-box"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        onClear={() => onQueryChange('')}
+        placeholder="Search effects, export, fonts, nodes..."
+      />
       <DocsTypeFilter activeFilter={activeFilter} onFilterChange={onFilterChange} />
       <DocsSearchContent
         hasActiveSearch={hasActiveSearch}
@@ -1287,14 +1289,16 @@ function DocsTypeFilter({
       </summary>
       <div className="docs-type-filter" aria-label="Filter docs by type">
         {DOC_FILTERS.map((filter) => (
-          <button
-            type="button"
+          <ActionButton
             key={filter.id}
             className={`docs-type-filter__item${activeFilter === filter.id ? ' docs-type-filter__item--active' : ''}`}
+            aria-pressed={activeFilter === filter.id}
             onClick={() => onFilterChange(filter.id)}
+            size="compact"
+            variant={activeFilter === filter.id ? 'primary' : 'quiet'}
           >
             {filter.label}
-          </button>
+          </ActionButton>
         ))}
       </div>
     </details>
@@ -1318,16 +1322,16 @@ function DocsSearchContent({
   return (
     <>
       <DocsSearchResults filteredItems={filteredItems} />
-      <button
-        type="button"
+      <ActionButton
         className="docs-search-reset"
         onClick={() => {
           onFilterChange('all');
           onQueryChange('');
         }}
+        variant="quiet"
       >
         Clear search
-      </button>
+      </ActionButton>
     </>
   );
 }

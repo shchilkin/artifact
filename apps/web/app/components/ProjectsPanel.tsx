@@ -1,4 +1,5 @@
-import { type CSSProperties, type KeyboardEvent, type ReactNode, useState } from 'react';
+import { Field, InlineNotice, Input } from '@artifact/ui';
+import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react';
 
 import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import type { ProjectCloudSyncState } from '../hooks/useProjects';
@@ -8,6 +9,8 @@ import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from 
 import { ActionButton } from './ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { EmptyState } from './ui/EmptyState';
+import { IconButton } from './ui/IconButton';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
@@ -153,28 +156,27 @@ function ProjectSaveForm({
     });
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') handleSave();
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    handleSave();
   };
 
   return (
-    <div className="project-save-panel">
+    <form className="project-save-panel" onSubmit={handleSubmit}>
       <div className="project-primary-save">
-        <label htmlFor="project-name-input" className="project-name-field">
-          <span>PROJECT NAME</span>
-          <input
+        <Field className="project-name-field" label="Project name">
+          <Input
             id="project-name-input"
             type="text"
             placeholder="Name this project..."
             value={name}
             onChange={(event) => setName(event.target.value)}
-            onKeyDown={handleKeyDown}
           />
-        </label>
+        </Field>
         <ActionButton
           className="library-save-button"
           disabled={formState.saveDisabled}
-          onClick={handleSave}
+          type="submit"
           variant="primary"
           aria-label={formState.ariaLabel}
         >
@@ -182,7 +184,7 @@ function ProjectSaveForm({
         </ActionButton>
       </div>
       <p className="project-save-note">Projects save editable work in this browser. Share downloads portable files.</p>
-    </div>
+    </form>
   );
 }
 
@@ -391,11 +393,11 @@ function WorkspaceWarnings({
   const warnings = workspaceWarnings(storageStatus, storageError);
   if (warnings.length === 0) return null;
   return (
-    <div className="project-workspace-summary__warnings" role="status">
+    <InlineNotice className="project-workspace-summary__warnings" variant="warning">
       {warnings.map((warning) => (
         <span key={warning}>{warning}</span>
       ))}
-    </div>
+    </InlineNotice>
   );
 }
 
@@ -454,11 +456,12 @@ export function ProjectsList({
 
 function ProjectsEmptyState() {
   return (
-    <div className="projects-empty-state">
-      <div className="projects-empty-state__mark">▣</div>
-      <p>Save this draft as a project.</p>
-      <p>Projects keep editable work inside this browser.</p>
-    </div>
+    <EmptyState
+      className="projects-empty-state"
+      eyebrow="Local workspace"
+      title="No saved projects yet."
+      body="Projects keep editable work inside this browser. Save the active canvas when you want to return to it."
+    />
   );
 }
 
@@ -807,9 +810,12 @@ function ProjectCardSecondaryActions({
     <div className="library-card-actions library-card-secondary-actions">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="library-card-more-action" aria-label={`Project actions for ${project.name}`}>
-            ...
-          </button>
+          <IconButton
+            className="library-card-more-action"
+            label={`Project actions for ${project.name}`}
+            icon="…"
+            size="compact"
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="bottom" onClick={(event) => event.stopPropagation()}>
           {onSaveToCloud && <DropdownMenuItem onSelect={onSaveToCloud}>Save to cloud</DropdownMenuItem>}
