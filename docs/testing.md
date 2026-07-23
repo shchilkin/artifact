@@ -217,14 +217,16 @@ run the browser gate.
 
 Local release prep should use `npm run test:browser:release`. It runs Chromium
 in bounded test groups, then Firefox, WebKit, and the mobile projects, with a
-fresh React Router dev server for every segment. This avoids stale-server reuse
-and keeps long local release runs from accumulating all renderer work in one
-dev-server process. Each segment permits one visible Playwright retry for
-transient browser or dev-server startup failures. Extra Playwright arguments keep the focused single-run
-behavior, for example `npm run test:browser:release -- --grep "AI shader"`.
-Regular focused development commands may still reuse an existing local server
-when that is intentional. CI continues to split the browser matrix by
-Playwright project.
+fresh React Router dev server for every development segment. Production-preview
+segments verify navigation contracts that can depend on bundled CSS order,
+including the public shell across desktop and mobile breakpoints. This avoids
+stale-server reuse and keeps long local release runs from accumulating all
+renderer work in one dev-server process. Each segment permits one visible
+Playwright retry for transient browser or dev-server startup failures. Extra
+Playwright arguments keep the focused single-run behavior, for example
+`npm run test:browser:release -- --grep "AI shader"`. Regular focused
+development commands may still reuse an existing local server when that is
+intentional. CI continues to split the browser matrix by Playwright project.
 
 The v0.30 visual baseline deliberately does not start with broad golden
 screenshots. UI surfaces use layout, computed-style, readable-control, and

@@ -413,7 +413,7 @@ body {
     display: flex;
   }
 
-  .site-nav-mobile-toggle,
+  .site-nav-mobile-toggle.artifact-icon-button,
   .site-nav-mobile-menu {
     display: none;
   }
