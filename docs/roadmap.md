@@ -20,6 +20,15 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.45 has reached a locally verified release candidate as the Artifact Editor
+  Workflows release. The editor shell, command surfaces, Layers organization,
+  and Add Library now use source-owned, accessible Artifact workflow patterns
+  with 48 deterministic style-guide specimens and focused desktop/mobile
+  browser coverage. Document, graph, renderer, persistence, export, and AI
+  behavior remain unchanged. Property inspectors, canvas chrome, final
+  conformance, and new AI creation remain sequenced through v0.46-v0.49. See
+  [`version-plans/v0.45.md`](./version-plans/v0.45.md) and
+  [`releases/v0.45.0.md`](./releases/v0.45.0.md).
 - v0.44 was released on 2026-07-23 as the Artifact Product Surfaces release.
   Every non-editor Artifact route now uses the Artifact Design System or is an
   approved non-goal; the public shell, recovery, discovery, Projects, Docs, and
@@ -891,12 +900,14 @@ current scope.
 
 ### Current Status
 
-The current released baseline is `v0.44.0` Product Surfaces. v0.42 established
-the shared UI Foundation, v0.43 proved the Backoffice UI System, and v0.44
-completed the non-editor Artifact product surfaces. Editor migration remains
-sequenced through v0.45-v0.48; new AI-assisted creation resumes only after that
-gate in v0.49. Earlier version plans are release history, not active target
-buckets. Their detailed acceptance criteria and validation notes live under
+The current released baseline is `v0.44.0` Product Surfaces, with `v0.45.0`
+Editor Workflows locally verified for exact-SHA promotion. v0.42 established
+the shared UI Foundation, v0.43 proved the Backoffice UI System, v0.44
+completed the non-editor Artifact product surfaces, and v0.45 covers the editor
+shell, Layers organization, and Add Library. Editor migration remains sequenced
+through v0.46-v0.48; new AI-assisted creation resumes only after that gate in
+v0.49. Earlier version plans are release history, not active target buckets.
+Their detailed acceptance criteria and validation notes live under
 `docs/version-plans/` and `docs/releases/`.
 
 Current shipped baseline:
@@ -1334,12 +1345,13 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-After v0.44, execute the already-planned editor UI-system sequence before
-starting a new candidate track.
+Finish the already-planned editor UI-system sequence before starting a new
+candidate track.
 
 Recommended order:
 
-1. Deliver the v0.45 editor shell, command bars, Layers, and Add Library slice.
+1. Promote the locally verified v0.45 editor shell, command bars, Layers, and
+   Add Library release candidate.
 2. Continue with inspector composition in v0.46 and node-canvas, preview, and 3D
    chrome in v0.47.
 3. Close compatibility aliases and cross-app conformance in v0.48.

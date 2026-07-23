@@ -1,14 +1,19 @@
 import { AnimatePresence } from 'framer-motion';
-import { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
+import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
+import { ActionButton } from '../components/ui/ActionButton';
+import { DialogClose } from '../components/ui/dialog';
+import { IconButton } from '../components/ui/IconButton';
 import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
   isArtifactDocumentFile,
@@ -296,6 +301,7 @@ export default function Editor() {
   );
   const {
     fileInputRef,
+    documentPickerReturnFocusRef,
     documentFileError,
     pendingDocumentImport,
     handleCancelDocumentImport,
@@ -421,7 +427,7 @@ export default function Editor() {
   return (
     <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
       <SiteNav
-        ariaLabel="Editor toolbar"
+        ariaLabel="Editor navigation"
         solid
         compact
         compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
@@ -450,48 +456,20 @@ export default function Editor() {
         }}
       />
       {fromDocParam && !docsBannerDismissed && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 16px',
-            background: 'var(--sidebar-bg)',
-            borderBottom: '1px solid var(--border)',
-            fontFamily: 'var(--mono)',
-            fontSize: '0.62rem',
-            letterSpacing: '0.04em',
-            color: 'var(--text-dim)',
-            flexShrink: 0,
-            gap: '12px',
-          }}
-          role="status"
+        <EditorWorkflowNotice
+          className="editor-workflow-notice--docs"
+          action={
+            <IconButton
+              label="Dismiss loaded document notice"
+              icon={<span aria-hidden="true">×</span>}
+              onClick={() => setDocsBannerDismissed(true)}
+            />
+          }
         >
           <span>
-            Loaded from{' '}
-            <Link to="/docs/nodes" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-              docs
-            </Link>{' '}
-            — customize or randomize to make it yours.
+            Loaded from <Link to="/docs/nodes">docs</Link> — customize or randomize to make it yours.
           </span>
-          <button
-            type="button"
-            onClick={() => setDocsBannerDismissed(true)}
-            aria-label="Dismiss"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              lineHeight: 1,
-              padding: '4px 6px',
-              flexShrink: 0,
-            }}
-          >
-            ×
-          </button>
-        </div>
+        </EditorWorkflowNotice>
       )}
       <div className={`app app-${viewMode}`}>
         <main
@@ -585,6 +563,7 @@ export default function Editor() {
           <DocumentImportConfirm
             pendingImport={pendingDocumentImport}
             busy={documentImportBusy}
+            returnFocusTargetRef={documentPickerReturnFocusRef}
             onCancel={handleCancelDocumentImport}
             onConfirm={() => {
               void handleConfirmDroppedDocument();
@@ -592,9 +571,9 @@ export default function Editor() {
           />
 
           {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
-            <p className="font-mono text-[10px] text-red-400 text-center py-1.5 border-t border-red-400/30 flex-shrink-0">
+            <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
               {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
-            </p>
+            </EditorWorkflowNotice>
           )}
           <BottomBar {...bottomBarProps} />
         </main>
@@ -692,22 +671,38 @@ function DocumentImportConfirm({
   onCancel,
   onConfirm,
   pendingImport,
+  returnFocusTargetRef,
 }: {
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   pendingImport: PendingDocumentImport | null;
+  returnFocusTargetRef: RefObject<HTMLElement | null>;
 }) {
   if (!pendingImport) return null;
+
   return (
-    <div className="document-import-confirm" role="dialog" aria-modal="false" aria-labelledby="document-import-title">
+    <EditorOverlayFrame
+      variant="dialog"
+      open
+      busy={busy}
+      returnFocusTargetRef={returnFocusTargetRef}
+      onOpenChange={(open) => !open && onCancel()}
+      title="Open artifact file"
+      description="Review the dropped Artifact document before it replaces the current canvas."
+      className="document-import-confirm"
+      overlayClassName="document-import-confirm__overlay"
+    >
       <div className="document-import-confirm__header">
-        <h2 id="document-import-title" className="document-import-confirm__title">
-          Open artifact file
-        </h2>
-        <button type="button" className="document-import-confirm__close" onClick={onCancel} aria-label="Cancel import">
-          ×
-        </button>
+        <h2 className="document-import-confirm__title">Open artifact file</h2>
+        <DialogClose asChild>
+          <IconButton
+            className="document-import-confirm__close"
+            label="Cancel import"
+            icon={<span aria-hidden="true">×</span>}
+            disabled={busy}
+          />
+        </DialogClose>
       </div>
       <ImportFileTypeRail />
       <div className="document-import-confirm__zone">
@@ -736,13 +731,21 @@ function DocumentImportConfirm({
         Current work will be saved as a recovery copy before this file replaces the canvas.
       </p>
       <div className="document-import-confirm__actions">
-        <button type="button" className="action-button action-button--quiet" onClick={onCancel} disabled={busy}>
-          CANCEL
-        </button>
-        <button type="button" className="action-button export-btn" onClick={onConfirm} disabled={busy}>
+        <DialogClose asChild>
+          <ActionButton variant="quiet" disabled={busy}>
+            CANCEL
+          </ActionButton>
+        </DialogClose>
+        <ActionButton
+          className="export-btn"
+          variant="primary"
+          onClick={onConfirm}
+          loading={busy}
+          aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
+        >
           {busy ? 'SAVING' : 'OPEN FILE'}
-        </button>
+        </ActionButton>
       </div>
-    </div>
+    </EditorOverlayFrame>
   );
 }

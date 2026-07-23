@@ -1,5 +1,13 @@
 import type { CSSProperties } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
+import {
+  EditorOrganizationActions,
+  EditorOrganizationContent,
+  EditorOrganizationGroup,
+  EditorOrganizationHeader,
+  EditorOrganizationIdentity,
+  EditorOrganizationStatus,
+} from '../editor-workflow/EditorOrganizationGroup';
 import { GraphHelperRow } from './GraphHelperRow';
 import type { LayerRowProps } from './LayerRow';
 import { LayerRow } from './LayerRow';
@@ -94,10 +102,12 @@ function LayerAreaFolderHeader({
   graphHelpers,
   collapsed,
   editingArea,
+  hasVisibleLayer,
   onToggleCollapsed,
   onStartAreaEditing,
   onFinishAreaRename,
   onRemoveArea,
+  onToggleAreaVisible,
 }: Pick<
   LayerAreaFolderProps,
   | 'area'
@@ -109,61 +119,77 @@ function LayerAreaFolderHeader({
   | 'onStartAreaEditing'
   | 'onFinishAreaRename'
   | 'onRemoveArea'
->) {
+  | 'onToggleAreaVisible'
+> & { hasVisibleLayer: boolean }) {
   return (
-    <div className="layer-area-folder-header" title={areaFolderTitle(layers.length, graphHelpers.length)}>
-      <button
-        type="button"
-        className="layer-area-folder-toggle"
-        onClick={() => onToggleCollapsed(area.id)}
-        aria-expanded={!collapsed}
-        aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${area.name}`}
-      >
-        <span className="layer-area-caret" aria-hidden="true">
-          {collapsed ? '+' : '-'}
+    <EditorOrganizationHeader
+      className="layer-area-folder-header"
+      title={areaFolderTitle(layers.length, graphHelpers.length)}
+    >
+      <EditorOrganizationIdentity>
+        <button
+          type="button"
+          className="layer-area-folder-toggle"
+          onClick={() => onToggleCollapsed(area.id)}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${area.name}`}
+        >
+          <span className="layer-area-caret" aria-hidden="true">
+            {collapsed ? '+' : '-'}
+          </span>
+        </button>
+        <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
+        <span className="layer-area-folder-label">Folder</span>
+        <LayerAreaName
+          area={area}
+          editingArea={editingArea}
+          onStartAreaEditing={onStartAreaEditing}
+          onFinishAreaRename={onFinishAreaRename}
+        />
+      </EditorOrganizationIdentity>
+      <EditorOrganizationStatus>
+        <span className="layer-area-count layer-area-summary">
+          {layers.length} layer{pluralSuffix(layers.length)}
         </span>
-      </button>
-      <span className="layer-area-dot" style={{ background: area.color }} aria-hidden="true" />
-      <span className="layer-area-folder-label">Folder</span>
-      <LayerAreaName
-        area={area}
-        editingArea={editingArea}
-        onStartAreaEditing={onStartAreaEditing}
-        onFinishAreaRename={onFinishAreaRename}
-      />
-      <span className="layer-area-count layer-area-summary">
-        {layers.length} layer{pluralSuffix(layers.length)}
-      </span>
-      {graphHelpers.length > 0 && (
-        <span className="layer-area-graph-count">
-          +{graphHelpers.length} node{pluralSuffix(graphHelpers.length)}
-        </span>
-      )}
-      <button
-        type="button"
-        className="layer-area-rename"
-        onClick={(event) => {
-          event.stopPropagation();
-          onStartAreaEditing(area.id);
-        }}
-        aria-label={`Rename ${area.name}`}
-        title="Rename area"
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        className="layer-area-remove"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemoveArea(area.id);
-        }}
-        aria-label={`Ungroup ${area.name}`}
-        title="Ungroup area"
-      >
-        ×
-      </button>
-    </div>
+        {graphHelpers.length > 0 && (
+          <span className="layer-area-graph-count">
+            +{graphHelpers.length} node{pluralSuffix(graphHelpers.length)}
+          </span>
+        )}
+      </EditorOrganizationStatus>
+      <EditorOrganizationActions>
+        <LayerAreaVisibilityButton
+          area={area}
+          layers={layers}
+          hasVisibleLayer={hasVisibleLayer}
+          onToggleAreaVisible={onToggleAreaVisible}
+        />
+        <button
+          type="button"
+          className="layer-area-rename"
+          onClick={(event) => {
+            event.stopPropagation();
+            onStartAreaEditing(area.id);
+          }}
+          aria-label={`Rename ${area.name}`}
+          title="Rename area"
+        >
+          ✎
+        </button>
+        <button
+          type="button"
+          className="layer-area-remove"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemoveArea(area.id);
+          }}
+          aria-label={`Ungroup ${area.name}`}
+          title="Ungroup area"
+        >
+          ×
+        </button>
+      </EditorOrganizationActions>
+    </EditorOrganizationHeader>
   );
 }
 
@@ -234,8 +260,12 @@ export function LayerAreaFolder(props: LayerAreaFolderProps) {
   const areaStyle = { '--layer-area-color': area.color } as CSSProperties;
 
   return (
-    <div
+    <EditorOrganizationGroup
       className={`layer-area-folder${collapsed ? ' layer-area-folder-collapsed' : ''}`}
+      label={`${area.name} layer folder`}
+      collapsed={collapsed}
+      editing={editingArea}
+      empty={layers.length === 0 && graphHelpers.length === 0}
       data-area-collapsed={collapsed ? 'true' : 'false'}
       style={areaStyle}
     >
@@ -245,19 +275,17 @@ export function LayerAreaFolder(props: LayerAreaFolderProps) {
         graphHelpers={graphHelpers}
         collapsed={collapsed}
         editingArea={editingArea}
+        hasVisibleLayer={hasVisibleLayer}
         onToggleCollapsed={props.onToggleCollapsed}
         onStartAreaEditing={props.onStartAreaEditing}
         onFinishAreaRename={props.onFinishAreaRename}
         onRemoveArea={props.onRemoveArea}
-      />
-      <LayerAreaVisibilityButton
-        area={area}
-        layers={layers}
-        hasVisibleLayer={hasVisibleLayer}
         onToggleAreaVisible={props.onToggleAreaVisible}
       />
-      <p className="layer-area-folder-note">Organizes nodes only. Render order stays unchanged.</p>
-      <LayerAreaContents {...props} />
-    </div>
+      <EditorOrganizationContent>
+        <p className="layer-area-folder-note">Organizes nodes only. Render order stays unchanged.</p>
+        <LayerAreaContents {...props} />
+      </EditorOrganizationContent>
+    </EditorOrganizationGroup>
   );
 }

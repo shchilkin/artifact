@@ -16,10 +16,12 @@ import { renderDocument } from '../../utils/renderer';
 import { makeTextPresetLayer } from '../../utils/textPresets';
 import { PreviewFrame } from '../ui/PreviewFrame';
 import type { AddLibraryItem } from './addLibraryModel';
+import { type AddLibraryPreviewState, resolveAddLibraryPreviewState } from './addLibraryPreviewState';
 
 const PREVIEW_SIZE = 200;
 const SAMPLE_IMAGE_SRC = '/girl_image_landing.png';
-const renderedPreviewCache = new Map<string, string>();
+const canonicalPreviewCache = new Map<string, string>();
+const fallbackPreviewCache = new Map<string, string>();
 const imageElementCache = new Map<string, Promise<HTMLImageElement>>();
 const PREVIEW_KIND_PREFIX: Record<string, string> = {
   effect: 'effect',
@@ -67,33 +69,73 @@ const PREVIEW_DOCUMENT_BUILDERS: Record<string, PreviewDocumentBuilder> = {
   color: makeUtilityPreviewDocument,
 };
 
-export function AddLibraryPreview({ item }: { item: AddLibraryItem }) {
-  const [thumb, setThumb] = useState<{ itemId: string; url: string } | null>(null);
+export function AddLibraryPreview({
+  item,
+  state: controlledState,
+}: {
+  item: AddLibraryItem;
+  state?: AddLibraryPreviewState;
+}) {
+  const [preview, setPreview] = useState<{ itemId: string; state: AddLibraryPreviewState }>({
+    itemId: item.id,
+    state: { status: 'loading' },
+  });
   const previewKind = useMemo(() => previewKindForItem(item), [item]);
-  const thumbUrl = thumb?.itemId === item.id ? thumb.url : null;
+  const previewState = controlledState ?? (preview.itemId === item.id ? preview.state : { status: 'loading' as const });
 
   useEffect(() => {
+    if (controlledState) return;
     let cancelled = false;
-    renderAddLibraryItemPreview(item)
-      .catch(() => renderFallbackPreviewDataUrl(item))
-      .then((url) => {
-        if (!cancelled && url) setThumb({ itemId: item.id, url });
-      });
+    resolveAddLibraryPreviewState(item, {
+      renderCanonical: renderAddLibraryItemPreview,
+      renderFallback: renderFallbackPreviewDataUrl,
+    }).then((state) => {
+      if (!cancelled) setPreview({ itemId: item.id, state });
+    });
     return () => {
       cancelled = true;
     };
-  }, [item]);
+  }, [controlledState, item]);
 
   return (
-    <PreviewFrame className="add-library-preview-frame" data-preview-kind={previewKind} data-preview-group={item.group}>
+    <PreviewFrame
+      className="add-library-preview-frame"
+      data-preview-kind={previewKind}
+      data-preview-group={item.group}
+      data-preview-state={previewState.status}
+    >
       <div className="add-library-rendered-preview">
-        {thumbUrl ? (
-          <img src={thumbUrl} alt={`${item.label} preview`} draggable={false} />
-        ) : (
-          <div className="add-library-effect-preview-loading" aria-hidden="true" />
-        )}
+        <AddLibraryPreviewContent item={item} state={previewState} />
       </div>
     </PreviewFrame>
+  );
+}
+
+function AddLibraryPreviewContent({ item, state }: { item: AddLibraryItem; state: AddLibraryPreviewState }) {
+  if (state.status === 'ready' || state.status === 'fallback') {
+    return (
+      <>
+        <img
+          src={state.url}
+          alt={`${item.label} preview`}
+          data-preview-fallback={state.status === 'fallback' ? 'true' : 'false'}
+          draggable={false}
+        />
+        {state.status === 'fallback' && <span className="sr-only">Fallback preview</span>}
+      </>
+    );
+  }
+  if (state.status === 'failed') {
+    return (
+      <div className="add-library-preview-unavailable" role="status">
+        Preview unavailable
+      </div>
+    );
+  }
+  return (
+    <div className="add-library-effect-preview-loading" role="status">
+      <span className="sr-only">Loading {item.label} preview</span>
+    </div>
   );
 }
 
@@ -111,12 +153,12 @@ function previewKindSuffix(action: AddLibraryItem['action']) {
 }
 
 async function renderAddLibraryItemPreview(item: AddLibraryItem): Promise<string> {
-  const cached = renderedPreviewCache.get(item.id);
+  const cached = canonicalPreviewCache.get(item.id);
   if (cached) return cached;
 
   const url =
     item.action.kind === 'effect' ? await renderEffectThumb(item.action.preset) : await renderPreviewDocumentUrl(item);
-  if (url) renderedPreviewCache.set(item.id, url);
+  if (url) canonicalPreviewCache.set(item.id, url);
   return url;
 }
 
@@ -326,6 +368,9 @@ function loadPreviewImage(src: string): Promise<HTMLImageElement> {
 }
 
 function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
+  const cached = fallbackPreviewCache.get(item.id);
+  if (cached) return cached;
+
   const canvas = document.createElement('canvas');
   canvas.width = PREVIEW_SIZE;
   canvas.height = PREVIEW_SIZE;
@@ -339,8 +384,8 @@ function renderFallbackPreviewDataUrl(item: AddLibraryItem) {
 
   drawFallbackByKind(ctx, item, groupColor);
 
-  renderedPreviewCache.set(item.id, canvas.toDataURL('image/png'));
-  return renderedPreviewCache.get(item.id) ?? '';
+  fallbackPreviewCache.set(item.id, canvas.toDataURL('image/png'));
+  return fallbackPreviewCache.get(item.id) ?? '';
 }
 
 function drawFallbackPreviewBase(ctx: CanvasRenderingContext2D) {

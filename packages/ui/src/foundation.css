@@ -438,6 +438,35 @@
   margin-top: 16px;
 }
 
+.ui-foundation-open-popover {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+.ui-foundation-open-tooltip {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+.ui-foundation-open-tooltip > .ui-command,
+.ui-foundation-open-popover > .ui-command {
+  justify-self: start;
+}
+
+.ui-foundation-open-tooltip > .ui-tooltip-content,
+.ui-foundation-open-popover > .ui-popover-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+.ui-foundation-open-popover > .ui-popover-content {
+  max-height: none;
+}
+
 @keyframes ui-skeleton-shimmer {
   to {
     background-position: -140% 0;

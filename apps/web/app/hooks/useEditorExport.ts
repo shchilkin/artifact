@@ -4,6 +4,22 @@ import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import type { RenderOptions } from '../utils/renderer';
 
+const MIN_EXPORT_BUSY_MS = 400;
+
+function waitForExportBusyPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+async function waitForMinimumExportBusyDuration(startedAt: number) {
+  const remaining = MIN_EXPORT_BUSY_MS - (performance.now() - startedAt);
+  if (remaining <= 0) return;
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, remaining);
+  });
+}
+
 export function useEditorExport(
   docRef: MutableRefObject<CanvasDocument>,
   imageCache: Map<string, HTMLImageElement>,
@@ -24,13 +40,16 @@ export function useEditorExport(
 
   const handleExport = useCallback(
     async (scale: 1 | 2 | 3, format: 'png' | 'jpeg') => {
+      const busyStartedAt = performance.now();
       setIsExporting(true);
       setExportError(null);
       try {
+        await waitForExportBusyPaint();
         await exportCanvas(docRef.current, imageCache, scale, format, renderOptions);
       } catch (error) {
         showExportError(error instanceof Error ? error.message : 'Export failed');
       } finally {
+        await waitForMinimumExportBusyDuration(busyStartedAt);
         setIsExporting(false);
       }
     },
@@ -38,13 +57,16 @@ export function useEditorExport(
   );
 
   const handleEnvMapExport = useCallback(async () => {
+    const busyStartedAt = performance.now();
     setIsExportingEnvMap(true);
     setExportError(null);
     try {
+      await waitForExportBusyPaint();
       await exportEnvMap(docRef.current, imageCache);
     } catch (error) {
       showExportError(error instanceof Error ? error.message : 'Env map export failed');
     } finally {
+      await waitForMinimumExportBusyDuration(busyStartedAt);
       setIsExportingEnvMap(false);
     }
   }, [docRef, imageCache, showExportError]);

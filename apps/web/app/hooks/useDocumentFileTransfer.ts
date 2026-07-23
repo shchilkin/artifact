@@ -115,6 +115,7 @@ export function useDocumentFileTransfer(
   onLoadDocument: (doc: CanvasDocument) => void,
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentPickerReturnFocusRef = useRef<HTMLElement>(null);
   const [documentFileError, setDocumentFileError] = useState<string | null>(null);
   const [pendingDocumentImport, setPendingDocumentImport] = useState<PendingDocumentImport | null>(null);
 
@@ -160,7 +161,14 @@ export function useDocumentFileTransfer(
     [docRef, showDocumentFileError],
   );
 
-  const handleOpenDocumentPicker = useCallback(() => {
+  const handleOpenDocumentPicker = useCallback((event?: { currentTarget: EventTarget | null }) => {
+    const eventTarget = event?.currentTarget;
+    documentPickerReturnFocusRef.current =
+      eventTarget instanceof HTMLElement
+        ? eventTarget
+        : document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
     fileInputRef.current?.click();
   }, []);
 
@@ -205,6 +213,7 @@ export function useDocumentFileTransfer(
 
   return {
     fileInputRef,
+    documentPickerReturnFocusRef,
     documentFileError,
     pendingDocumentImport,
     handleCancelDocumentImport,

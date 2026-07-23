@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
+import { EditorWorkflowNotice } from './editor-workflow/EditorWorkflowNotice';
 import { type StatusPillModel, warningPills, workspaceWarnings } from './StorageWorkspaceStatusModel';
 
 interface StorageWarningStripProps {
@@ -14,8 +15,13 @@ export function StorageWarningStrip({ status, storageError }: StorageWarningStri
   if (pills.length === 0 && warnings.length === 0) return null;
 
   return (
-    <section className="storage-warning-strip" aria-label="Local workspace warning">
-      <div className="storage-warning-strip__main" role="status">
+    <EditorWorkflowNotice
+      className="storage-warning-strip"
+      variant="warning"
+      title="Local workspace warning"
+      aria-label="Local workspace warning"
+    >
+      <div className="storage-warning-strip__main">
         {pills.map((pill) => (
           <StatusPill key={pill.id} tone={pill.tone}>
             {pill.label}
@@ -23,7 +29,7 @@ export function StorageWarningStrip({ status, storageError }: StorageWarningStri
         ))}
       </div>
       {warnings.length > 0 && <div className="storage-warning-strip__warnings">{warnings.join(' / ')}</div>}
-    </section>
+    </EditorWorkflowNotice>
   );
 }
 

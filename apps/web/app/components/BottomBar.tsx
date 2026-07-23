@@ -1,14 +1,10 @@
 import { useCallback, useState } from 'react';
+import { EditorCommandBar } from './editor-workflow/EditorCommandBar';
+import { EditorCommandGroup } from './editor-workflow/EditorCommandGroup';
+import { EditorOverlayFrame } from './editor-workflow/EditorOverlayFrame';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from './ui/dropdown-menu';
 
 interface Props {
   onNewBlank: () => void;
@@ -54,8 +50,8 @@ export function BottomBar({
   }, [onCopyLink]);
 
   return (
-    <div className="bottom-bar" role="toolbar" aria-label="Editor actions">
-      <div className="bottom-history-group" aria-label="Document history">
+    <EditorCommandBar className="bottom-bar" label="Editor actions">
+      <EditorCommandGroup className="bottom-history-group" label="Document history">
         <ActionButton
           onClick={onNewBlank}
           aria-label="Create new project"
@@ -99,10 +95,10 @@ export function BottomBar({
         >
           RANDOM
         </ActionButton>
-      </div>
+      </EditorCommandGroup>
 
-      <div className="bottom-secondary-group">
-        <div className="bottom-file-group" aria-label="File actions">
+      <EditorCommandGroup className="bottom-secondary-group" label="File actions">
+        <div className="bottom-file-group">
           <ActionButton
             onClick={onOpenDocument}
             aria-label="Open document file"
@@ -119,9 +115,9 @@ export function BottomBar({
             onSaveProjectPackage={onSaveProjectPackage}
           />
         </div>
-      </div>
+      </EditorCommandGroup>
 
-      <div className="bottom-primary-group">
+      <EditorCommandGroup className="bottom-primary-group" label="Project and export actions">
         <MoreMenu
           copied={copied}
           onCopyLink={handleCopyLink}
@@ -130,11 +126,17 @@ export function BottomBar({
           onSaveProjectPackage={onSaveProjectPackage}
         />
         <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
-        <ActionButton className="export-btn" onClick={onExport} disabled={exportBusy} variant="primary">
+        <ActionButton
+          className="export-btn"
+          onClick={onExport}
+          loading={exportBusy}
+          variant="primary"
+          aria-label={exportBusy ? 'Exporting artwork' : 'Export artwork'}
+        >
           {exportBusy ? '…' : 'EXPORT'}
         </ActionButton>
-      </div>
-    </div>
+      </EditorCommandGroup>
+    </EditorCommandBar>
   );
 }
 
@@ -151,9 +153,19 @@ function MoreMenu({
   onSaveDocument: () => void;
   onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <EditorOverlayFrame
+      variant="menu"
+      open={open}
+      onOpenChange={setOpen}
+      align="end"
+      side="top"
+      className="bottom-share-menu"
+      title="More editor actions"
+      description="Open, share, or download editable files."
+      trigger={
         <ActionButton
           aria-label="More editor actions"
           title="Open, share, or download editable files"
@@ -162,18 +174,17 @@ function MoreMenu({
         >
           MORE
         </ActionButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="bottom-share-menu">
-        <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
-        <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
-        <ShareMenuItems
-          copied={copied}
-          onCopyLink={onCopyLink}
-          onSaveDocument={onSaveDocument}
-          onSaveProjectPackage={onSaveProjectPackage}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+    >
+      <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
+      <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
+      <ShareMenuItems
+        copied={copied}
+        onCopyLink={onCopyLink}
+        onSaveDocument={onSaveDocument}
+        onSaveProjectPackage={onSaveProjectPackage}
+      />
+    </EditorOverlayFrame>
   );
 }
 
@@ -188,9 +199,19 @@ function ShareMenu({
   onSaveDocument: () => void;
   onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <EditorOverlayFrame
+      variant="menu"
+      open={open}
+      onOpenChange={setOpen}
+      align="start"
+      side="top"
+      className="bottom-share-menu"
+      title="Share link or download editable files"
+      description="Copy an editor link or download editable files."
+      trigger={
         <ActionButton
           aria-label="Share link or download editable files"
           title="Copy an editor link or download editable files"
@@ -199,16 +220,15 @@ function ShareMenu({
         >
           SHARE
         </ActionButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="bottom-share-menu">
-        <ShareMenuItems
-          copied={copied}
-          onCopyLink={onCopyLink}
-          onSaveDocument={onSaveDocument}
-          onSaveProjectPackage={onSaveProjectPackage}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+    >
+      <ShareMenuItems
+        copied={copied}
+        onCopyLink={onCopyLink}
+        onSaveDocument={onSaveDocument}
+        onSaveProjectPackage={onSaveProjectPackage}
+      />
+    </EditorOverlayFrame>
   );
 }
 
@@ -246,6 +266,7 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
       onClick={onClick}
       variant="quiet"
       className={`bottom-command project-workspace-button project-workspace-button-${status.tone}`}
+      aria-label={`Projects. ${status.title}${status.badge ? `. ${status.badge}` : ''}`}
       title={`${status.title}. Local projects are the save workspace.`}
     >
       <span>PROJECTS</span>

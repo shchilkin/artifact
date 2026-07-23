@@ -1,4 +1,4 @@
-import { forwardRef, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ActionButton } from '../ui/ActionButton';
 import { Badge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
@@ -61,7 +61,11 @@ function buildDefaultSections({
   recentIds: string[];
 }): AddLibrarySection[] {
   const favoriteItems = itemsForIds(favoriteIds, itemById);
-  const recentItems = itemsForIds(recentIds, itemById);
+  const favoriteIdSet = new Set(favoriteIds);
+  const recentItems = itemsForIds(
+    recentIds.filter((id) => !favoriteIdSet.has(id)),
+    itemById,
+  );
   const pinnedIds = new Set([...favoriteIds, ...recentIds]);
   const popularItems = browsableItems.filter((item) => item.popular && !pinnedIds.has(item.id));
   const grouped = ADD_LIBRARY_GROUPS.map((group) => ({
@@ -324,6 +328,9 @@ export function AddLibraryPanel({
   onClose,
   autoFocusSearch = true,
   draggable = false,
+  initialFavoriteIds,
+  initialRecentIds,
+  persistActivity = true,
 }: {
   surface: AddLibrarySurface;
   searchLabel: string;
@@ -332,15 +339,19 @@ export function AddLibraryPanel({
   onClose: () => void;
   autoFocusSearch?: boolean;
   draggable?: boolean;
+  initialFavoriteIds?: string[];
+  initialRecentIds?: string[];
+  persistActivity?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const [activeIntentId, setActiveIntentId] = useState<AddLibraryIntentId | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<AddLibraryGroupId | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [recentIds, setRecentIds] = useState<string[]>(() => readRecent(surface));
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavorites(surface));
+  const [recentIds, setRecentIds] = useState<string[]>(() => initialRecentIds ?? readRecent(surface));
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => initialFavoriteIds ?? readFavorites(surface));
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultListId = useId();
 
   const items = useMemo(() => addLibraryItemsForSurface(surface), [surface]);
   const browsableItems = useMemo(() => addLibraryBrowseItemsForSurface(surface), [surface]);
@@ -405,7 +416,7 @@ export function AddLibraryPanel({
   const handleAdd = (item: AddLibraryItem) => {
     const nextRecentIds = [item.id, ...recentIds.filter((id) => id !== item.id)].slice(0, RECENT_LIMIT);
     setRecentIds(nextRecentIds);
-    writeRecent(surface, nextRecentIds);
+    if (persistActivity) writeRecent(surface, nextRecentIds);
     onAdd(item.action);
   };
 
@@ -414,7 +425,7 @@ export function AddLibraryPanel({
       ? favoriteIds.filter((id) => id !== item.id)
       : [item.id, ...favoriteIds].slice(0, FAVORITE_LIMIT);
     setFavoriteIds(nextFavoriteIds);
-    writeFavorites(surface, nextFavoriteIds);
+    if (persistActivity) writeFavorites(surface, nextFavoriteIds);
   };
 
   const resetLibraryScope = () => {
@@ -426,13 +437,18 @@ export function AddLibraryPanel({
   };
 
   const handleEscapeKey = () => {
-    if (hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId)) resetLibraryScope();
+    const resetsScope = hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId);
+    if (resetsScope) resetLibraryScope();
     else onClose();
+    return resetsScope;
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
-      handleEscapeKey();
+      if (handleEscapeKey()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       return;
     }
 
@@ -453,6 +469,9 @@ export function AddLibraryPanel({
     <>
       <AddLibrarySearchControl
         ref={inputRef}
+        activeDescendantId={activeItem ? `${resultListId}-option-${activeIndex}` : undefined}
+        scopeActive={hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId)}
+        resultListId={resultListId}
         searchLabel={searchLabel}
         placeholder={placeholder}
         value={query}
@@ -501,6 +520,7 @@ export function AddLibraryPanel({
       />
 
       <AddLibraryBody
+        resultListId={resultListId}
         sections={sections}
         flatItems={flatItems}
         activeIndex={activeIndex}
@@ -518,13 +538,19 @@ export function AddLibraryPanel({
 const AddLibrarySearchControl = forwardRef<
   HTMLInputElement,
   {
+    activeDescendantId?: string;
+    scopeActive: boolean;
+    resultListId: string;
     searchLabel: string;
     placeholder: string;
     value: string;
     onChange: (value: string) => void;
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   }
->(function AddLibrarySearchControl({ searchLabel, placeholder, value, onChange, onKeyDown }, ref) {
+>(function AddLibrarySearchControl(
+  { activeDescendantId, scopeActive, resultListId, searchLabel, placeholder, value, onChange, onKeyDown },
+  ref,
+) {
   return (
     <SearchField
       ref={ref}
@@ -532,6 +558,12 @@ const AddLibrarySearchControl = forwardRef<
       clearClassName="add-library-search-clear nadd-search-clear"
       inputClassName="add-library-search-input nadd-search-input"
       aria-label={searchLabel}
+      role="combobox"
+      aria-autocomplete="list"
+      aria-controls={resultListId}
+      aria-expanded="true"
+      aria-activedescendant={activeDescendantId}
+      data-add-library-scope-active={scopeActive ? 'true' : 'false'}
       placeholder={placeholder}
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -629,6 +661,7 @@ function AddLibraryRecipeTabs({
 }
 
 function AddLibraryBody({
+  resultListId,
   sections,
   flatItems,
   activeIndex,
@@ -639,6 +672,7 @@ function AddLibraryBody({
   onAdd,
   onToggleFavorite,
 }: {
+  resultListId: string;
   sections: AddLibrarySection[];
   flatItems: AddLibraryItem[];
   activeIndex: number;
@@ -652,6 +686,7 @@ function AddLibraryBody({
   return (
     <div className="add-library-body">
       <AddLibraryList
+        resultListId={resultListId}
         sections={sections}
         flatItems={flatItems}
         activeIndex={activeIndex}
@@ -659,12 +694,13 @@ function AddLibraryBody({
         onActivateItem={onActivateItem}
         onAdd={onAdd}
       />
-      <AddLibraryDetail item={activeItem} favorite={favorite} onToggleFavorite={onToggleFavorite} />
+      <AddLibraryDetail item={activeItem} favorite={favorite} onAdd={onAdd} onToggleFavorite={onToggleFavorite} />
     </div>
   );
 }
 
 function AddLibraryList({
+  resultListId,
   sections,
   flatItems,
   activeIndex,
@@ -672,6 +708,7 @@ function AddLibraryList({
   onActivateItem,
   onAdd,
 }: {
+  resultListId: string;
   sections: AddLibrarySection[];
   flatItems: AddLibraryItem[];
   activeIndex: number;
@@ -680,8 +717,26 @@ function AddLibraryList({
   onAdd: (item: AddLibraryItem) => void;
 }) {
   const empty = sections.length === 0 || flatItems.length === 0;
+
+  useEffect(() => {
+    if (empty) return;
+    const option = document.getElementById(`${resultListId}-option-${activeIndex}`);
+    if (!option) return;
+    const pageScroll = { left: window.scrollX, top: window.scrollY };
+    option.scrollIntoView({ block: 'nearest' });
+    if (window.scrollX !== pageScroll.left || window.scrollY !== pageScroll.top) {
+      window.scrollTo(pageScroll);
+    }
+  }, [activeIndex, empty, resultListId]);
+
   return (
-    <div className="add-library-list nadd-list nadd-flat-list" onWheelCapture={(event) => event.stopPropagation()}>
+    <div
+      id={resultListId}
+      className="add-library-list nadd-list nadd-flat-list"
+      role="listbox"
+      aria-label="Library results"
+      onWheelCapture={(event) => event.stopPropagation()}
+    >
       {empty ? (
         <EmptyState className="add-library-empty nadd-empty" title="No matches" />
       ) : (
@@ -689,6 +744,7 @@ function AddLibraryList({
           <AddLibrarySectionRows
             key={section.id}
             section={section}
+            resultListId={resultListId}
             flatItems={flatItems}
             activeIndex={activeIndex}
             draggable={draggable}
@@ -703,6 +759,7 @@ function AddLibraryList({
 
 function AddLibrarySectionRows({
   section,
+  resultListId,
   flatItems,
   activeIndex,
   draggable,
@@ -710,6 +767,7 @@ function AddLibrarySectionRows({
   onAdd,
 }: {
   section: AddLibrarySection;
+  resultListId: string;
   flatItems: AddLibraryItem[];
   activeIndex: number;
   draggable: boolean;
@@ -721,8 +779,12 @@ function AddLibrarySectionRows({
       ? addLibraryColorKind(section.items[0]!)
       : undefined;
   return (
-    <div className="add-library-section nadd-section">
-      <div className="add-library-section-header nadd-section-header" data-add-color-kind={sectionColorKind}>
+    <div className="add-library-section nadd-section" role="group" aria-label={section.label}>
+      <div
+        className="add-library-section-header nadd-section-header"
+        data-add-color-kind={sectionColorKind}
+        aria-hidden="true"
+      >
         <span>{section.label}</span>
         <small>{section.hint}</small>
       </div>
@@ -733,6 +795,7 @@ function AddLibrarySectionRows({
             key={`${section.id}-${item.id}`}
             item={item}
             active={itemIndex === activeIndex}
+            optionId={`${resultListId}-option-${itemIndex}`}
             draggable={draggable}
             onPointerEnter={() => onActivateItem(itemIndex)}
             onAdd={onAdd}
@@ -746,10 +809,12 @@ function AddLibrarySectionRows({
 function AddLibraryDetail({
   item,
   favorite,
+  onAdd,
   onToggleFavorite,
 }: {
   item: AddLibraryItem | null;
   favorite: boolean;
+  onAdd: (item: AddLibraryItem) => void;
   onToggleFavorite: (item: AddLibraryItem) => void;
 }) {
   if (!item) {
@@ -768,7 +833,7 @@ function AddLibraryDetail({
       data-add-kind={item.group}
       aria-hidden={false}
     >
-      <AddLibraryDetailContent item={item} favorite={favorite} onToggleFavorite={onToggleFavorite} />
+      <AddLibraryDetailContent item={item} favorite={favorite} onAdd={onAdd} onToggleFavorite={onToggleFavorite} />
     </aside>
   );
 }
@@ -776,10 +841,12 @@ function AddLibraryDetail({
 function AddLibraryDetailContent({
   item,
   favorite,
+  onAdd,
   onToggleFavorite,
 }: {
   item: AddLibraryItem;
   favorite: boolean;
+  onAdd: (item: AddLibraryItem) => void;
   onToggleFavorite: (item: AddLibraryItem) => void;
 }) {
   const group = ADD_LIBRARY_GROUPS.find((entry) => entry.id === item.group);
@@ -792,6 +859,9 @@ function AddLibraryDetailContent({
         <span className="add-library-detail-result">{addLibraryResultLabel(item)}</span>
         <p>{item.description}</p>
         <AddLibraryTags tags={item.tags} />
+        <ActionButton type="button" variant="primary" onClick={() => onAdd(item)}>
+          Add {item.label}
+        </ActionButton>
         <ActionButton
           type="button"
           className={favoriteClassName(favorite)}
@@ -822,12 +892,14 @@ function AddLibraryTags({ tags }: { tags: string[] | undefined }) {
 function AddLibraryRow({
   item,
   active,
+  optionId,
   draggable,
   onPointerEnter,
   onAdd,
 }: {
   item: AddLibraryItem;
   active: boolean;
+  optionId: string;
   draggable: boolean;
   onPointerEnter: () => void;
   onAdd: (item: AddLibraryItem) => void;
@@ -836,7 +908,10 @@ function AddLibraryRow({
   const colorKind = addLibraryColorKind(item);
   return (
     <button
+      id={optionId}
       type="button"
+      role="option"
+      aria-selected={active}
       className={`add-library-row nadd-row${active ? ' add-library-row-active' : ''}`}
       data-add-color-kind={colorKind}
       data-add-kind={item.group}

@@ -217,7 +217,7 @@ test('v0.30 style guide exposes reusable primitives and editor states', async ({
   await expect(page.locator('.artifact-empty-state')).toHaveCount(1);
   await expect.poll(async () => page.locator('.artifact-preview-frame').count()).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => page.locator('.artifact-menu-item').count()).toBeGreaterThanOrEqual(2);
-  await expect(page.locator('.layer-row')).toHaveCount(4);
+  await expect(page.locator('.style-guide-layer-stack > .layer-row')).toHaveCount(5);
   await expect(page.locator('.node-shell')).toHaveCount(7);
   await expect(page.locator('.style-guide-node-toolbar-specimen')).toBeVisible();
   await expect(page.locator('.style-guide-node-toolbar-specimen .node-toolbar-group')).toHaveCount(3);

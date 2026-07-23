@@ -5,12 +5,28 @@ import {
   FoundationOverlayMatrix,
 } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
-import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
-import type { AddLibraryAction } from '../components/add-library/addLibraryModel';
+import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
+import { ADD_LIBRARY_ITEMS, type AddLibraryAction } from '../components/add-library/addLibraryModel';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
+import { EditorCommandBar } from '../components/editor-workflow/EditorCommandBar';
+import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
+import { EditorOrganizationGroup } from '../components/editor-workflow/EditorOrganizationGroup';
+import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
+import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
+import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { LogoGlyph } from '../components/LogoGlyph';
+import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
 import { LayerRow } from '../components/layers-panel/LayerRow';
 import {
   BlendModeNote,
@@ -143,6 +159,16 @@ const layers: Layer[] = [
     opacity: 100,
     blendMode: 'normal',
   },
+  {
+    id: 'style-layer-long-name',
+    name: 'Very long imported source title that must stay readable without widening the editor rail',
+    visible: true,
+    locked: false,
+    kind: 'fill',
+    color: '#2d6e67',
+    opacity: 100,
+    blendMode: 'normal',
+  },
 ];
 
 const styleArea: GraphArea = {
@@ -151,6 +177,12 @@ const styleArea: GraphArea = {
   color: '#ff705f',
   nodeIds: ['style-layer-selected'],
 };
+
+const styleGuideAddLibraryItem = ADD_LIBRARY_ITEMS.find((item) => item.id === 'layer:fill')!;
+const STYLE_GUIDE_READY_PREVIEW =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23e56b56"/%3E%3C/svg%3E';
+const STYLE_GUIDE_FALLBACK_PREVIEW =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23231f1d"/%3E%3Cpath d="M0 0L200 200M200 0L0 200" stroke="%236b625c" stroke-width="12"/%3E%3C/svg%3E';
 
 const targetSummary = buildLayerTargetSummary(layers[2] as Layer, {
   surface: 'layers',
@@ -348,15 +380,15 @@ export default function DocsStyleGuide() {
             Style guide.
           </h1>
           <p className="docs-intro__deck">
-            Reusable primitives, state specimens, and token checks for the editor. This route is intentionally
-            deterministic so visual coverage can protect the UI contract.
+            Reusable primitives, state examples, and editor tokens in one place. Compare controls, feedback, overlays,
+            and workflow patterns across their visible states.
           </p>
         </section>
 
         <StyleSection
           kicker="01 / Tokens"
-          title="Shared contract"
-          body="The first v0.30 token pass names reusable control sizes, typography, surfaces, focus rings, and state colors."
+          title="Design tokens"
+          body="Control sizes, typography, surfaces, focus rings, and state colors keep the editor consistent."
         >
           <div className="style-guide-token-grid" aria-label="Design token specimens">
             <div className="style-guide-brand-marks" aria-label="Artifact brand mark specimens">
@@ -395,7 +427,7 @@ export default function DocsStyleGuide() {
         <StyleSection
           kicker="04 / Base primitives"
           title="Controls"
-          body="Base primitives live in components/ui and should replace repeated local button, search, badge, and toolbar chrome."
+          body="Buttons, search fields, badges, and toolbars share the same compact, tactile control language."
         >
           <div className="style-guide-grid">
             <Specimen label="Action buttons">
@@ -435,6 +467,37 @@ export default function DocsStyleGuide() {
                 <SegmentedControlTrigger aria-pressed="true">Layers</SegmentedControlTrigger>
                 <SegmentedControlTrigger>Nodes</SegmentedControlTrigger>
               </SegmentedControl>
+            </Specimen>
+            <Specimen label="Editor command groups and notices" stack>
+              <EditorCommandBar className="style-guide-editor-command-bar" label="Editor command groups">
+                <EditorCommandGroup label="History commands">
+                  <ActionButton variant="quiet">New</ActionButton>
+                  <ActionButton variant="quiet" disabled>
+                    Undo
+                  </ActionButton>
+                </EditorCommandGroup>
+                <EditorCommandGroup label="Output commands">
+                  <ActionButton variant="quiet">Projects</ActionButton>
+                  <ActionButton variant="primary" loading aria-label="Exporting artwork">
+                    Export
+                  </ActionButton>
+                </EditorCommandGroup>
+              </EditorCommandBar>
+              <EditorWorkflowNotice
+                title="Document ready"
+                action={<IconButton label="Dismiss document notice" icon="×" size="compact" />}
+              >
+                Imported source is ready to edit.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice variant="warning" title="Hidden output">
+                One selected layer is hidden and will not appear in export.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice variant="danger" title="Source unavailable">
+                The source preview could not be loaded. Choose a replacement to continue.
+              </EditorWorkflowNotice>
+              <EditorWorkflowNotice aria-busy="true" title="Saving recovery copy">
+                Saving the current document before opening the imported file.
+              </EditorWorkflowNotice>
             </Specimen>
             <Specimen label="Tabs dialogs sheets menus" stack>
               <OverlayPrimitiveSpecimens />
@@ -500,6 +563,71 @@ export default function DocsStyleGuide() {
               />
             ))}
           </div>
+          <div className="style-guide-layer-organization" aria-label="Layer organization specimen">
+            <LayerAreaFolder
+              area={styleArea}
+              layers={layers.slice(1, 3)}
+              graphHelpers={[]}
+              collapsed={false}
+              editingArea={false}
+              selectedActionLayerIds={['style-layer-selected']}
+              dragOverTarget={null}
+              editingId={null}
+              onToggleCollapsed={noop}
+              onStartAreaEditing={noop}
+              onFinishAreaRename={noop}
+              onRemoveArea={noop}
+              onToggleAreaVisible={noop}
+              onSelectLayer={noop}
+              onOpenLayerContextMenu={noop}
+              onStartEditing={noop}
+              onFinishRename={noop}
+              onDragStart={noop}
+              onDragOverLayer={noop}
+              onDropLayer={noop}
+              onDragEnd={noop}
+              onToggleVisible={noop}
+              onDuplicateLayer={noop}
+              onRemoveLayer={noop}
+              onRemoveNodesFromArea={noop}
+            />
+          </div>
+          <div className="style-guide-workflow-state-grid" aria-label="Editor row and organization contract states">
+            <EditorRowFrame
+              className="style-guide-workflow-contract-state"
+              selected
+              editing
+              aria-label="Editing selected row"
+            >
+              <strong>Editing row</strong>
+              <span>Selected, keyboard focused, rename active</span>
+            </EditorRowFrame>
+            <EditorRowFrame
+              className="style-guide-workflow-contract-state"
+              dropPosition="before"
+              aria-label="Row drop target"
+            >
+              <strong>Drop target</strong>
+              <span>Reorder insertion before row</span>
+            </EditorRowFrame>
+            <EditorOrganizationGroup
+              className="style-guide-workflow-contract-state"
+              label="Collapsed organization group"
+              collapsed
+            >
+              <strong>Collapsed area</strong>
+              <span>Children summarized</span>
+            </EditorOrganizationGroup>
+            <EditorOrganizationGroup
+              className="style-guide-workflow-contract-state"
+              label="Empty organization group"
+              collapsed={false}
+              empty
+            >
+              <strong>Empty area</strong>
+              <span>Ready to receive layers</span>
+            </EditorOrganizationGroup>
+          </div>
         </StyleSection>
 
         <StyleSection
@@ -562,7 +690,16 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="06 / Add Library"
+          kicker="06 / Workflow matrix"
+          title="Editor workflow states"
+          body="Command, row, organization, notice, and overlay patterns expose their full interaction state vocabulary."
+          wide
+        >
+          <WorkflowPatternStateMatrix />
+        </StyleSection>
+
+        <StyleSection
+          kicker="07 / Add Library"
           title="Creation surface"
           body="Add Library remains a key editor primitive. The style guide keeps search, rows, detail preview, and tags visible in one place."
           wide
@@ -575,12 +712,24 @@ export default function DocsStyleGuide() {
               onAdd={handleAddLibrary}
               onClose={noop}
               autoFocusSearch={false}
+              initialFavoriteIds={['layer:text']}
+              initialRecentIds={['effect:grain', 'layer:fill']}
+              persistActivity={false}
             />
+          </div>
+          <div className="style-guide-add-library-state-grid" aria-label="Add Library preview state specimens">
+            <AddLibraryPreviewSpecimen label="Loading" state={{ status: 'loading' }} />
+            <AddLibraryPreviewSpecimen label="Ready" state={{ status: 'ready', url: STYLE_GUIDE_READY_PREVIEW }} />
+            <AddLibraryPreviewSpecimen
+              label="Fallback"
+              state={{ status: 'fallback', url: STYLE_GUIDE_FALLBACK_PREVIEW }}
+            />
+            <AddLibraryPreviewSpecimen label="Failed" state={{ status: 'failed' }} />
           </div>
         </StyleSection>
 
         <StyleSection
-          kicker="07 / Inspector"
+          kicker="08 / Inspector"
           title="Target and fields"
           body="Inspector primitives combine compact labels, readable values, badges, and explicit status notes."
         >
@@ -595,7 +744,7 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
-          kicker="08 / Panels"
+          kicker="09 / Panels"
           title="Properties rail"
           body="The properties panel assembles target summaries, guardrails, and inspector controls into the right-rail surface."
           wide
@@ -604,6 +753,21 @@ export default function DocsStyleGuide() {
         </StyleSection>
       </main>
     </PublicPageLayout>
+  );
+}
+
+function AddLibraryPreviewSpecimen({
+  label,
+  state,
+}: {
+  label: string;
+  state: ComponentProps<typeof AddLibraryPreview>['state'];
+}) {
+  return (
+    <div className="style-guide-add-library-state">
+      <span>{label}</span>
+      <AddLibraryPreview item={styleGuideAddLibraryItem} state={state} />
+    </div>
   );
 }
 
@@ -647,6 +811,307 @@ function Specimen({ label, children, stack = false }: { label: string; children:
     <div className="style-guide-specimen">
       <div className="style-guide-specimen-label">{label}</div>
       <div className={`style-guide-specimen-body${stack ? ' style-guide-specimen-body--stack' : ''}`}>{children}</div>
+    </div>
+  );
+}
+
+const COMMAND_PATTERN_STATES = [
+  'default',
+  'compact',
+  'mobile',
+  'disabled-command',
+  'loading-command',
+  'active-menu-trigger',
+  'count-status-badge',
+  'overflowed-group',
+] as const;
+
+const ROW_PATTERN_STATES = [
+  'default',
+  'selected',
+  'hidden',
+  'locked',
+  'selected-hidden',
+  'disabled',
+  'nested',
+  'editing',
+  'dragging',
+  'drop-before',
+  'drop-after',
+  'keyboard-active',
+  'long-name',
+] as const;
+
+const ORGANIZATION_PATTERN_STATES = [
+  'expanded',
+  'collapsed',
+  'empty',
+  'selected-content',
+  'hidden-content',
+  'editing-name',
+  'disabled-action',
+  'drag-over',
+  'narrow',
+] as const;
+
+const NOTICE_PATTERN_STATES = [
+  'informational',
+  'warning',
+  'error',
+  'success-recovered',
+  'busy',
+  'actionable',
+  'dismissible',
+  'multiline',
+  'narrow',
+] as const;
+
+const OVERLAY_PATTERN_STATES = [
+  'closed',
+  'open',
+  'keyboard-opened',
+  'pointer-opened',
+  'busy',
+  'disabled-item',
+  'nested-scope',
+  'collision-adjusted',
+  'mobile-sheet',
+] as const;
+
+function stateLabel(state: string) {
+  return state.replaceAll('-', ' ');
+}
+
+function WorkflowPatternStateMatrix() {
+  return (
+    <div className="style-guide-workflow-matrix" aria-label="Editor workflow pattern state matrix">
+      <WorkflowPatternGroup label="EditorCommandBar">
+        {COMMAND_PATTERN_STATES.map((state) => (
+          <div key={state} className="style-guide-workflow-state" data-editor-specimen={`command-${state}`}>
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <EditorCommandBar
+              className="style-guide-workflow-state__surface"
+              label={`${stateLabel(state)} command bar`}
+              density={state === 'compact' ? 'compact' : 'default'}
+              mobile={state === 'mobile'}
+              overflowed={state === 'overflowed-group'}
+            >
+              <EditorCommandGroup label={`${stateLabel(state)} commands`}>
+                <ActionButton
+                  variant="quiet"
+                  disabled={state === 'disabled-command'}
+                  loading={state === 'loading-command'}
+                  data-state={state === 'active-menu-trigger' ? 'open' : undefined}
+                >
+                  Command
+                </ActionButton>
+                {state === 'count-status-badge' ? <Badge variant="selected">3 selected</Badge> : null}
+                {state === 'overflowed-group' ? (
+                  <>
+                    <ActionButton variant="quiet">Share</ActionButton>
+                    <ActionButton variant="quiet">Projects</ActionButton>
+                    <ActionButton variant="primary">Export</ActionButton>
+                  </>
+                ) : null}
+              </EditorCommandGroup>
+            </EditorCommandBar>
+          </div>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorRowFrame">
+        {ROW_PATTERN_STATES.map((state) => (
+          <EditorRowFrame
+            key={state}
+            className="style-guide-workflow-state style-guide-workflow-state--row"
+            data-editor-specimen={`row-${state}`}
+            selected={state === 'selected' || state === 'selected-hidden'}
+            isHidden={state === 'hidden' || state === 'selected-hidden'}
+            isLocked={state === 'locked'}
+            disabled={state === 'disabled'}
+            nested={state === 'nested'}
+            editing={state === 'editing'}
+            dragging={state === 'dragging'}
+            dropPosition={state === 'drop-before' ? 'before' : state === 'drop-after' ? 'after' : null}
+            keyboardActive={state === 'keyboard-active'}
+          >
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <span>
+              {state === 'long-name'
+                ? 'Very long imported layer name that remains inside the editor rail'
+                : 'Layer row'}
+            </span>
+          </EditorRowFrame>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorOrganizationGroup">
+        {ORGANIZATION_PATTERN_STATES.map((state) => (
+          <EditorOrganizationGroup
+            key={state}
+            className="style-guide-workflow-state"
+            data-editor-specimen={`organization-${state}`}
+            label={`${stateLabel(state)} organization group`}
+            collapsed={state === 'collapsed'}
+            empty={state === 'empty'}
+            selectedContent={state === 'selected-content'}
+            hiddenContent={state === 'hidden-content'}
+            editing={state === 'editing-name'}
+            disabled={state === 'disabled-action'}
+            dragOver={state === 'drag-over'}
+            narrow={state === 'narrow'}
+          >
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <span>Area group</span>
+          </EditorOrganizationGroup>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorWorkflowNotice">
+        {NOTICE_PATTERN_STATES.map((state) => (
+          <div key={state} className="style-guide-workflow-state" data-editor-specimen={`notice-${state}`}>
+            <span className="style-guide-workflow-state__label">{stateLabel(state)}</span>
+            <EditorWorkflowNotice
+              className={state === 'narrow' ? 'style-guide-workflow-notice--narrow' : undefined}
+              variant={
+                state === 'warning'
+                  ? 'warning'
+                  : state === 'error'
+                    ? 'danger'
+                    : state === 'success-recovered'
+                      ? 'success'
+                      : 'info'
+              }
+              aria-busy={state === 'busy' ? 'true' : undefined}
+              action={
+                state === 'actionable' ? (
+                  <ActionButton variant="quiet">Retry</ActionButton>
+                ) : state === 'dismissible' ? (
+                  <IconButton label="Dismiss notice specimen" icon="×" size="compact" />
+                ) : undefined
+              }
+            >
+              {state === 'multiline'
+                ? 'The imported source is ready. Its original dimensions are preserved, and you can replace it from the selected layer.'
+                : state === 'success-recovered'
+                  ? 'Local storage is available again.'
+                  : 'Editor notice'}
+            </EditorWorkflowNotice>
+          </div>
+        ))}
+      </WorkflowPatternGroup>
+
+      <WorkflowPatternGroup label="EditorOverlayFrame">
+        {OVERLAY_PATTERN_STATES.map((state) => (
+          <EditorOverlayContractState key={state} state={state} />
+        ))}
+      </WorkflowPatternGroup>
+    </div>
+  );
+}
+
+function WorkflowPatternGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="style-guide-workflow-pattern-group" aria-label={`${label} state specimens`}>
+      <h3>{label}</h3>
+      <div className="style-guide-workflow-pattern-grid">{children}</div>
+    </section>
+  );
+}
+
+function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_STATES)[number] }) {
+  const [open, setOpen] = useState(state === 'open');
+  const [busy, setBusy] = useState(state === 'busy');
+  const [openMethod, setOpenMethod] = useState<'keyboard' | 'pointer'>();
+  const label = stateLabel(state);
+  const recordKeyboardOpen = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (['Enter', ' ', 'ArrowDown'].includes(event.key)) setOpenMethod('keyboard');
+  };
+  const finish = () => {
+    setBusy(false);
+    setOpen(false);
+  };
+  useEffect(() => {
+    if (state !== 'open' || !open) return;
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, state]);
+
+  if (state === 'open') {
+    return (
+      <div className="style-guide-workflow-state" data-editor-specimen="overlay-open">
+        <span className="style-guide-workflow-state__label">{label}</span>
+        <ActionButton variant="secondary" onClick={() => setOpen(true)}>
+          Open {label}
+        </ActionButton>
+        {open ? (
+          <div
+            className="editor-overlay-frame style-guide-editor-overlay-content"
+            role="dialog"
+            aria-label="open overlay"
+            data-editor-overlay-state="open"
+          >
+            <strong>{label}</strong>
+            <span>Choose an editor action.</span>
+            <ActionButton variant="quiet">Secondary action</ActionButton>
+            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+              Done
+            </ActionButton>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`style-guide-workflow-state ${
+        state === 'collision-adjusted' ? 'style-guide-workflow-state--collision' : ''
+      }`}
+      data-editor-specimen={`overlay-${state}`}
+    >
+      <span className="style-guide-workflow-state__label">{label}</span>
+      <EditorOverlayFrame
+        open={open}
+        onOpenChange={setOpen}
+        busy={busy && state === 'busy'}
+        collisionAdjusted={state === 'collision-adjusted'}
+        mobile={state === 'mobile-sheet'}
+        openMethod={openMethod}
+        preventOpenAutoFocus={state === 'open'}
+        align={state === 'collision-adjusted' ? 'end' : 'start'}
+        title={`${label} overlay`}
+        description="Choose an editor action."
+        trigger={
+          <ActionButton
+            variant="secondary"
+            onPointerDown={() => setOpenMethod('pointer')}
+            onKeyDown={recordKeyboardOpen}
+          >
+            Open {label}
+          </ActionButton>
+        }
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>{label}</strong>
+          <span>{state === 'nested-scope' ? 'Effects / Texture / Grain' : 'Choose an editor action.'}</span>
+          <ActionButton variant="quiet" disabled={state === 'disabled-item'}>
+            Secondary action
+          </ActionButton>
+          {state === 'busy' ? (
+            <ActionButton variant="primary" onClick={finish}>
+              Finish busy state
+            </ActionButton>
+          ) : (
+            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+              Done
+            </ActionButton>
+          )}
+        </div>
+      </EditorOverlayFrame>
     </div>
   );
 }
@@ -725,8 +1190,50 @@ function OverlayPrimitiveSpecimens() {
           </SheetContent>
         </Sheet>
         <FloatingMenuSpecimen />
+        <EditorOverlaySpecimens />
       </div>
     </div>
+  );
+}
+
+function EditorOverlaySpecimens() {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  return (
+    <>
+      <EditorOverlayFrame
+        open={popoverOpen}
+        onOpenChange={setPopoverOpen}
+        title="Editor popover specimen"
+        description="Choose an item from the anchored editor menu."
+        trigger={<ActionButton variant="secondary">Open editor popover</ActionButton>}
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>Add source</strong>
+          <span>Choose an item or dismiss this menu.</span>
+          <ActionButton variant="primary" onClick={() => setPopoverOpen(false)}>
+            Done
+          </ActionButton>
+        </div>
+      </EditorOverlayFrame>
+      <EditorOverlayFrame
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        mobile
+        title="Editor mobile sheet specimen"
+        description="Choose an item from the mobile editor menu."
+        trigger={<ActionButton variant="secondary">Open editor mobile sheet</ActionButton>}
+      >
+        <div className="style-guide-editor-overlay-content">
+          <strong>Add on mobile</strong>
+          <span>Search and choose an item.</span>
+          <ActionButton variant="primary" onClick={() => setSheetOpen(false)}>
+            Done
+          </ActionButton>
+        </div>
+      </EditorOverlayFrame>
+    </>
   );
 }
 
