@@ -208,6 +208,13 @@ implementation artifacts such as providers, registries, pure logic modules, and
 behavior wrappers. Large composed surfaces can appear as reduced specimens while
 their behavior remains covered by browser/render tests.
 
+The release ownership, state matrix, keyboard requirements, responsive
+requirements, and five bounded source-owned patterns for the editor are closed
+in the [Artifact editor-workflow inventory](editor-workflow-inventory.md).
+That inventory is the contract for v0.45 and the editor-pattern dependency used
+by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
+v0.49 rather than treating them as current editor navigation.
+
 ## Radix And shadcn Boundary
 
 The project already uses the unified `radix-ui` package and source-owned UI
