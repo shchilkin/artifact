@@ -43,11 +43,27 @@ test('public shell exposes an accessible responsive navigation contract', async 
   const mobileNavigation = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(mobileNavigation).toBeVisible();
   await expect(mobileNavigation.getByRole('link', { name: 'Docs' })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('button', { name: 'Close menu' }).click();
+  await expect(page.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
   await mobileNavigation.getByRole('link', { name: 'Showcase' }).click();
   await expect(page).toHaveURL(/\/showcase$/);
   await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toHaveCount(0);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
+
+test('public shell hides the mobile navigation trigger on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1024 });
+  await page.goto('/');
+
+  const siteNavigation = page.getByRole('navigation', { name: 'Site navigation' });
+  await expect(siteNavigation.getByRole('link', { name: 'Open editor', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toHaveCount(0);
 });
 
 test('password recovery exposes missing-token and validation states through Foundation controls', async ({ page }) => {

@@ -79,6 +79,38 @@ CI should run:
 
 ## Manual QA
 
+### v0.45.1 Release Prep
+
+- Package metadata is bumped to `0.45.1` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.45.1.md` is prepared from the release template without a
+  visible internal checklist.
+- The desktop public shell hides the mobile-only menu trigger with a selector
+  that remains authoritative when production CSS chunks load in a different
+  order.
+- The existing narrow-layout Open/Close menu, `aria-expanded`, mobile
+  navigation, and close-after-navigation behavior remain covered.
+- The browser release runner now exercises the responsive public-shell contract
+  against the built production preview instead of relying only on development
+  server CSS ordering.
+- `npm run release:verify -- --version 0.45.1`, `npm run check`, and
+  `npm run build` passed on 2026-07-23. The check includes 20 UI Foundation
+  tests, 682 Web tests, 261 passing API tests with 5 skipped, 11 Backoffice
+  tests, and 25 deployment tests, plus formatting, lint, and all type checks.
+- The complete browser release gate scheduled 542 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 491 completed successfully and 51 were intentional
+  skips.
+- `npm run perf:node-editor` is not required because this patch changes no
+  graph traversal, renderer algorithm or signature, thumbnail queue, or canvas
+  interaction hot path.
+- Accepted release risk: the focused production-preview checks are not a
+  complete visual-regression suite or WCAG certification.
+- Delivery is tracked by issue
+  [#220](https://github.com/shchilkin/artifact/issues/220) and milestone
+  [`v0.45.1 Site Navigation Hotfix`](https://github.com/shchilkin/artifact/milestone/10).
+
 ### v0.45.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.45.0` in `package.json`,
