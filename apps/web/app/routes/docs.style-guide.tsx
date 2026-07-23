@@ -10,7 +10,10 @@ import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import type { AddLibraryAction } from '../components/add-library/addLibraryModel';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
+import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
+import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { LogoGlyph } from '../components/LogoGlyph';
+import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
 import { LayerRow } from '../components/layers-panel/LayerRow';
 import {
   BlendModeNote,
@@ -436,6 +439,28 @@ export default function DocsStyleGuide() {
                 <SegmentedControlTrigger>Nodes</SegmentedControlTrigger>
               </SegmentedControl>
             </Specimen>
+            <Specimen label="Editor command groups and notices" stack>
+              <div className="style-guide-editor-command-bar" role="toolbar" aria-label="Editor command groups">
+                <EditorCommandGroup label="History commands">
+                  <ActionButton variant="quiet">New</ActionButton>
+                  <ActionButton variant="quiet" disabled>
+                    Undo
+                  </ActionButton>
+                </EditorCommandGroup>
+                <EditorCommandGroup label="Output commands">
+                  <ActionButton variant="quiet">Projects</ActionButton>
+                  <ActionButton variant="primary" loading aria-label="Exporting artwork">
+                    Export
+                  </ActionButton>
+                </EditorCommandGroup>
+              </div>
+              <EditorWorkflowNotice
+                title="Document ready"
+                action={<IconButton label="Dismiss document notice" icon="×" size="compact" />}
+              >
+                Imported source is ready to edit.
+              </EditorWorkflowNotice>
+            </Specimen>
             <Specimen label="Tabs dialogs sheets menus" stack>
               <OverlayPrimitiveSpecimens />
             </Specimen>
@@ -499,6 +524,35 @@ export default function DocsStyleGuide() {
                 onRemoveLayer={noop}
               />
             ))}
+          </div>
+          <div className="style-guide-layer-organization" aria-label="Layer organization specimen">
+            <LayerAreaFolder
+              area={styleArea}
+              layers={layers.slice(1, 3)}
+              graphHelpers={[]}
+              collapsed={false}
+              editingArea={false}
+              selectedActionLayerIds={['style-layer-selected']}
+              dragOverTarget={null}
+              editingId={null}
+              onToggleCollapsed={noop}
+              onStartAreaEditing={noop}
+              onFinishAreaRename={noop}
+              onRemoveArea={noop}
+              onToggleAreaVisible={noop}
+              onSelectLayer={noop}
+              onOpenLayerContextMenu={noop}
+              onStartEditing={noop}
+              onFinishRename={noop}
+              onDragStart={noop}
+              onDragOverLayer={noop}
+              onDropLayer={noop}
+              onDragEnd={noop}
+              onToggleVisible={noop}
+              onDuplicateLayer={noop}
+              onRemoveLayer={noop}
+              onRemoveNodesFromArea={noop}
+            />
           </div>
         </StyleSection>
 

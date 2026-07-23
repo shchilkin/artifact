@@ -70,3 +70,21 @@ test('Layers Add Library dismisses with Escape and returns focus to its trigger'
   await expect(page.getByLabel('Search layers and effects')).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+test('style guide renders live editor command, notice, organization, and creation patterns', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs/style-guide');
+
+  await expect(page.getByRole('group', { name: 'History commands' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Output commands' })).toBeVisible();
+  await expect(page.getByText('Imported source is ready to edit.')).toBeVisible();
+  await expect(page.locator('.style-guide-layer-organization .layer-area-folder')).toBeVisible();
+  await expect(page.locator('.style-guide-add-library-surface .add-library-row').first()).toBeVisible();
+  await expect(page.locator('.style-guide-add-library-surface .add-library-preview-frame')).toBeVisible();
+
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+});
