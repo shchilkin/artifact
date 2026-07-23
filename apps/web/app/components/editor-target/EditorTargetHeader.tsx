@@ -18,7 +18,9 @@ export function EditorTargetHeader({ summary, compact = false, minimal = false }
         <span>{summary.eyebrow}</span>
         <span>{summary.kindLabel}</span>
       </div>
-      <div className="editor-target-header__title">{summary.title}</div>
+      <div className="editor-target-header__title" role="heading" aria-level={2}>
+        {summary.title}
+      </div>
       <EditorTargetBreadcrumbs breadcrumbs={summary.breadcrumbs} />
       <EditorTargetDescription compact={compact} description={summary.description} />
       <div className="editor-target-header__badges" aria-label="Editing target status">
@@ -50,7 +52,9 @@ function MinimalEditorTargetHeader({ summary }: { summary: EditorTargetSummary }
       <div className="editor-target-header__compact-row">
         <div className="editor-target-header__compact-identity">
           {contextLabel && <span className="editor-target-header__compact-label">{contextLabel}</span>}
-          <div className="editor-target-header__title">{summary.title}</div>
+          <div className="editor-target-header__title" role="heading" aria-level={2}>
+            {summary.title}
+          </div>
         </div>
       </div>
       {badges.length > 0 && (
