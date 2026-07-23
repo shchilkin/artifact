@@ -66,14 +66,9 @@ export function FoundationOverlayMatrix() {
           </Popover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-open" label="Popover / open">
-          <Popover open>
-            <PopoverTrigger asChild>
-              <Button variant="secondary">Current export</Button>
-            </PopoverTrigger>
-            <PopoverContent aria-label="Current export" onOpenAutoFocus={(event) => event.preventDefault()}>
-              <PopoverBody title="PNG export" copy="2400 × 2400 · transparent background" />
-            </PopoverContent>
-          </Popover>
+          <StaticOpenPopover label="Current export">
+            <PopoverBody title="PNG export" copy="2400 × 2400 · transparent background" />
+          </StaticOpenPopover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-keyboard" label="Popover / keyboard and focus return">
           <Popover>
@@ -92,25 +87,23 @@ export function FoundationOverlayMatrix() {
           </Popover>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-long-content" label="Popover / long content">
-          <Popover open>
-            <PopoverTrigger asChild>
-              <Button variant="secondary">Storage details</Button>
-            </PopoverTrigger>
-            <PopoverContent
-              aria-label="Storage details"
-              align="start"
-              onOpenAutoFocus={(event) => event.preventDefault()}
-              side="right"
-            >
-              <PopoverBody
-                title="Local project storage"
-                copy="Projects and imported assets stay in this browser until you export a portable document or clear local site data."
-              />
-            </PopoverContent>
-          </Popover>
+          <StaticOpenPopover label="Storage details">
+            <PopoverBody
+              title="Local project storage"
+              copy="Projects and imported assets stay in this browser until you export a portable document or clear local site data."
+            />
+          </StaticOpenPopover>
         </OverlaySpecimen>
       </div>
     </TooltipProvider>
+  );
+}
+
+function StaticOpenPopover({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="ui-popover-content" data-state="open" role="dialog" aria-label={label}>
+      {children}
+    </div>
   );
 }
 

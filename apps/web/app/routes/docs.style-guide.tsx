@@ -1020,25 +1020,10 @@ function WorkflowPatternGroup({ label, children }: { label: string; children: Re
 }
 
 function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_STATES)[number] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(state === 'open');
   const [busy, setBusy] = useState(state === 'busy');
   const [openMethod, setOpenMethod] = useState<'keyboard' | 'pointer'>();
-  const initialScrollRef = useRef<{ left: number; top: number } | null>(null);
   const label = stateLabel(state);
-  useEffect(() => {
-    if (state !== 'open') return;
-    initialScrollRef.current ??= { left: window.scrollX, top: window.scrollY };
-    const initialScroll = initialScrollRef.current;
-    let restoreTimer = 0;
-    const openFrame = requestAnimationFrame(() => {
-      setOpen(true);
-      restoreTimer = window.setTimeout(() => window.scrollTo(initialScroll), 100);
-    });
-    return () => {
-      cancelAnimationFrame(openFrame);
-      window.clearTimeout(restoreTimer);
-    };
-  }, [state]);
   const recordKeyboardOpen = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (['Enter', ' ', 'ArrowDown'].includes(event.key)) setOpenMethod('keyboard');
   };
@@ -1046,6 +1031,40 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
     setBusy(false);
     setOpen(false);
   };
+  useEffect(() => {
+    if (state !== 'open' || !open) return;
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, state]);
+
+  if (state === 'open') {
+    return (
+      <div className="style-guide-workflow-state" data-editor-specimen="overlay-open">
+        <span className="style-guide-workflow-state__label">{label}</span>
+        <ActionButton variant="secondary" onClick={() => setOpen(true)}>
+          Open {label}
+        </ActionButton>
+        {open ? (
+          <div
+            className="editor-overlay-frame style-guide-editor-overlay-content"
+            role="dialog"
+            aria-label="open overlay"
+            data-editor-overlay-state="open"
+          >
+            <strong>{label}</strong>
+            <span>Choose an editor action.</span>
+            <ActionButton variant="quiet">Secondary action</ActionButton>
+            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+              Done
+            </ActionButton>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div

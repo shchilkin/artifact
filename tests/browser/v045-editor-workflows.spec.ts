@@ -274,6 +274,7 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
     'data-editor-overlay-method',
     'keyboard',
   );
+  await expectOverlayPositioned(page.getByRole('dialog', { name: 'keyboard opened overlay' }));
   await page.keyboard.press('Escape');
   await expect(keyboardTrigger).toBeFocused();
 
@@ -284,12 +285,14 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
     'data-editor-overlay-method',
     'pointer',
   );
+  await expectOverlayPositioned(page.getByRole('dialog', { name: 'pointer opened overlay' }));
   await page.keyboard.press('Escape');
 
   const busyTrigger = page.locator('[data-editor-specimen="overlay-busy"]').getByRole('button', { name: 'Open busy' });
   await busyTrigger.click();
   const busyOverlay = page.getByRole('dialog', { name: 'busy overlay' });
   await expect(busyOverlay).toHaveAttribute('aria-busy', 'true');
+  await expectOverlayPositioned(busyOverlay);
   await page.keyboard.press('Escape');
   await expect(busyOverlay).toBeVisible();
   await busyOverlay.getByRole('button', { name: 'Finish busy state' }).click();
@@ -301,6 +304,7 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
   await disabledTrigger.click();
   const disabledOverlay = page.getByRole('dialog', { name: 'disabled item overlay' });
   await expect(disabledOverlay.getByRole('button', { name: 'Secondary action' })).toBeDisabled();
+  await expectOverlayPositioned(disabledOverlay);
   await page.keyboard.press('Escape');
 
   const nestedTrigger = page
@@ -309,6 +313,7 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
   await nestedTrigger.click();
   const nestedOverlay = page.getByRole('dialog', { name: 'nested scope overlay' });
   await expect(nestedOverlay.getByText('Effects / Texture / Grain')).toBeVisible();
+  await expectOverlayPositioned(nestedOverlay);
   await page.keyboard.press('Escape');
 
   const collisionTrigger = page
@@ -317,6 +322,7 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
   await collisionTrigger.click();
   const collisionOverlay = page.getByRole('dialog', { name: 'collision adjusted overlay' });
   await expect(collisionOverlay).toHaveAttribute('data-editor-overlay-collision-adjusted', 'true');
+  await expectOverlayPositioned(collisionOverlay);
   const collisionBox = await collisionOverlay.boundingBox();
   const viewport = page.viewportSize();
   expect(collisionBox).not.toBeNull();
@@ -332,6 +338,27 @@ async function expectDeterministicOverlayStates(page: import('@playwright/test')
   const mobileOverlay = page.getByRole('dialog', { name: 'mobile sheet overlay' });
   await expect(mobileOverlay).toHaveClass(/editor-overlay-frame--sheet/);
   await page.keyboard.press('Escape');
+}
+
+async function expectOverlayPositioned(locator: import('@playwright/test').Locator) {
+  await expect
+    .poll(async () =>
+      locator.evaluate((element) => {
+        const wrapper = element.closest<HTMLElement>('[data-radix-popper-content-wrapper]');
+        if (!wrapper) return true;
+        const box = wrapper.getBoundingClientRect();
+        return (
+          !wrapper.style.transform.includes('-200%') &&
+          box.width > 0 &&
+          box.height > 0 &&
+          box.left >= 0 &&
+          box.top >= 0 &&
+          box.right <= window.innerWidth &&
+          box.bottom <= window.innerHeight
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 async function expectNoPageOverflow(page: import('@playwright/test').Page) {

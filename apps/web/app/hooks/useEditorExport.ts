@@ -4,6 +4,12 @@ import { exportCanvas } from '../utils/exportCanvas';
 import { exportEnvMap } from '../utils/exportEnvMap';
 import type { RenderOptions } from '../utils/renderer';
 
+function waitForExportBusyPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
 export function useEditorExport(
   docRef: MutableRefObject<CanvasDocument>,
   imageCache: Map<string, HTMLImageElement>,
@@ -27,6 +33,7 @@ export function useEditorExport(
       setIsExporting(true);
       setExportError(null);
       try {
+        await waitForExportBusyPaint();
         await exportCanvas(docRef.current, imageCache, scale, format, renderOptions);
       } catch (error) {
         showExportError(error instanceof Error ? error.message : 'Export failed');
@@ -41,6 +48,7 @@ export function useEditorExport(
     setIsExportingEnvMap(true);
     setExportError(null);
     try {
+      await waitForExportBusyPaint();
       await exportEnvMap(docRef.current, imageCache);
     } catch (error) {
       showExportError(error instanceof Error ? error.message : 'Env map export failed');

@@ -7,6 +7,7 @@ import {
   type ReactElement,
   type ReactNode,
   type Ref,
+  type RefObject,
   useEffect,
   useRef,
 } from 'react';
@@ -38,6 +39,7 @@ interface EditorOverlayFrameProps {
   overlayClassName?: string;
   position?: { x: number; y: number };
   preventOpenAutoFocus?: boolean;
+  returnFocusTargetRef?: RefObject<HTMLElement | null>;
   role?: AriaRole;
   side?: 'top' | 'right' | 'bottom' | 'left';
   style?: CSSProperties;
@@ -65,6 +67,7 @@ export function EditorOverlayFrame({
   overlayClassName,
   position,
   preventOpenAutoFocus = false,
+  returnFocusTargetRef,
   role,
   side = 'bottom',
   style,
@@ -103,8 +106,13 @@ export function EditorOverlayFrame({
           data-editor-overlay-method={openMethod}
           data-editor-overlay-state={open ? 'open' : 'closed'}
           onOpenAutoFocus={() => {
+            const explicitReturnFocusTarget = returnFocusTargetRef?.current;
             returnFocusRef.current =
-              document.activeElement instanceof HTMLElement ? document.activeElement : returnFocusRef.current;
+              explicitReturnFocusTarget?.isConnected && explicitReturnFocusTarget instanceof HTMLElement
+                ? explicitReturnFocusTarget
+                : document.activeElement instanceof HTMLElement
+                  ? document.activeElement
+                  : returnFocusRef.current;
           }}
           onCloseAutoFocus={(event) => {
             const returnFocusTarget = returnFocusRef.current;

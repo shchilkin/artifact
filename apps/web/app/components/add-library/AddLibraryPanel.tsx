@@ -720,7 +720,16 @@ function AddLibraryList({
 
   useEffect(() => {
     if (empty) return;
-    document.getElementById(`${resultListId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+    const list = document.getElementById(resultListId);
+    const option = document.getElementById(`${resultListId}-option-${activeIndex}`);
+    if (!list || !option) return;
+    const listBox = list.getBoundingClientRect();
+    const optionBox = option.getBoundingClientRect();
+    if (optionBox.top < listBox.top) {
+      list.scrollTop -= listBox.top - optionBox.top;
+    } else if (optionBox.bottom > listBox.bottom) {
+      list.scrollTop += optionBox.bottom - listBox.bottom;
+    }
   }, [activeIndex, empty, resultListId]);
 
   return (

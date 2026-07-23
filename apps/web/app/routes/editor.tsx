@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
@@ -301,6 +301,7 @@ export default function Editor() {
   );
   const {
     fileInputRef,
+    documentPickerReturnFocusRef,
     documentFileError,
     pendingDocumentImport,
     handleCancelDocumentImport,
@@ -562,6 +563,7 @@ export default function Editor() {
           <DocumentImportConfirm
             pendingImport={pendingDocumentImport}
             busy={documentImportBusy}
+            returnFocusTargetRef={documentPickerReturnFocusRef}
             onCancel={handleCancelDocumentImport}
             onConfirm={() => {
               void handleConfirmDroppedDocument();
@@ -669,11 +671,13 @@ function DocumentImportConfirm({
   onCancel,
   onConfirm,
   pendingImport,
+  returnFocusTargetRef,
 }: {
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   pendingImport: PendingDocumentImport | null;
+  returnFocusTargetRef: RefObject<HTMLElement | null>;
 }) {
   if (!pendingImport) return null;
 
@@ -682,6 +686,7 @@ function DocumentImportConfirm({
       variant="dialog"
       open
       busy={busy}
+      returnFocusTargetRef={returnFocusTargetRef}
       onOpenChange={(open) => !open && onCancel()}
       title="Open artifact file"
       description="Review the dropped Artifact document before it replaces the current canvas."
