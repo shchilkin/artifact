@@ -79,7 +79,7 @@ CI should run:
 
 ## Manual QA
 
-### v0.44.0 Release Prep
+### v0.44.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.44.0` in `package.json`,
   `apps/web/package.json`, `apps/backoffice/package.json`, and
@@ -127,6 +127,22 @@ CI should run:
 - Accepted release risk: nine existing editor, AI polling, 3D package, and
   Foundation overlay timing scenarios required their available retry in the
   final local release gate; none are in the v0.44 change surface.
+- PRs #211 and #212 produced verified `development` revision
+  `5f38f58c8d666aabf3dc93af86ba286d27fea6dd`. Post-merge CI run `29970869756`
+  and exact-SHA staging run `29971210029` passed; staging verified Vercel,
+  Coolify deployment `bzehrjfo8b8ccm8mv9njk9cn`, and API contract version 1 at
+  that revision.
+- Promotion PR #213 passed CI run `29971384432` and merged the staged tree into
+  `main` as production commit
+  `37c46a75f7d53c7a6c47a807238964555bb5a76c`.
+- Tag-and-draft run `29971887211` passed the full gate and created annotated tag
+  `v0.44.0` at that exact production commit. Production run `29972735983`
+  repeated the full gate, verified Vercel, deployed Coolify revision
+  `aj3p1prax641qvvwffol5yk7`, verified API contract version 1, and confirmed the
+  production web domain reported the same build SHA.
+- Publish run `29973789453` passed the final full gate and published `v0.44.0`
+  as the latest release on 2026-07-23. All eight delivery issues and milestone
+  #3 are closed.
 
 ### v0.43.0 Release Prep
 
