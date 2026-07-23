@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
@@ -674,11 +674,25 @@ function DocumentImportConfirm({
   onConfirm: () => void;
   pendingImport: PendingDocumentImport | null;
 }) {
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!pendingImport || typeof document === 'undefined') return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }, [pendingImport]);
+
   if (!pendingImport) return null;
+
+  const closeImport = () => {
+    onCancel();
+    queueMicrotask(() => returnFocusRef.current?.focus());
+  };
+
   return (
-    <Dialog open onOpenChange={(open) => !open && !busy && onCancel()}>
+    <Dialog modal={false} open onOpenChange={(open) => !open && !busy && closeImport()}>
       <DialogContent
         className="document-import-confirm"
+        overlayClassName="document-import-confirm__overlay"
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
         }}
@@ -687,9 +701,7 @@ function DocumentImportConfirm({
         }}
       >
         <div className="document-import-confirm__header">
-          <DialogTitle id="document-import-title" className="document-import-confirm__title">
-            Open artifact file
-          </DialogTitle>
+          <DialogTitle className="document-import-confirm__title">Open artifact file</DialogTitle>
           <DialogClose asChild>
             <IconButton
               className="document-import-confirm__close"
@@ -736,7 +748,7 @@ function DocumentImportConfirm({
             variant="primary"
             onClick={onConfirm}
             loading={busy}
-            aria-label={busy ? 'Saving recovery copy before opening file' : 'Open artifact file'}
+            aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
           >
             {busy ? 'SAVING' : 'OPEN FILE'}
           </ActionButton>

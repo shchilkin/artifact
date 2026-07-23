@@ -3523,6 +3523,11 @@ input[type="range"] {
   transform: translate(-50%, -50%);
 }
 
+.document-import-confirm__overlay {
+  background: transparent;
+  pointer-events: none;
+}
+
 .editor-drop-preview__header,
 .document-import-confirm__header,
 .document-import-confirm__actions {
