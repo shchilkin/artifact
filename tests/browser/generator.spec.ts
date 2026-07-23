@@ -1187,7 +1187,7 @@ async function startBlankEditor(page: Page) {
 async function openPixelateNodeAddMenu(page: Page) {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
-  const pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+  const pixelateMenuRow = page.getByRole('option', { name: /^▦ Pixelate/ });
   await expect(pixelateMenuRow).toContainText('Drag');
   return pixelateMenuRow;
 }
@@ -2901,11 +2901,11 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
-  await expect(page.getByRole('button', { name: /^◧ Image/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^T Text/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^◧ Image/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^T Text/ })).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('ai image');
-  await expect(page.getByRole('button', { name: /^◧ AI Image/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /^◧ AI Image/ })).toBeVisible();
 
   await page.getByLabel('Search nodes and effects').fill('split tone');
   await expect(page.getByAltText('Split Tone preview')).toBeVisible({ timeout: 15_000 });
@@ -2917,7 +2917,7 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Pixelate preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▦ Pixelate/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▦ Pixelate/ }));
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
@@ -2930,7 +2930,7 @@ test('node add menu can add Bad Stream with compression controls', async ({ page
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'bad stream', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Bad Stream preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▧ Bad Stream/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▧ Bad Stream/ }));
 
   const badStreamNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Bad Stream' }).first();
   await expect(badStreamNode).toBeVisible({ timeout: 15_000 });
@@ -2946,7 +2946,7 @@ test('node add menu can add Macroblocks as a focused Bad Stream block', async ({
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'macroblocks', { waitForExportNode: true });
   await expect(page.locator('.add-library-node-menu img[alt="Macroblocks preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^▦ Macroblocks/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^▦ Macroblocks/ }));
 
   const macroblocksNode = page.locator('.node-shell-kind-effect').filter({ hasText: 'Macroblocks' }).first();
   await expect(macroblocksNode).toBeVisible({ timeout: 15_000 });
@@ -2961,7 +2961,7 @@ test('node add menu can add poster text starts', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'poster type');
   await expect(page.locator('.add-library-node-menu img[alt="Poster Type preview"]')).toBeVisible({ timeout: 15_000 });
-  await clickEditorControl(page.getByRole('button', { name: /^T Poster Type/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^T Poster Type/ }));
 
   const posterNode = page.locator('.node-shell-kind-text').filter({ hasText: 'Poster Type' }).first();
   await expect(posterNode).toBeVisible({ timeout: 15_000 });
@@ -3010,7 +3010,7 @@ test('v0.35 graph nodes mount and select without recursive React updates', async
 test('node add menu can add material nodes with previews and inspector controls', async ({ page }) => {
   await gotoDocument(page, wideNodeDocument);
   await openNodeAddMenuWithSearch(page, 'material', { waitForExportNode: true });
-  const materialMenuRow = page.getByRole('button', { name: /^◒ PBR Material/ });
+  const materialMenuRow = page.getByRole('option', { name: /^◒ PBR Material/ });
   await expect(materialMenuRow).toBeVisible({ timeout: 15_000 });
   await materialMenuRow.hover();
   await expect(page.locator('.add-library-node-menu img[alt="PBR Material preview"]')).toBeVisible({ timeout: 15_000 });
@@ -3093,7 +3093,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
   let graphState = await waitForPixelateEdgeInsertion(page, 4_000);
   if (!graphState.pixelateId) {
     await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
-    pixelateMenuRow = page.getByRole('button', { name: /^▦ Pixelate/ });
+    pixelateMenuRow = page.getByRole('option', { name: /^▦ Pixelate/ });
     await expect(pixelateMenuRow).toContainText('Drag');
     await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
     graphState = await waitForPixelateEdgeInsertion(page, 15_000);
@@ -3125,7 +3125,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
 test('AI image node can be added and explains account-gated access', async ({ page }) => {
   await page.goto('/app?new=blank');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^◧ AI Image/ }));
 
   const aiNode = page.locator('.node-shell-kind-image').filter({ hasText: 'AI Image' }).first();
   await expect(aiNode).toBeVisible({ timeout: 15_000 });
@@ -3169,7 +3169,7 @@ test('AI developer diagnostics are opt-in and safe', async ({ page }) => {
 
   await page.goto('/app?new=blank&debug=ai');
   await openNodeAddMenuWithSearch(page, 'ai image');
-  await clickEditorControl(page.getByRole('button', { name: /^◧ AI Image/ }));
+  await clickEditorControl(page.getByRole('option', { name: /^◧ AI Image/ }));
 
   const panel = page.locator('.node-props-panel');
   const diagnostics = panel.locator('.ai-generation-dev-diagnostics');
