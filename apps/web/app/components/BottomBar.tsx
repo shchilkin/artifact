@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { EditorCommandGroup } from './editor-workflow/EditorCommandGroup';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
 import {
@@ -55,7 +56,7 @@ export function BottomBar({
 
   return (
     <div className="bottom-bar" role="toolbar" aria-label="Editor actions">
-      <div className="bottom-history-group" aria-label="Document history">
+      <EditorCommandGroup className="bottom-history-group" label="Document history">
         <ActionButton
           onClick={onNewBlank}
           aria-label="Create new project"
@@ -99,10 +100,10 @@ export function BottomBar({
         >
           RANDOM
         </ActionButton>
-      </div>
+      </EditorCommandGroup>
 
-      <div className="bottom-secondary-group">
-        <div className="bottom-file-group" aria-label="File actions">
+      <EditorCommandGroup className="bottom-secondary-group" label="File actions">
+        <div className="bottom-file-group">
           <ActionButton
             onClick={onOpenDocument}
             aria-label="Open document file"
@@ -119,9 +120,9 @@ export function BottomBar({
             onSaveProjectPackage={onSaveProjectPackage}
           />
         </div>
-      </div>
+      </EditorCommandGroup>
 
-      <div className="bottom-primary-group">
+      <EditorCommandGroup className="bottom-primary-group" label="Project and export actions">
         <MoreMenu
           copied={copied}
           onCopyLink={handleCopyLink}
@@ -130,10 +131,16 @@ export function BottomBar({
           onSaveProjectPackage={onSaveProjectPackage}
         />
         <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
-        <ActionButton className="export-btn" onClick={onExport} disabled={exportBusy} variant="primary">
+        <ActionButton
+          className="export-btn"
+          onClick={onExport}
+          loading={exportBusy}
+          variant="primary"
+          aria-label={exportBusy ? 'Exporting artwork' : 'Export artwork'}
+        >
           {exportBusy ? '…' : 'EXPORT'}
         </ActionButton>
-      </div>
+      </EditorCommandGroup>
     </div>
   );
 }
@@ -246,6 +253,7 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
       onClick={onClick}
       variant="quiet"
       className={`bottom-command project-workspace-button project-workspace-button-${status.tone}`}
+      aria-label={`Projects. ${status.title}${status.badge ? `. ${status.badge}` : ''}`}
       title={`${status.title}. Local projects are the save workspace.`}
     >
       <span>PROJECTS</span>

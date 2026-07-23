@@ -1,0 +1,37 @@
+.view-mode-toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  gap: 0;
+}
+
+.view-mode-toggle .artifact-tabs-list {
+  align-self: stretch;
+}
+
+.view-mode-toggle .artifact-tabs-trigger {
+  min-height: var(--control-h-default);
+  padding-inline: var(--space-4);
+  font-size: var(--type-ui-sm);
+}
+
+.view-mode-toggle-sidebar {
+  align-self: stretch;
+}
+
+.view-mode-toggle-sidebar .artifact-tabs-trigger {
+  min-width: 76px;
+}
+
+.view-mode-toggle-node .artifact-tabs-trigger {
+  min-width: 70px;
+}
+
+@media (max-width: 767px) {
+  .view-mode-toggle-chrome .artifact-tabs-trigger,
+  .view-mode-toggle-node .artifact-tabs-trigger {
+    min-width: 62px;
+    min-height: var(--control-h-default);
+    padding-inline: var(--space-2);
+  }
+}
