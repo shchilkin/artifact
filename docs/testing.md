@@ -162,6 +162,10 @@ fallback badges.
 - Editor guardrail coverage verifies selected-target breadcrumbs, hidden status,
   layer-backed lock status, disabled locked node deletion, graph-only utility
   context, and output no-input messaging.
+- Add Library keyboard coverage keeps `aria-activedescendant`,
+  `aria-selected`, and scroll visibility aligned; incidental pointer entry from
+  programmatic scrolling must not replace keyboard selection, while actual
+  pointer movement still activates rows.
 - Primitive nodes expose interactive camera controls in a real browser.
 - Text/image node transform gestures stay local to the selected node: wheel
   scaling must not zoom the React Flow canvas, must not crash with maximum
