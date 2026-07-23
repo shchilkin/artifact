@@ -140,6 +140,29 @@ test('Layers Add Library announces keyboard navigation and returns focus after l
   await expect(trigger).toBeFocused();
 });
 
+test('Layers Add Library keeps the keyboard-active option inside the visible result viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoDocument(page, workflowDocument);
+
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByRole('combobox', { name: 'Search layers and effects' });
+  await expect(search).toBeFocused();
+  await page.keyboard.press('End');
+
+  const activeId = await search.getAttribute('aria-activedescendant');
+  expect(activeId).toBeTruthy();
+  const list = page.getByRole('listbox', { name: 'Library results' });
+  const activeOption = page.locator(`[id="${activeId}"]`);
+  await expect(activeOption).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .poll(async () => {
+      const [listBox, optionBox] = await Promise.all([list.boundingBox(), activeOption.boundingBox()]);
+      if (!listBox || !optionBox) return false;
+      return optionBox.y >= listBox.y && optionBox.y + optionBox.height <= listBox.y + listBox.height;
+    })
+    .toBe(true);
+});
+
 test('Nodes Add Library returns focus to the Add node command after dismissal', async ({ page }) => {
   await gotoDocument(page, workflowDocument);
 
@@ -191,6 +214,7 @@ test('style guide renders live editor command, notice, organization, and creatio
   await expect(page.locator('.style-guide-add-library-state [data-preview-state="fallback"]')).toHaveCount(1);
   await expect(page.locator('.style-guide-add-library-state [data-preview-state="failed"]')).toHaveCount(1);
   await expectWorkflowSpecimenMatrix(page);
+  await expectDeterministicOverlayStates(page);
 
   const overlayTrigger = page.getByRole('button', { name: 'Open editor popover' });
   await overlayTrigger.click();
@@ -205,7 +229,19 @@ test('style guide renders live editor command, notice, organization, and creatio
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
   await expectWorkflowSpecimenMatrix(page);
+  await expectDeterministicOverlayStates(page);
   await expectNoPageOverflow(page);
+});
+
+test('real editor commands expose disabled history and busy export states', async ({ page }) => {
+  await gotoDocument(page, workflowDocument);
+
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled();
+
+  const exportButton = page.getByRole('button', { name: 'Export artwork' });
+  await exportButton.click();
+  await expect(page.getByRole('button', { name: 'Exporting artwork' })).toHaveAttribute('aria-busy', 'true');
 });
 
 async function expectWorkflowSpecimenMatrix(page: import('@playwright/test').Page) {
@@ -220,6 +256,82 @@ async function expectWorkflowSpecimenMatrix(page: import('@playwright/test').Pag
   expect(ids.filter((id) => id?.startsWith('organization-'))).toHaveLength(9);
   expect(ids.filter((id) => id?.startsWith('notice-'))).toHaveLength(9);
   expect(ids.filter((id) => id?.startsWith('overlay-'))).toHaveLength(9);
+}
+
+async function expectDeterministicOverlayStates(page: import('@playwright/test').Page) {
+  await expect(page.getByRole('dialog', { name: 'closed overlay' })).toHaveCount(0);
+
+  const openOverlay = page.getByRole('dialog', { name: 'open overlay' });
+  await expect(openOverlay).toHaveAttribute('data-editor-overlay-state', 'open');
+  await page.keyboard.press('Escape');
+  await expect(openOverlay).toBeHidden();
+
+  const keyboard = page.locator('[data-editor-specimen="overlay-keyboard-opened"]');
+  const keyboardTrigger = keyboard.getByRole('button', { name: 'Open keyboard opened' });
+  await keyboardTrigger.focus();
+  await keyboardTrigger.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'keyboard opened overlay' })).toHaveAttribute(
+    'data-editor-overlay-method',
+    'keyboard',
+  );
+  await page.keyboard.press('Escape');
+  await expect(keyboardTrigger).toBeFocused();
+
+  const pointer = page.locator('[data-editor-specimen="overlay-pointer-opened"]');
+  const pointerTrigger = pointer.getByRole('button', { name: 'Open pointer opened' });
+  await pointerTrigger.click();
+  await expect(page.getByRole('dialog', { name: 'pointer opened overlay' })).toHaveAttribute(
+    'data-editor-overlay-method',
+    'pointer',
+  );
+  await page.keyboard.press('Escape');
+
+  const busyTrigger = page.locator('[data-editor-specimen="overlay-busy"]').getByRole('button', { name: 'Open busy' });
+  await busyTrigger.click();
+  const busyOverlay = page.getByRole('dialog', { name: 'busy overlay' });
+  await expect(busyOverlay).toHaveAttribute('aria-busy', 'true');
+  await page.keyboard.press('Escape');
+  await expect(busyOverlay).toBeVisible();
+  await busyOverlay.getByRole('button', { name: 'Finish busy state' }).click();
+  await expect(busyOverlay).toBeHidden();
+
+  const disabledTrigger = page
+    .locator('[data-editor-specimen="overlay-disabled-item"]')
+    .getByRole('button', { name: 'Open disabled item' });
+  await disabledTrigger.click();
+  const disabledOverlay = page.getByRole('dialog', { name: 'disabled item overlay' });
+  await expect(disabledOverlay.getByRole('button', { name: 'Secondary action' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+
+  const nestedTrigger = page
+    .locator('[data-editor-specimen="overlay-nested-scope"]')
+    .getByRole('button', { name: 'Open nested scope' });
+  await nestedTrigger.click();
+  const nestedOverlay = page.getByRole('dialog', { name: 'nested scope overlay' });
+  await expect(nestedOverlay.getByText('Effects / Texture / Grain')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  const collisionTrigger = page
+    .locator('[data-editor-specimen="overlay-collision-adjusted"]')
+    .getByRole('button', { name: 'Open collision adjusted' });
+  await collisionTrigger.click();
+  const collisionOverlay = page.getByRole('dialog', { name: 'collision adjusted overlay' });
+  await expect(collisionOverlay).toHaveAttribute('data-editor-overlay-collision-adjusted', 'true');
+  const collisionBox = await collisionOverlay.boundingBox();
+  const viewport = page.viewportSize();
+  expect(collisionBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(collisionBox!.x).toBeGreaterThanOrEqual(0);
+  expect(collisionBox!.x + collisionBox!.width).toBeLessThanOrEqual(viewport!.width);
+  await page.keyboard.press('Escape');
+
+  const mobileTrigger = page
+    .locator('[data-editor-specimen="overlay-mobile-sheet"]')
+    .getByRole('button', { name: 'Open mobile sheet' });
+  await mobileTrigger.click();
+  const mobileOverlay = page.getByRole('dialog', { name: 'mobile sheet overlay' });
+  await expect(mobileOverlay).toHaveClass(/editor-overlay-frame--sheet/);
+  await page.keyboard.press('Escape');
 }
 
 async function expectNoPageOverflow(page: import('@playwright/test').Page) {

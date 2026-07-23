@@ -1,7 +1,7 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef } from 'react';
 import type { GraphArea, Layer } from '../../types/config';
+import { EditorOverlayFrame } from '../editor-workflow/EditorOverlayFrame';
 import { clampPopupPosition } from '../node-canvas/helpers';
-import { FloatingMenu } from '../ui/floating-menu';
 import { MenuDivider, MenuItem } from '../ui/MenuItem';
 
 export interface LayerContextMenuState {
@@ -94,15 +94,18 @@ export function LayerContextMenu({
   };
 
   return (
-    <FloatingMenu
-      ref={menuRef}
-      x={menuPosition.left}
-      y={menuPosition.top}
-      className="artifact-menu layer-context-menu"
-      style={{ width: menuWidth, padding: '4px 0' }}
+    <EditorOverlayFrame
+      variant="floating"
+      open
       onOpenChange={(open) => {
         if (!open) close(restoreFocusRef.current);
       }}
+      contentRef={menuRef}
+      position={{ x: menuPosition.left, y: menuPosition.top }}
+      className="artifact-menu layer-context-menu"
+      style={{ width: menuWidth, padding: '4px 0' }}
+      title="Layer actions"
+      description="Edit the selected layers or organize them in an area."
       onEscapeKeyDown={() => {
         restoreFocusRef.current = true;
       }}
@@ -133,7 +136,7 @@ export function LayerContextMenu({
         onRemoveSelectionFromAreas={onRemoveSelectionFromAreas}
         onRun={run}
       />
-    </FloatingMenu>
+    </EditorOverlayFrame>
   );
 }
 

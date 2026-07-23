@@ -16,6 +16,28 @@ interface EditorOrganizationGroupProps extends ComponentPropsWithoutRef<'div'> {
   hiddenContent?: boolean;
 }
 
+type EditorOrganizationSlotProps = ComponentPropsWithoutRef<'div'>;
+
+export function EditorOrganizationHeader({ className, ...props }: EditorOrganizationSlotProps) {
+  return <div {...props} className={cn('editor-organization-group__header', className)} />;
+}
+
+export function EditorOrganizationIdentity({ className, ...props }: EditorOrganizationSlotProps) {
+  return <div {...props} className={cn('editor-organization-group__identity', className)} />;
+}
+
+export function EditorOrganizationStatus({ className, ...props }: EditorOrganizationSlotProps) {
+  return <div {...props} className={cn('editor-organization-group__status', className)} />;
+}
+
+export function EditorOrganizationActions({ className, ...props }: EditorOrganizationSlotProps) {
+  return <div {...props} className={cn('editor-organization-group__actions', className)} />;
+}
+
+export function EditorOrganizationContent({ className, ...props }: EditorOrganizationSlotProps) {
+  return <div {...props} className={cn('editor-organization-group__content', className)} />;
+}
+
 export const EditorOrganizationGroup = forwardRef<HTMLDivElement, EditorOrganizationGroupProps>(
   function EditorOrganizationGroup(
     {

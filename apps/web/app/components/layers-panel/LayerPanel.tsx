@@ -15,7 +15,12 @@ import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EditorCommandGroup } from '../editor-workflow/EditorCommandGroup';
-import { EditorRowFrame } from '../editor-workflow/EditorRowFrame';
+import {
+  EditorRowFrame,
+  EditorRowLeading,
+  EditorRowMetadata,
+  EditorRowPrimary,
+} from '../editor-workflow/EditorRowFrame';
 import { ActionButton } from '../ui/ActionButton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
@@ -209,6 +214,11 @@ export function LayerPanel({
     [areasByLayerId, onRemoveLayersFromAreas],
   );
 
+  const handleClearLayerSelection = useCallback(() => {
+    setSelectedLayerIds(new Set());
+    onSelectLayer(null);
+  }, [onSelectLayer, setSelectedLayerIds]);
+
   return (
     <div className="flex flex-col min-h-0 h-full">
       <LayerPanelHeader
@@ -233,8 +243,11 @@ export function LayerPanel({
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
           graphAreas={graphAreas}
+          hasAreaMembership={selectedActionLayerIds.some((id) => areasByLayerId.has(id))}
           onCreateAreaFromSelection={handleCreateAreaFromSelection}
           onAddSelectionToArea={handleAddSelectionToArea}
+          onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
+          onClearSelection={handleClearLayerSelection}
         />
         <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
         {displayItems.map((item) => (
@@ -371,13 +384,19 @@ function LayerPanelEmptyState({ visible }: { visible: boolean }) {
 function LayerSelectionActions({
   selectedActionLayerIds,
   graphAreas,
+  hasAreaMembership,
   onCreateAreaFromSelection,
   onAddSelectionToArea,
+  onRemoveSelectionFromAreas,
+  onClearSelection,
 }: {
   selectedActionLayerIds: string[];
   graphAreas: GraphArea[];
+  hasAreaMembership: boolean;
   onCreateAreaFromSelection: (ids: string[]) => void;
   onAddSelectionToArea: (areaId: string, ids: string[]) => void;
+  onRemoveSelectionFromAreas: (ids: string[]) => void;
+  onClearSelection: () => void;
 }) {
   if (selectedActionLayerIds.length <= 1) return null;
   return (
@@ -403,6 +422,14 @@ function LayerSelectionActions({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      {hasAreaMembership ? (
+        <ActionButton variant="quiet" onClick={() => onRemoveSelectionFromAreas(selectedActionLayerIds)}>
+          Remove from area
+        </ActionButton>
+      ) : null}
+      <ActionButton variant="quiet" onClick={onClearSelection}>
+        Clear selection
+      </ActionButton>
     </EditorCommandGroup>
   );
 }
@@ -559,37 +586,43 @@ function Scene3DLayerRow({
       }`}
       onClick={() => onSelectLayer(scene.id)}
     >
-      <LayerSelectionControl
-        label={`Select ${scene.name} scene layer`}
-        selected={selected}
-        onSelect={() => onSelectLayer(scene.id)}
-      />
-      <span className="layer-row-drag-handle text-dim text-[10px] flex-shrink-0" aria-hidden="true">
-        ·
-      </span>
-      <span className="font-mono text-[10px] flex-shrink-0 w-5 text-center text-accent" style={{ fontWeight: 700 }}>
-        ◌
-      </span>
-      <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
-        {scene.name}
-      </span>
-      <span className="layer-meta-badge" title="3D model and environment are edited from this scene layer">
-        3D Scene
-      </span>
-      {model && (
-        <span className="layer-area-chip" title={model.modelName} aria-label={`Model: ${model.modelName}`}>
-          model
+      <EditorRowLeading>
+        <LayerSelectionControl
+          label={`Select ${scene.name} scene layer`}
+          selected={selected}
+          onSelect={() => onSelectLayer(scene.id)}
+        />
+        <span className="layer-row-drag-handle text-dim text-[10px] flex-shrink-0" aria-hidden="true">
+          ·
         </span>
-      )}
-      {(environment || scene.environmentName) && (
-        <span
-          className="layer-area-chip"
-          title={environment?.environmentName || scene.environmentName}
-          aria-label={`Environment: ${environment?.environmentName || scene.environmentName}`}
-        >
-          env
+        <span className="font-mono text-[10px] flex-shrink-0 w-5 text-center text-accent" style={{ fontWeight: 700 }}>
+          ◌
         </span>
-      )}
+      </EditorRowLeading>
+      <EditorRowPrimary>
+        <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
+          {scene.name}
+        </span>
+      </EditorRowPrimary>
+      <EditorRowMetadata>
+        <span className="layer-meta-badge" title="3D model and environment are edited from this scene layer">
+          3D Scene
+        </span>
+        {model && (
+          <span className="layer-area-chip" title={model.modelName} aria-label={`Model: ${model.modelName}`}>
+            model
+          </span>
+        )}
+        {(environment || scene.environmentName) && (
+          <span
+            className="layer-area-chip"
+            title={environment?.environmentName || scene.environmentName}
+            aria-label={`Environment: ${environment?.environmentName || scene.environmentName}`}
+          >
+            env
+          </span>
+        )}
+      </EditorRowMetadata>
     </EditorRowFrame>
   );
 }

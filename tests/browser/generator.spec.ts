@@ -1833,6 +1833,21 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
 });
 
+test('layer add library detail pane inserts the selected item', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const menu = page.locator('.add-library-layer-menu');
+  await menu.getByRole('button', { name: 'Add Fill' }).click();
+
+  await expect(page.locator('.layer-row').filter({ hasText: 'Fill' })).toHaveCount(1, { timeout: 15_000 });
+  await expectStoredLayerSummaries(page, [
+    { name: 'Bottom fill', kind: 'fill' },
+    { name: 'Top fill', kind: 'fill' },
+    { name: 'Fill', kind: 'fill' },
+  ]);
+});
+
 test('layer add library dismisses with Escape and returns focus to its trigger', async ({ page }) => {
   await gotoDocument(page, layeredFillDocument);
 
@@ -2656,6 +2671,14 @@ test('layer drag reorder shows a readable insertion target and syncs the linear 
     rightNodeId: 'bottom-fill',
   });
   await expectLayerCanvasToHavePixels(page);
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expectStoredGraphLayerOrder(page, {
+    layerIds: ['bottom-fill', 'top-fill'],
+    graphEdges: ['bottom-fill->top-fill', 'top-fill->__export__'],
+    leftNodeId: 'bottom-fill',
+    rightNodeId: 'top-fill',
+  });
 });
 
 test('layer drag reorder uses the final drop row even after stale dragover state', async ({ page }) => {
@@ -3644,6 +3667,11 @@ test('layers can create areas from multi-selected rows', async ({ page }) => {
   await expect(page.locator('.layer-area-folder')).toContainText('Area 1');
   await expect(page.locator('.layer-area-folder')).toContainText('2');
   await expectStoredAreaNodeIds(page, ['layer-area-backdrop', 'layer-area-type'], { containing: true });
+
+  const selectionActions = page.locator('.layer-selection-actions');
+  await expect(selectionActions.getByRole('button', { name: 'Remove from area' })).toBeVisible();
+  await selectionActions.getByRole('button', { name: 'Clear selection' }).click();
+  await expect(selectionActions).toBeHidden();
 });
 
 test('layer area folders can be renamed', async ({ page }) => {

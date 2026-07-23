@@ -694,7 +694,7 @@ function AddLibraryBody({
         onActivateItem={onActivateItem}
         onAdd={onAdd}
       />
-      <AddLibraryDetail item={activeItem} favorite={favorite} onToggleFavorite={onToggleFavorite} />
+      <AddLibraryDetail item={activeItem} favorite={favorite} onAdd={onAdd} onToggleFavorite={onToggleFavorite} />
     </div>
   );
 }
@@ -717,6 +717,12 @@ function AddLibraryList({
   onAdd: (item: AddLibraryItem) => void;
 }) {
   const empty = sections.length === 0 || flatItems.length === 0;
+
+  useEffect(() => {
+    if (empty) return;
+    document.getElementById(`${resultListId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, empty, resultListId]);
+
   return (
     <div
       id={resultListId}
@@ -797,10 +803,12 @@ function AddLibrarySectionRows({
 function AddLibraryDetail({
   item,
   favorite,
+  onAdd,
   onToggleFavorite,
 }: {
   item: AddLibraryItem | null;
   favorite: boolean;
+  onAdd: (item: AddLibraryItem) => void;
   onToggleFavorite: (item: AddLibraryItem) => void;
 }) {
   if (!item) {
@@ -819,7 +827,7 @@ function AddLibraryDetail({
       data-add-kind={item.group}
       aria-hidden={false}
     >
-      <AddLibraryDetailContent item={item} favorite={favorite} onToggleFavorite={onToggleFavorite} />
+      <AddLibraryDetailContent item={item} favorite={favorite} onAdd={onAdd} onToggleFavorite={onToggleFavorite} />
     </aside>
   );
 }
@@ -827,10 +835,12 @@ function AddLibraryDetail({
 function AddLibraryDetailContent({
   item,
   favorite,
+  onAdd,
   onToggleFavorite,
 }: {
   item: AddLibraryItem;
   favorite: boolean;
+  onAdd: (item: AddLibraryItem) => void;
   onToggleFavorite: (item: AddLibraryItem) => void;
 }) {
   const group = ADD_LIBRARY_GROUPS.find((entry) => entry.id === item.group);
@@ -843,6 +853,9 @@ function AddLibraryDetailContent({
         <span className="add-library-detail-result">{addLibraryResultLabel(item)}</span>
         <p>{item.description}</p>
         <AddLibraryTags tags={item.tags} />
+        <ActionButton type="button" variant="primary" onClick={() => onAdd(item)}>
+          Add {item.label}
+        </ActionButton>
         <ActionButton
           type="button"
           className={favoriteClassName(favorite)}

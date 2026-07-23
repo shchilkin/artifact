@@ -1,16 +1,10 @@
 import { useCallback, useState } from 'react';
 import { EditorCommandBar } from './editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from './editor-workflow/EditorCommandGroup';
+import { EditorOverlayFrame } from './editor-workflow/EditorOverlayFrame';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
 import { ActionButton } from './ui/ActionButton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from './ui/dropdown-menu';
 
 interface Props {
   onNewBlank: () => void;
@@ -159,9 +153,19 @@ function MoreMenu({
   onSaveDocument: () => void;
   onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <EditorOverlayFrame
+      variant="menu"
+      open={open}
+      onOpenChange={setOpen}
+      align="end"
+      side="top"
+      className="bottom-share-menu"
+      title="More editor actions"
+      description="Open, share, or download editable files."
+      trigger={
         <ActionButton
           aria-label="More editor actions"
           title="Open, share, or download editable files"
@@ -170,18 +174,17 @@ function MoreMenu({
         >
           MORE
         </ActionButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="bottom-share-menu">
-        <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
-        <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
-        <ShareMenuItems
-          copied={copied}
-          onCopyLink={onCopyLink}
-          onSaveDocument={onSaveDocument}
-          onSaveProjectPackage={onSaveProjectPackage}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+    >
+      <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
+      <DropdownMenuSeparator className="artifact-dropdown-menu-separator" />
+      <ShareMenuItems
+        copied={copied}
+        onCopyLink={onCopyLink}
+        onSaveDocument={onSaveDocument}
+        onSaveProjectPackage={onSaveProjectPackage}
+      />
+    </EditorOverlayFrame>
   );
 }
 
@@ -196,9 +199,19 @@ function ShareMenu({
   onSaveDocument: () => void;
   onSaveProjectPackage: (fontEmbeddingMode?: 'license-aware' | 'explicit-font-files') => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <EditorOverlayFrame
+      variant="menu"
+      open={open}
+      onOpenChange={setOpen}
+      align="start"
+      side="top"
+      className="bottom-share-menu"
+      title="Share link or download editable files"
+      description="Copy an editor link or download editable files."
+      trigger={
         <ActionButton
           aria-label="Share link or download editable files"
           title="Copy an editor link or download editable files"
@@ -207,16 +220,15 @@ function ShareMenu({
         >
           SHARE
         </ActionButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="bottom-share-menu">
-        <ShareMenuItems
-          copied={copied}
-          onCopyLink={onCopyLink}
-          onSaveDocument={onSaveDocument}
-          onSaveProjectPackage={onSaveProjectPackage}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+    >
+      <ShareMenuItems
+        copied={copied}
+        onCopyLink={onCopyLink}
+        onSaveDocument={onSaveDocument}
+        onSaveProjectPackage={onSaveProjectPackage}
+      />
+    </EditorOverlayFrame>
   );
 }
 

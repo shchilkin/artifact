@@ -472,6 +472,11 @@
   padding: var(--space-3);
 }
 
+.style-guide-workflow-state--collision {
+  width: min(100%, 230px);
+  justify-self: end;
+}
+
 .style-guide-workflow-state__label {
   overflow: hidden;
   color: var(--text-muted);

@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { AddAction } from '../../../utils/addActions';
 import { AddLibraryPanel } from '../../add-library/AddLibraryPanel';
 import { preserveScopedAddLibraryEscape } from '../../add-library/addLibraryEscape';
@@ -8,8 +8,7 @@ import {
   parseAddLibraryAction,
 } from '../../add-library/addLibraryModel';
 import { useAddLibraryMobileSheet } from '../../add-library/useAddLibraryMobileSheet';
-import { FloatingMenu } from '../../ui/floating-menu';
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../ui/sheet';
+import { EditorOverlayFrame } from '../../editor-workflow/EditorOverlayFrame';
 import { clampPopupPosition } from '../helpers';
 import type { PaneMenuProps } from '../types';
 
@@ -60,39 +59,26 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
     />
   );
 
-  if (mobileSheet) {
-    return (
-      <Sheet open onOpenChange={(open) => !open && onClose()}>
-        <SheetContent
-          ref={menuRef}
-          side="bottom"
-          className="add-library-surface add-library-node-menu nadd-surface add-library-mobile nadd-mobile"
-          style={{ '--artifact-sheet-height': '82vh' } as CSSProperties}
-          onEscapeKeyDown={preserveScopedAddLibraryEscape}
-          onWheelCapture={(event) => event.stopPropagation()}
-        >
-          <SheetTitle className="sr-only">Add node</SheetTitle>
-          <SheetDescription className="sr-only">
-            Search nodes, sources, effects, and utilities to add to the graph.
-          </SheetDescription>
-          {content}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <FloatingMenu
-      ref={menuRef}
-      x={position.left}
-      y={position.top}
-      className="add-library-surface add-library-node-menu nadd-surface"
-      style={{ width: MENU_W }}
+    <EditorOverlayFrame
+      variant="floating"
+      open
       onOpenChange={(open) => !open && onClose()}
+      contentRef={menuRef}
+      position={{ x: position.left, y: position.top }}
+      mobile={mobileSheet}
+      mobileHeight="82vh"
+      className={
+        mobileSheet
+          ? 'add-library-surface add-library-node-menu nadd-surface add-library-mobile nadd-mobile'
+          : 'add-library-surface add-library-node-menu nadd-surface'
+      }
+      style={mobileSheet ? undefined : { width: MENU_W }}
+      title="Add node"
+      description="Search nodes, sources, effects, and utilities to add to the graph."
       onEscapeKeyDown={preserveScopedAddLibraryEscape}
-      onWheelCapture={(event) => event.stopPropagation()}
     >
       {content}
-    </FloatingMenu>
+    </EditorOverlayFrame>
   );
 }

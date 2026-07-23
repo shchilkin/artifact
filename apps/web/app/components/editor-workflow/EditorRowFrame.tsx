@@ -16,6 +16,24 @@ interface EditorRowFrameProps extends ComponentPropsWithoutRef<'div'> {
   selected?: boolean;
 }
 
+type EditorRowSlotProps = ComponentPropsWithoutRef<'div'>;
+
+export function EditorRowLeading({ className, ...props }: EditorRowSlotProps) {
+  return <div {...props} className={cn('editor-row-frame__leading', className)} />;
+}
+
+export function EditorRowPrimary({ className, ...props }: EditorRowSlotProps) {
+  return <div {...props} className={cn('editor-row-frame__primary', className)} />;
+}
+
+export function EditorRowMetadata({ className, ...props }: EditorRowSlotProps) {
+  return <div {...props} className={cn('editor-row-frame__metadata', className)} />;
+}
+
+export function EditorRowActions({ className, ...props }: EditorRowSlotProps) {
+  return <div {...props} className={cn('editor-row-frame__actions', className)} />;
+}
+
 export const EditorRowFrame = forwardRef<HTMLDivElement, EditorRowFrameProps>(function EditorRowFrame(
   {
     className,

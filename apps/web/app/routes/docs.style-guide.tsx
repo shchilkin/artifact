@@ -5,7 +5,7 @@ import {
   FoundationOverlayMatrix,
 } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
-import { type ComponentProps, type CSSProperties, type ReactNode, useRef, useState } from 'react';
+import { type ComponentProps, type CSSProperties, type KeyboardEvent, type ReactNode, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
@@ -1012,19 +1012,45 @@ function WorkflowPatternGroup({ label, children }: { label: string; children: Re
 }
 
 function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_STATES)[number] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(state === 'open');
+  const [busy, setBusy] = useState(state === 'busy');
+  const [openMethod, setOpenMethod] = useState<'keyboard' | 'pointer'>();
   const label = stateLabel(state);
+  const recordKeyboardOpen = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (['Enter', ' ', 'ArrowDown'].includes(event.key)) setOpenMethod('keyboard');
+  };
+  const finish = () => {
+    setBusy(false);
+    setOpen(false);
+  };
+
   return (
-    <div className="style-guide-workflow-state" data-editor-specimen={`overlay-${state}`}>
+    <div
+      className={`style-guide-workflow-state ${
+        state === 'collision-adjusted' ? 'style-guide-workflow-state--collision' : ''
+      }`}
+      data-editor-specimen={`overlay-${state}`}
+    >
       <span className="style-guide-workflow-state__label">{label}</span>
       <EditorOverlayFrame
         open={open}
         onOpenChange={setOpen}
-        busy={state === 'busy'}
+        busy={busy && state === 'busy'}
+        collisionAdjusted={state === 'collision-adjusted'}
         mobile={state === 'mobile-sheet'}
+        openMethod={openMethod}
+        align={state === 'collision-adjusted' ? 'end' : 'start'}
         title={`${label} overlay`}
         description="Choose an editor action."
-        trigger={<ActionButton variant="secondary">Open {label}</ActionButton>}
+        trigger={
+          <ActionButton
+            variant="secondary"
+            onPointerDown={() => setOpenMethod('pointer')}
+            onKeyDown={recordKeyboardOpen}
+          >
+            Open {label}
+          </ActionButton>
+        }
       >
         <div className="style-guide-editor-overlay-content">
           <strong>{label}</strong>
@@ -1032,9 +1058,15 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
           <ActionButton variant="quiet" disabled={state === 'disabled-item'}>
             Secondary action
           </ActionButton>
-          <ActionButton variant="primary" onClick={() => setOpen(false)}>
-            Done
-          </ActionButton>
+          {state === 'busy' ? (
+            <ActionButton variant="primary" onClick={finish}>
+              Finish busy state
+            </ActionButton>
+          ) : (
+            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+              Done
+            </ActionButton>
+          )}
         </div>
       </EditorOverlayFrame>
     </div>

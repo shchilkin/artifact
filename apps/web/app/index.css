@@ -1470,6 +1470,14 @@ input[type="range"] {
   box-shadow: inset 2px 0 0 color-mix(in oklch, var(--accent) 42%, transparent);
 }
 
+.storage-warning-strip > .editor-workflow-notice__content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .storage-warning-strip__main {
   display: flex;
   flex: 1;
@@ -1757,10 +1765,6 @@ input[type="range"] {
   --layer-row-color: var(--accent);
 
   position: relative;
-  display: grid;
-  grid-template-columns: 24px 28px minmax(0, 1fr) 28px;
-  align-items: center;
-  gap: 8px;
   border-bottom: 1px solid color-mix(in oklch, var(--border) 76%, transparent) !important;
   background: color-mix(in oklch, var(--panel-bg) 90%, var(--bg));
   color: var(--text-secondary);
@@ -1893,9 +1897,9 @@ input[type="range"] {
   text-decoration-color: color-mix(in oklch, var(--text-muted) 60%, transparent);
 }
 
-.layer-row.bg-accent-dim > .layer-row-drag-handle,
-.layer-row-selected > .layer-row-drag-handle,
-.layer-row:hover > .layer-row-drag-handle {
+.layer-row.bg-accent-dim .layer-row-drag-handle,
+.layer-row-selected .layer-row-drag-handle,
+.layer-row:hover .layer-row-drag-handle {
   color: color-mix(in oklch, var(--layer-row-color) 82%, var(--text));
 }
 
@@ -3100,12 +3104,9 @@ input[type="range"] {
 }
 
 .layer-area-folder-header {
-  display: flex;
   width: 100%;
   min-height: 30px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 92px 0 12px;
+  padding: 0 12px;
   border-bottom: 1px solid color-mix(in oklch, var(--border) 76%, transparent);
   background: color-mix(in oklch, var(--layer-area-color, var(--accent)) 5%, transparent);
   color: var(--text);
@@ -3200,28 +3201,13 @@ input[type="range"] {
 
 .layer-area-rename,
 .layer-area-remove {
-  position: absolute;
-  top: 4px;
-  z-index: 1;
   width: 22px;
   height: 22px;
   justify-content: center;
   padding: 0;
 }
 
-.layer-area-remove {
-  right: 58px;
-}
-
-.layer-area-rename {
-  right: 34px;
-}
-
 .layer-area-visibility {
-  position: absolute;
-  top: 4px;
-  right: 10px;
-  z-index: 1;
   display: inline-flex;
   width: 22px;
   height: 22px;
