@@ -1840,7 +1840,7 @@ test('layer add library detail pane inserts the selected item', async ({ page })
   const menu = page.locator('.add-library-layer-menu');
   await menu.getByRole('button', { name: 'Add Fill' }).click();
 
-  await expect(page.locator('.layer-row').filter({ hasText: 'Fill' })).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Fill', exact: true })).toHaveCount(1, { timeout: 15_000 });
   await expectStoredLayerSummaries(page, [
     { name: 'Bottom fill', kind: 'fill' },
     { name: 'Top fill', kind: 'fill' },
