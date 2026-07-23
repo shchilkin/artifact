@@ -3518,7 +3518,6 @@ input[type="range"] {
   position: fixed;
   top: 50%;
   left: 50%;
-  z-index: var(--z-overlay);
   max-height: calc(100dvh - 32px);
   overflow: auto;
   transform: translate(-50%, -50%);
