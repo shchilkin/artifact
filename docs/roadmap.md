@@ -20,15 +20,18 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.45.1 is the bounded Site Navigation Hotfix release candidate. It prevents
+- v0.45.1 was released on 2026-07-23 as the bounded Site Navigation Hotfix. It
+  prevents
   the mobile-only public navigation trigger from leaking onto desktop when
   production CSS chunks load in a different order, preserves the mobile menu
   contract, and adds a production-preview public-shell segment to the browser
   release gate. It also keeps Add Library keyboard selection authoritative when
-  programmatic scrolling moves rows beneath a stationary pointer. Issues #220,
-  #223, and #226 and milestone #10 track the patch and its release-gate
-  stabilization. Authentication, routing, document state, rendering,
-  persistence, export, Backoffice behavior, and AI scope remain unchanged. See
+  programmatic scrolling moves rows beneath a stationary pointer. Tag `v0.45.1`
+  resolves to production commit
+  `084ff2c3bb74513b4083208a4a74a0446be93c94`; exact-SHA staging, production
+  API, production web, desktop, and mobile verification passed before
+  publication. Authentication, routing, document state, rendering, persistence,
+  export, Backoffice behavior, and AI scope remain unchanged. See
   [`version-plans/v0.45.md`](./version-plans/v0.45.md) and
   [`releases/v0.45.1.md`](./releases/v0.45.1.md).
 - v0.45 was released on 2026-07-23 as the Artifact Editor Workflows release.

@@ -79,7 +79,7 @@ CI should run:
 
 ## Manual QA
 
-### v0.45.1 Release Prep
+### v0.45.1 Release Prep And Evidence
 
 - Package metadata is bumped to `0.45.1` in `package.json`,
   `apps/web/package.json`, `apps/backoffice/package.json`, and
@@ -128,6 +128,43 @@ CI should run:
   [#223](https://github.com/shchilkin/artifact/issues/223), and
   [#226](https://github.com/shchilkin/artifact/issues/226), and milestone
   [`v0.45.1 Site Navigation Hotfix`](https://github.com/shchilkin/artifact/milestone/10).
+- PRs [#221](https://github.com/shchilkin/artifact/pull/221),
+  [#224](https://github.com/shchilkin/artifact/pull/224), and
+  [#227](https://github.com/shchilkin/artifact/pull/227) delivered the patch
+  and release-gate fixes to `development`. Final post-merge CI
+  [30030752669](https://github.com/shchilkin/artifact/actions/runs/30030752669)
+  and promotion CI
+  [30030757848](https://github.com/shchilkin/artifact/actions/runs/30030757848)
+  passed.
+- Final staging run
+  [30031352344](https://github.com/shchilkin/artifact/actions/runs/30031352344)
+  verified Vercel, Coolify deployment `b8b5t279vbyo08uztfsn7pmr`, and API
+  contract version 1 at
+  `bf55cf18ca7dfea159abd4b80a5156924a5749b6`.
+- Promotion PR [#225](https://github.com/shchilkin/artifact/pull/225) merged the
+  staged tree into `main` as
+  `084ff2c3bb74513b4083208a4a74a0446be93c94`.
+- Tag-and-draft run
+  [30031884419](https://github.com/shchilkin/artifact/actions/runs/30031884419)
+  created annotated tag `v0.45.1` at that exact commit after the complete
+  release gate passed.
+- Production run
+  [30033561907](https://github.com/shchilkin/artifact/actions/runs/30033561907)
+  verified the exact build SHA on staged and production Vercel, Coolify
+  deployment `de7w9njsyy1hw2urxsn6ywqp`, API contract version 1, and
+  `https://artifact.shchilkin.dev`.
+- Live production QA confirmed the mobile trigger has zero desktop geometry at
+  1440 px and that the 44 px trigger opens and closes the accessible menu at
+  390 px.
+- Publish run
+  [30035579059](https://github.com/shchilkin/artifact/actions/runs/30035579059)
+  passed the complete release gate and published
+  [`v0.45.1`](https://github.com/shchilkin/artifact/releases/tag/v0.45.1) as
+  the latest release on 2026-07-23.
+- Failed release run
+  [30022512014](https://github.com/shchilkin/artifact/actions/runs/30022512014)
+  created no tag or release; it exposed the locked-node Firefox regression
+  tracked by #223 before any external release state changed.
 
 ### v0.45.0 Release Prep And Evidence
 
