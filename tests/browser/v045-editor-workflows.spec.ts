@@ -59,6 +59,36 @@ test('focused layer rows support keyboard selection without changing document co
   await expect(baseRow).toHaveAttribute('data-editor-row-selected', 'false');
 });
 
+test('mobile Layers commands and Add Library filters keep 44px targets and readable history text', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoDocument(page, workflowDocument);
+
+  const row = page.locator('.layer-row[data-layer-id="v045-ink"]');
+  await row.getByRole('checkbox', { name: 'Select Signal ink layer' }).focus();
+  await page.keyboard.press('Enter');
+  await row.hover();
+
+  await expectMinimumTarget(row.getByRole('button', { name: 'Drag layer Signal ink' }));
+  await expectMinimumTarget(row.locator('.layer-row-name-button'));
+  await expectMinimumTarget(row.getByRole('button', { name: 'Open actions for layer Signal ink' }));
+  await expectMinimumTarget(page.getByRole('button', { name: /Change canvas aspect ratio/ }));
+  await expectMinimumTarget(page.getByRole('button', { name: 'Add layer' }));
+
+  const newProject = page.getByRole('button', { name: 'Create new project' });
+  const randomize = page.getByRole('button', { name: 'Randomize document' });
+  expect(await renderedContrastRatio(newProject)).toBeGreaterThanOrEqual(4.5);
+  expect(await renderedContrastRatio(randomize)).toBeGreaterThanOrEqual(4.5);
+
+  await page.getByRole('button', { name: 'Add layer' }).click();
+  for (const filter of [
+    page.locator('.add-library-intent').first(),
+    page.locator('.add-library-browse-item').first(),
+    page.locator('.add-library-recipe').first(),
+  ]) {
+    await expectMinimumTarget(filter);
+  }
+});
+
 test('layer context menu supports Home End Escape and returns focus to row selection', async ({ page }) => {
   await gotoDocument(page, workflowDocument);
 
@@ -193,4 +223,35 @@ async function expectNoPageOverflow(page: import('@playwright/test').Page) {
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+}
+
+async function expectMinimumTarget(locator: import('@playwright/test').Locator) {
+  const box = await locator.boundingBox();
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(43.9);
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.9);
+}
+
+async function renderedContrastRatio(locator: import('@playwright/test').Locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const parseRgb = (value: string) => {
+      if (!context) return [0, 0, 0];
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3));
+    };
+    const luminance = (rgb: number[]) =>
+      rgb
+        .map((channel) => channel / 255)
+        .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+        .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    const foreground = luminance(parseRgb(style.color));
+    const background = luminance(parseRgb(style.backgroundColor));
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  });
 }

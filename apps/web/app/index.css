@@ -2963,6 +2963,12 @@ input[type="range"] {
   .add-library-layer-menu .add-library-detail {
     display: none;
   }
+
+  .add-library-intent,
+  .add-library-browse-item,
+  .add-library-recipe {
+    min-height: var(--touch);
+  }
 }
 
 .layer-empty-state {
@@ -4530,6 +4536,34 @@ input[type="range"] {
 }
 
 @media (max-width: 767px) {
+  .layer-row {
+    grid-template-columns: var(--touch) 28px minmax(0, 1fr) var(--touch);
+    gap: 4px;
+  }
+
+  .layer-row-drag-handle {
+    width: var(--touch);
+    min-width: var(--touch);
+  }
+
+  .layer-row-name-button {
+    display: flex;
+    width: 100%;
+    min-height: var(--touch);
+    align-items: center;
+  }
+
+  .layer-row-action {
+    width: var(--touch);
+    min-width: var(--touch);
+    height: var(--touch);
+  }
+
+  .layer-aspect-button,
+  .layer-add-button {
+    min-height: var(--touch);
+  }
+
   .main-nodes > .bottom-bar {
     right: 16px;
     left: 74px;
@@ -4599,7 +4633,7 @@ input[type="range"] {
   .sidebar-mobile-bar .bottom-history-group .action-button--quiet {
     border-color: color-mix(in oklch, var(--line-default) 46%, transparent);
     background: color-mix(in oklch, var(--surface-control) 58%, var(--panel-bg));
-    color: color-mix(in oklch, var(--text-secondary) 62%, transparent);
+    color: var(--text-primary);
   }
 
   .sidebar-mobile-bar .bottom-history-group .action-button--quiet:hover,

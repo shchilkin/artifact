@@ -372,15 +372,15 @@ export default function DocsStyleGuide() {
             Style guide.
           </h1>
           <p className="docs-intro__deck">
-            Reusable primitives, state specimens, and token checks for the editor. This route is intentionally
-            deterministic so visual coverage can protect the UI contract.
+            Reusable primitives, state examples, and editor tokens in one place. Compare controls, feedback, overlays,
+            and workflow patterns across their visible states.
           </p>
         </section>
 
         <StyleSection
           kicker="01 / Tokens"
-          title="Shared contract"
-          body="The first v0.30 token pass names reusable control sizes, typography, surfaces, focus rings, and state colors."
+          title="Design tokens"
+          body="Control sizes, typography, surfaces, focus rings, and state colors keep the editor consistent."
         >
           <div className="style-guide-token-grid" aria-label="Design token specimens">
             <div className="style-guide-brand-marks" aria-label="Artifact brand mark specimens">
@@ -419,7 +419,7 @@ export default function DocsStyleGuide() {
         <StyleSection
           kicker="04 / Base primitives"
           title="Controls"
-          body="Base primitives live in components/ui and should replace repeated local button, search, badge, and toolbar chrome."
+          body="Buttons, search fields, badges, and toolbars share the same compact, tactile control language."
         >
           <div className="style-guide-grid">
             <Specimen label="Action buttons">
