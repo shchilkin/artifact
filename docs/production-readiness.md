@@ -79,6 +79,50 @@ CI should run:
 
 ## Manual QA
 
+### v0.45.0 Release Prep And Evidence
+
+- Package metadata is bumped to `0.45.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.45.0.md` is prepared from the release template without a
+  visible internal checklist.
+- v0.45 migrates the editor shell, command surfaces, Layers organization, and
+  Add Library onto source-owned Artifact patterns while preserving document,
+  graph, renderer, persistence, export, package, font, and AI behavior.
+- The Artifact `/docs/style-guide` contains 48 deterministic reduced specimens
+  for editor navigation, command groups, rows, organization, menus, dialogs,
+  feedback, Add Library, selection, narrow, overflow, empty, loading, and open
+  overlay states.
+- Layers supports keyboard and modifier selection, explicit organization
+  actions, contextual commands, reorder behavior, and undo without changing
+  the existing document-command boundary.
+- Add Library exposes searchable Layers and Nodes options through accessible
+  combobox/listbox semantics with previews, insertion, drag behavior,
+  deterministic favorites and recents, responsive overlays, and nested option
+  scrolling.
+- `npm run check` passed on 2026-07-23 with 20 UI Foundation tests, 682 Web
+  tests, 261 passing API tests with 5 skipped, 11 Backoffice tests, and 25
+  deployment tests, plus formatting, lint, and all type checks.
+- `npm run build` passed for Web and Backoffice. The build retains the existing
+  11 Fast Refresh warnings and large Three.js vendor-chunk warning.
+- The complete browser release gate scheduled 538 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 487 completed successfully and 51 were intentional
+  skips.
+- Focused repeated Firefox and WebKit checks cover Foundation overlays,
+  style-guide initial scroll, Add Library active-option scrolling, import file
+  selection and focus preservation, export pending feedback, and the v0.45
+  workflow specimens.
+- `npm run perf:node-editor` is not required because v0.45 changes no graph
+  traversal, render algorithm, render signature, thumbnail queue, or canvas
+  interaction hot path.
+- Accepted release risk: focused conformance and representative visual review
+  are not a complete visual-regression suite or WCAG certification.
+- Accepted release risk: compatibility wrappers and legacy aliases remain until
+  the v0.48 zero-caller conformance gate.
+- Accepted release risk: the build retains the existing Fast Refresh warnings
+  and large Three.js vendor-chunk warning.
+
 ### v0.44.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.44.0` in `package.json`,
