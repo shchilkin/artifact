@@ -426,13 +426,18 @@ export function AddLibraryPanel({
   };
 
   const handleEscapeKey = () => {
-    if (hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId)) resetLibraryScope();
+    const resetsScope = hasActiveLibraryScope(query, activeRecipeId, activeGroupId, activeIntentId);
+    if (resetsScope) resetLibraryScope();
     else onClose();
+    return resetsScope;
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
-      handleEscapeKey();
+      if (handleEscapeKey()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       return;
     }
 

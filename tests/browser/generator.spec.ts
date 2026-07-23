@@ -1699,6 +1699,25 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
     ]);
 });
 
+test('layer rows support keyboard selection with selection modifiers', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const topFillRow = await getVisibleLayerRow(page, 'Top fill');
+  const bottomFillRow = await getVisibleLayerRow(page, 'Bottom fill');
+
+  await topFillRow.focus();
+  await topFillRow.press('Enter');
+  await expect(topFillRow).toHaveAttribute('aria-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('aria-selected', 'false');
+
+  await bottomFillRow.focus();
+  await page.keyboard.down('Control');
+  await page.keyboard.press('Space');
+  await page.keyboard.up('Control');
+  await expect(topFillRow).toHaveAttribute('aria-selected', 'true');
+  await expect(bottomFillRow).toHaveAttribute('aria-selected', 'true');
+});
+
 test('layer rows expose rename duplicate visibility and delete actions', async ({ page }) => {
   await gotoDocument(page, layeredFillDocument);
 
@@ -1809,6 +1828,20 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
+});
+
+test('layer add library dismisses with Escape and returns focus to its trigger', async ({ page }) => {
+  await gotoDocument(page, layeredFillDocument);
+
+  const trigger = page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' });
+  await trigger.click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeFocused();
+
+  await search.press('Escape');
+
+  await expect(page.locator('.add-library-layer-menu')).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('layer add library shows source previews and can add source presets', async ({ page }) => {

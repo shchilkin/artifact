@@ -22,7 +22,7 @@ import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu
 import { LayerRow } from './LayerRow';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
-import { useLayerSelection } from './useLayerSelection';
+import { type LayerSelectionModifiers, useLayerSelection } from './useLayerSelection';
 
 export interface LayerPanelProps {
   doc: CanvasDocument;
@@ -462,7 +462,7 @@ function LayerDisplayEntry({
   onFinishAreaRename: (id: string, name: string | null) => void;
   onRemoveArea: (areaId: string) => void;
   onToggleAreaVisible: (layers: Layer[], visible: boolean) => void;
-  onSelectLayer: (id: string, event?: ReactMouseEvent<HTMLDivElement>) => void;
+  onSelectLayer: (id: string, event: LayerSelectionModifiers) => void;
   onOpenLayerContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
   onStartEditing: (id: string | null) => void;
   onFinishRename: (id: string, name: string | null) => void;

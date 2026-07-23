@@ -8,6 +8,7 @@ import type { GraphArea, ImageLayer, Layer } from '../../types/config';
 import { getAiGenerationStatusLabel, getAiGenerationUiState } from '../../utils/aiGenerationStatus';
 import { getLayerIcon } from './layerDisplayItems';
 import type { LayerDropPosition } from './useLayerDragReorder';
+import type { LayerSelectionModifiers } from './useLayerSelection';
 
 export interface LayerRowProps {
   layer: Layer;
@@ -16,7 +17,7 @@ export interface LayerRowProps {
   dragOverPosition: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
-  onSelect: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
@@ -333,6 +334,11 @@ export const LayerRow = memo(function LayerRow({
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        onSelect(layer.id, event);
+      }}
       onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(event) => {
         event.stopPropagation();

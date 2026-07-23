@@ -6,6 +6,7 @@ import {
   type AddLibraryAction,
   parseAddLibraryAction,
 } from '../../add-library/addLibraryModel';
+import { useAddLibraryMobileSheet } from '../../add-library/useAddLibraryMobileSheet';
 import { FloatingMenu } from '../../ui/floating-menu';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../ui/sheet';
 import { clampPopupPosition } from '../helpers';
@@ -14,7 +15,7 @@ import type { PaneMenuProps } from '../types';
 const MENU_W = 540;
 
 export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMenuProps) {
-  const mobileSheet = typeof window !== 'undefined' && window.innerWidth <= 640;
+  const mobileSheet = useAddLibraryMobileSheet();
   const position = useMemo(() => clampPopupPosition(x, y, MENU_W, 520), [x, y]);
 
   useEffect(() => {

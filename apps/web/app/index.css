@@ -2938,6 +2938,18 @@ input[type="range"] {
   display: none;
 }
 
+.add-library-preview-unavailable {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: var(--space-3);
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 @media (max-width: 760px) {
   .add-library-layer-menu {
     width: calc(100vw - 16px);
