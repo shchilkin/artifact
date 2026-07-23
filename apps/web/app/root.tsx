@@ -3,7 +3,10 @@ import type { MetaFunction } from 'react-router';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 import './index.css';
+import './styles/product-surfaces.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
+import { PublicPageLayout } from './components/PublicPageLayout';
+import { RouteRecovery } from './components/product-surfaces/RouteRecovery';
 import { GOOGLE_FONT_STYLESHEET_URL } from './types/config';
 import { getAppBuildInfo, logAppBuildInfo } from './utils/appBuildInfo';
 import { registerArtifactServiceWorker } from './utils/pwaRegistration';
@@ -86,7 +89,8 @@ export default function Root() {
 function routeErrorBoundaryView(error: unknown) {
   const routeError = error as { status: number; statusText?: string };
   return {
-    message: routeError.status === 404 ? '404' : 'Error',
+    eyebrow: routeError.status === 404 ? '404 / Not found' : `Error / ${routeError.status}`,
+    message: routeError.status === 404 ? 'Page not found.' : 'Something went wrong.',
     details:
       routeError.status === 404
         ? 'The requested page could not be found.'
@@ -96,11 +100,16 @@ function routeErrorBoundaryView(error: unknown) {
 }
 
 function devErrorBoundaryView(error: Error) {
-  return { message: 'Oops!', details: error.message, stack: error.stack };
+  return { eyebrow: 'Development error', message: 'Something went wrong.', details: error.message, stack: error.stack };
 }
 
 function defaultErrorBoundaryView() {
-  return { message: 'Oops!', details: 'An unexpected error occurred.', stack: undefined };
+  return {
+    eyebrow: 'Unexpected error',
+    message: 'Something went wrong.',
+    details: 'An unexpected error occurred.',
+    stack: undefined,
+  };
 }
 
 function getErrorBoundaryView(error: Route.ErrorBoundaryProps['error']) {
@@ -112,17 +121,27 @@ function getErrorBoundaryView(error: Route.ErrorBoundaryProps['error']) {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const { message, details, stack } = getErrorBoundaryView(error);
+  const { eyebrow, message, details, stack } = getErrorBoundaryView(error);
 
   return (
-    <main className="p-8 container mx-auto">
-      <h1 className="text-2xl font-bold mb-2">{message}</h1>
-      <p className="text-dim">{details}</p>
-      {stack && (
-        <pre className="mt-4 w-full p-4 overflow-x-auto text-xs bg-black/10 rounded">
-          <code>{stack}</code>
-        </pre>
-      )}
-    </main>
+    <PublicPageLayout className="product-route-layout">
+      <main className="product-route-main">
+        <RouteRecovery
+          eyebrow={eyebrow}
+          title={message}
+          detail={details}
+          diagnostics={
+            stack ? (
+              <details>
+                <summary>Development details</summary>
+                <pre>
+                  <code>{stack}</code>
+                </pre>
+              </details>
+            ) : null
+          }
+        />
+      </main>
+    </PublicPageLayout>
   );
 }

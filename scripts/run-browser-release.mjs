@@ -29,6 +29,13 @@ const releaseSegments = [
     args: ['projects-storage.spec.ts', 'v029-smoke.spec.ts', 'v030-visual.spec.ts', 'v036-3d-model-retro.spec.ts'],
     serverMode: 'dev',
   },
+  {
+    label: 'Chromium configured account overlay',
+    script: 'test:browser:chromium',
+    args: ['v044-auth.spec.ts'],
+    serverMode: 'dev',
+    authConfigured: true,
+  },
   { label: 'Firefox', script: 'test:browser:firefox', args: [], serverMode: 'dev' },
   {
     label: 'WebKit',
@@ -70,6 +77,7 @@ for (const segment of segments) {
     cwd: process.cwd(),
     env: {
       ...browserBuildEnv,
+      VITE_AUTH_API_BASE_URL: segment.authConfigured ? webServerBaseUrl : '',
       PLAYWRIGHT_REUSE_SERVER: '0',
       PLAYWRIGHT_WEB_SERVER_PORT: webServerPort,
       PLAYWRIGHT_WEB_SERVER_MODE: segment.serverMode,

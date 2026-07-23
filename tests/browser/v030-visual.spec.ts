@@ -196,9 +196,10 @@ test('narrow node bottom rail wraps into viewport-safe command rows', async ({ p
 test('v0.30 style guide exposes reusable primitives and editor states', async ({ page }) => {
   await page.goto('/docs/style-guide');
 
-  await expect(page.getByRole('navigation', { name: 'Site navigation' })).toBeVisible();
+  const siteNavigation = page.getByRole('navigation', { name: 'Site navigation' });
+  await expect(siteNavigation).toBeVisible();
   await expect(page.getByRole('link', { name: 'artifact' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open editor' })).toBeVisible();
+  await expect(siteNavigation.getByRole('link', { name: 'Open editor' })).toBeVisible();
   await expect(page.getByRole('contentinfo')).toBeAttached();
   await expect(page.getByRole('heading', { name: 'Style guide.' })).toBeVisible();
   await expect(page.getByText('Artifact editor design system')).toBeVisible();

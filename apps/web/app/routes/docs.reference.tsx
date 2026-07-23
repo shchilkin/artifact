@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 
+import { ActionButton } from '../components/ui/ActionButton';
+import { EmptyState } from '../components/ui/EmptyState';
 import { SearchField } from '../components/ui/SearchField';
 import { EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
 import {
@@ -69,14 +71,16 @@ export default function DocsReference() {
         />
         <div className="docs-type-filter docs-type-filter--inline" aria-label="Filter reference nodes">
           {REFERENCE_FILTERS.map((item) => (
-            <button
-              type="button"
+            <ActionButton
               key={item}
               className={`docs-type-filter__item${filter === item ? ' docs-type-filter__item--active' : ''}`}
+              aria-pressed={filter === item}
               onClick={() => setFilter(item)}
+              size="compact"
+              variant={filter === item ? 'primary' : 'quiet'}
             >
               {item}
-            </button>
+            </ActionButton>
           ))}
         </div>
         <span className="docs-search-count">{visibleNodes.length} nodes</span>
@@ -84,19 +88,27 @@ export default function DocsReference() {
 
       <DocsSection id="nodes" eyebrow="Node library" title="Open the exact node.">
         <div className="docs-reference-list">
-          {visibleNodes.map((node) => (
-            <Link key={node.id} to={`/docs/reference/${node.id}`} className="docs-reference-row">
-              <span className="docs-reference-row__symbol" aria-hidden="true">
-                {node.symbol}
-              </span>
-              <div>
-                <span className="docs-recipe__mode">{nodeTypeLabel(node)}</span>
-                <h3>{node.name}</h3>
-                <p>{node.desc}</p>
-              </div>
-              <span>Open</span>
-            </Link>
-          ))}
+          {visibleNodes.length > 0 ? (
+            visibleNodes.map((node) => (
+              <Link key={node.id} to={`/docs/reference/${node.id}`} className="docs-reference-row">
+                <span className="docs-reference-row__symbol" aria-hidden="true">
+                  {node.symbol}
+                </span>
+                <div>
+                  <span className="docs-recipe__mode">{nodeTypeLabel(node)}</span>
+                  <h3>{node.name}</h3>
+                  <p>{node.desc}</p>
+                </div>
+                <span>Open</span>
+              </Link>
+            ))
+          ) : (
+            <EmptyState
+              body="Try a broader term or switch to all node types."
+              eyebrow="Reference"
+              title="No matching nodes."
+            />
+          )}
         </div>
       </DocsSection>
 

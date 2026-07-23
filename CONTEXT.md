@@ -163,6 +163,15 @@ The visual language and product patterns for Artifact's creative workspace,
 including Chat, Layers, Nodes, and public creative surfaces.
 _Avoid_: Main UI, frontend styles
 
+**Product Surface Pattern**:
+An Artifact-owned composition of UI Foundation primitives for recurring
+non-editor experiences such as public navigation, recovery, discovery,
+artwork frames, project libraries, Docs navigation, reference rows, and empty
+or failed route states. Product Surface Patterns may be shared by Artifact
+routes and reduced style-guide specimens, but do not belong in UI Foundation
+or the Backoffice UI System.
+_Avoid_: Generic page template, shared visual theme, route-specific chrome
+
 **Backoffice UI System**:
 The visual language and operational patterns for account, usage, and
 administrative workflows in Backoffice.

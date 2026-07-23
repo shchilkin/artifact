@@ -344,6 +344,26 @@ body {
   padding: 0;
 }
 
+.site-nav-mobile-toggle.artifact-icon-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.site-nav-mobile-toggle.artifact-icon-button:hover,
+.site-nav-mobile-toggle.artifact-icon-button:focus-visible {
+  border-color: var(--line-default);
+  background: var(--surface-control);
+}
+
+.site-nav-mobile-toggle .ui-command__icon,
+.site-nav-mobile-toggle__icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 .site-nav-toggle-bar {
   display: block;
   width: 20px;

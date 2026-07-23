@@ -1,9 +1,11 @@
+import { ProgressIndicator, Skeleton } from '@artifact/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MetaFunction } from 'react-router';
-import { Footer } from '../components/Footer';
-import { SiteNav } from '../components/SiteNav';
+import { Link, type MetaFunction } from 'react-router';
+import { PublicPageLayout } from '../components/PublicPageLayout';
+import { ProductPageHeader } from '../components/product-surfaces/ProductPageHeader';
 import { ActionButton } from '../components/ui/ActionButton';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { CURATED_EXAMPLES } from '../utils/curatedExamples';
 import { generateThumbnail } from '../utils/generateThumbnail';
@@ -27,6 +29,7 @@ interface ShowcaseItem {
   aspect: AspectRatio;
   doc: CanvasDocument;
   thumbnail: string | null;
+  thumbnailError?: boolean;
 }
 
 const ASPECT_ROTATION: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9', '4:5', '1:1', '16:9', '9:16'];
@@ -114,6 +117,7 @@ async function renderShowcaseThumbnail(item: ShowcaseItem): Promise<string> {
 async function renderThumbnailBatch(
   batch: ShowcaseItem[],
   onThumbnail: (id: string, thumbnail: string) => void,
+  onError: (id: string) => void,
   isCancelled: () => boolean = () => false,
 ) {
   let cursor = 0;
@@ -123,7 +127,7 @@ async function renderThumbnailBatch(
     return item;
   };
   const workers = Array.from({ length: thumbnailWorkerCount(batch) }, () =>
-    renderThumbnailWorker(nextItem, onThumbnail, isCancelled),
+    renderThumbnailWorker(nextItem, onThumbnail, onError, isCancelled),
   );
   await Promise.all(workers);
 }
@@ -135,25 +139,27 @@ function thumbnailWorkerCount(batch: ShowcaseItem[]) {
 async function renderThumbnailWorker(
   nextItem: () => ShowcaseItem | undefined,
   onThumbnail: (id: string, thumbnail: string) => void,
+  onError: (id: string) => void,
   isCancelled: () => boolean,
 ) {
   while (!isCancelled()) {
     const item = nextItem();
     if (!item) return;
-    await renderThumbnailItem(item, onThumbnail, isCancelled);
+    await renderThumbnailItem(item, onThumbnail, onError, isCancelled);
   }
 }
 
 async function renderThumbnailItem(
   item: ShowcaseItem,
   onThumbnail: (id: string, thumbnail: string) => void,
+  onError: (id: string) => void,
   isCancelled: () => boolean,
 ) {
   try {
     const thumbnail = await renderShowcaseThumbnail(item);
     if (!isCancelled()) onThumbnail(item.id, thumbnail);
   } catch {
-    // ignore single-item failures
+    if (!isCancelled()) onError(item.id);
   }
 }
 
@@ -204,8 +210,9 @@ export default function Showcase() {
     void renderThumbnailBatch(
       initialItems,
       (id, thumbnail) => {
-        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnail } : item)));
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnail, thumbnailError: false } : item)));
       },
+      (id) => setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnailError: true } : item))),
       () => cancelled,
     );
     return () => {
@@ -221,9 +228,13 @@ export default function Showcase() {
     const newItems = buildRandomItems(RANDOM_BATCH_SIZE, 700001 + batch * 64000, `more-${batch}`);
     setItems((prev) => [...prev, ...newItems]);
 
-    await renderThumbnailBatch(newItems, (id, thumbnail) => {
-      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnail } : item)));
-    });
+    await renderThumbnailBatch(
+      newItems,
+      (id, thumbnail) => {
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnail, thumbnailError: false } : item)));
+      },
+      (id) => setItems((prev) => prev.map((item) => (item.id === id ? { ...item, thumbnailError: true } : item))),
+    );
     generatingRef.current = false;
     setGenerating(false);
   }, []);
@@ -246,58 +257,57 @@ export default function Showcase() {
   const columns = useMemo(() => distributeColumns(items, columnCount), [items, columnCount]);
 
   return (
-    <div className="min-h-dvh bg-bg flex flex-col overflow-y-auto">
-      <SiteNav />
+    <PublicPageLayout className="showcase-route" navSolid={false}>
       <main className="showcase-main">
-        <motion.header
-          className="showcase-header"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="showcase-header__top">
-            <p className="showcase-header__eyebrow">Showcase</p>
-            <h1 className="showcase-header__title">Made in Artifact.</h1>
-            <p className="showcase-header__deck">
-              Covers, posters, texture studies, and seeded starters made from Artifact documents.
-            </p>
-          </div>
-        </motion.header>
+        <ProductPageHeader
+          eyebrow="Showcase"
+          title="Made in Artifact."
+          deck="Covers, posters, texture studies, and seeded starters made from Artifact documents."
+          meta={<span>{items.length} editable starts</span>}
+        />
 
-        <section className="showcase-library" aria-label="Made in Artifact project wall">
-          <div className="showcase-mosaic">
-            {columns.map((col, ci) => (
-              <div key={ci} className="showcase-mosaic__col">
-                {col.map((item) => (
-                  <ShowcaseTile
-                    key={item.id}
-                    item={item}
-                    href={`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
+        <section className="showcase-library" aria-label="Made in Artifact project wall" aria-busy={generating}>
+          {items.length > 0 ? (
+            <div className="showcase-mosaic">
+              {columns.map((col, ci) => (
+                <div key={ci} className="showcase-mosaic__col">
+                  {col.map((item) => (
+                    <ShowcaseTile
+                      key={item.id}
+                      item={item}
+                      href={`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              eyebrow="Showcase"
+              title="No artwork is available."
+              body="Open a blank canvas and make the first editable piece."
+              actions={
+                <Link to="/app?new=blank" className="showcase-empty-link">
+                  Open editor
+                </Link>
+              }
+            />
+          )}
         </section>
 
         <div className="showcase-sentinel" ref={sentinelRef}>
-          <ActionButton variant="primary" onClick={handleGenerateMore} disabled={generating}>
+          <ActionButton variant="primary" onClick={handleGenerateMore} loading={generating}>
             {generating ? 'Rendering...' : 'Render more'}
           </ActionButton>
           {generating ? (
-            <motion.span
-              className="showcase-loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              Rendering {RANDOM_BATCH_SIZE} more.
-            </motion.span>
+            <div className="showcase-loading">
+              <span>Rendering {RANDOM_BATCH_SIZE} more.</span>
+              <ProgressIndicator label="Rendering more showcase previews" />
+            </div>
           ) : null}
         </div>
       </main>
-      <Footer />
-    </div>
+    </PublicPageLayout>
   );
 }
 
@@ -311,28 +321,34 @@ function ShowcaseTile({ item, href }: ShowcaseTileProps) {
   const aspectStyle = { aspectRatio: `${aw} / ${ah}` };
 
   return (
-    <motion.a
-      href={href}
+    <motion.div
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className={`showcase-tile showcase-tile--${item.aspect.replace(':', 'x')}`}
-      aria-label={`Open ${item.name} in editor`}
+      className={`showcase-tile-wrap showcase-tile--${item.aspect.replace(':', 'x')}`}
     >
-      <div className="showcase-tile__frame" style={aspectStyle}>
-        {item.thumbnail ? (
-          <img src={item.thumbnail} alt={item.name} className="showcase-tile__img" loading="lazy" />
-        ) : (
-          <div className="showcase-tile__loading" aria-hidden="true" />
-        )}
-        <div className="showcase-tile__overlay" aria-hidden="true">
-          <span className="showcase-tile__seed">
-            {item.aspect} / SEED #{item.doc.global.seed}
-          </span>
-          <span className="showcase-tile__name">{item.name}</span>
-          <span className="showcase-tile__cta">Open in editor</span>
+      <Link
+        className="showcase-tile"
+        to={href}
+        aria-label={`Open ${item.name} in editor${item.thumbnailError ? '; preview unavailable' : ''}`}
+      >
+        <div className="showcase-tile__frame" style={aspectStyle}>
+          {item.thumbnail ? (
+            <img src={item.thumbnail} alt={item.name} className="showcase-tile__img" loading="lazy" />
+          ) : item.thumbnailError ? (
+            <span className="showcase-tile__error">Preview unavailable.</span>
+          ) : (
+            <Skeleton className="showcase-tile__loading" shape="block" />
+          )}
+          <div className="showcase-tile__overlay" aria-hidden="true">
+            <span className="showcase-tile__seed">
+              {item.aspect} / SEED #{item.doc.global.seed}
+            </span>
+            <span className="showcase-tile__name">{item.name}</span>
+            <span className="showcase-tile__cta">Open in editor</span>
+          </div>
         </div>
-      </div>
-    </motion.a>
+      </Link>
+    </motion.div>
   );
 }
