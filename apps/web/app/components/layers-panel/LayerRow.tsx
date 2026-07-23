@@ -58,7 +58,7 @@ export function LayerSelectionControl({
         onSelect(event);
       }}
       onKeyDown={(event) => {
-        if (event.key !== 'Enter') return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         event.stopPropagation();
         onSelect(event);
