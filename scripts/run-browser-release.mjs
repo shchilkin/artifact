@@ -54,6 +54,12 @@ const releaseSegments = [
     ],
     serverMode: 'preview',
   },
+  {
+    label: 'Chromium production public shell',
+    script: 'test:browser',
+    args: ['--project=chromium', 'v044-product-surfaces.spec.ts', '--grep', 'public shell'],
+    serverMode: 'preview',
+  },
   { label: 'Mobile Chromium and WebKit', script: 'test:browser:mobile', args: [], serverMode: 'dev' },
   { label: 'Backoffice UI', script: 'test:browser:backoffice', args: [], serverMode: 'preview' },
 ];
