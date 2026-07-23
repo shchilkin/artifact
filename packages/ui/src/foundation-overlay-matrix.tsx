@@ -29,12 +29,9 @@ export function FoundationOverlayMatrix() {
           </Tooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-open" label="Tooltip / open">
-          <Tooltip open>
-            <TooltipTrigger asChild>
-              <Button variant="secondary">Export help</Button>
-            </TooltipTrigger>
-            <TooltipContent>Exports use the current document size.</TooltipContent>
-          </Tooltip>
+          <StaticOpenTooltip id="ui-foundation-tooltip-open" label="Export help">
+            Exports use the current document size.
+          </StaticOpenTooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-keyboard" label="Tooltip / keyboard">
           <Tooltip delayDuration={0}>
@@ -45,15 +42,10 @@ export function FoundationOverlayMatrix() {
           </Tooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-long-content" label="Tooltip / long content">
-          <Tooltip open>
-            <TooltipTrigger asChild>
-              <Button variant="quiet">Format details</Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              PNG preserves transparency. JPEG produces a smaller opaque file and is better suited to photographic
-              artwork.
-            </TooltipContent>
-          </Tooltip>
+          <StaticOpenTooltip id="ui-foundation-tooltip-long-content" label="Format details">
+            PNG preserves transparency. JPEG produces a smaller opaque file and is better suited to photographic
+            artwork.
+          </StaticOpenTooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="popover-closed" label="Popover / closed and dismissal">
           <Popover>
@@ -99,10 +91,28 @@ export function FoundationOverlayMatrix() {
   );
 }
 
+function StaticOpenTooltip({ children, id, label }: { children: ReactNode; id: string; label: string }) {
+  return (
+    <div className="ui-foundation-open-tooltip">
+      <Button variant="quiet" aria-describedby={id}>
+        {label}
+      </Button>
+      <div id={id} className="ui-tooltip-content" data-state="open" role="tooltip">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function StaticOpenPopover({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div className="ui-popover-content" data-state="open" role="dialog" aria-label={label}>
-      {children}
+    <div className="ui-foundation-open-popover">
+      <Button variant="secondary" aria-haspopup="dialog" aria-expanded="true">
+        {label}
+      </Button>
+      <div className="ui-popover-content" data-state="open" role="dialog" aria-label={label}>
+        {children}
+      </div>
     </div>
   );
 }

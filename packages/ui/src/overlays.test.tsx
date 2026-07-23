@@ -65,6 +65,8 @@ describe('UI Foundation overlays', () => {
     for (const id of OVERLAY_FOUNDATION_SPECIMEN_IDS) {
       expect(markup).toContain(`data-foundation-specimen="${id}"`);
     }
+    expect(markup).toContain('role="tooltip"');
+    expect(markup).toContain('aria-describedby="ui-foundation-tooltip-open"');
     expect(markup).toContain('role="dialog" aria-label="Current export"');
     expect(markup).toContain('role="dialog" aria-label="Storage details"');
   });

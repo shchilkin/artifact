@@ -65,17 +65,25 @@ export async function expectOverlayMatrixBehavior(
       .locator('[data-foundation-specimen]')
       .evaluateAll((items) => items.map((item) => item.getAttribute('data-foundation-specimen'))),
   ).toEqual(OVERLAY_FOUNDATION_SPECIMEN_IDS);
+  await expect(page.getByRole('dialog', { name: 'Current export' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Storage details' })).toBeVisible();
 
   const previewTrigger = matrix.getByRole('button', { name: 'Preview document' });
   await expect(previewTrigger).toHaveAccessibleName('Preview document');
-  await previewTrigger.hover();
-  const pointerTooltip = page.getByRole('tooltip', { name: 'Open a larger preview' });
-  await expect(pointerTooltip).toBeVisible();
   await expect(previewTrigger).not.toHaveAccessibleName('Open a larger preview');
 
   expect(await focusFoundationSpecimenWithKeyboard(page, 'tooltip-keyboard')).toBe('tooltip-keyboard');
   await expect(matrix.getByRole('button', { name: 'Keyboard help' })).toBeFocused();
-  await expect(page.getByRole('tooltip', { name: 'Press Enter to run the focused command.' })).toBeVisible();
+  const keyboardTooltip = page.getByRole('tooltip', { name: 'Press Enter to run the focused command.' });
+  await expect(keyboardTooltip).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(keyboardTooltip).toBeHidden();
+
+  await previewTrigger.hover();
+  const pointerTooltip = page.getByRole('tooltip', { name: 'Open a larger preview' });
+  await expect(pointerTooltip).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(pointerTooltip).toBeHidden();
 
   const openTooltip = page.getByRole('tooltip', { name: 'Exports use the current document size.' });
   await expect(openTooltip).toBeVisible();
