@@ -5,7 +5,15 @@ import {
   FoundationOverlayMatrix,
 } from '@artifact/ui';
 import { type Node, type NodeProps, ReactFlow } from '@xyflow/react';
-import { type ComponentProps, type CSSProperties, type KeyboardEvent, type ReactNode, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
@@ -1012,10 +1020,25 @@ function WorkflowPatternGroup({ label, children }: { label: string; children: Re
 }
 
 function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_STATES)[number] }) {
-  const [open, setOpen] = useState(state === 'open');
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(state === 'busy');
   const [openMethod, setOpenMethod] = useState<'keyboard' | 'pointer'>();
+  const initialScrollRef = useRef<{ left: number; top: number } | null>(null);
   const label = stateLabel(state);
+  useEffect(() => {
+    if (state !== 'open') return;
+    initialScrollRef.current ??= { left: window.scrollX, top: window.scrollY };
+    const initialScroll = initialScrollRef.current;
+    let restoreTimer = 0;
+    const openFrame = requestAnimationFrame(() => {
+      setOpen(true);
+      restoreTimer = window.setTimeout(() => window.scrollTo(initialScroll), 100);
+    });
+    return () => {
+      cancelAnimationFrame(openFrame);
+      window.clearTimeout(restoreTimer);
+    };
+  }, [state]);
   const recordKeyboardOpen = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (['Enter', ' ', 'ArrowDown'].includes(event.key)) setOpenMethod('keyboard');
   };
@@ -1039,6 +1062,7 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
         collisionAdjusted={state === 'collision-adjusted'}
         mobile={state === 'mobile-sheet'}
         openMethod={openMethod}
+        preventOpenAutoFocus={state === 'open'}
         align={state === 'collision-adjusted' ? 'end' : 'start'}
         title={`${label} overlay`}
         description="Choose an editor action."

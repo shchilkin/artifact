@@ -37,6 +37,7 @@ interface EditorOverlayFrameProps {
   openMethod?: 'keyboard' | 'pointer';
   overlayClassName?: string;
   position?: { x: number; y: number };
+  preventOpenAutoFocus?: boolean;
   role?: AriaRole;
   side?: 'top' | 'right' | 'bottom' | 'left';
   style?: CSSProperties;
@@ -63,6 +64,7 @@ export function EditorOverlayFrame({
   openMethod,
   overlayClassName,
   position,
+  preventOpenAutoFocus = false,
   role,
   side = 'bottom',
   style,
@@ -194,6 +196,9 @@ export function EditorOverlayFrame({
         data-editor-overlay-method={openMethod}
         data-editor-overlay-state={open ? 'open' : 'closed'}
         onEscapeKeyDown={onEscapeKeyDown}
+        onOpenAutoFocus={(event) => {
+          if (preventOpenAutoFocus) event.preventDefault();
+        }}
         onPointerDownOutside={onPointerDownOutside}
         onKeyDown={onKeyDown}
         role={role}
@@ -247,6 +252,9 @@ export function EditorOverlayFrame({
         data-editor-overlay-method={openMethod}
         data-editor-overlay-state={open ? 'open' : 'closed'}
         onEscapeKeyDown={onEscapeKeyDown}
+        onOpenAutoFocus={(event) => {
+          if (preventOpenAutoFocus) event.preventDefault();
+        }}
         onPointerDownOutside={onPointerDownOutside}
         onKeyDown={onKeyDown}
         onWheelCapture={(event) => event.stopPropagation()}
