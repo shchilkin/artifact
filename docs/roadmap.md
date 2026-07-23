@@ -892,10 +892,14 @@ current scope.
 
 ### Current Status
 
-The active release baseline is `v0.40.0` release prep on the stacked shader
-release-candidate branch. Earlier `v0.2` through `v0.39` version plans are release history, not active
-target buckets. Their detailed acceptance criteria and validation notes live
-under `docs/version-plans/` and `docs/releases/`.
+The active release baseline is the locally verified `v0.44.0` Product Surfaces
+candidate. v0.42 established the shared UI Foundation, v0.43 proved the
+Backoffice UI System, and v0.44 completes the non-editor Artifact product
+surfaces. Editor migration remains sequenced through v0.45-v0.48; new
+AI-assisted creation resumes only after that gate in v0.49. Earlier version
+plans are release history, not active target buckets. Their detailed acceptance
+criteria and validation notes live under `docs/version-plans/` and
+`docs/releases/`.
 
 Current shipped baseline:
 
@@ -935,10 +939,11 @@ Current shipped baseline:
   roles, validated definition-backed runtime, editable controls, transparent
   error behavior, refinement, and preview/export parity.
 
-### Active Candidate Tracks
+### Future Candidate Tracks
 
-The next version should be selected from one active candidate and turned into a
-dedicated version plan before implementation is called release scope:
+The accepted v0.45-v0.49 sequence remains the active release path. The ideas
+below are future candidates only and require a dedicated version plan before
+implementation is called release scope:
 
 - **Reference Intelligence And Cover Discovery**: add a Cosmos/mymind-style
   reference browser backed by a TypeScript reference catalog in the API
@@ -974,9 +979,6 @@ dedicated version plan before implementation is called release scope:
   unchanged. A future version plan must separate automatic safe migrations from
   explicit best-effort salvage and define fixtures for every supported legacy
   schema before this becomes release scope.
-- **Whole-App Brand And Public Surface Refresh**: public routes, docs,
-  Showcase, account surfaces, and broader brand/site work after v0.39's
-  account/cloud-save core.
 - **Command Palette / Add Library Improvements**: faster repeated editor
   actions, stronger keyboard behavior, recent/common items, and protected
   search/drag states.
@@ -1334,20 +1336,16 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Pick one active candidate track and write its version plan before broad
-implementation. Given the v0.39 baseline, the cleanest next candidates are
-public share links and ownership, cloud asset storage follow-up, Reference
-Intelligence, 3D material authoring follow-up, project history/versioning, or
-public-surface polish.
+After v0.44, execute the already-planned editor UI-system sequence before
+starting a new candidate track.
 
 Recommended order:
 
-1. Decide whether the next release is account/cloud-share follow-up, reference
-   catalog discovery, editor/material polish, or project history.
-2. Pick one narrow version thesis with explicit non-goals.
-3. Write a version plan before moving implementation scope into the release.
-4. Add the lowest useful tests first, then run the validation commands listed
-   in that version plan before calling the slice done.
+1. Deliver the v0.45 editor shell, command bars, Layers, and Add Library slice.
+2. Continue with inspector composition in v0.46 and node-canvas, preview, and 3D
+   chrome in v0.47.
+3. Close compatibility aliases and cross-app conformance in v0.48.
+4. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
 
 ## Non-goals for now
 

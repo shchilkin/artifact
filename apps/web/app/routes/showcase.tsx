@@ -1,4 +1,4 @@
-import { InlineNotice, ProgressIndicator, Skeleton } from '@artifact/ui';
+import { ProgressIndicator, Skeleton } from '@artifact/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
@@ -327,14 +327,16 @@ function ShowcaseTile({ item, href }: ShowcaseTileProps) {
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={`showcase-tile-wrap showcase-tile--${item.aspect.replace(':', 'x')}`}
     >
-      <Link className="showcase-tile" to={href} aria-label={`Open ${item.name} in editor`}>
+      <Link
+        className="showcase-tile"
+        to={href}
+        aria-label={`Open ${item.name} in editor${item.thumbnailError ? '; preview unavailable' : ''}`}
+      >
         <div className="showcase-tile__frame" style={aspectStyle}>
           {item.thumbnail ? (
             <img src={item.thumbnail} alt={item.name} className="showcase-tile__img" loading="lazy" />
           ) : item.thumbnailError ? (
-            <InlineNotice className="showcase-tile__error" variant="warning">
-              Preview unavailable.
-            </InlineNotice>
+            <span className="showcase-tile__error">Preview unavailable.</span>
           ) : (
             <Skeleton className="showcase-tile__loading" shape="block" />
           )}

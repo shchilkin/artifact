@@ -18,7 +18,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
 ) {
   const hasValue = typeof value === 'string' ? value.length > 0 : Boolean(value);
   return (
-    <div className={cn('artifact-search-field', className)} role="search">
+    <div className={cn('artifact-search-field', className)}>
       <span className="artifact-search-icon" aria-hidden="true">
         ⌕
       </span>

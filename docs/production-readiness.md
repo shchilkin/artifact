@@ -102,13 +102,20 @@ CI should run:
   formatting, lint, deployment tests, and type checking.
 - `npm run build` passed for Web and Backoffice. The build retains the existing
   11 Fast Refresh warnings and large Three.js vendor-chunk warning.
-- The complete browser release gate passed with 454 tests passing and 49
-  intentional skips across Artifact Chromium, Firefox, WebKit, mobile Chromium,
-  mobile WebKit, and Backoffice desktop/mobile Chromium. One existing WebKit
-  Tooltip/Popover focus scenario passed on retry; every v0.44-specific scenario
+- The complete browser release gate scheduled 507 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 456 completed successfully and 51 were intentional
+  skips. Nine existing editor, AI polling, 3D package, and Foundation overlay
+  scenarios passed on retry; every v0.44-specific and configured-auth scenario
   passed without retry.
 - Manual visual QA covered home, Showcase, Projects, Docs, and password recovery
   at desktop and mobile widths, plus the live Product Surface Pattern specimens.
+- The required manual Safari pass on macOS covered home, Showcase, Projects,
+  Docs learning/search, and password recovery, including navigation, editable
+  links, fields, and keyboard traversal.
+- A configured-auth Chromium segment covers sign-in pending/error, sign-up
+  validation, password recovery success, keyboard submission, Escape, initial
+  focus, and focus return for the rewritten account overlay.
 - `npm run perf:node-editor` is not required because v0.44 changes no graph
   traversal, render algorithm, render signature, thumbnail queue, or node-canvas
   interaction path. Showcase only gains rejected-promise cleanup around its
@@ -117,8 +124,9 @@ CI should run:
   are not a complete visual-regression suite or WCAG certification.
 - Accepted release risk: compatibility wrappers and legacy aliases remain until
   v0.48, while editor surfaces remain intentionally sequenced across v0.45-v0.47.
-- Accepted release risk: the existing WebKit Tooltip/Popover focus scenario
-  required its available retry in the final local release gate.
+- Accepted release risk: nine existing editor, AI polling, 3D package, and
+  Foundation overlay timing scenarios required their available retry in the
+  final local release gate; none are in the v0.44 change surface.
 
 ### v0.43.0 Release Prep
 

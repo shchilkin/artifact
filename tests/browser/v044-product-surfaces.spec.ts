@@ -218,14 +218,17 @@ test('non-editor product routes keep their hierarchy and controls inside a narro
     { path: '/docs', heading: 'Docs.' },
     { path: '/docs/recipes', heading: 'Recipes.' },
     { path: '/docs/reference', heading: 'Reference.' },
+    { path: '/docs/reference/fill', heading: 'Fill' },
+    { path: '/docs/reference/not-a-node', heading: 'Node not found.' },
     { path: '/docs/nodes', heading: 'Learn Artifact.' },
+    { path: '/docs/style-guide', heading: 'Style guide.' },
     { path: '/reset-password', heading: 'Choose new password' },
   ] as const;
 
   for (const route of routes) {
     await page.goto(route.path);
     await expect(page.getByRole('heading', { name: route.heading, exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Open menu' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeVisible();
     await expect(page.getByRole('contentinfo')).toBeVisible();
 
     const layout = await page.evaluate(() => ({
