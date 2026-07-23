@@ -20,12 +20,15 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.44 is a locally verified release candidate for the Artifact Product
-  Surfaces release. Every non-editor Artifact route now uses the Artifact
-  Design System or is an approved non-goal; the public shell, recovery,
-  discovery, Projects, Docs, and learning surfaces have focused desktop/mobile
-  coverage, and `/debug/shaders` is removed. Editor migration remains bounded
-  to v0.45-v0.48. See
+- v0.44 was released on 2026-07-23 as the Artifact Product Surfaces release.
+  Every non-editor Artifact route now uses the Artifact Design System or is an
+  approved non-goal; the public shell, recovery, discovery, Projects, Docs, and
+  learning surfaces have focused desktop/mobile coverage, and `/debug/shaders`
+  is removed. Tag `v0.44.0` resolves to production commit
+  `37c46a75f7d53c7a6c47a807238964555bb5a76c`; exact-SHA staging, production
+  API, and production web verification passed before publication. All eight
+  delivery issues and milestone #3 are closed. Editor migration remains
+  bounded to v0.45-v0.48. See
   [`version-plans/v0.44.md`](./version-plans/v0.44.md) and
   [`releases/v0.44.0.md`](./releases/v0.44.0.md).
 - v0.43 was released on 2026-07-22 as the Backoffice UI System release. Every
@@ -888,14 +891,13 @@ current scope.
 
 ### Current Status
 
-The active release baseline is the locally verified `v0.44.0` Product Surfaces
-candidate. v0.42 established the shared UI Foundation, v0.43 proved the
-Backoffice UI System, and v0.44 completes the non-editor Artifact product
-surfaces. Editor migration remains sequenced through v0.45-v0.48; new
-AI-assisted creation resumes only after that gate in v0.49. Earlier version
-plans are release history, not active target buckets. Their detailed acceptance
-criteria and validation notes live under `docs/version-plans/` and
-`docs/releases/`.
+The current released baseline is `v0.44.0` Product Surfaces. v0.42 established
+the shared UI Foundation, v0.43 proved the Backoffice UI System, and v0.44
+completed the non-editor Artifact product surfaces. Editor migration remains
+sequenced through v0.45-v0.48; new AI-assisted creation resumes only after that
+gate in v0.49. Earlier version plans are release history, not active target
+buckets. Their detailed acceptance criteria and validation notes live under
+`docs/version-plans/` and `docs/releases/`.
 
 Current shipped baseline:
 
