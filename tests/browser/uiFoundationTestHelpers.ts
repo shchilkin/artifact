@@ -3,7 +3,14 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { pressForwardTab } from './helpers';
 
 export async function focusFoundationSpecimenWithKeyboard(page: Page, target: string) {
-  for (let step = 0; step < 40; step += 1) {
+  const focusableCount = await page
+    .locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    )
+    .count();
+  const traversalLimit = Math.max(40, focusableCount + 1);
+
+  for (let step = 0; step < traversalLimit; step += 1) {
     await pressForwardTab(page);
     const specimen = await page.evaluate(() =>
       document.activeElement?.closest('[data-foundation-specimen]')?.getAttribute('data-foundation-specimen'),

@@ -147,7 +147,9 @@ test('Layers Add Library keeps the keyboard-active option inside the visible res
   await page.getByRole('button', { name: 'Add layer' }).click();
   const search = page.getByRole('combobox', { name: 'Search layers and effects' });
   await expect(search).toBeFocused();
+  const initialActiveId = await search.getAttribute('aria-activedescendant');
   await page.keyboard.press('End');
+  await expect.poll(() => search.getAttribute('aria-activedescendant')).not.toBe(initialActiveId);
 
   const activeId = await search.getAttribute('aria-activedescendant');
   expect(activeId).toBeTruthy();

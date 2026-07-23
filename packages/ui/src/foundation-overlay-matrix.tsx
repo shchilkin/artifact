@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Button, IconButton } from './commands';
 import type { OverlayFoundationSpecimenId } from './foundation-overlay-specimens';
 import {
@@ -34,12 +34,7 @@ export function FoundationOverlayMatrix() {
           </StaticOpenTooltip>
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-keyboard" label="Tooltip / keyboard">
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button variant="quiet">Keyboard help</Button>
-            </TooltipTrigger>
-            <TooltipContent>Press Enter to run the focused command.</TooltipContent>
-          </Tooltip>
+          <KeyboardTooltipSpecimen />
         </OverlaySpecimen>
         <OverlaySpecimen id="tooltip-long-content" label="Tooltip / long content">
           <StaticOpenTooltip id="ui-foundation-tooltip-long-content" label="Format details">
@@ -88,6 +83,27 @@ export function FoundationOverlayMatrix() {
         </OverlaySpecimen>
       </div>
     </TooltipProvider>
+  );
+}
+
+function KeyboardTooltipSpecimen() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip delayDuration={0} open={open}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="quiet"
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false);
+          }}
+        >
+          Keyboard help
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Press Enter to run the focused command.</TooltipContent>
+    </Tooltip>
   );
 }
 
