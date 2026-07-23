@@ -327,9 +327,9 @@ function ShowcaseTile({ item, href }: ShowcaseTileProps) {
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={`showcase-tile-wrap showcase-tile--${item.aspect.replace(':', 'x')}`}
     >
-      <Link
+      <a
         className="showcase-tile"
-        to={href}
+        href={href}
         aria-label={`Open ${item.name} in editor${item.thumbnailError ? '; preview unavailable' : ''}`}
       >
         <div className="showcase-tile__frame" style={aspectStyle}>
@@ -348,7 +348,7 @@ function ShowcaseTile({ item, href }: ShowcaseTileProps) {
             <span className="showcase-tile__cta">Open in editor</span>
           </div>
         </div>
-      </Link>
+      </a>
     </motion.div>
   );
 }
