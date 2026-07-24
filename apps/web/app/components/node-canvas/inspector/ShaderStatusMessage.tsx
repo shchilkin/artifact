@@ -1,3 +1,5 @@
+import { InspectorStatus } from '../../inspector-system';
+
 export function ShaderStatusMessage({
   title,
   message,
@@ -8,9 +10,8 @@ export function ShaderStatusMessage({
   tone: 'info' | 'success' | 'warning';
 }) {
   return (
-    <div className={`node-inspector-status node-inspector-status-${tone}`} role="status" aria-live="polite">
-      <p className="node-inspector-status-title">{title}</p>
-      <p className="node-inspector-status-copy">{message}</p>
-    </div>
+    <InspectorStatus title={title} tone={tone}>
+      {message}
+    </InspectorStatus>
   );
 }

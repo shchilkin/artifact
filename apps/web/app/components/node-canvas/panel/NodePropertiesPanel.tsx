@@ -34,6 +34,7 @@ import {
   ShaderInspector,
   TransformInspector,
 } from '../inspector';
+import { InspectorToggle } from '../inspector/fields';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -524,23 +525,14 @@ function LayerLockToggle({
   if (target?.kind !== 'layer') return null;
   return (
     <div className="node-target-actions" aria-label="Layer node safety">
-      <label
+      <InspectorToggle
+        ariaLabel="Toggle node delete lock"
+        checked={target.layer.locked}
         className="node-target-toggle"
-        aria-label="Toggle node delete lock"
-        title="Protect this layer-backed node from delete actions"
-      >
-        <span>Locked</span>
-        <input
-          className="node-check"
-          type="checkbox"
-          checked={target.layer.locked}
-          onChange={(event) =>
-            onUpdateLayer(target.layer.id, {
-              locked: event.target.checked,
-            })
-          }
-        />
-      </label>
+        label="Locked"
+        locked={target.layer.locked}
+        onChange={(locked) => onUpdateLayer(target.layer.id, { locked })}
+      />
     </div>
   );
 }

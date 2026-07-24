@@ -168,8 +168,9 @@ fallback badges.
   pointer movement still activates rows.
 - Inspector-system contract coverage mounts deterministic ordinary and dense
   specimens, verifies disclosure focus and state association, and checks
-  disabled, locked, loading, dirty, validation, and 390-pixel containment
-  without touching document or provider state.
+  disabled, locked, loading, dirty, validation, and 390-pixel containment.
+  The same focused suite also proves that live Layers and Nodes property
+  surfaces consume the contract without changing document or graph behavior.
 - Primitive nodes expose interactive camera controls in a real browser.
 - Text/image node transform gestures stay local to the selected node: wheel
   scaling must not zoom the React Flow canvas, must not crash with maximum

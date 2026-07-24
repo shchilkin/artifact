@@ -27,6 +27,13 @@ export function CodeShaderInspector({
   }, [code, definition.properties, issues]);
   const blockingIssue = issues.find((issue) => issue.severity === 'error') ?? null;
   const empty = code.trim().length === 0;
+  const initialCode = useState(code)[0];
+  const dirty = code !== initialCode;
+  const validation = empty ? 'idle' : blockingIssue || (compileResult && !compileResult.ok) ? 'invalid' : 'valid';
+  const validationError =
+    validation === 'invalid'
+      ? (blockingIssue?.message ?? compileResult?.message ?? 'Check the shader code and try again.')
+      : undefined;
   const uniformControls = codeShaderUniformControls(code);
   const updateInstance = (patch: Partial<typeof shaderInstance>) =>
     onChange({ shaderInstance: { ...shaderInstance, ...patch } });
@@ -85,7 +92,13 @@ export function CodeShaderInspector({
       <InspectorSection title="Code" summary={summary} open={codeOpen} onToggle={() => setCodeOpen((open) => !open)}>
         {status ? <ShaderStatusMessage {...status} /> : null}
         <InspectorTextArea
+          controlId={`code-shader-${shaderNode.id}`}
+          label="Shader code"
           value={code}
+          dirty={dirty}
+          error={validationError}
+          status={validation === 'valid' ? 'Accepted by the browser shader compiler.' : undefined}
+          validation={validation}
           rows={12}
           placeholder="vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }"
           onChange={(value) =>

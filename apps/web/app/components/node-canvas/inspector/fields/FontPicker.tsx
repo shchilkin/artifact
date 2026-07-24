@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
+import { InspectorField } from '@/components/inspector-system';
 import {
   FONT_NAMES,
   FONT_REGISTRY,
@@ -19,7 +20,6 @@ import {
   saveGoogleFontFamily,
   saveImportedFontFile,
 } from '../../../../utils/fontStore';
-import { InspectorLabel } from './InspectorLabel';
 
 const FONT_CATEGORIES = [
   'All',
@@ -69,6 +69,7 @@ export function FontPicker({
   const [fontError, setFontError] = useState<string | null>(null);
   const [googleFontInput, setGoogleFontInput] = useState('');
   const [googleFontBusy, setGoogleFontBusy] = useState(false);
+  const triggerId = useId();
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -194,22 +195,30 @@ export function FontPicker({
   }
 
   return (
-    <div className="node-inspector-control font-picker">
-      <InspectorLabel>{label}</InspectorLabel>
-      <button
-        className="font-picker-trigger node-field nodrag nopan nowheel"
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((nextOpen) => !nextOpen)}
+    <div className="font-picker">
+      <InspectorField
+        className="node-inspector-control"
+        controlId={triggerId}
+        error={fontError ?? undefined}
+        label={label}
+        loading={googleFontBusy}
+        validation={fontError ? 'invalid' : googleFontBusy ? 'validating' : 'idle'}
       >
-        <span className="font-picker-trigger-copy">
-          <span className="font-picker-trigger-label">{selected.label}</span>
-          <span className="font-picker-trigger-meta">{selected.category}</span>
-        </span>
-        <span className="font-picker-trigger-sample" style={{ fontFamily: selected.stack }}>
-          {selected.sample}
-        </span>
-      </button>
+        <button
+          className="font-picker-trigger node-field nodrag nopan nowheel"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((nextOpen) => !nextOpen)}
+        >
+          <span className="font-picker-trigger-copy">
+            <span className="font-picker-trigger-label">{selected.label}</span>
+            <span className="font-picker-trigger-meta">{selected.category}</span>
+          </span>
+          <span className="font-picker-trigger-sample" style={{ fontFamily: selected.stack }}>
+            {selected.sample}
+          </span>
+        </button>
+      </InspectorField>
       {open && (
         <div className="font-picker-panel nodrag nopan nowheel">
           <input
@@ -247,7 +256,6 @@ export function FontPicker({
           <div className="font-picker-policy">
             Google fonts carry open-license metadata. Local files stay metadata-only unless you export PKG+FONTS.
           </div>
-          {fontError && <div className="font-picker-error">{fontError}</div>}
           <input
             className="font-picker-search node-field"
             value={query}

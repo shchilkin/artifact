@@ -1,4 +1,4 @@
-import { Button, Field, InlineNotice, NativeSelect, ProgressIndicator, Textarea } from '@artifact/ui';
+import { Button, NativeSelect, Textarea } from '@artifact/ui';
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   aiAccessReasonBody,
@@ -29,6 +29,7 @@ import {
 } from '../utils/aiGenerationStatus';
 import { getArtifactAiApiBaseUrl } from '../utils/apiBaseUrl';
 import { getAppBuildInfo } from '../utils/appBuildInfo';
+import { InspectorField, InspectorStatus } from './inspector-system';
 
 const QUALITY_OPTIONS: AiGenerationQuality[] = ['draft', 'standard', 'high'];
 const ASSET_IMPORT_TIMEOUT_MS = 30_000;
@@ -666,11 +667,18 @@ function AccessBanner({
   accessCheck: AccessCheckState;
   authSignedIn: boolean;
 }) {
+  const failed = accessCheck.state === 'failed';
+  const checking = !access && !failed;
   return (
-    <div className={accessBannerClassName(accessCheck)} role="status" id="ai-generation-status">
-      <span>{accessBannerTitle(access, accessBlockReason, accessCheck)}</span>
-      <p>{accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}</p>
-    </div>
+    <InspectorStatus
+      className={accessBannerClassName(accessCheck)}
+      id="ai-generation-status"
+      loading={checking}
+      title={accessBannerTitle(access, accessBlockReason, accessCheck)}
+      tone={failed ? 'danger' : 'info'}
+    >
+      {accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}
+    </InspectorStatus>
   );
 }
 
@@ -823,7 +831,12 @@ function GenerationControls({
 }) {
   return (
     <>
-      <Field className="ai-generation-prompt-field" label="Prompt">
+      <InspectorField
+        className="ai-generation-prompt-field"
+        disabled={!accessEnabled || busy}
+        label="Prompt"
+        loading={busy}
+      >
         <Textarea
           data-ai-generation-prompt
           value={prompt}
@@ -833,9 +846,9 @@ function GenerationControls({
           disabled={!accessEnabled || busy}
           aria-describedby={!accessEnabled ? 'ai-generation-status' : undefined}
         />
-      </Field>
+      </InspectorField>
       <div className="ai-generation-grid">
-        <Field label="Provider">
+        <InspectorField label="Provider">
           <NativeSelect value={provider} onChange={(event) => setProvider(event.target.value as AiGenerationProvider)}>
             {providers.map((item) => (
               <option key={item} value={item}>
@@ -843,8 +856,8 @@ function GenerationControls({
               </option>
             ))}
           </NativeSelect>
-        </Field>
-        <Field label="Quality">
+        </InspectorField>
+        <InspectorField label="Quality">
           <NativeSelect value={quality} onChange={(event) => setQuality(event.target.value as AiGenerationQuality)}>
             {QUALITY_OPTIONS.map((item) => (
               <option key={item} value={item}>
@@ -852,7 +865,7 @@ function GenerationControls({
               </option>
             ))}
           </NativeSelect>
-        </Field>
+        </InspectorField>
       </div>
     </>
   );
@@ -897,10 +910,14 @@ function GenerationFeedback({
   if (!status) return null;
   const loading = busy || jobIsActive(job);
   return (
-    <InlineNotice className="ai-generation-feedback" variant={generationFeedbackVariant(job, loading)}>
-      <span>{status}</span>
-      {loading ? <ProgressIndicator label={status} /> : null}
-    </InlineNotice>
+    <InspectorStatus
+      className="ai-generation-feedback"
+      loading={loading}
+      title="AI image"
+      tone={generationFeedbackVariant(job, loading)}
+    >
+      {status}
+    </InspectorStatus>
   );
 }
 

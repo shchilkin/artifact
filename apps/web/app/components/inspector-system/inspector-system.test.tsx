@@ -58,6 +58,19 @@ describe('Artifact inspector system contract', () => {
     expect(html).toContain('>Unavailable<');
   });
 
+  it('associates an explicit control id with custom inspector controls', () => {
+    const html = renderToStaticMarkup(
+      <InspectorField label="Font" controlId="font-picker-trigger" error="Could not import font." validation="invalid">
+        <button type="button">Poster Sans</button>
+      </InspectorField>,
+    );
+
+    expect(html).toContain('for="font-picker-trigger"');
+    expect(html).toContain('id="font-picker-trigger"');
+    expect(html).toContain('aria-errormessage="font-picker-trigger-error"');
+    expect(html).toContain('aria-invalid="true"');
+  });
+
   it('exposes section, property-row, and status state through stable public attributes', () => {
     expectTypeOf<ComponentProps<typeof InspectorStatus>>().not.toHaveProperty('variant');
 
@@ -78,6 +91,7 @@ describe('Artifact inspector system contract', () => {
           value="82%"
           controlId="opacity"
           dirty
+          error="Opacity is out of range."
           validation="validating"
           status="Checking range"
         >
@@ -99,7 +113,8 @@ describe('Artifact inspector system contract', () => {
     expect(html).toContain('data-inspector-property-row="true"');
     expect(html).toContain('data-inspector-validation="validating"');
     expect(html).toContain('aria-busy="true"');
-    expect(html).toContain('aria-describedby="opacity-description opacity-state"');
+    expect(html).toContain('aria-describedby="opacity-description opacity-state opacity-error"');
+    expect(html).toContain('aria-errormessage="opacity-error"');
     expect(html).toContain('>Edited<');
     expect(html).toContain('>Checking<');
     expect(html).toContain('data-inspector-status="success"');

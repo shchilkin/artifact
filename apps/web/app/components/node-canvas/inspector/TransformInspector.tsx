@@ -17,7 +17,7 @@ export function TransformInspector({
 }) {
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
-      <InspectorTextInput value={transformNode.name} onChange={(name) => onChange({ name })} />
+      <InspectorTextInput label="Name" value={transformNode.name} onChange={(name) => onChange({ name })} />
       <InspectorSlider
         label="Horizontal"
         value={transformNode.x}

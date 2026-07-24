@@ -152,6 +152,8 @@ test('shows an occupied AI slot as busy instead of a shader failure', async ({ p
   test.skip(!(await supportsWebGl(page)), 'AI shader creation requires WebGL.');
   await switchToNodeView(page);
   await page.locator('.react-flow__node-shaderNode').click();
+  await expect(page.locator('.node-props-panel [data-inspector-field="true"]')).not.toHaveCount(0);
+  await expect(page.locator('.node-props-panel [data-inspector-status]')).not.toHaveCount(0);
   await page.getByRole('button', { name: 'Create New Version' }).click();
 
   await expect(page.getByText('Another creation is running').first()).toBeVisible();
