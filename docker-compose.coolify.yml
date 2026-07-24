@@ -87,8 +87,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      api:
-        condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
     healthcheck:
@@ -108,8 +106,6 @@ services:
       API_BULL_BOARD_ENABLED: true
     depends_on:
       redis:
-        condition: service_healthy
-      api:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro
