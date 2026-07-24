@@ -1,0 +1,139 @@
+.canvas-chrome-preview-layout,
+.canvas-chrome-primitive {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(140px, 0.8fr);
+  gap: var(--space-2);
+  min-height: 330px;
+}
+
+.canvas-chrome-preview-frame {
+  position: relative;
+  min-height: 330px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+}
+
+.canvas-chrome-artwork {
+  position: absolute;
+  inset: 11%;
+  display: grid;
+  align-content: end;
+  gap: var(--space-1);
+  overflow: hidden;
+  background: var(--surface-app);
+  padding: var(--space-4);
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.canvas-chrome-artwork::before {
+  position: absolute;
+  top: 14%;
+  right: 10%;
+  width: 42%;
+  height: 42%;
+  border: 14px solid var(--accent-primary);
+  content: "";
+  transform: rotate(12deg);
+}
+
+.canvas-chrome-artwork span,
+.canvas-chrome-artwork strong {
+  position: relative;
+  z-index: 1;
+}
+
+.canvas-chrome-artwork span {
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.14em;
+}
+
+.canvas-chrome-artwork strong {
+  max-width: 7ch;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 0.8;
+}
+
+.canvas-chrome-artwork i {
+  position: absolute;
+  right: 13%;
+  bottom: 10%;
+  width: 32%;
+  height: 4px;
+  background: var(--accent-signal);
+}
+
+.canvas-chrome-selection {
+  position: absolute;
+  inset: 30% 17% 19% 22%;
+  border: 1px dashed var(--text-primary);
+}
+
+.canvas-chrome-selection__handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--surface-app);
+  background: var(--text-primary);
+}
+
+.canvas-chrome-selection__handle--nw {
+  top: -5px;
+  left: -5px;
+}
+
+.canvas-chrome-selection__handle--ne {
+  top: -5px;
+  right: -5px;
+}
+
+.canvas-chrome-selection__handle--se {
+  right: -5px;
+  bottom: -5px;
+}
+
+.canvas-chrome-selection__handle--sw {
+  bottom: -5px;
+  left: -5px;
+}
+
+.canvas-chrome-preview-drop {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border: 1px dashed var(--accent-primary);
+  background: color-mix(in oklch, var(--surface-app) 84%, transparent);
+  padding: var(--space-2);
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-state-stack {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+@media (max-width: 560px) {
+  .canvas-chrome-preview-layout,
+  .canvas-chrome-primitive {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .canvas-chrome-state-stack,
+  .canvas-chrome-primitive__aside {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .canvas-chrome-artwork strong,
+  .canvas-chrome-gallery__selection strong {
+    font-size: 34px;
+  }
+}

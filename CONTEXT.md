@@ -215,3 +215,17 @@ _Avoid_: shadcn component, vendor component
 The shared live specimen set that renders every UI Foundation primitive and its
 required interaction states in both the Artifact and Backoffice Product Themes.
 _Avoid_: Component gallery, one-theme style guide
+
+**Canvas Chrome**:
+The Artifact Design System around graph structure, rendered previews, direct
+manipulation, galleries, and 3D viewports. Canvas Chrome makes editor state
+legible but does not own document, graph, renderer, export, pointer-geometry,
+cache, or camera semantics.
+_Avoid_: Canvas renderer, graph engine, viewport state
+
+**Reduced Reference Specimen**:
+A deterministic style-guide fixture that isolates the visible anatomy and
+required states of a large composed surface without mounting its live renderer,
+network assets, persistence, or orchestration. Runtime behavior remains covered
+at the surface's existing public seams.
+_Avoid_: Mock implementation, screenshot, alternate renderer

@@ -420,18 +420,20 @@ Already represented in `/docs/style-guide`:
   `EditorTargetHeader`, `NodePropertiesPanel`, Add Library search/rows/detail,
   legacy inspector field primitives, and the source-owned Inspector System
   ordinary/dense contract
+- canvas-chrome reference surfaces: reduced deterministic `NodeCanvas`,
+  `CanvasPreview`, `NodeGalleryCanvas`, and `PrimitiveViewport3D` fixtures.
+  Their closed state map and semantic invariants live in
+  [`docs/canvas-chrome-inventory.md`](canvas-chrome-inventory.md).
 
 High-priority follow-up specimens:
 
 - Add Library preview loading/ready states
 - AI generation panel disabled, empty, loading, and error states
 - bottom command bar default, compact, and mobile states
-- canvas handles for selected, locked, and hidden layers
-- canvas preview frame with deterministic content
 - layer empty start, area folders, add menus, context menus, and reduced full
   layer panel states
-- graph area overlay, node add/context/pane menus, node canvas, node gallery,
-  node editor panel, and node thumbnail states
+- node add/context/pane menus, node editor panel, and expanded node thumbnail
+  states beyond the locked canvas-chrome reduced fixtures
 - projects list, empty, selected, and import states
 - sidebar collapsed, expanded, and active-section states
 
@@ -443,15 +445,10 @@ Medium-priority follow-up specimens:
 - public footer, brand mark, and public media components
 - color/effect/export/layer/merge/port/repeat inspector variants
 - `ParentalAdvisoryBadge`
-- primitive viewport chrome
 - site navigation desktop, mobile, and active-route states
 
 Large composed surfaces still need reduced specimens plus behavior coverage:
 
-- `CanvasPreview`
-- `node-canvas/NodeCanvas`
-- `NodeGalleryCanvas`
-- `PrimitiveViewport3D`
 - `BottomBar`
 - `Sidebar`
 
