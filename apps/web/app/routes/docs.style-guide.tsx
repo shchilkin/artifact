@@ -25,6 +25,7 @@ import { EditorOrganizationGroup } from '../components/editor-workflow/EditorOrg
 import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
 import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
+import { InspectorPatternSpecimens } from '../components/inspector-system';
 import { LogoGlyph } from '../components/LogoGlyph';
 import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
 import { LayerRow } from '../components/layers-panel/LayerRow';
@@ -739,6 +740,9 @@ export default function DocsStyleGuide() {
             </Specimen>
             <Specimen label="Inspector fields" stack>
               <InspectorFieldSpecimens />
+            </Specimen>
+            <Specimen label="Inspector system" stack>
+              <InspectorPatternSpecimens />
             </Specimen>
           </div>
         </StyleSection>

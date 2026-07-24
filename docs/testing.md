@@ -166,6 +166,10 @@ fallback badges.
   `aria-selected`, and scroll visibility aligned; incidental pointer entry from
   programmatic scrolling must not replace keyboard selection, while actual
   pointer movement still activates rows.
+- Inspector-system contract coverage mounts deterministic ordinary and dense
+  specimens, verifies disclosure focus and state association, and checks
+  disabled, locked, loading, dirty, validation, and 390-pixel containment
+  without touching document or provider state.
 - Primitive nodes expose interactive camera controls in a real browser.
 - Text/image node transform gestures stay local to the selected node: wheel
   scaling must not zoom the React Flow canvas, must not crash with maximum
