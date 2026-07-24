@@ -6,6 +6,7 @@ import { stopNodeEvent } from '../../helpers';
 import { useSyncedTextFieldValue } from './useSyncedTextFieldValue';
 
 export function InspectorTextArea({
+  controlId,
   label,
   value,
   dirty = false,
@@ -20,6 +21,7 @@ export function InspectorTextArea({
   validation = 'idle',
   onChange,
 }: InspectorStateProps & {
+  controlId?: string;
   error?: ReactNode;
   hint?: ReactNode;
   label: ReactNode;
@@ -35,6 +37,7 @@ export function InspectorTextArea({
   return (
     <InspectorField
       className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}
+      controlId={controlId}
       label={label}
       dirty={dirty}
       disabled={disabled}

@@ -3045,6 +3045,8 @@ test('node add menu can add material nodes with previews and inspector controls'
   await expect(page.locator('.node-props-panel')).toContainText('Material');
   await expect(page.locator('.node-props-panel')).toContainText('PBR Material');
   await expect(page.locator('.node-props-panel')).toContainText('Metallic');
+  await expect(page.locator('.node-props-panel [data-inspector-section="true"]')).not.toHaveCount(0);
+  await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 
   const graphState = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');

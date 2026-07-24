@@ -21,6 +21,80 @@ const runtimeInspectorDocument = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
+const codeShaderInspectorDocument = {
+  schemaVersion: 3,
+  global: { bg: '#101018', seed: 146, aspect: '1:1' },
+  layers: [
+    {
+      id: 'v046-code-source',
+      name: 'Code source',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#4466aa',
+      opacity: 100,
+      blendMode: 'normal',
+    },
+  ],
+  graph: {
+    edges: [
+      {
+        id: 'v046-code-input',
+        fromId: 'v046-code-source',
+        fromPort: 'out',
+        toId: 'v046-code-shader',
+        toPort: 'bg',
+      },
+      {
+        id: 'v046-code-output',
+        fromId: 'v046-code-shader',
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {
+      'v046-code-source': { x: 0, y: 100 },
+      'v046-code-shader': { x: 420, y: 100 },
+      __export__: { x: 860, y: 100 },
+    },
+    mergeNodes: [],
+    colorNodes: [],
+    shaderNodes: [
+      {
+        id: 'v046-code-shader',
+        name: 'Code Shader inspector',
+        shaderKind: 'customCode',
+        role: 'effect',
+        palette: ['#ff705f', '#8d5cff'],
+        distortion: 56,
+        swirl: 28,
+        grain: 12,
+        scale: 100,
+        rotation: 0,
+        offsetX: 0,
+        offsetY: 0,
+        seedOffset: 0,
+        opacity: 100,
+        blendMode: 'normal',
+        shaderInstance: {
+          definition: {
+            version: 1,
+            id: 'v046-code-definition',
+            label: 'Code Shader inspector',
+            language: 'glsl-fragment',
+            code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
+            properties: [],
+            provenance: { source: 'manual' },
+          },
+          values: {},
+        },
+      },
+    ],
+  },
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
+
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
 });
@@ -112,6 +186,11 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(layerInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
   await expect(layerInspector.locator('[data-inspector-field="true"]')).not.toHaveCount(0);
 
+  await layerInspector.getByLabel('Toggle layer delete and reorder lock').check();
+  const lockedLayerSection = layerInspector.locator('[data-inspector-section][data-inspector-locked="true"]').first();
+  await expect(lockedLayerSection).toBeVisible();
+  await expect(layerInspector.getByLabel('Color')).toBeEnabled();
+
   const disclosure = layerSection.getByRole('button').first();
   await disclosure.focus();
   await expect(disclosure).toBeFocused();
@@ -128,4 +207,21 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(nodeInspector.locator('[data-inspector-section="true"]')).not.toHaveCount(0);
   await expect(nodeInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
   await expect(nodeInspector.getByLabel('Toggle node delete lock')).toBeEnabled();
+});
+
+test('Code Shader inspector associates accepted, dirty, and invalid authoring states', async ({ page }) => {
+  await gotoDocument(page, codeShaderInspectorDocument);
+  await switchToNodeView(page);
+  await page.locator('.react-flow__node[data-id="v046-code-shader"]').click();
+
+  const code = page.getByLabel('Shader code');
+  const field = code.locator('xpath=ancestor::*[@data-inspector-field="true"]');
+  await expect(code).toBeVisible({ timeout: 15_000 });
+  await expect(field).toHaveAttribute('data-inspector-validation', 'valid');
+
+  await code.fill('void notMainImage() {}');
+  await expect(field).toHaveAttribute('data-inspector-dirty', 'true');
+  await expect(field).toHaveAttribute('data-inspector-validation', 'invalid');
+  await expect(code).toHaveAttribute('aria-invalid', 'true');
+  await expect(code).toHaveAttribute('aria-errormessage', /-error$/);
 });

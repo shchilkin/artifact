@@ -42,6 +42,7 @@ import {
   InspectorSection,
   InspectorSelect,
   InspectorSlider,
+  InspectorStateProvider,
   InspectorTextArea,
   InspectorTextInput,
   InspectorToggle,
@@ -1219,6 +1220,7 @@ function basicLayerControlRenderer(kind: Layer['kind']) {
 export function LayerControls({
   layer,
   onChange,
+  dirty = false,
   detached = false,
   showAiGenerationProvenance = true,
   surface = 'nodes',
@@ -1226,6 +1228,7 @@ export function LayerControls({
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
+  dirty?: boolean;
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
   surface?: LayerControlsSurface;
@@ -1246,19 +1249,21 @@ export function LayerControls({
     onChange,
   };
   const renderBasicLayerControls = basicLayerControlRenderer(layer.kind);
+  const content = renderBasicLayerControls ? (
+    renderBasicLayerControls(renderProps)
+  ) : SOURCE_LAYER_KINDS.has(layer.kind) ? (
+    <SourceLayerControls
+      {...renderProps}
+      layer={layer as SourceLayer}
+      surface={surface}
+      modelFileInputRef={modelFileInputRef}
+      onLoadModelFile={onLoadModelFile}
+    />
+  ) : (
+    <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />
+  );
 
-  if (renderBasicLayerControls) return renderBasicLayerControls(renderProps);
-  if (SOURCE_LAYER_KINDS.has(layer.kind))
-    return (
-      <SourceLayerControls
-        {...renderProps}
-        layer={layer as SourceLayer}
-        surface={surface}
-        modelFileInputRef={modelFileInputRef}
-        onLoadModelFile={onLoadModelFile}
-      />
-    );
-  return <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />;
+  return <InspectorStateProvider value={{ dirty, locked: layer.locked }}>{content}</InspectorStateProvider>;
 }
 
 function sourceSummary(layer: SourceLayer) {

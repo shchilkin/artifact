@@ -4,7 +4,7 @@ import { defaultShaderPalette } from '../../../utils/shaderPalette';
 import { useNodeCanvasActions } from '../context';
 import { AiShaderInspector } from './AiShaderInspector';
 import { CodeShaderInspector } from './CodeShaderInspector';
-import { InspectorSelect, InspectorTextInput } from './fields';
+import { InspectorReadout, InspectorSelect, InspectorTextInput } from './fields';
 import { PresetShaderInspector } from './PresetShaderInspector';
 import { ShaderCompositeSection } from './ShaderCompositeSection';
 import { shaderInspectorRoleNote, shaderInspectorRoleStatus, showsPresetShaderControls } from './ShaderInspectorModel';
@@ -124,7 +124,7 @@ export function ShaderInspector({
           onChange={handleRoleChange}
         />
       )}
-      <ShaderRoleStatus status={roleStatus} />
+      <InspectorReadout label="Role" status={roleStatus.message} value={roleStatus.label} />
       {shaderNode.shaderKind === 'aiShader' && (
         <AiShaderInspector shaderNode={shaderNode} onChange={onChange} sourceConnected={sourceConnected} />
       )}
@@ -140,16 +140,6 @@ export function ShaderInspector({
         <ShaderCompositeSection shaderNode={shaderNode} onChange={onChange} />
       )}
       <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind, shaderNode.role)}</p>
-    </div>
-  );
-}
-
-function ShaderRoleStatus({ status }: { status: ReturnType<typeof shaderInspectorRoleStatus> }) {
-  return (
-    <div className={`node-shader-role-status node-shader-role-status-${status.mode}`}>
-      <span>Role</span>
-      <strong>{status.label}</strong>
-      <p>{status.message}</p>
     </div>
   );
 }

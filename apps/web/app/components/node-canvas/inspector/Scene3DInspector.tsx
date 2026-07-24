@@ -3,7 +3,14 @@ import { useState } from 'react';
 
 import type { GraphScene3DNode } from '../../../types/config';
 import { NoPan } from '../nodes/NoPan';
-import { InspectorSection, InspectorSelect, InspectorSlider, InspectorTextInput, InspectorToggle } from './fields';
+import {
+  InspectorReadout,
+  InspectorSection,
+  InspectorSelect,
+  InspectorSlider,
+  InspectorTextInput,
+  InspectorToggle,
+} from './fields';
 
 type Scene3DSection = 'scene' | 'material' | 'environment' | 'light';
 
@@ -240,17 +247,17 @@ export function Scene3DInspector({
         open={openSection === 'environment'}
         onToggle={() => toggleSection('environment')}
       >
-        <div className="node-inspector-readout">
-          <span>Source</span>
-          <strong>{scene3dNode.environmentName || 'Connect Env Map node'}</strong>
-          {scene3dNode.environmentBytes > 0 ? (
-            <small>
-              {scene3dNode.environmentMime || 'environment'} · {Math.round(scene3dNode.environmentBytes / 1024)} KB
-            </small>
-          ) : (
-            <small>Lights and reflections use the environment input when connected.</small>
-          )}
-        </div>
+        <InspectorReadout
+          label="Source"
+          value={scene3dNode.environmentName || 'Connect Env Map node'}
+          detail={
+            scene3dNode.environmentBytes > 0
+              ? `${scene3dNode.environmentMime || 'environment'} · ${Math.round(
+                  scene3dNode.environmentBytes / 1024,
+                )} KB`
+              : 'Lights and reflections use the environment input when connected.'
+          }
+        />
         <InspectorSlider
           label="Env strength"
           value={scene3dNode.environmentStrength}

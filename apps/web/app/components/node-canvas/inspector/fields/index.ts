@@ -6,6 +6,7 @@ export { InspectorReadout } from './InspectorReadout';
 export { InspectorSection } from './InspectorSection';
 export { InspectorSelect } from './InspectorSelect';
 export { InspectorSlider } from './InspectorSlider';
+export { InspectorStateProvider } from './InspectorStateProvider';
 export { InspectorTextArea } from './InspectorTextArea';
 export { InspectorTextInput } from './InspectorTextInput';
 export { InspectorToggle } from './InspectorToggle';

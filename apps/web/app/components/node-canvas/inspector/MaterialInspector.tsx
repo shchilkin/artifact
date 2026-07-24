@@ -221,9 +221,8 @@ function MaterialTextureSlotControl({
   return (
     <div className="node-inspector-resource">
       <InspectorReadout
-        className={lockedByInput ? 'node-inspector-readout-locked' : undefined}
         label={slot.label}
-        locked={lockedByInput}
+        status={lockedByInput ? 'Read-only · Controlled by graph input' : undefined}
         value={lockedByInput ? 'Connected node input' : name || (source ? 'Embedded texture' : 'No texture')}
         detail={
           lockedByInput

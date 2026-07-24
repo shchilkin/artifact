@@ -44,7 +44,7 @@ camera ownership, provider policy, or accepted AI results.
 | Image source | `Sidebar.tsx` `ImageSourceSection` | empty, ready preview, replace, file input, drag/drop, missing local asset |
 | Emoji set | `Sidebar.tsx` `EmojiSetSection` | selected/unselected glyphs, keyboard focus, wrapped dense grid |
 | AI Image properties | `Sidebar.tsx` `AiImageSection`, `AiGenerationPanel` | access disabled, empty, prompt/provider fields, loading, success, error, recovery |
-| Shared layer controls | `layer-controls/LayerControls.tsx` | ordinary/dense, detached Layers host, embedded Nodes host, disabled, locked, dirty/live edit |
+| Shared layer controls | `layer-controls/LayerControls.tsx` | ordinary/dense, detached Layers host, embedded Nodes host, disabled, locked, existing live-edit callbacks |
 | Text properties | `LayerControls`, `FontPicker` | content, font ready/missing/importing/error, color, placement, style |
 | Image properties | `LayerControls` | fit, placement, scale lock, rotation, opacity, blend |
 | Emoji properties | `LayerControls` | glyph input, density, size, placement, variation |
@@ -69,7 +69,7 @@ visibility and lock rows, but must leave that toggle on the legacy surface until
 | --- | --- | --- |
 | Properties-panel selection content | `node-canvas/panel/NodePropertiesPanel.tsx` | no selection, selected target, close, narrow drawer, keyboard focus |
 | Target overview and layer lock readout | `NodePropertiesPanel.tsx` | layer-backed, graph utility, output, hidden, locked |
-| Connected-port rows | `node-canvas/inspector/PortRow.tsx` and material/environment input rows | connected, disconnected, unavailable, read-only |
+| Connected-port rows | `node-canvas/inspector/PortRow.tsx` and material/environment input rows | accessible connected/disconnected status; unavailable/read-only resource metadata |
 | Color utility | `ColorInspector.tsx` | named target, ordinary numeric fields |
 | Merge utility | `MergeInspector.tsx` | blend, opacity, missing input |
 | Repeat utility | `RepeatInspector.tsx` | pattern variants, dense transforms, optional backdrop |
@@ -102,7 +102,7 @@ They are not inspector fields and must not be recreated in #170.
 | --- | --- | --- |
 | Shader role and authoring method | `ShaderInspector.tsx` | fill/effect, input missing/ready, preset/code/AI method |
 | Preset Shader controls | `PresetShaderInspector.tsx`, `ShaderCompositeSection.tsx` | preset variants, palette, density, strength, variation, effect-only composition |
-| Code Shader authoring | `CodeShaderInspector.tsx` | empty/code, dirty, validating, invalid, accepted, manifest controls |
+| Code Shader authoring | `CodeShaderInspector.tsx` | empty/code, dirty, invalid, accepted, manifest controls |
 | AI Shader prompt/refinement | `AiShaderInspector.tsx`, `AiShaderInspectorSections.tsx` | account disabled, empty, creating, checking, repairing, refining, fallback, failure |
 | Generated shader fields | `ShaderPropertyControl.tsx` | number, boolean, color, manifest constraints, disabled |
 | Shader validation and result status | `ShaderStatusMessage.tsx`, AI Shader status sections | loading, warning, failure, accepted, provider/fallback provenance |
@@ -176,6 +176,17 @@ accessible state exposure, not domain state or mutations.
 - `dirty`, `loading`, and validation are inputs from the owning workflow. The
   patterns do not compare documents, start validation, call providers, or
   commit data.
+- Current layer fields commit through their existing callbacks immediately, so
+  `LayerControls` does not fabricate a dirty state after a committed change. It
+  accepts an authoritative `dirty` input for a future owning workflow.
+- Code Shader validation is synchronous in the browser and therefore moves
+  directly between idle, invalid, and accepted. The real validating state is
+  exercised by the asynchronous AI Shader workflow and deterministic
+  specimens; the inspector does not add a fake delay.
+- `PortRow` exposes existing connected/disconnected resolution to assistive
+  technology without changing node housing or inventing port availability.
+  Read-only and unavailable resource state remains in material/environment
+  inspector rows; visible node-port grammar stays assigned to v0.47.
 - Live gestures and committed changes keep their current callback and history
   modes. The patterns contain no document, graph, renderer, camera, export, or
   provider imports.
