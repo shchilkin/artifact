@@ -219,9 +219,8 @@ The v0.46 property boundary is closed in the
 [Artifact inspector-system inventory](inspector-system-inventory.md). Its
 source-owned `InspectorSection`, `InspectorField`, `PropertyRow`, and
 `InspectorStatus` patterns are represented by ordinary and dense live
-specimens. Production forms remain on their legacy implementations until their
-assigned issues #168–#171 migrate them; the contract must not be read as
-runtime migration already completed.
+specimens. Production forms consume the contract directly or through bounded
+compatibility adapters; v0.48 owns removal of the remaining legacy selectors.
 
 ## Radix And shadcn Boundary
 
@@ -418,8 +417,7 @@ Already represented in `/docs/style-guide`:
   `FloatingMenu`, `MenuItem`, `Panel`, `EmptyState`, and `PreviewFrame`
 - editor primitives: `LayerRow`, `NodeFrame`, `NodeShell`,
   `EditorTargetHeader`, `NodePropertiesPanel`, Add Library search/rows/detail,
-  legacy inspector field primitives, and the source-owned Inspector System
-  ordinary/dense contract
+  runtime Inspector System fields, and the source-owned ordinary/dense contract
 - canvas-chrome reference surfaces: reduced deterministic `NodeCanvas`,
   `CanvasPreview`, `NodeGalleryCanvas`, and `PrimitiveViewport3D` fixtures.
   Their closed state map and semantic invariants live in

@@ -2,7 +2,7 @@ import { type ChangeEvent, useRef, useState } from 'react';
 
 import type { GraphEnvironmentNode } from '../../../types/config';
 import { NoPan } from '../nodes/NoPan';
-import { InspectorSection, InspectorTextInput } from './fields';
+import { InspectorReadout, InspectorSection, InspectorTextInput } from './fields';
 
 function environmentFileSummary(environmentNode: GraphEnvironmentNode) {
   if (environmentNode.environmentName) return environmentNode.environmentName;
@@ -38,19 +38,16 @@ export function EnvironmentInspector({
         open={openSection === 'file'}
         onToggle={() => setOpenSection((current) => (current === 'file' ? 'usage' : 'file'))}
       >
-        <InspectorTextInput value={environmentNode.name} onChange={(name) => onChange({ name })} />
-        <div className="node-inspector-readout">
-          <span>Environment map</span>
-          <strong>{environmentNode.environmentName || 'No EXR / HDR loaded'}</strong>
-          {environmentNode.environmentBytes > 0 ? (
-            <small>
-              {environmentNode.environmentMime || 'environment'} · {Math.round(environmentNode.environmentBytes / 1024)}{' '}
-              KB
-            </small>
-          ) : (
-            <small>Drop an EXR or HDR file, then connect this node to a 3D Scene environment port.</small>
-          )}
-        </div>
+        <InspectorTextInput label="Name" value={environmentNode.name} onChange={(name) => onChange({ name })} />
+        <InspectorReadout
+          label="Environment map"
+          value={environmentNode.environmentName || 'No EXR / HDR loaded'}
+          detail={
+            environmentNode.environmentBytes > 0
+              ? `${environmentNode.environmentMime || 'environment'} · ${Math.round(environmentNode.environmentBytes / 1024)} KB`
+              : 'Drop an EXR or HDR file, then connect this node to a 3D Scene environment port.'
+          }
+        />
         <NoPan
           as="button"
           type="button"
@@ -75,11 +72,11 @@ export function EnvironmentInspector({
         open={openSection === 'usage'}
         onToggle={() => setOpenSection((current) => (current === 'usage' ? 'file' : 'usage'))}
       >
-        <div className="node-inspector-readout">
-          <span>Feeds</span>
-          <strong>Scene environment</strong>
-          <small>Used for model lighting and reflections. The scene controls strength and background visibility.</small>
-        </div>
+        <InspectorReadout
+          label="Feeds"
+          value="Scene environment"
+          detail="Used for model lighting and reflections. The scene controls strength and background visibility."
+        />
       </InspectorSection>
     </div>
   );

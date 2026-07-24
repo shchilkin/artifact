@@ -3356,13 +3356,13 @@
   color: color-mix(in oklch, var(--text) 72%, var(--text-dim));
 }
 
-.node-props-body .node-target-toggle span {
+.node-props-body .node-target-toggle .artifact-property-row__label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.node-props-body .node-target-toggle span::before {
+.node-props-body .node-target-toggle .artifact-property-row__label::before {
   content: "";
   width: 6px;
   height: 6px;

@@ -343,6 +343,9 @@ test('v0.37 material node feeds a 3D scene material slot', async ({ page }, test
   await expect(sceneNode).toBeVisible({ timeout: 15_000 });
   await expect(sceneNode).toContainText(/material/i);
   await expect(page.locator('.react-flow__node[data-id="v037-chrome"]')).toContainText(/surface/i);
+  await sceneNode.click();
+  await expect(page.locator('.node-props-panel [data-inspector-section="true"]')).not.toHaveCount(0);
+  await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
   await expect(outputCanvas).toBeVisible({ timeout: 15_000 });

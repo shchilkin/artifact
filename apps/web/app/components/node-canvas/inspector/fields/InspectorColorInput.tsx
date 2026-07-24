@@ -1,5 +1,5 @@
+import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
-import { InspectorLabel } from './InspectorLabel';
 
 export function InspectorColorInput({
   label,
@@ -15,19 +15,21 @@ export function InspectorColorInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className={`node-inspector-row${inactive || disabled ? ' node-inspector-row-inactive' : ''}`}>
-      <InspectorLabel>{label}</InspectorLabel>
+    <PropertyRow
+      className={`node-inspector-row${inactive || disabled ? ' node-inspector-row-inactive' : ''}`}
+      label={<span className="node-inspector-label">{label}</span>}
+      disabled={disabled}
+    >
       <input
         className="node-color-input nodrag nopan nowheel"
         type="color"
         value={value}
-        disabled={disabled}
         onPointerDown={stopNodeEvent}
         onMouseDown={stopNodeEvent}
         onClick={stopNodeEvent}
         onDoubleClick={stopNodeEvent}
         onChange={(e) => onChange(e.target.value)}
       />
-    </div>
+    </PropertyRow>
   );
 }
