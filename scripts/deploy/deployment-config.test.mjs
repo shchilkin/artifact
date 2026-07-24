@@ -81,11 +81,17 @@ describe('deployment configuration', () => {
     const workerDependencies = compose.match(/\n  worker:\n[\s\S]*?\n    volumes:/)?.[0];
     const bullBoardDependencies = compose.match(/\n  bull-board:\n[\s\S]*?\n    volumes:/)?.[0];
 
+    assert.match(compose, /\n  artifact-postgres:/);
+    assert.match(compose, /\n  artifact-redis:/);
+    assert.match(compose, /@artifact-postgres:5432/);
+    assert.match(compose, /REDIS_URL: redis:\/\/artifact-redis:6379/);
+    assert.doesNotMatch(compose, /\n  postgres:/);
+    assert.doesNotMatch(compose, /\n  redis:/);
     assert.ok(workerDependencies, 'Compose must define the worker service');
     assert.ok(bullBoardDependencies, 'Compose must define the Bull Board service');
-    assert.match(workerDependencies, /postgres:\n\s+condition: service_healthy/);
-    assert.match(workerDependencies, /redis:\n\s+condition: service_healthy/);
-    assert.match(bullBoardDependencies, /redis:\n\s+condition: service_healthy/);
+    assert.match(workerDependencies, /artifact-postgres:\n\s+condition: service_healthy/);
+    assert.match(workerDependencies, /artifact-redis:\n\s+condition: service_healthy/);
+    assert.match(bullBoardDependencies, /artifact-redis:\n\s+condition: service_healthy/);
     assert.doesNotMatch(workerDependencies, /\n      api:/);
     assert.doesNotMatch(bullBoardDependencies, /\n      api:/);
   });
