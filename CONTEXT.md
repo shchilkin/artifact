@@ -163,6 +163,25 @@ The visual language and product patterns for Artifact's creative workspace,
 including Chat, Layers, Nodes, and public creative surfaces.
 _Avoid_: Main UI, frontend styles
 
+**Inspector System**:
+The Artifact Design System patterns for property-editing sections, stacked
+fields, dense property rows, validation, and status. Inspector System exposes
+editor state without owning document, graph, render, camera, history, or
+provider behavior.
+_Avoid_: Settings framework, form library
+
+**Property Row**:
+A dense Inspector System composition that associates one property label, its
+current value or status, and its control while preserving native focus and
+keyboard order.
+_Avoid_: Table row, graph node row
+
+**Inspector State**:
+Visible field or section state supplied by its owning workflow: disabled,
+locked, loading, dirty, or validation state. Inspector State is not serialized
+into `CanvasDocument` by the UI pattern.
+_Avoid_: Document state, provider state
+
 **Product Surface Pattern**:
 An Artifact-owned composition of UI Foundation primitives for recurring
 non-editor experiences such as public navigation, recovery, discovery,
