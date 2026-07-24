@@ -20,6 +20,16 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.46.0 is a locally validated release candidate for the Artifact Inspector
+  System. Layers, common graph properties, effect/material/scene controls, and
+  Code Shader/AI Shader authoring now use one source-owned inspector language
+  with accessible field, status, validation, disclosure, and read-only
+  patterns. The release preserves document, graph, renderer, persistence,
+  export, provider, and AI capability boundaries. Local `check`, build, and the
+  552-scenario browser release gate passed on 2026-07-24; publication and
+  milestone closure remain pending. See
+  [`version-plans/v0.46.md`](./version-plans/v0.46.md) and
+  [`releases/v0.46.0.md`](./releases/v0.46.0.md).
 - v0.45.1 was released on 2026-07-23 as the bounded Site Navigation Hotfix. It
   prevents
   the mobile-only public navigation trigger from leaking onto desktop when
@@ -1367,8 +1377,8 @@ candidate track.
 
 Recommended order:
 
-1. Continue with node-canvas, preview, and 3D chrome in v0.47 after the v0.46
-   Inspector System release gate.
+1. Promote the locally validated v0.46 Inspector System release candidate,
+   then continue with node-canvas, preview, and 3D chrome in v0.47.
 2. Close compatibility aliases and cross-app conformance in v0.48.
 3. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
 
