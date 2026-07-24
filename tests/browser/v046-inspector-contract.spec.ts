@@ -209,7 +209,9 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(nodeInspector.getByLabel('Toggle node delete lock')).toBeEnabled();
 });
 
-test('Code Shader inspector associates accepted, dirty, and invalid authoring states', async ({ page }) => {
+test('Code Shader inspector associates accepted, unavailable, dirty, and invalid authoring states', async ({
+  page,
+}) => {
   await gotoDocument(page, codeShaderInspectorDocument);
   await switchToNodeView(page);
   await page.locator('.react-flow__node[data-id="v046-code-shader"]').click();
@@ -217,11 +219,20 @@ test('Code Shader inspector associates accepted, dirty, and invalid authoring st
   const code = page.getByLabel('Shader code');
   const field = code.locator('xpath=ancestor::*[@data-inspector-field="true"]');
   await expect(code).toBeVisible({ timeout: 15_000 });
-  await expect(field).toHaveAttribute('data-inspector-validation', 'valid');
+  const initialValidation = await field.getAttribute('data-inspector-validation');
+  if (initialValidation === 'valid') {
+    await expect(field).toContainText('Accepted by the browser shader compiler.');
+  } else {
+    expect(initialValidation).toBe('invalid');
+    await expect(field).toContainText('Shader preview is not available in this browser.');
+  }
 
   await code.fill('void notMainImage() {}');
   await expect(field).toHaveAttribute('data-inspector-dirty', 'true');
   await expect(field).toHaveAttribute('data-inspector-validation', 'invalid');
   await expect(code).toHaveAttribute('aria-invalid', 'true');
   await expect(code).toHaveAttribute('aria-errormessage', /-error$/);
+  const errorMessageId = await code.getAttribute('aria-errormessage');
+  expect(errorMessageId).toBeTruthy();
+  await expect(page.locator(`#${errorMessageId}`)).toContainText('mainImage');
 });
