@@ -18,6 +18,7 @@ import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
 import { ADD_LIBRARY_ITEMS, type AddLibraryAction } from '../components/add-library/addLibraryModel';
+import { CanvasChromeSpecimens } from '../components/canvas-chrome/CanvasChromeSpecimens';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
 import { EditorCommandBar } from '../components/editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
@@ -687,6 +688,15 @@ export default function DocsStyleGuide() {
               />
             </div>
           </div>
+        </StyleSection>
+
+        <StyleSection
+          kicker="05B / Canvas chrome"
+          title="Workspace reference specimens"
+          body="Graph, artwork, gallery, and 3D workspaces share one legible state language."
+          wide
+        >
+          <CanvasChromeSpecimens />
         </StyleSection>
 
         <StyleSection
