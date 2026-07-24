@@ -85,6 +85,7 @@ export function CodeShaderInspector({
       <InspectorSection title="Code" summary={summary} open={codeOpen} onToggle={() => setCodeOpen((open) => !open)}>
         {status ? <ShaderStatusMessage {...status} /> : null}
         <InspectorTextArea
+          label="Shader code"
           value={code}
           rows={12}
           placeholder="vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }"

@@ -38,7 +38,7 @@ import {
   BlendModeNote,
   FontPicker,
   InspectorColorInput,
-  InspectorLabel,
+  InspectorReadout,
   InspectorSection,
   InspectorSelect,
   InspectorSlider,
@@ -295,7 +295,7 @@ function LayerNameInput({
   placeholder?: string;
   onChange: (value: string) => void;
 }) {
-  return <InspectorTextInput value={value} placeholder={placeholder} onChange={onChange} />;
+  return <InspectorTextInput label="Name" value={value} placeholder={placeholder} onChange={onChange} />;
 }
 
 function parseEmojiInput(value: string): string[] {
@@ -422,7 +422,11 @@ function TextLayerControls({
         onToggle={() => toggleOpenSection(setOpenSection, 'content', 'placement')}
       >
         <LayerNameInput value={layer.name} placeholder="Layer name" onChange={(v) => onChange({ name: v })} />
-        <InspectorTextArea value={layer.content} onChange={(v) => onChange({ content: v } as Partial<TextLayer>)} />
+        <InspectorTextArea
+          label="Text"
+          value={layer.content}
+          onChange={(v) => onChange({ content: v } as Partial<TextLayer>)}
+        />
         <FontPicker
           label="Font"
           value={layer.font}
@@ -574,15 +578,13 @@ function EmojiLayerControls({
         onToggle={() => toggleOpenSection(setOpenSection, 'content', 'style')}
       >
         <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
-        <div className="node-inspector-control">
-          <InspectorLabel>Emojis</InspectorLabel>
-          <InspectorTextInput
-            value={layer.emojis.join(' ')}
-            onChange={(v) => onChange({ emojis: parseEmojiInput(v) } as Partial<EmojiLayer>)}
-            placeholder="😂 😭 💔"
-          />
-          <p className="node-inspector-note">Separate emojis with spaces or commas.</p>
-        </div>
+        <InspectorTextInput
+          label="Emojis"
+          value={layer.emojis.join(' ')}
+          onChange={(v) => onChange({ emojis: parseEmojiInput(v) } as Partial<EmojiLayer>)}
+          placeholder="😂 😭 💔"
+          hint="Separate emojis with spaces or commas."
+        />
         <InspectorSlider
           label="Density"
           value={layer.density}
@@ -676,7 +678,7 @@ function SourceContentSection({
       open={openSection === 'content'}
       onToggle={() => toggleOpenSection(setOpenSection, 'content', sourceContentFallback(layer))}
     >
-      <InspectorTextInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+      <InspectorTextInput label="Name" value={layer.name} onChange={(v) => onChange({ name: v })} />
       <InspectorColorInput
         label={colorLabels.primary}
         value={layer.color}
@@ -1103,18 +1105,9 @@ function ModelStructureControls({
   if (layer.kind !== 'model') return null;
   return (
     <>
-      <div className="node-inspector-control">
-        <InspectorLabel>Asset</InspectorLabel>
-        <p className="node-inspector-note">{layer.modelName || 'Imported model'}</p>
-      </div>
-      <div className="node-inspector-control">
-        <InspectorLabel>Format</InspectorLabel>
-        <p className="node-inspector-note">{layer.modelMime || 'model/gltf-binary'}</p>
-      </div>
-      <div className="node-inspector-control">
-        <InspectorLabel>Size</InspectorLabel>
-        <p className="node-inspector-note">{Math.max(0, Math.round(layer.modelBytes / 1024))} KB</p>
-      </div>
+      <InspectorReadout label="Asset" value={layer.modelName || 'Imported model'} />
+      <InspectorReadout label="Format" value={layer.modelMime || 'model/gltf-binary'} />
+      <InspectorReadout label="Size" value={`${Math.max(0, Math.round(layer.modelBytes / 1024))} KB`} />
       <ModelFileAction hasModel={Boolean(layer.modelSrc)} inputRef={inputRef} onLoadFile={onLoadFile} />
     </>
   );

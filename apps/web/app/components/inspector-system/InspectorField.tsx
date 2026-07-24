@@ -13,8 +13,10 @@ interface InspectorFieldProps extends FieldProps, InspectorStateProps {
 export function InspectorField({
   className,
   children,
+  controlId,
   dirty = false,
   disabled = false,
+  error,
   hint,
   loading = false,
   locked = false,
@@ -24,18 +26,36 @@ export function InspectorField({
 }: InspectorFieldProps) {
   const state = { dirty, disabled, loading, locked, validation };
   const stateLabels = inspectorStateLabels(state);
-  const control = cloneElement(children as ReactElement<{ 'aria-invalid'?: boolean; disabled?: boolean }>, {
-    'aria-invalid': validation === 'invalid' || children.props['aria-invalid'],
-    disabled: disabled || children.props.disabled,
-  });
+  const hasHint = Boolean(hint || status || stateLabels.length > 0);
+  const hasError = error !== null && error !== undefined && error !== false;
+  const hintId = controlId && hasHint ? `${controlId}-hint` : undefined;
+  const errorId = controlId && hasError ? `${controlId}-error` : undefined;
+  const control = cloneElement(
+    children as ReactElement<{
+      'aria-describedby'?: string;
+      'aria-errormessage'?: string;
+      'aria-invalid'?: boolean;
+      disabled?: boolean;
+      id?: string;
+    }>,
+    {
+      'aria-describedby': joinIds(children.props['aria-describedby'], hintId, errorId),
+      'aria-errormessage': children.props['aria-errormessage'] ?? errorId,
+      'aria-invalid': validation === 'invalid' || children.props['aria-invalid'],
+      disabled: disabled || children.props.disabled,
+      id: children.props.id ?? controlId,
+    },
+  );
 
   return (
     <Field
       {...props}
       children={control}
       className={cn('artifact-inspector-field', className)}
+      controlId={controlId}
+      error={error}
       hint={
-        hint || status || stateLabels.length > 0 ? (
+        hasHint ? (
           <>
             {hint}
             {status ? <span className="artifact-inspector-field__status">{status}</span> : null}
@@ -55,4 +75,9 @@ export function InspectorField({
       {...inspectorStateAttributes(state)}
     />
   );
+}
+
+function joinIds(...values: Array<string | undefined>) {
+  const ids = values.flatMap((value) => value?.split(/\s+/).filter(Boolean) ?? []);
+  return ids.length > 0 ? [...new Set(ids)].join(' ') : undefined;
 }

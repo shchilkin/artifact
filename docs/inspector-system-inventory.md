@@ -1,13 +1,14 @@
 # Artifact Inspector System Inventory
 
-Status: accepted implementation contract for v0.46.
+Status: implemented runtime migration contract for v0.46.
 
 This inventory closes the property-editing boundary for
 [v0.46 Artifact Inspector System](version-plans/v0.46.md). It assigns every
 current Artifact inspector surface to one migration issue or to an explicit
 non-goal. The source-owned patterns established with this inventory are live in
-`/docs/style-guide`; production inspector implementations remain on their
-legacy components until issues #168–#171 migrate them.
+`/docs/style-guide`. Production inspector implementations now consume them
+directly or through thin compatibility adapters; legacy selectors remain only
+as the bounded v0.48 removal seam.
 
 The migration changes anatomy, field association, visible state, validation
 feedback, density, focus, and responsive layout. It must not change document
@@ -180,8 +181,9 @@ accessible state exposure, not domain state or mutations.
   provider imports.
 - Stable state attributes are a browser-test and styling seam, not serialized
   document fields.
-- New and legacy inspector components coexist until all four migration issues
-  pass and v0.48 removes compatibility CSS.
+- Source-owned patterns and compatibility selectors coexist until v0.48
+  removes the legacy CSS seam. Runtime fields no longer fork label, validation,
+  disclosure, or status anatomy.
 
 ## Deterministic Specimens
 

@@ -6,6 +6,7 @@ import {
 } from '../../../features/ai-access/aiAccessPresentation';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
 import type { GraphShaderNode, ShaderPropertyValue } from '../../../types/config';
+import { InspectorStatus } from '../../inspector-system';
 import type { AiShaderInspectorStatus, AiShaderInspectorViewModel } from './AiShaderInspectorModel';
 import { InspectorSection, InspectorSlider, InspectorTextArea } from './fields';
 import { aiShaderEmptyStatus } from './ShaderInspectorModel';
@@ -56,6 +57,7 @@ export function AiShaderPromptSection({
         sourceConnected={sourceConnected}
       />
       <InspectorTextArea
+        label="Prompt"
         value={prompt}
         placeholder="Describe how this should transform the connected artwork"
         onChange={onPromptChange}
@@ -211,13 +213,9 @@ function AiShaderGenerationFeedback({
 }) {
   if (generating) {
     return (
-      <div className="node-inspector-loading" role="status" aria-live="polite">
-        <span className="node-inspector-loading-dot" aria-hidden="true" />
-        <div>
-          <p className="node-inspector-loading-title">{loading.title}</p>
-          <p className="node-inspector-loading-copy">{loading.message}</p>
-        </div>
-      </div>
+      <InspectorStatus loading title={loading.title} tone="info">
+        {loading.message}
+      </InspectorStatus>
     );
   }
   return status ? <ShaderStatusMessage {...status} /> : null;
@@ -252,6 +250,7 @@ function AiShaderRefineContent({ generation }: { generation: AiShaderGeneration 
       onToggle={() => setOpen((value) => !value)}
     >
       <InspectorTextArea
+        label="Refinement"
         value={instruction}
         placeholder="Describe what to change while keeping the current effect"
         onChange={setInstruction}

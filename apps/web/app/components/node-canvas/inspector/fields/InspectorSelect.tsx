@@ -1,5 +1,7 @@
+import { NativeSelect } from '@artifact/ui';
+
+import { InspectorField } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
-import { InspectorLabel } from './InspectorLabel';
 
 export type InspectorSelectOption = string | { value: string; label: string };
 
@@ -17,12 +19,14 @@ export function InspectorSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}>
-      <InspectorLabel>{label}</InspectorLabel>
-      <select
+    <InspectorField
+      className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}
+      label={label}
+      disabled={disabled}
+    >
+      <NativeSelect
         className="node-field nodrag nopan nowheel"
         value={value}
-        disabled={disabled}
         onPointerDown={stopNodeEvent}
         onMouseDown={stopNodeEvent}
         onClick={stopNodeEvent}
@@ -38,7 +42,7 @@ export function InspectorSelect({
             </option>
           );
         })}
-      </select>
-    </div>
+      </NativeSelect>
+    </InspectorField>
   );
 }

@@ -1367,8 +1367,8 @@ candidate track.
 
 Recommended order:
 
-1. Continue with inspector composition in v0.46 and node-canvas, preview, and 3D
-   chrome in v0.47.
+1. Continue with node-canvas, preview, and 3D chrome in v0.47 after the v0.46
+   Inspector System release gate.
 2. Close compatibility aliases and cross-app conformance in v0.48.
 3. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
 

@@ -34,10 +34,12 @@ import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
+import { InspectorSection as ArtifactInspectorSection } from './inspector-system';
 import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
+import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
 import { ActionButton } from './ui/ActionButton';
 
@@ -77,13 +79,20 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   const [open, setOpen] = useState(defaultOpen);
   if (hidden) return null;
   return (
-    <div className="sidebar-section">
-      <button className="sidebar-section-trigger" onClick={() => setOpen((value) => !value)}>
-        <span>{title}</span>
-        <span className="sidebar-section-indicator">{open ? '▾' : '▸'}</span>
-      </button>
-      {open && <div className="sidebar-section-body">{children}</div>}
-    </div>
+    <ArtifactInspectorSection
+      className="sidebar-section"
+      density="ordinary"
+      open={open}
+      onToggle={() => setOpen((value) => !value)}
+      slotClassNames={{
+        body: 'sidebar-section-body',
+        indicator: 'sidebar-section-indicator',
+        trigger: 'sidebar-section-trigger',
+      }}
+      title={title}
+    >
+      {children}
+    </ArtifactInspectorSection>
   );
 }
 
@@ -359,13 +368,7 @@ function SelectedScene3DSections({
 }
 
 function SelectedSceneReadout({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="node-inspector-readout">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
+  return <InspectorReadout detail={detail} label={label} value={value} />;
 }
 
 function sceneSourceName(model: ModelLayer | PrimitiveLayer | null) {
@@ -445,45 +448,32 @@ function SelectedLayerBasics({
 }) {
   return (
     <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
-      <div className="sidebar-toggle-row">
-        <span>Visible</span>
-        <label className="toggle-switch" aria-label="Toggle layer visibility">
-          <input
-            type="checkbox"
-            checked={selectedLayer.visible}
-            onChange={(event) => onPatch({ visible: event.target.checked } as Partial<Layer>)}
-          />
-          <span className="toggle-switch__track" />
-        </label>
-      </div>
+      <InspectorToggle
+        ariaLabel="Toggle layer visibility"
+        checked={selectedLayer.visible}
+        className="sidebar-toggle-row"
+        label="Visible"
+        locked={selectedLayer.locked}
+        onChange={(visible) => onPatch({ visible } as Partial<Layer>)}
+      />
       {selectedLayer.kind === 'effect' && (
-        <div className="sidebar-toggle-row">
-          <span>Use source alpha</span>
-          <label className="toggle-switch" aria-label="Toggle effect alpha masking">
-            <input
-              type="checkbox"
-              checked={selectedLayer.maskAlpha}
-              onChange={(event) => onPatch<EffectLayer>({ maskAlpha: event.target.checked })}
-            />
-            <span className="toggle-switch__track" />
-          </label>
-        </div>
+        <InspectorToggle
+          ariaLabel="Toggle effect alpha masking"
+          checked={selectedLayer.maskAlpha}
+          className="sidebar-toggle-row"
+          label="Use source alpha"
+          locked={selectedLayer.locked}
+          onChange={(maskAlpha) => onPatch<EffectLayer>({ maskAlpha })}
+        />
       )}
-      <div className="sidebar-toggle-row">
-        <span>Locked</span>
-        <label
-          className="toggle-switch"
-          aria-label="Toggle layer delete and reorder lock"
-          title="Protect from delete and layer reorder"
-        >
-          <input
-            type="checkbox"
-            checked={selectedLayer.locked}
-            onChange={(event) => onPatch({ locked: event.target.checked } as Partial<Layer>)}
-          />
-          <span className="toggle-switch__track" />
-        </label>
-      </div>
+      <InspectorToggle
+        ariaLabel="Toggle layer delete and reorder lock"
+        checked={selectedLayer.locked}
+        className="sidebar-toggle-row"
+        label="Locked"
+        locked={selectedLayer.locked}
+        onChange={(locked) => onPatch({ locked } as Partial<Layer>)}
+      />
     </Section>
   );
 }

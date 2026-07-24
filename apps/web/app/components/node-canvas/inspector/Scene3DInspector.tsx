@@ -196,7 +196,7 @@ export function Scene3DInspector({
         open={openSection === 'scene'}
         onToggle={() => toggleSection('scene')}
       >
-        <InspectorTextInput value={scene3dNode.name} onChange={(name) => onChange({ name })} />
+        <InspectorTextInput label="Name" value={scene3dNode.name} onChange={(name) => onChange({ name })} />
         <InspectorToggle
           label="Transparent"
           checked={scene3dNode.transparent}

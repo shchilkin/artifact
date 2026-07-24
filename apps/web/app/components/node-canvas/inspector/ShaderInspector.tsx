@@ -101,7 +101,7 @@ export function ShaderInspector({
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
-      <InspectorTextInput value={shaderNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={shaderNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Shader type"
         value={shaderMode}

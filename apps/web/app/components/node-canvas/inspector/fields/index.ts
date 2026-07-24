@@ -2,6 +2,7 @@ export { BlendModeNote } from './BlendModeNote';
 export { FontPicker } from './FontPicker';
 export { InspectorColorInput } from './InspectorColorInput';
 export { InspectorLabel } from './InspectorLabel';
+export { InspectorReadout } from './InspectorReadout';
 export { InspectorSection } from './InspectorSection';
 export { InspectorSelect } from './InspectorSelect';
 export { InspectorSlider } from './InspectorSlider';

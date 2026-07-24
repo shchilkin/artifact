@@ -113,7 +113,7 @@ function EffectNodeSection({
       open={open}
       onToggle={() => onOpenChange(open ? null : 'node')}
     >
-      <InspectorTextInput value={layer.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={layer.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSlider
         label="Seed"
         value={Math.round(layer.seedOffset ?? 0)}

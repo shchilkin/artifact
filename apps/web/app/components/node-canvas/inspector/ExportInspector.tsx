@@ -1,7 +1,8 @@
 import type { AspectRatio, CanvasDocument } from '../../../types/config';
 import { ASPECT_SIZES } from '../../../types/config';
+import { InspectorStatus } from '../../inspector-system';
 import { NoPan } from '../nodes/NoPan';
-import { InspectorLabel, InspectorSelect } from './fields';
+import { InspectorReadout, InspectorSelect } from './fields';
 
 export function ExportInspector({
   exportConfig,
@@ -36,6 +37,11 @@ export function ExportInspector({
       />
       <CoverExportControls exportConfig={exportConfig} height={height} width={width} onChange={onChange} />
       <EnvmapExportLabel target={exportConfig.target} />
+      {busy ? (
+        <InspectorStatus loading title="Exporting image" tone="info">
+          Rendering the current composition at the selected output size.
+        </InspectorStatus>
+      ) : null}
       <NoPan
         as="button"
         type="button"
@@ -75,11 +81,11 @@ function CoverExportControls({
         options={['1', '2', '3']}
         onChange={(value) => onChange({ scale: Number(value) as CanvasDocument['export']['scale'] })}
       />
-      <InspectorLabel>{`${width * exportConfig.scale} × ${height * exportConfig.scale}`}</InspectorLabel>
+      <InspectorReadout label="Dimensions" value={`${width * exportConfig.scale} × ${height * exportConfig.scale}`} />
     </>
   );
 }
 
 function EnvmapExportLabel({ target }: { target: CanvasDocument['export']['target'] }) {
-  return target === 'envmap' ? <InspectorLabel>4096 × 2048 png</InspectorLabel> : null;
+  return target === 'envmap' ? <InspectorReadout label="Dimensions" value="4096 × 2048 PNG" /> : null;
 }

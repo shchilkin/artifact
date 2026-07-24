@@ -1,7 +1,25 @@
 import { expect, test } from '@playwright/test';
 
 import { INSPECTOR_SPECIMEN_IDS } from '../../apps/web/app/components/inspector-system/inspector-specimens';
-import { expectNoBrowserIssues, setupBrowserTestPage } from './helpers';
+import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
+
+const runtimeInspectorDocument = {
+  schemaVersion: 1,
+  global: { bg: '#101018', seed: 46, aspect: '1:1' },
+  layers: [
+    {
+      id: 'v046-inspector-fill',
+      name: 'Inspector fill',
+      visible: true,
+      locked: false,
+      kind: 'fill',
+      color: '#cc6644',
+      opacity: 84,
+      blendMode: 'normal',
+    },
+  ],
+  export: { format: 'png', scale: 1, target: 'cover' },
+};
 
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
@@ -82,4 +100,32 @@ test('inspector contract stacks inside a 390-pixel viewport without horizontal o
     expect(child.left).toBeGreaterThanOrEqual(layout.container.left - 1);
     expect(child.right).toBeLessThanOrEqual(layout.container.right + 1);
   }
+});
+
+test('layer and node property surfaces consume the runtime inspector contract', async ({ page }) => {
+  await gotoDocument(page, runtimeInspectorDocument);
+  await page.locator('.layer-row').filter({ hasText: 'Inspector fill' }).click();
+
+  const layerInspector = page.locator('.layer-inspector-drawer');
+  const layerSection = layerInspector.locator('[data-inspector-section="true"]').first();
+  await expect(layerSection).toBeVisible();
+  await expect(layerInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
+  await expect(layerInspector.locator('[data-inspector-field="true"]')).not.toHaveCount(0);
+
+  const disclosure = layerSection.getByRole('button').first();
+  await disclosure.focus();
+  await expect(disclosure).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+
+  await switchToNodeView(page);
+  await page.locator('.react-flow__node').filter({ hasText: 'Inspector fill' }).click();
+
+  const nodeInspector = page.locator('.node-props-panel-open');
+  await expect(nodeInspector).toBeVisible();
+  await expect(nodeInspector.locator('[data-inspector-section="true"]')).not.toHaveCount(0);
+  await expect(nodeInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
+  await expect(nodeInspector.getByLabel('Toggle node delete lock')).toBeEnabled();
 });

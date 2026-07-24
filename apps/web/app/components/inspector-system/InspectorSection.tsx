@@ -12,6 +12,15 @@ interface InspectorSectionProps extends Omit<ComponentPropsWithoutRef<'section'>
   density?: InspectorDensity;
   onToggle: () => void;
   open: boolean;
+  slotClassNames?: {
+    body?: string;
+    copy?: string;
+    indicator?: string;
+    meta?: string;
+    summary?: string;
+    title?: string;
+    trigger?: string;
+  };
   summary?: ReactNode;
   title: ReactNode;
 }
@@ -26,6 +35,7 @@ export function InspectorSection({
   locked = false,
   onToggle,
   open,
+  slotClassNames,
   summary,
   title,
   validation = 'idle',
@@ -46,30 +56,32 @@ export function InspectorSection({
       {...inspectorStateAttributes(state)}
     >
       <button
-        className="artifact-inspector-section__trigger nodrag nopan nowheel"
+        className={cn('artifact-inspector-section__trigger nodrag nopan nowheel', slotClassNames?.trigger)}
         type="button"
         aria-controls={bodyId}
         aria-expanded={open}
         disabled={disabled}
         onClick={onToggle}
       >
-        <span className="artifact-inspector-section__copy">
-          <span className="artifact-inspector-section__title">{title}</span>
-          {summary ? <span className="artifact-inspector-section__summary">{summary}</span> : null}
+        <span className={cn('artifact-inspector-section__copy', slotClassNames?.copy)}>
+          <span className={cn('artifact-inspector-section__title', slotClassNames?.title)}>{title}</span>
+          {summary ? (
+            <span className={cn('artifact-inspector-section__summary', slotClassNames?.summary)}>{summary}</span>
+          ) : null}
         </span>
-        <span className="artifact-inspector-section__meta">
+        <span className={cn('artifact-inspector-section__meta', slotClassNames?.meta)}>
           {stateLabels.map((label) => (
             <span className="artifact-inspector-section__state" key={label}>
               {label}
             </span>
           ))}
-          <span className="artifact-inspector-section__indicator" aria-hidden="true">
+          <span className={cn('artifact-inspector-section__indicator', slotClassNames?.indicator)} aria-hidden="true">
             {open ? '−' : '+'}
           </span>
         </span>
       </button>
       {open ? (
-        <div className="artifact-inspector-section__body" id={bodyId}>
+        <div className={cn('artifact-inspector-section__body', slotClassNames?.body)} id={bodyId}>
           {children}
         </div>
       ) : null}

@@ -8,6 +8,7 @@ import './inspector-system.css';
 interface PropertyRowProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'>, InspectorStateProps {
   children: ReactElement<{
     'aria-describedby'?: string;
+    'aria-errormessage'?: string;
     'aria-invalid'?: boolean;
     disabled?: boolean;
     id?: string;
@@ -16,6 +17,7 @@ interface PropertyRowProps extends Omit<ComponentPropsWithoutRef<'div'>, 'childr
   error?: ReactNode;
   hint?: ReactNode;
   label: ReactNode;
+  labelAction?: ReactNode;
   status?: ReactNode;
   value?: ReactNode;
 }
@@ -29,6 +31,7 @@ export function PropertyRow({
   error,
   hint,
   label,
+  labelAction,
   loading = false,
   locked = false,
   status,
@@ -48,6 +51,7 @@ export function PropertyRow({
     id: resolvedControlId,
     disabled: disabled || children.props.disabled,
     'aria-describedby': describedBy,
+    'aria-errormessage': children.props['aria-errormessage'] ?? errorId,
     'aria-invalid': validation === 'invalid' || children.props['aria-invalid'] || undefined,
   } as typeof children.props);
 
@@ -62,6 +66,7 @@ export function PropertyRow({
         <label className="artifact-property-row__label" htmlFor={resolvedControlId}>
           {label}
         </label>
+        {labelAction ? <span className="artifact-property-row__label-action">{labelAction}</span> : null}
         {stateId ? (
           <span className="artifact-inspector-state-labels" id={stateId}>
             {stateLabels.map((stateLabel) => (
