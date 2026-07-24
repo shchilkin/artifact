@@ -3,7 +3,7 @@ import { type ChangeEvent, useRef, useState } from 'react';
 import type { GraphMaterialNode, MaterialTextureInputPort } from '../../../types/config';
 import { saveImageAsset } from '../../../utils/assetStore';
 import { NoPan } from '../nodes/NoPan';
-import { InspectorColorInput, InspectorSection, InspectorSlider, InspectorTextInput } from './fields';
+import { InspectorColorInput, InspectorReadout, InspectorSection, InspectorSlider, InspectorTextInput } from './fields';
 
 type MaterialTextureSlot = {
   label: string;
@@ -93,7 +93,7 @@ export function MaterialInspector({
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
-      <InspectorTextInput value={materialNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={materialNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorColorInput
         label="Base"
         value={materialNode.materialBaseColor}
@@ -219,16 +219,19 @@ function MaterialTextureSlotControl({
     } as Partial<GraphMaterialNode>);
 
   return (
-    <div className={`node-inspector-readout${lockedByInput ? ' node-inspector-readout-locked' : ''}`}>
-      <span>{slot.label}</span>
-      <strong>{lockedByInput ? 'Connected node input' : name || (source ? 'Embedded texture' : 'No texture')}</strong>
-      <small>
-        {lockedByInput
-          ? `${slot.hint} controlled by graph input`
-          : source
-            ? `${bytes ? `${Math.round(bytes / 1024)} KB · ` : ''}${slot.hint}`
-            : slot.hint}
-      </small>
+    <div className="node-inspector-resource">
+      <InspectorReadout
+        label={slot.label}
+        status={lockedByInput ? 'Read-only · Controlled by graph input' : undefined}
+        value={lockedByInput ? 'Connected node input' : name || (source ? 'Embedded texture' : 'No texture')}
+        detail={
+          lockedByInput
+            ? `${slot.hint} controlled by graph input`
+            : source
+              ? `${bytes ? `${Math.round(bytes / 1024)} KB · ` : ''}${slot.hint}`
+              : slot.hint
+        }
+      />
       <div className="node-inspector-inline-actions">
         <NoPan
           as="button"

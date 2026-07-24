@@ -1,0 +1,172 @@
+.canvas-chrome-gallery {
+  display: grid;
+  min-height: 330px;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-panel);
+}
+
+.canvas-chrome-gallery > header {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--line-default);
+  padding: var(--space-2) var(--space-3);
+}
+
+.canvas-chrome-gallery > header > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.canvas-chrome-gallery > header strong,
+.canvas-chrome-gallery > header span {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.canvas-chrome-gallery > header strong {
+  color: var(--text-primary);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.06em;
+}
+
+.canvas-chrome-gallery > header span {
+  color: var(--text-secondary);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.08em;
+}
+
+.canvas-chrome-gallery__viewport {
+  position: relative;
+  min-height: 226px;
+  overflow: hidden;
+  background: var(--editor-canvas-bg);
+}
+
+.canvas-chrome-gallery__ready {
+  position: absolute;
+  inset: 11% 21%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-app);
+}
+
+.canvas-chrome-gallery__selection {
+  display: grid;
+  width: 70%;
+  gap: 0;
+  outline: 1px dashed var(--text-primary);
+  outline-offset: 8px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.canvas-chrome-gallery__selection span {
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.1em;
+}
+
+.canvas-chrome-gallery__selection strong {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 5vw, 52px);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 0.8;
+}
+
+.canvas-chrome-gallery__zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-app) 84%, transparent);
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+}
+
+.canvas-chrome-gallery-state-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  border-top: 1px solid var(--line-default);
+  padding: var(--space-2);
+}
+
+.canvas-chrome-gallery-state {
+  position: relative;
+  display: grid;
+  min-height: 84px;
+  place-items: center;
+  gap: var(--space-1);
+  overflow: hidden;
+  border: 1px solid var(--line-default);
+  background: var(--surface-workspace);
+  padding: var(--space-2);
+}
+
+.canvas-chrome-gallery-state > span {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] i {
+  width: 72%;
+  height: 8px;
+  background: var(--surface-control-selected);
+}
+
+.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] i:last-child {
+  width: 48%;
+}
+
+.canvas-chrome-gallery-state--failed > .action-button {
+  min-height: var(--control-h-compact);
+  height: var(--control-h-compact);
+  padding-inline: var(--control-pad-x-compact);
+  font-size: var(--type-editor-meta);
+}
+
+.canvas-chrome-gallery-state--narrow > div {
+  display: grid;
+  width: 34px;
+  height: 54px;
+  align-content: end;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-app);
+  padding: var(--space-1);
+  color: var(--text-primary);
+}
+
+.canvas-chrome-gallery-state--narrow strong {
+  font-family: var(--font-display);
+  font-size: var(--type-editor-meta);
+  text-transform: uppercase;
+  transform: rotate(-90deg);
+}
+
+@media (max-width: 560px) {
+  .canvas-chrome-gallery-state-grid {
+    grid-template-columns: repeat(3, minmax(86px, 1fr));
+    overflow-x: auto;
+  }
+
+  .canvas-chrome-gallery-state--failed > .action-button {
+    min-height: var(--control-h-default);
+    height: var(--control-h-default);
+  }
+}

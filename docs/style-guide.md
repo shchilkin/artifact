@@ -388,6 +388,32 @@ until the migration is complete.
 - **Anti-patterns**: unlabeled controls, full-width fields without rhythm,
   action buttons separated from their form context.
 
+### Inspector System
+
+- **Source**: product-owned patterns live in
+  `apps/web/app/components/inspector-system/*`; the closed surface assignment
+  and migration boundary live in
+  [`inspector-system-inventory.md`](./inspector-system-inventory.md).
+- **Anatomy**: `InspectorSection` groups properties, `InspectorField` composes
+  UI Foundation fields, `PropertyRow` carries dense label/value/control
+  alignment, and `InspectorStatus` presents bounded feedback.
+- **Density**: ordinary fields use a readable stack; dense rows retain precise
+  values and compact scanning without shrinking focus targets or labels below
+  the editor type floor.
+- **States**: disabled, locked, loading, dirty, validating, valid, and invalid
+  remain distinct. A layer lock does not disable property editing.
+- **Ownership**: state is supplied by the caller. Inspector patterns do not
+  infer document dirtiness, validate authored values, group history, call a
+  provider, or update render/camera state.
+- **Accessibility**: section triggers expose disclosure state; labels, hints,
+  errors, and status are associated with native controls; responsive layout
+  preserves DOM and keyboard order.
+- **Compatibility**: runtime inspectors consume the source-owned patterns;
+  legacy selectors remain as a bounded compatibility seam until the v0.48
+  conformance gate removes them.
+- **Specimens**: `/docs/style-guide` shows deterministic ordinary and dense
+  layouts with the complete state vocabulary.
+
 ## 4. Layout Rules
 
 - **Max content width**: docs and style-guide pages use a wide shell capped near

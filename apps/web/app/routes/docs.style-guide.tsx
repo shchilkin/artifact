@@ -18,6 +18,7 @@ import type { MetaFunction } from 'react-router';
 import { AddLibraryPanel } from '../components/add-library/AddLibraryPanel';
 import { AddLibraryPreview } from '../components/add-library/AddLibraryPreview';
 import { ADD_LIBRARY_ITEMS, type AddLibraryAction } from '../components/add-library/addLibraryModel';
+import { CanvasChromeSpecimens } from '../components/canvas-chrome/CanvasChromeSpecimens';
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
 import { EditorCommandBar } from '../components/editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
@@ -25,6 +26,7 @@ import { EditorOrganizationGroup } from '../components/editor-workflow/EditorOrg
 import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
 import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
+import { InspectorPatternSpecimens } from '../components/inspector-system';
 import { LogoGlyph } from '../components/LogoGlyph';
 import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
 import { LayerRow } from '../components/layers-panel/LayerRow';
@@ -690,6 +692,15 @@ export default function DocsStyleGuide() {
         </StyleSection>
 
         <StyleSection
+          kicker="05B / Canvas chrome"
+          title="Workspace reference specimens"
+          body="Graph, artwork, gallery, and 3D workspaces share one legible state language."
+          wide
+        >
+          <CanvasChromeSpecimens />
+        </StyleSection>
+
+        <StyleSection
           kicker="06 / Workflow matrix"
           title="Editor workflow states"
           body="Command, row, organization, notice, and overlay patterns expose their full interaction state vocabulary."
@@ -739,6 +750,9 @@ export default function DocsStyleGuide() {
             </Specimen>
             <Specimen label="Inspector fields" stack>
               <InspectorFieldSpecimens />
+            </Specimen>
+            <Specimen label="Inspector system" stack>
+              <InspectorPatternSpecimens />
             </Specimen>
           </div>
         </StyleSection>

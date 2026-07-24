@@ -13,7 +13,7 @@ export function MergeInspector({
 }) {
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
-      <InspectorTextInput value={mergeNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={mergeNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Blend"
         value={mergeNode.blendMode}

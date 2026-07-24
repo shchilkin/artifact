@@ -1,0 +1,295 @@
+.canvas-chrome-node-canvas {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--line-default);
+  background-color: var(--editor-canvas-bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--editor-grid-dot) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.canvas-chrome-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  border-color: var(--line-strong);
+  border-radius: 0;
+  background: var(--surface-panel);
+}
+
+.canvas-chrome-toolbar > div {
+  display: flex;
+  align-items: center;
+}
+
+.canvas-chrome-toolbar > div + div {
+  border-left: 1px solid var(--line-default);
+}
+
+.canvas-chrome-toolbar span,
+.canvas-chrome-toolbar .artifact-toolbar-button,
+.canvas-chrome-toolbar-variants span,
+.canvas-chrome-toolbar-variants .artifact-toolbar-button {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-toolbar span,
+.canvas-chrome-toolbar-variants > span {
+  display: grid;
+  min-height: var(--control-h-compact);
+  place-items: center;
+  padding: 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+.canvas-chrome-toolbar .artifact-toolbar-button[aria-pressed="true"] {
+  background: var(--surface-control-selected);
+  color: var(--text-primary);
+}
+
+.canvas-chrome-toolbar-variants {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 5;
+  border-radius: 0;
+}
+
+.canvas-chrome-graph-area {
+  position: absolute;
+  inset: 82px 10% 58px 8%;
+  border: 1px dashed color-mix(in oklch, var(--accent-soft) 54%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-soft) 7%, transparent);
+}
+
+.canvas-chrome-graph-area > span {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-alignment-guides {
+  position: absolute;
+  inset: 70px 8% 50px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.canvas-chrome-alignment-guides span {
+  position: absolute;
+  background: var(--editor-selection-outline);
+  opacity: 0.72;
+}
+
+.canvas-chrome-alignment-guides span:first-child {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.canvas-chrome-alignment-guides span:last-child {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.canvas-chrome-edges {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  pointer-events: none;
+  stroke: var(--node-edge-idle);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-chrome-edges .canvas-chrome-edge-output {
+  stroke: var(--node-edge-output);
+  stroke-width: 3;
+}
+
+.canvas-chrome-node {
+  --canvas-chrome-node-accent: var(--node-kind-fill);
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  width: 118px;
+  min-height: 68px;
+  align-content: center;
+  gap: var(--space-1);
+  border: 1px solid var(--node-card-border);
+  background: var(--node-card-bg);
+  padding: var(--space-2);
+  color: var(--text-primary);
+}
+
+.canvas-chrome-node::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--canvas-chrome-node-accent);
+  content: "";
+}
+
+.canvas-chrome-node--source {
+  top: 171px;
+  left: 8%;
+}
+
+.canvas-chrome-node--selected {
+  --canvas-chrome-node-accent: var(--node-kind-text);
+  top: 99px;
+  left: calc(50% - 59px);
+  background: var(--node-card-selected-bg);
+}
+
+.canvas-chrome-node--category-selected {
+  outline: 2px solid var(--canvas-chrome-node-accent);
+  outline-offset: 2px;
+}
+
+.canvas-chrome-node--output {
+  --canvas-chrome-node-accent: var(--node-kind-export);
+  top: 171px;
+  right: 8%;
+}
+
+.canvas-chrome-node__kind {
+  color: var(--canvas-chrome-node-accent);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-node strong {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  font-weight: var(--weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-chrome-port {
+  position: absolute;
+  top: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--node-handle-idle);
+  background: var(--editor-canvas-bg);
+}
+
+.canvas-chrome-port--in {
+  left: -6px;
+}
+
+.canvas-chrome-port--out {
+  right: -6px;
+}
+
+.canvas-chrome-port--connected {
+  border-color: var(--node-handle-active);
+  background: var(--node-handle-active);
+}
+
+.canvas-chrome-perf-reference {
+  position: absolute;
+  top: 54px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.canvas-chrome-perf-reference span,
+.canvas-chrome-drop-target span {
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-app) 84%, transparent);
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-drop-target {
+  position: absolute;
+  right: 10px;
+  bottom: 58px;
+  z-index: 5;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.canvas-chrome-drop-target span:nth-child(2) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.canvas-chrome-drop-target span:nth-child(3) {
+  border-color: var(--node-edge-output);
+  color: var(--node-edge-output);
+}
+
+@media (max-width: 560px) {
+  .canvas-chrome-node-canvas {
+    min-height: 390px;
+  }
+
+  .canvas-chrome-toolbar span,
+  .canvas-chrome-toolbar-variants > span {
+    display: none;
+  }
+
+  .canvas-chrome-toolbar-variants {
+    right: auto;
+    bottom: 8px;
+    left: 8px;
+  }
+
+  .canvas-chrome-perf-reference {
+    top: 60px;
+    right: 8px;
+    flex-direction: column;
+  }
+
+  .canvas-chrome-drop-target {
+    right: 8px;
+    bottom: 60px;
+    flex-direction: column;
+  }
+
+  .canvas-chrome-node {
+    width: 92px;
+    padding: var(--space-2);
+  }
+
+  .canvas-chrome-node--selected {
+    left: calc(50% - 46px);
+  }
+
+  .canvas-chrome-node--source {
+    left: 4%;
+  }
+
+  .canvas-chrome-node--output {
+    right: 4%;
+  }
+}

@@ -163,6 +163,25 @@ The visual language and product patterns for Artifact's creative workspace,
 including Chat, Layers, Nodes, and public creative surfaces.
 _Avoid_: Main UI, frontend styles
 
+**Inspector System**:
+The Artifact Design System patterns for property-editing sections, stacked
+fields, dense property rows, validation, and status. Inspector System exposes
+editor state without owning document, graph, render, camera, history, or
+provider behavior.
+_Avoid_: Settings framework, form library
+
+**Property Row**:
+A dense Inspector System composition that associates one property label, its
+current value or status, and its control while preserving native focus and
+keyboard order.
+_Avoid_: Table row, graph node row
+
+**Inspector State**:
+Visible field or section state supplied by its owning workflow: disabled,
+locked, loading, dirty, or validation state. Inspector State is not serialized
+into `CanvasDocument` by the UI pattern.
+_Avoid_: Document state, provider state
+
 **Product Surface Pattern**:
 An Artifact-owned composition of UI Foundation primitives for recurring
 non-editor experiences such as public navigation, recovery, discovery,
@@ -196,3 +215,17 @@ _Avoid_: shadcn component, vendor component
 The shared live specimen set that renders every UI Foundation primitive and its
 required interaction states in both the Artifact and Backoffice Product Themes.
 _Avoid_: Component gallery, one-theme style guide
+
+**Canvas Chrome**:
+The Artifact Design System around graph structure, rendered previews, direct
+manipulation, galleries, and 3D viewports. Canvas Chrome makes editor state
+legible but does not own document, graph, renderer, export, pointer-geometry,
+cache, or camera semantics.
+_Avoid_: Canvas renderer, graph engine, viewport state
+
+**Reduced Reference Specimen**:
+A deterministic style-guide fixture that isolates the visible anatomy and
+required states of a large composed surface without mounting its live renderer,
+network assets, persistence, or orchestration. Runtime behavior remains covered
+at the surface's existing public seams.
+_Avoid_: Mock implementation, screenshot, alternate renderer

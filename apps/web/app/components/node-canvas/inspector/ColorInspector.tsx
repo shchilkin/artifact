@@ -10,7 +10,7 @@ export function ColorInspector({
 }) {
   return (
     <div className="node-inspector-stack">
-      <InspectorTextInput value={colorNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={colorNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSlider
         label="Contrast"
         value={colorNode.contrast}

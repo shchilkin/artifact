@@ -1,0 +1,92 @@
+.canvas-chrome-primitive__frame {
+  position: relative;
+  display: grid;
+  min-height: 330px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: var(--editor-canvas-bg);
+}
+
+.canvas-chrome-primitive__frame--active {
+  border-color: var(--node-kind-primitive);
+}
+
+.canvas-chrome-viewport-status {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  border: 1px solid var(--node-kind-primitive);
+  background: color-mix(in oklch, var(--surface-app) 84%, transparent);
+  padding: var(--space-1) var(--space-2);
+  color: var(--node-kind-primitive);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-chrome-primitive__glyph {
+  width: min(64%, 180px);
+  fill: color-mix(in oklch, var(--node-kind-primitive) 11%, var(--surface-card));
+  stroke: var(--node-kind-primitive);
+  stroke-linejoin: bevel;
+  stroke-width: 1.2;
+}
+
+.canvas-chrome-primitive__glyph polygon:nth-child(2) {
+  fill: color-mix(in oklch, var(--node-kind-primitive) 6%, var(--surface-card));
+}
+
+.canvas-chrome-primitive__glyph polygon:nth-child(3) {
+  fill: color-mix(in oklch, var(--node-kind-primitive) 18%, var(--surface-card));
+}
+
+.canvas-chrome-primitive__glyph path {
+  fill: none;
+}
+
+.canvas-chrome-viewport-controls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 0;
+}
+
+.canvas-chrome-primitive__aside {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.canvas-chrome-primitive__locked {
+  position: relative;
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line-default);
+  background: var(--surface-panel);
+}
+
+.canvas-chrome-primitive__locked .canvas-chrome-primitive__glyph {
+  width: 68%;
+  opacity: 0.42;
+  filter: grayscale(1);
+}
+
+.canvas-chrome-primitive__locked > span {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  left: 7px;
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-app) 84%, transparent);
+  padding: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  line-height: 1.35;
+  text-align: center;
+  text-transform: uppercase;
+}

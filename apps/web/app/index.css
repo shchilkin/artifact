@@ -1079,6 +1079,7 @@ body {
 
 .font-picker {
   position: relative;
+  min-width: 0;
 }
 
 .font-picker-trigger {
@@ -1125,6 +1126,8 @@ body {
 
 .font-picker-panel {
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-direction: column;
   gap: 8px;
   padding: 8px;
@@ -1138,8 +1141,12 @@ body {
 
 .font-picker-google {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(64px, auto);
   gap: 6px;
+}
+
+.font-picker-google .font-picker-search {
+  min-width: 0;
 }
 
 .font-picker-import {
@@ -1197,6 +1204,7 @@ body {
 
 .font-picker-categories {
   display: flex;
+  max-width: 100%;
   gap: 5px;
   overflow-x: auto;
   padding-bottom: 2px;

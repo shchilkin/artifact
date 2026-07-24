@@ -1,0 +1,352 @@
+.artifact-inspector-section {
+  min-width: 0;
+  overflow: clip;
+  border: 1px solid var(--line-default);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--surface-panel) 88%, var(--surface-workspace));
+}
+
+.artifact-inspector-section[data-inspector-open="true"] {
+  border-color: var(--line-strong);
+  background: var(--surface-panel-raised);
+}
+
+.artifact-inspector-section__trigger {
+  display: flex;
+  width: 100%;
+  min-height: var(--control-h-default);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+}
+
+.artifact-inspector-section__trigger:hover {
+  background: var(--surface-control-hover);
+}
+
+.artifact-inspector-section__trigger:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.artifact-inspector-section__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.artifact-inspector-section__copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.artifact-inspector-section__title {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-label);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.08em;
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+}
+
+.artifact-inspector-section__summary {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--type-editor-meta);
+  line-height: var(--leading-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-inspector-section__meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.artifact-inspector-section__state,
+.artifact-inspector-section__indicator {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-sm);
+}
+
+.artifact-inspector-section__state {
+  color: var(--text-muted);
+  font-size: var(--type-ui-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.artifact-inspector-section[data-inspector-dirty="true"] {
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.artifact-inspector-section[data-inspector-locked="true"] .artifact-inspector-section__state {
+  color: var(--state-warning);
+}
+
+.artifact-inspector-section[data-inspector-validation="invalid"] {
+  border-color: var(--state-danger);
+}
+
+.artifact-inspector-section[data-inspector-validation="validating"] {
+  border-color: var(--state-warning);
+}
+
+.artifact-inspector-section[data-inspector-validation="valid"] {
+  border-color: var(--state-success);
+}
+
+.artifact-inspector-section__body {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  border-top: 1px solid var(--line-muted);
+  padding: var(--space-3);
+}
+
+.artifact-inspector-section[data-inspector-density="dense"] .artifact-inspector-section__trigger {
+  min-height: var(--control-h-default);
+  padding-block: var(--space-1);
+}
+
+.artifact-inspector-section[data-inspector-density="dense"] .artifact-inspector-section__body {
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.artifact-inspector-field,
+.artifact-property-row {
+  position: relative;
+  min-width: 0;
+}
+
+.artifact-inspector-field {
+  gap: var(--space-2);
+}
+
+.artifact-inspector-field::before,
+.artifact-property-row::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  width: 2px;
+  background: transparent;
+  content: "";
+}
+
+.artifact-inspector-field[data-inspector-dirty="true"]::before,
+.artifact-property-row[data-inspector-dirty="true"]::before {
+  background: var(--accent-primary);
+}
+
+.artifact-inspector-field[data-inspector-disabled="true"],
+.artifact-property-row[data-inspector-disabled="true"] {
+  opacity: 0.48;
+}
+
+.artifact-inspector-field[data-inspector-validation="validating"]::before,
+.artifact-property-row[data-inspector-validation="validating"]::before {
+  background: var(--state-warning);
+}
+
+.artifact-inspector-field[data-inspector-validation="valid"]::before,
+.artifact-property-row[data-inspector-validation="valid"]::before {
+  background: var(--state-success);
+}
+
+.artifact-inspector-field[data-inspector-validation="invalid"]::before,
+.artifact-property-row[data-inspector-validation="invalid"]::before {
+  background: var(--state-danger);
+}
+
+.artifact-inspector-field__status,
+.artifact-property-row__status {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.artifact-inspector-state-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.artifact-inspector-state-label {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  font-style: normal;
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.artifact-property-row__heading .artifact-inspector-state-labels {
+  margin-top: 0;
+}
+
+[data-inspector-locked="true"] .artifact-inspector-state-label,
+[data-inspector-validation="validating"] .artifact-inspector-state-label {
+  color: var(--state-warning);
+}
+
+[data-inspector-validation="invalid"] .artifact-inspector-state-label {
+  color: var(--state-danger);
+}
+
+[data-inspector-validation="valid"] .artifact-inspector-state-label {
+  color: var(--state-success);
+}
+
+.artifact-property-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(128px, 1.2fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.artifact-property-row__heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.artifact-property-row__label {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-label);
+  letter-spacing: 0.05em;
+  line-height: var(--leading-ui);
+}
+
+.artifact-property-row__value {
+  margin-left: auto;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-label);
+}
+
+.artifact-property-row__control {
+  display: flex;
+  min-width: 0;
+  min-height: var(--control-h-default);
+  align-items: center;
+}
+
+.artifact-property-row__control > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+.artifact-property-row__description,
+.artifact-property-row__error {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--type-editor-meta);
+  line-height: var(--leading-body);
+}
+
+.artifact-property-row__error {
+  color: var(--state-danger);
+}
+
+.artifact-inspector-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.artifact-inspector-status__progress {
+  width: 100%;
+}
+
+.artifact-inspector-status__copy {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.artifact-inspector-status__title {
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.artifact-inspector-status__message {
+  font-family: var(--font-body);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+
+@media (max-width: 640px) {
+  .artifact-property-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .artifact-property-row__value {
+    margin-left: 0;
+  }
+}
+
+.artifact-inspector-specimens {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.artifact-inspector-specimen {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.artifact-inspector-specimen__label {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.artifact-inspector-range,
+.artifact-property-row__control > .ui-field-control {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-h-default);
+}
+
+.artifact-inspector-range:focus-visible,
+.artifact-property-row__control > .ui-field-control:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (max-width: 820px) {
+  .artifact-inspector-specimens {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

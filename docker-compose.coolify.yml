@@ -5,9 +5,9 @@ x-artifact-api-env: &artifact-api-env
   WEB_ORIGIN: ${WEB_ORIGIN:?Set the primary public Vercel/frontend origin}
   WEB_ORIGINS: ${WEB_ORIGINS:-}
   API_DATABASE_DRIVER: postgres
-  DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artifact}
+  DATABASE_URL: postgres://${POSTGRES_USER:-artifact}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@artifact-postgres:5432/${POSTGRES_DB:-artifact}
   API_QUEUE_DRIVER: bullmq
-  REDIS_URL: redis://redis:6379
+  REDIS_URL: redis://artifact-redis:6379
   AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a long random JWT fallback secret}
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
   AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
@@ -23,7 +23,7 @@ x-artifact-api-env: &artifact-api-env
   ASSET_STORAGE_DIR: /var/lib/artifact/generated-assets
 
 services:
-  postgres:
+  artifact-postgres:
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-artifact}
@@ -38,7 +38,7 @@ services:
       retries: 10
     restart: unless-stopped
 
-  redis:
+  artifact-redis:
     image: redis:7-alpine
     command: ['redis-server', '--appendonly', 'yes', '--save', '']
     volumes:
@@ -59,9 +59,9 @@ services:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
     depends_on:
-      postgres:
+      artifact-postgres:
         condition: service_healthy
-      redis:
+      artifact-redis:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
@@ -83,11 +83,9 @@ services:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: false
     depends_on:
-      postgres:
+      artifact-postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      api:
+      artifact-redis:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets
@@ -107,9 +105,7 @@ services:
       <<: *artifact-api-env
       API_BULL_BOARD_ENABLED: true
     depends_on:
-      redis:
-        condition: service_healthy
-      api:
+      artifact-redis:
         condition: service_healthy
     volumes:
       - artifact-generated-assets:/var/lib/artifact/generated-assets:ro

@@ -79,6 +79,42 @@ CI should run:
 
 ## Manual QA
 
+### v0.46.0 Release Prep And Evidence
+
+- Package metadata is bumped to `0.46.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.46.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Layers, common graph properties, effect/material/scene controls, and Code
+  Shader/AI Shader authoring consume the source-owned Artifact Inspector System
+  contract while preserving document, graph, renderer, persistence, export,
+  provider, and AI capability boundaries.
+- The live style guide and runtime coverage exercise ordinary and dense fields,
+  labels, keyboard disclosure, accepted, dirty, invalid, loading, locked,
+  disabled, graph-connected read-only, and narrow-drawer states.
+- `npm run release:verify -- --version 0.46.0`, `npm run check`, and
+  `npm run build` passed on 2026-07-24. The check includes 20 UI Foundation
+  tests, 701 Web tests, 261 passing API tests with 5 skipped, 11 Backoffice
+  tests, and 25 deployment tests, plus formatting, lint, and all type checks.
+- The complete browser release gate scheduled 552 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 501 passed without retry and 51 were intentional
+  skips.
+- `npm run perf:node-editor` is not required because this release changes no
+  graph traversal, renderer algorithm or signature, thumbnail queue, or canvas
+  interaction hot path.
+- Accepted release risk: conformance covers representative live surfaces,
+  semantics, keyboard focus, native states, geometry, responsive overflow, and
+  the supported browser matrix; it is not a complete visual-regression suite or
+  WCAG certification.
+- Accepted release risk: compatibility wrappers and legacy aliases remain until
+  the v0.48 zero-caller conformance gate.
+- Accepted release risk: the build retains inherited Fast Refresh warnings and
+  the large Three.js vendor-chunk warning. Browser logs retain existing
+  blank-frame fallback and React Flow development warnings; no release-gate
+  scenario failed.
+
 ### v0.45.1 Release Prep And Evidence
 
 - Package metadata is bumped to `0.45.1` in `package.json`,

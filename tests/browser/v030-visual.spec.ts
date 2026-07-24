@@ -205,16 +205,21 @@ test('v0.30 style guide exposes reusable primitives and editor states', async ({
   await expect(page.getByText('Artifact editor design system')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
+  const controlsSection = page
+    .locator('.docs-guide-section')
+    .filter({ has: page.getByRole('heading', { name: 'Controls', exact: true }) });
+  await expect(controlsSection).toBeVisible();
+
   await expect.poll(async () => page.locator('.artifact-icon-button').count()).toBeGreaterThanOrEqual(4);
-  await expect(page.locator('.artifact-input')).toHaveCount(3);
+  await expect(controlsSection.locator('.artifact-input')).toHaveCount(3);
   await expect.poll(async () => page.locator('.artifact-search-field').count()).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => page.locator('.artifact-badge').count()).toBeGreaterThanOrEqual(4);
-  await expect(page.locator('.artifact-toolbar')).toHaveCount(1);
-  await expect(page.locator('.artifact-segmented-control')).toHaveCount(1);
-  await expect(page.locator('.artifact-tabs-list')).toHaveCount(1);
-  await expect(page.locator('.artifact-tabs-trigger')).toHaveCount(2);
-  await expect(page.locator('.artifact-panel')).toHaveCount(1);
-  await expect(page.locator('.artifact-empty-state')).toHaveCount(1);
+  await expect(controlsSection.locator('.artifact-toolbar')).toHaveCount(1);
+  await expect(controlsSection.locator('.artifact-segmented-control')).toHaveCount(1);
+  await expect(controlsSection.locator('.artifact-tabs-list')).toHaveCount(1);
+  await expect(controlsSection.locator('.artifact-tabs-trigger')).toHaveCount(2);
+  await expect(controlsSection.locator('.artifact-panel')).toHaveCount(1);
+  await expect(controlsSection.locator('.artifact-empty-state')).toHaveCount(1);
   await expect.poll(async () => page.locator('.artifact-preview-frame').count()).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => page.locator('.artifact-menu-item').count()).toBeGreaterThanOrEqual(2);
   await expect(page.locator('.style-guide-layer-stack > .layer-row')).toHaveCount(5);

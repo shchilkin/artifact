@@ -2365,7 +2365,7 @@ test('output properties explain missing graph input', async ({ page }) => {
   await gotoDocument(page, outputNoInputDocument);
   await switchToNodeView(page);
 
-  const outputNode = page.locator('.react-flow__node').filter({ hasText: 'OUTPUT' });
+  const outputNode = page.locator('.react-flow__node[data-id="__export__"]');
   await expect(outputNode).toBeVisible({ timeout: 15_000 });
   await outputNode.click();
 
@@ -3045,6 +3045,8 @@ test('node add menu can add material nodes with previews and inspector controls'
   await expect(page.locator('.node-props-panel')).toContainText('Material');
   await expect(page.locator('.node-props-panel')).toContainText('PBR Material');
   await expect(page.locator('.node-props-panel')).toContainText('Metallic');
+  await expect(page.locator('.node-props-panel [data-inspector-section="true"]')).not.toHaveCount(0);
+  await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 
   const graphState = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');

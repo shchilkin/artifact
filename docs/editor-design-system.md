@@ -215,6 +215,13 @@ That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
 v0.49 rather than treating them as current editor navigation.
 
+The v0.46 property boundary is closed in the
+[Artifact inspector-system inventory](inspector-system-inventory.md). Its
+source-owned `InspectorSection`, `InspectorField`, `PropertyRow`, and
+`InspectorStatus` patterns are represented by ordinary and dense live
+specimens. Production forms consume the contract directly or through bounded
+compatibility adapters; v0.48 owns removal of the remaining legacy selectors.
+
 ## Radix And shadcn Boundary
 
 The project already uses the unified `radix-ui` package and source-owned UI
@@ -410,19 +417,21 @@ Already represented in `/docs/style-guide`:
   `FloatingMenu`, `MenuItem`, `Panel`, `EmptyState`, and `PreviewFrame`
 - editor primitives: `LayerRow`, `NodeFrame`, `NodeShell`,
   `EditorTargetHeader`, `NodePropertiesPanel`, Add Library search/rows/detail,
-  and inspector field primitives
+  runtime Inspector System fields, and the source-owned ordinary/dense contract
+- canvas-chrome reference surfaces: reduced deterministic `NodeCanvas`,
+  `CanvasPreview`, `NodeGalleryCanvas`, and `PrimitiveViewport3D` fixtures.
+  Their closed state map and semantic invariants live in
+  [`docs/canvas-chrome-inventory.md`](canvas-chrome-inventory.md).
 
 High-priority follow-up specimens:
 
 - Add Library preview loading/ready states
 - AI generation panel disabled, empty, loading, and error states
 - bottom command bar default, compact, and mobile states
-- canvas handles for selected, locked, and hidden layers
-- canvas preview frame with deterministic content
 - layer empty start, area folders, add menus, context menus, and reduced full
   layer panel states
-- graph area overlay, node add/context/pane menus, node canvas, node gallery,
-  node editor panel, and node thumbnail states
+- node add/context/pane menus, node editor panel, and expanded node thumbnail
+  states beyond the locked canvas-chrome reduced fixtures
 - projects list, empty, selected, and import states
 - sidebar collapsed, expanded, and active-section states
 
@@ -434,15 +443,10 @@ Medium-priority follow-up specimens:
 - public footer, brand mark, and public media components
 - color/effect/export/layer/merge/port/repeat inspector variants
 - `ParentalAdvisoryBadge`
-- primitive viewport chrome
 - site navigation desktop, mobile, and active-route states
 
 Large composed surfaces still need reduced specimens plus behavior coverage:
 
-- `CanvasPreview`
-- `node-canvas/NodeCanvas`
-- `NodeGalleryCanvas`
-- `PrimitiveViewport3D`
 - `BottomBar`
 - `Sidebar`
 

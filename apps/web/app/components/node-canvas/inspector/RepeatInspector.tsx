@@ -17,7 +17,7 @@ export function RepeatInspector({
 
   return (
     <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
-      <InspectorTextInput value={repeatNode.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorTextInput label="Name" value={repeatNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Pattern"
         value={repeatNode.pattern}
