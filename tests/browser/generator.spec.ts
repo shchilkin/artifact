@@ -2365,7 +2365,7 @@ test('output properties explain missing graph input', async ({ page }) => {
   await gotoDocument(page, outputNoInputDocument);
   await switchToNodeView(page);
 
-  const outputNode = page.locator('.react-flow__node').filter({ hasText: 'OUTPUT' });
+  const outputNode = page.locator('.react-flow__node[data-id="__export__"]');
   await expect(outputNode).toBeVisible({ timeout: 15_000 });
   await outputNode.click();
 
