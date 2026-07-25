@@ -114,6 +114,51 @@ CI should run:
   the large Three.js vendor-chunk warning. Browser logs retain existing
   blank-frame fallback and React Flow development warnings; no release-gate
   scenario failed.
+- Delivery PR
+  [#232](https://github.com/shchilkin/artifact/pull/232) merged the inspector
+  migration to `development`. Follow-up PRs
+  [#233](https://github.com/shchilkin/artifact/pull/233) and
+  [#234](https://github.com/shchilkin/artifact/pull/234) hardened the staging
+  Compose health boundary and isolated the internal Postgres/Redis service
+  names from shared-network DNS collisions.
+- Final development CI
+  [30125928904](https://github.com/shchilkin/artifact/actions/runs/30125928904)
+  passed on `886d5c14065be8a2a86d1839104618fa6556d07e`. Staging run
+  [30126671330](https://github.com/shchilkin/artifact/actions/runs/30126671330)
+  verified Vercel, Coolify, API contract version 1, and the exact same build
+  SHA.
+- Promotion PR
+  [#235](https://github.com/shchilkin/artifact/pull/235) passed promotion CI
+  [30126890681](https://github.com/shchilkin/artifact/actions/runs/30126890681)
+  and merged the staged tree into `main` as production commit
+  `00beb40dfa0b0c774eb7b3aff5664bee72e1a8d8`. Post-merge CI
+  [30130890187](https://github.com/shchilkin/artifact/actions/runs/30130890187)
+  passed after retrying one Docker Hub BuildKit download timeout; product
+  checks did not fail.
+- Tag-and-draft run
+  [30132014887](https://github.com/shchilkin/artifact/actions/runs/30132014887)
+  passed the complete release gate and created annotated tag `v0.46.0` at that
+  exact production commit.
+- Production run
+  [30133332470](https://github.com/shchilkin/artifact/actions/runs/30133332470)
+  verified the exact build SHA on staged and production Vercel, Coolify
+  deployment `p144fho8ktvrjzqt1zyeyu5a`, API contract version 1, and
+  `https://artifact.shchilkin.dev`. Independent API and web verification from
+  the maintainer machine reported the same build SHA.
+- Publish run
+  [30134600338](https://github.com/shchilkin/artifact/actions/runs/30134600338)
+  passed the complete release gate and published
+  [`v0.46.0`](https://github.com/shchilkin/artifact/releases/tag/v0.46.0) on
+  2026-07-25. Issues
+  [#166](https://github.com/shchilkin/artifact/issues/166),
+  [#168](https://github.com/shchilkin/artifact/issues/168),
+  [#169](https://github.com/shchilkin/artifact/issues/169),
+  [#170](https://github.com/shchilkin/artifact/issues/170),
+  [#171](https://github.com/shchilkin/artifact/issues/171), and
+  [#177](https://github.com/shchilkin/artifact/issues/177) are closed, and
+  milestone
+  [`v0.46 Artifact Inspector System`](https://github.com/shchilkin/artifact/milestone/6)
+  is closed with no open issues.
 
 ### v0.45.1 Release Prep And Evidence
 
