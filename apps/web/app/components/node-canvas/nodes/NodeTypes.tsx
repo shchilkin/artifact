@@ -55,6 +55,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       muted={!layer.visible}
       targetHandles={targetHandles}
       onSelect={(event) => selectNode(layer.id, event)}
@@ -110,6 +111,7 @@ export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data 
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={MATERIAL_TEXTURE_INPUT_PORTS.map((id, index) => ({
         id,
         top: `${24 + index * 13}%`,
@@ -140,6 +142,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(colorNode.id, event)}
     >
@@ -166,6 +169,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[
         { id: 'a', top: '36%' },
         { id: 'b', top: '64%' },
@@ -198,6 +202,7 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[
         { id: 'in', top: '36%' },
         { id: 'bg', top: '64%' },
@@ -230,6 +235,7 @@ export const MaskNodeComponent = memo(function MaskNodeComponent({ data }: NodeP
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[
         { id: 'in', top: '36%' },
         { id: 'mask', top: '64%' },
@@ -264,6 +270,7 @@ export const TransformNodeComponent = memo(function TransformNodeComponent({ dat
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(transformNode.id, event)}
       onDelete={() => deleteNode(transformNode.id)}
@@ -302,6 +309,7 @@ export const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(grimeShadowNode.id, event)}
       onDelete={() => deleteNode(grimeShadowNode.id)}
@@ -343,6 +351,7 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[
         { id: 'model', top: '25%' },
         { id: 'material', top: '43%' },
@@ -393,6 +402,7 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(environmentNode.id, event)}
       onDelete={() => deleteNode(environmentNode.id)}
@@ -449,6 +459,7 @@ export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: N
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={effectRole ? [{ id: 'bg' }] : []}
       onSelect={(event) => selectNode(shaderNode.id, event)}
       onDelete={() => deleteNode(shaderNode.id)}
@@ -599,6 +610,7 @@ export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: N
       selected={selected}
       outputPath={outputPath}
       editing={editing}
+      connected={connected}
       targetHandles={[{ id: 'in' }]}
       sourceHandles={[]}
       onSelect={(event) => selectNode(EXPORT_NODE_ID, event)}

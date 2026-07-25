@@ -29,6 +29,8 @@ import {
   clamp,
   createPrimitiveCamera,
 } from '../utils/primitiveScene';
+import { Viewport3DStatusOverlay } from './canvas-chrome/Viewport3DChrome';
+import { resolveViewport3DStatus, viewport3DClassName } from './canvas-chrome/viewport3DChromeState';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from './PrimitiveViewportState';
 import {
   createTransparentWebglRenderer,
@@ -66,12 +68,6 @@ export interface ModelViewport3DProps {
 const AUTO_ROTATE_DEGREES_PER_MS = 0.018;
 let nextEnvironmentCanvasId = 1;
 const environmentCanvasIds = new WeakMap<HTMLCanvasElement, number>();
-
-function modelViewportClassName(className: string | undefined, locked: boolean) {
-  return ['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel']
-    .filter(Boolean)
-    .join(' ');
-}
 
 function modelViewportAriaLabel(interactive: boolean, layerName: string) {
   return interactive
@@ -572,13 +568,18 @@ export function ModelViewport3D({
   }, [applyViewState, commit, flushPendingWheelCommit, interactive, lockRFPane, scheduleWheelCommit, unlockRFPane]);
 
   const locked = !!viewState.locked;
-  const viewportStatus = webglUnavailable
+  const status = resolveViewport3DStatus({
+    hasRenderedFrame,
+    unavailable: webglUnavailable,
+    failed: Boolean(loadFailure),
+  });
+  const statusLabel = webglUnavailable
     ? 'WebGL unavailable'
     : loadFailure
       ? sourceLoadStatus(layer, loadFailure)
       : !hasRenderedFrame
         ? 'Loading 3D model'
-        : null;
+        : '3D model ready';
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive || locked) return;
     const next = nextViewportKeyboardState(
@@ -597,7 +598,11 @@ export function ModelViewport3D({
   return (
     <div
       ref={rootRef}
-      className={modelViewportClassName(className, locked)}
+      className={viewport3DClassName({ className, locked, interactive, status })}
+      data-viewport-3d={sceneNode ? 'scene' : 'model'}
+      data-viewport-3d-state={status}
+      data-viewport-3d-lock={locked ? 'locked' : 'unlocked'}
+      data-viewport-3d-mode={interactive ? 'interactive' : 'passive'}
       tabIndex={interactive ? 0 : -1}
       role={interactive ? 'group' : undefined}
       aria-hidden={interactive ? undefined : true}
@@ -619,20 +624,21 @@ export function ModelViewport3D({
           width: '100%',
           height: '100%',
           opacity: hasRenderedFrame ? 1 : 0,
-          transition: 'opacity 80ms ease-out',
         }}
       />
-      {(viewportStatus || environmentFailed) && (
-        <div className="model-viewport-status" aria-live="polite">
-          {viewportStatus && <span className="model-viewport-status-badge">{viewportStatus}</span>}
-          {environmentFailed && <span className="model-viewport-status-badge">Env map unavailable</span>}
-        </div>
-      )}
-      {(webglUnavailable || loadFailure) && (
-        <div className="node-primitive-webgl-fallback" aria-live="polite">
-          {webglUnavailable ? '3D preview unavailable' : '3D source preview unavailable'}
-        </div>
-      )}
+      <Viewport3DStatusOverlay
+        status={status}
+        label={statusLabel}
+        secondaryStatus={environmentFailed ? 'Environment unavailable' : undefined}
+        secondaryRecovery={
+          environmentFailed ? 'Reconnect or replace the environment source to restore scene lighting.' : undefined
+        }
+        recovery={
+          webglUnavailable
+            ? 'The source frame stays available. Check WebGL support to restore the live camera.'
+            : 'Replace or reconnect the 3D source to restore this viewport.'
+        }
+      />
     </div>
   );
 }

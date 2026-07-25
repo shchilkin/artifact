@@ -43,8 +43,13 @@ import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D'
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
+import { ActionButton } from '../ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
-import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
+import { EmptyState } from '../ui/EmptyState';
+import { IconButton } from '../ui/IconButton';
+import { Toolbar, ToolbarButton } from '../ui/Toolbar';
+import { getEmptyGraphAreas } from './areas/areaBounds';
+import { GraphAreaEmptyStateOverlay, GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext, useNodeCanvasPreview } from './context';
@@ -287,6 +292,7 @@ export function NodeCanvas({
     () => toRFEdges(graph).map((edge) => decorateRFEdge(edge, selectedEdgeId, outputPath.edgeIds)),
     [graph, outputPath.edgeIds, selectedEdgeId],
   );
+  const graphEmpty = baseNodes.every((node) => node.id === EXPORT_NODE_ID);
 
   const {
     dragNodes,
@@ -310,6 +316,7 @@ export function NodeCanvas({
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
   });
+  const emptyGraphAreas = useMemo(() => getEmptyGraphAreas(graph, dragNodes), [dragNodes, graph]);
 
   const resolveAddLibraryInsertionAtPoint = useCallback(
     (action: Parameters<NodeCanvasProps['onAddLayerAt']>[0], point: { x: number; y: number }) => {
@@ -557,10 +564,11 @@ export function NodeCanvas({
   return (
     <NodeCanvasPreviewContext.Provider value={previewContextValue}>
       <NodeCanvasActionsContext.Provider value={actionsContextValue}>
-        <div className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]">
+        <div className="node-canvas-root relative flex h-full w-full" data-canvas-chrome-surface="graph-viewport">
           <div
             ref={canvasSurfaceRef}
-            className="relative min-w-0 flex-1 overflow-hidden"
+            className="node-canvas-workspace relative min-w-0 flex-1 overflow-hidden"
+            data-canvas-chrome-state="workspace"
             onDragEnter={onNodeFileDragEnter}
             onDragOver={onNodeFileDragOver}
             onDragLeave={onNodeFileDragLeave}
@@ -580,6 +588,7 @@ export function NodeCanvas({
             />
 
             <ReactFlow
+              className="node-canvas-flow"
               nodes={dragNodes}
               edges={displayedDragEdges}
               onNodesChange={handleNodesChange}
@@ -616,7 +625,7 @@ export function NodeCanvas({
               nodesFocusable={false}
               proOptions={RF_PRO_OPTIONS}
             >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--node-grid)" />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--editor-grid-dot)" />
               <ViewportPortal>
                 <GraphAreaOverlay
                   graph={graph}
@@ -627,14 +636,38 @@ export function NodeCanvas({
                 />
                 <NodeAlignmentGuideOverlay guides={alignmentGuides} />
               </ViewportPortal>
-              <Controls showInteractive={false} />
+              <Controls className="node-canvas-viewport-controls" showInteractive={false} />
             </ReactFlow>
+            {graphEmpty ? (
+              <div className="node-canvas-empty-overlay" data-canvas-chrome-state="empty-graph">
+                <EmptyState
+                  className="node-canvas-empty-state"
+                  eyebrow="Empty graph"
+                  title="Build the first branch"
+                  body="Add a source or drag one from the Library. The output stays ready."
+                  actions={
+                    <ActionButton variant="primary" onClick={openAddNodeMenu}>
+                      Add first node
+                    </ActionButton>
+                  }
+                />
+              </div>
+            ) : null}
+            <GraphAreaEmptyStateOverlay
+              areas={emptyGraphAreas}
+              selectedAreaId={selectedAreaId}
+              onSelectArea={handleSelectArea}
+              onRemoveArea={handleRemoveArea}
+            />
             <NodePerformanceOverlay debugEnabled={perfDebugEnabled} nodeCount={dragNodes.length} />
             <div className="node-add-drop-hint node-add-drop-hint-idle" aria-hidden="true">
               Move over canvas
             </div>
             <div className="node-add-drop-hint node-add-drop-hint-ready" aria-hidden="true">
               Drop to place node
+            </div>
+            <div className="node-add-drop-hint node-add-drop-hint-invalid" aria-hidden="true">
+              Can’t place this item
             </div>
           </div>
           <NodePropertiesPanel
@@ -716,7 +749,7 @@ export function NodeCanvas({
 function NodeAlignmentGuideOverlay({ guides }: { guides: NodeAlignmentGuide[] }) {
   if (!guides.length) return null;
   return (
-    <div className="node-alignment-guides" aria-hidden="true">
+    <div className="node-alignment-guides" data-canvas-chrome-state="alignment-guides" aria-hidden="true">
       {guides.map((guide, index) => {
         const length = Math.max(1, guide.to - guide.from);
         const style =
@@ -1039,8 +1072,8 @@ function NodeGalleryDialog({
           returnFocusRef.current?.focus();
         }}
       >
-        <DialogClose className="node-gallery-close" aria-label="Close gallery">
-          x
+        <DialogClose asChild>
+          <IconButton className="node-gallery-close" label="Close gallery" icon="×" />
         </DialogClose>
         <NodeGalleryHeader displayLayer={displayLayer} hint={hint} />
         <div className="node-gallery-surface">
@@ -1261,19 +1294,19 @@ function NodeCanvasToolbar({
   onTogglePerfDebug: () => void;
 }) {
   return (
-    <div className="node-canvas-toolbar" role="toolbar" aria-label="Node editor actions">
+    <Toolbar className="node-canvas-toolbar" aria-label="Node editor actions" data-canvas-chrome-state="toolbar">
       <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Build
         </span>
-        <button ref={addNodeButtonRef} type="button" onClick={onAddNode} aria-label="Add node" title="Add node">
+        <ToolbarButton ref={addNodeButtonRef} onClick={onAddNode} aria-label="Add node" title="Add node">
           <span aria-hidden="true">＋</span>
           Add node
-        </button>
-        <button type="button" onClick={onOrganizeNodes} aria-label="Auto layout nodes" title="Auto layout nodes">
+        </ToolbarButton>
+        <ToolbarButton onClick={onOrganizeNodes} aria-label="Auto layout nodes" title="Auto layout nodes">
           <span aria-hidden="true">⌘</span>
           Layout
-        </button>
+        </ToolbarButton>
         {!areaActionDisabled ? (
           <AreaToolbarButton
             areaActionDisabled={areaActionDisabled}
@@ -1286,17 +1319,16 @@ function NodeCanvasToolbar({
         <span className="node-toolbar-group-label" aria-hidden="true">
           View
         </span>
-        <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
+        <ToolbarButton onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
           <span aria-hidden="true">◎</span>
           Output
-        </button>
+        </ToolbarButton>
       </div>
       <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Debug
         </span>
-        <button
-          type="button"
+        <ToolbarButton
           onClick={onTogglePerfDebug}
           aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
           aria-pressed={perfDebugEnabled}
@@ -1304,10 +1336,10 @@ function NodeCanvasToolbar({
         >
           <span aria-hidden="true">▥</span>
           Metrics
-        </button>
+        </ToolbarButton>
         <NodeToolbarAccountButton auth={auth} />
       </div>
-    </div>
+    </Toolbar>
   );
 }
 
@@ -1322,16 +1354,10 @@ function AreaToolbarButton({
 }) {
   const copy = areaToolbarButtonCopy(areaActionDisabled, areaActionTargetId);
   return (
-    <button
-      type="button"
-      onClick={onCreateArea}
-      disabled={areaActionDisabled}
-      aria-label={copy.ariaLabel}
-      title={copy.title}
-    >
+    <ToolbarButton onClick={onCreateArea} disabled={areaActionDisabled} aria-label={copy.ariaLabel} title={copy.title}>
       <span aria-hidden="true">▣</span>
       {copy.label}
-    </button>
+    </ToolbarButton>
   );
 }
 
@@ -1358,9 +1384,9 @@ function NodeToolbarAccountButton({ auth }: { auth: ReturnType<typeof useArtifac
   if (!auth.configured) return null;
   const copy = accountButtonCopy(auth);
   return (
-    <button type="button" className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
+    <ToolbarButton className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
       {copy.label}
-    </button>
+    </ToolbarButton>
   );
 }
 

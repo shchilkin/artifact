@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useMemo, useRef } from 'react';
 import type { ImageLayer, TextLayer } from '../types/config';
+import { type CanvasHandleMode, nextKeyboardLayer, scaledLayer } from './canvasHandleTransforms';
 
 interface Props {
   layer: TextLayer | ImageLayer;
@@ -11,7 +12,7 @@ interface Props {
   onDragEnd?: () => void;
 }
 
-type DragMode = 'move' | 'scale-se' | 'scale-nw' | 'scale-ne' | 'scale-sw' | 'rotate';
+const CANVAS_HANDLE_KEY_SHORTCUTS = 'ArrowLeft ArrowRight ArrowUp ArrowDown';
 
 export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, onDragStart, onDragEnd }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -47,7 +48,7 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
   const rotHy = cy + (-hh - rotHandleOffset) * cos;
 
   const startDrag = useCallback(
-    (e: React.PointerEvent, mode: DragMode) => {
+    (e: React.PointerEvent, mode: CanvasHandleMode) => {
       e.preventDefault();
       e.stopPropagation();
       (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -83,9 +84,34 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
     [canvasW, canvasH, cx, cy, layer, onChange, onDragStart, onDragEnd],
   );
 
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<SVGElement>, mode: CanvasHandleMode) => {
+      const next = nextKeyboardLayer({
+        layer,
+        mode,
+        key: event.key,
+        canvasW,
+        canvasH,
+        accelerated: event.shiftKey,
+        independent: event.altKey,
+      });
+      if (!next) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onDragStart?.();
+      onChange(next as typeof layer);
+      onDragEnd?.();
+    },
+    [canvasH, canvasW, layer, onChange, onDragEnd, onDragStart],
+  );
+
   return (
     <svg
       ref={svgRef}
+      aria-label={`${layer.name} direct manipulation controls`}
+      className="canvas-selection-chrome"
+      data-layer-lock={layer.locked ? 'locked' : 'unlocked'}
+      data-layer-visibility={layer.visible ? 'visible' : 'hidden'}
       overflow="visible"
       style={{
         position: 'absolute',
@@ -102,13 +128,18 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
         y={cy - hh}
         width={hw * 2}
         height={hh * 2}
+        className="canvas-selection-chrome__outline"
         fill="transparent"
-        stroke="white"
         strokeWidth="1"
         strokeDasharray="4 3"
         transform={`rotate(${layer.rotation} ${cx} ${cy})`}
         style={{ pointerEvents: 'all', cursor: 'move' }}
+        role="button"
+        tabIndex={0}
+        aria-keyshortcuts={CANVAS_HANDLE_KEY_SHORTCUTS}
+        aria-label={`Move ${layer.name}. Use arrow keys; hold Shift for larger steps.`}
         onPointerDown={(e) => startDrag(e, 'move')}
+        onKeyDown={(event) => handleKeyDown(event, 'move')}
       />
       {[
         [-hw, -hh, 'nw'],
@@ -124,24 +155,43 @@ export function CanvasHandles({ layer, canvasW, canvasH, imageCache, onChange, o
             cx={hx}
             cy={hy}
             r={5}
-            fill="white"
-            stroke="#333"
+            className="canvas-selection-chrome__handle"
+            data-canvas-handle={corner}
             strokeWidth="1"
             style={{ pointerEvents: 'all', cursor: `${corner}-resize` }}
-            onPointerDown={(e) => startDrag(e, `scale-${corner}` as DragMode)}
+            role="button"
+            tabIndex={0}
+            aria-keyshortcuts={CANVAS_HANDLE_KEY_SHORTCUTS}
+            aria-label={`Scale ${layer.name} from ${corner} corner. Use arrow keys; hold Shift for larger steps or Alt for one axis.`}
+            onPointerDown={(e) => startDrag(e, `scale-${corner}` as CanvasHandleMode)}
+            onKeyDown={(event) => handleKeyDown(event, `scale-${corner}` as CanvasHandleMode)}
           />
         );
       })}
-      <line x1={cx} y1={cy - hh} x2={rotHx} y2={rotHy} stroke="white" strokeWidth="1" strokeDasharray="3 2" />
+      <line
+        x1={cx}
+        y1={cy - hh}
+        x2={rotHx}
+        y2={rotHy}
+        className="canvas-selection-chrome__rotation-line"
+        strokeWidth="1"
+        strokeDasharray="3 2"
+        aria-hidden="true"
+      />
       <circle
         cx={rotHx}
         cy={rotHy}
         r={5}
-        fill="#fff"
-        stroke="#333"
+        className="canvas-selection-chrome__handle canvas-selection-chrome__handle--rotation"
+        data-canvas-handle="rotation"
         strokeWidth="1"
         style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+        role="button"
+        tabIndex={0}
+        aria-keyshortcuts={CANVAS_HANDLE_KEY_SHORTCUTS}
+        aria-label={`Rotate ${layer.name}. Use arrow keys; hold Shift for larger steps.`}
         onPointerDown={(e) => startDrag(e, 'rotate')}
+        onKeyDown={(event) => handleKeyDown(event, 'rotate')}
       />
     </svg>
   );
@@ -157,7 +207,7 @@ function nextDraggedLayer({
   rect,
 }: {
   event: PointerEvent;
-  mode: DragMode;
+  mode: CanvasHandleMode;
   orig: TextLayer | ImageLayer;
   dx: number;
   dy: number;
@@ -177,26 +227,4 @@ function rotatedLayer(
 ) {
   const angle = Math.atan2(event.clientY - (rect.top + center.y), event.clientX - (rect.left + center.x));
   return { ...orig, rotation: (angle * 180) / Math.PI + 90 };
-}
-
-function scaledLayer(orig: TextLayer | ImageLayer, mode: DragMode, dx: number, dy: number, independent: boolean) {
-  const xSign = mode.includes('e') ? 1 : -1;
-  const ySign = mode.includes('s') ? 1 : -1;
-  return independent
-    ? independentlyScaledLayer(orig, dx, dy, xSign, ySign)
-    : proportionallyScaledLayer(orig, dx, dy, xSign, ySign);
-}
-
-function independentlyScaledLayer(orig: TextLayer | ImageLayer, dx: number, dy: number, xSign: number, ySign: number) {
-  return {
-    ...orig,
-    scaleX: Math.max(0.05, orig.scaleX + dx * 2 * xSign),
-    scaleY: Math.max(0.05, orig.scaleY + dy * 2 * ySign),
-  };
-}
-
-function proportionallyScaledLayer(orig: TextLayer | ImageLayer, dx: number, dy: number, xSign: number, ySign: number) {
-  const delta = (dx * xSign + dy * ySign) / Math.SQRT2;
-  const newScale = Math.max(0.05, orig.scaleX + delta * 2);
-  return { ...orig, scaleX: newScale, scaleY: newScale };
 }

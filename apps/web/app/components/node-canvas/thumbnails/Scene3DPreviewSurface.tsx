@@ -1,4 +1,4 @@
-import { type MouseEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   DEFAULT_MATERIAL_CONFIG,
@@ -10,6 +10,7 @@ import {
   type PrimitiveLayer,
 } from '../../../types/config';
 import { renderGraphTarget } from '../../../utils/renderer';
+import { Viewport3DControlStrip, Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyModelViewport3D } from '../../LazyViewport3D';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
@@ -40,7 +41,28 @@ export function Scene3DPreviewSurface({
   environmentPreviewTargetId,
   environmentSource,
 }: Scene3DPreviewSurfaceProps) {
-  if (!selected || !modelLayer) return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  if (!selected) return <NodeThumbnail previewTargetId={previewTargetId} />;
+  if (!modelLayer) {
+    return (
+      <div
+        className="node-preview-surface"
+        data-viewport-3d-workspace="scene"
+        data-viewport-3d-workspace-state="failed"
+      >
+        <NodeThumbnail
+          previewTargetId={previewTargetId}
+          priority
+          statusOverlay={
+            <Viewport3DStatusOverlay
+              status="failed"
+              label="3D model missing"
+              recovery="Connect a model or primitive source to build this scene."
+            />
+          }
+        />
+      </div>
+    );
+  }
   return (
     <SelectedScene3DPreviewSurface
       scene3dNode={scene3dNode}
@@ -129,12 +151,18 @@ function SelectedScene3DPreviewSurface({
   return (
     <div
       className={scenePreviewSurfaceClassName(locked)}
+      data-viewport-3d-workspace="scene"
+      data-viewport-3d-workspace-state={locked ? 'locked' : 'active'}
       onMouseEnter={() => {
         if (!locked) setPrimitiveViewportActive(scene3dNode.id, true);
       }}
       onMouseLeave={() => setPrimitiveViewportActive(scene3dNode.id, false)}
     >
-      <div className="node-primitive-live-frame">
+      <div
+        className="node-primitive-live-frame artifact-viewport3d-frame"
+        data-viewport-3d-frame="scene"
+        data-viewport-3d-frame-state={locked ? 'locked' : 'active'}
+      >
         {underlayPreviewTargetId ? (
           <NodeThumbnail previewTargetId={underlayPreviewTargetId} />
         ) : (
@@ -158,9 +186,10 @@ function SelectedScene3DPreviewSurface({
           />
         </div>
       </div>
-      <SceneCameraStrip
+      <Viewport3DControlStrip
+        scope="scene"
         locked={locked}
-        viewState={effectiveViewState}
+        zoom={effectiveViewState.zoom}
         onReset={resetCamera}
         onToggleLocked={setLocked}
       />
@@ -249,69 +278,6 @@ function scenePreviewSurfaceClassName(locked: boolean) {
   return locked
     ? 'node-preview-surface primitive-preview-surface primitive-preview-surface-locked'
     : 'node-preview-surface primitive-preview-surface nodrag nopan nowheel';
-}
-
-function SceneCameraStrip({
-  locked,
-  viewState,
-  onReset,
-  onToggleLocked,
-}: {
-  locked: boolean;
-  viewState: PrimitiveViewportState;
-  onReset: () => void;
-  onToggleLocked: (locked: boolean) => void;
-}) {
-  return (
-    <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
-      <span className="primitive-node-camera-hint">
-        {locked ? 'scene locked' : `scene ${Math.round(viewState.zoom * 100)}%`}
-      </span>
-      <div className="primitive-node-camera-actions">
-        <SceneCameraButton
-          active={locked}
-          ariaLabel={locked ? 'Unlock scene camera' : 'Lock scene camera'}
-          ariaPressed={locked}
-          onClick={() => onToggleLocked(!locked)}
-        >
-          {locked ? 'LOCK' : 'FREE'}
-        </SceneCameraButton>
-        <SceneCameraButton ariaLabel="Reset scene camera" onClick={onReset}>
-          RESET
-        </SceneCameraButton>
-      </div>
-    </div>
-  );
-}
-
-function SceneCameraButton({
-  active,
-  ariaLabel,
-  ariaPressed,
-  children,
-  onClick,
-}: {
-  active?: boolean;
-  ariaLabel: string;
-  ariaPressed?: boolean;
-  children: string;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`nodrag nopan nowheel primitive-camera-button${active ? ' primitive-camera-button-active' : ''}`}
-      aria-label={ariaLabel}
-      aria-pressed={ariaPressed}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClick(event);
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 function sceneViewStateKey(viewState: PrimitiveViewportState): string {

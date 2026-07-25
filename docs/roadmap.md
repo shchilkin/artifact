@@ -20,6 +20,15 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.47.0 is a locally verified release candidate for Artifact Canvas Chrome.
+  Graph, node, edge, port, area, artwork preview, thumbnail, gallery, and 3D
+  viewport surfaces now share source-owned Artifact patterns while preserving
+  graph, renderer, export, pointer, cache, and camera semantics. The complete
+  local browser gate passed with 503 tests and 51 intentional skips, and the
+  node-editor interaction performance gate stayed within budget. Reviewed
+  merge, exact-SHA staging, production promotion, and publication remain
+  pending. See [`version-plans/v0.47.md`](./version-plans/v0.47.md) and
+  [`releases/v0.47.0.md`](./releases/v0.47.0.md).
 - v0.46.0 was released on 2026-07-25 as the Artifact Inspector System release.
   Layers, common graph properties, effect/material/scene controls, and Code
   Shader/AI Shader authoring now use one source-owned inspector language with

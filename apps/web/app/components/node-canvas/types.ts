@@ -89,13 +89,18 @@ export interface NodeShellProps {
   deleteDisabled?: boolean;
 }
 
+export interface ConnectedNodePorts {
+  sources: ReadonlySet<string>;
+  targets: ReadonlySet<string>;
+}
+
 export type LayerNodeData = {
   layer: Layer;
   previewTargetId: string;
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
   primitiveViewState?: PrimitiveViewportState;
   primitiveRenderMode?: PrimitiveRenderMode;
 };
@@ -106,7 +111,7 @@ export type MergeNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type ColorNodeData = {
@@ -115,7 +120,7 @@ export type ColorNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type RepeatNodeData = {
@@ -124,7 +129,7 @@ export type RepeatNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type MaskNodeData = {
@@ -133,7 +138,7 @@ export type MaskNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type MaterialNodeData = {
@@ -142,7 +147,7 @@ export type MaterialNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type TransformNodeData = {
@@ -152,7 +157,7 @@ export type TransformNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type GrimeShadowNodeData = {
@@ -161,7 +166,7 @@ export type GrimeShadowNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type Scene3DNodeData = {
@@ -176,7 +181,7 @@ export type Scene3DNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
   sceneViewState?: PrimitiveViewportState;
 };
 
@@ -187,7 +192,7 @@ export type EnvironmentNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type ShaderNodeData = {
@@ -198,7 +203,7 @@ export type ShaderNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type ExportNodeData = {
@@ -208,7 +213,7 @@ export type ExportNodeData = {
   selected: boolean;
   outputPath: boolean;
   editing: boolean;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 };
 
 export type FallbackNodeData = {
@@ -303,7 +308,7 @@ export type ThumbnailRenderTask = () => Promise<void>;
 export interface PortRowProps {
   inputs: Array<{ label: string; portId: string; nodeId: string }>;
   outputs: Array<{ label: string; portId: string; nodeId: string }>;
-  connected: { sources: Set<string>; targets: Set<string> };
+  connected: ConnectedNodePorts;
 }
 
 export type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso' | 'graphic';

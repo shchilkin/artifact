@@ -1,7 +1,10 @@
+import { Skeleton } from '@artifact/ui';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../ui/ActionButton';
+import { EmptyState } from '../ui/EmptyState';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
+import '../canvas-preview.css';
 import { CANVAS_CHROME_INVARIANTS, CANVAS_CHROME_SURFACES } from './canvasChromeInventory';
 import './canvas-chrome-specimens.css';
 import './canvas-chrome-node-specimen.css';
@@ -122,7 +125,22 @@ function NodeCanvasSpecimen() {
       </Toolbar>
       <div className="canvas-chrome-graph-area" data-canvas-chrome-state="area">
         <span>Cover system</span>
+        <div className="canvas-chrome-area-state-key" aria-label="Graph area state references">
+          <i data-canvas-chrome-state="area-default">Default</i>
+          <i data-canvas-chrome-state="area-selected">Selected</i>
+          <i data-canvas-chrome-state="area-collapsed">Collapsed</i>
+          <i data-canvas-chrome-state="area-empty">Empty</i>
+          <i data-canvas-chrome-state="area-dragging">Dragging</i>
+        </div>
       </div>
+      <div
+        className="canvas-chrome-selection-marquee"
+        data-canvas-chrome-state="selection-marquee"
+        aria-hidden="true"
+      />
+      <span className="canvas-chrome-attribution" data-canvas-chrome-state="vendor-attribution">
+        React Flow
+      </span>
       <div className="canvas-chrome-alignment-guides" data-canvas-chrome-state="alignment-guide" aria-hidden="true">
         <span />
         <span />
@@ -172,10 +190,17 @@ function NodeCanvasSpecimen() {
         <span data-canvas-chrome-state="preview-queue-status">Preparing previews · 2</span>
         <span data-canvas-chrome-state="performance-overlay">Perf · 60 FPS</span>
       </div>
+      <EmptyState
+        className="canvas-chrome-empty-graph"
+        data-canvas-chrome-state="empty-graph"
+        eyebrow="Empty graph"
+        title="Add the first node"
+      />
       <div className="canvas-chrome-drop-target" aria-label="Add Library drag state references">
         <span data-canvas-chrome-state="add-drag-idle">Move over canvas</span>
         <span data-canvas-chrome-state="add-drag-ready">Drop to place</span>
         <span data-canvas-chrome-state="add-drag-edge">Insert on edge</span>
+        <span data-canvas-chrome-state="add-drag-invalid">Can’t place</span>
       </div>
     </div>
   );
@@ -184,17 +209,25 @@ function NodeCanvasSpecimen() {
 function CanvasPreviewSpecimen() {
   return (
     <div className="canvas-chrome-preview-layout">
-      <div className="canvas-chrome-preview-frame checkerboard-surface" data-canvas-chrome-state="transparent">
+      <div
+        className="canvas-chrome-preview-frame artifact-canvas-preview-frame artifact-canvas-preview__surface"
+        data-canvas-chrome-state="transparent"
+      >
         <div className="canvas-chrome-artwork" aria-label="Deterministic cover artwork">
           <span>Artifact</span>
           <strong>Signal / Form</strong>
           <i aria-hidden="true" />
         </div>
-        <div className="canvas-chrome-selection" data-canvas-chrome-state="selected">
+        <div
+          className="canvas-chrome-selection canvas-selection-chrome"
+          data-canvas-chrome-state="selected"
+          data-layer-lock="unlocked"
+          data-layer-visibility="visible"
+        >
           {previewHandles.map((handle) => (
             <span
               key={handle}
-              className={`canvas-chrome-selection__handle canvas-chrome-selection__handle--${handle}`}
+              className={`canvas-chrome-selection__handle canvas-selection-chrome__handle canvas-chrome-selection__handle--${handle}`}
             />
           ))}
         </div>
@@ -203,6 +236,10 @@ function CanvasPreviewSpecimen() {
         </div>
       </div>
       <div className="canvas-chrome-state-stack" aria-label="Canvas preview recovery states">
+        <ReferenceState state="loading" label="Preparing preview" detail="Canvas stays in place." />
+        <ReferenceState state="empty" label="Empty canvas" detail="Start with one clear action." />
+        <ReferenceState state="locked-handles" label="Locked handles" detail="Warning grammar." />
+        <ReferenceState state="hidden-handles" label="Hidden handles" detail="Reduced emphasis." />
         <ReferenceState state="error" label="Render error" detail="Last good frame stays visible." />
         <ReferenceState state="recovery" label="Recovery" detail="Retry render" action />
       </div>
@@ -238,8 +275,8 @@ function NodeGallerySpecimen() {
       <div className="canvas-chrome-gallery-state-grid" aria-label="Gallery state references">
         <div className="canvas-chrome-gallery-state" data-canvas-chrome-state="loading">
           <span>Loading</span>
-          <i aria-hidden="true" />
-          <i aria-hidden="true" />
+          <Skeleton shape="line" />
+          <Skeleton shape="line" />
         </div>
         <div
           className="canvas-chrome-gallery-state canvas-chrome-gallery-state--failed"
@@ -268,15 +305,25 @@ function PrimitiveViewportSpecimen() {
       <div
         className="canvas-chrome-viewport canvas-chrome-primitive__frame canvas-chrome-primitive__frame--active"
         data-canvas-chrome-state="keyboard-focus"
+        data-viewport-3d-size="node"
         data-canvas-node-kind="primitive"
         role="group"
         aria-label="Active primitive viewport reference"
         tabIndex={0}
       >
-        <span className="canvas-chrome-viewport-status" data-canvas-chrome-state="active">
+        <span
+          className="canvas-chrome-viewport-status"
+          data-canvas-chrome-state="active"
+          data-viewport-3d-ownership="hover"
+        >
           Camera active
         </span>
-        <PrimitiveGlyph />
+        <div data-canvas-chrome-state="ready-passive">
+          <PrimitiveGlyph />
+        </div>
+        <span className="canvas-chrome-primitive__hover-state" data-canvas-chrome-state="hover-ownership">
+          Viewport owns camera gestures
+        </span>
         <Toolbar className="canvas-chrome-viewport-controls" aria-label="Primitive viewport controls">
           <ToolbarButton aria-pressed="false">Unlocked</ToolbarButton>
           <ToolbarButton data-canvas-chrome-state="reset">Reset</ToolbarButton>
@@ -288,6 +335,18 @@ function PrimitiveViewportSpecimen() {
           <span>Locked · graph gestures pass through</span>
         </div>
         <ReferenceState state="webgl-unavailable" label="3D unavailable" detail="Keep source frame · retry" />
+      </div>
+      <div className="canvas-chrome-primitive__state-grid" aria-label="3D workspace state references">
+        <ReferenceState state="loading" label="Loading 3D" detail="Source frame stays stable" />
+        <ReferenceState state="node-mode" label="Node frame" detail="Compact camera workspace" />
+        <ReferenceState state="modal-mode" label="Modal frame" detail="Expanded camera workspace" />
+        <ReferenceState state="scene-loading" label="Scene loading" detail="Model · material · environment" />
+        <ReferenceState state="scene-ready" label="Scene ready" detail="Canonical renderer connected" />
+        <ReferenceState state="scene-active" label="Scene active" detail="Camera gestures owned here" />
+        <ReferenceState state="scene-locked" label="Scene locked" detail="Graph gestures pass through" />
+        <ReferenceState state="model-missing" label="Model missing" detail="Replace or reconnect source" />
+        <ReferenceState state="environment-missing" label="Environment missing" detail="Reconnect EXR / HDR source" />
+        <ReferenceState state="environment-ready" label="Environment ready" detail="EXR / HDR lighting active" />
       </div>
     </div>
   );
