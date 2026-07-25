@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ActionButton } from '../ui/ActionButton';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
+import '../canvas-preview.css';
 import { CANVAS_CHROME_INVARIANTS, CANVAS_CHROME_SURFACES } from './canvasChromeInventory';
 import './canvas-chrome-specimens.css';
 import './canvas-chrome-node-specimen.css';
@@ -200,17 +201,25 @@ function NodeCanvasSpecimen() {
 function CanvasPreviewSpecimen() {
   return (
     <div className="canvas-chrome-preview-layout">
-      <div className="canvas-chrome-preview-frame checkerboard-surface" data-canvas-chrome-state="transparent">
+      <div
+        className="canvas-chrome-preview-frame artifact-canvas-preview-frame artifact-canvas-preview__surface"
+        data-canvas-chrome-state="transparent"
+      >
         <div className="canvas-chrome-artwork" aria-label="Deterministic cover artwork">
           <span>Artifact</span>
           <strong>Signal / Form</strong>
           <i aria-hidden="true" />
         </div>
-        <div className="canvas-chrome-selection" data-canvas-chrome-state="selected">
+        <div
+          className="canvas-chrome-selection canvas-selection-chrome"
+          data-canvas-chrome-state="selected"
+          data-layer-lock="unlocked"
+          data-layer-visibility="visible"
+        >
           {previewHandles.map((handle) => (
             <span
               key={handle}
-              className={`canvas-chrome-selection__handle canvas-chrome-selection__handle--${handle}`}
+              className={`canvas-chrome-selection__handle canvas-selection-chrome__handle canvas-chrome-selection__handle--${handle}`}
             />
           ))}
         </div>
@@ -219,6 +228,10 @@ function CanvasPreviewSpecimen() {
         </div>
       </div>
       <div className="canvas-chrome-state-stack" aria-label="Canvas preview recovery states">
+        <ReferenceState state="loading" label="Preparing preview" detail="Canvas stays in place." />
+        <ReferenceState state="empty" label="Empty canvas" detail="Start with one clear action." />
+        <ReferenceState state="locked-handles" label="Locked handles" detail="Warning grammar." />
+        <ReferenceState state="hidden-handles" label="Hidden handles" detail="Reduced emphasis." />
         <ReferenceState state="error" label="Render error" detail="Last good frame stays visible." />
         <ReferenceState state="recovery" label="Recovery" detail="Retry render" action />
       </div>

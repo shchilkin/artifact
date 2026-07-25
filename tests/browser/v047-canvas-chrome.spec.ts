@@ -26,7 +26,17 @@ const specimenStates = {
     'add-drag-ready',
     'add-drag-edge',
   ],
-  'canvas-preview': ['transparent', 'selected', 'drop-image', 'error', 'recovery'],
+  'canvas-preview': [
+    'transparent',
+    'selected',
+    'drop-image',
+    'loading',
+    'empty',
+    'locked-handles',
+    'hidden-handles',
+    'error',
+    'recovery',
+  ],
   'node-gallery-canvas': ['ready', 'selected', 'keyboard-focus', 'loading', 'failed', 'narrow'],
   'primitive-viewport-3d': ['active', 'locked', 'reset', 'keyboard-focus', 'webgl-unavailable'],
 } as const;

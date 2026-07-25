@@ -1,9 +1,13 @@
+import { Button, InlineNotice, ProgressIndicator } from '@artifact/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocumentRenderer } from '../hooks/useDocumentRenderer';
 import type { CanvasDocument, ImageLayer, TextLayer } from '../types/config';
 import { getPreviewDims } from '../types/config';
 import { CanvasHandles } from './CanvasHandles';
+import { type CanvasPreviewRenderState, resolveCanvasPreviewState } from './canvasPreviewState';
 import type { PrimitiveViewportState } from './PrimitiveViewportState';
+
+import './canvas-preview.css';
 
 const SCROLL_SCALE_SENSITIVITY = 0.002;
 const PREVIEW_RENDER_SCALE = 2;
@@ -36,7 +40,7 @@ export function CanvasPreview({
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const viewStateCacheKey = useMemo(() => primitiveViewStatesSignature(primitiveViewStates), [primitiveViewStates]);
   const { frameRef, previewSize } = useContainedPreviewSize(pw, ph);
-  const { containerRef } = useDocumentRenderer(doc, imageCache, pw, ph, {
+  const { containerRef, renderState, retryRender } = useDocumentRenderer(doc, imageCache, pw, ph, {
     graphMode: doc.graph ? 'graph' : 'stack',
     primitiveViewStates,
     cacheKey: `layer-preview:${viewStateCacheKey}`,
@@ -50,6 +54,7 @@ export function CanvasPreview({
     deferredFullRenderTimeoutMs: PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
+  const previewState = resolveCanvasPreviewState(renderState, doc.layers.length > 0, Boolean(selectedLayer));
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -74,13 +79,16 @@ export function CanvasPreview({
   return (
     <div ref={frameRef} className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
       <div
-        className="canvas-area relative max-w-full flex items-center justify-center"
+        aria-busy={renderState.isRendering || undefined}
+        className="canvas-area artifact-canvas-preview-frame relative max-w-full flex items-center justify-center"
+        data-canvas-preview-alpha={doc.global.bg === 'transparent' ? 'transparent' : 'opaque'}
+        data-canvas-preview-state={previewState}
         style={canvasAreaStyle}
         onWheel={handleWheel}
       >
         <div
           ref={containerRef}
-          className="pixi-container checkerboard-surface flex items-center justify-center w-full h-full"
+          className="pixi-container artifact-canvas-preview__surface checkerboard-surface flex items-center justify-center w-full h-full"
           onClick={(event) => handleCanvasPreviewSurfaceClick(event, onSelectLayer)}
         />
         <CanvasPreviewHandles
@@ -91,9 +99,48 @@ export function CanvasPreview({
           onLayerUpdate={onLayerUpdate}
         />
         <CanvasPreviewDropOverlay dropPreview={dropPreview} />
+        <CanvasPreviewRenderStatus renderState={renderState} onRetry={retryRender} />
       </div>
     </div>
   );
+}
+
+export function CanvasPreviewRenderStatus({
+  renderState,
+  onRetry,
+}: {
+  renderState: CanvasPreviewRenderState;
+  onRetry: () => void;
+}) {
+  if (renderState.error) {
+    return (
+      <InlineNotice
+        className="canvas-preview-status canvas-preview-status--error"
+        data-canvas-preview-status="error"
+        variant="danger"
+      >
+        <span>
+          {renderState.hasFrame
+            ? 'Preview could not refresh. The last good frame remains visible.'
+            : 'Preview could not render. Retry to restore the canvas.'}
+        </span>
+        <Button data-canvas-preview-recovery variant="quiet" onClick={onRetry}>
+          Retry preview
+        </Button>
+      </InlineNotice>
+    );
+  }
+
+  if (renderState.isRendering && !renderState.hasFrame) {
+    return (
+      <div className="canvas-preview-status canvas-preview-status--loading" data-canvas-preview-status="loading">
+        <span>Preparing preview</span>
+        <ProgressIndicator label="Preparing canvas preview" />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function primitiveViewStatesSignature(viewStates: Record<string, PrimitiveViewportState> | undefined) {
@@ -215,7 +262,7 @@ function CanvasPreviewDropOverlay({ dropPreview }: { dropPreview?: Props['dropPr
     },
   }[dropPreview];
   return (
-    <div className="canvas-drop-overlay">
+    <div className="canvas-drop-overlay" data-canvas-preview-drop={dropPreview}>
       <span>{copy.label}</span>
       <small>{copy.body}</small>
     </div>

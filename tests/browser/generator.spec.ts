@@ -2284,13 +2284,24 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
   await gotoDocument(page, layerTextEffectDragDocument);
-  await page.getByText('Drag text', { exact: true }).click();
+  await page.locator('.layer-row').filter({ hasText: 'Drag text' }).click();
   await expectLayerCanvasToHavePixels(page);
+
+  const previewFrame = page.locator('.artifact-canvas-preview-frame');
+  const selectionChrome = previewFrame.locator('.canvas-selection-chrome');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-state', 'selected');
+  await expect(selectionChrome).toHaveAttribute('data-layer-lock', 'unlocked');
+  await expect(selectionChrome).toHaveAttribute('data-layer-visibility', 'visible');
+  await expect(selectionChrome.locator('[data-canvas-handle]')).toHaveCount(5);
 
   const before = await getCanvasRgbAt(page, 0.18, 0.18);
   const areaBox = await page.locator('.canvas-area').boundingBox();
+  const handleBox = await selectionChrome.boundingBox();
   expect(areaBox).toBeTruthy();
-  if (!areaBox) return;
+  expect(handleBox).toBeTruthy();
+  if (!areaBox || !handleBox) return;
+  expect(handleBox.width).toBeCloseTo(areaBox.width, 0);
+  expect(handleBox.height).toBeCloseTo(areaBox.height, 0);
 
   await page.mouse.move(areaBox.x + areaBox.width / 2, areaBox.y + areaBox.height / 2);
   await page.mouse.down();
@@ -3938,6 +3949,11 @@ test('inline image payloads migrate to browser asset storage', async ({ page }) 
 
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
   await gotoDocument(page, emptyTransparentDocument);
+
+  const previewFrame = page.locator('.artifact-canvas-preview-frame');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-alpha', 'transparent');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-state', 'empty');
+  await expect(previewFrame).toHaveCSS('outline-style', 'solid');
 
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });
