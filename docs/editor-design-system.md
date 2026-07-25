@@ -213,7 +213,7 @@ requirements, and five bounded source-owned patterns for the editor are closed
 in the [Artifact editor-workflow inventory](editor-workflow-inventory.md).
 That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
-v0.49 rather than treating them as current editor navigation.
+v0.50 rather than treating them as current editor navigation.
 
 The v0.46 property boundary is closed in the
 [Artifact inspector-system inventory](inspector-system-inventory.md). Its
@@ -359,10 +359,10 @@ feature work, including further AI Chat work, remains paused:
 The rewrite is planned as a sequence of releases under one UI-system program,
 not as one oversized version. Each release must have one thesis, one primary
 surface or risk boundary, explicit acceptance criteria, and its own validation
-gate. The current AI-Assisted Creation release remains paused and will be
-rescheduled after the final UI-system migration gate. Milestones and issues are
-published only after the release boundaries, ticket granularity, and blocking
-edges have been approved.
+gate. Application-shell and loading-boundary hardening follows the final
+UI-system migration gate before the paused AI-Assisted Creation release.
+Milestones and issues are published only after the release boundaries, ticket
+granularity, and blocking edges have been approved.
 
 The accepted release sequence is:
 
@@ -375,8 +375,11 @@ The accepted release sequence is:
   from wave 5.
 - **v0.47 — Artifact Canvas Chrome**: wave 6.
 - **v0.48 — UI Conformance And Legacy Removal**: wave 7.
-- **v0.49 — AI-Assisted Creation**: the paused AI release resumes only after
-  the v0.48 gate.
+- **v0.49 — Application Shell And Loading Boundaries**: complete the React
+  Router Framework Mode loading architecture, route-owned CSS, public
+  prerendering, and production loading budgets after the UI rewrite.
+- **v0.50 — AI-Assisted Creation**: the paused AI release resumes only after
+  the v0.49 application-shell gate.
 
 Each UI-system milestone should contain four to eight implementation issues.
 Every issue must fit one fresh implementation context, produce an independently
@@ -397,7 +400,8 @@ The accepted cross-release blocking edges are:
   may proceed in parallel after that frontier, although tags remain numerically
   ordered.
 - v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
-- v0.48 blocks v0.49 AI-Assisted Creation.
+- v0.48 blocks v0.49 Application Shell And Loading Boundaries.
+- v0.49 blocks v0.50 AI-Assisted Creation.
 
 Within each milestone, establish its inventory and prerequisite contract first,
 allow independent migration slices to work from that frontier, and keep the

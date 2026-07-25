@@ -19,6 +19,13 @@ Release notes are template-gated. Before committing a release, copy
 `docs/release-template.md` to `docs/releases/vX.Y.Z.md` and fill every required
 section. Do not create a tag or GitHub Release from free-form notes.
 
+Current and future release evidence uses the risk classification in
+[`version-planning.md`](./version-planning.md): an Accepted Risk requires a
+known user or production exposure, an owner, an exit criterion, and a target
+version. Build warnings and unconfirmed suspicions remain Known Warnings or
+Technical Debt. Historical release entries below preserve their published
+wording.
+
 CI should run:
 
 - `npm run release:verify` when package metadata, release notes, version plans,
@@ -107,13 +114,17 @@ CI should run:
 - Accepted release risk: conformance covers representative live surfaces,
   semantics, keyboard focus, native states, geometry, responsive overflow, and
   the supported browser matrix; it is not a complete visual-regression suite or
-  WCAG certification.
-- Accepted release risk: compatibility wrappers and legacy aliases remain until
-  the v0.48 zero-caller conformance gate.
-- Accepted release risk: the build retains inherited Fast Refresh warnings and
-  the large Three.js vendor-chunk warning. Browser logs retain existing
-  blank-frame fallback and React Flow development warnings; no release-gate
-  scenario failed.
+  WCAG certification. Owner: v0.48 issue #182. Exit criterion: the approved
+  two-product conformance matrix passes. Target: v0.48.
+- Accepted release risk: compatibility wrappers and legacy aliases remain.
+  Owner: v0.48 issues #179, #181, #180, and #183. Exit criterion: registered
+  replacements have zero legacy callers and the contraction guard passes.
+  Target: v0.48.
+- Known warnings: the build retains inherited Fast Refresh warnings and the
+  large Three.js vendor-chunk warning. Browser logs retain existing blank-frame
+  fallback and React Flow development warnings; no release-gate scenario
+  failed. These warnings have no confirmed release exposure or approved exit
+  owner and therefore are not Accepted Risks.
 - Delivery PR
   [#232](https://github.com/shchilkin/artifact/pull/232) merged the inspector
   migration to `development`. Follow-up PRs

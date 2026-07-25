@@ -89,3 +89,22 @@ The release notes should restate the release thesis and boundary:
 
 Use `docs/release-template.md` for the final release file. The release template
 is the publication contract; this document is the planning contract.
+
+## Risk Classification
+
+Use `Accepted Risk` only for a known user or production exposure that is
+deliberately carried past a release gate. Every Accepted Risk must name:
+
+- the owner responsible for resolving or re-evaluating it;
+- the observable exit criterion;
+- the target version.
+
+A build or development warning without confirmed user or production exposure is
+a `Known Warning`. A maintainability or performance opportunity without a
+current release failure is `Technical Debt`. Neither becomes an Accepted Risk
+merely because it appears in build output or release notes.
+
+Historical release evidence keeps the wording that was published at that time.
+Current and future plans must use the classification above and promote a warning
+or debt item to Accepted Risk only when the missing exposure, owner, exit
+criterion, and target version are established.

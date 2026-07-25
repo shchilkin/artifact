@@ -229,3 +229,8 @@ required states of a large composed surface without mounting its live renderer,
 network assets, persistence, or orchestration. Runtime behavior remains covered
 at the surface's existing public seams.
 _Avoid_: Mock implementation, screenshot, alternate renderer
+
+**Accepted Risk**:
+A known user or production exposure deliberately carried past a release gate,
+with an owner, an exit criterion, and a target version.
+_Avoid_: Known Warning, Technical Debt, release-note caveat
