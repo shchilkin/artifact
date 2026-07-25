@@ -20,12 +20,12 @@
   --node-header-surface: var(--node-card-header-bg);
   --node-border: var(--node-card-border-soft);
   --node-border-strong: var(--node-card-border);
-  --node-text: var(--text);
-  --node-text-dim: var(--text-dim);
+  --node-text: var(--text-primary);
+  --node-text-dim: var(--text-secondary);
   --node-text-muted: color-mix(in oklch, var(--node-text-dim) 68%, transparent);
-  --node-focus: var(--accent);
-  --node-handle: var(--node-handle-idle);
-  --node-handle-strong: var(--node-handle-active);
+  --node-focus: var(--accent-primary);
+  --node-handle: var(--line-strong);
+  --node-handle-strong: var(--accent-signal);
   --node-width: 160px;
   --node-editor-width: 292px;
   background: var(--node-bg);
@@ -75,10 +75,20 @@
   cursor: pointer;
 }
 
+.node-frame {
+  --node-port-idle: color-mix(in oklch, var(--node-accent) 68%, var(--node-border-strong));
+  --node-port-active: var(--node-accent);
+}
+
 .node-shell-frame:focus-visible .node-shell,
 .node-shell-frame:focus .node-shell {
   outline: 2px solid var(--node-accent, var(--node-focus));
   outline-offset: 4px;
+}
+
+.node-frame .node-port-handle:focus-visible {
+  outline: 2px solid var(--node-accent);
+  outline-offset: 2px;
 }
 
 .react-flow__handle {
@@ -91,8 +101,8 @@
   overflow: visible;
   z-index: var(--z-toolbar);
   transition:
-    background 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .react-flow__handle::before {
@@ -105,10 +115,10 @@
   opacity: 1;
   transform: scale(1);
   transition:
-    opacity 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    background 120ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
 }
 
 .react-flow__handle::after {
@@ -121,13 +131,25 @@
   background: var(--node-bg);
   box-shadow:
     0 0 0 2px color-mix(in oklch, var(--node-bg) 90%, transparent),
-    0 0 0 0 color-mix(in oklch, var(--accent) 0%, transparent);
+    0 0 0 0 color-mix(in oklch, var(--accent-primary) 0%, transparent);
   transition:
-    width 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    background 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 120ms cubic-bezier(0.22, 1, 0.36, 1);
+    width var(--motion-fast) var(--ease-standard),
+    height var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.node-frame .node-port-handle::after {
+  border-color: var(--node-port-idle);
+}
+
+.node-frame .node-port-handle-connected::after {
+  border-color: var(--node-port-active);
+  background: var(--node-port-active);
+  box-shadow:
+    0 0 0 2px color-mix(in oklch, var(--node-bg) 92%, transparent),
+    0 0 0 4px color-mix(in oklch, var(--node-port-active) 16%, transparent);
 }
 
 .react-flow__handle:hover,
@@ -151,11 +173,19 @@
 .react-flow__handle.connectingto::after {
   width: 18px;
   height: 18px;
-  border-color: var(--node-handle-strong);
-  background: color-mix(in oklch, var(--node-bg) 88%, black);
+  border-color: var(--node-port-active, var(--node-handle-strong));
+  background: color-mix(in oklch, var(--node-bg) 88%, var(--surface-app));
   box-shadow:
     0 0 0 2px color-mix(in oklch, var(--node-bg) 92%, transparent),
-    0 0 0 5px color-mix(in oklch, var(--node-handle-strong) 20%, transparent);
+    0 0 0 5px color-mix(in oklch, var(--node-port-active, var(--node-handle-strong)) 20%, transparent);
+}
+
+.node-frame .node-port-handle.connectingto:not(.valid)::after {
+  border-color: var(--state-danger);
+  background: color-mix(in oklch, var(--state-danger) 12%, var(--node-bg));
+  box-shadow:
+    0 0 0 2px color-mix(in oklch, var(--node-bg) 92%, transparent),
+    0 0 0 5px color-mix(in oklch, var(--state-danger) 22%, transparent);
 }
 
 .react-flow__controls {
@@ -611,13 +641,13 @@
   opacity: 0.42;
 }
 
-.node-shell-muted {
+.node-shell-muted:not(.node-shell-selected) {
   border-color: color-mix(in oklch, var(--node-border) 70%, var(--node-card-outline));
-  background: color-mix(in oklch, var(--node-surface) 78%, var(--workspace-bg));
+  background: color-mix(in oklch, var(--node-surface) 78%, var(--surface-workspace));
 }
 
-.node-shell-muted .node-shell-header {
-  background: color-mix(in oklch, var(--node-header-surface) 74%, var(--workspace-bg));
+.node-shell-muted:not(.node-shell-selected) .node-shell-header {
+  background: color-mix(in oklch, var(--node-header-surface) 74%, var(--surface-workspace));
 }
 
 .node-shell-muted .node-shell-label,
@@ -627,6 +657,10 @@
 
 .node-shell-muted .node-shell-accent {
   background: color-mix(in oklch, var(--node-accent) 35%, var(--node-text-muted));
+}
+
+.node-shell-selected.node-shell-muted .node-shell-accent {
+  background: var(--node-accent);
 }
 
 .node-shell-accent,
@@ -645,8 +679,8 @@
 .node-shell-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 8px 9px 10px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   background: color-mix(in oklch, var(--node-accent) 5%, var(--node-header-surface));
   border-bottom: 1px solid color-mix(in oklch, var(--node-accent) 18%, var(--node-border));
   min-height: var(--touch);
@@ -655,7 +689,7 @@
 .node-shell-drag {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
   cursor: grab;
@@ -694,6 +728,7 @@
 
 .node-shell-label {
   color: var(--node-text-dim);
+  font-family: var(--font-mono);
   font-size: var(--type-editor-meta);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -706,6 +741,7 @@
 
 .node-shell-name {
   color: var(--node-text);
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -720,6 +756,17 @@
 
 .node-shell-body {
   padding: 0;
+}
+
+.node-shell-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) calc(var(--space-1) * -1) 0;
+}
+
+.node-shell-actions:empty {
+  display: none;
 }
 
 .node-shell-toggle,
@@ -758,16 +805,31 @@
 }
 
 .node-shell-mute {
-  margin: -5px -5px -5px 0;
+  margin: 0;
   border-color: transparent;
   background: transparent;
   color: var(--node-text-dim);
+  font-family: var(--font-mono);
   width: auto;
   min-width: 52px;
-  column-gap: 6px;
+  column-gap: var(--space-1);
   grid-auto-flow: column;
   padding: 0 7px;
   font-size: 10px;
+  text-transform: uppercase;
+}
+
+.node-shell-lock-state {
+  display: inline-flex;
+  min-height: var(--touch);
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  color: var(--node-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -1697,9 +1759,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 36px;
-  padding: 7px 10px 8px;
+  padding: 7px var(--space-2) var(--space-2);
   background: color-mix(in oklch, var(--node-bg) 82%, var(--node-surface));
   border-top: 1px solid var(--node-border);
 }
@@ -1709,7 +1771,7 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .node-port-column-output {
@@ -1719,7 +1781,7 @@
 .node-port-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -1731,9 +1793,9 @@
   min-width: 0;
   overflow: hidden;
   color: var(--node-text-dim);
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1746,8 +1808,8 @@
   border-radius: 50%;
   background: transparent;
   transition:
-    background 120ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 120ms cubic-bezier(0.22, 1, 0.36, 1);
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
 .node-port-dot-connected {
@@ -3735,6 +3797,9 @@
   }
 
   .node-thumbnail-canvas,
+  .react-flow__handle,
+  .react-flow__handle::before,
+  .react-flow__handle::after,
   .node-shell,
   .node-shell-action,
   .node-section-button,

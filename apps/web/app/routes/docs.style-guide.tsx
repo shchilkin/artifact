@@ -667,6 +667,7 @@ export default function DocsStyleGuide() {
             <div className="style-guide-node-grid" aria-label="Node shell state specimens">
               <NodeSpec kind="fill" label="fill" name="Source fill" outputPath />
               <NodeSpec kind="text" label="text" name="Cover type" selected outputPath />
+              <NodeSpec kind="effect" label="effect" name="Muted selected effect" selected muted />
               <NodeSpec kind="image" label="image" name="Muted source" muted deleteDisabled />
             </div>
             <div className="style-guide-node-frame-specimen" aria-label="Node frame state specimens">
@@ -1452,6 +1453,7 @@ function StyleGuideFrameNodeComponent({ id, data }: NodeProps<StyleGuideFrameNod
       selected={data.selected}
       outputPath={data.outputPath}
       editing={data.editing}
+      connected={data.connected}
       muted={data.muted}
       targetHandles={data.targetHandles}
       sourceHandles={data.sourceHandles}

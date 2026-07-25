@@ -24,11 +24,12 @@ export function NodeShell({
   void expandable;
   void onToggleExpanded;
   void onDelete;
-  void deleteDisabled;
-  const accent = KIND_COLOR[kind] ?? 'var(--accent)';
+  const accent = KIND_COLOR[kind] ?? 'var(--accent-primary)';
   return (
     <div
       className={nodeShellClassName(kind, { outputPath, selected, muted })}
+      data-node-kind={kind}
+      data-node-housing-state={nodeHousingState({ outputPath, selected, muted, locked: deleteDisabled })}
       style={{ '--node-accent': accent, '--node-default-width': `${NODE_W}px` } as CSSProperties}
     >
       <div className="node-shell-accent" aria-hidden="true" />
@@ -38,7 +39,12 @@ export function NodeShell({
           <span className="node-shell-label">{label}</span>
           <NodeDisplayName label={label} name={name} />
         </div>
-        <NodeMuteAction muted={muted} onToggleMuted={onToggleMuted} />
+        {(onToggleMuted || deleteDisabled) && (
+          <div className="node-shell-actions" role="group" aria-label="Node commands">
+            <NodeMuteAction muted={muted} onToggleMuted={onToggleMuted} />
+            <NodeLockState locked={deleteDisabled} />
+          </div>
+        )}
       </div>
       <div className="node-shell-body">{children}</div>
     </div>
@@ -60,6 +66,21 @@ function nodeShellClassName(
     .join(' ');
 }
 
+function nodeHousingState({
+  outputPath,
+  selected,
+  muted,
+  locked,
+}: Pick<NodeShellProps, 'outputPath' | 'selected' | 'muted'> & { locked?: boolean }) {
+  const states = [
+    selected ? 'selected' : 'default',
+    outputPath && 'output-path',
+    muted && 'muted',
+    locked && 'locked',
+  ].filter(Boolean);
+  return states.join(' ');
+}
+
 function NodeDisplayName({ label, name }: Pick<NodeShellProps, 'label' | 'name'>) {
   return name.trim().toLowerCase() === label.trim().toLowerCase() ? null : (
     <span className="node-shell-name">{name}</span>
@@ -73,7 +94,7 @@ function NodeMuteAction({ muted, onToggleMuted }: Pick<NodeShellProps, 'muted' |
     <NoPan
       as="button"
       type="button"
-      className="nodrag node-shell-action node-shell-mute"
+      className="node-shell-action node-shell-mute"
       aria-label={copy.ariaLabel}
       title={copy.title}
       aria-keyshortcuts="M"
@@ -85,6 +106,16 @@ function NodeMuteAction({ muted, onToggleMuted }: Pick<NodeShellProps, 'muted' |
       </span>
       <span className="node-shell-mute-label">{copy.label}</span>
     </NoPan>
+  );
+}
+
+function NodeLockState({ locked }: { locked?: boolean }) {
+  if (!locked) return null;
+  return (
+    <span className="node-shell-lock-state" title="Locked — deletion unavailable">
+      <span aria-hidden="true">⌑</span>
+      <span>Locked</span>
+    </span>
   );
 }
 
