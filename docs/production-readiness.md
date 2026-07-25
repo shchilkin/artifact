@@ -116,9 +116,46 @@ CI should run:
 - Accepted release risk: browser logs retain existing blank-frame fallback and
   development-only missing-route diagnostics; no final release-gate scenario
   failed.
-- Reviewed merge to `development`, exact-SHA staging, promotion to `main`,
-  production verification, tag creation, and GitHub Release publication remain
-  pending.
+- Delivery PR
+  [#246](https://github.com/shchilkin/artifact/pull/246) passed CI
+  [30160340694](https://github.com/shchilkin/artifact/actions/runs/30160340694)
+  and merged the canvas-chrome migration to `development` as
+  `883174da9309886fbc31582d77ffc8d27ff606b7`.
+- Development CI
+  [30160763309](https://github.com/shchilkin/artifact/actions/runs/30160763309)
+  passed on that exact merge SHA. Staging run
+  [30161158660](https://github.com/shchilkin/artifact/actions/runs/30161158660)
+  verified Vercel, Coolify, API contract version 1, and the same build SHA.
+- Promotion PR
+  [#247](https://github.com/shchilkin/artifact/pull/247) passed promotion CI
+  [30161609683](https://github.com/shchilkin/artifact/actions/runs/30161609683)
+  and merged the staged tree into `main` as production commit
+  `840cd3bd740931be81c31f0d229cd415d003af8c`. Post-merge CI
+  [30162155676](https://github.com/shchilkin/artifact/actions/runs/30162155676)
+  passed on that commit.
+- Tag-and-draft run
+  [30164317237](https://github.com/shchilkin/artifact/actions/runs/30164317237)
+  passed the complete release gate and created annotated tag `v0.47.0` at the
+  exact production commit.
+- Production run
+  [30165187769](https://github.com/shchilkin/artifact/actions/runs/30165187769)
+  verified the staged web deployment, Coolify VPS revision, API contract
+  version 1, promoted web deployment, and production web domain.
+- Publish run
+  [30166126869](https://github.com/shchilkin/artifact/actions/runs/30166126869)
+  passed the complete release gate and published
+  [`v0.47.0`](https://github.com/shchilkin/artifact/releases/tag/v0.47.0) on
+  2026-07-25. Issues
+  [#167](https://github.com/shchilkin/artifact/issues/167),
+  [#172](https://github.com/shchilkin/artifact/issues/172),
+  [#173](https://github.com/shchilkin/artifact/issues/173),
+  [#174](https://github.com/shchilkin/artifact/issues/174),
+  [#175](https://github.com/shchilkin/artifact/issues/175),
+  [#176](https://github.com/shchilkin/artifact/issues/176), and
+  [#178](https://github.com/shchilkin/artifact/issues/178) are closed, and
+  milestone
+  [`v0.47 Artifact Canvas Chrome`](https://github.com/shchilkin/artifact/milestone/8)
+  is closed with no open issues.
 
 ### v0.46.0 Release Prep And Evidence
 
