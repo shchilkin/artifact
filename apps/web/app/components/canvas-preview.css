@@ -30,6 +30,12 @@
   vector-effect: non-scaling-stroke;
 }
 
+.canvas-selection-chrome__outline:focus-visible,
+.canvas-selection-chrome__handle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .canvas-selection-chrome[data-layer-lock="locked"] {
   color: var(--text-secondary);
 }

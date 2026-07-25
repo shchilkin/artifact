@@ -3010,7 +3010,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-4) calc(var(--space-4) + var(--control-h-compact)) 0 var(--space-4);
+  padding: var(--space-4) calc(var(--space-4) + var(--control-h-default)) 0 var(--space-4);
 }
 
 .node-gallery-heading {
@@ -3100,8 +3100,8 @@
   top: var(--space-4);
   right: var(--space-4);
   z-index: 1;
-  width: var(--control-h-compact);
-  height: var(--control-h-compact);
+  width: var(--control-h-default);
+  height: var(--control-h-default);
 }
 
 .node-gallery-status {
@@ -3133,6 +3133,7 @@
 
 .node-gallery-retry {
   min-width: 96px;
+  min-height: var(--control-h-default);
 }
 
 .node-props-panel {
@@ -3780,7 +3781,7 @@
   }
 
   .node-gallery-header {
-    padding: 16px 16px 0;
+    padding: 16px calc(16px + var(--control-h-default)) 0 16px;
   }
 
   .node-gallery-surface {

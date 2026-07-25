@@ -348,7 +348,6 @@ export function NodeGalleryCanvas({
           <span>Preview unavailable</span>
           <ActionButton
             className="node-gallery-retry"
-            size="compact"
             variant="secondary"
             onClick={(event) => {
               event.stopPropagation();

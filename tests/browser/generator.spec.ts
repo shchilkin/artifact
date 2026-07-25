@@ -2293,6 +2293,19 @@ test('layer text drag keeps effect stack active during movement', async ({ page 
   await expect(selectionChrome).toHaveAttribute('data-layer-lock', 'unlocked');
   await expect(selectionChrome).toHaveAttribute('data-layer-visibility', 'visible');
   await expect(selectionChrome.locator('[data-canvas-handle]')).toHaveCount(5);
+  const moveHandle = selectionChrome.getByRole('button', { name: /Move Drag text/ });
+  await moveHandle.focus();
+  await expect(moveHandle).toBeFocused();
+  expect(await moveHandle.evaluate((handle) => getComputedStyle(handle).outlineStyle)).not.toBe('none');
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'layer-text-effect-text')?.x;
+      }),
+    )
+    .toBeCloseTo(0.5 + 1 / 540);
 
   const before = await getCanvasRgbAt(page, 0.18, 0.18);
   const areaBox = await page.locator('.canvas-area').boundingBox();

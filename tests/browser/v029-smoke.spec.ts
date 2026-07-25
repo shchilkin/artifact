@@ -117,6 +117,14 @@ test('blank editor and shared primitive project surfaces open and close', async 
   await expect(page.getByRole('button', { name: 'PRESETS' })).toHaveCount(0);
 
   await switchToNodeView(page);
+  const toolbar = page.getByRole('toolbar', { name: 'Node editor actions' });
+  await expect(toolbar).toHaveClass(/artifact-toolbar/);
+  await expect(toolbar.getByRole('button', { name: 'Add node' })).toHaveClass(/artifact-toolbar-button/);
+  await expect(toolbar.getByRole('button', { name: 'Auto layout nodes' })).toHaveClass(/artifact-toolbar-button/);
+  await expect(toolbar.getByRole('button', { name: 'Jump to output node' })).toHaveClass(/artifact-toolbar-button/);
+  await expect(toolbar.getByRole('button', { name: 'Show performance debug overlay' })).toHaveClass(
+    /artifact-toolbar-button/,
+  );
   await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expect(page.getByLabel('Search nodes and effects')).toBeVisible();
@@ -139,7 +147,14 @@ test('node gallery dialog exposes the canvas-chrome viewport contract', async ({
   const dialog = page.getByRole('dialog', { name: 'Gallery title' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('text preview')).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Close gallery' })).toHaveClass(/artifact-icon-button/);
+  const closeButton = dialog.getByRole('button', { name: 'Close gallery' });
+  await expect(closeButton).toHaveClass(/artifact-icon-button/);
+  const closeButtonSize = await closeButton.evaluate((button) => {
+    const styles = getComputedStyle(button);
+    return { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) };
+  });
+  expect(closeButtonSize.width).toBeGreaterThanOrEqual(44);
+  expect(closeButtonSize.height).toBeGreaterThanOrEqual(44);
 
   const viewport = dialog.getByRole('group', { name: /Gallery title preview/ });
   await expect(viewport).toHaveAttribute('data-canvas-chrome-surface', 'node-gallery-canvas');
@@ -148,6 +163,19 @@ test('node gallery dialog exposes the canvas-chrome viewport contract', async ({
   await expect(viewport).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(viewport).toHaveAttribute('data-canvas-chrome-pan-zoom', 'true');
+
+  const rotateHandle = dialog.getByRole('button', { name: /Rotate Gallery title/ });
+  await rotateHandle.focus();
+  await expect(rotateHandle).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'gallery-text')?.rotation;
+      }),
+    )
+    .toBe(1);
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

@@ -45,6 +45,7 @@ import type { MediaViewState } from '../NodeGalleryViewState';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { IconButton } from '../ui/IconButton';
+import { Toolbar, ToolbarButton } from '../ui/Toolbar';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
@@ -1043,7 +1044,7 @@ function NodeGalleryDialog({
         }}
       >
         <DialogClose asChild>
-          <IconButton className="node-gallery-close" label="Close gallery" icon="×" size="compact" />
+          <IconButton className="node-gallery-close" label="Close gallery" icon="×" />
         </DialogClose>
         <NodeGalleryHeader displayLayer={displayLayer} hint={hint} />
         <div className="node-gallery-surface">
@@ -1264,24 +1265,19 @@ function NodeCanvasToolbar({
   onTogglePerfDebug: () => void;
 }) {
   return (
-    <div
-      className="node-canvas-toolbar"
-      role="toolbar"
-      aria-label="Node editor actions"
-      data-canvas-chrome-state="toolbar"
-    >
+    <Toolbar className="node-canvas-toolbar" aria-label="Node editor actions" data-canvas-chrome-state="toolbar">
       <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Build
         </span>
-        <button ref={addNodeButtonRef} type="button" onClick={onAddNode} aria-label="Add node" title="Add node">
+        <ToolbarButton ref={addNodeButtonRef} onClick={onAddNode} aria-label="Add node" title="Add node">
           <span aria-hidden="true">＋</span>
           Add node
-        </button>
-        <button type="button" onClick={onOrganizeNodes} aria-label="Auto layout nodes" title="Auto layout nodes">
+        </ToolbarButton>
+        <ToolbarButton onClick={onOrganizeNodes} aria-label="Auto layout nodes" title="Auto layout nodes">
           <span aria-hidden="true">⌘</span>
           Layout
-        </button>
+        </ToolbarButton>
         {!areaActionDisabled ? (
           <AreaToolbarButton
             areaActionDisabled={areaActionDisabled}
@@ -1294,17 +1290,16 @@ function NodeCanvasToolbar({
         <span className="node-toolbar-group-label" aria-hidden="true">
           View
         </span>
-        <button type="button" onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
+        <ToolbarButton onClick={onJumpToOutput} aria-label="Jump to output node" title="Jump to output node">
           <span aria-hidden="true">◎</span>
           Output
-        </button>
+        </ToolbarButton>
       </div>
       <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Debug
         </span>
-        <button
-          type="button"
+        <ToolbarButton
           onClick={onTogglePerfDebug}
           aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
           aria-pressed={perfDebugEnabled}
@@ -1312,10 +1307,10 @@ function NodeCanvasToolbar({
         >
           <span aria-hidden="true">▥</span>
           Metrics
-        </button>
+        </ToolbarButton>
         <NodeToolbarAccountButton auth={auth} />
       </div>
-    </div>
+    </Toolbar>
   );
 }
 
@@ -1330,16 +1325,10 @@ function AreaToolbarButton({
 }) {
   const copy = areaToolbarButtonCopy(areaActionDisabled, areaActionTargetId);
   return (
-    <button
-      type="button"
-      onClick={onCreateArea}
-      disabled={areaActionDisabled}
-      aria-label={copy.ariaLabel}
-      title={copy.title}
-    >
+    <ToolbarButton onClick={onCreateArea} disabled={areaActionDisabled} aria-label={copy.ariaLabel} title={copy.title}>
       <span aria-hidden="true">▣</span>
       {copy.label}
-    </button>
+    </ToolbarButton>
   );
 }
 
@@ -1366,9 +1355,9 @@ function NodeToolbarAccountButton({ auth }: { auth: ReturnType<typeof useArtifac
   if (!auth.configured) return null;
   const copy = accountButtonCopy(auth);
   return (
-    <button type="button" className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
+    <ToolbarButton className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
       {copy.label}
-    </button>
+    </ToolbarButton>
   );
 }
 
