@@ -44,6 +44,7 @@ import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { IconButton } from '../ui/IconButton';
 import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
@@ -1041,8 +1042,8 @@ function NodeGalleryDialog({
           returnFocusRef.current?.focus();
         }}
       >
-        <DialogClose className="node-gallery-close" aria-label="Close gallery">
-          x
+        <DialogClose asChild>
+          <IconButton className="node-gallery-close" label="Close gallery" icon="×" size="compact" />
         </DialogClose>
         <NodeGalleryHeader displayLayer={displayLayer} hint={hint} />
         <div className="node-gallery-surface">

@@ -3568,6 +3568,9 @@ test.describe('node preview aspect ratio flow', () => {
 
     const wideFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
     await expect(wideFrame).toBeVisible({ timeout: 15_000 });
+    const wideThumbnail = page.locator('.node-shell-kind-fill .node-thumbnail').first();
+    await expect(wideThumbnail).toHaveAttribute('data-canvas-chrome-surface', 'node-thumbnail');
+    await expect(wideThumbnail).toHaveAttribute('data-canvas-chrome-state', 'ready', { timeout: 15_000 });
     await expect.poll(async () => frameRatio(wideFrame), { timeout: 15_000 }).toBeGreaterThan(1.5);
 
     await gotoDocument(page, tallNodeDocument);

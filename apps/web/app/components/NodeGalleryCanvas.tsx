@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Skeleton } from '@artifact/ui';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CanvasDocument, CanvasGraph, ImageLayer, Layer, TextLayer } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
 import { imageCacheSignature } from '../utils/imageCacheSignature';
@@ -7,6 +8,7 @@ import { preloadImageSources } from '../utils/preloadImageSources';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
 import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
+import { ActionButton } from './ui/ActionButton';
 
 const GALLERY_GRAPH_RENDER_CACHE_LIMIT = 96;
 const galleryGraphRenderCache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -204,6 +206,8 @@ export function NodeGalleryCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; startView: MediaViewState } | null>(null);
   const viewStateRef = useRef(viewState);
+  const [renderState, setRenderState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [renderAttempt, setRenderAttempt] = useState(0);
   const canvasSize = useMemo(() => galleryCanvasSize(doc), [doc]);
   const renderSessionKey = useMemo(
     () => galleryRenderSessionKey(doc, graph, imageCache, previewTargetId, canvasSize),
@@ -221,27 +225,32 @@ export function NodeGalleryCanvas({
     const { width, height } = canvasSize;
 
     let cancelled = false;
+    setRenderState('loading');
 
     const render = async () => {
-      const result = await renderGalleryCanvas({
-        doc,
-        graph,
-        imageCache,
-        previewTargetId,
-        renderSessionKey,
-        width,
-        height,
-      });
-      if (cancelled) return;
-      if (!canvasRef.current) return;
-      drawGalleryResult(canvasRef.current, result, width, height);
+      try {
+        const result = await renderGalleryCanvas({
+          doc,
+          graph,
+          imageCache,
+          previewTargetId,
+          renderSessionKey,
+          width,
+          height,
+        });
+        if (cancelled || !canvasRef.current) return;
+        drawGalleryResult(canvasRef.current, result, width, height);
+        setRenderState('ready');
+      } catch {
+        if (!cancelled) setRenderState('failed');
+      }
     };
 
     void render();
     return () => {
       cancelled = true;
     };
-  }, [canvasSize, doc, graph, imageCache, previewTargetId, renderSessionKey]);
+  }, [canvasSize, doc, graph, imageCache, previewTargetId, renderAttempt, renderSessionKey]);
 
   const commitView = (next: MediaViewState) => {
     viewStateRef.current = next;
@@ -292,6 +301,9 @@ export function NodeGalleryCanvas({
   return (
     <div
       className="node-gallery-canvas-shell node-interactive-viewport"
+      data-canvas-chrome-surface="node-gallery-canvas"
+      data-canvas-chrome-state={renderState}
+      data-canvas-chrome-pan-zoom={viewState.zoom !== 1 || viewState.offsetX !== 0 || viewState.offsetY !== 0}
       tabIndex={0}
       role="group"
       aria-roledescription="interactive viewport"
@@ -326,6 +338,27 @@ export function NodeGalleryCanvas({
           onLayerUpdate={onLayerUpdate}
         />
       </div>
+      {renderState === 'loading' && (
+        <div className="node-gallery-status node-gallery-status--loading">
+          <Skeleton label="Loading gallery preview" shape="block" />
+        </div>
+      )}
+      {renderState === 'failed' && (
+        <div className="node-gallery-status node-gallery-status--failed" role="alert">
+          <span>Preview unavailable</span>
+          <ActionButton
+            className="node-gallery-retry"
+            size="compact"
+            variant="secondary"
+            onClick={(event) => {
+              event.stopPropagation();
+              setRenderAttempt((attempt) => attempt + 1);
+            }}
+          >
+            Retry
+          </ActionButton>
+        </div>
+      )}
     </div>
   );
 }

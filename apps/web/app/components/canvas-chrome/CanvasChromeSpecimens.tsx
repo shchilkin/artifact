@@ -1,3 +1,4 @@
+import { Skeleton } from '@artifact/ui';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../ui/ActionButton';
 import { IconButton } from '../ui/IconButton';
@@ -253,8 +254,8 @@ function NodeGallerySpecimen() {
       <div className="canvas-chrome-gallery-state-grid" aria-label="Gallery state references">
         <div className="canvas-chrome-gallery-state" data-canvas-chrome-state="loading">
           <span>Loading</span>
-          <i aria-hidden="true" />
-          <i aria-hidden="true" />
+          <Skeleton shape="line" />
+          <Skeleton shape="line" />
         </div>
         <div
           className="canvas-chrome-gallery-state canvas-chrome-gallery-state--failed"

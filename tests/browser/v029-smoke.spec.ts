@@ -128,7 +128,7 @@ test('blank editor and shared primitive project surfaces open and close', async 
   await expect(page.locator('.sidebar')).toBeVisible();
 });
 
-test('node gallery dialog opens with an accessible title', async ({ page }) => {
+test('node gallery dialog exposes the canvas-chrome viewport contract', async ({ page }) => {
   await page.goto(documentUrl(galleryDocument));
 
   await switchToNodeView(page);
@@ -139,6 +139,15 @@ test('node gallery dialog opens with an accessible title', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Gallery title' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('text preview')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Close gallery' })).toHaveClass(/artifact-icon-button/);
+
+  const viewport = dialog.getByRole('group', { name: /Gallery title preview/ });
+  await expect(viewport).toHaveAttribute('data-canvas-chrome-surface', 'node-gallery-canvas');
+  await expect(viewport).toHaveAttribute('data-canvas-chrome-state', 'ready', { timeout: 15_000 });
+  await viewport.focus();
+  await expect(viewport).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(viewport).toHaveAttribute('data-canvas-chrome-pan-zoom', 'true');
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

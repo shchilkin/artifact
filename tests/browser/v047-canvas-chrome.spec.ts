@@ -236,7 +236,7 @@ test('v0.47 style guide exposes deterministic reduced canvas-chrome specimens', 
   );
 
   const gallery = page.locator('[data-canvas-chrome-specimen="node-gallery-canvas"]');
-  await expect(gallery.locator('[data-canvas-chrome-state="loading"] i')).toHaveCount(2);
+  await expect(gallery.locator('[data-canvas-chrome-state="loading"] .ui-skeleton')).toHaveCount(2);
   await expect(
     gallery.locator('[data-canvas-chrome-state="failed"]').getByRole('button', { name: 'Retry' }),
   ).toBeVisible();
